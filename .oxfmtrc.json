@@ -1,0 +1,3 @@
+{
+  "ignorePatterns": ["packages/engine/test/fixtures/", "packages/engine/test/__snapshots__/"]
+}

@@ -1,6 +1,7 @@
 # 001 — Trace engine + config input
 
-Milestone: M0/M1 · Status: planned
+Milestone: M0/M1 · Status: in progress (M0 spike passed 2026-07-23; engine,
+tests, app shell, CI + Pages deploy implemented)
 
 ## Summary
 
@@ -24,8 +25,9 @@ produced by Renovate's own code, not a reimplementation.
 - Browser shims (Vite aliases) for `lib/util/http/*`, `lib/logger`,
   `lib/util/cache/*`.
 - Trace event model (see spec) with JSON-patch deltas per stage.
-- Input editor (Monaco) with JSON5 support and the Renovate JSON schema wired
-  up for basic squiggles.
+- Input editor (CodeMirror 6 — chosen over Monaco: ~3 MB lighter, and
+  `codemirror-json-schema` validates JSON5 against `renovate-schema.json`,
+  which Monaco's JSON service cannot) with schema squiggles.
 - Stage timeline UI: parse ✓ → migrate ✓ → … with the config snapshot after
   each stage viewable as a diff against the previous stage.
 - Golden tests: engine's final output deep-equals real Renovate's output for a

@@ -32,7 +32,7 @@ it.
 
 ## Out of scope
 
-- `packageRules` *matching* (which rule applies to which dependency) — 006.
+- `packageRules` _matching_ (which rule applies to which dependency) — 006.
 
 ## Dependencies
 

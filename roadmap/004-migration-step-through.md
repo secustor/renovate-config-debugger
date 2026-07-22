@@ -37,7 +37,7 @@ confidently commit the migrated config myself.
 
 ## Dependencies
 
-- 001. UI integrates with 002's preset nodes when both exist.
+- 1. UI integrates with 002's preset nodes when both exist.
 
 ## Risks
 

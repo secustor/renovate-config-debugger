@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Enforce renovate/dist import boundary
+        run: |
+          violations=$(grep -rln "renovate/dist" packages/engine/src packages/app/src \
+            | grep -v "packages/engine/src/renovate-adapter.ts" \
+            | grep -v "packages/engine/src/shims/" \
+            | grep -v "packages/engine/src/types/" || true)
+          if [ -n "$violations" ]; then
+            echo "renovate/dist may only be imported from renovate-adapter.ts, shims/ and types/:"
+            echo "$violations"
+            exit 1
+          fi
+
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm -r typecheck
+      - name: Golden tests (real renovate modules)
+        run: pnpm --filter @renovate-config-visualizer/engine test:golden
+      - name: Shimmed tests (browser module graph)
+        run: pnpm --filter @renovate-config-visualizer/engine test:shimmed
+      - name: Browser bundle build
+        run: pnpm --filter @renovate-config-visualizer/app build
+
+      - uses: actions/upload-pages-artifact@v4
+        if: github.ref == 'refs/heads/main'
+        with:
+          path: packages/app/dist
+
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: checks
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

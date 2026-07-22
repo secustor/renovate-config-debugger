@@ -29,9 +29,9 @@ leaving the page.
 
 ## Out of scope
 
-- Explaining *values* (e.g. what a given `matchPackageNames` pattern matches)
+- Explaining _values_ (e.g. what a given `matchPackageNames` pattern matches)
   — that's 006 territory.
 
 ## Dependencies
 
-- 001. Independent of 002; can be built in parallel.
+- 1. Independent of 002; can be built in parallel.
