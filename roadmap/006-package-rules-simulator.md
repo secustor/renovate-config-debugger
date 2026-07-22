@@ -13,7 +13,7 @@ per-dependency config Renovate would use for it.
 
 As a user, I want to ask "what happens when `lodash` gets a minor update in
 `package.json`?" and see each `packageRules` entry evaluated — matched or not,
-and *why* (which `match*`/`exclude*` clause decided it) — plus the resulting
+and _why_ (which `match*`/`exclude*` clause decided it) — plus the resulting
 merged config (grouping, automerge, schedule, labels…).
 
 ## Scope
@@ -33,7 +33,7 @@ merged config (grouping, automerge, schedule, labels…).
 ## Out of scope
 
 - Real dependency extraction from manifests, datasource lookups, actual
-  scheduling evaluation against a clock (a `schedule` *explainer* could be a
+  scheduling evaluation against a clock (a `schedule` _explainer_ could be a
   follow-up).
 
 ## Dependencies

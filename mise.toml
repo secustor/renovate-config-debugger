@@ -1,0 +1,12 @@
+[tools]
+node = "26.5.0"
+pnpm = "11.16.0"
+
+[hooks]
+postinstall = '''
+pnpm install
+'''
+
+[settings]
+# needed for hooks
+experimental = true

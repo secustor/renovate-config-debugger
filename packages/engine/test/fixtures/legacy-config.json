@@ -1,0 +1,11 @@
+{
+  "pinVersions": true,
+  "baseBranch": "next",
+  "semanticCommits": true,
+  "packageRules": [
+    {
+      "packageNames": ["lodash"],
+      "automerge": true
+    }
+  ]
+}

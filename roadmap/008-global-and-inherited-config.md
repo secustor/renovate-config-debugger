@@ -23,7 +23,7 @@ users can't override, what `inheritConfig` injects in between, and where
 - Engine: run the corresponding Renovate stages (`lib/config/defaults.ts`,
   global validation, `lib/config/inherit.ts`) and add the layers to the merge
   trace, so 005's provenance view shows `default / global / inherited /
-  preset / repo` badges.
+preset / repo` badges.
 - Model global-only vs repo-allowed option boundaries (`globalOnly` flag in
   option metadata); flag repo-config attempts to set global-only options.
 - Validation of each layer with the layer-appropriate rules

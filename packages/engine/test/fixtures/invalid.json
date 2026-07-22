@@ -1,0 +1,5 @@
+{
+  "notARealOption": true,
+  "automerge": "yes",
+  "labels": "should-be-an-array"
+}

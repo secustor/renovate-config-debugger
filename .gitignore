@@ -1,1 +1,12 @@
 .agents/
+.claude/worktrees/
+.claude/settings.local.json
+
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+stats.html
+.idea/
+.pnpm-store/

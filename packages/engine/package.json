@@ -1,0 +1,28 @@
+{
+  "name": "@renovate-config-visualizer/engine",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema.ts",
+    "./vite-plugin": "./src/shims/vite-plugin-renovate-shims.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "pnpm test:golden && pnpm test:shimmed",
+    "test:golden": "vitest run --project golden",
+    "test:shimmed": "vitest run --project shimmed"
+  },
+  "dependencies": {
+    "fast-json-patch": "3.1.1",
+    "json5": "2.2.3",
+    "pathe": "^2.0.3",
+    "renovate": "43.275.0"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

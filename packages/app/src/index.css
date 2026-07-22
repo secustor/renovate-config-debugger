@@ -1,0 +1,217 @@
+:root {
+  color-scheme: light dark;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  --border: light-dark(#d0d7de, #3d444d);
+  --surface: light-dark(#f6f8fa, #151b23);
+  --accent: #0969da;
+  --ok: #1a7f37;
+  --error: #cf222e;
+  --warn: #9a6700;
+  --muted: light-dark(#59636e, #9198a1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: light-dark(#ffffff, #0d1117);
+  color: light-dark(#1f2328, #f0f6fc);
+}
+
+main {
+  margin: 0 auto;
+  max-width: 75rem;
+  padding: 1.5rem 1rem 4rem;
+}
+
+header.app-header {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.subtitle {
+  color: var(--muted);
+  margin: 0.25rem 0 1rem;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.card > .card-title {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.5rem 0.75rem;
+}
+
+.toolbar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+.toolbar select,
+.toolbar input,
+.toolbar button {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  padding: 0.4rem 0.75rem;
+}
+
+.toolbar input {
+  background: transparent;
+  color: inherit;
+  flex: 1;
+  min-width: 12rem;
+}
+
+.toolbar button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.toolbar button.primary:disabled {
+  opacity: 0.6;
+}
+
+.stage-timeline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 1rem 0;
+}
+
+.stage-chip {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.85rem;
+  gap: 0.35rem;
+  padding: 0.3rem 0.8rem;
+}
+
+.stage-chip.selected {
+  border-color: var(--accent);
+  outline: 1px solid var(--accent);
+}
+
+.stage-chip .dot {
+  border-radius: 50%;
+  height: 0.5rem;
+  width: 0.5rem;
+}
+
+.stage-chip .dot.ok {
+  background: var(--ok);
+}
+
+.stage-chip .dot.error {
+  background: var(--error);
+}
+
+.stage-chip .dot.skipped {
+  background: var(--muted);
+}
+
+.messages li.error {
+  color: var(--error);
+}
+
+.messages li.warn {
+  color: var(--warn);
+}
+
+pre.config-view {
+  background: var(--surface);
+  font-size: 0.85rem;
+  margin: 0;
+  max-height: 32rem;
+  overflow: auto;
+  padding: 0.75rem;
+}
+
+.diff-wrapper {
+  font-size: 0.8rem;
+  max-height: 32rem;
+  overflow: auto;
+}
+
+.empty-note {
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding: 0.75rem;
+}
+
+.preset-list {
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.7;
+  padding: 0.75rem;
+}
+
+.version-badge {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  padding: 0.25rem 0.75rem;
+  white-space: nowrap;
+}
+
+/* react-diff-view ships light-theme colors only; keep text readable in dark */
+@media (prefers-color-scheme: dark) {
+  .diff {
+    background: transparent;
+    color: inherit;
+  }
+
+  .diff-code-delete {
+    background: #3d1418;
+  }
+
+  .diff-gutter-delete {
+    background: #67060c;
+    color: #f0f6fc;
+  }
+
+  .diff-code-insert {
+    background: #103218;
+  }
+
+  .diff-gutter-insert {
+    background: #033a16;
+    color: #f0f6fc;
+  }
+
+  .diff-gutter {
+    color: var(--muted);
+  }
+}
