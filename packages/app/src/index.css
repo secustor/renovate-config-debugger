@@ -575,6 +575,46 @@ button.badge.dup {
   padding: 0.4rem 0.6rem;
 }
 
+/* ---------- global + inherited config layers (008) ---------- */
+
+textarea.layer-editor {
+  background: light-dark(#ffffff, #0d1117);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: inherit;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  padding: 0.5rem 0.6rem;
+  resize: vertical;
+  width: 100%;
+}
+
+textarea.layer-editor:focus {
+  border-color: var(--accent);
+  outline: 1px solid var(--accent);
+}
+
+.layer-editor-error {
+  color: var(--error);
+  font-size: 0.85rem;
+  margin: 0.4rem 0 0;
+}
+
+.platform-override-warning {
+  color: var(--warn);
+}
+
+.platform-override-clear {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0;
+  text-decoration: underline;
+}
+
 .advanced-note {
   color: var(--muted);
   font-size: 0.8rem;
@@ -1026,6 +1066,17 @@ button.badge.dup {
 .badge.prov-preset {
   border-color: #8250df;
   color: #8250df;
+}
+
+/* 008 layer badges — distinct hues next to the repo blue / preset purple */
+.badge.prov-global {
+  border-color: light-dark(#1b7c83, #56d4dd);
+  color: light-dark(#1b7c83, #56d4dd);
+}
+
+.badge.prov-inherited {
+  border-color: light-dark(#bf3989, #ff80c8);
+  color: light-dark(#bf3989, #ff80c8);
 }
 
 .badge.prov-overridden {

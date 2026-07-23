@@ -33,18 +33,33 @@ export interface ShareState {
   platform: string;
   endpoint: string;
   renovate: string;
+  /** Parsed 008 layers; omitted from the link when absent. */
+  globalConfig?: Record<string, unknown>;
+  inheritedConfig?: Record<string, unknown>;
+  /** The platform/endpoint explicitly override the global config's values. */
+  platformOverride?: boolean;
   view?: ShareView;
 }
 
-/** The decoded payload as stored in the fragment. */
+/**
+ * The decoded payload as stored in the fragment. v2 (008) added the optional
+ * global/inherited config layers; v1 payloads simply lack them.
+ */
 export interface SharePayload {
-  v: 1;
+  v: 1 | 2;
   renovate: string;
   config: string;
   fileName: ShareFileName;
   platform?: string;
   endpoint?: string;
+  globalConfig?: Record<string, unknown>;
+  inheritedConfig?: Record<string, unknown>;
+  platformOverride?: boolean;
   view?: ShareView;
+}
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
 async function pipeThrough(bytes: Uint8Array, stream: GenericTransformStream): Promise<Uint8Array> {
@@ -82,7 +97,7 @@ function base64urlToBytes(token: string): Uint8Array {
 /** Encodes state into the fragment token (the value after `#config=`). */
 export async function encodeShare(state: ShareState): Promise<string> {
   const payload: SharePayload = {
-    v: 1,
+    v: 2,
     renovate: state.renovate,
     config: state.config,
     fileName: state.fileName,
@@ -93,6 +108,15 @@ export async function encodeShare(state: ShareState): Promise<string> {
   }
   if (state.endpoint && state.endpoint !== DEFAULT_ENDPOINT) {
     payload.endpoint = state.endpoint;
+  }
+  if (state.globalConfig) {
+    payload.globalConfig = state.globalConfig;
+  }
+  if (state.inheritedConfig) {
+    payload.inheritedConfig = state.inheritedConfig;
+  }
+  if (state.platformOverride) {
+    payload.platformOverride = true;
   }
   const view = normalizeView(state.view);
   if (view) {
@@ -127,10 +151,11 @@ export async function decodeShare(token: string): Promise<SharePayload | null> {
     const bytes = base64urlToBytes(token);
     const json = new TextDecoder().decode(await inflateRaw(bytes));
     const parsed: unknown = JSON.parse(json);
+    const version = (parsed as { v?: unknown } | null)?.v;
     if (
       typeof parsed !== "object" ||
       parsed === null ||
-      (parsed as { v?: unknown }).v !== 1 ||
+      (version !== 1 && version !== 2) ||
       typeof (parsed as { config?: unknown }).config !== "string"
     ) {
       return null;
@@ -138,6 +163,16 @@ export async function decodeShare(token: string): Promise<SharePayload | null> {
     const p = parsed as SharePayload;
     // Normalize fileName to the two supported values.
     p.fileName = p.fileName === "renovate.json5" ? "renovate.json5" : "renovate.json";
+    // Layer configs (v2) must be plain objects; drop anything else.
+    if (!isPlainObject(p.globalConfig)) {
+      delete p.globalConfig;
+    }
+    if (!isPlainObject(p.inheritedConfig)) {
+      delete p.inheritedConfig;
+    }
+    if (typeof p.platformOverride !== "boolean") {
+      delete p.platformOverride;
+    }
     return p;
   } catch {
     return null;

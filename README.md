@@ -82,12 +82,27 @@ Note: Renovate's config code is not a public API, so the `renovate` dependency
 is pinned exactly and every Renovate release PR runs the full CI (golden tests
 plus browser build) to catch breakage per release.
 
+## Global + inherited config layers
+
+Self-hosted administrators can paste a **global config** (the JSON form of
+`config.js` / env / CLI) and an **inherited config** (`inheritConfig`)
+alongside the repo config. The pipeline then models the full layer stack a
+real Renovate run uses — defaults → `globalExtends` presets → global config →
+inherited config (validated with Renovate's `inherit` rules, its presets
+resolved, global-only options stripped) → repo presets → repo config — with
+two extra stages in the timeline and `global config` / `inherited config`
+badges in the per-key provenance view. Repo configs that try to set
+global-only options get Renovate's own boundary warning. `platform` /
+`endpoint` from the global config drive the platform-context control: it shows
+them marked "from global config", and changing it becomes an explicit,
+visibly-warned override.
+
 ## Sharing & loading
 
 **Shareable links** — _Copy link_ (next to _Run pipeline_) puts a link on your
 clipboard that reopens the current analysis: the config text, the file format,
-a non-default platform/endpoint, and your current view (selected stage, the
-selected preset node, the migration step). It is stored compressed in the URL
+a non-default platform/endpoint, any global/inherited config layers, and your
+current view (selected stage, the selected preset node, the migration step). It is stored compressed in the URL
 _fragment_ (`#config=…`), so it never reaches any server log, and opening a link
 auto-runs the same pipeline. The link records the Renovate version it was made
 with and warns you if you're now on a different one, since results can drift.

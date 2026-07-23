@@ -1,8 +1,19 @@
 import type { StageId, TraceResult } from "@renovate-config-visualizer/engine";
 
-const STAGE_ORDER: StageId[] = ["parse", "migrate", "massage", "validate", "preset", "merge"];
+const STAGE_ORDER: StageId[] = [
+  "global",
+  "inherit",
+  "parse",
+  "migrate",
+  "massage",
+  "validate",
+  "preset",
+  "merge",
+];
 
 const STAGE_LABELS: Record<StageId, string> = {
+  global: "Global config",
+  inherit: "Inherited",
   parse: "Parse",
   migrate: "Migrate",
   massage: "Massage",

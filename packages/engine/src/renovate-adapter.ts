@@ -16,5 +16,6 @@ export { parsePreset } from "renovate/dist/config/presets/parse.js";
 export { mergeChildConfig } from "renovate/dist/config/utils.js";
 export { getConfig as getDefaultConfig } from "renovate/dist/config/defaults.js";
 export { GlobalConfig } from "renovate/dist/config/global.js";
+export { InheritConfig } from "renovate/dist/config/inherit.js";
 export { getOptions } from "renovate/dist/config/options/index.js";
 export * as memCache from "renovate/dist/util/cache/memory/index.js";

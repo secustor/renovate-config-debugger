@@ -48,6 +48,12 @@ function layerLabel(layer: ProvenanceStep["layer"]): string {
   if (layer.kind === "defaults") {
     return "default";
   }
+  if (layer.kind === "global") {
+    return "global config";
+  }
+  if (layer.kind === "inherited") {
+    return "inherited config";
+  }
   if (layer.kind === "repo") {
     return "repo config";
   }

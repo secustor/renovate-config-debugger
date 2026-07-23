@@ -122,6 +122,19 @@ declare module "renovate/dist/config/presets/util.js" {
   export function parsePreset(content: string, fileName: string): Record<string, unknown>;
 }
 
+declare module "renovate/dist/config/inherit.js" {
+  // Renovate ships this as a class with only static members; modelled here as
+  // a namespace so callers get the same `InheritConfig.set(...)` access
+  // without an extraneous-class lint warning.
+  export namespace InheritConfig {
+    const OPTIONS: readonly string[];
+    function get(key: string): unknown;
+    /** Captures the inherit-supported options into module state and RETURNS the config with them stripped. */
+    function set(config: RenovateConfig): RenovateConfig;
+    function reset(): void;
+  }
+}
+
 declare module "renovate/dist/util/cache/memory/index.js" {
   export function init(): void;
   export function reset(): void;
