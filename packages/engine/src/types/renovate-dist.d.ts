@@ -159,6 +159,39 @@ declare module "renovate/dist/util/package-rules/index.js" {
   ): Promise<RenovateConfig>;
 }
 
+declare module "renovate/dist/modules/versioning/index.js" {
+  /**
+   * The subset of Renovate's VersioningApi the simulator's updateType
+   * derivation (roadmap 015) reads. `getMajor`/`getMinor` return null when
+   * the input isn't a version the scheme can parse.
+   */
+  export interface VersioningApi {
+    isVersion(input: string | undefined | null): boolean;
+    equals(version: string, other: string): boolean;
+    getMajor(version: string): number | null;
+    getMinor(version: string): number | null;
+    isSame?(type: "major" | "minor" | "patch", a: string, b: string): boolean;
+  }
+  /** Looks up a versioning scheme by name; defaults to semver-coerced when
+   *  omitted/null. Throws for an unregistered name, same as upstream. */
+  export function get(versioning?: string | null): VersioningApi;
+}
+
+declare module "renovate/dist/workers/repository/process/lookup/update-type.js" {
+  import type { VersioningApi } from "renovate/dist/modules/versioning/index.js";
+  /**
+   * Upstream's own major/minor/patch bucketing (`config` is accepted but
+   * unused by the current implementation). Only ever returns one of these
+   * three — rollback/pin/digest/bump/replacement are decided elsewhere.
+   */
+  export function getUpdateType(
+    config: RenovateConfig,
+    versioningApi: VersioningApi,
+    currentVersion: string,
+    newVersion: string,
+  ): "major" | "minor" | "patch";
+}
+
 declare module "renovate/dist/util/cache/memory/index.js" {
   export function init(): void;
   export function reset(): void;

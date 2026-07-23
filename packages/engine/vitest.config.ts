@@ -30,6 +30,7 @@ export default defineConfig({
             "test/provenance.shimmed.test.ts",
             "test/repo-config.test.ts",
             "test/simulate-package-rules.shimmed.test.ts",
+            "test/version.shimmed.test.ts",
           ],
           environment: "node",
           server: {
