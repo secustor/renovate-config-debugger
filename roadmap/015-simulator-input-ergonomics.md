@@ -1,6 +1,27 @@
 # 015 — Simulator input ergonomics
 
-Milestone: M5 · Status: planned
+Milestone: M5 · Status: done 2026-07-24
+
+> Implemented as specified. `sourceUrl` is now a primary field (next to
+> currentValue/newValue) with a placeholder and a glossary hover card that
+> names it as the DEPENDENCY's repo and cross-references `repository` (also
+> given a hover card) as the repo Renovate runs in. `updateType` derivation
+> wraps Renovate's own `getUpdateType` plus its versioning `get()` lookup
+> (`packages/engine/src/version.ts`'s `deriveUpdateType`, both re-exported
+> through `renovate-adapter.ts`'s import boundary) — live in the form via a
+> "(derived)" hint next to the select, and independently recomputed inside
+> `simulate()` at run time so a manual override always wins but a stale
+> quick-fill value never silently survives an edited version pair. The
+> empty-form guard and the stale-results veil are both reactive: the guard
+> clears itself the moment any field gets content, and staleness now dims the
+> entire results block (not just the small text hint) under a banner that
+> stays full-strength. Added a `nuget` quick-fill chip. The updateType
+> select's arrow-key handling is now done manually in JS rather than left to
+> the browser — investigation traced the reported "arrow keys ignored" not to
+> any app bug (a bare, JS-free `<select>` under the same automated-browser
+> driver used by the persona study reproduces the identical non-response),
+> but per-option manual stepping is deterministic everywhere regardless, so
+> it's implemented anyway as a robustness fix.
 
 ## Summary
 

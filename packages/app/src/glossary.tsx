@@ -99,6 +99,23 @@ export const GLOSSARY = {
     plain:
       "The final result after defaults, presets and your own settings are merged in order — the configuration Renovate actually acts on for your repository.",
   },
+  simSourceUrl: {
+    name: "sourceUrl",
+    plain:
+      'The DEPENDENCY\'s own source repository — e.g. "https://github.com/facebook/react" ' +
+      "for the react package. This is what matchSourceUrls compares against, and is often the " +
+      "only way to identify a dependency across renames or monorepo moves. It is NOT the repo " +
+      "Renovate is running in — that's the repository field.",
+    url: "https://docs.renovatebot.com/configuration-options/#matchsourceurls",
+  },
+  simRepository: {
+    name: "repository",
+    plain:
+      'The repo Renovate is running IN — e.g. "your-org/your-repo". This is what ' +
+      "matchRepositories compares against. It is NOT the dependency's own source — that's " +
+      "the sourceUrl field.",
+    url: "https://docs.renovatebot.com/configuration-options/#matchrepositories",
+  },
   dependencyDashboard: {
     name: "Dependency Dashboard",
     plain:

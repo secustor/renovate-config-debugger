@@ -28,3 +28,12 @@ export {
   type PackageRuleMatcher,
 } from "renovate/dist/util/package-rules/matchers.js";
 export * as memCache from "renovate/dist/util/cache/memory/index.js";
+// The simulator's updateType derivation (roadmap 015) needs a versioning
+// scheme's compare functions plus upstream's own major/minor/patch bucketing
+// — the same two calls the real dependency lookup makes before an update's
+// updateType is ever set.
+export {
+  get as getVersioningApi,
+  type VersioningApi,
+} from "renovate/dist/modules/versioning/index.js";
+export { getUpdateType } from "renovate/dist/workers/repository/process/lookup/update-type.js";

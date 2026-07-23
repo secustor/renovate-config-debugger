@@ -1977,3 +1977,48 @@ pre.config-view.prov-before {
   font-size: 0.78rem;
   margin-top: 0.35rem;
 }
+
+/* Roadmap 015: simulator input ergonomics — derived-updateType hint, the
+   empty-form guard, and an unmissable stale-results veil (the small
+   .sim-stale text hint alone was skimmed past in the persona study). */
+
+.sim-derived-hint {
+  color: var(--muted);
+  font-size: 0.72rem;
+  margin-top: 0.15rem;
+}
+
+.sim-link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.sim-empty-guard {
+  color: var(--warn);
+  font-size: 0.85rem;
+  margin: -0.25rem 0.75rem 0.75rem;
+}
+
+.sim-stale-banner {
+  background: color-mix(in srgb, var(--warn) 12%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--border));
+  border-radius: 6px;
+  color: var(--warn);
+  font-size: 0.85rem;
+  margin: 0 0 0.6rem;
+  padding: 0.5rem 0.65rem;
+}
+
+.sim-results-body.stale {
+  filter: grayscale(65%);
+  opacity: 0.5;
+  transition:
+    opacity 0.15s ease,
+    filter 0.15s ease;
+}
