@@ -43,7 +43,12 @@ async function reference(fileName: string, content: string): Promise<Record<stri
 }
 
 describe("golden reference", () => {
-  for (const name of ["legacy-config.json", "internal-presets.json", "invalid.json"]) {
+  for (const name of [
+    "legacy-config.json",
+    "migration-steps.json",
+    "internal-presets.json",
+    "invalid.json",
+  ]) {
     it(`engine matches renovate's own output for ${name}`, async () => {
       const content = fixture(name);
       const expected = await reference(name, content);

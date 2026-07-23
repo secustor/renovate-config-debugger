@@ -1,7 +1,13 @@
 import { memo, useEffect, useMemo, useState } from "react";
-import type { PresetNode, PresetSourceRef, TraceResult } from "@renovate-config-visualizer/engine";
+import type {
+  PresetNode,
+  PresetSourceRef,
+  TraceEvent,
+  TraceResult,
+} from "@renovate-config-visualizer/engine";
 import { ConfigJson } from "./ConfigJson";
 import { JsonDiff } from "./JsonDiff";
+import { MigrationSteps } from "./MigrationSteps";
 
 type InjectionKeyFn = (id: {
   presetSource: string;
@@ -116,6 +122,20 @@ export const PresetTree = memo(function PresetTree({
     () => new Set(result.usedInjections ?? []),
     [result.usedInjections],
   );
+  // Migration steps Renovate applied while fetching each preset (004), grouped
+  // by the preset they belong to so the detail panel can show them per node.
+  const migrationStepsByPreset = useMemo(() => {
+    const map = new Map<string, TraceEvent[]>();
+    for (const event of result.events) {
+      const presetName = event.migration?.presetName;
+      if (event.kind === "migration-applied" && presetName) {
+        const list = map.get(presetName) ?? [];
+        list.push(event);
+        map.set(presetName, list);
+      }
+    }
+    return map;
+  }, [result.events]);
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -188,6 +208,7 @@ export const PresetTree = memo(function PresetTree({
             parse={helpers?.parse ?? null}
             usedInjections={usedInjections}
             onInject={onInject}
+            migrationSteps={migrationStepsByPreset.get(selected.name) ?? []}
           />
         ) : (
           <div className="preset-panel-hint">Select a preset to inspect it.</div>
@@ -427,6 +448,7 @@ function PresetDetail({
   parse,
   usedInjections,
   onInject,
+  migrationSteps,
 }: {
   node: PresetNode;
   parent: PresetNode | undefined;
@@ -435,6 +457,7 @@ function PresetDetail({
   parse: ParseFn | null;
   usedInjections: ReadonlySet<string>;
   onInject: (key: string, content: Record<string, unknown>) => void;
+  migrationSteps: TraceEvent[];
 }) {
   const contribution = useContribution(node, parent);
   const stateLabel = STATE_LABELS[node.state];
@@ -488,6 +511,15 @@ function PresetDetail({
             after={node.input}
             names={["fetched", "migrated"]}
           />
+          {migrationSteps.length > 0 ? (
+            <div className="preset-migration-steps">
+              <div className="preset-migration-steps-title">
+                Step through the {migrationSteps.length} migration
+                {migrationSteps.length === 1 ? "" : "s"}
+              </div>
+              <MigrationSteps key={`${node.id}-steps`} steps={migrationSteps} compact />
+            </div>
+          ) : null}
         </details>
       ) : null}
       {node.resolved !== undefined &&

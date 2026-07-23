@@ -10,6 +10,7 @@ export {
 } from "./shims/presets/injection";
 export type {
   LogLevel,
+  MigrationStepInfo,
   PipelineInput,
   PlatformContext,
   PresetNode,

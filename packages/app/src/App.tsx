@@ -1,8 +1,9 @@
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import type { OptionIndex, StageId, TraceResult } from "@renovate-config-visualizer/engine";
 import { ConfigEditor } from "./components/ConfigEditor";
 import { EffectiveConfig } from "./components/EffectiveConfig";
 import { MessagesPanel } from "./components/MessagesPanel";
+import { MigrationSteps } from "./components/MigrationSteps";
 import { PresetTree } from "./components/PresetTree";
 import { StageDiff } from "./components/StageDiff";
 import { StageTimeline } from "./components/StageTimeline";
@@ -124,6 +125,19 @@ export function App() {
 
   const usesLocal = platform !== "github";
 
+  // Granular migrate-stage steps (004); the migrate stage shows the stepper
+  // when any exist, otherwise falls back to the whole-stage blob diff.
+  const migrateSteps = useMemo(
+    () =>
+      result?.events.filter((e) => e.stage === "migrate" && e.kind === "migration-applied") ?? [],
+    [result],
+  );
+  const finalMigrated = useMemo(
+    () =>
+      result?.events.findLast((e) => e.stage === "migrate" && e.kind === "stage-complete")?.after,
+    [result],
+  );
+
   return (
     <OptionDocsProvider index={optionIndex}>
       <main>
@@ -241,7 +255,11 @@ export function App() {
                   <span className="rendering-note"> rendering…</span>
                 ) : null}
               </div>
-              <StageDiff result={result} stage={deferredStage} />
+              {deferredStage === "migrate" && migrateSteps.length > 0 ? (
+                <MigrationSteps steps={migrateSteps} finalConfig={finalMigrated} />
+              ) : (
+                <StageDiff result={result} stage={deferredStage} />
+              )}
             </div>
             <MessagesPanel result={result} />
             <PresetTree result={result} onInject={onInject} />

@@ -136,6 +136,15 @@ export class PresetTreeBuilder {
     return this.root;
   }
 
+  /**
+   * The preset currently being fetched, if any. During the preset stage a
+   * preset is migrated on fetch between its "Resolving preset" and its
+   * `resolveConfigPresets` entry logs, so it is the top frame's `pendingChild`.
+   */
+  currentPresetName(): string | undefined {
+    return this.top()?.pendingChild?.name;
+  }
+
   private top(): Frame | undefined {
     return this.frames.at(-1);
   }

@@ -93,6 +93,30 @@ describe("github preset fetcher", () => {
   });
 });
 
+describe("migration steps during preset fetch", () => {
+  it("emits preset-stage migration steps tagged with the preset name", async () => {
+    // Renovate migrates every preset on fetch; a preset carrying a deprecated
+    // option therefore produces migration-applied events during the preset
+    // stage, tagged with the preset they belong to.
+    const legacyPreset = JSON.stringify({ versionScheme: "semver", labels: ["x"] });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(legacyPreset, { status: 200 })));
+
+    const result = await runPipeline({
+      fileName: "renovate.json",
+      content: '{ "extends": ["github>example-org/renovate-config"] }',
+    });
+
+    const presetSteps = result.events.filter(
+      (e) => e.kind === "migration-applied" && e.stage === "preset",
+    );
+    expect(presetSteps.length).toBeGreaterThan(0);
+    const rename = presetSteps.find((s) => s.migration?.key === "versionScheme");
+    expect(rename?.migration?.newKey).toBe("versioning");
+    expect(rename?.migration?.presetName).toBe("github>example-org/renovate-config");
+    expect(rename?.delta?.length).toBeGreaterThan(0);
+  });
+});
+
 describe("npm preset fetcher", () => {
   it("resolves renovate-config from the latest packument version", async () => {
     const packument = {

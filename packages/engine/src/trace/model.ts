@@ -22,6 +22,31 @@ export interface ValidationMessage {
   message: string;
 }
 
+/**
+ * Per-step detail attached to a granular `migration-applied` event (004). Each
+ * step is one migration class (or one non-class post-processing block) that
+ * actually changed the config; the event's before/after are full-document
+ * snapshots so the stepper's diffs stay small.
+ */
+export interface MigrationStepInfo {
+  /** Human-readable label, e.g. `packageNames → matchPackageNames`. */
+  name: string;
+  /** Renovate's migration class name, e.g. `PackageNameMigration`. */
+  className: string;
+  /** The config key this step acted on (absent for post-processing blocks). */
+  key?: string;
+  /** For rename migrations, the key the value moved to. */
+  newKey?: string;
+  /** Parent key when the step fired inside a nested object subtree. */
+  parentKey?: string;
+  /** Fixed-point pass this step belongs to (1 = first pass). */
+  pass?: number;
+  /** Set when the step fired while migrating a preset on fetch (preset stage). */
+  presetName?: string;
+  /** One-sentence explanation of why the old form is deprecated. */
+  explanation?: string;
+}
+
 export type PresetSource =
   | "internal"
   | "github"
@@ -98,6 +123,8 @@ export interface TraceEvent {
   messages?: ValidationMessage[];
   level?: LogLevel;
   meta?: unknown;
+  /** Present on granular `migration-applied` events (004). */
+  migration?: MigrationStepInfo;
 }
 
 export interface PipelineInput {

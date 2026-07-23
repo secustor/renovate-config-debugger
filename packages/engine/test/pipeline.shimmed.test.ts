@@ -13,7 +13,12 @@ function fixture(name: string): string {
 }
 
 describe("shimmed pipeline matches golden snapshots", () => {
-  for (const name of ["legacy-config.json", "internal-presets.json", "invalid.json"]) {
+  for (const name of [
+    "legacy-config.json",
+    "migration-steps.json",
+    "internal-presets.json",
+    "invalid.json",
+  ]) {
     it(`produces the golden final config for ${name}`, async () => {
       const result = await runPipeline({ fileName: name, content: fixture(name) });
       await expect(JSON.stringify(result.finalConfig, null, 2)).toMatchFileSnapshot(
@@ -40,6 +45,40 @@ describe("trace shape", () => {
       preset: "ok",
       merge: "ok",
     });
+  });
+
+  it("emits discrete, named migration steps for a legacy config", async () => {
+    const result = await runPipeline({
+      fileName: "migration-steps.json",
+      content: fixture("migration-steps.json"),
+    });
+    const steps = result.events.filter(
+      (e) => e.kind === "migration-applied" && e.stage === "migrate",
+    );
+    // several distinct migrations, each with a non-empty diff and a name
+    expect(steps.length).toBeGreaterThan(3);
+    for (const step of steps) {
+      expect(step.delta?.length).toBeGreaterThan(0);
+      expect(step.migration?.name).toBeTruthy();
+      expect(step.migration?.className).toBeTruthy();
+      expect(step.before).toBeDefined();
+      expect(step.after).toBeDefined();
+    }
+    // a top-level rename surfaces with its old → new name + the target key
+    const rename = steps.find((s) => s.migration?.key === "versionScheme");
+    expect(rename?.migration?.className).toBe("RenamePropertyMigration");
+    expect(rename?.migration?.newKey).toBe("versioning");
+    expect(rename?.migration?.name).toBe("versionScheme → versioning");
+    expect(rename?.migration?.explanation).toBeTruthy();
+    // the packageRules matcher rename (packageNames → matchPackageNames) fires
+    expect(steps.some((s) => s.migration?.className === "PackageRulesMigration")).toBe(true);
+    // the last migrate-stage step's `after` equals the real migrated config,
+    // which is also what stage-complete carries
+    const stageComplete = result.events.findLast(
+      (e) => e.stage === "migrate" && e.kind === "stage-complete",
+    );
+    const lastStep = steps.at(-1);
+    expect(lastStep?.after).toEqual(stageComplete?.after);
   });
 
   it("tracks visited presets and preset-fetch events", async () => {

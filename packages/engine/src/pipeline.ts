@@ -120,17 +120,12 @@ async function execute(input: PipelineInput): Promise<TraceResult> {
     collector.enterStage("migrate");
     collector.emit({ kind: "stage-start", title: "Migrate deprecated options" });
     const before = snapshot(config);
+    // migrateConfig (shimmed to src/shims/migration.ts) emits one granular
+    // `migration-applied` event per migration/post-processing block that
+    // changed something, during this call. The stage-complete event below
+    // still carries the whole-stage before/after as the fallback blob view.
     const { isMigrated, migratedConfig } = migrateConfig(config);
     config = migratedConfig;
-    if (isMigrated) {
-      collector.emit({
-        kind: "migration-applied",
-        title: "Config contained deprecated options and was migrated",
-        before,
-        after: snapshot(config),
-        delta: computeDelta(before, config),
-      });
-    }
     stageStatus.migrate = "ok";
     collector.emit({
       kind: "stage-complete",

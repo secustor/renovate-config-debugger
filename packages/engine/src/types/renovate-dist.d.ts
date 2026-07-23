@@ -26,6 +26,39 @@ declare module "renovate/dist/config/massage.js" {
   export function massageConfig(config: RenovateConfig): RenovateConfig;
 }
 
+declare module "renovate/dist/config/migrations/migrations-service.js" {
+  /** One migration instance. `run` mutates the shared migratedConfig. */
+  export interface Migration {
+    readonly propertyName: string | RegExp;
+    readonly deprecated?: boolean;
+    /** Present on RenamePropertyMigration — the key the value moves to. */
+    readonly newPropertyName?: string;
+    run(value: unknown, key: string, parentKey?: string): void;
+  }
+  // Renovate ships this as a class with only static members; modelled here as
+  // a namespace so callers get the same `MigrationsService.getMigrations(...)`
+  // access without an extraneous-class lint warning.
+  export namespace MigrationsService {
+    const removedProperties: ReadonlySet<string>;
+    const renamedProperties: ReadonlyMap<string, string>;
+    function run(originalConfig: RenovateConfig, parentKey?: string): RenovateConfig;
+    function getMigrations(
+      originalConfig: RenovateConfig,
+      migratedConfig: RenovateConfig,
+    ): Migration[];
+    function getMigration(migrations: Migration[], key: string): Migration | undefined;
+    function isMigrated(originalConfig: RenovateConfig, migratedConfig: RenovateConfig): boolean;
+  }
+}
+
+declare module "renovate/dist/util/regex.js" {
+  export function regEx(pattern: string | RegExp, flags?: string, useCache?: boolean): RegExp;
+}
+
+declare module "renovate/dist/util/clone.js" {
+  export function clone<T>(input: T): T;
+}
+
 declare module "renovate/dist/config/validation.js" {
   export interface ValidationMessage {
     topic: string;

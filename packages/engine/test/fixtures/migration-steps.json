@@ -1,0 +1,13 @@
+{
+  "pinVersions": true,
+  "baseBranch": "next",
+  "semanticCommits": true,
+  "versionScheme": "semver",
+  "binarySource": "auto",
+  "packageRules": [
+    {
+      "packageNames": ["lodash"],
+      "automerge": true
+    }
+  ]
+}
