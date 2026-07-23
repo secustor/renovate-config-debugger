@@ -21,8 +21,10 @@ config.
 - Tree UI rooted at the input config; one node per resolved preset, children
   = its own `extends` entries, preserving resolution order.
 - Per node:
-  - Source badge (internal / github / gitlab / npm / http / local) with the
-    parsed reference (repo, path, tag) from `lib/config/presets/parse.ts`.
+  - Source badge (internal / github / gitlab / gitea / forgejo / npm /
+    http / local) with the parsed reference (repo, path, tag) from
+    `lib/config/presets/parse.ts`; `local>` nodes additionally show the
+    platform context they resolved against (010).
   - Raw fetched content and its migrated+massaged form (Renovate migrates
     every preset on fetch — show that, it surprises people).
   - Parameters substituted via `replaceArgs` (e.g. `schedule:earlyMondays(...)`).
@@ -41,6 +43,13 @@ config.
 
 - Per-key provenance across the whole merge (005) — this feature is
   per-preset, not per-key.
+- Fetchers beyond the ones the engine already ships (github/npm/http):
+  gitlab/gitea/forgejo, `local>` semantics and the platform context are
+  010. The tree must still *render* their failures legibly from day one.
+- Scale features — search, contribution roll-ups, auto-collapse, flat
+  view, virtualization — are 011. 002 only needs to not fall over on
+  `config:recommended` (~1,000+ nodes): collapse deep subtrees by default
+  and keep the DOM bounded.
 
 ## Dependencies
 
