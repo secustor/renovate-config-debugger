@@ -119,15 +119,28 @@ function LayerBadge({
   const clickable = layer.kind === "preset" && onSelectPreset;
   const className = `badge prov-layer ${layerClass(layer)}`;
   if (clickable) {
+    // Not a <button>: KeyRow renders this inside its row-toggle button, and
+    // buttons cannot nest. stopPropagation keeps the row from toggling too.
     return (
-      <button
-        type="button"
+      <span
+        role="button"
+        tabIndex={0}
         className={className}
         title="Show this preset in the resolution tree"
-        onClick={() => onSelectPreset(layer.nodeId)}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelectPreset(layer.nodeId);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            e.stopPropagation();
+            onSelectPreset(layer.nodeId);
+          }
+        }}
       >
         {layerLabel(layer)}
-      </button>
+      </span>
     );
   }
   return <span className={className}>{layerLabel(layer)}</span>;

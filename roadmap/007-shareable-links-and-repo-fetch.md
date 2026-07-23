@@ -1,6 +1,31 @@
 # 007 — Shareable links + fetch config from repo
 
-Milestone: M3 · Status: planned
+Milestone: M4 · Status: done 2026-07-23
+
+> Implemented as specified. Shareable links live entirely in the URL fragment
+> (`#config=<token>`): the payload — config text, file name, non-default
+> platform/endpoint, and view state (stage, selected preset's structural
+> identity, migration step) — is JSON → UTF-8 → native `CompressionStream`
+> `deflate-raw` → base64url, so no compression dependency and nothing hits
+> server logs. Tokens and injected presets are never encoded. The Renovate
+> version rides along for an honest version-drift notice on open. Opening a link
+> decodes, populates state and auto-runs, then translates the stored node
+> identity to the current run's node id (identities are stable across runs, ids
+> are not — the translation reuses `computeTreeStats` via helpers exported from
+> `PresetTree`). "Copy link" encodes on demand (never continuously syncing the
+> hash) and `history.replaceState`s the URL to match. Load-from-repo probes
+> Renovate's documented config-file locations in order via a new engine module
+> `shims/repo-config.ts` (`fetchRepoConfig`), reusing the 010 raw-file
+> transports/auth: first hit wins, a 404 falls through, an `ExternalHostError`
+> (CORS/auth/rate-limit) aborts the whole probe, `package.json`'s `renovate` key
+> is honored (object or `extends` string), and exhaustion throws a catchable
+> `RepoConfigNotFoundError`. A known host (github.com/gitlab.com/gitea.com/
+> codeberg.org) also sets the platform context so a later `local>` resolves;
+> a bare `owner/repo` uses the current context. Migration-step lifting gives the
+> top-level `MigrationSteps` optional controlled `index`/`onIndexChange` props
+> (the preset-detail instance stays uncontrolled). Deviations: none material —
+> the config-file-name list is hardcoded (upstream exports `getConfigFileNames()`
+> not the raw array) with a pointer to `config/app-strings.js`.
 
 ## Summary
 

@@ -12,6 +12,13 @@ interface Props {
   finalConfig?: unknown;
   /** Tighter layout for the preset detail panel. */
   compact?: boolean;
+  /**
+   * Controlled step index. When provided (with onIndexChange), the parent owns
+   * the index — used so a shareable link (007) can restore the step. Falls back
+   * to internal state when omitted (the uncontrolled PresetDetail instance).
+   */
+  index?: number;
+  onIndexChange?: (index: number) => void;
 }
 
 /**
@@ -21,14 +28,30 @@ interface Props {
  * per-step diff (small) and the cumulative diff (stage start → current step)
  * come straight from the event stream.
  */
-export const MigrationSteps = memo(function MigrationSteps({ steps, finalConfig, compact }: Props) {
-  const [index, setIndex] = useState(0);
+export const MigrationSteps = memo(function MigrationSteps({
+  steps,
+  finalConfig,
+  compact,
+  index,
+  onIndexChange,
+}: Props) {
+  const controlled = index !== undefined;
+  const [internalIndex, setInternalIndex] = useState(0);
   const [cumulative, setCumulative] = useState(false);
   const [copied, setCopied] = useState(false);
+  const activeIndex = controlled ? index : internalIndex;
+  const setIndex = (next: number) => {
+    if (controlled) {
+      onIndexChange?.(next);
+    } else {
+      setInternalIndex(next);
+    }
+  };
 
-  // A re-run replaces the event list; reset to the first step.
+  // A re-run replaces the event list; reset to the first step. When controlled,
+  // the parent owns the reset (it clears its index on new results).
   useEffect(() => {
-    setIndex(0);
+    setInternalIndex(0);
     setCopied(false);
   }, [steps]);
 
@@ -36,7 +59,7 @@ export const MigrationSteps = memo(function MigrationSteps({ steps, finalConfig,
     return null;
   }
 
-  const clamped = Math.min(index, steps.length - 1);
+  const clamped = Math.min(Math.max(activeIndex, 0), steps.length - 1);
   const step = steps[clamped];
   if (!step) {
     return null;

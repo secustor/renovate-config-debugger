@@ -27,6 +27,7 @@ export default defineConfig({
             "test/pipeline.shimmed.test.ts",
             "test/preset-fetchers.test.ts",
             "test/provenance.shimmed.test.ts",
+            "test/repo-config.test.ts",
           ],
           environment: "node",
           server: {

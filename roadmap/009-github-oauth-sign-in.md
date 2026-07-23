@@ -1,6 +1,39 @@
 # 009 — "Sign in with GitHub" instead of pasting a token
 
-Milestone: M3 · Status: planned
+Milestone: M4 · Status: done 2026-07-23
+
+> Implemented as specified. A new workspace package `packages/oauth-worker` is a
+> stateless Cloudflare Worker token-exchange proxy (pure `handleRequest(req,
+env)` + a thin default export; unit-tested with `fetch` stubbed, no wrangler
+> needed): CORS locked to an `ALLOWED_ORIGINS` allow-list (reflects the matched
+> origin, never `*`; other origins get 403 before GitHub is touched), `POST
+/exchange` and `POST /refresh` append the `client_secret` (Worker secret) and
+> pass GitHub's token JSON back verbatim, nothing logged. The SPA drives the
+> whole authorization-code + PKCE + `state` flow itself (`packages/app/src/
+oauth.ts`, pure logic): PKCE via `crypto.subtle`, token in memory mirrored to
+> `sessionStorage` (never `localStorage`, never a URL), silent single-flight
+> refresh, `signOut()` that clears `rcv.oauth.*` and links to GitHub's
+> authorization page for true revocation. The mount effect completes an OAuth
+> callback (QUERY `?code&state`) before the 007 share-hash decode and restores
+> the pre-sign-in fragment, so a share link survives the round-trip. `run.ts`
+> `ensureAuth` now prefers the (refreshable) OAuth token over the PAT for
+> `githubToken`. The four PAT fields moved from `localStorage` to
+> `sessionStorage` with a one-time migration, and the GitHub PAT input moved
+> from the toolbar into advanced settings as a labelled fallback. The error-path
+> UX — sign-in / "app not installed" hints on failed `github>` preset nodes and
+> on GitHub load-from-repo failures — is a shared `GithubAuthHint` component fed
+> minimal props (no coupling of `PresetTree` to `oauth.ts`).
+>
+> **Not yet provisioned (manual steps, documented in
+> `packages/oauth-worker/README.md`):** registering the GitHub App
+> (Contents:read-only, expiring tokens on, device flow off), deploying the
+> Worker + `wrangler secret put GITHUB_CLIENT_SECRET`, and setting the three
+> repo Actions variables (`VITE_GITHUB_CLIENT_ID`, `VITE_OAUTH_WORKER_URL`,
+> `VITE_GITHUB_APP_SLUG`). Until those exist the build variables are empty and
+> the whole feature stays hidden — the app works exactly as before with the PAT
+> fallback. One deliberate deviation: the Worker uses TypeScript's built-in
+> `WebWorker` lib for runtime globals instead of a `@cloudflare/workers-types`
+> devDependency, keeping the install network-free and CI lockfile-stable.
 
 ## Summary
 

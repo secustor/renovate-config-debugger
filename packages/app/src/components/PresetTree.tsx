@@ -6,8 +6,24 @@ import type {
   TraceResult,
 } from "@renovate-config-visualizer/engine";
 import { ConfigJson } from "./ConfigJson";
+import { type AuthState, GithubAuthHint } from "./GithubAuthHint";
 import { JsonDiff } from "./JsonDiff";
 import { MigrationSteps } from "./MigrationSteps";
+
+/**
+ * A failed GitHub preset node whose error is the private-repo (not-found) or
+ * auth/rate-limit kind — the cases where signing in is the likely fix (009).
+ * Matches the exact strings the engine's github fetcher emits.
+ */
+function githubAuthFailure(node: PresetNode): { match: boolean; rateLimited: boolean } {
+  if (node.state !== "error" || node.source?.presetSource !== "github") {
+    return { match: false, rateLimited: false };
+  }
+  const msg = node.error?.message ?? "";
+  const rateLimited = /rate limit or missing token/i.test(msg);
+  const notFound = /dep not found/i.test(msg);
+  return { match: rateLimited || notFound, rateLimited };
+}
 
 type InjectionKeyFn = (id: {
   presetSource: string;
@@ -306,6 +322,21 @@ function computeTreeStats(root: PresetNode): TreeStats {
       errors,
     },
   };
+}
+
+/**
+ * Structural identity (`>`-joined name-path) of a node id in this result's
+ * tree, or null. Identities are stable across re-runs of the same config, so
+ * they are what a shareable link (007) stores for the selected node. Reuses the
+ * same single-walk machinery the tree renders with.
+ */
+export function identityForNodeId(root: PresetNode, id: string): string | null {
+  return computeTreeStats(root).identityById.get(id) ?? null;
+}
+
+/** The current run's node id for a stored structural identity, or null. */
+export function nodeIdForIdentity(root: PresetNode, identity: string): string | null {
+  return computeTreeStats(root).idByIdentity.get(identity) ?? null;
 }
 
 /** Node ids whose subtree (self or any descendant) matches the query. */
@@ -714,12 +745,19 @@ export const PresetTree = memo(function PresetTree({
   onInject,
   selectedId,
   onSelectNode,
+  authState,
+  onSignIn,
+  installUrl,
 }: {
   result: TraceResult;
   onInject: (key: string, content: Record<string, unknown>) => void;
   /** Controlled selection, so provenance chains (005) can select a preset node. */
   selectedId: string | null;
   onSelectNode: (id: string | null) => void;
+  /** Sign-in state + hooks for the failed-GitHub-node hint (009). */
+  authState: AuthState;
+  onSignIn: () => void;
+  installUrl: string;
 }) {
   const root = result.presetTree;
   const helpers = useEngineHelpers();
@@ -1011,6 +1049,9 @@ export const PresetTree = memo(function PresetTree({
             usedInjections={usedInjections}
             onInject={onInject}
             migrationSteps={migrationStepsByPreset.get(selected.name) ?? []}
+            authState={authState}
+            onSignIn={onSignIn}
+            installUrl={installUrl}
           />
         ) : (
           <div className="preset-panel-hint">Select a preset to inspect it.</div>
@@ -1143,6 +1184,9 @@ function PresetDetail({
   usedInjections,
   onInject,
   migrationSteps,
+  authState,
+  onSignIn,
+  installUrl,
 }: {
   node: PresetNode;
   parent: PresetNode | undefined;
@@ -1152,11 +1196,15 @@ function PresetDetail({
   usedInjections: ReadonlySet<string>;
   onInject: (key: string, content: Record<string, unknown>) => void;
   migrationSteps: TraceEvent[];
+  authState: AuthState;
+  onSignIn: () => void;
+  installUrl: string;
 }) {
   const contribution = useContribution(node, parent);
   const stateLabel = STATE_LABELS[node.state];
   const key = nodeInjectionKey(node.source, injectionKey);
   const userSupplied = key !== null && usedInjections.has(key);
+  const ghFailure = githubAuthFailure(node);
   const migrationChanged =
     node.fetched !== undefined &&
     node.input !== undefined &&
@@ -1177,6 +1225,14 @@ function PresetDetail({
         </p>
       ) : null}
       {node.error ? <p className="preset-node-error">{node.error.message}</p> : null}
+      {ghFailure.match ? (
+        <GithubAuthHint
+          authState={authState}
+          rateLimited={ghFailure.rateLimited}
+          onSignIn={onSignIn}
+          installUrl={installUrl}
+        />
+      ) : null}
       {stateLabel && !node.error ? <p className="empty-note">{stateLabel}</p> : null}
       {node.state === "error" ? (
         <PresetInjector node={node} injectionKey={injectionKey} parse={parse} onInject={onInject} />
