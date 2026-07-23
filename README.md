@@ -29,8 +29,24 @@ running in your browser**. Think "compiler explorer for Renovate configs".
   graph, and must produce byte-identical results.
 
 Configs never leave the browser except for the preset fetches they themselves
-declare. Optional per-host tokens (for rate limits / private repos) are stored
-in `localStorage` only.
+declare. Optional per-host tokens (for rate limits / private repos) live in
+`sessionStorage` only — they are cleared when you close the tab, and never go
+into a URL.
+
+### Privacy & security
+
+- All GitHub/GitLab/Gitea/Forgejo/npm content fetches go **browser →
+  host API** directly; nothing proxies your config or presets.
+- **Sign in with GitHub** (when enabled — see below) adds exactly one piece of
+  server infrastructure: a stateless Cloudflare Worker
+  ([`packages/oauth-worker`](packages/oauth-worker)) that does nothing but the
+  OAuth `code → token` (and `refresh_token → token`) exchange, because a static
+  site cannot hold the `client_secret` GitHub still requires. The Worker
+  **never sees a config, a preset, or an API request** — only the OAuth
+  exchange passes through it, stateless and unlogged. All content fetches still
+  go straight to `api.github.com`.
+- Tokens (OAuth or personal access token) live in `sessionStorage`/memory,
+  cleared when the tab closes; never `localStorage`, never a URL.
 
 ## Preset hosting support
 
@@ -87,8 +103,35 @@ platform context you've selected. An optional _ref_ picks a branch/tag (default
 branch otherwise). It probes Renovate's documented config-file locations in
 order — `renovate.json{,c,5}`, `.github/`, `.gitlab/`, `.renovaterc{,.json…}`,
 then the `package.json` `renovate` key — and tells you which file won. Private
-repos use the same per-host tokens as preset fetching (stored in `localStorage`
-only); hosts that block browser (CORS) requests can't be reached from the page.
+repos use the same GitHub sign-in / per-host tokens as preset fetching (stored
+in `sessionStorage` only); hosts that block browser (CORS) requests can't be
+reached from the page.
+
+## Sign in with GitHub
+
+Reaching **private** GitHub presets (`extends: ["github>my-org/renovate-config"]`)
+or loading a private repo's config needs authentication. The trustworthy way is
+a redirect sign-in with an explicit consent screen and a per-repository,
+read-only grant — not pasting a personal access token that can read all your
+private repos into a web app.
+
+When configured, a **Sign in with GitHub** button appears in the toolbar; it
+uses a [GitHub App](packages/oauth-worker/README.md) whose only permission is
+**Contents: read-only**, so the consent screen truthfully reads "read the
+contents of the repositories you select". Signing in also raises the API rate
+limit from 60 to 5,000 requests/hour. Sign-out clears the local token; the chip
+also links to GitHub's authorization page for true revocation.
+
+A **personal access token** fallback remains under _Platform context & per-host
+tokens_ (advanced settings) for GitHub Enterprise Server, orgs where the app
+install can't be approved, or Worker outages.
+
+Sign-in is **off by default**: it only turns on when the deploy provides the
+`VITE_GITHUB_CLIENT_ID` and `VITE_OAUTH_WORKER_URL` build variables (plus an
+optional `VITE_GITHUB_APP_SLUG`). Without them the app runs exactly as before,
+with the PAT fallback as the only GitHub auth. Provisioning (GitHub App +
+Worker + repo variables) is documented in
+[`packages/oauth-worker/README.md`](packages/oauth-worker/README.md).
 
 ## Development
 

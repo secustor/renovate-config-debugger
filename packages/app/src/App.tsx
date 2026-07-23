@@ -7,12 +7,25 @@ import type {
 } from "@renovate-config-visualizer/engine";
 import { ConfigEditor } from "./components/ConfigEditor";
 import { EffectiveConfig } from "./components/EffectiveConfig";
+import { type AuthState, GithubAuthHint } from "./components/GithubAuthHint";
 import { MessagesPanel } from "./components/MessagesPanel";
 import { MigrationSteps } from "./components/MigrationSteps";
 import { identityForNodeId, nodeIdForIdentity, PresetTree } from "./components/PresetTree";
 import { StageDiff } from "./components/StageDiff";
 import { StageTimeline } from "./components/StageTimeline";
 import { OptionDocsProvider } from "./option-docs";
+import {
+  beginSignIn,
+  completeCallback,
+  getOAuthConfig,
+  getStoredUser,
+  installUrl,
+  isSignedIn,
+  readCallbackParams,
+  REVOKE_URL,
+  signOut,
+  type StoredUser,
+} from "./oauth";
 import { getRenovateVersion, loadOptionIndex, loadRepoConfig, run } from "./run";
 import {
   buildShareUrl,
@@ -114,11 +127,12 @@ interface RunInputs {
   endpoint: string;
 }
 
-function readStored(key: string, fallback: string): string {
+/** Non-secret settings (platform/endpoint) persist across tabs → localStorage. */
+function readLocal(key: string, fallback: string): string {
   return localStorage.getItem(key) ?? fallback;
 }
 
-function persist(key: string, value: string): void {
+function persistLocal(key: string, value: string): void {
   if (value) {
     localStorage.setItem(key, value);
   } else {
@@ -126,16 +140,54 @@ function persist(key: string, value: string): void {
   }
 }
 
+/** Per-host tokens are secrets → sessionStorage (cleared when the tab closes). */
+function readSession(key: string, fallback: string): string {
+  return sessionStorage.getItem(key) ?? fallback;
+}
+
+function persistSession(key: string, value: string): void {
+  if (value) {
+    sessionStorage.setItem(key, value);
+  } else {
+    sessionStorage.removeItem(key);
+  }
+}
+
+// One-time migration (009): the four PAT fields move from localStorage to
+// sessionStorage. Copy any legacy value across (without clobbering a session
+// value) and drop the localStorage copy. Runs once at module load, before the
+// component reads its initial state. platform/endpoint stay in localStorage.
+const TOKEN_STORAGE_KEYS = [TOKEN_KEY, GITLAB_TOKEN_KEY, GITEA_TOKEN_KEY, FORGEJO_TOKEN_KEY];
+for (const key of TOKEN_STORAGE_KEYS) {
+  const legacy = localStorage.getItem(key);
+  if (legacy !== null) {
+    if (sessionStorage.getItem(key) === null) {
+      sessionStorage.setItem(key, legacy);
+    }
+    localStorage.removeItem(key);
+  }
+}
+
+/** Starts the redirect sign-in, stashing the current fragment to restore it. */
+function onSignIn(): void {
+  void beginSignIn(window.location.hash);
+}
+
 export function App() {
   const [content, setContent] = useState(DEFAULT_CONFIG);
   const [fileName, setFileName] = useState<"renovate.json" | "renovate.json5">("renovate.json");
-  const [token, setToken] = useState(() => readStored(TOKEN_KEY, ""));
-  const [gitlabToken, setGitlabToken] = useState(() => readStored(GITLAB_TOKEN_KEY, ""));
-  const [giteaToken, setGiteaToken] = useState(() => readStored(GITEA_TOKEN_KEY, ""));
-  const [forgejoToken, setForgejoToken] = useState(() => readStored(FORGEJO_TOKEN_KEY, ""));
-  const [platform, setPlatform] = useState(() => readStored(PLATFORM_KEY, "github"));
-  const [endpoint, setEndpoint] = useState(() =>
-    readStored(ENDPOINT_KEY, "https://api.github.com"),
+  const [token, setToken] = useState(() => readSession(TOKEN_KEY, ""));
+  const [gitlabToken, setGitlabToken] = useState(() => readSession(GITLAB_TOKEN_KEY, ""));
+  const [giteaToken, setGiteaToken] = useState(() => readSession(GITEA_TOKEN_KEY, ""));
+  const [forgejoToken, setForgejoToken] = useState(() => readSession(FORGEJO_TOKEN_KEY, ""));
+  const [platform, setPlatform] = useState(() => readLocal(PLATFORM_KEY, "github"));
+  const [endpoint, setEndpoint] = useState(() => readLocal(ENDPOINT_KEY, "https://api.github.com"));
+  // OAuth sign-in (009). Configured only when both build-time vars are present;
+  // otherwise the whole feature stays hidden and the PAT fallback remains.
+  const oauthConfig = useMemo(() => getOAuthConfig(), []);
+  const [signedIn, setSignedIn] = useState(() => (oauthConfig ? isSignedIn() : false));
+  const [authUser, setAuthUser] = useState<StoredUser | null>(() =>
+    oauthConfig ? getStoredUser() : null,
   );
   const [injected, setInjected] = useState<InjectionMap>({});
   const [running, setRunning] = useState(false);
@@ -164,6 +216,9 @@ export function App() {
   const [repoInput, setRepoInput] = useState("");
   const [repoRef, setRepoRef] = useState("");
   const [repoLoading, setRepoLoading] = useState(false);
+  // When a GitHub load fails with a not-found/auth/rate-limit error, offer the
+  // sign-in / install hint next to the failure (009). null = no hint.
+  const [repoAuthHint, setRepoAuthHint] = useState<{ rateLimited: boolean } | null>(null);
 
   useEffect(() => {
     setSelectedNodeId(null);
@@ -216,15 +271,42 @@ export function App() {
     }
   }
 
-  // On mount: if the URL carries a shared config, decode it, populate state and
-  // auto-run so the link opens the same analysis. Runs once.
+  // On mount: first complete an OAuth callback if the URL carries one (QUERY
+  // params ?code&state), then — reading the possibly-restored fragment — decode
+  // a shared config, populate state and auto-run. OAuth runs before the share
+  // decode so a share link survives a sign-in round-trip. Runs once.
   useEffect(() => {
-    const shareToken = readShareToken(window.location.hash);
-    if (!shareToken) {
-      return;
-    }
     let cancelled = false;
     void (async () => {
+      // 1. OAuth callback (009): validate state, exchange via the Worker, store
+      // the token, then strip the query and restore the pre-sign-in fragment.
+      const callback = oauthConfig ? readCallbackParams(window.location.search) : null;
+      if (callback) {
+        try {
+          const { user, returnHash } = await completeCallback(callback.code, callback.state);
+          if (cancelled) {
+            return;
+          }
+          setSignedIn(true);
+          setAuthUser(user);
+          history.replaceState(null, "", window.location.pathname + returnHash);
+        } catch (err) {
+          if (cancelled) {
+            return;
+          }
+          setNotice(
+            `GitHub sign-in failed: ${err instanceof Error ? err.message : String(err)}. You can still use the app signed out.`,
+          );
+          history.replaceState(null, "", window.location.pathname);
+          return;
+        }
+      }
+
+      // 2. Shared config (007) from the URL fragment (survives the OAuth strip).
+      const shareToken = readShareToken(window.location.hash);
+      if (!shareToken) {
+        return;
+      }
       const payload = await decodeShare(shareToken);
       if (cancelled) {
         return;
@@ -239,9 +321,9 @@ export function App() {
       setContent(payload.config);
       setFileName(payload.fileName);
       setPlatform(nextPlatform);
-      persist(PLATFORM_KEY, nextPlatform);
+      persistLocal(PLATFORM_KEY, nextPlatform);
       setEndpoint(nextEndpoint);
-      persist(ENDPOINT_KEY, nextEndpoint);
+      persistLocal(ENDPOINT_KEY, nextEndpoint);
       pendingViewRef.current = payload.view ?? null;
       const current = await getRenovateVersion();
       if (!cancelled && payload.renovate && payload.renovate !== current) {
@@ -267,23 +349,35 @@ export function App() {
   function makeTokenHandler(key: string, setter: (v: string) => void) {
     return (value: string) => {
       setter(value);
-      persist(key, value);
+      persistSession(key, value);
     };
   }
   const onTokenChange = makeTokenHandler(TOKEN_KEY, setToken);
 
   function onPlatformChange(value: string) {
     setPlatform(value);
-    persist(PLATFORM_KEY, value);
+    persistLocal(PLATFORM_KEY, value);
     // Snap the endpoint to the new platform's default; the user can still edit.
     const next = PLATFORM_ENDPOINTS[value] ?? "";
     setEndpoint(next);
-    persist(ENDPOINT_KEY, next);
+    persistLocal(ENDPOINT_KEY, next);
   }
 
   function onEndpointChange(value: string) {
     setEndpoint(value);
-    persist(ENDPOINT_KEY, value);
+    persistLocal(ENDPOINT_KEY, value);
+  }
+
+  const authState: AuthState = !oauthConfig
+    ? "unconfigured"
+    : signedIn
+      ? "signed-in"
+      : "signed-out";
+
+  function onSignOut() {
+    signOut();
+    setSignedIn(false);
+    setAuthUser(null);
   }
 
   function onInject(key: string, contentObj: Record<string, unknown>) {
@@ -378,6 +472,7 @@ export function App() {
     setRepoLoading(true);
     setFatal(null);
     setNotice(null);
+    setRepoAuthHint(null);
     try {
       const loaded = await loadRepoConfig({
         platform: repoPlatform,
@@ -390,9 +485,9 @@ export function App() {
         : "renovate.json";
       if (knownHost) {
         setPlatform(repoPlatform);
-        persist(PLATFORM_KEY, repoPlatform);
+        persistLocal(PLATFORM_KEY, repoPlatform);
         setEndpoint(repoEndpoint);
-        persist(ENDPOINT_KEY, repoEndpoint);
+        persistLocal(ENDPOINT_KEY, repoEndpoint);
       }
       setContent(loaded.content);
       setFileName(nextFileName);
@@ -405,16 +500,25 @@ export function App() {
       });
     } catch (err) {
       const e = err as { name?: string; probed?: string[]; err?: { message?: string } };
+      let detail = "";
       if (e?.name === "RepoConfigNotFoundError") {
         const count = e.probed?.length ?? 0;
         setFatal(
           `No Renovate config found in ${parsed.repo} (tried ${count} locations). It may keep its config elsewhere, on a non-default branch, or in a private repo needing a token.`,
         );
       } else {
-        const detail = e?.err?.message ?? (err instanceof Error ? err.message : String(err));
+        detail = e?.err?.message ?? (err instanceof Error ? err.message : String(err));
         setFatal(
-          `Could not load from ${repoEndpoint || "the default endpoint"}: ${detail}. For a private repo add a token below; some hosts block browser (CORS) requests entirely.`,
+          `Could not load from ${repoEndpoint || "the default endpoint"}: ${detail}. For a private repo, sign in or add a token; some hosts block browser (CORS) requests entirely.`,
         );
+      }
+      // Offer the sign-in / install hint for GitHub loads that look like a
+      // private-repo (not-found) or auth/rate-limit failure (009).
+      if (oauthConfig && repoPlatform === "github") {
+        const rateLimited = /rate limit or missing token/i.test(detail);
+        if (e?.name === "RepoConfigNotFoundError" || rateLimited) {
+          setRepoAuthHint({ rateLimited });
+        }
       }
     } finally {
       setRepoLoading(false);
@@ -469,12 +573,44 @@ export function App() {
             <option value="renovate.json">renovate.json</option>
             <option value="renovate.json5">renovate.json5</option>
           </select>
-          <input
-            type="password"
-            placeholder="GitHub token (optional, for preset rate limits) — stays in your browser"
-            value={token}
-            onChange={(e) => onTokenChange(e.target.value)}
-          />
+          {oauthConfig ? (
+            signedIn ? (
+              <span className="gh-auth-chip" title="Signed in with GitHub">
+                {authUser?.avatarUrl ? (
+                  <img
+                    className="gh-auth-avatar"
+                    src={authUser.avatarUrl}
+                    alt=""
+                    width={18}
+                    height={18}
+                  />
+                ) : null}
+                <span className="gh-auth-login">{authUser?.login || "signed in"}</span>
+                <button type="button" className="gh-auth-signout" onClick={onSignOut}>
+                  Sign out
+                </button>
+                <a
+                  className="gh-auth-revoke"
+                  href={REVOKE_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Revoke this app's access on GitHub (sign-out only clears the local token)"
+                >
+                  revoke
+                </a>
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="gh-signin"
+                onClick={onSignIn}
+                title="Sign in to reach private GitHub presets and repositories (read-only)"
+              >
+                Sign in with GitHub
+              </button>
+            )
+          ) : null}
+          <span className="toolbar-spacer" />
           <button type="button" className="primary" onClick={() => onRun()} disabled={running}>
             {running ? "Running…" : "Run pipeline"}
           </button>
@@ -524,12 +660,34 @@ export function App() {
                 reaches them. You can still provide their content manually from a failed node below.
               </p>
             ) : null}
+            {oauthConfig ? (
+              <p className="advanced-note">
+                Signing in with GitHub (top of the page) is the recommended way to reach private
+                GitHub presets and repos. A personal access token is only a fallback — for GitHub
+                Enterprise Server, when the app installation can&apos;t be approved, or if the
+                sign-in service is unavailable.
+              </p>
+            ) : (
+              <p className="advanced-note">
+                A GitHub personal access token lifts preset rate limits and reaches private
+                repositories. It stays in this browser tab only.
+              </p>
+            )}
             <div className="advanced-row">
+              <label className="grow">
+                GitHub personal access token (fallback)
+                <input
+                  type="password"
+                  placeholder="optional — stays in this browser tab"
+                  value={token}
+                  onChange={(e) => onTokenChange(e.target.value)}
+                />
+              </label>
               <label className="grow">
                 GitLab token (PRIVATE-TOKEN)
                 <input
                   type="password"
-                  placeholder="optional — stays in your browser"
+                  placeholder="optional — stays in this browser tab"
                   value={gitlabToken}
                   onChange={(e) =>
                     makeTokenHandler(GITLAB_TOKEN_KEY, setGitlabToken)(e.target.value)
@@ -540,7 +698,7 @@ export function App() {
                 Gitea token
                 <input
                   type="password"
-                  placeholder="optional — stays in your browser"
+                  placeholder="optional — stays in this browser tab"
                   value={giteaToken}
                   onChange={(e) => makeTokenHandler(GITEA_TOKEN_KEY, setGiteaToken)(e.target.value)}
                 />
@@ -549,7 +707,7 @@ export function App() {
                 Forgejo token
                 <input
                   type="password"
-                  placeholder="optional — stays in your browser"
+                  placeholder="optional — stays in this browser tab"
                   value={forgejoToken}
                   onChange={(e) =>
                     makeTokenHandler(FORGEJO_TOKEN_KEY, setForgejoToken)(e.target.value)
@@ -561,6 +719,14 @@ export function App() {
         </details>
 
         {fatal ? <p style={{ color: "var(--error)" }}>{fatal}</p> : null}
+        {repoAuthHint ? (
+          <GithubAuthHint
+            authState={authState}
+            rateLimited={repoAuthHint.rateLimited}
+            onSignIn={onSignIn}
+            installUrl={installUrl()}
+          />
+        ) : null}
         {notice ? (
           <p className="app-notice">
             {notice}
@@ -597,6 +763,9 @@ export function App() {
               onInject={onInject}
               selectedId={selectedNodeId}
               onSelectNode={setSelectedNodeId}
+              authState={authState}
+              onSignIn={onSignIn}
+              installUrl={installUrl()}
             />
             <EffectiveConfig result={result} onSelectPreset={setSelectedNodeId} />
           </>

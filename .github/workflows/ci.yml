@@ -42,7 +42,15 @@ jobs:
         run: pnpm --filter @renovate-config-visualizer/engine test:golden
       - name: Shimmed tests (browser module graph)
         run: pnpm --filter @renovate-config-visualizer/engine test:shimmed
+      - name: OAuth worker tests
+        run: pnpm --filter @renovate-config-visualizer/oauth-worker test
       - name: Browser bundle build
+        # Sign-in (009) is enabled only when these repo Actions variables are
+        # set; absent = empty string = feature cleanly off (PAT UX remains).
+        env:
+          VITE_GITHUB_CLIENT_ID: ${{ vars.VITE_GITHUB_CLIENT_ID }}
+          VITE_OAUTH_WORKER_URL: ${{ vars.VITE_OAUTH_WORKER_URL }}
+          VITE_GITHUB_APP_SLUG: ${{ vars.VITE_GITHUB_APP_SLUG }}
         run: pnpm --filter @renovate-config-visualizer/app build
 
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0

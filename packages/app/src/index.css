@@ -1161,3 +1161,71 @@ pre.config-view.prov-before {
   font-size: 0.8rem;
   text-decoration: underline;
 }
+
+/* ---------- sign in with GitHub (009) ---------- */
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+.toolbar button.gh-signin {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: inherit;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.gh-auth-chip {
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  display: inline-flex;
+  gap: 0.4rem;
+  padding: 0.2rem 0.5rem 0.2rem 0.35rem;
+}
+
+.gh-auth-avatar {
+  border-radius: 50%;
+  display: block;
+}
+
+.gh-auth-login {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.gh-auth-signout {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 0;
+}
+
+.gh-auth-revoke {
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-decoration: underline;
+}
+
+.gh-auth-hint {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 0.25rem 0 0.4rem;
+}
+
+.preset-panel .gh-auth-hint {
+  padding-left: 0;
+}
+
+.gh-inline-signin {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+}

@@ -13,6 +13,6 @@ Full context and architecture: [.agents/spec/renovate-config-visualizer.md](../.
 | [006](006-package-rules-simulator.md)         | packageRules simulator                    | M3                   | planned |
 | [007](007-shareable-links-and-repo-fetch.md)  | Shareable links + fetch config from repo  | M4                   | done    |
 | [008](008-global-and-inherited-config.md)     | Global + inherited config layers          | M3                   | planned |
-| [009](009-github-oauth-sign-in.md)            | "Sign in with GitHub" (replace PAT field) | M4                   | planned |
+| [009](009-github-oauth-sign-in.md)            | "Sign in with GitHub" (replace PAT field) | M4                   | done    |
 | [010](010-preset-hosting-coverage.md)         | Preset hosting coverage + `local>`        | M2                   | done    |
 | [011](011-preset-tree-legibility-at-scale.md) | Preset tree legibility at scale           | M2                   | done    |
