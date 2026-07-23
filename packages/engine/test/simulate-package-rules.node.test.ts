@@ -4,10 +4,35 @@
  * renovate modules (no shims) — proving the simulator replicates upstream
  * behavior, not an artifact of the browser module graph.
  */
+import { mergeChildConfig } from "renovate/dist/config/utils.js";
 import { applyPackageRules } from "renovate/dist/util/package-rules/index.js";
 import { describe, expect, it } from "vitest";
 import type { DependencyDescriptor } from "../src/index";
 import { simulatePackageRules } from "../src/index";
+
+const UPDATE_TYPE_KEYS = [
+  "major",
+  "minor",
+  "patch",
+  "pin",
+  "digest",
+  "lockFileMaintenance",
+  "replacement",
+];
+
+/** Upstream flattenUpdates' update-type merge + block deletion (roadmap 012). */
+function oracleFlatten(raw: Record<string, unknown>): Record<string, unknown> {
+  const updateType = typeof raw.updateType === "string" ? raw.updateType : undefined;
+  const block = updateType !== undefined ? raw[updateType] : undefined;
+  const out =
+    block && typeof block === "object"
+      ? (mergeChildConfig(raw, block as Record<string, unknown>) as Record<string, unknown>)
+      : { ...raw };
+  for (const key of UPDATE_TYPE_KEYS) {
+    delete out[key];
+  }
+  return out;
+}
 
 const npmDep: DependencyDescriptor = {
   manager: "npm",
@@ -51,6 +76,36 @@ describe("simulatePackageRules (golden)", () => {
     expect(oracle.datasource).toBe("github-tags");
     expect(oracle.skipReason).toBe("package-rules");
     expect(oracle.addLabels).toEqual(["all-but-react", "via-jsonata"]);
+  });
+
+  it("flattens config[updateType] up, matching upstream (oracle parity)", async () => {
+    const config = {
+      packageRules: [
+        {
+          matchPackageNames: ["lodash"],
+          automerge: false,
+          minor: { automerge: true, addLabels: ["auto"] },
+        },
+      ],
+    };
+    const dep: DependencyDescriptor = { ...npmDep, updateType: "minor" };
+    const simulated = await simulatePackageRules({ config, dep });
+    const oracle = oracleFlatten(
+      await applyPackageRules({ ...config, ...dep, depName: dep.packageName }),
+    );
+    // the update-type block merged up exactly as Renovate computes it
+    expect(oracle.automerge).toBe(true);
+    expect(oracle.addLabels).toEqual(["auto"]);
+    expect(oracle).not.toHaveProperty("minor");
+    // and the simulator's flattened result agrees
+    expect(simulated.finalDependencyConfig.automerge).toBe(oracle.automerge);
+    expect(simulated.finalDependencyConfig.addLabels).toEqual(oracle.addLabels);
+    expect(simulated.finalDependencyConfig).not.toHaveProperty("minor");
+    expect(simulated.flattened.updateType).toBe("minor");
+    expect(simulated.flattened.merged.map((m) => m.key).toSorted()).toEqual([
+      "addLabels",
+      "automerge",
+    ]);
   });
 
   it("agrees with upstream on exclusion patterns and rule order", async () => {

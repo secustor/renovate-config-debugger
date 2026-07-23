@@ -1,6 +1,25 @@
 # 012 — Simulator: verdict-first results + update-type flattening
 
-Milestone: M5 · Status: planned
+Milestone: M5 · Status: done 2026-07-24
+
+> Implemented as specified. Engine: `simulatePackageRules` now replicates
+> Renovate's update-type flattening after the packageRules merge tail —
+> `mergeChildConfig(config, config[updateType])` followed by dropping every
+> update-type block (`major`/`minor`/`patch`/`pin`/`digest`/
+> `lockFileMaintenance`/`replacement`), exactly as upstream `flattenUpdates`
+> does. `rawFinalConfig` keeps its pre-flatten value (006 oracle parity);
+> `finalDependencyConfig` reflects the flattening; a new `flattened`
+> ({ updateType, merged, blocks }) records what the update-type block changed
+> and which blocks were present, so the UI can explain update-type scoping.
+> Golden + shimmed oracle tests assert parity against upstream's real
+> `applyPackageRules` + `mergeChildConfig`. UI: a verdict block is pinned
+> directly under the Simulate button with matched-rule count, the changed keys
+> and their final values (flagging which came from the update-type block), and
+> a plain-language outcome sentence covering enabled/skipReason, automerge
+> (with update-type scoping), labels, grouping and schedule. The results list
+> defaults to matched-and-unresolved rules with a "show all N" toggle, and the
+> "N of M rules matched" line is a jump link to the list; per-clause evidence
+> rows are unchanged.
 
 ## Summary
 

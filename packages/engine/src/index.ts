@@ -3,6 +3,7 @@ export {
   type ClauseEvaluation,
   type ClauseState,
   type DependencyDescriptor,
+  type FlattenResult,
   type MergedKey,
   type RuleEvaluation,
   type RuleVerdict,

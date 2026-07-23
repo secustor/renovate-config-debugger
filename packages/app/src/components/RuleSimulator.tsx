@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   ClauseEvaluation,
   DependencyDescriptor,
@@ -211,6 +211,95 @@ const VERDICT_LABEL: Record<RuleEvaluation["verdict"], string> = {
   "not-simulated": "not simulated",
 };
 
+/** A config value in a plain-language sentence: `[a, b]`, `"x"`, `42`. */
+function plainValue(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((v) => (typeof v === "string" ? v : JSON.stringify(v))).join(", ")}]`;
+  }
+  if (typeof value === "string") {
+    return value;
+  }
+  return JSON.stringify(value);
+}
+
+/** Oxford-comma join for the verdict sentence's clause lists. */
+function joinClauses(items: string[]): string {
+  if (items.length <= 1) {
+    return items.join("");
+  }
+  if (items.length === 2) {
+    return `${items[0]} and ${items[1]}`;
+  }
+  return `${items.slice(0, -1).join(", ")}, and ${items.at(-1)}`;
+}
+
+/**
+ * The plain-language outcome sentence (roadmap 012). Covers the high-signal
+ * options — enabled/skipReason, automerge (with update-type scoping),
+ * labels, grouping, schedule — splitting them into what the update WOULD and
+ * would NOT get, e.g. "This major update WOULD get labels [deploy_pr] and
+ * auto-approval, but would NOT automerge (automerge is scoped to minor/patch)".
+ */
+function buildVerdictSentence(
+  sim: SimulationResult,
+  updateType: string | undefined,
+  changedKeys: string[],
+): string {
+  const c = sim.finalDependencyConfig;
+  const subject = `This ${updateType ? `${updateType} ` : ""}update`;
+  const changed = new Set(changedKeys);
+  const positives: string[] = [];
+  const negatives: string[] = [];
+
+  // Strongest signal first: will the PR even be raised?
+  const skipReason = typeof c.skipReason === "string" ? c.skipReason : undefined;
+  if (c.enabled === false || skipReason !== undefined) {
+    negatives.push(
+      skipReason ? `be raised at all (skipReason: ${skipReason})` : "be raised (disabled)",
+    );
+  }
+
+  // automerge, aware of update-type scoping (the flattened blocks).
+  const scopedAutomerge = Object.entries(sim.flattened.blocks)
+    .filter(([, block]) => block?.automerge === true)
+    .map(([type]) => type);
+  if (c.automerge === true) {
+    positives.push("automerge");
+  } else if (scopedAutomerge.length > 0) {
+    negatives.push(`automerge (automerge is scoped to ${scopedAutomerge.join("/")})`);
+  } else if (c.automerge === false && changed.has("automerge")) {
+    negatives.push("automerge");
+  }
+
+  if (Array.isArray(c.labels)) {
+    positives.push(`get labels ${plainValue(c.labels)}`);
+  }
+  if (Array.isArray(c.addLabels)) {
+    positives.push(`add labels ${plainValue(c.addLabels)}`);
+  }
+  if (c.autoApprove === true) {
+    positives.push("auto-approval");
+  }
+  if (typeof c.groupName === "string") {
+    positives.push(`be grouped as "${c.groupName}"`);
+  }
+  if (Array.isArray(c.schedule) && c.schedule.length > 0) {
+    positives.push(`only run on schedule ${plainValue(c.schedule)}`);
+  }
+
+  const parts: string[] = [];
+  if (positives.length > 0) {
+    parts.push(`WOULD ${joinClauses(positives)}`);
+  }
+  if (negatives.length > 0) {
+    parts.push(`would NOT ${joinClauses(negatives)}`);
+  }
+  if (parts.length === 0) {
+    return `${subject} gets no special handling from your matched rules — the defaults apply.`;
+  }
+  return `${subject} ${parts.join(", but ")}.`;
+}
+
 /** Short label: the rule's first present selector clause + value preview. */
 function ruleLabel(rule: RuleEvaluation): string {
   const first = rule.clauses[0];
@@ -319,12 +408,15 @@ export function RuleSimulator({ result }: { result: TraceResult }) {
   const [ranKey, setRanKey] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  const rulesRef = useRef<HTMLDivElement>(null);
 
   // A new run invalidates any previous simulation (the rules may differ).
   useEffect(() => {
     setSim(null);
     setRanKey(null);
     setError(null);
+    setShowAll(false);
   }, [result]);
 
   const finalConfig = result.finalConfig;
@@ -365,6 +457,7 @@ export function RuleSimulator({ result }: { result: TraceResult }) {
       });
       setSim(simResult);
       setRanKey(JSON.stringify(nextForm));
+      setShowAll(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -397,6 +490,23 @@ export function RuleSimulator({ result }: { result: TraceResult }) {
 
   const stale = sim !== null && ranKey !== JSON.stringify(form);
   const matchedCount = sim?.rules.filter((r) => r.verdict === "matched").length ?? 0;
+  // Default the results list to the rules that actually did something (matched
+  // or unresolved), hiding the sea of "no match" rows behind a toggle.
+  const notableRules = sim ? sim.rules.filter((r) => r.verdict !== "no-match") : [];
+  const hiddenCount = sim ? sim.rules.length - notableRules.length : 0;
+  const shownRules = showAll ? (sim?.rules ?? []) : notableRules;
+  const verdictSentence = sim
+    ? buildVerdictSentence(sim, sim.flattened.updateType, changedKeys)
+    : "";
+  const changedWithValues = changedKeys.map((key) => ({
+    key,
+    value: sim?.finalDependencyConfig[key],
+    present: sim ? key in sim.finalDependencyConfig : false,
+  }));
+
+  function jumpToRules() {
+    rulesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   return (
     <div className="card">
@@ -565,6 +675,44 @@ export function RuleSimulator({ result }: { result: TraceResult }) {
 
       {sim ? (
         <div className="sim-results">
+          {/* Roadmap 012: the answer first — a pinned verdict directly under
+              the Simulate button, before the rule list. */}
+          <div className={`sim-verdict-block${matchedCount === 0 ? " none" : ""}`}>
+            <p className="sim-verdict-sentence">{verdictSentence}</p>
+            {changedWithValues.length > 0 ? (
+              <ul className="sim-verdict-keys">
+                {changedWithValues.map(({ key, value, present }) => (
+                  <li key={key}>
+                    <code>
+                      <OptionKey name={key} flagUnknown />
+                    </code>
+                    {present ? (
+                      <>
+                        {" = "}
+                        <span className="sim-verdict-value">{previewValue(value, 80)}</span>
+                        {sim.flattened.merged.some((m) => m.key === key) ? (
+                          <span className="sim-verdict-from">
+                            {" "}
+                            from the <Term id="updateType">{sim.flattened.updateType}</Term> block
+                          </span>
+                        ) : null}
+                      </>
+                    ) : (
+                      <span className="sim-verdict-value removed"> removed</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="sim-verdict-none">
+                No rule changed anything for this dependency — the defaults apply.
+              </p>
+            )}
+            <button type="button" className="sim-jump" onClick={jumpToRules}>
+              {matchedCount} of {sim.rules.length} rule{sim.rules.length === 1 ? "" : "s"} matched →
+            </button>
+          </div>
+
           {[...sim.errors, ...sim.warnings].length > 0 ? (
             <ul className="messages sim-messages">
               {sim.errors.map((m, i) => (
@@ -584,14 +732,38 @@ export function RuleSimulator({ result }: { result: TraceResult }) {
               {note}
             </p>
           ))}
-          <div className="sim-summary">
-            {matchedCount} of {sim.rules.length} rule{sim.rules.length === 1 ? "" : "s"} matched
+          <div className="sim-rules-head" ref={rulesRef}>
+            <span className="sim-summary">
+              {showAll
+                ? `all ${sim.rules.length} rule${sim.rules.length === 1 ? "" : "s"}`
+                : `${notableRules.length} of ${sim.rules.length} rule${sim.rules.length === 1 ? "" : "s"} shown`}
+            </span>
+            {hiddenCount > 0 ? (
+              <button type="button" className="sim-toggle" onClick={() => setShowAll(!showAll)}>
+                {showAll ? "show matched only" : `show all ${sim.rules.length}`}
+              </button>
+            ) : null}
           </div>
-          <div className="sim-rules">
-            {sim.rules.map((rule) => (
-              <RuleRow key={rule.index} rule={rule} />
-            ))}
-          </div>
+          {shownRules.length > 0 ? (
+            <div className="sim-rules">
+              {shownRules.map((rule) => (
+                <RuleRow key={rule.index} rule={rule} />
+              ))}
+            </div>
+          ) : (
+            <p className="empty-note">
+              No rule matched this dependency.{" "}
+              {hiddenCount > 0 ? (
+                <button
+                  type="button"
+                  className="sim-toggle inline"
+                  onClick={() => setShowAll(true)}
+                >
+                  Show all {sim.rules.length} anyway.
+                </button>
+              ) : null}
+            </p>
+          )}
           <div className="sim-final">
             <div className="sim-merged-title">Final per-dependency config</div>
             {changedKeys.length > 0 ? (

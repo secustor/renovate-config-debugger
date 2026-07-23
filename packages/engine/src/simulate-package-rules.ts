@@ -17,6 +17,13 @@ import type { ValidationMessage } from "./trace/model";
  * (removeMatchers + mergeChildConfig, cumulative and in order) so the final
  * per-dependency config matches what Renovate would compute.
  *
+ * Roadmap 012: after the merge tail, the simulator also replicates Renovate's
+ * update-type flattening (upstream `flattenUpdates`:
+ * `mergeChildConfig(config, config[updateType])` followed by deleting every
+ * update-type block) so that e.g. `minor: { automerge: true }` resolves to
+ * `automerge: true` for a minor update. What the flattening changed, and which
+ * update-type blocks were present, is recorded on `result.flattened`.
+ *
  * The one deliberate gap: `matchConfidence` needs a Merge Confidence API
  * token and upstream THROWS without one, so rules containing it are reported
  * as "not-simulated" instead of being decided — mirroring that a real run
@@ -81,6 +88,25 @@ export interface MergedKey {
   after?: unknown;
 }
 
+/**
+ * The update-type flattening step (roadmap 012), replicating upstream
+ * `flattenUpdates`: after packageRules merge, `config[updateType]` is merged
+ * up into the config and every update-type block is dropped.
+ */
+export interface FlattenResult {
+  /** The update's type whose block was merged, e.g. `minor` (if any was set). */
+  updateType?: string;
+  /** Keys the update-type block set/changed on the final config (may be empty). */
+  merged: MergedKey[];
+  /**
+   * Every standard update-type block present on the resolved config *before*
+   * flattening (`major`/`minor`/`patch`/`pin`/`digest`/`lockFileMaintenance`/
+   * `replacement`), so the UI can explain when a setting is scoped to update
+   * types other than the current one.
+   */
+  blocks: Record<string, Record<string, unknown>>;
+}
+
 export interface RuleEvaluation {
   /** Position in `packageRules`. */
   index: number;
@@ -98,10 +124,13 @@ export interface SimulationResult {
   /** Exactly what `applyPackageRules` would return (dep fields included). */
   rawFinalConfig: Record<string, unknown>;
   /**
-   * `rawFinalConfig` without `packageRules` and without synthetic descriptor
-   * fields that no rule changed — the per-dependency config for display.
+   * `rawFinalConfig` after update-type flattening, without `packageRules` and
+   * without synthetic descriptor fields that no rule changed — the
+   * per-dependency config for display.
    */
   finalDependencyConfig: Record<string, unknown>;
+  /** What Renovate's update-type flattening changed (roadmap 012). */
+  flattened: FlattenResult;
   /** `validateConfig("repo", { packageRules })` output for the rules block. */
   errors: ValidationMessage[];
   warnings: ValidationMessage[];
@@ -146,6 +175,21 @@ const MATCHER_TABLE: readonly MatcherDescriptor[] = [
 ];
 
 const KNOWN_SELECTORS = new Set(MATCHER_TABLE.map((entry) => entry.key));
+
+/**
+ * The update-type config blocks Renovate flattens and then deletes, in the
+ * exact set and order of upstream `flattenUpdates`. `rollback`/`bump` are NOT
+ * flattenable blocks upstream and are intentionally absent.
+ */
+const UPDATE_TYPE_KEYS = [
+  "major",
+  "minor",
+  "patch",
+  "pin",
+  "digest",
+  "lockFileMaintenance",
+  "replacement",
+] as const;
 
 const NOT_SIMULATED_NOTE =
   "not simulated — matchConfidence requires a Merge Confidence API token; " +
@@ -436,7 +480,40 @@ async function execute(input: SimulationInput): Promise<SimulationResult> {
       );
     }
 
-    const finalDependencyConfig = { ...config };
+    // ---- upstream flattenUpdates update-type flattening, replicated ----
+    // After the packageRules merge, Renovate merges `config[updateType]` up
+    // into the config (so `minor: { automerge: true }` becomes
+    // `automerge: true` for a minor update) and then drops every update-type
+    // block. `rawFinalConfig` keeps the pre-flatten value (006 oracle parity);
+    // the display config below reflects the flattening.
+    const updateType = typeof config.updateType === "string" ? config.updateType : undefined;
+    const blocks: Record<string, Record<string, unknown>> = {};
+    for (const key of UPDATE_TYPE_KEYS) {
+      if (isPlainObject(config[key])) {
+        blocks[key] = config[key] as Record<string, unknown>;
+      }
+    }
+    const preFlatten: Record<string, unknown> = { ...config };
+    for (const key of UPDATE_TYPE_KEYS) {
+      delete preFlatten[key];
+    }
+    let flattenedConfig: Record<string, unknown> = { ...config };
+    const updateBlock = updateType !== undefined ? config[updateType] : undefined;
+    if (isPlainObject(updateBlock)) {
+      flattenedConfig = mergeChildConfig(flattenedConfig, updateBlock) as Record<string, unknown>;
+    }
+    for (const key of UPDATE_TYPE_KEYS) {
+      delete flattenedConfig[key];
+    }
+    const flattenMerged = diffKeys(preFlatten, flattenedConfig);
+    if (flattenMerged.length > 0 && updateType) {
+      notes.push(
+        `update-type flattening merged the \`${updateType}\` block up into the config: ` +
+          `${flattenMerged.map((m) => `\`${m.key}\``).join(", ")}`,
+      );
+    }
+
+    const finalDependencyConfig = { ...flattenedConfig };
     delete finalDependencyConfig.packageRules;
     for (const [key, value] of Object.entries(depFields)) {
       if (key in finalDependencyConfig && jsonEqual(finalDependencyConfig[key], value)) {
@@ -448,6 +525,7 @@ async function execute(input: SimulationInput): Promise<SimulationResult> {
       rules,
       rawFinalConfig: config,
       finalDependencyConfig,
+      flattened: { updateType, merged: flattenMerged, blocks },
       errors,
       warnings,
       notes,

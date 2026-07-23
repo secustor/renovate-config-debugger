@@ -16,7 +16,7 @@ Full context and architecture: [.agents/spec/renovate-config-visualizer.md](../.
 | [009](009-github-oauth-sign-in.md)                    | "Sign in with GitHub" (replace PAT field)                 | M4                   | done    |
 | [010](010-preset-hosting-coverage.md)                 | Preset hosting coverage + `local>`                        | M2                   | done    |
 | [011](011-preset-tree-legibility-at-scale.md)         | Preset tree legibility at scale                           | M2                   | done    |
-| [012](012-simulator-verdict-first-results.md)         | Simulator: verdict-first results + update-type flattening | M5                   | planned |
+| [012](012-simulator-verdict-first-results.md)         | Simulator: verdict-first results + update-type flattening | M5                   | done    |
 | [013](013-rule-identity-and-provenance.md)            | Rule identity: numbering, provenance, cross-links         | M5                   | planned |
 | [014](014-validation-translations-and-quick-fixes.md) | Validation error translations + suggested fixes           | M5                   | planned |
 | [015](015-simulator-input-ergonomics.md)              | Simulator input ergonomics                                | M5                   | planned |
