@@ -315,6 +315,110 @@ pre.config-view {
   color: var(--error);
 }
 
+.badge.via {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.badge.user-supplied {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+/* ---------- platform context / per-host tokens (010) ---------- */
+
+.advanced-settings {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.4rem 0.75rem;
+}
+
+.advanced-settings > summary {
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.advanced-hint {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.advanced-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.6rem;
+}
+
+.advanced-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.advanced-row label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.78rem;
+  gap: 0.2rem;
+}
+
+.advanced-row label.grow {
+  flex: 1;
+  min-width: 12rem;
+}
+
+.advanced-row select,
+.advanced-row input {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: inherit;
+  font-size: 0.9rem;
+  padding: 0.4rem 0.6rem;
+}
+
+.advanced-note {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+.preset-inject {
+  border-top: 1px solid var(--border);
+  padding: 0.4rem 0;
+}
+
+.preset-inject-input {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: inherit;
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+  margin: 0.3rem 0;
+  padding: 0.4rem 0.6rem;
+  resize: vertical;
+  width: 100%;
+}
+
+.preset-inject-button {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.35rem 0.7rem;
+}
+
+.preset-inject-button:disabled {
+  opacity: 0.6;
+}
+
 .preset-node-error {
   color: var(--error);
   font-size: 0.8rem;

@@ -1,5 +1,5 @@
 import { toSerializable } from "./delta";
-import type { LogLevel, PresetNode, StageId, TraceEvent } from "./model";
+import type { LogLevel, PlatformContext, PresetNode, StageId, TraceEvent } from "./model";
 import { type ParsePresetFn, PresetTreeBuilder } from "./preset-tree";
 
 /**
@@ -13,8 +13,8 @@ export class TraceCollector {
   private stage: StageId = "parse";
   private tree: PresetTreeBuilder;
 
-  constructor(parsePreset?: ParsePresetFn) {
-    this.tree = new PresetTreeBuilder((event) => this.emit(event), parsePreset);
+  constructor(parsePreset?: ParsePresetFn, platformContext?: PlatformContext) {
+    this.tree = new PresetTreeBuilder((event) => this.emit(event), parsePreset, platformContext);
   }
 
   enterStage(stage: StageId): void {

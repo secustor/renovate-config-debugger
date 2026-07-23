@@ -1,13 +1,24 @@
 import type { OptionIndex, PipelineInput, TraceResult } from "@renovate-config-visualizer/engine";
 
+const TOKEN_KEYS = {
+  githubToken: "rcv.githubToken",
+  gitlabToken: "rcv.gitlabToken",
+  giteaToken: "rcv.giteaToken",
+  forgejoToken: "rcv.forgejoToken",
+} as const;
+
 /**
  * Dynamic import keeps the heavy renovate chunk out of the initial page load;
  * Vite code-splits it automatically behind this call.
  */
 export async function run(input: PipelineInput): Promise<TraceResult> {
   const engine = await import("@renovate-config-visualizer/engine");
-  const token = localStorage.getItem("rcv.githubToken");
-  engine.setPresetAuth({ githubToken: token ?? undefined });
+  engine.setPresetAuth({
+    githubToken: localStorage.getItem(TOKEN_KEYS.githubToken) ?? undefined,
+    gitlabToken: localStorage.getItem(TOKEN_KEYS.gitlabToken) ?? undefined,
+    giteaToken: localStorage.getItem(TOKEN_KEYS.giteaToken) ?? undefined,
+    forgejoToken: localStorage.getItem(TOKEN_KEYS.forgejoToken) ?? undefined,
+  });
   return engine.runPipeline(input);
 }
 

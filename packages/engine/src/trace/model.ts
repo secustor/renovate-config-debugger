@@ -42,6 +42,12 @@ export interface PresetSourceRef {
   tag?: string;
   /** Positional parameters, e.g. `schedule:earlyMondays(...)` → ["..."] */
   params?: string[];
+  /**
+   * For `local>` / bare `owner/repo` nodes only: the platform + endpoint the
+   * run resolved them against (from the platform context / global config).
+   */
+  platform?: string;
+  endpoint?: string;
 }
 
 export type PresetNodeState =
@@ -101,6 +107,24 @@ export interface PipelineInput {
   content: string;
   /** Optional self-hosted/global options consulted by migration, validation and presets */
   globalConfig?: Record<string, unknown>;
+  /**
+   * Platform context defining `local>` resolution. Set through Renovate's real
+   * GlobalConfig before preset resolution. Defaults to `github`.
+   */
+  platform?: string;
+  /** Endpoint for the platform context; defaults to the platform's own API. */
+  endpoint?: string;
+  /**
+   * User-supplied preset content for otherwise-unreachable presets, keyed by
+   * the canonical injection key (see `presetInjectionKey`).
+   */
+  injectedPresets?: Record<string, Record<string, unknown>>;
+}
+
+/** The platform + endpoint a run resolved `local>` presets against. */
+export interface PlatformContext {
+  platform: string;
+  endpoint: string;
 }
 
 export interface TraceResult {
@@ -117,4 +141,11 @@ export interface TraceResult {
    * shim is active (browser bundle / shimmed tests) — undefined in plain Node.
    */
   presetTree?: PresetNode;
+  /** Platform + endpoint this run resolved `local>` presets against. */
+  platformContext: PlatformContext;
+  /**
+   * Injection keys served from user-supplied content during this run. The app
+   * matches these against each node's computed key to flag "user-supplied".
+   */
+  usedInjections: string[];
 }

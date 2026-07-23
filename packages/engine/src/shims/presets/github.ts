@@ -11,6 +11,7 @@ import {
 } from "renovate/dist/config/presets/util.js";
 import { ExternalHostError } from "renovate/dist/types/errors/external-host-error.js";
 import { getPresetAuth } from "../../auth";
+import { getInjectedPreset } from "./injection";
 
 export const Endpoint = "https://api.github.com/";
 
@@ -34,8 +35,15 @@ export async function fetchJSONFile(
   try {
     res = await fetch(url, { headers });
   } catch (err) {
-    // network failure or CORS rejection
-    throw new ExternalHostError(err instanceof Error ? err : new Error(String(err)), "github");
+    // fetch() rejects on network failure or a CORS block — the endpoint could
+    // not be reached from the browser at all (distinct from a 404 not-found).
+    throw new ExternalHostError(
+      new Error(
+        `Could not reach the GitHub endpoint ${endpoint} from the browser — ` +
+          `likely missing CORS headers or a network block (${err instanceof Error ? err.message : String(err)})`,
+      ),
+      "github",
+    );
   }
   if (res.status === 401 || res.status === 403 || res.status === 429) {
     throw new ExternalHostError(
@@ -68,5 +76,9 @@ export function getPreset(config: {
   tag?: string;
 }): Promise<Record<string, unknown> | null> {
   const { repo, presetName = "default", presetPath, tag } = config;
+  const injected = getInjectedPreset({ presetSource: "github", repo, presetPath, presetName, tag });
+  if (injected) {
+    return Promise.resolve(injected);
+  }
   return getPresetFromEndpoint(repo, presetName, presetPath, Endpoint, tag);
 }

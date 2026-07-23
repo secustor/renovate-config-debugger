@@ -16,11 +16,54 @@ const DEFAULT_CONFIG = `{
 `;
 
 const TOKEN_KEY = "rcv.githubToken";
+const GITLAB_TOKEN_KEY = "rcv.gitlabToken";
+const GITEA_TOKEN_KEY = "rcv.giteaToken";
+const FORGEJO_TOKEN_KEY = "rcv.forgejoToken";
+const PLATFORM_KEY = "rcv.platform";
+const ENDPOINT_KEY = "rcv.endpoint";
+
+/** Platforms that resolve `local>` in the browser, with their default endpoint. */
+const PLATFORM_ENDPOINTS: Record<string, string> = {
+  github: "https://api.github.com",
+  gitlab: "https://gitlab.com/api/v4",
+  gitea: "https://gitea.com",
+  forgejo: "https://codeberg.org",
+  azure: "",
+  bitbucket: "",
+  "bitbucket-server": "",
+  gerrit: "",
+  codecommit: "",
+  "scm-manager": "",
+};
+
+const PLATFORMS = Object.keys(PLATFORM_ENDPOINTS);
+
+type InjectionMap = Record<string, Record<string, unknown>>;
+
+function readStored(key: string, fallback: string): string {
+  return localStorage.getItem(key) ?? fallback;
+}
+
+function persist(key: string, value: string): void {
+  if (value) {
+    localStorage.setItem(key, value);
+  } else {
+    localStorage.removeItem(key);
+  }
+}
 
 export function App() {
   const [content, setContent] = useState(DEFAULT_CONFIG);
   const [fileName, setFileName] = useState<"renovate.json" | "renovate.json5">("renovate.json");
-  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) ?? "");
+  const [token, setToken] = useState(() => readStored(TOKEN_KEY, ""));
+  const [gitlabToken, setGitlabToken] = useState(() => readStored(GITLAB_TOKEN_KEY, ""));
+  const [giteaToken, setGiteaToken] = useState(() => readStored(GITEA_TOKEN_KEY, ""));
+  const [forgejoToken, setForgejoToken] = useState(() => readStored(FORGEJO_TOKEN_KEY, ""));
+  const [platform, setPlatform] = useState(() => readStored(PLATFORM_KEY, "github"));
+  const [endpoint, setEndpoint] = useState(() =>
+    readStored(ENDPOINT_KEY, "https://api.github.com"),
+  );
+  const [injected, setInjected] = useState<InjectionMap>({});
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<TraceResult | null>(null);
   const [selectedStage, setSelectedStage] = useState<StageId>("preset");
@@ -31,11 +74,12 @@ export function App() {
   const [fatal, setFatal] = useState<string | null>(null);
   const [optionIndex, setOptionIndex] = useState<OptionIndex | null>(null);
 
-  async function onRun() {
+  async function onRun(overrideInjected?: InjectionMap) {
+    const injectedPresets = overrideInjected ?? injected;
     setRunning(true);
     setFatal(null);
     try {
-      const traceResult = await run({ fileName, content });
+      const traceResult = await run({ fileName, content, platform, endpoint, injectedPresets });
       setResult(traceResult);
       const firstError = (Object.entries(traceResult.stageStatus) as [StageId, string][]).find(
         ([, status]) => status === "error",
@@ -50,14 +94,35 @@ export function App() {
     }
   }
 
-  function onTokenChange(value: string) {
-    setToken(value);
-    if (value) {
-      localStorage.setItem(TOKEN_KEY, value);
-    } else {
-      localStorage.removeItem(TOKEN_KEY);
-    }
+  function makeTokenHandler(key: string, setter: (v: string) => void) {
+    return (value: string) => {
+      setter(value);
+      persist(key, value);
+    };
   }
+  const onTokenChange = makeTokenHandler(TOKEN_KEY, setToken);
+
+  function onPlatformChange(value: string) {
+    setPlatform(value);
+    persist(PLATFORM_KEY, value);
+    // Snap the endpoint to the new platform's default; the user can still edit.
+    const next = PLATFORM_ENDPOINTS[value] ?? "";
+    setEndpoint(next);
+    persist(ENDPOINT_KEY, next);
+  }
+
+  function onEndpointChange(value: string) {
+    setEndpoint(value);
+    persist(ENDPOINT_KEY, value);
+  }
+
+  function onInject(key: string, contentObj: Record<string, unknown>) {
+    const next = { ...injected, [key]: contentObj };
+    setInjected(next);
+    void onRun(next);
+  }
+
+  const usesLocal = platform !== "github";
 
   return (
     <OptionDocsProvider index={optionIndex}>
@@ -87,10 +152,82 @@ export function App() {
             value={token}
             onChange={(e) => onTokenChange(e.target.value)}
           />
-          <button type="button" className="primary" onClick={onRun} disabled={running}>
+          <button type="button" className="primary" onClick={() => onRun()} disabled={running}>
             {running ? "Running…" : "Run pipeline"}
           </button>
         </div>
+
+        <details className="advanced-settings">
+          <summary>
+            Platform context &amp; per-host tokens
+            <span className="advanced-hint">
+              {" "}
+              — defines `local&gt;` and bare `owner/repo` presets
+            </span>
+          </summary>
+          <div className="advanced-body">
+            <div className="advanced-row">
+              <label>
+                Platform
+                <select value={platform} onChange={(e) => onPlatformChange(e.target.value)}>
+                  {PLATFORMS.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="grow">
+                Endpoint
+                <input
+                  type="text"
+                  placeholder={PLATFORM_ENDPOINTS[platform] || "not fetched in the browser"}
+                  value={endpoint}
+                  onChange={(e) => onEndpointChange(e.target.value)}
+                />
+              </label>
+            </div>
+            {usesLocal && !(platform in PLATFORM_ENDPOINTS && PLATFORM_ENDPOINTS[platform]) ? (
+              <p className="advanced-note">
+                <code>{platform}</code> presets are not fetched in the browser — a real Renovate run
+                reaches them. You can still provide their content manually from a failed node below.
+              </p>
+            ) : null}
+            <div className="advanced-row">
+              <label className="grow">
+                GitLab token (PRIVATE-TOKEN)
+                <input
+                  type="password"
+                  placeholder="optional — stays in your browser"
+                  value={gitlabToken}
+                  onChange={(e) =>
+                    makeTokenHandler(GITLAB_TOKEN_KEY, setGitlabToken)(e.target.value)
+                  }
+                />
+              </label>
+              <label className="grow">
+                Gitea token
+                <input
+                  type="password"
+                  placeholder="optional — stays in your browser"
+                  value={giteaToken}
+                  onChange={(e) => makeTokenHandler(GITEA_TOKEN_KEY, setGiteaToken)(e.target.value)}
+                />
+              </label>
+              <label className="grow">
+                Forgejo token
+                <input
+                  type="password"
+                  placeholder="optional — stays in your browser"
+                  value={forgejoToken}
+                  onChange={(e) =>
+                    makeTokenHandler(FORGEJO_TOKEN_KEY, setForgejoToken)(e.target.value)
+                  }
+                />
+              </label>
+            </div>
+          </div>
+        </details>
 
         {fatal ? <p style={{ color: "var(--error)" }}>{fatal}</p> : null}
 
@@ -107,7 +244,7 @@ export function App() {
               <StageDiff result={result} stage={deferredStage} />
             </div>
             <MessagesPanel result={result} />
-            <PresetTree result={result} />
+            <PresetTree result={result} onInject={onInject} />
             <EffectiveConfig result={result} />
           </>
         ) : null}

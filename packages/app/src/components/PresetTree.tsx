@@ -1,7 +1,33 @@
 import { memo, useEffect, useMemo, useState } from "react";
-import type { PresetNode, TraceResult } from "@renovate-config-visualizer/engine";
+import type { PresetNode, PresetSourceRef, TraceResult } from "@renovate-config-visualizer/engine";
 import { ConfigJson } from "./ConfigJson";
 import { JsonDiff } from "./JsonDiff";
+
+type InjectionKeyFn = (id: {
+  presetSource: string;
+  repo?: string;
+  presetPath?: string;
+  presetName?: string;
+  tag?: string;
+}) => string;
+type ParseFn = (text: string) => Record<string, unknown>;
+
+/** Injection key for a node, or null when its source could not be parsed. */
+function nodeInjectionKey(
+  source: PresetSourceRef | undefined,
+  keyFn: InjectionKeyFn | null,
+): string | null {
+  if (!source?.presetSource || !keyFn) {
+    return null;
+  }
+  return keyFn({
+    presetSource: source.presetSource,
+    repo: source.repo,
+    presetPath: source.presetPath,
+    presetName: source.presetName,
+    tag: source.tag,
+  });
+}
 
 /**
  * Roadmap 002: interactive tree of the recursive `extends` expansion. One
@@ -49,8 +75,47 @@ function buildParents(root: PresetNode): Map<string, PresetNode> {
   return parents;
 }
 
-export const PresetTree = memo(function PresetTree({ result }: { result: TraceResult }) {
+/** Loads the engine helpers the tree needs (merge + injection key/parse). */
+function useEngineHelpers() {
+  const [helpers, setHelpers] = useState<{
+    merge: MergeFn;
+    injectionKey: InjectionKeyFn;
+    parse: ParseFn;
+  } | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    void import("@renovate-config-visualizer/engine").then((engine) => {
+      if (live) {
+        setHelpers({
+          merge: engine.mergeChildConfig as MergeFn,
+          injectionKey: engine.presetInjectionKey as InjectionKeyFn,
+          parse: engine.parseInjectedPreset as ParseFn,
+        });
+      }
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  return helpers;
+}
+
+export const PresetTree = memo(function PresetTree({
+  result,
+  onInject,
+}: {
+  result: TraceResult;
+  onInject: (key: string, content: Record<string, unknown>) => void;
+}) {
   const root = result.presetTree;
+  const helpers = useEngineHelpers();
+  const injectionKey = helpers?.injectionKey ?? null;
+  const usedInjections = useMemo(
+    () => new Set(result.usedInjections ?? []),
+    [result.usedInjections],
+  );
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -109,6 +174,8 @@ export const PresetTree = memo(function PresetTree({ result }: { result: TraceRe
               selectedId={selectedId}
               onToggle={toggle}
               onSelect={setSelectedId}
+              injectionKey={injectionKey}
+              usedInjections={usedInjections}
             />
           ))}
         </div>
@@ -117,6 +184,10 @@ export const PresetTree = memo(function PresetTree({ result }: { result: TraceRe
             node={selected}
             parent={parents.get(selected.id)}
             onClose={() => setSelectedId(null)}
+            injectionKey={injectionKey}
+            parse={helpers?.parse ?? null}
+            usedInjections={usedInjections}
+            onInject={onInject}
           />
         ) : (
           <div className="preset-panel-hint">Select a preset to inspect it.</div>
@@ -132,16 +203,22 @@ function TreeNode({
   selectedId,
   onToggle,
   onSelect,
+  injectionKey,
+  usedInjections,
 }: {
   node: PresetNode;
   expanded: ReadonlySet<string>;
   selectedId: string | null;
   onToggle: (id: string) => void;
   onSelect: (id: string) => void;
+  injectionKey: InjectionKeyFn | null;
+  usedInjections: ReadonlySet<string>;
 }) {
   const hasChildren = node.children.length > 0;
   const isExpanded = expanded.has(node.id);
   const stateLabel = STATE_LABELS[node.state];
+  const key = nodeInjectionKey(node.source, injectionKey);
+  const userSupplied = key !== null && usedInjections.has(key);
 
   return (
     <div
@@ -167,6 +244,19 @@ function TreeNode({
         {node.source?.presetSource ? (
           <span className={`badge src src-${node.source.presetSource}`}>
             {node.source.presetSource}
+          </span>
+        ) : null}
+        {node.source?.platform ? (
+          <span
+            className="badge via"
+            title={`local> resolved against ${node.source.platform} @ ${node.source.endpoint ?? "default endpoint"}`}
+          >
+            via {node.source.platform}
+          </span>
+        ) : null}
+        {userSupplied ? (
+          <span className="badge user-supplied" title="Resolved from manually provided content">
+            user-supplied
           </span>
         ) : null}
         {hasChildren && !isExpanded ? (
@@ -205,6 +295,8 @@ function TreeNode({
               selectedId={selectedId}
               onToggle={onToggle}
               onSelect={onSelect}
+              injectionKey={injectionKey}
+              usedInjections={usedInjections}
             />
           ))}
         </div>
@@ -220,19 +312,7 @@ function TreeNode({
  * out of the app's initial bundle) resolves instantly.
  */
 function useContribution(node: PresetNode, parent: PresetNode | undefined) {
-  const [merge, setMerge] = useState<MergeFn | null>(null);
-
-  useEffect(() => {
-    let live = true;
-    void import("@renovate-config-visualizer/engine").then((engine) => {
-      if (live) {
-        setMerge(() => engine.mergeChildConfig as MergeFn);
-      }
-    });
-    return () => {
-      live = false;
-    };
-  }, []);
+  const merge = useEngineHelpers()?.merge ?? null;
 
   return useMemo(() => {
     if (!merge || !parent || node.nested || node.state !== "resolved" || !node.resolved) {
@@ -266,6 +346,8 @@ function SourceDetails({ node }: { node: PresetNode }) {
     ["Preset", source.presetName],
     ["Tag", source.tag],
     ["Parameters", source.params?.join(", ")],
+    ["Platform", source.platform],
+    ["Endpoint", source.endpoint],
   ];
   return (
     <dl className="preset-source">
@@ -281,17 +363,83 @@ function SourceDetails({ node }: { node: PresetNode }) {
   );
 }
 
+function PresetInjector({
+  node,
+  injectionKey,
+  parse,
+  onInject,
+}: {
+  node: PresetNode;
+  injectionKey: InjectionKeyFn | null;
+  parse: ParseFn | null;
+  onInject: (key: string, content: Record<string, unknown>) => void;
+}) {
+  const [text, setText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const key = nodeInjectionKey(node.source, injectionKey);
+  if (!key || !parse) {
+    return null;
+  }
+
+  function submit() {
+    setError(null);
+    try {
+      const parsed = parse!(text);
+      onInject(key!, parsed);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  return (
+    <details className="preset-inject" open>
+      <summary>Provide preset content manually</summary>
+      <p className="empty-note">
+        Paste this preset&apos;s JSON (JSON5 accepted). It is stored in memory and the pipeline
+        re-runs using it, so unreachable / self-hosted presets can still be explored.
+      </p>
+      <textarea
+        className="preset-inject-input"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder={'{\n  "labels": ["from-manual-preset"]\n}'}
+        rows={6}
+        spellCheck={false}
+      />
+      {error ? <p className="preset-node-error">{error}</p> : null}
+      <button
+        type="button"
+        className="preset-inject-button"
+        onClick={submit}
+        disabled={text.trim().length === 0}
+      >
+        Use this content &amp; re-run
+      </button>
+    </details>
+  );
+}
+
 function PresetDetail({
   node,
   parent,
   onClose,
+  injectionKey,
+  parse,
+  usedInjections,
+  onInject,
 }: {
   node: PresetNode;
   parent: PresetNode | undefined;
   onClose: () => void;
+  injectionKey: InjectionKeyFn | null;
+  parse: ParseFn | null;
+  usedInjections: ReadonlySet<string>;
+  onInject: (key: string, content: Record<string, unknown>) => void;
 }) {
   const contribution = useContribution(node, parent);
   const stateLabel = STATE_LABELS[node.state];
+  const key = nodeInjectionKey(node.source, injectionKey);
+  const userSupplied = key !== null && usedInjections.has(key);
   const migrationChanged =
     node.fetched !== undefined &&
     node.input !== undefined &&
@@ -306,8 +454,16 @@ function PresetDetail({
         </button>
       </div>
       <SourceDetails node={node} />
+      {userSupplied ? (
+        <p className="empty-note">
+          Resolved from preset content you supplied manually rather than a fetch.
+        </p>
+      ) : null}
       {node.error ? <p className="preset-node-error">{node.error.message}</p> : null}
       {stateLabel && !node.error ? <p className="empty-note">{stateLabel}</p> : null}
+      {node.state === "error" ? (
+        <PresetInjector node={node} injectionKey={injectionKey} parse={parse} onInject={onInject} />
+      ) : null}
       {node.duplicate ? (
         <p className="empty-note">
           This preset also appears elsewhere in the tree; its content was resolved once and served
