@@ -10,7 +10,7 @@ faithfully, but faithfulness alone doesn't survive contact with reality:
 `group:monorepos` / `group:recommended` subtrees alone pull in many hundreds
 of tiny internal packageRules presets). A tree with a thousand
 mostly-identical nodes answers no question — the user's actual questions are
-"what did all of that *do* to my config?" and "where did this one setting
+"what did all of that _do_ to my config?" and "where did this one setting
 come from?". This entry is about turning the raw tree into an instrument for
 those questions.
 
@@ -61,7 +61,7 @@ matter.
 
 - Per-key provenance across merge stages (005) — this links to it, but the
   merge view itself is 005.
-- packageRules *evaluation* against real dependencies (006); here we only
+- packageRules _evaluation_ against real dependencies (006); here we only
   count and search rules, never execute them.
 - Any change to resolution semantics or fetching (002/010 own those).
 

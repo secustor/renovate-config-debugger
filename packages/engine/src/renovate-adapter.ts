@@ -8,6 +8,7 @@ export { migrateConfig } from "renovate/dist/config/migration.js";
 export { massageConfig } from "renovate/dist/config/massage.js";
 export { validateConfig } from "renovate/dist/config/validation.js";
 export { resolveConfigPresets } from "renovate/dist/config/presets/index.js";
+export { parsePreset } from "renovate/dist/config/presets/parse.js";
 export { mergeChildConfig } from "renovate/dist/config/utils.js";
 export { getConfig as getDefaultConfig } from "renovate/dist/config/defaults.js";
 export { GlobalConfig } from "renovate/dist/config/global.js";

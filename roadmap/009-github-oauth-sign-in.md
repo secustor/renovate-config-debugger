@@ -116,7 +116,7 @@ exactly this.
   OAuth token instead of a PAT.
 - Private-repo UX: when a preset or repo fetch comes back 404/403 while
   signed out, offer sign-in as the likely fix (private presets return 404 to
-  strangers); when it fails while signed *in*, explain the app probably
+  strangers); when it fails while signed _in_, explain the app probably
   isn't installed on that repo and link to the app's installation settings
   ("manage repository access"). This error-path guidance is the core UX of
   the feature.
