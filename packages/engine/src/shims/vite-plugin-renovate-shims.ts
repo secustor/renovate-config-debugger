@@ -38,6 +38,9 @@ export function renovateShims(): Plugin {
       "util/cache/package/index.js": "package-cache.ts",
       "util/hash.js": "hash.ts",
       "util/merge-confidence/index.js": "merge-confidence.ts",
+      // conda's version parser is a ~3.9 MB inlined WASM blob (rattler) —
+      // over half the bundle for one niche scheme; see shims/versioning-conda.ts
+      "modules/versioning/conda/index.js": "versioning-conda.ts",
     }).map(([dist, shim]) => [path.join(renovateDist, dist), path.join(shimDir, shim)]),
   );
 

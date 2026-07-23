@@ -18,6 +18,13 @@ Milestone: M3 · Status: done 2026-07-23
 > as ⚠ invalid but — like upstream — does not fail the rule. The real
 > merge-confidence module is shimmed (`getApiToken()` → undefined, identical
 > browser behavior) because it drags got (Node-only HTTP) into the bundle.
+> The `conda` versioning scheme is likewise shimmed to an honest stub: its
+> parser (`@baszalmstra/rattler`) is a Rust WebAssembly module that inlines
+> to ~3.9 MB — over half the entire app — while the other ~53 schemes
+> combined are ~0.4 MB, and the registry imports it statically so it would
+> load on the first pipeline run. `matchCurrentVersion` with
+> `versioning: conda` reports a per-clause error naming the limitation; all
+> other schemes use Renovate's real code.
 > UI: a "packageRules simulator" card below the effective config with a
 > compact descriptor form (+ collapsed "more fields"), four quick-fill
 > presets, on-demand evaluation (button; quick-fills auto-run), per-rule rows

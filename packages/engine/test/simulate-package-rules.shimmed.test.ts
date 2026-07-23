@@ -93,6 +93,20 @@ describe("simulatePackageRules", () => {
     expect(result.rawFinalConfig.labels).toEqual(["below-5"]);
   });
 
+  it("reports conda versioning as a clause error (WASM parser shimmed out of the browser)", async () => {
+    const config = {
+      packageRules: [{ matchCurrentVersion: ">=1.0", labels: ["conda"] }],
+    };
+    const result = await simulatePackageRules({
+      config,
+      dep: { ...npmDep, versioning: "conda", currentValue: "1.2.3" },
+    });
+    expect(result.rules[0]?.verdict).toBe("no-match");
+    const clause = result.rules[0]?.clauses[0];
+    expect(clause?.state).toBe("error");
+    expect(clause?.note).toMatch(/conda versioning is not supported in the browser/);
+  });
+
   it("matches bump updates via matchUpdateTypes + isBump", async () => {
     const config = { packageRules: [{ matchUpdateTypes: ["bump"], automerge: true }] };
     const bump = await simulatePackageRules({

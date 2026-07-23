@@ -28,7 +28,10 @@ running in your browser**. Think "compiler explorer for Renovate configs".
   (manager, datasource, package name, versions, update type, …) and see which
   `packageRules` entries match — rule by rule, clause by clause, using
   Renovate's real matcher code — plus the final per-dependency config the
-  matching rules merge together.
+  matching rules merge together. Version ranges (`matchCurrentVersion`) are
+  evaluated by Renovate's real versioning modules for every ecosystem except
+  `conda`, whose ~3 MB WebAssembly parser is excluded from the browser bundle
+  (such clauses report an honest error instead).
 - **Golden tests** prove the shims don't alter behavior: the same fixtures run
   once against untouched Renovate modules and once through the browser module
   graph, and must produce byte-identical results.
