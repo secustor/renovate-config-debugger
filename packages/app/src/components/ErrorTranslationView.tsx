@@ -1,0 +1,92 @@
+import type { ErrorFixResult, ValidationMessage } from "@renovate-config-visualizer/engine";
+import type { ErrorTranslationLib } from "../run";
+
+/**
+ * Roadmap 014: renders ALONGSIDE Renovate's original validator message (never
+ * instead of it — see `MessagesPanel.tsx` / `RuleSimulator.tsx`) whatever the
+ * curated translation library (`errorLib`) has to say about it: a
+ * plain-language explanation, an optional before/after snippet of a suggested
+ * edit, an "Apply fix" button, and a docs link. When nothing matches, falls
+ * back to a bare docs link if the message names a known option (003).
+ *
+ * `errorLib` is `null` until the engine chunk has loaded (same lazy-load
+ * story as the option-docs hover cards) — nothing renders until then, same
+ * as those cards degrade gracefully pre-load.
+ */
+export function ErrorTranslationView({
+  message,
+  errorLib,
+  config,
+  onApplyFix,
+}: {
+  message: ValidationMessage;
+  errorLib: ErrorTranslationLib | null;
+  /** The exact config snapshot this message was validated against (root-relative
+   *  fix paths); `null`/`undefined` when unavailable (skips fix computation) or
+   *  when this context doesn't support applying fixes (e.g. the simulator echo). */
+  config: Record<string, unknown> | null | undefined;
+  /** Omit to render explanations without an "Apply fix" button (see above). */
+  onApplyFix?: (fix: ErrorFixResult) => void;
+}) {
+  if (!errorLib) {
+    return null;
+  }
+  const translated = errorLib.translateMessage(message, config ?? null);
+  if (!translated) {
+    const doc = errorLib.findMentionedOption(message);
+    if (!doc) {
+      return null;
+    }
+    return (
+      <div className="error-translation error-translation-fallback">
+        <a href={doc.url} target="_blank" rel="noreferrer">
+          {doc.name} docs ↗
+        </a>
+      </div>
+    );
+  }
+  const { explanation, fix, docsUrl } = translated;
+  const showDiff = fix && JSON.stringify(fix.before) !== JSON.stringify(fix.after);
+  return (
+    <div className="error-translation">
+      <p className="error-translation-explain">{explanation}</p>
+      {fix ? (
+        <div className="error-translation-fix">
+          {showDiff ? (
+            <div className="error-translation-diff">
+              <code className="before">{formatSnippet(fix.before)}</code>
+              <span className="error-translation-arrow" aria-hidden="true">
+                →
+              </span>
+              <code className="after">
+                {fix.after === undefined ? "(removed)" : formatSnippet(fix.after)}
+              </code>
+            </div>
+          ) : (
+            <p className="error-translation-summary">{fix.summary}</p>
+          )}
+          {onApplyFix ? (
+            <button
+              type="button"
+              className="error-translation-apply"
+              title={fix.summary}
+              onClick={() => onApplyFix(fix)}
+            >
+              Apply fix
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {docsUrl ? (
+        <a className="error-translation-docs" href={docsUrl} target="_blank" rel="noreferrer">
+          docs.renovatebot.com ↗
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
+function formatSnippet(value: unknown): string {
+  const text = JSON.stringify(value);
+  return text.length > 140 ? `${text.slice(0, 140)}…` : text;
+}

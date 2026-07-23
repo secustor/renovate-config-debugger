@@ -10,7 +10,9 @@ import type {
 import { Term } from "../glossary";
 import { OptionKey } from "../option-docs";
 import { useRuleProvenance } from "../rule-provenance";
+import type { ErrorTranslationLib } from "../run";
 import { ConfigJson } from "./ConfigJson";
+import { ErrorTranslationView } from "./ErrorTranslationView";
 import { ProvenanceChip } from "./ProvenanceChip";
 import { RuleMessage } from "./RuleMessage";
 
@@ -435,6 +437,7 @@ export function RuleSimulator({
   onJumpToEditor,
   focusRuleIndex,
   onRuleFocused,
+  errorLib,
 }: {
   result: TraceResult;
   /** Roadmap 013: a rule row's provenance chip → the contributing preset node in the tree. */
@@ -446,6 +449,13 @@ export function RuleSimulator({
   focusRuleIndex?: number | null;
   /** Called once the requested `focusRuleIndex` has been handled (found or not). */
   onRuleFocused?: () => void;
+  /** Roadmap 014: curated translations, explanation-only here — this echo
+   *  validates the MERGED packageRules array (`validateConfig("repo", {
+   *  packageRules: … })` over the simulated/flattened rules), not the editor's
+   *  own text, so there's no safe surgical "Apply fix" target from this panel.
+   *  When the same issue exists in the user's own rule, it also surfaces
+   *  (with a fix) in the top-level Errors & warnings panel. */
+  errorLib?: ErrorTranslationLib | null;
 }) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [sim, setSim] = useState<SimulationResult | null>(null);
@@ -822,6 +832,7 @@ export function RuleSimulator({
                     onJumpToEditor={onJumpToEditor}
                     onJumpToSimRule={focusRule}
                   />
+                  <ErrorTranslationView message={m} errorLib={errorLib ?? null} config={null} />
                 </li>
               ))}
               {sim.warnings.map((m, i) => (
@@ -834,6 +845,7 @@ export function RuleSimulator({
                     onJumpToEditor={onJumpToEditor}
                     onJumpToSimRule={focusRule}
                   />
+                  <ErrorTranslationView message={m} errorLib={errorLib ?? null} config={null} />
                 </li>
               ))}
             </ul>
