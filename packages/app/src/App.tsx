@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useDeferredValue, useState } from "react";
 import type { StageId, TraceResult } from "@renovate-config-visualizer/engine";
 import { ConfigEditor } from "./components/ConfigEditor";
 import { EffectiveConfig } from "./components/EffectiveConfig";
@@ -23,6 +23,10 @@ export function App() {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<TraceResult | null>(null);
   const [selectedStage, setSelectedStage] = useState<StageId>("preset");
+  // Large stage diffs (preset, merge) take a while to render; deferring the
+  // stage keeps chip clicks responsive and makes the diff render
+  // interruptible instead of blocking the main thread.
+  const deferredStage = useDeferredValue(selectedStage);
   const [fatal, setFatal] = useState<string | null>(null);
 
   async function onRun() {
@@ -87,8 +91,13 @@ export function App() {
         <>
           <StageTimeline result={result} selected={selectedStage} onSelect={setSelectedStage} />
           <div className="card">
-            <div className="card-title">Stage: {selectedStage}</div>
-            <StageDiff result={result} stage={selectedStage} />
+            <div className="card-title">
+              Stage: {selectedStage}
+              {deferredStage !== selectedStage ? (
+                <span className="rendering-note"> rendering…</span>
+              ) : null}
+            </div>
+            <StageDiff result={result} stage={deferredStage} />
           </div>
           <MessagesPanel result={result} />
           <VisitedPresets result={result} />
