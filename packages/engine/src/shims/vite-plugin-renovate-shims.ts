@@ -22,6 +22,7 @@ export function renovateShims(): Plugin {
 
   const shimMap = new Map<string, string>(
     Object.entries({
+      "_virtual/_rolldown/runtime.js": "rolldown-runtime.ts",
       "instrumentation/index.js": "instrumentation.ts",
       "logger/index.js": "logger.ts",
       "expose.js": "expose.ts",
@@ -34,6 +35,7 @@ export function renovateShims(): Plugin {
       "config/presets/forgejo/index.js": "presets/forgejo.ts",
       "modules/datasource/index.js": "datasource-index.ts",
       "util/cache/package/index.js": "package-cache.ts",
+      "util/hash.js": "hash.ts",
     }).map(([dist, shim]) => [path.join(renovateDist, dist), path.join(shimDir, shim)]),
   );
 
@@ -54,8 +56,33 @@ export function renovateShims(): Plugin {
       return {
         // lib/util/env spreads process.env; give it an empty object.
         define: { "process.env": "{}" },
-        // esbuild prebundling would bypass this plugin's resolveId entirely.
-        optimizeDeps: { exclude: ["renovate"] },
+        // esbuild prebundling would bypass this plugin's resolveId entirely,
+        // but renovate's transitive deps that reach the dev server as CJS/UMD
+        // (pure-CJS packages, ESM wrappers around CJS like
+        // safe-stable-stringify, and packages whose browser field/condition
+        // points at a UMD build like json5) still need prebundling for ESM
+        // interop. The chain prefix makes them resolvable from the app root
+        // despite pnpm's strict node_modules layout.
+        optimizeDeps: {
+          exclude: ["renovate"],
+          include: [
+            "@breejs/later",
+            "croner",
+            "cronstrue",
+            "handlebars",
+            "json-dup-key-validator",
+            "json5",
+            "jsonata",
+            "luxon",
+            "ms",
+            "parse-link-header",
+            "safe-stable-stringify",
+            "semver",
+            "semver-stable",
+            "semver-utils",
+            "yaml",
+          ].map((dep) => `@renovate-config-visualizer/engine > renovate > ${dep}`),
+        },
         resolve: {
           alias: [
             // upath (config/parse.js) wraps node:path; pathe is the pure-JS

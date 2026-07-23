@@ -5,7 +5,7 @@ Full context and architecture: [.agents/spec/renovate-config-visualizer.md](../.
 
 | #                                            | Feature                                  | Milestone            | Status      |
 | -------------------------------------------- | ---------------------------------------- | -------------------- | ----------- |
-| [001](001-engine-and-config-input.md)        | Trace engine + config input              | M0/M1                | in progress |
+| [001](001-engine-and-config-input.md)        | Trace engine + config input              | M0/M1                | done        |
 | [002](002-preset-resolution-tree.md)         | Preset resolution tree                   | M1 (MVP centerpiece) | planned     |
 | [003](003-inline-option-docs.md)             | Inline option documentation              | M1                   | planned     |
 | [004](004-migration-step-through.md)         | Migration step-through                   | M2                   | planned     |

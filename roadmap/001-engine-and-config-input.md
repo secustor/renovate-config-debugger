@@ -1,15 +1,16 @@
 # 001 — Trace engine + config input
 
-Milestone: M0/M1 · Status: in progress (M0 spike passed 2026-07-23; engine,
-tests, app shell, CI + Pages deploy implemented)
+Milestone: M0/M1 · Status: done 2026-07-23 (M0 spike passed; engine, tests,
+app shell, CI + Pages deploy implemented and verified end-to-end in the
+browser)
 
 ## Summary
 
 The foundation everything else renders: a `packages/engine` library that runs
 a config through Renovate's real pipeline stages (parse → migrate → massage →
-preset resolution → merge → validate) and records a structured **trace** of
-typed events with before/after snapshots. Plus the minimal UI to feed it: a
-paste-in config editor.
+validate → preset resolution → merge, mirroring Renovate's own order) and
+records a structured **trace** of typed events with before/after snapshots.
+Plus the minimal UI to feed it: a paste-in config editor.
 
 ## User story
 
@@ -22,8 +23,11 @@ produced by Renovate's own code, not a reimplementation.
 - pnpm workspace with `packages/engine` and `packages/app`.
 - Engine deep-imports `renovate/dist/config/**`; all deep imports isolated in
   a single adapter module.
-- Browser shims (Vite aliases) for `lib/util/http/*`, `lib/logger`,
-  `lib/util/cache/*`.
+- Browser shims (a Vite `resolveId` plugin shared with the shimmed Vitest
+  project) for `lib/logger`, `lib/util/cache/package`, and Renovate's rolldown
+  runtime helper; the Node HTTP stack is kept out of the bundle by severing
+  the datasource subtree at `modules/datasource` and fetching presets with
+  browser `fetch()` instead of aliasing `lib/util/http/*`.
 - Trace event model (see spec) with JSON-patch deltas per stage.
 - Input editor (CodeMirror 6 — chosen over Monaco: ~3 MB lighter, and
   `codemirror-json-schema` validates JSON5 against `renovate-schema.json`,
