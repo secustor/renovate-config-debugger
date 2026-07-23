@@ -1008,7 +1008,7 @@ button.badge.dup {
   flex: none;
 }
 
-button.badge.prov-layer {
+.badge.prov-layer[role="button"] {
   background: transparent;
   cursor: pointer;
 }
