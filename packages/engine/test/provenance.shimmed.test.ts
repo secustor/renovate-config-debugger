@@ -9,9 +9,12 @@
 import { describe, expect, it } from "vitest";
 import {
   computeProvenance,
+  computeRuleProvenance,
   type KeyProvenance,
   presetInjectionKey,
+  type RuleAttribution,
   runPipeline,
+  type TraceResult,
 } from "../src/index";
 
 const injectedPresets = {
@@ -36,13 +39,18 @@ const repoConfig = JSON.stringify({
   packageRules: [{ matchDepTypes: ["devDependencies"], extends: ["github>test-org/nested-rule"] }],
 });
 
-async function provenance(): Promise<Map<string, KeyProvenance>> {
+async function runResult(): Promise<TraceResult> {
   const result = await runPipeline({
     fileName: "renovate.json",
     content: repoConfig,
     injectedPresets,
   });
   expect(result.stageStatus.preset).toBe("ok");
+  return result;
+}
+
+async function provenance(): Promise<Map<string, KeyProvenance>> {
+  const result = await runResult();
   const prov = computeProvenance(result);
   expect(prov).toBeDefined();
   return prov as Map<string, KeyProvenance>;
@@ -147,5 +155,73 @@ describe("computeProvenance", () => {
     // has no resolved payload
     expect(result.stageStatus.preset).toBe("error");
     expect(computeProvenance(result)).toBeUndefined();
+  });
+});
+
+/** Layer label for an attribution, for terse assertions (mirrors `layerName` above). */
+function attrLayerName(attr: RuleAttribution): string {
+  return attr.layer.kind === "preset" ? attr.layer.name : attr.layer.kind;
+}
+
+describe("computeRuleProvenance (013)", () => {
+  it("attributes each merged packageRules index to its contributing layer + the index within that layer's own array", async () => {
+    const result = await runResult();
+    const attribution = computeRuleProvenance(result);
+    expect(attribution).toBeDefined();
+    const rules = attribution as RuleAttribution[];
+    // merged order: preset-a's own rule first (it extends before the repo's
+    // own packageRules), then the repo's own rule — matching (b) above.
+    expect(rules.map((a) => [a.index, attrLayerName(a), a.sourceIndex])).toEqual([
+      [0, "github>test-org/preset-a", 0],
+      [1, "repo", 0],
+    ]);
+  });
+
+  it("agrees with the final merged config's length and the nested-extends-corrected rule content", async () => {
+    const result = await runResult();
+    const attribution = computeRuleProvenance(result) as RuleAttribution[];
+    const finalRules = result.finalConfig?.packageRules as Record<string, unknown>[];
+    expect(attribution).toHaveLength(finalRules.length);
+    // the repo-attributed entry is the nested-extends-expanded rule (enabled:false
+    // merged in from the injected nested preset, per provenance test (e) above).
+    const repoEntry = attribution.find((a) => a.layer.kind === "repo");
+    expect(repoEntry).toBeDefined();
+    expect(finalRules[repoEntry!.index]).toMatchObject({
+      matchDepTypes: ["devDependencies"],
+      enabled: false,
+    });
+  });
+
+  it("a repo-config index round-trips to the same rule a validator message about it would name", async () => {
+    // Validation runs BEFORE preset merge, against the repo's own directly-authored
+    // packageRules array — so a message like `packageRules[0]` names sourceIndex 0
+    // of the "repo" layer, i.e. the same array JSON.parse(repoConfig).packageRules is.
+    const repoOwnRules = (JSON.parse(repoConfig) as { packageRules: unknown[] }).packageRules;
+    const result = await runResult();
+    const attribution = computeRuleProvenance(result) as RuleAttribution[];
+    for (const [sourceIndex] of repoOwnRules.entries()) {
+      const entry = attribution.find(
+        (a) => a.layer.kind === "repo" && a.sourceIndex === sourceIndex,
+      );
+      expect(entry, `no attribution for repo-config index ${sourceIndex}`).toBeDefined();
+    }
+  });
+
+  it("returns an empty array when the merged config has no packageRules", async () => {
+    const result = await runPipeline({
+      fileName: "renovate.json",
+      content: JSON.stringify({ automerge: true }),
+    });
+    expect(result.stageStatus.preset).toBe("ok");
+    expect(computeRuleProvenance(result)).toEqual([]);
+  });
+
+  it("returns undefined when preset resolution did not complete", async () => {
+    const result = await runPipeline({
+      fileName: "renovate.json",
+      content: JSON.stringify({ extends: ["github>test-org/does-not-resolve"] }),
+    });
+    expect(result.stageStatus.preset).toBe("error");
+    expect(computeRuleProvenance(result)).toBeUndefined();
   });
 });

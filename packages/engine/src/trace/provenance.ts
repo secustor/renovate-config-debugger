@@ -269,3 +269,68 @@ export function computeProvenance(result: TraceResult): Map<string, KeyProvenanc
   }
   return provenance;
 }
+
+/**
+ * Roadmap 013: per-rule provenance for `packageRules`. `packageRules` is a
+ * concatenating array key (`ProvenanceAction.concat`), so — unlike scalar
+ * keys — a single `KeyProvenance` chain cannot say which merged INDEX came
+ * from which layer, only which layers contributed *an* entry. Renovate's
+ * `mergeChildConfig` concatenates arrays in encounter order and is
+ * associative (`(a++b)++c === a++(b++c)`), so replaying the same layer order
+ * `buildLayers` already establishes — but reading each layer's OWN
+ * `packageRules` length instead of merging — reproduces exactly which
+ * contiguous slice of the final merged array came from which layer, with no
+ * merge needed at all.
+ */
+export interface RuleAttribution {
+  /** 0-based index into the final merged `packageRules` array (the canonical index). */
+  index: number;
+  /** The layer (global/inherited/preset/repo/defaults) that contributed this entry. */
+  layer: ProvenanceLayer;
+  /** 0-based index of this entry within that layer's OWN `packageRules` array — e.g. the
+   *  repo-config index a validator message like `packageRules[1]` refers to, when `layer.kind === "repo"`. */
+  sourceIndex: number;
+}
+
+function ownRuleCount(config: Obj): number {
+  return Array.isArray(config.packageRules) ? config.packageRules.length : 0;
+}
+
+/**
+ * Attributes every entry of a completed run's `finalConfig.packageRules` to
+ * its contributing layer, or `undefined` when the run lacks the data it needs
+ * (mirrors `computeProvenance`'s availability). Returns `undefined` — rather
+ * than a partial/incorrect attribution — when the replayed layer lengths
+ * don't add up to the ground-truth array length (e.g. a packageRules[n].extends
+ * whose nested preset itself unexpectedly reshapes the array), since a wrong
+ * cross-link is worse than none.
+ */
+export function computeRuleProvenance(result: TraceResult): RuleAttribution[] | undefined {
+  const { finalConfig } = result;
+  const root = result.presetTree;
+  if (!finalConfig || !root || root.resolved === undefined || root.input === undefined) {
+    return undefined;
+  }
+  const rules = Array.isArray(finalConfig.packageRules) ? finalConfig.packageRules : [];
+  if (rules.length === 0) {
+    return [];
+  }
+
+  const defaults = getDefaultConfig() as Obj;
+  const layers: Layer[] = [];
+  if (ownRuleCount(defaults) > 0) {
+    layers.push({ layer: { kind: "defaults" }, config: defaults });
+  }
+  layers.push(...buildLayers(root, result.layerConfigs));
+
+  const attribution: RuleAttribution[] = [];
+  let offset = 0;
+  for (const { layer, config } of layers) {
+    const count = ownRuleCount(config);
+    for (let sourceIndex = 0; sourceIndex < count; sourceIndex++) {
+      attribution.push({ index: offset + sourceIndex, layer, sourceIndex });
+    }
+    offset += count;
+  }
+  return offset === rules.length ? attribution : undefined;
+}

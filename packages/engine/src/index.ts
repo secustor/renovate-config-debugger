@@ -17,10 +17,12 @@ export { getOptions, mergeChildConfig } from "./renovate-adapter";
 export { getOptionIndex, type OptionDoc, type OptionIndex } from "./option-docs";
 export {
   computeProvenance,
+  computeRuleProvenance,
   type KeyProvenance,
   type ProvenanceAction,
   type ProvenanceLayer,
   type ProvenanceStep,
+  type RuleAttribution,
 } from "./trace/provenance";
 export {
   parseInjectedPreset,

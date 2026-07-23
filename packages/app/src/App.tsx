@@ -5,7 +5,7 @@ import type {
   StageId,
   TraceResult,
 } from "@renovate-config-visualizer/engine";
-import { ConfigEditor } from "./components/ConfigEditor";
+import { ConfigEditor, type ConfigEditorHandle } from "./components/ConfigEditor";
 import { EffectiveConfig } from "./components/EffectiveConfig";
 import { type AuthState, GithubAuthHint } from "./components/GithubAuthHint";
 import { MessagesPanel } from "./components/MessagesPanel";
@@ -16,6 +16,8 @@ import { StageDiff } from "./components/StageDiff";
 import { STAGE_EXPLAINERS, STAGE_LABELS, StageTimeline } from "./components/StageTimeline";
 import { Term } from "./glossary";
 import { OptionDocsProvider } from "./option-docs";
+import { findPackageRuleOffsets } from "./rule-locate";
+import { useRuleProvenance } from "./rule-provenance";
 import {
   beginSignIn,
   completeCallback,
@@ -279,6 +281,24 @@ export function App() {
   // When a GitHub load fails with a not-found/auth/rate-limit error, offer the
   // sign-in / install hint next to the failure (009). null = no hint.
   const [repoAuthHint, setRepoAuthHint] = useState<{ rateLimited: boolean } | null>(null);
+  // Roadmap 013: rule identity cross-links. The editor is an imperative jump
+  // target (CodeMirror has no declarative "scroll to offset X" prop); the
+  // simulator's target rule is prop-driven since it is a sibling component.
+  const configEditorRef = useRef<ConfigEditorHandle>(null);
+  const [pendingRuleFocus, setPendingRuleFocus] = useState<number | null>(null);
+  const ruleProvenance = useRuleProvenance(result);
+  // The raw text is re-scanned only when it changes, not on every keystroke's
+  // render of something unrelated — this is a plain bracket-depth scan, not a
+  // full parse, so it stays cheap even for large configs.
+  const packageRuleOffsets = useMemo(() => findPackageRuleOffsets(content), [content]);
+
+  /** A validation message's REPO-config `packageRules[repoIndex]` → the editor line. */
+  function focusEditorRepoIndex(repoIndex: number) {
+    const offset = packageRuleOffsets?.[repoIndex];
+    if (offset !== undefined) {
+      configEditorRef.current?.highlightOffset(offset);
+    }
+  }
 
   useEffect(() => {
     setSelectedNodeId(null);
@@ -747,7 +767,12 @@ export function App() {
           </button>
         </form>
 
-        <ConfigEditor fileName={fileName} value={content} onChange={setContent} />
+        <ConfigEditor
+          ref={configEditorRef}
+          fileName={fileName}
+          value={content}
+          onChange={setContent}
+        />
 
         <div className="toolbar">
           <select value={fileName} onChange={(e) => setFileName(e.target.value as typeof fileName)}>
@@ -1102,7 +1127,12 @@ export function App() {
                 <StageDiff result={result} stage={deferredStage} />
               )}
             </div>
-            <MessagesPanel result={result} />
+            <MessagesPanel
+              result={result}
+              ruleAttribution={ruleProvenance}
+              onJumpToEditor={focusEditorRepoIndex}
+              onJumpToSimRule={setPendingRuleFocus}
+            />
             <PresetTree
               result={result}
               onInject={onInject}
@@ -1113,7 +1143,13 @@ export function App() {
               installUrl={installUrl()}
             />
             <EffectiveConfig result={result} onSelectPreset={setSelectedNodeId} />
-            <RuleSimulator result={result} />
+            <RuleSimulator
+              result={result}
+              onSelectPreset={setSelectedNodeId}
+              onJumpToEditor={focusEditorRepoIndex}
+              focusRuleIndex={pendingRuleFocus}
+              onRuleFocused={() => setPendingRuleFocus(null)}
+            />
           </>
         ) : null}
       </main>

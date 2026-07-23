@@ -1,6 +1,40 @@
 # 013 — Rule identity: one numbering, provenance chips, cross-links
 
-Milestone: M5 · Status: planned
+Milestone: M5 · Status: done 2026-07-24
+
+> Implemented as specified. Engine: `computeRuleProvenance` (013) attributes
+> every entry of the merged `finalConfig.packageRules` to its contributing
+> layer (repo / global / inherited / preset) and the index within that
+> layer's OWN `packageRules` array — the repo-config index a validator
+> message like `packageRules[1]` names. It needs no merge replay: since
+> `packageRules` only concatenates and `mergeChildConfig` concatenates arrays
+> associatively in encounter order, reading each layer's own array length off
+> the same ordered layer list `computeProvenance` (005) already builds gives
+> the exact contiguous slice of the final array each layer contributed;
+> returns `undefined` (not a guess) when the replayed lengths don't add up to
+> the ground-truth array. UI: the simulator's rule rows now read
+> `packageRules[N]` (0-based) instead of a separate `#N+1` row count — the
+> same text a validator message uses — with a provenance chip reusing the
+> effective config's exact chip component (extracted to `ProvenanceChip.tsx`);
+> the same chip + per-rule list now also appears under the effective config's
+> `packageRules` entry. Rule captions list every `match*`/`exclude*` clause
+> and name the one that decided a no-match verdict. Validation messages
+> (`packageRules[N]`) are rendered through a shared `RuleMessage` component
+> that makes the index a clickable jump (repo-config messages → the editor
+> line, via a lightweight bracket-depth scan of the raw text, no full JSON5
+> parser; merged-index messages, e.g. the simulator's own validateConfig echo,
+> → the rule row) and appends the other index as a second link when the
+> mapping is determinable ("repo-config index 1" / "merged rule
+> packageRules[713]"). A simulator rule row's provenance chip reuses the
+> existing preset-tree selection wiring (`onSelectPreset`/`selectedId`) rather
+> than new plumbing. All cross-links use `scrollIntoView` + a transient
+> `rcv-flash` CSS class; the editor jump uses CodeMirror's own
+> transaction/selection API (no new dependency — `@uiw/react-codemirror`
+> re-exports `EditorView`). Known gap: the editor-line locator only recognizes
+> a double-quoted top-level `packageRules` key (the overwhelming convention,
+> including in `.json5` files); an unquoted or single-quoted key is not
+> recognized and the editor cross-link is silently skipped for that config
+> (the simulator/preset-tree cross-links are unaffected).
 
 ## Summary
 
