@@ -5,6 +5,7 @@ import type {
   TraceEvent,
   TraceResult,
 } from "@renovate-config-visualizer/engine";
+import { Term } from "../glossary";
 import { ConfigJson } from "./ConfigJson";
 import { type AuthState, GithubAuthHint } from "./GithubAuthHint";
 import { JsonDiff } from "./JsonDiff";
@@ -941,7 +942,8 @@ export const PresetTree = memo(function PresetTree({
   return (
     <div className="card">
       <div className="card-title">
-        Preset resolution tree ({nf.format(stats.summary.resolved)} resolved)
+        <Term id="preset">Preset</Term> resolution tree ({nf.format(stats.summary.resolved)}{" "}
+        resolved)
       </div>
       <SummaryHeader summary={stats.summary} />
       <div className="preset-controls">

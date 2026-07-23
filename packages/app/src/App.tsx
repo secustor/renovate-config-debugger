@@ -13,7 +13,8 @@ import { MigrationSteps } from "./components/MigrationSteps";
 import { identityForNodeId, nodeIdForIdentity, PresetTree } from "./components/PresetTree";
 import { RuleSimulator } from "./components/RuleSimulator";
 import { StageDiff } from "./components/StageDiff";
-import { StageTimeline } from "./components/StageTimeline";
+import { STAGE_EXPLAINERS, STAGE_LABELS, StageTimeline } from "./components/StageTimeline";
+import { Term } from "./glossary";
 import { OptionDocsProvider } from "./option-docs";
 import {
   beginSignIn,
@@ -40,6 +41,28 @@ import {
 const DEFAULT_CONFIG = `{
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"]
+}
+`;
+
+// A richer starter config that gives every part of the app something to show:
+// a deprecated option (migrate), string shorthand (massage), presets and
+// packageRules for the simulator.
+const EXAMPLE_CONFIG = `{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":dependencyDashboard"],
+  "schedule": "before 6am on monday",
+  "semanticCommits": true,
+  "packageRules": [
+    {
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
+      "matchPackageNames": ["react", "react-dom"],
+      "groupName": "react"
+    }
+  ]
 }
 `;
 
@@ -215,6 +238,10 @@ export function App() {
   const [globalText, setGlobalText] = useState("");
   const [inheritedText, setInheritedText] = useState("");
   const [platformOverride, setPlatformOverride] = useState(false);
+  // The single collapsed home of everything a typical repo user never touches
+  // (self-hosted layers, platform context, tokens). Auto-opens when a share
+  // link arrives carrying self-hosted layers, so their effect isn't invisible.
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   // OAuth sign-in (009). Configured only when both build-time vars are present;
   // otherwise the whole feature stays hidden and the PAT fallback remains.
   const oauthConfig = useMemo(() => getOAuthConfig(), []);
@@ -419,6 +446,9 @@ export function App() {
         payload.inheritedConfig ? JSON.stringify(payload.inheritedConfig, null, 2) : "",
       );
       setPlatformOverride(payload.platformOverride === true);
+      if (payload.globalConfig || payload.inheritedConfig) {
+        setAdvancedOpen(true);
+      }
       pendingViewRef.current = payload.view ?? null;
       const current = await getRenovateVersion();
       if (!cancelled && payload.renovate && payload.renovate !== current) {
@@ -560,7 +590,7 @@ export function App() {
     const knownHost = parsed.host ? HOST_PLATFORM[parsed.host] : undefined;
     if (parsed.host && !knownHost) {
       setNotice(
-        `Unknown host ${parsed.host}. Set the platform and endpoint in "Platform context" below, then load with the owner/repo form.`,
+        `Unknown host ${parsed.host}. Set its host and API endpoint under Advanced options → "Repository host & access tokens", then load with the owner/repo form.`,
       );
       return;
     }
@@ -570,7 +600,7 @@ export function App() {
     } else {
       if (!FETCHABLE_PLATFORMS.has(platform as RepoPlatform)) {
         setNotice(
-          `The current platform context (${platform}) can't be fetched from the browser. Choose github, gitlab, gitea or forgejo in "Platform context", or use a full URL.`,
+          `The current repository host (${platform}) can't be fetched from the browser. Choose github, gitlab, gitea or forgejo under Advanced options → "Repository host & access tokens", or use a full URL.`,
         );
         return;
       }
@@ -650,79 +680,45 @@ export function App() {
           ) : null}
         </header>
         <p className="subtitle">
-          Paste a repo config and step through what Renovate actually does with it — parsing,
-          migration, massaging, validation, preset resolution and merging, powered by
-          Renovate&apos;s own code running in your browser.
+          Understand your Renovate config by watching Renovate&apos;s own code process it, step by
+          step, right here in your browser. Nothing you paste leaves the page.
         </p>
 
-        <ConfigEditor fileName={fileName} value={content} onChange={setContent} />
-
-        <details className="advanced-settings">
-          <summary>
-            Global config (self-hosted admin)
-            <span className="advanced-hint">
-              {" "}
-              — the layer set via config.js / env / CLI
-              {globalParse.config ? " · active" : ""}
-              {globalParse.error ? " · invalid JSON" : ""}
-            </span>
-          </summary>
-          <div className="advanced-body">
-            <p className="advanced-note">
-              JSON only. Merges between the defaults and the repo config, after its own{" "}
-              <code>globalExtends</code> presets; options like <code>platform</code>,{" "}
-              <code>endpoint</code> or <code>onboarding</code> become run context instead of
-              merging. Leave empty to run without this layer.
+        {result ? null : (
+          <section className="welcome" aria-label="How it works">
+            <ol className="welcome-steps">
+              <li>
+                <strong>Bring a config.</strong> Paste your <code>renovate.json</code> below, load
+                it straight from a repository, or{" "}
+                <button
+                  type="button"
+                  className="linklike"
+                  onClick={() => setContent(EXAMPLE_CONFIG)}
+                >
+                  try an example
+                </button>
+                .
+              </li>
+              <li>
+                <strong>Run it.</strong> The same code the real bot uses resolves your{" "}
+                <Term id="preset">presets</Term>, applies{" "}
+                <Term id="migration">config migration</Term> and validates every option.
+              </li>
+              <li>
+                <strong>Explore the result.</strong> Step through each stage, hover any option for
+                its docs, and simulate which <Term id="packageRules">packageRules</Term> would apply
+                to a dependency update.
+              </li>
+            </ol>
+            <p className="welcome-footnote">
+              New to Renovate? Start with the{" "}
+              <a href="https://docs.renovatebot.com/" target="_blank" rel="noreferrer">
+                official docs ↗
+              </a>
+              . Your config and any tokens stay in this browser tab.
             </p>
-            <textarea
-              className="layer-editor"
-              placeholder='{ "globalExtends": ["config:best-practices"], "platform": "gitlab" }'
-              value={globalText}
-              onChange={(e) => setGlobalText(e.target.value)}
-              spellCheck={false}
-              rows={8}
-            />
-            {globalParse.error ? (
-              <p className="layer-editor-error">
-                Not valid JSON: {globalParse.error}. The pipeline won&apos;t run until this parses
-                or the field is cleared.
-              </p>
-            ) : null}
-          </div>
-        </details>
-
-        <details className="advanced-settings">
-          <summary>
-            Inherited config (inheritConfig)
-            <span className="advanced-hint">
-              {" "}
-              — the org-level layer between global and repo config
-              {inheritedParse.config ? " · active" : ""}
-              {inheritedParse.error ? " · invalid JSON" : ""}
-            </span>
-          </summary>
-          <div className="advanced-body">
-            <p className="advanced-note">
-              JSON only. Validated with Renovate&apos;s <code>inherit</code> rules, its presets
-              resolved, global-only options stripped — then merged between the global layer and the
-              repo config. Leave empty to run without this layer.
-            </p>
-            <textarea
-              className="layer-editor"
-              placeholder='{ "extends": ["github>my-org/renovate-config"], "automerge": false }'
-              value={inheritedText}
-              onChange={(e) => setInheritedText(e.target.value)}
-              spellCheck={false}
-              rows={8}
-            />
-            {inheritedParse.error ? (
-              <p className="layer-editor-error">
-                Not valid JSON: {inheritedParse.error}. The pipeline won&apos;t run until this
-                parses or the field is cleared.
-              </p>
-            ) : null}
-          </div>
-        </details>
+          </section>
+        )}
 
         <form
           className="repo-load"
@@ -731,17 +727,18 @@ export function App() {
             void onLoadRepo();
           }}
         >
+          <span className="repo-load-label">Load from a repository</span>
           <input
             type="text"
             className="repo-load-ref"
-            placeholder="Load from repo — owner/repo, github.com/owner/repo, or a full URL"
+            placeholder="owner/repo, github.com/owner/repo, or a full repository URL"
             value={repoInput}
             onChange={(e) => setRepoInput(e.target.value)}
           />
           <input
             type="text"
             className="repo-load-branch"
-            placeholder="ref (default branch)"
+            placeholder="branch or tag (optional)"
             value={repoRef}
             onChange={(e) => setRepoRef(e.target.value)}
           />
@@ -749,6 +746,8 @@ export function App() {
             {repoLoading ? "Loading…" : "Load"}
           </button>
         </form>
+
+        <ConfigEditor fileName={fileName} value={content} onChange={setContent} />
 
         <div className="toolbar">
           <select value={fileName} onChange={(e) => setFileName(e.target.value as typeof fileName)}>
@@ -793,8 +792,14 @@ export function App() {
             )
           ) : null}
           <span className="toolbar-spacer" />
-          <button type="button" className="primary" onClick={() => onRun()} disabled={running}>
-            {running ? "Running…" : "Run pipeline"}
+          <button
+            type="button"
+            className="primary"
+            onClick={() => onRun()}
+            disabled={running}
+            title="Process this config with Renovate's own code — it never leaves your browser"
+          >
+            {running ? "Running…" : "Run"}
           </button>
           <button
             type="button"
@@ -806,138 +811,255 @@ export function App() {
           </button>
         </div>
 
-        <details className="advanced-settings">
+        <details
+          className="advanced-zone"
+          open={advancedOpen}
+          onToggle={(e) => setAdvancedOpen(e.currentTarget.open)}
+        >
           <summary>
-            Platform context &amp; per-host tokens
+            Advanced options
             <span className="advanced-hint">
               {" "}
-              — defines `local&gt;` and bare `owner/repo` presets
+              — repository host, access tokens, self-hosted bot config
             </span>
+            {globalParse.config || inheritedParse.config ? (
+              <span className="advanced-active-chip">self-hosted config active</span>
+            ) : null}
+            {globalParse.error || inheritedParse.error ? (
+              <span className="advanced-active-chip invalid">invalid JSON</span>
+            ) : null}
           </summary>
-          <div className="advanced-body">
-            <div className="advanced-row">
-              <label>
-                Platform
-                <select value={displayPlatform} onChange={(e) => onPlatformChange(e.target.value)}>
-                  {PLATFORMS.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                  {!PLATFORMS.includes(displayPlatform) ? (
-                    <option value={displayPlatform}>{displayPlatform}</option>
+
+          <p className="advanced-intro">
+            Everything here is optional — the defaults suit a repository on github.com using the
+            hosted Renovate app.
+          </p>
+
+          <details className="advanced-settings">
+            <summary>
+              Repository host &amp; access tokens
+              <span className="advanced-hint">
+                {" "}
+                — where presets that live in other repositories are fetched from
+              </span>
+            </summary>
+            <div className="advanced-body">
+              <p className="advanced-note">
+                Some presets live in other repositories on your <Term id="platform">
+                  code host
+                </Term>{" "}
+                (referenced as{" "}
+                <Term id="localPreset">
+                  <code>local&gt;</code>
+                </Term>{" "}
+                or a bare <code>owner/repo</code>). Set the host and API endpoint they should
+                resolve against.
+              </p>
+              <div className="advanced-row">
+                <label>
+                  Platform
+                  <select
+                    value={displayPlatform}
+                    onChange={(e) => onPlatformChange(e.target.value)}
+                  >
+                    {PLATFORMS.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                    {!PLATFORMS.includes(displayPlatform) ? (
+                      <option value={displayPlatform}>{displayPlatform}</option>
+                    ) : null}
+                  </select>
+                </label>
+                <label className="grow">
+                  Endpoint
+                  <input
+                    type="text"
+                    placeholder={
+                      PLATFORM_ENDPOINTS[displayPlatform] || "not fetched in the browser"
+                    }
+                    value={displayEndpoint}
+                    onChange={(e) => onEndpointChange(e.target.value)}
+                  />
+                </label>
+              </div>
+              {reflectGlobal ? (
+                <p className="advanced-note platform-from-global">
+                  <span className="badge prov-global">from global config</span>{" "}
+                  {globalPlatform !== undefined ? (
+                    <>
+                      platform <code>{globalPlatform}</code>
+                    </>
                   ) : null}
-                </select>
-              </label>
-              <label className="grow">
-                Endpoint
-                <input
-                  type="text"
-                  placeholder={PLATFORM_ENDPOINTS[displayPlatform] || "not fetched in the browser"}
-                  value={displayEndpoint}
-                  onChange={(e) => onEndpointChange(e.target.value)}
-                />
-              </label>
+                  {globalPlatform !== undefined && globalEndpoint !== undefined ? " and " : null}
+                  {globalEndpoint !== undefined ? (
+                    <>
+                      endpoint <code>{globalEndpoint}</code>
+                    </>
+                  ) : null}{" "}
+                  come from the pasted global config — a real Renovate run would use them. Changing
+                  the control overrides them for this visualization.
+                </p>
+              ) : null}
+              {platformOverride && hasGlobalContext ? (
+                <p className="advanced-note platform-override-warning">
+                  Overriding <code>platform</code>/<code>endpoint</code> from the global config — a
+                  real Renovate run would use <code>{globalPlatform ?? displayPlatform}</code>
+                  {" / "}
+                  <code>
+                    {globalEndpoint ??
+                      (PLATFORM_ENDPOINTS[globalPlatform ?? ""] || "the platform default")}
+                  </code>
+                  .{" "}
+                  <button
+                    type="button"
+                    className="platform-override-clear"
+                    onClick={() => setPlatformOverride(false)}
+                  >
+                    use global config values
+                  </button>
+                </p>
+              ) : null}
+              {usesLocal && !(platform in PLATFORM_ENDPOINTS && PLATFORM_ENDPOINTS[platform]) ? (
+                <p className="advanced-note">
+                  <code>{platform}</code> presets are not fetched in the browser — a real Renovate
+                  run reaches them. You can still provide their content manually from a failed node
+                  below.
+                </p>
+              ) : null}
+              {oauthConfig ? (
+                <p className="advanced-note">
+                  Signing in with GitHub (top of the page) is the recommended way to reach private
+                  GitHub presets and repos. A personal access token is only a fallback — for GitHub
+                  Enterprise Server, when the app installation can&apos;t be approved, or if the
+                  sign-in service is unavailable.
+                </p>
+              ) : (
+                <p className="advanced-note">
+                  A GitHub personal access token lifts preset rate limits and reaches private
+                  repositories. It stays in this browser tab only.
+                </p>
+              )}
+              <div className="advanced-row">
+                <label className="grow">
+                  GitHub personal access token (fallback)
+                  <input
+                    type="password"
+                    placeholder="optional — stays in this browser tab"
+                    value={token}
+                    onChange={(e) => onTokenChange(e.target.value)}
+                  />
+                </label>
+                <label className="grow">
+                  GitLab token (PRIVATE-TOKEN)
+                  <input
+                    type="password"
+                    placeholder="optional — stays in this browser tab"
+                    value={gitlabToken}
+                    onChange={(e) =>
+                      makeTokenHandler(GITLAB_TOKEN_KEY, setGitlabToken)(e.target.value)
+                    }
+                  />
+                </label>
+                <label className="grow">
+                  Gitea token
+                  <input
+                    type="password"
+                    placeholder="optional — stays in this browser tab"
+                    value={giteaToken}
+                    onChange={(e) =>
+                      makeTokenHandler(GITEA_TOKEN_KEY, setGiteaToken)(e.target.value)
+                    }
+                  />
+                </label>
+                <label className="grow">
+                  Forgejo token
+                  <input
+                    type="password"
+                    placeholder="optional — stays in this browser tab"
+                    value={forgejoToken}
+                    onChange={(e) =>
+                      makeTokenHandler(FORGEJO_TOKEN_KEY, setForgejoToken)(e.target.value)
+                    }
+                  />
+                </label>
+              </div>
             </div>
-            {reflectGlobal ? (
-              <p className="advanced-note platform-from-global">
-                <span className="badge prov-global">from global config</span>{" "}
-                {globalPlatform !== undefined ? (
-                  <>
-                    platform <code>{globalPlatform}</code>
-                  </>
-                ) : null}
-                {globalPlatform !== undefined && globalEndpoint !== undefined ? " and " : null}
-                {globalEndpoint !== undefined ? (
-                  <>
-                    endpoint <code>{globalEndpoint}</code>
-                  </>
-                ) : null}{" "}
-                come from the pasted global config — a real Renovate run would use them. Changing
-                the control overrides them for this visualization.
-              </p>
-            ) : null}
-            {platformOverride && hasGlobalContext ? (
-              <p className="advanced-note platform-override-warning">
-                Overriding <code>platform</code>/<code>endpoint</code> from the global config — a
-                real Renovate run would use <code>{globalPlatform ?? displayPlatform}</code>
-                {" / "}
-                <code>
-                  {globalEndpoint ??
-                    (PLATFORM_ENDPOINTS[globalPlatform ?? ""] || "the platform default")}
-                </code>
-                .{" "}
-                <button
-                  type="button"
-                  className="platform-override-clear"
-                  onClick={() => setPlatformOverride(false)}
-                >
-                  use global config values
-                </button>
-              </p>
-            ) : null}
-            {usesLocal && !(platform in PLATFORM_ENDPOINTS && PLATFORM_ENDPOINTS[platform]) ? (
+          </details>
+
+          <details className="advanced-settings">
+            <summary>
+              Global config
+              <span className="advanced-hint">
+                {" "}
+                — bot-level settings from a self-hosted administrator
+                {globalParse.config ? " · active" : ""}
+                {globalParse.error ? " · invalid JSON" : ""}
+              </span>
+            </summary>
+            <div className="advanced-body">
               <p className="advanced-note">
-                <code>{platform}</code> presets are not fetched in the browser — a real Renovate run
-                reaches them. You can still provide their content manually from a failed node below.
+                Running your own Renovate bot? Paste its{" "}
+                <Term id="globalConfig">global config</Term> as JSON to model the full layer stack:
+                it merges between Renovate&apos;s defaults and your repo config, after its own{" "}
+                <code>globalExtends</code> presets. Options like <code>platform</code>,{" "}
+                <code>endpoint</code> or <code>onboarding</code> become run context instead of
+                merging. Leave empty to run without this layer.
               </p>
-            ) : null}
-            {oauthConfig ? (
-              <p className="advanced-note">
-                Signing in with GitHub (top of the page) is the recommended way to reach private
-                GitHub presets and repos. A personal access token is only a fallback — for GitHub
-                Enterprise Server, when the app installation can&apos;t be approved, or if the
-                sign-in service is unavailable.
-              </p>
-            ) : (
-              <p className="advanced-note">
-                A GitHub personal access token lifts preset rate limits and reaches private
-                repositories. It stays in this browser tab only.
-              </p>
-            )}
-            <div className="advanced-row">
-              <label className="grow">
-                GitHub personal access token (fallback)
-                <input
-                  type="password"
-                  placeholder="optional — stays in this browser tab"
-                  value={token}
-                  onChange={(e) => onTokenChange(e.target.value)}
-                />
-              </label>
-              <label className="grow">
-                GitLab token (PRIVATE-TOKEN)
-                <input
-                  type="password"
-                  placeholder="optional — stays in this browser tab"
-                  value={gitlabToken}
-                  onChange={(e) =>
-                    makeTokenHandler(GITLAB_TOKEN_KEY, setGitlabToken)(e.target.value)
-                  }
-                />
-              </label>
-              <label className="grow">
-                Gitea token
-                <input
-                  type="password"
-                  placeholder="optional — stays in this browser tab"
-                  value={giteaToken}
-                  onChange={(e) => makeTokenHandler(GITEA_TOKEN_KEY, setGiteaToken)(e.target.value)}
-                />
-              </label>
-              <label className="grow">
-                Forgejo token
-                <input
-                  type="password"
-                  placeholder="optional — stays in this browser tab"
-                  value={forgejoToken}
-                  onChange={(e) =>
-                    makeTokenHandler(FORGEJO_TOKEN_KEY, setForgejoToken)(e.target.value)
-                  }
-                />
-              </label>
+              <textarea
+                className="layer-editor"
+                placeholder='{ "globalExtends": ["config:best-practices"], "platform": "gitlab" }'
+                value={globalText}
+                onChange={(e) => setGlobalText(e.target.value)}
+                spellCheck={false}
+                rows={8}
+              />
+              {globalParse.error ? (
+                <p className="layer-editor-error">
+                  Not valid JSON: {globalParse.error}. The pipeline won&apos;t run until this parses
+                  or the field is cleared.
+                </p>
+              ) : null}
             </div>
-          </div>
+          </details>
+
+          <details className="advanced-settings">
+            <summary>
+              Inherited config
+              <span className="advanced-hint">
+                {" "}
+                — org-wide defaults shared across repositories
+                {inheritedParse.config ? " · active" : ""}
+                {inheritedParse.error ? " · invalid JSON" : ""}
+              </span>
+            </summary>
+            <div className="advanced-body">
+              <p className="advanced-note">
+                Defaults a self-hosted bot shares across repositories via{" "}
+                <Term id="inheritedConfig">
+                  <code>inheritConfig</code>
+                </Term>
+                . Validated with Renovate&apos;s inherit rules, its presets resolved, bot-only
+                options stripped — then merged between the global layer and the repo config. Leave
+                empty to run without this layer.
+              </p>
+              <textarea
+                className="layer-editor"
+                placeholder='{ "extends": ["github>my-org/renovate-config"], "automerge": false }'
+                value={inheritedText}
+                onChange={(e) => setInheritedText(e.target.value)}
+                spellCheck={false}
+                rows={8}
+              />
+              {inheritedParse.error ? (
+                <p className="layer-editor-error">
+                  Not valid JSON: {inheritedParse.error}. The pipeline won&apos;t run until this
+                  parses or the field is cleared.
+                </p>
+              ) : null}
+            </div>
+          </details>
         </details>
 
         {fatal ? <p style={{ color: "var(--error)" }}>{fatal}</p> : null}
@@ -963,7 +1085,8 @@ export function App() {
             <StageTimeline result={result} selected={selectedStage} onSelect={setSelectedStage} />
             <div className="card">
               <div className="card-title">
-                Stage: {selectedStage}
+                Stage: {STAGE_LABELS[selectedStage]}
+                <span className="card-title-hint"> — {STAGE_EXPLAINERS[selectedStage].plain}</span>
                 {deferredStage !== selectedStage ? (
                   <span className="rendering-note"> rendering…</span>
                 ) : null}

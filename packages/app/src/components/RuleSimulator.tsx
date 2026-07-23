@@ -6,6 +6,7 @@ import type {
   SimulationResult,
   TraceResult,
 } from "@renovate-config-visualizer/engine";
+import { Term } from "../glossary";
 import { OptionKey } from "../option-docs";
 import { ConfigJson } from "./ConfigJson";
 
@@ -380,10 +381,15 @@ export function RuleSimulator({ result }: { result: TraceResult }) {
   if (packageRules.length === 0) {
     return (
       <div className="card">
-        <div className="card-title">packageRules simulator</div>
+        <div className="card-title">
+          Update simulator{" "}
+          <span className="sim-title-hint">
+            — test your <Term id="packageRules">packageRules</Term>
+          </span>
+        </div>
         <p className="empty-note">
-          This config has no <code>packageRules</code> — nothing to simulate. Rules added by presets
-          would appear here after a run that resolves them.
+          This config has no <Term id="packageRules">packageRules</Term> — nothing to simulate.
+          Rules added by presets would appear here after a run that resolves them.
         </p>
       </div>
     );
@@ -395,11 +401,13 @@ export function RuleSimulator({ result }: { result: TraceResult }) {
   return (
     <div className="card">
       <div className="card-title">
-        packageRules simulator
+        Update simulator
         <span className="sim-title-hint">
           {" "}
-          — which of the {packageRules.length} rule{packageRules.length === 1 ? "" : "s"} hit a
-          hypothetical update?
+          — describe a hypothetical dependency update and see which of the {
+            packageRules.length
+          }{" "}
+          <Term id="packageRules">{packageRules.length === 1 ? "rule" : "rules"}</Term> would apply
         </span>
       </div>
       <div className="sim-presets">
