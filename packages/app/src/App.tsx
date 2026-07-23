@@ -11,6 +11,7 @@ import { type AuthState, GithubAuthHint } from "./components/GithubAuthHint";
 import { MessagesPanel } from "./components/MessagesPanel";
 import { MigrationSteps } from "./components/MigrationSteps";
 import { identityForNodeId, nodeIdForIdentity, PresetTree } from "./components/PresetTree";
+import { RuleSimulator } from "./components/RuleSimulator";
 import { StageDiff } from "./components/StageDiff";
 import { StageTimeline } from "./components/StageTimeline";
 import { OptionDocsProvider } from "./option-docs";
@@ -268,7 +269,14 @@ export function App() {
   const hasGlobalContext = globalPlatform !== undefined || globalEndpoint !== undefined;
   const reflectGlobal = hasGlobalContext && !platformOverride;
   const displayPlatform = reflectGlobal && globalPlatform !== undefined ? globalPlatform : platform;
-  const displayEndpoint = reflectGlobal && globalEndpoint !== undefined ? globalEndpoint : endpoint;
+  // A global-config platform also displaces the toolbar endpoint (it belongs
+  // to the toolbar's platform): fall back to the global platform's default.
+  const displayEndpoint =
+    reflectGlobal && globalEndpoint !== undefined
+      ? globalEndpoint
+      : reflectGlobal && globalPlatform !== undefined
+        ? (PLATFORM_ENDPOINTS[globalPlatform] ?? "")
+        : endpoint;
 
   // An override only exists relative to global-config values; when the global
   // config stops defining platform/endpoint, snap back to normal behavior.
@@ -982,6 +990,7 @@ export function App() {
               installUrl={installUrl()}
             />
             <EffectiveConfig result={result} onSelectPreset={setSelectedNodeId} />
+            <RuleSimulator result={result} />
           </>
         ) : null}
       </main>

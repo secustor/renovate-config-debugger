@@ -203,6 +203,23 @@ describe("global + inherited config layers", () => {
     });
   });
 
+  it("displaces the explicit endpoint when the global config sets only the platform", async () => {
+    const result = await runPipeline({
+      fileName: "renovate.json",
+      content: repoConfig,
+      globalConfig: { platform: "gitlab" },
+      injectedPresets,
+      platform: "github",
+      endpoint: "https://api.github.com/",
+    });
+    // the explicit endpoint belongs to the toolbar's platform — a real run
+    // would use the global platform's own default
+    expect(result.platformContext).toEqual({
+      platform: "gitlab",
+      endpoint: "https://gitlab.com/api/v4/",
+    });
+  });
+
   it("excludes an inherited layer that fails validation, surfacing the errors", async () => {
     const result = await runPipeline({
       fileName: "renovate.json",

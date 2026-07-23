@@ -37,6 +37,7 @@ export function renovateShims(): Plugin {
       "modules/datasource/index.js": "datasource-index.ts",
       "util/cache/package/index.js": "package-cache.ts",
       "util/hash.js": "hash.ts",
+      "util/merge-confidence/index.js": "merge-confidence.ts",
     }).map(([dist, shim]) => [path.join(renovateDist, dist), path.join(shimDir, shim)]),
   );
 

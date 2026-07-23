@@ -135,6 +135,30 @@ declare module "renovate/dist/config/inherit.js" {
   }
 }
 
+declare module "renovate/dist/util/package-rules/matchers.js" {
+  /**
+   * One instantiated matcher from Renovate's registry. `matches` returns
+   * null/undefined when its clause is absent from the rule, otherwise whether
+   * the input satisfies the clause (JsonataMatcher is async — always await).
+   */
+  export interface PackageRuleMatcher {
+    matches(
+      inputConfig: Record<string, unknown>,
+      packageRule: Record<string, unknown>,
+    ): boolean | null | undefined | Promise<boolean | null | undefined>;
+  }
+  /** The 18 matchers, in evaluation order. */
+  const matchers: readonly PackageRuleMatcher[];
+  export default matchers;
+}
+
+declare module "renovate/dist/util/package-rules/index.js" {
+  export function applyPackageRules(
+    inputConfig: RenovateConfig,
+    stageName?: string,
+  ): Promise<RenovateConfig>;
+}
+
 declare module "renovate/dist/util/cache/memory/index.js" {
   export function init(): void;
   export function reset(): void;

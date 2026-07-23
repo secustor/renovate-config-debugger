@@ -24,6 +24,11 @@ running in your browser**. Think "compiler explorer for Renovate configs".
   top-level options; the rest just contribute grouping packageRules), with
   windowed rendering, contribution roll-ups, search, a flat-table view and a
   "hide zero-contribution routers" toggle.
+- A **packageRules simulator**: describe a hypothetical dependency update
+  (manager, datasource, package name, versions, update type, …) and see which
+  `packageRules` entries match — rule by rule, clause by clause, using
+  Renovate's real matcher code — plus the final per-dependency config the
+  matching rules merge together.
 - **Golden tests** prove the shims don't alter behavior: the same fixtures run
   once against untouched Renovate modules and once through the browser module
   graph, and must produce byte-identical results.

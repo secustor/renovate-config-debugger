@@ -50,8 +50,15 @@ function resolvePlatformContext(input: PipelineInput): PlatformContext {
   const platform =
     (overridden ? (input.platform ?? globalPlatform) : (globalPlatform ?? input.platform)) ??
     "github";
+  // Without an override, a global-config platform also invalidates the
+  // explicit endpoint — it belongs to the toolbar's platform, not this one; a
+  // real run would use the global endpoint or the platform's own default.
+  const explicitEndpoint =
+    !overridden && globalPlatform !== undefined && globalEndpoint === undefined
+      ? undefined
+      : input.endpoint;
   const endpoint =
-    (overridden ? (input.endpoint ?? globalEndpoint) : (globalEndpoint ?? input.endpoint)) ??
+    (overridden ? (explicitEndpoint ?? globalEndpoint) : (globalEndpoint ?? explicitEndpoint)) ??
     ENDPOINT_DEFAULTS[platform] ??
     "";
   return overridden ? { platform, endpoint, overridden } : { platform, endpoint };
@@ -83,10 +90,19 @@ function removeGlobalConfig(
 // the active trace collector), so runs must never overlap.
 let queue: Promise<unknown> = Promise.resolve();
 
-export function runPipeline(input: PipelineInput): Promise<TraceResult> {
-  const run = queue.then(() => execute(input));
+/**
+ * Serializes every engine entry point that touches renovate's stateful
+ * modules through one queue, so e.g. a packageRules simulation (006) never
+ * interleaves with a pipeline run.
+ */
+export function enqueueEngineTask<T>(task: () => Promise<T>): Promise<T> {
+  const run = queue.then(() => task());
   queue = run.catch(() => undefined);
   return run;
+}
+
+export function runPipeline(input: PipelineInput): Promise<TraceResult> {
+  return enqueueEngineTask(() => execute(input));
 }
 
 async function execute(input: PipelineInput): Promise<TraceResult> {

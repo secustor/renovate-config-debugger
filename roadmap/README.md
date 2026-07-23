@@ -3,16 +3,16 @@
 Planned features for the Renovate Config Visualizer, in intended build order.
 Full context and architecture: [.agents/spec/renovate-config-visualizer.md](../.agents/spec/renovate-config-visualizer.md).
 
-| #                                             | Feature                                   | Milestone            | Status  |
-| --------------------------------------------- | ----------------------------------------- | -------------------- | ------- |
-| [001](001-engine-and-config-input.md)         | Trace engine + config input               | M0/M1                | done    |
-| [002](002-preset-resolution-tree.md)          | Preset resolution tree                    | M1 (MVP centerpiece) | done    |
-| [003](003-inline-option-docs.md)              | Inline option documentation               | M1                   | done    |
-| [004](004-migration-step-through.md)          | Migration step-through                    | M2                   | done    |
-| [005](005-merge-provenance-view.md)           | Merge provenance view                     | M2                   | done    |
-| [006](006-package-rules-simulator.md)         | packageRules simulator                    | M3                   | planned |
-| [007](007-shareable-links-and-repo-fetch.md)  | Shareable links + fetch config from repo  | M4                   | done    |
-| [008](008-global-and-inherited-config.md)     | Global + inherited config layers          | M3                   | done    |
-| [009](009-github-oauth-sign-in.md)            | "Sign in with GitHub" (replace PAT field) | M4                   | done    |
-| [010](010-preset-hosting-coverage.md)         | Preset hosting coverage + `local>`        | M2                   | done    |
-| [011](011-preset-tree-legibility-at-scale.md) | Preset tree legibility at scale           | M2                   | done    |
+| #                                             | Feature                                   | Milestone            | Status |
+| --------------------------------------------- | ----------------------------------------- | -------------------- | ------ |
+| [001](001-engine-and-config-input.md)         | Trace engine + config input               | M0/M1                | done   |
+| [002](002-preset-resolution-tree.md)          | Preset resolution tree                    | M1 (MVP centerpiece) | done   |
+| [003](003-inline-option-docs.md)              | Inline option documentation               | M1                   | done   |
+| [004](004-migration-step-through.md)          | Migration step-through                    | M2                   | done   |
+| [005](005-merge-provenance-view.md)           | Merge provenance view                     | M2                   | done   |
+| [006](006-package-rules-simulator.md)         | packageRules simulator                    | M3                   | done   |
+| [007](007-shareable-links-and-repo-fetch.md)  | Shareable links + fetch config from repo  | M4                   | done   |
+| [008](008-global-and-inherited-config.md)     | Global + inherited config layers          | M3                   | done   |
+| [009](009-github-oauth-sign-in.md)            | "Sign in with GitHub" (replace PAT field) | M4                   | done   |
+| [010](010-preset-hosting-coverage.md)         | Preset hosting coverage + `local>`        | M2                   | done   |
+| [011](011-preset-tree-legibility-at-scale.md) | Preset tree legibility at scale           | M2                   | done   |

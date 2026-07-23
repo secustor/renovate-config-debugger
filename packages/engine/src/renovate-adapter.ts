@@ -18,4 +18,13 @@ export { getConfig as getDefaultConfig } from "renovate/dist/config/defaults.js"
 export { GlobalConfig } from "renovate/dist/config/global.js";
 export { InheritConfig } from "renovate/dist/config/inherit.js";
 export { getOptions } from "renovate/dist/config/options/index.js";
+// The simulator (006) needs the matcher registry only; `applyPackageRules`
+// itself is deliberately NOT re-exported — its merge tail is replicated in
+// simulate-package-rules.ts, and pulling the real one in would drag slugify +
+// template compilation into the browser bundle. The golden/shimmed tests
+// deep-import it directly as the behavioral oracle.
+export {
+  default as packageRuleMatchers,
+  type PackageRuleMatcher,
+} from "renovate/dist/util/package-rules/matchers.js";
 export * as memCache from "renovate/dist/util/cache/memory/index.js";
