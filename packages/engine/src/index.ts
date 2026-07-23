@@ -15,6 +15,13 @@ export {
   type PresetIdentity,
   presetInjectionKey,
 } from "./shims/presets/injection";
+export {
+  fetchRepoConfig,
+  RepoConfigNotFoundError,
+  type RepoConfigRequest,
+  type RepoConfigResult,
+  type RepoPlatform,
+} from "./shims/repo-config";
 export type {
   LogLevel,
   MigrationStepInfo,

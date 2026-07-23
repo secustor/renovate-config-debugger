@@ -308,6 +308,21 @@ function computeTreeStats(root: PresetNode): TreeStats {
   };
 }
 
+/**
+ * Structural identity (`>`-joined name-path) of a node id in this result's
+ * tree, or null. Identities are stable across re-runs of the same config, so
+ * they are what a shareable link (007) stores for the selected node. Reuses the
+ * same single-walk machinery the tree renders with.
+ */
+export function identityForNodeId(root: PresetNode, id: string): string | null {
+  return computeTreeStats(root).identityById.get(id) ?? null;
+}
+
+/** The current run's node id for a stored structural identity, or null. */
+export function nodeIdForIdentity(root: PresetNode, identity: string): string | null {
+  return computeTreeStats(root).idByIdentity.get(identity) ?? null;
+}
+
 /** Node ids whose subtree (self or any descendant) matches the query. */
 function computeSubtreeMatch(
   root: PresetNode,

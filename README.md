@@ -66,6 +66,30 @@ Note: Renovate's config code is not a public API, so the `renovate` dependency
 is pinned exactly and every Renovate release PR runs the full CI (golden tests
 plus browser build) to catch breakage per release.
 
+## Sharing & loading
+
+**Shareable links** — _Copy link_ (next to _Run pipeline_) puts a link on your
+clipboard that reopens the current analysis: the config text, the file format,
+a non-default platform/endpoint, and your current view (selected stage, the
+selected preset node, the migration step). It is stored compressed in the URL
+_fragment_ (`#config=…`), so it never reaches any server log, and opening a link
+auto-runs the same pipeline. The link records the Renovate version it was made
+with and warns you if you're now on a different one, since results can drift.
+Links **never** contain your tokens or any manually injected preset content.
+
+**Load from repo** — type a repository reference into the _Load from repo_ box
+and the app fetches its Renovate config for you: `owner/repo`,
+`github.com/owner/repo`, a full URL (`https://gitlab.com/org/repo`,
+`https://codeberg.org/org/repo`), or an `scp`-style `git@host:org/repo.git`. A
+known host (github.com, gitlab.com, gitea.com, codeberg.org) also sets the
+platform context so `local>` presets resolve; a bare `owner/repo` uses the
+platform context you've selected. An optional _ref_ picks a branch/tag (default
+branch otherwise). It probes Renovate's documented config-file locations in
+order — `renovate.json{,c,5}`, `.github/`, `.gitlab/`, `.renovaterc{,.json…}`,
+then the `package.json` `renovate` key — and tells you which file won. Private
+repos use the same per-host tokens as preset fetching (stored in `localStorage`
+only); hosts that block browser (CORS) requests can't be reached from the page.
+
 ## Development
 
 ```bash
