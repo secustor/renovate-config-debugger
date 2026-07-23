@@ -18,7 +18,12 @@ running in your browser**. Think "compiler explorer for Renovate configs".
   GitHub / GitLab / Gitea / Forgejo / npm APIs (see the support matrix below).
 - `packages/app` is a React SPA rendering the trace: config editor with
   Renovate's JSON schema, stage timeline, per-stage diffs, validation
-  messages and the effective config.
+  messages and the effective config. The preset resolution tree stays legible
+  even when `extends: ["config:recommended"]` explodes to ~1,100 presets — a
+  summary header shows the honest cost (a handful of presets actually change
+  top-level options; the rest just contribute grouping packageRules), with
+  windowed rendering, contribution roll-ups, search, a flat-table view and a
+  "hide zero-contribution routers" toggle.
 - **Golden tests** prove the shims don't alter behavior: the same fixtures run
   once against untouched Renovate modules and once through the browser module
   graph, and must produce byte-identical results.

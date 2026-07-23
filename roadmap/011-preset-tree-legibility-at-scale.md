@@ -1,6 +1,26 @@
 # 011 — Preset tree legibility at scale
 
-Milestone: M2 · Status: planned
+Milestone: M2 · Status: done 2026-07-23
+
+> Implemented as specified. The tree is flattened to an ordered array of
+> visible rows and rendered windowed: only the rows intersecting the
+> `.preset-tree` scroll viewport are mounted (fixed 26px rows, top/bottom
+> spacers), so `config:recommended`'s ~1,100 nodes never mount at once — the
+> flat-table view windows the same way. All per-node and per-subtree
+> aggregates (own options / packageRules, subtree roll-ups, the search
+> haystack, structural identities) are computed in a single walk
+> (`computeTreeStats`) once per result, never per render. Contribution stats
+> are pure derivations of each node's migrated `input`, so they stayed
+> app-side — no engine change was needed. Expansion persists across re-runs
+> by keying on a stable structural identity (the `>`-joined name-path from
+> root, disambiguating identical-named siblings by occurrence index) instead
+> of the per-run `pN` ids; stale identities are dropped on a new result.
+> "Hide zero-contribution" shortcuts pure `extends` routers, promoting their
+> contributing descendants up a level with a clickable elided-path chip that
+> names the skipped chain. Reverse lookup (005's chain click) and dedup
+> cycling both auto-expand the target's ancestors and scroll it into view.
+> The reverse-lookup part of the scope links to 005's provenance data rather
+> than adding a new per-key index here.
 
 ## Summary
 
