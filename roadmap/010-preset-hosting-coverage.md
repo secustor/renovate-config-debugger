@@ -1,6 +1,24 @@
 # 010 — Preset hosting coverage + `local>` semantics
 
-Milestone: M2 · Status: planned
+Milestone: M2 · Status: done 2026-07-23
+
+> Implemented as specified. New `gitlab` / `gitea` / `forgejo` fetcher shims
+> mirror `github.ts` (plain `fetch` + Renovate's own `fetchPreset`/`parsePreset`
+> for the file-candidate and sub-preset logic); Gitea/Forgejo share one
+> contents-API helper that decodes base64 with browser-native `atob` (no Node
+> `Buffer`). Default endpoints are the CORS-verified public hosts — `gitlab.com`,
+> `gitea.com`, and (deviating from upstream's `code.forgejo.org`, which sends no
+> CORS) `codeberg.org` for Forgejo. `setPresetAuth` grew per-host token fields
+> (GitLab `PRIVATE-TOKEN`, Gitea/Forgejo `Authorization: token`). `local>`
+> resolves through Renovate's real `GlobalConfig` `platform`/`endpoint` — set
+> from new `PipelineInput.platform`/`endpoint` run options — so the upstream
+> dispatch logic is reproduced unchanged; unsupported platforms fail with honest
+> per-platform messages instead of a generic stub. A module-level injection
+> registry (keyed by a canonical `presetInjectionKey`) lets every fetcher serve
+> user-supplied content before hitting the network; the trace reports which keys
+> were used so the UI flags `user-supplied` nodes. `PresetSourceRef` gained
+> `platform`/`endpoint` (populated for `local>` nodes only) and `TraceResult`
+> gained `platformContext` + `usedInjections`.
 
 ## Summary
 

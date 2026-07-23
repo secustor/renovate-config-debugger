@@ -1,6 +1,30 @@
 # 004 — Migration step-through
 
-Milestone: M2 · Status: planned
+Milestone: M2 · Status: done 2026-07-23
+
+> Implemented as specified. ESM live bindings can't be monkey-patched, so
+> `migrateConfig` is instrumented the same way the rest of the engine is: a
+> faithful line-for-line fork of `config/migration.js` lives in
+> `src/shims/migration.ts` and the vite shim plugin swaps it in. The fork
+> re-uses Renovate's REAL `MigrationsService.getMigrations` / `getMigration`
+> (never re-listing the registry) and clones the shared migratedConfig around
+> each `migration.run` + deprecated-delete to detect what a class actually
+> changed; synthetic steps wrap the non-class post-processing (template
+> rewrites, language→packageRules, nested packageRules flattening, pip-compile,
+> gradle-lite). A shared `{root, path}` context is threaded through the
+> recursion so every step carries a full-document before/after snapshot (the
+> full path-threading, not the fallback) — the cumulative diff and per-preset
+> grouping come straight from the event stream. Steps reuse the
+> `migration-applied` event kind with a new `migration` field (name, className,
+> key/newKey, parentKey, pass, presetName, explanation); the pipeline dropped
+> its old aggregate migration blob but keeps stage-complete as the fallback
+> view. The collector stage-gates steps to migrate/preset so validation-time
+> migrateConfig calls stay out of the stream, and reads the currently-resolving
+> preset from the preset-tree builder. `dequal` and the `@sindresorhus/is`
+> predicates the fork needs are vendored verbatim (they're unresolvable
+> Renovate transitive deps). A golden drift tripwire hashes the two upstream
+> sources so a renovate bump forces a re-diff. The absolute fidelity net —
+> shimmed `finalConfig` equals the golden output — is unchanged and still green.
 
 ## Summary
 

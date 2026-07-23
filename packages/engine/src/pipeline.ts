@@ -10,16 +10,44 @@ import {
   resolveConfigPresets,
   validateConfig,
 } from "./renovate-adapter";
+import {
+  getUsedInjectionKeys,
+  resetInjectedPresets,
+  setInjectedPresets,
+} from "./shims/presets/injection";
 import { setCurrentCollector, TraceCollector } from "./trace/collector";
 import { computeDelta, snapshot } from "./trace/delta";
 import type {
   PipelineInput,
+  PlatformContext,
   StageId,
   StageStatus,
   TraceResult,
   ValidationMessage,
 } from "./trace/model";
 import { renovateVersion } from "./version";
+
+/** Default browser endpoint per platform, for display + when none is given. */
+const ENDPOINT_DEFAULTS: Record<string, string> = {
+  github: "https://api.github.com/",
+  gitlab: "https://gitlab.com/api/v4/",
+  gitea: "https://gitea.com/",
+  forgejo: "https://codeberg.org/",
+};
+
+function resolvePlatformContext(input: PipelineInput): PlatformContext {
+  const globalConfig = input.globalConfig ?? {};
+  const platform =
+    (typeof globalConfig.platform === "string" ? globalConfig.platform : undefined) ??
+    input.platform ??
+    "github";
+  const endpoint =
+    (typeof globalConfig.endpoint === "string" ? globalConfig.endpoint : undefined) ??
+    input.endpoint ??
+    ENDPOINT_DEFAULTS[platform] ??
+    "";
+  return { platform, endpoint };
+}
 
 // Renovate's config modules hold module-level state (GlobalConfig, memCache,
 // the active trace collector), so runs must never overlap.
@@ -32,7 +60,8 @@ export function runPipeline(input: PipelineInput): Promise<TraceResult> {
 }
 
 async function execute(input: PipelineInput): Promise<TraceResult> {
-  const collector = new TraceCollector(parsePreset);
+  const platformContext = resolvePlatformContext(input);
+  const collector = new TraceCollector(parsePreset, platformContext);
   setCurrentCollector(collector);
 
   const stageStatus: Record<StageId, StageStatus> = {
@@ -57,11 +86,20 @@ async function execute(input: PipelineInput): Promise<TraceResult> {
     stageStatus,
     visitedPresets,
     presetTree: collector.finalizePresetTree(),
+    platformContext,
+    usedInjections: getUsedInjectionKeys(),
   });
 
   try {
     memCache.init();
-    GlobalConfig.set({ ...input.globalConfig });
+    setInjectedPresets(input.injectedPresets);
+    // Platform context defines `local>`; the pasted global config (008) still
+    // wins over the explicit options, matching how a real run is configured.
+    GlobalConfig.set({
+      platform: platformContext.platform,
+      endpoint: platformContext.endpoint,
+      ...input.globalConfig,
+    } as Parameters<typeof GlobalConfig.set>[0]);
 
     // parse
     collector.enterStage("parse");
@@ -82,17 +120,12 @@ async function execute(input: PipelineInput): Promise<TraceResult> {
     collector.enterStage("migrate");
     collector.emit({ kind: "stage-start", title: "Migrate deprecated options" });
     const before = snapshot(config);
+    // migrateConfig (shimmed to src/shims/migration.ts) emits one granular
+    // `migration-applied` event per migration/post-processing block that
+    // changed something, during this call. The stage-complete event below
+    // still carries the whole-stage before/after as the fallback blob view.
     const { isMigrated, migratedConfig } = migrateConfig(config);
     config = migratedConfig;
-    if (isMigrated) {
-      collector.emit({
-        kind: "migration-applied",
-        title: "Config contained deprecated options and was migrated",
-        before,
-        after: snapshot(config),
-        delta: computeDelta(before, config),
-      });
-    }
     stageStatus.migrate = "ok";
     collector.emit({
       kind: "stage-complete",
@@ -186,6 +219,7 @@ async function execute(input: PipelineInput): Promise<TraceResult> {
   } finally {
     GlobalConfig.reset();
     memCache.reset();
+    resetInjectedPresets();
     setCurrentCollector(null);
   }
 }

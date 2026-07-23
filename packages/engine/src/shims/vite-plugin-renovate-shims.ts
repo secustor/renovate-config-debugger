@@ -25,6 +25,7 @@ export function renovateShims(): Plugin {
       "_virtual/_rolldown/runtime.js": "rolldown-runtime.ts",
       "instrumentation/index.js": "instrumentation.ts",
       "logger/index.js": "logger.ts",
+      "config/migration.js": "migration.ts",
       "expose.js": "expose.ts",
       "config/presets/github/index.js": "presets/github.ts",
       "config/presets/npm/index.js": "presets/npm.ts",

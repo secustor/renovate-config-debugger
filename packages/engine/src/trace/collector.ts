@@ -1,6 +1,24 @@
-import { toSerializable } from "./delta";
-import type { LogLevel, PresetNode, StageId, TraceEvent } from "./model";
+import { computeDelta, snapshot, toSerializable } from "./delta";
+import { describeMigration } from "./migration-names";
+import type { LogLevel, PlatformContext, PresetNode, StageId, TraceEvent } from "./model";
 import { type ParsePresetFn, PresetTreeBuilder } from "./preset-tree";
+
+/**
+ * One granular migration step reported by the forked `migrateConfig` shim
+ * (004). `before`/`after` are full-document snapshots at the point the step
+ * fired; the collector turns them into a `migration-applied` event.
+ */
+export interface MigrationStepEmit {
+  /** Migration class name, or a synthetic post-processing block name. */
+  className: string;
+  key?: string;
+  /** For rename migrations, the key the value moved to. */
+  newKey?: string;
+  parentKey?: string;
+  pass: number;
+  before: unknown;
+  after: unknown;
+}
 
 /**
  * Collects trace events for the currently running pipeline. The logger shim
@@ -13,8 +31,8 @@ export class TraceCollector {
   private stage: StageId = "parse";
   private tree: PresetTreeBuilder;
 
-  constructor(parsePreset?: ParsePresetFn) {
-    this.tree = new PresetTreeBuilder((event) => this.emit(event), parsePreset);
+  constructor(parsePreset?: ParsePresetFn, platformContext?: PlatformContext) {
+    this.tree = new PresetTreeBuilder((event) => this.emit(event), parsePreset, platformContext);
   }
 
   enterStage(stage: StageId): void {
@@ -33,6 +51,44 @@ export class TraceCollector {
     };
     this.events.push(full);
     return full;
+  }
+
+  /**
+   * Entry point for the forked `migrateConfig` shim. Emits one granular
+   * `migration-applied` event per step. Stage-gated to migrate/preset so the
+   * migrateConfig calls Renovate makes during validation (packageRule
+   * deprecation checks) don't pollute the stream — the same gating the preset
+   * tree uses.
+   */
+  onMigrationStep(step: MigrationStepEmit): void {
+    if (this.stage !== "migrate" && this.stage !== "preset") {
+      return;
+    }
+    const { name, explanation } = describeMigration({
+      className: step.className,
+      key: step.key,
+      newKey: step.newKey,
+    });
+    const before = snapshot(step.before);
+    const after = snapshot(step.after);
+    const presetName = this.stage === "preset" ? this.tree.currentPresetName() : undefined;
+    this.emit({
+      kind: "migration-applied",
+      title: name,
+      before,
+      after,
+      delta: computeDelta(before, after),
+      migration: {
+        name,
+        className: step.className,
+        key: step.key,
+        newKey: step.newKey,
+        parentKey: step.parentKey,
+        pass: step.pass,
+        presetName,
+        explanation,
+      },
+    });
   }
 
   /** Entry point for the logger shim. Upgrades known messages to typed events. */
@@ -84,4 +140,9 @@ export function setCurrentCollector(collector: TraceCollector | null): void {
 /** Called by the logger shim; a no-op when no pipeline run is active. */
 export function emitLog(level: LogLevel, meta: unknown, msg: string | undefined): void {
   current?.onLog(level, meta, msg);
+}
+
+/** Called by the migration shim; a no-op when no pipeline run is active. */
+export function emitMigrationStep(step: MigrationStepEmit): void {
+  current?.onMigrationStep(step);
 }

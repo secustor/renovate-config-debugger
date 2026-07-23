@@ -1,5 +1,11 @@
 import { toSerializable } from "./delta";
-import type { PresetNode, PresetSourceRef, TraceEvent, ValidationMessage } from "./model";
+import type {
+  PlatformContext,
+  PresetNode,
+  PresetSourceRef,
+  TraceEvent,
+  ValidationMessage,
+} from "./model";
 
 /**
  * Signature of renovate's `parsePreset` (config/presets/parse.js), injected by
@@ -58,6 +64,7 @@ export class PresetTreeBuilder {
   constructor(
     private readonly emit: EmitFn,
     private readonly parsePreset?: ParsePresetFn,
+    private readonly platformContext?: PlatformContext,
   ) {}
 
   /** Returns true when the log line was consumed as part of the preset tree. */
@@ -127,6 +134,15 @@ export class PresetTreeBuilder {
   finalize(): PresetNode | undefined {
     this.frames = [];
     return this.root;
+  }
+
+  /**
+   * The preset currently being fetched, if any. During the preset stage a
+   * preset is migrated on fetch between its "Resolving preset" and its
+   * `resolveConfigPresets` entry logs, so it is the top frame's `pendingChild`.
+   */
+  currentPresetName(): string | undefined {
+    return this.top()?.pendingChild?.name;
   }
 
   private top(): Frame | undefined {
@@ -266,7 +282,7 @@ export class PresetTreeBuilder {
     }
     try {
       const parsed = this.parsePreset(raw);
-      return {
+      const ref: PresetSourceRef = {
         raw,
         presetSource: parsed.presetSource as PresetSourceRef["presetSource"],
         repo: parsed.repo,
@@ -275,6 +291,13 @@ export class PresetTreeBuilder {
         tag: parsed.tag,
         params: parsed.params,
       };
+      // `local>` (and bare owner/repo) resolves against the run's platform
+      // context — record it so the tree can show "via gitlab @ endpoint".
+      if (parsed.presetSource === "local" && this.platformContext) {
+        ref.platform = this.platformContext.platform;
+        ref.endpoint = this.platformContext.endpoint;
+      }
+      return ref;
     } catch {
       return { raw };
     }
