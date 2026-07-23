@@ -1,6 +1,16 @@
 # 002 — Preset resolution tree
 
-Milestone: M1 · Status: planned · **MVP centerpiece**
+Milestone: M1 · Status: done 2026-07-23 · **MVP centerpiece**
+
+> Implemented as specified, with one mechanism note: the engine reconstructs
+> the tree from Renovate's own log stream (forwarded synchronously by the
+> logger shim) rather than wrapping the preset fetchers — `resolveConfigPresets`
+> logs its `existingPresets` chain on entry and the resolved config on exit,
+> which brackets each subtree exactly like a call stack. `TraceResult` gains a
+> serializable `presetTree`; the contribution diff replays the parent's merge
+> loop with Renovate's real `mergeChildConfig`. Where Renovate aborts on a
+> preset error, the tree keeps the failing node (inline error) and labels
+> everything cut short as "aborted".
 
 ## Summary
 
@@ -44,8 +54,7 @@ config.
 - Per-key provenance across the whole merge (005) — this feature is
   per-preset, not per-key.
 - Fetchers beyond the ones the engine already ships (github/npm/http):
-  gitlab/gitea/forgejo, `local>` semantics and the platform context are
-  010. The tree must still *render* their failures legibly from day one.
+  gitlab/gitea/forgejo, `local>` semantics and the platform context are 010. The tree must still _render_ their failures legibly from day one.
 - Scale features — search, contribution roll-ups, auto-collapse, flat
   view, virtualization — are 011. 002 only needs to not fall over on
   `config:recommended` (~1,000+ nodes): collapse deep subtrees by default

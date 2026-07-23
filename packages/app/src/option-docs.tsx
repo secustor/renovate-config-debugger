@@ -1,0 +1,291 @@
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import type { OptionDoc, OptionIndex } from "@renovate-config-visualizer/engine";
+
+/**
+ * Inline documentation for renovate options (roadmap 003): a context carrying
+ * the option index plus one floating hover card shared by every config
+ * rendering. The index comes from the engine (renovate's own metadata) and is
+ * loaded after the first pipeline run, when the heavy engine chunk is already
+ * in memory.
+ */
+
+interface CardState {
+  name: string;
+  doc?: OptionDoc;
+  anchor: { left: number; top: number; bottom: number };
+}
+
+interface OptionDocsValue {
+  index: OptionIndex | null;
+  show: (name: string, rect: DOMRect) => void;
+  hide: () => void;
+  cancelHide: () => void;
+}
+
+const OptionDocsContext = createContext<OptionDocsValue>({
+  index: null,
+  show: () => {},
+  hide: () => {},
+  cancelHide: () => {},
+});
+
+export function useOptionDocs(): OptionDocsValue {
+  return useContext(OptionDocsContext);
+}
+
+export function OptionDocsProvider({
+  index,
+  children,
+}: {
+  index: OptionIndex | null;
+  children: ReactNode;
+}) {
+  const [card, setCard] = useState<CardState | null>(null);
+  const hideTimer = useRef<number | undefined>(undefined);
+
+  const cancelHide = useCallback(() => {
+    window.clearTimeout(hideTimer.current);
+  }, []);
+
+  const hide = useCallback(() => {
+    // grace period so the pointer can travel into the card (to click the
+    // docs link) without it vanishing
+    window.clearTimeout(hideTimer.current);
+    hideTimer.current = window.setTimeout(() => setCard(null), 250);
+  }, []);
+
+  const show = useCallback(
+    (name: string, rect: DOMRect) => {
+      if (!index) {
+        return;
+      }
+      window.clearTimeout(hideTimer.current);
+      setCard((prev) => {
+        const anchor = { left: rect.left, top: rect.top, bottom: rect.bottom };
+        if (prev?.name === name && Math.abs(prev.anchor.top - anchor.top) < 1) {
+          return prev;
+        }
+        return { name, doc: index.options.get(name), anchor };
+      });
+    },
+    [index],
+  );
+
+  const value = useMemo(() => ({ index, show, hide, cancelHide }), [index, show, hide, cancelHide]);
+
+  return (
+    <OptionDocsContext.Provider value={value}>
+      {children}
+      {card ? <OptionCard card={card} onEnter={cancelHide} onLeave={hide} /> : null}
+    </OptionDocsContext.Provider>
+  );
+}
+
+/** Renders `code` spans in renovate's markdown-ish description strings. */
+function md(text: string): ReactNode {
+  return text
+    .split(/`([^`]*)`/g)
+    .map((part, i) => (i % 2 === 1 ? <code key={i}>{part}</code> : part));
+}
+
+function OptionCard({
+  card,
+  onEnter,
+  onLeave,
+}: {
+  card: CardState;
+  onEnter: () => void;
+  onLeave: () => void;
+}) {
+  const { doc, name, anchor } = card;
+  const width = 340;
+  const left = Math.max(8, Math.min(anchor.left, window.innerWidth - width - 16));
+  const openUpward = anchor.bottom > window.innerHeight - 280;
+  const style: React.CSSProperties = openUpward
+    ? { left, bottom: window.innerHeight - anchor.top + 6, maxWidth: width }
+    : { left, top: anchor.bottom + 6, maxWidth: width };
+
+  return (
+    <div className="option-card" style={style} onMouseEnter={onEnter} onMouseLeave={onLeave}>
+      <div className="option-card-head">
+        <code className="option-card-name">{name}</code>
+        {doc ? <span className="badge type">{doc.type}</span> : null}
+        {doc?.subType ? <span className="badge type">of {doc.subType}</span> : null}
+        {doc?.globalOnly ? <span className="badge global">self-hosted only</span> : null}
+        {doc?.experimental ? <span className="badge experimental">experimental</span> : null}
+        {doc?.deprecationMsg ? <span className="badge deprecated">deprecated</span> : null}
+        {doc?.advancedUse ? <span className="badge advanced">advanced</span> : null}
+      </div>
+      {doc ? (
+        <>
+          <p className="option-card-desc">{md(doc.description)}</p>
+          {doc.deprecationMsg ? (
+            <p className="option-card-deprecation">{md(doc.deprecationMsg)}</p>
+          ) : null}
+          {doc.experimentalDescription ? (
+            <p className="option-card-desc">{md(doc.experimentalDescription)}</p>
+          ) : null}
+          {doc.default !== undefined && doc.default !== null ? (
+            <p className="option-card-row">
+              <strong>Default:</strong> <code>{truncate(JSON.stringify(doc.default), 100)}</code>
+            </p>
+          ) : null}
+          {doc.allowedValues?.length ? (
+            <p className="option-card-row">
+              <strong>Allowed:</strong> {doc.allowedValues.join(", ")}
+            </p>
+          ) : null}
+          {doc.supportedManagers?.length ? (
+            <p className="option-card-row">
+              <strong>Managers:</strong> {truncate(doc.supportedManagers.join(", "), 120)}
+            </p>
+          ) : null}
+          {doc.supportedPlatforms?.length ? (
+            <p className="option-card-row">
+              <strong>Platforms:</strong> {doc.supportedPlatforms.join(", ")}
+            </p>
+          ) : null}
+          {doc.parents?.length && !doc.parents.includes(".") ? (
+            <p className="option-card-row">
+              <strong>Only valid inside:</strong> {doc.parents.join(", ")}
+            </p>
+          ) : null}
+          <p className="option-card-row">
+            <a href={doc.url} target="_blank" rel="noreferrer">
+              docs.renovatebot.com ↗
+            </a>
+          </p>
+        </>
+      ) : (
+        <p className="option-card-desc unknown-note">
+          Not a Renovate configuration option — possibly a typo.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function truncate(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
+interface OptionKeyProps {
+  name: string;
+  /** Whether unknown keys should be flagged (i.e. this object is config-shaped) */
+  flagUnknown: boolean;
+}
+
+/** An option key in a read-only config rendering: styled + hover card. */
+export function OptionKey({ name, flagUnknown }: OptionKeyProps) {
+  const { index, show, hide } = useOptionDocs();
+  const doc = index?.options.get(name);
+  const unknown = index !== null && !doc && flagUnknown;
+  let className = "opt-key";
+  if (doc) {
+    className += " known";
+    if (doc.deprecationMsg) {
+      className += " deprecated";
+    }
+    if (doc.experimental) {
+      className += " experimental";
+    }
+  } else if (unknown) {
+    className += " unknown";
+  }
+  const interactive = Boolean(doc) || unknown;
+  return (
+    <span
+      className={className}
+      onMouseEnter={
+        interactive ? (e) => show(name, e.currentTarget.getBoundingClientRect()) : undefined
+      }
+      onMouseLeave={interactive ? () => hide() : undefined}
+    >
+      {name}
+    </span>
+  );
+}
+
+const KEY_TOKEN_RE = /"([A-Za-z][\w-]*)"(?=\s*:)/g;
+
+function caretAt(x: number, y: number): { node: Node; offset: number } | null {
+  const doc = document as Document & {
+    caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+    caretRangeFromPoint?: (x: number, y: number) => Range | null;
+  };
+  if (doc.caretPositionFromPoint) {
+    const pos = doc.caretPositionFromPoint(x, y);
+    return pos ? { node: pos.offsetNode, offset: pos.offset } : null;
+  }
+  const range = doc.caretRangeFromPoint?.(x, y);
+  return range ? { node: range.startContainer, offset: range.startOffset } : null;
+}
+
+function findOptionTokenAt(x: number, y: number): { name: string; rect: DOMRect } | null {
+  const caret = caretAt(x, y);
+  if (!caret || caret.node.nodeType !== Node.TEXT_NODE) {
+    return null;
+  }
+  const text = caret.node.textContent ?? "";
+  for (const match of text.matchAll(KEY_TOKEN_RE)) {
+    const start = match.index;
+    const end = start + match[0].length;
+    if (caret.offset >= start && caret.offset <= end) {
+      const range = document.createRange();
+      range.setStart(caret.node, start);
+      range.setEnd(caret.node, end);
+      const rect = range.getBoundingClientRect();
+      // caretPositionFromPoint snaps to the nearest character, so verify the
+      // pointer is actually over the token before showing a card
+      if (x >= rect.left - 2 && x <= rect.right + 2 && y >= rect.top - 2 && y <= rect.bottom + 2) {
+        return { name: match[1] ?? "", rect };
+      }
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Delegated hover handlers for text renderings that are not built from React
+ * elements (the diff views): locates the `"key":` token under the pointer via
+ * caret hit-testing and shows the same hover card.
+ */
+export function useDiffOptionHover(): {
+  onMouseMove: (e: React.MouseEvent) => void;
+  onMouseLeave: () => void;
+} {
+  const { index, show, hide } = useOptionDocs();
+  const last = useRef({ x: -100, y: -100 });
+
+  const onMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (!index) {
+        return;
+      }
+      if (Math.abs(e.clientX - last.current.x) < 6 && Math.abs(e.clientY - last.current.y) < 6) {
+        return;
+      }
+      last.current = { x: e.clientX, y: e.clientY };
+      const hit = findOptionTokenAt(e.clientX, e.clientY);
+      if (hit) {
+        show(hit.name, hit.rect);
+      } else {
+        hide();
+      }
+    },
+    [index, show, hide],
+  );
+
+  const onMouseLeave = useCallback(() => hide(), [hide]);
+
+  return { onMouseMove, onMouseLeave };
+}

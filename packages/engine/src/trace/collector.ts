@@ -1,5 +1,6 @@
 import { toSerializable } from "./delta";
-import type { LogLevel, StageId, TraceEvent } from "./model";
+import type { LogLevel, PresetNode, StageId, TraceEvent } from "./model";
+import { type ParsePresetFn, PresetTreeBuilder } from "./preset-tree";
 
 /**
  * Collects trace events for the currently running pipeline. The logger shim
@@ -10,9 +11,18 @@ export class TraceCollector {
   readonly events: TraceEvent[] = [];
   private counter = 0;
   private stage: StageId = "parse";
+  private tree: PresetTreeBuilder;
+
+  constructor(parsePreset?: ParsePresetFn) {
+    this.tree = new PresetTreeBuilder((event) => this.emit(event), parsePreset);
+  }
 
   enterStage(stage: StageId): void {
     this.stage = stage;
+  }
+
+  finalizePresetTree(): PresetNode | undefined {
+    return this.tree.finalize();
   }
 
   emit(event: Omit<TraceEvent, "id" | "stage"> & { stage?: StageId }): TraceEvent {
@@ -27,6 +37,12 @@ export class TraceCollector {
 
   /** Entry point for the logger shim. Upgrades known messages to typed events. */
   onLog(level: LogLevel, meta: unknown, msg: string | undefined): void {
+    // The tree builder only sees the preset stage: validateConfig also calls
+    // resolveConfigPresets (for packageRules entries), which would otherwise
+    // pollute the tree with validation-time resolutions.
+    if (this.stage === "preset" && this.tree.onLog(meta, msg)) {
+      return;
+    }
     const metaObj = (meta ?? {}) as Record<string, unknown>;
     if (msg === "Preset fetch error" && typeof metaObj.preset === "string") {
       const err = metaObj.err;

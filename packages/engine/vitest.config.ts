@@ -15,7 +15,7 @@ export default defineConfig({
       {
         test: {
           name: "golden",
-          include: ["test/golden.node.test.ts"],
+          include: ["test/*.node.test.ts"],
           environment: "node",
         },
       },

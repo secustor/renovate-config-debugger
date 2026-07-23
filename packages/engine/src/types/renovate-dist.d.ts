@@ -52,6 +52,20 @@ declare module "renovate/dist/config/presets/index.js" {
   }>;
 }
 
+declare module "renovate/dist/config/presets/parse.js" {
+  export interface ParsedPreset {
+    presetSource: string;
+    repo?: string;
+    presetPath?: string;
+    presetName?: string;
+    tag?: string;
+    params?: string[];
+    rawParams?: string;
+  }
+  /** Throws on syntactically invalid preset strings. */
+  export function parsePreset(input: string): ParsedPreset;
+}
+
 declare module "renovate/dist/config/presets/util.js" {
   export const PRESET_DEP_NOT_FOUND: string;
   export const PRESET_INVALID: string;

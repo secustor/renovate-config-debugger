@@ -6,6 +6,7 @@ import {
   mergeChildConfig,
   migrateConfig,
   parseFileConfig,
+  parsePreset,
   resolveConfigPresets,
   validateConfig,
 } from "./renovate-adapter";
@@ -31,7 +32,7 @@ export function runPipeline(input: PipelineInput): Promise<TraceResult> {
 }
 
 async function execute(input: PipelineInput): Promise<TraceResult> {
-  const collector = new TraceCollector();
+  const collector = new TraceCollector(parsePreset);
   setCurrentCollector(collector);
 
   const stageStatus: Record<StageId, StageStatus> = {
@@ -55,6 +56,7 @@ async function execute(input: PipelineInput): Promise<TraceResult> {
     renovateVersion,
     stageStatus,
     visitedPresets,
+    presetTree: collector.finalizePresetTree(),
   });
 
   try {

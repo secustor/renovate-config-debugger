@@ -1,6 +1,14 @@
 # 003 — Inline option documentation
 
-Milestone: M1 · Status: planned
+Milestone: M1 · Status: done 2026-07-23
+
+> Implemented with the editor from 001 (CodeMirror, not Monaco): editor hovers
+> come from `codemirror-json-schema` + Renovate's own JSON schema; read-only
+> JSON views render keys through a shared hover-card component fed by
+> `getOptionIndex()` (engine); diff views get the same cards via caret
+> hit-testing on `"key":` tokens. Unknown keys are only flagged inside
+> config-shaped objects (root + containers derived from the options'
+> `parents` metadata), so free-form objects like `constraints` stay clean.
 
 ## Summary
 

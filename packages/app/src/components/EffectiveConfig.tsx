@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { TraceResult } from "@renovate-config-visualizer/engine";
+import { ConfigJson } from "./ConfigJson";
 
 /**
  * Shows the effective config. By default hides keys whose value is identical
@@ -44,7 +45,9 @@ export function EffectiveConfig({ result }: { result: TraceResult }) {
           include untouched defaults
         </label>
       </div>
-      <pre className="config-view">{JSON.stringify(display, null, 2)}</pre>
+      <pre className="config-view">
+        <ConfigJson value={display} />
+      </pre>
     </div>
   );
 }

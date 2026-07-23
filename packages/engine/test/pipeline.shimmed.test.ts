@@ -51,6 +51,35 @@ describe("trace shape", () => {
     expect(result.events.some((e) => e.kind === "preset-fetch")).toBe(true);
   });
 
+  it("builds the preset resolution tree", async () => {
+    const result = await runPipeline({
+      fileName: "internal-presets.json",
+      content: fixture("internal-presets.json"),
+    });
+    const root = result.presetTree;
+    expect(root).toBeDefined();
+    expect(root?.state).toBe("resolved");
+    // direct children preserve the extends order of the input config
+    expect(root?.children.map((c) => c.name)).toEqual([
+      "config:recommended",
+      ":disableDependencyDashboard",
+    ]);
+    const recommended = root?.children[0];
+    expect(recommended?.state).toBe("resolved");
+    expect(recommended?.source?.presetSource).toBe("internal");
+    expect(recommended?.source?.repo).toBe("config");
+    expect(recommended?.source?.presetName).toBe("recommended");
+    // config:recommended transitively extends further presets
+    expect(recommended?.children.length).toBeGreaterThan(0);
+    expect(recommended?.fetched).toBeDefined();
+    expect(recommended?.input).toBeDefined();
+    expect(recommended?.resolved).toBeDefined();
+    // nesting is mirrored into preset-resolved events with parentId links
+    const resolvedEvents = result.events.filter((e) => e.kind === "preset-resolved");
+    expect(resolvedEvents.length).toBeGreaterThan(1);
+    expect(resolvedEvents.some((e) => e.parentId)).toBe(true);
+  });
+
   it("emits validation-message events", async () => {
     const result = await runPipeline({
       fileName: "invalid.json",
@@ -71,6 +100,12 @@ describe("trace shape", () => {
       expect(result.stageStatus.merge).toBe("ok");
       expect(result.finalConfig).toBeDefined();
       expect(result.events.some((e) => e.kind === "preset-error")).toBe(true);
+      // the failing node is marked inline; the aborted root stays labelled
+      const failing = result.presetTree?.children[0];
+      expect(failing?.name).toBe("github>example-org/renovate-config");
+      expect(failing?.state).toBe("error");
+      expect(failing?.error?.message).toBeTruthy();
+      expect(result.presetTree?.state).toBe("aborted");
     } finally {
       globalThis.fetch = originalFetch;
     }
