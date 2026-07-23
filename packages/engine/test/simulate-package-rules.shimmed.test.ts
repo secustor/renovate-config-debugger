@@ -6,10 +6,56 @@
  * shimmed module graph). A golden twin (simulate-package-rules.node.test.ts)
  * asserts the same parity unshimmed.
  */
+import { mergeChildConfig } from "renovate/dist/config/utils.js";
 import { applyPackageRules } from "renovate/dist/util/package-rules/index.js";
 import { describe, expect, it } from "vitest";
 import type { DependencyDescriptor } from "../src/index";
 import { simulatePackageRules } from "../src/index";
+
+/** The update-type blocks upstream `flattenUpdates` merges up and then drops. */
+const UPDATE_TYPE_KEYS = [
+  "major",
+  "minor",
+  "patch",
+  "pin",
+  "digest",
+  "lockFileMaintenance",
+  "replacement",
+];
+
+/**
+ * The oracle for the 012 update-type flattening step: exactly upstream's two
+ * lines in `flattenUpdates` after `applyPackageRules` — merge `config[updateType]`
+ * up, then delete every update-type block.
+ */
+function oracleFlatten(raw: Record<string, unknown>): Record<string, unknown> {
+  const updateType = typeof raw.updateType === "string" ? raw.updateType : undefined;
+  const block = updateType !== undefined ? raw[updateType] : undefined;
+  const out =
+    block && typeof block === "object"
+      ? (mergeChildConfig(raw, block as Record<string, unknown>) as Record<string, unknown>)
+      : { ...raw };
+  for (const key of UPDATE_TYPE_KEYS) {
+    delete out[key];
+  }
+  return out;
+}
+
+/** Strip a raw config to the display config exactly as the simulator does. */
+function toDisplay(
+  raw: Record<string, unknown>,
+  dep: DependencyDescriptor,
+): Record<string, unknown> {
+  const depFields: Record<string, unknown> = { ...dep, depName: dep.depName ?? dep.packageName };
+  const out = { ...raw };
+  delete out.packageRules;
+  for (const [key, value] of Object.entries(depFields)) {
+    if (value !== undefined && key in out && JSON.stringify(out[key]) === JSON.stringify(value)) {
+      delete out[key];
+    }
+  }
+  return out;
+}
 
 const npmDep: DependencyDescriptor = {
   manager: "npm",
@@ -218,6 +264,51 @@ describe("simulatePackageRules", () => {
     expect(oracle.datasource).toBe("github-tags");
     expect(oracle.skipReason).toBe("package-rules");
     expect(oracle.prPriority).toBe(5);
+  });
+
+  it("flattens the update-type block, matching upstream flattenUpdates (oracle parity)", async () => {
+    const config = {
+      packageRules: [
+        {
+          matchPackageNames: ["lodash"],
+          addLabels: ["deploy_pr"],
+          autoApprove: true,
+          automerge: false,
+          minor: { automerge: true },
+          patch: { automerge: true },
+        },
+      ],
+    };
+
+    // minor update: automerge is scoped to minor/patch, so it flattens to true.
+    const minorDep: DependencyDescriptor = { ...npmDep, updateType: "minor" };
+    const minor = await simulatePackageRules({ config, dep: minorDep });
+    const minorOracle = oracleFlatten(await applyPackageRules(oracleInput(config, minorDep)));
+    expect(minor.finalDependencyConfig).toEqual(toDisplay(minorOracle, minorDep));
+    expect(minor.finalDependencyConfig.automerge).toBe(true);
+    // the flattening is recorded for the UI
+    expect(minor.flattened.updateType).toBe("minor");
+    expect(minor.flattened.merged).toContainEqual({
+      key: "automerge",
+      before: false,
+      after: true,
+    });
+    expect(Object.keys(minor.flattened.blocks).toSorted()).toEqual(["minor", "patch"]);
+    // update-type blocks are dropped from the display config, like upstream
+    expect(minor.finalDependencyConfig).not.toHaveProperty("minor");
+    expect(minor.finalDependencyConfig).not.toHaveProperty("patch");
+
+    // major update: no major block, so automerge stays false — the contrast
+    // the persona study found impossible before flattening.
+    const majorDep: DependencyDescriptor = { ...npmDep, updateType: "major" };
+    const major = await simulatePackageRules({ config, dep: majorDep });
+    const majorOracle = oracleFlatten(await applyPackageRules(oracleInput(config, majorDep)));
+    expect(major.finalDependencyConfig).toEqual(toDisplay(majorOracle, majorDep));
+    expect(major.finalDependencyConfig.automerge).toBe(false);
+    expect(major.flattened.merged).toEqual([]);
+    // rule-level (non-scoped) settings still apply to the major update
+    expect(major.finalDependencyConfig.addLabels).toEqual(["deploy_pr"]);
+    expect(major.finalDependencyConfig.autoApprove).toBe(true);
   });
 
   it("surfaces validateConfig messages for a bogus matcher key", async () => {

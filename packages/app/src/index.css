@@ -1570,6 +1570,105 @@ pre.config-view.prov-before {
   margin-bottom: 0.4rem;
 }
 
+/* ---------- verdict block + matched-only results (012) ---------- */
+
+.sim-verdict-block {
+  background: color-mix(in srgb, var(--ok) 8%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--ok) 35%, var(--border));
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  padding: 0.7rem 0.85rem;
+}
+
+.sim-verdict-block.none {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.sim-verdict-sentence {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.sim-verdict-keys {
+  list-style: none;
+  margin: 0.55rem 0 0;
+  padding: 0;
+}
+
+.sim-verdict-keys li {
+  font-size: 0.83rem;
+  overflow-wrap: anywhere;
+  padding: 0.1rem 0;
+}
+
+.sim-verdict-value {
+  color: var(--ok);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+}
+
+.sim-verdict-value.removed {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.sim-verdict-from {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.sim-verdict-none {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0;
+}
+
+.sim-jump {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  display: inline-block;
+  font: inherit;
+  font-size: 0.82rem;
+  margin-top: 0.55rem;
+  padding: 0;
+}
+
+.sim-jump:hover {
+  text-decoration: underline;
+}
+
+.sim-rules-head {
+  align-items: baseline;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  margin: 0.25rem 0 0.5rem;
+  scroll-margin-top: 0.5rem;
+}
+
+.sim-toggle {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.sim-toggle:hover {
+  text-decoration: underline;
+}
+
+.sim-toggle.inline {
+  font-size: inherit;
+}
+
 /* ---------- first-load guidance & glossary (UX pass) ---------- */
 
 .welcome {
