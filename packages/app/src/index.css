@@ -1569,3 +1569,141 @@ pre.config-view.prov-before {
   font-size: 0.85rem;
   margin-bottom: 0.4rem;
 }
+
+/* ---------- first-load guidance & glossary (UX pass) ---------- */
+
+.welcome {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 0 0 1rem;
+  padding: 0.9rem 1.1rem;
+}
+
+.welcome-steps {
+  counter-reset: step;
+  display: grid;
+  gap: 0.75rem 1.5rem;
+  grid-template-columns: repeat(3, 1fr);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+@media (max-width: 55rem) {
+  .welcome-steps {
+    grid-template-columns: 1fr;
+  }
+}
+
+.welcome-steps li {
+  counter-increment: step;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  padding-left: 2rem;
+  position: relative;
+}
+
+.welcome-steps li::before {
+  align-items: center;
+  background: var(--accent);
+  border-radius: 50%;
+  color: #fff;
+  content: counter(step);
+  display: inline-flex;
+  font-size: 0.8rem;
+  font-weight: 600;
+  height: 1.4rem;
+  justify-content: center;
+  left: 0;
+  position: absolute;
+  top: 0.05rem;
+  width: 1.4rem;
+}
+
+.welcome-footnote {
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 0.85rem 0 0;
+  padding-top: 0.6rem;
+}
+
+.linklike {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.repo-load-label {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+/* A term explained by a glossary hover card: quiet until noticed. */
+.term {
+  border-bottom: 1px dotted var(--muted);
+  cursor: help;
+}
+
+.term:hover,
+.term:focus-visible {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+}
+
+.glossary-card {
+  line-height: 1.45;
+}
+
+.card-title-hint {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+/* The one collapsed home of everything a typical repo user never touches. */
+.advanced-zone {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.4rem 0.75rem;
+}
+
+.advanced-zone > summary {
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.advanced-zone > .advanced-settings {
+  background: var(--surface);
+}
+
+.advanced-intro {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 0.6rem 0 0.2rem;
+}
+
+.advanced-active-chip {
+  background: light-dark(#ddf4ff, #121d2f);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 600;
+  margin-left: 0.5rem;
+  padding: 0.05rem 0.5rem;
+  vertical-align: 0.1rem;
+}
+
+.advanced-active-chip.invalid {
+  background: light-dark(#fff1f0, #2d1516);
+  border-color: var(--error);
+  color: var(--error);
+}

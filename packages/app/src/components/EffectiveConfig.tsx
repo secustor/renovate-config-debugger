@@ -4,6 +4,7 @@ import type {
   ProvenanceStep,
   TraceResult,
 } from "@renovate-config-visualizer/engine";
+import { Term } from "../glossary";
 import { OptionKey } from "../option-docs";
 import { ConfigJson } from "./ConfigJson";
 
@@ -301,7 +302,9 @@ export function EffectiveConfig({
   if (provenance === null) {
     return (
       <div className="card">
-        <div className="card-title">Effective config</div>
+        <div className="card-title">
+          <Term id="effectiveConfig">Effective config</Term>
+        </div>
         <p className="empty-note">
           Per-key provenance is unavailable because preset resolution did not complete. Showing the
           effective config Renovate produced from the defaults.
@@ -317,7 +320,10 @@ export function EffectiveConfig({
 
   return (
     <div className="card">
-      <div className="card-title">Effective config — per-key provenance</div>
+      <div className="card-title">
+        <Term id="effectiveConfig">Effective config</Term>
+        <span className="card-title-hint"> — and which layer set each option</span>
+      </div>
       {provenance === undefined ? (
         <p className="empty-note">Computing provenance…</p>
       ) : (
