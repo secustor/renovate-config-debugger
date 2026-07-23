@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "check:dev-graph": "node scripts/check-dev-module-graph.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },
