@@ -1891,3 +1891,89 @@ pre.config-view.prov-before {
   font-size: 0.78rem;
   overflow-wrap: anywhere;
 }
+
+/* ---------- validation error translations + quick fixes (014) ---------- */
+
+/* Sits directly under a message's own text (never replacing it) — a quiet
+   card, one level down from the surrounding `.messages li`. */
+.error-translation {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  margin: 0.4rem 0 0.15rem;
+  padding: 0.5rem 0.65rem;
+}
+
+/* The unmatched-message fallback (003's docs link) is a single line, no card. */
+.error-translation-fallback {
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.error-translation-explain {
+  color: inherit;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.error-translation-fix {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.45rem;
+}
+
+.error-translation-diff {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  gap: 0.4rem;
+  overflow-wrap: anywhere;
+}
+
+.error-translation-diff .before {
+  color: var(--error);
+  text-decoration: line-through;
+}
+
+.error-translation-diff .after {
+  color: var(--ok);
+}
+
+.error-translation-arrow {
+  color: var(--muted);
+}
+
+.error-translation-summary {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+.error-translation-apply {
+  background: color-mix(in srgb, var(--ok) 12%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--ok) 45%, var(--border));
+  border-radius: 6px;
+  color: var(--ok);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+}
+
+.error-translation-apply:hover {
+  background: color-mix(in srgb, var(--ok) 22%, var(--surface));
+}
+
+.error-translation-docs {
+  color: var(--accent);
+  display: inline-block;
+  font-size: 0.78rem;
+  margin-top: 0.35rem;
+}

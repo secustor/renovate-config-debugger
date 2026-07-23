@@ -1,9 +1,14 @@
 import type {
+  AppliedTextFix,
+  ErrorFixResult,
+  OptionDoc,
   OptionIndex,
   PipelineInput,
   RepoConfigRequest,
   RepoConfigResult,
   TraceResult,
+  TranslatedMessage,
+  ValidationMessage,
 } from "@renovate-config-visualizer/engine";
 import { getValidToken } from "./oauth";
 
@@ -55,6 +60,31 @@ export async function loadOptionIndex(): Promise<OptionIndex> {
 export async function getRenovateVersion(): Promise<string> {
   const engine = await import("@renovate-config-visualizer/engine");
   return engine.renovateVersion;
+}
+
+/**
+ * Roadmap 014's curated error-translation library, loaded the same lazy way
+ * as the option index (they live in the same heavy engine chunk, already in
+ * memory by the time a validation message is on screen — a run has to
+ * complete first). Functions, not data, so callers keep calling them
+ * per-message instead of the app re-implementing a lookup.
+ */
+export interface ErrorTranslationLib {
+  translateMessage: (
+    message: ValidationMessage,
+    config: Record<string, unknown> | null,
+  ) => TranslatedMessage | null;
+  findMentionedOption: (message: ValidationMessage) => OptionDoc | undefined;
+  applyFixToText: (text: string, fix: ErrorFixResult) => AppliedTextFix | null;
+}
+
+export async function loadErrorTranslationLib(): Promise<ErrorTranslationLib> {
+  const engine = await import("@renovate-config-visualizer/engine");
+  return {
+    translateMessage: engine.translateMessage,
+    findMentionedOption: engine.findMentionedOption,
+    applyFixToText: engine.applyFixToText,
+  };
 }
 
 /** Probes a repository for its Renovate config file (roadmap 007). */

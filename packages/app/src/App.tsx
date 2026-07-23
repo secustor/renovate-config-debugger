@@ -1,5 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type {
+  ErrorFixResult,
   OptionIndex,
   RepoPlatform,
   StageId,
@@ -30,7 +31,14 @@ import {
   signOut,
   type StoredUser,
 } from "./oauth";
-import { getRenovateVersion, loadOptionIndex, loadRepoConfig, run } from "./run";
+import {
+  type ErrorTranslationLib,
+  getRenovateVersion,
+  loadErrorTranslationLib,
+  loadOptionIndex,
+  loadRepoConfig,
+  run,
+} from "./run";
 import {
   buildShareUrl,
   decodeShare,
@@ -263,6 +271,9 @@ export function App() {
   // Non-fatal notices (version drift, load-from-repo results, bad share link).
   const [notice, setNotice] = useState<string | null>(null);
   const [optionIndex, setOptionIndex] = useState<OptionIndex | null>(null);
+  // Roadmap 014: curated validator-message translations + suggested fixes,
+  // loaded lazily alongside the option index (same engine chunk).
+  const [errorLib, setErrorLib] = useState<ErrorTranslationLib | null>(null);
   // Preset-tree selection is owned here so a provenance chain (005) can select
   // a preset node in the tree. Node ids restart every run, so reset on result.
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -375,20 +386,27 @@ export function App() {
     return false;
   }
 
-  async function onRun(overrideInjected?: InjectionMap, overrideInputs?: RunInputs) {
-    const injectedPresets = overrideInjected ?? injected;
-    if (!overrideInputs && blockedByLayerErrors()) {
-      return;
-    }
-    const inputs: RunInputs = overrideInputs ?? {
+  /** The current form state as `RunInputs`, optionally with `content` swapped
+   *  out (roadmap 014's "Apply fix" re-runs against the just-edited text
+   *  before the `content` state update has committed). */
+  function buildInputs(contentOverride?: string): RunInputs {
+    return {
       fileName,
-      content,
+      content: contentOverride ?? content,
       platform,
       endpoint,
       globalConfig: globalParse.config,
       inheritedConfig: inheritedParse.config,
       platformOverride: platformOverride && hasGlobalContext,
     };
+  }
+
+  async function onRun(overrideInjected?: InjectionMap, overrideInputs?: RunInputs) {
+    const injectedPresets = overrideInjected ?? injected;
+    if (!overrideInputs && blockedByLayerErrors()) {
+      return;
+    }
+    const inputs: RunInputs = overrideInputs ?? buildInputs();
     setRunning(true);
     setFatal(null);
     try {
@@ -398,13 +416,38 @@ export function App() {
         ([, status]) => status === "error",
       );
       setSelectedStage(firstError?.[0] ?? "preset");
-      // the engine chunk is loaded now — hydrate the hover docs
+      // the engine chunk is loaded now — hydrate the hover docs and the 014
+      // error-translation library
       void loadOptionIndex().then(setOptionIndex);
+      void loadErrorTranslationLib().then(setErrorLib);
     } catch (err) {
       setFatal(err instanceof Error ? `${err.name}: ${err.message}` : String(err));
     } finally {
       setRunning(false);
     }
+  }
+
+  /**
+   * Roadmap 014: writes a curated fix's edit into the editor and re-runs —
+   * the validate stage flipping error → ok is the confirmation the user sees.
+   * Prefers a surgical text patch (comments/formatting/everything else in the
+   * document untouched); when the exact path can't be located in the raw
+   * text (e.g. an unsupported JSON5 key style), `applyFixToText` falls back
+   * to re-serializing the whole document from `fix.fixedConfig` instead —
+   * always correct, but loses comments/original formatting, so this warns
+   * about it via the existing notice banner.
+   */
+  async function applyErrorFix(fix: ErrorFixResult) {
+    const lib = errorLib ?? (await loadErrorTranslationLib());
+    const applied = lib.applyFixToText(content, fix);
+    const nextContent = applied?.text ?? JSON.stringify(fix.fixedConfig, null, 2);
+    setContent(nextContent);
+    if (applied && !applied.surgical) {
+      setNotice(
+        "Applied the fix by regenerating the whole config document — comments and custom formatting were not preserved.",
+      );
+    }
+    await onRun(undefined, buildInputs(nextContent));
   }
 
   // On mount: first complete an OAuth callback if the URL carries one (QUERY
@@ -1132,6 +1175,8 @@ export function App() {
               ruleAttribution={ruleProvenance}
               onJumpToEditor={focusEditorRepoIndex}
               onJumpToSimRule={setPendingRuleFocus}
+              errorLib={errorLib}
+              onApplyFix={applyErrorFix}
             />
             <PresetTree
               result={result}
@@ -1149,6 +1194,7 @@ export function App() {
               onJumpToEditor={focusEditorRepoIndex}
               focusRuleIndex={pendingRuleFocus}
               onRuleFocused={() => setPendingRuleFocus(null)}
+              errorLib={errorLib}
             />
           </>
         ) : null}

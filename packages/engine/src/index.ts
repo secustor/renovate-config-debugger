@@ -16,6 +16,16 @@ export { renovateVersion } from "./version";
 export { getOptions, mergeChildConfig } from "./renovate-adapter";
 export { getOptionIndex, type OptionDoc, type OptionIndex } from "./option-docs";
 export {
+  type ConfigPathSegment,
+  ERROR_TRANSLATIONS,
+  type ErrorFixResult,
+  type ErrorTranslation,
+  findMentionedOption,
+  translateMessage,
+  type TranslatedMessage,
+} from "./error-translations";
+export { applyFixToText, type AppliedTextFix } from "./error-fix-text";
+export {
   computeProvenance,
   computeRuleProvenance,
   type KeyProvenance,
