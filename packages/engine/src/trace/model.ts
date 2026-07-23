@@ -1,6 +1,14 @@
 import type { Operation } from "fast-json-patch";
 
-export type StageId = "parse" | "migrate" | "massage" | "validate" | "preset" | "merge";
+export type StageId =
+  | "global"
+  | "inherit"
+  | "parse"
+  | "migrate"
+  | "massage"
+  | "validate"
+  | "preset"
+  | "merge";
 
 export type StageStatus = "ok" | "error" | "skipped";
 
@@ -134,6 +142,8 @@ export interface PipelineInput {
   content: string;
   /** Optional self-hosted/global options consulted by migration, validation and presets */
   globalConfig?: Record<string, unknown>;
+  /** Optional inherited config (`inheritConfig`, 008) — a parsed JSON object. */
+  inheritedConfig?: Record<string, unknown>;
   /**
    * Platform context defining `local>` resolution. Set through Renovate's real
    * GlobalConfig before preset resolution. Defaults to `github`.
@@ -141,6 +151,12 @@ export interface PipelineInput {
   platform?: string;
   /** Endpoint for the platform context; defaults to the platform's own API. */
   endpoint?: string;
+  /**
+   * When true, `platform`/`endpoint` above win over the global config's own
+   * values (an explicit user override, 008/010); the run's platformContext is
+   * then marked `overridden`.
+   */
+  platformOverride?: boolean;
   /**
    * User-supplied preset content for otherwise-unreachable presets, keyed by
    * the canonical injection key (see `presetInjectionKey`).
@@ -152,6 +168,8 @@ export interface PipelineInput {
 export interface PlatformContext {
   platform: string;
   endpoint: string;
+  /** The user explicitly overrode the global config's platform/endpoint. */
+  overridden?: boolean;
 }
 
 export interface TraceResult {
@@ -170,6 +188,17 @@ export interface TraceResult {
   presetTree?: PresetNode;
   /** Platform + endpoint this run resolved `local>` presets against. */
   platformContext: PlatformContext;
+  /**
+   * The assembled merge layers of a run with global/inherited inputs (008):
+   * exactly what merged between the defaults and the repo's resolved config,
+   * for the provenance replay. Absent when neither layer was provided.
+   */
+  layerConfigs?: {
+    /** Global config after migrate/massage/`globalExtends` resolution, minus the options `GlobalConfig.set` captures. */
+    globalResolved?: Record<string, unknown>;
+    /** Inherited config after migrate/massage/preset resolution, minus global-only and `InheritConfig`-captured options. */
+    inheritedResolved?: Record<string, unknown>;
+  };
   /**
    * Injection keys served from user-supplied content during this run. The app
    * matches these against each node's computed key to flag "user-supplied".

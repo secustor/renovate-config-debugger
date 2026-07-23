@@ -11,6 +11,7 @@ import { type AuthState, GithubAuthHint } from "./components/GithubAuthHint";
 import { MessagesPanel } from "./components/MessagesPanel";
 import { MigrationSteps } from "./components/MigrationSteps";
 import { identityForNodeId, nodeIdForIdentity, PresetTree } from "./components/PresetTree";
+import { RuleSimulator } from "./components/RuleSimulator";
 import { StageDiff } from "./components/StageDiff";
 import { StageTimeline } from "./components/StageTimeline";
 import { OptionDocsProvider } from "./option-docs";
@@ -125,6 +126,33 @@ interface RunInputs {
   content: string;
   platform: string;
   endpoint: string;
+  /** Parsed 008 layers; absent = layer off. */
+  globalConfig?: Record<string, unknown>;
+  inheritedConfig?: Record<string, unknown>;
+  /** The user explicitly overrode the global config's platform/endpoint. */
+  platformOverride?: boolean;
+}
+
+interface LayerParse {
+  config?: Record<string, unknown>;
+  error?: string;
+}
+
+/** Parses an optional JSON config layer (008). Empty text = layer off. */
+function parseLayerText(text: string): LayerParse {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return {};
+  }
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return { error: "must be a JSON object" };
+    }
+    return { config: parsed as Record<string, unknown> };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 /** Non-secret settings (platform/endpoint) persist across tabs → localStorage. */
@@ -182,6 +210,11 @@ export function App() {
   const [forgejoToken, setForgejoToken] = useState(() => readSession(FORGEJO_TOKEN_KEY, ""));
   const [platform, setPlatform] = useState(() => readLocal(PLATFORM_KEY, "github"));
   const [endpoint, setEndpoint] = useState(() => readLocal(ENDPOINT_KEY, "https://api.github.com"));
+  // 008 layer inputs (JSON text; empty = layer off) + the explicit override of
+  // the global config's platform/endpoint (010 "reflect, then override").
+  const [globalText, setGlobalText] = useState("");
+  const [inheritedText, setInheritedText] = useState("");
+  const [platformOverride, setPlatformOverride] = useState(false);
   // OAuth sign-in (009). Configured only when both build-time vars are present;
   // otherwise the whole feature stays hidden and the PAT fallback remains.
   const oauthConfig = useMemo(() => getOAuthConfig(), []);
@@ -225,6 +258,34 @@ export function App() {
     setMigrationStepIndex(0);
   }, [result]);
 
+  const globalParse = useMemo(() => parseLayerText(globalText), [globalText]);
+  const inheritedParse = useMemo(() => parseLayerText(inheritedText), [inheritedText]);
+  // Platform context values the global config carries (008/010 interplay): the
+  // control reflects them unless the user explicitly overrides.
+  const globalPlatform =
+    typeof globalParse.config?.platform === "string" ? globalParse.config.platform : undefined;
+  const globalEndpoint =
+    typeof globalParse.config?.endpoint === "string" ? globalParse.config.endpoint : undefined;
+  const hasGlobalContext = globalPlatform !== undefined || globalEndpoint !== undefined;
+  const reflectGlobal = hasGlobalContext && !platformOverride;
+  const displayPlatform = reflectGlobal && globalPlatform !== undefined ? globalPlatform : platform;
+  // A global-config platform also displaces the toolbar endpoint (it belongs
+  // to the toolbar's platform): fall back to the global platform's default.
+  const displayEndpoint =
+    reflectGlobal && globalEndpoint !== undefined
+      ? globalEndpoint
+      : reflectGlobal && globalPlatform !== undefined
+        ? (PLATFORM_ENDPOINTS[globalPlatform] ?? "")
+        : endpoint;
+
+  // An override only exists relative to global-config values; when the global
+  // config stops defining platform/endpoint, snap back to normal behavior.
+  useEffect(() => {
+    if (!hasGlobalContext) {
+      setPlatformOverride(false);
+    }
+  }, [hasGlobalContext]);
+
   // Apply pending link view state after the run's result exists. Declared after
   // the reset effect so it wins over the reset for a decoded link.
   useEffect(() => {
@@ -250,9 +311,37 @@ export function App() {
     }
   }, [result]);
 
+  // An unparseable 008 layer never silently runs without it — block instead.
+  function blockedByLayerErrors(): boolean {
+    if (globalParse.error) {
+      setFatal(
+        `The global config is not valid JSON (${globalParse.error}). Fix it or clear the field to run.`,
+      );
+      return true;
+    }
+    if (inheritedParse.error) {
+      setFatal(
+        `The inherited config is not valid JSON (${inheritedParse.error}). Fix it or clear the field to run.`,
+      );
+      return true;
+    }
+    return false;
+  }
+
   async function onRun(overrideInjected?: InjectionMap, overrideInputs?: RunInputs) {
     const injectedPresets = overrideInjected ?? injected;
-    const inputs: RunInputs = overrideInputs ?? { fileName, content, platform, endpoint };
+    if (!overrideInputs && blockedByLayerErrors()) {
+      return;
+    }
+    const inputs: RunInputs = overrideInputs ?? {
+      fileName,
+      content,
+      platform,
+      endpoint,
+      globalConfig: globalParse.config,
+      inheritedConfig: inheritedParse.config,
+      platformOverride: platformOverride && hasGlobalContext,
+    };
     setRunning(true);
     setFatal(null);
     try {
@@ -324,6 +413,12 @@ export function App() {
       persistLocal(PLATFORM_KEY, nextPlatform);
       setEndpoint(nextEndpoint);
       persistLocal(ENDPOINT_KEY, nextEndpoint);
+      // 008 layers ride along in v2 links; absent = layers off.
+      setGlobalText(payload.globalConfig ? JSON.stringify(payload.globalConfig, null, 2) : "");
+      setInheritedText(
+        payload.inheritedConfig ? JSON.stringify(payload.inheritedConfig, null, 2) : "",
+      );
+      setPlatformOverride(payload.platformOverride === true);
       pendingViewRef.current = payload.view ?? null;
       const current = await getRenovateVersion();
       if (!cancelled && payload.renovate && payload.renovate !== current) {
@@ -337,6 +432,9 @@ export function App() {
           content: payload.config,
           platform: nextPlatform,
           endpoint: nextEndpoint,
+          globalConfig: payload.globalConfig,
+          inheritedConfig: payload.inheritedConfig,
+          platformOverride: payload.platformOverride === true,
         });
       }
     })();
@@ -355,6 +453,11 @@ export function App() {
   const onTokenChange = makeTokenHandler(TOKEN_KEY, setToken);
 
   function onPlatformChange(value: string) {
+    // With a global config supplying platform/endpoint, a manual change is an
+    // explicit override (008/010) — flagged with a visible warning below.
+    if (hasGlobalContext) {
+      setPlatformOverride(true);
+    }
     setPlatform(value);
     persistLocal(PLATFORM_KEY, value);
     // Snap the endpoint to the new platform's default; the user can still edit.
@@ -364,6 +467,9 @@ export function App() {
   }
 
   function onEndpointChange(value: string) {
+    if (hasGlobalContext) {
+      setPlatformOverride(true);
+    }
     setEndpoint(value);
     persistLocal(ENDPOINT_KEY, value);
   }
@@ -386,7 +492,7 @@ export function App() {
     void onRun(next);
   }
 
-  const usesLocal = platform !== "github";
+  const usesLocal = displayPlatform !== "github";
 
   // Granular migrate-stage steps (004); the migrate stage shows the stepper
   // when any exist, otherwise falls back to the whole-stage blob diff.
@@ -424,6 +530,9 @@ export function App() {
       platform,
       endpoint,
       renovate,
+      globalConfig: globalParse.config,
+      inheritedConfig: inheritedParse.config,
+      platformOverride: platformOverride && hasGlobalContext,
       view,
     });
     const url = buildShareUrl(shareToken);
@@ -469,6 +578,9 @@ export function App() {
       repoEndpoint = endpoint;
     }
 
+    if (blockedByLayerErrors()) {
+      return;
+    }
     setRepoLoading(true);
     setFatal(null);
     setNotice(null);
@@ -497,6 +609,9 @@ export function App() {
         content: loaded.content,
         platform: repoPlatform,
         endpoint: repoEndpoint || endpoint,
+        globalConfig: globalParse.config,
+        inheritedConfig: inheritedParse.config,
+        platformOverride: platformOverride && hasGlobalContext,
       });
     } catch (err) {
       const e = err as { name?: string; probed?: string[]; err?: { message?: string } };
@@ -541,6 +656,73 @@ export function App() {
         </p>
 
         <ConfigEditor fileName={fileName} value={content} onChange={setContent} />
+
+        <details className="advanced-settings">
+          <summary>
+            Global config (self-hosted admin)
+            <span className="advanced-hint">
+              {" "}
+              — the layer set via config.js / env / CLI
+              {globalParse.config ? " · active" : ""}
+              {globalParse.error ? " · invalid JSON" : ""}
+            </span>
+          </summary>
+          <div className="advanced-body">
+            <p className="advanced-note">
+              JSON only. Merges between the defaults and the repo config, after its own{" "}
+              <code>globalExtends</code> presets; options like <code>platform</code>,{" "}
+              <code>endpoint</code> or <code>onboarding</code> become run context instead of
+              merging. Leave empty to run without this layer.
+            </p>
+            <textarea
+              className="layer-editor"
+              placeholder='{ "globalExtends": ["config:best-practices"], "platform": "gitlab" }'
+              value={globalText}
+              onChange={(e) => setGlobalText(e.target.value)}
+              spellCheck={false}
+              rows={8}
+            />
+            {globalParse.error ? (
+              <p className="layer-editor-error">
+                Not valid JSON: {globalParse.error}. The pipeline won&apos;t run until this parses
+                or the field is cleared.
+              </p>
+            ) : null}
+          </div>
+        </details>
+
+        <details className="advanced-settings">
+          <summary>
+            Inherited config (inheritConfig)
+            <span className="advanced-hint">
+              {" "}
+              — the org-level layer between global and repo config
+              {inheritedParse.config ? " · active" : ""}
+              {inheritedParse.error ? " · invalid JSON" : ""}
+            </span>
+          </summary>
+          <div className="advanced-body">
+            <p className="advanced-note">
+              JSON only. Validated with Renovate&apos;s <code>inherit</code> rules, its presets
+              resolved, global-only options stripped — then merged between the global layer and the
+              repo config. Leave empty to run without this layer.
+            </p>
+            <textarea
+              className="layer-editor"
+              placeholder='{ "extends": ["github>my-org/renovate-config"], "automerge": false }'
+              value={inheritedText}
+              onChange={(e) => setInheritedText(e.target.value)}
+              spellCheck={false}
+              rows={8}
+            />
+            {inheritedParse.error ? (
+              <p className="layer-editor-error">
+                Not valid JSON: {inheritedParse.error}. The pipeline won&apos;t run until this
+                parses or the field is cleared.
+              </p>
+            ) : null}
+          </div>
+        </details>
 
         <form
           className="repo-load"
@@ -636,24 +818,64 @@ export function App() {
             <div className="advanced-row">
               <label>
                 Platform
-                <select value={platform} onChange={(e) => onPlatformChange(e.target.value)}>
+                <select value={displayPlatform} onChange={(e) => onPlatformChange(e.target.value)}>
                   {PLATFORMS.map((p) => (
                     <option key={p} value={p}>
                       {p}
                     </option>
                   ))}
+                  {!PLATFORMS.includes(displayPlatform) ? (
+                    <option value={displayPlatform}>{displayPlatform}</option>
+                  ) : null}
                 </select>
               </label>
               <label className="grow">
                 Endpoint
                 <input
                   type="text"
-                  placeholder={PLATFORM_ENDPOINTS[platform] || "not fetched in the browser"}
-                  value={endpoint}
+                  placeholder={PLATFORM_ENDPOINTS[displayPlatform] || "not fetched in the browser"}
+                  value={displayEndpoint}
                   onChange={(e) => onEndpointChange(e.target.value)}
                 />
               </label>
             </div>
+            {reflectGlobal ? (
+              <p className="advanced-note platform-from-global">
+                <span className="badge prov-global">from global config</span>{" "}
+                {globalPlatform !== undefined ? (
+                  <>
+                    platform <code>{globalPlatform}</code>
+                  </>
+                ) : null}
+                {globalPlatform !== undefined && globalEndpoint !== undefined ? " and " : null}
+                {globalEndpoint !== undefined ? (
+                  <>
+                    endpoint <code>{globalEndpoint}</code>
+                  </>
+                ) : null}{" "}
+                come from the pasted global config — a real Renovate run would use them. Changing
+                the control overrides them for this visualization.
+              </p>
+            ) : null}
+            {platformOverride && hasGlobalContext ? (
+              <p className="advanced-note platform-override-warning">
+                Overriding <code>platform</code>/<code>endpoint</code> from the global config — a
+                real Renovate run would use <code>{globalPlatform ?? displayPlatform}</code>
+                {" / "}
+                <code>
+                  {globalEndpoint ??
+                    (PLATFORM_ENDPOINTS[globalPlatform ?? ""] || "the platform default")}
+                </code>
+                .{" "}
+                <button
+                  type="button"
+                  className="platform-override-clear"
+                  onClick={() => setPlatformOverride(false)}
+                >
+                  use global config values
+                </button>
+              </p>
+            ) : null}
             {usesLocal && !(platform in PLATFORM_ENDPOINTS && PLATFORM_ENDPOINTS[platform]) ? (
               <p className="advanced-note">
                 <code>{platform}</code> presets are not fetched in the browser — a real Renovate run
@@ -768,6 +990,7 @@ export function App() {
               installUrl={installUrl()}
             />
             <EffectiveConfig result={result} onSelectPreset={setSelectedNodeId} />
+            <RuleSimulator result={result} />
           </>
         ) : null}
       </main>

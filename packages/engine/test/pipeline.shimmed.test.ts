@@ -38,6 +38,8 @@ describe("trace shape", () => {
     expect(migration).toBeDefined();
     expect(migration?.delta?.length).toBeGreaterThan(0);
     expect(result.stageStatus).toEqual({
+      global: "skipped",
+      inherit: "skipped",
       parse: "ok",
       migrate: "ok",
       massage: "ok",

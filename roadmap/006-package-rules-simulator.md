@@ -1,6 +1,38 @@
 # 006 — packageRules simulator
 
-Milestone: M3 · Status: planned
+Milestone: M3 · Status: done 2026-07-23
+
+> Implemented as specified. The engine's `simulatePackageRules` evaluates a
+> completed run's `finalConfig.packageRules` against a user-described update
+> using Renovate's REAL matcher registry
+> (`renovate/dist/util/package-rules/matchers.js`, all 18 matchers, registry
+> order) and replicates `applyPackageRules`'s merge tail (removeMatchers +
+> cumulative `mergeChildConfig`, skipReason/override/groupSlug handling).
+> Golden + shimmed tests assert **oracle parity**: the simulated final config
+> must equal what the real `applyPackageRules` returns. Deliberate gaps:
+> `matchConfidence` needs a Merge Confidence API token and upstream throws
+> without one, so such rules report "not simulated" instead of a verdict;
+> Handlebars templates in `override*`/`sourceUrl` values are applied verbatim
+> with a visible note; `groupSlug` uses an ASCII-equivalent slugify. A present
+> clause whose matcher returns null (e.g. bad `matchCurrentAge` input) shows
+> as ⚠ invalid but — like upstream — does not fail the rule. The real
+> merge-confidence module is shimmed (`getApiToken()` → undefined, identical
+> browser behavior) because it drags got (Node-only HTTP) into the bundle.
+> The `conda` versioning scheme is likewise shimmed to an honest stub: its
+> parser (`@baszalmstra/rattler`) is a Rust WebAssembly module that inlines
+> to ~3.9 MB — over half the entire app — while the other ~53 schemes
+> combined are ~0.4 MB, and the registry imports it statically so it would
+> load on the first pipeline run. `matchCurrentVersion` with
+> `versioning: conda` reports a per-clause error naming the limitation; all
+> other schemes use Renovate's real code.
+> UI: a "packageRules simulator" card below the effective config with a
+> compact descriptor form (+ collapsed "more fields"), four quick-fill
+> presets, on-demand evaluation (button; quick-fills auto-run), per-rule rows
+> with verdict badges, per-clause ✓/✗/⚠ explanations, per-rule applied diffs,
+> `validateConfig` messages for the rules block, and the final per-dependency
+> config with changed-key highlights. Rule-level provenance beyond the
+> per-rule diff list and batch mode (the roadmap stretch goal) were skipped;
+> simulator state is not encoded in share links.
 
 ## Summary
 

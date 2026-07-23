@@ -3,10 +3,12 @@ import type { PresetNode, TraceResult } from "./model";
 
 /**
  * Roadmap 005: per-key merge provenance. Computed post-hoc from the trace data
- * the engine already captures (the preset tree + final config) by replaying
- * Renovate's real `mergeChildConfig` over the top-level layers — defaults, then
- * each directly-extended preset in order, then the repo config — and attributing
- * every top-level key to the layer(s) that produced its final value.
+ * the engine already captures (the preset tree + final config + 008 layer
+ * configs) by replaying Renovate's real `mergeChildConfig` over the top-level
+ * layers — defaults, then the global and inherited layers (when provided),
+ * then each directly-extended preset in order, then the repo config — and
+ * attributing every top-level key to the layer(s) that produced its final
+ * value.
  *
  * No Renovate instrumentation is involved: `mergeChildConfig` is pure, so the
  * replay reproduces the pipeline's merge exactly. The replay is top-level only
@@ -26,6 +28,8 @@ export type ProvenanceAction =
 /** Which layer a step is attributed to. */
 export type ProvenanceLayer =
   | { kind: "defaults" }
+  | { kind: "global" }
+  | { kind: "inherited" }
   | { kind: "preset"; nodeId: string; name: string }
   | { kind: "repo" };
 
@@ -45,9 +49,9 @@ export interface ProvenanceStep {
 export interface KeyProvenance {
   key: string;
   finalValue: unknown;
-  /** No preset or repo layer touched this key — it is a pure untouched default. */
+  /** No global/inherited/preset/repo layer touched this key — a pure untouched default. */
   isDefaultOnly: boolean;
-  /** Chronological chain: defaults first (when present), then presets in order, then repo. */
+  /** Chronological chain: defaults first (when present), then global/inherited, presets in order, repo. */
   chain: ProvenanceStep[];
 }
 
@@ -80,9 +84,19 @@ interface Layer {
   config: Obj;
 }
 
-/** Top-level merge layers, in the order Renovate merges them (presets then repo). */
-function buildLayers(root: PresetNode): Layer[] {
+/**
+ * Top-level merge layers, in the order Renovate merges them: the 008 layers
+ * (global, then inherited — already assembled by the pipeline, i.e. extends
+ * resolved and captured/global-only options stripped), then presets, then repo.
+ */
+function buildLayers(root: PresetNode, layerConfigs: TraceResult["layerConfigs"]): Layer[] {
   const layers: Layer[] = [];
+  if (layerConfigs?.globalResolved) {
+    layers.push({ layer: { kind: "global" }, config: layerConfigs.globalResolved });
+  }
+  if (layerConfigs?.inheritedResolved) {
+    layers.push({ layer: { kind: "inherited" }, config: layerConfigs.inheritedResolved });
+  }
   // Same filter PresetTree's contribution replay uses: only non-nested,
   // resolved children with a `resolved` payload participate in the top merge.
   for (const child of root.children) {
@@ -120,7 +134,12 @@ export function computeProvenance(result: TraceResult): Map<string, KeyProvenanc
 
   const defaults = getDefaultConfig() as Obj;
   const resolved = root.resolved as Obj;
-  const layers = buildLayers(root);
+  const layers = buildLayers(root, result.layerConfigs);
+  // 008 layers merge before any preset; their accumulated result is the base
+  // the repo-level resolution (ground truth `resolved`) merged onto.
+  const baseLayerCount = layers.filter(
+    (l) => l.layer.kind === "global" || l.layer.kind === "inherited",
+  ).length;
 
   const chains = new Map<string, ProvenanceStep[]>();
   const lastLayerIndex = new Map<string, number>();
@@ -135,11 +154,16 @@ export function computeProvenance(result: TraceResult): Map<string, KeyProvenanc
     lastLayerIndex.set(key, layerIndex);
   };
 
-  // Replay the preset/repo merge, attributing each key the incoming layer owns.
+  // Replay the layer/preset/repo merge, attributing each key the incoming
+  // layer owns.
   let acc: Obj = {};
+  let accBase: Obj = {};
   layers.forEach(({ layer, config }, layerIndex) => {
     const before = acc;
     const after = mergeChildConfig(structuredClone(before), structuredClone(config)) as Obj;
+    if (layerIndex < baseLayerCount) {
+      accBase = after;
+    }
 
     for (const key of Object.keys(config)) {
       const opt = optionMap.get(key);
@@ -197,15 +221,22 @@ export function computeProvenance(result: TraceResult): Map<string, KeyProvenanc
   // Renovate runs a final nested-`extends` expansion over the combined config,
   // which further resolves repo-supplied nested extends (e.g. packageRules[n].
   // extends) that the plain replay leaves unexpanded. Correct those keys from
-  // the ground-truth resolved config and tag the responsible step.
+  // the ground-truth resolved config and tag the responsible step. With 008
+  // layers present the expectation is `resolved` merged onto the layers'
+  // accumulated base — a global packageRules entry legitimately makes the
+  // replay differ from the repo-only `resolved` without any nested expansion.
+  const expected =
+    baseLayerCount > 0
+      ? (mergeChildConfig(structuredClone(accBase), structuredClone(resolved)) as Obj)
+      : resolved;
   for (const key of Object.keys(resolved)) {
     const arr = chains.get(key);
-    if (arr && arr.length > 0 && !deepEqual(acc[key], resolved[key])) {
+    if (arr && arr.length > 0 && !deepEqual(acc[key], expected[key])) {
       const last = arr[arr.length - 1];
       if (last) {
-        arr[arr.length - 1] = { ...last, after: resolved[key], expandedNested: true };
+        arr[arr.length - 1] = { ...last, after: expected[key], expandedNested: true };
       }
-      acc[key] = resolved[key];
+      acc[key] = expected[key];
     }
   }
 

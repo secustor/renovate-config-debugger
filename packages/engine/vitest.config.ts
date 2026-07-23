@@ -24,10 +24,12 @@ export default defineConfig({
         test: {
           name: "shimmed",
           include: [
+            "test/global-inherit.shimmed.test.ts",
             "test/pipeline.shimmed.test.ts",
             "test/preset-fetchers.test.ts",
             "test/provenance.shimmed.test.ts",
             "test/repo-config.test.ts",
+            "test/simulate-package-rules.shimmed.test.ts",
           ],
           environment: "node",
           server: {
