@@ -2,13 +2,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   ClauseEvaluation,
   DependencyDescriptor,
+  ProvenanceLayer,
   RuleEvaluation,
   SimulationResult,
   TraceResult,
 } from "@renovate-config-visualizer/engine";
 import { Term } from "../glossary";
 import { OptionKey } from "../option-docs";
+import { useRuleProvenance } from "../rule-provenance";
 import { ConfigJson } from "./ConfigJson";
+import { ProvenanceChip } from "./ProvenanceChip";
+import { RuleMessage } from "./RuleMessage";
 
 /**
  * Roadmap 006: the packageRules simulator. Describe a hypothetical dependency
@@ -300,19 +304,34 @@ function buildVerdictSentence(
   return `${subject} ${parts.join(", but ")}.`;
 }
 
-/** Short label: the rule's first present selector clause + value preview. */
+/**
+ * Roadmap 013: label lists EVERY `match*` / `exclude*` clause the rule
+ * carries, and names the one that decided a no-match verdict — e.g.
+ * `matchSourceUrls + matchUpdateTypes — failed on matchSourceUrls`. A caption
+ * with only the first clause plus a bare "no match" reads as broken when that
+ * first clause actually matched and a LATER one is what failed it.
+ */
 function ruleLabel(rule: RuleEvaluation): string {
-  const first = rule.clauses[0];
-  if (!first) {
+  if (rule.clauses.length === 0) {
     return "no match* selectors";
   }
-  return `${first.key}: ${previewValue(first.value, 48)}`;
+  const joined = rule.clauses.map((c) => c.key).join(" + ");
+  const failing = rule.clauses.find((c) => c.state === "no-match" || c.state === "error");
+  return failing ? `${joined} — failed on ${failing.key}` : joined;
 }
 
-function RuleRow({ rule }: { rule: RuleEvaluation }) {
+function RuleRow({
+  rule,
+  layer,
+  onSelectPreset,
+}: {
+  rule: RuleEvaluation;
+  layer?: ProvenanceLayer;
+  onSelectPreset?: (nodeId: string) => void;
+}) {
   const [expanded, setExpanded] = useState(false);
   return (
-    <div className={`sim-rule${expanded ? " expanded" : ""}`}>
+    <div id={`sim-rule-${rule.index}`} className={`sim-rule${expanded ? " expanded" : ""}`}>
       <button
         type="button"
         className="sim-rule-head"
@@ -320,11 +339,19 @@ function RuleRow({ rule }: { rule: RuleEvaluation }) {
         aria-expanded={expanded}
       >
         <span className="caret">{expanded ? "▾" : "▸"}</span>
-        <span className="sim-rule-index">#{rule.index + 1}</span>
+        {/* Roadmap 013: canonical form — the SAME text a validator message and
+            the editor cross-link use, so this row is unmistakably the same
+            rule as "packageRules[N]" elsewhere on the page. */}
+        <span className="sim-rule-index">packageRules[{rule.index}]</span>
         <span className="sim-rule-label">{ruleLabel(rule)}</span>
         <span className={`badge sim-verdict verdict-${rule.verdict}`}>
           {VERDICT_LABEL[rule.verdict]}
         </span>
+        {layer ? (
+          <span className="sim-rule-provenance">
+            <ProvenanceChip layer={layer} onSelectPreset={onSelectPreset} />
+          </span>
+        ) : null}
       </button>
       {expanded ? (
         <div className="sim-rule-detail">
@@ -402,7 +429,24 @@ function Field({
   );
 }
 
-export function RuleSimulator({ result }: { result: TraceResult }) {
+export function RuleSimulator({
+  result,
+  onSelectPreset,
+  onJumpToEditor,
+  focusRuleIndex,
+  onRuleFocused,
+}: {
+  result: TraceResult;
+  /** Roadmap 013: a rule row's provenance chip → the contributing preset node in the tree. */
+  onSelectPreset?: (nodeId: string) => void;
+  /** Roadmap 013: a merged-index validation message → the repo-config editor line. */
+  onJumpToEditor?: (repoIndex: number) => void;
+  /** Roadmap 013: a merged rule index to scroll to/highlight (from a validation
+   *  message elsewhere on the page naming this rule's repo-config index). */
+  focusRuleIndex?: number | null;
+  /** Called once the requested `focusRuleIndex` has been handled (found or not). */
+  onRuleFocused?: () => void;
+}) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [sim, setSim] = useState<SimulationResult | null>(null);
   const [ranKey, setRanKey] = useState<string | null>(null);
@@ -410,6 +454,11 @@ export function RuleSimulator({ result }: { result: TraceResult }) {
   const [error, setError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const rulesRef = useRef<HTMLDivElement>(null);
+  const ruleAttribution = useRuleProvenance(result);
+  // Roadmap 013: the merged index awaiting a scroll+flash — set either from the
+  // external `focusRuleIndex` prop or a click on this component's own
+  // packageRules[N]-in-message links (`focusRule`, defined below).
+  const [scrollTarget, setScrollTarget] = useState<number | null>(null);
 
   // A new run invalidates any previous simulation (the rules may differ).
   useEffect(() => {
@@ -419,11 +468,59 @@ export function RuleSimulator({ result }: { result: TraceResult }) {
     setShowAll(false);
   }, [result]);
 
+  useEffect(() => {
+    if (focusRuleIndex != null) {
+      setScrollTarget(focusRuleIndex);
+    }
+  }, [focusRuleIndex]);
+
+  // Performs the actual scroll+flash once the target row is guaranteed to be
+  // in the DOM: if it is currently hidden behind the matched-only filter,
+  // reveal it first and let the effect re-run on the next render (kept out of
+  // the packageRules-empty early return below, since hooks can't be
+  // conditional — checked against `sim` directly instead of `notableRules`).
+  useEffect(() => {
+    if (scrollTarget == null || !sim) {
+      return;
+    }
+    const rule = sim.rules.find((r) => r.index === scrollTarget);
+    if (!rule) {
+      setScrollTarget(null);
+      onRuleFocused?.();
+      return;
+    }
+    const visible = showAll || rule.verdict !== "no-match";
+    if (!visible) {
+      setShowAll(true);
+      return;
+    }
+    const el = document.getElementById(`sim-rule-${scrollTarget}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("rcv-flash");
+      window.setTimeout(() => el.classList.remove("rcv-flash"), 1600);
+    }
+    setScrollTarget(null);
+    onRuleFocused?.();
+  }, [scrollTarget, sim, showAll, onRuleFocused]);
+
+  /** A merged rule index a click on a `packageRules[N]` message link asked to see. */
+  function focusRule(mergedIndex: number) {
+    setScrollTarget(mergedIndex);
+  }
+
   const finalConfig = result.finalConfig;
   const packageRules = useMemo(
     () => (Array.isArray(finalConfig?.packageRules) ? finalConfig.packageRules : []),
     [finalConfig],
   );
+  const layerByIndex = useMemo(() => {
+    const map = new Map<number, ProvenanceLayer>();
+    for (const attr of ruleAttribution ?? []) {
+      map.set(attr.index, attr.layer);
+    }
+    return map;
+  }, [ruleAttribution]);
 
   // Keys the rules changed vs. the pre-rules effective config, for the final
   // section's summary chips.
@@ -717,12 +814,26 @@ export function RuleSimulator({ result }: { result: TraceResult }) {
             <ul className="messages sim-messages">
               {sim.errors.map((m, i) => (
                 <li key={`e${i}`} className="error">
-                  <strong>{m.topic}</strong>: {m.message}
+                  <strong>{m.topic}</strong>:{" "}
+                  <RuleMessage
+                    message={m}
+                    indexKind="merged"
+                    ruleAttribution={ruleAttribution}
+                    onJumpToEditor={onJumpToEditor}
+                    onJumpToSimRule={focusRule}
+                  />
                 </li>
               ))}
               {sim.warnings.map((m, i) => (
                 <li key={`w${i}`} className="warn">
-                  <strong>{m.topic}</strong>: {m.message}
+                  <strong>{m.topic}</strong>:{" "}
+                  <RuleMessage
+                    message={m}
+                    indexKind="merged"
+                    ruleAttribution={ruleAttribution}
+                    onJumpToEditor={onJumpToEditor}
+                    onJumpToSimRule={focusRule}
+                  />
                 </li>
               ))}
             </ul>
@@ -747,7 +858,12 @@ export function RuleSimulator({ result }: { result: TraceResult }) {
           {shownRules.length > 0 ? (
             <div className="sim-rules">
               {shownRules.map((rule) => (
-                <RuleRow key={rule.index} rule={rule} />
+                <RuleRow
+                  key={rule.index}
+                  rule={rule}
+                  layer={layerByIndex.get(rule.index)}
+                  onSelectPreset={onSelectPreset}
+                />
               ))}
             </div>
           ) : (

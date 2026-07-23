@@ -2,11 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import type {
   KeyProvenance,
   ProvenanceStep,
+  RuleAttribution,
   TraceResult,
 } from "@renovate-config-visualizer/engine";
 import { Term } from "../glossary";
 import { OptionKey } from "../option-docs";
 import { ConfigJson } from "./ConfigJson";
+import { layerId, layerLabel, type LayerId, ProvenanceChip } from "./ProvenanceChip";
+import { useRuleProvenance } from "../rule-provenance";
 
 /**
  * Roadmap 005: the effective config as a provenance view. Every top-level key
@@ -36,33 +39,6 @@ function useProvenance(result: TraceResult): Provenance | null | undefined {
     };
   }, [result]);
   return state;
-}
-
-type LayerId = string;
-
-/** Stable id for a layer, used by the dropdown filter + winning-badge classes. */
-function layerId(layer: ProvenanceStep["layer"]): LayerId {
-  return layer.kind === "preset" ? `preset:${layer.name}` : layer.kind;
-}
-
-function layerLabel(layer: ProvenanceStep["layer"]): string {
-  if (layer.kind === "defaults") {
-    return "default";
-  }
-  if (layer.kind === "global") {
-    return "global config";
-  }
-  if (layer.kind === "inherited") {
-    return "inherited config";
-  }
-  if (layer.kind === "repo") {
-    return "repo config";
-  }
-  return layer.name;
-}
-
-function layerClass(layer: ProvenanceStep["layer"]): string {
-  return `prov-${layer.kind}`;
 }
 
 const VERBS: Record<ProvenanceStep["action"], string> = {
@@ -116,43 +92,6 @@ function preview(value: unknown): string {
   return truncate(JSON.stringify(value) ?? String(value), 80);
 }
 
-function LayerBadge({
-  layer,
-  onSelectPreset,
-}: {
-  layer: ProvenanceStep["layer"];
-  onSelectPreset?: (nodeId: string) => void;
-}) {
-  const clickable = layer.kind === "preset" && onSelectPreset;
-  const className = `badge prov-layer ${layerClass(layer)}`;
-  if (clickable) {
-    // Not a <button>: KeyRow renders this inside its row-toggle button, and
-    // buttons cannot nest. stopPropagation keeps the row from toggling too.
-    return (
-      <span
-        role="button"
-        tabIndex={0}
-        className={className}
-        title="Show this preset in the resolution tree"
-        onClick={(e) => {
-          e.stopPropagation();
-          onSelectPreset(layer.nodeId);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            e.stopPropagation();
-            onSelectPreset(layer.nodeId);
-          }
-        }}
-      >
-        {layerLabel(layer)}
-      </span>
-    );
-  }
-  return <span className={className}>{layerLabel(layer)}</span>;
-}
-
 function Step({
   step,
   onSelectPreset,
@@ -165,7 +104,7 @@ function Step({
   return (
     <div className={`prov-step action-${step.action}`}>
       <div className="prov-step-head">
-        <LayerBadge layer={step.layer} onSelectPreset={onSelectPreset} />
+        <ProvenanceChip layer={step.layer} onSelectPreset={onSelectPreset} />
         <span className="prov-step-verb">{VERBS[step.action]}</span>
         {step.expandedNested ? (
           <span
@@ -188,19 +127,75 @@ function Step({
   );
 }
 
+/** First matcher-clause key list, for a one-line rule summary (mirrors the
+ *  simulator's ruleLabel — all clauses, no "which one matters" judgment
+ *  since this view has no dependency to evaluate against). */
+function summarizeRuleSelectors(rule: unknown): string {
+  if (typeof rule !== "object" || rule === null) {
+    return "(not an object)";
+  }
+  const keys = Object.keys(rule as Record<string, unknown>).filter(
+    (k) => k.startsWith("match") || k.startsWith("exclude"),
+  );
+  return keys.length > 0 ? keys.join(" + ") : "(no match*/exclude* selectors)";
+}
+
+/** Roadmap 013: per-entry provenance for `packageRules` — which layer (repo /
+ *  global / inherited / preset) contributed each merged rule, reusing the
+ *  same chip the effective config's top-level keys already show. */
+function PackageRulesProvenance({
+  rules,
+  attribution,
+  onSelectPreset,
+}: {
+  rules: unknown[];
+  attribution: RuleAttribution[];
+  onSelectPreset?: (nodeId: string) => void;
+}) {
+  const byIndex = useMemo(() => new Map(attribution.map((a) => [a.index, a])), [attribution]);
+  return (
+    <div className="prov-rules">
+      <div className="prov-rules-title">
+        Per-rule provenance ({rules.length} rule{rules.length === 1 ? "" : "s"})
+      </div>
+      <ul className="prov-rules-list">
+        {rules.map((rule, i) => {
+          const attr = byIndex.get(i);
+          return (
+            <li key={i}>
+              <span className="prov-rule-index">#{i + 1}</span>
+              {attr ? (
+                <ProvenanceChip layer={attr.layer} onSelectPreset={onSelectPreset} />
+              ) : (
+                <span className="badge prov-layer">source unknown</span>
+              )}
+              <span className="prov-rule-preview">{summarizeRuleSelectors(rule)}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function KeyRow({
   entry,
   expanded,
   onToggle,
   onSelectPreset,
+  ruleAttribution,
 }: {
   entry: KeyProvenance;
   expanded: boolean;
   onToggle: () => void;
   onSelectPreset?: (nodeId: string) => void;
+  /** Only meaningful for the `packageRules` row; undefined/unavailable elsewhere. */
+  ruleAttribution?: RuleAttribution[] | null;
 }) {
   const winner = winningStep(entry);
   const visibleSteps = entry.chain.filter((s) => !s.noop);
+  const rules =
+    entry.key === "packageRules" && Array.isArray(entry.finalValue) ? entry.finalValue : null;
   return (
     <div className={`prov-row${expanded ? " expanded" : ""}`}>
       <button type="button" className="prov-row-head" onClick={onToggle} aria-expanded={expanded}>
@@ -214,7 +209,7 @@ function KeyRow({
             overridden
           </span>
         ) : null}
-        <LayerBadge layer={winner.layer} onSelectPreset={onSelectPreset} />
+        <ProvenanceChip layer={winner.layer} onSelectPreset={onSelectPreset} />
       </button>
       {expanded ? (
         <div className="prov-detail">
@@ -224,6 +219,16 @@ function KeyRow({
               <ConfigJson value={entry.finalValue} />
             </pre>
           </div>
+          {rules &&
+          rules.length > 0 &&
+          ruleAttribution &&
+          ruleAttribution.length === rules.length ? (
+            <PackageRulesProvenance
+              rules={rules}
+              attribution={ruleAttribution}
+              onSelectPreset={onSelectPreset}
+            />
+          ) : null}
           <div className="prov-chain-title">
             Override chain ({visibleSteps.length} step{visibleSteps.length === 1 ? "" : "s"})
           </div>
@@ -244,6 +249,7 @@ export function EffectiveConfig({
   onSelectPreset?: (nodeId: string) => void;
 }) {
   const provenance = useProvenance(result);
+  const ruleAttribution = useRuleProvenance(result);
   const [query, setQuery] = useState("");
   const [layerFilter, setLayerFilter] = useState<LayerId | "all">("all");
   const [onlyOverridden, setOnlyOverridden] = useState(false);
@@ -374,6 +380,7 @@ export function EffectiveConfig({
                 <KeyRow
                   key={entry.key}
                   entry={entry}
+                  ruleAttribution={entry.key === "packageRules" ? ruleAttribution : undefined}
                   expanded={expanded.has(entry.key)}
                   onToggle={() =>
                     setExpanded((prev) => {

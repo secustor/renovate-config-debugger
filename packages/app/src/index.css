@@ -1442,7 +1442,10 @@ pre.config-view.prov-before {
 
 .sim-rule-index {
   color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .sim-rule-label {
@@ -1805,4 +1808,86 @@ pre.config-view.prov-before {
   background: light-dark(#fff1f0, #2d1516);
   border-color: var(--error);
   color: var(--error);
+}
+
+/* ---------- rule identity & provenance (013) ---------- */
+
+/* A packageRules[N] reference inside a validator message: the primary link
+   jumps to that index's own scheme (repo → editor, merged → simulator row);
+   the muted cross-link (rule-ref-cross) names the other scheme's index. */
+.rule-ref-link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline dotted;
+}
+
+.rule-ref-link:hover {
+  text-decoration-style: solid;
+}
+
+.rule-ref-cross {
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+/* Transient "you are here" flash for a cross-link's target: a CodeMirror
+   line, or a simulator rule row. Timed to match the callers' ~1.6s timeout. */
+@keyframes rcv-flash {
+  from {
+    background: color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  to {
+    background: transparent;
+  }
+}
+
+.rcv-flash {
+  animation: rcv-flash 1.6s ease-out;
+}
+
+.sim-rule-provenance {
+  flex: none;
+}
+
+/* Per-entry provenance list inside the effective config's packageRules row. */
+.prov-rules {
+  margin-top: 0.5rem;
+}
+
+.prov-rules-title {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin: 0.5rem 0 0.3rem;
+  text-transform: uppercase;
+}
+
+.prov-rules-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.prov-rules-list li {
+  align-items: center;
+  display: flex;
+  font-size: 0.82rem;
+  gap: 0.45rem;
+  padding: 0.2rem 0;
+}
+
+.prov-rule-index {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 2rem;
+}
+
+.prov-rule-preview {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
 }
