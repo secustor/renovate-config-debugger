@@ -23,7 +23,11 @@ export default defineConfig({
         plugins: [renovateShims()],
         test: {
           name: "shimmed",
-          include: ["test/pipeline.shimmed.test.ts", "test/preset-fetchers.test.ts"],
+          include: [
+            "test/pipeline.shimmed.test.ts",
+            "test/preset-fetchers.test.ts",
+            "test/provenance.shimmed.test.ts",
+          ],
           environment: "node",
           server: {
             deps: {

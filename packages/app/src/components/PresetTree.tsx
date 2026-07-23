@@ -111,9 +111,14 @@ function useEngineHelpers() {
 export const PresetTree = memo(function PresetTree({
   result,
   onInject,
+  selectedId,
+  onSelectNode,
 }: {
   result: TraceResult;
   onInject: (key: string, content: Record<string, unknown>) => void;
+  /** Controlled selection, so provenance chains (005) can select a preset node. */
+  selectedId: string | null;
+  onSelectNode: (id: string | null) => void;
 }) {
   const root = result.presetTree;
   const helpers = useEngineHelpers();
@@ -137,13 +142,12 @@ export const PresetTree = memo(function PresetTree({
     return map;
   }, [result.events]);
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
-  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // node ids restart at p1 for every run, so state from a previous result
-  // would silently map onto unrelated nodes of the new tree
+  // would silently map onto unrelated nodes of the new tree (selection is
+  // owned by App, which resets it on a new run)
   useEffect(() => {
     setExpanded(new Set());
-    setSelectedId(null);
   }, [root]);
 
   const parents = useMemo(
@@ -193,7 +197,7 @@ export const PresetTree = memo(function PresetTree({
               expanded={expanded}
               selectedId={selectedId}
               onToggle={toggle}
-              onSelect={setSelectedId}
+              onSelect={onSelectNode}
               injectionKey={injectionKey}
               usedInjections={usedInjections}
             />
@@ -203,7 +207,7 @@ export const PresetTree = memo(function PresetTree({
           <PresetDetail
             node={selected}
             parent={parents.get(selected.id)}
-            onClose={() => setSelectedId(null)}
+            onClose={() => onSelectNode(null)}
             injectionKey={injectionKey}
             parse={helpers?.parse ?? null}
             usedInjections={usedInjections}

@@ -722,3 +722,171 @@ pre.config-view {
     color: var(--muted);
   }
 }
+
+/* ---------- merge provenance view (005) ---------- */
+
+.prov-filters {
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.prov-filters input.prov-filter-input,
+.prov-filters select {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: inherit;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.5rem;
+}
+
+.prov-filters input.prov-filter-input {
+  flex: 1;
+  min-width: 10rem;
+}
+
+.prov-check {
+  color: var(--muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.prov-list {
+  max-height: 40rem;
+  overflow: auto;
+}
+
+.prov-row {
+  border-bottom: 1px solid var(--border);
+}
+
+.prov-row:last-child {
+  border-bottom: none;
+}
+
+.prov-row-head {
+  align-items: center;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  text-align: left;
+  width: 100%;
+}
+
+.prov-row-head:hover {
+  background: var(--surface);
+}
+
+.prov-row-head .caret {
+  color: var(--muted);
+  flex: none;
+  font-size: 0.75rem;
+  width: 0.9rem;
+}
+
+.prov-key-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+}
+
+.prov-key-preview {
+  color: var(--muted);
+  flex: 1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.badge.prov-layer {
+  cursor: default;
+  flex: none;
+}
+
+button.badge.prov-layer {
+  background: transparent;
+  cursor: pointer;
+}
+
+.badge.prov-defaults {
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.badge.prov-repo {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.badge.prov-preset {
+  border-color: #8250df;
+  color: #8250df;
+}
+
+.badge.prov-overridden {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.prov-detail {
+  padding: 0 0.75rem 0.75rem 1.65rem;
+}
+
+.prov-final-title,
+.prov-chain-title {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin: 0.5rem 0 0.3rem;
+  text-transform: uppercase;
+}
+
+.prov-step {
+  border-left: 2px solid var(--border);
+  margin: 0.4rem 0;
+  padding-left: 0.6rem;
+}
+
+.prov-step.action-overwrite,
+.prov-step.action-forced {
+  border-left-color: var(--warn);
+}
+
+.prov-step-head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.25rem;
+}
+
+.prov-step-verb {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.prov-step.action-forced .prov-step-verb {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+pre.config-view.prov-value {
+  border-radius: 6px;
+  max-height: 16rem;
+}
+
+pre.config-view.prov-before {
+  opacity: 0.65;
+  text-decoration: line-through;
+  text-decoration-color: var(--error);
+}

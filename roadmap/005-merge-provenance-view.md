@@ -1,6 +1,22 @@
 # 005 — Merge provenance view
 
-Milestone: M2 · Status: planned
+Milestone: M2 · Status: done 2026-07-23
+
+> Implemented as specified, computed post-hoc — no Renovate instrumentation.
+> `computeProvenance` replays Renovate's real `mergeChildConfig` over the
+> top-level layers already captured in the trace (defaults → each directly
+> extended preset in order → repo config), attributing every top-level key to
+> the layer(s) that produced its final value. Because `mergeChildConfig` is
+> pure this reproduces the pipeline's merge exactly; the replay is top-level
+> only (`root.children`), so it stays a handful of merges even for
+> `config:recommended`. A final correction pass reconciles Renovate's
+> nested-`extends` expansion (repo `packageRules[n].extends`) against the
+> ground-truth resolved config, and `force` wins are attributed per merge call
+> since Renovate re-flattens `config.force` on every call. The view replaces
+> the old value-equality filter: default-only keys are hidden behind a toggle,
+> a key explicitly set to its default value now correctly shows as set by that
+> layer. Clicking a preset badge in a chain selects that node in the resolution
+> tree (the cheap half of 011's reverse lookup).
 
 ## Summary
 

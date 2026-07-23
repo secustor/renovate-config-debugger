@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import type { OptionIndex, StageId, TraceResult } from "@renovate-config-visualizer/engine";
 import { ConfigEditor } from "./components/ConfigEditor";
 import { EffectiveConfig } from "./components/EffectiveConfig";
@@ -74,6 +74,12 @@ export function App() {
   const deferredStage = useDeferredValue(selectedStage);
   const [fatal, setFatal] = useState<string | null>(null);
   const [optionIndex, setOptionIndex] = useState<OptionIndex | null>(null);
+  // Preset-tree selection is owned here so a provenance chain (005) can select
+  // a preset node in the tree. Node ids restart every run, so reset on result.
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  useEffect(() => {
+    setSelectedNodeId(null);
+  }, [result]);
 
   async function onRun(overrideInjected?: InjectionMap) {
     const injectedPresets = overrideInjected ?? injected;
@@ -262,8 +268,13 @@ export function App() {
               )}
             </div>
             <MessagesPanel result={result} />
-            <PresetTree result={result} onInject={onInject} />
-            <EffectiveConfig result={result} />
+            <PresetTree
+              result={result}
+              onInject={onInject}
+              selectedId={selectedNodeId}
+              onSelectNode={setSelectedNodeId}
+            />
+            <EffectiveConfig result={result} onSelectPreset={setSelectedNodeId} />
           </>
         ) : null}
       </main>
