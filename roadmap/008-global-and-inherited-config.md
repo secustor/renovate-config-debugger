@@ -29,6 +29,10 @@ preset / repo` badges.
 - Validation of each layer with the layer-appropriate rules
   (`validateConfig(configType)`).
 - Preset resolution within global/inherited layers (e.g. `globalExtends`).
+- `platform`/`endpoint` from the global config feed 010's platform-context
+  UI: the control reflects the global-config values instead of keeping its
+  own state, and manually changing it becomes an explicit override with a
+  warning (see 010, "Platform context").
 
 ## Out of scope
 
