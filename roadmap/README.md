@@ -29,7 +29,7 @@ Full context and architecture: [.agents/spec/renovate-config-visualizer.md](../.
 | [022](022-verdict-copy-precision.md)                  | Verdict & translation copy precision                      | M7                   | done    |
 | [023](023-post-action-focus-and-guidance.md)          | Post-action focus, honest error states, rule filters      | M7                   | done    |
 | [024](024-stage-chips-signal-outcomes.md)             | Stage chips signal what each stage did                    | M7                   | done    |
-| [025](025-hover-card-overflow.md)                     | Hover card text overflows its box                         | M7                   | planned |
+| [025](025-hover-card-overflow.md)                     | Hover card text overflows its box                         | M7                   | done    |
 | [026](026-schema-first-class-option.md)               | Treat `$schema` as a first-class option                   | M7                   | planned |
 | [027](027-share-link-failure-diagnostics.md)          | Share-link failure diagnostics                            | M7                   | planned |
 
