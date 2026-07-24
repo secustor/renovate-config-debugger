@@ -42,6 +42,7 @@ import {
 import {
   buildShareUrl,
   decodeShare,
+  decideHashChangeAction,
   encodeShare,
   readShareToken,
   type ShareFileName,
@@ -313,6 +314,31 @@ export function App() {
   // result (identities → node ids need the resolved tree). A ref, not state, so
   // consuming it does not trigger a render.
   const pendingViewRef = useRef<ShareView | null>(null);
+  // Roadmap 017: the last `#config=` token (or null) the app itself wrote
+  // into the address bar via `history.replaceState` — Copy link, clearing an
+  // unreadable share link, or restoring a pre-sign-in fragment after OAuth.
+  // The hashchange listener compares against this to ignore its own writes
+  // (replaceState doesn't fire `hashchange`, but this stays correct even if
+  // a browser ever did, or a future navigation replays the same URL).
+  const lastWrittenTokenRef = useRef<string | null>(null);
+  // Roadmap 017: mirrors of `content`/`loadedContent` for the hashchange
+  // listener, which is registered once (empty deps) and would otherwise
+  // close over the state from that first render.
+  const contentRef = useRef(content);
+  contentRef.current = content;
+  const loadedContentRef = useRef(loadedContent);
+  loadedContentRef.current = loadedContent;
+  // Roadmap 017: guards a decode against a later hashchange (or unmount)
+  // superseding it before its async work (decodeShare, getRenovateVersion)
+  // resolves.
+  const decodeGenerationRef = useRef(0);
+  const mountedRef = useRef(true);
+  useEffect(
+    () => () => {
+      mountedRef.current = false;
+    },
+    [],
+  );
   // Load-from-repo form.
   const [repoInput, setRepoInput] = useState("");
   const [repoRef, setRepoRef] = useState("");
@@ -346,6 +372,19 @@ export function App() {
     setContent(text);
     setLoadedContent(text);
     setEditorKey((k) => k + 1);
+  }
+
+  /** Roadmap 017: the one path every self-initiated hash write goes through —
+   *  updates the address bar and records the token (or lack of one) so the
+   *  hashchange listener can recognize its own writes. */
+  function writeHash(url: string, shareToken: string | null) {
+    lastWrittenTokenRef.current = shareToken;
+    history.replaceState(null, "", url);
+  }
+
+  /** Drops the `#config=` fragment, keeping any query string. */
+  function clearShareHash() {
+    writeHash(window.location.pathname + window.location.search, null);
   }
 
   useEffect(() => {
@@ -487,12 +526,69 @@ export function App() {
     await onRun(undefined, buildInputs(nextContent));
   }
 
+  /**
+   * Roadmap 007/017: decodes a share token, populates every piece of state
+   * a link can carry, and runs — the single decode→populate→run path shared
+   * by the mount effect (a link opened fresh) and the hashchange listener
+   * below (a link opened while the app is already running). `isCancelled`
+   * lets either caller abandon the result of a decode a later event has
+   * superseded (component unmount, or a second hashchange arriving before
+   * the first finishes its awaits).
+   */
+  async function loadShareToken(shareToken: string, isCancelled: () => boolean): Promise<void> {
+    const payload = await decodeShare(shareToken);
+    if (isCancelled()) {
+      return;
+    }
+    if (!payload) {
+      setNotice("This shared link could not be read; showing the default config instead.");
+      clearShareHash();
+      return;
+    }
+    const nextPlatform = payload.platform ?? "github";
+    const nextEndpoint = payload.endpoint ?? "https://api.github.com";
+    loadConfigText(payload.config);
+    setFileName(payload.fileName);
+    setPlatform(nextPlatform);
+    persistLocal(PLATFORM_KEY, nextPlatform);
+    setEndpoint(nextEndpoint);
+    persistLocal(ENDPOINT_KEY, nextEndpoint);
+    // 008 layers ride along in v2 links; absent = layers off.
+    setGlobalText(payload.globalConfig ? JSON.stringify(payload.globalConfig, null, 2) : "");
+    setInheritedText(
+      payload.inheritedConfig ? JSON.stringify(payload.inheritedConfig, null, 2) : "",
+    );
+    setPlatformOverride(payload.platformOverride === true);
+    if (payload.globalConfig || payload.inheritedConfig) {
+      setAdvancedOpen(true);
+    }
+    pendingViewRef.current = payload.view ?? null;
+    const current = await getRenovateVersion();
+    if (!isCancelled() && payload.renovate && payload.renovate !== current) {
+      setNotice(
+        `This link was created with Renovate v${payload.renovate}; you're on v${current} — results may differ.`,
+      );
+    }
+    if (!isCancelled()) {
+      void onRun(undefined, {
+        fileName: payload.fileName,
+        content: payload.config,
+        platform: nextPlatform,
+        endpoint: nextEndpoint,
+        globalConfig: payload.globalConfig,
+        inheritedConfig: payload.inheritedConfig,
+        platformOverride: payload.platformOverride === true,
+      });
+    }
+  }
+
   // On mount: first complete an OAuth callback if the URL carries one (QUERY
   // params ?code&state), then — reading the possibly-restored fragment — decode
   // a shared config, populate state and auto-run. OAuth runs before the share
   // decode so a share link survives a sign-in round-trip. Runs once.
   useEffect(() => {
-    let cancelled = false;
+    const generation = ++decodeGenerationRef.current;
+    const isCancelled = () => !mountedRef.current || decodeGenerationRef.current !== generation;
     void (async () => {
       // 1. OAuth callback (009): validate state, exchange via the Worker, store
       // the token, then strip the query and restore the pre-sign-in fragment.
@@ -500,20 +596,20 @@ export function App() {
       if (callback) {
         try {
           const { user, returnHash } = await completeCallback(callback.code, callback.state);
-          if (cancelled) {
+          if (isCancelled()) {
             return;
           }
           setSignedIn(true);
           setAuthUser(user);
-          history.replaceState(null, "", window.location.pathname + returnHash);
+          writeHash(window.location.pathname + returnHash, readShareToken(returnHash));
         } catch (err) {
-          if (cancelled) {
+          if (isCancelled()) {
             return;
           }
           setNotice(
             `GitHub sign-in failed: ${err instanceof Error ? err.message : String(err)}. You can still use the app signed out.`,
           );
-          history.replaceState(null, "", window.location.pathname);
+          writeHash(window.location.pathname, null);
           return;
         }
       }
@@ -523,55 +619,46 @@ export function App() {
       if (!shareToken) {
         return;
       }
-      const payload = await decodeShare(shareToken);
-      if (cancelled) {
-        return;
-      }
-      if (!payload) {
-        setNotice("This shared link could not be read; showing the default config instead.");
-        history.replaceState(null, "", window.location.pathname + window.location.search);
-        return;
-      }
-      const nextPlatform = payload.platform ?? "github";
-      const nextEndpoint = payload.endpoint ?? "https://api.github.com";
-      loadConfigText(payload.config);
-      setFileName(payload.fileName);
-      setPlatform(nextPlatform);
-      persistLocal(PLATFORM_KEY, nextPlatform);
-      setEndpoint(nextEndpoint);
-      persistLocal(ENDPOINT_KEY, nextEndpoint);
-      // 008 layers ride along in v2 links; absent = layers off.
-      setGlobalText(payload.globalConfig ? JSON.stringify(payload.globalConfig, null, 2) : "");
-      setInheritedText(
-        payload.inheritedConfig ? JSON.stringify(payload.inheritedConfig, null, 2) : "",
-      );
-      setPlatformOverride(payload.platformOverride === true);
-      if (payload.globalConfig || payload.inheritedConfig) {
-        setAdvancedOpen(true);
-      }
-      pendingViewRef.current = payload.view ?? null;
-      const current = await getRenovateVersion();
-      if (!cancelled && payload.renovate && payload.renovate !== current) {
-        setNotice(
-          `This link was created with Renovate v${payload.renovate}; you're on v${current} — results may differ.`,
-        );
-      }
-      if (!cancelled) {
-        void onRun(undefined, {
-          fileName: payload.fileName,
-          content: payload.config,
-          platform: nextPlatform,
-          endpoint: nextEndpoint,
-          globalConfig: payload.globalConfig,
-          inheritedConfig: payload.inheritedConfig,
-          platformOverride: payload.platformOverride === true,
-        });
-      }
+      await loadShareToken(shareToken, isCancelled);
     })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Roadmap 017: a share link opened while the app is already running is a
+  // hash-only navigation — nothing reloads, so without this listener nothing
+  // happens (no load, no run, no error). `decideHashChangeAction` (pure, in
+  // share.ts) decides whether the new hash carries a token worth loading and
+  // whether loading it would clobber unsaved edits; `event.oldURL` is what
+  // lets a declined confirm restore exactly the hash that was showing before
+  // the navigation, so the address bar never lies about what's on screen.
+  // Registered once (empty deps) — `contentRef`/`loadedContentRef` keep it
+  // reading current state despite that.
+  useEffect(() => {
+    function onHashChange(event: HashChangeEvent) {
+      const decision = decideHashChangeAction(
+        window.location.hash,
+        lastWrittenTokenRef.current,
+        contentRef.current !== loadedContentRef.current,
+      );
+      if (decision.action === "ignore") {
+        return;
+      }
+      if (
+        decision.needsConfirm &&
+        !window.confirm("Load shared config? Your current edits will be replaced.")
+      ) {
+        const oldHash = new URL(event.oldURL).hash;
+        writeHash(
+          window.location.pathname + window.location.search + oldHash,
+          readShareToken(oldHash),
+        );
+        return;
+      }
+      const generation = ++decodeGenerationRef.current;
+      const isCancelled = () => !mountedRef.current || decodeGenerationRef.current !== generation;
+      void loadShareToken(decision.token, isCancelled);
+    }
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
   function makeTokenHandler(key: string, setter: (v: string) => void) {
@@ -671,7 +758,7 @@ export function App() {
     } catch {
       // Clipboard can be unavailable (insecure context); the URL bar still updates.
     }
-    history.replaceState(null, "", url);
+    writeHash(url, shareToken);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   }

@@ -191,3 +191,28 @@ export function buildShareUrl(token: string): string {
   const { origin, pathname } = window.location;
   return `${origin}${pathname}#${FRAGMENT_KEY}=${token}`;
 }
+
+/**
+ * Roadmap 017: what a `hashchange` event should do, decided as a pure
+ * function of the new hash, the last token the app itself wrote into the
+ * address bar (Copy link, or clearing an unreadable link — never a real
+ * navigation), and whether the editor has drifted from the last
+ * loaded/run baseline. Kept pure and DOM-free so it can be unit-tested
+ * without mounting the app; App.tsx supplies the three inputs from
+ * `window.location.hash`, a ref, and `content !== loadedContent`.
+ */
+export type HashChangeDecision =
+  | { action: "ignore" }
+  | { action: "load"; token: string; needsConfirm: boolean };
+
+export function decideHashChangeAction(
+  newHash: string,
+  lastSelfWrittenToken: string | null,
+  contentDiffersFromLoaded: boolean,
+): HashChangeDecision {
+  const token = readShareToken(newHash);
+  if (!token || token === lastSelfWrittenToken) {
+    return { action: "ignore" };
+  }
+  return { action: "load", token, needsConfirm: contentDiffersFromLoaded };
+}
