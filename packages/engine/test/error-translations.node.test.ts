@@ -97,11 +97,18 @@ describe("redundant-glob-star translation (P2 study case)", () => {
     expect(translated!.fix).toBeNull();
   });
 
-  it("attaches a docs link for the named matcher option", () => {
+  it("links the matcher-semantics docs page (negative-matching) rather than the bare option reference", () => {
     const translated = translateMessage(message("matchPackageNames"), null);
     expect(translated!.docsUrl).toBe(
-      "https://docs.renovatebot.com/configuration-options/#matchpackagenames",
+      "https://docs.renovatebot.com/string-pattern-matching/#negative-matching",
     );
+  });
+
+  it("states the negation-only match-all-except rule instead of the false 'other patterns already covered every case' claim", () => {
+    const translated = translateMessage(message("matchPackageNames"), null);
+    expect(translated!.explanation).not.toMatch(/already covered every case/);
+    expect(translated!.explanation).toMatch(/negation-only/);
+    expect(translated!.explanation).toMatch(/string-pattern-matching/);
   });
 });
 

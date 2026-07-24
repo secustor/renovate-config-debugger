@@ -26,7 +26,7 @@ Full context and architecture: [.agents/spec/renovate-config-visualizer.md](../.
 | [019](019-persona-replay-skill.md)                    | Persona usability-test replay skill                       | M6                   | done    |
 | [020](020-browser-e2e-tests.md)                       | Browser end-to-end test suite                             | M6                   | done    |
 | [021](021-simulator-input-hardening.md)               | Simulator input hardening + A/B comparison integrity      | M7                   | done    |
-| [022](022-verdict-copy-precision.md)                  | Verdict & translation copy precision                      | M7                   | planned |
+| [022](022-verdict-copy-precision.md)                  | Verdict & translation copy precision                      | M7                   | done    |
 | [023](023-post-action-focus-and-guidance.md)          | Post-action focus, honest error states, rule filters      | M7                   | planned |
 | [024](024-stage-chips-signal-outcomes.md)             | Stage chips signal what each stage did                    | M7                   | planned |
 | [025](025-hover-card-overflow.md)                     | Hover card text overflows its box                         | M7                   | planned |

@@ -51,6 +51,12 @@ export interface ErrorTranslation {
   explain(message: ValidationMessage): string;
   /** Renovate option name(s) the message concerns, for a 003 docs-link. */
   optionNames(message: ValidationMessage): string[];
+  /**
+   * Overrides the 003 option-index docs link with a more specific docs page
+   * (e.g. matcher semantics rather than a single option's reference entry),
+   * when the explanation cites something the option index doesn't cover.
+   */
+  docsUrl?: string;
   /** `config` is the exact snapshot the message was validated against. */
   suggestFix?(message: ValidationMessage, config: Record<string, unknown>): ErrorFixResult | null;
 }
@@ -157,6 +163,9 @@ function backtickedTokens(text: string): string[] {
 const REDUNDANT_GLOB_RE =
   /^(.+?): Your input contains \* or \*\* along with other patterns\. Please remove them, as \* or \*\* matches all patterns\.$/;
 
+const REDUNDANT_GLOB_STAR_DOCS_URL =
+  "https://docs.renovatebot.com/string-pattern-matching/#negative-matching";
+
 const redundantGlobStar: ErrorTranslation = {
   id: "redundant-glob-star",
   matches: (m) => REDUNDANT_GLOB_RE.test(m.message),
@@ -166,11 +175,17 @@ const redundantGlobStar: ErrorTranslation = {
     const path = match?.[1] ?? "this list";
     return (
       `\`*\`/\`**\` already matches everything, so listing it alongside other patterns in ` +
-      `\`${path}\` is redundant — newer Renovate rejects the combination outright. Removing the ` +
-      `\`*\`/\`**\` entry and keeping the rest is the same behavior (the other patterns already ` +
-      `covered every case \`*\` did).`
+      `\`${path}\` is redundant — newer Renovate rejects the combination outright. The suggested ` +
+      `fix below drops \`*\`/\`**\` and keeps the rest, which is safe when every remaining entry is ` +
+      `a negation (\`!name\`): Renovate's array-matching rule already treats a negation-only array ` +
+      `as matching everything except what it excludes — the exact "match everything but…" behavior ` +
+      `\`*\` plus those negations was producing (see "Negative matching" at ${REDUNDANT_GLOB_STAR_DOCS_URL}). ` +
+      `If a remaining entry is a plain, non-negated pattern instead, dropping \`*\`/\`**\` narrows the ` +
+      `match to just what's listed — check that's what you want.`
     );
   },
+
+  docsUrl: REDUNDANT_GLOB_STAR_DOCS_URL,
 
   optionNames: (m) => {
     const match = REDUNDANT_GLOB_RE.exec(m.message);
@@ -371,7 +386,7 @@ export function translateMessage(
     id: translation.id,
     explanation: translation.explain(message),
     fix,
-    docsUrl: doc?.url,
+    docsUrl: translation.docsUrl ?? doc?.url,
   };
 }
 
