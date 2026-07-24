@@ -109,6 +109,16 @@ export const FIXED_AUTOMERGE_CONFIG = `{
 }
 `;
 
+/** A config whose only issue is a deprecated option: `semanticCommits` used
+ *  to be a boolean and is now the enum `"enabled"`/`"disabled"` — migrateConfig
+ *  rewrites it. No `extends`, so it runs offline. Used by journey 024 (the
+ *  Migrate stage chip's "changed" outcome). */
+export const SEMANTIC_COMMITS_CONFIG = `{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "semanticCommits": true
+}
+`;
+
 /** A packageRules config with a minor/patch-scoped automerge rule matching a
  *  named npm dependency (lodash). The "npm dependency" quick-fill chip
  *  describes exactly such an update, so it matches this rule. No `extends`, so
