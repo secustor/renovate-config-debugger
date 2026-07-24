@@ -6,7 +6,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { runPipeline } from "../src/index";
+import { getOptionIndex, runPipeline } from "../src/index";
 
 function fixture(name: string): string {
   return readFileSync(join(import.meta.dirname, "fixtures", name), "utf8");
@@ -121,6 +121,22 @@ describe("trace shape", () => {
     expect(resolvedEvents.some((e) => e.parentId)).toBe(true);
   });
 
+  it("never flags $schema in validation output (roadmap 026)", async () => {
+    // internal-presets.json ships $schema at the top, same as the app's
+    // default/example configs.
+    const result = await runPipeline({
+      fileName: "internal-presets.json",
+      content: fixture("internal-presets.json"),
+    });
+    expect(result.stageStatus.validate).toBe("ok");
+    const mentions = [...result.errors, ...result.warnings].filter(
+      (m) => m.topic.includes("$schema") || m.message.includes("$schema"),
+    );
+    // Guards against a future renovate bump silently starting to flag it —
+    // it's currently ignored via `ignoredNodes` in renovate's own validator.
+    expect(mentions).toEqual([]);
+  });
+
   it("emits validation-message events", async () => {
     const result = await runPipeline({
       fileName: "invalid.json",
@@ -150,5 +166,14 @@ describe("trace shape", () => {
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+});
+
+describe("option index (roadmap 026)", () => {
+  it("models $schema as a known option, not renovate's own metadata", () => {
+    const doc = getOptionIndex().options.get("$schema");
+    expect(doc).toBeDefined();
+    expect(doc?.description).toContain("ignored by Renovate itself");
+    expect(doc?.url).toBeTruthy();
   });
 });

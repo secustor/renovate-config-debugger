@@ -1,6 +1,6 @@
 # 026 — Treat `$schema` as a first-class option
 
-Milestone: M7 · Status: planned
+Milestone: M7 · Status: done
 
 ## Summary
 

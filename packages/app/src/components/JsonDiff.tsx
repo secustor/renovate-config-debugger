@@ -1,6 +1,6 @@
 import { createTwoFilesPatch } from "diff";
-import { useMemo, useState, useTransition } from "react";
-import { Diff, Hunk, parseDiff } from "react-diff-view";
+import { type ReactNode, useMemo, useState, useTransition } from "react";
+import { Diff, getChangeKey, Hunk, parseDiff } from "react-diff-view";
 import { useDiffOptionHover } from "../option-docs";
 import "react-diff-view/style/index.css";
 
@@ -10,6 +10,32 @@ function pretty(value: unknown): string {
 
 type FileData = ReturnType<typeof parseDiff>[number];
 type HunkData = FileData["hunks"][number];
+
+/**
+ * `$schema` is a well-known editor-only key (roadmap 026): the presets stage
+ * correctly drops it from the resolved config (it's not a Renovate option),
+ * but an unannotated red "removed" row reads as a rejection. Attach an inline
+ * note to that specific line instead of leaving it looking like an error.
+ */
+const SCHEMA_KEY_LINE_RE = /^\s*"\$schema"\s*:/;
+
+function schemaRemovalWidgets(files: FileData[]): Record<string, ReactNode> {
+  const widgets: Record<string, ReactNode> = {};
+  for (const file of files) {
+    for (const hunk of file.hunks) {
+      for (const change of hunk.changes) {
+        if (change.type === "delete" && SCHEMA_KEY_LINE_RE.test(change.content)) {
+          widgets[getChangeKey(change)] = (
+            <span className="diff-benign-note">
+              editor-only key, dropped from the resolved config — not an error
+            </span>
+          );
+        }
+      }
+    }
+  }
+  return widgets;
+}
 
 /**
  * The preset and merge stages produce diffs of thousands of lines
@@ -93,12 +119,14 @@ export function JsonDiff({ before, after, names, title }: Props) {
     0,
   );
 
+  const showAll = showAllRequested || totalLines <= MAX_RENDERED_LINES;
+  const visibleFiles = showAll ? files : truncateHunks(files, MAX_RENDERED_LINES);
+  // Computed before the early return below — hooks can't follow one.
+  const widgets = useMemo(() => schemaRemovalWidgets(visibleFiles), [visibleFiles]);
+
   if (totalLines === 0) {
     return <div className="empty-note">No differences.</div>;
   }
-
-  const showAll = showAllRequested || totalLines <= MAX_RENDERED_LINES;
-  const visibleFiles = showAll ? files : truncateHunks(files, MAX_RENDERED_LINES);
 
   return (
     <div>
@@ -120,6 +148,7 @@ export function JsonDiff({ before, after, names, title }: Props) {
             viewType={viewType}
             diffType={file.type}
             hunks={file.hunks}
+            widgets={widgets}
           >
             {(hunks) => hunks.map((hunk) => <Hunk key={hunk.content} hunk={hunk} />)}
           </Diff>
