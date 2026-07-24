@@ -1705,6 +1705,40 @@ pre.config-view.prov-before {
   text-transform: uppercase;
 }
 
+/* Roadmap 021: prominent — A and B describe different simulated dependencies,
+   not just a config edit — deliberately louder than .sim-compare-nochange /
+   .sim-stale-banner (bold, stronger tint) since a silently-wrong comparison
+   is the failure mode this exists to prevent. */
+.sim-compare-mismatch {
+  background: color-mix(in srgb, var(--warn) 16%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--warn) 55%, var(--border));
+  border-radius: 6px;
+  color: var(--warn);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0 0 0.6rem;
+  padding: 0.55rem 0.75rem;
+}
+
+.sim-compare-mismatch code {
+  font-weight: 600;
+}
+
+.sim-compare-inputs {
+  margin-top: 0.6rem;
+}
+
+.sim-compare-inputs > summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.sim-input-diff {
+  color: var(--warn);
+  font-weight: 600;
+}
+
 .sim-compare-nochange {
   background: color-mix(in srgb, var(--ok) 10%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--ok) 35%, var(--border));

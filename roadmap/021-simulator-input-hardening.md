@@ -1,6 +1,6 @@
 # 021 — Simulator input hardening + A/B comparison integrity
 
-Milestone: M7 · Status: planned
+Milestone: M7 · Status: done
 
 ## Summary
 
@@ -33,6 +33,13 @@ conclusion can't come from stale characters or mismatched baselines.
 
 - Registry lookups for real dependency metadata (see 015's out-of-scope; the
   "prefill sourceUrl from the datasource" wish stays a possible follow-up).
+- Named pins / a second pin slot: the single-pin design already needed a real
+  rework here (the pin now snapshots the whole form, not just the result) —
+  stacking a multi-slot UI on top in the same pass risked the comparison UI
+  itself for a want (multi-baseline comparisons, built by hand today) rather
+  than the wrong-conclusion bug this item exists to fix. Left for a
+  follow-up if the single-pin-plus-mismatch-warning combination turns out
+  not to be enough.
 
 ## Dependencies
 
