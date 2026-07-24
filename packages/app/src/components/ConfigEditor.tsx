@@ -1,13 +1,15 @@
 import CodeMirror, { EditorView, type ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { jsonSchema } from "codemirror-json-schema";
-import { json5Schema } from "codemirror-json-schema/json5";
 import { renovateSchema } from "@renovate-config-visualizer/engine/schema";
 import { forwardRef, useImperativeHandle, useMemo, useRef } from "react";
+import { buildEditorExtensions, type PresetHoverContext } from "../preset-hover";
 
 interface Props {
   fileName: string;
   value: string;
   onChange: (value: string) => void;
+  /** Roadmap 023: current run's preset-string hover data + jump callback, read
+   *  from a ref at hover time so a fresh run's tree updates without a remount. */
+  presetHover?: PresetHoverContext | null;
 }
 
 /**
@@ -21,11 +23,15 @@ export interface ConfigEditorHandle {
 }
 
 export const ConfigEditor = forwardRef<ConfigEditorHandle, Props>(function ConfigEditor(
-  { fileName, value, onChange },
+  { fileName, value, onChange, presetHover },
   ref,
 ) {
+  // Kept current every render so the once-built hover extension reads fresh
+  // tree data (a Run updates it without remounting the editor).
+  const presetHoverRef = useRef<PresetHoverContext | null>(presetHover ?? null);
+  presetHoverRef.current = presetHover ?? null;
   const extensions = useMemo(
-    () => [fileName.endsWith(".json5") ? json5Schema(renovateSchema) : jsonSchema(renovateSchema)],
+    () => buildEditorExtensions(fileName.endsWith(".json5"), renovateSchema, presetHoverRef),
     [fileName],
   );
   const cmRef = useRef<ReactCodeMirrorRef>(null);

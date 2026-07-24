@@ -2269,3 +2269,68 @@ pre.config-view.prov-before {
 .back-to-top:hover {
   filter: brightness(1.1);
 }
+
+/* ---------- post-action focus, honest error states, rule filters (023) ---------- */
+
+/* Shown on post-Validate results (stage diffs, effective config, simulator)
+   when validation reported errors — everything below is hypothetical. */
+.hypothetical-banner {
+  background: color-mix(in srgb, var(--error) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--error) 45%, var(--border));
+  border-left: 3px solid var(--error);
+  border-radius: 6px;
+  color: inherit;
+  font-size: 0.85rem;
+  margin: 0 0 0.6rem;
+  padding: 0.5rem 0.7rem;
+}
+
+/* Transient toast (e.g. Apply fix → "re-ran: 0 errors"): lands the user on a
+   consequence without moving their scroll. */
+.rcv-toast {
+  background: var(--accent);
+  border-radius: 8px;
+  bottom: 1.25rem;
+  box-shadow: 0 2px 12px rgb(0 0 0 / 0.3);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  left: 50%;
+  padding: 0.6rem 1rem;
+  position: fixed;
+  transform: translateX(-50%);
+  z-index: 30;
+}
+
+/* The active state of the simulator "my rules only" filter toggle. */
+.sim-toggle.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Hint shown when a "packageRules[N]" cross-link is clicked before any
+   simulation exists to render that row. */
+.sim-focus-hint {
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  border-radius: 6px;
+  font-size: 0.85rem;
+  margin: 0 0 0.6rem;
+  padding: 0.5rem 0.7rem;
+}
+
+/* Preset-string hover card in the editor (extends the shared .option-card). */
+.preset-hover-jump {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.preset-hover-jump:hover {
+  filter: brightness(1.1);
+}

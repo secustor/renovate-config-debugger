@@ -21,6 +21,7 @@ import type { ShareSimulator } from "../share";
 import { ConfigJson } from "./ConfigJson";
 import { CopyMarkdownButton } from "./CopyMarkdownButton";
 import { ErrorTranslationView } from "./ErrorTranslationView";
+import { HypotheticalBanner } from "./HypotheticalBanner";
 import { ProvenanceChip } from "./ProvenanceChip";
 import { RuleMessage } from "./RuleMessage";
 
@@ -463,12 +464,17 @@ function RuleRow({
   rule,
   layer,
   onSelectPreset,
+  defaultExpanded = false,
 }: {
   rule: RuleEvaluation;
   layer?: ProvenanceLayer;
   onSelectPreset?: (nodeId: string) => void;
+  /** Roadmap 023: the "my rules only" filter pre-expands its rows' clause evidence. */
+  defaultExpanded?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  // Re-sync when the filter toggles (re-expand my-rules rows, collapse otherwise).
+  useEffect(() => setExpanded(defaultExpanded), [defaultExpanded]);
   return (
     <div id={`sim-rule-${rule.index}`} className={`sim-rule${expanded ? " expanded" : ""}`}>
       <button
@@ -791,6 +797,7 @@ export function RuleSimulator({
   errorLib,
   simRequest,
   onCopySimLink,
+  configInvalid,
 }: {
   result: TraceResult;
   /** Roadmap 013: a rule row's provenance chip → the contributing preset node in the tree. */
@@ -815,6 +822,9 @@ export function RuleSimulator({
   /** Roadmap 018: encode the current config + view + these simulator inputs into
    *  a share link and copy it (App owns the full share state). */
   onCopySimLink?: (sim: ShareSimulator) => Promise<void>;
+  /** Roadmap 023: validation reported errors — a real Renovate run would refuse
+   *  this config, so these simulation results are hypothetical. */
+  configInvalid?: boolean;
 }) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [sim, setSim] = useState<SimulationResult | null>(null);
@@ -837,6 +847,14 @@ export function RuleSimulator({
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  // Roadmap 023: a one-click filter to the user's OWN repo-config rules (their
+  // most common "where's my rule?" wish), with clause evidence pre-expanded.
+  const [myRulesOnly, setMyRulesOnly] = useState(false);
+  // Roadmap 023: the merged index a cross-link asked to see before any
+  // simulation exists to render its row — kept to show a "run a simulation"
+  // hint rather than the click doing nothing (the "looks broken" finding).
+  const [focusHint, setFocusHint] = useState<number | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   // Roadmap 015: updateType derivation. `engineModule` is loaded once, up
   // front — by the time this component can render, a run has already pulled
   // the engine chunk in (see `simulate` below), so this is a cache hit, not
@@ -854,6 +872,13 @@ export function RuleSimulator({
   const [emptyGuardTriggered, setEmptyGuardTriggered] = useState(false);
   const rulesRef = useRef<HTMLDivElement>(null);
   const ruleAttribution = useRuleProvenance(result);
+  // Roadmap 023: the user's own repo-config rules (013 provenance) — the merged
+  // indices that came from the repo layer, for the "my rules only" filter.
+  const repoRuleIndices = useMemo(
+    () =>
+      new Set((ruleAttribution ?? []).filter((a) => a.layer.kind === "repo").map((a) => a.index)),
+    [ruleAttribution],
+  );
   // Roadmap 016: re-simulating (e.g. after editing the form and clicking
   // Simulate again) resets `showAll` to the matched-only default, which can
   // unmount rows the user was scrolled past — the browser's scroll-anchoring
@@ -887,6 +912,8 @@ export function RuleSimulator({
     setRanKey(null);
     setError(null);
     setShowAll(false);
+    setMyRulesOnly(false);
+    setFocusHint(null);
     setEmptyGuardTriggered(false);
   }, [result]);
 
@@ -929,7 +956,17 @@ export function RuleSimulator({
   // the packageRules-empty early return below, since hooks can't be
   // conditional — checked against `sim` directly instead of `notableRules`).
   useEffect(() => {
-    if (scrollTarget == null || !sim) {
+    if (scrollTarget == null) {
+      return;
+    }
+    if (!sim) {
+      // No simulation has run yet, so the target row isn't rendered anywhere.
+      // Land the user on the simulator and prompt them to run one, rather than
+      // leaving the cross-link click looking dead (the "looks broken" finding).
+      cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      setFocusHint(scrollTarget);
+      setScrollTarget(null);
+      onRuleFocused?.();
       return;
     }
     const rule = sim.rules.find((r) => r.index === scrollTarget);
@@ -938,7 +975,12 @@ export function RuleSimulator({
       onRuleFocused?.();
       return;
     }
-    const visible = showAll || rule.verdict !== "no-match";
+    // Reveal the target row if a filter is hiding it, then let the effect re-run.
+    if (myRulesOnly && !repoRuleIndices.has(rule.index)) {
+      setMyRulesOnly(false);
+      return;
+    }
+    const visible = myRulesOnly || showAll || rule.verdict !== "no-match";
     if (!visible) {
       setShowAll(true);
       return;
@@ -951,7 +993,7 @@ export function RuleSimulator({
     }
     setScrollTarget(null);
     onRuleFocused?.();
-  }, [scrollTarget, sim, showAll, onRuleFocused]);
+  }, [scrollTarget, sim, showAll, myRulesOnly, repoRuleIndices, onRuleFocused]);
 
   /** A merged rule index a click on a `packageRules[N]` message link asked to see. */
   function focusRule(mergedIndex: number) {
@@ -1078,6 +1120,7 @@ export function RuleSimulator({
       setSimEffectiveUpdateType(effectiveType);
       setRanKey(JSON.stringify(nextForm));
       setShowAll(false);
+      setFocusHint(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -1173,7 +1216,13 @@ export function RuleSimulator({
   // or unresolved), hiding the sea of "no match" rows behind a toggle.
   const notableRules = sim ? sim.rules.filter((r) => r.verdict !== "no-match") : [];
   const hiddenCount = sim ? sim.rules.length - notableRules.length : 0;
-  const shownRules = showAll ? (sim?.rules ?? []) : notableRules;
+  const shownRules = sim
+    ? myRulesOnly
+      ? sim.rules.filter((r) => repoRuleIndices.has(r.index))
+      : showAll
+        ? sim.rules
+        : notableRules
+    : [];
   const verdictSentence = sim
     ? buildVerdictSentence(sim, sim.flattened.updateType, changedKeys, ruleAttribution)
     : "";
@@ -1188,7 +1237,7 @@ export function RuleSimulator({
   }
 
   return (
-    <div className="card">
+    <div className="card" ref={cardRef}>
       <div className="card-title">
         Update simulator
         <span className="sim-title-hint">
@@ -1202,6 +1251,13 @@ export function RuleSimulator({
           <Term id="packageRules">{packageRules.length === 1 ? "rule" : "rules"}</Term> would apply
         </span>
       </div>
+      {configInvalid ? <HypotheticalBanner /> : null}
+      {focusHint !== null && !sim ? (
+        <p className="sim-focus-hint">
+          <code>packageRules[{focusHint}]</code> is evaluated here once you run a simulation —
+          describe a dependency below and click Simulate to see how it matches.
+        </p>
+      ) : null}
       <div className="sim-presets">
         {QUICK_FILLS.map(({ label, fill }) => (
           <button key={label} type="button" onClick={() => quickFill(fill)}>
@@ -1523,11 +1579,23 @@ export function RuleSimulator({
             ))}
             <div className="sim-rules-head" ref={rulesRef}>
               <span className="sim-summary">
-                {showAll
-                  ? `all ${sim.rules.length} rule${sim.rules.length === 1 ? "" : "s"}`
-                  : `${notableRules.length} of ${sim.rules.length} rule${sim.rules.length === 1 ? "" : "s"} shown`}
+                {myRulesOnly
+                  ? `your ${repoRuleIndices.size} config rule${repoRuleIndices.size === 1 ? "" : "s"}`
+                  : showAll
+                    ? `all ${sim.rules.length} rule${sim.rules.length === 1 ? "" : "s"}`
+                    : `${notableRules.length} of ${sim.rules.length} rule${sim.rules.length === 1 ? "" : "s"} shown`}
               </span>
-              {hiddenCount > 0 ? (
+              {repoRuleIndices.size > 0 ? (
+                <button
+                  type="button"
+                  className={`sim-toggle${myRulesOnly ? " active" : ""}`}
+                  onClick={() => setMyRulesOnly(!myRulesOnly)}
+                  title="Show only the packageRules from your own repo config, with their clause evidence expanded"
+                >
+                  {myRulesOnly ? "show all rules" : "my rules only"}
+                </button>
+              ) : null}
+              {hiddenCount > 0 && !myRulesOnly ? (
                 <button type="button" className="sim-toggle" onClick={() => setShowAll(!showAll)}>
                   {showAll ? "show matched only" : `show all ${sim.rules.length}`}
                 </button>
@@ -1541,9 +1609,14 @@ export function RuleSimulator({
                     rule={rule}
                     layer={layerByIndex.get(rule.index)}
                     onSelectPreset={onSelectPreset}
+                    defaultExpanded={myRulesOnly}
                   />
                 ))}
               </div>
+            ) : myRulesOnly ? (
+              <p className="empty-note">
+                None of your repo config&apos;s rules are in the merged set for this run.
+              </p>
             ) : (
               <p className="empty-note">
                 No rule matched this dependency.{" "}
