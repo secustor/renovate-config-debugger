@@ -47,6 +47,7 @@ import {
   type ShareFileName,
   type ShareView,
 } from "./share";
+import { useBackToTopVisible, useHomeEndPageScroll } from "./scroll-ergonomics";
 
 const DEFAULT_CONFIG = `{
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
@@ -109,6 +110,16 @@ const HOST_PLATFORM: Record<string, RepoPlatform> = {
   "gitea.com": "gitea",
   "codeberg.org": "forgejo",
 };
+
+/** Roadmap 016: the editor's undo-hint label — "Cmd" on macOS/iOS, "Ctrl"
+ *  elsewhere. Evaluated once; the platform doesn't change mid-session. */
+const MOD_KEY_LABEL = /Mac|iPhone|iPad|iPod/i.test(
+  (navigator as { userAgentData?: { platform?: string } }).userAgentData?.platform ??
+    navigator.platform ??
+    navigator.userAgent,
+)
+  ? "Cmd"
+  : "Ctrl";
 
 /** Strips a trailing `.git` and slashes from a repo path. */
 function stripRepoSuffix(path: string): string {
@@ -236,6 +247,19 @@ function onSignIn(): void {
 
 export function App() {
   const [content, setContent] = useState(DEFAULT_CONFIG);
+  // Roadmap 016: the text last loaded from an authoritative source (the
+  // default, an example, a share link, a repo fetch, or an applied error
+  // fix) — as opposed to whatever the user has typed since. The "revert to
+  // loaded config" button restores this; it never changes on a plain edit.
+  const [loadedContent, setLoadedContent] = useState(DEFAULT_CONFIG);
+  // Roadmap 016: bumped by `loadConfigText` to force the CodeMirror instance
+  // to remount. The editor's own prop→doc sync defers to a ~200ms "typing
+  // latch" that can be starved by browser timer throttling (backgrounded
+  // tabs) long enough that a load right after a fast edit never visibly
+  // applies, even though `content` state (and everything downstream of it,
+  // like Run) is correct — a fresh mount always initializes from `value`
+  // directly, sidestepping that debounce entirely.
+  const [editorKey, setEditorKey] = useState(0);
   const [fileName, setFileName] = useState<"renovate.json" | "renovate.json5">("renovate.json");
   const [token, setToken] = useState(() => readSession(TOKEN_KEY, ""));
   const [gitlabToken, setGitlabToken] = useState(() => readSession(GITLAB_TOKEN_KEY, ""));
@@ -281,6 +305,10 @@ export function App() {
   // the step; reset to 0 on a new result just like the uncontrolled stepper.
   const [migrationStepIndex, setMigrationStepIndex] = useState(0);
   const [copied, setCopied] = useState(false);
+  // Roadmap 016: End/Home always scroll the page, never a nested card's own
+  // scroll box; a back-to-top button appears once the page has scrolled down.
+  useHomeEndPageScroll();
+  const showBackToTop = useBackToTopVisible();
   // View state pending from a decoded link, applied once the run produces a
   // result (identities → node ids need the resolved tree). A ref, not state, so
   // consuming it does not trigger a render.
@@ -309,6 +337,15 @@ export function App() {
     if (offset !== undefined) {
       configEditorRef.current?.highlightOffset(offset);
     }
+  }
+
+  /** Roadmap 016: the one path every authoritative content load goes
+   *  through — sets the text, moves the "revert to loaded config" baseline
+   *  to match, and remounts the editor (see `editorKey`'s comment). */
+  function loadConfigText(text: string) {
+    setContent(text);
+    setLoadedContent(text);
+    setEditorKey((k) => k + 1);
   }
 
   useEffect(() => {
@@ -441,7 +478,7 @@ export function App() {
     const lib = errorLib ?? (await loadErrorTranslationLib());
     const applied = lib.applyFixToText(content, fix);
     const nextContent = applied?.text ?? JSON.stringify(fix.fixedConfig, null, 2);
-    setContent(nextContent);
+    loadConfigText(nextContent);
     if (applied && !applied.surgical) {
       setNotice(
         "Applied the fix by regenerating the whole config document — comments and custom formatting were not preserved.",
@@ -497,7 +534,7 @@ export function App() {
       }
       const nextPlatform = payload.platform ?? "github";
       const nextEndpoint = payload.endpoint ?? "https://api.github.com";
-      setContent(payload.config);
+      loadConfigText(payload.config);
       setFileName(payload.fileName);
       setPlatform(nextPlatform);
       persistLocal(PLATFORM_KEY, nextPlatform);
@@ -694,7 +731,7 @@ export function App() {
         setEndpoint(repoEndpoint);
         persistLocal(ENDPOINT_KEY, repoEndpoint);
       }
-      setContent(loaded.content);
+      loadConfigText(loaded.content);
       setFileName(nextFileName);
       setNotice(`Loaded ${loaded.fileName} from ${parsed.repo}`);
       await onRun(undefined, {
@@ -756,7 +793,7 @@ export function App() {
                 <button
                   type="button"
                   className="linklike"
-                  onClick={() => setContent(EXAMPLE_CONFIG)}
+                  onClick={() => loadConfigText(EXAMPLE_CONFIG)}
                 >
                   try an example
                 </button>
@@ -811,17 +848,31 @@ export function App() {
         </form>
 
         <ConfigEditor
+          key={editorKey}
           ref={configEditorRef}
           fileName={fileName}
           value={content}
           onChange={setContent}
         />
+        <p className="editor-hint">
+          <kbd>{MOD_KEY_LABEL}</kbd>+<kbd>Z</kbd> to undo, <kbd>Shift</kbd>+
+          <kbd>{MOD_KEY_LABEL}</kbd>+<kbd>Z</kbd> to redo.
+        </p>
 
         <div className="toolbar">
           <select value={fileName} onChange={(e) => setFileName(e.target.value as typeof fileName)}>
             <option value="renovate.json">renovate.json</option>
             <option value="renovate.json5">renovate.json5</option>
           </select>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => loadConfigText(loadedContent)}
+            disabled={content === loadedContent}
+            title="Restore the config text as it was last loaded — the default, an example, a share link, a repo fetch, or an applied fix — discarding edits made since"
+          >
+            Revert to loaded config
+          </button>
           {oauthConfig ? (
             signedIn ? (
               <span className="gh-auth-chip" title="Signed in with GitHub">
@@ -1199,6 +1250,17 @@ export function App() {
           </>
         ) : null}
       </main>
+      {showBackToTop ? (
+        <button
+          type="button"
+          className="back-to-top"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          title="Back to top"
+          aria-label="Back to top"
+        >
+          ↑ Top
+        </button>
+      ) : null}
     </OptionDocsProvider>
   );
 }

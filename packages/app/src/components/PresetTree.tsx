@@ -5,7 +5,7 @@ import type {
   TraceEvent,
   TraceResult,
 } from "@renovate-config-visualizer/engine";
-import { Term } from "../glossary";
+import { Explained, GLOSSARY, Term, type GlossaryEntry } from "../glossary";
 import { ConfigJson } from "./ConfigJson";
 import { type AuthState, GithubAuthHint } from "./GithubAuthHint";
 import { JsonDiff } from "./JsonDiff";
@@ -88,6 +88,28 @@ const nf = new Intl.NumberFormat();
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+/** Roadmap 016: hover-card text for a preset's `src-<kind>` badge — internal
+ *  presets reuse the summary header's wording; every fetched kind gets a
+ *  kind-specific explanation of where it came from. */
+function sourceKindEntry(kind: string): GlossaryEntry {
+  if (kind === "internal") {
+    return GLOSSARY.presetSourceInternal;
+  }
+  const HOST_TEXT: Record<string, string> = {
+    github: "Fetched from a repository on GitHub.",
+    gitlab: "Fetched from a repository on GitLab.",
+    gitea: "Fetched from a repository on Gitea.",
+    forgejo: "Fetched from a repository on Forgejo.",
+    npm: "Fetched from the npm registry package's config.",
+    http: "Fetched from a raw HTTP(S) URL.",
+    local: "Resolved as a `local>` preset against the configured platform and repository.",
+  };
+  return {
+    name: `${kind} preset`,
+    plain: HOST_TEXT[kind] ?? GLOSSARY.presetSourceFetched.plain,
+  };
 }
 
 /** packageRules keys whose string contents feed the search index. */
@@ -570,33 +592,95 @@ function useWindow(count: number) {
   };
 }
 
+/** Regular English plural — every summary/badge word here happens to take a
+ *  plain trailing "s", so one helper covers them all. */
+function plural(n: number, word: string): string {
+  return n === 1 ? word : `${word}s`;
+}
+
+/**
+ * Roadmap 016: the counter strip gets the same hover-card treatment the stage
+ * pills already have (persona study finding 6) instead of a plain `title`
+ * tooltip, plus grammatically-correct singular/plural labels (was always "N
+ * duplicates" etc. even at N=1).
+ */
 function SummaryHeader({ summary }: { summary: TreeSummary }) {
-  const bits: { label: string; value: number; title: string }[] = [
-    { label: "presets", value: summary.resolved, title: "Unique presets resolved" },
-    { label: "fetched", value: summary.fetched, title: "Unique presets fetched from a host" },
-    { label: "internal", value: summary.internal, title: "Unique built-in presets" },
+  const bits: { key: keyof typeof GLOSSARY; label: string; value: number }[] = [
+    { key: "statPresets", label: plural(summary.resolved, "preset"), value: summary.resolved },
+    { key: "statFetched", label: "fetched", value: summary.fetched },
+    { key: "statInternal", label: "internal", value: summary.internal },
     {
-      label: "options set",
+      key: "statOptionsSet",
+      label: `option${summary.options === 1 ? "" : "s"} set`,
       value: summary.options,
-      title: "Distinct top-level options the presets set",
     },
-    { label: "rules", value: summary.rules, title: "packageRules contributed by presets" },
-    { label: "depth", value: summary.maxDepth, title: "Deepest extends chain" },
+    { key: "statRules", label: plural(summary.rules, "rule"), value: summary.rules },
+    { key: "statDepth", label: "depth", value: summary.maxDepth },
     {
-      label: "duplicates",
+      key: "statDuplicates",
+      label: `repeat occurrence${summary.duplicates === 1 ? "" : "s"}`,
       value: summary.duplicates,
-      title: "Repeat occurrences served from cache",
     },
-    { label: "errors", value: summary.errors, title: "Presets that failed to resolve" },
+    { key: "statErrors", label: plural(summary.errors, "error"), value: summary.errors },
   ];
   return (
     <div className="preset-summary">
       {bits.map((b) => (
-        <span key={b.label} className="preset-summary-stat" title={b.title}>
-          <strong>{nf.format(b.value)}</strong> {b.label}
-        </span>
+        <Explained key={b.key} entry={GLOSSARY[b.key]}>
+          {(handlers) => (
+            <span className="preset-summary-stat explained" tabIndex={0} {...handlers}>
+              <strong>{nf.format(b.value)}</strong> {b.label}
+            </span>
+          )}
+        </Explained>
       ))}
     </div>
+  );
+}
+
+/**
+ * Roadmap 016: honest origin framing for the headline preset count (persona
+ * study finding 6 — "Resolved 1076 preset(s)" reads as "did I break
+ * something?" with no origin attached). Purely a derivation of the already-
+ * computed per-node stats, never a re-walk; never claims precision it doesn't
+ * have (a dominant contributor is only named when it is a clear majority).
+ */
+function OriginFraming({ root, stats }: { root: PresetNode; stats: TreeStats }) {
+  const roots = root.children;
+  const total = stats.summary.resolved;
+  if (roots.length === 0 || total <= 1) {
+    return null;
+  }
+  const contributions = roots
+    .map((child) => {
+      const st = stats.statsById.get(child.id);
+      const selfResolved = child.state === "resolved" ? 1 : 0;
+      return { name: child.name, count: (st?.descResolved ?? 0) + selfResolved };
+    })
+    .toSorted((a, b) => b.count - a.count);
+  const top = contributions[0];
+
+  if (roots.length === 1) {
+    return (
+      <p className="origin-framing">
+        Your <Term id="extends">extends</Term> entry <code>{roots[0]!.name}</code> expands to{" "}
+        {nf.format(total)} preset{total === 1 ? "" : "s"}.
+      </p>
+    );
+  }
+
+  const majority = top && top.count > 1 && top.count / total > 0.5;
+  return (
+    <p className="origin-framing">
+      Your {nf.format(roots.length)} <Term id="extends">extends</Term> entries expand to{" "}
+      {nf.format(total)} preset{total === 1 ? "" : "s"}
+      {majority ? (
+        <>
+          , mostly via <code>{top!.name}</code> ({nf.format(top!.count)})
+        </>
+      ) : null}
+      .
+    </p>
   );
 }
 
@@ -604,20 +688,32 @@ function ContributionBadges({ stats, collapsed }: { stats: NodeStats; collapsed:
   return (
     <>
       {stats.ownOptions > 0 ? (
-        <span className="badge contrib opts" title="Top-level options this preset sets">
-          {stats.ownOptions} opt{stats.ownOptions === 1 ? "" : "s"}
-        </span>
+        <Explained entry={GLOSSARY.presetContribOpts}>
+          {(handlers) => (
+            <span className="badge contrib opts explained" tabIndex={0} {...handlers}>
+              {stats.ownOptions} opt{stats.ownOptions === 1 ? "" : "s"}
+            </span>
+          )}
+        </Explained>
       ) : null}
       {stats.ownRules > 0 ? (
-        <span className="badge contrib rules" title="packageRules this preset contributes">
-          {stats.ownRules} rule{stats.ownRules === 1 ? "" : "s"}
-        </span>
+        <Explained entry={GLOSSARY.presetContribRules}>
+          {(handlers) => (
+            <span className="badge contrib rules explained" tabIndex={0} {...handlers}>
+              {stats.ownRules} rule{stats.ownRules === 1 ? "" : "s"}
+            </span>
+          )}
+        </Explained>
       ) : null}
       {collapsed && (stats.descResolved > 0 || stats.descRules > 0) ? (
-        <span className="badge rollup" title="Totals hidden inside this collapsed subtree">
-          {stats.descResolved > 0 ? `· ${nf.format(stats.descResolved)} presets ` : ""}
-          {stats.descRules > 0 ? `· ${nf.format(stats.descRules)} rules` : ""}
-        </span>
+        <Explained entry={GLOSSARY.presetRollup}>
+          {(handlers) => (
+            <span className="badge rollup explained" tabIndex={0} {...handlers}>
+              {stats.descResolved > 0 ? `· ${nf.format(stats.descResolved)} presets ` : ""}
+              {stats.descRules > 0 ? `· ${nf.format(stats.descRules)} rules` : ""}
+            </span>
+          )}
+        </Explained>
       ) : null}
     </>
   );
@@ -695,9 +791,17 @@ function TreeRow({
         {node.name}
       </button>
       {node.source?.presetSource ? (
-        <span className={`badge src src-${node.source.presetSource}`}>
-          {node.source.presetSource}
-        </span>
+        <Explained entry={sourceKindEntry(node.source.presetSource)}>
+          {(handlers) => (
+            <span
+              className={`badge src src-${node.source!.presetSource} explained`}
+              tabIndex={0}
+              {...handlers}
+            >
+              {node.source!.presetSource}
+            </span>
+          )}
+        </Explained>
       ) : null}
       {node.source?.platform ? (
         <span
@@ -714,22 +818,32 @@ function TreeRow({
       ) : null}
       <ContributionBadges stats={stats} collapsed={row.hasChildren && !row.expanded} />
       {node.duplicate ? (
-        <button
-          type="button"
-          className="badge dup"
-          title={`Appears ${dupCount}× in this tree — click to cycle to the next occurrence`}
-          onClick={() => onCycleDup(node)}
+        <Explained
+          entry={{
+            ...GLOSSARY.presetDuplicate,
+            plain: `${GLOSSARY.presetDuplicate.plain} Click to cycle through all ${dupCount} occurrences.`,
+          }}
         >
-          duplicate ×{dupCount}
-        </button>
+          {(handlers) => (
+            <button
+              type="button"
+              className="badge dup explained"
+              onClick={() => onCycleDup(node)}
+              {...handlers}
+            >
+              duplicate ×{dupCount}
+            </button>
+          )}
+        </Explained>
       ) : null}
       {node.nested ? (
-        <span
-          className="badge nested"
-          title="Found while resolving a nested value (e.g. packageRules[n].extends), not this parent's own extends"
-        >
-          nested
-        </span>
+        <Explained entry={GLOSSARY.presetNested}>
+          {(handlers) => (
+            <span className="badge nested explained" tabIndex={0} {...handlers}>
+              nested
+            </span>
+          )}
+        </Explained>
       ) : null}
       {stateLabel ? <span className={`badge state state-${node.state}`}>{stateLabel}</span> : null}
       {node.state === "error" && node.error ? (
@@ -945,6 +1059,7 @@ export const PresetTree = memo(function PresetTree({
         <Term id="preset">Preset</Term> resolution tree ({nf.format(stats.summary.resolved)}{" "}
         resolved)
       </div>
+      <OriginFraming root={root} stats={stats} />
       <SummaryHeader summary={stats.summary} />
       <div className="preset-controls">
         <input

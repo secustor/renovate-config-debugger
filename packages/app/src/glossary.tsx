@@ -122,6 +122,95 @@ export const GLOSSARY = {
       "An issue Renovate keeps open in your repo listing every pending, open and rate-limited update, with checkboxes to trigger them.",
     url: "https://docs.renovatebot.com/key-concepts/dashboard/",
   },
+
+  // ---- roadmap 016: badge hover cards (preset tree + effective config) ----
+  presetContribOpts: {
+    name: "own options",
+    plain:
+      "Top-level config options this preset sets directly on itself — not counting packageRules, and not counting anything contributed by presets it extends.",
+  },
+  presetContribRules: {
+    name: "own packageRules",
+    plain:
+      "packageRules entries this preset contributes directly. Presets it extends may contribute their own rules too, counted on their own row.",
+    url: "https://docs.renovatebot.com/configuration-options/#packagerules",
+  },
+  presetDuplicate: {
+    name: "duplicate preset",
+    plain:
+      'This preset also appears elsewhere in the tree. Renovate resolves each preset once and reuses ("dedupes") the result everywhere it recurs — the ×N count is every occurrence, including this one.',
+  },
+  presetNested: {
+    name: "nested preset",
+    plain:
+      "Found while resolving a nested value — typically a packageRules[n].extends — rather than this parent's own top-level extends list.",
+  },
+  presetSourceInternal: {
+    name: "internal preset",
+    plain: "Bundled inside Renovate itself — no network fetch is needed to resolve it.",
+  },
+  presetSourceFetched: {
+    name: "fetched preset",
+    plain: "Downloaded from an external host at run time, rather than bundled with Renovate.",
+  },
+  presetRollup: {
+    name: "collapsed subtree totals",
+    plain:
+      "Unique presets and packageRules contributed by this subtree's descendants, hidden while it is collapsed. Expand the row to see them individually.",
+  },
+  keyOverridden: {
+    name: "overridden",
+    plain:
+      "Set more than once, and a later layer explicitly replaced the earlier value — by overwriting a scalar or object, or via a force override.",
+  },
+  keyAppended: {
+    name: "appended",
+    plain:
+      "This option merges by concatenation: every contributing layer's list entries are appended in order. Nothing here was overridden or replaced.",
+    url: "https://docs.renovatebot.com/config-presets/",
+  },
+  keyMerged: {
+    name: "merged",
+    plain:
+      "Contributed by more than one layer, combined by merging objects together (a shallow or deep merge) rather than by replacing or appending.",
+  },
+  statPresets: {
+    name: "presets",
+    plain:
+      "Every preset Renovate resolved while expanding your extends list, counted once even when referenced from multiple places.",
+  },
+  statFetched: {
+    name: "fetched",
+    plain: "Presets fetched over the network — from GitHub, GitLab, npm, or another host.",
+  },
+  statInternal: {
+    name: "internal",
+    plain: "Presets bundled inside Renovate itself — no network fetch needed for these.",
+  },
+  statOptionsSet: {
+    name: "options set",
+    plain:
+      "Distinct top-level config keys these presets set between them (not counting packageRules).",
+  },
+  statRules: {
+    name: "rules",
+    plain:
+      "packageRules entries these presets contribute directly. Your own repo config's rules aren't counted here — see the effective config's packageRules row for the full merged total.",
+    url: "https://docs.renovatebot.com/configuration-options/#packagerules",
+  },
+  statDepth: {
+    name: "depth",
+    plain: "The longest chain of extends → extends → … from your config down to a leaf preset.",
+  },
+  statDuplicates: {
+    name: "repeat occurrences",
+    plain:
+      "Presets referenced more than once in the tree: resolved a single time and reused everywhere else. A row's own \"duplicate ×N\" badge counts ALL of that preset's occurrences, including the first — this total counts only the repeats beyond the first.",
+  },
+  statErrors: {
+    name: "errors",
+    plain: "Presets that failed to resolve — a fetch failure, invalid content, or an aborted run.",
+  },
 } satisfies Record<string, GlossaryEntry>;
 
 export type TermId = keyof typeof GLOSSARY;
