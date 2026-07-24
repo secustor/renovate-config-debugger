@@ -2022,3 +2022,85 @@ pre.config-view.prov-before {
     opacity 0.15s ease,
     filter 0.15s ease;
 }
+
+/* ---------- scale framing, badge glossary, page & editor ergonomics (016) ---------- */
+
+/* Honest origin sentence under a card title, e.g. "your extends entry
+   `config:recommended` expands to 1,076 presets." */
+.origin-framing {
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 0;
+  padding: 0.4rem 0.75rem;
+}
+
+.origin-framing code {
+  font-size: 0.85em;
+}
+
+/* Any badge/stat given a glossary hover card (see glossary.tsx's `Explained`)
+   gets a quiet affordance; more-specific rules elsewhere (e.g. the clickable
+   dup/elided badges' own `cursor: pointer`) still win by specificity. */
+.badge.explained,
+.preset-summary-stat.explained {
+  cursor: help;
+}
+
+.badge.explained:hover,
+.badge.explained:focus-visible,
+.preset-summary-stat.explained:hover,
+.preset-summary-stat.explained:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Roadmap 016: `appended`/`merged` replace the misleading `overridden` badge
+   on effective-config keys that were combined, not replaced. */
+.badge.prov-appended {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.badge.prov-merged {
+  border-color: light-dark(#1b7c83, #56d4dd);
+  color: light-dark(#1b7c83, #56d4dd);
+}
+
+/* Editor undo hint + revert-to-loaded button. */
+.editor-hint {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin: 0.3rem 0 0;
+}
+
+.editor-hint kbd {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.75rem;
+  padding: 0.05rem 0.35rem;
+}
+
+/* Back-to-top affordance (roadmap 016): appears once the page has scrolled
+   past the fold; simpler and more robust than a sticky mini-toolbar. */
+.back-to-top {
+  background: var(--accent);
+  border: none;
+  border-radius: 999px;
+  bottom: 1.25rem;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.25);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.5rem 0.9rem;
+  position: fixed;
+  right: 1.25rem;
+  z-index: 20;
+}
+
+.back-to-top:hover {
+  filter: brightness(1.1);
+}

@@ -5,11 +5,12 @@ import type {
   RuleAttribution,
   TraceResult,
 } from "@renovate-config-visualizer/engine";
-import { Term } from "../glossary";
+import { Explained, GLOSSARY, Term } from "../glossary";
 import { OptionKey } from "../option-docs";
 import { ConfigJson } from "./ConfigJson";
 import { layerId, layerLabel, type LayerId, ProvenanceChip } from "./ProvenanceChip";
 import { useRuleProvenance } from "../rule-provenance";
+import { RuleFramingText } from "../rule-framing";
 
 /**
  * Roadmap 005: the effective config as a provenance view. Every top-level key
@@ -71,6 +72,55 @@ function isOverridden(entry: KeyProvenance): boolean {
   return (
     contributors.length >= 2 ||
     entry.chain.some((s) => s.action === "overwrite" || s.action === "forced")
+  );
+}
+
+/**
+ * Roadmap 016: `isOverridden` above answers "did more than one layer touch
+ * this key" — it does NOT mean the value was replaced. A concatenating array
+ * key (`packageRules`, `labels`, …) touched by several layers is APPENDED to,
+ * never overwritten, so labelling it "overridden" is actively misleading (the
+ * expert persona called this out directly). This picks the accurate label
+ * from the actual merge actions of the contributing (non-default) steps.
+ */
+type MultiContribBadge = "overridden" | "appended" | "merged";
+
+function multiContribBadgeKind(entry: KeyProvenance): MultiContribBadge {
+  const contributors = entry.chain.filter((s) => !s.noop && s.layer.kind !== "defaults");
+  if (contributors.some((s) => s.action === "overwrite" || s.action === "forced")) {
+    return "overridden";
+  }
+  if (contributors.some((s) => s.action === "shallow-merge" || s.action === "deep-merge")) {
+    return "merged";
+  }
+  // Nothing left but "set" (the first contributor establishing the value) and
+  // "concat" (every later contributor appending to it) — this function is
+  // only called once `isOverridden` has already established there are ≥2
+  // contributors, so nothing here was ever replaced.
+  return "appended";
+}
+
+const MULTI_BADGE_GLOSSARY: Record<MultiContribBadge, keyof typeof GLOSSARY> = {
+  overridden: "keyOverridden",
+  appended: "keyAppended",
+  merged: "keyMerged",
+};
+
+/** The badge shown on a row touched by more than one layer — `overridden`
+ *  only when a value was actually replaced; `appended`/`merged` otherwise. */
+function MultiContribBadgeChip({ entry }: { entry: KeyProvenance }) {
+  if (!isOverridden(entry)) {
+    return null;
+  }
+  const kind = multiContribBadgeKind(entry);
+  return (
+    <Explained entry={GLOSSARY[MULTI_BADGE_GLOSSARY[kind]]}>
+      {(handlers) => (
+        <span className={`badge explained prov-${kind}`} tabIndex={0} {...handlers}>
+          {kind}
+        </span>
+      )}
+    </Explained>
   );
 }
 
@@ -203,12 +253,18 @@ function KeyRow({
         <span className="prov-key-name">
           <OptionKey name={entry.key} flagUnknown />
         </span>
-        <span className="prov-key-preview">{preview(entry.finalValue)}</span>
-        {isOverridden(entry) ? (
-          <span className="badge prov-overridden" title="Set more than once, or overwritten/forced">
-            overridden
-          </span>
-        ) : null}
+        <span className="prov-key-preview">
+          {rules ? (
+            <RuleFramingText
+              total={rules.length}
+              attribution={ruleAttribution ?? null}
+              variant="full"
+            />
+          ) : (
+            preview(entry.finalValue)
+          )}
+        </span>
+        <MultiContribBadgeChip entry={entry} />
         <ProvenanceChip layer={winner.layer} onSelectPreset={onSelectPreset} />
       </button>
       {expanded ? (

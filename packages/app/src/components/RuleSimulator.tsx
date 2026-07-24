@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type {
   ClauseEvaluation,
   DependencyDescriptor,
@@ -10,6 +10,7 @@ import type {
 import { Term } from "../glossary";
 import { OptionKey } from "../option-docs";
 import { useRuleProvenance } from "../rule-provenance";
+import { RuleFramingText } from "../rule-framing";
 import type { ErrorTranslationLib } from "../run";
 import { ConfigJson } from "./ConfigJson";
 import { ErrorTranslationView } from "./ErrorTranslationView";
@@ -510,6 +511,14 @@ export function RuleSimulator({
   const [emptyGuardTriggered, setEmptyGuardTriggered] = useState(false);
   const rulesRef = useRef<HTMLDivElement>(null);
   const ruleAttribution = useRuleProvenance(result);
+  // Roadmap 016: re-simulating (e.g. after editing the form and clicking
+  // Simulate again) resets `showAll` to the matched-only default, which can
+  // unmount rows the user was scrolled past — the browser's scroll-anchoring
+  // then repicks a higher anchor and the page visibly jumps. Capture the
+  // scroll position right before the state update that causes the unmount,
+  // then restore it once the new DOM has painted (clamped automatically by
+  // the browser if the new content is shorter than before).
+  const scrollYBeforeSimulate = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -614,6 +623,18 @@ export function RuleSimulator({
       .toSorted();
   }, [sim, finalConfig]);
 
+  // Roadmap 016: restore the scroll position captured in `simulate` right
+  // before the DOM the browser is about to repaint — after `sim`/`showAll`
+  // change together, so this runs once against the settled layout rather than
+  // an intermediate one.
+  useLayoutEffect(() => {
+    const y = scrollYBeforeSimulate.current;
+    if (y !== null) {
+      scrollYBeforeSimulate.current = null;
+      window.scrollTo({ top: y, behavior: "auto" });
+    }
+  }, [sim, showAll]);
+
   if (!finalConfig) {
     return null;
   }
@@ -652,6 +673,11 @@ export function RuleSimulator({
         config: finalConfig,
         dep: toDescriptor(nextForm, effectiveType),
       });
+      // Captured right before the state updates that can shrink the results
+      // list (see the layout effect above) — not at the top of `simulate`,
+      // so an in-flight fetch doesn't capture a scroll position the user has
+      // since abandoned.
+      scrollYBeforeSimulate.current = window.scrollY;
       setSim(simResult);
       setRanKey(JSON.stringify(nextForm));
       setShowAll(false);
@@ -745,9 +771,12 @@ export function RuleSimulator({
         Update simulator
         <span className="sim-title-hint">
           {" "}
-          — describe a hypothetical dependency update and see which of the {
-            packageRules.length
-          }{" "}
+          — describe a hypothetical dependency update and see which of the{" "}
+          <RuleFramingText
+            total={packageRules.length}
+            attribution={ruleAttribution ?? null}
+            variant="compact"
+          />{" "}
           <Term id="packageRules">{packageRules.length === 1 ? "rule" : "rules"}</Term> would apply
         </span>
       </div>
