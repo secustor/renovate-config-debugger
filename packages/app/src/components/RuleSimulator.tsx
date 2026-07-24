@@ -1,9 +1,13 @@
 import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type {
   ClauseEvaluation,
+  ConfigKeyDelta,
   DependencyDescriptor,
+  MergedKey,
   ProvenanceLayer,
   RuleEvaluation,
+  RuleRef,
+  SimulationComparison,
   SimulationResult,
   TraceResult,
 } from "@renovate-config-visualizer/engine";
@@ -12,10 +16,19 @@ import { OptionKey } from "../option-docs";
 import { useRuleProvenance } from "../rule-provenance";
 import { RuleFramingText } from "../rule-framing";
 import type { ErrorTranslationLib } from "../run";
+import type { ShareSimulator } from "../share";
 import { ConfigJson } from "./ConfigJson";
+import { CopyMarkdownButton } from "./CopyMarkdownButton";
 import { ErrorTranslationView } from "./ErrorTranslationView";
 import { ProvenanceChip } from "./ProvenanceChip";
 import { RuleMessage } from "./RuleMessage";
+
+/** Roadmap 018: a share link's simulator inputs, applied to the form once. */
+interface SimRequest {
+  form: Record<string, string>;
+  autoSimulate: boolean;
+  nonce: number;
+}
 
 /**
  * Roadmap 006: the packageRules simulator. Describe a hypothetical dependency
@@ -213,12 +226,26 @@ function previewValue(value: unknown, max = 60): string {
   return text.length > max ? `${text.slice(0, max)}…` : text;
 }
 
+/** Untruncated JSON rendering for copy-as-markdown export. */
+function fullValue(value: unknown): string {
+  return JSON.stringify(value) ?? "undefined";
+}
+
+/** Roadmap 018: a matched rule's applied keys as `key: before → after` lines. */
+function ruleAppliedMarkdown(merged: MergedKey[]): string {
+  return merged
+    .map((m) =>
+      "before" in m
+        ? `${m.key}: ${fullValue(m.before)} → ${fullValue(m.after)}`
+        : `${m.key}: ${fullValue(m.after)}`,
+    )
+    .join("\n");
+}
+
 function inputsPreview(clause: ClauseEvaluation): string {
-  const entries = Object.entries(clause.inputValues);
-  if (entries.length === 0) {
-    return "no input value set";
-  }
-  return entries.map(([key, value]) => `${key} = ${previewValue(value, 40)}`).join(", ");
+  return Object.entries(clause.inputValues)
+    .map(([key, value]) => `${key} = ${previewValue(value, 40)}`)
+    .join(", ");
 }
 
 function clauseIcon(state: ClauseEvaluation["state"]): string {
@@ -228,15 +255,29 @@ function clauseIcon(state: ClauseEvaluation["state"]): string {
   if (state === "no-match" || state === "error") {
     return "✗";
   }
+  // no-input / not-applicable / not-simulated — the clause was skipped, not a
+  // genuine mismatch.
   return "⚠";
 }
 
+/**
+ * Roadmap 018: the clause row's right-hand explanation, precise about WHY a
+ * clause did not match — a genuine mismatch names the input it compared
+ * ("no match against sourceUrl = …"); a fail-closed clause names the field the
+ * dependency lacks ("skipped — no sourceUrl set …", from the engine's note);
+ * a null-returning matcher reads "not applicable (skipped)".
+ */
 function clauseExplanation(clause: ClauseEvaluation): string {
+  const hasInputs = Object.keys(clause.inputValues).length > 0;
   switch (clause.state) {
     case "matched":
-      return `matched (${inputsPreview(clause)})`;
+      return hasInputs ? `matched (${inputsPreview(clause)})` : "matched";
     case "no-match":
-      return `no match against ${inputsPreview(clause)}`;
+      return hasInputs ? `no match against ${inputsPreview(clause)}` : "no match";
+    case "no-input":
+      return clause.note ?? "skipped — required input not set on the simulated dependency";
+    case "not-applicable":
+      return clause.note ?? "not applicable (skipped)";
     default:
       return clause.note ?? clause.state;
   }
@@ -349,7 +390,11 @@ function ruleLabel(rule: RuleEvaluation): string {
     return "no match* selectors";
   }
   const joined = rule.clauses.map((c) => c.key).join(" + ");
-  const failing = rule.clauses.find((c) => c.state === "no-match" || c.state === "error");
+  // no-input (fail-closed: the dependency lacks the field) fails the rule just
+  // like a genuine no-match, so it counts as the deciding clause here too.
+  const failing = rule.clauses.find(
+    (c) => c.state === "no-match" || c.state === "no-input" || c.state === "error",
+  );
   return failing ? `${joined} — failed on ${failing.key}` : joined;
 }
 
@@ -410,7 +455,14 @@ function RuleRow({
           ))}
           {rule.merged && rule.merged.length > 0 ? (
             <div className="sim-merged">
-              <div className="sim-merged-title">Applied to the dependency config</div>
+              <div className="sim-merged-title">
+                Applied to the dependency config
+                <CopyMarkdownButton
+                  className="inline"
+                  header={`\`packageRules[${rule.index}]\` ${ruleLabel(rule)} — ${VERDICT_LABEL[rule.verdict]}`}
+                  code={ruleAppliedMarkdown(rule.merged)}
+                />
+              </div>
               <ul>
                 {rule.merged.map((m) => (
                   <li key={m.key}>
@@ -433,6 +485,113 @@ function RuleRow({
           ) : null}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** Roadmap 018: one of the three matched-rule columns in the A/B comparison. */
+function RuleDeltaList({
+  title,
+  refs,
+  kind,
+}: {
+  title: string;
+  refs: RuleRef[];
+  kind: "only-a" | "only-b" | "both";
+}) {
+  return (
+    <div className={`sim-compare-col ${kind}`}>
+      <div className="sim-compare-col-title">
+        {title} <span className="count">{refs.length}</span>
+      </div>
+      {refs.length === 0 ? (
+        <p className="empty-note">none</p>
+      ) : (
+        <ul>
+          {refs.map((r) => (
+            <li key={`${r.index}-${r.signature}`}>
+              <span className="sim-rule-index">packageRules[{r.index}]</span> <code>{r.label}</code>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** Roadmap 018: one changed key of the final per-dependency config (A → B). */
+function ConfigDeltaRow({ delta }: { delta: ConfigKeyDelta }) {
+  return (
+    <li>
+      <span className="sim-merged-key">
+        <OptionKey name={delta.key} flagUnknown />
+      </span>{" "}
+      <span className="sim-merged-before">
+        {delta.inA ? previewValue(delta.before) : "(unset)"}
+      </span>
+      {" → "}
+      <span className="sim-merged-after">
+        {delta.inB ? previewValue(delta.after) : "(removed)"}
+      </span>
+    </li>
+  );
+}
+
+/**
+ * Roadmap 018: the A/B comparison panel. `comparison` is null while a result is
+ * pinned but no NEW simulation has replaced it yet (a "waiting" hint shows);
+ * once a fresh run produces B, it renders the matched-rule set delta, the
+ * final-config key delta, and an explicit "no behavioral change" verdict when
+ * both are identical.
+ */
+function ComparisonPanel({ comparison }: { comparison: SimulationComparison | null }) {
+  if (!comparison) {
+    return (
+      <div className="sim-compare">
+        <div className="sim-compare-title">A/B comparison</div>
+        <p className="empty-note">
+          Pinned this result as <strong>A</strong>. Edit the config and run the pipeline again, then
+          simulate to compare it against <strong>B</strong>.
+        </p>
+      </div>
+    );
+  }
+  const { matchedOnlyInA, matchedOnlyInB, matchedInBoth, configDelta, noChange } = comparison;
+  return (
+    <div className="sim-compare">
+      <div className="sim-compare-title">A/B comparison — pinned (A) vs current (B)</div>
+      {noChange ? (
+        <p className="sim-compare-nochange">
+          No behavioral change — the matched rules and the final per-dependency config are identical
+          in A and B.
+        </p>
+      ) : (
+        <>
+          <div className="sim-compare-rules">
+            <RuleDeltaList
+              title="Only in A (stopped matching)"
+              refs={matchedOnlyInA}
+              kind="only-a"
+            />
+            <RuleDeltaList title="Only in B (now matching)" refs={matchedOnlyInB} kind="only-b" />
+            <RuleDeltaList title="Matched in both" refs={matchedInBoth} kind="both" />
+          </div>
+          <div className="sim-compare-config">
+            <div className="sim-merged-title">Final per-dependency config changes</div>
+            {configDelta.length > 0 ? (
+              <ul>
+                {configDelta.map((d) => (
+                  <ConfigDeltaRow key={d.key} delta={d} />
+                ))}
+              </ul>
+            ) : (
+              <p className="empty-note">
+                Final per-dependency config is identical — only the matched-rule set differs.
+              </p>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -469,6 +628,8 @@ export function RuleSimulator({
   focusRuleIndex,
   onRuleFocused,
   errorLib,
+  simRequest,
+  onCopySimLink,
 }: {
   result: TraceResult;
   /** Roadmap 013: a rule row's provenance chip → the contributing preset node in the tree. */
@@ -487,9 +648,22 @@ export function RuleSimulator({
    *  When the same issue exists in the user's own rule, it also surfaces
    *  (with a fix) in the top-level Errors & warnings panel. */
   errorLib?: ErrorTranslationLib | null;
+  /** Roadmap 018: simulator inputs a decoded share link carries; applied to the
+   *  form (and auto-run when its flag is set) once per nonce. */
+  simRequest?: SimRequest | null;
+  /** Roadmap 018: encode the current config + view + these simulator inputs into
+   *  a share link and copy it (App owns the full share state). */
+  onCopySimLink?: (sim: ShareSimulator) => Promise<void>;
 }) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [sim, setSim] = useState<SimulationResult | null>(null);
+  // Roadmap 018: a pinned A-run kept for A/B comparison — deliberately NOT
+  // cleared when a new pipeline result arrives (the whole point is to pin, edit
+  // the config, re-run, and compare); only "Unpin" clears it.
+  const [pinned, setPinned] = useState<SimulationResult | null>(null);
+  const [simLinkCopied, setSimLinkCopied] = useState(false);
+  // Roadmap 018: applied-once bookkeeping for an incoming share `simRequest`.
+  const appliedSimNonce = useRef<number | null>(null);
   const [ranKey, setRanKey] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -544,6 +718,33 @@ export function RuleSimulator({
     setShowAll(false);
     setEmptyGuardTriggered(false);
   }, [result]);
+
+  // Roadmap 018: apply a decoded share link's simulator inputs exactly once (by
+  // nonce). Depends on `result` too, so — whether the link opened on mount or
+  // via hashchange — the form is applied (and optionally auto-run) against the
+  // freshly-run config rather than a stale one. Declared AFTER the reset effect
+  // so it wins for a decoded link (the reset clears, then this re-populates).
+  useEffect(() => {
+    if (!simRequest || appliedSimNonce.current === simRequest.nonce || !result.finalConfig) {
+      return;
+    }
+    appliedSimNonce.current = simRequest.nonce;
+    const next: FormState = { ...EMPTY_FORM };
+    for (const key of Object.keys(EMPTY_FORM) as (keyof FormState)[]) {
+      const value = simRequest.form[key];
+      if (typeof value === "string") {
+        next[key] = value;
+      }
+    }
+    setForm(next);
+    // The link always encodes the EFFECTIVE updateType, so a non-empty one is a
+    // deliberate pin — mark it touched so derivation can't override it.
+    const touched = next.updateType.trim() !== "";
+    setUpdateTypeTouched(touched);
+    if (simRequest.autoSimulate) {
+      void simulate(next, touched);
+    }
+  }, [simRequest, result]);
 
   useEffect(() => {
     if (focusRuleIndex != null) {
@@ -608,6 +809,17 @@ export function RuleSimulator({
   );
   const effectiveUpdateType =
     updateTypeTouched || derivedUpdateType === undefined ? form.updateType : derivedUpdateType;
+
+  // Roadmap 018: the A/B comparison — the pinned run (A) vs the current run (B).
+  // Null until a NEW simulation replaces the one that was pinned (comparing a
+  // result against itself is not useful — the panel shows a "waiting" hint
+  // instead). The comparison logic itself is pure and lives in the engine.
+  const comparison = useMemo<SimulationComparison | null>(() => {
+    if (!engineModule || !pinned || !sim || pinned === sim) {
+      return null;
+    }
+    return engineModule.compareSimulations(pinned, sim);
+  }, [engineModule, pinned, sim]);
 
   // Keys the rules changed vs. the pre-rules effective config, for the final
   // section's summary chips.
@@ -686,6 +898,31 @@ export function RuleSimulator({
     } finally {
       setRunning(false);
     }
+  }
+
+  /**
+   * Roadmap 018: build a share link that reproduces THIS simulation. The
+   * effective updateType (derived or manual) is what actually drove the run, so
+   * it is what gets encoded — the opener reproduces the exact verdict, not a
+   * re-derivation. `autoSimulate` is always set: the affordance's whole promise
+   * is "open this and it runs". Never includes tokens (the form has none).
+   */
+  async function copySimLink() {
+    if (!onCopySimLink) {
+      return;
+    }
+    const shareForm: Record<string, string> = {};
+    for (const [key, value] of Object.entries(form)) {
+      if (typeof value === "string" && value.trim() !== "") {
+        shareForm[key] = value;
+      }
+    }
+    if (effectiveUpdateType && effectiveUpdateType.trim() !== "") {
+      shareForm.updateType = effectiveUpdateType;
+    }
+    await onCopySimLink({ form: shareForm, autoSimulate: true });
+    setSimLinkCopied(true);
+    setTimeout(() => setSimLinkCopied(false), 1500);
   }
 
   function quickFill(fill: Partial<FormState>) {
@@ -1012,7 +1249,40 @@ export function RuleSimulator({
                 {matchedCount} of {sim.rules.length} rule{sim.rules.length === 1 ? "" : "s"} matched
                 →
               </button>
+              {/* Roadmap 018: evidence-export affordances on the verdict block —
+                  a reproducible link (form + auto-run encoded) and A/B pinning. */}
+              <div className="sim-verdict-actions">
+                {onCopySimLink ? (
+                  <button
+                    type="button"
+                    className="sim-verdict-action"
+                    onClick={() => void copySimLink()}
+                  >
+                    {simLinkCopied ? "Copied!" : "Copy link with this simulation"}
+                  </button>
+                ) : null}
+                {pinned ? (
+                  <button
+                    type="button"
+                    className="sim-verdict-action"
+                    onClick={() => setPinned(null)}
+                  >
+                    Unpin comparison
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="sim-verdict-action"
+                    onClick={() => setPinned(sim)}
+                    title="Pin this result as A, edit the config, then simulate again to compare"
+                  >
+                    Pin result for comparison
+                  </button>
+                )}
+              </div>
             </div>
+
+            {pinned ? <ComparisonPanel comparison={comparison} /> : null}
 
             {[...sim.errors, ...sim.warnings].length > 0 ? (
               <ul className="messages sim-messages">

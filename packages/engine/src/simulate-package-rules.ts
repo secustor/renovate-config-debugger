@@ -65,7 +65,29 @@ export interface SimulationInput {
   dep: DependencyDescriptor;
 }
 
-export type ClauseState = "matched" | "no-match" | "not-simulated" | "invalid" | "error";
+/**
+ * Roadmap 018: the matcher return `boolean | null` is reported at three
+ * levels of precision instead of the old two:
+ * - `matched` — the matcher returned `true`.
+ * - `no-match` — the matcher returned `false` AND at least one input field it
+ *   reads was set on the dependency: a genuine mismatch (e.g. the money-shot
+ *   `matchSourceUrls: [...] — no match against sourceUrl = "…"`).
+ * - `no-input` — the matcher returned `false` because NONE of the fields it
+ *   reads were set on the simulated dependency (upstream's fail-closed
+ *   `if (!sourceUrl) return false`). Still fails the rule (verdict → no-match,
+ *   oracle-identical), but is reported as "skipped — no sourceUrl set …" so it
+ *   isn't mistaken for a real mismatch.
+ * - `not-applicable` — the matcher returned `null` (it could not evaluate the
+ *   clause, e.g. an unparseable age range); upstream skips it, so it does not
+ *   affect whether the rule matches.
+ */
+export type ClauseState =
+  | "matched"
+  | "no-match"
+  | "no-input"
+  | "not-applicable"
+  | "not-simulated"
+  | "error";
 
 export interface ClauseEvaluation {
   /** The `match*` selector key, e.g. `matchPackageNames`. */
@@ -75,7 +97,9 @@ export interface ClauseEvaluation {
   state: ClauseState;
   /** The input fields the matcher consulted, for human explanations. */
   inputValues: Record<string, unknown>;
-  /** Present for not-simulated / invalid / error states. */
+  /** The dependency fields this matcher reads (for a "no X set" explanation). */
+  readFields: readonly string[];
+  /** Present for no-input / not-applicable / not-simulated / error states. */
   note?: string;
 }
 
@@ -262,6 +286,15 @@ function applyTemplate(value: string, field: string, notes: string[]): string {
   return value;
 }
 
+/** "sourceUrl" / "packageFile or lockFiles" — the fields a matcher reads,
+ *  for the fail-closed "no X set on the simulated dependency" explanation. */
+function humanFieldList(fields: readonly string[]): string {
+  if (fields.length <= 1) {
+    return fields[0] ?? "matching input";
+  }
+  return `${fields.slice(0, -1).join(", ")} or ${fields.at(-1)}`;
+}
+
 async function evaluateRule(
   index: number,
   inputConfig: Record<string, unknown>,
@@ -285,12 +318,14 @@ async function evaluateRule(
         inputValues[field] = inputConfig[field];
       }
     }
+    const readFields = entry.inputFields;
     if (entry.key === "matchConfidence") {
       clauses.push({
         key: entry.key,
         value,
         state: "not-simulated",
         inputValues,
+        readFields,
         note: NOT_SIMULATED_NOTE,
       });
       // The registry evaluates matchConfidence FIRST, so a real run throws
@@ -307,9 +342,27 @@ async function evaluateRule(
     try {
       const raw = await matcher.matches(inputConfig, rule);
       if (raw === true) {
-        clauses.push({ key: entry.key, value, state: "matched", inputValues });
+        clauses.push({ key: entry.key, value, state: "matched", inputValues, readFields });
       } else if (raw === false) {
-        clauses.push({ key: entry.key, value, state: "no-match", inputValues });
+        // Roadmap 018: a `false` from a matcher that reads dependency fields
+        // NONE of which are set is upstream's fail-closed branch
+        // (`if (!sourceUrl) return false`), not a real mismatch — report it as
+        // "skipped — no <field> set" and name the missing field(s). Matchers
+        // that read nothing off the dependency (matchJsonata) never take this
+        // path. Either way the rule still fails to match, exactly as upstream.
+        const failClosed = readFields.length > 0 && Object.keys(inputValues).length === 0;
+        clauses.push({
+          key: entry.key,
+          value,
+          state: failClosed ? "no-input" : "no-match",
+          inputValues,
+          readFields,
+          ...(failClosed
+            ? {
+                note: `skipped — no ${humanFieldList(readFields)} set on the simulated dependency`,
+              }
+            : {}),
+        });
         if (verdict === "matched") {
           verdict = "no-match";
         }
@@ -317,11 +370,12 @@ async function evaluateRule(
         clauses.push({
           key: entry.key,
           value,
-          state: "invalid",
+          state: "not-applicable",
           inputValues,
+          readFields,
           note:
-            "the matcher returned null for this clause (invalid or incomplete input) — " +
-            "Renovate skips it, so it does not affect whether the rule matches",
+            "not applicable — the matcher returned null (it could not evaluate this clause), " +
+            "so Renovate skips it and it does not affect whether the rule matches",
         });
       }
     } catch (err) {
@@ -330,6 +384,7 @@ async function evaluateRule(
         value,
         state: "error",
         inputValues,
+        readFields,
         note: `matcher threw: ${err instanceof Error ? err.message : String(err)} — treated as not matching`,
       });
       if (verdict === "matched") {

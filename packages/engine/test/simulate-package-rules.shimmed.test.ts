@@ -208,7 +208,7 @@ describe("simulatePackageRules", () => {
     expect(result.notes.some((n) => n.includes("MISSING_API_CREDENTIALS"))).toBe(true);
   });
 
-  it("treats a present clause that returns null as skipped, like upstream", async () => {
+  it("reports a null-returning clause as not-applicable (skipped), like upstream", async () => {
     const config = {
       packageRules: [
         {
@@ -223,10 +223,45 @@ describe("simulatePackageRules", () => {
       dep: { ...npmDep, currentVersionTimestamp: "2020-01-01T00:00:00.000Z" },
     });
     const clause = result.rules[0]?.clauses.find((c) => c.key === "matchCurrentAge");
-    expect(clause?.state).toBe("invalid");
+    expect(clause?.state).toBe("not-applicable");
     // upstream skips null even for present clauses — the rule still matches
     expect(result.rules[0]?.verdict).toBe("matched");
     expect(result.rawFinalConfig.labels).toEqual(["aged"]);
+  });
+
+  it("distinguishes a real mismatch (no-match) from a fail-closed missing input (no-input)", async () => {
+    const config = {
+      packageRules: [{ matchSourceUrls: ["https://github.com/facebook/react"], labels: ["fb"] }],
+    };
+
+    // sourceUrl set but different → a genuine no-match against a named input.
+    const mismatch = await simulatePackageRules({
+      config,
+      dep: { ...npmDep, sourceUrl: "https://github.com/react/react" },
+    });
+    const mismatchClause = mismatch.rules[0]?.clauses[0];
+    expect(mismatchClause?.state).toBe("no-match");
+    expect(mismatchClause?.inputValues).toEqual({ sourceUrl: "https://github.com/react/react" });
+    expect(mismatch.rules[0]?.verdict).toBe("no-match");
+
+    // sourceUrl absent → upstream's `if (!sourceUrl) return false` fail-closed
+    // branch: reported as no-input, naming the missing field, still no-match.
+    const missing = await simulatePackageRules({ config, dep: npmDep });
+    const missingClause = missing.rules[0]?.clauses[0];
+    expect(missingClause?.state).toBe("no-input");
+    expect(missingClause?.inputValues).toEqual({});
+    expect(missingClause?.readFields).toContain("sourceUrl");
+    expect(missingClause?.note).toMatch(/no sourceUrl set on the simulated dependency/);
+    expect(missing.rules[0]?.verdict).toBe("no-match");
+
+    // oracle parity is unaffected by the finer reporting.
+    for (const [dep, sim] of [
+      [{ ...npmDep, sourceUrl: "https://github.com/react/react" }, mismatch],
+      [npmDep, missing],
+    ] as const) {
+      const oracle = await applyPackageRules(oracleInput(config, dep));
+      expect(sim.rawFinalConfig).toEqual(oracle);
+    }
   });
 
   it("evaluates matchJsonata against the whole input config", async () => {

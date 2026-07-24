@@ -46,6 +46,7 @@ import {
   encodeShare,
   readShareToken,
   type ShareFileName,
+  type ShareSimulator,
   type ShareView,
 } from "./share";
 import { useBackToTopVisible, useHomeEndPageScroll } from "./scroll-ergonomics";
@@ -165,6 +166,13 @@ function parseRepoRef(raw: string): { host: string | null; repo: string } | null
 }
 
 type InjectionMap = Record<string, Record<string, unknown>>;
+
+/** Roadmap 018: a share link's simulator inputs, applied once by nonce. */
+interface SimRequest {
+  form: Record<string, string>;
+  autoSimulate: boolean;
+  nonce: number;
+}
 
 interface RunInputs {
   fileName: ShareFileName;
@@ -314,6 +322,13 @@ export function App() {
   // result (identities → node ids need the resolved tree). A ref, not state, so
   // consuming it does not trigger a render.
   const pendingViewRef = useRef<ShareView | null>(null);
+  // Roadmap 018: a decoded link's simulator inputs, handed to the RuleSimulator
+  // to pre-fill (and, when `autoSimulate`, run) once the pipeline run this link
+  // triggered has produced its result. A fresh nonce per link lets the child
+  // apply each request exactly once; set AFTER the run so the child applies it
+  // against the freshly-run config, on both mount and hashchange.
+  const [simRequest, setSimRequest] = useState<SimRequest | null>(null);
+  const simNonceRef = useRef(0);
   // Roadmap 017: the last `#config=` token (or null) the app itself wrote
   // into the address bar via `history.replaceState` — Copy link, clearing an
   // unreadable share link, or restoring a pre-sign-in fragment after OAuth.
@@ -570,7 +585,10 @@ export function App() {
       );
     }
     if (!isCancelled()) {
-      void onRun(undefined, {
+      // Awaited (not fire-and-forget) so a carried simulator descriptor is
+      // armed AFTER the result commits — the RuleSimulator then applies it
+      // against the freshly-run config, identically on mount and hashchange.
+      await onRun(undefined, {
         fileName: payload.fileName,
         content: payload.config,
         platform: nextPlatform,
@@ -578,6 +596,13 @@ export function App() {
         globalConfig: payload.globalConfig,
         inheritedConfig: payload.inheritedConfig,
         platformOverride: payload.platformOverride === true,
+      });
+    }
+    if (!isCancelled() && payload.sim) {
+      setSimRequest({
+        form: payload.sim.form,
+        autoSimulate: payload.sim.autoSimulate === true,
+        nonce: ++simNonceRef.current,
       });
     }
   }
@@ -726,10 +751,12 @@ export function App() {
 
   const migrateStepperMounted = deferredStage === "migrate" && migrateSteps.length > 0;
 
-  // Encodes the CURRENT state (config + view) into a link and copies it. Never
-  // continuously syncs the hash (huge configs would thrash the URL) — on demand
-  // only. Also mirrors the copied link into the address bar.
-  async function onCopyLink() {
+  // Encodes the CURRENT state (config + view, optionally simulator inputs) into
+  // a link, copies it, and mirrors it into the address bar. Never continuously
+  // syncs the hash (huge configs would thrash the URL) — on demand only. Tokens
+  // are never encoded (see share.ts); `sim` carries only dependency-descriptor
+  // form fields (roadmap 018).
+  async function buildShareLinkAndCopy(sim?: ShareSimulator) {
     const renovate = result?.renovateVersion ?? (await getRenovateVersion());
     const view: ShareView = { stage: selectedStage };
     if (selectedNodeId && result?.presetTree) {
@@ -751,6 +778,7 @@ export function App() {
       inheritedConfig: inheritedParse.config,
       platformOverride: platformOverride && hasGlobalContext,
       view,
+      sim,
     });
     const url = buildShareUrl(shareToken);
     try {
@@ -759,6 +787,10 @@ export function App() {
       // Clipboard can be unavailable (insecure context); the URL bar still updates.
     }
     writeHash(url, shareToken);
+  }
+
+  async function onCopyLink() {
+    await buildShareLinkAndCopy();
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   }
@@ -1333,6 +1365,8 @@ export function App() {
               focusRuleIndex={pendingRuleFocus}
               onRuleFocused={() => setPendingRuleFocus(null)}
               errorLib={errorLib}
+              simRequest={simRequest}
+              onCopySimLink={buildShareLinkAndCopy}
             />
           </>
         ) : null}

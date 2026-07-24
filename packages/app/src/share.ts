@@ -26,6 +26,20 @@ export interface ShareView {
   step?: number;
 }
 
+/**
+ * Roadmap 018 — an optional simulator-form descriptor a link can carry so
+ * "open this link and it reproduces my exact demonstration" works. `form` is
+ * the simulator's text fields (a dependency descriptor — package name, source
+ * URL, versions, …); it NEVER contains tokens or credentials (the form has no
+ * such fields, and the share payload has never encoded them). `autoSimulate`
+ * asks the opener to run the simulation automatically once the pipeline run
+ * finishes, rather than just pre-filling the form.
+ */
+export interface ShareSimulator {
+  form: Record<string, string>;
+  autoSimulate?: boolean;
+}
+
 /** The app-facing shape passed to encodeShare. */
 export interface ShareState {
   config: string;
@@ -39,11 +53,16 @@ export interface ShareState {
   /** The platform/endpoint explicitly override the global config's values. */
   platformOverride?: boolean;
   view?: ShareView;
+  /** Roadmap 018: optional simulator inputs (never tokens). */
+  sim?: ShareSimulator;
 }
 
 /**
  * The decoded payload as stored in the fragment. v2 (008) added the optional
- * global/inherited config layers; v1 payloads simply lack them.
+ * global/inherited config layers; v1 payloads simply lack them. Roadmap 018
+ * adds the optional `sim` field WITHOUT a version bump: it is purely additive,
+ * so a v2 consumer that predates it simply ignores the unknown key, and this
+ * decoder tolerates its absence — the version stays 2.
  */
 export interface SharePayload {
   v: 1 | 2;
@@ -56,6 +75,7 @@ export interface SharePayload {
   inheritedConfig?: Record<string, unknown>;
   platformOverride?: boolean;
   view?: ShareView;
+  sim?: ShareSimulator;
 }
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
@@ -122,6 +142,10 @@ export async function encodeShare(state: ShareState): Promise<string> {
   if (view) {
     payload.view = view;
   }
+  const sim = normalizeSim(state.sim);
+  if (sim) {
+    payload.sim = sim;
+  }
   const json = JSON.stringify(payload);
   const compressed = await deflateRaw(new TextEncoder().encode(json));
   return bytesToBase64url(compressed);
@@ -143,6 +167,28 @@ function normalizeView(view: ShareView | undefined): ShareView | undefined {
     out.step = view.step;
   }
   return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/**
+ * Keeps only string→(non-empty)string form fields and the autoSimulate flag;
+ * returns undefined when there is nothing worth encoding. Guards against
+ * anything non-string sneaking into the payload (tokens have no field here, but
+ * this also keeps the encoded form small and well-typed).
+ */
+function normalizeSim(sim: ShareSimulator | undefined): ShareSimulator | undefined {
+  if (!sim) {
+    return undefined;
+  }
+  const form: Record<string, string> = {};
+  for (const [key, value] of Object.entries(sim.form ?? {})) {
+    if (typeof value === "string" && value !== "") {
+      form[key] = value;
+    }
+  }
+  if (Object.keys(form).length === 0) {
+    return undefined;
+  }
+  return sim.autoSimulate ? { form, autoSimulate: true } : { form };
 }
 
 /** Decodes a fragment token back to a payload, or null on any failure. */
@@ -172,6 +218,19 @@ export async function decodeShare(token: string): Promise<SharePayload | null> {
     }
     if (typeof p.platformOverride !== "boolean") {
       delete p.platformOverride;
+    }
+    // Roadmap 018: sanitize the optional simulator descriptor — must be a plain
+    // object with a plain-object `form` of string values; drop anything else so
+    // a hand-tampered link can't inject non-string values into the form.
+    const rawSim: unknown = p.sim;
+    const cleanSim =
+      isPlainObject(rawSim) && isPlainObject(rawSim.form)
+        ? normalizeSim(rawSim as unknown as ShareSimulator)
+        : undefined;
+    if (cleanSim) {
+      p.sim = cleanSim;
+    } else {
+      delete p.sim;
     }
     return p;
   } catch {
