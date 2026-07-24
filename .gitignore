@@ -10,3 +10,8 @@ coverage/
 stats.html
 .idea/
 .pnpm-store/
+
+# Playwright e2e (roadmap 020)
+test-results/
+playwright-report/
+.playwright/

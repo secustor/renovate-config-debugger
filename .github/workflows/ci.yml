@@ -57,6 +57,23 @@ jobs:
           VITE_GITHUB_APP_SLUG: ${{ vars.VITE_GITHUB_APP_SLUG }}
         run: pnpm --filter @renovate-config-visualizer/app build
 
+      - name: Install Playwright chromium
+        # Only chromium, with its OS deps — the e2e suite is chromium-only.
+        run: pnpm --filter @renovate-config-visualizer/app exec playwright install --with-deps chromium
+      - name: Browser e2e tests
+        # Drives the production dist built above via `vite preview` (reuses that
+        # output, never rebuilds). GITHUB_ACTIONS is set here, so both vite's
+        # base path and the Playwright baseURL resolve to /renovate-config-visualizer/.
+        run: pnpm --filter @renovate-config-visualizer/app test:e2e
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: playwright-report
+          path: packages/app/playwright-report
+          retention-days: 7
+          if-no-files-found: ignore
+
       # Pages deployment is opt-in: the repo is private and GitHub Pages for
       # private repos needs a paid plan, so the deploy job would always fail.
       # To publish the site, enable Pages (build type "GitHub Actions") in the
