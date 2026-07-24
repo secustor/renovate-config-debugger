@@ -6,15 +6,23 @@ Milestone: M7 · Status: planned
 
 User-reported (2026-07-24): a share link opened against a running dev
 server "does not fill the configuration and doesn't run the pipeline."
-Investigated same day: the reported token is genuinely corrupted — it
-inflates cleanly up to the `view` field and then decodes to garbage
-(deflate-raw carries no checksum, so corruption/truncation can slip through
-inflation and only fail at `JSON.parse`). The current build's encoder and
-decoder round-trip the identical config correctly (verified in-browser,
-twice, plus the 020 e2e), so the app was right to reject the token — but
-its only signal is a small dismissable notice below the advanced-options
-row ("This shared link could not be read; showing the default config
-instead."), which in practice reads as _nothing happened_.
+
+> **Root cause found and fixed same day** (reproduced with the reporter's
+> exact steps): a React StrictMode double-mount latched `mountedRef` to
+> `false` — the cleanup-only effect never set it back on the second mount —
+> so under `vite dev` every share-link decode was treated as cancelled and
+> silently discarded: valid token in the address bar, default config on
+> screen, no notice. Production builds don't run StrictMode, which is why
+> `vite preview` and the 020 e2e suite always passed. Fixed by setting the
+> flag in the effect body.
+
+What remains for this item is the diagnostics gap the investigation also
+surfaced: a genuinely corrupted token (deflate-raw carries no checksum, so
+corruption/truncation can slip through inflation and only fail at
+`JSON.parse`) is rejected correctly, but the only signal is a small
+dismissable notice below the advanced-options row ("This shared link could
+not be read; showing the default config instead."), which in practice reads
+as _nothing happened_.
 
 ## User story
 

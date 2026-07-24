@@ -347,13 +347,17 @@ export function App() {
   // superseding it before its async work (decodeShare, getRenovateVersion)
   // resolves.
   const decodeGenerationRef = useRef(0);
+  // The flag must be (re)set in the effect BODY, not only in the ref
+  // initializer: React StrictMode (dev) mounts, runs the cleanup, then mounts
+  // again — a cleanup-only latch stays false forever after the second mount,
+  // which silently cancelled every share-link decode under `vite dev`.
   const mountedRef = useRef(true);
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
       mountedRef.current = false;
-    },
-    [],
-  );
+    };
+  }, []);
   // Load-from-repo form.
   const [repoInput, setRepoInput] = useState("");
   const [repoRef, setRepoRef] = useState("");
