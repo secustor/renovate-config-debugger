@@ -1503,7 +1503,8 @@ pre.config-view.prov-before {
   color: var(--error);
 }
 
-.sim-clause.state-invalid .sim-clause-icon,
+.sim-clause.state-no-input .sim-clause-icon,
+.sim-clause.state-not-applicable .sim-clause-icon,
 .sim-clause.state-not-simulated .sim-clause-icon {
   color: var(--warn);
 }
@@ -1642,6 +1643,136 @@ pre.config-view.prov-before {
 
 .sim-jump:hover {
   text-decoration: underline;
+}
+
+/* ---------- 018 evidence export: copy-as-markdown, sim link, A/B ---------- */
+
+.sim-verdict-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.9rem;
+  margin-top: 0.55rem;
+}
+
+.sim-verdict-action {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.2rem 0.55rem;
+}
+
+.sim-verdict-action:hover {
+  border-color: var(--accent);
+}
+
+.copy-md {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 0.1rem 0.45rem;
+}
+
+.copy-md:hover {
+  border-color: var(--accent);
+}
+
+.copy-md.inline {
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+
+.sim-compare {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  padding: 0.7rem 0.85rem;
+}
+
+.sim-compare-title {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.sim-compare-nochange {
+  background: color-mix(in srgb, var(--ok) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--ok) 35%, var(--border));
+  border-radius: 6px;
+  color: var(--ok);
+  font-size: 0.88rem;
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.7rem;
+}
+
+.sim-compare-rules {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  margin-top: 0.55rem;
+}
+
+.sim-compare-col {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.4rem 0.55rem;
+}
+
+.sim-compare-col.only-a {
+  border-color: color-mix(in srgb, var(--error) 40%, var(--border));
+}
+
+.sim-compare-col.only-b {
+  border-color: color-mix(in srgb, var(--ok) 40%, var(--border));
+}
+
+.sim-compare-col-title {
+  font-size: 0.76rem;
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+
+.sim-compare-col-title .count {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sim-compare-col ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sim-compare-col li {
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+  padding: 0.12rem 0;
+}
+
+.sim-compare-config {
+  margin-top: 0.6rem;
+}
+
+.sim-compare-config ul {
+  list-style: none;
+  margin: 0.3rem 0 0;
+  padding: 0;
+}
+
+.sim-compare-config li {
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+  padding: 0.1rem 0;
 }
 
 .sim-rules-head {

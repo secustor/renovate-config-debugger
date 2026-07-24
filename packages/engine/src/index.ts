@@ -11,6 +11,12 @@ export {
   type SimulationInput,
   type SimulationResult,
 } from "./simulate-package-rules";
+export {
+  compareSimulations,
+  type ConfigKeyDelta,
+  type RuleRef,
+  type SimulationComparison,
+} from "./simulate-compare";
 export { setPresetAuth, type PresetAuth } from "./auth";
 export { deriveUpdateType, renovateVersion } from "./version";
 export { getOptions, mergeChildConfig } from "./renovate-adapter";

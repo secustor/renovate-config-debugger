@@ -7,6 +7,7 @@ import type {
 } from "@renovate-config-visualizer/engine";
 import { Explained, GLOSSARY, Term, type GlossaryEntry } from "../glossary";
 import { ConfigJson } from "./ConfigJson";
+import { CopyMarkdownButton } from "./CopyMarkdownButton";
 import { type AuthState, GithubAuthHint } from "./GithubAuthHint";
 import { JsonDiff } from "./JsonDiff";
 import { MigrationSteps } from "./MigrationSteps";
@@ -1363,7 +1364,15 @@ function PresetDetail({
 
       {node.fetched !== undefined ? (
         <details open={!migrationChanged}>
-          <summary>Fetched content</summary>
+          <summary>
+            Fetched content
+            <CopyMarkdownButton
+              className="inline"
+              header={`\`${node.name}\` — fetched preset body`}
+              code={JSON.stringify(node.afterParams ?? node.fetched, null, 2)}
+              lang="json"
+            />
+          </summary>
           <pre className="config-view">
             <ConfigJson value={node.afterParams ?? node.fetched} />
           </pre>
@@ -1392,7 +1401,15 @@ function PresetDetail({
       {node.resolved !== undefined &&
       JSON.stringify(node.resolved) !== JSON.stringify(node.input) ? (
         <details>
-          <summary>Fully resolved (sub-presets merged)</summary>
+          <summary>
+            Fully resolved (sub-presets merged)
+            <CopyMarkdownButton
+              className="inline"
+              header={`\`${node.name}\` — fully resolved preset body`}
+              code={JSON.stringify(node.resolved, null, 2)}
+              lang="json"
+            />
+          </summary>
           <pre className="config-view">
             <ConfigJson value={node.resolved} />
           </pre>
