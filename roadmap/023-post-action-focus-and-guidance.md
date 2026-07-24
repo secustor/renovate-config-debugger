@@ -1,6 +1,6 @@
 # 023 — Post-action focus, honest error states, rule-filter shortcuts
 
-Milestone: M7 · Status: planned
+Milestone: M7 · Status: done
 
 ## Summary
 
@@ -46,3 +46,27 @@ rules to be one click away in any rule list.
 ## Dependencies
 
 - 013 (provenance), 014 (apply fix), 016 (scroll ergonomics).
+
+## Delivered
+
+- Apply fix re-runs preserving scroll, selects the Validate stage, and toasts
+  the fresh error count ("re-ran: 0 errors"); Run / preset-injection re-runs
+  also preserve scroll (best-effort, restored after paint — no flaky e2e
+  assertion on the exact offset).
+- `HypotheticalBanner` on the presets/merge stage diffs, the effective config
+  and the simulator, shown only when the Validate stage reports errors.
+- Simulator "my rules only" filter (repo-config provenance from 013), the
+  filtered rows pre-expanded to their clause evidence.
+- Editor preset-string hovers: a Renovate-preset card with a short description
+  from the resolved tree and a "Show in resolution tree" jump link, replacing
+  the bare "string" schema tooltip for known preset strings (available after a
+  run, when the resolution tree exists).
+- The `(= merged rule packageRules[N])` annotation stays interactive but no
+  longer dead-clicks before a simulation: it lands the user on the simulator
+  with a hint to run one.
+
+## Deferred
+
+- None. Preset-string hovers need a completed run (the resolution tree is what
+  identifies a string as a preset); before the first run the schema tooltip
+  still shows, unchanged.

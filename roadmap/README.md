@@ -27,7 +27,7 @@ Full context and architecture: [.agents/spec/renovate-config-visualizer.md](../.
 | [020](020-browser-e2e-tests.md)                       | Browser end-to-end test suite                             | M6                   | done    |
 | [021](021-simulator-input-hardening.md)               | Simulator input hardening + A/B comparison integrity      | M7                   | done    |
 | [022](022-verdict-copy-precision.md)                  | Verdict & translation copy precision                      | M7                   | done    |
-| [023](023-post-action-focus-and-guidance.md)          | Post-action focus, honest error states, rule filters      | M7                   | planned |
+| [023](023-post-action-focus-and-guidance.md)          | Post-action focus, honest error states, rule filters      | M7                   | done    |
 | [024](024-stage-chips-signal-outcomes.md)             | Stage chips signal what each stage did                    | M7                   | planned |
 | [025](025-hover-card-overflow.md)                     | Hover card text overflows its box                         | M7                   | planned |
 | [026](026-schema-first-class-option.md)               | Treat `$schema` as a first-class option                   | M7                   | planned |

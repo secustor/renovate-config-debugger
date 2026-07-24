@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type {
   ErrorFixResult,
   OptionIndex,
@@ -9,6 +9,7 @@ import type {
 import { ConfigEditor, type ConfigEditorHandle } from "./components/ConfigEditor";
 import { EffectiveConfig } from "./components/EffectiveConfig";
 import { type AuthState, GithubAuthHint } from "./components/GithubAuthHint";
+import { HypotheticalBanner } from "./components/HypotheticalBanner";
 import { MessagesPanel } from "./components/MessagesPanel";
 import { MigrationSteps } from "./components/MigrationSteps";
 import { identityForNodeId, nodeIdForIdentity, PresetTree } from "./components/PresetTree";
@@ -17,6 +18,7 @@ import { StageDiff } from "./components/StageDiff";
 import { STAGE_EXPLAINERS, STAGE_LABELS, StageTimeline } from "./components/StageTimeline";
 import { Term } from "./glossary";
 import { OptionDocsProvider } from "./option-docs";
+import { buildPresetLookup, type PresetHoverContext } from "./preset-hover";
 import { findPackageRuleOffsets } from "./rule-locate";
 import { useRuleProvenance } from "./rule-provenance";
 import {
@@ -303,6 +305,10 @@ export function App() {
   const [fatal, setFatal] = useState<string | null>(null);
   // Non-fatal notices (version drift, load-from-repo results, bad share link).
   const [notice, setNotice] = useState<string | null>(null);
+  // Roadmap 023: a transient toast — used to land an "Apply fix" re-run on its
+  // consequence ("re-ran: 0 errors") without yanking the user's scroll around.
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<number | undefined>(undefined);
   const [optionIndex, setOptionIndex] = useState<OptionIndex | null>(null);
   // Roadmap 014: curated validator-message translations + suggested fixes,
   // loaded lazily alongside the option index (same engine chunk).
@@ -375,6 +381,38 @@ export function App() {
   // render of something unrelated — this is a plain bracket-depth scan, not a
   // full parse, so it stays cheap even for large configs.
   const packageRuleOffsets = useMemo(() => findPackageRuleOffsets(content), [content]);
+  // Roadmap 023: preset-string hovers in the editor. Built from the current
+  // run's resolution tree; the jump link selects the preset's node in the tree.
+  const presetHover = useMemo<PresetHoverContext | null>(() => {
+    if (!result?.presetTree) {
+      return null;
+    }
+    const lookup = buildPresetLookup(result.presetTree);
+    return { lookup: (name) => lookup.get(name) ?? null, onSelectPreset: setSelectedNodeId };
+  }, [result]);
+  // Roadmap 023: validation ERRORS (not warnings) make post-Validate results
+  // hypothetical — a real Renovate run would refuse the config outright.
+  const validateHasErrors = result?.stageStatus.validate === "error";
+
+  // Roadmap 023: window.scrollY captured just before a scroll-preserving
+  // re-run's result commits, restored once the new DOM has painted (016 did
+  // this for re-simulations; full pipeline re-runs still reset scroll). null =
+  // this run should NOT preserve scroll (a fresh config, share link, or first run).
+  const preserveScrollRef = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const y = preserveScrollRef.current;
+    if (y !== null) {
+      preserveScrollRef.current = null;
+      window.scrollTo({ top: y, behavior: "auto" });
+    }
+  }, [result]);
+
+  /** Roadmap 023: shows a transient toast that auto-dismisses. */
+  function showToast(message: string) {
+    setToast(message);
+    window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 4500);
+  }
 
   /** A validation message's REPO-config `packageRules[repoIndex]` → the editor line. */
   function focusEditorRepoIndex(repoIndex: number) {
@@ -496,16 +534,24 @@ export function App() {
     };
   }
 
-  async function onRun(overrideInjected?: InjectionMap, overrideInputs?: RunInputs) {
+  async function onRun(
+    overrideInjected?: InjectionMap,
+    overrideInputs?: RunInputs,
+    opts?: { preserveScroll?: boolean },
+  ): Promise<TraceResult | null> {
     const injectedPresets = overrideInjected ?? injected;
     if (!overrideInputs && blockedByLayerErrors()) {
-      return;
+      return null;
     }
     const inputs: RunInputs = overrideInputs ?? buildInputs();
     setRunning(true);
     setFatal(null);
     try {
       const traceResult = await run({ ...inputs, injectedPresets });
+      // Roadmap 023: hold the current scroll so re-running an edited config
+      // doesn't jump the user back to the top (captured right before the result
+      // state commits, so an abandoned in-flight run can't pin a stale offset).
+      preserveScrollRef.current = opts?.preserveScroll ? window.scrollY : null;
       setResult(traceResult);
       const firstError = (Object.entries(traceResult.stageStatus) as [StageId, string][]).find(
         ([, status]) => status === "error",
@@ -515,8 +561,10 @@ export function App() {
       // error-translation library
       void loadOptionIndex().then(setOptionIndex);
       void loadErrorTranslationLib().then(setErrorLib);
+      return traceResult;
     } catch (err) {
       setFatal(err instanceof Error ? `${err.name}: ${err.message}` : String(err));
+      return null;
     } finally {
       setRunning(false);
     }
@@ -542,7 +590,19 @@ export function App() {
         "Applied the fix by regenerating the whole config document — comments and custom formatting were not preserved.",
       );
     }
-    await onRun(undefined, buildInputs(nextContent));
+    // Roadmap 023: land on the consequence. The question the user actually has
+    // is "did the error go away?" — answered on Validate, not the Presets diff
+    // onRun lands on by default. Re-run preserving scroll (Apply fix lives in
+    // the Errors & warnings panel, right by the Validate outcome), then select
+    // Validate and toast the fresh error count.
+    const next = await onRun(undefined, buildInputs(nextContent), { preserveScroll: true });
+    if (next) {
+      setSelectedStage("validate");
+      const n = next.errors.length;
+      showToast(
+        `Fix applied — re-ran: ${n === 0 ? "0 errors" : `${n} error${n === 1 ? "" : "s"}`}`,
+      );
+    }
   }
 
   /**
@@ -735,7 +795,7 @@ export function App() {
   function onInject(key: string, contentObj: Record<string, unknown>) {
     const next = { ...injected, [key]: contentObj };
     setInjected(next);
-    void onRun(next);
+    void onRun(next, undefined, { preserveScroll: true });
   }
 
   const usesLocal = displayPlatform !== "github";
@@ -976,6 +1036,7 @@ export function App() {
           fileName={fileName}
           value={content}
           onChange={setContent}
+          presetHover={presetHover}
         />
         <p className="editor-hint">
           <kbd>{MOD_KEY_LABEL}</kbd>+<kbd>Z</kbd> to undo, <kbd>Shift</kbd>+
@@ -1037,7 +1098,7 @@ export function App() {
           <button
             type="button"
             className="primary"
-            onClick={() => onRun()}
+            onClick={() => onRun(undefined, undefined, { preserveScroll: Boolean(result) })}
             disabled={running}
             title="Process this config with Renovate's own code — it never leaves your browser"
           >
@@ -1333,6 +1394,11 @@ export function App() {
                   <span className="rendering-note"> rendering…</span>
                 ) : null}
               </div>
+              {/* Roadmap 023: the presets/merge stages run on a config a real
+                  Renovate run would have already rejected — say so. */}
+              {validateHasErrors && (deferredStage === "preset" || deferredStage === "merge") ? (
+                <HypotheticalBanner />
+              ) : null}
               {migrateStepperMounted ? (
                 <MigrationSteps
                   steps={migrateSteps}
@@ -1361,6 +1427,7 @@ export function App() {
               onSignIn={onSignIn}
               installUrl={installUrl()}
             />
+            {validateHasErrors ? <HypotheticalBanner /> : null}
             <EffectiveConfig result={result} onSelectPreset={setSelectedNodeId} />
             <RuleSimulator
               result={result}
@@ -1371,6 +1438,7 @@ export function App() {
               errorLib={errorLib}
               simRequest={simRequest}
               onCopySimLink={buildShareLinkAndCopy}
+              configInvalid={validateHasErrors}
             />
           </>
         ) : null}
@@ -1385,6 +1453,11 @@ export function App() {
         >
           ↑ Top
         </button>
+      ) : null}
+      {toast ? (
+        <div className="rcv-toast" role="status" aria-live="polite">
+          {toast}
+        </div>
       ) : null}
     </OptionDocsProvider>
   );
