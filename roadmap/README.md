@@ -21,7 +21,7 @@ Full context and architecture: [.agents/spec/renovate-config-visualizer.md](../.
 | [014](014-validation-translations-and-quick-fixes.md) | Validation error translations + suggested fixes           | M5                   | done    |
 | [015](015-simulator-input-ergonomics.md)              | Simulator input ergonomics                                | M5                   | done    |
 | [016](016-scale-framing-and-page-ergonomics.md)       | Scale framing, badge glossary, page & editor ergonomics   | M5                   | done    |
-| [017](017-share-links-in-a-running-app.md)            | Share links opened in a running app (hashchange)          | M5                   | planned |
+| [017](017-share-links-in-a-running-app.md)            | Share links opened in a running app (hashchange)          | M5                   | done    |
 | [018](018-evidence-export-and-expert-precision.md)    | Evidence export + expert-grade precision                  | M6                   | planned |
 | [019](019-persona-replay-skill.md)                    | Persona usability-test replay skill                       | M6                   | planned |
 | [020](020-browser-e2e-tests.md)                       | Browser end-to-end test suite                             | M6                   | planned |
