@@ -1235,6 +1235,27 @@ pre.config-view.prov-before {
   opacity: 0.6;
 }
 
+/* Roadmap 027: a broken share link must be unmissable — a full-width banner at
+   the top of the page, not the small dismissable notice below the fold. */
+.share-error-banner {
+  background: light-dark(#fff1f0, #2b1614);
+  border: 1px solid var(--error);
+  border-left: 4px solid var(--error);
+  border-radius: 6px;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  line-height: 1.4;
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+}
+
+.share-error-banner-title {
+  color: var(--error);
+  font-size: 1rem;
+}
+
 .app-notice {
   align-items: baseline;
   background: var(--surface);

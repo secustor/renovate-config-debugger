@@ -76,10 +76,34 @@ export interface SharePayload {
   platformOverride?: boolean;
   view?: ShareView;
   sim?: ShareSimulator;
+  /**
+   * Roadmap 027: additive integrity tag — the config's `configChecksum`. Stays
+   * v2 (a decoder that predates it just ignores the extra key); when present it
+   * lets the decoder catch a config that survived inflation but arrived
+   * corrupted/truncated. Old links lack it and keep their prior behavior.
+   */
+  c?: string;
 }
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+/**
+ * Roadmap 027: 32-bit FNV-1a of the config string, base36 — a tiny additive
+ * integrity tag (payload field `c`) so a token whose config survived inflation
+ * but arrived corrupted/truncated is caught reliably instead of only when
+ * JSON.parse happens to trip. NOT security (a hand-tampered link can recompute
+ * it); it only flags accidental transit damage. Ported byte-for-byte into the
+ * e2e fixtures and the 019 generator so every producer tags identically.
+ */
+export function configChecksum(config: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < config.length; i++) {
+    h ^= config.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36);
 }
 
 async function pipeThrough(bytes: Uint8Array, stream: GenericTransformStream): Promise<Uint8Array> {
@@ -121,6 +145,7 @@ export async function encodeShare(state: ShareState): Promise<string> {
     renovate: state.renovate,
     config: state.config,
     fileName: state.fileName,
+    c: configChecksum(state.config),
   };
   // Omit platform/endpoint when they equal the defaults.
   if (state.platform && state.platform !== DEFAULT_PLATFORM) {
@@ -191,51 +216,96 @@ function normalizeSim(sim: ShareSimulator | undefined): ShareSimulator | undefin
   return sim.autoSimulate ? { form, autoSimulate: true } : { form };
 }
 
-/** Decodes a fragment token back to a payload, or null on any failure. */
-export async function decodeShare(token: string): Promise<SharePayload | null> {
+/**
+ * Roadmap 027: why a token failed to decode, so the app can say what happened
+ * rather than a single "couldn't read it". The reason is the earliest failing
+ * stage:
+ *  - `damaged`      — the token text isn't valid base64 (genuinely garbled).
+ *  - `cutOff`       — base64 decoded but the deflate stream / JSON is
+ *                     incomplete or corrupt, or the integrity tag mismatches.
+ *                     deflate-raw carries no length, so a truncated link fails
+ *                     here (Z_BUF_ERROR) rather than at a checksum — this is
+ *                     the "make sure the whole URL was copied" signature.
+ *  - `incompatible` — decoded to JSON but not a shape/version this app reads.
+ */
+export type ShareDecodeError = "damaged" | "cutOff" | "incompatible";
+
+export type DecodeResult =
+  | { ok: true; payload: SharePayload }
+  | { ok: false; reason: ShareDecodeError };
+
+/** Decodes a fragment token, distinguishing the failure mode (see DecodeResult). */
+export async function decodeShareResult(token: string): Promise<DecodeResult> {
+  let bytes: Uint8Array;
   try {
-    const bytes = base64urlToBytes(token);
-    const json = new TextDecoder().decode(await inflateRaw(bytes));
-    const parsed: unknown = JSON.parse(json);
-    const version = (parsed as { v?: unknown } | null)?.v;
-    if (
-      typeof parsed !== "object" ||
-      parsed === null ||
-      (version !== 1 && version !== 2) ||
-      typeof (parsed as { config?: unknown }).config !== "string"
-    ) {
-      return null;
-    }
-    const p = parsed as SharePayload;
-    // Normalize fileName to the two supported values.
-    p.fileName = p.fileName === "renovate.json5" ? "renovate.json5" : "renovate.json";
-    // Layer configs (v2) must be plain objects; drop anything else.
-    if (!isPlainObject(p.globalConfig)) {
-      delete p.globalConfig;
-    }
-    if (!isPlainObject(p.inheritedConfig)) {
-      delete p.inheritedConfig;
-    }
-    if (typeof p.platformOverride !== "boolean") {
-      delete p.platformOverride;
-    }
-    // Roadmap 018: sanitize the optional simulator descriptor — must be a plain
-    // object with a plain-object `form` of string values; drop anything else so
-    // a hand-tampered link can't inject non-string values into the form.
-    const rawSim: unknown = p.sim;
-    const cleanSim =
-      isPlainObject(rawSim) && isPlainObject(rawSim.form)
-        ? normalizeSim(rawSim as unknown as ShareSimulator)
-        : undefined;
-    if (cleanSim) {
-      p.sim = cleanSim;
-    } else {
-      delete p.sim;
-    }
-    return p;
+    bytes = base64urlToBytes(token);
   } catch {
-    return null;
+    return { ok: false, reason: "damaged" };
   }
+  let json: string;
+  try {
+    json = new TextDecoder().decode(await inflateRaw(bytes));
+  } catch {
+    return { ok: false, reason: "cutOff" };
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    return { ok: false, reason: "cutOff" };
+  }
+  const version = (parsed as { v?: unknown } | null)?.v;
+  if (
+    typeof parsed !== "object" ||
+    parsed === null ||
+    (version !== 1 && version !== 2) ||
+    typeof (parsed as { config?: unknown }).config !== "string"
+  ) {
+    return { ok: false, reason: "incompatible" };
+  }
+  const p = parsed as SharePayload;
+  // Integrity tag (additive to v2): when present it must match the config it
+  // rode with. A mismatch is transit corruption the earlier stages passed.
+  // Absent (old links) = no check — today's behavior is preserved.
+  if (typeof p.c === "string" && p.c !== configChecksum(p.config)) {
+    return { ok: false, reason: "cutOff" };
+  }
+  // Normalize fileName to the two supported values.
+  p.fileName = p.fileName === "renovate.json5" ? "renovate.json5" : "renovate.json";
+  // Layer configs (v2) must be plain objects; drop anything else.
+  if (!isPlainObject(p.globalConfig)) {
+    delete p.globalConfig;
+  }
+  if (!isPlainObject(p.inheritedConfig)) {
+    delete p.inheritedConfig;
+  }
+  if (typeof p.platformOverride !== "boolean") {
+    delete p.platformOverride;
+  }
+  // Roadmap 018: sanitize the optional simulator descriptor — must be a plain
+  // object with a plain-object `form` of string values; drop anything else so
+  // a hand-tampered link can't inject non-string values into the form.
+  const rawSim: unknown = p.sim;
+  const cleanSim =
+    isPlainObject(rawSim) && isPlainObject(rawSim.form)
+      ? normalizeSim(rawSim as unknown as ShareSimulator)
+      : undefined;
+  if (cleanSim) {
+    p.sim = cleanSim;
+  } else {
+    delete p.sim;
+  }
+  return { ok: true, payload: p };
+}
+
+/**
+ * Back-compat wrapper: the decoded payload, or null on any failure. Kept for
+ * call sites that only need "did it decode"; the load path uses
+ * decodeShareResult to surface the failure reason.
+ */
+export async function decodeShare(token: string): Promise<SharePayload | null> {
+  const result = await decodeShareResult(token);
+  return result.ok ? result.payload : null;
 }
 
 /** Extracts the token from a `#config=…` location hash, or null. */

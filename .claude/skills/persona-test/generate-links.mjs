@@ -3,9 +3,9 @@
  * Roadmap 019 — share-link generator for persona-test scenarios.
  *
  * Produces a URL in the exact wire format `packages/app/src/share.ts` reads:
- *   payload {v:2, renovate, config, fileName} → JSON → UTF-8 →
+ *   payload {v:2, renovate, config, fileName, c} → JSON → UTF-8 →
  *   deflate-raw (CompressionStream) → base64url (no padding), placed after
- *   `#config=`.
+ *   `#config=`. `c` is the 027 integrity tag (config checksum).
  *
  * The URL also carries a unique `?s=<id>` query param BEFORE the hash. This
  * is not read by the app — it exists so pasting the link into an
@@ -201,6 +201,17 @@ function bytesToBase64url(bytes) {
     .replace(/=+$/, "");
 }
 
+/** Roadmap 027 integrity tag — must stay byte-for-byte identical to
+ *  `configChecksum` in packages/app/src/share.ts (32-bit FNV-1a, base36). */
+function configChecksum(config) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < config.length; i++) {
+    h ^= config.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36);
+}
+
 function base64urlToBytes(token) {
   const b64 = token.replace(/-/g, "+").replace(/_/g, "/");
   return Buffer.from(b64, "base64");
@@ -254,14 +265,21 @@ async function main() {
 
   const config = await loadConfig(path.resolve(process.cwd(), args.config));
   const renovate = await resolveRenovateVersion(args.renovate);
-  const payload = { v: 2, renovate, config, fileName: args.filename };
+  // Roadmap 027: additive integrity tag (`c`) so the app can flag a link that
+  // arrived truncated/corrupted. Stays v2 — old decoders ignore the extra key.
+  const payload = { v: 2, renovate, config, fileName: args.filename, c: configChecksum(config) };
 
   const token = await encodeToken(payload);
 
   // Self-verify: inflate the token back and confirm it round-trips before
   // printing anything a caller might paste into a browser.
   const decoded = await decodeToken(token);
-  if (decoded.config !== config || decoded.v !== 2 || decoded.renovate !== renovate) {
+  if (
+    decoded.config !== config ||
+    decoded.v !== 2 ||
+    decoded.renovate !== renovate ||
+    decoded.c !== configChecksum(config)
+  ) {
     process.stderr.write(
       "error: token failed round-trip verification — refusing to print a broken link\n",
     );

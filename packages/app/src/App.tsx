@@ -43,10 +43,11 @@ import {
 } from "./run";
 import {
   buildShareUrl,
-  decodeShare,
+  decodeShareResult,
   decideHashChangeAction,
   encodeShare,
   readShareToken,
+  type ShareDecodeError,
   type ShareFileName,
   type ShareSimulator,
   type ShareView,
@@ -256,6 +257,21 @@ function onSignIn(): void {
   void beginSignIn(window.location.hash);
 }
 
+/**
+ * Roadmap 027: the prominent banner shown when a `#config=` token was present
+ * but unreadable, tailored to the failure mode. Every message says what to do
+ * (get a fresh link, check the whole URL was copied), since the fix is always
+ * on the sender's side.
+ */
+const SHARE_ERROR_MESSAGES: Record<ShareDecodeError, string> = {
+  damaged:
+    "This shared link is damaged and couldn’t be read. Ask the sender to copy the link again, and make sure the whole URL was copied. Showing the default config instead.",
+  cutOff:
+    "This shared link appears to be cut off. Ask the sender to copy the link again, and make sure the whole URL was copied. Showing the default config instead.",
+  incompatible:
+    "This shared link was made by an incompatible version of the app and couldn’t be read. Ask the sender for a fresh link. Showing the default config instead.",
+};
+
 export function App() {
   const [content, setContent] = useState(DEFAULT_CONFIG);
   // Roadmap 016: the text last loaded from an authoritative source (the
@@ -303,8 +319,12 @@ export function App() {
   // interruptible instead of blocking the main thread.
   const deferredStage = useDeferredValue(selectedStage);
   const [fatal, setFatal] = useState<string | null>(null);
-  // Non-fatal notices (version drift, load-from-repo results, bad share link).
+  // Non-fatal notices (version drift, load-from-repo results).
   const [notice, setNotice] = useState<string | null>(null);
+  // Roadmap 027: a token was present but unreadable — a prominent, top-of-page
+  // banner (not the dismissable notice), so a broken link never reads as
+  // "nothing happened". Cleared whenever a share load succeeds.
+  const [shareError, setShareError] = useState<string | null>(null);
   // Roadmap 023: a transient toast — used to land an "Apply fix" re-run on its
   // consequence ("re-ran: 0 errors") without yanking the user's scroll around.
   const [toast, setToast] = useState<string | null>(null);
@@ -350,7 +370,7 @@ export function App() {
   const loadedContentRef = useRef(loadedContent);
   loadedContentRef.current = loadedContent;
   // Roadmap 017: guards a decode against a later hashchange (or unmount)
-  // superseding it before its async work (decodeShare, getRenovateVersion)
+  // superseding it before its async work (decodeShareResult, getRenovateVersion)
   // resolves.
   const decodeGenerationRef = useRef(0);
   // The flag must be (re)set in the effect BODY, not only in the ref
@@ -615,15 +635,17 @@ export function App() {
    * the first finishes its awaits).
    */
   async function loadShareToken(shareToken: string, isCancelled: () => boolean): Promise<void> {
-    const payload = await decodeShare(shareToken);
+    const decoded = await decodeShareResult(shareToken);
     if (isCancelled()) {
       return;
     }
-    if (!payload) {
-      setNotice("This shared link could not be read; showing the default config instead.");
+    if (!decoded.ok) {
+      setShareError(SHARE_ERROR_MESSAGES[decoded.reason]);
       clearShareHash();
       return;
     }
+    setShareError(null);
+    const payload = decoded.payload;
     const nextPlatform = payload.platform ?? "github";
     const nextEndpoint = payload.endpoint ?? "https://api.github.com";
     loadConfigText(payload.config);
@@ -956,6 +978,12 @@ export function App() {
   return (
     <OptionDocsProvider index={optionIndex}>
       <main>
+        {shareError ? (
+          <div className="share-error-banner" role="alert">
+            <strong className="share-error-banner-title">Shared link couldn’t be opened</strong>
+            <span>{shareError}</span>
+          </div>
+        ) : null}
         <header className="app-header">
           <h1>Renovate Config Visualizer</h1>
           {result ? (

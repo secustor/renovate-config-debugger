@@ -57,9 +57,29 @@ function bytesToBase64url(bytes: Uint8Array): string {
   return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
+/** Roadmap 027 integrity tag — must stay byte-for-byte identical to
+ *  `configChecksum` in src/share.ts (32-bit FNV-1a of the config, base36). */
+export function configChecksum(config: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < config.length; i++) {
+    h ^= config.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36);
+}
+
+/** Options for shaping the encoded token (e.g. producing a pre-027 link). */
+export interface EncodeOptions {
+  /** Omit the 027 integrity field, reproducing an old link. Default: include it. */
+  integrity?: boolean;
+}
+
 /** Builds the `#config=` fragment token for a payload — same wire shape as
  *  `encodeShare()` in src/share.ts and 019's generator produce. */
-export async function encodeShareToken(input: SharePayloadInput): Promise<string> {
+export async function encodeShareToken(
+  input: SharePayloadInput,
+  opts: EncodeOptions = {},
+): Promise<string> {
   // Validate the config is real JSON before shipping it into a fixture — a
   // broken fixture should fail here, loudly, not silently in the browser.
   JSON.parse(input.config);
@@ -69,6 +89,9 @@ export async function encodeShareToken(input: SharePayloadInput): Promise<string
     config: input.config,
     fileName: input.fileName ?? "renovate.json",
   };
+  if (opts.integrity !== false) {
+    payload.c = configChecksum(input.config);
+  }
   if (input.platform && input.platform !== "github") {
     payload.platform = input.platform;
   }
@@ -84,8 +107,28 @@ export async function encodeShareToken(input: SharePayloadInput): Promise<string
 }
 
 /** Convenience: the `#config=<token>` fragment (relative navigation target). */
-export async function encodeShareFragment(input: SharePayloadInput): Promise<string> {
-  return `#config=${await encodeShareToken(input)}`;
+export async function encodeShareFragment(
+  input: SharePayloadInput,
+  opts: EncodeOptions = {},
+): Promise<string> {
+  return `#config=${await encodeShareToken(input, opts)}`;
+}
+
+/** Simulates a link cut short in transit: drops the token's trailing chars.
+ *  deflate-raw carries no length, so the shortened bytes fail to inflate —
+ *  the app's "cut off" signature. */
+export function truncateShareToken(token: string, chars = 12): string {
+  return token.slice(0, Math.max(0, token.length - chars));
+}
+
+/** Simulates transit garbling: overwrites a run of chars with characters
+ *  outside the base64url alphabet, so base64 decode itself fails — the app's
+ *  "damaged" signature. */
+export function garbleShareToken(token: string): string {
+  const mid = Math.floor(token.length / 2);
+  // Fragment-safe punctuation (no #/% to confuse the URL parser) that is still
+  // outside the base64url alphabet, so atob rejects it.
+  return `${token.slice(0, mid)}!!!!****~~~~${token.slice(mid + 12)}`;
 }
 
 // ---------------------------------------------------------------------------

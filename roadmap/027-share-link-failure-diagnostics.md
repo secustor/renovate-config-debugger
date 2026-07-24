@@ -1,6 +1,6 @@
 # 027 — Share-link failure diagnostics
 
-Milestone: M7 · Status: planned
+Milestone: M7 · Status: done
 
 ## Summary
 
