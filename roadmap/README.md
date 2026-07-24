@@ -30,7 +30,7 @@ Full context and architecture: [.agents/spec/renovate-config-visualizer.md](../.
 | [023](023-post-action-focus-and-guidance.md)          | Post-action focus, honest error states, rule filters      | M7                   | done    |
 | [024](024-stage-chips-signal-outcomes.md)             | Stage chips signal what each stage did                    | M7                   | done    |
 | [025](025-hover-card-overflow.md)                     | Hover card text overflows its box                         | M7                   | done    |
-| [026](026-schema-first-class-option.md)               | Treat `$schema` as a first-class option                   | M7                   | planned |
+| [026](026-schema-first-class-option.md)               | Treat `$schema` as a first-class option                   | M7                   | done    |
 | [027](027-share-link-failure-diagnostics.md)          | Share-link failure diagnostics                            | M7                   | planned |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):

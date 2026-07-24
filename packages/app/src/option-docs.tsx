@@ -226,7 +226,9 @@ export function OptionKey({ name, flagUnknown }: OptionKeyProps) {
   );
 }
 
-const KEY_TOKEN_RE = /"([A-Za-z][\w-]*)"(?=\s*:)/g;
+// Leading `$` admitted for `$schema` (roadmap 026) — the only renovate.json
+// key that starts with one.
+const KEY_TOKEN_RE = /"(\$?[A-Za-z][\w-]*)"(?=\s*:)/g;
 
 function caretAt(x: number, y: number): { node: Node; offset: number } | null {
   const doc = document as Document & {

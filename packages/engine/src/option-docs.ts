@@ -33,6 +33,21 @@ export interface OptionIndex {
   containers: ReadonlySet<string>;
 }
 
+/**
+ * `$schema` is a JSON Schema keyword, not a Renovate config option — it's
+ * absent from `getOptions()` and Renovate's validator explicitly ignores it
+ * (see `ignoredNodes` in its validation module) rather than rejecting it.
+ * Modeled by hand so it renders like any other known key instead of tripping
+ * the unknown-option styling (roadmap 026).
+ */
+const SCHEMA_OPTION: OptionDoc = {
+  name: "$schema",
+  description:
+    "Points editors at Renovate's JSON schema for autocomplete and inline validation; ignored by Renovate itself.",
+  type: "string",
+  url: "https://docs.renovatebot.com/config-overview/",
+};
+
 let cached: OptionIndex | undefined;
 
 /** Builds (once) an index of renovate's own option metadata for hover docs. */
@@ -41,6 +56,7 @@ export function getOptionIndex(): OptionIndex {
     return cached;
   }
   const options = new Map<string, OptionDoc>();
+  options.set(SCHEMA_OPTION.name, SCHEMA_OPTION);
   const containers = new Set<string>();
   for (const option of getOptions()) {
     const page = option.globalOnly ? "self-hosted-configuration" : "configuration-options";

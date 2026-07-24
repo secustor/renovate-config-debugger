@@ -188,6 +188,16 @@ pre.config-view {
   overflow: auto;
 }
 
+/* Roadmap 026: annotates the `$schema` removal line in preset/merge diffs so
+   it reads as expected behavior, not a rejection. */
+.diff-benign-note {
+  color: var(--muted);
+  display: inline-block;
+  font-size: 0.75rem;
+  font-style: italic;
+  padding: 0.1rem 1ch;
+}
+
 .empty-note {
   color: var(--muted);
   font-size: 0.9rem;
