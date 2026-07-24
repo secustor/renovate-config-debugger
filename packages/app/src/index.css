@@ -796,8 +796,20 @@ textarea.layer-editor:focus {
   border-radius: 8px;
   box-shadow: 0 8px 24px light-dark(rgba(140, 149, 159, 0.3), rgba(0, 0, 0, 0.5));
   font-size: 0.8rem;
+  /* Fallback for producers that don't compute an inline max-width themselves
+     (the CodeMirror preset-string hover, roadmap 023). Anchors that DO set an
+     inline max-width (the glossary/option cards below) override this. */
+  max-width: min(340px, calc(100vw - 2rem));
+  overflow-wrap: anywhere;
   padding: 0.6rem 0.75rem;
   position: fixed;
+  /* Roadmap 025: these cards render position:fixed, which takes them out of
+     layout flow but NOT out of the inheritance chain — an ancestor row with
+     `white-space: nowrap` (e.g. .preset-row) still inherits onto them,
+     turning multi-sentence copy into one unwrapped line that overflows the
+     box. Pin it back to normal explicitly rather than relying on no ancestor
+     ever setting nowrap. */
+  white-space: normal;
   z-index: 10;
 }
 

@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import type { OptionDoc, OptionIndex } from "@renovate-config-visualizer/engine";
+import { useMoveGatedHover } from "./hover-gate";
 
 /**
  * Inline documentation for renovate options (roadmap 003): a context carrying
@@ -106,7 +107,9 @@ function OptionCard({
   onLeave: () => void;
 }) {
   const { doc, name, anchor } = card;
-  const width = 340;
+  // Clamp to the viewport, not just a fixed constant — a 340px card doesn't
+  // fit an under-340px viewport (roadmap 025).
+  const width = Math.min(340, window.innerWidth - 32);
   const left = Math.max(8, Math.min(anchor.left, window.innerWidth - width - 16));
   const openUpward = anchor.bottom > window.innerHeight - 280;
   const style: React.CSSProperties = openUpward
@@ -201,13 +204,22 @@ export function OptionKey({ name, flagUnknown }: OptionKeyProps) {
     className += " unknown";
   }
   const interactive = Boolean(doc) || unknown;
+  const moveGate = useMoveGatedHover<HTMLSpanElement>((el) =>
+    show(name, el.getBoundingClientRect()),
+  );
   return (
     <span
       className={className}
-      onMouseEnter={
-        interactive ? (e) => show(name, e.currentTarget.getBoundingClientRect()) : undefined
+      onMouseEnter={interactive ? moveGate.onMouseEnter : undefined}
+      onMouseMove={interactive ? moveGate.onMouseMove : undefined}
+      onMouseLeave={
+        interactive
+          ? () => {
+              moveGate.onMouseLeave();
+              hide();
+            }
+          : undefined
       }
-      onMouseLeave={interactive ? () => hide() : undefined}
     >
       {name}
     </span>

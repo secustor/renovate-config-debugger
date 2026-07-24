@@ -1,4 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { useMoveGatedHover } from "./hover-gate";
 
 /**
  * Plain-language explanations for Renovate concepts used in the app's own
@@ -288,7 +289,9 @@ function GlossaryCard({
   onLeave: () => void;
 }) {
   const { entry, pos } = card;
-  const width = 320;
+  // Clamp to the viewport, not just a fixed constant — a 320px card doesn't
+  // fit an under-320px viewport (roadmap 025).
+  const width = Math.min(320, window.innerWidth - 32);
   const left = Math.max(8, Math.min(pos.left, window.innerWidth - width - 16));
   const openUpward = pos.bottom > window.innerHeight - 200;
   const style: React.CSSProperties = openUpward
@@ -330,13 +333,18 @@ interface TermProps {
 export function Term({ id, children }: TermProps) {
   const entry = GLOSSARY[id];
   const { card, show, hide, hideNow, cancelHide } = useHoverCard(entry);
+  const moveGate = useMoveGatedHover<HTMLSpanElement>(show);
   return (
     <>
       <span
         className="term"
         tabIndex={0}
-        onMouseEnter={(e) => show(e.currentTarget)}
-        onMouseLeave={hide}
+        onMouseEnter={moveGate.onMouseEnter}
+        onMouseMove={moveGate.onMouseMove}
+        onMouseLeave={() => {
+          moveGate.onMouseLeave();
+          hide();
+        }}
         onFocus={(e) => show(e.currentTarget)}
         onBlur={hide}
         onKeyDown={(e) => {
@@ -356,7 +364,8 @@ interface ExplainedProps {
   entry: GlossaryEntry;
   /** Renders the anchor element; receives the hover/focus handlers to spread. */
   children: (handlers: {
-    onMouseEnter: (e: React.MouseEvent) => void;
+    onMouseEnter: () => void;
+    onMouseMove: (e: React.MouseEvent) => void;
     onMouseLeave: () => void;
     onFocus: (e: React.FocusEvent) => void;
     onBlur: () => void;
@@ -369,11 +378,16 @@ interface ExplainedProps {
  */
 export function Explained({ entry, children }: ExplainedProps) {
   const { card, show, hide, cancelHide } = useHoverCard(entry);
+  const moveGate = useMoveGatedHover(show);
   return (
     <>
       {children({
-        onMouseEnter: (e) => show(e.currentTarget),
-        onMouseLeave: hide,
+        onMouseEnter: moveGate.onMouseEnter,
+        onMouseMove: moveGate.onMouseMove,
+        onMouseLeave: () => {
+          moveGate.onMouseLeave();
+          hide();
+        },
         onFocus: (e) => show(e.currentTarget),
         onBlur: hide,
       })}
