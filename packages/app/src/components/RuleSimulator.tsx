@@ -489,6 +489,56 @@ function RuleRow({
   );
 }
 
+/**
+ * Roadmap 021: the fields two descriptors disagree on, sorted for a stable
+ * warning message. Compared via JSON so array-valued fields (lockFiles,
+ * registryUrls, categories) and the `isBump` flag (only present when
+ * updateType is "bump") are handled the same as everywhere else in this file.
+ */
+function descriptorDiffKeys(a: DependencyDescriptor, b: DependencyDescriptor): string[] {
+  const keys = new Set<string>([...Object.keys(a), ...Object.keys(b)]);
+  const diffs: string[] = [];
+  for (const key of keys) {
+    const av = (a as Record<string, unknown>)[key];
+    const bv = (b as Record<string, unknown>)[key];
+    if (JSON.stringify(av) !== JSON.stringify(bv)) {
+      diffs.push(key);
+    }
+  }
+  return diffs.toSorted();
+}
+
+/** Roadmap 021: one column ("A (pinned)" / "B (current)") of the A/B input
+ *  descriptor comparison — every field the simulator actually sent the
+ *  engine, with the fields that differ from the other column called out. */
+function DescriptorList({
+  title,
+  descriptor,
+  diffKeys,
+}: {
+  title: string;
+  descriptor: DependencyDescriptor;
+  diffKeys: Set<string>;
+}) {
+  const entries = Object.entries(descriptor).filter(([, v]) => v !== undefined);
+  return (
+    <div className="sim-compare-col">
+      <div className="sim-compare-col-title">{title}</div>
+      {entries.length === 0 ? (
+        <p className="empty-note">no fields set</p>
+      ) : (
+        <ul>
+          {entries.map(([key, value]) => (
+            <li key={key} className={diffKeys.has(key) ? "sim-input-diff" : undefined}>
+              <code>{key}</code>: {previewValue(value, 60)}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 /** Roadmap 018: one of the three matched-rule columns in the A/B comparison. */
 function RuleDeltaList({
   title,
@@ -537,30 +587,62 @@ function ConfigDeltaRow({ delta }: { delta: ConfigKeyDelta }) {
   );
 }
 
+/** Roadmap 021: the pinned A-run plus the full form snapshot it was run
+ *  against (all simulator fields, not just the ones the engine reads) — so
+ *  the comparison panel can show and diff exactly what was simulated. */
+interface PinnedRun {
+  sim: SimulationResult;
+  form: FormState;
+  effectiveUpdateType: string;
+}
+
 /**
  * Roadmap 018: the A/B comparison panel. `comparison` is null while a result is
  * pinned but no NEW simulation has replaced it yet (a "waiting" hint shows);
  * once a fresh run produces B, it renders the matched-rule set delta, the
  * final-config key delta, and an explicit "no behavioral change" verdict when
  * both are identical.
+ *
+ * Roadmap 021: A and B can come from simulating two entirely different
+ * hypothetical dependencies (pin a lodash run, then quick-fill a Docker
+ * image and re-simulate) — the delta above would render as if it were a
+ * config edit, with no hint that the INPUTS changed too. `currentDescriptor`
+ * is always what actually produced `sim` (or, before any run since the pin,
+ * the live form) so the two input sets can be shown and diffed regardless of
+ * whether `comparison` exists yet.
  */
-function ComparisonPanel({ comparison }: { comparison: SimulationComparison | null }) {
-  if (!comparison) {
-    return (
-      <div className="sim-compare">
-        <div className="sim-compare-title">A/B comparison</div>
+function ComparisonPanel({
+  pinned,
+  comparison,
+  currentDescriptor,
+}: {
+  pinned: PinnedRun;
+  comparison: SimulationComparison | null;
+  currentDescriptor: DependencyDescriptor;
+}) {
+  const pinnedDescriptor = toDescriptor(pinned.form, pinned.effectiveUpdateType);
+  const diffKeys = new Set(descriptorDiffKeys(pinnedDescriptor, currentDescriptor));
+  return (
+    <div className="sim-compare">
+      <div className="sim-compare-title">A/B comparison — pinned (A) vs current (B)</div>
+      {diffKeys.size > 0 ? (
+        <p className="sim-compare-mismatch">
+          ⚠ Inputs differ between A and B — this compares two different simulated dependencies, not
+          just a config edit. Differing fields:{" "}
+          {[...diffKeys].map((k, i) => (
+            <span key={k}>
+              {i > 0 ? ", " : null}
+              <code>{k}</code>
+            </span>
+          ))}
+        </p>
+      ) : null}
+      {!comparison ? (
         <p className="empty-note">
           Pinned this result as <strong>A</strong>. Edit the config and run the pipeline again, then
           simulate to compare it against <strong>B</strong>.
         </p>
-      </div>
-    );
-  }
-  const { matchedOnlyInA, matchedOnlyInB, matchedInBoth, configDelta, noChange } = comparison;
-  return (
-    <div className="sim-compare">
-      <div className="sim-compare-title">A/B comparison — pinned (A) vs current (B)</div>
-      {noChange ? (
+      ) : comparison.noChange ? (
         <p className="sim-compare-nochange">
           No behavioral change — the matched rules and the final per-dependency config are identical
           in A and B.
@@ -570,17 +652,21 @@ function ComparisonPanel({ comparison }: { comparison: SimulationComparison | nu
           <div className="sim-compare-rules">
             <RuleDeltaList
               title="Only in A (stopped matching)"
-              refs={matchedOnlyInA}
+              refs={comparison.matchedOnlyInA}
               kind="only-a"
             />
-            <RuleDeltaList title="Only in B (now matching)" refs={matchedOnlyInB} kind="only-b" />
-            <RuleDeltaList title="Matched in both" refs={matchedInBoth} kind="both" />
+            <RuleDeltaList
+              title="Only in B (now matching)"
+              refs={comparison.matchedOnlyInB}
+              kind="only-b"
+            />
+            <RuleDeltaList title="Matched in both" refs={comparison.matchedInBoth} kind="both" />
           </div>
           <div className="sim-compare-config">
             <div className="sim-merged-title">Final per-dependency config changes</div>
-            {configDelta.length > 0 ? (
+            {comparison.configDelta.length > 0 ? (
               <ul>
-                {configDelta.map((d) => (
+                {comparison.configDelta.map((d) => (
                   <ConfigDeltaRow key={d.key} delta={d} />
                 ))}
               </ul>
@@ -592,6 +678,13 @@ function ComparisonPanel({ comparison }: { comparison: SimulationComparison | nu
           </div>
         </>
       )}
+      <details className="sim-compare-inputs" open={diffKeys.size > 0}>
+        <summary>Inputs compared</summary>
+        <div className="sim-compare-rules">
+          <DescriptorList title="A (pinned)" descriptor={pinnedDescriptor} diffKeys={diffKeys} />
+          <DescriptorList title="B (current)" descriptor={currentDescriptor} diffKeys={diffKeys} />
+        </div>
+      </details>
     </div>
   );
 }
@@ -615,6 +708,13 @@ function Field({
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
+        // Roadmap 021: select-on-focus. A quick-fill or a re-run leaves a
+        // field pre-filled; without this, the persona study's users typed
+        // straight into it and got "reactgradle" instead of "gradle" without
+        // noticing. Selecting the content on focus makes the first keystroke
+        // replace it — repositioning the caret with a second click still
+        // works, since that click doesn't refire `focus`.
+        onFocus={(e) => e.target.select()}
         spellCheck={false}
       />
     </label>
@@ -657,10 +757,18 @@ export function RuleSimulator({
 }) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [sim, setSim] = useState<SimulationResult | null>(null);
+  // Roadmap 021: the form (all fields) + effective updateType that produced
+  // `sim`, kept alongside it so the comparison panel can show/diff exactly
+  // what was simulated — never the live `form`, which may have been edited
+  // further without a re-run (that drift is what the "stale" banner covers).
+  const [simForm, setSimForm] = useState<FormState | null>(null);
+  const [simEffectiveUpdateType, setSimEffectiveUpdateType] = useState("");
   // Roadmap 018: a pinned A-run kept for A/B comparison — deliberately NOT
   // cleared when a new pipeline result arrives (the whole point is to pin, edit
-  // the config, re-run, and compare); only "Unpin" clears it.
-  const [pinned, setPinned] = useState<SimulationResult | null>(null);
+  // the config, re-run, and compare); only "Unpin" clears it. Roadmap 021: now
+  // carries the full input snapshot (`form` + `effectiveUpdateType`), not just
+  // the result, so the comparison panel can tell A and B's inputs apart.
+  const [pinned, setPinned] = useState<PinnedRun | null>(null);
   const [simLinkCopied, setSimLinkCopied] = useState(false);
   // Roadmap 018: applied-once bookkeeping for an incoming share `simRequest`.
   const appliedSimNonce = useRef<number | null>(null);
@@ -713,6 +821,8 @@ export function RuleSimulator({
   // A new run invalidates any previous simulation (the rules may differ).
   useEffect(() => {
     setSim(null);
+    setSimForm(null);
+    setSimEffectiveUpdateType("");
     setRanKey(null);
     setError(null);
     setShowAll(false);
@@ -815,11 +925,23 @@ export function RuleSimulator({
   // result against itself is not useful — the panel shows a "waiting" hint
   // instead). The comparison logic itself is pure and lives in the engine.
   const comparison = useMemo<SimulationComparison | null>(() => {
-    if (!engineModule || !pinned || !sim || pinned === sim) {
+    if (!engineModule || !pinned || !sim || pinned.sim === sim) {
       return null;
     }
-    return engineModule.compareSimulations(pinned, sim);
+    return engineModule.compareSimulations(pinned.sim, sim);
   }, [engineModule, pinned, sim]);
+
+  // Roadmap 021: what the comparison panel treats as "B"'s inputs — the form
+  // that actually produced `sim`, or (before any run since pinning, or after
+  // a fresh pipeline run cleared `sim`) the live form, so the panel always has
+  // something to show/diff against the pinned snapshot.
+  const currentDescriptor = useMemo(
+    () =>
+      simForm
+        ? toDescriptor(simForm, simEffectiveUpdateType)
+        : toDescriptor(form, effectiveUpdateType),
+    [simForm, simEffectiveUpdateType, form, effectiveUpdateType],
+  );
 
   // Keys the rules changed vs. the pre-rules effective config, for the final
   // section's summary chips.
@@ -891,6 +1013,8 @@ export function RuleSimulator({
       // since abandoned.
       scrollYBeforeSimulate.current = window.scrollY;
       setSim(simResult);
+      setSimForm(nextForm);
+      setSimEffectiveUpdateType(effectiveType);
       setRanKey(JSON.stringify(nextForm));
       setShowAll(false);
     } catch (err) {
@@ -1273,7 +1397,18 @@ export function RuleSimulator({
                   <button
                     type="button"
                     className="sim-verdict-action"
-                    onClick={() => setPinned(sim)}
+                    onClick={() => {
+                      // Roadmap 021: simForm is set in the same simulate() call as
+                      // sim, so it is never null here — the guard is only to
+                      // satisfy the type checker, not a real runtime branch.
+                      if (simForm) {
+                        setPinned({
+                          sim,
+                          form: simForm,
+                          effectiveUpdateType: simEffectiveUpdateType,
+                        });
+                      }
+                    }}
                     title="Pin this result as A, edit the config, then simulate again to compare"
                   >
                     Pin result for comparison
@@ -1282,7 +1417,13 @@ export function RuleSimulator({
               </div>
             </div>
 
-            {pinned ? <ComparisonPanel comparison={comparison} /> : null}
+            {pinned ? (
+              <ComparisonPanel
+                pinned={pinned}
+                comparison={comparison}
+                currentDescriptor={currentDescriptor}
+              />
+            ) : null}
 
             {[...sim.errors, ...sim.warnings].length > 0 ? (
               <ul className="messages sim-messages">
