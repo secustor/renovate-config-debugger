@@ -122,22 +122,47 @@ h1 {
   outline: 1px solid var(--accent);
 }
 
+/* Roadmap 024: the dot is never color-only — clean/changed/error/skipped
+   each get a distinct shape too (circle / diamond / square / hollow ring),
+   so the signal survives grayscale and color-blind viewing. */
 .stage-chip .dot {
   border-radius: 50%;
-  height: 0.5rem;
-  width: 0.5rem;
+  flex: none;
+  height: 0.55rem;
+  width: 0.55rem;
 }
 
-.stage-chip .dot.ok {
+.stage-chip .dot.clean {
   background: var(--ok);
+}
+
+.stage-chip .dot.changed {
+  background: var(--warn);
+  border-radius: 2px;
+  transform: rotate(45deg);
 }
 
 .stage-chip .dot.error {
   background: var(--error);
+  border-radius: 2px;
 }
 
 .stage-chip .dot.skipped {
-  background: var(--muted);
+  background: transparent;
+  border: 1.5px solid var(--muted);
+}
+
+.stage-chip-count {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.stage-chip .dot.changed ~ .stage-chip-count {
+  color: var(--warn);
+}
+
+.stage-chip .dot.error ~ .stage-chip-count {
+  color: var(--error);
 }
 
 .messages li.error {
