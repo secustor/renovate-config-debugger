@@ -75,8 +75,10 @@ export interface SimulationInput {
  * - `no-input` — the matcher returned `false` because NONE of the fields it
  *   reads were set on the simulated dependency (upstream's fail-closed
  *   `if (!sourceUrl) return false`). Still fails the rule (verdict → no-match,
- *   oracle-identical), but is reported as "skipped — no sourceUrl set …" so it
- *   isn't mistaken for a real mismatch.
+ *   oracle-identical), but is reported as "evaluated false — the simulated
+ *   dependency has no sourceUrl (Renovate treats a missing value as a
+ *   non-match)" rather than "skipped", so it reads as the real (if
+ *   fail-closed) verdict it is, not as "not evaluated".
  * - `not-applicable` — the matcher returned `null` (it could not evaluate the
  *   clause, e.g. an unparseable age range); upstream skips it, so it does not
  *   affect whether the rule matches.
@@ -344,12 +346,14 @@ async function evaluateRule(
       if (raw === true) {
         clauses.push({ key: entry.key, value, state: "matched", inputValues, readFields });
       } else if (raw === false) {
-        // Roadmap 018: a `false` from a matcher that reads dependency fields
-        // NONE of which are set is upstream's fail-closed branch
-        // (`if (!sourceUrl) return false`), not a real mismatch — report it as
-        // "skipped — no <field> set" and name the missing field(s). Matchers
-        // that read nothing off the dependency (matchJsonata) never take this
-        // path. Either way the rule still fails to match, exactly as upstream.
+        // Roadmap 018/022: a `false` from a matcher that reads dependency
+        // fields NONE of which are set is upstream's fail-closed branch
+        // (`if (!sourceUrl) return false`), not a real mismatch — but it IS a
+        // real (fail-closed) `false`, not a skip, so report it as "evaluated
+        // false" and name the missing field(s) plus WHY Renovate treats that
+        // as a non-match. Matchers that read nothing off the dependency
+        // (matchJsonata) never take this path. Either way the rule still
+        // fails to match, exactly as upstream.
         const failClosed = readFields.length > 0 && Object.keys(inputValues).length === 0;
         clauses.push({
           key: entry.key,
@@ -359,7 +363,7 @@ async function evaluateRule(
           readFields,
           ...(failClosed
             ? {
-                note: `skipped — no ${humanFieldList(readFields)} set on the simulated dependency`,
+                note: `evaluated false — the simulated dependency has no ${humanFieldList(readFields)} (Renovate treats a missing value as a non-match)`,
               }
             : {}),
         });

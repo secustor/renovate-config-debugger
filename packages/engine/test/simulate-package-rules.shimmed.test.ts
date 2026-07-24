@@ -251,7 +251,9 @@ describe("simulatePackageRules", () => {
     expect(missingClause?.state).toBe("no-input");
     expect(missingClause?.inputValues).toEqual({});
     expect(missingClause?.readFields).toContain("sourceUrl");
-    expect(missingClause?.note).toMatch(/no sourceUrl set on the simulated dependency/);
+    expect(missingClause?.note).toMatch(
+      /evaluated false — the simulated dependency has no sourceUrl \(Renovate treats a missing value as a non-match\)/,
+    );
     expect(missing.rules[0]?.verdict).toBe("no-match");
 
     // oracle parity is unaffected by the finer reporting.

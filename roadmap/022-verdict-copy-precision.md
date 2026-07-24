@@ -1,6 +1,6 @@
 # 022 — Verdict & translation copy precision
 
-Milestone: M7 · Status: planned
+Milestone: M7 · Status: done
 
 ## Summary
 
@@ -40,6 +40,37 @@ paragraph.
 ## Out of scope
 
 - New verdict semantics; this is wording and export only.
+
+## Implementation notes
+
+- Redundant-`*` translation (`packages/engine/src/error-translations.ts`):
+  reworded to state the actual rule — a negation-only remaining array already
+  matches everything it doesn't exclude, which is why dropping `*`/`**` is
+  equivalent in that case (and why it ISN'T when a remaining pattern is a
+  plain positive) — and links
+  `https://docs.renovatebot.com/string-pattern-matching/#negative-matching`
+  instead of the generic per-option docs page.
+- Fail-closed clause wording (`packages/engine/src/simulate-package-rules.ts`,
+  rendered in `packages/app/src/components/RuleSimulator.tsx`): `no-input`
+  clauses now read "evaluated false — the simulated dependency has no
+  \<field\> (Renovate treats a missing value as a non-match)" instead of
+  "skipped — no \<field\> set …". The tri-state (`no-match` / `no-input` /
+  `not-applicable`) is unchanged; only prose and the `no-input` icon's
+  tooltip framing moved.
+- Verdict sentence (`buildVerdictSentence` in `RuleSimulator.tsx`): empty
+  `labels`/`addLabels` and the default unrestricted `schedule: ["at any
+time"]` are now suppressed as no-ops instead of rendered as clauses.
+  Automerge update-type scoping cites its source preset ("— from
+  `:automergeMinor`") when every scoped update type traces to the same
+  preset via the existing `computeRuleProvenance` data; left uncredited when
+  the source is mixed or unknown.
+- Deferred: the combined "quote this verdict" export (stretch). The other
+  three pieces (preset body excerpt, rule delta, version pin) live behind
+  copy buttons in unrelated components (`PresetTree.tsx` for preset bodies)
+  with no shared plumbing back to the simulator's verdict block; wiring them
+  together cleanly would mean prop-drilling preset text through `App.tsx`
+  into `RuleSimulator`, which didn't fit in this pass. Left for a future
+  item if wanted.
 
 ## Dependencies
 
