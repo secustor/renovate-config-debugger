@@ -363,6 +363,15 @@ export function nodeIdForIdentity(root: PresetNode, identity: string): string | 
   return computeTreeStats(root).idByIdentity.get(identity) ?? null;
 }
 
+/**
+ * Roadmap 028: the number the Presets tab badge and the Overview stat line
+ * report — derived from the same single walk (and therefore always the same
+ * number) as the tree's own "N resolved" summary header.
+ */
+export function resolvedPresetCount(root: PresetNode | null | undefined): number {
+  return root ? computeTreeStats(root).summary.resolved : 0;
+}
+
 /** Node ids whose subtree (self or any descendant) matches the query. */
 function computeSubtreeMatch(
   root: PresetNode,
@@ -569,7 +578,15 @@ function useWindow(count: number) {
     }
     const update = () => {
       setScrollTop(el.scrollTop);
-      setViewport(el.clientHeight);
+      // Roadmap 028: this container now mounts inside a hidden tab panel,
+      // where it measures 0 and would window down to almost no rows until the
+      // ResizeObserver fires on reveal (a frame later). Keeping the last known
+      // (or default) viewport until a REAL measurement arrives means the tree
+      // is already populated the instant its tab is opened.
+      const height = el.clientHeight;
+      if (height > 0) {
+        setViewport(height);
+      }
     };
     update();
     el.addEventListener("scroll", update, { passive: true });

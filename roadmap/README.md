@@ -32,7 +32,7 @@ Full context and architecture: [.agents/spec/renovate-config-visualizer.md](../.
 | [025](025-hover-card-overflow.md)                     | Hover card text overflows its box                         | M7                   | done    |
 | [026](026-schema-first-class-option.md)               | Treat `$schema` as a first-class option                   | M7                   | done    |
 | [027](027-share-link-failure-diagnostics.md)          | Share-link failure diagnostics                            | M7                   | done    |
-| [028](028-tabbed-results-shell.md)                    | Tabbed results shell (post-run progressive disclosure)    | M8                   | planned |
+| [028](028-tabbed-results-shell.md)                    | Tabbed results shell (post-run progressive disclosure)    | M8                   | done    |
 | [029](029-run-digest.md)                              | Run digest (plain-English overview)                       | M8                   | planned |
 | [030](030-input-validation-zod.md)                    | Input validation at every boundary (zod/mini)             | M8                   | planned |
 

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { encodeShareFragment, PACKAGE_RULES_CONFIG } from "./fixtures";
-import { setEditorContent } from "./helpers";
+import { resultsPanel, setEditorContent } from "./helpers";
 
 /**
  * Journey 2 — share link opened into an already-running app (the 017
@@ -23,7 +23,7 @@ test("hash-only navigation into a running app loads and runs the shared config",
   await page.goto("/");
   // App is mounted and idle at the default config (no auto-run without a token).
   await expect(page.locator(".cm-content")).toContainText("config:recommended");
-  await expect(page.locator(".stage-timeline")).toHaveCount(0);
+  await expect(resultsPanel(page)).toHaveCount(0);
 
   // Same-tab, hash-only navigation — exactly what pasting a share link into an
   // open tab does. Setting location.hash fires `hashchange` without a reload.
@@ -36,7 +36,7 @@ test("hash-only navigation into a running app loads and runs the shared config",
   await expect(page.locator(".cm-content")).toContainText("matchPackageNames", {
     timeout: 15_000,
   });
-  await expect(page.locator(".stage-timeline")).toBeVisible({ timeout: 30_000 });
+  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
   await expect(page.locator(".version-badge")).toBeVisible({ timeout: 30_000 });
 });
 
@@ -66,7 +66,7 @@ test("hash navigation with unsaved edits fires the clobber confirm, then loads o
   await expect(page.locator(".cm-content")).toContainText("matchPackageNames", {
     timeout: 15_000,
   });
-  await expect(page.locator(".stage-timeline")).toBeVisible({ timeout: 30_000 });
+  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
 
   // The confirm actually fired, and warned about replacing edits.
   expect(dialogMessage).not.toBeNull();

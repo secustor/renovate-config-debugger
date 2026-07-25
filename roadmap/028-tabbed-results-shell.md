@@ -1,6 +1,6 @@
 # 028 — Tabbed results shell (post-run progressive disclosure)
 
-Milestone: M8 · Status: planned
+Milestone: M8 · Status: done
 
 ## Summary
 

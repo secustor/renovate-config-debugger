@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { encodeShareFragment, PACKAGE_RULES_CONFIG } from "./fixtures";
+import { openTab } from "./helpers";
 
 /**
  * Journey 4 — the packageRules simulator. After a run whose config has a
@@ -15,7 +16,7 @@ test("simulating a matching dependency shows a verdict with a matched rule and i
   await page.goto(fragment);
 
   // The run completes and the simulator mounts (it needs a result with rules).
-  await expect(page.locator(".stage-timeline")).toBeVisible({ timeout: 30_000 });
+  await openTab(page, "simulator");
   const simulator = page.locator(".card", { hasText: "Update simulator" });
   await expect(simulator).toBeVisible();
 
@@ -56,7 +57,7 @@ test("focusing a pre-filled simulator field selects its content so typing replac
   const fragment = await encodeShareFragment({ config: PACKAGE_RULES_CONFIG });
   await page.goto(fragment);
 
-  await expect(page.locator(".stage-timeline")).toBeVisible({ timeout: 30_000 });
+  await openTab(page, "simulator");
   const simulator = page.locator(".card", { hasText: "Update simulator" });
   await expect(simulator).toBeVisible();
 
@@ -84,7 +85,7 @@ test("A/B pin warns when the compared runs describe different simulated inputs",
   const fragment = await encodeShareFragment({ config: PACKAGE_RULES_CONFIG });
   await page.goto(fragment);
 
-  await expect(page.locator(".stage-timeline")).toBeVisible({ timeout: 30_000 });
+  await openTab(page, "simulator");
   const simulator = page.locator(".card", { hasText: "Update simulator" });
   await expect(simulator).toBeVisible();
 

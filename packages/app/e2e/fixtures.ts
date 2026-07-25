@@ -19,9 +19,23 @@ export interface ShareSimulator {
   autoSimulate?: boolean;
 }
 
+/**
+ * Roadmap 028: the view state a link carries. `tab` is the 028 addition; a
+ * fixture that omits it reproduces a pre-028 link, whose tab the app has to
+ * infer from stage/node/step. Written verbatim into the payload (no
+ * normalization) so a spec can shape exactly the link it wants to test.
+ */
+export interface ShareViewInput {
+  stage?: string;
+  node?: string;
+  step?: number;
+  tab?: string;
+}
+
 export interface SharePayloadInput {
   config: string;
   fileName?: ShareFileName;
+  view?: ShareViewInput;
   /** Renovate version embedded for the drift check; matches the pinned engine
    *  dependency (packages/engine/package.json) — a mismatch is non-fatal (it
    *  only surfaces a dismissible notice), but matching keeps the tests quiet. */
@@ -101,6 +115,9 @@ export async function encodeShareToken(
   if (input.sim) {
     payload.sim = input.sim;
   }
+  if (input.view) {
+    payload.view = input.view;
+  }
   const json = JSON.stringify(payload);
   const compressed = await deflateRaw(new TextEncoder().encode(json));
   return bytesToBase64url(compressed);
@@ -161,6 +178,21 @@ export const SEMANTIC_COMMITS_CONFIG = `{
   "semanticCommits": true
 }
 `;
+
+/** A config whose only content is `extends: ["config:recommended"]` — bundled
+ *  with Renovate, so it resolves a real (large) preset tree offline. Used by
+ *  028's shell tests, which need presets, provenance chips and a windowed
+ *  tree to exist. */
+export const EXTENDS_RECOMMENDED_CONFIG = `{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"]
+}
+`;
+
+/** The structural identity (`>`-joined name-path from the tree root) of the
+ *  single `config:recommended` node the config above resolves — what a
+ *  pre-028 link's `view.node` stored. */
+export const RECOMMENDED_NODE_IDENTITY = ">config:recommended";
 
 /** A packageRules config with a minor/patch-scoped automerge rule matching a
  *  named npm dependency (lodash). The "npm dependency" quick-fill chip

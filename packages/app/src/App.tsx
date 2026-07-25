@@ -1,4 +1,12 @@
-import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type {
   ErrorFixResult,
   OptionIndex,
@@ -12,11 +20,19 @@ import { type AuthState, GithubAuthHint } from "./components/GithubAuthHint";
 import { HypotheticalBanner } from "./components/HypotheticalBanner";
 import { MessagesPanel } from "./components/MessagesPanel";
 import { MigrationSteps } from "./components/MigrationSteps";
-import { identityForNodeId, nodeIdForIdentity, PresetTree } from "./components/PresetTree";
+import { OverviewTab } from "./components/OverviewTab";
+import {
+  identityForNodeId,
+  nodeIdForIdentity,
+  PresetTree,
+  resolvedPresetCount,
+} from "./components/PresetTree";
+import { ResultsPanel, type ResultsTabDescriptor } from "./components/ResultsPanel";
 import { RuleSimulator } from "./components/RuleSimulator";
 import { StageDiff } from "./components/StageDiff";
 import { STAGE_EXPLAINERS, STAGE_LABELS, StageTimeline } from "./components/StageTimeline";
 import { Term } from "./glossary";
+import { legacyTabForView, type ResultsTabId } from "./results-tabs";
 import { OptionDocsProvider } from "./option-docs";
 import { buildPresetLookup, type PresetHoverContext } from "./preset-hover";
 import { findPackageRuleOffsets } from "./rule-locate";
@@ -125,6 +141,15 @@ const MOD_KEY_LABEL = /Mac|iPhone|iPad|iPod/i.test(
 )
   ? "Cmd"
   : "Ctrl";
+
+/** Roadmap 028: the viewport below which the two panes stack (config on top,
+ *  results below) — must stay in sync with index.css's `.app-split` media
+ *  query, since the post-Run scroll-into-view only applies while stacked. */
+const STACKED_VIEWPORT_QUERY = "(max-width: 60rem)";
+
+/** Roadmap 028: how much of the stacked results pane has to be on screen for a
+ *  Run to have visibly produced something. Below this, the run is landed on. */
+const MIN_VISIBLE_RESULTS_PX = 200;
 
 /** Strips a trailing `.git` and slashes from a repo path. */
 function stripRepoSuffix(path: string): string {
@@ -339,6 +364,25 @@ export function App() {
   // Migration stepper index, owned here so a shareable link (007) can restore
   // the step; reset to 0 on a new result just like the uncontrolled stepper.
   const [migrationStepIndex, setMigrationStepIndex] = useState(0);
+  // Roadmap 028: the active results tab, and the one-step "back to where I
+  // was" target recorded whenever something OTHER than a tab click moved the
+  // user (a provenance chip, a message jump, an Overview pill). The ref
+  // mirrors the tab for handlers that need the pre-switch value synchronously.
+  const [tab, setTabState] = useState<ResultsTabId>("overview");
+  const [backTab, setBackTab] = useState<ResultsTabId | null>(null);
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
+  // Roadmap 028: the Effective config tab's badge/stat number, reported by the
+  // view itself (it owns the async provenance computation) rather than
+  // recomputed here. null = not known yet.
+  const [effectiveKeyCount, setEffectiveKeyCount] = useState<number | null>(null);
+  // Roadmap 028: bumped to focus the effective config's filter input from the
+  // Overview's "Where did a setting come from?" pill.
+  const [effectiveFilterNonce, setEffectiveFilterNonce] = useState(0);
+  // Roadmap 028: the results pane, so a Run on a stacked (narrow) viewport can
+  // scroll its consequence into view instead of appearing to do nothing.
+  const resultsColRef = useRef<HTMLDivElement>(null);
+  const focusResultsRef = useRef(false);
   const [copied, setCopied] = useState(false);
   // Roadmap 016: End/Home always scroll the page, never a nested card's own
   // scroll box; a back-to-top button appears once the page has scrolled down.
@@ -401,6 +445,38 @@ export function App() {
   // render of something unrelated — this is a plain bracket-depth scan, not a
   // full parse, so it stays cheap even for large configs.
   const packageRuleOffsets = useMemo(() => findPackageRuleOffsets(content), [content]);
+  /** Roadmap 028: a tab the user chose explicitly — clears the back affordance. */
+  function setTab(next: ResultsTabId) {
+    tabRef.current = next;
+    setTabState(next);
+    setBackTab(null);
+  }
+
+  /** Roadmap 028: a programmatic jump (a cross-instrument link, an Overview
+   *  pill) — records where the user was so one click returns them. */
+  function jumpToTab(next: ResultsTabId) {
+    const from = tabRef.current;
+    if (from === next) {
+      return;
+    }
+    tabRef.current = next;
+    setTabState(next);
+    setBackTab(from);
+  }
+
+  // Roadmap 028: selecting a preset node from anywhere else (a provenance
+  // chip, a simulator rule, an editor preset hover) also switches to the
+  // Presets tab. Identity-stable, so the preset-hover context — memoized on
+  // the result so its lookup isn't rebuilt on every keystroke — never churns.
+  const selectPresetNodeRef = useRef<((nodeId: string) => void) | undefined>(undefined);
+  selectPresetNodeRef.current = (nodeId: string) => {
+    setSelectedNodeId(nodeId);
+    jumpToTab("presets");
+  };
+  const selectPresetNode = useCallback((nodeId: string) => {
+    selectPresetNodeRef.current?.(nodeId);
+  }, []);
+
   // Roadmap 023: preset-string hovers in the editor. Built from the current
   // run's resolution tree; the jump link selects the preset's node in the tree.
   const presetHover = useMemo<PresetHoverContext | null>(() => {
@@ -408,8 +484,8 @@ export function App() {
       return null;
     }
     const lookup = buildPresetLookup(result.presetTree);
-    return { lookup: (name) => lookup.get(name) ?? null, onSelectPreset: setSelectedNodeId };
-  }, [result]);
+    return { lookup: (name) => lookup.get(name) ?? null, onSelectPreset: selectPresetNode };
+  }, [result, selectPresetNode]);
   // Roadmap 023: validation ERRORS (not warnings) make post-Validate results
   // hypothetical — a real Renovate run would refuse the config outright.
   const validateHasErrors = result?.stageStatus.validate === "error";
@@ -467,6 +543,32 @@ export function App() {
   useEffect(() => {
     setSelectedNodeId(null);
     setMigrationStepIndex(0);
+    // Roadmap 028: a new run invalidates both the previous run's key count
+    // (recomputed asynchronously by the effective-config view) and any
+    // "back to where I was" target from the run that just ended.
+    setEffectiveKeyCount(null);
+    setBackTab(null);
+  }, [result]);
+
+  // Roadmap 028: on a stacked (narrow) viewport the results pane sits below
+  // the fold, so a Run would otherwise look like it did nothing — land on the
+  // consequence (023's pattern). Runs AFTER the preserve-scroll layout effect
+  // above and only when the pane really is off-screen, so a scroll-preserving
+  // re-run keeps the position it restored.
+  useEffect(() => {
+    if (!result || !focusResultsRef.current) {
+      return;
+    }
+    focusResultsRef.current = false;
+    const el = resultsColRef.current;
+    if (!el || !window.matchMedia(STACKED_VIEWPORT_QUERY).matches) {
+      return;
+    }
+    const rect = el.getBoundingClientRect();
+    const visible = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
+    if (visible < MIN_VISIBLE_RESULTS_PX) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   }, [result]);
 
   const globalParse = useMemo(() => parseLayerText(globalText), [globalText]);
@@ -520,6 +622,12 @@ export function App() {
         setSelectedNodeId(id);
       }
     }
+    // Roadmap 028: an explicit tab wins; a pre-028 link infers one from the
+    // view state it does carry.
+    const linkTab = pending.tab ?? legacyTabForView(pending);
+    if (linkTab) {
+      setTab(linkTab);
+    }
   }, [result]);
 
   // An unparseable 008 layer never silently runs without it — block instead.
@@ -557,7 +665,7 @@ export function App() {
   async function onRun(
     overrideInjected?: InjectionMap,
     overrideInputs?: RunInputs,
-    opts?: { preserveScroll?: boolean },
+    opts?: { preserveScroll?: boolean; keepTab?: boolean },
   ): Promise<TraceResult | null> {
     const injectedPresets = overrideInjected ?? injected;
     if (!overrideInputs && blockedByLayerErrors()) {
@@ -577,6 +685,15 @@ export function App() {
         ([, status]) => status === "error",
       );
       setSelectedStage(firstError?.[0] ?? "preset");
+      // Roadmap 028: a run lands on the short Overview — or straight on
+      // Problems when a stage errored, the tabbed equivalent of the old
+      // "select the first errored stage". `keepTab` is for re-runs the user
+      // triggered from inside an instrument (injecting a preset, applying a
+      // fix), which land themselves.
+      if (!opts?.keepTab) {
+        setTab(firstError ? "problems" : "overview");
+      }
+      focusResultsRef.current = true;
       // the engine chunk is loaded now — hydrate the hover docs and the 014
       // error-translation library
       void loadOptionIndex().then(setOptionIndex);
@@ -611,13 +728,17 @@ export function App() {
       );
     }
     // Roadmap 023: land on the consequence. The question the user actually has
-    // is "did the error go away?" — answered on Validate, not the Presets diff
-    // onRun lands on by default. Re-run preserving scroll (Apply fix lives in
-    // the Errors & warnings panel, right by the Validate outcome), then select
-    // Validate and toast the fresh error count.
-    const next = await onRun(undefined, buildInputs(nextContent), { preserveScroll: true });
+    // is "did the error go away?" — answered by the Problems tab (028; it was
+    // the Validate stage before the shell existed), not the Overview a plain
+    // run lands on. Re-run preserving scroll (Apply fix lives in that same
+    // panel), then land there and toast the fresh error count.
+    const next = await onRun(undefined, buildInputs(nextContent), {
+      preserveScroll: true,
+      keepTab: true,
+    });
     if (next) {
       setSelectedStage("validate");
+      setTab("problems");
       const n = next.errors.length;
       showToast(
         `Fix applied — re-ran: ${n === 0 ? "0 errors" : `${n} error${n === 1 ? "" : "s"}`}`,
@@ -817,7 +938,9 @@ export function App() {
   function onInject(key: string, contentObj: Record<string, unknown>) {
     const next = { ...injected, [key]: contentObj };
     setInjected(next);
-    void onRun(next, undefined, { preserveScroll: true });
+    // Injecting preset content is done FROM the preset tree — keep the user
+    // there rather than bouncing them to the Overview (028).
+    void onRun(next, undefined, { preserveScroll: true, keepTab: true });
   }
 
   const usesLocal = displayPlatform !== "github";
@@ -835,7 +958,39 @@ export function App() {
     [result],
   );
 
-  const migrateStepperMounted = deferredStage === "migrate" && migrateSteps.length > 0;
+  // Roadmap 028: the migration stepper lives in the Rewrites tab and stays
+  // mounted whenever the run produced steps, so a link can always carry its
+  // index (it no longer depends on which stage is selected).
+  const migrateStepperMounted = migrateSteps.length > 0;
+
+  // Roadmap 028: preset-resolution failures render in the Problems tab
+  // alongside the validator's errors/warnings, so they count toward its badge.
+  const presetErrorCount = useMemo(
+    () => result?.events.filter((e) => e.kind === "preset-error").length ?? 0,
+    [result],
+  );
+  const errorCount = (result?.errors.length ?? 0) + presetErrorCount;
+  const warningCount = result?.warnings.length ?? 0;
+  const presetCount = useMemo(() => resolvedPresetCount(result?.presetTree), [result]);
+
+  // Roadmap 028: the tab strip's ambient counts. A tab whose run produced
+  // nothing keeps its place (dimmed, showing its zero) rather than
+  // disappearing; `undefined` marks the tabs that have no count to give.
+  const resultsTabs: ResultsTabDescriptor[] = [
+    { id: "overview" },
+    { id: "pipeline" },
+    { id: "rewrites", count: migrateSteps.length },
+    { id: "presets", count: presetCount },
+    // Provenance is computed asynchronously by the effective-config view; no
+    // badge until it reports, rather than a wrong zero.
+    { id: "effective", count: effectiveKeyCount ?? undefined },
+    { id: "simulator" },
+    {
+      id: "problems",
+      count: errorCount + warningCount,
+      tone: errorCount > 0 ? "error" : warningCount > 0 ? "warn" : undefined,
+    },
+  ];
 
   // Encodes the CURRENT state (config + view, optionally simulator inputs) into
   // a link, copies it, and mirrors it into the address bar. Never continuously
@@ -844,7 +999,7 @@ export function App() {
   // form fields (roadmap 018).
   async function buildShareLinkAndCopy(sim?: ShareSimulator) {
     const renovate = result?.renovateVersion ?? (await getRenovateVersion());
-    const view: ShareView = { stage: selectedStage };
+    const view: ShareView = { stage: selectedStage, tab };
     if (selectedNodeId && result?.presetTree) {
       const identity = identityForNodeId(result.presetTree, selectedNodeId);
       if (identity) {
@@ -995,481 +1150,598 @@ export function App() {
           step, right here in your browser. Nothing you paste leaves the page.
         </p>
 
-        {result ? null : (
-          <section className="welcome" aria-label="How it works">
-            <ol className="welcome-steps">
-              <li>
-                <strong>Bring a config.</strong> Paste your <code>renovate.json</code> below, load
-                it straight from a repository, or{" "}
-                <button
-                  type="button"
-                  className="linklike"
-                  onClick={() => loadConfigText(EXAMPLE_CONFIG)}
-                >
-                  try an example
-                </button>
-                .
-              </li>
-              <li>
-                <strong>Run it.</strong> The same code the real bot uses resolves your{" "}
-                <Term id="preset">presets</Term>, applies{" "}
-                <Term id="migration">config migration</Term> and validates every option.
-              </li>
-              <li>
-                <strong>Explore the result.</strong> Step through each stage, hover any option for
-                its docs, and simulate which <Term id="packageRules">packageRules</Term> would apply
-                to a dependency update.
-              </li>
-            </ol>
-            <p className="welcome-footnote">
-              New to Renovate? Start with the{" "}
-              <a href="https://docs.renovatebot.com/" target="_blank" rel="noreferrer">
-                official docs ↗
-              </a>
-              . Your config and any tokens stay in this browser tab.
+        {/* Roadmap 028: config on the left, one tabbed results panel on the
+            right; below ~60rem the two panes stack (config on top). Before the
+            first run there is nothing to put beside the editor, so the config
+            column simply keeps the full width. */}
+        <div className={`app-split${result ? " has-results" : ""}`}>
+          <div className="config-col">
+            {result ? null : (
+              <section className="welcome" aria-label="How it works">
+                <ol className="welcome-steps">
+                  <li>
+                    <strong>Bring a config.</strong> Paste your <code>renovate.json</code> below,
+                    load it straight from a repository, or{" "}
+                    <button
+                      type="button"
+                      className="linklike"
+                      onClick={() => loadConfigText(EXAMPLE_CONFIG)}
+                    >
+                      try an example
+                    </button>
+                    .
+                  </li>
+                  <li>
+                    <strong>Run it.</strong> The same code the real bot uses resolves your{" "}
+                    <Term id="preset">presets</Term>, applies{" "}
+                    <Term id="migration">config migration</Term> and validates every option.
+                  </li>
+                  <li>
+                    <strong>Explore the result.</strong> Step through each stage, hover any option
+                    for its docs, and simulate which <Term id="packageRules">packageRules</Term>{" "}
+                    would apply to a dependency update.
+                  </li>
+                </ol>
+                <p className="welcome-footnote">
+                  New to Renovate? Start with the{" "}
+                  <a href="https://docs.renovatebot.com/" target="_blank" rel="noreferrer">
+                    official docs ↗
+                  </a>
+                  . Your config and any tokens stay in this browser tab.
+                </p>
+              </section>
+            )}
+
+            <form
+              className="repo-load"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void onLoadRepo();
+              }}
+            >
+              <span className="repo-load-label">Load from a repository</span>
+              <input
+                type="text"
+                className="repo-load-ref"
+                placeholder="owner/repo, github.com/owner/repo, or a full repository URL"
+                value={repoInput}
+                onChange={(e) => setRepoInput(e.target.value)}
+              />
+              <input
+                type="text"
+                className="repo-load-branch"
+                placeholder="branch or tag (optional)"
+                value={repoRef}
+                onChange={(e) => setRepoRef(e.target.value)}
+              />
+              <button type="submit" disabled={repoLoading || repoInput.trim() === ""}>
+                {repoLoading ? "Loading…" : "Load"}
+              </button>
+            </form>
+
+            <ConfigEditor
+              key={editorKey}
+              ref={configEditorRef}
+              fileName={fileName}
+              value={content}
+              onChange={setContent}
+              presetHover={presetHover}
+            />
+            <p className="editor-hint">
+              <kbd>{MOD_KEY_LABEL}</kbd>+<kbd>Z</kbd> to undo, <kbd>Shift</kbd>+
+              <kbd>{MOD_KEY_LABEL}</kbd>+<kbd>Z</kbd> to redo.
             </p>
-          </section>
-        )}
 
-        <form
-          className="repo-load"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void onLoadRepo();
-          }}
-        >
-          <span className="repo-load-label">Load from a repository</span>
-          <input
-            type="text"
-            className="repo-load-ref"
-            placeholder="owner/repo, github.com/owner/repo, or a full repository URL"
-            value={repoInput}
-            onChange={(e) => setRepoInput(e.target.value)}
-          />
-          <input
-            type="text"
-            className="repo-load-branch"
-            placeholder="branch or tag (optional)"
-            value={repoRef}
-            onChange={(e) => setRepoRef(e.target.value)}
-          />
-          <button type="submit" disabled={repoLoading || repoInput.trim() === ""}>
-            {repoLoading ? "Loading…" : "Load"}
-          </button>
-        </form>
-
-        <ConfigEditor
-          key={editorKey}
-          ref={configEditorRef}
-          fileName={fileName}
-          value={content}
-          onChange={setContent}
-          presetHover={presetHover}
-        />
-        <p className="editor-hint">
-          <kbd>{MOD_KEY_LABEL}</kbd>+<kbd>Z</kbd> to undo, <kbd>Shift</kbd>+
-          <kbd>{MOD_KEY_LABEL}</kbd>+<kbd>Z</kbd> to redo.
-        </p>
-
-        <div className="toolbar">
-          <select value={fileName} onChange={(e) => setFileName(e.target.value as typeof fileName)}>
-            <option value="renovate.json">renovate.json</option>
-            <option value="renovate.json5">renovate.json5</option>
-          </select>
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => loadConfigText(loadedContent)}
-            disabled={content === loadedContent}
-            title="Restore the config text as it was last loaded — the default, an example, a share link, a repo fetch, or an applied fix — discarding edits made since"
-          >
-            Revert to loaded config
-          </button>
-          {oauthConfig ? (
-            signedIn ? (
-              <span className="gh-auth-chip" title="Signed in with GitHub">
-                {authUser?.avatarUrl ? (
-                  <img
-                    className="gh-auth-avatar"
-                    src={authUser.avatarUrl}
-                    alt=""
-                    width={18}
-                    height={18}
-                  />
-                ) : null}
-                <span className="gh-auth-login">{authUser?.login || "signed in"}</span>
-                <button type="button" className="gh-auth-signout" onClick={onSignOut}>
-                  Sign out
-                </button>
-                <a
-                  className="gh-auth-revoke"
-                  href={REVOKE_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  title="Revoke this app's access on GitHub (sign-out only clears the local token)"
-                >
-                  revoke
-                </a>
-              </span>
-            ) : (
+            <div className="toolbar">
+              <select
+                value={fileName}
+                onChange={(e) => setFileName(e.target.value as typeof fileName)}
+              >
+                <option value="renovate.json">renovate.json</option>
+                <option value="renovate.json5">renovate.json5</option>
+              </select>
               <button
                 type="button"
-                className="gh-signin"
-                onClick={onSignIn}
-                title="Sign in to reach private GitHub presets and repositories (read-only)"
+                className="secondary"
+                onClick={() => loadConfigText(loadedContent)}
+                disabled={content === loadedContent}
+                title="Restore the config text as it was last loaded — the default, an example, a share link, a repo fetch, or an applied fix — discarding edits made since"
               >
-                Sign in with GitHub
+                Revert to loaded config
               </button>
-            )
-          ) : null}
-          <span className="toolbar-spacer" />
-          <button
-            type="button"
-            className="primary"
-            onClick={() => onRun(undefined, undefined, { preserveScroll: Boolean(result) })}
-            disabled={running}
-            title="Process this config with Renovate's own code — it never leaves your browser"
-          >
-            {running ? "Running…" : "Run"}
-          </button>
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => void onCopyLink()}
-            title="Copy a link that reopens this config and view — never includes your tokens"
-          >
-            {copied ? "Copied!" : "Copy link"}
-          </button>
-        </div>
-
-        <details
-          className="advanced-zone"
-          open={advancedOpen}
-          onToggle={(e) => setAdvancedOpen(e.currentTarget.open)}
-        >
-          <summary>
-            Advanced options
-            <span className="advanced-hint">
-              {" "}
-              — repository host, access tokens, self-hosted bot config
-            </span>
-            {globalParse.config || inheritedParse.config ? (
-              <span className="advanced-active-chip">self-hosted config active</span>
-            ) : null}
-            {globalParse.error || inheritedParse.error ? (
-              <span className="advanced-active-chip invalid">invalid JSON</span>
-            ) : null}
-          </summary>
-
-          <p className="advanced-intro">
-            Everything here is optional — the defaults suit a repository on github.com using the
-            hosted Renovate app.
-          </p>
-
-          <details className="advanced-settings">
-            <summary>
-              Repository host &amp; access tokens
-              <span className="advanced-hint">
-                {" "}
-                — where presets that live in other repositories are fetched from
-              </span>
-            </summary>
-            <div className="advanced-body">
-              <p className="advanced-note">
-                Some presets live in other repositories on your <Term id="platform">
-                  code host
-                </Term>{" "}
-                (referenced as{" "}
-                <Term id="localPreset">
-                  <code>local&gt;</code>
-                </Term>{" "}
-                or a bare <code>owner/repo</code>). Set the host and API endpoint they should
-                resolve against.
-              </p>
-              <div className="advanced-row">
-                <label>
-                  Platform
-                  <select
-                    value={displayPlatform}
-                    onChange={(e) => onPlatformChange(e.target.value)}
-                  >
-                    {PLATFORMS.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    ))}
-                    {!PLATFORMS.includes(displayPlatform) ? (
-                      <option value={displayPlatform}>{displayPlatform}</option>
+              {oauthConfig ? (
+                signedIn ? (
+                  <span className="gh-auth-chip" title="Signed in with GitHub">
+                    {authUser?.avatarUrl ? (
+                      <img
+                        className="gh-auth-avatar"
+                        src={authUser.avatarUrl}
+                        alt=""
+                        width={18}
+                        height={18}
+                      />
                     ) : null}
-                  </select>
-                </label>
-                <label className="grow">
-                  Endpoint
-                  <input
-                    type="text"
-                    placeholder={
-                      PLATFORM_ENDPOINTS[displayPlatform] || "not fetched in the browser"
-                    }
-                    value={displayEndpoint}
-                    onChange={(e) => onEndpointChange(e.target.value)}
-                  />
-                </label>
-              </div>
-              {reflectGlobal ? (
-                <p className="advanced-note platform-from-global">
-                  <span className="badge prov-global">from global config</span>{" "}
-                  {globalPlatform !== undefined ? (
-                    <>
-                      platform <code>{globalPlatform}</code>
-                    </>
-                  ) : null}
-                  {globalPlatform !== undefined && globalEndpoint !== undefined ? " and " : null}
-                  {globalEndpoint !== undefined ? (
-                    <>
-                      endpoint <code>{globalEndpoint}</code>
-                    </>
-                  ) : null}{" "}
-                  come from the pasted global config — a real Renovate run would use them. Changing
-                  the control overrides them for this visualization.
-                </p>
-              ) : null}
-              {platformOverride && hasGlobalContext ? (
-                <p className="advanced-note platform-override-warning">
-                  Overriding <code>platform</code>/<code>endpoint</code> from the global config — a
-                  real Renovate run would use <code>{globalPlatform ?? displayPlatform}</code>
-                  {" / "}
-                  <code>
-                    {globalEndpoint ??
-                      (PLATFORM_ENDPOINTS[globalPlatform ?? ""] || "the platform default")}
-                  </code>
-                  .{" "}
+                    <span className="gh-auth-login">{authUser?.login || "signed in"}</span>
+                    <button type="button" className="gh-auth-signout" onClick={onSignOut}>
+                      Sign out
+                    </button>
+                    <a
+                      className="gh-auth-revoke"
+                      href={REVOKE_URL}
+                      target="_blank"
+                      rel="noreferrer"
+                      title="Revoke this app's access on GitHub (sign-out only clears the local token)"
+                    >
+                      revoke
+                    </a>
+                  </span>
+                ) : (
                   <button
                     type="button"
-                    className="platform-override-clear"
-                    onClick={() => setPlatformOverride(false)}
+                    className="gh-signin"
+                    onClick={onSignIn}
+                    title="Sign in to reach private GitHub presets and repositories (read-only)"
                   >
-                    use global config values
+                    Sign in with GitHub
                   </button>
-                </p>
+                )
               ) : null}
-              {usesLocal && !(platform in PLATFORM_ENDPOINTS && PLATFORM_ENDPOINTS[platform]) ? (
-                <p className="advanced-note">
-                  <code>{platform}</code> presets are not fetched in the browser — a real Renovate
-                  run reaches them. You can still provide their content manually from a failed node
-                  below.
-                </p>
-              ) : null}
-              {oauthConfig ? (
-                <p className="advanced-note">
-                  Signing in with GitHub (top of the page) is the recommended way to reach private
-                  GitHub presets and repos. A personal access token is only a fallback — for GitHub
-                  Enterprise Server, when the app installation can&apos;t be approved, or if the
-                  sign-in service is unavailable.
-                </p>
-              ) : (
-                <p className="advanced-note">
-                  A GitHub personal access token lifts preset rate limits and reaches private
-                  repositories. It stays in this browser tab only.
-                </p>
-              )}
-              <div className="advanced-row">
-                <label className="grow">
-                  GitHub personal access token (fallback)
-                  <input
-                    type="password"
-                    placeholder="optional — stays in this browser tab"
-                    value={token}
-                    onChange={(e) => onTokenChange(e.target.value)}
-                  />
-                </label>
-                <label className="grow">
-                  GitLab token (PRIVATE-TOKEN)
-                  <input
-                    type="password"
-                    placeholder="optional — stays in this browser tab"
-                    value={gitlabToken}
-                    onChange={(e) =>
-                      makeTokenHandler(GITLAB_TOKEN_KEY, setGitlabToken)(e.target.value)
-                    }
-                  />
-                </label>
-                <label className="grow">
-                  Gitea token
-                  <input
-                    type="password"
-                    placeholder="optional — stays in this browser tab"
-                    value={giteaToken}
-                    onChange={(e) =>
-                      makeTokenHandler(GITEA_TOKEN_KEY, setGiteaToken)(e.target.value)
-                    }
-                  />
-                </label>
-                <label className="grow">
-                  Forgejo token
-                  <input
-                    type="password"
-                    placeholder="optional — stays in this browser tab"
-                    value={forgejoToken}
-                    onChange={(e) =>
-                      makeTokenHandler(FORGEJO_TOKEN_KEY, setForgejoToken)(e.target.value)
-                    }
-                  />
-                </label>
-              </div>
+              <span className="toolbar-spacer" />
+              <button
+                type="button"
+                className="primary"
+                onClick={() => onRun(undefined, undefined, { preserveScroll: Boolean(result) })}
+                disabled={running}
+                title="Process this config with Renovate's own code — it never leaves your browser"
+              >
+                {running ? "Running…" : "Run"}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => void onCopyLink()}
+                title="Copy a link that reopens this config and view — never includes your tokens"
+              >
+                {copied ? "Copied!" : "Copy link"}
+              </button>
             </div>
-          </details>
 
-          <details className="advanced-settings">
-            <summary>
-              Global config
-              <span className="advanced-hint">
-                {" "}
-                — bot-level settings from a self-hosted administrator
-                {globalParse.config ? " · active" : ""}
-                {globalParse.error ? " · invalid JSON" : ""}
-              </span>
-            </summary>
-            <div className="advanced-body">
-              <p className="advanced-note">
-                Running your own Renovate bot? Paste its{" "}
-                <Term id="globalConfig">global config</Term> as JSON to model the full layer stack:
-                it merges between Renovate&apos;s defaults and your repo config, after its own{" "}
-                <code>globalExtends</code> presets. Options like <code>platform</code>,{" "}
-                <code>endpoint</code> or <code>onboarding</code> become run context instead of
-                merging. Leave empty to run without this layer.
-              </p>
-              <textarea
-                className="layer-editor"
-                placeholder='{ "globalExtends": ["config:best-practices"], "platform": "gitlab" }'
-                value={globalText}
-                onChange={(e) => setGlobalText(e.target.value)}
-                spellCheck={false}
-                rows={8}
-              />
-              {globalParse.error ? (
-                <p className="layer-editor-error">
-                  Not valid JSON: {globalParse.error}. The pipeline won&apos;t run until this parses
-                  or the field is cleared.
-                </p>
-              ) : null}
-            </div>
-          </details>
-
-          <details className="advanced-settings">
-            <summary>
-              Inherited config
-              <span className="advanced-hint">
-                {" "}
-                — org-wide defaults shared across repositories
-                {inheritedParse.config ? " · active" : ""}
-                {inheritedParse.error ? " · invalid JSON" : ""}
-              </span>
-            </summary>
-            <div className="advanced-body">
-              <p className="advanced-note">
-                Defaults a self-hosted bot shares across repositories via{" "}
-                <Term id="inheritedConfig">
-                  <code>inheritConfig</code>
-                </Term>
-                . Validated with Renovate&apos;s inherit rules, its presets resolved, bot-only
-                options stripped — then merged between the global layer and the repo config. Leave
-                empty to run without this layer.
-              </p>
-              <textarea
-                className="layer-editor"
-                placeholder='{ "extends": ["github>my-org/renovate-config"], "automerge": false }'
-                value={inheritedText}
-                onChange={(e) => setInheritedText(e.target.value)}
-                spellCheck={false}
-                rows={8}
-              />
-              {inheritedParse.error ? (
-                <p className="layer-editor-error">
-                  Not valid JSON: {inheritedParse.error}. The pipeline won&apos;t run until this
-                  parses or the field is cleared.
-                </p>
-              ) : null}
-            </div>
-          </details>
-        </details>
-
-        {fatal ? <p style={{ color: "var(--error)" }}>{fatal}</p> : null}
-        {repoAuthHint ? (
-          <GithubAuthHint
-            authState={authState}
-            rateLimited={repoAuthHint.rateLimited}
-            onSignIn={onSignIn}
-            installUrl={installUrl()}
-          />
-        ) : null}
-        {notice ? (
-          <p className="app-notice">
-            {notice}
-            <button type="button" className="app-notice-dismiss" onClick={() => setNotice(null)}>
-              dismiss
-            </button>
-          </p>
-        ) : null}
-
-        {result ? (
-          <>
-            <StageTimeline result={result} selected={selectedStage} onSelect={setSelectedStage} />
-            <div className="card">
-              <div className="card-title">
-                Stage: {STAGE_LABELS[selectedStage]}
-                <span className="card-title-hint"> — {STAGE_EXPLAINERS[selectedStage].plain}</span>
-                {deferredStage !== selectedStage ? (
-                  <span className="rendering-note"> rendering…</span>
+            <details
+              className="advanced-zone"
+              open={advancedOpen}
+              onToggle={(e) => setAdvancedOpen(e.currentTarget.open)}
+            >
+              <summary>
+                Advanced options
+                <span className="advanced-hint">
+                  {" "}
+                  — repository host, access tokens, self-hosted bot config
+                </span>
+                {globalParse.config || inheritedParse.config ? (
+                  <span className="advanced-active-chip">self-hosted config active</span>
                 ) : null}
-              </div>
-              {/* Roadmap 023: the presets/merge stages run on a config a real
-                  Renovate run would have already rejected — say so. */}
-              {validateHasErrors && (deferredStage === "preset" || deferredStage === "merge") ? (
-                <HypotheticalBanner />
-              ) : null}
-              {migrateStepperMounted ? (
-                <MigrationSteps
-                  steps={migrateSteps}
-                  finalConfig={finalMigrated}
-                  index={migrationStepIndex}
-                  onIndexChange={setMigrationStepIndex}
-                />
-              ) : (
-                <StageDiff result={result} stage={deferredStage} />
-              )}
+                {globalParse.error || inheritedParse.error ? (
+                  <span className="advanced-active-chip invalid">invalid JSON</span>
+                ) : null}
+              </summary>
+
+              <p className="advanced-intro">
+                Everything here is optional — the defaults suit a repository on github.com using the
+                hosted Renovate app.
+              </p>
+
+              <details className="advanced-settings">
+                <summary>
+                  Repository host &amp; access tokens
+                  <span className="advanced-hint">
+                    {" "}
+                    — where presets that live in other repositories are fetched from
+                  </span>
+                </summary>
+                <div className="advanced-body">
+                  <p className="advanced-note">
+                    Some presets live in other repositories on your{" "}
+                    <Term id="platform">code host</Term> (referenced as{" "}
+                    <Term id="localPreset">
+                      <code>local&gt;</code>
+                    </Term>{" "}
+                    or a bare <code>owner/repo</code>). Set the host and API endpoint they should
+                    resolve against.
+                  </p>
+                  <div className="advanced-row">
+                    <label>
+                      Platform
+                      <select
+                        value={displayPlatform}
+                        onChange={(e) => onPlatformChange(e.target.value)}
+                      >
+                        {PLATFORMS.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                        {!PLATFORMS.includes(displayPlatform) ? (
+                          <option value={displayPlatform}>{displayPlatform}</option>
+                        ) : null}
+                      </select>
+                    </label>
+                    <label className="grow">
+                      Endpoint
+                      <input
+                        type="text"
+                        placeholder={
+                          PLATFORM_ENDPOINTS[displayPlatform] || "not fetched in the browser"
+                        }
+                        value={displayEndpoint}
+                        onChange={(e) => onEndpointChange(e.target.value)}
+                      />
+                    </label>
+                  </div>
+                  {reflectGlobal ? (
+                    <p className="advanced-note platform-from-global">
+                      <span className="badge prov-global">from global config</span>{" "}
+                      {globalPlatform !== undefined ? (
+                        <>
+                          platform <code>{globalPlatform}</code>
+                        </>
+                      ) : null}
+                      {globalPlatform !== undefined && globalEndpoint !== undefined
+                        ? " and "
+                        : null}
+                      {globalEndpoint !== undefined ? (
+                        <>
+                          endpoint <code>{globalEndpoint}</code>
+                        </>
+                      ) : null}{" "}
+                      come from the pasted global config — a real Renovate run would use them.
+                      Changing the control overrides them for this visualization.
+                    </p>
+                  ) : null}
+                  {platformOverride && hasGlobalContext ? (
+                    <p className="advanced-note platform-override-warning">
+                      Overriding <code>platform</code>/<code>endpoint</code> from the global config
+                      — a real Renovate run would use{" "}
+                      <code>{globalPlatform ?? displayPlatform}</code>
+                      {" / "}
+                      <code>
+                        {globalEndpoint ??
+                          (PLATFORM_ENDPOINTS[globalPlatform ?? ""] || "the platform default")}
+                      </code>
+                      .{" "}
+                      <button
+                        type="button"
+                        className="platform-override-clear"
+                        onClick={() => setPlatformOverride(false)}
+                      >
+                        use global config values
+                      </button>
+                    </p>
+                  ) : null}
+                  {usesLocal &&
+                  !(platform in PLATFORM_ENDPOINTS && PLATFORM_ENDPOINTS[platform]) ? (
+                    <p className="advanced-note">
+                      <code>{platform}</code> presets are not fetched in the browser — a real
+                      Renovate run reaches them. You can still provide their content manually from a
+                      failed node below.
+                    </p>
+                  ) : null}
+                  {oauthConfig ? (
+                    <p className="advanced-note">
+                      Signing in with GitHub (top of the page) is the recommended way to reach
+                      private GitHub presets and repos. A personal access token is only a fallback —
+                      for GitHub Enterprise Server, when the app installation can&apos;t be
+                      approved, or if the sign-in service is unavailable.
+                    </p>
+                  ) : (
+                    <p className="advanced-note">
+                      A GitHub personal access token lifts preset rate limits and reaches private
+                      repositories. It stays in this browser tab only.
+                    </p>
+                  )}
+                  <div className="advanced-row">
+                    <label className="grow">
+                      GitHub personal access token (fallback)
+                      <input
+                        type="password"
+                        placeholder="optional — stays in this browser tab"
+                        value={token}
+                        onChange={(e) => onTokenChange(e.target.value)}
+                      />
+                    </label>
+                    <label className="grow">
+                      GitLab token (PRIVATE-TOKEN)
+                      <input
+                        type="password"
+                        placeholder="optional — stays in this browser tab"
+                        value={gitlabToken}
+                        onChange={(e) =>
+                          makeTokenHandler(GITLAB_TOKEN_KEY, setGitlabToken)(e.target.value)
+                        }
+                      />
+                    </label>
+                    <label className="grow">
+                      Gitea token
+                      <input
+                        type="password"
+                        placeholder="optional — stays in this browser tab"
+                        value={giteaToken}
+                        onChange={(e) =>
+                          makeTokenHandler(GITEA_TOKEN_KEY, setGiteaToken)(e.target.value)
+                        }
+                      />
+                    </label>
+                    <label className="grow">
+                      Forgejo token
+                      <input
+                        type="password"
+                        placeholder="optional — stays in this browser tab"
+                        value={forgejoToken}
+                        onChange={(e) =>
+                          makeTokenHandler(FORGEJO_TOKEN_KEY, setForgejoToken)(e.target.value)
+                        }
+                      />
+                    </label>
+                  </div>
+                </div>
+              </details>
+
+              <details className="advanced-settings">
+                <summary>
+                  Global config
+                  <span className="advanced-hint">
+                    {" "}
+                    — bot-level settings from a self-hosted administrator
+                    {globalParse.config ? " · active" : ""}
+                    {globalParse.error ? " · invalid JSON" : ""}
+                  </span>
+                </summary>
+                <div className="advanced-body">
+                  <p className="advanced-note">
+                    Running your own Renovate bot? Paste its{" "}
+                    <Term id="globalConfig">global config</Term> as JSON to model the full layer
+                    stack: it merges between Renovate&apos;s defaults and your repo config, after
+                    its own <code>globalExtends</code> presets. Options like <code>platform</code>,{" "}
+                    <code>endpoint</code> or <code>onboarding</code> become run context instead of
+                    merging. Leave empty to run without this layer.
+                  </p>
+                  <textarea
+                    className="layer-editor"
+                    placeholder='{ "globalExtends": ["config:best-practices"], "platform": "gitlab" }'
+                    value={globalText}
+                    onChange={(e) => setGlobalText(e.target.value)}
+                    spellCheck={false}
+                    rows={8}
+                  />
+                  {globalParse.error ? (
+                    <p className="layer-editor-error">
+                      Not valid JSON: {globalParse.error}. The pipeline won&apos;t run until this
+                      parses or the field is cleared.
+                    </p>
+                  ) : null}
+                </div>
+              </details>
+
+              <details className="advanced-settings">
+                <summary>
+                  Inherited config
+                  <span className="advanced-hint">
+                    {" "}
+                    — org-wide defaults shared across repositories
+                    {inheritedParse.config ? " · active" : ""}
+                    {inheritedParse.error ? " · invalid JSON" : ""}
+                  </span>
+                </summary>
+                <div className="advanced-body">
+                  <p className="advanced-note">
+                    Defaults a self-hosted bot shares across repositories via{" "}
+                    <Term id="inheritedConfig">
+                      <code>inheritConfig</code>
+                    </Term>
+                    . Validated with Renovate&apos;s inherit rules, its presets resolved, bot-only
+                    options stripped — then merged between the global layer and the repo config.
+                    Leave empty to run without this layer.
+                  </p>
+                  <textarea
+                    className="layer-editor"
+                    placeholder='{ "extends": ["github>my-org/renovate-config"], "automerge": false }'
+                    value={inheritedText}
+                    onChange={(e) => setInheritedText(e.target.value)}
+                    spellCheck={false}
+                    rows={8}
+                  />
+                  {inheritedParse.error ? (
+                    <p className="layer-editor-error">
+                      Not valid JSON: {inheritedParse.error}. The pipeline won&apos;t run until this
+                      parses or the field is cleared.
+                    </p>
+                  ) : null}
+                </div>
+              </details>
+            </details>
+
+            {fatal ? <p style={{ color: "var(--error)" }}>{fatal}</p> : null}
+            {repoAuthHint ? (
+              <GithubAuthHint
+                authState={authState}
+                rateLimited={repoAuthHint.rateLimited}
+                onSignIn={onSignIn}
+                installUrl={installUrl()}
+              />
+            ) : null}
+            {notice ? (
+              <p className="app-notice">
+                {notice}
+                <button
+                  type="button"
+                  className="app-notice-dismiss"
+                  onClick={() => setNotice(null)}
+                >
+                  dismiss
+                </button>
+              </p>
+            ) : null}
+          </div>
+
+          {result ? (
+            <div className="results-col" ref={resultsColRef}>
+              <ResultsPanel
+                tabs={resultsTabs}
+                active={tab}
+                onSelect={setTab}
+                back={backTab}
+                onBack={() => setTab(backTab ?? "overview")}
+                panels={{
+                  overview: (
+                    <OverviewTab
+                      stats={{
+                        rewrites: migrateSteps.length,
+                        presets: presetCount,
+                        effective: effectiveKeyCount,
+                        errors: errorCount,
+                        warnings: warningCount,
+                      }}
+                      banner={validateHasErrors ? <HypotheticalBanner /> : null}
+                      onOpen={jumpToTab}
+                      onWhereFrom={() => {
+                        jumpToTab("effective");
+                        setEffectiveFilterNonce((n) => n + 1);
+                      }}
+                    />
+                  ),
+                  pipeline: (
+                    <>
+                      <StageTimeline
+                        result={result}
+                        selected={selectedStage}
+                        onSelect={setSelectedStage}
+                      />
+                      <div className="card">
+                        <div className="card-title">
+                          Stage: {STAGE_LABELS[selectedStage]}
+                          <span className="card-title-hint">
+                            {" "}
+                            — {STAGE_EXPLAINERS[selectedStage].plain}
+                          </span>
+                          {deferredStage !== selectedStage ? (
+                            <span className="rendering-note"> rendering…</span>
+                          ) : null}
+                        </div>
+                        {/* Roadmap 023: the presets/merge stages run on a config a real
+                            Renovate run would have already rejected — say so. */}
+                        {validateHasErrors &&
+                        (deferredStage === "preset" || deferredStage === "merge") ? (
+                          <HypotheticalBanner />
+                        ) : null}
+                        {/* Roadmap 028: Pipeline always shows the whole-stage diff —
+                            the per-rewrite stepper is the Rewrites tab's job. */}
+                        {deferredStage === "migrate" && migrateSteps.length > 0 ? (
+                          <p className="stage-crosslink">
+                            {migrateSteps.length} rewrite{migrateSteps.length === 1 ? "" : "s"}{" "}
+                            applied ·{" "}
+                            <button
+                              type="button"
+                              className="linklike"
+                              onClick={() => jumpToTab("rewrites")}
+                            >
+                              step through them one by one →
+                            </button>
+                          </p>
+                        ) : null}
+                        <StageDiff result={result} stage={deferredStage} />
+                      </div>
+                    </>
+                  ),
+                  rewrites: migrateStepperMounted ? (
+                    <div className="card">
+                      <div className="card-title">
+                        Rewrites
+                        <span className="card-title-hint">
+                          {" "}
+                          — the deprecated options Renovate rewrote, one at a time
+                        </span>
+                      </div>
+                      <MigrationSteps
+                        steps={migrateSteps}
+                        finalConfig={finalMigrated}
+                        index={migrationStepIndex}
+                        onIndexChange={setMigrationStepIndex}
+                      />
+                    </div>
+                  ) : (
+                    <p className="empty-note">
+                      No rewrites — this config already uses current option names.
+                    </p>
+                  ),
+                  presets: result.presetTree?.children.length ? (
+                    <PresetTree
+                      result={result}
+                      onInject={onInject}
+                      selectedId={selectedNodeId}
+                      onSelectNode={setSelectedNodeId}
+                      authState={authState}
+                      onSignIn={onSignIn}
+                      installUrl={installUrl()}
+                    />
+                  ) : (
+                    <p className="empty-note">
+                      No presets — this config has no <code>extends</code> entries to resolve.
+                    </p>
+                  ),
+                  effective: result.finalConfig ? (
+                    <>
+                      {validateHasErrors ? <HypotheticalBanner /> : null}
+                      <EffectiveConfig
+                        result={result}
+                        onSelectPreset={selectPresetNode}
+                        onKeyCount={setEffectiveKeyCount}
+                        focusFilterNonce={effectiveFilterNonce}
+                      />
+                    </>
+                  ) : (
+                    <p className="empty-note">
+                      No effective config — the pipeline did not get far enough to merge one.
+                    </p>
+                  ),
+                  simulator: result.finalConfig ? (
+                    <RuleSimulator
+                      result={result}
+                      onSelectPreset={selectPresetNode}
+                      onJumpToEditor={focusEditorRepoIndex}
+                      focusRuleIndex={pendingRuleFocus}
+                      onRuleFocused={() => setPendingRuleFocus(null)}
+                      errorLib={errorLib}
+                      simRequest={simRequest}
+                      onCopySimLink={buildShareLinkAndCopy}
+                      configInvalid={validateHasErrors}
+                    />
+                  ) : (
+                    <p className="empty-note">
+                      Nothing to simulate — the pipeline produced no effective config.
+                    </p>
+                  ),
+                  problems:
+                    errorCount + warningCount > 0 ? (
+                      <MessagesPanel
+                        result={result}
+                        ruleAttribution={ruleProvenance}
+                        onJumpToEditor={focusEditorRepoIndex}
+                        onJumpToSimRule={(index) => {
+                          setPendingRuleFocus(index);
+                          jumpToTab("simulator");
+                        }}
+                        errorLib={errorLib}
+                        onApplyFix={applyErrorFix}
+                      />
+                    ) : (
+                      <p className="empty-note">
+                        No errors or warnings — Renovate accepted every option in this config.
+                      </p>
+                    ),
+                }}
+              />
             </div>
-            <MessagesPanel
-              result={result}
-              ruleAttribution={ruleProvenance}
-              onJumpToEditor={focusEditorRepoIndex}
-              onJumpToSimRule={setPendingRuleFocus}
-              errorLib={errorLib}
-              onApplyFix={applyErrorFix}
-            />
-            <PresetTree
-              result={result}
-              onInject={onInject}
-              selectedId={selectedNodeId}
-              onSelectNode={setSelectedNodeId}
-              authState={authState}
-              onSignIn={onSignIn}
-              installUrl={installUrl()}
-            />
-            {validateHasErrors ? <HypotheticalBanner /> : null}
-            <EffectiveConfig result={result} onSelectPreset={setSelectedNodeId} />
-            <RuleSimulator
-              result={result}
-              onSelectPreset={setSelectedNodeId}
-              onJumpToEditor={focusEditorRepoIndex}
-              focusRuleIndex={pendingRuleFocus}
-              onRuleFocused={() => setPendingRuleFocus(null)}
-              errorLib={errorLib}
-              simRequest={simRequest}
-              onCopySimLink={buildShareLinkAndCopy}
-              configInvalid={validateHasErrors}
-            />
-          </>
-        ) : null}
+          ) : null}
+        </div>
       </main>
       {showBackToTop ? (
         <button

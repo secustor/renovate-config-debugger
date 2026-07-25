@@ -2402,3 +2402,203 @@ pre.config-view.prov-before {
 .preset-hover-jump:hover {
   filter: brightness(1.1);
 }
+
+/* ---------- tabbed results shell (028) ---------- */
+
+/* Two panes once a run exists: config left, one tabbed results panel right.
+   `align-items: start` is what lets the results column stick. */
+.app-split.has-results {
+  align-items: start;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(22rem, 2fr) minmax(28rem, 3fr);
+}
+
+/* The split needs more room than the single-column reading width the pre-run
+   page is tuned for. */
+main:has(.app-split.has-results) {
+  max-width: 92rem;
+}
+
+.results-col {
+  position: sticky;
+  top: 0.75rem;
+}
+
+/* Below this width the panes stack — config on top, results below, full
+   width. Keep in sync with STACKED_VIEWPORT_QUERY in App.tsx. */
+@media (max-width: 60rem) {
+  .app-split.has-results {
+    grid-template-columns: 1fr;
+  }
+
+  .results-col {
+    position: static;
+  }
+}
+
+.results-panel {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Wraps rather than overflowing: the strip must never push the page sideways. */
+.tab-bar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.tab {
+  align-items: center;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  font-family: inherit;
+  font-size: 0.85rem;
+  gap: 0.4rem;
+  padding: 0.55rem 0.8rem;
+}
+
+.tab:hover {
+  color: inherit;
+}
+
+.tab.active {
+  border-bottom-color: var(--accent);
+  color: inherit;
+  font-weight: 600;
+}
+
+/* A tab with nothing to show stays visible and clickable — dimmed, not gone,
+   so the strip's geometry is stable across runs. */
+.tab.empty {
+  opacity: 0.55;
+}
+
+.tab-count {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 400;
+  padding: 0 0.4rem;
+}
+
+.tab-count.warn {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.tab-count.error {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.tab-body {
+  padding: 0.75rem;
+}
+
+.tab-panel > .card:last-child,
+.tab-panel > .empty-note:last-child {
+  margin-bottom: 0;
+}
+
+.tab-panel > .stage-timeline:first-child {
+  margin-top: 0;
+}
+
+/* One-step "back to where I was" after an automatic tab switch. Quiet by
+   design — it is a way back, not a call to action. */
+.tab-back {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  display: block;
+  font: inherit;
+  font-size: 0.8rem;
+  margin: 0 0 0.5rem;
+  padding: 0;
+}
+
+.tab-back:hover {
+  color: var(--accent);
+}
+
+/* Overview: the placeholder stat line 029 replaces with the run digest. */
+.run-stat-line {
+  font-size: 0.95rem;
+  line-height: 1.7;
+  margin: 0 0 1rem;
+}
+
+.run-stat {
+  background: none;
+  border: none;
+  border-bottom: 1px dashed var(--accent);
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+
+.run-stat.warn {
+  border-bottom-color: var(--warn);
+  color: var(--warn);
+}
+
+.run-stat.error {
+  border-bottom-color: var(--error);
+  color: var(--error);
+}
+
+.run-stat-sep {
+  color: var(--muted);
+}
+
+.q-row {
+  border-top: 1px solid var(--border);
+  padding-top: 0.8rem;
+}
+
+.q-label {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin: 0 0 0.5rem;
+}
+
+.q-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.q-link {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: inherit;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.82rem;
+  padding: 0.3rem 0.75rem;
+}
+
+.q-link:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Pipeline → Rewrites cross-link under the migrate stage's diff. */
+.stage-crosslink {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 0;
+  padding: 0.5rem 0.75rem 0;
+}

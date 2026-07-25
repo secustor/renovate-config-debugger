@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { encodeShareFragment, INVALID_AUTOMERGE_CONFIG, PACKAGE_RULES_CONFIG } from "./fixtures";
-import { runAndAwaitResult, setEditorContent } from "./helpers";
+import { openTab, runAndAwaitResult, setEditorContent } from "./helpers";
 
 /**
  * Roadmap 023 — honest error states. A config with a validate-stage error is
@@ -16,14 +16,22 @@ test("a validation error adds a hypothetical-run banner to post-Validate results
   await setEditorContent(page, INVALID_AUTOMERGE_CONFIG);
   await runAndAwaitResult(page);
 
-  // The validate stage errored (a red dot, an Errors & warnings entry)…
-  await expect(page.locator(".stage-timeline .dot.error").first()).toBeVisible();
+  // The run landed on Problems with an Errors & warnings entry…
   await expect(page.locator(".messages li.error").first()).toBeVisible();
 
-  // …and the honesty banner is present on the post-Validate results.
+  // …the validate stage carries a red dot…
+  await openTab(page, "pipeline");
+  await expect(page.locator(".stage-timeline .dot.error").first()).toBeVisible();
+
+  // …and the honesty banner is present on the post-Validate results (the
+  // Overview summary and the effective config both carry it).
+  await openTab(page, "overview");
   const banner = page.locator(".hypothetical-banner");
   await expect(banner.first()).toBeVisible();
   await expect(banner.first()).toContainText(/would refuse this config/i);
+
+  await openTab(page, "effective");
+  await expect(page.locator("#panel-effective .hypothetical-banner")).toBeVisible();
 });
 
 /**
@@ -37,7 +45,7 @@ test("the simulator 'my rules only' filter shows repo rules with clause evidence
   const fragment = await encodeShareFragment({ config: PACKAGE_RULES_CONFIG });
   await page.goto(fragment);
 
-  await expect(page.locator(".stage-timeline")).toBeVisible({ timeout: 30_000 });
+  await openTab(page, "simulator");
   const simulator = page.locator(".card", { hasText: "Update simulator" });
   await expect(simulator).toBeVisible();
 

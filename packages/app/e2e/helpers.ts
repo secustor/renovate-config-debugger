@@ -24,10 +24,48 @@ export function runButton(page: Page) {
   return page.locator(".toolbar button.primary");
 }
 
-/** Clicks Run and waits for the pipeline to produce a result (timeline appears,
- *  version badge appears). A hung pipeline fails this wait, not the whole test. */
+/** Roadmap 028: the tabbed results shell — present only once a run exists. */
+export function resultsPanel(page: Page) {
+  return page.locator(".results-panel");
+}
+
+/** The tab ids of the 028 results shell (see src/results-tabs.ts). */
+export type TabId =
+  | "overview"
+  | "pipeline"
+  | "rewrites"
+  | "presets"
+  | "effective"
+  | "simulator"
+  | "problems";
+
+/** The tab strip button for a tab (visible whether or not it has content). */
+export function tabButton(page: Page, id: TabId) {
+  return page.locator(`.tab-bar .tab[data-tab="${id}"]`);
+}
+
+/** A tab's panel — always mounted, `hidden` unless it is the active tab. */
+export function tabPanel(page: Page, id: TabId) {
+  return page.locator(`#panel-${id}`);
+}
+
+/**
+ * Roadmap 028: opens a results tab and waits for its panel to be revealed.
+ * Every instrument now lives behind a tab, so reaching one is a click away.
+ */
+export async function openTab(page: Page, id: TabId): Promise<void> {
+  // The shell only exists once a run has produced a result; give a pipeline
+  // started by a share link the same headroom a plain Run gets.
+  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
+  await tabButton(page, id).click();
+  await expect(tabPanel(page, id)).toBeVisible();
+}
+
+/** Clicks Run and waits for the pipeline to produce a result (the results
+ *  shell appears, version badge appears). A hung pipeline fails this wait, not
+ *  the whole test. */
 export async function runAndAwaitResult(page: Page): Promise<void> {
   await runButton(page).click();
-  await expect(page.locator(".stage-timeline")).toBeVisible({ timeout: 30_000 });
+  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
   await expect(page.locator(".version-badge")).toBeVisible({ timeout: 30_000 });
 }

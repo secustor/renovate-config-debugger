@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { resultsPanel } from "./helpers";
 
 /**
  * Journey 5 — first-load smoke. A fresh visit (no share link) shows the welcome
@@ -21,8 +22,8 @@ test("first load shows the welcome strip, collapsed advanced options, and a glos
   const isOpen = await advanced.evaluate((el) => (el as HTMLDetailsElement).open);
   expect(isOpen).toBe(false);
 
-  // No pipeline has run yet: no timeline.
-  await expect(page.locator(".stage-timeline")).toHaveCount(0);
+  // No pipeline has run yet: no results shell.
+  await expect(resultsPanel(page)).toHaveCount(0);
 
   // Hovering a glossary term in the welcome copy renders its hover card with a
   // Renovate docs link.

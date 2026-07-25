@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   KeyProvenance,
   ProvenanceStep,
@@ -300,12 +300,22 @@ function KeyRow({
 export function EffectiveConfig({
   result,
   onSelectPreset,
+  onKeyCount,
+  focusFilterNonce,
 }: {
   result: TraceResult;
   onSelectPreset?: (nodeId: string) => void;
+  /** Roadmap 028: reports the non-default-only key count (the number the
+   *  Effective config tab badge and the Overview stat line show) whenever it
+   *  changes, so the shell never has to recompute provenance itself. */
+  onKeyCount?: (count: number) => void;
+  /** Roadmap 028: bumped by the Overview's "Where did a setting come from?"
+   *  pill to focus the filter input after switching to this tab. */
+  focusFilterNonce?: number;
 }) {
   const provenance = useProvenance(result);
   const ruleAttribution = useRuleProvenance(result);
+  const filterInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [layerFilter, setLayerFilter] = useState<LayerId | "all">("all");
   const [onlyOverridden, setOnlyOverridden] = useState(false);
@@ -355,6 +365,20 @@ export function EffectiveConfig({
     });
   }, [entries, query, showDefaults, onlyOverridden, layerFilter]);
 
+  useEffect(() => {
+    onKeyCount?.(entries.filter((e) => !e.isDefaultOnly).length);
+  }, [entries, onKeyCount]);
+
+  // Focus (and select) the filter box when the Overview's "Where did a setting
+  // come from?" pill routed the user here — the tab is already visible by the
+  // time this effect runs, so the input is focusable.
+  useEffect(() => {
+    if (focusFilterNonce) {
+      filterInputRef.current?.focus();
+      filterInputRef.current?.select();
+    }
+  }, [focusFilterNonce]);
+
   if (!result.finalConfig) {
     return null;
   }
@@ -392,6 +416,7 @@ export function EffectiveConfig({
         <>
           <div className="prov-filters">
             <input
+              ref={filterInputRef}
               type="text"
               className="prov-filter-input"
               placeholder="Filter keys…"

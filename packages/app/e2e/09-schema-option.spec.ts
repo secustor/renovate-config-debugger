@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { runAndAwaitResult } from "./helpers";
+import { openTab, runAndAwaitResult } from "./helpers";
 
 /**
  * Roadmap 026 — `$schema` is standard practice in renovate.json (the app's
@@ -17,6 +17,7 @@ test("$schema renders as a known option in Effective config, not an unknown-opti
   // (bundled with Renovate), so this needs no network.
   await expect(page.locator(".cm-content")).toContainText("$schema");
   await runAndAwaitResult(page);
+  await openTab(page, "effective");
 
   const effectiveConfig = page
     .locator(".card")

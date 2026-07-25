@@ -11,6 +11,7 @@
  * current at encode time rides along so the opener can warn on version drift.
  */
 import type { StageId } from "@renovate-config-visualizer/engine";
+import { isResultsTabId, type ResultsTabId } from "./results-tabs";
 
 const DEFAULT_PLATFORM = "github";
 const DEFAULT_ENDPOINT = "https://api.github.com";
@@ -24,6 +25,12 @@ export interface ShareView {
   node?: string | null;
   /** Migration step index (only meaningful while the migrate stepper is mounted). */
   step?: number;
+  /**
+   * Roadmap 028: the active results tab. Additive within v2 — a pre-028 link
+   * simply lacks it and the opener infers a tab from stage/node/step
+   * (`legacyTabForView`), and a pre-028 reader ignores the unknown key.
+   */
+  tab?: ResultsTabId;
 }
 
 /**
@@ -191,6 +198,9 @@ function normalizeView(view: ShareView | undefined): ShareView | undefined {
   if (typeof view.step === "number" && view.step > 0) {
     out.step = view.step;
   }
+  if (isResultsTabId(view.tab)) {
+    out.tab = view.tab;
+  }
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -294,6 +304,12 @@ export async function decodeShareResult(token: string): Promise<DecodeResult> {
     p.sim = cleanSim;
   } else {
     delete p.sim;
+  }
+  // Roadmap 028: an unknown tab id (a hand-edited link, or a tab a future
+  // version added) falls back to the stage/node/step inference rather than
+  // selecting a tab that does not exist.
+  if (isPlainObject(p.view) && !isResultsTabId(p.view.tab)) {
+    delete p.view.tab;
   }
   return { ok: true, payload: p };
 }

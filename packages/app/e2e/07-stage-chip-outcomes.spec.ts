@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { PACKAGE_RULES_CONFIG, SEMANTIC_COMMITS_CONFIG } from "./fixtures";
-import { runAndAwaitResult, setEditorContent } from "./helpers";
+import { openTab, runAndAwaitResult, setEditorContent } from "./helpers";
 
 /**
  * Roadmap 024 — stage chips signal what each stage did. A config that
@@ -14,6 +14,8 @@ test("the Migrate chip shows amber with a count when it rewrote the config", asy
 
   await setEditorContent(page, SEMANTIC_COMMITS_CONFIG);
   await runAndAwaitResult(page);
+  // Roadmap 028: the chip row is the Pipeline tab's stage selector.
+  await openTab(page, "pipeline");
 
   const migrateChip = page.locator('.stage-chip[data-stage="migrate"]');
   await expect(migrateChip).toBeVisible();
@@ -38,6 +40,8 @@ test("the Migrate chip stays green/clean with no count when nothing was migrated
 
   await setEditorContent(page, PACKAGE_RULES_CONFIG);
   await runAndAwaitResult(page);
+  // Roadmap 028: the chip row is the Pipeline tab's stage selector.
+  await openTab(page, "pipeline");
 
   const migrateChip = page.locator('.stage-chip[data-stage="migrate"]');
   await expect(migrateChip).toBeVisible();

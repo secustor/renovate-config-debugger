@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { FIXED_AUTOMERGE_CONFIG, INVALID_AUTOMERGE_CONFIG } from "./fixtures";
-import { runAndAwaitResult, setEditorContent } from "./helpers";
+import { openTab, runAndAwaitResult, setEditorContent } from "./helpers";
 
 /**
  * Journey 3 — paste → Run → validation error shown → edit config (fix it) →
@@ -16,13 +16,16 @@ test("a validation error appears, then clears after the config is fixed", async 
   await setEditorContent(page, INVALID_AUTOMERGE_CONFIG);
   await runAndAwaitResult(page);
 
-  // The validate stage reports an error: a red dot on its chip and an entry in
-  // the Errors & warnings panel.
-  const errorDot = page.locator(".stage-timeline .dot.error");
-  await expect(errorDot.first()).toBeVisible();
+  // A run with an errored stage lands straight on the Problems tab (028),
+  // where the Errors & warnings entry is already visible.
   const errorMessages = page.locator(".messages li.error");
   await expect(errorMessages.first()).toBeVisible();
   await expect(errorMessages.first()).toContainText(/automerge/i);
+
+  // The validate stage reports the same error as a red dot on its chip.
+  await openTab(page, "pipeline");
+  const errorDot = page.locator(".stage-timeline .dot.error");
+  await expect(errorDot.first()).toBeVisible();
 
   // Fix the config (→ automerge: true) and re-run.
   await setEditorContent(page, FIXED_AUTOMERGE_CONFIG);

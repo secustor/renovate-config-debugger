@@ -6,6 +6,7 @@ import {
   PACKAGE_RULES_CONFIG,
   truncateShareToken,
 } from "./fixtures";
+import { resultsPanel } from "./helpers";
 
 /**
  * Roadmap 027 — share-link failure diagnostics. A `#config=` token that can't
@@ -45,7 +46,7 @@ test("a valid pre-027 token without the integrity field still loads and runs", a
   await expect(page.locator(".cm-content")).toContainText("matchPackageNames", {
     timeout: 15_000,
   });
-  await expect(page.locator(".stage-timeline")).toBeVisible({ timeout: 30_000 });
+  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
   await expect(page.locator(banner)).toHaveCount(0);
 });
 
@@ -58,5 +59,5 @@ test("a broken token never leaves the app silently on the default config", async
   // ... while the app falls back to the default config without auto-running a
   // pipeline off a config the sender never actually shared.
   await expect(page.locator(".cm-content")).toContainText(DEFAULT_CONFIG_MARKER);
-  await expect(page.locator(".stage-timeline")).toHaveCount(0);
+  await expect(resultsPanel(page)).toHaveCount(0);
 });
