@@ -10,6 +10,7 @@ import type {
   TranslatedMessage,
   ValidationMessage,
 } from "@renovate-config-visualizer/engine";
+import type * as EngineModule from "@renovate-config-visualizer/engine";
 import { isValidToken } from "./input-schemas";
 import { getValidToken } from "./oauth";
 
@@ -23,7 +24,10 @@ const TOKEN_KEYS = {
   forgejoToken: "rcv.forgejoToken",
 } as const;
 
-type Engine = typeof import("@renovate-config-visualizer/engine");
+// The engine is only ever loaded dynamically here (it is the heavy chunk), so
+// this names its shape without pulling it into the initial bundle — a type-only
+// import declaration rather than an inline `typeof import(…)` annotation.
+type Engine = typeof EngineModule;
 
 /** Roadmap 030: the "header injection" rule applied at the last possible
  *  moment — right before a token is handed to the engine to place into a

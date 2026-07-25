@@ -1,4 +1,5 @@
 import type { ProvenanceLayer } from "@renovate-config-visualizer/engine";
+import { layerClass, layerLabel } from "./provenance-layer";
 
 /**
  * Roadmap 013: the layer-provenance chip introduced by the effective config
@@ -8,33 +9,6 @@ import type { ProvenanceLayer } from "@renovate-config-visualizer/engine";
  * `packageRules` entries (013) can show the exact same chip instead of a
  * near-duplicate.
  */
-
-export type LayerId = string;
-
-/** Stable id for a layer, used by dropdown filters + winning-badge classes. */
-export function layerId(layer: ProvenanceLayer): LayerId {
-  return layer.kind === "preset" ? `preset:${layer.name}` : layer.kind;
-}
-
-export function layerLabel(layer: ProvenanceLayer): string {
-  if (layer.kind === "defaults") {
-    return "default";
-  }
-  if (layer.kind === "global") {
-    return "global config";
-  }
-  if (layer.kind === "inherited") {
-    return "inherited config";
-  }
-  if (layer.kind === "repo") {
-    return "repo config";
-  }
-  return layer.name;
-}
-
-export function layerClass(layer: ProvenanceLayer): string {
-  return `prov-${layer.kind}`;
-}
 
 export function ProvenanceChip({
   layer,

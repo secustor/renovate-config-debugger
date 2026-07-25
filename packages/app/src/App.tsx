@@ -21,16 +21,17 @@ import { HypotheticalBanner } from "./components/HypotheticalBanner";
 import { MessagesPanel } from "./components/MessagesPanel";
 import { MigrationSteps } from "./components/MigrationSteps";
 import { OverviewTab } from "./components/OverviewTab";
+import { PresetTree } from "./components/PresetTree";
 import {
   identityForNodeId,
   nodeIdForIdentity,
-  PresetTree,
   presetTreeSummary,
-} from "./components/PresetTree";
+} from "./components/preset-tree-stats";
 import { ResultsPanel, type ResultsTabDescriptor } from "./components/ResultsPanel";
 import { RuleSimulator } from "./components/RuleSimulator";
 import { StageDiff } from "./components/StageDiff";
-import { STAGE_EXPLAINERS, STAGE_LABELS, StageTimeline } from "./components/StageTimeline";
+import { StageTimeline } from "./components/StageTimeline";
+import { STAGE_EXPLAINERS, STAGE_LABELS } from "./stage-copy";
 import { Term } from "./glossary";
 import { legacyTabForView, type ResultsTabId } from "./results-tabs";
 import { buildRunDigest, type DigestInput, type DigestProblem } from "./run-digest";
@@ -903,11 +904,22 @@ export function App() {
       });
     }
   }
+  // Roadmap 034: both effects below are registered once (empty deps), so
+  // calling `loadShareToken` directly would freeze the FIRST render's closure
+  // — and with it that render's `onRun`, token and platform state. A link
+  // opened later (hashchange) would then run against stale inputs. The
+  // latest-ref pattern (as with `selectPresetNodeRef` above) keeps both
+  // registrations one-shot while always invoking the current closure.
+  const loadShareTokenRef = useRef(loadShareToken);
+  loadShareTokenRef.current = loadShareToken;
 
   // On mount: first complete an OAuth callback if the URL carries one (QUERY
   // params ?code&state), then — reading the possibly-restored fragment — decode
   // a shared config, populate state and auto-run. OAuth runs before the share
-  // decode so a share link survives a sign-in round-trip. Runs once.
+  // decode so a share link survives a sign-in round-trip. Still runs once:
+  // `oauthConfig` is a `useMemo(…, [])` over build-time env, so it is a
+  // constant for the app's lifetime — it is in the deps only because it is
+  // read here, not because this is meant to re-run.
   useEffect(() => {
     const generation = ++decodeGenerationRef.current;
     const isCancelled = () => !mountedRef.current || decodeGenerationRef.current !== generation;
@@ -941,9 +953,9 @@ export function App() {
       if (!shareToken) {
         return;
       }
-      await loadShareToken(shareToken, isCancelled);
+      await loadShareTokenRef.current(shareToken, isCancelled);
     })();
-  }, []);
+  }, [oauthConfig]);
 
   // Roadmap 017: a share link opened while the app is already running is a
   // hash-only navigation — nothing reloads, so without this listener nothing
@@ -952,8 +964,8 @@ export function App() {
   // whether loading it would clobber unsaved edits; `event.oldURL` is what
   // lets a declined confirm restore exactly the hash that was showing before
   // the navigation, so the address bar never lies about what's on screen.
-  // Registered once (empty deps) — `contentRef`/`loadedContentRef` keep it
-  // reading current state despite that.
+  // Registered once (empty deps) — `contentRef`/`loadedContentRef` and
+  // `loadShareTokenRef` keep it reading current state despite that.
   useEffect(() => {
     function onHashChange(event: HashChangeEvent) {
       const decision = decideHashChangeAction(
@@ -977,7 +989,7 @@ export function App() {
       }
       const generation = ++decodeGenerationRef.current;
       const isCancelled = () => !mountedRef.current || decodeGenerationRef.current !== generation;
-      void loadShareToken(decision.token, isCancelled);
+      void loadShareTokenRef.current(decision.token, isCancelled);
     }
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
@@ -1580,7 +1592,9 @@ export function App() {
               <button
                 type="button"
                 className="primary"
-                onClick={() => onRun(undefined, undefined, { preserveScroll: Boolean(result) })}
+                onClick={() =>
+                  void onRun(undefined, undefined, { preserveScroll: Boolean(result) })
+                }
                 disabled={running}
                 title="Process this config with Renovate's own code — it never leaves your browser"
               >
@@ -2047,7 +2061,7 @@ export function App() {
                           jumpToTab("simulator");
                         }}
                         errorLib={errorLib}
-                        onApplyFix={applyErrorFix}
+                        onApplyFix={(fix) => void applyErrorFix(fix)}
                       />
                     ) : (
                       <p className="empty-note">

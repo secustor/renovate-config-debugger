@@ -1,7 +1,7 @@
 import { type EditorView, hoverTooltip, type Tooltip } from "@uiw/react-codemirror";
 import { jsonSchema, jsonSchemaHover } from "codemirror-json-schema";
 import { json5Schema, json5SchemaHover } from "codemirror-json-schema/json5";
-import type { MutableRefObject } from "react";
+import type { RefObject } from "react";
 import type { PresetNode, PresetNodeState } from "@renovate-config-visualizer/engine";
 
 /**
@@ -176,7 +176,7 @@ function presetCard(info: PresetHoverInfo, onSelectPreset: (nodeId: string) => v
 export function buildEditorExtensions(
   isJson5: boolean,
   schema: Parameters<typeof jsonSchema>[0],
-  ctxRef: MutableRefObject<PresetHoverContext | null>,
+  ctxRef: RefObject<PresetHoverContext | null>,
 ) {
   const base = isJson5 ? json5Schema(schema) : jsonSchema(schema);
   const fallback = isJson5 ? json5SchemaHover() : jsonSchemaHover();

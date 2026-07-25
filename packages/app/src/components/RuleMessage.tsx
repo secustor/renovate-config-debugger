@@ -54,7 +54,8 @@ export function RuleMessage({
 }) {
   const match = RULE_INDEX_RE.exec(message.message);
   if (!match || match.index === undefined) {
-    return <>{message.message}</>;
+    // No rule reference to linkify — the message renders as plain text.
+    return message.message;
   }
   const index = Number(match[1]);
   const start = match.index;

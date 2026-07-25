@@ -69,11 +69,10 @@ export const MigrationSteps = memo(function MigrationSteps({
   const before = cumulative ? stageStart : step.before;
   const finalAfter = finalConfig ?? steps[steps.length - 1]?.after;
 
-  function copy() {
-    void navigator.clipboard.writeText(`${JSON.stringify(finalAfter, null, 2)}\n`).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
+  async function copy() {
+    await navigator.clipboard.writeText(`${JSON.stringify(finalAfter, null, 2)}\n`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   }
 
   return (
@@ -127,7 +126,7 @@ export const MigrationSteps = memo(function MigrationSteps({
           />
           Cumulative
         </label>
-        <button type="button" className="migration-copy" onClick={copy}>
+        <button type="button" className="migration-copy" onClick={() => void copy()}>
           {copied ? "Copied!" : "Copy migrated config"}
         </button>
       </div>

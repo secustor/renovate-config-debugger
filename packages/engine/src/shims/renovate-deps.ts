@@ -71,6 +71,10 @@ function isFunction(value: unknown): boolean {
   return typeof value === "function";
 }
 
+// `unknown[]` would be stricter than the upstream predicate this mirrors and
+// would force a cast at every call site in migration.ts, which is a deliberate
+// loose port of renovate's JS (see its `AnyConfig`).
+// oxlint-disable-next-line no-explicit-any -- see above
 export function isArray(value: unknown): value is any[] {
   return Array.isArray(value);
 }
@@ -91,6 +95,7 @@ function isSet(value: unknown): boolean {
   return getObjectType(value) === "Set";
 }
 
+// oxlint-disable-next-line no-explicit-any -- as `isArray` above
 export function isNonEmptyArray(value: unknown): value is any[] {
   return isArray(value) && value.length > 0;
 }

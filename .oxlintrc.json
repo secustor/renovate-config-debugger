@@ -1,8 +1,115 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
+  // The react plugin carries the hooks rules (namespaced `react/` in oxlint);
+  // `import` and `promise` are on only for the handful of rules named below —
+  // neither plugin is adopted wholesale.
+  "plugins": ["unicorn", "typescript", "oxc", "react", "import", "promise"],
   "categories": {
     "correctness": "error",
     "suspicious": "warn"
   },
-  "ignorePatterns": ["dist", "coverage", "node_modules"]
+  "ignorePatterns": ["dist", "coverage", "node_modules"],
+  "rules": {
+    // Automatic JSX runtime (@vitejs/plugin-react) — React is never in scope.
+    "react/react-in-jsx-scope": "off",
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error",
+    "react/jsx-key": "error",
+    "react/jsx-no-target-blank": "error",
+    // Fast Refresh only replaces a module that exports components and nothing
+    // else; a stray helper export silently turns edits into full reloads.
+    "react/only-export-components": "error",
+    "react/jsx-no-useless-fragment": "error",
+    // Warn-tier (roadmap 034): real signal, but ~110 hits that are future
+    // scoped work — they must not block a build in the meantime.
+    "react/no-array-index-key": "warn",
+    "typescript/no-non-null-assertion": "warn",
+    // Named exports keep re-exports and IDE rename working; the tool-mandated
+    // default exports are listed in the overrides below.
+    "import/no-default-export": "error",
+    // Side-effect imports are how CSS is pulled in under Vite — not a smell.
+    "import/no-unassigned-import": "off",
+    "typescript/consistent-type-imports": ["error", { "fixStyle": "inline-type-imports" }],
+    "typescript/no-import-type-side-effects": "error",
+    "typescript/no-explicit-any": "error",
+    "unicorn/no-array-for-each": "error",
+    "promise/always-return": "error",
+
+    // --- Type-aware tier (needs `--type-aware` + oxlint-tsgolint) -----------
+    "typescript/no-misused-promises": "error",
+    "typescript/only-throw-error": "error",
+    "typescript/no-deprecated": "error",
+    // A `default` arm counts as exhaustive: this codebase uses catch-all
+    // defaults deliberately, and the bug this rule is here to catch — a new
+    // union member silently falling through a switch with NO default — is
+    // still caught.
+    "typescript/switch-exhaustiveness-check": [
+      "error",
+      { "considerDefaultExhaustiveForUnions": true }
+    ],
+
+    // Type-aware rules that `--type-aware` brings along and that roadmap 034
+    // evaluated but did NOT adopt — their 1.75 violation counts and the
+    // reasoning are recorded in roadmap/034-lint-hardening.md. Listed
+    // explicitly so "off" reads as a decision, not an oversight.
+    "typescript/no-unnecessary-condition": "off",
+    "typescript/no-unsafe-type-assertion": "off",
+    "typescript/no-base-to-string": "off",
+    "typescript/no-unnecessary-type-assertion": "off",
+    "typescript/consistent-return": "off",
+    "typescript/unbound-method": "off",
+    "typescript/no-redundant-type-constituents": "off",
+    "typescript/no-unnecessary-template-expression": "off",
+    "typescript/no-unnecessary-type-parameters": "off"
+  },
+  "overrides": [
+    {
+      // Tool-mandated default exports: each of these files is loaded by name by
+      // vite/vitest/playwright or by the Workers runtime, all of which read the
+      // default export and nothing else.
+      "files": [
+        "packages/*/vite.config.ts",
+        "packages/*/vitest.config.ts",
+        "packages/*/playwright.config.ts",
+        "packages/oauth-worker/src/index.ts"
+      ],
+      "rules": {
+        "import/no-default-export": "off"
+      }
+    },
+    {
+      // The renovate/dist import boundary (previously a grep step in ci.yml).
+      // Renovate has no public API, so every deep import is a private-file
+      // dependency a version bump can break — they are confined to the adapter,
+      // the browser shims and the ambient declarations so a bump has exactly one
+      // place to look. The Node tests that deliberately compare against the real
+      // modules live outside `src/`, so they are unaffected — same scope as the
+      // grep this replaces.
+      "files": ["packages/engine/src/**", "packages/app/src/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["renovate/dist", "renovate/dist/**"],
+                "message": "Deep renovate/dist imports belong in renovate-adapter.ts, shims/ or types/ — go through the adapter instead."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      // …and the three places that ARE allowed to reach into renovate/dist.
+      "files": [
+        "packages/engine/src/renovate-adapter.ts",
+        "packages/engine/src/shims/**",
+        "packages/engine/src/types/**"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ]
 }

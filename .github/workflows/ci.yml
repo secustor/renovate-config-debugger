@@ -23,18 +23,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Enforce renovate/dist import boundary
-        run: |
-          violations=$(grep -rln "renovate/dist" packages/engine/src packages/app/src \
-            | grep -v "packages/engine/src/renovate-adapter.ts" \
-            | grep -v "packages/engine/src/shims/" \
-            | grep -v "packages/engine/src/types/" || true)
-          if [ -n "$violations" ]; then
-            echo "renovate/dist may only be imported from renovate-adapter.ts, shims/ and types/:"
-            echo "$violations"
-            exit 1
-          fi
-
+      # The renovate/dist import boundary is enforced by oxlint's
+      # `no-restricted-imports` (see .oxlintrc.json overrides) — same guarantee
+      # as the grep step this replaces, but visible in the editor too.
       - run: pnpm lint
       - run: pnpm format:check
       - run: pnpm -r typecheck

@@ -1,6 +1,6 @@
 import type { RuleAttribution } from "@renovate-config-visualizer/engine";
 import type { ReactNode } from "react";
-import { layerLabel } from "./components/ProvenanceChip";
+import { layerLabel } from "./components/provenance-layer";
 
 /**
  * Roadmap 016: honest "N rules — M from your config, K pulled in by
@@ -28,7 +28,9 @@ export interface RuleFramingData {
   otherCount: number;
 }
 
-export function computeRuleFraming(
+// Not exported: `RuleFramingText` below is this module's only consumer, and a
+// component module that also exports plain functions breaks Fast Refresh.
+function computeRuleFraming(
   total: number,
   attribution: RuleAttribution[] | null | undefined,
 ): RuleFramingData | null {
@@ -112,7 +114,8 @@ export function RuleFramingText({
   const bare =
     variant === "full" ? `${nf.format(total)} rule${total === 1 ? "" : "s"}` : nf.format(total);
   if (!framing || (framing.own === 0 && !framing.top)) {
-    return <>{bare}</>;
+    // Nothing to attribute — just the count, as plain text.
+    return bare;
   }
   if (variant === "compact") {
     return (

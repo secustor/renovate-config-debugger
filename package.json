@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @renovate-config-visualizer/app dev",
-    "lint": "oxlint",
+    "lint": "oxlint --type-aware",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "typecheck": "pnpm -r typecheck",
@@ -15,6 +15,7 @@
   "devDependencies": {
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
     "typescript": "catalog:"
   },
   "engines": {

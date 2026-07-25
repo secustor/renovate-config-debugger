@@ -1,5 +1,6 @@
 import { Fragment, type ReactNode } from "react";
-import { OptionKey, useOptionDocs } from "../option-docs";
+import { OptionKey } from "../option-docs";
+import { useOptionDocs } from "../option-docs-hooks";
 
 /**
  * Pretty-prints a config value exactly like `JSON.stringify(v, null, 2)`, but

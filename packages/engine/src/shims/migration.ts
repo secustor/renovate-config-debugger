@@ -36,6 +36,10 @@ import {
 
 // Loosely typed to mirror upstream's JS; the return value fidelity is enforced
 // by the golden snapshots, not by these internal types.
+// `unknown` here would demand a cast at every property read in this
+// line-by-line port, obscuring the diff against upstream that keeping it
+// recognizable is for.
+// oxlint-disable-next-line no-explicit-any -- see above
 type AnyConfig = Record<string, any>;
 
 const options = getOptions();
@@ -166,9 +170,9 @@ export function migrateConfig(
 ): MigrationResult {
   if (!optionTypes) {
     optionTypes = {};
-    options.forEach((option) => {
-      optionTypes![option.name] = option.type;
-    });
+    for (const option of options) {
+      optionTypes[option.name] = option.type;
+    }
   }
   const activeCtx: MigCtx = ctx ?? { root: undefined, path: [], pass: 1 };
   const newConfig = runMigrations(config, parentKey, activeCtx);

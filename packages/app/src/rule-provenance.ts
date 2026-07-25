@@ -20,11 +20,12 @@ export function useRuleProvenance(
     }
     let live = true;
     setState(undefined);
-    void import("@renovate-config-visualizer/engine").then((engine) => {
+    void (async () => {
+      const engine = await import("@renovate-config-visualizer/engine");
       if (live) {
         setState(engine.computeRuleProvenance(result) ?? null);
       }
-    });
+    })();
     return () => {
       live = false;
     };

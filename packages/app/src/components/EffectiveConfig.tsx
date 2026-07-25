@@ -5,10 +5,12 @@ import type {
   RuleAttribution,
   TraceResult,
 } from "@renovate-config-visualizer/engine";
-import { Explained, GLOSSARY, Term } from "../glossary";
+import { Explained, Term } from "../glossary";
+import { GLOSSARY } from "../glossary-data";
 import { OptionKey } from "../option-docs";
 import { ConfigJson } from "./ConfigJson";
-import { layerId, layerLabel, type LayerId, ProvenanceChip } from "./ProvenanceChip";
+import { ProvenanceChip } from "./ProvenanceChip";
+import { layerId, layerLabel, type LayerId } from "./provenance-layer";
 import { useRuleProvenance } from "../rule-provenance";
 import { RuleFramingText } from "../rule-framing";
 
@@ -30,11 +32,12 @@ function useProvenance(result: TraceResult): Provenance | null | undefined {
   useEffect(() => {
     let live = true;
     setState(undefined);
-    void import("@renovate-config-visualizer/engine").then((engine) => {
+    void (async () => {
+      const engine = await import("@renovate-config-visualizer/engine");
       if (live) {
         setState(engine.computeProvenance(result) ?? null);
       }
-    });
+    })();
     return () => {
       live = false;
     };

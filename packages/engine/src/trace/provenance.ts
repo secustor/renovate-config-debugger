@@ -158,7 +158,7 @@ export function computeProvenance(result: TraceResult): Map<string, KeyProvenanc
   // layer owns.
   let acc: Obj = {};
   let accBase: Obj = {};
-  layers.forEach(({ layer, config }, layerIndex) => {
+  for (const [layerIndex, { layer, config }] of layers.entries()) {
     const before = acc;
     const after = mergeChildConfig(structuredClone(before), structuredClone(config)) as Obj;
     if (layerIndex < baseLayerCount) {
@@ -216,7 +216,7 @@ export function computeProvenance(result: TraceResult): Map<string, KeyProvenanc
     }
 
     acc = after;
-  });
+  }
 
   // Renovate runs a final nested-`extends` expansion over the combined config,
   // which further resolves repo-supplied nested extends (e.g. packageRules[n].

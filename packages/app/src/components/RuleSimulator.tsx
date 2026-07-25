@@ -12,6 +12,7 @@ import type {
   SimulationResult,
   TraceResult,
 } from "@renovate-config-visualizer/engine";
+import type * as EngineModule from "@renovate-config-visualizer/engine";
 import { Term } from "../glossary";
 import { OptionKey } from "../option-docs";
 import { useRuleProvenance } from "../rule-provenance";
@@ -863,9 +864,9 @@ export function RuleSimulator({
   // tracks currentValue/newValue live; the moment they touch the select (or
   // a quick-fill runs, which resets it) their choice wins outright, even if
   // they go on to edit the versions afterward.
-  const [engineModule, setEngineModule] = useState<
-    typeof import("@renovate-config-visualizer/engine") | null
-  >(null);
+  // Typed off a type-only import declaration (erased at build time, so the
+  // engine still arrives only via the dynamic `import()` in the effect below).
+  const [engineModule, setEngineModule] = useState<typeof EngineModule | null>(null);
   const [updateTypeTouched, setUpdateTypeTouched] = useState(false);
   // Roadmap 015: set when Simulate is clicked on a form with no identifying
   // input; cleared reactively the moment the form has ANY meaningful field.
@@ -887,14 +888,24 @@ export function RuleSimulator({
   // then restore it once the new DOM has painted (clamped automatically by
   // the browser if the new content is shorter than before).
   const scrollYBeforeSimulate = useRef<number | null>(null);
+  // Roadmap 034: `simulate` is redeclared every render (it closes over this
+  // render's `finalConfig`), so listing it in the share-link effect's deps
+  // would re-run that effect on every render instead of once per link. The
+  // latest-ref pattern keeps the deps `[simRequest, result]` while the effect
+  // still invokes the CURRENT closure — the one that sees the config the run
+  // this link triggered just produced.
+  const simulateRef = useRef<((nextForm: FormState, touched: boolean) => Promise<void>) | null>(
+    null,
+  );
 
   useEffect(() => {
     let cancelled = false;
-    import("@renovate-config-visualizer/engine").then((m) => {
+    void (async () => {
+      const m = await import("@renovate-config-visualizer/engine");
       if (!cancelled) {
         setEngineModule(m);
       }
-    });
+    })();
     return () => {
       cancelled = true;
     };
@@ -940,7 +951,7 @@ export function RuleSimulator({
     const touched = next.updateType.trim() !== "";
     setUpdateTypeTouched(touched);
     if (simRequest.autoSimulate) {
-      void simulate(next, touched);
+      void simulateRef.current?.(next, touched);
     }
   }, [simRequest, result]);
 
@@ -1127,6 +1138,10 @@ export function RuleSimulator({
       setRunning(false);
     }
   }
+  // Assigned during render, below the `!finalConfig` early return above — the
+  // share-link effect's own guard (`!result.finalConfig`) means it only ever
+  // reaches this ref on renders where that return did NOT fire.
+  simulateRef.current = simulate;
 
   /**
    * Roadmap 018: build a share link that reproduces THIS simulation. The

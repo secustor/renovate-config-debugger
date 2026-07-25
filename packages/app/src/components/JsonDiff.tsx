@@ -1,7 +1,7 @@
 import { createTwoFilesPatch } from "diff";
 import { type ReactNode, useMemo, useState, useTransition } from "react";
 import { Diff, getChangeKey, Hunk, parseDiff } from "react-diff-view";
-import { useDiffOptionHover } from "../option-docs";
+import { useDiffOptionHover } from "../option-docs-hooks";
 import "react-diff-view/style/index.css";
 
 function pretty(value: unknown): string {
