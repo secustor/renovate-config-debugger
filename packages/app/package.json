@@ -21,7 +21,8 @@
     "diff": "9.0.0",
     "react": "19.2.8",
     "react-diff-view": "3.3.3",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@playwright/test": "1.61.1",

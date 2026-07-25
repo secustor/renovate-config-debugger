@@ -12,6 +12,11 @@
  */
 import type { StageId } from "@renovate-config-visualizer/engine";
 import { isResultsTabId, type ResultsTabId } from "./results-tabs";
+import {
+  sanitizeShareSim,
+  sanitizeShareView,
+  sharePayloadStrictFieldsSchema,
+} from "./input-schemas";
 
 const DEFAULT_PLATFORM = "github";
 const DEFAULT_ENDPOINT = "https://api.github.com";
@@ -92,10 +97,6 @@ export interface SharePayload {
   c?: string;
 }
 
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
-}
-
 /**
  * Roadmap 027: 32-bit FNV-1a of the config string, base36 — a tiny additive
  * integrity tag (payload field `c`) so a token whose config survived inflation
@@ -117,8 +118,13 @@ async function pipeThrough(bytes: Uint8Array, stream: GenericTransformStream): P
   const writer = stream.writable.getWriter();
   // Copy into a fresh ArrayBuffer-backed view — TextEncoder / atob outputs can
   // be typed as ArrayBufferLike, which the stream writer's types reject.
-  void writer.write(new Uint8Array(bytes));
-  void writer.close();
+  // Roadmap 030: `.catch(() => {})` on both — a truncated/corrupt inflate
+  // (a deliberately exercised path now that decodeShareResult has unit
+  // coverage) errors the stream, which can reject these otherwise-unawaited
+  // writable-side promises too; the actual failure is already surfaced
+  // through the readable side below, which the caller awaits and handles.
+  void writer.write(new Uint8Array(bytes)).catch(() => {});
+  void writer.close().catch(() => {});
   const buf = await new Response(stream.readable).arrayBuffer();
   return new Uint8Array(buf);
 }
@@ -280,37 +286,34 @@ export async function decodeShareResult(token: string): Promise<DecodeResult> {
   if (typeof p.c === "string" && p.c !== configChecksum(p.config)) {
     return { ok: false, reason: "cutOff" };
   }
-  // Normalize fileName to the two supported values.
+  // Roadmap 030: the security-relevant fields (platform/endpoint/the two
+  // config layers/platformOverride) are schema-validated as a unit — a
+  // hostile or corrupted value here (a polluted globalConfig, a
+  // `javascript:`/`data:` endpoint, a type-confused platform) fails the
+  // WHOLE payload rather than being silently dropped, since these are what
+  // actually gets fetched or merged. The version is already known-good at
+  // this point, so a schema failure here is transit/tamper damage, not a
+  // future-version payload — "damaged", not "incompatible".
+  const strict = sharePayloadStrictFieldsSchema.safeParse(p);
+  if (!strict.success) {
+    return { ok: false, reason: "damaged" };
+  }
+  p.platform = strict.data.platform;
+  p.endpoint = strict.data.endpoint;
+  p.globalConfig = strict.data.globalConfig as Record<string, unknown> | undefined;
+  p.inheritedConfig = strict.data.inheritedConfig as Record<string, unknown> | undefined;
+  p.platformOverride = strict.data.platformOverride;
+  // Normalize fileName to the two supported values. Unlike the fields above,
+  // fileName has no security implication (it only selects a JSON vs JSON5
+  // parser downstream) and keeps its existing lenient behavior: an
+  // unrecognized value quietly defaults rather than failing the link.
   p.fileName = p.fileName === "renovate.json5" ? "renovate.json5" : "renovate.json";
-  // Layer configs (v2) must be plain objects; drop anything else.
-  if (!isPlainObject(p.globalConfig)) {
-    delete p.globalConfig;
-  }
-  if (!isPlainObject(p.inheritedConfig)) {
-    delete p.inheritedConfig;
-  }
-  if (typeof p.platformOverride !== "boolean") {
-    delete p.platformOverride;
-  }
-  // Roadmap 018: sanitize the optional simulator descriptor — must be a plain
-  // object with a plain-object `form` of string values; drop anything else so
-  // a hand-tampered link can't inject non-string values into the form.
-  const rawSim: unknown = p.sim;
-  const cleanSim =
-    isPlainObject(rawSim) && isPlainObject(rawSim.form)
-      ? normalizeSim(rawSim as unknown as ShareSimulator)
-      : undefined;
-  if (cleanSim) {
-    p.sim = cleanSim;
-  } else {
-    delete p.sim;
-  }
-  // Roadmap 028: an unknown tab id (a hand-edited link, or a tab a future
-  // version added) falls back to the stage/node/step inference rather than
-  // selecting a tab that does not exist.
-  if (isPlainObject(p.view) && !isResultsTabId(p.view.tab)) {
-    delete p.view.tab;
-  }
+  // `view`/`sim` are cosmetic (which stage/tab/node was selected, a
+  // simulator form to pre-fill) and are sanitized per-field rather than
+  // hard-failing the payload — see sanitizeShareView's doc comment for why
+  // this preserves roadmap 028's forward-compatible `tab` tolerance.
+  p.view = sanitizeShareView(p.view);
+  p.sim = sanitizeShareSim(p.sim);
   return { ok: true, payload: p };
 }
 

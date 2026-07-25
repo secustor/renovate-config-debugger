@@ -10,6 +10,7 @@ import type {
   TranslatedMessage,
   ValidationMessage,
 } from "@renovate-config-visualizer/engine";
+import { isValidToken } from "./input-schemas";
 import { getValidToken } from "./oauth";
 
 // Per-host PATs now live in sessionStorage (roadmap 009/010 storage rules):
@@ -24,6 +25,17 @@ const TOKEN_KEYS = {
 
 type Engine = typeof import("@renovate-config-visualizer/engine");
 
+/** Roadmap 030: the "header injection" rule applied at the last possible
+ *  moment — right before a token is handed to the engine to place into a
+ *  request header. `makeTokenHandler` (App.tsx) already keeps a bad value out
+ *  of sessionStorage, but this is the actual use-time boundary, so it's
+ *  checked again rather than trusted transitively (storage can still drift
+ *  or be hand-edited between the write and this read). */
+function sessionToken(key: string): string | undefined {
+  const value = sessionStorage.getItem(key);
+  return value !== null && isValidToken(value) ? value : undefined;
+}
+
 /**
  * Pushes the per-host tokens into the engine's preset auth. Shared by every
  * entry point that fetches (pipeline runs AND repo-config loads) so both reach
@@ -33,10 +45,10 @@ type Engine = typeof import("@renovate-config-visualizer/engine");
 async function ensureAuth(engine: Engine): Promise<void> {
   const oauthToken = await getValidToken();
   engine.setPresetAuth({
-    githubToken: oauthToken ?? sessionStorage.getItem(TOKEN_KEYS.githubToken) ?? undefined,
-    gitlabToken: sessionStorage.getItem(TOKEN_KEYS.gitlabToken) ?? undefined,
-    giteaToken: sessionStorage.getItem(TOKEN_KEYS.giteaToken) ?? undefined,
-    forgejoToken: sessionStorage.getItem(TOKEN_KEYS.forgejoToken) ?? undefined,
+    githubToken: oauthToken ?? sessionToken(TOKEN_KEYS.githubToken),
+    gitlabToken: sessionToken(TOKEN_KEYS.gitlabToken),
+    giteaToken: sessionToken(TOKEN_KEYS.giteaToken),
+    forgejoToken: sessionToken(TOKEN_KEYS.forgejoToken),
   });
 }
 

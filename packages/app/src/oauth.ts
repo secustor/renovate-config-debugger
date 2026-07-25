@@ -12,6 +12,13 @@
  * closing the tab clears them. GitHub Apps issue 8 h user tokens with a 6-month
  * refresh token; refreshing is a Worker round-trip.
  */
+import * as z from "zod/mini";
+import {
+  isHttpUrl,
+  oauthCallbackParamsSchema,
+  sanitizeStoredUser,
+  tokenResponseSchema,
+} from "./input-schemas";
 
 export interface OAuthConfig {
   clientId: string;
@@ -170,7 +177,14 @@ async function postWorker(path: string, body: unknown): Promise<TokenResponse> {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
-  const data = (await res.json().catch(() => ({}))) as TokenResponse;
+  const raw: unknown = await res.json().catch(() => ({}));
+  // Roadmap 030: the Worker's response is network input — a structurally
+  // invalid body (wrong types, or an access_token that couldn't safely go
+  // into a header — the "header injection" rule) is treated as carrying no
+  // token at all, so it fails the same "Token exchange failed" path below
+  // rather than something malformed ever being stored.
+  const parsed = tokenResponseSchema.safeParse(raw);
+  const data: TokenResponse = parsed.success ? parsed.data : {};
   if (!res.ok || data.error || !data.access_token) {
     throw new Error(
       data.error_description || data.error || `Token exchange failed (HTTP ${res.status}).`,
@@ -195,6 +209,11 @@ function applyTokenResponse(data: TokenResponse): void {
   });
 }
 
+const userApiResponseSchema = z.object({
+  login: z.optional(z.string()),
+  avatar_url: z.optional(z.string()),
+});
+
 async function fetchUser(token: string): Promise<StoredUser> {
   const res = await fetch(USER_API, {
     headers: { authorization: `Bearer ${token}`, accept: "application/vnd.github+json" },
@@ -202,8 +221,13 @@ async function fetchUser(token: string): Promise<StoredUser> {
   if (!res.ok) {
     throw new Error(`Could not load your GitHub profile (HTTP ${res.status}).`);
   }
-  const body = (await res.json()) as { login?: string; avatar_url?: string };
-  const user: StoredUser = { login: body.login ?? "", avatarUrl: body.avatar_url ?? "" };
+  const parsed = userApiResponseSchema.safeParse(await res.json());
+  const login = parsed.success ? (parsed.data.login ?? "") : "";
+  const avatarUrl = parsed.success && parsed.data.avatar_url;
+  // Roadmap 030: the avatar URL is rendered into an `<img src>` attribute —
+  // must be http(s), never dropped from GitHub's response but silently
+  // omitted here if it somehow weren't.
+  const user: StoredUser = { login, avatarUrl: avatarUrl && isHttpUrl(avatarUrl) ? avatarUrl : "" };
   sessionStorage.setItem(K.user, JSON.stringify(user));
   return user;
 }
@@ -216,17 +240,28 @@ export function isSignedIn(): boolean {
   return currentToken() !== null;
 }
 
+/** Roadmap 030: a stored user that fails validation (corrupted JSON, a
+ *  hand-edited `login`, a non-http(s) `avatarUrl`) is treated as absent and
+ *  the bad value removed — same silent-fallback rule as every other stored
+ *  value, not a reason to force a re-sign-in. */
 export function getStoredUser(): StoredUser | null {
   const raw = sessionStorage.getItem(K.user);
   if (!raw) {
     return null;
   }
+  let parsed: unknown;
   try {
-    const parsed = JSON.parse(raw) as StoredUser;
-    return typeof parsed.login === "string" ? parsed : null;
+    parsed = JSON.parse(raw);
   } catch {
+    sessionStorage.removeItem(K.user);
     return null;
   }
+  const sanitized = sanitizeStoredUser(parsed);
+  if (!sanitized) {
+    sessionStorage.removeItem(K.user);
+    return null;
+  }
+  return sanitized;
 }
 
 /**
@@ -255,12 +290,21 @@ export async function beginSignIn(returnHash: string): Promise<void> {
   window.location.assign(url.toString());
 }
 
-/** OAuth callback params from a query string, or null when not a callback. */
+/**
+ * OAuth callback params from a query string, or null when not a callback.
+ * Roadmap 030: `code`/`state` are validated (bounded length, no control
+ * characters) — they round-trip through this URL and then a Worker POST
+ * body, so a malformed value is refused here rather than forwarded.
+ */
 export function readCallbackParams(search: string): { code: string; state: string } | null {
   const params = new URLSearchParams(search);
   const code = params.get("code");
   const state = params.get("state");
-  return code && state ? { code, state } : null;
+  if (!code || !state) {
+    return null;
+  }
+  const result = oauthCallbackParamsSchema.safeParse({ code, state });
+  return result.success ? result.data : null;
 }
 
 /**

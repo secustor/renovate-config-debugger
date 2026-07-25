@@ -1,0 +1,428 @@
+/**
+ * Roadmap 030 — input validation at every boundary. Schemas + typed parse
+ * helpers built on `zod/mini` (the tree-shakeable, functional-API build —
+ * see roadmap/030-input-validation-zod.md for the bundle-size rationale).
+ * Every zod import in this app MUST come from "zod/mini", never the full
+ * "zod" build.
+ *
+ * Threat model recap (roadmap/030): a share link is attacker-controlled data
+ * the app decodes and runs automatically on open. React's rendering already
+ * escapes output, so the realistic risks are prototype pollution in
+ * user-supplied config objects flowing into deep merges, dangerous URL
+ * schemes in endpoint fields reaching a `fetch`, header injection via tokens,
+ * and type confusion crashing or misdirecting downstream code. This module
+ * is the one place all of that gets checked; callers (share.ts, App.tsx,
+ * oauth.ts, PresetTree.tsx) replace their ad hoc checks with these.
+ */
+import * as z from "zod/mini";
+import type { StageId } from "@renovate-config-visualizer/engine";
+import { RESULTS_TAB_IDS, type ResultsTabId } from "./results-tabs";
+
+// ---------------------------------------------------------------------------
+// Deep pollution guard
+// ---------------------------------------------------------------------------
+
+const DANGEROUS_OWN_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
+/**
+ * Recursively finds an own `__proto__` / `constructor` / `prototype` key
+ * anywhere in a JSON-shaped value (through object AND array nesting, e.g.
+ * `packageRules[n].__proto__`), returning the key path or null.
+ *
+ * MUST be called with the value straight out of `JSON.parse` — NOT after a
+ * zod object/record schema has parsed it. Verified in input-schemas.test.ts:
+ * zod's object/record parsing silently DROPS an own "__proto__" key while
+ * copying recognized properties onto its output object (it never uses the
+ * dangerous `target[key] = value` assignment form that would trip the
+ * `__proto__` accessor's setter, so no pollution actually occurs — but the
+ * key is simply gone by the time any `.check()`/`.refine()` could see it).
+ * A guard placed after `schema.parse()` would therefore never fire, letting
+ * a polluted payload appear clean. `Object.getOwnPropertyNames` (not `in`,
+ * not a `for...in` walk) is what correctly distinguishes an OWN "__proto__"
+ * data property (what `JSON.parse('{"__proto__":1}')` actually creates) from
+ * the inherited accessor every plain object has.
+ */
+export function findPollutedPath(value: unknown, path: readonly string[] = []): string[] | null {
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) {
+      const hit = findPollutedPath(value[i], [...path, String(i)]);
+      if (hit) {
+        return hit;
+      }
+    }
+    return null;
+  }
+  if (value !== null && typeof value === "object") {
+    const ownKeys = Object.getOwnPropertyNames(value);
+    for (const key of ownKeys) {
+      if (DANGEROUS_OWN_KEYS.has(key)) {
+        return [...path, key];
+      }
+    }
+    for (const key of ownKeys) {
+      const hit = findPollutedPath((value as Record<string, unknown>)[key], [...path, key]);
+      if (hit) {
+        return hit;
+      }
+    }
+  }
+  return null;
+}
+
+/** True when {@link findPollutedPath} finds anything. See its doc comment
+ *  for the "must run on raw JSON.parse output" requirement. */
+export function isPolluted(value: unknown): boolean {
+  return findPollutedPath(value) !== null;
+}
+
+export function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+/**
+ * A user-supplied Renovate config layer (share payload's globalConfig /
+ * inheritedConfig, a pasted 008 layer, injected preset content): must be a
+ * plain object (not an array/primitive/null) and pollution-free through its
+ * whole tree, including nested `packageRules[n]`. `isPolluted` runs on `v`
+ * directly — `z.unknown()` performs no copy, so the refine sees the exact
+ * value handed to `.parse()`/`.safeParse()`, satisfying the ordering
+ * requirement above even when this schema is nested inside a larger object.
+ */
+export function isValidConfigObject(v: unknown): v is Record<string, unknown> {
+  return isPlainObject(v) && !isPolluted(v);
+}
+
+export const configObjectSchema = z.unknown().check(
+  z.refine(isValidConfigObject, {
+    message: "must be a plain JSON object without __proto__/constructor/prototype keys",
+  }),
+);
+
+/** Validates a config layer (already `JSON.parse`d) and returns it typed, or
+ *  null when it is not a plain object or is polluted. Convenience wrapper
+ *  around {@link isValidConfigObject} for call sites that want a value, not
+ *  a zod result. */
+export function parseConfigObject(raw: unknown): Record<string, unknown> | null {
+  return isValidConfigObject(raw) ? raw : null;
+}
+
+// ---------------------------------------------------------------------------
+// URLs (the "dangerous URL" rule) and tokens (the "header injection" rule)
+// ---------------------------------------------------------------------------
+
+/**
+ * http(s)-only. Deliberately NOT zod's built-in `z.httpUrl()` format check:
+ * that also requires a dotted hostname, which would reject the
+ * localhost/bare-IP self-hosted endpoints roadmap 010 explicitly supports
+ * (Gitea/Forgejo/GitLab instances are frequently `http://localhost:...` or a
+ * private IP in this app's own test fixtures). `URL` throws on anything that
+ * isn't a valid absolute URL, which also rejects `javascript:`/`data:` by
+ * virtue of their protocol not being `http:`/`https:`.
+ */
+export function isHttpUrl(value: string): boolean {
+  try {
+    const protocol = new URL(value).protocol;
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+const httpUrlSchema = z.string().check(z.refine(isHttpUrl, { message: "must be an http(s) URL" }));
+
+/**
+ * An endpoint field: empty string means "unset" (this app's own convention
+ * for platforms not fetched in the browser — see `PLATFORM_ENDPOINTS` in
+ * App.tsx) or an http(s) URL. Never `javascript:`/`data:`/anything else.
+ */
+export const endpointSchema = z.union([z.literal(""), httpUrlSchema]);
+
+export function isValidEndpoint(value: string): boolean {
+  return value === "" || isHttpUrl(value);
+}
+
+const MAX_TOKEN_LENGTH = 4096;
+// Control characters (incl. CR/LF/NUL) — the header-injection vector; a
+// token carrying one of these must never reach a header value.
+// oxlint-disable-next-line no-control-regex -- matching control characters is the point of this check
+const CONTROL_CHARS = /[\x00-\x1f\x7f]/;
+
+export function isValidToken(value: string): boolean {
+  return value.length <= MAX_TOKEN_LENGTH && !CONTROL_CHARS.test(value);
+}
+
+/** A token/PAT: no control characters, and a generous max length — real
+ *  PATs are well under this. Applied before a token is stored AND again
+ *  before it is placed into a request header (defense at both ends). */
+export const tokenSchema = z.string().check(
+  z.maxLength(MAX_TOKEN_LENGTH),
+  z.refine((s) => !CONTROL_CHARS.test(s), { message: "must not contain control characters" }),
+);
+
+const MAX_PLATFORM_LENGTH = 128;
+
+/** `platform` is intentionally NOT an enum: the app's own platform <select>
+ *  (App.tsx `PLATFORM_ENDPOINTS`) already tolerates an unrecognized platform
+ *  string (a future Renovate platform), rendering it as an extra option
+ *  rather than rejecting it. Only reject the type-confusion case (an
+ *  object/number/etc, or absurd/control-character input). */
+export const platformSchema = z.string().check(
+  z.maxLength(MAX_PLATFORM_LENGTH),
+  z.refine((s) => !CONTROL_CHARS.test(s), { message: "must not contain control characters" }),
+);
+
+export function isValidPlatform(value: string): boolean {
+  return value.length <= MAX_PLATFORM_LENGTH && !CONTROL_CHARS.test(value);
+}
+
+// ---------------------------------------------------------------------------
+// Share view / tab / stage — reuses the real ResultsTabId (results-tabs.ts)
+// and mirrors the engine's StageId union (no runtime export of it exists to
+// import; keep this list in sync with packages/engine/src/trace/model.ts and
+// App.tsx's/StageTimeline's STAGE_ORDER — all three currently must be edited
+// together whenever a stage is added).
+// ---------------------------------------------------------------------------
+
+const STAGE_IDS = [
+  "global",
+  "inherit",
+  "parse",
+  "migrate",
+  "massage",
+  "validate",
+  "preset",
+  "merge",
+] as const satisfies readonly StageId[];
+
+export const stageIdSchema = z.enum(STAGE_IDS);
+export const resultsTabIdSchema = z.enum(RESULTS_TAB_IDS);
+const stepIndexSchema = z.int().check(z.nonnegative());
+
+/** The subset of `ShareView` this module validates; kept structurally
+ *  identical to share.ts's exported `ShareView` interface without importing
+ *  it (avoids a share.ts <-> input-schemas.ts import cycle). */
+export interface SanitizedShareView {
+  stage?: StageId;
+  node?: string | null;
+  step?: number;
+  tab?: ResultsTabId;
+}
+
+/**
+ * Sanitizes a decoded share payload's `view` sub-object: each field is
+ * validated and independently dropped if malformed, rather than failing the
+ * whole share link over a cosmetic view field. This matches roadmap 028's
+ * own tolerance for an unrecognized `tab` (a hand-edited link, or a future
+ * version's new tab id — the opener still loads, just without selecting a
+ * tab it doesn't understand) and extends the same treatment to `stage` /
+ * `node` / `step`, which previously reached React state completely
+ * unchecked (a type-confused `stage` could be set as the "selected stage"
+ * verbatim). A malformed/missing `view` altogether just yields `undefined`.
+ */
+export function sanitizeShareView(raw: unknown): SanitizedShareView | undefined {
+  if (!isPlainObject(raw)) {
+    return undefined;
+  }
+  const out: SanitizedShareView = {};
+  const stage = stageIdSchema.safeParse(raw.stage);
+  if (stage.success) {
+    out.stage = stage.data;
+  }
+  if (raw.node === null) {
+    out.node = null;
+  } else {
+    const node = z.string().safeParse(raw.node);
+    if (node.success) {
+      out.node = node.data;
+    }
+  }
+  const step = stepIndexSchema.safeParse(raw.step);
+  if (step.success) {
+    out.step = step.data;
+  }
+  const tab = resultsTabIdSchema.safeParse(raw.tab);
+  if (tab.success) {
+    out.tab = tab.data;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Share simulator descriptor (roadmap 018)
+// ---------------------------------------------------------------------------
+
+export interface SanitizedShareSimulator {
+  form: Record<string, string>;
+  autoSimulate?: boolean;
+}
+
+/**
+ * Sanitizes a decoded share payload's `sim` sub-object: keeps only
+ * non-empty string form values (matching `share.ts`'s existing
+ * `normalizeSim`), dropping anything else — an array `sim`, a non-string
+ * form value, or a missing `form` all yield `undefined` rather than
+ * rejecting the whole link (the simulator descriptor carries no tokens or
+ * anything security-relevant; the worst a malformed one does is fail to
+ * pre-fill a form).
+ */
+export function sanitizeShareSim(raw: unknown): SanitizedShareSimulator | undefined {
+  if (!isPlainObject(raw) || !isPlainObject(raw.form)) {
+    return undefined;
+  }
+  const form: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw.form)) {
+    const parsed = z.string().check(z.minLength(1)).safeParse(value);
+    if (parsed.success) {
+      form[key] = parsed.data;
+    }
+  }
+  if (Object.keys(form).length === 0) {
+    return undefined;
+  }
+  return raw.autoSimulate === true ? { form, autoSimulate: true } : { form };
+}
+
+// ---------------------------------------------------------------------------
+// Share payload — the security-relevant fields ONLY (platform/endpoint/the
+// two config layers/platformOverride/the envelope trio). A failure in any of
+// these hard-fails the whole payload (share.ts maps that to the 027 "damaged"
+// banner) because they affect what actually runs or gets fetched. `view` and
+// `sim` are validated separately (see above) with per-field tolerance, and
+// `fileName` keeps its existing lenient normalize-not-reject behavior (it
+// only selects a JSON vs JSON5 parser, no security implication) — see the
+// ternary in share.ts's decodeShareResult.
+// ---------------------------------------------------------------------------
+
+export const sharePayloadStrictFieldsSchema = z.object({
+  v: z.union([z.literal(1), z.literal(2)]),
+  renovate: z.string(),
+  config: z.string(),
+  platform: z.optional(platformSchema),
+  endpoint: z.optional(endpointSchema),
+  globalConfig: z.optional(configObjectSchema),
+  inheritedConfig: z.optional(configObjectSchema),
+  platformOverride: z.optional(z.boolean()),
+  c: z.optional(z.string()),
+});
+
+// ---------------------------------------------------------------------------
+// Storage reads (platform / endpoint / tokens / OAuth stored user)
+// ---------------------------------------------------------------------------
+
+/** OAuth stored user (oauth.ts `StoredUser`): `login` must be a non-empty
+ *  string; `avatarUrl` must be an http(s) URL or gets dropped (it is
+ *  rendered into an `<img src>` attribute). */
+export const storedUserSchema = z.object({
+  login: z.string().check(z.minLength(1)),
+  avatarUrl: z.optional(z.string()),
+});
+
+export interface SanitizedStoredUser {
+  login: string;
+  avatarUrl: string;
+}
+
+/** Validates a stored-user JSON value (already `JSON.parse`d), dropping a
+ *  bad `avatarUrl` rather than rejecting the whole record — a corrupted or
+ *  `javascript:` avatar URL should not sign the user back out, it should
+ *  just not render an avatar. */
+export function sanitizeStoredUser(raw: unknown): SanitizedStoredUser | null {
+  const result = storedUserSchema.safeParse(raw);
+  if (!result.success) {
+    return null;
+  }
+  const avatarUrl = result.data.avatarUrl;
+  return {
+    login: result.data.login,
+    avatarUrl: avatarUrl && isHttpUrl(avatarUrl) ? avatarUrl : "",
+  };
+}
+
+// ---------------------------------------------------------------------------
+// OAuth callback params + Worker token-exchange response
+// ---------------------------------------------------------------------------
+
+/** GitHub's `code`/`state` query params: non-empty, bounded, control-char
+ *  free — they round-trip through a URL and a POST body before this app or
+ *  the Worker ever inspects their content. */
+const oauthParamSchema = z.string().check(
+  z.minLength(1),
+  z.maxLength(2048),
+  z.refine((s) => !CONTROL_CHARS.test(s), { message: "must not contain control characters" }),
+);
+
+export const oauthCallbackParamsSchema = z.object({
+  code: oauthParamSchema,
+  state: oauthParamSchema,
+});
+
+/** The oauth-worker's `/exchange` and `/refresh` JSON response. Every field
+ *  is optional at the schema level (a real failure response carries only
+ *  `error`/`error_description`) — oauth.ts's own success check (`!data.error
+ *  && data.access_token`) still decides whether the exchange succeeded; this
+ *  schema exists so a field that IS present is at least well-typed before
+ *  `access_token` is stored as a bearer-header token. */
+export const tokenResponseSchema = z.object({
+  access_token: z.optional(tokenSchema),
+  expires_in: z.optional(z.number()),
+  refresh_token: z.optional(tokenSchema),
+  refresh_token_expires_in: z.optional(z.number()),
+  token_type: z.optional(z.string()),
+  scope: z.optional(z.string()),
+  error: z.optional(z.string()),
+  error_description: z.optional(z.string()),
+});
+
+// ---------------------------------------------------------------------------
+// Config layers (App.tsx's pasted global/inherited config — roadmap 008)
+// ---------------------------------------------------------------------------
+
+export interface LayerParseResult {
+  config?: Record<string, unknown>;
+  error?: string;
+}
+
+/**
+ * Replaces `parseLayerText`'s hand-rolled `typeof`/`Array.isArray` check.
+ * Empty text = layer off (unchanged). A parse failure keeps `JSON.parse`'s
+ * own error text verbatim (unchanged — the field's error message has always
+ * been "Not valid JSON: <native message>", no translation layer to preserve
+ * here). A value that parses but isn't usable keeps the EXACT existing
+ * string `"must be a JSON object"` so the two `layer-editor-error` render
+ * sites (App.tsx) and anything depending on that text keep reading the same
+ * way — now covering the pollution case too (a `__proto__`/`constructor`/
+ * `prototype` key anywhere in the layer, including nested `packageRules[n]`,
+ * is rejected with the same message rather than silently reaching a merge).
+ */
+export function parseLayerJson(text: string): LayerParseResult {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return {};
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+  if (!isValidConfigObject(parsed)) {
+    return { error: "must be a JSON object" };
+  }
+  return { config: parsed };
+}
+
+// ---------------------------------------------------------------------------
+// Repo-load input (App.tsx's `parseRepoRef` result, before request building)
+// ---------------------------------------------------------------------------
+
+/** A parsed repo reference's host/repo/ref, right before it becomes fetch
+ *  input: bounded length, no control characters (these ultimately compose a
+ *  request URL / path). */
+export const repoRefPartSchema = z.string().check(
+  z.maxLength(512),
+  z.refine((s) => !CONTROL_CHARS.test(s), { message: "must not contain control characters" }),
+);
+
+export function isValidRepoRefPart(value: string): boolean {
+  return value.length <= 512 && !CONTROL_CHARS.test(value);
+}

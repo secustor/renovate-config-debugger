@@ -70,6 +70,13 @@ import {
   type ShareView,
 } from "./share";
 import { useBackToTopVisible, useHomeEndPageScroll } from "./scroll-ergonomics";
+import {
+  isValidEndpoint,
+  isValidPlatform,
+  isValidRepoRefPart,
+  isValidToken,
+  parseLayerJson,
+} from "./input-schemas";
 
 const DEFAULT_CONFIG = `{
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
@@ -215,31 +222,27 @@ interface RunInputs {
   platformOverride?: boolean;
 }
 
-interface LayerParse {
-  config?: Record<string, unknown>;
-  error?: string;
-}
+// Roadmap 030: parses an optional JSON config layer (008), pollution-checked
+// (own `__proto__`/`constructor`/`prototype` keys anywhere, including nested
+// `packageRules[n]`, are rejected). Empty text = layer off, unchanged; the
+// "must be a JSON object" message and native JSON.parse error text are kept
+// verbatim — both `layer-editor-error` render sites below depend on them.
+const parseLayerText = parseLayerJson;
 
-/** Parses an optional JSON config layer (008). Empty text = layer off. */
-function parseLayerText(text: string): LayerParse {
-  const trimmed = text.trim();
-  if (!trimmed) {
-    return {};
+/** Non-secret settings (platform/endpoint) persist across tabs → localStorage.
+ *  Roadmap 030: a value that fails `isValid` is silently reset to the
+ *  default and the bad stored value is removed — storage can drift across
+ *  app versions or be hand-edited, and it must never poison every later run. */
+function readLocal(key: string, fallback: string, isValid: (v: string) => boolean): string {
+  const raw = localStorage.getItem(key);
+  if (raw === null) {
+    return fallback;
   }
-  try {
-    const parsed: unknown = JSON.parse(trimmed);
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-      return { error: "must be a JSON object" };
-    }
-    return { config: parsed as Record<string, unknown> };
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : String(err) };
+  if (isValid(raw)) {
+    return raw;
   }
-}
-
-/** Non-secret settings (platform/endpoint) persist across tabs → localStorage. */
-function readLocal(key: string, fallback: string): string {
-  return localStorage.getItem(key) ?? fallback;
+  localStorage.removeItem(key);
+  return fallback;
 }
 
 function persistLocal(key: string, value: string): void {
@@ -250,9 +253,18 @@ function persistLocal(key: string, value: string): void {
   }
 }
 
-/** Per-host tokens are secrets → sessionStorage (cleared when the tab closes). */
-function readSession(key: string, fallback: string): string {
-  return sessionStorage.getItem(key) ?? fallback;
+/** Per-host tokens are secrets → sessionStorage (cleared when the tab closes).
+ *  Roadmap 030: same silent-fallback-and-remove rule as {@link readLocal}. */
+function readSession(key: string, fallback: string, isValid: (v: string) => boolean): string {
+  const raw = sessionStorage.getItem(key);
+  if (raw === null) {
+    return fallback;
+  }
+  if (isValid(raw)) {
+    return raw;
+  }
+  sessionStorage.removeItem(key);
+  return fallback;
 }
 
 function persistSession(key: string, value: string): void {
@@ -314,12 +326,22 @@ export function App() {
   // directly, sidestepping that debounce entirely.
   const [editorKey, setEditorKey] = useState(0);
   const [fileName, setFileName] = useState<"renovate.json" | "renovate.json5">("renovate.json");
-  const [token, setToken] = useState(() => readSession(TOKEN_KEY, ""));
-  const [gitlabToken, setGitlabToken] = useState(() => readSession(GITLAB_TOKEN_KEY, ""));
-  const [giteaToken, setGiteaToken] = useState(() => readSession(GITEA_TOKEN_KEY, ""));
-  const [forgejoToken, setForgejoToken] = useState(() => readSession(FORGEJO_TOKEN_KEY, ""));
-  const [platform, setPlatform] = useState(() => readLocal(PLATFORM_KEY, "github"));
-  const [endpoint, setEndpoint] = useState(() => readLocal(ENDPOINT_KEY, "https://api.github.com"));
+  const [token, setToken] = useState(() => readSession(TOKEN_KEY, "", isValidToken));
+  const [gitlabToken, setGitlabToken] = useState(() =>
+    readSession(GITLAB_TOKEN_KEY, "", isValidToken),
+  );
+  const [giteaToken, setGiteaToken] = useState(() =>
+    readSession(GITEA_TOKEN_KEY, "", isValidToken),
+  );
+  const [forgejoToken, setForgejoToken] = useState(() =>
+    readSession(FORGEJO_TOKEN_KEY, "", isValidToken),
+  );
+  const [platform, setPlatform] = useState(() =>
+    readLocal(PLATFORM_KEY, "github", isValidPlatform),
+  );
+  const [endpoint, setEndpoint] = useState(() =>
+    readLocal(ENDPOINT_KEY, "https://api.github.com", isValidEndpoint),
+  );
   // 008 layer inputs (JSON text; empty = layer off) + the explicit override of
   // the global config's platform/endpoint (010 "reflect, then override").
   const [globalText, setGlobalText] = useState("");
@@ -632,6 +654,9 @@ export function App() {
   }, [result]);
 
   // An unparseable 008 layer never silently runs without it — block instead.
+  // Roadmap 030: the same gate gets a matching case for the endpoint field
+  // (the one point where the manually-typed endpoint is enforced — see
+  // `isValidEndpoint`'s doc comment) since it feeds `buildInputs` unchecked.
   function blockedByLayerErrors(): boolean {
     if (globalParse.error) {
       setFatal(
@@ -642,6 +667,12 @@ export function App() {
     if (inheritedParse.error) {
       setFatal(
         `The inherited config is not valid JSON (${inheritedParse.error}). Fix it or clear the field to run.`,
+      );
+      return true;
+    }
+    if (endpoint && !isValidEndpoint(endpoint)) {
+      setFatal(
+        `The endpoint "${endpoint}" is not an http(s) URL. Fix it or clear the field to run.`,
       );
       return true;
     }
@@ -894,10 +925,19 @@ export function App() {
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
+  // Roadmap 030: a token is validated (no control chars, sane length — the
+  // header-injection rule) before it is ever written to storage; the field
+  // still reflects whatever was typed (so the user isn't blocked mid-edit),
+  // it just isn't persisted while invalid — see the token inputs' inline
+  // error text below for the same check surfaced in the UI.
   function makeTokenHandler(key: string, setter: (v: string) => void) {
     return (value: string) => {
       setter(value);
-      persistSession(key, value);
+      if (isValidToken(value)) {
+        persistSession(key, value);
+      } else {
+        sessionStorage.removeItem(key);
+      }
     };
   }
   const onTokenChange = makeTokenHandler(TOKEN_KEY, setToken);
@@ -909,19 +949,29 @@ export function App() {
       setPlatformOverride(true);
     }
     setPlatform(value);
-    persistLocal(PLATFORM_KEY, value);
+    if (isValidPlatform(value)) {
+      persistLocal(PLATFORM_KEY, value);
+    }
     // Snap the endpoint to the new platform's default; the user can still edit.
     const next = PLATFORM_ENDPOINTS[value] ?? "";
     setEndpoint(next);
     persistLocal(ENDPOINT_KEY, next);
   }
 
+  // Roadmap 030: the endpoint is validated (http(s) only — the "dangerous
+  // URL" rule) before it is persisted; an invalid value stays only in the
+  // live field (see `blockedByLayerErrors`'s endpoint case, which blocks Run
+  // rather than silently using it) and is never written to storage.
   function onEndpointChange(value: string) {
     if (hasGlobalContext) {
       setPlatformOverride(true);
     }
     setEndpoint(value);
-    persistLocal(ENDPOINT_KEY, value);
+    if (isValidEndpoint(value)) {
+      persistLocal(ENDPOINT_KEY, value);
+    } else {
+      localStorage.removeItem(ENDPOINT_KEY);
+    }
   }
 
   const authState: AuthState = !oauthConfig
@@ -1118,7 +1168,16 @@ export function App() {
   // `local>` correctly); a bare slug uses the current platform context.
   async function onLoadRepo() {
     const parsed = parseRepoRef(repoInput);
-    if (!parsed) {
+    const trimmedRef = repoRef.trim();
+    // Roadmap 030: the parsed host/repo/ref are bounded and control-character
+    // free before they compose a request URL/path — the same "Enter a repo
+    // as..." notice covers a reference that parsed but shouldn't be trusted.
+    if (
+      !parsed ||
+      !isValidRepoRefPart(parsed.repo) ||
+      (parsed.host && !isValidRepoRefPart(parsed.host)) ||
+      !isValidRepoRefPart(trimmedRef)
+    ) {
       setNotice("Enter a repo as owner/repo, github.com/owner/repo, or a full repository URL.");
       return;
     }
@@ -1157,7 +1216,7 @@ export function App() {
         platform: repoPlatform,
         repo: parsed.repo,
         endpoint: repoEndpoint || undefined,
-        ref: repoRef.trim() || undefined,
+        ref: trimmedRef || undefined,
       });
       const nextFileName: ShareFileName = loaded.fileName.endsWith(".json5")
         ? "renovate.json5"
@@ -1454,6 +1513,16 @@ export function App() {
                       />
                     </label>
                   </div>
+                  {/* Roadmap 030: the "dangerous URL" rule, surfaced inline
+                      (014/023 style) — the same check that gates Run in
+                      `blockedByLayerErrors` and the one that keeps a bad
+                      value out of storage in `onEndpointChange`. */}
+                  {displayEndpoint && !isValidEndpoint(displayEndpoint) ? (
+                    <p className="layer-editor-error">
+                      Not a valid endpoint: must be an http(s) URL. The pipeline won&apos;t run
+                      until this is fixed or the field is cleared.
+                    </p>
+                  ) : null}
                   {reflectGlobal ? (
                     <p className="advanced-note platform-from-global">
                       <span className="badge prov-global">from global config</span>{" "}
@@ -1559,6 +1628,25 @@ export function App() {
                       />
                     </label>
                   </div>
+                  {/* Roadmap 030: the "header injection" rule (control
+                      characters, incl. CR/LF, or an unreasonable length) —
+                      a token failing this was never written to storage
+                      (see `makeTokenHandler`). */}
+                  {(
+                    [
+                      ["GitHub", token],
+                      ["GitLab", gitlabToken],
+                      ["Gitea", giteaToken],
+                      ["Forgejo", forgejoToken],
+                    ] as const
+                  )
+                    .filter(([, value]) => value && !isValidToken(value))
+                    .map(([label]) => (
+                      <p className="layer-editor-error" key={label}>
+                        {label} token contains characters that can&apos;t be sent in a request
+                        header, or is too long — it was not saved.
+                      </p>
+                    ))}
                 </div>
               </details>
 

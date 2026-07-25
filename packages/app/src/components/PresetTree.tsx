@@ -9,6 +9,7 @@ import { Explained, GLOSSARY, Term, type GlossaryEntry } from "../glossary";
 import { ConfigJson } from "./ConfigJson";
 import { CopyMarkdownButton } from "./CopyMarkdownButton";
 import { type AuthState, GithubAuthHint } from "./GithubAuthHint";
+import { findPollutedPath } from "../input-schemas";
 import { JsonDiff } from "./JsonDiff";
 import { MigrationSteps } from "./MigrationSteps";
 
@@ -1308,6 +1309,18 @@ function PresetInjector({
     setError(null);
     try {
       const parsed = parse!(text);
+      // Roadmap 030: injected preset content is user-supplied JSON that
+      // flows straight into the pipeline's merges — reject an own
+      // `__proto__`/`constructor`/`prototype` key anywhere in it (including
+      // nested `packageRules[n]`) before it ever reaches `onInject`. Checked
+      // here (the app boundary) rather than inside the engine's
+      // `parseInjectedPreset`, which stays untouched.
+      const pollutedAt = findPollutedPath(parsed);
+      if (pollutedAt) {
+        throw new Error(
+          `Preset content must not contain a "${pollutedAt[pollutedAt.length - 1]}" key (at ${pollutedAt.join(".")})`,
+        );
+      }
       onInject(key!, parsed);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));

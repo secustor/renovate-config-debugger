@@ -131,6 +131,22 @@ export async function encodeShareFragment(
   return `#config=${await encodeShareToken(input, opts)}`;
 }
 
+/**
+ * Roadmap 030 — encodes a raw JSON STRING directly into a share token,
+ * bypassing `encodeShareToken`'s payload builder entirely. Needed for
+ * adversarial fixtures that must express a key no ordinary JS object literal
+ * can: writing `{ __proto__: ... }` (or even `{ "__proto__": ... }`) as
+ * object-literal syntax sets the object's prototype instead of creating an
+ * own property, so it would vanish before `JSON.stringify` ever put it on
+ * the wire. Building the JSON text by hand instead guarantees the bytes
+ * really contain `"__proto__":`, which the app's `JSON.parse` on decode
+ * turns into a genuine own property — reproducing the real attack.
+ */
+export async function encodeRawShareToken(json: string): Promise<string> {
+  const compressed = await deflateRaw(new TextEncoder().encode(json));
+  return bytesToBase64url(compressed);
+}
+
 /** Simulates a link cut short in transit: drops the token's trailing chars.
  *  deflate-raw carries no length, so the shortened bytes fail to inflate —
  *  the app's "cut off" signature. */

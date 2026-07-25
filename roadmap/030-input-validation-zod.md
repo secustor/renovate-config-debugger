@@ -1,6 +1,104 @@
 # 030 — Input validation at every boundary (zod/mini)
 
-Milestone: M8 · Status: planned
+Milestone: M8 · Status: done
+
+> Implemented as specified. A single new module, `packages/app/src/
+input-schemas.ts`, holds every schema and typed parse helper, built
+> exclusively on `zod/mini` (the `zod` package's tree-shakeable functional
+> build — every import in the app is `from "zod/mini"`, never the full `zod`
+> entry point). Three things live there: (1) schemas for the share payload's
+> security-relevant fields (`platform`/`endpoint`/`globalConfig`/
+> `inheritedConfig`/`platformOverride`), storage reads (platform/endpoint/
+> per-host tokens/the OAuth stored user), OAuth callback params and the
+> Worker's token-exchange response, and repo-load ref parts; (2) a shared
+> deep pollution guard, `findPollutedPath`/`isPolluted`, recursing through
+> object AND array nesting (so `packageRules[n].__proto__` is caught) for own
+> `__proto__`/`constructor`/`prototype` keys; (3) the http(s)-only URL rule
+> (`isHttpUrl`/`endpointSchema` — deliberately not zod's built-in `httpUrl()`
+> format, which also demands a dotted hostname and would reject the
+> localhost/bare-IP self-hosted endpoints 010 supports) and the token rule
+> (`isValidToken`/`tokenSchema`: no control characters, incl. CR/LF/NUL, and a
+> 4096-char cap). **The pollution guard's placement is the load-bearing
+> detail**: it is verified (input-schemas.test.ts's "zod's object/record
+> parsing silently drops an own `__proto__` key" case) that zod's own object/
+> record parsing quietly strips an own `"__proto__"` property while copying
+> recognized fields onto its output — it never uses the `target[key] = value`
+> assignment form that would trip the accessor's setter, so nothing is
+> actually polluted, but the key is simply gone by the time any `.check()`/
+> `.refine()` could see it. A guard placed after a zod `.parse()` call would
+> therefore never fire. Every call site in this codebase runs it on the value
+> straight out of `JSON.parse` instead — `configObjectSchema` wraps `z.
+unknown()` (which performs no copy) with a refine, so nesting it inside a
+> larger object schema still sees the untouched raw value.
+>
+> Wiring: `share.ts`'s `decodeShareResult` now runs
+> `sharePayloadStrictFieldsSchema` (platform/endpoint/the two config layers/
+> platformOverride) as a unit AFTER the existing 027 envelope/checksum gates —
+> a failure there classifies as "damaged" (the version is already known-good
+> at that point, so it's transit/tamper damage, not a future-version
+> payload), directly reusing 027's banner plumbing with no new error
+> vocabulary. `view`/`sim` are deliberately NOT part of that hard-fail schema:
+> `sanitizeShareView`/`sanitizeShareSim` validate each field independently and
+> drop only the malformed one, preserving 028's forward-compatible tolerance
+> for an unrecognized `tab` (a hand-edited link, or a future version's new tab
+> id) and extending the same treatment to `stage`/`node`/`step`, which
+> previously reached React state completely unchecked. `fileName` keeps its
+> pre-existing lenient normalize-not-reject ternary (no security
+> implication). App.tsx's `parseLayerText` is now `parseLayerJson` from the
+> schemas module — same "must be a JSON object" message and native
+> `JSON.parse` error text preserved verbatim, now also pollution-checked.
+> `readLocal`/`readSession` take a validator predicate and silently fall back
+> to the default (removing the bad stored value) on failure; `onEndpointChange`/
+> `makeTokenHandler` skip persisting an invalid value while still updating the
+> live field, with inline `layer-editor-error`-styled messages for a bad
+> endpoint or token; `blockedByLayerErrors` gained an endpoint case so Run is
+> blocked (not silently attempted) on a bad manually-typed endpoint.
+> `onLoadRepo`'s parsed host/repo/ref are bounds/control-character checked
+> before `loadRepoConfig`. `PresetTree.tsx`'s injection `submit()` runs
+> `findPollutedPath` on the engine's `parseInjectedPreset` output before
+> calling `onInject` (verified: JSON5's parser has the same safe own-property
+> behavior as `JSON.parse`, so the guard sees a real `__proto__` key when one
+> is present) — the engine package itself stays untouched. `oauth.ts`
+> validates the callback's `code`/`state`, the Worker's token-exchange
+> response (an out-of-shape `access_token` is treated as no token at all,
+> failing the same "Token exchange failed" path), the GitHub user API
+> response's `avatar_url` (dropped if not http(s), login kept), and the
+> stored user read back from `sessionStorage` (invalid JSON or a non-string
+> `login` removes the stored value and returns null, exactly like every other
+> storage read). `run.ts`'s `ensureAuth` re-validates each per-host PAT with
+> `isValidToken` immediately before it reaches `engine.setPresetAuth` — the
+> actual use-time boundary, checked again rather than trusted transitively
+> from the write side. A latent bug surfaced by finally having unit coverage
+> on `decodeShareResult`: `pipeThrough`'s unawaited `writer.write`/
+> `writer.close()` promises could reject unhandled when a corrupt/truncated
+> stream errored; both now carry a `.catch(() => {})` (the real failure is
+> already surfaced through the awaited readable side).
+>
+> Tests: 122 new/updated vitest cases across `input-schemas.test.ts` (74) and
+> a new `share.test.ts` (24, share.ts had zero prior unit coverage) plus the
+> pre-existing `run-digest.test.ts` (24) — adversarial cases for `__proto__`
+> at several depths (including inside a share payload's `globalConfig.
+packageRules[n]`), `constructor`/`prototype` keys, `javascript:`/`data:`
+> endpoints, CR-LF/NUL tokens, wrong-typed `view`/`sim` fields, tampered
+> OAuth-user storage JSON, and the pollution-guard-ordering proof. Two new
+> e2e cases in `10-share-diagnostics.spec.ts` (a polluted `globalConfig` and a
+> `javascript:` endpoint both surface the damaged banner), built via a new
+> `encodeRawShareToken` fixture helper (a raw-JSON-text encoder, since a
+> `__proto__`-keyed payload can't be expressed as a JS object literal without
+> tripping the same special-cased-prototype-setter gotcha the guard itself
+> exists to catch). Bundle: `zod/mini`'s own tree-shaken contribution,
+> measured by bundling `input-schemas.ts` standalone, is ~6.8 kB gzip — under
+> the ~10 kB budget. The production build's main entry chunk actually
+> _shrank_ (~454.7 kB → ~414.0 kB gzip); Vite/rolldown's automatic chunk-
+> splitting heuristic reacted to the changed module graph by splitting ~54 kB
+> gzip of pre-existing (non-zod) code out into four new eagerly
+> `modulepreload`-ed chunks, for a net "everything fetched on initial load"
+> delta of roughly +13.8 kB gzip — a chunking side effect of the new shared
+> module's import graph, not zod/mini code growth (confirmed by grepping the
+> built output for a zod-specific marker, which appears only in the main
+> chunk). Flagged here rather than silently accepted; no `manualChunks`
+> config was added to counteract it, to keep this a validation change, not a
+> build-config change.
 
 ## Summary
 
