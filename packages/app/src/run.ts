@@ -58,7 +58,7 @@ export interface RunOptions {
  * private repos / lift rate limits identically. A GitHub OAuth token (009),
  * silently refreshed when needed, wins over the GitHub PAT fallback.
  */
-async function ensureAuth(engine: Engine, opts?: RunOptions): Promise<void> {
+function applyAuth(engine: Engine, oauthToken: string | null, opts?: RunOptions): void {
   if (opts?.suppressTokens) {
     // Overwrite (never just skip): `setPresetAuth` replaces module state a
     // PREVIOUS run may have populated, so this is what actually guarantees no
@@ -66,14 +66,44 @@ async function ensureAuth(engine: Engine, opts?: RunOptions): Promise<void> {
     engine.setPresetAuth({});
     return;
   }
-  const oauthToken = await getValidToken();
   const auth: EngineModule.PresetAuth = {};
   for (const host of HOST_TOKENS) {
     auth[host.authKey] = sessionToken(host.storageKey);
   }
-  // A GitHub OAuth token (silently refreshed above) wins over the GitHub PAT.
+  // A GitHub OAuth token (silently refreshed by the caller) wins over the
+  // GitHub PAT.
   auth.githubToken = oauthToken ?? auth.githubToken;
   engine.setPresetAuth(auth);
+}
+
+/**
+ * Roadmap 031: the engine chunk download and the OAuth token refresh (a
+ * Worker round-trip when the token is stale) are independent, so they run
+ * concurrently instead of back-to-back. Every ordering invariant holds:
+ * both have settled before `setPresetAuth`, so any fetch the engine issues
+ * still carries the refreshed token; while the untrusted-endpoint guard
+ * stands (`suppressTokens`), the token machinery is never even touched —
+ * exactly as before, no refresh request leaves the browser for a run that
+ * must not use credentials.
+ */
+async function engineWithAuth(opts?: RunOptions): Promise<Engine> {
+  const [engine, oauthToken] = await Promise.all([
+    import("@renovate-config-visualizer/engine"),
+    opts?.suppressTokens ? null : getValidToken(),
+  ]);
+  applyAuth(engine, oauthToken, opts);
+  return engine;
+}
+
+/**
+ * Roadmap 031: warms the engine chunk (~437 kB gz) so the download overlaps
+ * idle time or hover intent instead of serializing behind the Run click.
+ * Idempotent — the dynamic import is module-cached, so a Run that beats the
+ * preload simply awaits the same in-flight promise. Best-effort: a network
+ * failure here is swallowed, the real import on Run will surface it.
+ */
+export function preloadEngine(): void {
+  void import("@renovate-config-visualizer/engine").catch(() => {});
 }
 
 /**
@@ -81,8 +111,7 @@ async function ensureAuth(engine: Engine, opts?: RunOptions): Promise<void> {
  * Vite code-splits it automatically behind this call.
  */
 export async function run(input: PipelineInput, opts?: RunOptions): Promise<TraceResult> {
-  const engine = await import("@renovate-config-visualizer/engine");
-  await ensureAuth(engine, opts);
+  const engine = await engineWithAuth(opts);
   return engine.runPipeline(input);
 }
 
@@ -130,7 +159,6 @@ export async function loadRepoConfig(
   req: RepoConfigRequest,
   opts?: RunOptions,
 ): Promise<RepoConfigResult> {
-  const engine = await import("@renovate-config-visualizer/engine");
-  await ensureAuth(engine, opts);
+  const engine = await engineWithAuth(opts);
   return engine.fetchRepoConfig(req);
 }

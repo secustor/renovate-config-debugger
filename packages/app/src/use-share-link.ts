@@ -175,6 +175,16 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
    * the first finishes its awaits).
    */
   async function loadShareToken(shareToken: string, isCancelled: () => boolean): Promise<void> {
+    // Roadmap 031: `getRenovateVersion()` IS the module-cached engine import,
+    // and any successful decode ends in a run that needs that chunk — so the
+    // (multi-second) download starts here and overlaps the decode instead of
+    // following it. Ordering preserved: nothing below reads the version
+    // before this promise resolves, and the decode→guard→populate→run
+    // sequence is untouched. Never rejects (null = engine import failed —
+    // the run below awaits the same cached import and surfaces that failure
+    // through onRun's fatal-error path), so a decode that fails early can
+    // abandon it without an unhandled rejection.
+    const versionPromise: Promise<string | null> = getRenovateVersion().catch(() => null);
     const decoded = await decodeShareResult(shareToken);
     if (isCancelled()) {
       return;
@@ -222,12 +232,18 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
       host.setHostSectionOpen(true);
     }
     host.pendingViewRef.current = payload.view ?? null;
-    const current = await getRenovateVersion();
-    if (!isCancelled() && payload.renovate && payload.renovate !== current) {
-      host.setNotice(
-        `This link was created with Renovate v${payload.renovate}; you're on v${current} — results may differ.`,
-      );
-    }
+    // Roadmap 031: the version-drift notice is informational — it must not
+    // hold the run behind the full engine download, so it fires whenever the
+    // version lands (usually mid-run), under the same cancellation rule it
+    // always had.
+    void (async () => {
+      const current = await versionPromise;
+      if (current !== null && !isCancelled() && payload.renovate && payload.renovate !== current) {
+        host.setNotice(
+          `This link was created with Renovate v${payload.renovate}; you're on v${current} — results may differ.`,
+        );
+      }
+    })();
     if (!isCancelled()) {
       // Awaited (not fire-and-forget) so a carried simulator descriptor is
       // armed AFTER the result commits — the RuleSimulator then applies it
@@ -278,13 +294,26 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
       const callback = oauthConfig ? readCallbackParams(window.location.search) : null;
       if (callback) {
         try {
-          const { user, returnHash } = await completeCallback(callback.code, callback.state);
+          const { userPromise, returnHash } = await completeCallback(callback.code, callback.state);
           if (isCancelled()) {
             return;
           }
+          // Roadmap 031: the token is stored, so the session is signed in NOW
+          // — a share link riding on `returnHash` decodes and auto-runs below
+          // without waiting for the cosmetic profile fetch, whose result
+          // lands on the toolbar chip whenever it arrives. Ordering
+          // preserved: the fragment is restored before the share decode
+          // reads it, and the auto-run still sees the stored token. Gated on
+          // the mount latch (not the decode generation) — a hashchange
+          // superseding the DECODE must not strand the chip nameless.
           hostRef.current.setSignedIn(true);
-          hostRef.current.setAuthUser(user);
           writeHash(window.location.pathname + returnHash, readShareToken(returnHash));
+          void (async () => {
+            const user = await userPromise;
+            if (user && mountedRef.current) {
+              hostRef.current.setAuthUser(user);
+            }
+          })();
         } catch (err) {
           if (isCancelled()) {
             return;

@@ -12,15 +12,7 @@
  * closing the tab clears them. GitHub Apps issue 8 h user tokens with a 6-month
  * refresh token; refreshing is a Worker round-trip.
  */
-import * as z from "zod/mini";
-import {
-  isHttpUrl,
-  isValidToken,
-  oauthCallbackParamsSchema,
-  pendingSignInSchema,
-  sanitizeStoredUser,
-  tokenResponseSchema,
-} from "./input-schemas";
+import { isHttpUrl, isValidOAuthParam, isValidToken, sanitizeStoredUser } from "./input-schemas";
 // Roadmap 033: storage access goes through the safe wrappers — a
 // storage-disabled browser reads "signed out" (get → null) and writes are
 // no-ops, instead of a throw taking down whatever called into this module.
@@ -203,7 +195,9 @@ async function postWorker(path: string, body: unknown): Promise<TokenResponse> {
   // invalid body (wrong types, or an access_token that couldn't safely go
   // into a header — the "header injection" rule) is treated as carrying no
   // token at all, so it fails the same "Token exchange failed" path below
-  // rather than something malformed ever being stored.
+  // rather than something malformed ever being stored. Roadmap 031: the
+  // schema module (zod) loads here, on an already-network-bound async path.
+  const { tokenResponseSchema } = await import("./input-schemas-zod");
   const parsed = tokenResponseSchema.safeParse(raw);
   const data: TokenResponse = parsed.success ? parsed.data : {};
   if (!res.ok || data.error || !data.access_token) {
@@ -230,11 +224,6 @@ function applyTokenResponse(data: TokenResponse): void {
   });
 }
 
-const userApiResponseSchema = z.object({
-  login: z.optional(z.string()),
-  avatar_url: z.optional(z.string()),
-});
-
 async function fetchUser(token: string): Promise<StoredUser> {
   const res = await fetch(USER_API, {
     headers: { authorization: `Bearer ${token}`, accept: "application/vnd.github+json" },
@@ -242,6 +231,7 @@ async function fetchUser(token: string): Promise<StoredUser> {
   if (!res.ok) {
     throw new Error(`Could not load your GitHub profile (HTTP ${res.status}).`);
   }
+  const { userApiResponseSchema } = await import("./input-schemas-zod");
   const parsed = userApiResponseSchema.safeParse(await res.json());
   const login = parsed.success ? (parsed.data.login ?? "") : "";
   const avatarUrl = parsed.success && parsed.data.avatar_url;
@@ -324,19 +314,23 @@ export function readCallbackParams(search: string): { code: string; state: strin
   if (!code || !state) {
     return null;
   }
-  const result = oauthCallbackParamsSchema.safeParse({ code, state });
-  return result.success ? result.data : null;
+  // Roadmap 031: the zod-free predicate, because this runs synchronously on
+  // the boot path (before the lazy schema module could load). Same rule.
+  return isValidOAuthParam(code) && isValidOAuthParam(state) ? { code, state } : null;
 }
 
 /**
- * Validates `state`, exchanges the code via the Worker, stores the token and
- * loads the user profile. Returns the user and the stashed return-hash. Throws
- * on state mismatch or exchange failure (caller stays signed out).
+ * Validates `state`, exchanges the code via the Worker and stores the token.
+ * Resolves as soon as the token is stored (roadmap 031) — the profile fetch
+ * that feeds the toolbar chip is purely cosmetic, so it rides along as a
+ * promise the caller consumes whenever it lands instead of gating the
+ * sign-in (and, downstream, a share link's decode and auto-run). Throws on
+ * state mismatch or exchange failure (caller stays signed out).
  */
 export async function completeCallback(
   code: string,
   state: string,
-): Promise<{ user: StoredUser; returnHash: string }> {
+): Promise<{ userPromise: Promise<StoredUser | null>; returnHash: string }> {
   const pendingRaw = sessionGet(K.pending);
   sessionRemove(K.pending);
   if (!pendingRaw) {
@@ -352,6 +346,7 @@ export async function completeCallback(
   } catch {
     throw new Error("Sign-in state was corrupted.");
   }
+  const { pendingSignInSchema } = await import("./input-schemas-zod");
   const pendingResult = pendingSignInSchema.safeParse(parsedPending);
   if (!pendingResult.success) {
     throw new Error("Sign-in state was corrupted.");
@@ -366,8 +361,15 @@ export async function completeCallback(
     redirect_uri: redirectUri(),
   });
   applyTokenResponse(data);
-  const user = await fetchUser(data.access_token as string);
-  return { user, returnHash: pending.returnHash ?? "" };
+  // Never rejects (null = profile unavailable; the chip shows a plain
+  // "signed in") so a caller that consumes it late needs no error path —
+  // pre-031 a profile failure failed the WHOLE callback even though the
+  // token was already stored, leaving a signed-in session behind a
+  // "sign-in failed" notice.
+  const userPromise: Promise<StoredUser | null> = fetchUser(data.access_token as string).catch(
+    () => null,
+  );
+  return { userPromise, returnHash: pending.returnHash ?? "" };
 }
 
 let refreshInFlight: Promise<string | null> | null = null;

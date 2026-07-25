@@ -1,32 +1,35 @@
 import { describe, expect, test } from "vitest";
 import {
-  configObjectSchema,
-  endpointSchema,
   findPollutedPath,
   hasValidPlatformContext,
   isHttpUrl,
   isPolluted,
   isValidConfigObject,
   isValidEndpoint,
+  isValidOAuthParam,
   isValidPlatform,
   isValidRepoHost,
   isValidRepoRefPart,
   isValidToken,
-  oauthCallbackParamsSchema,
   parseLayerJson,
+  sanitizeStoredUser,
+} from "./input-schemas";
+import {
+  configObjectSchema,
+  endpointSchema,
+  oauthCallbackParamsSchema,
   pendingSignInSchema,
   platformSchema,
   repoRefPartSchema,
+  resultsTabIdSchema,
   sanitizeShareSim,
   sanitizeShareView,
-  sanitizeStoredUser,
   shareConfigLayerSchema,
   sharePayloadStrictFieldsSchema,
   stageIdSchema,
-  resultsTabIdSchema,
   tokenResponseSchema,
   tokenSchema,
-} from "./input-schemas";
+} from "./input-schemas-zod";
 
 /**
  * Roadmap 030: per-schema accept/reject cases plus the adversarial suite the
@@ -35,6 +38,10 @@ import {
  * fields, and tampered storage JSON. Also proves the ordering claim in
  * findPollutedPath's doc comment: the guard must run on raw JSON.parse
  * output, not after a zod object/record schema has copied it.
+ *
+ * Roadmap 031 split the module in two — zod-free predicates (input-schemas)
+ * and the zod schemas built on them (input-schemas-zod) — but every rule and
+ * every case here is unchanged: the split moved code, not meaning.
  */
 
 describe("findPollutedPath / isPolluted", () => {
@@ -574,6 +581,15 @@ describe("OAuth callback params", () => {
   });
   test("rejects empty values", () => {
     expect(oauthCallbackParamsSchema.safeParse({ code: "", state: "xyz" }).success).toBe(false);
+  });
+
+  // Roadmap 031: `readCallbackParams` (sync, boot path) now applies the rule
+  // through this predicate; the schema above is its zod view. Same cases.
+  test("isValidOAuthParam mirrors the schema", () => {
+    expect(isValidOAuthParam("abc123")).toBe(true);
+    expect(isValidOAuthParam("abc\r\ndef")).toBe(false);
+    expect(isValidOAuthParam("")).toBe(false);
+    expect(isValidOAuthParam("a".repeat(3000))).toBe(false);
   });
 });
 

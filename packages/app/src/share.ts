@@ -12,12 +12,15 @@
  */
 import type { StageId } from "@renovate-config-visualizer/engine";
 import type { ResultsTabId } from "./results-tabs";
-import {
-  sanitizeShareSim,
-  sanitizeShareView,
-  sharePayloadStrictFieldsSchema,
-} from "./input-schemas";
 import { isTrustedEndpoint, PLATFORM_ENDPOINTS } from "./platform-endpoints";
+
+// Roadmap 031: the payload schemas (and with them zod) load with the first
+// encode/decode — both call sites are already async — via this module-cached
+// dynamic import, instead of riding the entry chunk. What is validated is
+// unchanged (030's guarantees live in input-schemas-zod.ts verbatim).
+function loadSchemas() {
+  return import("./input-schemas-zod");
+}
 
 const DEFAULT_PLATFORM = "github";
 const DEFAULT_ENDPOINT = "https://api.github.com";
@@ -177,8 +180,9 @@ export async function encodeShare(state: ShareState): Promise<string> {
   if (state.platformOverride) {
     payload.platformOverride = true;
   }
+  const { sanitizeShareView, sanitizeShareSim } = await loadSchemas();
   // Roadmap 033: the encode side runs the SAME sanitizers the decoder runs
-  // (input-schemas.ts), so what goes onto the wire and what is accepted off
+  // (input-schemas-zod.ts), so what goes onto the wire and what is accepted off
   // it can never disagree again. This reconciles the one live divergence the
   // 2026-07-25 review found: the old encode-side `normalizeView` dropped
   // `step: 0` while the decoder accepted it — so sharing the FIRST rewrite
@@ -253,6 +257,8 @@ export async function decodeShareResult(token: string): Promise<DecodeResult> {
   if (typeof p.c === "string" && p.c !== configChecksum(p.config)) {
     return { ok: false, reason: "cutOff" };
   }
+  const { sanitizeShareView, sanitizeShareSim, sharePayloadStrictFieldsSchema } =
+    await loadSchemas();
   // Roadmap 030: the security-relevant fields (platform/endpoint/the two
   // config layers/platformOverride) are schema-validated as a unit — a
   // hostile or corrupted value here (a polluted globalConfig, a

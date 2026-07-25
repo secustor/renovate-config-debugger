@@ -49,6 +49,11 @@ jobs:
           VITE_OAUTH_WORKER_URL: ${{ vars.VITE_OAUTH_WORKER_URL }}
           VITE_GITHUB_APP_SLUG: ${{ vars.VITE_GITHUB_APP_SLUG }}
         run: pnpm --filter @renovate-config-visualizer/app build
+      - name: Critical-path entry-set sizes (roadmap 031)
+        # Prints the gzip size of everything fetched before first paint (the
+        # entry script + its modulepreload graph + the stylesheet), so a chunk
+        # sliding back into the entry set is visible next to the build.
+        run: node packages/app/scripts/report-entry-size.mjs
 
       - name: Install Playwright chromium
         # Only chromium, with its OS deps — the e2e suite is chromium-only.

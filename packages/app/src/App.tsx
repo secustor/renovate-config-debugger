@@ -1,5 +1,6 @@
 import {
-  type ReactNode,
+  lazy,
+  Suspense,
   useCallback,
   useDeferredValue,
   useEffect,
@@ -16,23 +17,14 @@ import type {
   TraceResult,
 } from "@renovate-config-visualizer/engine";
 import { ConfigEditor, type ConfigEditorHandle } from "./components/ConfigEditor";
-import { EffectiveConfig, type EffectiveStats } from "./components/EffectiveConfig";
+import type { EffectiveStats } from "./components/EffectiveConfig";
 import { type AuthState, GithubAuthHint } from "./components/GithubAuthHint";
-import { HypotheticalBanner } from "./components/HypotheticalBanner";
-import { MessagesPanel } from "./components/MessagesPanel";
-import { MigrationSteps } from "./components/MigrationSteps";
-import { OverviewTab } from "./components/OverviewTab";
-import { PresetTree } from "./components/PresetTree";
 import {
   identityForNodeId,
   nodeIdForIdentity,
   presetTreeSummary,
 } from "./components/preset-tree-stats";
-import { ResultsPanel, type ResultsTabDescriptor } from "./components/ResultsPanel";
-import { RuleSimulator } from "./components/RuleSimulator";
-import { StageDiff } from "./components/StageDiff";
-import { StageTimeline } from "./components/StageTimeline";
-import { STAGE_EXPLAINERS, STAGE_LABELS } from "./stage-copy";
+import type { ResultsTabDescriptor } from "./components/ResultsPanel";
 import { Term } from "./glossary";
 import { legacyTabForView, type ResultsTabId } from "./results-tabs";
 import { buildRunDigest, type DigestInput, type DigestProblem } from "./run-digest";
@@ -56,6 +48,7 @@ import {
   loadErrorTranslationLib,
   loadOptionIndex,
   loadRepoConfig,
+  preloadEngine,
   run,
 } from "./run";
 import type {
@@ -128,18 +121,27 @@ const MOD_KEY_LABEL = /Mac|iPhone|iPad|iPod/i.test(
   ? "Cmd"
   : "Ctrl";
 
-/** Roadmap 028: the viewport below which the two panes stack (config on top,
- *  results below) — must stay in sync with index.css's `.app-split` media
- *  query, since the post-Run scroll-into-view only applies while stacked. */
-const STACKED_VIEWPORT_QUERY = "(max-width: 60rem)";
-
-/** Roadmap 028: how much of the stacked results pane has to be on screen for a
- *  Run to have visibly produced something. Below this, the run is landed on. */
-const MIN_VISIBLE_RESULTS_PX = 200;
-
 /** Roadmap 032: evaluated once — it derives from build-time env only, and a
  *  per-render call handed a fresh value to memoized children for nothing. */
 const INSTALL_URL = installUrl();
+
+/** Roadmap 031: the whole results half (react-diff-view + diff + every
+ *  result-only component) rides one lazy chunk — nothing behind this can
+ *  render before a run, and a run downloads the far larger engine chunk
+ *  first. Mounted once the first result exists and never unmounted again
+ *  (`result` never returns to null and a resolved `lazy` never re-suspends),
+ *  so the 028 always-mounted tab-shell state is untouched by the boundary. */
+const ResultsColumn = lazy(() =>
+  import("./components/ResultsColumn").then((m) => ({ default: m.ResultsColumn })),
+);
+
+/** Roadmap 031: warms the two chunks a Run needs — the engine, and the
+ *  results column that renders its output — so neither download serializes
+ *  behind the click. Both dynamic imports are module-cached (idempotent). */
+function preloadRunChunks(): void {
+  preloadEngine();
+  void import("./components/ResultsColumn").catch(() => {});
+}
 
 /** Strips a trailing `.git` and slashes from a repo path. */
 function stripRepoSuffix(path: string): string {
@@ -328,6 +330,19 @@ export function App() {
   // scroll box; a back-to-top button appears once the page has scrolled down.
   useHomeEndPageScroll();
   const showBackToTop = useBackToTopVisible();
+  // Roadmap 031: start downloading the ~437 kB gz engine chunk (and the small
+  // results-column chunk) once the browser is idle after first paint, so the
+  // first Run — or a share link's auto-run — begins computing instead of
+  // fetching. requestIdleCallback keeps it off the first-paint critical path;
+  // the setTimeout fallback covers Safari, which still lacks it.
+  useEffect(() => {
+    if (typeof window.requestIdleCallback === "function") {
+      const id = window.requestIdleCallback(preloadRunChunks);
+      return () => window.cancelIdleCallback(id);
+    }
+    const id = window.setTimeout(preloadRunChunks, 1_000);
+    return () => window.clearTimeout(id);
+  }, []);
   // View state pending from a decoded link, applied once the run produces a
   // result (identities → node ids need the resolved tree). A ref, not state, so
   // consuming it does not trigger a render.
@@ -501,26 +516,12 @@ export function App() {
     setBackTab(null);
   }, [result]);
 
-  // Roadmap 028: on a stacked (narrow) viewport the results pane sits below
-  // the fold, so a Run would otherwise look like it did nothing — land on the
-  // consequence (023's pattern). Runs AFTER the preserve-scroll layout effect
-  // above and only when the pane really is off-screen, so a scroll-preserving
-  // re-run keeps the position it restored.
-  useEffect(() => {
-    if (!result || !focusResultsRef.current) {
-      return;
-    }
-    focusResultsRef.current = false;
-    const el = resultsColRef.current;
-    if (!el || !window.matchMedia(STACKED_VIEWPORT_QUERY).matches) {
-      return;
-    }
-    const rect = el.getBoundingClientRect();
-    const visible = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
-    if (visible < MIN_VISIBLE_RESULTS_PX) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }, [result]);
+  // Roadmap 028's post-Run scroll-into-view lives in ResultsColumn since 031:
+  // with the results half lazy, an App-side effect on `result` could run
+  // against the Suspense fallback (a zero-height column on the very first
+  // run) and measure a page the results hadn't grown yet. The column's own
+  // effect runs only after its content committed. `focusResultsRef` (armed by
+  // onRun below) and `resultsColRef` (the pane to measure) are handed down.
 
   const globalParse = useMemo(() => parseLayerText(globalText), [globalText]);
   const inheritedParse = useMemo(() => parseLayerText(inheritedText), [inheritedText]);
@@ -964,170 +965,6 @@ export function App() {
     effectiveStats,
   ]);
 
-  // Roadmap 032: the seven tab panels render RUN RESULTS — they change when a
-  // run completes or a view-state jump lands, never while the user types. So
-  // `content` (and every other per-keystroke value: `injected`,
-  // `packageRuleOffsets`, the live share state) is deliberately absent from
-  // these deps: every callback that needs such state reads it through the
-  // latest-ref idiom (`onInject`, `focusEditorRepoIndex`, `onApplyFix`,
-  // `buildShareLinkAndCopy`). The element tree here keeps its identity across
-  // keystrokes, so React bails out of reconciling all seven panels — typing
-  // re-renders App itself and nothing below the tab shell.
-  const panels = useMemo<Record<ResultsTabId, ReactNode> | null>(() => {
-    if (!result) {
-      return null;
-    }
-    return {
-      overview: (
-        <OverviewTab
-          digest={digest}
-          banner={validateHasErrors ? <HypotheticalBanner /> : null}
-          onOpen={jumpToTab}
-          onWhereFrom={onWhereFrom}
-        />
-      ),
-      pipeline: (
-        <>
-          <StageTimeline result={result} selected={selectedStage} onSelect={setSelectedStage} />
-          <div className="card">
-            <div className="card-title">
-              Stage: {STAGE_LABELS[selectedStage]}
-              <span className="card-title-hint"> — {STAGE_EXPLAINERS[selectedStage].plain}</span>
-              {deferredStage !== selectedStage ? (
-                <span className="rendering-note"> rendering…</span>
-              ) : null}
-            </div>
-            {/* Roadmap 023: the presets/merge stages run on a config a real
-                Renovate run would have already rejected — say so. */}
-            {validateHasErrors && (deferredStage === "preset" || deferredStage === "merge") ? (
-              <HypotheticalBanner />
-            ) : null}
-            {/* Roadmap 028: Pipeline always shows the whole-stage diff —
-                the per-rewrite stepper is the Rewrites tab's job. */}
-            {deferredStage === "migrate" && migrateSteps.length > 0 ? (
-              <p className="stage-crosslink">
-                {migrateSteps.length} rewrite{migrateSteps.length === 1 ? "" : "s"} applied ·{" "}
-                <button type="button" className="linklike" onClick={() => jumpToTab("rewrites")}>
-                  step through them one by one →
-                </button>
-              </p>
-            ) : null}
-            <StageDiff result={result} stage={deferredStage} />
-          </div>
-        </>
-      ),
-      rewrites: migrateStepperMounted ? (
-        <div className="card">
-          <div className="card-title">
-            Rewrites
-            <span className="card-title-hint">
-              {" "}
-              — the deprecated options Renovate rewrote, one at a time
-            </span>
-          </div>
-          <MigrationSteps
-            steps={migrateSteps}
-            finalConfig={finalMigrated}
-            index={migrationStepIndex}
-            onIndexChange={setMigrationStepIndex}
-          />
-        </div>
-      ) : (
-        <p className="empty-note">No rewrites — this config already uses current option names.</p>
-      ),
-      presets: result.presetTree?.children.length ? (
-        <PresetTree
-          result={result}
-          onInject={onInject}
-          selectedId={selectedNodeId}
-          onSelectNode={setSelectedNodeId}
-          authState={authState}
-          onSignIn={onSignIn}
-          installUrl={INSTALL_URL}
-        />
-      ) : (
-        <p className="empty-note">
-          No presets — this config has no <code>extends</code> entries to resolve.
-        </p>
-      ),
-      effective: result.finalConfig ? (
-        <>
-          {validateHasErrors ? <HypotheticalBanner /> : null}
-          <EffectiveConfig
-            result={result}
-            onSelectPreset={selectPresetNode}
-            onStats={setEffectiveStats}
-            focusFilterNonce={effectiveFilterNonce}
-          />
-        </>
-      ) : (
-        <p className="empty-note">
-          No effective config — the pipeline did not get far enough to merge one.
-        </p>
-      ),
-      simulator: result.finalConfig ? (
-        <RuleSimulator
-          result={result}
-          onSelectPreset={selectPresetNode}
-          onJumpToEditor={focusEditorRepoIndex}
-          focusRuleIndex={pendingRuleFocus}
-          onRuleFocused={onRuleFocused}
-          errorLib={errorLib}
-          simRequest={simRequest}
-          onCopySimLink={buildShareLinkAndCopy}
-          configInvalid={validateHasErrors}
-        />
-      ) : (
-        <p className="empty-note">
-          Nothing to simulate — the pipeline produced no effective config.
-        </p>
-      ),
-      problems:
-        errorCount + warningCount > 0 ? (
-          <MessagesPanel
-            result={result}
-            ruleAttribution={ruleProvenance}
-            onJumpToEditor={focusEditorRepoIndex}
-            onJumpToSimRule={onJumpToSimRule}
-            errorLib={errorLib}
-            onApplyFix={onApplyFix}
-          />
-        ) : (
-          <p className="empty-note">
-            No errors or warnings — Renovate accepted every option in this config.
-          </p>
-        ),
-    };
-  }, [
-    result,
-    digest,
-    validateHasErrors,
-    jumpToTab,
-    onWhereFrom,
-    selectedStage,
-    deferredStage,
-    migrateSteps,
-    migrateStepperMounted,
-    finalMigrated,
-    migrationStepIndex,
-    onInject,
-    selectedNodeId,
-    authState,
-    selectPresetNode,
-    effectiveFilterNonce,
-    focusEditorRepoIndex,
-    pendingRuleFocus,
-    onRuleFocused,
-    errorLib,
-    simRequest,
-    buildShareLinkAndCopy,
-    errorCount,
-    warningCount,
-    ruleProvenance,
-    onJumpToSimRule,
-    onApplyFix,
-  ]);
-
   // The encode side of `useShareLink`'s copy-link path: assembles the CURRENT
   // state (config + view, optionally simulator inputs) for the share codec.
   // Tokens are never encoded (see share.ts); `sim` carries only dependency-
@@ -1485,6 +1322,11 @@ export function App() {
                 onClick={() =>
                   void onRun(undefined, undefined, { preserveScroll: Boolean(result) })
                 }
+                // Roadmap 031: hover/focus signal Run intent — start the
+                // engine download then (no-op when the idle preload or an
+                // earlier run already fetched it).
+                onPointerEnter={preloadRunChunks}
+                onFocus={preloadRunChunks}
                 disabled={running}
                 title="Process this config with Renovate's own code — it never leaves your browser"
               >
@@ -1771,16 +1613,57 @@ export function App() {
             ) : null}
           </div>
 
-          {panels ? (
+          {result ? (
             <div className="results-col" ref={resultsColRef}>
-              <ResultsPanel
-                tabs={resultsTabs}
-                active={tab}
-                onSelect={setTab}
-                back={backTab}
-                onBack={() => setTab(backTab ?? "overview")}
-                panels={panels}
-              />
+              {/* Roadmap 031: the results chunk is preloaded at idle and on
+                  Run intent, so this fallback is a formality — and once the
+                  lazy module has resolved, re-renders never suspend, so the
+                  mounted shell (and all its per-tab state) is never torn
+                  down by the boundary. */}
+              <Suspense fallback={null}>
+                <ResultsColumn
+                  result={result}
+                  resultsColRef={resultsColRef}
+                  focusResultsRef={focusResultsRef}
+                  tabs={resultsTabs}
+                  tab={tab}
+                  onSelectTab={setTab}
+                  backTab={backTab}
+                  onBack={() => setTab(backTab ?? "overview")}
+                  digest={digest}
+                  validateHasErrors={validateHasErrors}
+                  jumpToTab={jumpToTab}
+                  onWhereFrom={onWhereFrom}
+                  selectedStage={selectedStage}
+                  onSelectStage={setSelectedStage}
+                  deferredStage={deferredStage}
+                  migrateSteps={migrateSteps}
+                  migrateStepperMounted={migrateStepperMounted}
+                  finalMigrated={finalMigrated}
+                  migrationStepIndex={migrationStepIndex}
+                  onMigrationStepChange={setMigrationStepIndex}
+                  onInject={onInject}
+                  selectedNodeId={selectedNodeId}
+                  onSelectNode={setSelectedNodeId}
+                  authState={authState}
+                  onSignIn={onSignIn}
+                  installUrl={INSTALL_URL}
+                  selectPresetNode={selectPresetNode}
+                  onEffectiveStats={setEffectiveStats}
+                  effectiveFilterNonce={effectiveFilterNonce}
+                  focusEditorRepoIndex={focusEditorRepoIndex}
+                  pendingRuleFocus={pendingRuleFocus}
+                  onRuleFocused={onRuleFocused}
+                  errorLib={errorLib}
+                  simRequest={simRequest}
+                  onCopySimLink={buildShareLinkAndCopy}
+                  errorCount={errorCount}
+                  warningCount={warningCount}
+                  ruleProvenance={ruleProvenance}
+                  onJumpToSimRule={onJumpToSimRule}
+                  onApplyFix={onApplyFix}
+                />
+              </Suspense>
             </div>
           ) : null}
         </div>

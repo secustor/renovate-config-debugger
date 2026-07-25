@@ -1,7 +1,11 @@
-import CodeMirror, { EditorView, type ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { renovateSchema } from "@renovate-config-visualizer/engine/schema";
-import { forwardRef, useImperativeHandle, useMemo, useRef } from "react";
-import { buildEditorExtensions, type PresetHoverContext } from "../preset-hover";
+import CodeMirror, {
+  Compartment,
+  EditorView,
+  type ReactCodeMirrorRef,
+} from "@uiw/react-codemirror";
+import { json } from "@codemirror/lang-json";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from "react";
+import type { PresetHoverContext } from "../preset-hover";
 
 interface Props {
   fileName: string;
@@ -30,11 +34,40 @@ export const ConfigEditor = forwardRef<ConfigEditorHandle, Props>(function Confi
   // tree data (a Run updates it without remounting the editor).
   const presetHoverRef = useRef<PresetHoverContext | null>(presetHover ?? null);
   presetHoverRef.current = presetHover ?? null;
-  const extensions = useMemo(
-    () => buildEditorExtensions(fileName.endsWith(".json5"), renovateSchema, presetHoverRef),
-    [fileName],
-  );
+  // Roadmap 031: the editor mounts with plain JSON language support only —
+  // the ~160 kB gz schema layer (codemirror-json-schema + Renovate's own
+  // schema JSON + its markdown/yaml stack) is `import()`ed after mount and
+  // swapped in through this compartment, so first paint and typing never
+  // wait on it; schema lint/hover appears a beat later.
+  const compartment = useMemo(() => new Compartment(), []);
+  const extensions = useMemo(() => [compartment.of(json())], [compartment]);
   const cmRef = useRef<ReactCodeMirrorRef>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { buildSchemaExtensions } = await import("../editor-schema");
+        const schemaExtensions = await buildSchemaExtensions(
+          fileName.endsWith(".json5"),
+          presetHoverRef,
+        );
+        if (cancelled) {
+          return;
+        }
+        // The view exists by now: CodeMirror (a child) creates it in its own
+        // mount effect, and child effects flush before this one — and the
+        // awaits above put this a macrotask later regardless.
+        cmRef.current?.view?.dispatch({ effects: compartment.reconfigure(schemaExtensions) });
+      } catch {
+        // Schema layer failed to load (e.g. offline after first paint) — the
+        // plain JSON editor keeps working; lint/hover just never appears.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [fileName, compartment]);
 
   useImperativeHandle(
     ref,

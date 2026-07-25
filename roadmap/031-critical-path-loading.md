@@ -1,6 +1,6 @@
 # 031 — Critical-path loading performance
 
-Milestone: M9 · Status: planned
+Milestone: M9 · Status: done (2026-07-25)
 
 ## Summary
 
@@ -51,6 +51,69 @@ pipeline starts immediately instead of after a ~1.4 MB fetch.
   schema module can be `import()`ed at point of use).
 - Measure before/after in the CI build step; record the numbers in this
   entry when done.
+
+## What was done
+
+- **Lazy schema layer**: `ConfigEditor` mounts with plain
+  `@codemirror/lang-json` inside a `Compartment`; a post-mount effect
+  `import()`s the new `editor-schema.ts` (codemirror-json-schema + the
+  engine schema entry + the 023 preset-hover card, which moved there so
+  `preset-hover.ts` — statically imported by App for the lookup side —
+  no longer drags the schema stack into the entry) and reconfigures the
+  compartment in place. The json5 variant (`codemirror-json-schema/json5`
+  → codemirror-json5 → the json5 parser) sits behind a further `import()`
+  taken only in the `.json5` branch.
+- **Engine preload**: `preloadRunChunks` (App.tsx) fires from a
+  `requestIdleCallback` after first paint (setTimeout fallback for
+  Safari) and from pointer-enter/focus on the Run button; it warms the
+  engine chunk and the results-column chunk. Idempotent (module-cached).
+- **Async de-serialization**: `loadShareToken` starts the engine
+  download (`getRenovateVersion()`, the cached engine import) before the
+  decode and no longer awaits it before the run — the version-drift
+  notice fires whenever the version lands; `run()`/`loadRepoConfig`
+  `Promise.all` the engine import with the OAuth refresh (both settle
+  before `setPresetAuth`, and `suppressTokens` still skips the refresh
+  entirely); `completeCallback` resolves once the token is stored,
+  returning the cosmetic profile fetch as a never-rejecting promise the
+  toolbar chip consumes when it arrives (a profile failure no longer
+  fails a sign-in whose token was already stored).
+- **Lazy results half**: the whole `panels` record + `ResultsPanel`
+  shell moved to `components/ResultsColumn.tsx` behind one `React.lazy`
+  boundary in App (Suspense fallback null; the chunk is warmed at idle
+  and on Run intent, and a resolved lazy component never re-suspends, so
+  the always-mounted 028 shell is never torn down). `react-diff-view` +
+  `diff` + every result-only component (and react-diff-view's CSS) ride
+  that chunk.
+- **zod off the critical path**: `input-schemas.ts` is now zod-free
+  predicates only; the schemas moved to `input-schemas-zod.ts`, built ON
+  those predicates and reached via `import()` from share.ts encode/decode
+  and oauth.ts's exchange/refresh/profile paths. Two call sites that are
+  synchronous on the boot path went predicate-only instead of async:
+  `readCallbackParams` (new `isValidOAuthParam`) and `getStoredUser`
+  (`sanitizeStoredUser` rewritten zod-free) — same rules, proven by the
+  unchanged test cases.
+- **CI**: `scripts/report-entry-size.mjs` prints the gzip size of the
+  entry set (entry script + modulepreload graph + stylesheet) from the
+  built dist; wired into ci.yml right after the build step.
+
+## Measured (production build, vite reporter gzip)
+
+Entry set = everything fetched before first paint (entry script +
+modulepreload'ed chunks + stylesheet).
+
+|           | before                                                                               | after                                                                                  |
+| --------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| entry JS  | **470.4 kB gz** (index 415.87 + yaml 32.11 + json5 10.03 + zod 11.68 + runtime 0.70) | **222.9 kB gz** (index 218.57 + jsx-runtime 2.99 + runtime 0.70 + preload-helper 0.67) |
+| entry CSS | 7.22 kB gz                                                                           | 6.66 kB gz (react-diff-view style now lazy)                                            |
+
+**−247.5 kB gz (−53%)** off the critical path. Now lazy: the schema
+layer (editor-schema 33.30 + its markdown/json-schema "completion"
+chunk 116.76 + yaml 31.54 + json5 10.03), the results half
+(ResultsColumn 44.54 incl. react-diff-view + diff), and zod
+(api 11.68 + input-schemas-zod 1.75). The remaining entry is React +
+CodeMirror core + the app shell. The engine set (~437 kB gz) is
+unchanged but now starts downloading at idle/hover instead of on the
+Run click, and share-link opens overlap it with the decode.
 
 ## Out of scope
 

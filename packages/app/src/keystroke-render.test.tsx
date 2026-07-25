@@ -82,13 +82,11 @@ vi.mock("./components/ConfigEditor", () => {
   return { ConfigEditor };
 });
 
-// CodeMirror's schema/hover extensions (codemirror-json-schema) don't resolve
-// under node ESM, and their only consumer is the editor stubbed above — App's
-// own use of this module is the preset-name lookup, inert without the editor.
-vi.mock("./preset-hover", () => ({
-  buildPresetLookup: () => new Map<string, never>(),
-  buildEditorExtensions: () => [],
-}));
+// No preset-hover mock needed since roadmap 031: the schema/hover extensions
+// (codemirror-json-schema, which doesn't resolve under node ESM) moved to
+// editor-schema.ts, reached only by the real ConfigEditor's post-mount
+// `import()` — and that editor is stubbed above. preset-hover.ts itself is
+// now just the pure lookup App builds per run.
 
 vi.mock("./components/PresetTree", async (importOriginal) => {
   const mod = await importOriginal<typeof PresetTreeModule>();
