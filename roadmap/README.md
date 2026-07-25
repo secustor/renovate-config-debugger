@@ -39,6 +39,7 @@ Full context and architecture: [.agents/spec/renovate-config-visualizer.md](../.
 | [032](032-keystroke-render-performance.md)            | Keystroke render performance                              | M9                   | done   |
 | [033](033-app-decomposition-and-boundaries.md)        | App decomposition + single-source boundaries              | M9                   | done   |
 | [034](034-lint-hardening.md)                          | Lint hardening (oxlint)                                   | M9                   | done   |
+| [035](035-layout-polish.md)                           | Layout polish + regression tests                          | M10                  | done   |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live
@@ -60,3 +61,8 @@ review agents over the app package + a lint audit): 031/032 from measured
 bundle/render findings, 033 from the maintainability findings, 034 from
 the oxlint audit. The review's three Tier-1 security findings were fixed
 immediately on the M8 branch rather than roadmapped.
+
+M10 originates in a user-reported layout review of 2026-07-25 (a screenshot
+walkthrough of the post-run two-pane shell): five rendered-geometry and
+color defects that the DOM-level e2e suite could not see, one of them a
+regression introduced by 031's CSS chunk split.

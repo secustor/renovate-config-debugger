@@ -1209,23 +1209,28 @@ export function App() {
               }}
             >
               <span className="repo-load-label">Load from a repository</span>
-              <input
-                type="text"
-                className="repo-load-ref"
-                placeholder="owner/repo, github.com/owner/repo, or a full repository URL"
-                value={repoInput}
-                onChange={(e) => setRepoInput(e.target.value)}
-              />
-              <input
-                type="text"
-                className="repo-load-branch"
-                placeholder="branch or tag (optional)"
-                value={repoRef}
-                onChange={(e) => setRepoRef(e.target.value)}
-              />
-              <button type="submit" disabled={repoLoading || repoInput.trim() === ""}>
-                {repoLoading ? "Loading…" : "Load"}
-              </button>
+              {/* Roadmap 035: the label owns its line and the controls share one
+                  nowrap row, so the submit button can never be orphaned onto a
+                  row of its own however narrow the config column gets. */}
+              <div className="repo-load-row">
+                <input
+                  type="text"
+                  className="repo-load-ref"
+                  placeholder="owner/repo, github.com/owner/repo, or a full repository URL"
+                  value={repoInput}
+                  onChange={(e) => setRepoInput(e.target.value)}
+                />
+                <input
+                  type="text"
+                  className="repo-load-branch"
+                  placeholder="branch or tag (optional)"
+                  value={repoRef}
+                  onChange={(e) => setRepoRef(e.target.value)}
+                />
+                <button type="submit" disabled={repoLoading || repoInput.trim() === ""}>
+                  {repoLoading ? "Loading…" : "Load"}
+                </button>
+              </div>
             </form>
 
             <ConfigEditor
@@ -1249,15 +1254,20 @@ export function App() {
                 <option value="renovate.json">renovate.json</option>
                 <option value="renovate.json5">renovate.json5</option>
               </select>
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => loadConfigText(loadedContent)}
-                disabled={content === loadedContent}
-                title="Restore the config text as it was last loaded — the default, an example, a share link, a repo fetch, or an applied fix — discarding edits made since"
-              >
-                Revert to loaded config
-              </button>
+              {/* Roadmap 035: rendered only when there is something to revert.
+                  It used to be permanently present and merely `disabled`, which
+                  looked identical to the enabled state — an offer of an action
+                  that silently did nothing. Absence is the honest signal. */}
+              {content === loadedContent ? null : (
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => loadConfigText(loadedContent)}
+                  title="Restore the config text as it was last loaded — the default, an example, a share link, a repo fetch, or an applied fix — discarding edits made since"
+                >
+                  Revert to loaded config
+                </button>
+              )}
               {oauthConfig ? (
                 signedIn ? (
                   <span className="gh-auth-chip" title="Signed in with GitHub">

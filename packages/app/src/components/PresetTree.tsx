@@ -861,82 +861,87 @@ export const PresetTree = memo(function PresetTree({
           </button>
         </div>
       </div>
-      <div className={`preset-tree-layout${selected ? " with-panel" : ""}`}>
-        <div>
-          {view === "table" ? (
-            <div className="preset-table-head" role="row">
-              {columns.map((c) => (
-                <button
-                  key={c.key}
-                  type="button"
-                  className={`preset-th col-${c.key}${sortColumn === c.key ? " sorted" : ""}`}
-                  onClick={() => toggleSort(c.key)}
-                >
-                  {c.label}
-                  {sortColumn === c.key ? (sortDir === 1 ? " ▲" : " ▼") : ""}
-                </button>
-              ))}
+      {/* Roadmap 035: the query container for the tree/detail split — it has to
+          be a wrapper rather than the layout grid itself, since an element
+          cannot query its own size. */}
+      <div className="preset-split">
+        <div className={`preset-tree-layout${selected ? " with-panel" : ""}`}>
+          <div>
+            {view === "table" ? (
+              <div className="preset-table-head" role="row">
+                {columns.map((c) => (
+                  <button
+                    key={c.key}
+                    type="button"
+                    className={`preset-th col-${c.key}${sortColumn === c.key ? " sorted" : ""}`}
+                    onClick={() => toggleSort(c.key)}
+                  >
+                    {c.label}
+                    {sortColumn === c.key ? (sortDir === 1 ? " ▲" : " ▼") : ""}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            <div className="preset-tree" role={view === "tree" ? "tree" : "table"} ref={win.ref}>
+              {activeCount === 0 ? (
+                <p className="empty-note">No presets match the filter.</p>
+              ) : (
+                <>
+                  <div style={{ height: win.padTop }} />
+                  {view === "tree"
+                    ? treeSlice.map((row) => (
+                        <TreeRow
+                          key={row.node.id}
+                          row={row}
+                          selectedId={selectedId}
+                          onToggle={toggle}
+                          onSelect={onSelectNode}
+                          onCycleDup={cycleDup}
+                          injectionKey={injectionKey}
+                          usedInjections={usedInjections}
+                          dupCount={stats.occurrencesByName.get(row.node.name)?.length ?? 1}
+                        />
+                      ))
+                    : tableSlice.map((r) => (
+                        <button
+                          type="button"
+                          key={r.node.id}
+                          className={`preset-table-row${r.node.id === selectedId ? " selected" : ""}`}
+                          style={{ height: ROW_HEIGHT }}
+                          onClick={() => onSelectNode(r.node.id)}
+                        >
+                          <span className="col-name">{r.name}</span>
+                          <span className="col-source">
+                            <span className={`badge src src-${r.sourceKind}`}>{r.sourceKind}</span>
+                          </span>
+                          <span className="col-opts">{r.opts || ""}</span>
+                          <span className="col-rules">{r.rules || ""}</span>
+                          <span className="col-count">{r.count > 1 ? `×${r.count}` : ""}</span>
+                        </button>
+                      ))}
+                  <div style={{ height: win.padBottom }} />
+                </>
+              )}
             </div>
-          ) : null}
-          <div className="preset-tree" role={view === "tree" ? "tree" : "table"} ref={win.ref}>
-            {activeCount === 0 ? (
-              <p className="empty-note">No presets match the filter.</p>
-            ) : (
-              <>
-                <div style={{ height: win.padTop }} />
-                {view === "tree"
-                  ? treeSlice.map((row) => (
-                      <TreeRow
-                        key={row.node.id}
-                        row={row}
-                        selectedId={selectedId}
-                        onToggle={toggle}
-                        onSelect={onSelectNode}
-                        onCycleDup={cycleDup}
-                        injectionKey={injectionKey}
-                        usedInjections={usedInjections}
-                        dupCount={stats.occurrencesByName.get(row.node.name)?.length ?? 1}
-                      />
-                    ))
-                  : tableSlice.map((r) => (
-                      <button
-                        type="button"
-                        key={r.node.id}
-                        className={`preset-table-row${r.node.id === selectedId ? " selected" : ""}`}
-                        style={{ height: ROW_HEIGHT }}
-                        onClick={() => onSelectNode(r.node.id)}
-                      >
-                        <span className="col-name">{r.name}</span>
-                        <span className="col-source">
-                          <span className={`badge src src-${r.sourceKind}`}>{r.sourceKind}</span>
-                        </span>
-                        <span className="col-opts">{r.opts || ""}</span>
-                        <span className="col-rules">{r.rules || ""}</span>
-                        <span className="col-count">{r.count > 1 ? `×${r.count}` : ""}</span>
-                      </button>
-                    ))}
-                <div style={{ height: win.padBottom }} />
-              </>
-            )}
           </div>
+          {selected ? (
+            <PresetDetail
+              node={selected}
+              parent={stats.parents.get(selected.id)}
+              onClose={() => onSelectNode(null)}
+              injectionKey={injectionKey}
+              parse={helpers?.parse ?? null}
+              usedInjections={usedInjections}
+              onInject={onInject}
+              migrationSteps={migrationStepsByPreset.get(selected.name) ?? []}
+              authState={authState}
+              onSignIn={onSignIn}
+              installUrl={installUrl}
+            />
+          ) : (
+            <div className="preset-panel-hint">Select a preset to inspect it.</div>
+          )}
         </div>
-        {selected ? (
-          <PresetDetail
-            node={selected}
-            parent={stats.parents.get(selected.id)}
-            onClose={() => onSelectNode(null)}
-            injectionKey={injectionKey}
-            parse={helpers?.parse ?? null}
-            usedInjections={usedInjections}
-            onInject={onInject}
-            migrationSteps={migrationStepsByPreset.get(selected.name) ?? []}
-            authState={authState}
-            onSignIn={onSignIn}
-            installUrl={installUrl}
-          />
-        ) : (
-          <div className="preset-panel-hint">Select a preset to inspect it.</div>
-        )}
       </div>
     </div>
   );

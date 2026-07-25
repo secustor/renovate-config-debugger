@@ -1,4 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { GLOSSARY, type GlossaryEntry, type TermId } from "./glossary-data";
 import { useMoveGatedHover } from "./hover-gate";
 
@@ -88,7 +89,13 @@ function GlossaryCard({
   const style: React.CSSProperties = openUpward
     ? { left, bottom: window.innerHeight - pos.top + 6, maxWidth: width }
     : { left, top: pos.bottom + 6, maxWidth: width };
-  return (
+  // Roadmap 035: portalled to <body>. The coordinates above are viewport
+  // coordinates, which only hold while no ancestor is a containing block for
+  // fixed-position descendants — and CSS containment creates exactly that, so
+  // the moment any ancestor gains `container-type` (035 gave the preset-tree
+  // card one) an in-place card would silently re-anchor to it. The portal
+  // makes the viewport-relative math structurally true instead of incidental.
+  return createPortal(
     <div
       className="option-card glossary-card"
       style={style}
@@ -106,7 +113,8 @@ function GlossaryCard({
           </a>
         </p>
       ) : null}
-    </div>
+    </div>,
+    document.body,
   );
 }
 

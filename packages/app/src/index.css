@@ -98,6 +98,15 @@ h1 {
   opacity: 0.6;
 }
 
+/* Roadmap 035: `.toolbar button.secondary` had no disabled styling, so a
+   disabled secondary button was pixel-identical to an enabled one and read as
+   broken when clicking it did nothing. Generic, so no future toolbar button
+   can silently repeat that. */
+.toolbar button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
 .stage-timeline {
   display: flex;
   flex-wrap: wrap;
@@ -221,25 +230,56 @@ pre.config-view {
 
 /* ---------- preset resolution tree (002) ---------- */
 
+/* Roadmap 035: the tree/detail split answers to ITS OWN width, not the
+   viewport's. The old `@media (max-width: 60rem)` was tuned pre-028, when this
+   card spanned the page; since 028 it lives inside the results column, which
+   is ~3/5 of the page — so at a 1000px viewport the detail pane was squeezed
+   to ~420px while the viewport query never came close to firing. */
+.preset-split {
+  container-name: preset-split;
+  container-type: inline-size;
+}
+
 .preset-tree-layout {
   display: grid;
   gap: 0;
   grid-template-columns: 1fr;
 }
 
+/* The panel's floor is 24rem, not the 4fr share: just above the stacking
+   threshold 4/9 of the container would be ~370px, below what an embedded diff
+   needs — the minimum wins there and the tree gives up the difference. */
 .preset-tree-layout.with-panel {
-  grid-template-columns: minmax(16rem, 5fr) minmax(20rem, 4fr);
+  grid-template-columns: minmax(16rem, 5fr) minmax(24rem, 4fr);
 }
 
-@media (max-width: 60rem) {
+/* Below this the two columns cannot both stay readable — stack, panel under
+   the tree, each full width. */
+@container preset-split (max-width: 52rem) {
   .preset-tree-layout.with-panel {
     grid-template-columns: 1fr;
   }
+
+  .preset-panel {
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Stacked, the tree sits BETWEEN the row the user clicked and the detail it
+     opened, so a full-height tree would push the panel below the fold and the
+     click would look like it did nothing (roadmap 023). Only while a panel is
+     open — an unselected tree keeps its full height. */
+  .preset-tree-layout.with-panel .preset-tree {
+    max-height: min(26rem, calc(100dvh - 24rem));
+  }
 }
 
+/* The sticky results column (`.results-col { top: 0.75rem }`) means these
+   scrollers are the page's tallest fixed boxes; cap them against the viewport
+   so the panel's own scrollbar, not the page's, does the work. */
 .preset-tree {
   font-size: 0.85rem;
-  max-height: 34rem;
+  max-height: min(44rem, calc(100dvh - 10rem));
   overflow: auto;
   padding: 0.5rem 0.75rem;
 }
@@ -696,18 +736,14 @@ textarea.layer-editor:focus {
   padding-left: 1.5rem;
 }
 
+/* The trailing padding keeps the last <details> (usually "Contribution to the
+   merged config") from ending flush with the scroller's bottom edge, where it
+   read as clipped rather than scrolled-to-the-end. */
 .preset-panel {
   border-left: 1px solid var(--border);
-  max-height: 34rem;
+  max-height: min(44rem, calc(100dvh - 10rem));
   overflow: auto;
-  padding: 0.5rem 0.75rem;
-}
-
-@media (max-width: 60rem) {
-  .preset-panel {
-    border-left: none;
-    border-top: 1px solid var(--border);
-  }
+  padding: 0.5rem 0.75rem 1.25rem;
 }
 
 .preset-panel-hint {
@@ -975,31 +1011,51 @@ textarea.layer-editor:focus {
   margin-bottom: 0.5rem;
 }
 
-/* react-diff-view ships light-theme colors only; keep text readable in dark */
+/* react-diff-view ships light-theme colors only; keep text readable in dark.
+   Roadmap 035 (fixing a 031 regression): this used to override the library's
+   own `.diff-code-delete` etc. at EQUAL specificity, so stylesheet ORDER
+   decided the winner. 031 moved `react-diff-view/style/index.css` into the
+   lazily-imported ResultsColumn chunk, which loads AFTER this entry
+   stylesheet — the library's light backgrounds started winning, leaving
+   near-white inherited text on #fdeff0/#eaffee.
+   react-diff-view 3.3.3 is entirely custom-property driven and declares its
+   defaults on `:root`, so declaring the same variables SCOPED ON THE WRAPPER
+   wins on specificity/proximity no matter which stylesheet loaded last. The
+   dark diff contrast e2e assertion (e2e/12-layout-regressions.spec.ts) is the
+   guard against this inverting again.
+   Note the library's defaults are `--diff-*-text-color: var(--diff-text-color)`
+   resolved AT :root, where `--diff-text-color: initial` makes them
+   guaranteed-invalid — so each text color is restated here rather than relying
+   on `--diff-text-color` alone to cascade into them. */
 @media (prefers-color-scheme: dark) {
-  .diff {
-    background: transparent;
-    color: inherit;
+  .diff-wrapper {
+    --diff-background-color: transparent;
+    --diff-code-delete-background-color: #3d1418;
+    /* The word-level edit highlight was never dark-themed at all: the library
+       paints it #f39ea2/#c0dc91, which left light text on a light chip inside
+       an otherwise dark row. Both pass 4.5:1 against --diff-text-color. */
+    --diff-code-delete-edit-background-color: #8e2f36;
+    --diff-code-delete-edit-text-color: #f0f6fc;
+    --diff-code-delete-text-color: #f0f6fc;
+    --diff-code-insert-background-color: #103218;
+    --diff-code-insert-edit-background-color: #1a5c2e;
+    --diff-code-insert-edit-text-color: #f0f6fc;
+    --diff-code-insert-text-color: #f0f6fc;
+    --diff-code-selected-background-color: #3b2f0b;
+    --diff-code-selected-text-color: #f0f6fc;
+    --diff-gutter-delete-background-color: #67060c;
+    --diff-gutter-delete-text-color: #f0f6fc;
+    --diff-gutter-insert-background-color: #033a16;
+    --diff-gutter-insert-text-color: #f0f6fc;
+    --diff-gutter-selected-background-color: #3b2f0b;
+    --diff-gutter-selected-text-color: #f0f6fc;
+    --diff-selection-background-color: #1c4f82;
+    --diff-selection-text-color: #f0f6fc;
+    --diff-text-color: #f0f6fc;
   }
 
-  .diff-code-delete {
-    background: #3d1418;
-  }
-
-  .diff-gutter-delete {
-    background: #67060c;
-    color: #f0f6fc;
-  }
-
-  .diff-code-insert {
-    background: #103218;
-  }
-
-  .diff-gutter-insert {
-    background: #033a16;
-    color: #f0f6fc;
-  }
-
+  /* Unchanged gutters carry no library color of their own, so this quiet
+     override is order-independent already. */
   .diff-gutter {
     color: var(--muted);
   }
@@ -1194,12 +1250,25 @@ pre.config-view.prov-before {
   font-weight: 600;
 }
 
+/* Roadmap 035: label on its own line, inputs + button on ONE unwrappable row.
+   As a single wrapping row the natural width (~640px) exceeded the post-run
+   left column (`.app-split.has-results` caps it near 580px), so the Load
+   button always wrapped alone onto a line of its own — and with no bottom
+   margin it then sat flush against the editor card. Both inputs shrink
+   instead; the button is the only non-shrinking item, so it stays beside the
+   fields it submits at any viewport this app supports. */
 .repo-load {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.repo-load-row {
   align-items: center;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.5rem;
-  margin: 0.5rem 0 0;
 }
 
 .repo-load input {
@@ -1211,13 +1280,16 @@ pre.config-view.prov-before {
   padding: 0.4rem 0.75rem;
 }
 
+/* `min-width: 0` defeats the intrinsic minimum width a text input otherwise
+   imposes on a flex item — without it the row cannot shrink and overflows. */
 .repo-load-ref {
-  flex: 1;
-  min-width: 14rem;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .repo-load-branch {
-  width: 11rem;
+  flex: 0 1 11rem;
+  min-width: 7rem;
 }
 
 .repo-load button {
@@ -1226,9 +1298,11 @@ pre.config-view.prov-before {
   border-radius: 6px;
   color: inherit;
   cursor: pointer;
+  flex: none;
   font-size: 0.9rem;
   font-weight: 600;
   padding: 0.4rem 0.9rem;
+  white-space: nowrap;
 }
 
 .repo-load button:disabled {
