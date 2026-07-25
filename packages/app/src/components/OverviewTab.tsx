@@ -1,103 +1,61 @@
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import type { ResultsTabId } from "../results-tabs";
+import type { DigestClause } from "../run-digest";
 
-const nf = new Intl.NumberFormat();
-
-/** The numbers the Overview reports — the same ones the tab badges show. */
-export interface RunStats {
-  rewrites: number;
-  presets: number;
-  /** null while the effective-config view is still computing provenance. */
-  effective: number | null;
-  errors: number;
-  warnings: number;
-}
-
-interface StatItem {
-  key: string;
-  tab: ResultsTabId;
-  text: string;
-  tone?: "error" | "warn";
-}
-
-function plural(n: number, word: string): string {
-  return `${nf.format(n)} ${word}${n === 1 ? "" : "s"}`;
-}
-
-function problemsStat(stats: RunStats): StatItem {
-  if (stats.errors > 0 && stats.warnings > 0) {
-    return {
-      key: "problems",
-      tab: "problems",
-      text: `${plural(stats.errors, "error")}, ${plural(stats.warnings, "warning")}`,
-      tone: "error",
-    };
-  }
-  if (stats.errors > 0) {
-    return {
-      key: "problems",
-      tab: "problems",
-      text: plural(stats.errors, "error"),
-      tone: "error",
-    };
-  }
-  if (stats.warnings > 0) {
-    return {
-      key: "problems",
-      tab: "problems",
-      text: plural(stats.warnings, "warning"),
-      tone: "warn",
-    };
-  }
-  return { key: "problems", tab: "problems", text: "no problems", tone: undefined };
+/**
+ * Roadmap 029: clause prose marks option/preset names with backticks (the
+ * generator stays plain text, so it can be unit-tested and snapshotted); the
+ * renderer turns those into `<code>` spans, matching the mockup's mono names.
+ */
+function CodeText({ text }: { text: string }) {
+  return (
+    <>
+      {text
+        .split(/`([^`]+)`/)
+        .map((part, i) =>
+          i % 2 === 1 ? <code key={i}>{part}</code> : <Fragment key={i}>{part}</Fragment>,
+        )}
+    </>
+  );
 }
 
 /**
- * Roadmap 028: the placeholder run summary — a plain stat line whose numbers
- * are exactly the tab badges', each one a link into the tab that explains it.
- * Roadmap 029 replaces THIS component with the plain-English digest; nothing
- * else in the Overview tab needs to change when it does.
+ * Roadmap 029: the run digest — the whole run as one paragraph of prose whose
+ * numbers link into the tab that explains them. The clause model (run-digest.ts)
+ * decides what it says; this only renders it.
  */
-export function RunStatLine({
-  stats,
+export function RunDigest({
+  clauses,
   onOpen,
 }: {
-  stats: RunStats;
+  clauses: DigestClause[];
   onOpen: (tab: ResultsTabId) => void;
 }) {
-  const items: StatItem[] = [
-    {
-      key: "rewrites",
-      tab: "rewrites",
-      text: stats.rewrites === 0 ? "no rewrites" : plural(stats.rewrites, "rewrite"),
-    },
-    { key: "presets", tab: "presets", text: `${plural(stats.presets, "preset")} resolved` },
-    {
-      key: "effective",
-      tab: "effective",
-      // Provenance is computed asynchronously; never guess a number that is
-      // not known yet.
-      text:
-        stats.effective === null
-          ? "counting effective options…"
-          : `${plural(stats.effective, "effective option")}`,
-    },
-    problemsStat(stats),
-  ];
   return (
-    <p className="run-stat-line">
-      {items.map((item, i) => (
-        <span key={item.key}>
-          {i > 0 ? <span className="run-stat-sep"> · </span> : null}
-          <button
-            type="button"
-            className={`run-stat${item.tone ? ` ${item.tone}` : ""}`}
-            onClick={() => onOpen(item.tab)}
+    <p className="run-digest">
+      {clauses.map((clause) => {
+        const link = clause.link;
+        return (
+          <span
+            key={clause.id}
+            className={`digest-clause${clause.tone === "plain" ? "" : ` ${clause.tone}`}`}
+            data-clause={clause.id}
           >
-            {item.text}
-          </button>
-        </span>
-      ))}
+            {clause.text ? (
+              <>
+                <CodeText text={clause.text} />
+                {link ? " " : null}
+              </>
+            ) : null}
+            {link ? (
+              <button type="button" className="digest-link" onClick={() => onOpen(link.tab)}>
+                <CodeText text={link.label} />
+              </button>
+            ) : null}
+            {clause.tail ? <CodeText text={clause.tail} /> : null}{" "}
+          </span>
+        );
+      })}
     </p>
   );
 }
@@ -131,12 +89,12 @@ function QuestionPills({
 }
 
 export function OverviewTab({
-  stats,
+  digest,
   banner,
   onOpen,
   onWhereFrom,
 }: {
-  stats: RunStats;
+  digest: DigestClause[];
   /** The 023 hypothetical-run banner, when validation reported errors. */
   banner?: ReactNode;
   onOpen: (tab: ResultsTabId) => void;
@@ -146,7 +104,7 @@ export function OverviewTab({
   return (
     <div className="overview-tab">
       {banner}
-      <RunStatLine stats={stats} onOpen={onOpen} />
+      <RunDigest clauses={digest} onOpen={onOpen} />
       <QuestionPills
         onWhereFrom={onWhereFrom}
         onDependency={() => onOpen("simulator")}

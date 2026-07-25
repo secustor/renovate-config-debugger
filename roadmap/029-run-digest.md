@@ -1,6 +1,43 @@
 # 029 — Run digest (plain-English overview)
 
-Milestone: M8 · Status: planned
+Milestone: M8 · Status: done
+
+> Implemented as specified. `packages/app/src/run-digest.ts` is a pure,
+> DOM-free generator: `DigestInput` (the run's already-derived stats) → an
+> ordered `DigestClause[]` of `{ id, tone, text, link?, tail }`, where a clause
+> is prose with at most ONE linked fragment and carries its own punctuation, so
+> the clauses concatenate into a flowing paragraph rather than a bullet list
+> (`digestText` renders exactly what the Overview reads as, minus the links —
+> which is what the unit tests snapshot). Branches: fatal parse error
+> short-circuits to a single clause; validation errors open with 023's "a real
+> Renovate run would refuse this config" framing and then narrate the
+> hypothetical run; non-validation errors say the run did not complete cleanly;
+> otherwise "✓ Renovate accepted this config". Rewrites are named at ≤2 and
+> counted above that; the preset clause switches to the "only N of which set
+> options, the rest are package-grouping rules" framing above a threshold
+> (50 resolved presets, never a hardcoded count), with separate clauses for
+> failed fetches and user-supplied injections; the effective clause quotes the
+> option and overridden counts; an active 008 layer stack gets a clause; a tail
+> clause counts the problems and summarizes the first one. Every number is
+> passed in, never recomputed: `presetTreeSummary` (one walk, the Presets
+> badge's own number) and `EffectiveConfig`'s `onStats` (which now reports the
+> overridden count alongside the key count) feed the badges and the digest from
+> the same derivation. The "sets options" split needed one new derivation —
+> counting presets by whether they set a REAL option, excluding `description`/
+> `$schema` and pure matcher/grouping keys; without that, `config:recommended`
+> reads as "469 of 1,076 set options" (every `monorepo:*` preset is matchers
+> only) and the framing would be false. It now reads: "✓ Renovate accepted this
+> config. It rewrote `semanticCommits` and `stabilityDays` in your file. Your
+> `config:recommended` and `:dependencyDashboard` entries expanded into 1,076
+> presets — only 7 of which set options, the rest are package-grouping rules.
+> Everything merged into 10 effective options, 1 of them overridden along the
+> way." Clause prose marks names with backticks and the renderer turns those
+> into `<code>` spans, keeping the generator plain text. Tested by a new vitest
+> unit suite in the app package (`test:unit`, pure modules only — no jsdom),
+> plus an extended 028 e2e case. The 023 hypothetical banner still renders
+> above the digest on the Overview, so a refused run states the refusal twice
+> (boxed alert, then prose) — kept deliberately: the banner is 023's contract
+> on post-Validate results and the digest's framing must not contradict it.
 
 ## Summary
 

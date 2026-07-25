@@ -15,7 +15,7 @@ import type {
   TraceResult,
 } from "@renovate-config-visualizer/engine";
 import { ConfigEditor, type ConfigEditorHandle } from "./components/ConfigEditor";
-import { EffectiveConfig } from "./components/EffectiveConfig";
+import { EffectiveConfig, type EffectiveStats } from "./components/EffectiveConfig";
 import { type AuthState, GithubAuthHint } from "./components/GithubAuthHint";
 import { HypotheticalBanner } from "./components/HypotheticalBanner";
 import { MessagesPanel } from "./components/MessagesPanel";
@@ -25,7 +25,7 @@ import {
   identityForNodeId,
   nodeIdForIdentity,
   PresetTree,
-  resolvedPresetCount,
+  presetTreeSummary,
 } from "./components/PresetTree";
 import { ResultsPanel, type ResultsTabDescriptor } from "./components/ResultsPanel";
 import { RuleSimulator } from "./components/RuleSimulator";
@@ -33,6 +33,7 @@ import { StageDiff } from "./components/StageDiff";
 import { STAGE_EXPLAINERS, STAGE_LABELS, StageTimeline } from "./components/StageTimeline";
 import { Term } from "./glossary";
 import { legacyTabForView, type ResultsTabId } from "./results-tabs";
+import { buildRunDigest, type DigestInput, type DigestProblem } from "./run-digest";
 import { OptionDocsProvider } from "./option-docs";
 import { buildPresetLookup, type PresetHoverContext } from "./preset-hover";
 import { findPackageRuleOffsets } from "./rule-locate";
@@ -372,10 +373,10 @@ export function App() {
   const [backTab, setBackTab] = useState<ResultsTabId | null>(null);
   const tabRef = useRef(tab);
   tabRef.current = tab;
-  // Roadmap 028: the Effective config tab's badge/stat number, reported by the
-  // view itself (it owns the async provenance computation) rather than
-  // recomputed here. null = not known yet.
-  const [effectiveKeyCount, setEffectiveKeyCount] = useState<number | null>(null);
+  // Roadmap 028/029: the Effective config tab's badge + digest numbers,
+  // reported by the view itself (it owns the async provenance computation)
+  // rather than recomputed here. null = not known yet.
+  const [effectiveStats, setEffectiveStats] = useState<EffectiveStats | null>(null);
   // Roadmap 028: bumped to focus the effective config's filter input from the
   // Overview's "Where did a setting come from?" pill.
   const [effectiveFilterNonce, setEffectiveFilterNonce] = useState(0);
@@ -543,10 +544,10 @@ export function App() {
   useEffect(() => {
     setSelectedNodeId(null);
     setMigrationStepIndex(0);
-    // Roadmap 028: a new run invalidates both the previous run's key count
+    // Roadmap 028: a new run invalidates both the previous run's key counts
     // (recomputed asynchronously by the effective-config view) and any
     // "back to where I was" target from the run that just ended.
-    setEffectiveKeyCount(null);
+    setEffectiveStats(null);
     setBackTab(null);
   }, [result]);
 
@@ -971,7 +972,8 @@ export function App() {
   );
   const errorCount = (result?.errors.length ?? 0) + presetErrorCount;
   const warningCount = result?.warnings.length ?? 0;
-  const presetCount = useMemo(() => resolvedPresetCount(result?.presetTree), [result]);
+  const presetSummary = useMemo(() => presetTreeSummary(result?.presetTree), [result]);
+  const presetCount = presetSummary?.resolved ?? 0;
 
   // Roadmap 028: the tab strip's ambient counts. A tab whose run produced
   // nothing keeps its place (dimmed, showing its zero) rather than
@@ -983,7 +985,7 @@ export function App() {
     { id: "presets", count: presetCount },
     // Provenance is computed asynchronously by the effective-config view; no
     // badge until it reports, rather than a wrong zero.
-    { id: "effective", count: effectiveKeyCount ?? undefined },
+    { id: "effective", count: effectiveStats?.keys },
     { id: "simulator" },
     {
       id: "problems",
@@ -991,6 +993,81 @@ export function App() {
       tone: errorCount > 0 ? "error" : warningCount > 0 ? "warn" : undefined,
     },
   ];
+
+  /**
+   * Roadmap 029: the Overview's plain-English digest. Assembled from exactly
+   * the derivations that feed the tab badges above (preset summary, migration
+   * steps, the effective-config view's reported stats, the problem counts), so
+   * a number in the paragraph can never disagree with the badge beside it.
+   * The clause logic itself lives in the pure `run-digest` module.
+   */
+  const digest = useMemo(() => {
+    if (!result) {
+      return [];
+    }
+    const presetErrors = result.events.filter((e) => e.kind === "preset-error");
+    // The Problems tab lists validator errors, then warnings, then preset
+    // failures — the digest quotes whichever of those comes first.
+    const firstProblem: DigestProblem | undefined = result.errors[0]
+      ? { severity: "error", topic: result.errors[0].topic, message: result.errors[0].message }
+      : result.warnings[0]
+        ? {
+            severity: "warning",
+            topic: result.warnings[0].topic,
+            message: result.warnings[0].message,
+          }
+        : presetErrors[0]
+          ? { severity: "error", topic: "Preset", message: presetErrors[0].title }
+          : undefined;
+    const input: DigestInput = {
+      // A parse failure ends the run: the only honest thing to report is why.
+      ...(result.stageStatus.parse === "error"
+        ? { fatalParse: result.errors[0]?.message ?? "the file could not be parsed" }
+        : {}),
+      refused: result.stageStatus.validate === "error",
+      errors: errorCount,
+      warnings: warningCount,
+      ...(firstProblem ? { firstProblem } : {}),
+      migrations: {
+        count: migrateSteps.length,
+        // Named only when the digest will use them (≤ 2 rewrites); a rename
+        // reads best as `old → new`, anything else by the key it acted on.
+        labels:
+          migrateSteps.length <= 2
+            ? migrateSteps.map((step) => {
+                const info = step.migration;
+                if (!info) {
+                  return step.title;
+                }
+                return info.key && info.newKey
+                  ? `${info.key} → ${info.newKey}`
+                  : (info.key ?? info.name);
+              })
+            : [],
+      },
+      presets: {
+        // Nested extends (packageRules[n].extends) are not entries the user
+        // wrote at the top level, so they are not named as such.
+        entries: (result.presetTree?.children ?? []).filter((c) => !c.nested).map((c) => c.name),
+        resolved: presetCount,
+        optionSetting: presetSummary?.optionSetting ?? 0,
+        rules: presetSummary?.rules ?? 0,
+        // The tree's own error count, so the clause matches the Presets tab it
+        // links to (the Problems badge additionally counts validator errors).
+        failed: presetSummary?.errors ?? 0,
+        injected: result.usedInjections.length,
+      },
+      effective: {
+        options: effectiveStats?.keys ?? null,
+        overridden: effectiveStats?.overridden ?? null,
+      },
+      layers: {
+        global: Boolean(result.layerConfigs?.globalResolved),
+        inherited: Boolean(result.layerConfigs?.inheritedResolved),
+      },
+    };
+    return buildRunDigest(input);
+  }, [result, errorCount, warningCount, migrateSteps, presetCount, presetSummary, effectiveStats]);
 
   // Encodes the CURRENT state (config + view, optionally simulator inputs) into
   // a link, copies it, and mirrors it into the address bar. Never continuously
@@ -1593,13 +1670,7 @@ export function App() {
                 panels={{
                   overview: (
                     <OverviewTab
-                      stats={{
-                        rewrites: migrateSteps.length,
-                        presets: presetCount,
-                        effective: effectiveKeyCount,
-                        errors: errorCount,
-                        warnings: warningCount,
-                      }}
+                      digest={digest}
                       banner={validateHasErrors ? <HypotheticalBanner /> : null}
                       onOpen={jumpToTab}
                       onWhereFrom={() => {
@@ -1693,7 +1764,7 @@ export function App() {
                       <EffectiveConfig
                         result={result}
                         onSelectPreset={selectPresetNode}
-                        onKeyCount={setEffectiveKeyCount}
+                        onStats={setEffectiveStats}
                         focusFilterNonce={effectiveFilterNonce}
                       />
                     </>

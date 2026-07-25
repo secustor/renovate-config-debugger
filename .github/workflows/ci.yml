@@ -44,6 +44,8 @@ jobs:
         run: pnpm --filter @renovate-config-visualizer/engine test:shimmed
       - name: OAuth worker tests
         run: pnpm --filter @renovate-config-visualizer/oauth-worker test
+      - name: App unit tests (pure modules — the run digest, …)
+        run: pnpm --filter @renovate-config-visualizer/app test:unit
       - name: Dev module graph (Node-only import leaks)
         # `vite dev` serves renovate's transitive deps raw (no CJS interop),
         # a regime neither the Node tests nor the production build exercise.

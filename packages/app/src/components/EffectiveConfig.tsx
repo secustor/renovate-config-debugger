@@ -124,6 +124,20 @@ function MultiContribBadgeChip({ entry }: { entry: KeyProvenance }) {
   );
 }
 
+/**
+ * Roadmap 028/029: the numbers this view owns, reported to the shell so the
+ * Effective config tab badge and the Overview digest quote exactly what the
+ * rows here show. `overridden` counts the rows carrying the literal
+ * `overridden` badge (a value a later layer really replaced), not every
+ * multi-layer key — 016 established that calling an appended array
+ * "overridden" is misleading.
+ */
+export interface EffectiveStats {
+  /** Options some layer beyond the defaults set — the rows shown by default. */
+  keys: number;
+  overridden: number;
+}
+
 function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max)}…` : text;
 }
@@ -300,15 +314,15 @@ function KeyRow({
 export function EffectiveConfig({
   result,
   onSelectPreset,
-  onKeyCount,
+  onStats,
   focusFilterNonce,
 }: {
   result: TraceResult;
   onSelectPreset?: (nodeId: string) => void;
-  /** Roadmap 028: reports the non-default-only key count (the number the
-   *  Effective config tab badge and the Overview stat line show) whenever it
-   *  changes, so the shell never has to recompute provenance itself. */
-  onKeyCount?: (count: number) => void;
+  /** Roadmap 028/029: reports this view's own numbers (see `EffectiveStats`)
+   *  whenever they change, so the shell never has to recompute provenance
+   *  itself — the tab badge and the digest quote what these rows show. */
+  onStats?: (stats: EffectiveStats) => void;
   /** Roadmap 028: bumped by the Overview's "Where did a setting come from?"
    *  pill to focus the filter input after switching to this tab. */
   focusFilterNonce?: number;
@@ -366,8 +380,13 @@ export function EffectiveConfig({
   }, [entries, query, showDefaults, onlyOverridden, layerFilter]);
 
   useEffect(() => {
-    onKeyCount?.(entries.filter((e) => !e.isDefaultOnly).length);
-  }, [entries, onKeyCount]);
+    const shown = entries.filter((e) => !e.isDefaultOnly);
+    onStats?.({
+      keys: shown.length,
+      overridden: shown.filter((e) => isOverridden(e) && multiContribBadgeKind(e) === "overridden")
+        .length,
+    });
+  }, [entries, onStats]);
 
   // Focus (and select) the filter box when the Overview's "Where did a setting
   // come from?" pill routed the user here — the tab is already visible by the

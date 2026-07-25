@@ -121,6 +121,27 @@ const RULE_MATCH_KEYS = [
   "matchPackagePrefixes",
 ];
 
+/**
+ * Roadmap 029: does this preset change how Renovate behaves, or does it only
+ * describe a group of packages? Nearly every internal preset carries a
+ * `description`, and hundreds of them (every `monorepo:*`, every rule fragment
+ * pulled into a `packageRules[n].extends`) consist purely of matchers — so
+ * without both exclusions the digest's "only N of which set options" would
+ * count a clear majority and its grouping-rules framing would read as false.
+ */
+const META_KEYS = new Set(["description", "$schema"]);
+const GROUPING_KEYS = new Set(["groupName", "groupSlug"]);
+
+function setsRealOption(optionKeys: string[]): boolean {
+  return optionKeys.some(
+    (k) =>
+      !META_KEYS.has(k) &&
+      !GROUPING_KEYS.has(k) &&
+      !k.startsWith("match") &&
+      !k.startsWith("exclude"),
+  );
+}
+
 /** Per-node contribution + search facts, all derived from the node's `input`. */
 interface NodeStats {
   /** Top-level option keys this preset sets (excludes extends/ignorePresets/packageRules). */
@@ -153,11 +174,16 @@ interface TreeStats {
   summary: TreeSummary;
 }
 
-interface TreeSummary {
+export interface TreeSummary {
   resolved: number;
   fetched: number;
   internal: number;
+  /** Distinct top-level option KEYS set across the whole expansion. */
   options: number;
+  /** Roadmap 029: how many of the resolved presets set a real option (see
+   *  `META_KEYS`) — the "only N of which set options, the rest are grouping
+   *  rules" number. */
+  optionSetting: number;
   rules: number;
   maxDepth: number;
   duplicates: number;
@@ -295,6 +321,7 @@ function computeTreeStats(root: PresetNode): TreeStats {
   const optionUnion = new Set<string>();
   let fetched = 0;
   let internal = 0;
+  let optionSetting = 0;
   let rules = 0;
   let duplicates = 0;
   let errors = 0;
@@ -323,6 +350,9 @@ function computeTreeStats(root: PresetNode): TreeStats {
       fetched++;
     }
     rules += st.ownRules;
+    if (setsRealOption(st.optionKeys)) {
+      optionSetting++;
+    }
     for (const k of st.optionKeys) {
       optionUnion.add(k);
     }
@@ -340,6 +370,7 @@ function computeTreeStats(root: PresetNode): TreeStats {
       fetched,
       internal,
       options: optionUnion.size,
+      optionSetting,
       rules,
       maxDepth,
       duplicates,
@@ -364,12 +395,13 @@ export function nodeIdForIdentity(root: PresetNode, identity: string): string | 
 }
 
 /**
- * Roadmap 028: the number the Presets tab badge and the Overview stat line
- * report — derived from the same single walk (and therefore always the same
- * number) as the tree's own "N resolved" summary header.
+ * Roadmap 028/029: the expansion totals the Presets tab badge and the Overview
+ * digest report — derived from the same single walk (and therefore always the
+ * same numbers) as the tree's own summary header. Null when the run resolved
+ * no tree at all.
  */
-export function resolvedPresetCount(root: PresetNode | null | undefined): number {
-  return root ? computeTreeStats(root).summary.resolved : 0;
+export function presetTreeSummary(root: PresetNode | null | undefined): TreeSummary | null {
+  return root ? computeTreeStats(root).summary : null;
 }
 
 /** Node ids whose subtree (self or any descendant) matches the query. */

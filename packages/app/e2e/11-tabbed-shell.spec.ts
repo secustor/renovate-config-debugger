@@ -38,7 +38,7 @@ test("a run lands on the Overview tab, not on an expanded instrument", async ({ 
   await expect(page.getByRole("button", { name: "What did each stage change?" })).toBeVisible();
 });
 
-test("tab badges report the run's counts and match the Overview stat line", async ({ page }) => {
+test("tab badges report the run's counts and match the Overview digest", async ({ page }) => {
   await page.goto("/");
   await runAndAwaitResult(page);
 
@@ -54,10 +54,34 @@ test("tab badges report the run's counts and match the Overview stat line", asyn
   const effective = Number((await effectiveCount.innerText()).replace(/\D/g, ""));
   expect(effective).toBeGreaterThan(0);
 
-  // The stat line quotes exactly the same numbers.
-  const statLine = page.locator(".run-stat-line");
-  await expect(statLine).toContainText(`${presets.toLocaleString("en-US")} presets resolved`);
-  await expect(statLine).toContainText(`${effective} effective options`);
+  // Roadmap 029: the digest paragraph quotes exactly the same numbers.
+  const digest = page.locator(".run-digest");
+  await expect(digest).toContainText(`${presets.toLocaleString("en-US")} presets`);
+  await expect(digest).toContainText(`${effective} effective options`);
+});
+
+/**
+ * Roadmap 029 — the Overview is a paragraph of prose, not a dashboard: it
+ * opens with the verdict, and every number in it is a way into the tab that
+ * explains it.
+ */
+test("the Overview digest narrates the run and its links switch tabs", async ({ page }) => {
+  await page.goto("/");
+  await runAndAwaitResult(page);
+
+  const digest = page.locator(".run-digest");
+  await expect(digest).toBeVisible();
+  // The verdict comes first, in plain English.
+  await expect(digest).toContainText(/Renovate accepted this config/);
+  // …then what the extends actually cost.
+  await expect(digest.locator('[data-clause="presets"]')).toContainText(/expanded into/);
+
+  // A digest link is a way into the instrument behind the number.
+  await digest.locator('[data-clause="presets"] .digest-link').click();
+  await expect(tabPanel(page, "presets")).toBeVisible();
+  await expect(tabButton(page, "presets")).toHaveAttribute("aria-selected", "true");
+  // It is a jump, not a tab click, so one step goes back (028).
+  await expect(page.locator(".tab-back")).toHaveText(/Back to Overview/);
 });
 
 test("a zero-count tab stays visible, dimmed and clickable, showing its empty state", async ({

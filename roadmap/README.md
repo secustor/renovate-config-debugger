@@ -33,7 +33,7 @@ Full context and architecture: [.agents/spec/renovate-config-visualizer.md](../.
 | [026](026-schema-first-class-option.md)               | Treat `$schema` as a first-class option                   | M7                   | done    |
 | [027](027-share-link-failure-diagnostics.md)          | Share-link failure diagnostics                            | M7                   | done    |
 | [028](028-tabbed-results-shell.md)                    | Tabbed results shell (post-run progressive disclosure)    | M8                   | done    |
-| [029](029-run-digest.md)                              | Run digest (plain-English overview)                       | M8                   | planned |
+| [029](029-run-digest.md)                              | Run digest (plain-English overview)                       | M8                   | done    |
 | [030](030-input-validation-zod.md)                    | Input validation at every boundary (zod/mini)             | M8                   | planned |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):

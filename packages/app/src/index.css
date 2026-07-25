@@ -2531,14 +2531,21 @@ main:has(.app-split.has-results) {
   color: var(--accent);
 }
 
-/* Overview: the placeholder stat line 029 replaces with the run digest. */
-.run-stat-line {
-  font-size: 0.95rem;
-  line-height: 1.7;
+/* --- roadmap 029: the run digest ------------------------------------------
+   The Overview's whole content: one paragraph of prose whose numbers are
+   buttons into the tab that explains them. Reads as text first — links are
+   marked by a dashed underline, never by button chrome. */
+.run-digest {
+  font-size: 0.98rem;
+  line-height: 1.75;
   margin: 0 0 1rem;
 }
 
-.run-stat {
+.run-digest code {
+  font-size: 0.9em;
+}
+
+.digest-link {
   background: none;
   border: none;
   border-bottom: 1px dashed var(--accent);
@@ -2546,20 +2553,32 @@ main:has(.app-split.has-results) {
   cursor: pointer;
   font: inherit;
   padding: 0;
+  text-align: left;
 }
 
-.run-stat.warn {
-  border-bottom-color: var(--warn);
+.digest-link:hover {
+  border-bottom-style: solid;
+}
+
+/* Tone colours the whole clause — its text and its link — so the eye finds
+   "what needs attention" without reading the sentence. The clean verdict is
+   deliberately NOT coloured: nothing to attend to, nothing to look at. */
+.digest-clause.warn,
+.digest-clause.warn .digest-link {
   color: var(--warn);
 }
 
-.run-stat.error {
-  border-bottom-color: var(--error);
+.digest-clause.error,
+.digest-clause.error .digest-link {
   color: var(--error);
 }
 
-.run-stat-sep {
-  color: var(--muted);
+.digest-clause.warn .digest-link {
+  border-bottom-color: var(--warn);
+}
+
+.digest-clause.error .digest-link {
+  border-bottom-color: var(--error);
 }
 
 .q-row {
