@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mockup E — Final: tabs + digest, chips in Pipeline, stacked fallback</title>
+    <link rel="stylesheet" href="shared.css" />
+    <style>
+      main {
+        max-width: 90rem;
+      }
+      .split {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: minmax(24rem, 2fr) minmax(30rem, 3fr);
+        align-items: start;
+      }
+      .results-panel {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .tab-bar {
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        flex-wrap: wrap;
+      }
+      .tab {
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        color: var(--muted);
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 0.85rem;
+        padding: 0.55rem 0.8rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .tab.active {
+        border-bottom-color: var(--accent);
+        color: inherit;
+        font-weight: 600;
+      }
+      .tab .cnt {
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        font-size: 0.7rem;
+        padding: 0 0.4rem;
+        color: var(--muted);
+      }
+      .tab .cnt.warn {
+        border-color: var(--warn);
+        color: var(--warn);
+      }
+      .tab-body {
+        padding: 0.9rem;
+      }
+      .digest {
+        font-size: 0.98rem;
+        line-height: 1.75;
+        margin: 0 0 1rem;
+      }
+      .digest .inline-link {
+        color: var(--accent);
+        text-decoration: none;
+        border-bottom: 1px dashed var(--accent);
+        cursor: pointer;
+      }
+      .digest .warn-text {
+        color: var(--warn);
+        font-weight: 600;
+      }
+      .q-row {
+        border-top: 1px solid var(--border);
+        padding-top: 0.8rem;
+      }
+      .q-row .q-lbl {
+        color: var(--muted);
+        font-size: 0.8rem;
+        margin: 0 0 0.5rem;
+      }
+      .q-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .q-link {
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        color: inherit;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 0.82rem;
+        padding: 0.3rem 0.75rem;
+      }
+      .q-link:hover {
+        border-color: var(--accent);
+      }
+      .editor-col .editor {
+        max-height: none;
+      }
+      .annot {
+        color: var(--accent);
+        font-size: 0.78rem;
+        font-style: italic;
+        margin: 1.4rem 0 0.5rem;
+      }
+      .mini-stages {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        margin-bottom: 0.75rem;
+      }
+      .stage-note {
+        color: var(--muted);
+        font-size: 0.82rem;
+        margin: 0 0 0.6rem;
+      }
+      .stage-note .inline-link {
+        color: var(--accent);
+        border-bottom: 1px dashed var(--accent);
+        cursor: pointer;
+      }
+      .diff-box {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .diff-box .diff-head {
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        color: var(--muted);
+        font-size: 0.78rem;
+        padding: 0.35rem 0.75rem;
+      }
+      /* narrow-viewport simulation */
+      .narrow-sim {
+        border: 2px dashed light-dark(#8250df, #a879ff);
+        border-radius: 12px;
+        max-width: 45rem;
+        padding: 1rem 1rem 0.5rem;
+      }
+      .narrow-sim .editor {
+        font-size: 0.78rem;
+      }
+      .narrow-sim .tab {
+        padding: 0.5rem 0.55rem;
+        font-size: 0.8rem;
+      }
+      .narrow-sim h1 {
+        font-size: 1.2rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="mock-banner">
+        <strong>Mockup E — Final candidate.</strong> Changes from D: ① stage chips moved out of
+        Overview into the <em>Pipeline</em> tab (one navigation system per view); ② narrow viewports
+        stack the panes — config on top, tabs below; ③ the digest generator becomes its own roadmap
+        item. Three states shown.
+      </div>
+
+      <p class="annot">
+        State 1 — landing after Run: Overview is just the digest + question pills. The only
+        navigation on it is the prose links and the tabs.
+      </p>
+      <div class="split">
+        <div class="editor-col">
+          <div class="editor">
+            <div class="row"><span class="ln">1</span>{</div>
+            <div class="row"><span class="ln">2</span> <span class="k">"extends"</span>: [</div>
+            <div class="row">
+              <span class="ln">3</span> <span class="s">"config:recommended"</span>,
+            </div>
+            <div class="row">
+              <span class="ln">4</span> <span class="s">":dependencyDashboard"</span>
+            </div>
+            <div class="row"><span class="ln">5</span> ],</div>
+            <div class="row">
+              <span class="ln">6</span> <span class="k">"schedule"</span>:
+              <span class="s">"before 6am on monday"</span>,
+            </div>
+            <div class="row">
+              <span class="ln">7</span> <span class="k">"semanticCommits"</span>:
+              <span class="b">true</span>,
+            </div>
+            <div class="row">
+              <span class="ln">8</span> <span class="k">"packageRules"</span>: [
+            </div>
+            <div class="row"><span class="ln">9</span> {</div>
+            <div class="row">
+              <span class="ln">10</span> <span class="k">"matchDepTypes"</span>: [<span class="s"
+                >"devDependencies"</span
+              >],
+            </div>
+            <div class="row">
+              <span class="ln">11</span> <span class="k">"matchUpdateTypes"</span>: [<span class="s"
+                >"minor"</span
+              >, <span class="s">"patch"</span>],
+            </div>
+            <div class="row">
+              <span class="ln">12</span> <span class="k">"automerge"</span>:
+              <span class="b">true</span>
+            </div>
+            <div class="row"><span class="ln">13</span> },</div>
+            <div class="row"><span class="ln">14</span> {</div>
+            <div class="row">
+              <span class="ln">15</span> <span class="k">"packageNames"</span>: [<span class="s"
+                >"react"</span
+              >, <span class="s">"react-dom"</span>],
+            </div>
+            <div class="row">
+              <span class="ln">16</span> <span class="k">"groupName"</span>:
+              <span class="s">"react"</span>
+            </div>
+            <div class="row"><span class="ln">17</span> }</div>
+            <div class="row"><span class="ln">18</span> ]</div>
+            <div class="row"><span class="ln">19</span>}</div>
+          </div>
+          <div class="toolbar">
+            <select>
+              <option>renovate.json</option>
+            </select>
+            <span class="toolbar-spacer"></span>
+            <button class="primary">Run</button>
+            <button>Copy link</button>
+          </div>
+          <p class="advanced-line">
+            ▸ Advanced options — repository host, tokens, self-hosted config
+          </p>
+        </div>
+
+        <div class="results-panel">
+          <div class="tab-bar">
+            <button class="tab active">Overview</button>
+            <button class="tab">Pipeline</button>
+            <button class="tab">Rewrites <span class="cnt warn">2</span></button>
+            <button class="tab">Presets <span class="cnt">1,076</span></button>
+            <button class="tab">Effective config <span class="cnt">23</span></button>
+            <button class="tab">Simulator</button>
+            <button class="tab">Problems <span class="cnt warn">1</span></button>
+          </div>
+          <div class="tab-body">
+            <p class="digest">
+              ✓ Renovate accepted this config. It
+              <a class="inline-link">rewrote 2 deprecated options</a> in your file, expanded
+              <span class="mono">config:recommended</span> and
+              <span class="mono">:dependencyDashboard</span> into
+              <a class="inline-link">1,076 presets</a> — only 14 of which set options, the rest are
+              package-grouping rules — and merged everything into
+              <a class="inline-link">23 effective options</a>, 6 of them
+              <a class="inline-link">overridden along the way</a>.
+              <span class="warn-text">1 warning:</span> your <span class="mono">schedule</span> may
+              never match — <a class="inline-link">review it</a>.
+            </p>
+            <div class="q-row">
+              <p class="q-lbl">Dig in with a question:</p>
+              <div class="q-links">
+                <button class="q-link">Where did a setting come from?</button>
+                <button class="q-link">What happens to one of my dependencies?</button>
+                <button class="q-link">What did each stage change?</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="annot">
+        State 2 — the Pipeline tab now owns the stage chips: chips are the stage selector (exactly
+        today's behavior), the diff renders below. “Rewrites” cross-links for the per-rewrite
+        stepper.
+      </p>
+      <div class="split">
+        <div></div>
+        <div class="results-panel">
+          <div class="tab-bar">
+            <button class="tab">Overview</button>
+            <button class="tab active">Pipeline</button>
+            <button class="tab">Rewrites <span class="cnt warn">2</span></button>
+            <button class="tab">Presets <span class="cnt">1,076</span></button>
+            <button class="tab">Effective config <span class="cnt">23</span></button>
+            <button class="tab">Simulator</button>
+            <button class="tab">Problems <span class="cnt warn">1</span></button>
+          </div>
+          <div class="tab-body">
+            <div class="mini-stages">
+              <span class="stage-chip"><span class="dot clean"></span>Parse</span>
+              <span class="stage-chip selected"
+                ><span class="dot changed"></span>Migrate
+                <span class="stage-chip-count">2</span></span
+              >
+              <span class="stage-chip"
+                ><span class="dot changed"></span>Massage
+                <span class="stage-chip-count">1</span></span
+              >
+              <span class="stage-chip"><span class="dot clean"></span>Validate</span>
+              <span class="stage-chip"><span class="dot clean"></span>Presets</span>
+              <span class="stage-chip"><span class="dot clean"></span>Merge</span>
+            </div>
+            <p class="stage-note">
+              <strong>Migrate</strong> — Renovate silently rewrites deprecated options to their
+              current form. 2 rewrites applied ·
+              <a class="inline-link">step through them one by one →</a>
+            </p>
+            <div class="diff-box">
+              <div class="diff-head">renovate.json — before migration → after migration</div>
+              <div class="diff">
+                <div class="dl ctx">"schedule": "before 6am on monday",</div>
+                <div class="dl del">- "semanticCommits": true,</div>
+                <div class="dl add">+ "semanticCommits": "enabled",</div>
+                <div class="dl ctx">"packageRules": [</div>
+                <div class="dl ctx">{ … },</div>
+                <div class="dl ctx">{</div>
+                <div class="dl del">- "packageNames": ["react", "react-dom"],</div>
+                <div class="dl add">+ "matchPackageNames": ["react", "react-dom"],</div>
+                <div class="dl ctx">"groupName": "react"</div>
+                <div class="dl ctx">}</div>
+                <div class="dl ctx">]</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="annot">
+        State 3 — narrow viewport (&lt; ~60rem, dashed frame = phone/small window): the same two
+        panes stack — config on top, results below. Same tabs, same content; nothing is a different
+        component.
+      </p>
+      <div class="narrow-sim">
+        <header class="app-header">
+          <h1>Renovate Config Visualizer</h1>
+          <span class="version-badge">v43.275.0</span>
+        </header>
+        <div class="editor" style="margin-top: 0.75rem">
+          <div class="row"><span class="ln">1</span>{</div>
+          <div class="row">
+            <span class="ln">2</span> <span class="k">"extends"</span>: [<span class="s"
+              >"config:recommended"</span
+            >, <span class="s">":dependencyDashboard"</span>],
+          </div>
+          <div class="row">
+            <span class="ln">3</span> <span class="k">"schedule"</span>:
+            <span class="s">"before 6am on monday"</span>,
+          </div>
+          <div class="row">
+            <span class="ln">4</span> <span class="k">"semanticCommits"</span>:
+            <span class="b">true</span>,
+          </div>
+          <div class="row">
+            <span class="ln">5</span> <span class="k">"packageRules"</span>: [
+            <span class="muted">… 2 rules …</span> ]
+          </div>
+          <div class="row"><span class="ln">6</span>}</div>
+        </div>
+        <div class="toolbar">
+          <select>
+            <option>renovate.json</option>
+          </select>
+          <span class="toolbar-spacer"></span>
+          <button class="primary">Run</button>
+        </div>
+        <div class="results-panel" style="margin-bottom: 1rem">
+          <div class="tab-bar">
+            <button class="tab active">Overview</button>
+            <button class="tab">Pipeline</button>
+            <button class="tab">Rewrites <span class="cnt warn">2</span></button>
+            <button class="tab">Presets <span class="cnt">1,076</span></button>
+            <button class="tab">Effective config <span class="cnt">23</span></button>
+            <button class="tab">Simulator</button>
+            <button class="tab">Problems <span class="cnt warn">1</span></button>
+          </div>
+          <div class="tab-body">
+            <p class="digest" style="font-size: 0.9rem">
+              ✓ Renovate accepted this config. It
+              <a class="inline-link">rewrote 2 deprecated options</a>, expanded your 2 presets into
+              <a class="inline-link">1,076</a>, and merged everything into
+              <a class="inline-link">23 effective options</a>.
+              <span class="warn-text">1 warning</span> — <a class="inline-link">review it</a>.
+            </p>
+            <div class="q-links">
+              <button class="q-link">Where did a setting come from?</button>
+              <button class="q-link">What happens to a dependency?</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>
