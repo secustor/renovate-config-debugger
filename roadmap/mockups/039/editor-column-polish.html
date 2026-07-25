@@ -1,0 +1,747 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>
+      Mockup 039 — Editor column polish: editor theme, one Button, hint removal, repo-load
+    </title>
+    <style>
+      /* ---- app tokens, verbatim from packages/app/src/index.css ---- */
+      :root {
+        color-scheme: light dark;
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        --border: light-dark(#d0d7de, #3d444d);
+        --surface: light-dark(#f6f8fa, #151b23);
+        --accent: #0969da;
+        --ok: #1a7f37;
+        --error: #cf222e;
+        --warn: #9a6700;
+        --muted: light-dark(#59636e, #9198a1);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: light-dark(#ffffff, #0d1117);
+        color: light-dark(#1f2328, #f0f6fc);
+      }
+      main {
+        margin: 0 auto;
+        max-width: 68rem;
+        padding: 1.5rem 1rem 4rem;
+      }
+      h1 {
+        font-size: 1.5rem;
+        margin: 0 0 0.25rem;
+      }
+      h2 {
+        font-size: 1.05rem;
+        margin: 2.5rem 0 0.25rem;
+      }
+      h2 .num {
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .section-note {
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin: 0.25rem 0 1rem;
+        max-width: 60rem;
+      }
+      .mock-banner {
+        background: light-dark(#fff8c5, #3a2d00);
+        border: 1px solid var(--warn);
+        border-radius: 8px;
+        font-size: 0.85rem;
+        margin-bottom: 1rem;
+        padding: 0.5rem 0.75rem;
+      }
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        overflow: hidden;
+      }
+      .card > .card-title {
+        align-items: center;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        font-size: 0.85rem;
+        font-weight: 600;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+      }
+      code,
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      .before-after {
+        align-items: start;
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: 1fr 1fr;
+      }
+      @media (max-width: 52rem) {
+        .before-after {
+          grid-template-columns: 1fr;
+        }
+      }
+      .pane-label {
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        margin: 0 0 0.35rem;
+        text-transform: uppercase;
+      }
+      .pane-label.now {
+        color: var(--error);
+      }
+      .pane-label.proposed {
+        color: var(--ok);
+      }
+
+      /* ---- the ONE base button (issue 2) ---- */
+      .btn {
+        align-items: center;
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: inherit;
+        cursor: pointer;
+        display: inline-flex;
+        font: inherit;
+        font-size: 0.8rem;
+        gap: 0.35rem;
+        padding: 0.25rem 0.6rem;
+        white-space: nowrap;
+      }
+      .btn:hover {
+        border-color: var(--accent);
+      }
+      .btn.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+        font-weight: 600;
+      }
+      .btn.primary:hover {
+        background: color-mix(in srgb, var(--accent) 88%, #000);
+      }
+      .btn.quiet {
+        color: var(--muted);
+      }
+      .btn.quiet:hover {
+        color: inherit;
+      }
+      .btn.accent-text {
+        color: var(--accent);
+      }
+      .btn:disabled {
+        cursor: default;
+        opacity: 0.55;
+      }
+      /* form controls share the button metrics so a row is ONE height */
+      .ctl {
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: inherit;
+        font: inherit;
+        font-size: 0.8rem;
+        padding: 0.25rem 0.6rem;
+      }
+      .toolbar-mock {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding: 0.6rem 0.75rem;
+      }
+      /* the current mixed-height toolbar, reproduced for the "now" pane */
+      .old-btn {
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: inherit;
+        font: inherit;
+        font-size: 0.9rem;
+        padding: 0.4rem 0.75rem;
+      }
+      .old-btn.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+        font-weight: 600;
+      }
+      .old-copy {
+        align-items: center;
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--accent);
+        display: inline-flex;
+        font: inherit;
+        font-size: 0.8rem;
+        gap: 0.35rem;
+        padding: 0.25rem 0.6rem;
+      }
+
+      /* ---- fake editor (issue 1) ---- */
+      .editor {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.78rem;
+        line-height: 1.6;
+        padding: 0.5rem 0.75rem;
+        white-space: pre;
+        overflow-x: auto;
+      }
+      /* correct: tokens follow the app scheme */
+      .editor .k {
+        color: light-dark(#0550ae, #79c0ff);
+      }
+      .editor .s {
+        color: light-dark(#0a3069, #a5d6ff);
+      }
+      .editor .p {
+        color: light-dark(#1f2328, #f0f6fc);
+      }
+      /* wrong: hardcoded dark editor regardless of page scheme */
+      .editor.stuck-dark {
+        background: #0d1117;
+      }
+      .editor.stuck-dark .k {
+        color: #79c0ff;
+      }
+      .editor.stuck-dark .s {
+        color: #a5d6ff;
+      }
+      .editor.stuck-dark .p {
+        color: #f0f6fc;
+      }
+
+      .inventory {
+        border-collapse: collapse;
+        font-size: 0.85rem;
+        width: 100%;
+      }
+      .inventory th,
+      .inventory td {
+        border-top: 1px solid var(--border);
+        padding: 0.45rem 0.75rem;
+        text-align: left;
+        vertical-align: middle;
+      }
+      .inventory thead th {
+        background: var(--surface);
+        border-top: none;
+        font-size: 0.78rem;
+      }
+      .inventory .dim {
+        color: var(--muted);
+        font-size: 0.78rem;
+      }
+
+      /* ---- issue 4: option tabs ---- */
+      .seg {
+        display: inline-flex;
+      }
+      .seg button {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--muted);
+        cursor: pointer;
+        font: inherit;
+        font-size: 0.8rem;
+        padding: 0.25rem 0.6rem;
+      }
+      .seg button:first-child {
+        border-radius: 6px 0 0 6px;
+      }
+      .seg button + button {
+        border-left: none;
+      }
+      .seg button:last-child {
+        border-radius: 0 6px 6px 0;
+      }
+      .seg button.active {
+        background: var(--surface);
+        color: inherit;
+        font-weight: 600;
+      }
+      .option-pane {
+        display: none;
+      }
+      .option-pane.active {
+        display: block;
+      }
+      .option-head {
+        align-items: baseline;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1rem;
+        margin: 1rem 0 0.5rem;
+      }
+      .option-head h3 {
+        font-size: 0.95rem;
+        margin: 0;
+      }
+      .option-head .verdict {
+        font-size: 0.78rem;
+        font-weight: 600;
+      }
+      .verdict.rec {
+        color: var(--ok);
+      }
+      .verdict.con {
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .col-mock {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        max-width: 34rem;
+        padding: 0.75rem;
+      }
+      .col-mock .card {
+        margin-bottom: 0.6rem;
+      }
+      .repo-panel {
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        padding: 0.5rem 0.75rem;
+      }
+      .repo-panel input.grow {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .repo-panel input.ref {
+        flex: 0 1 9rem;
+        min-width: 6rem;
+      }
+      .popover {
+        background: light-dark(#ffffff, #151b23);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: 0 8px 24px light-dark(rgba(140, 149, 159, 0.3), rgba(0, 0, 0, 0.5));
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        padding: 0.6rem;
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        width: 20rem;
+        z-index: 5;
+      }
+      .pop-anchor {
+        position: relative;
+      }
+      details.repo-details > summary {
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 0.85rem;
+        padding: 0.15rem 0;
+        user-select: none;
+        width: fit-content;
+      }
+      details.repo-details > summary:hover {
+        color: var(--accent);
+      }
+      details.repo-details .repo-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        padding: 0.4rem 0 0.2rem;
+      }
+      details.repo-details input.grow {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .space-note {
+        color: var(--muted);
+        font-size: 0.78rem;
+        margin-top: 0.4rem;
+      }
+      ul.crit {
+        margin: 0.35rem 0 0;
+        padding-left: 1.1rem;
+      }
+      ul.crit li {
+        color: var(--muted);
+        font-size: 0.85rem;
+        margin: 0.2rem 0;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="mock-banner">
+        <strong>Mockup — roadmap 039 candidate.</strong> Four fixes to the editor column. Section 4
+        offers three alternatives — the tabs switch live. App tokens throughout; flip your OS/page
+        theme to check both schemes.
+      </div>
+      <h1>Editor column polish</h1>
+
+      <!-- ============ 1 · editor follows the switcher ============ -->
+      <h2><span class="num">1 ·</span> The config editor must follow the theme switcher</h2>
+      <p class="section-note">
+        Root cause, not a mock decision: <code>ConfigEditor.tsx</code> asks
+        <code>matchMedia("(prefers-color-scheme: dark)")</code> — the <em>OS</em> — once per render.
+        The 037 switcher deliberately overrides the OS via <code>color-scheme</code>, and the editor
+        never hears about it (it doesn't even react to OS changes). Fix: derive the editor's
+        <code>theme</code> prop from the app's <em>effective</em> scheme — the 037 stored override
+        when set, the OS otherwise — through a small subscribed hook
+        (<code>useEffectiveScheme()</code>), so the editor repaints the moment either one changes.
+      </p>
+      <div class="before-after">
+        <div>
+          <p class="pane-label now">Now — light theme selected, editor stuck dark</p>
+          <div class="card">
+            <div class="card-title">renovate.json</div>
+            <div class="editor stuck-dark">
+              <span class="p">{</span> <span class="k">"$schema"</span><span class="p">:</span>
+              <span class="s">"https://docs.renovatebot.com/renovate-schema.json"</span
+              ><span class="p">,</span> <span class="k">"extends"</span><span class="p">:</span>
+              <span class="p">[</span><span class="s">"config:recommended"</span
+              ><span class="p">]</span> <span class="p">}</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <p class="pane-label proposed">Proposed — editor follows the app scheme</p>
+          <div class="card">
+            <div class="card-title">renovate.json</div>
+            <div class="editor">
+              <span class="p">{</span> <span class="k">"$schema"</span><span class="p">:</span>
+              <span class="s">"https://docs.renovatebot.com/renovate-schema.json"</span
+              ><span class="p">,</span> <span class="k">"extends"</span><span class="p">:</span>
+              <span class="p">[</span><span class="s">"config:recommended"</span
+              ><span class="p">]</span> <span class="p">}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ 2 · one base Button ============ -->
+      <h2><span class="num">2 ·</span> One base <code>Button</code>, three variants, one height</h2>
+      <p class="section-note">
+        036 unified the chrome rows, but the toolbar tier still towers over them — five button
+        dialects remain. Proposed: every button derives from one <code>.btn</code> base (the 036
+        control metrics: 0.8rem, 0.25×0.6 padding) with exactly three variants —
+        <strong>primary</strong> (accent fill; only Run), <strong>secondary</strong> (bordered,
+        default text), <strong>quiet</strong> (muted text; segmented controls, footer buttons). The
+        file <code>&lt;select&gt;</code> and inputs adopt the same metrics so a row is one height
+        end to end. <code>&lt;CopyButton&gt;</code> and <code>.seg</code> keep their look — they
+        simply re-base onto <code>.btn</code>.
+      </p>
+      <div class="before-after">
+        <div>
+          <p class="pane-label now">Now — three heights in one row</p>
+          <div class="card">
+            <div class="toolbar-mock">
+              <select class="old-btn">
+                <option>renovate.json</option>
+              </select>
+              <button type="button" class="old-btn">Revert to loaded config</button>
+              <button type="button" class="old-btn primary">Run</button>
+              <button type="button" class="old-copy">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                  <use href="#i-copy" />
+                </svg>
+                Copy link
+              </button>
+            </div>
+          </div>
+        </div>
+        <div>
+          <p class="pane-label proposed">Proposed — one height, hierarchy by color only</p>
+          <div class="card">
+            <div class="toolbar-mock">
+              <select class="ctl">
+                <option>renovate.json</option>
+              </select>
+              <button type="button" class="btn">Revert to loaded config</button>
+              <button type="button" class="btn primary">Run</button>
+              <button type="button" class="btn accent-text">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                  <use href="#i-copy" />
+                </svg>
+                Copy link
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Migration map — every dialect onto the base</div>
+        <table class="inventory">
+          <thead>
+            <tr>
+              <th>Today</th>
+              <th>Becomes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="dim"><code>.toolbar button.primary</code> (Run, 0.9rem)</td>
+              <td><button type="button" class="btn primary">Run</button></td>
+            </tr>
+            <tr>
+              <td class="dim">
+                <code>.toolbar button.secondary</code>, <code>.migration-nav button</code>, plain
+                toolbar buttons
+              </td>
+              <td>
+                <button type="button" class="btn">Revert to loaded config</button>
+                <button type="button" class="btn">Next ›</button>
+              </td>
+            </tr>
+            <tr>
+              <td class="dim"><code>.copy-btn</code> (036 — already these metrics)</td>
+              <td>
+                <button type="button" class="btn accent-text">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                    <use href="#i-copy" /></svg
+                  >Copy result
+                </button>
+              </td>
+            </tr>
+            <tr>
+              <td class="dim"><code>.seg button</code> (036 — already these metrics)</td>
+              <td>
+                <span class="seg"
+                  ><button type="button" class="active">Unified</button
+                  ><button type="button">Side-by-side</button></span
+                >
+              </td>
+            </tr>
+            <tr>
+              <td class="dim"><code>.diff-foot button</code> (0.78rem)</td>
+              <td><button type="button" class="btn accent-text">Show all 2,341 lines</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ============ 3 · hint removed ============ -->
+      <h2><span class="num">3 ·</span> Remove the undo/redo hint</h2>
+      <p class="section-note">
+        The <code>Cmd+Z to undo, Shift+Cmd+Z to redo.</code> line under the editor goes. Undo/redo
+        is universal editor behavior, not app knowledge — the hint spends a permanent line of the
+        column's scarcest resource on the least surprising fact in the UI. Nothing replaces it.
+      </p>
+
+      <!-- ============ 4 · repo-load options ============ -->
+      <h2>
+        <span class="num">4 ·</span> "Load from a repository" — three ways to stop paying rent
+      </h2>
+      <p class="section-note">
+        The always-open form costs ~64px of standing height above the editor, for an action most
+        sessions use zero or one time. Three alternatives, all keeping the 035 no-orphan row once
+        revealed — click through them:
+      </p>
+      <span class="seg" id="optTabs">
+        <button type="button" class="active" data-opt="a">A · Collapsed row</button>
+        <button type="button" data-opt="b">B · Editor-card button</button>
+        <button type="button" data-opt="c">C · Toolbar popover</button>
+      </span>
+
+      <div class="option-pane active" data-pane="a">
+        <div class="option-head">
+          <h3>Option A — collapsed disclosure row</h3>
+          <span class="verdict con">smallest change · still one standing line</span>
+        </div>
+        <div class="col-mock">
+          <details class="repo-details">
+            <summary>Load from a repository…</summary>
+            <div class="repo-row">
+              <input
+                type="text"
+                class="ctl grow"
+                placeholder="owner/repo, github.com/owner/repo, or a full repository URL"
+              />
+              <input
+                type="text"
+                class="ctl"
+                style="flex: 0 1 9rem"
+                placeholder="branch or tag (optional)"
+              />
+              <button type="button" class="btn">Load</button>
+            </div>
+          </details>
+          <div class="card" style="margin-top: 0.6rem">
+            <div class="card-title">renovate.json</div>
+            <div class="editor">
+              <span class="p">{</span> <span class="k">"extends"</span><span class="p">:</span>
+              <span class="p">[</span><span class="s">"config:recommended"</span
+              ><span class="p">]</span> <span class="p">}</span>
+            </div>
+          </div>
+        </div>
+        <ul class="crit">
+          <li>
+            The form collapses to one muted line; a <code>&lt;details&gt;</code>, so it needs no new
+            state.
+          </li>
+          <li>
+            Still pays one standing line forever, and the closed label duplicates what a button
+            would say.
+          </li>
+        </ul>
+      </div>
+
+      <div class="option-pane" data-pane="b">
+        <div class="option-head">
+          <h3>Option B — button in the editor card title</h3>
+          <span class="verdict rec"
+            >RECOMMENDED — zero standing cost, lives where its result lands</span
+          >
+        </div>
+        <div class="col-mock">
+          <div class="card">
+            <div class="card-title">
+              renovate.json
+              <span style="flex: 1"></span>
+              <button type="button" class="btn quiet" id="optBBtn" aria-expanded="false">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                  <use href="#i-repo" />
+                </svg>
+                Load from repo…
+              </button>
+            </div>
+            <div class="repo-panel" id="optBPanel" hidden>
+              <input
+                type="text"
+                class="ctl grow"
+                placeholder="owner/repo, github.com/owner/repo, or a full repository URL"
+              />
+              <input type="text" class="ctl ref" placeholder="branch or tag (optional)" />
+              <button type="button" class="btn primary">Load</button>
+              <button type="button" class="btn quiet" id="optBClose">Cancel</button>
+            </div>
+            <div class="editor">
+              <span class="p">{</span> <span class="k">"extends"</span><span class="p">:</span>
+              <span class="p">[</span><span class="s">"config:recommended"</span
+              ><span class="p">]</span> <span class="p">}</span>
+            </div>
+          </div>
+        </div>
+        <ul class="crit">
+          <li>
+            Loading a repo config <em>replaces the editor's content</em> — the affordance sits on
+            the card it acts on, and the fetched file name lands in the same title bar.
+          </li>
+          <li>
+            The panel opens as a chrome row inside the card (036 grammar), pushing the editor down
+            only while open. Zero standing cost.
+          </li>
+          <li>
+            Escape or Cancel closes it; focus moves into the first field on open (023
+            post-action-focus rule).
+          </li>
+        </ul>
+      </div>
+
+      <div class="option-pane" data-pane="c">
+        <div class="option-head">
+          <h3>Option C — toolbar button + anchored popover</h3>
+          <span class="verdict con">zero standing cost, but a floating surface</span>
+        </div>
+        <div class="col-mock" style="padding-bottom: 5.5rem">
+          <div class="card" style="overflow: visible">
+            <div class="toolbar-mock">
+              <select class="ctl">
+                <option>renovate.json</option>
+              </select>
+              <span class="pop-anchor">
+                <button type="button" class="btn" id="optCBtn" aria-expanded="true">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                    <use href="#i-repo" />
+                  </svg>
+                  Load from repo
+                </button>
+                <span class="popover" id="optCPop">
+                  <input type="text" class="ctl" placeholder="owner/repo or repository URL" />
+                  <input type="text" class="ctl" placeholder="branch or tag (optional)" />
+                  <button type="button" class="btn primary" style="align-self: flex-end">
+                    Load
+                  </button>
+                </span>
+              </span>
+              <button type="button" class="btn primary">Run</button>
+            </div>
+          </div>
+        </div>
+        <ul class="crit">
+          <li>Groups the load action with the other config-level actions in the toolbar.</li>
+          <li>
+            But: a popover needs its own dismiss/focus/overflow management (the 025 hover-card
+            lesson), and it floats over the editor it's about to change instead of being part of it.
+          </li>
+        </ul>
+      </div>
+
+      <p class="space-note">
+        All three restore the welcome/editor/run stack to the top of the viewport; B and C free the
+        full ~64px. Recommendation: <strong>B</strong> — it needs no floating surface, reuses the
+        036 chrome-row grammar, and puts the control on the card whose content it replaces.
+      </p>
+
+      <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+        <defs>
+          <path
+            id="i-copy"
+            d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25ZM5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"
+          />
+          <path
+            id="i-repo"
+            d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8ZM5 12.25a.25.25 0 0 1 .25-.25h3.5a.25.25 0 0 1 .25.25v3.25a.25.25 0 0 1-.4.2l-1.45-1.087a.249.249 0 0 0-.3 0L5.4 15.7a.25.25 0 0 1-.4-.2Z"
+          />
+        </defs>
+      </svg>
+
+      <script>
+        // 4 · option tabs
+        const tabs = document.getElementById("optTabs");
+        tabs.addEventListener("click", (e) => {
+          const btn = e.target.closest("button[data-opt]");
+          if (!btn) return;
+          for (const b of tabs.querySelectorAll("button")) {
+            b.classList.toggle("active", b === btn);
+          }
+          for (const pane of document.querySelectorAll(".option-pane")) {
+            pane.classList.toggle("active", pane.dataset.pane === btn.dataset.opt);
+          }
+        });
+        // option B: expand/collapse the editor-card panel
+        const bBtn = document.getElementById("optBBtn");
+        const bPanel = document.getElementById("optBPanel");
+        const toggleB = (open) => {
+          bPanel.hidden = !open;
+          bBtn.setAttribute("aria-expanded", String(open));
+          if (open) bPanel.querySelector("input").focus();
+        };
+        bBtn.addEventListener("click", () => toggleB(bPanel.hidden));
+        document.getElementById("optBClose").addEventListener("click", () => toggleB(false));
+        // option C: toggle the popover
+        const cBtn = document.getElementById("optCBtn");
+        const cPop = document.getElementById("optCPop");
+        cBtn.addEventListener("click", () => {
+          const open = cPop.style.display !== "none";
+          cPop.style.display = open ? "none" : "flex";
+          cBtn.setAttribute("aria-expanded", String(!open));
+        });
+      </script>
+    </main>
+  </body>
+</html>

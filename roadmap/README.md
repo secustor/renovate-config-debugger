@@ -43,6 +43,9 @@ Full context and architecture: [.agents/spec/renovate-config-visualizer.md](../.
 | [036](036-unified-chrome.md)                          | Unified chrome: filled badges, copy button, diff toolbar  | M10                  | done    |
 | [037](037-theme-switcher.md)                          | Light / dark theme switcher                               | M10                  | done    |
 | [038](038-lint-audit-follow-up.md)                    | Lint audit follow-up: quick wins + 034 corrections        | M10                  | planned |
+| [039](039-editor-column-polish.md)                    | Editor column polish: theme, one Button, repo-load        | M10                  | planned |
+| [040](040-jsx-depth-decomposition.md)                 | JSX-depth ratchet: decompose the monoliths to depth 4     | M10                  | planned |
+| [041](041-warn-tier-to-error.md)                      | Promote the warn tier to error                            | M10                  | planned |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live
@@ -74,3 +77,9 @@ unification, stage-result copy, diff toolbar, theme switcher), settled
 through the approved [mockups/036/unified-chrome.html](mockups/036/unified-chrome.html).
 038 comes from the 2026-07-26 re-audit of 034's disabled lint rules
 (every count re-measured, every post-034 hit blamed for recency).
+039 comes from the 2026-07-26 user review of the post-036/037 editor
+column, settled through the approved
+[mockups/039/editor-column-polish.html](mockups/039/editor-column-polish.html)
+(Option B); 040 from the same day's measured JSX-depth analysis (above
+depth 4 only three monolith files violate — the codebase's own norm);
+041 is the user decision to make the whole warn tier fail CI.

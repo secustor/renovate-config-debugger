@@ -30,13 +30,12 @@ Quick wins, in value-per-effort order:
   `groupName` (user config!) into an `objectobject` slug. Found by
   trial-enabling `typescript/no-base-to-string`; fix it regardless of
   the rule (guard non-strings before slugifying).
-- **Scope `typescript/no-non-null-assertion` (warn) to `src/**`** via an
-  `overrides` block turning it off for `**/test/**`, `**/e2e/**` and
-  `**/*.test.*`. 91 of today's 124 hits — and 24 of 24 post-034 new
-  ones — are test/e2e where `!` is the convention; the standing noise
-  drops to the 33 src hits (concentrated in `error-translations.ts` 17,
-  `PresetTree.tsx` 7) where the risk actually lives, so a NEW src `!`
-  becomes visible instead of buried.
+- ~~Scope `typescript/no-non-null-assertion` (warn) to `src/**`~~ —
+  **superseded by [041](041-warn-tier-to-error.md)** (user decision
+  2026-07-26): the rule goes to `error` outright, tests included, so
+  the softer scoping step is skipped. The audit's location breakdown
+  (91/124 test-or-e2e, src concentrated in `error-translations.ts` 17
+  and `PresetTree.tsx` 7) moves there as the fix map.
 - **Fix the 2 `unicorn/consistent-function-scoping` warnings**
   (`e2e/12-layout-regressions.spec.ts` — hoist `luminanceOf` and
   `centerOf`). They arrived with 035 and nobody noticed: the warn tier
