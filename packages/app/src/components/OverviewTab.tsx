@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from "react";
+import { Fragment, memo, type ReactNode } from "react";
 import type { ResultsTabId } from "../results-tabs";
 import type { DigestClause } from "../run-digest";
 
@@ -88,7 +88,9 @@ function QuestionPills({
   );
 }
 
-export function OverviewTab({
+// Roadmap 032: memoized — the digest and its pills change only per run, so
+// the landing tab must not re-render per keystroke with them.
+export const OverviewTab = memo(function OverviewTab({
   digest,
   banner,
   onOpen,
@@ -112,4 +114,4 @@ export function OverviewTab({
       />
     </div>
   );
-}
+});

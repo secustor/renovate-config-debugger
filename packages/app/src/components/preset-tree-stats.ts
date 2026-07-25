@@ -144,8 +144,29 @@ function ownContribution(node: PresetNode): {
   return { ownOptions, optionKeys, ownRules, search: parts.join(" ").toLowerCase() };
 }
 
+/**
+ * Roadmap 032: one walk per RESULT, not per caller. The tree object is
+ * immutable once a run produces it, and App (tab badge + digest via
+ * `presetTreeSummary`, identity lookups for share links) and PresetTree all
+ * need the same facts for the same tree — so the walk is cached on the tree
+ * object itself. This also structurally enforces the 029 invariant that the
+ * Presets badge and the digest quote one number: previously upheld by
+ * re-running the same function, now they literally read one `TreeStats`.
+ */
+const treeStatsCache = new WeakMap<PresetNode, TreeStats>();
+
 /** Single walk: per-node/per-subtree stats, identities, occurrences and totals. */
 export function computeTreeStats(root: PresetNode): TreeStats {
+  const cached = treeStatsCache.get(root);
+  if (cached) {
+    return cached;
+  }
+  const stats = computeTreeStatsUncached(root);
+  treeStatsCache.set(root, stats);
+  return stats;
+}
+
+function computeTreeStatsUncached(root: PresetNode): TreeStats {
   const statsById = new Map<string, NodeStats>();
   const nodesById = new Map<string, PresetNode>();
   const parents = new Map<string, PresetNode>();

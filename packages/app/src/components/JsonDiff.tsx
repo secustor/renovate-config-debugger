@@ -91,20 +91,28 @@ export function JsonDiff({ before, after, names, title }: Props) {
   const [, startTransition] = useTransition();
   const hoverHandlers = useDiffOptionHover();
 
+  // Roadmap 032: every call site writes `names` as an inline array literal, so
+  // depending on the array would re-stringify + re-parse a multi-thousand-line
+  // diff on EVERY parent render. Destructured to string primitives, the memo
+  // only recomputes when a label actually changes.
+  const [nameBefore = "before", nameAfter = "after"] = names ?? [];
+
   const diffText = useMemo(() => {
     const patch = createTwoFilesPatch(
-      names?.[0] ?? "before",
-      names?.[1] ?? "after",
+      nameBefore,
+      nameAfter,
       pretty(before),
       pretty(after),
       undefined,
       undefined,
-      { context: 3 },
+      {
+        context: 3,
+      },
     );
     // drop the "===" preamble line — gitdiff-parser only understands the
     // ---/+++/@@ unified format
     return patch.split("\n").slice(1).join("\n");
-  }, [before, after, names]);
+  }, [before, after, nameBefore, nameAfter]);
 
   const files = useMemo(() => {
     try {
@@ -120,7 +128,13 @@ export function JsonDiff({ before, after, names, title }: Props) {
   );
 
   const showAll = showAllRequested || totalLines <= MAX_RENDERED_LINES;
-  const visibleFiles = showAll ? files : truncateHunks(files, MAX_RENDERED_LINES);
+  // Memoized (032) so the truncation pass — and the widgets scan below, which
+  // depends on its identity — doesn't re-run on a render that changed neither
+  // the diff nor the budget toggle.
+  const visibleFiles = useMemo(
+    () => (showAll ? files : truncateHunks(files, MAX_RENDERED_LINES)),
+    [files, showAll],
+  );
   // Computed before the early return below — hooks can't follow one.
   const widgets = useMemo(() => schemaRemovalWidgets(visibleFiles), [visibleFiles]);
 

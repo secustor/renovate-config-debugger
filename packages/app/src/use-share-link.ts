@@ -11,7 +11,7 @@
  * cancellation, self-write filtering, and run-before-sim-arm ordering — all
  * live here; their comments moved with the statements they annotate.
  */
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { TraceResult } from "@renovate-config-visualizer/engine";
 import { completeCallback, type OAuthConfig, readCallbackParams, type StoredUser } from "./oauth";
 import { getRenovateVersion } from "./run";
@@ -350,7 +350,7 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
   // syncs the hash (huge configs would thrash the URL) — on demand only. Tokens
   // are never encoded (see share.ts); `sim` carries only dependency-descriptor
   // form fields (roadmap 018).
-  async function buildShareLinkAndCopy(sim?: ShareSimulator) {
+  async function buildShareLinkAndCopyImpl(sim?: ShareSimulator) {
     const shareToken = await encodeShare(await host.buildShareState(sim));
     const url = buildShareUrl(shareToken);
     try {
@@ -360,6 +360,18 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
     }
     writeHash(url, shareToken);
   }
+  // Roadmap 032: the impl closes over this render's `host` (it must — the
+  // share state IS the current app state), so it is redeclared every render.
+  // Handing that closure out directly would defeat the memoized RuleSimulator
+  // (its `onCopySimLink` prop); the latest-ref idiom (as with
+  // `loadShareTokenRef` above) keeps the returned identity stable while every
+  // call still encodes the current state.
+  const buildShareLinkAndCopyRef = useRef(buildShareLinkAndCopyImpl);
+  buildShareLinkAndCopyRef.current = buildShareLinkAndCopyImpl;
+  const buildShareLinkAndCopy = useCallback(
+    (sim?: ShareSimulator) => buildShareLinkAndCopyRef.current(sim),
+    [],
+  );
 
   return { shareError, simRequest, buildShareLinkAndCopy };
 }

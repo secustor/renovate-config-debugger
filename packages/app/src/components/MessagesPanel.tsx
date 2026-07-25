@@ -3,12 +3,14 @@ import type {
   RuleAttribution,
   TraceResult,
 } from "@renovate-config-visualizer/engine";
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import type { ErrorTranslationLib } from "../run";
 import { ErrorTranslationView } from "./ErrorTranslationView";
 import { RuleMessage } from "./RuleMessage";
 
-export function MessagesPanel({
+// Roadmap 032: memoized — a run with many findings renders a long message
+// list, and none of it reads editor state, so typing must not re-render it.
+export const MessagesPanel = memo(function MessagesPanel({
   result,
   ruleAttribution,
   onJumpToEditor,
@@ -29,7 +31,10 @@ export function MessagesPanel({
   errorLib?: ErrorTranslationLib | null;
   onApplyFix?: (fix: ErrorFixResult) => void;
 }) {
-  const presetErrors = result.events.filter((e) => e.kind === "preset-error");
+  const presetErrors = useMemo(
+    () => result.events.filter((e) => e.kind === "preset-error"),
+    [result.events],
+  );
   // The exact config `validateConfig("repo", …)` ran against (post-migrate/
   // massage, pre-preset-merge) — matches the `packageRules[N]` indices these
   // messages name, so a suggested fix's path resolves against the SAME
@@ -92,4 +97,4 @@ export function MessagesPanel({
       </ul>
     </div>
   );
-}
+});

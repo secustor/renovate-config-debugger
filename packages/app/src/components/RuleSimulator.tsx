@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type {
   ClauseEvaluation,
   ConfigKeyDelta,
@@ -789,7 +789,10 @@ function Field({
   );
 }
 
-export function RuleSimulator({
+// Roadmap 032: memoized — the simulator renders the full merged rule list and
+// reads nothing from the editor; its callback props are identity-stable in
+// App (useCallback / the latest-ref idiom), so typing never re-renders it.
+export const RuleSimulator = memo(function RuleSimulator({
   result,
   onSelectPreset,
   onJumpToEditor,
@@ -1675,4 +1678,4 @@ export function RuleSimulator({
       ) : null}
     </div>
   );
-}
+});

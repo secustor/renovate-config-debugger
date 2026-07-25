@@ -36,7 +36,7 @@ Full context and architecture: [.agents/spec/renovate-config-visualizer.md](../.
 | [029](029-run-digest.md)                              | Run digest (plain-English overview)                       | M8                   | done    |
 | [030](030-input-validation-zod.md)                    | Input validation at every boundary (zod/mini)             | M8                   | done    |
 | [031](031-critical-path-loading.md)                   | Critical-path loading performance                         | M9                   | planned |
-| [032](032-keystroke-render-performance.md)            | Keystroke render performance                              | M9                   | planned |
+| [032](032-keystroke-render-performance.md)            | Keystroke render performance                              | M9                   | done    |
 | [033](033-app-decomposition-and-boundaries.md)        | App decomposition + single-source boundaries              | M9                   | done    |
 | [034](034-lint-hardening.md)                          | Lint hardening (oxlint)                                   | M9                   | done    |
 

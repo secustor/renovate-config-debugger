@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type {
   KeyProvenance,
   ProvenanceStep,
@@ -314,7 +314,11 @@ function KeyRow({
   );
 }
 
-export function EffectiveConfig({
+// Roadmap 032: memoized — this view renders ~100 provenance rows and reads
+// nothing that changes while the user types in the editor, so a keystroke
+// must not re-render it. All props are identity-stable in App (the callbacks
+// via useCallback/latest-ref, the rest primitives or per-run objects).
+export const EffectiveConfig = memo(function EffectiveConfig({
   result,
   onSelectPreset,
   onStats,
@@ -382,14 +386,31 @@ export function EffectiveConfig({
     });
   }, [entries, query, showDefaults, onlyOverridden, layerFilter]);
 
+  // Roadmap 032: the view's headline numbers — shown keys, hidden default-only
+  // rows, really-overridden rows — in ONE pass over the entries (they were
+  // three separate filter passes: the stats effect made two and the render
+  // counted the defaults again). `filtered` above stays its own memo since it
+  // additionally depends on the interactive filters.
+  const tallies = useMemo(() => {
+    let shown = 0;
+    let hiddenDefaults = 0;
+    let overridden = 0;
+    for (const entry of entries) {
+      if (entry.isDefaultOnly) {
+        hiddenDefaults++;
+        continue;
+      }
+      shown++;
+      if (isOverridden(entry) && multiContribBadgeKind(entry) === "overridden") {
+        overridden++;
+      }
+    }
+    return { shown, hiddenDefaults, overridden };
+  }, [entries]);
+
   useEffect(() => {
-    const shown = entries.filter((e) => !e.isDefaultOnly);
-    onStats?.({
-      keys: shown.length,
-      overridden: shown.filter((e) => isOverridden(e) && multiContribBadgeKind(e) === "overridden")
-        .length,
-    });
-  }, [entries, onStats]);
+    onStats?.({ keys: tallies.shown, overridden: tallies.overridden });
+  }, [tallies, onStats]);
 
   // Focus (and select) the filter box when the Overview's "Where did a setting
   // come from?" pill routed the user here — the tab is already visible by the
@@ -424,7 +445,7 @@ export function EffectiveConfig({
     );
   }
 
-  const hiddenDefaults = entries.filter((e) => e.isDefaultOnly).length;
+  const hiddenDefaults = tallies.hiddenDefaults;
 
   return (
     <div className="card">
@@ -511,4 +532,4 @@ export function EffectiveConfig({
       )}
     </div>
   );
-}
+});

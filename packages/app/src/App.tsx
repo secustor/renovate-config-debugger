@@ -1,4 +1,5 @@
 import {
+  type ReactNode,
   useCallback,
   useDeferredValue,
   useEffect,
@@ -135,6 +136,10 @@ const STACKED_VIEWPORT_QUERY = "(max-width: 60rem)";
 /** Roadmap 028: how much of the stacked results pane has to be on screen for a
  *  Run to have visibly produced something. Below this, the run is landed on. */
 const MIN_VISIBLE_RESULTS_PX = 200;
+
+/** Roadmap 032: evaluated once — it derives from build-time env only, and a
+ *  per-render call handed a fresh value to memoized children for nothing. */
+const INSTALL_URL = installUrl();
 
 /** Strips a trailing `.git` and slashes from a repo path. */
 function stripRepoSuffix(path: string): string {
@@ -377,16 +382,17 @@ export function App() {
   // render of something unrelated — this is a plain bracket-depth scan, not a
   // full parse, so it stays cheap even for large configs.
   const packageRuleOffsets = useMemo(() => findPackageRuleOffsets(content), [content]);
-  /** Roadmap 028: a tab the user chose explicitly — clears the back affordance. */
-  function setTab(next: ResultsTabId) {
+  /** Roadmap 028: a tab the user chose explicitly — clears the back affordance.
+   *  Identity-stable (032): reads tab state only through its ref. */
+  const setTab = useCallback((next: ResultsTabId) => {
     tabRef.current = next;
     setTabState(next);
     setBackTab(null);
-  }
+  }, []);
 
   /** Roadmap 028: a programmatic jump (a cross-instrument link, an Overview
    *  pill) — records where the user was so one click returns them. */
-  function jumpToTab(next: ResultsTabId) {
+  const jumpToTab = useCallback((next: ResultsTabId) => {
     const from = tabRef.current;
     if (from === next) {
       return;
@@ -394,7 +400,24 @@ export function App() {
     tabRef.current = next;
     setTabState(next);
     setBackTab(from);
-  }
+  }, []);
+
+  // Roadmap 032: stable handlers for the memoized panels — each reads state
+  // only through refs and setters, so its identity never changes.
+  const onRuleFocused = useCallback(() => setPendingRuleFocus(null), []);
+  const onJumpToSimRule = useCallback(
+    (index: number) => {
+      setPendingRuleFocus(index);
+      jumpToTab("simulator");
+    },
+    [jumpToTab],
+  );
+  /** The Overview's "Where did a setting come from?" pill: open Effective
+   *  config AND focus its filter input. */
+  const onWhereFrom = useCallback(() => {
+    jumpToTab("effective");
+    setEffectiveFilterNonce((n) => n + 1);
+  }, [jumpToTab]);
 
   // Roadmap 028: selecting a preset node from anywhere else (a provenance
   // chip, a simulator rule, an editor preset hover) also switches to the
@@ -442,13 +465,22 @@ export function App() {
     toastTimer.current = window.setTimeout(() => setToast(null), 4500);
   }
 
-  /** A validation message's REPO-config `packageRules[repoIndex]` → the editor line. */
-  function focusEditorRepoIndex(repoIndex: number) {
+  // A validation message's REPO-config `packageRules[repoIndex]` → the editor
+  // line. Reads `packageRuleOffsets`, which is rescanned on every edit — so
+  // the memoized panels get the stable wrapper below (032, latest-ref idiom)
+  // and a click always jumps against offsets from the CURRENT text, never a
+  // closure over stale one.
+  const focusEditorRepoIndexRef = useRef<((repoIndex: number) => void) | undefined>(undefined);
+  focusEditorRepoIndexRef.current = (repoIndex: number) => {
     const offset = packageRuleOffsets?.[repoIndex];
     if (offset !== undefined) {
       configEditorRef.current?.highlightOffset(offset);
     }
-  }
+  };
+  const focusEditorRepoIndex = useCallback(
+    (repoIndex: number) => focusEditorRepoIndexRef.current?.(repoIndex),
+    [],
+  );
 
   /** Roadmap 016: the one path every authoritative content load goes
    *  through — sets the text, moves the "revert to loaded config" baseline
@@ -547,7 +579,7 @@ export function App() {
     if (linkTab) {
       setTab(linkTab);
     }
-  }, [result]);
+  }, [result, setTab]);
 
   // An unparseable 008 layer never silently runs without it — block instead.
   // Roadmap 030: the same gate gets a matching case for the endpoint field
@@ -683,6 +715,16 @@ export function App() {
     }
   }
 
+  // Roadmap 032: `applyErrorFix` reads `content` and `errorLib`, so the
+  // memoized MessagesPanel gets this stable wrapper (latest-ref idiom) — an
+  // "Apply fix" click must patch the text as it is NOW, not as it was when
+  // the panel last rendered.
+  const applyErrorFixRef = useRef<typeof applyErrorFix | undefined>(undefined);
+  applyErrorFixRef.current = applyErrorFix;
+  const onApplyFix = useCallback((fix: ErrorFixResult) => {
+    void applyErrorFixRef.current?.(fix);
+  }, []);
+
   /** The one way the guard changes — ref first, so a same-tick reader sees it. */
   function applyUntrustedGuard(next: UntrustedEndpointGuard | null) {
     untrustedGuardRef.current = next;
@@ -768,13 +810,23 @@ export function App() {
     setAuthUser(null);
   }
 
-  function onInject(key: string, contentObj: Record<string, unknown>) {
+  // Roadmap 032: `onInject` reads `injected` and so is redeclared with it —
+  // handed out directly it was the one unstable prop defeating PresetTree's
+  // memo on every keystroke. Latest-ref idiom, as with `selectPresetNodeRef`.
+  const onInjectRef = useRef<
+    ((key: string, contentObj: Record<string, unknown>) => void) | undefined
+  >(undefined);
+  onInjectRef.current = (key: string, contentObj: Record<string, unknown>) => {
     const next = { ...injected, [key]: contentObj };
     setInjected(next);
     // Injecting preset content is done FROM the preset tree — keep the user
     // there rather than bouncing them to the Overview (028).
     void onRun(next, undefined, { preserveScroll: true, keepTab: true });
-  }
+  };
+  const onInject = useCallback(
+    (key: string, contentObj: Record<string, unknown>) => onInjectRef.current?.(key, contentObj),
+    [],
+  );
 
   const usesLocal = displayPlatform !== "github";
 
@@ -798,10 +850,13 @@ export function App() {
 
   // Roadmap 028: preset-resolution failures render in the Problems tab
   // alongside the validator's errors/warnings, so they count toward its badge.
-  const presetErrorCount = useMemo(
-    () => result?.events.filter((e) => e.kind === "preset-error").length ?? 0,
+  // One filter pass per result (032): the badge counts these and the digest
+  // quotes the first one — both previously re-filtered the event stream.
+  const presetErrors = useMemo(
+    () => result?.events.filter((e) => e.kind === "preset-error") ?? [],
     [result],
   );
+  const presetErrorCount = presetErrors.length;
   const errorCount = (result?.errors.length ?? 0) + presetErrorCount;
   const warningCount = result?.warnings.length ?? 0;
   const presetSummary = useMemo(() => presetTreeSummary(result?.presetTree), [result]);
@@ -837,7 +892,6 @@ export function App() {
     if (!result) {
       return [];
     }
-    const presetErrors = result.events.filter((e) => e.kind === "preset-error");
     // The Problems tab lists validator errors, then warnings, then preset
     // failures — the digest quotes whichever of those comes first.
     const firstProblem: DigestProblem | undefined = result.errors[0]
@@ -899,7 +953,180 @@ export function App() {
       },
     };
     return buildRunDigest(input);
-  }, [result, errorCount, warningCount, migrateSteps, presetCount, presetSummary, effectiveStats]);
+  }, [
+    result,
+    presetErrors,
+    errorCount,
+    warningCount,
+    migrateSteps,
+    presetCount,
+    presetSummary,
+    effectiveStats,
+  ]);
+
+  // Roadmap 032: the seven tab panels render RUN RESULTS — they change when a
+  // run completes or a view-state jump lands, never while the user types. So
+  // `content` (and every other per-keystroke value: `injected`,
+  // `packageRuleOffsets`, the live share state) is deliberately absent from
+  // these deps: every callback that needs such state reads it through the
+  // latest-ref idiom (`onInject`, `focusEditorRepoIndex`, `onApplyFix`,
+  // `buildShareLinkAndCopy`). The element tree here keeps its identity across
+  // keystrokes, so React bails out of reconciling all seven panels — typing
+  // re-renders App itself and nothing below the tab shell.
+  const panels = useMemo<Record<ResultsTabId, ReactNode> | null>(() => {
+    if (!result) {
+      return null;
+    }
+    return {
+      overview: (
+        <OverviewTab
+          digest={digest}
+          banner={validateHasErrors ? <HypotheticalBanner /> : null}
+          onOpen={jumpToTab}
+          onWhereFrom={onWhereFrom}
+        />
+      ),
+      pipeline: (
+        <>
+          <StageTimeline result={result} selected={selectedStage} onSelect={setSelectedStage} />
+          <div className="card">
+            <div className="card-title">
+              Stage: {STAGE_LABELS[selectedStage]}
+              <span className="card-title-hint"> — {STAGE_EXPLAINERS[selectedStage].plain}</span>
+              {deferredStage !== selectedStage ? (
+                <span className="rendering-note"> rendering…</span>
+              ) : null}
+            </div>
+            {/* Roadmap 023: the presets/merge stages run on a config a real
+                Renovate run would have already rejected — say so. */}
+            {validateHasErrors && (deferredStage === "preset" || deferredStage === "merge") ? (
+              <HypotheticalBanner />
+            ) : null}
+            {/* Roadmap 028: Pipeline always shows the whole-stage diff —
+                the per-rewrite stepper is the Rewrites tab's job. */}
+            {deferredStage === "migrate" && migrateSteps.length > 0 ? (
+              <p className="stage-crosslink">
+                {migrateSteps.length} rewrite{migrateSteps.length === 1 ? "" : "s"} applied ·{" "}
+                <button type="button" className="linklike" onClick={() => jumpToTab("rewrites")}>
+                  step through them one by one →
+                </button>
+              </p>
+            ) : null}
+            <StageDiff result={result} stage={deferredStage} />
+          </div>
+        </>
+      ),
+      rewrites: migrateStepperMounted ? (
+        <div className="card">
+          <div className="card-title">
+            Rewrites
+            <span className="card-title-hint">
+              {" "}
+              — the deprecated options Renovate rewrote, one at a time
+            </span>
+          </div>
+          <MigrationSteps
+            steps={migrateSteps}
+            finalConfig={finalMigrated}
+            index={migrationStepIndex}
+            onIndexChange={setMigrationStepIndex}
+          />
+        </div>
+      ) : (
+        <p className="empty-note">No rewrites — this config already uses current option names.</p>
+      ),
+      presets: result.presetTree?.children.length ? (
+        <PresetTree
+          result={result}
+          onInject={onInject}
+          selectedId={selectedNodeId}
+          onSelectNode={setSelectedNodeId}
+          authState={authState}
+          onSignIn={onSignIn}
+          installUrl={INSTALL_URL}
+        />
+      ) : (
+        <p className="empty-note">
+          No presets — this config has no <code>extends</code> entries to resolve.
+        </p>
+      ),
+      effective: result.finalConfig ? (
+        <>
+          {validateHasErrors ? <HypotheticalBanner /> : null}
+          <EffectiveConfig
+            result={result}
+            onSelectPreset={selectPresetNode}
+            onStats={setEffectiveStats}
+            focusFilterNonce={effectiveFilterNonce}
+          />
+        </>
+      ) : (
+        <p className="empty-note">
+          No effective config — the pipeline did not get far enough to merge one.
+        </p>
+      ),
+      simulator: result.finalConfig ? (
+        <RuleSimulator
+          result={result}
+          onSelectPreset={selectPresetNode}
+          onJumpToEditor={focusEditorRepoIndex}
+          focusRuleIndex={pendingRuleFocus}
+          onRuleFocused={onRuleFocused}
+          errorLib={errorLib}
+          simRequest={simRequest}
+          onCopySimLink={buildShareLinkAndCopy}
+          configInvalid={validateHasErrors}
+        />
+      ) : (
+        <p className="empty-note">
+          Nothing to simulate — the pipeline produced no effective config.
+        </p>
+      ),
+      problems:
+        errorCount + warningCount > 0 ? (
+          <MessagesPanel
+            result={result}
+            ruleAttribution={ruleProvenance}
+            onJumpToEditor={focusEditorRepoIndex}
+            onJumpToSimRule={onJumpToSimRule}
+            errorLib={errorLib}
+            onApplyFix={onApplyFix}
+          />
+        ) : (
+          <p className="empty-note">
+            No errors or warnings — Renovate accepted every option in this config.
+          </p>
+        ),
+    };
+  }, [
+    result,
+    digest,
+    validateHasErrors,
+    jumpToTab,
+    onWhereFrom,
+    selectedStage,
+    deferredStage,
+    migrateSteps,
+    migrateStepperMounted,
+    finalMigrated,
+    migrationStepIndex,
+    onInject,
+    selectedNodeId,
+    authState,
+    selectPresetNode,
+    effectiveFilterNonce,
+    focusEditorRepoIndex,
+    pendingRuleFocus,
+    onRuleFocused,
+    errorLib,
+    simRequest,
+    buildShareLinkAndCopy,
+    errorCount,
+    warningCount,
+    ruleProvenance,
+    onJumpToSimRule,
+    onApplyFix,
+  ]);
 
   // The encode side of `useShareLink`'s copy-link path: assembles the CURRENT
   // state (config + view, optionally simulator inputs) for the share codec.
@@ -1527,7 +1754,7 @@ export function App() {
                 authState={authState}
                 rateLimited={repoAuthHint.rateLimited}
                 onSignIn={onSignIn}
-                installUrl={installUrl()}
+                installUrl={INSTALL_URL}
               />
             ) : null}
             {notice ? (
@@ -1544,7 +1771,7 @@ export function App() {
             ) : null}
           </div>
 
-          {result ? (
+          {panels ? (
             <div className="results-col" ref={resultsColRef}>
               <ResultsPanel
                 tabs={resultsTabs}
@@ -1552,148 +1779,7 @@ export function App() {
                 onSelect={setTab}
                 back={backTab}
                 onBack={() => setTab(backTab ?? "overview")}
-                panels={{
-                  overview: (
-                    <OverviewTab
-                      digest={digest}
-                      banner={validateHasErrors ? <HypotheticalBanner /> : null}
-                      onOpen={jumpToTab}
-                      onWhereFrom={() => {
-                        jumpToTab("effective");
-                        setEffectiveFilterNonce((n) => n + 1);
-                      }}
-                    />
-                  ),
-                  pipeline: (
-                    <>
-                      <StageTimeline
-                        result={result}
-                        selected={selectedStage}
-                        onSelect={setSelectedStage}
-                      />
-                      <div className="card">
-                        <div className="card-title">
-                          Stage: {STAGE_LABELS[selectedStage]}
-                          <span className="card-title-hint">
-                            {" "}
-                            — {STAGE_EXPLAINERS[selectedStage].plain}
-                          </span>
-                          {deferredStage !== selectedStage ? (
-                            <span className="rendering-note"> rendering…</span>
-                          ) : null}
-                        </div>
-                        {/* Roadmap 023: the presets/merge stages run on a config a real
-                            Renovate run would have already rejected — say so. */}
-                        {validateHasErrors &&
-                        (deferredStage === "preset" || deferredStage === "merge") ? (
-                          <HypotheticalBanner />
-                        ) : null}
-                        {/* Roadmap 028: Pipeline always shows the whole-stage diff —
-                            the per-rewrite stepper is the Rewrites tab's job. */}
-                        {deferredStage === "migrate" && migrateSteps.length > 0 ? (
-                          <p className="stage-crosslink">
-                            {migrateSteps.length} rewrite{migrateSteps.length === 1 ? "" : "s"}{" "}
-                            applied ·{" "}
-                            <button
-                              type="button"
-                              className="linklike"
-                              onClick={() => jumpToTab("rewrites")}
-                            >
-                              step through them one by one →
-                            </button>
-                          </p>
-                        ) : null}
-                        <StageDiff result={result} stage={deferredStage} />
-                      </div>
-                    </>
-                  ),
-                  rewrites: migrateStepperMounted ? (
-                    <div className="card">
-                      <div className="card-title">
-                        Rewrites
-                        <span className="card-title-hint">
-                          {" "}
-                          — the deprecated options Renovate rewrote, one at a time
-                        </span>
-                      </div>
-                      <MigrationSteps
-                        steps={migrateSteps}
-                        finalConfig={finalMigrated}
-                        index={migrationStepIndex}
-                        onIndexChange={setMigrationStepIndex}
-                      />
-                    </div>
-                  ) : (
-                    <p className="empty-note">
-                      No rewrites — this config already uses current option names.
-                    </p>
-                  ),
-                  presets: result.presetTree?.children.length ? (
-                    <PresetTree
-                      result={result}
-                      onInject={onInject}
-                      selectedId={selectedNodeId}
-                      onSelectNode={setSelectedNodeId}
-                      authState={authState}
-                      onSignIn={onSignIn}
-                      installUrl={installUrl()}
-                    />
-                  ) : (
-                    <p className="empty-note">
-                      No presets — this config has no <code>extends</code> entries to resolve.
-                    </p>
-                  ),
-                  effective: result.finalConfig ? (
-                    <>
-                      {validateHasErrors ? <HypotheticalBanner /> : null}
-                      <EffectiveConfig
-                        result={result}
-                        onSelectPreset={selectPresetNode}
-                        onStats={setEffectiveStats}
-                        focusFilterNonce={effectiveFilterNonce}
-                      />
-                    </>
-                  ) : (
-                    <p className="empty-note">
-                      No effective config — the pipeline did not get far enough to merge one.
-                    </p>
-                  ),
-                  simulator: result.finalConfig ? (
-                    <RuleSimulator
-                      result={result}
-                      onSelectPreset={selectPresetNode}
-                      onJumpToEditor={focusEditorRepoIndex}
-                      focusRuleIndex={pendingRuleFocus}
-                      onRuleFocused={() => setPendingRuleFocus(null)}
-                      errorLib={errorLib}
-                      simRequest={simRequest}
-                      onCopySimLink={buildShareLinkAndCopy}
-                      configInvalid={validateHasErrors}
-                    />
-                  ) : (
-                    <p className="empty-note">
-                      Nothing to simulate — the pipeline produced no effective config.
-                    </p>
-                  ),
-                  problems:
-                    errorCount + warningCount > 0 ? (
-                      <MessagesPanel
-                        result={result}
-                        ruleAttribution={ruleProvenance}
-                        onJumpToEditor={focusEditorRepoIndex}
-                        onJumpToSimRule={(index) => {
-                          setPendingRuleFocus(index);
-                          jumpToTab("simulator");
-                        }}
-                        errorLib={errorLib}
-                        onApplyFix={(fix) => void applyErrorFix(fix)}
-                      />
-                    ) : (
-                      <p className="empty-note">
-                        No errors or warnings — Renovate accepted every option in this config.
-                      </p>
-                    ),
-                }}
+                panels={panels}
               />
             </div>
           ) : null}
