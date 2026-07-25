@@ -95,10 +95,13 @@ test.describe("dark mode", () => {
 /**
  * The repo-load form was one wrapping flex row whose natural width exceeded
  * the post-run left column, so the Load button always wrapped onto a line of
- * its own — and, with no bottom margin on the form, landed flush against the
- * editor card.
+ * its own. Roadmap 039 moved the form inside the editor card, behind a
+ * disclosure in its title bar — the 035 no-orphan-row rule still holds inside
+ * the panel, and the panel is a chrome row of the card, not a floating layer.
  */
-test("the Load button stays on its inputs' row and clear of the editor card", async ({ page }) => {
+test("the repo-load panel keeps Load on its inputs' row inside the editor card", async ({
+  page,
+}) => {
   await page.goto("/");
   await expect(page.locator(".cm-content")).toContainText("config:recommended");
   // Two-pane mode: the left column is at its narrowest, which is where the
@@ -106,9 +109,13 @@ test("the Load button stays on its inputs' row and clear of the editor card", as
   await runAndAwaitResult(page);
   await expect(page.locator(".app-split.has-results")).toBeVisible();
 
-  const button = await page.locator(".repo-load button").boundingBox();
-  const branch = await page.locator(".repo-load-branch").boundingBox();
-  const repo = await page.locator(".repo-load-ref").boundingBox();
+  await page.getByRole("button", { name: "Load from repo…" }).click();
+  const panel = page.locator(".repo-panel");
+  await expect(panel).toBeVisible();
+
+  const button = await panel.getByRole("button", { name: "Load", exact: true }).boundingBox();
+  const branch = await panel.getByRole("textbox", { name: "Branch or tag" }).boundingBox();
+  const repo = await panel.getByRole("textbox", { name: "Repository" }).boundingBox();
   expect(button).not.toBeNull();
   expect(branch).not.toBeNull();
   expect(repo).not.toBeNull();
@@ -116,13 +123,47 @@ test("the Load button stays on its inputs' row and clear of the editor card", as
   expect(Math.abs(centerOf(button!) - centerOf(branch!))).toBeLessThanOrEqual(2);
   expect(Math.abs(centerOf(button!) - centerOf(repo!))).toBeLessThanOrEqual(2);
   // Nothing overflows the column either — the row shrinks its inputs instead.
-  const form = await page.locator(".repo-load").boundingBox();
-  expect(button!.x + button!.width).toBeLessThanOrEqual(form!.x + form!.width + 1);
+  const panelBox = await panel.boundingBox();
+  expect(button!.x + button!.width).toBeLessThanOrEqual(panelBox!.x + panelBox!.width + 1);
 
-  // The form no longer touches the card below it.
-  const card = await page.locator(".config-col .card").first().boundingBox();
-  expect(card).not.toBeNull();
-  expect(card!.y - (form!.y + form!.height)).toBeGreaterThanOrEqual(6);
+  // It is a row OF the card: it sits under the title bar and above the editor.
+  const title = await page.locator(".config-col .editor-card-title").boundingBox();
+  const editor = await page.locator(".config-col .cm-editor").boundingBox();
+  expect(panelBox!.y).toBeGreaterThanOrEqual(title!.y + title!.height - 1);
+  expect(panelBox!.y + panelBox!.height).toBeLessThanOrEqual(editor!.y + 1);
+});
+
+/**
+ * Roadmap 039 — the whole point of the disclosure: it costs nothing until
+ * asked for. Nothing of the form may be in the document before the button in
+ * the editor card's title bar is pressed, and closing it must leave no orphan
+ * row behind (035).
+ */
+test("the repo-load form is collapsed by default and leaves no row behind", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+
+  const toggle = page.getByRole("button", { name: "Load from repo…" });
+  await expect(toggle).toBeVisible();
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator(".repo-panel")).toHaveCount(0);
+  await expect(page.getByRole("textbox", { name: "Repository" })).toHaveCount(0);
+
+  await toggle.click();
+  await expect(page.locator(".repo-panel")).toHaveCount(1);
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  // Roadmap 023: opening lands the caret in the first field.
+  await expect(page.getByRole("textbox", { name: "Repository" })).toBeFocused();
+
+  // Escape closes it, and focus comes back to the button that opened it.
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".repo-panel")).toHaveCount(0);
+  await expect(toggle).toBeFocused();
+
+  // The card is whole again: its title bar sits directly on the editor.
+  const title = await page.locator(".config-col .editor-card-title").boundingBox();
+  const editor = await page.locator(".config-col .cm-editor").boundingBox();
+  expect(editor!.y - (title!.y + title!.height)).toBeLessThanOrEqual(1);
 });
 
 /**

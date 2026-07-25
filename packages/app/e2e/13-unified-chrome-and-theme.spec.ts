@@ -19,6 +19,23 @@ function bodyBackground(page: Page): Promise<string> {
   return page.evaluate(() => getComputedStyle(document.body).backgroundColor);
 }
 
+/** The WCAG 2.1 per-channel linearization an 8-bit sRGB value goes through. */
+function channel(v: number): number {
+  const s = v / 255;
+  return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+}
+
+/** WCAG 2.1 relative luminance of an `rgb()`/`rgba()` string — "is this
+ *  surface light or dark?", asked without pinning a library's exact hex. */
+function luminance(css: string): number {
+  const [r = 0, g = 0, b = 0] = css
+    .replace(/^rgba?\(|\)$/g, "")
+    .split(/[\s,/]+/)
+    .slice(0, 3)
+    .map(Number);
+  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+}
+
 test.describe("theme switcher (037)", () => {
   // The OS says light throughout: the point of the switcher is that an
   // explicit choice OUTRANKS `prefers-color-scheme`, and keeps outranking it
@@ -56,6 +73,41 @@ test.describe("theme switcher (037)", () => {
       .getByRole("radio", { name: "Auto" })
       .click();
     await expect.poll(() => bodyBackground(page)).toBe(LIGHT_BG);
+  });
+
+  /**
+   * Roadmap 039 — the config editor is the one surface that cannot resolve its
+   * colors from `color-scheme`: CodeMirror needs a `theme` PROP. Before 039 it
+   * read `matchMedia("(prefers-color-scheme: dark)")` once per render, so a
+   * user on a light OS who chose Dark got a light editor on a dark page (and
+   * vice versa). The body-background assertion above cannot see that — this
+   * one measures the editor's own surface.
+   */
+  test("the config editor follows the switcher, not the OS scheme", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".cm-content")).toContainText("config:recommended");
+
+    const editor = page.locator(".cm-editor");
+    const editorBg = () => editor.evaluate((el) => getComputedStyle(el).backgroundColor as string);
+    // The OS says light and no override is stored: a light editor on a light
+    // page, i.e. an editor surface no darker than the page around it.
+    const lightBg = await editorBg();
+    expect(luminance(lightBg)).toBeGreaterThan(0.5);
+
+    await page
+      .getByRole("radiogroup", { name: "Color theme" })
+      .getByRole("radio", { name: "Dark" })
+      .click();
+    await expect.poll(() => editorBg()).not.toBe(lightBg);
+    expect(luminance(await editorBg())).toBeLessThan(0.2);
+
+    // …and back, in the same session: the editor is subscribed, not sampled
+    // once at mount.
+    await page
+      .getByRole("radiogroup", { name: "Color theme" })
+      .getByRole("radio", { name: "Light" })
+      .click();
+    await expect.poll(() => editorBg()).toBe(lightBg);
   });
 
   /**

@@ -224,7 +224,11 @@ export function JsonDiff({ before, after, names, title }: Props) {
       {!showAll && (
         <div className="diff-foot">
           Showing the first {MAX_RENDERED_LINES} of {totalLines} diff lines
-          <button type="button" onClick={() => startTransition(() => setShowAllRequested(true))}>
+          <button
+            type="button"
+            className="btn accent-text"
+            onClick={() => startTransition(() => setShowAllRequested(true))}
+          >
             Show all {totalLines} lines
           </button>
         </div>

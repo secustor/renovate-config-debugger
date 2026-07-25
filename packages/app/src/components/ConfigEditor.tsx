@@ -4,8 +4,9 @@ import CodeMirror, {
   type ReactCodeMirrorRef,
 } from "@uiw/react-codemirror";
 import { json } from "@codemirror/lang-json";
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from "react";
+import { forwardRef, type ReactNode, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import type { PresetHoverContext } from "../preset-hover";
+import { useEffectiveScheme } from "../use-effective-scheme";
 
 interface Props {
   fileName: string;
@@ -14,6 +15,14 @@ interface Props {
   /** Roadmap 023: current run's preset-string hover data + jump callback, read
    *  from a ref at hover time so a fresh run's tree updates without a remount. */
   presetHover?: PresetHoverContext | null;
+  /** Roadmap 039: controls that belong to the card rather than to the page —
+   *  today the "Load from repo…" disclosure, pushed to the end of the title
+   *  bar where the loaded file name already lands. */
+  titleAction?: ReactNode;
+  /** Roadmap 039: an optional chrome row (036 grammar) between the title bar
+   *  and the editor — the repo-load form while it is open. Absent when null,
+   *  so a closed disclosure leaves no orphan row behind (035). */
+  chromeRow?: ReactNode;
 }
 
 /**
@@ -27,7 +36,7 @@ export interface ConfigEditorHandle {
 }
 
 export const ConfigEditor = forwardRef<ConfigEditorHandle, Props>(function ConfigEditor(
-  { fileName, value, onChange, presetHover },
+  { fileName, value, onChange, presetHover, titleAction, chromeRow },
   ref,
 ) {
   // Kept current every render so the once-built hover extension reads fresh
@@ -97,17 +106,26 @@ export const ConfigEditor = forwardRef<ConfigEditorHandle, Props>(function Confi
     [],
   );
 
-  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  // Roadmap 039: CodeMirror is the one surface that cannot resolve its colors
+  // from `color-scheme` — it needs this as a prop. Subscribed, and reading the
+  // app's EFFECTIVE scheme (the 037 override, else the live OS preference), so
+  // the editor repaints with the rest of the page instead of staying on
+  // whatever the OS said at mount.
+  const scheme = useEffectiveScheme();
 
   return (
     <div className="card">
-      <div className="card-title">{fileName}</div>
+      <div className="card-title editor-card-title">
+        <span>{fileName}</span>
+        {titleAction ? <span className="card-title-actions">{titleAction}</span> : null}
+      </div>
+      {chromeRow}
       <CodeMirror
         ref={cmRef}
         value={value}
         onChange={onChange}
         extensions={extensions}
-        theme={dark ? "dark" : "light"}
+        theme={scheme}
         minHeight="14rem"
         maxHeight="28rem"
       />

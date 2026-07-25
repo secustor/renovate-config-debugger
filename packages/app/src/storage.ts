@@ -144,6 +144,36 @@ export function persistTheme(theme: Theme): void {
 }
 
 /**
+ * Roadmap 039 — the theme in force RIGHT NOW, plus a subscription to it.
+ *
+ * `applyTheme` is the app's single writer of the theme (main.tsx before first
+ * paint, the 037 switcher afterwards), so it is also the only place that can
+ * announce a change. Everything that has to follow the theme — the switcher's
+ * own lit segment, `useEffectiveScheme()` driving the CodeMirror theme —
+ * reads this store instead of keeping its own copy, which is what let the
+ * editor drift out of sync with the header before 039. A `storage` event
+ * would not do: it only fires in OTHER tabs.
+ */
+let activeTheme: Theme | null = null;
+const themeListeners = new Set<() => void>();
+
+/** The current theme (the stored override on first call, then whatever
+ *  `applyTheme` last applied). Stable across calls, so it is safe as a
+ *  `useSyncExternalStore` snapshot. */
+export function getTheme(): Theme {
+  activeTheme ??= readTheme();
+  return activeTheme;
+}
+
+/** Subscribes to theme changes; returns the unsubscribe. */
+export function subscribeTheme(listener: () => void): () => void {
+  themeListeners.add(listener);
+  return () => {
+    themeListeners.delete(listener);
+  };
+}
+
+/**
  * The whole switching mechanism: the app is 100 % `light-dark()` over
  * `color-scheme: light dark` on `:root`, so pinning `color-scheme` to one
  * keyword re-resolves every token — no second stylesheet, no class per
@@ -153,6 +183,10 @@ export function persistTheme(theme: Theme): void {
  */
 export function applyTheme(theme: Theme): void {
   document.documentElement.style.colorScheme = theme === "auto" ? "" : theme;
+  activeTheme = theme;
+  for (const listener of themeListeners) {
+    listener();
+  }
 }
 
 // ---------------------------------------------------------------------------

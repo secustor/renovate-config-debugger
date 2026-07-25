@@ -22,7 +22,7 @@
     "react/jsx-no-useless-fragment": "error",
     // Warn-tier (roadmap 034): real signal, but a backlog of hits that are
     // future scoped work — they must not block a build in the meantime.
-    // Current baseline (re-measured 2026-07-26, roadmap 038): 124
+    // Current baseline (re-measured 2026-07-26, roadmap 039): 130
     // no-non-null-assertion + 11 no-array-index-key, and nothing else.
     "react/no-array-index-key": "warn",
     "typescript/no-non-null-assertion": "warn",

@@ -82,51 +82,95 @@ h1 {
   padding: 0.5rem 0.75rem;
 }
 
+/* ---------- the one button (roadmap 039) ---------- */
+
+/* Roadmap 039: THE button. 036 unified the chrome rows but left five button
+   dialects behind — 0.9rem toolbar buttons towering over 0.8rem copy/segment
+   buttons and a 0.78rem diff-foot button, three heights in a single row. Every
+   button now derives from this base at the 036 control metrics (0.8rem,
+   0.25rem × 0.6rem), with exactly three variants: `primary` (accent fill —
+   Run and the repo-load submit), the bare default (bordered, "secondary" in
+   the 039 vocabulary) and `quiet` (muted text — the repo-load disclosure,
+   Cancel). `.seg button` is listed here instead of carrying the class: its
+   buttons are unclassed children of a segmented control, and sharing this ONE
+   declaration block is exactly what "re-based onto `.btn`" means. */
+.btn,
+.seg button {
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 0.8rem;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  border-color: var(--accent);
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.btn.primary:hover {
+  background: color-mix(in srgb, var(--accent) 88%, #000);
+}
+
+.btn.quiet {
+  color: var(--muted);
+}
+
+.btn.quiet:hover {
+  color: inherit;
+}
+
+/* Not a fourth variant: a secondary button whose LABEL is the accent — the
+   copy affordances and the diff footer's "show all", which are offers rather
+   than the row's main action. */
+.btn.accent-text {
+  color: var(--accent);
+}
+
+/* Roadmap 035: a disabled button must never be pixel-identical to an enabled
+   one — that reads as broken when clicking it does nothing. On the base, so no
+   future button can silently repeat it. */
+.btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.btn svg {
+  fill: currentColor;
+  flex: none;
+}
+
+/* Form controls take the same metrics, so a chrome row is one height end to
+   end — the toolbar's file `<select>`, the repo-load panel's inputs. */
+.ctl {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: inherit;
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.6rem;
+}
+
 .toolbar {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   margin: 0.75rem 0;
-}
-
-/* `.copy-btn` is excluded (036): it owns its own size, and a descendant
-   selector like this one would otherwise out-specify it wherever it lands. */
-.toolbar select,
-.toolbar input,
-.toolbar button:not(.copy-btn) {
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 0.9rem;
-  padding: 0.4rem 0.75rem;
-}
-
-.toolbar input {
-  background: transparent;
-  color: inherit;
-  flex: 1;
-  min-width: 12rem;
-}
-
-.toolbar button.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.toolbar button.primary:disabled {
-  opacity: 0.6;
-}
-
-/* Roadmap 035: `.toolbar button.secondary` had no disabled styling, so a
-   disabled secondary button was pixel-identical to an enabled one and read as
-   broken when clicking it did nothing. Generic, so no future toolbar button
-   can silently repeat that. */
-.toolbar button:disabled {
-  cursor: default;
-  opacity: 0.55;
 }
 
 .stage-timeline {
@@ -269,21 +313,6 @@ pre.config-view {
   gap: 0.5rem;
   justify-content: center;
   padding: 0.4rem 0.75rem;
-}
-
-.diff-foot button {
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--accent);
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.78rem;
-  padding: 0.15rem 0.55rem;
-}
-
-.diff-foot button:hover {
-  border-color: var(--accent);
 }
 
 /* Roadmap 026: annotates the `$schema` removal line in preset/merge diffs so
@@ -550,21 +579,20 @@ pre.config-view {
 /* Roadmap 036: THE segmented control. Born here as `.preset-view-toggle`, it is
    now the one shape shared by the preset tree/table switch, the diff chrome
    row's Unified/Side-by-side control and the header theme switcher — its
-   font-size + padding are deliberately identical to `.copy-btn`'s, so every
-   control in a chrome row measures the same height. Written for N segments
-   (`:first-child`/`:last-child` round the ends; the theme switcher has three). */
+   font-size + padding are those of the shared `.btn` base, so every control in
+   a chrome row measures the same height. Written for N segments
+   (`:first-child`/`:last-child` round the ends; the theme switcher has three).
+   Roadmap 039: the metrics themselves now come from the `.btn` base (which
+   lists `.seg button`); only what makes a segment a segment lives here. */
 .seg {
   display: inline-flex;
 }
 
 .seg button {
-  background: transparent;
-  border: 1px solid var(--border);
+  /* Segments butt against each other: the base's 6px is re-applied to the two
+     ends only, so a middle segment stays square. */
+  border-radius: 0;
   color: var(--muted);
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.8rem;
-  padding: 0.25rem 0.6rem;
 }
 
 .seg button:first-child {
@@ -1071,25 +1099,6 @@ textarea.layer-editor:focus {
   gap: 0.5rem;
 }
 
-/* Roadmap 036: the stepper buttons adopt the shared control height, so this
-   row no longer mixes two button sizes. `.copy-btn` is excluded — it owns its
-   own size and would otherwise be out-specified by this descendant selector. */
-.migration-nav button:not(.copy-btn) {
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.8rem;
-  padding: 0.25rem 0.6rem;
-}
-
-.migration-nav button:disabled {
-  cursor: default;
-  opacity: 0.5;
-}
-
 .migration-cumulative {
   align-items: center;
   color: var(--muted);
@@ -1104,7 +1113,9 @@ textarea.layer-editor:focus {
   margin-left: auto;
 }
 
-.migration-steps.compact .migration-nav button:not(.copy-btn) {
+/* The one deliberate departure from the shared metrics: the stepper embedded
+   in a preset row is a compact echo of the real one. */
+.migration-steps.compact .migration-nav .btn {
   font-size: 0.78rem;
   padding: 0.2rem 0.5rem;
 }
@@ -1356,71 +1367,54 @@ pre.config-view.prov-before {
 
 /* ---------- shareable links + load from repo (007) ---------- */
 
-.toolbar button.secondary {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: inherit;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-/* Roadmap 035: label on its own line, inputs + button on ONE unwrappable row.
-   As a single wrapping row the natural width (~640px) exceeded the post-run
-   left column (`.app-split.has-results` caps it near 580px), so the Load
-   button always wrapped alone onto a line of its own — and with no bottom
-   margin it then sat flush against the editor card. Both inputs shrink
-   instead; the button is the only non-shrinking item, so it stays beside the
-   fields it submits at any viewport this app supports. */
-.repo-load {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  margin: 0.5rem 0 0.75rem;
-}
-
-.repo-load-row {
+/* Roadmap 039: the repo-load disclosure. The always-open form above the editor
+   cost ~64px of standing height for an action a session performs zero or one
+   times; it is now a chrome row (036 grammar: surface fill, bottom border)
+   that exists only while the disclosure in the card title is open — inside the
+   card whose content the load replaces. */
+.repo-panel {
   align-items: center;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
   display: flex;
+  /* Roadmap 035: ONE unwrappable row. Both inputs shrink and the buttons never
+     do, so Load can't be orphaned onto a line of its own however narrow the
+     config column gets. */
   flex-wrap: nowrap;
-  gap: 0.5rem;
-}
-
-.repo-load input {
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: inherit;
-  font-size: 0.9rem;
-  padding: 0.4rem 0.75rem;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem;
 }
 
 /* `min-width: 0` defeats the intrinsic minimum width a text input otherwise
    imposes on a flex item — without it the row cannot shrink and overflows. */
-.repo-load-ref {
+.repo-panel-repo {
   flex: 1 1 auto;
   min-width: 0;
 }
 
-.repo-load-branch {
-  flex: 0 1 11rem;
-  min-width: 7rem;
+.repo-panel-ref {
+  flex: 0 1 9rem;
+  min-width: 5rem;
 }
 
-.repo-load button {
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: inherit;
-  cursor: pointer;
+.repo-panel .btn {
   flex: none;
-  font-size: 0.9rem;
-  font-weight: 600;
-  padding: 0.4rem 0.9rem;
-  white-space: nowrap;
 }
 
-.repo-load button:disabled {
-  opacity: 0.6;
+/* The card title becomes a row when it carries actions (039). Only the editor
+   card does; every other card title stays plain text so its inline hints and
+   copy buttons keep wrapping as prose. */
+.editor-card-title {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.card-title-actions {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
 }
 
 /* Roadmap 027: a broken share link must be unmissable — a full-width banner at
@@ -1535,14 +1529,6 @@ pre.config-view.prov-before {
 
 .toolbar-spacer {
   flex: 1;
-}
-
-.toolbar button.gh-signin {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: inherit;
-  cursor: pointer;
-  font-weight: 600;
 }
 
 .gh-auth-chip {
@@ -1987,32 +1973,16 @@ pre.config-view.prov-before {
 
 /* Roadmap 036: ONE copy affordance (components/CopyButton.tsx), at ONE size —
    the four it replaced ran 0.72rem/0.8rem/0.9rem and read as unrelated
-   controls. The font-size + padding match `.seg button` exactly, so a chrome
-   row never mixes two control heights. `.copied` is the transient success
-   state; the icon swaps to a check in the same beat. */
+   controls. Roadmap 039: the metrics (and the icon rule) come from the `.btn`
+   base it now carries; what is left here is what makes a copy button a copy
+   button — the accent label, its tinted hover, and `.copied`, the transient
+   success state whose icon swaps to a check in the same beat. */
 .copy-btn {
-  align-items: center;
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 6px;
   color: var(--accent);
-  cursor: pointer;
-  display: inline-flex;
-  font: inherit;
-  font-size: 0.8rem;
-  gap: 0.35rem;
-  padding: 0.25rem 0.6rem;
-  white-space: nowrap;
 }
 
 .copy-btn:hover {
   background: color-mix(in srgb, var(--accent) 8%, transparent);
-  border-color: var(--accent);
-}
-
-.copy-btn svg {
-  fill: currentColor;
-  flex: none;
 }
 
 .copy-btn.copied {
@@ -2241,12 +2211,6 @@ pre.config-view.prov-before {
   font: inherit;
   padding: 0;
   text-decoration: underline;
-}
-
-.repo-load-label {
-  color: var(--muted);
-  font-size: 0.82rem;
-  font-weight: 600;
 }
 
 /* A term explained by a glossary hover card: quiet until noticed. */
@@ -2570,22 +2534,6 @@ pre.config-view.prov-before {
 
 .badge.prov-merged {
   color: light-dark(#1b7c83, #56d4dd);
-}
-
-/* Editor undo hint + revert-to-loaded button. */
-.editor-hint {
-  color: var(--muted);
-  font-size: 0.78rem;
-  margin: 0.3rem 0 0;
-}
-
-.editor-hint kbd {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  font-family: inherit;
-  font-size: 0.75rem;
-  padding: 0.05rem 0.35rem;
 }
 
 /* Back-to-top affordance (roadmap 016): appears once the page has scrolled

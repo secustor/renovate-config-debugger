@@ -1,6 +1,6 @@
 # 039 — Editor column polish: editor theme, one Button, repo-load disclosure
 
-Milestone: M10 · Status: planned (2026-07-26)
+Milestone: M10 · Status: done (2026-07-26)
 
 Mockup (approved, Option B):
 [mockups/039/editor-column-polish.html](mockups/039/editor-column-polish.html)
@@ -72,3 +72,61 @@ belonging to it).
 
 - 036 (control metrics, chrome-row grammar), 037 (the theme mechanism
   the editor must join), 023 (focus rules), 035 (no-orphan load row).
+
+## What was done
+
+- **The editor follows the effective scheme.** `use-effective-scheme.ts`
+  exports `useEffectiveScheme()`: two `useSyncExternalStore`
+  subscriptions — the stored 037 override when there is one, the live
+  OS `matchMedia("(prefers-color-scheme: dark)")` otherwise — feeding
+  `ConfigEditor`'s CodeMirror `theme` prop. The override side needed a
+  same-tab channel (a `storage` event only fires in OTHER tabs), so
+  `storage.ts` grew a tiny theme store: `applyTheme` is already the
+  app's single writer, and it now records the theme and notifies
+  `subscribeTheme` listeners. `ThemeSwitch` reads that same store
+  instead of its own `useState` copy, so header and editor cannot
+  disagree. e2e: `13-unified-chrome-and-theme.spec.ts` asserts the
+  `.cm-editor` surface itself goes dark under the switcher on a
+  light OS and comes back — the assertion the body-background check
+  could not make.
+- **One base `.btn`.** The base carries the 036 control metrics
+  (0.8rem, 0.25rem × 0.6rem, 6px radius) plus the three variants
+  (`primary`, `quiet`, the bare default), an `accent-text` modifier for
+  label-accent offers, one `:disabled` rule and one `svg` rule; `.ctl`
+  gives inputs and selects the same metrics. All five dialects are
+  gone: the toolbar's select/input/button block with its
+  primary/secondary/gh-signin/disabled rules, the diff-foot button, the
+  migration-nav stepper button, and the size half of `.copy-btn`. The
+  segment button is listed in the base's own selector rather than given
+  the class — segments are unclassed children of a segmented control —
+  and keeps only what makes a segment a segment (square middles,
+  rounded ends, muted until active). `CopyButton` renders the base plus
+  `.copy-btn`; the compact migration stepper keeps its one deliberate
+  size departure. Untouched by design: the results-column affordances
+  the mockup's migration map does not list (the simulator's Simulate
+  button, the preset-inject button, the simulator preset pills, and the
+  link-like buttons), which are chips and inline links rather than
+  chrome-row buttons.
+- **The undo/redo hint is gone**, and with it `MOD_KEY_LABEL` (unused
+  elsewhere) and the `.editor-hint` rules.
+- **Repo-load is Option B.** The standalone `.repo-load` form is
+  replaced by a quiet "Load from repo…" button in the editor card's
+  title bar (`ConfigEditor` gained `titleAction` and `chromeRow`
+  slots) that expands `components/RepoLoadForm.tsx` — a `.repo-panel`
+  chrome row between title and editor. Collapsed is the default and
+  the closed state renders nothing at all, so there is no orphan row
+  (035); the open row is `nowrap` with both inputs shrinking, so Load
+  can never break onto a line of its own. Focus (023): mounting the
+  form lands the caret in the repo field; Escape and Cancel close it
+  and return focus to the button; a load that SUCCEEDS closes it too,
+  while a failed one stays open, since the reference in it is what the
+  user has to correct. e2e: the 12 layout spec's repo-load test now
+  drives the panel, and a new test pins the collapsed default, the
+  open/Escape focus round-trip, and the title bar sitting flush on the
+  editor once closed.
+- Verification: `pnpm lint` (0 errors; warn tier still only
+  `no-non-null-assertion` + `no-array-index-key` — the recorded
+  baseline count moves 124 → 130 for the new e2e assertions),
+  `typecheck`, `format:check`, engine `test:golden` + `test:shimmed`,
+  app `test:unit` (the 032 keystroke invariant still measures 0 panel
+  re-renders over 20 keystrokes), `build`, and all 49 e2e tests.

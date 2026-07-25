@@ -25,6 +25,7 @@ import {
   nodeIdForIdentity,
   presetTreeSummary,
 } from "./components/preset-tree-stats";
+import { RepoLoadForm } from "./components/RepoLoadForm";
 import type { ResultsTabDescriptor } from "./components/ResultsPanel";
 import { ThemeSwitch } from "./components/ThemeSwitch";
 import { Term } from "./glossary";
@@ -112,16 +113,6 @@ const HOST_PLATFORM: Record<string, RepoPlatform> = {
   "gitea.com": "gitea",
   "codeberg.org": "forgejo",
 };
-
-/** Roadmap 016: the editor's undo-hint label — "Cmd" on macOS/iOS, "Ctrl"
- *  elsewhere. Evaluated once; the platform doesn't change mid-session. */
-const MOD_KEY_LABEL = /Mac|iPhone|iPad|iPod/i.test(
-  (navigator as { userAgentData?: { platform?: string } }).userAgentData?.platform ??
-    navigator.platform ??
-    navigator.userAgent,
-)
-  ? "Cmd"
-  : "Ctrl";
 
 /** Roadmap 032: evaluated once — it derives from build-time env only, and a
  *  per-render call handed a fresh value to memoized children for nothing. */
@@ -381,7 +372,11 @@ export function App() {
     loadedContentRef,
     buildShareState,
   });
-  // Load-from-repo form.
+  // Load-from-repo disclosure (039): collapsed by default — the form only
+  // exists while `repoFormOpen`, and the button that opens it lives in the
+  // editor card's title bar.
+  const [repoFormOpen, setRepoFormOpen] = useState(false);
+  const repoToggleRef = useRef<HTMLButtonElement>(null);
   const [repoInput, setRepoInput] = useState("");
   const [repoRef, setRepoRef] = useState("");
   const [repoLoading, setRepoLoading] = useState(false);
@@ -1002,6 +997,15 @@ export function App() {
     await buildShareLinkAndCopy();
   }
 
+  /** Roadmap 023/039: closing the repo panel — by Cancel, by Escape, or by a
+   *  load that succeeded — hands focus back to the button that opened it. The
+   *  panel is gone, so focus must land somewhere deliberate, and that button
+   *  is both where the user came from and what describes what just closed. */
+  function closeRepoForm() {
+    setRepoFormOpen(false);
+    repoToggleRef.current?.focus();
+  }
+
   // Fetches a repo's Renovate config file and runs it. Derives the platform
   // from a known host (and sets the platform context so a later run resolves
   // `local>` correctly); a bare slug uses the current platform context.
@@ -1081,6 +1085,10 @@ export function App() {
       loadConfigText(loaded.content);
       setFileName(nextFileName);
       setNotice(`Loaded ${loaded.fileName} from ${parsed.repo}`);
+      // Roadmap 039: the panel's job is done — it collapses so the config it
+      // just fetched gets the height back. A FAILED load leaves it open: the
+      // reference in it is what the user has to correct.
+      closeRepoForm();
       await onRun(
         undefined,
         {
@@ -1207,38 +1215,11 @@ export function App() {
               </section>
             )}
 
-            <form
-              className="repo-load"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void onLoadRepo();
-              }}
-            >
-              <span className="repo-load-label">Load from a repository</span>
-              {/* Roadmap 035: the label owns its line and the controls share one
-                  nowrap row, so the submit button can never be orphaned onto a
-                  row of its own however narrow the config column gets. */}
-              <div className="repo-load-row">
-                <input
-                  type="text"
-                  className="repo-load-ref"
-                  placeholder="owner/repo, github.com/owner/repo, or a full repository URL"
-                  value={repoInput}
-                  onChange={(e) => setRepoInput(e.target.value)}
-                />
-                <input
-                  type="text"
-                  className="repo-load-branch"
-                  placeholder="branch or tag (optional)"
-                  value={repoRef}
-                  onChange={(e) => setRepoRef(e.target.value)}
-                />
-                <button type="submit" disabled={repoLoading || repoInput.trim() === ""}>
-                  {repoLoading ? "Loading…" : "Load"}
-                </button>
-              </div>
-            </form>
-
+            {/* Roadmap 039: loading a repo config REPLACES this card's
+                content, so the affordance sits on the card it acts on — a
+                quiet button in the title bar, where the fetched file name
+                lands too. Collapsed by default; the form below only exists
+                while it is open. */}
             <ConfigEditor
               key={editorKey}
               ref={configEditorRef}
@@ -1246,14 +1227,41 @@ export function App() {
               value={content}
               onChange={setContent}
               presetHover={presetHover}
+              titleAction={
+                <button
+                  ref={repoToggleRef}
+                  type="button"
+                  className="btn quiet repo-toggle"
+                  aria-expanded={repoFormOpen}
+                  onClick={() => (repoFormOpen ? closeRepoForm() : setRepoFormOpen(true))}
+                  title="Fetch a Renovate config from a repository into this editor"
+                >
+                  <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8ZM5 12.25a.25.25 0 0 1 .25-.25h3.5a.25.25 0 0 1 .25.25v3.25a.25.25 0 0 1-.4.2l-1.45-1.087a.249.249 0 0 0-.3 0L5.4 15.7a.25.25 0 0 1-.4-.2Z" />
+                  </svg>
+                  Load from repo…
+                </button>
+              }
+              chromeRow={
+                repoFormOpen ? (
+                  <RepoLoadForm
+                    repo={repoInput}
+                    onRepoChange={setRepoInput}
+                    gitRef={repoRef}
+                    onRefChange={setRepoRef}
+                    loading={repoLoading}
+                    onSubmit={() => void onLoadRepo()}
+                    onClose={closeRepoForm}
+                  />
+                ) : null
+              }
             />
-            <p className="editor-hint">
-              <kbd>{MOD_KEY_LABEL}</kbd>+<kbd>Z</kbd> to undo, <kbd>Shift</kbd>+
-              <kbd>{MOD_KEY_LABEL}</kbd>+<kbd>Z</kbd> to redo.
-            </p>
 
             <div className="toolbar">
+              {/* Roadmap 039: `.ctl` gives form controls the same metrics as
+                  `.btn`, so this row is ONE height end to end. */}
               <select
+                className="ctl"
                 value={fileName}
                 onChange={(e) => setFileName(e.target.value as typeof fileName)}
               >
@@ -1267,7 +1275,7 @@ export function App() {
               {content === loadedContent ? null : (
                 <button
                   type="button"
-                  className="secondary"
+                  className="btn"
                   onClick={() => loadConfigText(loadedContent)}
                   title="Restore the config text as it was last loaded — the default, an example, a share link, a repo fetch, or an applied fix — discarding edits made since"
                 >
@@ -1303,7 +1311,7 @@ export function App() {
                 ) : (
                   <button
                     type="button"
-                    className="gh-signin"
+                    className="btn"
                     onClick={onSignIn}
                     title="Sign in to reach private GitHub presets and repositories (read-only)"
                   >
@@ -1334,7 +1342,7 @@ export function App() {
               ) : null}
               <button
                 type="button"
-                className="primary"
+                className="btn primary"
                 onClick={() =>
                   void onRun(undefined, undefined, { preserveScroll: Boolean(result) })
                 }

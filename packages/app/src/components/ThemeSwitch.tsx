@@ -1,13 +1,16 @@
-import { useState } from "react";
-import { applyTheme, persistTheme, readTheme, type Theme } from "../storage";
+import { useSyncExternalStore } from "react";
+import { applyTheme, getTheme, persistTheme, subscribeTheme, type Theme } from "../storage";
 
 /**
  * Roadmap 037 — the Auto / Light / Dark override, in the header beside the
  * version badge. All the switching happens in `applyTheme` (one
  * `color-scheme` on `:root`); this component only owns which segment is lit
- * and writes the choice through to storage. The initial value comes from
- * storage, which main.tsx has ALREADY applied before first paint — reading it
- * again here just keeps the UI honest without a second write.
+ * and writes the choice through to storage.
+ *
+ * Roadmap 039: the lit segment now comes from the theme store in storage.ts
+ * rather than a local `useState` copy — `applyTheme` is the app's single
+ * writer, and the editor's `useEffectiveScheme()` reads the same store, so
+ * header and editor can never disagree about which theme is in force.
  */
 
 /** Octicons: half-filled circle (auto), sun (light), moon (dark). */
@@ -25,7 +28,7 @@ const OPTIONS: readonly { theme: Theme; label: string; title: string }[] = [
 ];
 
 export function ThemeSwitch() {
-  const [theme, setTheme] = useState<Theme>(readTheme);
+  const theme = useSyncExternalStore(subscribeTheme, getTheme);
 
   return (
     <span className="seg theme-switch" role="radiogroup" aria-label="Color theme">
@@ -39,7 +42,6 @@ export function ThemeSwitch() {
           title={title}
           className={theme === value ? "active" : undefined}
           onClick={() => {
-            setTheme(value);
             applyTheme(value);
             persistTheme(value);
           }}

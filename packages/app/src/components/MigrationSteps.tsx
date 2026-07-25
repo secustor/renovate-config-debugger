@@ -94,11 +94,17 @@ export const MigrationSteps = memo(function MigrationSteps({
       />
 
       <div className="migration-nav">
-        <button type="button" onClick={() => setIndex(clamped - 1)} disabled={clamped === 0}>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => setIndex(clamped - 1)}
+          disabled={clamped === 0}
+        >
           ‹ Prev
         </button>
         <button
           type="button"
+          className="btn"
           onClick={() => setIndex(clamped + 1)}
           disabled={clamped >= steps.length - 1}
         >
@@ -106,6 +112,7 @@ export const MigrationSteps = memo(function MigrationSteps({
         </button>
         <button
           type="button"
+          className="btn"
           onClick={() => setIndex(steps.length - 1)}
           disabled={clamped >= steps.length - 1}
         >
