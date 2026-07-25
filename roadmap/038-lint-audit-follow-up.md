@@ -1,6 +1,6 @@
 # 038 — Lint audit follow-up: quick wins + 034 corrections
 
-Milestone: M10 · Status: planned (2026-07-26)
+Milestone: M10 · Status: done (2026-07-26)
 
 ## Summary
 
@@ -99,3 +99,36 @@ Quick wins, in value-per-effort order:
 
 - 034 (the config and doc this amends), 030 (the zod-boundary pattern
   the oauth.ts note points at).
+
+## What was done
+
+- `import/no-unassigned-import` is
+  `["error", { "allow": ["**/*.css"] }]`. Still 0 hits; a non-CSS
+  side-effect import now fails the build.
+- **The `groupName` bug is fixed.** `simulate-package-rules.ts` derives
+  `groupSlug` only when `groupName` is actually a string; anything else
+  takes the no-groupName path and records a note saying so (upstream's
+  `slugify` throws on a non-string, so no real run reaches the
+  `objectobject` slug the simulator used to invent). Covered by a new
+  case in `test/simulate-package-rules.shimmed.test.ts` that asserts
+  both halves — object groupName leaves the pre-existing slug alone,
+  string groupName still derives one.
+- The 2 `unicorn/consistent-function-scoping` warnings in
+  `e2e/12-layout-regressions.spec.ts` are gone: the WCAG `channel`
+  helper is hoisted out of `luminanceOf`, and `centerOf` out of its
+  test. The warn tier is back to only the two rules 034 put there.
+- The three no-cost rules are `error`:
+  `no-unnecessary-template-expression` (the one hit rewritten to plain
+  concatenation), `unbound-method` (file-scoped disable in
+  `shims/renovate-deps.ts` — the vendored dequal port keeps upstream's
+  `Object.prototype.hasOwnProperty` alias, and every use goes through
+  `.call`), and `no-redundant-type-constituents` (inline disable on
+  `EffectiveConfig.tsx`'s `LayerId | "all"`).
+- The `no-non-null-assertion` scoping bullet was skipped as superseded
+  by [041](041-warn-tier-to-error.md), per the strikethrough above.
+- 034 carries a dated "Corrections (2026-07-26 audit)" section with the
+  four falsified/undocumented points; its history is unedited.
+
+Baseline after this item: `pnpm lint` exits 0 with 0 errors and 135
+warnings, all of them the two deliberate warn-tier rules (124
+`no-non-null-assertion`, 11 `no-array-index-key`) that 041 takes on.

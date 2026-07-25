@@ -42,7 +42,7 @@ Full context and architecture: [.agents/spec/renovate-config-visualizer.md](../.
 | [035](035-layout-polish.md)                           | Layout polish + regression tests                          | M10                  | done    |
 | [036](036-unified-chrome.md)                          | Unified chrome: filled badges, copy button, diff toolbar  | M10                  | done    |
 | [037](037-theme-switcher.md)                          | Light / dark theme switcher                               | M10                  | done    |
-| [038](038-lint-audit-follow-up.md)                    | Lint audit follow-up: quick wins + 034 corrections        | M10                  | planned |
+| [038](038-lint-audit-follow-up.md)                    | Lint audit follow-up: quick wins + 034 corrections        | M10                  | done    |
 | [039](039-editor-column-polish.md)                    | Editor column polish: theme, one Button, repo-load        | M10                  | planned |
 | [040](040-jsx-depth-decomposition.md)                 | JSX-depth ratchet: decompose the monoliths to depth 4     | M10                  | planned |
 | [041](041-warn-tier-to-error.md)                      | Promote the warn tier to error                            | M10                  | planned |

@@ -176,3 +176,38 @@ async/await; only `always-return` is on, and type-aware
 
 - None hard; landed before 031–033 so the new rules guard those
   refactors.
+
+## Corrections (2026-07-26 audit)
+
+The re-audit behind [038](038-lint-audit-follow-up.md) re-measured every
+count above on the same oxlint 1.75.0 + oxlint-tsgolint. Most of this
+document held; these four points did not, and are corrected here rather
+than edited into the history above.
+
+- **`no-base-to-string` 9 — "all `${err}`-shaped" is wrong.** Only 3 of
+  the 9 are. The rest: the vendored dequal port (2), test assertions
+  (2), a defensive fallback (1), and one **real latent bug** —
+  `simulate-package-rules.ts` stringified an object-valued `groupName`
+  (reachable from user config) into an `objectobject` slug. 038 fixes
+  the bug; the rule itself stays off for the message-text reason, which
+  is sound for the remaining hits.
+- **"exits 0 with only the two warn-tier rules reporting" and the config
+  comment's "~110 hits" are superseded.** Two
+  `unicorn/consistent-function-scoping` warnings arrived with 035 and
+  went unnoticed, because CI runs the warn tier but can never fail on
+  it. 038 fixes them and re-baselines the tier at 124
+  `no-non-null-assertion` + 11 `no-array-index-key`.
+  [041](041-warn-tier-to-error.md) then removes the tier entirely.
+- **`no-unnecessary-condition`'s keep-off rationale is stronger than
+  documented.** Beyond the DOM-lib optimism recorded above, there is a
+  second irreducible family: TypeScript cannot see an effect cleanup
+  mutating a `live`/`cancelled` flag, so it narrows the flag to its
+  initializer and the rule fires on the guard — on _every_ async effect
+  written from here on, not just today's. That makes it a permanent tax
+  rather than a backlog, which is why 038 files the rule under "never
+  enable".
+- **`no-unnecessary-type-parameters` (1 hit) had a good reason nobody
+  wrote down.** The lone hit is in the ambient `renovate-dist.d.ts`,
+  which deliberately mirrors upstream's `memCache.get<T>()` signature.
+  The parameter is redundant _in isolation_ and load-bearing _as a
+  mirror_ — the declaration exists to match renovate's, so it keeps it.

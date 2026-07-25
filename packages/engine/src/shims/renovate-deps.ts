@@ -8,6 +8,12 @@
  * if either dependency's version changes.
  */
 
+/* oxlint-disable typescript/unbound-method -- `const has = Object.prototype.hasOwnProperty`
+ * is dequal@2.0.3's own first line. This file is a verbatim vendored port whose
+ * whole point is byte-for-byte behavioral identity with upstream, so it is not
+ * refactored to bind or wrap the method. Every `has` use below goes through
+ * `.call(...)`, which supplies the receiver the rule is warning about. */
+
 const has = Object.prototype.hasOwnProperty;
 
 /** Verbatim dequal@2.0.3. */

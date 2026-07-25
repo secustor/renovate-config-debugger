@@ -20,15 +20,19 @@
     // else; a stray helper export silently turns edits into full reloads.
     "react/only-export-components": "error",
     "react/jsx-no-useless-fragment": "error",
-    // Warn-tier (roadmap 034): real signal, but ~110 hits that are future
-    // scoped work — they must not block a build in the meantime.
+    // Warn-tier (roadmap 034): real signal, but a backlog of hits that are
+    // future scoped work — they must not block a build in the meantime.
+    // Current baseline (re-measured 2026-07-26, roadmap 038): 124
+    // no-non-null-assertion + 11 no-array-index-key, and nothing else.
     "react/no-array-index-key": "warn",
     "typescript/no-non-null-assertion": "warn",
     // Named exports keep re-exports and IDE rename working; the tool-mandated
     // default exports are listed in the overrides below.
     "import/no-default-export": "error",
     // Side-effect imports are how CSS is pulled in under Vite — not a smell.
-    "import/no-unassigned-import": "off",
+    // The allow-list says exactly that, so a future NON-CSS side-effect import
+    // is an error instead of being invisible (roadmap 038: measured 0 hits).
+    "import/no-unassigned-import": ["error", { "allow": ["**/*.css"] }],
     "typescript/consistent-type-imports": ["error", { "fixStyle": "inline-type-imports" }],
     "typescript/no-import-type-side-effects": "error",
     "typescript/no-explicit-any": "error",
@@ -57,10 +61,13 @@
     "typescript/no-base-to-string": "off",
     "typescript/no-unnecessary-type-assertion": "off",
     "typescript/consistent-return": "off",
-    "typescript/unbound-method": "off",
-    "typescript/no-redundant-type-constituents": "off",
-    "typescript/no-unnecessary-template-expression": "off",
-    "typescript/no-unnecessary-type-parameters": "off"
+    "typescript/no-unnecessary-type-parameters": "off",
+
+    // Roadmap 038: the three type-aware rules whose whole cost was one site
+    // each — enabled, with that single site fixed or disabled in place.
+    "typescript/unbound-method": "error",
+    "typescript/no-redundant-type-constituents": "error",
+    "typescript/no-unnecessary-template-expression": "error"
   },
   "overrides": [
     {

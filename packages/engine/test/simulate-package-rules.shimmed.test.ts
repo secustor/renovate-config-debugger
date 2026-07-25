@@ -348,6 +348,35 @@ describe("simulatePackageRules", () => {
     expect(major.finalDependencyConfig.autoApprove).toBe(true);
   });
 
+  /**
+   * Roadmap 038: the groupSlug derivation used to `String(groupName)` before
+   * slugifying, so an object-valued groupName — trivially reachable from user
+   * config — produced the nonsense slug `objectobject`. Upstream never gets
+   * there: it hands groupName straight to `slugify`, which throws on a
+   * non-string. The simulator now leaves groupSlug alone instead.
+   */
+  it("does not derive a groupSlug from a non-string groupName", async () => {
+    const config = {
+      groupSlug: "pre-existing",
+      packageRules: [{ matchDatasources: ["npm"], groupName: { en: "My NPM Packages" } }],
+    };
+    const result = await simulatePackageRules({ config, dep: npmDep });
+    expect(result.rules[0]?.verdict).toBe("matched");
+    // the pre-existing slug survives untouched — no `objectobject`
+    expect(result.rawFinalConfig.groupSlug).toBe("pre-existing");
+    expect(result.rules[0]?.notes.some((n) => n.includes("groupName is not a string"))).toBe(true);
+
+    // …and the string case still derives one, so the guard didn't disable it
+    const ok = await simulatePackageRules({
+      config: {
+        groupSlug: "pre-existing",
+        packageRules: [{ matchDatasources: ["npm"], groupName: "My NPM Packages" }],
+      },
+      dep: npmDep,
+    });
+    expect(ok.rawFinalConfig.groupSlug).toBe("my-npm-packages");
+  });
+
   it("surfaces validateConfig messages for a bogus matcher key", async () => {
     const config = {
       packageRules: [{ matchFoo: ["x"], matchPackageNames: ["lodash"], automerge: true }],

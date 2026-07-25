@@ -10,6 +10,12 @@ import { openTab, runAndAwaitResult, setEditorContent } from "./helpers";
  * throughout — only its rendered size, order or color was wrong).
  */
 
+/** The WCAG 2.1 per-channel linearization an 8-bit sRGB value goes through. */
+function channel(v: number): number {
+  const s = v / 255;
+  return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+}
+
 /** sRGB relative luminance per WCAG 2.1, from an `rgb()`/`rgba()` string. */
 function luminanceOf(css: string): number {
   const [r = 0, g = 0, b = 0] = css
@@ -17,11 +23,12 @@ function luminanceOf(css: string): number {
     .split(/[\s,/]+/)
     .slice(0, 3)
     .map(Number);
-  const channel = (v: number): number => {
-    const s = v / 255;
-    return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-  };
   return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+}
+
+/** Vertical midpoint of a Playwright bounding box. */
+function centerOf(box: { y: number; height: number }): number {
+  return box.y + box.height / 2;
 }
 
 function contrastRatio(fg: string, bg: string): number {
@@ -106,7 +113,6 @@ test("the Load button stays on its inputs' row and clear of the editor card", as
   expect(branch).not.toBeNull();
   expect(repo).not.toBeNull();
 
-  const centerOf = (box: { y: number; height: number }) => box.y + box.height / 2;
   expect(Math.abs(centerOf(button!) - centerOf(branch!))).toBeLessThanOrEqual(2);
   expect(Math.abs(centerOf(button!) - centerOf(repo!))).toBeLessThanOrEqual(2);
   // Nothing overflows the column either — the row shrinks its inputs instead.

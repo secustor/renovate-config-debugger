@@ -483,10 +483,20 @@ async function execute(input: SimulationInput): Promise<SimulationResult> {
       config = { ...config };
       const toApply = removeMatchers(rawRule);
       if (config.groupSlug && rawRule.groupName && !rawRule.groupSlug) {
-        toApply.groupSlug = slugifyLite(String(rawRule.groupName));
-        evaluation.notes.push(
-          "groupSlug derived from groupName with a simplified slugify (ASCII-equivalent to Renovate's)",
-        );
+        if (typeof rawRule.groupName === "string") {
+          toApply.groupSlug = slugifyLite(rawRule.groupName);
+          evaluation.notes.push(
+            "groupSlug derived from groupName with a simplified slugify (ASCII-equivalent to Renovate's)",
+          );
+        } else {
+          // Upstream hands groupName straight to `slugify`, which throws on a
+          // non-string. Stringifying it here would mint an `objectobject`
+          // slug that no real run can produce, so leave groupSlug untouched —
+          // the same outcome as a rule with no groupName at all.
+          evaluation.notes.push(
+            "groupName is not a string — no groupSlug derived (a real run's slugify would throw on it; validation flags the type)",
+          );
+        }
       }
       const force = isPlainObject(toApply.force) ? toApply.force : undefined;
       if (force?.enabled === false || (toApply.enabled === false && config.enabled !== false)) {
@@ -568,7 +578,7 @@ async function execute(input: SimulationInput): Promise<SimulationResult> {
     if (flattenMerged.length > 0 && updateType) {
       notes.push(
         `update-type flattening merged the \`${updateType}\` block up into the config: ` +
-          `${flattenMerged.map((m) => `\`${m.key}\``).join(", ")}`,
+          flattenMerged.map((m) => `\`${m.key}\``).join(", "),
       );
     }
 

@@ -338,6 +338,10 @@ export const EffectiveConfig = memo(function EffectiveConfig({
   const ruleAttribution = useRuleProvenance(result);
   const filterInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
+  // `LayerId` IS `string`, so `| "all"` is formally redundant — it stays as
+  // documentation that "all" is the sentinel this filter uses for "no layer
+  // selected", which every read of `layerFilter` below relies on.
+  // oxlint-disable-next-line typescript/no-redundant-type-constituents
   const [layerFilter, setLayerFilter] = useState<LayerId | "all">("all");
   const [onlyOverridden, setOnlyOverridden] = useState(false);
   const [showDefaults, setShowDefaults] = useState(false);
