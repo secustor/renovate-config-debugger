@@ -6,6 +6,7 @@ import {
   encodeShare,
   type SharePayload,
   type ShareState,
+  untrustedGuardForPolicy,
 } from "./share";
 
 /**
@@ -483,5 +484,61 @@ describe("decideShareRunPolicy: an untrusted endpoint suppresses tokens", () => 
       }),
     );
     expect(policy.untrustedEndpoints).toEqual(["https://evil.example/"]);
+  });
+});
+
+/**
+ * Security 2026-07-25 (follow-up) — the guard a link installs. Acknowledging
+ * the banner must not end it: suppression is a property of the platform
+ * context in force, not of whether a warning is on screen.
+ */
+describe("untrustedGuardForPolicy", () => {
+  test("a trusted link installs no guard", () => {
+    expect(untrustedGuardForPolicy(decideShareRunPolicy(testPayload()))).toBeNull();
+    expect(
+      untrustedGuardForPolicy(
+        decideShareRunPolicy(testPayload({ platform: "gitea", endpoint: "https://gitea.com" })),
+      ),
+    ).toBeNull();
+  });
+
+  test("an untrusted link installs an unacknowledged guard naming the host", () => {
+    const guard = untrustedGuardForPolicy(
+      decideShareRunPolicy(testPayload({ endpoint: "https://evil.example/" })),
+    );
+    expect(guard).toEqual({
+      endpoints: ["https://evil.example/"],
+      host: "https://evil.example/",
+      acknowledged: false,
+    });
+  });
+
+  test("the host named is the one the run actually contacts", () => {
+    // The global layer wins for this run, so IT is what the opt-in must name,
+    // even though the (also untrusted) top-level endpoint is listed too.
+    const guard = untrustedGuardForPolicy(
+      decideShareRunPolicy(
+        testPayload({
+          endpoint: "https://stale.example/",
+          globalConfig: { endpoint: "https://effective.example/" },
+        }),
+      ),
+    );
+    expect(guard?.host).toBe("https://effective.example/");
+    expect(guard?.endpoints).toEqual(["https://effective.example/", "https://stale.example/"]);
+  });
+
+  test("falls back to the first untrusted endpoint when the effective one is trusted", () => {
+    // The run itself would reach gitea.com, but the link still parked an
+    // untrusted endpoint in the endpoint field — that is what to name.
+    const guard = untrustedGuardForPolicy(
+      decideShareRunPolicy(
+        testPayload({
+          endpoint: "https://evil.example/",
+          globalConfig: { endpoint: "https://gitea.com" },
+        }),
+      ),
+    );
+    expect(guard?.host).toBe("https://evil.example/");
   });
 });

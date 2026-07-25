@@ -432,6 +432,41 @@ export function decideShareRunPolicy(payload: SharePayload): ShareRunPolicy {
 }
 
 /**
+ * Security 2026-07-25 (follow-up): the standing protection a link installs.
+ * Acknowledging the banner must NOT end it — a user who clicks past a warning
+ * without reading would otherwise be one Run click away from handing their
+ * token to the attacker's host. The guard therefore survives the banner and
+ * suppresses tokens on EVERY run (manual Run, injection/apply-fix re-runs, a
+ * repo load that would use this endpoint) until the user either opts in
+ * explicitly, hand-edits the platform/endpoint, or loads something else.
+ */
+export interface UntrustedEndpointGuard {
+  /** Every untrusted endpoint the link applied (what the banner names). */
+  endpoints: string[];
+  /** The one host the opt-in button names — the endpoint the run actually
+   *  contacts when that is the untrusted one, else the first untrusted. */
+  host: string;
+  /** True once the user chose "continue without tokens": the banner collapses
+   *  to a small standing reminder, the suppression itself is unchanged. */
+  acknowledged: boolean;
+}
+
+/** The guard a decoded payload installs, or null when the link is trusted. */
+export function untrustedGuardForPolicy(policy: ShareRunPolicy): UntrustedEndpointGuard | null {
+  if (!policy.suppressTokens) {
+    return null;
+  }
+  const effectiveIsUntrusted = policy.untrustedEndpoints.includes(policy.endpoint);
+  return {
+    endpoints: policy.untrustedEndpoints,
+    host: effectiveIsUntrusted
+      ? policy.endpoint
+      : (policy.untrustedEndpoints[0] ?? policy.endpoint),
+    acknowledged: false,
+  };
+}
+
+/**
  * Roadmap 017: what a `hashchange` event should do, decided as a pure
  * function of the new hash, the last token the app itself wrote into the
  * address bar (Copy link, or clearing an unreadable link — never a real

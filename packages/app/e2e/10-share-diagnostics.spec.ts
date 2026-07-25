@@ -9,7 +9,7 @@ import {
   RENOVATE_VERSION,
   truncateShareToken,
 } from "./fixtures";
-import { resultsPanel } from "./helpers";
+import { resultsPanel, runButton } from "./helpers";
 
 /**
  * Roadmap 027 — share-link failure diagnostics. A `#config=` token that can't
@@ -118,8 +118,12 @@ test("a link with a javascript: endpoint is refused (damaged banner)", async ({ 
  */
 
 const warningBanner = ".share-warning-banner";
+const reminderChip = ".untrusted-endpoint-chip";
 const UNTRUSTED_ENDPOINT = "https://untrusted.example/";
 const LEAK_CANARY = "pat-must-not-leak";
+/** Resolves `local>` against whatever endpoint is in force — the shape that
+ *  actually reaches out, so an interception can observe the headers. */
+const LOCAL_PRESET_CONFIG = '{"extends": ["local>acme/renovate-config"]}';
 
 /** A payload with an arbitrary top-level endpoint. `encodeShareToken` cannot
  *  express one (it drops anything equal to the default and has no globalConfig
@@ -184,12 +188,32 @@ test("an untrusted endpoint warns, keeps the config, and is not persisted", asyn
   expect(stored.platform).toBeNull();
 });
 
-test("the untrusted-endpoint warning can be acknowledged", async ({ page }) => {
+test("'Continue without tokens' collapses the banner but keeps the reminder", async ({ page }) => {
   const json = rawPayloadJson(PACKAGE_RULES_CONFIG, { endpoint: UNTRUSTED_ENDPOINT });
   await page.goto(`#config=${await encodeRawShareToken(json)}`);
   await expect(page.locator(warningBanner)).toBeVisible({ timeout: 15_000 });
+
   await page.locator(".share-warning-ack").click();
+
+  // The banner goes, the protection does not: a standing reminder naming the
+  // host stays beside Run, and it still offers the opt-in.
   await expect(page.locator(warningBanner)).toHaveCount(0);
+  await expect(page.locator(reminderChip)).toBeVisible();
+  await expect(page.locator(reminderChip)).toContainText("untrusted.example");
+  await expect(page.locator(reminderChip)).toContainText(/without tokens/i);
+  await expect(page.locator(".untrusted-endpoint-allow")).toBeVisible();
+});
+
+test("hand-editing the endpoint ends the guard", async ({ page }) => {
+  const json = rawPayloadJson(PACKAGE_RULES_CONFIG, { endpoint: UNTRUSTED_ENDPOINT });
+  await page.goto(`#config=${await encodeRawShareToken(json)}`);
+  await expect(page.locator(warningBanner)).toBeVisible({ timeout: 15_000 });
+
+  // The link forced Advanced options open, so the field is right there.
+  await page.getByLabel("Endpoint").fill("https://api.github.com");
+
+  await expect(page.locator(warningBanner)).toHaveCount(0);
+  await expect(page.locator(reminderChip)).toHaveCount(0);
 });
 
 test("a link's globalConfig endpoint is caught too (it wins over the top-level one)", async ({
@@ -210,21 +234,63 @@ test("a link's globalConfig endpoint is caught too (it wins over the top-level o
   expect(storedEndpoint).toBeNull();
 });
 
-test("no token reaches an untrusted endpoint the link chose", async ({ page }) => {
+test("no token reaches an untrusted endpoint — not on the auto-run, not on a manual Run", async ({
+  page,
+}) => {
   await seedToken(page);
   const seen = await interceptOrigin(page, "https://untrusted.example/**");
-  const config = '{"extends": ["local>acme/renovate-config"]}';
-  const json = rawPayloadJson(config, { endpoint: UNTRUSTED_ENDPOINT });
+  const json = rawPayloadJson(LOCAL_PRESET_CONFIG, { endpoint: UNTRUSTED_ENDPOINT });
   await page.goto(`#config=${await encodeRawShareToken(json)}`);
 
   await expect(page.locator(warningBanner)).toBeVisible({ timeout: 15_000 });
   await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
-  // The host WAS contacted (so the assertion is not vacuous) …
+  // The host WAS contacted (so the assertion is not vacuous) ...
   expect(seen.length).toBeGreaterThan(0);
-  // … and not one request carried a credential.
+  const afterAutoRun = seen.length;
+
+  // ... and the protection is not one click deep: acknowledging the banner and
+  // pressing Run — the phishing path — still sends nothing.
+  await page.locator(".share-warning-ack").click();
+  await runButton(page).click();
+  await expect.poll(() => seen.length, { timeout: 30_000 }).toBeGreaterThan(afterAutoRun);
+  await expect(runButton(page)).toHaveText("Run");
+
   for (const request of seen) {
     expect(request.authorization).toBeUndefined();
   }
+});
+
+test("'Use my tokens with <host>' opts in explicitly: header sent, settings persisted", async ({
+  page,
+}) => {
+  await seedToken(page);
+  const seen = await interceptOrigin(page, "https://untrusted.example/**");
+  const json = rawPayloadJson(LOCAL_PRESET_CONFIG, { endpoint: UNTRUSTED_ENDPOINT });
+  await page.goto(`#config=${await encodeRawShareToken(json)}`);
+
+  await expect(page.locator(warningBanner)).toBeVisible({ timeout: 15_000 });
+  // Wait out the link's own (suppressed) auto-run first, so what is counted
+  // below is only what the opt-in produced.
+  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
+  // The opt-in names the host, so the choice is informed.
+  const optIn = page.locator(".share-warning-trust");
+  await expect(optIn).toContainText(UNTRUSTED_ENDPOINT);
+  const beforeOptIn = seen.length;
+  await optIn.click();
+
+  // Banner and reminder both go — the guard is over.
+  await expect(page.locator(warningBanner)).toHaveCount(0);
+  await expect(page.locator(reminderChip)).toHaveCount(0);
+
+  await runButton(page).click();
+  await expect.poll(() => seen.length, { timeout: 30_000 }).toBeGreaterThan(beforeOptIn);
+  await expect(runButton(page)).toHaveText("Run");
+  for (const request of seen.slice(beforeOptIn)) {
+    expect(request.authorization).toBe(`Bearer ${LEAK_CANARY}`);
+  }
+  // Treated like a hand-typed endpoint from here on, storage included.
+  const stored = await page.evaluate(() => localStorage.getItem("rcv.endpoint"));
+  expect(stored).toBe(UNTRUSTED_ENDPOINT);
 });
 
 test("a trusted endpoint keeps today's behavior: tokens sent, settings persisted", async ({
@@ -232,8 +298,7 @@ test("a trusted endpoint keeps today's behavior: tokens sent, settings persisted
 }) => {
   await seedToken(page);
   const seen = await interceptOrigin(page, "https://api.github.com/**");
-  const config = '{"extends": ["local>acme/renovate-config"]}';
-  await page.goto(await encodeShareFragment({ config, platform: "github" }));
+  await page.goto(await encodeShareFragment({ config: LOCAL_PRESET_CONFIG, platform: "github" }));
 
   await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
   await expect(page.locator(warningBanner)).toHaveCount(0);

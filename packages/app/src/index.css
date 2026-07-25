@@ -1270,16 +1270,52 @@ pre.config-view.prov-before {
   color: var(--warn);
 }
 
-.share-warning-ack {
-  align-self: flex-start;
+.share-warning-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.share-warning-ack,
+.share-warning-trust {
   background: transparent;
   border: 1px solid var(--border);
   border-radius: 4px;
   color: inherit;
   cursor: pointer;
   font-size: 0.8rem;
-  margin-top: 0.25rem;
-  padding: 0.2rem 0.6rem;
+  padding: 0.25rem 0.7rem;
+}
+
+/* The opt-in is the consequential choice: outlined in the warning colour so it
+   reads as deliberate, never as the easy default. */
+.share-warning-trust {
+  border-color: var(--warn);
+  font-weight: 600;
+}
+
+/* The standing reminder beside Run — present for as long as the suppression
+   is, which is why it carries the opt-in too rather than being a dead end. */
+.untrusted-endpoint-chip {
+  align-items: center;
+  border: 1px solid var(--warn);
+  border-radius: 999px;
+  color: var(--warn);
+  display: inline-flex;
+  font-size: 0.75rem;
+  gap: 0.4rem;
+  padding: 0.15rem 0.6rem;
+}
+
+.untrusted-endpoint-allow {
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0;
+  text-decoration: underline;
 }
 
 .app-notice {

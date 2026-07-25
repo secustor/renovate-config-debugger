@@ -69,6 +69,8 @@ import {
   type ShareFileName,
   type ShareSimulator,
   type ShareView,
+  type UntrustedEndpointGuard,
+  untrustedGuardForPolicy,
 } from "./share";
 import { useBackToTopVisible, useHomeEndPageScroll } from "./scroll-ergonomics";
 import {
@@ -298,12 +300,13 @@ const SHARE_ERROR_MESSAGES: Record<ShareDecodeError, string> = {
 };
 
 /**
- * Security 2026-07-25: the banner shown when a link aims the run at an endpoint
- * that is not one of the shipped public hosts. It names the host, states
- * plainly that nothing was sent to it, and describes the deliberate way to
- * proceed. Never a `window.confirm` — a modal would block the run (and every
+ * Security 2026-07-25: the banner shown while an untrusted-endpoint guard
+ * stands. It names the host and states plainly that nothing is being sent to
+ * it. Never a `window.confirm` — a modal would block the run (and every
  * automated/persona session) on a decision the user cannot even evaluate yet,
- * since the endpoint only becomes visible once the link has loaded.
+ * since the endpoint only becomes visible once the link has loaded. The two
+ * ways out are the banner's own buttons, so the choice is always explicit and
+ * always names the host.
  */
 function untrustedEndpointMessage(endpoints: readonly string[]): string {
   const list = endpoints.map((endpoint) => `“${endpoint}”`).join(" and ");
@@ -311,7 +314,7 @@ function untrustedEndpointMessage(endpoints: readonly string[]): string {
     `This link asks the analysis to contact ${list}, which is not one of the public code hosts this app trusts. ` +
     `It was opened WITHOUT your GitHub sign-in and without any token you have saved — nothing was sent to that host — ` +
     `and your saved platform settings were left unchanged. ` +
-    `If you know and trust this host, review it under Advanced options → “Repository host & access tokens” and press Run to use your tokens against it.`
+    `Every run keeps leaving your tokens behind until you decide otherwise below; you can review the host under Advanced options → “Repository host & access tokens”.`
   );
 }
 
@@ -356,6 +359,11 @@ export function App() {
   // (self-hosted layers, platform context, tokens). Auto-opens when a share
   // link arrives carrying self-hosted layers, so their effect isn't invisible.
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  // Security 2026-07-25: the host/tokens sub-section, controlled for the same
+  // reason — an untrusted-endpoint guard tells the user to review the host, so
+  // the field holding it has to be actually on screen, not one more
+  // disclosure deep. Mirrored back on toggle so the user still owns it.
+  const [hostSectionOpen, setHostSectionOpen] = useState(false);
   // OAuth sign-in (009). Configured only when both build-time vars are present;
   // otherwise the whole feature stays hidden and the PAT fallback remains.
   const oauthConfig = useMemo(() => getOAuthConfig(), []);
@@ -378,10 +386,21 @@ export function App() {
   // banner (not the dismissable notice), so a broken link never reads as
   // "nothing happened". Cleared whenever a share load succeeds.
   const [shareError, setShareError] = useState<string | null>(null);
-  // Security 2026-07-25: a link that decoded fine but points the run at an
-  // untrusted endpoint — same prominent banner, and it stays until the user
-  // acknowledges it (it explains why this run had no access to their tokens).
-  const [shareWarning, setShareWarning] = useState<string | null>(null);
+  // Security 2026-07-25: set while the platform context in force came from a
+  // share link naming an untrusted endpoint. This is the ONLY thing that
+  // decides token suppression — it outlives the banner on purpose, so a user
+  // who clicks past the warning without reading is not one Run away from
+  // handing their token to the attacker's host. Cleared only by the explicit
+  // opt-in, by hand-editing platform/endpoint, or by loading something else.
+  const [untrustedGuard, setUntrustedGuard] = useState<UntrustedEndpointGuard | null>(null);
+  // The same value read synchronously. Every mutation goes through
+  // `applyUntrustedGuard`, so a handler that installs/clears the guard and
+  // then starts a fetch in the SAME tick (loadShareToken's auto-run, a
+  // known-host repo load) decides suppression from the new value rather than
+  // from a `useState` closure React has not re-rendered yet — in either
+  // direction: over-suppressing would silently break a legitimate private
+  // repo load, under-suppressing would leak the token.
+  const untrustedGuardRef = useRef<UntrustedEndpointGuard | null>(null);
   // Roadmap 023: a transient toast — used to land an "Apply fix" re-run on its
   // consequence ("re-ran: 0 errors") without yanking the user's scroll around.
   const [toast, setToast] = useState<string | null>(null);
@@ -718,11 +737,12 @@ export function App() {
     try {
       const traceResult = await run(
         { ...inputs, injectedPresets },
-        // Security 2026-07-25: only ever set by `loadShareToken` for a link
-        // aimed at an untrusted endpoint. A Run the user presses themselves
-        // always carries their credentials — by then they have seen the
-        // endpoint in the toolbar (and `blockedByLayerErrors` gates it).
-        { suppressTokens: opts?.suppressTokens === true },
+        // Security 2026-07-25: EVERY run while the guard stands — a manual Run
+        // click, an injection or apply-fix re-run, the link's own auto-run —
+        // leaves the tokens behind. `opts.suppressTokens` is the explicit
+        // channel for `loadShareToken`, whose own `setUntrustedGuard` has not
+        // committed to state yet when it starts this run.
+        { suppressTokens: opts?.suppressTokens === true || untrustedGuardRef.current !== null },
       );
       // Roadmap 023: hold the current scroll so re-running an edited config
       // doesn't jump the user back to the top (captured right before the result
@@ -810,8 +830,8 @@ export function App() {
     }
     if (!decoded.ok) {
       setShareError(SHARE_ERROR_MESSAGES[decoded.reason]);
-      // A previous link's untrusted-host warning does not apply to this one.
-      setShareWarning(null);
+      // A previous link's guard does not describe this one — but the platform
+      // context it installed is still in force, so it is NOT cleared here.
       clearShareHash();
       return;
     }
@@ -819,10 +839,10 @@ export function App() {
     const payload = decoded.payload;
     // Security 2026-07-25: decide — before anything is applied — whether this
     // link may use the user's credentials and rewrite their stored settings.
+    // A new link fully replaces the platform context, so it also replaces (or
+    // clears) any guard a previous link installed.
     const policy = decideShareRunPolicy(payload);
-    setShareWarning(
-      policy.suppressTokens ? untrustedEndpointMessage(policy.untrustedEndpoints) : null,
-    );
+    applyUntrustedGuard(untrustedGuardForPolicy(policy));
     const nextPlatform = payload.platform ?? "github";
     const nextEndpoint = payload.endpoint ?? "https://api.github.com";
     loadConfigText(payload.config);
@@ -846,6 +866,9 @@ export function App() {
     setPlatformOverride(payload.platformOverride === true);
     if (payload.globalConfig || payload.inheritedConfig || policy.suppressTokens) {
       setAdvancedOpen(true);
+    }
+    if (policy.suppressTokens) {
+      setHostSectionOpen(true);
     }
     pendingViewRef.current = payload.view ?? null;
     const current = await getRenovateVersion();
@@ -977,12 +1000,29 @@ export function App() {
   }
   const onTokenChange = makeTokenHandler(TOKEN_KEY, setToken);
 
+  /** The one way the guard changes — ref first, so a same-tick reader sees it. */
+  function applyUntrustedGuard(next: UntrustedEndpointGuard | null) {
+    untrustedGuardRef.current = next;
+    setUntrustedGuard(next);
+  }
+
+  /**
+   * Security 2026-07-25: the user typing in the platform/endpoint fields is a
+   * deliberate act that REPLACES the context a link installed, so it ends the
+   * guard. Whatever they typed is then governed by the ordinary hand-typed
+   * rules (`isValidEndpoint` for storage, `blockedByLayerErrors` for Run).
+   */
+  function clearUntrustedGuard() {
+    applyUntrustedGuard(null);
+  }
+
   function onPlatformChange(value: string) {
     // With a global config supplying platform/endpoint, a manual change is an
     // explicit override (008/010) — flagged with a visible warning below.
     if (hasGlobalContext) {
       setPlatformOverride(true);
     }
+    clearUntrustedGuard();
     setPlatform(value);
     if (isValidPlatform(value)) {
       persistLocal(PLATFORM_KEY, value);
@@ -1001,11 +1041,35 @@ export function App() {
     if (hasGlobalContext) {
       setPlatformOverride(true);
     }
+    clearUntrustedGuard();
     setEndpoint(value);
     if (isValidEndpoint(value)) {
       persistLocal(ENDPOINT_KEY, value);
     } else {
       localStorage.removeItem(ENDPOINT_KEY);
+    }
+  }
+
+  /** "Continue without tokens": the banner collapses to the standing reminder
+   *  beside Run. The suppression itself is deliberately untouched — this is an
+   *  acknowledgement, not a decision about credentials. */
+  function onAcknowledgeUntrusted() {
+    const guard = untrustedGuardRef.current;
+    if (guard) {
+      applyUntrustedGuard({ ...guard, acknowledged: true });
+    }
+  }
+
+  /** "Use my tokens with <host>": the explicit, host-named opt-in. From here
+   *  the endpoint is treated exactly like a hand-typed one — later runs carry
+   *  credentials and the platform/endpoint may persist to localStorage. */
+  function onTrustUntrustedHost() {
+    applyUntrustedGuard(null);
+    if (isValidPlatform(platform)) {
+      persistLocal(PLATFORM_KEY, platform);
+    }
+    if (isValidEndpoint(endpoint)) {
+      persistLocal(ENDPOINT_KEY, endpoint);
     }
   }
 
@@ -1242,17 +1306,29 @@ export function App() {
     if (blockedByLayerErrors()) {
       return;
     }
+    // Security 2026-07-25: a load from a KNOWN host replaces the platform
+    // context with that host's shipped default, so it ends a link's guard —
+    // nothing untrusted is left in force. A bare `owner/repo` load reuses the
+    // current endpoint, which may be exactly the host the link chose, so it
+    // stays suppressed (both for the file probe and the run that follows).
+    const suppressTokens = !knownHost && untrustedGuardRef.current !== null;
+    if (knownHost) {
+      applyUntrustedGuard(null);
+    }
     setRepoLoading(true);
     setFatal(null);
     setNotice(null);
     setRepoAuthHint(null);
     try {
-      const loaded = await loadRepoConfig({
-        platform: repoPlatform,
-        repo: parsed.repo,
-        endpoint: repoEndpoint || undefined,
-        ref: trimmedRef || undefined,
-      });
+      const loaded = await loadRepoConfig(
+        {
+          platform: repoPlatform,
+          repo: parsed.repo,
+          endpoint: repoEndpoint || undefined,
+          ref: trimmedRef || undefined,
+        },
+        { suppressTokens },
+      );
       const nextFileName: ShareFileName = loaded.fileName.endsWith(".json5")
         ? "renovate.json5"
         : "renovate.json";
@@ -1265,15 +1341,19 @@ export function App() {
       loadConfigText(loaded.content);
       setFileName(nextFileName);
       setNotice(`Loaded ${loaded.fileName} from ${parsed.repo}`);
-      await onRun(undefined, {
-        fileName: nextFileName,
-        content: loaded.content,
-        platform: repoPlatform,
-        endpoint: repoEndpoint || endpoint,
-        globalConfig: globalParse.config,
-        inheritedConfig: inheritedParse.config,
-        platformOverride: platformOverride && hasGlobalContext,
-      });
+      await onRun(
+        undefined,
+        {
+          fileName: nextFileName,
+          content: loaded.content,
+          platform: repoPlatform,
+          endpoint: repoEndpoint || endpoint,
+          globalConfig: globalParse.config,
+          inheritedConfig: inheritedParse.config,
+          platformOverride: platformOverride && hasGlobalContext,
+        },
+        { suppressTokens },
+      );
     } catch (err) {
       const e = err as { name?: string; probed?: string[]; err?: { message?: string } };
       let detail = "";
@@ -1310,19 +1390,23 @@ export function App() {
             <span>{shareError}</span>
           </div>
         ) : null}
-        {shareWarning ? (
+        {untrustedGuard && !untrustedGuard.acknowledged ? (
           <div className="share-error-banner share-warning-banner" role="alert">
             <strong className="share-error-banner-title">
-              Shared link points at an untrusted host — opened without your tokens
+              Shared link points at an untrusted host — running without your tokens
             </strong>
-            <span>{shareWarning}</span>
-            <button
-              type="button"
-              className="share-warning-ack"
-              onClick={() => setShareWarning(null)}
-            >
-              Got it
-            </button>
+            <span>{untrustedEndpointMessage(untrustedGuard.endpoints)}</span>
+            {/* Two explicit choices, both naming the host. Neither is a
+                dismissal: "continue" only collapses this to the standing
+                reminder beside Run, the suppression itself stays on. */}
+            <div className="share-warning-actions">
+              <button type="button" className="share-warning-ack" onClick={onAcknowledgeUntrusted}>
+                Continue without tokens
+              </button>
+              <button type="button" className="share-warning-trust" onClick={onTrustUntrustedHost}>
+                Use my tokens with {untrustedGuard.host}
+              </button>
+            </div>
           </div>
         ) : null}
         <header className="app-header">
@@ -1473,6 +1557,26 @@ export function App() {
                 )
               ) : null}
               <span className="toolbar-spacer" />
+              {/* Security 2026-07-25: the standing reminder. Small, but right
+                  where the risk materializes — the Run button — and it never
+                  goes away on its own, because the suppression it describes
+                  never does either. The opt-in stays reachable from here so a
+                  user who acknowledged the banner is not stuck. */}
+              {untrustedGuard ? (
+                <span
+                  className="untrusted-endpoint-chip"
+                  title="A shared link chose this host. Runs leave your sign-in and tokens behind until you allow it."
+                >
+                  runs against {untrustedGuard.host} without tokens
+                  <button
+                    type="button"
+                    className="untrusted-endpoint-allow"
+                    onClick={onTrustUntrustedHost}
+                  >
+                    use my tokens
+                  </button>
+                </span>
+              ) : null}
               <button
                 type="button"
                 className="primary"
@@ -1516,7 +1620,11 @@ export function App() {
                 hosted Renovate app.
               </p>
 
-              <details className="advanced-settings">
+              <details
+                className="advanced-settings"
+                open={hostSectionOpen}
+                onToggle={(e) => setHostSectionOpen(e.currentTarget.open)}
+              >
                 <summary>
                   Repository host &amp; access tokens
                   <span className="advanced-hint">

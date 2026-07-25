@@ -38,13 +38,14 @@ function sessionToken(key: string): string | undefined {
 
 export interface RunOptions {
   /**
-   * Security 2026-07-25: run with NO credentials at all. Set for a run the
-   * user did not aim themselves — a share link pointing at an endpoint that
-   * is not one of the shipped public hosts (see `decideShareRunPolicy`) —
-   * so an attacker-chosen host can never receive the user's OAuth token or
-   * PATs. Expressed as an option on the run path rather than by mutating
-   * token storage: the engine's preset auth is module-level state, so the
-   * suppression has to be an explicit overwrite scoped to this one run.
+   * Security 2026-07-25: run with NO credentials at all. Set while an
+   * `UntrustedEndpointGuard` stands — a share link pointed the platform
+   * context at an endpoint that is not one of the shipped public hosts (see
+   * `decideShareRunPolicy`) and the user has not explicitly opted in — so an
+   * attacker-chosen host can never receive the user's OAuth token or PATs.
+   * Expressed as an option on the run path rather than by mutating token
+   * storage: the engine's preset auth is module-level state, so the
+   * suppression has to be an explicit overwrite scoped to this one call.
    */
   suppressTokens?: boolean;
 }
@@ -119,9 +120,14 @@ export async function loadErrorTranslationLib(): Promise<ErrorTranslationLib> {
   };
 }
 
-/** Probes a repository for its Renovate config file (roadmap 007). */
-export async function loadRepoConfig(req: RepoConfigRequest): Promise<RepoConfigResult> {
+/** Probes a repository for its Renovate config file (roadmap 007). Takes the
+ *  same `suppressTokens` seam as {@link run}: a repo load against an endpoint
+ *  a share link chose must not carry credentials either. */
+export async function loadRepoConfig(
+  req: RepoConfigRequest,
+  opts?: RunOptions,
+): Promise<RepoConfigResult> {
   const engine = await import("@renovate-config-visualizer/engine");
-  await ensureAuth(engine);
+  await ensureAuth(engine, opts);
   return engine.fetchRepoConfig(req);
 }
