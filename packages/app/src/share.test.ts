@@ -129,6 +129,58 @@ describe("encodeShare / decodeShareResult round trip", () => {
   });
 });
 
+/**
+ * Roadmap 033: the encode side now runs the SAME sanitizers as the decoder
+ * (input-schemas.ts) — before, the encode-side `normalizeView` dropped
+ * `step: 0` while the decoder accepted it, so sharing the FIRST rewrite step
+ * silently lost the step. Decode-side nonnegative is the rule: step is an
+ * index and 0 is a real selection.
+ */
+describe("033: one sanitizer — encode∘decode fixpoints", () => {
+  test("step: 0 (the first rewrite step) round-trips", async () => {
+    const token = await encodeShare(
+      minimalState({ view: { stage: "migrate", step: 0, tab: "rewrites" } }),
+    );
+    const result = await decodeShareResult(token);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.view).toEqual({ stage: "migrate", step: 0, tab: "rewrites" });
+    }
+  });
+
+  test("re-encoding a decoded view/sim is a fixpoint (nothing changes on the second pass)", async () => {
+    const state = minimalState({
+      view: { stage: "preset", node: "abc", step: 0, tab: "presets" },
+      // The empty form value is dropped on the FIRST encode; after that the
+      // value must be stable through any number of encode∘decode passes.
+      sim: { form: { name: "left-pad", empty: "" }, autoSimulate: true },
+    });
+    const first = await decodeShareResult(await encodeShare(state));
+    expect(first.ok).toBe(true);
+    if (!first.ok) {
+      return;
+    }
+    expect(first.payload.sim).toEqual({ form: { name: "left-pad" }, autoSimulate: true });
+    const second = await decodeShareResult(
+      await encodeShare(minimalState({ view: first.payload.view, sim: first.payload.sim })),
+    );
+    expect(second.ok).toBe(true);
+    if (second.ok) {
+      expect(second.payload.view).toEqual(first.payload.view);
+      expect(second.payload.sim).toEqual(first.payload.sim);
+    }
+  });
+
+  test("an all-empty view is still omitted from the payload", async () => {
+    const token = await encodeShare(minimalState({ view: {} }));
+    const result = await decodeShareResult(token);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.view).toBeUndefined();
+    }
+  });
+});
+
 describe("027 envelope failure reasons (unchanged by 030)", () => {
   test("garbled base64 -> damaged", async () => {
     const token = await encodeShare(minimalState());

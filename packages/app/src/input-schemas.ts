@@ -15,7 +15,7 @@
  * oauth.ts, PresetTree.tsx) replace their ad hoc checks with these.
  */
 import * as z from "zod/mini";
-import type { StageId } from "@renovate-config-visualizer/engine";
+import type { STAGE_IDS as ENGINE_STAGE_IDS, StageId } from "@renovate-config-visualizer/engine";
 import { RESULTS_TAB_IDS, type ResultsTabId } from "./results-tabs";
 
 // ---------------------------------------------------------------------------
@@ -224,13 +224,17 @@ export function isValidPlatform(value: string): boolean {
 
 // ---------------------------------------------------------------------------
 // Share view / tab / stage — reuses the real ResultsTabId (results-tabs.ts)
-// and mirrors the engine's StageId union (no runtime export of it exists to
-// import; keep this list in sync with packages/engine/src/trace/model.ts and
-// App.tsx's/StageTimeline's STAGE_ORDER — all three currently must be edited
-// together whenever a stage is added).
+// and the engine's stage list. Roadmap 033: the engine now exports STAGE_IDS
+// as a runtime value, but the app's house rule is that engine RUNTIME is only
+// ever reached via dynamic import() (the heavy chunk must stay out of the
+// initial bundle) — so the tuple is written out here and `satisfies typeof`
+// pins it to the engine's exact tuple type instead: adding, removing or
+// reordering a stage in packages/engine/src/trace/model.ts makes this line
+// fail to compile until it matches again. StageTimeline's stage order imports
+// this constant, so the app has exactly one copy to keep in sync.
 // ---------------------------------------------------------------------------
 
-const STAGE_IDS = [
+export const STAGE_IDS = [
   "global",
   "inherit",
   "parse",
@@ -239,7 +243,7 @@ const STAGE_IDS = [
   "validate",
   "preset",
   "merge",
-] as const satisfies readonly StageId[];
+] as const satisfies typeof ENGINE_STAGE_IDS;
 
 export const stageIdSchema = z.enum(STAGE_IDS);
 export const resultsTabIdSchema = z.enum(RESULTS_TAB_IDS);

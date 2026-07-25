@@ -52,6 +52,7 @@ export {
   type RepoConfigResult,
   type RepoPlatform,
 } from "./shims/repo-config";
+export { STAGE_IDS } from "./trace/model";
 export type {
   LogLevel,
   MigrationStepInfo,

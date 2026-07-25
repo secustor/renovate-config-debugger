@@ -37,8 +37,8 @@ Full context and architecture: [.agents/spec/renovate-config-visualizer.md](../.
 | [030](030-input-validation-zod.md)                    | Input validation at every boundary (zod/mini)             | M8                   | done    |
 | [031](031-critical-path-loading.md)                   | Critical-path loading performance                         | M9                   | planned |
 | [032](032-keystroke-render-performance.md)            | Keystroke render performance                              | M9                   | planned |
-| [033](033-app-decomposition-and-boundaries.md)        | App decomposition + single-source boundaries              | M9                   | planned |
-| [034](034-lint-hardening.md)                          | Lint hardening (oxlint)                                   | M9                   | planned |
+| [033](033-app-decomposition-and-boundaries.md)        | App decomposition + single-source boundaries              | M9                   | done    |
+| [034](034-lint-hardening.md)                          | Lint hardening (oxlint)                                   | M9                   | done    |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live

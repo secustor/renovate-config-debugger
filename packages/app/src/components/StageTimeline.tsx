@@ -1,18 +1,12 @@
 import type { StageId, TraceResult } from "@renovate-config-visualizer/engine";
 import { Explained } from "../glossary";
+import { STAGE_IDS } from "../input-schemas";
 import { STAGE_EXPLAINERS, STAGE_LABELS } from "../stage-copy";
 import { describeStageActivity, getStageActivity } from "../stage-activity";
 
-const STAGE_ORDER: StageId[] = [
-  "global",
-  "inherit",
-  "parse",
-  "migrate",
-  "massage",
-  "validate",
-  "preset",
-  "merge",
-];
+// Roadmap 033: the app's single stage list (satisfies-checked against the
+// engine's exported STAGE_IDS), already in execution order.
+const STAGE_ORDER: readonly StageId[] = STAGE_IDS;
 
 interface Props {
   result: TraceResult;

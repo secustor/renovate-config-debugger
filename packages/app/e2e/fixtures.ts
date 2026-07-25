@@ -1,29 +1,29 @@
 /**
  * Roadmap 020 — share-link fixtures for the browser e2e suite.
  *
- * The token codec is ported verbatim from 019's `generate-links.mjs` and the
- * app's own `src/share.ts`: payload → JSON → UTF-8 → deflate-raw
- * (CompressionStream) → base64url (no padding), placed after `#config=`. It is
- * written with web globals only (CompressionStream, TextEncoder, btoa,
- * Uint8Array — all available in Node 20+ and the browser), so no Node-specific
- * types or dependencies are needed and the wire format is guaranteed identical
- * to what the app decodes.
+ * Roadmap 033: well-formed tokens come from the app's REAL codec
+ * (`encodeShare` in src/share.ts) — the wire format lives in one place, so a
+ * codec change cannot silently diverge from what these tests produce. Only
+ * the deliberately-shaped builders stay hand-written: raw JSON tokens for
+ * payloads `encodeShare` refuses to produce (adversarial fields, pre-027
+ * links without the integrity tag) and the truncate/garble corrupters. Those
+ * use web globals only (CompressionStream, TextEncoder, btoa — available in
+ * Node 20+ and the browser), the same wire shape the codec itself writes.
  */
+import { configChecksum, encodeShare, type ShareSimulator, type ShareView } from "../src/share";
+
+export { configChecksum };
 
 /** The two file names the share payload accepts. */
 export type ShareFileName = "renovate.json" | "renovate.json5";
 
-/** The simulator descriptor a link can carry (roadmap 018). */
-export interface ShareSimulator {
-  form: Record<string, string>;
-  autoSimulate?: boolean;
-}
-
 /**
  * Roadmap 028: the view state a link carries. `tab` is the 028 addition; a
  * fixture that omits it reproduces a pre-028 link, whose tab the app has to
- * infer from stage/node/step. Written verbatim into the payload (no
- * normalization) so a spec can shape exactly the link it wants to test.
+ * infer from stage/node/step. Loosely typed (plain strings) so a spec can
+ * shape exactly the link it wants to test; a well-formed value passes through
+ * the real codec's sanitizer unchanged — including `step: 0`, which
+ * round-trips (the 033 fixpoint rule).
  */
 export interface ShareViewInput {
   stage?: string;
@@ -71,25 +71,16 @@ function bytesToBase64url(bytes: Uint8Array): string {
   return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-/** Roadmap 027 integrity tag — must stay byte-for-byte identical to
- *  `configChecksum` in src/share.ts (32-bit FNV-1a of the config, base36). */
-export function configChecksum(config: string): string {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < config.length; i++) {
-    h ^= config.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return (h >>> 0).toString(36);
-}
-
 /** Options for shaping the encoded token (e.g. producing a pre-027 link). */
 export interface EncodeOptions {
   /** Omit the 027 integrity field, reproducing an old link. Default: include it. */
   integrity?: boolean;
 }
 
-/** Builds the `#config=` fragment token for a payload — same wire shape as
- *  `encodeShare()` in src/share.ts and 019's generator produce. */
+/** Builds the `#config=` fragment token for a payload. The default path IS
+ *  `encodeShare()` from src/share.ts; `integrity: false` reproduces a
+ *  pre-027 link, which the real codec can no longer emit, so that payload is
+ *  built by hand (see module doc comment). */
 export async function encodeShareToken(
   input: SharePayloadInput,
   opts: EncodeOptions = {},
@@ -97,30 +88,41 @@ export async function encodeShareToken(
   // Validate the config is real JSON before shipping it into a fixture — a
   // broken fixture should fail here, loudly, not silently in the browser.
   JSON.parse(input.config);
-  const payload: Record<string, unknown> = {
-    v: 2,
-    renovate: input.renovate ?? RENOVATE_VERSION,
+  if (opts.integrity === false) {
+    // Pre-027 wire shape: no `c` field, view/sim written verbatim, and the
+    // platform/endpoint defaults omitted exactly like the codec omits them.
+    const payload: Record<string, unknown> = {
+      v: 2,
+      renovate: input.renovate ?? RENOVATE_VERSION,
+      config: input.config,
+      fileName: input.fileName ?? "renovate.json",
+    };
+    if (input.platform && input.platform !== "github") {
+      payload.platform = input.platform;
+    }
+    if (input.endpoint && input.endpoint !== "https://api.github.com") {
+      payload.endpoint = input.endpoint;
+    }
+    if (input.sim) {
+      payload.sim = input.sim;
+    }
+    if (input.view) {
+      payload.view = input.view;
+    }
+    return encodeRawShareToken(JSON.stringify(payload));
+  }
+  return encodeShare({
     config: input.config,
     fileName: input.fileName ?? "renovate.json",
-  };
-  if (opts.integrity !== false) {
-    payload.c = configChecksum(input.config);
-  }
-  if (input.platform && input.platform !== "github") {
-    payload.platform = input.platform;
-  }
-  if (input.endpoint && input.endpoint !== "https://api.github.com") {
-    payload.endpoint = input.endpoint;
-  }
-  if (input.sim) {
-    payload.sim = input.sim;
-  }
-  if (input.view) {
-    payload.view = input.view;
-  }
-  const json = JSON.stringify(payload);
-  const compressed = await deflateRaw(new TextEncoder().encode(json));
-  return bytesToBase64url(compressed);
+    platform: input.platform ?? "github",
+    endpoint: input.endpoint ?? "https://api.github.com",
+    renovate: input.renovate ?? RENOVATE_VERSION,
+    // The fixture's loose view strings are valid StageId/ResultsTabId values
+    // in every spec; anything else would be dropped by the codec's sanitizer,
+    // which is exactly what the app would do to such a link.
+    view: input.view as ShareView | undefined,
+    sim: input.sim,
+  });
 }
 
 /** Convenience: the `#config=<token>` fragment (relative navigation target). */
@@ -133,14 +135,14 @@ export async function encodeShareFragment(
 
 /**
  * Roadmap 030 — encodes a raw JSON STRING directly into a share token,
- * bypassing `encodeShareToken`'s payload builder entirely. Needed for
- * adversarial fixtures that must express a key no ordinary JS object literal
- * can: writing `{ __proto__: ... }` (or even `{ "__proto__": ... }`) as
- * object-literal syntax sets the object's prototype instead of creating an
- * own property, so it would vanish before `JSON.stringify` ever put it on
- * the wire. Building the JSON text by hand instead guarantees the bytes
- * really contain `"__proto__":`, which the app's `JSON.parse` on decode
- * turns into a genuine own property — reproducing the real attack.
+ * bypassing the real codec entirely. Needed for adversarial fixtures that
+ * must express a key no ordinary JS object literal can: writing
+ * `{ __proto__: ... }` (or even `{ "__proto__": ... }`) as object-literal
+ * syntax sets the object's prototype instead of creating an own property, so
+ * it would vanish before `JSON.stringify` ever put it on the wire. Building
+ * the JSON text by hand instead guarantees the bytes really contain
+ * `"__proto__":`, which the app's `JSON.parse` on decode turns into a
+ * genuine own property — reproducing the real attack.
  */
 export async function encodeRawShareToken(json: string): Promise<string> {
   const compressed = await deflateRaw(new TextEncoder().encode(json));

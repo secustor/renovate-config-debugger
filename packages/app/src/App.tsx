@@ -41,12 +41,10 @@ import { findPackageRuleOffsets } from "./rule-locate";
 import { useRuleProvenance } from "./rule-provenance";
 import {
   beginSignIn,
-  completeCallback,
   getOAuthConfig,
   getStoredUser,
   installUrl,
   isSignedIn,
-  readCallbackParams,
   REVOKE_URL,
   signOut,
   type StoredUser,
@@ -59,19 +57,12 @@ import {
   loadRepoConfig,
   run,
 } from "./run";
-import {
-  buildShareUrl,
-  decideHashChangeAction,
-  decideShareRunPolicy,
-  decodeShareResult,
-  encodeShare,
-  readShareToken,
-  type ShareDecodeError,
-  type ShareFileName,
-  type ShareSimulator,
-  type ShareView,
-  type UntrustedEndpointGuard,
-  untrustedGuardForPolicy,
+import type {
+  ShareFileName,
+  ShareSimulator,
+  ShareState,
+  ShareView,
+  UntrustedEndpointGuard,
 } from "./share";
 import { useBackToTopVisible, useHomeEndPageScroll } from "./scroll-ergonomics";
 import {
@@ -83,6 +74,9 @@ import {
   parseLayerJson,
 } from "./input-schemas";
 import { PLATFORM_ENDPOINTS, PLATFORMS } from "./platform-endpoints";
+import { ENDPOINT_KEY, localRemove, persistLocal, PLATFORM_KEY, readLocal } from "./storage";
+import { useHostTokens } from "./use-host-tokens";
+import { type RunInputs, useShareLink } from "./use-share-link";
 
 const DEFAULT_CONFIG = `{
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
@@ -111,13 +105,6 @@ const EXAMPLE_CONFIG = `{
   ]
 }
 `;
-
-const TOKEN_KEY = "rcv.githubToken";
-const GITLAB_TOKEN_KEY = "rcv.gitlabToken";
-const GITEA_TOKEN_KEY = "rcv.giteaToken";
-const FORGEJO_TOKEN_KEY = "rcv.forgejoToken";
-const PLATFORM_KEY = "rcv.platform";
-const ENDPOINT_KEY = "rcv.endpoint";
 
 /** Platforms whose repos can be fetched from the browser (roadmap 007/010). */
 const FETCHABLE_PLATFORMS = new Set<RepoPlatform>(["github", "gitlab", "gitea", "forgejo"]);
@@ -193,25 +180,6 @@ function parseRepoRef(raw: string): { host: string | null; repo: string } | null
 
 type InjectionMap = Record<string, Record<string, unknown>>;
 
-/** Roadmap 018: a share link's simulator inputs, applied once by nonce. */
-interface SimRequest {
-  form: Record<string, string>;
-  autoSimulate: boolean;
-  nonce: number;
-}
-
-interface RunInputs {
-  fileName: ShareFileName;
-  content: string;
-  platform: string;
-  endpoint: string;
-  /** Parsed 008 layers; absent = layer off. */
-  globalConfig?: Record<string, unknown>;
-  inheritedConfig?: Record<string, unknown>;
-  /** The user explicitly overrode the global config's platform/endpoint. */
-  platformOverride?: boolean;
-}
-
 // Roadmap 030: parses an optional JSON config layer (008), pollution-checked
 // (own `__proto__`/`constructor`/`prototype` keys anywhere, including nested
 // `packageRules[n]`, are rejected). Empty text = layer off, unchanged; the
@@ -219,86 +187,10 @@ interface RunInputs {
 // verbatim — both `layer-editor-error` render sites below depend on them.
 const parseLayerText = parseLayerJson;
 
-/** Non-secret settings (platform/endpoint) persist across tabs → localStorage.
- *  Roadmap 030: a value that fails `isValid` is silently reset to the
- *  default and the bad stored value is removed — storage can drift across
- *  app versions or be hand-edited, and it must never poison every later run. */
-function readLocal(key: string, fallback: string, isValid: (v: string) => boolean): string {
-  const raw = localStorage.getItem(key);
-  if (raw === null) {
-    return fallback;
-  }
-  if (isValid(raw)) {
-    return raw;
-  }
-  localStorage.removeItem(key);
-  return fallback;
-}
-
-function persistLocal(key: string, value: string): void {
-  if (value) {
-    localStorage.setItem(key, value);
-  } else {
-    localStorage.removeItem(key);
-  }
-}
-
-/** Per-host tokens are secrets → sessionStorage (cleared when the tab closes).
- *  Roadmap 030: same silent-fallback-and-remove rule as {@link readLocal}. */
-function readSession(key: string, fallback: string, isValid: (v: string) => boolean): string {
-  const raw = sessionStorage.getItem(key);
-  if (raw === null) {
-    return fallback;
-  }
-  if (isValid(raw)) {
-    return raw;
-  }
-  sessionStorage.removeItem(key);
-  return fallback;
-}
-
-function persistSession(key: string, value: string): void {
-  if (value) {
-    sessionStorage.setItem(key, value);
-  } else {
-    sessionStorage.removeItem(key);
-  }
-}
-
-// One-time migration (009): the four PAT fields move from localStorage to
-// sessionStorage. Copy any legacy value across (without clobbering a session
-// value) and drop the localStorage copy. Runs once at module load, before the
-// component reads its initial state. platform/endpoint stay in localStorage.
-const TOKEN_STORAGE_KEYS = [TOKEN_KEY, GITLAB_TOKEN_KEY, GITEA_TOKEN_KEY, FORGEJO_TOKEN_KEY];
-for (const key of TOKEN_STORAGE_KEYS) {
-  const legacy = localStorage.getItem(key);
-  if (legacy !== null) {
-    if (sessionStorage.getItem(key) === null) {
-      sessionStorage.setItem(key, legacy);
-    }
-    localStorage.removeItem(key);
-  }
-}
-
 /** Starts the redirect sign-in, stashing the current fragment to restore it. */
 function onSignIn(): void {
   void beginSignIn(window.location.hash);
 }
-
-/**
- * Roadmap 027: the prominent banner shown when a `#config=` token was present
- * but unreadable, tailored to the failure mode. Every message says what to do
- * (get a fresh link, check the whole URL was copied), since the fix is always
- * on the sender's side.
- */
-const SHARE_ERROR_MESSAGES: Record<ShareDecodeError, string> = {
-  damaged:
-    "This shared link is damaged and couldn’t be read. Ask the sender to copy the link again, and make sure the whole URL was copied. Showing the default config instead.",
-  cutOff:
-    "This shared link appears to be cut off. Ask the sender to copy the link again, and make sure the whole URL was copied. Showing the default config instead.",
-  incompatible:
-    "This shared link was made by an incompatible version of the app and couldn’t be read. Ask the sender for a fresh link. Showing the default config instead.",
-};
 
 /**
  * Security 2026-07-25: the banner shown while an untrusted-endpoint guard
@@ -335,16 +227,10 @@ export function App() {
   // directly, sidestepping that debounce entirely.
   const [editorKey, setEditorKey] = useState(0);
   const [fileName, setFileName] = useState<"renovate.json" | "renovate.json5">("renovate.json");
-  const [token, setToken] = useState(() => readSession(TOKEN_KEY, "", isValidToken));
-  const [gitlabToken, setGitlabToken] = useState(() =>
-    readSession(GITLAB_TOKEN_KEY, "", isValidToken),
-  );
-  const [giteaToken, setGiteaToken] = useState(() =>
-    readSession(GITEA_TOKEN_KEY, "", isValidToken),
-  );
-  const [forgejoToken, setForgejoToken] = useState(() =>
-    readSession(FORGEJO_TOKEN_KEY, "", isValidToken),
-  );
+  // Roadmap 033: the four per-host PATs (state, validated storage reads and
+  // change handlers) as one table-driven hook — the inputs and the invalid-
+  // token error rows below map over the same rows.
+  const hostTokens = useHostTokens();
   const [platform, setPlatform] = useState(() =>
     readLocal(PLATFORM_KEY, "github", isValidPlatform),
   );
@@ -383,10 +269,6 @@ export function App() {
   const [fatal, setFatal] = useState<string | null>(null);
   // Non-fatal notices (version drift, load-from-repo results).
   const [notice, setNotice] = useState<string | null>(null);
-  // Roadmap 027: a token was present but unreadable — a prominent, top-of-page
-  // banner (not the dismissable notice), so a broken link never reads as
-  // "nothing happened". Cleared whenever a share load succeeds.
-  const [shareError, setShareError] = useState<string | null>(null);
   // Security 2026-07-25: set while the platform context in force came from a
   // share link naming an untrusted endpoint. This is the ONLY thing that
   // decides token suppression — it outlives the banner on purpose, so a user
@@ -396,7 +278,8 @@ export function App() {
   const [untrustedGuard, setUntrustedGuard] = useState<UntrustedEndpointGuard | null>(null);
   // The same value read synchronously. Every mutation goes through
   // `applyUntrustedGuard`, so a handler that installs/clears the guard and
-  // then starts a fetch in the SAME tick (loadShareToken's auto-run, a
+  // then starts a fetch in the SAME tick (the auto-run of `loadShareToken`
+  // in use-share-link.ts, a
   // known-host repo load) decides suppression from the new value rather than
   // from a `useState` closure React has not re-rendered yet — in either
   // direction: over-suppressing would silently break a legitimate private
@@ -444,42 +327,39 @@ export function App() {
   // result (identities → node ids need the resolved tree). A ref, not state, so
   // consuming it does not trigger a render.
   const pendingViewRef = useRef<ShareView | null>(null);
-  // Roadmap 018: a decoded link's simulator inputs, handed to the RuleSimulator
-  // to pre-fill (and, when `autoSimulate`, run) once the pipeline run this link
-  // triggered has produced its result. A fresh nonce per link lets the child
-  // apply each request exactly once; set AFTER the run so the child applies it
-  // against the freshly-run config, on both mount and hashchange.
-  const [simRequest, setSimRequest] = useState<SimRequest | null>(null);
-  const simNonceRef = useRef(0);
-  // Roadmap 017: the last `#config=` token (or null) the app itself wrote
-  // into the address bar via `history.replaceState` — Copy link, clearing an
-  // unreadable share link, or restoring a pre-sign-in fragment after OAuth.
-  // The hashchange listener compares against this to ignore its own writes
-  // (replaceState doesn't fire `hashchange`, but this stays correct even if
-  // a browser ever did, or a future navigation replays the same URL).
-  const lastWrittenTokenRef = useRef<string | null>(null);
   // Roadmap 017: mirrors of `content`/`loadedContent` for the hashchange
-  // listener, which is registered once (empty deps) and would otherwise
-  // close over the state from that first render.
+  // listener (inside `useShareLink`), which is registered once (empty deps)
+  // and would otherwise close over the state from that first render.
   const contentRef = useRef(content);
   contentRef.current = content;
   const loadedContentRef = useRef(loadedContent);
   loadedContentRef.current = loadedContent;
-  // Roadmap 017: guards a decode against a later hashchange (or unmount)
-  // superseding it before its async work (decodeShareResult, getRenovateVersion)
-  // resolves.
-  const decodeGenerationRef = useRef(0);
-  // The flag must be (re)set in the effect BODY, not only in the ref
-  // initializer: React StrictMode (dev) mounts, runs the cleanup, then mounts
-  // again — a cleanup-only latch stays false forever after the second mount,
-  // which silently cancelled every share-link decode under `vite dev`.
-  const mountedRef = useRef(true);
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
+  // Roadmap 033: the whole share/hash/decode cluster — `shareError` feeds the
+  // prominent, top-of-page banner below (not the dismissable notice), so a
+  // broken link never reads as "nothing happened"; `simRequest` is handed to
+  // the RuleSimulator. Everything referenced here that is declared later in
+  // this body is a hoisted function declaration, and the hook re-reads the
+  // host object every render, so nothing goes stale.
+  const { shareError, simRequest, buildShareLinkAndCopy } = useShareLink(oauthConfig, {
+    onRun: (inputs, opts) => onRun(undefined, inputs, opts),
+    loadConfigText,
+    setFileName,
+    setPlatform,
+    setEndpoint,
+    setGlobalText,
+    setInheritedText,
+    setPlatformOverride,
+    setAdvancedOpen,
+    setHostSectionOpen,
+    setNotice,
+    setSignedIn,
+    setAuthUser,
+    applyUntrustedGuard,
+    pendingViewRef,
+    contentRef,
+    loadedContentRef,
+    buildShareState,
+  });
   // Load-from-repo form.
   const [repoInput, setRepoInput] = useState("");
   const [repoRef, setRepoRef] = useState("");
@@ -577,19 +457,6 @@ export function App() {
     setContent(text);
     setLoadedContent(text);
     setEditorKey((k) => k + 1);
-  }
-
-  /** Roadmap 017: the one path every self-initiated hash write goes through —
-   *  updates the address bar and records the token (or lack of one) so the
-   *  hashchange listener can recognize its own writes. */
-  function writeHash(url: string, shareToken: string | null) {
-    lastWrittenTokenRef.current = shareToken;
-    history.replaceState(null, "", url);
-  }
-
-  /** Drops the `#config=` fragment, keeping any query string. */
-  function clearShareHash() {
-    writeHash(window.location.pathname + window.location.search, null);
   }
 
   useEffect(() => {
@@ -741,8 +608,9 @@ export function App() {
         // Security 2026-07-25: EVERY run while the guard stands — a manual Run
         // click, an injection or apply-fix re-run, the link's own auto-run —
         // leaves the tokens behind. `opts.suppressTokens` is the explicit
-        // channel for `loadShareToken`, whose own `setUntrustedGuard` has not
-        // committed to state yet when it starts this run.
+        // channel for `loadShareToken` (use-share-link.ts), whose own
+        // `setUntrustedGuard` has not committed to state yet when it starts
+        // this run.
         { suppressTokens: opts?.suppressTokens === true || untrustedGuardRef.current !== null },
       );
       // Roadmap 023: hold the current scroll so re-running an edited config
@@ -815,203 +683,6 @@ export function App() {
     }
   }
 
-  /**
-   * Roadmap 007/017: decodes a share token, populates every piece of state
-   * a link can carry, and runs — the single decode→populate→run path shared
-   * by the mount effect (a link opened fresh) and the hashchange listener
-   * below (a link opened while the app is already running). `isCancelled`
-   * lets either caller abandon the result of a decode a later event has
-   * superseded (component unmount, or a second hashchange arriving before
-   * the first finishes its awaits).
-   */
-  async function loadShareToken(shareToken: string, isCancelled: () => boolean): Promise<void> {
-    const decoded = await decodeShareResult(shareToken);
-    if (isCancelled()) {
-      return;
-    }
-    if (!decoded.ok) {
-      setShareError(SHARE_ERROR_MESSAGES[decoded.reason]);
-      // A previous link's guard does not describe this one — but the platform
-      // context it installed is still in force, so it is NOT cleared here.
-      clearShareHash();
-      return;
-    }
-    setShareError(null);
-    const payload = decoded.payload;
-    // Security 2026-07-25: decide — before anything is applied — whether this
-    // link may use the user's credentials and rewrite their stored settings.
-    // A new link fully replaces the platform context, so it also replaces (or
-    // clears) any guard a previous link installed.
-    const policy = decideShareRunPolicy(payload);
-    applyUntrustedGuard(untrustedGuardForPolicy(policy));
-    const nextPlatform = payload.platform ?? "github";
-    const nextEndpoint = payload.endpoint ?? "https://api.github.com";
-    loadConfigText(payload.config);
-    setFileName(payload.fileName);
-    // The link's platform/endpoint always reach the UI (transparency: the user
-    // must be able to SEE the host that was asked for) but only a trusted one
-    // is written to localStorage — a link must never silently repoint a
-    // persistent setting at an arbitrary host, where it would outlive the tab
-    // and quietly apply to later, credentialed runs.
-    setPlatform(nextPlatform);
-    setEndpoint(nextEndpoint);
-    if (policy.persistPlatformSettings) {
-      persistLocal(PLATFORM_KEY, nextPlatform);
-      persistLocal(ENDPOINT_KEY, nextEndpoint);
-    }
-    // 008 layers ride along in v2 links; absent = layers off.
-    setGlobalText(payload.globalConfig ? JSON.stringify(payload.globalConfig, null, 2) : "");
-    setInheritedText(
-      payload.inheritedConfig ? JSON.stringify(payload.inheritedConfig, null, 2) : "",
-    );
-    setPlatformOverride(payload.platformOverride === true);
-    if (payload.globalConfig || payload.inheritedConfig || policy.suppressTokens) {
-      setAdvancedOpen(true);
-    }
-    if (policy.suppressTokens) {
-      setHostSectionOpen(true);
-    }
-    pendingViewRef.current = payload.view ?? null;
-    const current = await getRenovateVersion();
-    if (!isCancelled() && payload.renovate && payload.renovate !== current) {
-      setNotice(
-        `This link was created with Renovate v${payload.renovate}; you're on v${current} — results may differ.`,
-      );
-    }
-    if (!isCancelled()) {
-      // Awaited (not fire-and-forget) so a carried simulator descriptor is
-      // armed AFTER the result commits — the RuleSimulator then applies it
-      // against the freshly-run config, identically on mount and hashchange.
-      await onRun(
-        undefined,
-        {
-          fileName: payload.fileName,
-          content: payload.config,
-          platform: nextPlatform,
-          endpoint: nextEndpoint,
-          globalConfig: payload.globalConfig,
-          inheritedConfig: payload.inheritedConfig,
-          platformOverride: payload.platformOverride === true,
-        },
-        { suppressTokens: policy.suppressTokens },
-      );
-    }
-    if (!isCancelled() && payload.sim) {
-      setSimRequest({
-        form: payload.sim.form,
-        autoSimulate: payload.sim.autoSimulate === true,
-        nonce: ++simNonceRef.current,
-      });
-    }
-  }
-  // Roadmap 034: both effects below are registered once (empty deps), so
-  // calling `loadShareToken` directly would freeze the FIRST render's closure
-  // — and with it that render's `onRun`, token and platform state. A link
-  // opened later (hashchange) would then run against stale inputs. The
-  // latest-ref pattern (as with `selectPresetNodeRef` above) keeps both
-  // registrations one-shot while always invoking the current closure.
-  const loadShareTokenRef = useRef(loadShareToken);
-  loadShareTokenRef.current = loadShareToken;
-
-  // On mount: first complete an OAuth callback if the URL carries one (QUERY
-  // params ?code&state), then — reading the possibly-restored fragment — decode
-  // a shared config, populate state and auto-run. OAuth runs before the share
-  // decode so a share link survives a sign-in round-trip. Still runs once:
-  // `oauthConfig` is a `useMemo(…, [])` over build-time env, so it is a
-  // constant for the app's lifetime — it is in the deps only because it is
-  // read here, not because this is meant to re-run.
-  useEffect(() => {
-    const generation = ++decodeGenerationRef.current;
-    const isCancelled = () => !mountedRef.current || decodeGenerationRef.current !== generation;
-    void (async () => {
-      // 1. OAuth callback (009): validate state, exchange via the Worker, store
-      // the token, then strip the query and restore the pre-sign-in fragment.
-      const callback = oauthConfig ? readCallbackParams(window.location.search) : null;
-      if (callback) {
-        try {
-          const { user, returnHash } = await completeCallback(callback.code, callback.state);
-          if (isCancelled()) {
-            return;
-          }
-          setSignedIn(true);
-          setAuthUser(user);
-          writeHash(window.location.pathname + returnHash, readShareToken(returnHash));
-        } catch (err) {
-          if (isCancelled()) {
-            return;
-          }
-          setNotice(
-            `GitHub sign-in failed: ${err instanceof Error ? err.message : String(err)}. You can still use the app signed out.`,
-          );
-          writeHash(window.location.pathname, null);
-          return;
-        }
-      }
-
-      // 2. Shared config (007) from the URL fragment (survives the OAuth strip).
-      const shareToken = readShareToken(window.location.hash);
-      if (!shareToken) {
-        return;
-      }
-      await loadShareTokenRef.current(shareToken, isCancelled);
-    })();
-  }, [oauthConfig]);
-
-  // Roadmap 017: a share link opened while the app is already running is a
-  // hash-only navigation — nothing reloads, so without this listener nothing
-  // happens (no load, no run, no error). `decideHashChangeAction` (pure, in
-  // share.ts) decides whether the new hash carries a token worth loading and
-  // whether loading it would clobber unsaved edits; `event.oldURL` is what
-  // lets a declined confirm restore exactly the hash that was showing before
-  // the navigation, so the address bar never lies about what's on screen.
-  // Registered once (empty deps) — `contentRef`/`loadedContentRef` and
-  // `loadShareTokenRef` keep it reading current state despite that.
-  useEffect(() => {
-    function onHashChange(event: HashChangeEvent) {
-      const decision = decideHashChangeAction(
-        window.location.hash,
-        lastWrittenTokenRef.current,
-        contentRef.current !== loadedContentRef.current,
-      );
-      if (decision.action === "ignore") {
-        return;
-      }
-      if (
-        decision.needsConfirm &&
-        !window.confirm("Load shared config? Your current edits will be replaced.")
-      ) {
-        const oldHash = new URL(event.oldURL).hash;
-        writeHash(
-          window.location.pathname + window.location.search + oldHash,
-          readShareToken(oldHash),
-        );
-        return;
-      }
-      const generation = ++decodeGenerationRef.current;
-      const isCancelled = () => !mountedRef.current || decodeGenerationRef.current !== generation;
-      void loadShareTokenRef.current(decision.token, isCancelled);
-    }
-    window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
-  }, []);
-
-  // Roadmap 030: a token is validated (no control chars, sane length — the
-  // header-injection rule) before it is ever written to storage; the field
-  // still reflects whatever was typed (so the user isn't blocked mid-edit),
-  // it just isn't persisted while invalid — see the token inputs' inline
-  // error text below for the same check surfaced in the UI.
-  function makeTokenHandler(key: string, setter: (v: string) => void) {
-    return (value: string) => {
-      setter(value);
-      if (isValidToken(value)) {
-        persistSession(key, value);
-      } else {
-        sessionStorage.removeItem(key);
-      }
-    };
-  }
-  const onTokenChange = makeTokenHandler(TOKEN_KEY, setToken);
-
   /** The one way the guard changes — ref first, so a same-tick reader sees it. */
   function applyUntrustedGuard(next: UntrustedEndpointGuard | null) {
     untrustedGuardRef.current = next;
@@ -1058,7 +729,7 @@ export function App() {
     if (isValidEndpoint(value)) {
       persistLocal(ENDPOINT_KEY, value);
     } else {
-      localStorage.removeItem(ENDPOINT_KEY);
+      localRemove(ENDPOINT_KEY);
     }
   }
 
@@ -1230,12 +901,11 @@ export function App() {
     return buildRunDigest(input);
   }, [result, errorCount, warningCount, migrateSteps, presetCount, presetSummary, effectiveStats]);
 
-  // Encodes the CURRENT state (config + view, optionally simulator inputs) into
-  // a link, copies it, and mirrors it into the address bar. Never continuously
-  // syncs the hash (huge configs would thrash the URL) — on demand only. Tokens
-  // are never encoded (see share.ts); `sim` carries only dependency-descriptor
-  // form fields (roadmap 018).
-  async function buildShareLinkAndCopy(sim?: ShareSimulator) {
+  // The encode side of `useShareLink`'s copy-link path: assembles the CURRENT
+  // state (config + view, optionally simulator inputs) for the share codec.
+  // Tokens are never encoded (see share.ts); `sim` carries only dependency-
+  // descriptor form fields (roadmap 018).
+  async function buildShareState(sim?: ShareSimulator): Promise<ShareState> {
     const renovate = result?.renovateVersion ?? (await getRenovateVersion());
     const view: ShareView = { stage: selectedStage, tab };
     if (selectedNodeId && result?.presetTree) {
@@ -1247,7 +917,7 @@ export function App() {
     if (migrateStepperMounted) {
       view.step = migrationStepIndex;
     }
-    const shareToken = await encodeShare({
+    return {
       config: content,
       fileName,
       platform,
@@ -1258,14 +928,7 @@ export function App() {
       platformOverride: platformOverride && hasGlobalContext,
       view,
       sim,
-    });
-    const url = buildShareUrl(shareToken);
-    try {
-      await navigator.clipboard.writeText(url);
-    } catch {
-      // Clipboard can be unavailable (insecure context); the URL bar still updates.
-    }
-    writeHash(url, shareToken);
+    };
   }
 
   async function onCopyLink() {
@@ -1757,65 +1420,27 @@ export function App() {
                     </p>
                   )}
                   <div className="advanced-row">
-                    <label className="grow">
-                      GitHub personal access token (fallback)
-                      <input
-                        type="password"
-                        placeholder="optional — stays in this browser tab"
-                        value={token}
-                        onChange={(e) => onTokenChange(e.target.value)}
-                      />
-                    </label>
-                    <label className="grow">
-                      GitLab token (PRIVATE-TOKEN)
-                      <input
-                        type="password"
-                        placeholder="optional — stays in this browser tab"
-                        value={gitlabToken}
-                        onChange={(e) =>
-                          makeTokenHandler(GITLAB_TOKEN_KEY, setGitlabToken)(e.target.value)
-                        }
-                      />
-                    </label>
-                    <label className="grow">
-                      Gitea token
-                      <input
-                        type="password"
-                        placeholder="optional — stays in this browser tab"
-                        value={giteaToken}
-                        onChange={(e) =>
-                          makeTokenHandler(GITEA_TOKEN_KEY, setGiteaToken)(e.target.value)
-                        }
-                      />
-                    </label>
-                    <label className="grow">
-                      Forgejo token
-                      <input
-                        type="password"
-                        placeholder="optional — stays in this browser tab"
-                        value={forgejoToken}
-                        onChange={(e) =>
-                          makeTokenHandler(FORGEJO_TOKEN_KEY, setForgejoToken)(e.target.value)
-                        }
-                      />
-                    </label>
+                    {hostTokens.map((host) => (
+                      <label className="grow" key={host.id}>
+                        {host.inputLabel}
+                        <input
+                          type="password"
+                          placeholder="optional — stays in this browser tab"
+                          value={host.value}
+                          onChange={(e) => host.onChange(e.target.value)}
+                        />
+                      </label>
+                    ))}
                   </div>
                   {/* Roadmap 030: the "header injection" rule (control
                       characters, incl. CR/LF, or an unreasonable length) —
                       a token failing this was never written to storage
-                      (see `makeTokenHandler`). */}
-                  {(
-                    [
-                      ["GitHub", token],
-                      ["GitLab", gitlabToken],
-                      ["Gitea", giteaToken],
-                      ["Forgejo", forgejoToken],
-                    ] as const
-                  )
-                    .filter(([, value]) => value && !isValidToken(value))
-                    .map(([label]) => (
-                      <p className="layer-editor-error" key={label}>
-                        {label} token contains characters that can&apos;t be sent in a request
+                      (see `useHostTokens`). */}
+                  {hostTokens
+                    .filter((host) => host.value && !isValidToken(host.value))
+                    .map((host) => (
+                      <p className="layer-editor-error" key={host.id}>
+                        {host.label} token contains characters that can&apos;t be sent in a request
                         header, or is too long — it was not saved.
                       </p>
                     ))}

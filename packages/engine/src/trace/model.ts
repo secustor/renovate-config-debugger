@@ -1,14 +1,24 @@
 import type { Operation } from "fast-json-patch";
 
-export type StageId =
-  | "global"
-  | "inherit"
-  | "parse"
-  | "migrate"
-  | "massage"
-  | "validate"
-  | "preset"
-  | "merge";
+/**
+ * Roadmap 033: the pipeline's stages, in execution order — the single runtime
+ * source the app checks its own copies against (`satisfies typeof STAGE_IDS`
+ * keeps the app's list byte-identical without a static runtime import of the
+ * heavy engine chunk). Adding a stage here is what makes every restatement in
+ * the app fail to compile until it is updated.
+ */
+export const STAGE_IDS = [
+  "global",
+  "inherit",
+  "parse",
+  "migrate",
+  "massage",
+  "validate",
+  "preset",
+  "merge",
+] as const;
+
+export type StageId = (typeof STAGE_IDS)[number];
 
 export type StageStatus = "ok" | "error" | "skipped";
 

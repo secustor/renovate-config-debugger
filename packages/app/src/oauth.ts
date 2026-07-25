@@ -21,6 +21,10 @@ import {
   sanitizeStoredUser,
   tokenResponseSchema,
 } from "./input-schemas";
+// Roadmap 033: storage access goes through the safe wrappers — a
+// storage-disabled browser reads "signed out" (get → null) and writes are
+// no-ops, instead of a throw taking down whatever called into this module.
+import { sessionGet, sessionRemove, sessionSet } from "./storage";
 
 export interface OAuthConfig {
   clientId: string;
@@ -124,18 +128,18 @@ let memLoaded = false;
  * signed-out (public presets keep working).
  */
 function loadTokenState(): TokenState | null {
-  const token = sessionStorage.getItem(K.token);
+  const token = sessionGet(K.token);
   if (!token) {
     return null;
   }
-  const storedRefresh = sessionStorage.getItem(K.refreshToken);
+  const storedRefresh = sessionGet(K.refreshToken);
   if (!isValidToken(token) || (storedRefresh !== null && !isValidToken(storedRefresh))) {
     signOut();
     return null;
   }
-  const expiresAt = Number(sessionStorage.getItem(K.tokenExpiresAt) ?? "0");
+  const expiresAt = Number(sessionGet(K.tokenExpiresAt) ?? "0");
   const refreshToken = storedRefresh ?? undefined;
-  const refreshExp = sessionStorage.getItem(K.refreshTokenExpiresAt);
+  const refreshExp = sessionGet(K.refreshTokenExpiresAt);
   return {
     token,
     tokenExpiresAt: Number.isFinite(expiresAt) ? expiresAt : 0,
@@ -155,17 +159,17 @@ function currentToken(): TokenState | null {
 function storeTokenState(state: TokenState): void {
   memToken = state;
   memLoaded = true;
-  sessionStorage.setItem(K.token, state.token);
-  sessionStorage.setItem(K.tokenExpiresAt, String(state.tokenExpiresAt));
+  sessionSet(K.token, state.token);
+  sessionSet(K.tokenExpiresAt, String(state.tokenExpiresAt));
   if (state.refreshToken) {
-    sessionStorage.setItem(K.refreshToken, state.refreshToken);
+    sessionSet(K.refreshToken, state.refreshToken);
   } else {
-    sessionStorage.removeItem(K.refreshToken);
+    sessionRemove(K.refreshToken);
   }
   if (state.refreshTokenExpiresAt) {
-    sessionStorage.setItem(K.refreshTokenExpiresAt, String(state.refreshTokenExpiresAt));
+    sessionSet(K.refreshTokenExpiresAt, String(state.refreshTokenExpiresAt));
   } else {
-    sessionStorage.removeItem(K.refreshTokenExpiresAt);
+    sessionRemove(K.refreshTokenExpiresAt);
   }
 }
 
@@ -245,7 +249,7 @@ async function fetchUser(token: string): Promise<StoredUser> {
   // must be http(s), never dropped from GitHub's response but silently
   // omitted here if it somehow weren't.
   const user: StoredUser = { login, avatarUrl: avatarUrl && isHttpUrl(avatarUrl) ? avatarUrl : "" };
-  sessionStorage.setItem(K.user, JSON.stringify(user));
+  sessionSet(K.user, JSON.stringify(user));
   return user;
 }
 
@@ -262,7 +266,7 @@ export function isSignedIn(): boolean {
  *  the bad value removed — same silent-fallback rule as every other stored
  *  value, not a reason to force a re-sign-in. */
 export function getStoredUser(): StoredUser | null {
-  const raw = sessionStorage.getItem(K.user);
+  const raw = sessionGet(K.user);
   if (!raw) {
     return null;
   }
@@ -270,12 +274,12 @@ export function getStoredUser(): StoredUser | null {
   try {
     parsed = JSON.parse(raw);
   } catch {
-    sessionStorage.removeItem(K.user);
+    sessionRemove(K.user);
     return null;
   }
   const sanitized = sanitizeStoredUser(parsed);
   if (!sanitized) {
-    sessionStorage.removeItem(K.user);
+    sessionRemove(K.user);
     return null;
   }
   return sanitized;
@@ -294,7 +298,7 @@ export async function beginSignIn(returnHash: string): Promise<void> {
   const state = randomToken(16);
   const verifier = randomToken(32);
   const challenge = await pkceChallenge(verifier);
-  sessionStorage.setItem(K.pending, JSON.stringify({ state, verifier, returnHash }));
+  sessionSet(K.pending, JSON.stringify({ state, verifier, returnHash }));
 
   const url = new URL(AUTHORIZE_URL);
   url.searchParams.set("client_id", cfg.clientId);
@@ -333,8 +337,8 @@ export async function completeCallback(
   code: string,
   state: string,
 ): Promise<{ user: StoredUser; returnHash: string }> {
-  const pendingRaw = sessionStorage.getItem(K.pending);
-  sessionStorage.removeItem(K.pending);
+  const pendingRaw = sessionGet(K.pending);
+  sessionRemove(K.pending);
   if (!pendingRaw) {
     throw new Error("No pending sign-in to match this response.");
   }
@@ -413,6 +417,6 @@ export function signOut(): void {
   memToken = null;
   memLoaded = true;
   for (const key of Object.values(K)) {
-    sessionStorage.removeItem(key);
+    sessionRemove(key);
   }
 }

@@ -11,18 +11,16 @@ import type {
   ValidationMessage,
 } from "@renovate-config-visualizer/engine";
 import type * as EngineModule from "@renovate-config-visualizer/engine";
+import { HOST_TOKENS } from "./host-tokens";
 import { isValidToken } from "./input-schemas";
 import { getValidToken } from "./oauth";
+import { sessionGet } from "./storage";
 
-// Per-host PATs now live in sessionStorage (roadmap 009/010 storage rules):
-// they are secrets, so they follow the OAuth token and clear when the tab
-// closes. Platform/endpoint (non-secrets) stay in localStorage — see App.tsx.
-const TOKEN_KEYS = {
-  githubToken: "rcv.githubToken",
-  gitlabToken: "rcv.gitlabToken",
-  giteaToken: "rcv.giteaToken",
-  forgejoToken: "rcv.forgejoToken",
-} as const;
+// Per-host PATs live in sessionStorage (roadmap 009/010 storage rules): they
+// are secrets, so they follow the OAuth token and clear when the tab closes.
+// Platform/endpoint (non-secrets) stay in localStorage — see App.tsx.
+// Roadmap 033: the hosts and their storage keys come from the one HOST_TOKENS
+// table instead of being restated here.
 
 // The engine is only ever loaded dynamically here (it is the heavy chunk), so
 // this names its shape without pulling it into the initial bundle — a type-only
@@ -36,7 +34,7 @@ type Engine = typeof EngineModule;
  *  checked again rather than trusted transitively (storage can still drift
  *  or be hand-edited between the write and this read). */
 function sessionToken(key: string): string | undefined {
-  const value = sessionStorage.getItem(key);
+  const value = sessionGet(key);
   return value !== null && isValidToken(value) ? value : undefined;
 }
 
@@ -69,12 +67,13 @@ async function ensureAuth(engine: Engine, opts?: RunOptions): Promise<void> {
     return;
   }
   const oauthToken = await getValidToken();
-  engine.setPresetAuth({
-    githubToken: oauthToken ?? sessionToken(TOKEN_KEYS.githubToken),
-    gitlabToken: sessionToken(TOKEN_KEYS.gitlabToken),
-    giteaToken: sessionToken(TOKEN_KEYS.giteaToken),
-    forgejoToken: sessionToken(TOKEN_KEYS.forgejoToken),
-  });
+  const auth: EngineModule.PresetAuth = {};
+  for (const host of HOST_TOKENS) {
+    auth[host.authKey] = sessionToken(host.storageKey);
+  }
+  // A GitHub OAuth token (silently refreshed above) wins over the GitHub PAT.
+  auth.githubToken = oauthToken ?? auth.githubToken;
+  engine.setPresetAuth(auth);
 }
 
 /**

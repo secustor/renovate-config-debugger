@@ -11,7 +11,7 @@
  * current at encode time rides along so the opener can warn on version drift.
  */
 import type { StageId } from "@renovate-config-visualizer/engine";
-import { isResultsTabId, type ResultsTabId } from "./results-tabs";
+import type { ResultsTabId } from "./results-tabs";
 import {
   sanitizeShareSim,
   sanitizeShareView,
@@ -177,60 +177,26 @@ export async function encodeShare(state: ShareState): Promise<string> {
   if (state.platformOverride) {
     payload.platformOverride = true;
   }
-  const view = normalizeView(state.view);
+  // Roadmap 033: the encode side runs the SAME sanitizers the decoder runs
+  // (input-schemas.ts), so what goes onto the wire and what is accepted off
+  // it can never disagree again. This reconciles the one live divergence the
+  // 2026-07-25 review found: the old encode-side `normalizeView` dropped
+  // `step: 0` while the decoder accepted it — so sharing the FIRST rewrite
+  // step silently lost the step (and with it a pre-028 link's inferred
+  // Rewrites tab). Decode-side nonnegative is the correct rule: step is an
+  // index and 0 is a real selection, so `step: 0` now round-trips (proven by
+  // the encode∘decode fixpoint test in share.test.ts).
+  const view = sanitizeShareView(state.view);
   if (view) {
     payload.view = view;
   }
-  const sim = normalizeSim(state.sim);
+  const sim = sanitizeShareSim(state.sim);
   if (sim) {
     payload.sim = sim;
   }
   const json = JSON.stringify(payload);
   const compressed = await deflateRaw(new TextEncoder().encode(json));
   return bytesToBase64url(compressed);
-}
-
-/** Drops empty view fields; returns undefined when nothing worth encoding. */
-function normalizeView(view: ShareView | undefined): ShareView | undefined {
-  if (!view) {
-    return undefined;
-  }
-  const out: ShareView = {};
-  if (view.stage) {
-    out.stage = view.stage;
-  }
-  if (view.node) {
-    out.node = view.node;
-  }
-  if (typeof view.step === "number" && view.step > 0) {
-    out.step = view.step;
-  }
-  if (isResultsTabId(view.tab)) {
-    out.tab = view.tab;
-  }
-  return Object.keys(out).length > 0 ? out : undefined;
-}
-
-/**
- * Keeps only string→(non-empty)string form fields and the autoSimulate flag;
- * returns undefined when there is nothing worth encoding. Guards against
- * anything non-string sneaking into the payload (tokens have no field here, but
- * this also keeps the encoded form small and well-typed).
- */
-function normalizeSim(sim: ShareSimulator | undefined): ShareSimulator | undefined {
-  if (!sim) {
-    return undefined;
-  }
-  const form: Record<string, string> = {};
-  for (const [key, value] of Object.entries(sim.form ?? {})) {
-    if (typeof value === "string" && value !== "") {
-      form[key] = value;
-    }
-  }
-  if (Object.keys(form).length === 0) {
-    return undefined;
-  }
-  return sim.autoSimulate ? { form, autoSimulate: true } : { form };
 }
 
 /**

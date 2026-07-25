@@ -1,6 +1,6 @@
 # 033 — App decomposition + single-source boundaries
 
-Milestone: M9 · Status: planned
+Milestone: M9 · Status: done (2026-07-25)
 
 ## Summary
 
