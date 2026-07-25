@@ -11,6 +11,7 @@ import {
 } from "renovate/dist/config/presets/util.js";
 import { ExternalHostError } from "renovate/dist/types/errors/external-host-error.js";
 import { getPresetAuth } from "../../auth";
+import { encodePathSegments } from "../url-path";
 import { getInjectedPreset } from "./injection";
 
 export const Endpoint = "https://api.github.com/";
@@ -21,8 +22,12 @@ export async function fetchJSONFile(
   endpoint: string,
   tag?: string,
 ): Promise<Record<string, unknown> | null> {
-  const ref = tag ? `?ref=${tag}` : "";
-  const url = `${endpoint}repos/${repo}/contents/${fileName}${ref}`;
+  // Security 2026-07-25: `repo`, `fileName` (built from a preset's own
+  // `presetPath`/name by upstream's fetchPreset) and `tag` are all
+  // config-supplied — percent-encoded before they compose the request. This
+  // was the only transport that also interpolated `tag` raw into the query.
+  const ref = tag ? `?ref=${encodeURIComponent(tag)}` : "";
+  const url = `${endpoint}repos/${encodePathSegments(repo)}/contents/${encodePathSegments(fileName)}${ref}`;
   const headers: Record<string, string> = {
     // raw media type avoids base64 decoding and returns the file as-is
     accept: "application/vnd.github.raw+json",

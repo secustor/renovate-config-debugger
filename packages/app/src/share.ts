@@ -17,6 +17,7 @@ import {
   sanitizeShareView,
   sharePayloadStrictFieldsSchema,
 } from "./input-schemas";
+import { isTrustedEndpoint, PLATFORM_ENDPOINTS } from "./platform-endpoints";
 
 const DEFAULT_PLATFORM = "github";
 const DEFAULT_ENDPOINT = "https://api.github.com";
@@ -338,6 +339,96 @@ export function readShareToken(hash: string): string | null {
 export function buildShareUrl(token: string): string {
   const { origin, pathname } = window.location;
   return `${origin}${pathname}#${FRAGMENT_KEY}=${token}`;
+}
+
+// ---------------------------------------------------------------------------
+// Security 2026-07-25 — where a link is allowed to point the run
+// ---------------------------------------------------------------------------
+
+/**
+ * What opening this link is allowed to do, decided purely from the payload.
+ * A `#config=` link auto-runs on open with zero clicks, and the endpoint it
+ * carries selects the host every `local>` preset fetch (and therefore the
+ * user's OAuth token / PAT) is sent to — so a link that names anything other
+ * than the shipped public hosts runs with credentials withheld and may not
+ * rewrite the persistent platform settings.
+ */
+export interface ShareRunPolicy {
+  /** The platform the run would resolve `local>` against. */
+  platform: string;
+  /** The endpoint the run would actually use (pipeline.ts precedence). */
+  endpoint: string;
+  /** Every endpoint this link would apply that is not a trusted public host —
+   *  deduped, in the order encountered. Empty when the link is trustworthy. */
+  untrustedEndpoints: string[];
+  /** Run this link with ALL tokens withheld from the engine. */
+  suppressTokens: boolean;
+  /** May the link's platform/endpoint be written to localStorage? A link must
+   *  not silently repoint a persistent setting at an arbitrary host. */
+  persistPlatformSettings: boolean;
+}
+
+/**
+ * Mirrors the engine's `resolvePlatformContext` (packages/engine/src/pipeline.ts)
+ * exactly — including the rule that the GLOBAL config layer's platform/endpoint
+ * WIN over the payload's top-level ones unless `platformOverride` is set, and
+ * that a global platform without a global endpoint invalidates the explicit
+ * one. Kept in sync by construction: any divergence here would make the app
+ * warn about a different host than the run actually contacts.
+ */
+function resolveEffectivePlatformContext(payload: SharePayload): {
+  platform: string;
+  endpoint: string;
+  globalEndpoint: string | undefined;
+} {
+  const globalConfig = payload.globalConfig;
+  const globalPlatform =
+    typeof globalConfig?.platform === "string" ? globalConfig.platform : undefined;
+  const globalEndpoint =
+    typeof globalConfig?.endpoint === "string" ? globalConfig.endpoint : undefined;
+  const overridden =
+    payload.platformOverride === true &&
+    (globalPlatform !== undefined || globalEndpoint !== undefined);
+  const platform =
+    (overridden ? (payload.platform ?? globalPlatform) : (globalPlatform ?? payload.platform)) ??
+    DEFAULT_PLATFORM;
+  const explicitEndpoint =
+    !overridden && globalPlatform !== undefined && globalEndpoint === undefined
+      ? undefined
+      : payload.endpoint;
+  const endpoint =
+    (overridden ? (explicitEndpoint ?? globalEndpoint) : (globalEndpoint ?? explicitEndpoint)) ??
+    PLATFORM_ENDPOINTS[platform] ??
+    "";
+  return { platform, endpoint, globalEndpoint };
+}
+
+/**
+ * The token/persistence policy for opening a decoded payload. Pure — App.tsx's
+ * `loadShareToken` supplies the payload and applies the outcome, so the
+ * decision itself is unit-testable without a browser.
+ *
+ * Every endpoint the link would APPLY is considered, not just the winning one:
+ * the top-level endpoint lands in the endpoint field (and, historically, in
+ * localStorage) even when the global layer displaces it for this run, so it
+ * would decide the NEXT run.
+ */
+export function decideShareRunPolicy(payload: SharePayload): ShareRunPolicy {
+  const { platform, endpoint, globalEndpoint } = resolveEffectivePlatformContext(payload);
+  const untrustedEndpoints: string[] = [];
+  for (const candidate of [endpoint, payload.endpoint, globalEndpoint]) {
+    if (candidate && !isTrustedEndpoint(candidate) && !untrustedEndpoints.includes(candidate)) {
+      untrustedEndpoints.push(candidate);
+    }
+  }
+  const suppressTokens = untrustedEndpoints.length > 0;
+  return {
+    platform,
+    endpoint,
+    untrustedEndpoints,
+    suppressTokens,
+    persistPlatformSettings: !suppressTokens,
+  };
 }
 
 /**

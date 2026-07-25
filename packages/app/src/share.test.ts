@@ -1,5 +1,12 @@
 import { describe, expect, test } from "vitest";
-import { configChecksum, decodeShareResult, encodeShare, type ShareState } from "./share";
+import {
+  configChecksum,
+  decideShareRunPolicy,
+  decodeShareResult,
+  encodeShare,
+  type SharePayload,
+  type ShareState,
+} from "./share";
 
 /**
  * Roadmap 030: `share.ts` had zero unit coverage before this — the e2e suite
@@ -325,5 +332,156 @@ describe("030: fileName keeps its lenient normalize-not-reject behavior", () => 
     if (result.ok) {
       expect(result.payload.fileName).toBe("renovate.json5");
     }
+  });
+});
+
+/**
+ * Security 2026-07-25 — `decideShareRunPolicy`. A `#config=` link auto-runs on
+ * open, and the endpoint it carries selects the host every `local>` preset
+ * fetch (with the user's OAuth token / PAT attached) is sent to. This is the
+ * pure decision App.tsx's `loadShareToken` applies: which endpoints the run
+ * would really reach, whether to withhold every credential, and whether the
+ * link may rewrite the persistent platform settings.
+ */
+function testPayload(overrides: Partial<SharePayload> = {}): SharePayload {
+  return {
+    v: 2,
+    renovate: "43.275.0",
+    config: "{}",
+    fileName: "renovate.json",
+    ...overrides,
+  };
+}
+
+describe("decideShareRunPolicy: trusted links behave as before", () => {
+  test("a bare link (no platform/endpoint) defaults to github and keeps tokens", () => {
+    const policy = decideShareRunPolicy(testPayload());
+    expect(policy).toMatchObject({
+      platform: "github",
+      endpoint: "https://api.github.com",
+      untrustedEndpoints: [],
+      suppressTokens: false,
+      persistPlatformSettings: true,
+    });
+  });
+
+  test("every shipped public host is trusted, with or without a trailing slash", () => {
+    for (const [platform, endpoint] of [
+      ["github", "https://api.github.com"],
+      ["gitlab", "https://gitlab.com/api/v4/"],
+      ["gitea", "https://gitea.com/"],
+      ["forgejo", "https://codeberg.org"],
+    ] as const) {
+      const policy = decideShareRunPolicy(testPayload({ platform, endpoint }));
+      expect(policy.suppressTokens).toBe(false);
+      expect(policy.untrustedEndpoints).toEqual([]);
+    }
+  });
+
+  test("a platform that is not fetched in the browser has nothing to distrust", () => {
+    const policy = decideShareRunPolicy(testPayload({ platform: "azure" }));
+    expect(policy.endpoint).toBe("");
+    expect(policy.suppressTokens).toBe(false);
+  });
+
+  test("a trusted endpoint in the global layer keeps tokens", () => {
+    const policy = decideShareRunPolicy(
+      testPayload({ globalConfig: { platform: "gitea", endpoint: "https://gitea.com" } }),
+    );
+    expect(policy.platform).toBe("gitea");
+    expect(policy.suppressTokens).toBe(false);
+  });
+});
+
+describe("decideShareRunPolicy: an untrusted endpoint suppresses tokens", () => {
+  test("leg A — the payload's top-level endpoint", () => {
+    const policy = decideShareRunPolicy(testPayload({ endpoint: "https://evil.example/" }));
+    expect(policy.endpoint).toBe("https://evil.example/");
+    expect(policy.untrustedEndpoints).toEqual(["https://evil.example/"]);
+    expect(policy.suppressTokens).toBe(true);
+    expect(policy.persistPlatformSettings).toBe(false);
+  });
+
+  test("leg B — globalConfig.endpoint, which WINS over the top-level one", () => {
+    const policy = decideShareRunPolicy(
+      testPayload({
+        endpoint: "https://api.github.com",
+        globalConfig: { endpoint: "https://evil.example/" },
+      }),
+    );
+    // Mirrors pipeline.ts: the global layer's endpoint is what actually runs.
+    expect(policy.endpoint).toBe("https://evil.example/");
+    expect(policy.suppressTokens).toBe(true);
+  });
+
+  test("an untrusted top-level endpoint counts even when the global layer displaces it", () => {
+    // The pipeline would use gitea.com for THIS run, but the link still lands
+    // the evil endpoint in the endpoint field, where a later Run would use it.
+    const policy = decideShareRunPolicy(
+      testPayload({
+        endpoint: "https://evil.example/",
+        globalConfig: { endpoint: "https://gitea.com" },
+      }),
+    );
+    expect(policy.endpoint).toBe("https://gitea.com");
+    expect(policy.untrustedEndpoints).toEqual(["https://evil.example/"]);
+    expect(policy.suppressTokens).toBe(true);
+  });
+
+  test("platformOverride flips the precedence, exactly like the pipeline", () => {
+    const policy = decideShareRunPolicy(
+      testPayload({
+        endpoint: "https://api.github.com",
+        globalConfig: { endpoint: "https://evil.example/" },
+        platformOverride: true,
+      }),
+    );
+    expect(policy.endpoint).toBe("https://api.github.com");
+    // Still suppressed: the untrusted endpoint is applied to the UI/global layer.
+    expect(policy.untrustedEndpoints).toEqual(["https://evil.example/"]);
+    expect(policy.suppressTokens).toBe(true);
+  });
+
+  test("a global platform without a global endpoint invalidates the explicit one", () => {
+    // pipeline.ts: without an override, a global-config platform displaces the
+    // toolbar endpoint entirely — the run falls back to gitea's own default.
+    const policy = decideShareRunPolicy(
+      testPayload({ endpoint: "https://evil.example/", globalConfig: { platform: "gitea" } }),
+    );
+    expect(policy.endpoint).toBe("https://gitea.com");
+    // …but the evil endpoint is still what the UI/localStorage would carry.
+    expect(policy.suppressTokens).toBe(true);
+  });
+
+  test("look-alike hosts are not trusted", () => {
+    for (const endpoint of [
+      "https://api.github.com.evil.example/",
+      "https://api.github.com@evil.example/",
+      "http://api.github.com/",
+      "https://evil.example/api.github.com",
+      "https://gitlab.com/api/v4/../../evil",
+    ]) {
+      expect(decideShareRunPolicy(testPayload({ endpoint })).suppressTokens).toBe(true);
+    }
+  });
+
+  test("both endpoints are named when both are untrusted, deduped", () => {
+    const policy = decideShareRunPolicy(
+      testPayload({
+        endpoint: "https://evil.example/",
+        globalConfig: { endpoint: "https://other.example/" },
+      }),
+    );
+    expect(policy.untrustedEndpoints).toEqual(["https://other.example/", "https://evil.example/"]);
+  });
+
+  test("the same untrusted endpoint on both legs is reported once", () => {
+    const policy = decideShareRunPolicy(
+      testPayload({
+        endpoint: "https://evil.example/",
+        globalConfig: { endpoint: "https://evil.example/" },
+      }),
+    );
+    expect(policy.untrustedEndpoints).toEqual(["https://evil.example/"]);
   });
 });

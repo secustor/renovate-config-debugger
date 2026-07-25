@@ -98,6 +98,53 @@ export const configObjectSchema = z.unknown().check(
   }),
 );
 
+/**
+ * Security 2026-07-25: a config layer carries its own `platform`/`endpoint`,
+ * and the engine's `resolvePlatformContext` (pipeline.ts) lets the GLOBAL
+ * layer's values WIN over the payload's top-level ones. A share link could
+ * therefore choose the host every `local>` preset fetch goes to — with the
+ * user's token attached — while bypassing {@link endpointSchema} entirely,
+ * since `configObjectSchema` only checked plain-object-ness and pollution.
+ * Both fields are now held to exactly the same rules as the top-level
+ * `platform`/`endpoint` when present (and must be strings at all, closing the
+ * type-confusion case the pipeline silently ignores).
+ */
+export function hasValidPlatformContext(value: Record<string, unknown>): boolean {
+  if ("platform" in value) {
+    const platform = value.platform;
+    if (typeof platform !== "string" || !isValidPlatform(platform)) {
+      return false;
+    }
+  }
+  if ("endpoint" in value) {
+    const endpoint = value.endpoint;
+    if (typeof endpoint !== "string" || !isValidEndpoint(endpoint)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+export function isValidShareConfigLayer(v: unknown): v is Record<string, unknown> {
+  return isValidConfigObject(v) && hasValidPlatformContext(v);
+}
+
+/**
+ * A share payload's config layer: {@link configObjectSchema} plus the
+ * platform-context rule above. Applied to BOTH layers even though only
+ * `globalConfig` reaches `resolvePlatformContext` today (the inherited layer's
+ * `platform`/`endpoint` are `globalOnly` options, stripped by the pipeline's
+ * `removeGlobalConfig(cfg, true)` before `InheritConfig.set`) — one uniform
+ * rule for both is cheaper than a rule that silently depends on which layer
+ * the engine happens to read this release.
+ */
+export const shareConfigLayerSchema = z.unknown().check(
+  z.refine(isValidShareConfigLayer, {
+    message:
+      "must be a plain JSON object without __proto__/constructor/prototype keys, and its platform/endpoint must be a valid platform name / http(s) URL",
+  }),
+);
+
 /** Validates a config layer (already `JSON.parse`d) and returns it typed, or
  *  null when it is not a plain object or is polluted. Convenience wrapper
  *  around {@link isValidConfigObject} for call sites that want a value, not
@@ -299,8 +346,15 @@ export const sharePayloadStrictFieldsSchema = z.object({
   config: z.string(),
   platform: z.optional(platformSchema),
   endpoint: z.optional(endpointSchema),
-  globalConfig: z.optional(configObjectSchema),
-  inheritedConfig: z.optional(configObjectSchema),
+  // Security 2026-07-25: the layers' own platform/endpoint are enforced here
+  // too — see `shareConfigLayerSchema`. Rejecting (rather than stripping the
+  // bad field) keeps ONE rule for "where will this link send my token": a
+  // `javascript:` endpoint already fails the whole payload at the top level,
+  // and a link whose global layer aims somewhere unusable is damaged in
+  // exactly the same way. Stripping would also silently change what the link
+  // means (the run would fall back to a different host than the sender saw).
+  globalConfig: z.optional(shareConfigLayerSchema),
+  inheritedConfig: z.optional(shareConfigLayerSchema),
   platformOverride: z.optional(z.boolean()),
   c: z.optional(z.string()),
 });
@@ -354,6 +408,22 @@ const oauthParamSchema = z.string().check(
 export const oauthCallbackParamsSchema = z.object({
   code: oauthParamSchema,
   state: oauthParamSchema,
+});
+
+/**
+ * Security 2026-07-25: the `rcv.oauth.pending` stash (oauth.ts `beginSignIn`
+ * writes `{ state, verifier, returnHash }`) was `JSON.parse`d and type-ASSERTED
+ * on the callback path, so a hand-edited/corrupted value reached the CSRF
+ * `state` comparison and the PKCE `code_verifier` sent to the Worker as
+ * whatever type it happened to be. `state`/`verifier` must both be non-empty
+ * strings (a non-string `state` could otherwise compare loosely enough to slip
+ * past the mismatch check); `returnHash` is optional because
+ * `completeCallback` already defaults it to "".
+ */
+export const pendingSignInSchema = z.object({
+  state: z.string().check(z.minLength(1)),
+  verifier: z.string().check(z.minLength(1)),
+  returnHash: z.optional(z.string()),
 });
 
 /** The oauth-worker's `/exchange` and `/refresh` JSON response. Every field
@@ -415,14 +485,57 @@ export function parseLayerJson(text: string): LayerParseResult {
 // Repo-load input (App.tsx's `parseRepoRef` result, before request building)
 // ---------------------------------------------------------------------------
 
-/** A parsed repo reference's host/repo/ref, right before it becomes fetch
- *  input: bounded length, no control characters (these ultimately compose a
- *  request URL / path). */
-export const repoRefPartSchema = z.string().check(
-  z.maxLength(512),
-  z.refine((s) => !CONTROL_CHARS.test(s), { message: "must not contain control characters" }),
-);
+const MAX_REPO_REF_LENGTH = 512;
 
+/**
+ * Security 2026-07-25: one path segment of a repo reference or a git ref.
+ * Previously only control characters and length were checked, which still let
+ * `?`, `#`, `%` and `..` through into a fetch URL (`…/repos/<repo>/contents/…`)
+ * — enough to bolt a query string onto the request, or to climb out of the
+ * intended path, on the engine's raw-interpolating builders. Slug-shaped is
+ * what every supported host actually allows for owners, repos, tags and
+ * branches; `.` / `..` are rejected outright as traversal segments (a leading
+ * dot is still fine — `owner/.github` is a real repository).
+ */
+const REPO_REF_SEGMENT = /^[A-Za-z0-9._-]+$/;
+
+function isRepoRefSegment(segment: string): boolean {
+  return segment !== "." && segment !== ".." && REPO_REF_SEGMENT.test(segment);
+}
+
+/** A repo path (`owner/repo`, or a GitLab subgroup path `group/sub/repo`) or a
+ *  git ref (`main`, `v1.2.3`, `release/1.0`). Empty = the field is unset,
+ *  which every caller treats as "use the default" — unchanged. */
 export function isValidRepoRefPart(value: string): boolean {
-  return value.length <= 512 && !CONTROL_CHARS.test(value);
+  if (value === "") {
+    return true;
+  }
+  if (value.length > MAX_REPO_REF_LENGTH) {
+    return false;
+  }
+  return value.split("/").every(isRepoRefSegment);
+}
+
+/** A parsed repo reference's repo/ref, right before it becomes fetch input. */
+export const repoRefPartSchema = z
+  .string()
+  .check(z.refine(isValidRepoRefPart, { message: "must be slug-shaped path segments" }));
+
+/** A parsed repo reference's HOST. Same slug rule as a path segment plus an
+ *  optional `:port` — a self-hosted reference like `gitea.example.com:3000/o/r`
+ *  must keep reaching the "Unknown host … set its endpoint under Advanced
+ *  options" guidance rather than the generic "not a repo reference" refusal.
+ *  The host never composes a URL (it only looks up `HOST_PLATFORM`). */
+export function isValidRepoHost(value: string): boolean {
+  if (value.length > MAX_REPO_REF_LENGTH) {
+    return false;
+  }
+  const [host = "", port, ...rest] = value.split(":");
+  if (rest.length > 0) {
+    return false;
+  }
+  if (port !== undefined && !/^\d{1,5}$/.test(port)) {
+    return false;
+  }
+  return isRepoRefSegment(host);
 }

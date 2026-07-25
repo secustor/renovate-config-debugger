@@ -289,3 +289,73 @@ describe("manual preset injection", () => {
     expect(result.usedInjections).toContain(key);
   });
 });
+
+/**
+ * Security 2026-07-25 — a preset's repo/path/tag come straight from the
+ * config's `extends` string. Renovate's own preset grammar allows `.`, `/` and
+ * `%` inside a repo (and `.`/`/` inside a tag), so the raw interpolation these
+ * transports used could smuggle a path separator or a traversal segment into
+ * the URL — with the user's token attached. Well-formed presets must be
+ * byte-for-byte unchanged.
+ */
+describe("preset fetcher URL encoding", () => {
+  it("keeps a well-formed repo and tag byte-for-byte in the github preset URL", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(GITHUB_PRESET_BODY, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await runPipeline({
+      fileName: "renovate.json",
+      content: '{ "extends": ["github>example-org/renovate-config#v1.2.3"] }',
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.github.com/repos/example-org/renovate-config/contents/default.json?ref=v1.2.3",
+      expect.anything(),
+    );
+  });
+
+  it("encodes a percent-escape smuggled into a github preset repo", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(GITHUB_PRESET_BODY, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    // `%2F` would otherwise reach the server as a path separator.
+    await runPipeline({
+      fileName: "renovate.json",
+      content: '{ "extends": ["github>example-org/re%2Fpo"] }',
+    });
+
+    const url = fetchMock.mock.calls[0]?.[0] as string;
+    expect(url).toBe("https://api.github.com/repos/example-org/re%252Fpo/contents/default.json");
+    expect(new URL(url).pathname).toBe("/repos/example-org/re%252Fpo/contents/default.json");
+  });
+
+  it("encodes a percent-escape smuggled into a gitea preset repo", async () => {
+    const body = JSON.stringify({ type: "file", encoding: "base64", content: base64(PRESET_BODY) });
+    const fetchMock = vi.fn().mockResolvedValue(new Response(body, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await runPipeline({
+      fileName: "renovate.json",
+      content: '{ "extends": ["gitea>example-org/re%2Fpo"] }',
+    });
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://gitea.com/api/v1/repos/example-org/re%252Fpo/contents/default.json",
+    );
+  });
+
+  it("refuses a traversal segment in a preset repo without ever fetching", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(GITHUB_PRESET_BODY, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await runPipeline({
+      fileName: "renovate.json",
+      content: '{ "extends": ["github>example-org/../../admin"] }',
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    // Contained like any other preset failure — the run still finishes.
+    expect(result.stageStatus.merge).toBe("ok");
+    expect(result.finalConfig).toBeDefined();
+  });
+});

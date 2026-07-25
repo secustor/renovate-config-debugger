@@ -15,7 +15,9 @@
 import * as z from "zod/mini";
 import {
   isHttpUrl,
+  isValidToken,
   oauthCallbackParamsSchema,
+  pendingSignInSchema,
   sanitizeStoredUser,
   tokenResponseSchema,
 } from "./input-schemas";
@@ -111,13 +113,28 @@ interface TokenState {
 let memToken: TokenState | null = null;
 let memLoaded = false;
 
+/**
+ * Security 2026-07-25: sessionStorage is input like any other — it can be
+ * hand-edited, or drift across app versions — and these two values go
+ * straight into an `Authorization: Bearer` header and into `setPresetAuth`
+ * for every preset fetch. Both are validated (the header-injection rule)
+ * before they are believed; a failure drops the WHOLE OAuth state rather
+ * than limping on with half a session, because a token that cannot be sent
+ * is indistinguishable from being signed out and every caller already handles
+ * signed-out (public presets keep working).
+ */
 function loadTokenState(): TokenState | null {
   const token = sessionStorage.getItem(K.token);
   if (!token) {
     return null;
   }
+  const storedRefresh = sessionStorage.getItem(K.refreshToken);
+  if (!isValidToken(token) || (storedRefresh !== null && !isValidToken(storedRefresh))) {
+    signOut();
+    return null;
+  }
   const expiresAt = Number(sessionStorage.getItem(K.tokenExpiresAt) ?? "0");
-  const refreshToken = sessionStorage.getItem(K.refreshToken) ?? undefined;
+  const refreshToken = storedRefresh ?? undefined;
   const refreshExp = sessionStorage.getItem(K.refreshTokenExpiresAt);
   return {
     token,
@@ -321,13 +338,22 @@ export async function completeCallback(
   if (!pendingRaw) {
     throw new Error("No pending sign-in to match this response.");
   }
-  let pending: { state?: string; verifier?: string; returnHash?: string };
+  // Security 2026-07-25: the stash was JSON.parsed and type-ASSERTED, so a
+  // corrupted/hand-edited value reached the CSRF `state` comparison and became
+  // the PKCE `code_verifier` posted to the Worker. Schema-checked instead; a
+  // failure takes the existing "corrupted" branch (the user stays signed out).
+  let parsedPending: unknown;
   try {
-    pending = JSON.parse(pendingRaw);
+    parsedPending = JSON.parse(pendingRaw);
   } catch {
     throw new Error("Sign-in state was corrupted.");
   }
-  if (!pending.state || pending.state !== state || !pending.verifier) {
+  const pendingResult = pendingSignInSchema.safeParse(parsedPending);
+  if (!pendingResult.success) {
+    throw new Error("Sign-in state was corrupted.");
+  }
+  const pending = pendingResult.data;
+  if (pending.state !== state) {
     throw new Error("Sign-in state mismatch; aborting for safety.");
   }
   const data = await postWorker("/exchange", {

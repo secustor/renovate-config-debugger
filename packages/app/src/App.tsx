@@ -60,8 +60,9 @@ import {
 } from "./run";
 import {
   buildShareUrl,
-  decodeShareResult,
   decideHashChangeAction,
+  decideShareRunPolicy,
+  decodeShareResult,
   encodeShare,
   readShareToken,
   type ShareDecodeError,
@@ -73,10 +74,12 @@ import { useBackToTopVisible, useHomeEndPageScroll } from "./scroll-ergonomics";
 import {
   isValidEndpoint,
   isValidPlatform,
+  isValidRepoHost,
   isValidRepoRefPart,
   isValidToken,
   parseLayerJson,
 } from "./input-schemas";
+import { PLATFORM_ENDPOINTS, PLATFORMS } from "./platform-endpoints";
 
 const DEFAULT_CONFIG = `{
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
@@ -112,22 +115,6 @@ const GITEA_TOKEN_KEY = "rcv.giteaToken";
 const FORGEJO_TOKEN_KEY = "rcv.forgejoToken";
 const PLATFORM_KEY = "rcv.platform";
 const ENDPOINT_KEY = "rcv.endpoint";
-
-/** Platforms that resolve `local>` in the browser, with their default endpoint. */
-const PLATFORM_ENDPOINTS: Record<string, string> = {
-  github: "https://api.github.com",
-  gitlab: "https://gitlab.com/api/v4",
-  gitea: "https://gitea.com",
-  forgejo: "https://codeberg.org",
-  azure: "",
-  bitbucket: "",
-  "bitbucket-server": "",
-  gerrit: "",
-  codecommit: "",
-  "scm-manager": "",
-};
-
-const PLATFORMS = Object.keys(PLATFORM_ENDPOINTS);
 
 /** Platforms whose repos can be fetched from the browser (roadmap 007/010). */
 const FETCHABLE_PLATFORMS = new Set<RepoPlatform>(["github", "gitlab", "gitea", "forgejo"]);
@@ -310,6 +297,24 @@ const SHARE_ERROR_MESSAGES: Record<ShareDecodeError, string> = {
     "This shared link was made by an incompatible version of the app and couldn’t be read. Ask the sender for a fresh link. Showing the default config instead.",
 };
 
+/**
+ * Security 2026-07-25: the banner shown when a link aims the run at an endpoint
+ * that is not one of the shipped public hosts. It names the host, states
+ * plainly that nothing was sent to it, and describes the deliberate way to
+ * proceed. Never a `window.confirm` — a modal would block the run (and every
+ * automated/persona session) on a decision the user cannot even evaluate yet,
+ * since the endpoint only becomes visible once the link has loaded.
+ */
+function untrustedEndpointMessage(endpoints: readonly string[]): string {
+  const list = endpoints.map((endpoint) => `“${endpoint}”`).join(" and ");
+  return (
+    `This link asks the analysis to contact ${list}, which is not one of the public code hosts this app trusts. ` +
+    `It was opened WITHOUT your GitHub sign-in and without any token you have saved — nothing was sent to that host — ` +
+    `and your saved platform settings were left unchanged. ` +
+    `If you know and trust this host, review it under Advanced options → “Repository host & access tokens” and press Run to use your tokens against it.`
+  );
+}
+
 export function App() {
   const [content, setContent] = useState(DEFAULT_CONFIG);
   // Roadmap 016: the text last loaded from an authoritative source (the
@@ -373,6 +378,10 @@ export function App() {
   // banner (not the dismissable notice), so a broken link never reads as
   // "nothing happened". Cleared whenever a share load succeeds.
   const [shareError, setShareError] = useState<string | null>(null);
+  // Security 2026-07-25: a link that decoded fine but points the run at an
+  // untrusted endpoint — same prominent banner, and it stays until the user
+  // acknowledges it (it explains why this run had no access to their tokens).
+  const [shareWarning, setShareWarning] = useState<string | null>(null);
   // Roadmap 023: a transient toast — used to land an "Apply fix" re-run on its
   // consequence ("re-ran: 0 errors") without yanking the user's scroll around.
   const [toast, setToast] = useState<string | null>(null);
@@ -697,7 +706,7 @@ export function App() {
   async function onRun(
     overrideInjected?: InjectionMap,
     overrideInputs?: RunInputs,
-    opts?: { preserveScroll?: boolean; keepTab?: boolean },
+    opts?: { preserveScroll?: boolean; keepTab?: boolean; suppressTokens?: boolean },
   ): Promise<TraceResult | null> {
     const injectedPresets = overrideInjected ?? injected;
     if (!overrideInputs && blockedByLayerErrors()) {
@@ -707,7 +716,14 @@ export function App() {
     setRunning(true);
     setFatal(null);
     try {
-      const traceResult = await run({ ...inputs, injectedPresets });
+      const traceResult = await run(
+        { ...inputs, injectedPresets },
+        // Security 2026-07-25: only ever set by `loadShareToken` for a link
+        // aimed at an untrusted endpoint. A Run the user presses themselves
+        // always carries their credentials — by then they have seen the
+        // endpoint in the toolbar (and `blockedByLayerErrors` gates it).
+        { suppressTokens: opts?.suppressTokens === true },
+      );
       // Roadmap 023: hold the current scroll so re-running an edited config
       // doesn't jump the user back to the top (captured right before the result
       // state commits, so an abandoned in-flight run can't pin a stale offset).
@@ -794,26 +810,41 @@ export function App() {
     }
     if (!decoded.ok) {
       setShareError(SHARE_ERROR_MESSAGES[decoded.reason]);
+      // A previous link's untrusted-host warning does not apply to this one.
+      setShareWarning(null);
       clearShareHash();
       return;
     }
     setShareError(null);
     const payload = decoded.payload;
+    // Security 2026-07-25: decide — before anything is applied — whether this
+    // link may use the user's credentials and rewrite their stored settings.
+    const policy = decideShareRunPolicy(payload);
+    setShareWarning(
+      policy.suppressTokens ? untrustedEndpointMessage(policy.untrustedEndpoints) : null,
+    );
     const nextPlatform = payload.platform ?? "github";
     const nextEndpoint = payload.endpoint ?? "https://api.github.com";
     loadConfigText(payload.config);
     setFileName(payload.fileName);
+    // The link's platform/endpoint always reach the UI (transparency: the user
+    // must be able to SEE the host that was asked for) but only a trusted one
+    // is written to localStorage — a link must never silently repoint a
+    // persistent setting at an arbitrary host, where it would outlive the tab
+    // and quietly apply to later, credentialed runs.
     setPlatform(nextPlatform);
-    persistLocal(PLATFORM_KEY, nextPlatform);
     setEndpoint(nextEndpoint);
-    persistLocal(ENDPOINT_KEY, nextEndpoint);
+    if (policy.persistPlatformSettings) {
+      persistLocal(PLATFORM_KEY, nextPlatform);
+      persistLocal(ENDPOINT_KEY, nextEndpoint);
+    }
     // 008 layers ride along in v2 links; absent = layers off.
     setGlobalText(payload.globalConfig ? JSON.stringify(payload.globalConfig, null, 2) : "");
     setInheritedText(
       payload.inheritedConfig ? JSON.stringify(payload.inheritedConfig, null, 2) : "",
     );
     setPlatformOverride(payload.platformOverride === true);
-    if (payload.globalConfig || payload.inheritedConfig) {
+    if (payload.globalConfig || payload.inheritedConfig || policy.suppressTokens) {
       setAdvancedOpen(true);
     }
     pendingViewRef.current = payload.view ?? null;
@@ -827,15 +858,19 @@ export function App() {
       // Awaited (not fire-and-forget) so a carried simulator descriptor is
       // armed AFTER the result commits — the RuleSimulator then applies it
       // against the freshly-run config, identically on mount and hashchange.
-      await onRun(undefined, {
-        fileName: payload.fileName,
-        content: payload.config,
-        platform: nextPlatform,
-        endpoint: nextEndpoint,
-        globalConfig: payload.globalConfig,
-        inheritedConfig: payload.inheritedConfig,
-        platformOverride: payload.platformOverride === true,
-      });
+      await onRun(
+        undefined,
+        {
+          fileName: payload.fileName,
+          content: payload.config,
+          platform: nextPlatform,
+          endpoint: nextEndpoint,
+          globalConfig: payload.globalConfig,
+          inheritedConfig: payload.inheritedConfig,
+          platformOverride: payload.platformOverride === true,
+        },
+        { suppressTokens: policy.suppressTokens },
+      );
     }
     if (!isCancelled() && payload.sim) {
       setSimRequest({
@@ -1175,7 +1210,7 @@ export function App() {
     if (
       !parsed ||
       !isValidRepoRefPart(parsed.repo) ||
-      (parsed.host && !isValidRepoRefPart(parsed.host)) ||
+      (parsed.host && !isValidRepoHost(parsed.host)) ||
       !isValidRepoRefPart(trimmedRef)
     ) {
       setNotice("Enter a repo as owner/repo, github.com/owner/repo, or a full repository URL.");
@@ -1273,6 +1308,21 @@ export function App() {
           <div className="share-error-banner" role="alert">
             <strong className="share-error-banner-title">Shared link couldn’t be opened</strong>
             <span>{shareError}</span>
+          </div>
+        ) : null}
+        {shareWarning ? (
+          <div className="share-error-banner share-warning-banner" role="alert">
+            <strong className="share-error-banner-title">
+              Shared link points at an untrusted host — opened without your tokens
+            </strong>
+            <span>{shareWarning}</span>
+            <button
+              type="button"
+              className="share-warning-ack"
+              onClick={() => setShareWarning(null)}
+            >
+              Got it
+            </button>
           </div>
         ) : null}
         <header className="app-header">

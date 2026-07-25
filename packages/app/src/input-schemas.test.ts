@@ -3,19 +3,24 @@ import {
   configObjectSchema,
   endpointSchema,
   findPollutedPath,
+  hasValidPlatformContext,
   isHttpUrl,
   isPolluted,
   isValidConfigObject,
   isValidEndpoint,
   isValidPlatform,
+  isValidRepoHost,
   isValidRepoRefPart,
   isValidToken,
   oauthCallbackParamsSchema,
   parseLayerJson,
+  pendingSignInSchema,
   platformSchema,
+  repoRefPartSchema,
   sanitizeShareSim,
   sanitizeShareView,
   sanitizeStoredUser,
+  shareConfigLayerSchema,
   sharePayloadStrictFieldsSchema,
   stageIdSchema,
   resultsTabIdSchema,
@@ -229,6 +234,143 @@ describe("repo-load ref parts", () => {
   test("rejects control characters and absurd length", () => {
     expect(isValidRepoRefPart("main\r\nEvil-Header: 1")).toBe(false);
     expect(isValidRepoRefPart("a".repeat(1000))).toBe(false);
+  });
+
+  // Security 2026-07-25: slug-shaped only — these all used to pass.
+  test("keeps multi-segment (GitLab subgroup) paths and dotted/prefixed names", () => {
+    expect(isValidRepoRefPart("group/subgroup/repo")).toBe(true);
+    expect(isValidRepoRefPart("owner/.github")).toBe(true);
+    expect(isValidRepoRefPart("owner/my-repo.js")).toBe(true);
+    expect(isValidRepoRefPart("release/1.0")).toBe(true);
+    expect(isValidRepoRefPart("v1.2.3")).toBe(true);
+    expect(isValidRepoRefPart("a1b2c3d4e5f6")).toBe(true);
+  });
+  test("rejects traversal segments", () => {
+    expect(isValidRepoRefPart("owner/../../etc")).toBe(false);
+    expect(isValidRepoRefPart("..")).toBe(false);
+    expect(isValidRepoRefPart("owner/.")).toBe(false);
+  });
+  test("rejects query/fragment/percent/space characters", () => {
+    expect(isValidRepoRefPart("owner/repo?ref=evil")).toBe(false);
+    expect(isValidRepoRefPart("owner/repo#frag")).toBe(false);
+    expect(isValidRepoRefPart("owner/re%2Fpo")).toBe(false);
+    expect(isValidRepoRefPart("owner/re po")).toBe(false);
+    expect(isValidRepoRefPart("owner//repo")).toBe(false);
+    expect(isValidRepoRefPart("owner/repo\\evil")).toBe(false);
+    expect(isValidRepoRefPart("//evil.example/x")).toBe(false);
+  });
+  test("repoRefPartSchema mirrors the predicate", () => {
+    expect(repoRefPartSchema.safeParse("owner/repo").success).toBe(true);
+    expect(repoRefPartSchema.safeParse("owner/repo?x=1").success).toBe(false);
+  });
+
+  test("isValidRepoHost keeps dotted hosts and an explicit port", () => {
+    expect(isValidRepoHost("github.com")).toBe(true);
+    expect(isValidRepoHost("gitea.example.com:3000")).toBe(true);
+  });
+  test("isValidRepoHost rejects paths, credentials and a bogus port", () => {
+    expect(isValidRepoHost("")).toBe(false);
+    expect(isValidRepoHost("github.com/extra")).toBe(false);
+    expect(isValidRepoHost("user@github.com")).toBe(false);
+    expect(isValidRepoHost("github.com:evil")).toBe(false);
+    expect(isValidRepoHost("github.com:80:80")).toBe(false);
+  });
+});
+
+/**
+ * Security 2026-07-25: the share payload's config LAYERS carry their own
+ * platform/endpoint, and the engine's `resolvePlatformContext` lets the global
+ * layer's win over the payload's top-level ones — so these used to be the way
+ * to smuggle an arbitrary fetch endpoint (and the user's token with it) past
+ * `endpointSchema` entirely.
+ */
+describe("share config layers: platform/endpoint enforcement", () => {
+  test("accepts a layer with a well-formed platform/endpoint", () => {
+    expect(shareConfigLayerSchema.safeParse({ platform: "gitea" }).success).toBe(true);
+    expect(shareConfigLayerSchema.safeParse({ endpoint: "https://gitea.com" }).success).toBe(true);
+    expect(shareConfigLayerSchema.safeParse({ endpoint: "" }).success).toBe(true);
+    expect(shareConfigLayerSchema.safeParse({ automerge: true }).success).toBe(true);
+  });
+  test("rejects a javascript:/data: endpoint inside a layer", () => {
+    expect(shareConfigLayerSchema.safeParse({ endpoint: "javascript:alert(1)" }).success).toBe(
+      false,
+    );
+    expect(shareConfigLayerSchema.safeParse({ endpoint: "data:text/html,x" }).success).toBe(false);
+  });
+  test("rejects a type-confused platform/endpoint inside a layer", () => {
+    expect(shareConfigLayerSchema.safeParse({ platform: 123 }).success).toBe(false);
+    expect(shareConfigLayerSchema.safeParse({ endpoint: { toString: 1 } }).success).toBe(false);
+  });
+  test("rejects a header-injecting platform inside a layer", () => {
+    expect(shareConfigLayerSchema.safeParse({ platform: "git\r\nhub" }).success).toBe(false);
+  });
+  test("still rejects pollution (configObjectSchema's rule is kept)", () => {
+    expect(shareConfigLayerSchema.safeParse(JSON.parse('{"__proto__": {"x": 1}}')).success).toBe(
+      false,
+    );
+    expect(shareConfigLayerSchema.safeParse([]).success).toBe(false);
+  });
+  test("hasValidPlatformContext ignores absent fields", () => {
+    expect(hasValidPlatformContext({})).toBe(true);
+    expect(hasValidPlatformContext({ platform: "github", endpoint: "http://localhost:3000" })).toBe(
+      true,
+    );
+    expect(hasValidPlatformContext({ endpoint: "ftp://example.com" })).toBe(false);
+  });
+  test("the whole share payload is rejected over a layer's bad endpoint", () => {
+    expect(
+      sharePayloadStrictFieldsSchema.safeParse({
+        ...baseStrictPayload(),
+        globalConfig: { endpoint: "javascript:alert(1)" },
+      }).success,
+    ).toBe(false);
+    expect(
+      sharePayloadStrictFieldsSchema.safeParse({
+        ...baseStrictPayload(),
+        inheritedConfig: { endpoint: "javascript:alert(1)" },
+      }).success,
+    ).toBe(false);
+  });
+  test("an untrusted-but-well-formed layer endpoint still DECODES (policy, not schema)", () => {
+    // The trust decision belongs to `decideShareRunPolicy` (share.ts): a
+    // self-hosted endpoint is legitimate input, it just does not get tokens.
+    expect(
+      sharePayloadStrictFieldsSchema.safeParse({
+        ...baseStrictPayload(),
+        globalConfig: { endpoint: "https://evil.example/" },
+      }).success,
+    ).toBe(true);
+  });
+});
+
+/** Security 2026-07-25: the OAuth pending-sign-in stash was type-asserted. */
+describe("pendingSignInSchema", () => {
+  test("accepts what beginSignIn writes", () => {
+    expect(
+      pendingSignInSchema.safeParse({ state: "s", verifier: "v", returnHash: "#config=x" }).success,
+    ).toBe(true);
+    expect(
+      pendingSignInSchema.safeParse({ state: "s", verifier: "v", returnHash: "" }).success,
+    ).toBe(true);
+  });
+  test("a missing returnHash is tolerated (completeCallback defaults it)", () => {
+    const result = pendingSignInSchema.safeParse({ state: "s", verifier: "v" });
+    expect(result.success).toBe(true);
+  });
+  test("rejects a missing/empty state or verifier", () => {
+    expect(pendingSignInSchema.safeParse({ verifier: "v" }).success).toBe(false);
+    expect(pendingSignInSchema.safeParse({ state: "s" }).success).toBe(false);
+    expect(pendingSignInSchema.safeParse({ state: "", verifier: "v" }).success).toBe(false);
+    expect(pendingSignInSchema.safeParse({ state: "s", verifier: "" }).success).toBe(false);
+  });
+  test("rejects type-confused fields (the asserted-cast hole)", () => {
+    expect(pendingSignInSchema.safeParse({ state: ["s"], verifier: "v" }).success).toBe(false);
+    expect(pendingSignInSchema.safeParse({ state: "s", verifier: { a: 1 } }).success).toBe(false);
+    expect(
+      pendingSignInSchema.safeParse({ state: "s", verifier: "v", returnHash: 7 }).success,
+    ).toBe(false);
+    expect(pendingSignInSchema.safeParse("not an object").success).toBe(false);
+    expect(pendingSignInSchema.safeParse(null).success).toBe(false);
   });
 });
 

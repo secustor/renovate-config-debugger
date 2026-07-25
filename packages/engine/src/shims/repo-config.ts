@@ -13,6 +13,7 @@
  */
 import { ExternalHostError } from "renovate/dist/types/errors/external-host-error.js";
 import { getPresetAuth } from "../auth";
+import { encodePathSegments } from "./url-path";
 
 export type RepoPlatform = "github" | "gitlab" | "gitea" | "forgejo";
 
@@ -118,7 +119,7 @@ async function githubRaw(
   ref?: string,
 ): Promise<string | typeof NOT_FOUND> {
   const query = ref ? `?ref=${encodeURIComponent(ref)}` : "";
-  const url = `${endpoint}repos/${repo}/contents/${path}${query}`;
+  const url = `${endpoint}repos/${encodePathSegments(repo)}/contents/${encodePathSegments(path)}${query}`;
   const headers: Record<string, string> = { accept: "application/vnd.github.raw+json" };
   const { githubToken } = getPresetAuth();
   if (githubToken) {
@@ -192,7 +193,7 @@ async function giteaLikeRaw(
   ref?: string,
 ): Promise<string | typeof NOT_FOUND> {
   const query = ref ? `?ref=${encodeURIComponent(ref)}` : "";
-  const url = `${endpoint}api/v1/repos/${repo}/contents/${encodeURIComponent(path)}${query}`;
+  const url = `${endpoint}api/v1/repos/${encodePathSegments(repo)}/contents/${encodeURIComponent(path)}${query}`;
   const headers: Record<string, string> = { accept: "application/json" };
   const auth = getPresetAuth();
   const token = platform === "gitea" ? auth.giteaToken : auth.forgejoToken;

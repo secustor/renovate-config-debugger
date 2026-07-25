@@ -203,3 +203,50 @@ describe("fetchRepoConfig — gitea/forgejo", () => {
     expect(result.content).toBe(CONFIG_BODY);
   });
 });
+
+/**
+ * Security 2026-07-25 — repo/path segments are percent-encoded before they
+ * compose the request URL. The GitHub and Gitea/Forgejo transports used to
+ * interpolate `repo` raw, so a `?`/`#` inside it could bolt a query string
+ * onto the request and a `..` could climb out of the intended path (the URL
+ * parser inside `fetch` resolves traversal segments). Well-formed slugs must
+ * come out byte-for-byte unchanged — the suites above are the proof.
+ */
+describe("fetchRepoConfig — URL encoding of repo paths", () => {
+  it("keeps a nested (subgroup-style) repo path readable", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(ok(CONFIG_BODY));
+    vi.stubGlobal("fetch", fetchMock);
+    await fetchRepoConfig({ platform: "github", repo: "org/sub/repo" });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.github.com/repos/org/sub/repo/contents/renovate.json",
+      expect.anything(),
+    );
+  });
+
+  it("encodes a query/fragment smuggled into a github repo path", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(ok(CONFIG_BODY));
+    vi.stubGlobal("fetch", fetchMock);
+    await fetchRepoConfig({ platform: "github", repo: "org/repo?ref=evil#x" });
+    const url = fetchMock.mock.calls[0]?.[0] as string;
+    expect(url).toBe(
+      "https://api.github.com/repos/org/repo%3Fref%3Devil%23x/contents/renovate.json",
+    );
+    // The whole thing really is one path segment: no query, no fragment.
+    expect(new URL(url).search).toBe("");
+    expect(new URL(url).hash).toBe("");
+  });
+
+  it("refuses a traversal segment rather than letting the URL parser resolve it", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(ok(CONFIG_BODY));
+    vi.stubGlobal("fetch", fetchMock);
+    // Encoding cannot help here: the URL parser treats "%2E" as a dot segment
+    // too, so `…/repos/org/%2E%2E/%2E%2E/admin` would still collapse.
+    await expect(fetchRepoConfig({ platform: "github", repo: "org/../../admin" })).rejects.toThrow(
+      /traversal/i,
+    );
+    await expect(fetchRepoConfig({ platform: "gitea", repo: "org/../../admin" })).rejects.toThrow(
+      /traversal/i,
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});

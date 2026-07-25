@@ -36,13 +36,33 @@ function sessionToken(key: string): string | undefined {
   return value !== null && isValidToken(value) ? value : undefined;
 }
 
+export interface RunOptions {
+  /**
+   * Security 2026-07-25: run with NO credentials at all. Set for a run the
+   * user did not aim themselves — a share link pointing at an endpoint that
+   * is not one of the shipped public hosts (see `decideShareRunPolicy`) —
+   * so an attacker-chosen host can never receive the user's OAuth token or
+   * PATs. Expressed as an option on the run path rather than by mutating
+   * token storage: the engine's preset auth is module-level state, so the
+   * suppression has to be an explicit overwrite scoped to this one run.
+   */
+  suppressTokens?: boolean;
+}
+
 /**
  * Pushes the per-host tokens into the engine's preset auth. Shared by every
  * entry point that fetches (pipeline runs AND repo-config loads) so both reach
  * private repos / lift rate limits identically. A GitHub OAuth token (009),
  * silently refreshed when needed, wins over the GitHub PAT fallback.
  */
-async function ensureAuth(engine: Engine): Promise<void> {
+async function ensureAuth(engine: Engine, opts?: RunOptions): Promise<void> {
+  if (opts?.suppressTokens) {
+    // Overwrite (never just skip): `setPresetAuth` replaces module state a
+    // PREVIOUS run may have populated, so this is what actually guarantees no
+    // token is attached to this run's fetches.
+    engine.setPresetAuth({});
+    return;
+  }
   const oauthToken = await getValidToken();
   engine.setPresetAuth({
     githubToken: oauthToken ?? sessionToken(TOKEN_KEYS.githubToken),
@@ -56,9 +76,9 @@ async function ensureAuth(engine: Engine): Promise<void> {
  * Dynamic import keeps the heavy renovate chunk out of the initial page load;
  * Vite code-splits it automatically behind this call.
  */
-export async function run(input: PipelineInput): Promise<TraceResult> {
+export async function run(input: PipelineInput, opts?: RunOptions): Promise<TraceResult> {
   const engine = await import("@renovate-config-visualizer/engine");
-  await ensureAuth(engine);
+  await ensureAuth(engine, opts);
   return engine.runPipeline(input);
 }
 

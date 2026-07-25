@@ -13,6 +13,7 @@ import {
 } from "renovate/dist/config/presets/util.js";
 import { ExternalHostError } from "renovate/dist/types/errors/external-host-error.js";
 import { getPresetAuth } from "../../auth";
+import { encodePathSegments } from "../url-path";
 import { getInjectedPreset } from "./injection";
 
 type Source = "gitea" | "forgejo";
@@ -43,7 +44,9 @@ function makeFetchJSONFile(source: Source) {
     tag?: string,
   ): Promise<Record<string, unknown> | null> {
     const ref = tag ? `?ref=${encodeURIComponent(tag)}` : "";
-    const url = `${endpoint}api/v1/repos/${repo}/contents/${encodeURIComponent(fileName)}${ref}`;
+    // Security 2026-07-25: `repo` is config-supplied — encoded per segment so
+    // it cannot reshape the path (`fileName`/`tag` were already encoded).
+    const url = `${endpoint}api/v1/repos/${encodePathSegments(repo)}/contents/${encodeURIComponent(fileName)}${ref}`;
     const headers: Record<string, string> = { accept: "application/json" };
     const token = tokenFor(source);
     if (token) {

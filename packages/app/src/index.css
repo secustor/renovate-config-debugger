@@ -1256,6 +1256,32 @@ pre.config-view.prov-before {
   font-size: 1rem;
 }
 
+/* Security 2026-07-25: a link aimed at an untrusted endpoint gets the same
+   unmissable banner as a broken one, in the warning tone — it reports a
+   decision the app already made (the run happened, just without tokens),
+   not a failure, and stays until the user acknowledges it. */
+.share-warning-banner {
+  background: light-dark(#fff8e6, #2b2413);
+  border-color: var(--warn);
+  border-left-color: var(--warn);
+}
+
+.share-warning-banner .share-error-banner-title {
+  color: var(--warn);
+}
+
+.share-warning-ack {
+  align-self: flex-start;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+  padding: 0.2rem 0.6rem;
+}
+
 .app-notice {
   align-items: baseline;
   background: var(--surface);
