@@ -127,7 +127,8 @@ test("the windowed preset table renders a full screenful when revealed from a hi
   // The tree itself is collapsed on arrival — one row per extends entry.
   await expect(page.locator("#panel-presets .preset-row").first()).toBeVisible();
 
-  await page.locator("#panel-presets .preset-view-toggle button", { hasText: "table" }).click();
+  // Roadmap 036: `.preset-view-toggle` generalized into the shared `.seg`.
+  await page.locator("#panel-presets .preset-controls .seg button", { hasText: "table" }).click();
   const rows = page.locator("#panel-presets .preset-table-row");
   await expect(rows.first()).toBeVisible();
   // Polled: the window settles on the container's real height on the next

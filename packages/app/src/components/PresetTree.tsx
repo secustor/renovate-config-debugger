@@ -844,7 +844,10 @@ export const PresetTree = memo(function PresetTree({
           />{" "}
           hide zero-contribution
         </label>
-        <div className="preset-view-toggle" role="group" aria-label="View">
+        {/* Roadmap 036: `.preset-view-toggle` generalized into `.seg` — the one
+            segmented-control chrome, now shared with the diff chrome row and
+            the theme switcher. */}
+        <div className="seg" role="group" aria-label="View">
           <button
             type="button"
             className={view === "tree" ? "active" : ""}

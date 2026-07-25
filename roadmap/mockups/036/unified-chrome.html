@@ -1,0 +1,999 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>
+      Mockup 036 — Unified chrome: filled badges, one copy button, diff toolbar, theme switcher
+    </title>
+    <style>
+      /* ---- app tokens, verbatim from packages/app/src/index.css ---- */
+      :root {
+        color-scheme: light dark;
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        --border: light-dark(#d0d7de, #3d444d);
+        --surface: light-dark(#f6f8fa, #151b23);
+        --accent: #0969da;
+        --ok: #1a7f37;
+        --error: #cf222e;
+        --warn: #9a6700;
+        --muted: light-dark(#59636e, #9198a1);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: light-dark(#ffffff, #0d1117);
+        color: light-dark(#1f2328, #f0f6fc);
+      }
+      main {
+        margin: 0 auto;
+        max-width: 68rem;
+        padding: 1.5rem 1rem 4rem;
+      }
+      h1 {
+        font-size: 1.5rem;
+        margin: 0;
+      }
+      h2 {
+        font-size: 1.05rem;
+        margin: 2.5rem 0 0.25rem;
+      }
+      h2 .num {
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .subtitle,
+      .section-note {
+        color: var(--muted);
+        margin: 0.25rem 0 1rem;
+        font-size: 0.9rem;
+        max-width: 60rem;
+      }
+      .mock-banner {
+        background: light-dark(#fff8c5, #3a2d00);
+        border: 1px solid var(--warn);
+        border-radius: 8px;
+        font-size: 0.85rem;
+        margin-bottom: 1rem;
+        padding: 0.5rem 0.75rem;
+      }
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        overflow: hidden;
+      }
+      .card > .card-title {
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        font-size: 0.85rem;
+        font-weight: 600;
+        padding: 0.5rem 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .card-title-hint {
+        color: var(--muted);
+        font-weight: 400;
+      }
+      header.app-header {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        justify-content: space-between;
+      }
+      .version-badge {
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 0.75rem;
+        padding: 0.1rem 0.6rem;
+      }
+      code,
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      .before-after {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: 1fr 1fr;
+        align-items: start;
+      }
+      @media (max-width: 52rem) {
+        .before-after {
+          grid-template-columns: 1fr;
+        }
+      }
+      .pane-label {
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        margin: 0 0 0.35rem;
+      }
+      .pane-label.now {
+        color: var(--error);
+      }
+      .pane-label.proposed {
+        color: var(--ok);
+      }
+
+      /* ================================================================
+         1 · BADGES — current outline vs tinted fill vs solid fill
+         ================================================================ */
+      .badge {
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        display: inline-block;
+        font-size: 0.7rem;
+        line-height: 1.4;
+        padding: 0 0.45rem;
+        white-space: nowrap;
+      }
+      .badge.hue-github {
+        border-color: #8250df;
+        color: #8250df;
+      }
+      .badge.hue-npm {
+        border-color: var(--warn);
+        color: var(--warn);
+      }
+      .badge.hue-internal,
+      .badge.hue-opts,
+      .badge.hue-repo {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .badge.hue-error {
+        border-color: var(--error);
+        color: var(--error);
+      }
+      .badge.hue-muted {
+        color: var(--muted);
+      }
+      .badge.hue-global {
+        border-color: light-dark(#1b7c83, #56d4dd);
+        color: light-dark(#1b7c83, #56d4dd);
+      }
+      .badge.hue-inherited {
+        border-color: light-dark(#bf3989, #ff80c8);
+        color: light-dark(#bf3989, #ff80c8);
+      }
+      .badge.hue-appended {
+        border-color: var(--warn);
+        color: var(--warn);
+      }
+      /* PROPOSED (A): tinted fill — background derives from the badge's own hue,
+         so all fifteen variants get a fill from ONE rule and text contrast is
+         untouched. This is the GitHub "label" idiom the rest of the palette
+         already borrows from. */
+      .filled .badge {
+        background: color-mix(in srgb, currentColor 13%, transparent);
+        border-color: color-mix(in srgb, currentColor 32%, transparent);
+      }
+      .filled .badge.hue-muted {
+        background: color-mix(in srgb, currentColor 10%, transparent);
+      }
+      /* REJECTED (B): solid fill — shown only for comparison. */
+      .solid .badge {
+        background: currentColor;
+        border-color: currentColor;
+      }
+      .solid .badge > span {
+        color: light-dark(#ffffff, #0d1117);
+      }
+      .badge-row {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        padding: 0.45rem 0.75rem;
+      }
+      .badge-row .row-label {
+        color: var(--muted);
+        font-size: 0.78rem;
+        min-width: 9.5rem;
+      }
+      .preset-row-mock {
+        align-items: center;
+        display: flex;
+        gap: 0.35rem;
+        font-size: 0.85rem;
+        padding: 0.25rem 0.75rem;
+      }
+      .preset-row-mock .caret {
+        color: var(--muted);
+        font-size: 0.7rem;
+        width: 1rem;
+      }
+      .preset-row-mock code {
+        font-size: 0.8rem;
+      }
+      .verdict-tag {
+        font-size: 0.72rem;
+        border-radius: 4px;
+        padding: 0.05rem 0.4rem;
+        font-weight: 600;
+      }
+
+      /* ================================================================
+         2 · ONE COPY BUTTON component
+         ================================================================ */
+      .copy-btn {
+        align-items: center;
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--accent);
+        cursor: pointer;
+        display: inline-flex;
+        font: inherit;
+        font-size: 0.8rem;
+        gap: 0.35rem;
+        padding: 0.25rem 0.6rem;
+        white-space: nowrap;
+      }
+      .copy-btn:hover {
+        border-color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 8%, transparent);
+      }
+      .copy-btn svg {
+        fill: currentColor;
+        flex: none;
+      }
+      .copy-btn.copied {
+        border-color: var(--ok);
+        color: var(--ok);
+      }
+      .inventory {
+        border-collapse: collapse;
+        font-size: 0.85rem;
+        width: 100%;
+      }
+      .inventory th,
+      .inventory td {
+        border-top: 1px solid var(--border);
+        padding: 0.45rem 0.75rem;
+        text-align: left;
+        vertical-align: middle;
+      }
+      .inventory thead th {
+        border-top: none;
+        background: var(--surface);
+        font-size: 0.78rem;
+      }
+      .inventory .old {
+        color: var(--muted);
+        font-size: 0.78rem;
+      }
+
+      /* ================================================================
+         3+4 · DIFF CHROME (segmented view toggle, stats, copy result)
+         ================================================================ */
+      .seg {
+        display: inline-flex;
+      }
+      /* same font-size + padding as .copy-btn: every control in a chrome row
+         shares ONE height */
+      .seg button {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--muted);
+        cursor: pointer;
+        font: inherit;
+        font-size: 0.8rem;
+        padding: 0.25rem 0.6rem;
+      }
+      .seg button:first-child {
+        border-radius: 6px 0 0 6px;
+      }
+      .seg button + button {
+        border-left: none;
+        border-radius: 0 6px 6px 0;
+      }
+      .seg button.active {
+        background: var(--surface);
+        color: inherit;
+        font-weight: 600;
+      }
+      .diff-chrome {
+        align-items: center;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        font-size: 0.8rem;
+        padding: 0.4rem 0.75rem;
+      }
+      .diff-chrome .title {
+        color: var(--muted);
+      }
+      .diff-stat {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.75rem;
+      }
+      .diff-stat .plus {
+        color: var(--ok);
+      }
+      .diff-stat .minus {
+        color: var(--error);
+      }
+      .spacer {
+        flex: 1;
+      }
+      /* the diff body */
+      .diff {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.78rem;
+        line-height: 1.6;
+        overflow-x: auto;
+      }
+      .diff table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+      .diff td {
+        padding: 0 0.6rem;
+        white-space: pre;
+      }
+      .diff .ln {
+        color: var(--muted);
+        text-align: right;
+        user-select: none;
+        width: 2.5rem;
+      }
+      .diff .del {
+        background: light-dark(#fdeff0, #3d1418);
+      }
+      .diff .del .ln {
+        background: light-dark(#f7d5d8, #67060c);
+      }
+      .diff .ins {
+        background: light-dark(#eaffee, #103218);
+      }
+      .diff .ins .ln {
+        background: light-dark(#c9f2d3, #033a16);
+      }
+      .diff-foot {
+        align-items: center;
+        border-top: 1px solid var(--border);
+        color: var(--muted);
+        display: flex;
+        font-size: 0.8rem;
+        gap: 0.5rem;
+        justify-content: center;
+        padding: 0.4rem 0.75rem;
+      }
+      .diff-foot button {
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--accent);
+        cursor: pointer;
+        font: inherit;
+        font-size: 0.78rem;
+        padding: 0.15rem 0.55rem;
+      }
+      .diff-foot button:hover {
+        border-color: var(--accent);
+      }
+      /* split view: hide unified rows / show split grid */
+      .split-body {
+        display: none;
+      }
+      .diff.split .unified-body {
+        display: none;
+      }
+      .diff.split .split-body {
+        display: block;
+      }
+      .split-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+      .split-grid .cell {
+        border-left: 1px solid var(--border);
+        padding: 0 0.6rem;
+        white-space: pre;
+        overflow-x: auto;
+      }
+      .split-grid .cell:first-child {
+        border-left: none;
+      }
+      .old-toolbar-note {
+        border: 1px dashed var(--border);
+        border-radius: 8px;
+        padding: 0.6rem 0.75rem;
+        font-size: 0.85rem;
+      }
+      .old-toolbar-note button.plain {
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font: inherit;
+        font-size: 0.9rem;
+        padding: 0.4rem 0.75rem;
+      }
+      .crit {
+        margin: 0.35rem 0 0;
+        padding-left: 1.1rem;
+      }
+      .crit li {
+        margin: 0.2rem 0;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      /* ================================================================
+         5 · THEME SWITCHER
+         ================================================================ */
+      .theme-switch {
+        display: inline-flex;
+      }
+      .theme-switch button {
+        align-items: center;
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--muted);
+        cursor: pointer;
+        display: inline-flex;
+        font: inherit;
+        font-size: 0.78rem;
+        gap: 0.3rem;
+        padding: 0.25rem 0.55rem;
+      }
+      .theme-switch button:first-child {
+        border-radius: 6px 0 0 6px;
+      }
+      .theme-switch button + button {
+        border-left: none;
+      }
+      .theme-switch button:last-child {
+        border-radius: 0 6px 6px 0;
+      }
+      .theme-switch button.active {
+        background: var(--surface);
+        color: inherit;
+      }
+      .theme-switch svg {
+        fill: currentColor;
+      }
+      .impl-note {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-size: 0.83rem;
+        padding: 0.6rem 0.8rem;
+        margin-top: 0.75rem;
+      }
+      .impl-note code {
+        font-size: 0.78rem;
+      }
+
+      .migration-nav-mock {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding: 0.6rem 0.75rem;
+        border-top: 1px solid var(--border);
+        font-size: 0.85rem;
+      }
+      /* stepper buttons adopt the shared control height too — no row mixes
+         two button heights */
+      .migration-nav-mock button.nav {
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: inherit;
+        cursor: pointer;
+        font: inherit;
+        font-size: 0.8rem;
+        padding: 0.25rem 0.6rem;
+      }
+      .migration-nav-mock label {
+        align-items: center;
+        color: var(--muted);
+        display: flex;
+        font-size: 0.85rem;
+        gap: 0.3rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="mock-banner">
+        <strong>Mockup — roadmap 036 candidate.</strong> Interactive where it matters: the theme
+        switcher, view toggle, and copy buttons work. Everything uses the app's real tokens from
+        <code>index.css</code>.
+      </div>
+
+      <!-- ============ 5 · header with theme switcher (functional) ============ -->
+      <header class="app-header">
+        <div>
+          <h1>Renovate Config Visualizer</h1>
+          <p class="subtitle">Paste a renovate.json and see how Renovate actually reads it.</p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.75rem">
+          <span class="theme-switch" role="radiogroup" aria-label="Color theme" id="themeSwitch">
+            <button type="button" data-theme="auto" class="active" title="Follow the system theme">
+              <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0Zm0 1.5v13a6.5 6.5 0 0 0 0-13Z" />
+              </svg>
+              Auto
+            </button>
+            <button type="button" data-theme="light" title="Light theme">
+              <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+                <path
+                  d="M8 12a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm0-1.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM8 0a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0V.75A.75.75 0 0 1 8 0Zm0 13a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 13ZM2.343 2.343a.75.75 0 0 1 1.061 0l1.06 1.061a.75.75 0 0 1-1.06 1.06l-1.06-1.06a.75.75 0 0 1 0-1.06Zm9.193 9.193a.75.75 0 0 1 1.06 0l1.061 1.06a.75.75 0 0 1-1.06 1.061l-1.061-1.06a.75.75 0 0 1 0-1.061ZM16 8a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 16 8ZM3 8a.75.75 0 0 1-.75.75H.75a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 3 8Zm10.657-5.657a.75.75 0 0 1 0 1.061l-1.061 1.06a.75.75 0 1 1-1.06-1.06l1.06-1.06a.75.75 0 0 1 1.06 0Zm-9.193 9.193a.75.75 0 0 1 0 1.06l-1.06 1.061a.75.75 0 1 1-1.061-1.06l1.06-1.061a.75.75 0 0 1 1.061 0Z"
+                />
+              </svg>
+              Light
+            </button>
+            <button type="button" data-theme="dark" title="Dark theme">
+              <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+                <path
+                  d="M9.598 1.591a.749.749 0 0 1 .785-.175 7.001 7.001 0 1 1-8.967 8.967.75.75 0 0 1 .961-.96 5.5 5.5 0 0 0 7.046-7.046.75.75 0 0 1 .175-.786Zm1.616 1.945a7 7 0 0 1-7.678 7.678 5.499 5.499 0 1 0 7.678-7.678Z"
+                />
+              </svg>
+              Dark
+            </button>
+          </span>
+          <span class="version-badge">renovate 43.275.0</span>
+        </div>
+      </header>
+
+      <h2><span class="num">5 ·</span> Theme switcher (try it — it works here)</h2>
+      <p class="section-note">
+        Three-state segmented control in the header, next to the version badge: Auto (default,
+        follows the OS), Light, Dark. Persisted in <code>localStorage</code>.
+      </p>
+      <div class="impl-note">
+        <strong>Implementation is nearly free:</strong> the app is already 100%
+        <code>light-dark()</code>, so the switcher just sets <code>color-scheme: light</code> /
+        <code>dark</code> on <code>:root</code> (Auto removes it). The one exception — the dark diff
+        variables behind <code>@media (prefers-color-scheme: dark)</code> — converts to
+        <code>light-dark()</code> values scoped on <code>.diff-wrapper</code>, which also keeps the
+        035 proximity-over-order guarantee. This mockup's switcher uses exactly that mechanism.
+      </div>
+
+      <!-- ============ 1 · badges ============ -->
+      <h2><span class="num">1 ·</span> Badges: filled instead of empty</h2>
+      <p class="section-note">
+        One rule fills all fifteen badge variants:
+        <code>background: color-mix(in srgb, currentColor 13%, transparent)</code> — the tint
+        derives from each badge's existing hue, text color and contrast stay untouched. Solid fill
+        is shown for comparison but recommended against: white-on-yellow and white-on-muted fail
+        contrast at 0.7rem, and eleven saturated chips overpower the tree rows they annotate.
+      </p>
+      <div class="card">
+        <div class="card-title">The full badge inventory, three treatments</div>
+        <div class="badge-row">
+          <span class="row-label">Now (outline)</span>
+          <span class="badge hue-github"><span>github</span></span>
+          <span class="badge hue-npm"><span>npm</span></span>
+          <span class="badge hue-internal"><span>internal</span></span>
+          <span class="badge hue-muted"><span>×2</span></span>
+          <span class="badge hue-error"><span>failed</span></span>
+          <span class="badge hue-opts"><span>+3 opts</span></span>
+          <span class="badge hue-github"><span>+2 rules</span></span>
+          <span class="badge hue-appended"><span>appended</span></span>
+          <span class="badge hue-repo"><span>repo</span></span>
+          <span class="badge hue-global"><span>global</span></span>
+          <span class="badge hue-inherited"><span>inherited</span></span>
+        </div>
+        <div class="badge-row filled">
+          <span class="row-label" style="color: var(--ok); font-weight: 600">Proposed: tinted</span>
+          <span class="badge hue-github"><span>github</span></span>
+          <span class="badge hue-npm"><span>npm</span></span>
+          <span class="badge hue-internal"><span>internal</span></span>
+          <span class="badge hue-muted"><span>×2</span></span>
+          <span class="badge hue-error"><span>failed</span></span>
+          <span class="badge hue-opts"><span>+3 opts</span></span>
+          <span class="badge hue-github"><span>+2 rules</span></span>
+          <span class="badge hue-appended"><span>appended</span></span>
+          <span class="badge hue-repo"><span>repo</span></span>
+          <span class="badge hue-global"><span>global</span></span>
+          <span class="badge hue-inherited"><span>inherited</span></span>
+        </div>
+        <div class="badge-row solid">
+          <span class="row-label">Rejected: solid</span>
+          <span class="badge hue-github"><span>github</span></span>
+          <span class="badge hue-npm"><span>npm</span></span>
+          <span class="badge hue-internal"><span>internal</span></span>
+          <span class="badge hue-muted"><span>×2</span></span>
+          <span class="badge hue-error"><span>failed</span></span>
+          <span class="badge hue-opts"><span>+3 opts</span></span>
+          <span class="badge hue-github"><span>+2 rules</span></span>
+          <span class="badge hue-appended"><span>appended</span></span>
+          <span class="badge hue-repo"><span>repo</span></span>
+          <span class="badge hue-global"><span>global</span></span>
+          <span class="badge hue-inherited"><span>inherited</span></span>
+        </div>
+      </div>
+      <div class="card filled">
+        <div class="card-title">In context — preset tree and effective config rows</div>
+        <div class="preset-row-mock">
+          <span class="caret">▾</span>
+          <code>config:recommended</code>
+          <span class="badge hue-internal"><span>internal</span></span>
+          <span class="badge hue-opts"><span>+6 opts</span></span>
+        </div>
+        <div class="preset-row-mock" style="padding-left: 1.6rem">
+          <span class="caret">▸</span>
+          <code>github&gt;whitesource/merge-confidence:beta</code>
+          <span class="badge hue-github"><span>github</span></span>
+          <span class="badge hue-github"><span>+2 rules</span></span>
+        </div>
+        <div class="preset-row-mock" style="padding-left: 1.6rem">
+          <span class="caret"></span>
+          <code>npm&gt;@internal/renovate-config</code>
+          <span class="badge hue-npm"><span>npm</span></span>
+          <span class="badge hue-error"><span>failed</span></span>
+        </div>
+        <div
+          class="preset-row-mock"
+          style="border-top: 1px dashed var(--border); margin-top: 0.3rem; padding-top: 0.55rem"
+        >
+          <code>ignorePaths</code>
+          <span class="badge hue-appended"><span>appended</span></span>
+          <span class="badge hue-repo"><span>repo</span></span>
+          <span class="badge hue-internal"><span>preset ×3</span></span>
+        </div>
+      </div>
+
+      <!-- ============ 2 · one copy button ============ -->
+      <h2><span class="num">2 ·</span> One <code>&lt;CopyButton&gt;</code> component</h2>
+      <p class="section-note">
+        Today there are three unrelated implementations (<code>CopyMarkdownButton</code>, an inline
+        handler in <code>MigrationSteps</code>, plain toolbar buttons), each hand-rolling its own
+        "Copied!" timeout. Proposed: one component — clipboard icon, label, shared copied-state
+        (icon flips to a check). One size everywhere: any control that copies something looks and
+        measures the same, wherever it sits. Click any of these:
+      </p>
+      <div class="card">
+        <div class="card-title">Component states</div>
+        <div class="badge-row" style="gap: 0.75rem; padding: 0.75rem">
+          <button type="button" class="copy-btn" data-copy>
+            <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+              <use href="#i-copy" />
+            </svg>
+            <span>Copy result</span>
+          </button>
+          <button type="button" class="copy-btn copied" disabled>
+            <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+              <use href="#i-check" />
+            </svg>
+            <span>Copied</span>
+          </button>
+        </div>
+        <table class="inventory">
+          <thead>
+            <tr>
+              <th>Where</th>
+              <th>Today</th>
+              <th>Becomes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Editor toolbar</td>
+              <td class="old">plain <code>&lt;button&gt;</code> "Copy link"</td>
+              <td>
+                <button type="button" class="copy-btn" data-copy>
+                  <svg width="14" height="14" viewBox="0 0 16 16"><use href="#i-copy" /></svg>
+                  <span>Copy link</span>
+                </button>
+              </td>
+            </tr>
+            <tr>
+              <td>Rewrites tab</td>
+              <td class="old"><code>.migration-copy</code> "Copy migrated config"</td>
+              <td>
+                <button type="button" class="copy-btn" data-copy>
+                  <svg width="14" height="14" viewBox="0 0 16 16"><use href="#i-copy" /></svg>
+                  <span>Copy migrated config</span>
+                </button>
+              </td>
+            </tr>
+            <tr>
+              <td>Preset detail / simulator evidence</td>
+              <td class="old"><code>.copy-md</code> "Copy as markdown"</td>
+              <td>
+                <button type="button" class="copy-btn" data-copy>
+                  <svg width="14" height="14" viewBox="0 0 16 16"><use href="#i-copy" /></svg>
+                  <span>Copy as markdown</span>
+                </button>
+              </td>
+            </tr>
+            <tr>
+              <td>Simulator</td>
+              <td class="old">
+                plain <code>&lt;button&gt;</code> "Copy link with this simulation"
+              </td>
+              <td>
+                <button type="button" class="copy-btn" data-copy>
+                  <svg width="14" height="14" viewBox="0 0 16 16"><use href="#i-copy" /></svg>
+                  <span>Copy link with this simulation</span>
+                </button>
+              </td>
+            </tr>
+            <tr>
+              <td>Every stage diff <em>(new — change 3)</em></td>
+              <td class="old">— no affordance</td>
+              <td>
+                <button type="button" class="copy-btn" data-copy>
+                  <svg width="14" height="14" viewBox="0 0 16 16"><use href="#i-copy" /></svg>
+                  <span>Copy result</span>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ============ 3+4 · diff chrome ============ -->
+      <h2><span class="num">3 + 4 ·</span> Diff chrome: copy the stage result, fix the toolbar</h2>
+      <p class="section-note">
+        Frontend-design critique of the current <code>JsonDiff</code> toolbar:
+      </p>
+      <ul class="crit">
+        <li>
+          The lone button says <strong>"Side-by-side" while unified is active</strong> — it labels
+          the action, not the state (this already caused confusion in the 035 review). A segmented
+          control shows both modes and which one you're in.
+        </li>
+        <li>
+          It's an <strong>unstyled default button</strong>, inconsistent with the app's existing
+          segmented pattern (<code>.preset-view-toggle</code> on the Presets tab).
+        </li>
+        <li>
+          <strong>"Show all" hides inside an empty-note</strong> below the diff — footer bar with a
+          real button instead.
+        </li>
+        <li>
+          The row floats over the diff with no visual anchor — it becomes a
+          <strong>chrome bar</strong> (surface background, bottom border), the same grammar as every
+          card title.
+        </li>
+      </ul>
+      <div class="before-after">
+        <div>
+          <p class="pane-label now">Now</p>
+          <div class="old-toolbar-note">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem">
+              <span style="font-size: 0.9rem">Massaged 2 fields</span>
+              <button type="button" class="plain">Side-by-side</button>
+            </div>
+            <div style="color: var(--muted); font-size: 0.8rem">
+              …diff… then below:<br />Showing the first 600 of 2,341 diff lines.
+              <button
+                type="button"
+                class="plain"
+                style="font-size: 0.8rem; padding: 0.15rem 0.5rem"
+              >
+                Show all
+              </button>
+            </div>
+          </div>
+        </div>
+        <div>
+          <p class="pane-label proposed">Proposed chrome row</p>
+          <div class="card" style="margin-bottom: 0">
+            <div class="diff-chrome">
+              <span class="title">Massaged 2 fields</span>
+              <span class="diff-stat"
+                ><span class="plus">+8</span> <span class="minus">−3</span></span
+              >
+              <span class="spacer"></span>
+              <span class="seg" id="viewSeg">
+                <button type="button" class="active" data-view="unified">Unified</button>
+                <button type="button" data-view="split">Side-by-side</button>
+              </span>
+              <button
+                type="button"
+                class="copy-btn"
+                data-copy
+                title="Copy this stage's resulting config as JSON"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16"><use href="#i-copy" /></svg>
+                <span>Copy result</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="section-note" style="margin-top: 1rem">
+        In context — the Pipeline tab with the <strong>Massage</strong> stage selected. "Copy
+        result" copies the stage's <em>after</em> JSON, so Migrate, Massage and every other stage
+        (plus preset-detail and rewrite diffs, which reuse <code>JsonDiff</code>) get it for free.
+        The view toggle below actually switches:
+      </p>
+      <div class="card">
+        <div class="card-title">
+          Stage: Massage
+          <span class="card-title-hint"> — normalizes shorthand into canonical form</span>
+        </div>
+        <div class="diff-chrome">
+          <span class="title">Massaged 2 fields</span>
+          <span class="diff-stat"><span class="plus">+8</span> <span class="minus">−3</span></span>
+          <span class="spacer"></span>
+          <span class="seg seg-live">
+            <button type="button" class="active" data-view="unified">Unified</button>
+            <button type="button" data-view="split">Side-by-side</button>
+          </span>
+          <button
+            type="button"
+            class="copy-btn"
+            data-copy
+            title="Copy this stage's resulting config as JSON"
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16"><use href="#i-copy" /></svg>
+            <span>Copy result</span>
+          </button>
+        </div>
+        <div class="diff" id="liveDiff">
+          <div class="unified-body">
+            <table>
+              <tbody>
+                <tr>
+                  <td class="ln">3</td>
+                  <td>"extends": ["config:recommended"],</td>
+                </tr>
+                <tr class="del">
+                  <td class="ln">4</td>
+                  <td>- "schedule": "before 5am",</td>
+                </tr>
+                <tr class="ins">
+                  <td class="ln">4</td>
+                  <td>+ "schedule": ["before 5am"],</td>
+                </tr>
+                <tr>
+                  <td class="ln">5</td>
+                  <td>"packageRules": [</td>
+                </tr>
+                <tr>
+                  <td class="ln">6</td>
+                  <td>{</td>
+                </tr>
+                <tr class="del">
+                  <td class="ln">7</td>
+                  <td>- "matchPackagePatterns": "^eslint",</td>
+                </tr>
+                <tr class="ins">
+                  <td class="ln">7</td>
+                  <td>+ "matchPackagePatterns": ["^eslint"],</td>
+                </tr>
+                <tr>
+                  <td class="ln">8</td>
+                  <td>"groupName": "eslint packages"</td>
+                </tr>
+                <tr>
+                  <td class="ln">9</td>
+                  <td>}</td>
+                </tr>
+                <tr>
+                  <td class="ln">10</td>
+                  <td>]</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="split-body">
+            <div class="split-grid">
+              <div class="cell">"extends": ["config:recommended"],</div>
+              <div class="cell">"extends": ["config:recommended"],</div>
+              <div class="cell del">- "schedule": "before 5am",</div>
+              <div class="cell ins">+ "schedule": ["before 5am"],</div>
+              <div class="cell">"packageRules": [{</div>
+              <div class="cell">"packageRules": [{</div>
+              <div class="cell del">- "matchPackagePatterns": "^eslint",</div>
+              <div class="cell ins">+ "matchPackagePatterns": ["^eslint"],</div>
+              <div class="cell">"groupName": "eslint packages" }]</div>
+              <div class="cell">"groupName": "eslint packages" }]</div>
+            </div>
+          </div>
+        </div>
+        <div class="diff-foot">
+          Showing the first 600 of 2,341 diff lines
+          <button type="button">Show all 2,341 lines</button>
+        </div>
+      </div>
+
+      <p class="section-note">
+        The Rewrites tab keeps its stepper; its nav simply adopts the shared component (final
+        migrated config ≠ this step's diff, so both buttons coexist without ambiguity):
+      </p>
+      <div class="card">
+        <div class="card-title">
+          Rewrites
+          <span class="card-title-hint">
+            — the deprecated options Renovate rewrote, one at a time</span
+          >
+        </div>
+        <div class="migration-nav-mock">
+          <button type="button" class="nav">‹ Prev</button>
+          <button type="button" class="nav">Next ›</button>
+          <button type="button" class="nav">Jump to end</button>
+          <label><input type="checkbox" /> Cumulative</label>
+          <span class="spacer"></span>
+          <button type="button" class="copy-btn" data-copy>
+            <svg width="14" height="14" viewBox="0 0 16 16"><use href="#i-copy" /></svg>
+            <span>Copy migrated config</span>
+          </button>
+        </div>
+      </div>
+
+      <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+        <defs>
+          <path
+            id="i-copy"
+            d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25ZM5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"
+          />
+          <path
+            id="i-check"
+            d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"
+          />
+        </defs>
+      </svg>
+
+      <script>
+        // 5 · theme switcher — the exact mechanism proposed for the app:
+        // set color-scheme on :root; every light-dark() token follows.
+        const themeSwitch = document.getElementById("themeSwitch");
+        themeSwitch.addEventListener("click", (e) => {
+          const btn = e.target.closest("button[data-theme]");
+          if (!btn) return;
+          for (const b of themeSwitch.querySelectorAll("button")) {
+            b.classList.toggle("active", b === btn);
+          }
+          const t = btn.dataset.theme;
+          document.documentElement.style.colorScheme = t === "auto" ? "" : t;
+        });
+
+        // 2 · shared copied-state behavior
+        for (const btn of document.querySelectorAll("[data-copy]")) {
+          btn.addEventListener("click", () => {
+            const label = btn.querySelector("span");
+            const icon = btn.querySelector("use");
+            const prev = label.textContent;
+            btn.classList.add("copied");
+            icon.setAttribute("href", "#i-check");
+            label.textContent = "Copied";
+            setTimeout(() => {
+              btn.classList.remove("copied");
+              icon.setAttribute("href", "#i-copy");
+              label.textContent = prev;
+            }, 1500);
+          });
+        }
+
+        // 3+4 · segmented view toggle drives the live diff
+        for (const seg of document.querySelectorAll(".seg")) {
+          seg.addEventListener("click", (e) => {
+            const btn = e.target.closest("button[data-view]");
+            if (!btn) return;
+            for (const b of seg.querySelectorAll("button")) {
+              b.classList.toggle("active", b === btn);
+            }
+            if (seg.classList.contains("seg-live")) {
+              document
+                .getElementById("liveDiff")
+                .classList.toggle("split", btn.dataset.view === "split");
+            }
+          });
+        }
+      </script>
+    </main>
+  </body>
+</html>

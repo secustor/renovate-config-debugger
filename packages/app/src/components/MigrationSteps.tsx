@@ -1,5 +1,6 @@
 import { memo, useEffect, useState } from "react";
 import type { TraceEvent } from "@renovate-config-visualizer/engine";
+import { CopyButton } from "./CopyButton";
 import { JsonDiff } from "./JsonDiff";
 
 interface Props {
@@ -38,7 +39,6 @@ export const MigrationSteps = memo(function MigrationSteps({
   const controlled = index !== undefined;
   const [internalIndex, setInternalIndex] = useState(0);
   const [cumulative, setCumulative] = useState(false);
-  const [copied, setCopied] = useState(false);
   const activeIndex = controlled ? index : internalIndex;
   const setIndex = (next: number) => {
     if (controlled) {
@@ -52,7 +52,6 @@ export const MigrationSteps = memo(function MigrationSteps({
   // the parent owns the reset (it clears its index on new results).
   useEffect(() => {
     setInternalIndex(0);
-    setCopied(false);
   }, [steps]);
 
   if (steps.length === 0) {
@@ -68,12 +67,6 @@ export const MigrationSteps = memo(function MigrationSteps({
   const stageStart = steps[0]?.before;
   const before = cumulative ? stageStart : step.before;
   const finalAfter = finalConfig ?? steps[steps.length - 1]?.after;
-
-  async function copy() {
-    await navigator.clipboard.writeText(`${JSON.stringify(finalAfter, null, 2)}\n`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  }
 
   return (
     <div className={`migration-steps${compact ? " compact" : ""}`}>
@@ -126,9 +119,13 @@ export const MigrationSteps = memo(function MigrationSteps({
           />
           Cumulative
         </label>
-        <button type="button" className="migration-copy" onClick={() => void copy()}>
-          {copied ? "Copied!" : "Copy migrated config"}
-        </button>
+        {/* The FINAL migrated config — deliberately not the same thing as the
+            current step's "Copy result" in the diff chrome above (036). */}
+        <CopyButton
+          getText={() => `${JSON.stringify(finalAfter, null, 2)}\n`}
+          label="Copy migrated config"
+          title="Copy the fully migrated config as JSON"
+        />
       </div>
     </div>
   );

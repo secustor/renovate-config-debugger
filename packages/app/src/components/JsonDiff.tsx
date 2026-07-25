@@ -2,6 +2,7 @@ import { createTwoFilesPatch } from "diff";
 import { type ReactNode, useMemo, useState, useTransition } from "react";
 import { Diff, getChangeKey, Hunk, parseDiff } from "react-diff-view";
 import { useDiffOptionHover } from "../option-docs-hooks";
+import { CopyButton } from "./CopyButton";
 import "react-diff-view/style/index.css";
 
 function pretty(value: unknown): string {
@@ -75,13 +76,14 @@ interface Props {
   after: unknown;
   /** Optional file labels shown by react-diff-view */
   names?: [string, string];
-  /** Optional text rendered next to the view-type toggle */
+  /** Optional text rendered at the head of the chrome row */
   title?: string;
 }
 
 /**
- * Renders the diff between two JSON values (unified/side-by-side toggle,
- * render budget with "show all", option hover docs on `"key":` tokens).
+ * Renders the diff between two JSON values (chrome row with the `+N −N` stat,
+ * a segmented unified/side-by-side control and "Copy result"; render budget
+ * with a "show all" footer; option hover docs on `"key":` tokens).
  * Give it a `key` when reusing one instance for changing content so the
  * expansion state resets.
  */
@@ -127,6 +129,27 @@ export function JsonDiff({ before, after, names, title }: Props) {
     0,
   );
 
+  // Roadmap 036: the `+N −N` stat counts the WHOLE diff, not the truncated
+  // render — the number the chrome row reports is the size of the change, and
+  // pressing "Show all" must not appear to change it. Memoized (032) so a
+  // parent re-render doesn't rescan a multi-thousand-line diff.
+  const stat = useMemo(() => {
+    let insert = 0;
+    let remove = 0;
+    for (const file of files) {
+      for (const hunk of file.hunks) {
+        for (const change of hunk.changes) {
+          if (change.type === "insert") {
+            insert++;
+          } else if (change.type === "delete") {
+            remove++;
+          }
+        }
+      }
+    }
+    return { insert, remove };
+  }, [files]);
+
   const showAll = showAllRequested || totalLines <= MAX_RENDERED_LINES;
   // Memoized (032) so the truncation pass — and the widgets scan below, which
   // depends on its identity — doesn't re-run on a render that changed neither
@@ -144,17 +167,45 @@ export function JsonDiff({ before, after, names, title }: Props) {
 
   return (
     <div>
-      <div className="toolbar">
-        {title ? <span>{title}</span> : null}
-        <button
-          type="button"
-          onClick={() =>
-            startTransition(() => setViewType(viewType === "unified" ? "split" : "unified"))
-          }
-        >
-          {viewType === "unified" ? "Side-by-side" : "Unified"}
-        </button>
+      {/* Roadmap 036: a chrome bar (surface + bottom border, the same grammar
+          as a card title), not a floating toolbar. The view control is
+          SEGMENTED because the old lone button said "Side-by-side" while
+          unified was active — it labelled the action, not the state, which
+          confused the 035 review. */}
+      <div className="diff-chrome">
+        {title ? <span className="diff-chrome-title">{title}</span> : null}
+        <span className="diff-stat" aria-label={`${stat.insert} added, ${stat.remove} removed`}>
+          <span className="plus">+{stat.insert}</span> <span className="minus">−{stat.remove}</span>
+        </span>
+        <span className="diff-chrome-spacer" />
+        <span className="seg" role="radiogroup" aria-label="Diff view">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={viewType === "unified"}
+            className={viewType === "unified" ? "active" : undefined}
+            onClick={() => startTransition(() => setViewType("unified"))}
+          >
+            Unified
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={viewType === "split"}
+            className={viewType === "split" ? "active" : undefined}
+            onClick={() => startTransition(() => setViewType("split"))}
+          >
+            Side-by-side
+          </button>
+        </span>
+        <CopyButton
+          getText={() => `${JSON.stringify(after, null, 2)}\n`}
+          label="Copy result"
+          title="Copy this stage's resulting config as JSON"
+        />
       </div>
+      {/* The 035 dark-diff custom properties are scoped on `.diff-wrapper`
+          (see index.css) — do not rename it or move the diff out of it. */}
       <div className="diff-wrapper" {...hoverHandlers}>
         {visibleFiles.map((file) => (
           <Diff
@@ -168,11 +219,13 @@ export function JsonDiff({ before, after, names, title }: Props) {
           </Diff>
         ))}
       </div>
+      {/* Roadmap 036: the truncation used to hide in an `.empty-note` below the
+          diff, where "Show all" read as prose. A footer bar makes it chrome. */}
       {!showAll && (
-        <div className="empty-note">
-          Showing the first {MAX_RENDERED_LINES} of {totalLines} diff lines.{" "}
+        <div className="diff-foot">
+          Showing the first {MAX_RENDERED_LINES} of {totalLines} diff lines
           <button type="button" onClick={() => startTransition(() => setShowAllRequested(true))}>
-            Show all
+            Show all {totalLines} lines
           </button>
         </div>
       )}

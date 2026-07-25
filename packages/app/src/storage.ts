@@ -15,6 +15,8 @@ import { HOST_TOKENS } from "./host-tokens";
 /** localStorage keys for the non-secret platform context (see readLocal). */
 export const PLATFORM_KEY = "rcv.platform";
 export const ENDPOINT_KEY = "rcv.endpoint";
+/** Roadmap 037 — the explicit color-theme override. */
+export const THEME_KEY = "rcv.theme";
 
 export function localGet(key: string): string | null {
   try {
@@ -112,6 +114,45 @@ export function persistSession(key: string, value: string): void {
   } else {
     sessionRemove(key);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Color theme (roadmap 037)
+// ---------------------------------------------------------------------------
+
+/** "auto" follows `prefers-color-scheme`, exactly as the app did before 037. */
+export type Theme = "auto" | "light" | "dark";
+
+export const THEMES: readonly Theme[] = ["auto", "light", "dark"];
+
+function isTheme(value: string): value is Theme {
+  return (THEMES as readonly string[]).includes(value);
+}
+
+/** The stored override, or "auto". A value that isn't one of the three is
+ *  dropped and treated as "auto" — the roadmap 030 rule for every stored
+ *  setting: storage drifts across app versions and must never poison a run. */
+export function readTheme(): Theme {
+  const raw = readLocal(THEME_KEY, "auto", isTheme);
+  return isTheme(raw) ? raw : "auto";
+}
+
+/** "auto" stores nothing — absence IS the default, so a cleared key can never
+ *  read back as an override. */
+export function persistTheme(theme: Theme): void {
+  persistLocal(THEME_KEY, theme === "auto" ? "" : theme);
+}
+
+/**
+ * The whole switching mechanism: the app is 100 % `light-dark()` over
+ * `color-scheme: light dark` on `:root`, so pinning `color-scheme` to one
+ * keyword re-resolves every token — no second stylesheet, no class per
+ * component. "auto" removes the inline value, handing the choice back to the
+ * `:root` rule (and thus the OS). Called from main.tsx BEFORE `createRoot()`
+ * so the first paint is already in the chosen scheme.
+ */
+export function applyTheme(theme: Theme): void {
+  document.documentElement.style.colorScheme = theme === "auto" ? "" : theme;
 }
 
 // ---------------------------------------------------------------------------

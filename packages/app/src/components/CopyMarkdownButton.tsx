@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { CopyButton } from "./CopyButton";
 
 /**
  * Roadmap 018 — a small "Copy as markdown" affordance for evidence export.
@@ -6,6 +6,10 @@ import { useState } from "react";
  * identity + verdict) to the clipboard, ready to paste into a GitHub
  * discussion answer. The markdown is built lazily on click so re-renders of a
  * long results list don't serialize every block up front.
+ *
+ * Roadmap 036: the rendering is now {@link CopyButton} — this stays as the
+ * thin markdown-building wrapper, so its call sites (PresetTree,
+ * RuleSimulator) keep passing header/code/lang and nothing else.
  */
 export function CopyMarkdownButton({
   header,
@@ -23,33 +27,14 @@ export function CopyMarkdownButton({
   label?: string;
   className?: string;
 }) {
-  const [copied, setCopied] = useState(false);
-
-  async function copy() {
-    const markdown = `${header}\n\n\`\`\`${lang}\n${code}\n\`\`\`\n`;
-    try {
-      await navigator.clipboard.writeText(markdown);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Clipboard can be unavailable (insecure context) — fail quietly.
-    }
-  }
-
   return (
-    <button
-      type="button"
-      className={`copy-md${className ? ` ${className}` : ""}`}
-      onClick={(e) => {
-        // These buttons live inside <summary> elements; without this a click
-        // would toggle the surrounding <details> open/closed.
-        e.preventDefault();
-        e.stopPropagation();
-        void copy();
-      }}
+    <CopyButton
+      // Every call site renders inside a <summary> or a details-owned title.
+      inSummary
+      getText={() => `${header}\n\n\`\`\`${lang}\n${code}\n\`\`\`\n`}
+      label={label}
+      className={className}
       title="Copy this as a markdown code block for a discussion answer"
-    >
-      {copied ? "Copied!" : label}
-    </button>
+    />
   );
 }

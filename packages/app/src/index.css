@@ -37,6 +37,26 @@ header.app-header {
   justify-content: space-between;
 }
 
+/* Roadmap 037: the header's session corner — theme switcher + version badge. */
+.app-header-tools {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+/* The theme switcher is a `.seg` with icons; only the icon layout is its own. */
+.theme-switch button {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.3rem;
+}
+
+.theme-switch svg {
+  fill: currentColor;
+  flex: none;
+}
+
 h1 {
   font-size: 1.5rem;
   margin: 0;
@@ -70,9 +90,11 @@ h1 {
   margin: 0.75rem 0;
 }
 
+/* `.copy-btn` is excluded (036): it owns its own size, and a descendant
+   selector like this one would otherwise out-specify it wherever it lands. */
 .toolbar select,
 .toolbar input,
-.toolbar button {
+.toolbar button:not(.copy-btn) {
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 0.9rem;
@@ -195,6 +217,73 @@ pre.config-view {
   font-size: 0.8rem;
   max-height: 32rem;
   overflow: auto;
+}
+
+/* Roadmap 036: the diff's chrome bar — same grammar as a card title (surface
+   fill, bottom border), so the controls are anchored to the diff instead of
+   floating above it. Title · `+N −N` · spacer · segmented view control · Copy
+   result, every one of them the same height. */
+.diff-chrome {
+  align-items: center;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+}
+
+.diff-chrome-title {
+  color: var(--muted);
+}
+
+.diff-chrome-spacer {
+  flex: 1;
+}
+
+.diff-stat {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.diff-stat .plus {
+  color: var(--ok);
+}
+
+.diff-stat .minus {
+  color: var(--error);
+}
+
+/* Roadmap 036: the render-budget note was an `.empty-note` under the diff, so
+   "Show all" read as prose. As a footer bar it is chrome, with a real button
+   that names what it will do. */
+.diff-foot {
+  align-items: center;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  gap: 0.5rem;
+  justify-content: center;
+  padding: 0.4rem 0.75rem;
+}
+
+.diff-foot button {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.15rem 0.55rem;
+}
+
+.diff-foot button:hover {
+  border-color: var(--accent);
 }
 
 /* Roadmap 026: annotates the `$schema` removal line in preset/merge diffs so
@@ -353,8 +442,18 @@ pre.config-view {
   color: var(--error);
 }
 
+/* Roadmap 036: badges are FILLED, from ONE rule. Both the tint and the border
+   derive from the badge's own `currentColor`, so all ~15 variants gain a fill
+   by setting nothing but `color` — no per-variant background, and the text
+   contrast each hue was tuned for is untouched. (Solid fills were mocked up
+   and rejected: white-on-warn fails contrast at 0.7rem and a row of saturated
+   chips overpowers the content it annotates.) Variants therefore declare
+   `color` ONLY; a `border-color` of their own would defeat the softening. Two
+   deliberate exceptions keep their meaning and opt out below: `.elided`
+   (dashed = a collapsed chain) and `.rollup` (borderless). */
 .badge {
-  border: 1px solid var(--border);
+  background: color-mix(in srgb, currentColor 13%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 32%, transparent);
   border-radius: 999px;
   font-size: 0.7rem;
   line-height: 1.4;
@@ -367,7 +466,6 @@ pre.config-view {
 }
 
 .badge.src-internal {
-  border-color: var(--accent);
   color: var(--accent);
 }
 
@@ -375,14 +473,12 @@ pre.config-view {
 .badge.src-gitlab,
 .badge.src-gitea,
 .badge.src-forgejo {
-  border-color: #8250df;
   color: #8250df;
 }
 
 .badge.src-npm,
 .badge.src-http,
 .badge.src-local {
-  border-color: var(--warn);
   color: var(--warn);
 }
 
@@ -396,17 +492,14 @@ pre.config-view {
 }
 
 .badge.state.state-error {
-  border-color: var(--error);
   color: var(--error);
 }
 
 .badge.via {
-  border-color: var(--accent);
   color: var(--accent);
 }
 
 .badge.user-supplied {
-  border-color: var(--warn);
   color: var(--warn);
 }
 
@@ -454,50 +547,63 @@ pre.config-view {
   white-space: nowrap;
 }
 
-.preset-view-toggle {
+/* Roadmap 036: THE segmented control. Born here as `.preset-view-toggle`, it is
+   now the one shape shared by the preset tree/table switch, the diff chrome
+   row's Unified/Side-by-side control and the header theme switcher — its
+   font-size + padding are deliberately identical to `.copy-btn`'s, so every
+   control in a chrome row measures the same height. Written for N segments
+   (`:first-child`/`:last-child` round the ends; the theme switcher has three). */
+.seg {
   display: inline-flex;
 }
 
-.preset-view-toggle button {
+.seg button {
   background: transparent;
   border: 1px solid var(--border);
   color: var(--muted);
   cursor: pointer;
+  font: inherit;
   font-size: 0.8rem;
-  padding: 0.3rem 0.7rem;
+  padding: 0.25rem 0.6rem;
 }
 
-.preset-view-toggle button:first-child {
+.seg button:first-child {
   border-radius: 6px 0 0 6px;
 }
 
-.preset-view-toggle button:last-child {
+.seg button + button {
   border-left: none;
+}
+
+.seg button:last-child {
   border-radius: 0 6px 6px 0;
 }
 
-.preset-view-toggle button.active {
+.seg button.active {
   background: var(--surface);
   color: inherit;
+  font-weight: 600;
 }
 
 /* contribution + roll-up badges */
 .badge.contrib.opts {
-  border-color: var(--accent);
   color: var(--accent);
 }
 
 .badge.contrib.rules {
-  border-color: #8250df;
   color: #8250df;
 }
 
+/* Deliberate 036 exception: the roll-up is a bare count, not a chip. */
 .badge.rollup {
+  background: transparent;
   border: none;
   color: var(--muted);
   padding: 0;
 }
 
+/* Deliberate 036 exception: dashed + unfilled says "a collapsed chain", not
+   "another chip". */
 .badge.elided {
   background: transparent;
   border: 1px dashed var(--border);
@@ -508,8 +614,9 @@ pre.config-view {
   text-overflow: ellipsis;
 }
 
+/* No `background` reset here (036): a `<button class="badge">` takes the same
+   tinted fill as its `<span>` siblings — only the UA cursor differs. */
 button.badge.dup {
-  background: transparent;
   color: var(--muted);
   cursor: pointer;
 }
@@ -874,17 +981,14 @@ textarea.layer-editor:focus {
 
 .option-card .badge.experimental,
 .option-card .badge.advanced {
-  border-color: var(--warn);
   color: var(--warn);
 }
 
 .option-card .badge.deprecated {
-  border-color: var(--error);
   color: var(--error);
 }
 
 .option-card .badge.global {
-  border-color: var(--accent);
   color: var(--accent);
 }
 
@@ -967,14 +1071,18 @@ textarea.layer-editor:focus {
   gap: 0.5rem;
 }
 
-.migration-nav button {
+/* Roadmap 036: the stepper buttons adopt the shared control height, so this
+   row no longer mixes two button sizes. `.copy-btn` is excluded — it owns its
+   own size and would otherwise be out-specified by this descendant selector. */
+.migration-nav button:not(.copy-btn) {
   background: transparent;
   border: 1px solid var(--border);
   border-radius: 6px;
   color: inherit;
   cursor: pointer;
-  font-size: 0.85rem;
-  padding: 0.3rem 0.7rem;
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.6rem;
 }
 
 .migration-nav button:disabled {
@@ -990,12 +1098,14 @@ textarea.layer-editor:focus {
   gap: 0.3rem;
 }
 
-.migration-copy {
+/* "Copy migrated config" is the row's terminal action — pushed to the end,
+   away from the step controls it must never be mistaken for. */
+.migration-nav .copy-btn {
   margin-left: auto;
 }
 
-.migration-steps.compact .migration-nav button {
-  font-size: 0.8rem;
+.migration-steps.compact .migration-nav button:not(.copy-btn) {
+  font-size: 0.78rem;
   padding: 0.2rem 0.5rem;
 }
 
@@ -1026,39 +1136,48 @@ textarea.layer-editor:focus {
    Note the library's defaults are `--diff-*-text-color: var(--diff-text-color)`
    resolved AT :root, where `--diff-text-color: initial` makes them
    guaranteed-invalid — so each text color is restated here rather than relying
-   on `--diff-text-color` alone to cascade into them. */
-@media (prefers-color-scheme: dark) {
-  .diff-wrapper {
-    --diff-background-color: transparent;
-    --diff-code-delete-background-color: #3d1418;
-    /* The word-level edit highlight was never dark-themed at all: the library
-       paints it #f39ea2/#c0dc91, which left light text on a light chip inside
-       an otherwise dark row. Both pass 4.5:1 against --diff-text-color. */
-    --diff-code-delete-edit-background-color: #8e2f36;
-    --diff-code-delete-edit-text-color: #f0f6fc;
-    --diff-code-delete-text-color: #f0f6fc;
-    --diff-code-insert-background-color: #103218;
-    --diff-code-insert-edit-background-color: #1a5c2e;
-    --diff-code-insert-edit-text-color: #f0f6fc;
-    --diff-code-insert-text-color: #f0f6fc;
-    --diff-code-selected-background-color: #3b2f0b;
-    --diff-code-selected-text-color: #f0f6fc;
-    --diff-gutter-delete-background-color: #67060c;
-    --diff-gutter-delete-text-color: #f0f6fc;
-    --diff-gutter-insert-background-color: #033a16;
-    --diff-gutter-insert-text-color: #f0f6fc;
-    --diff-gutter-selected-background-color: #3b2f0b;
-    --diff-gutter-selected-text-color: #f0f6fc;
-    --diff-selection-background-color: #1c4f82;
-    --diff-selection-text-color: #f0f6fc;
-    --diff-text-color: #f0f6fc;
-  }
+   on `--diff-text-color` alone to cascade into them.
+   Roadmap 037: this was a `@media (prefers-color-scheme: dark)` block, the
+   app's one remaining piece of CSS that answered to the OS instead of to
+   `color-scheme` — so the theme switcher would have left the diff behind.
+   Every variable is now a `light-dark()` pair, still scoped on `.diff-wrapper`
+   (the 035 proximity guarantee is unchanged). The LIGHT half is the
+   react-diff-view 3.3.3 default for that variable, read from its stylesheet,
+   except the text colors: their library default resolves to
+   guaranteed-invalid, which made the text simply INHERIT — so the light half
+   states the app's own body text color, which is what was inheriting. */
+.diff-wrapper {
+  --diff-background-color: transparent;
+  --diff-code-delete-background-color: light-dark(#fdeff0, #3d1418);
+  /* The word-level edit highlight was never dark-themed at all: the library
+     paints it #f39ea2/#c0dc91, which left light text on a light chip inside
+     an otherwise dark row. Both pass 4.5:1 against --diff-text-color. */
+  --diff-code-delete-edit-background-color: light-dark(#f39ea2, #8e2f36);
+  --diff-code-delete-edit-text-color: light-dark(#1f2328, #f0f6fc);
+  --diff-code-delete-text-color: light-dark(#1f2328, #f0f6fc);
+  --diff-code-insert-background-color: light-dark(#eaffee, #103218);
+  --diff-code-insert-edit-background-color: light-dark(#c0dc91, #1a5c2e);
+  --diff-code-insert-edit-text-color: light-dark(#1f2328, #f0f6fc);
+  --diff-code-insert-text-color: light-dark(#1f2328, #f0f6fc);
+  --diff-code-selected-background-color: light-dark(#fffce0, #3b2f0b);
+  --diff-code-selected-text-color: light-dark(#1f2328, #f0f6fc);
+  --diff-gutter-delete-background-color: light-dark(#fadde0, #67060c);
+  --diff-gutter-delete-text-color: light-dark(#1f2328, #f0f6fc);
+  --diff-gutter-insert-background-color: light-dark(#d6fedb, #033a16);
+  --diff-gutter-insert-text-color: light-dark(#1f2328, #f0f6fc);
+  --diff-gutter-selected-background-color: light-dark(#fffce0, #3b2f0b);
+  --diff-gutter-selected-text-color: light-dark(#1f2328, #f0f6fc);
+  --diff-selection-background-color: light-dark(#b3d7ff, #1c4f82);
+  --diff-selection-text-color: light-dark(#1f2328, #f0f6fc);
+  --diff-text-color: light-dark(#1f2328, #f0f6fc);
+}
 
-  /* Unchanged gutters carry no library color of their own, so this quiet
-     override is order-independent already. */
-  .diff-gutter {
-    color: var(--muted);
-  }
+/* Unchanged gutters carry no library color of their own, so this quiet
+   override is order-independent already. 037: it used to apply in dark only
+   (it lived inside the media query); unconditional now, because line numbers
+   are chrome in either theme and `--muted` is already a light-dark() pair. */
+.diff-gutter {
+  color: var(--muted);
 }
 
 /* ---------- merge provenance view (005) ---------- */
@@ -1151,39 +1270,34 @@ textarea.layer-editor:focus {
   flex: none;
 }
 
+/* No `background` reset (036): the clickable layer chip is filled like the
+   non-clickable ones — only the cursor tells them apart. */
 .badge.prov-layer[role="button"] {
-  background: transparent;
   cursor: pointer;
 }
 
 .badge.prov-defaults {
-  border-color: var(--border);
   color: var(--muted);
 }
 
 .badge.prov-repo {
-  border-color: var(--accent);
   color: var(--accent);
 }
 
 .badge.prov-preset {
-  border-color: #8250df;
   color: #8250df;
 }
 
 /* 008 layer badges — distinct hues next to the repo blue / preset purple */
 .badge.prov-global {
-  border-color: light-dark(#1b7c83, #56d4dd);
   color: light-dark(#1b7c83, #56d4dd);
 }
 
 .badge.prov-inherited {
-  border-color: light-dark(#bf3989, #ff80c8);
   color: light-dark(#bf3989, #ff80c8);
 }
 
 .badge.prov-overridden {
-  border-color: var(--warn);
   color: var(--warn);
 }
 
@@ -1663,7 +1777,6 @@ pre.config-view.prov-before {
 }
 
 .badge.sim-verdict.verdict-matched {
-  border-color: var(--ok);
   color: var(--ok);
 }
 
@@ -1672,7 +1785,6 @@ pre.config-view.prov-before {
 }
 
 .badge.sim-verdict.verdict-not-simulated {
-  border-color: var(--warn);
   color: var(--warn);
 }
 
@@ -1873,22 +1985,43 @@ pre.config-view.prov-before {
   border-color: var(--accent);
 }
 
-.copy-md {
+/* Roadmap 036: ONE copy affordance (components/CopyButton.tsx), at ONE size —
+   the four it replaced ran 0.72rem/0.8rem/0.9rem and read as unrelated
+   controls. The font-size + padding match `.seg button` exactly, so a chrome
+   row never mixes two control heights. `.copied` is the transient success
+   state; the icon swaps to a check in the same beat. */
+.copy-btn {
+  align-items: center;
   background: transparent;
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--accent);
   cursor: pointer;
+  display: inline-flex;
   font: inherit;
-  font-size: 0.72rem;
-  padding: 0.1rem 0.45rem;
+  font-size: 0.8rem;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  white-space: nowrap;
 }
 
-.copy-md:hover {
+.copy-btn:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
   border-color: var(--accent);
 }
 
-.copy-md.inline {
+.copy-btn svg {
+  fill: currentColor;
+  flex: none;
+}
+
+.copy-btn.copied {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+/* Sits on a `<summary>` / section-title line rather than in a control row. */
+.copy-btn.inline {
   margin-left: 0.5rem;
   vertical-align: middle;
 }
@@ -2416,8 +2549,13 @@ pre.config-view.prov-before {
   cursor: help;
 }
 
+/* The hover shifts `color`, which (036) carries the badge's fill and border
+   with it — the whole chip lights up, not just its outline. */
 .badge.explained:hover,
-.badge.explained:focus-visible,
+.badge.explained:focus-visible {
+  color: var(--accent);
+}
+
 .preset-summary-stat.explained:hover,
 .preset-summary-stat.explained:focus-visible {
   border-color: var(--accent);
@@ -2427,12 +2565,10 @@ pre.config-view.prov-before {
 /* Roadmap 016: `appended`/`merged` replace the misleading `overridden` badge
    on effective-config keys that were combined, not replaced. */
 .badge.prov-appended {
-  border-color: var(--ok);
   color: var(--ok);
 }
 
 .badge.prov-merged {
-  border-color: light-dark(#1b7c83, #56d4dd);
   color: light-dark(#1b7c83, #56d4dd);
 }
 

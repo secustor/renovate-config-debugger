@@ -20,6 +20,7 @@ import { RuleFramingText } from "../rule-framing";
 import type { ErrorTranslationLib } from "../run";
 import type { ShareSimulator } from "../share";
 import { ConfigJson } from "./ConfigJson";
+import { CopyButton } from "./CopyButton";
 import { CopyMarkdownButton } from "./CopyMarkdownButton";
 import { ErrorTranslationView } from "./ErrorTranslationView";
 import { HypotheticalBanner } from "./HypotheticalBanner";
@@ -844,7 +845,6 @@ export const RuleSimulator = memo(function RuleSimulator({
   // carries the full input snapshot (`form` + `effectiveUpdateType`), not just
   // the result, so the comparison panel can tell A and B's inputs apart.
   const [pinned, setPinned] = useState<PinnedRun | null>(null);
-  const [simLinkCopied, setSimLinkCopied] = useState(false);
   // Roadmap 018: applied-once bookkeeping for an incoming share `simRequest`.
   const appliedSimNonce = useRef<number | null>(null);
   const [ranKey, setRanKey] = useState<string | null>(null);
@@ -1166,9 +1166,8 @@ export const RuleSimulator = memo(function RuleSimulator({
     if (effectiveUpdateType && effectiveUpdateType.trim() !== "") {
       shareForm.updateType = effectiveUpdateType;
     }
+    // Roadmap 036: the copied state lives in CopyButton now.
     await onCopySimLink({ form: shareForm, autoSimulate: true });
-    setSimLinkCopied(true);
-    setTimeout(() => setSimLinkCopied(false), 1500);
   }
 
   function quickFill(fill: Partial<FormState>) {
@@ -1512,13 +1511,7 @@ export const RuleSimulator = memo(function RuleSimulator({
                   a reproducible link (form + auto-run encoded) and A/B pinning. */}
               <div className="sim-verdict-actions">
                 {onCopySimLink ? (
-                  <button
-                    type="button"
-                    className="sim-verdict-action"
-                    onClick={() => void copySimLink()}
-                  >
-                    {simLinkCopied ? "Copied!" : "Copy link with this simulation"}
-                  </button>
+                  <CopyButton onCopy={copySimLink} label="Copy link with this simulation" />
                 ) : null}
                 {pinned ? (
                   <button

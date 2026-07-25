@@ -4,12 +4,15 @@ import {
   localRemove,
   localSet,
   persistSession,
+  persistTheme,
   readLocal,
   readSession,
+  readTheme,
   runStorageMigrations,
   sessionGet,
   sessionRemove,
   sessionSet,
+  THEME_KEY,
 } from "./storage";
 
 /**
@@ -121,6 +124,38 @@ describe("storage-disabled: throwing storage degrades instead of crashing", () =
     expect(() => localSet("k", "v")).not.toThrow();
     expect(sessionGet("s")).toBeNull();
     expect(() => sessionRemove("s")).not.toThrow();
+  });
+});
+
+/** Roadmap 037 — the theme override. `applyTheme` is not covered here: it
+ *  touches `document`, which this node-environment project has none of. */
+describe("theme persistence", () => {
+  test("absent, unreadable and invalid values all read as auto", () => {
+    const local = memoryStorage();
+    g.localStorage = local;
+    expect(readTheme()).toBe("auto");
+    local.map.set(THEME_KEY, "sepia");
+    expect(readTheme()).toBe("auto");
+    // …and the bad value is dropped, not left to be re-read every load (030).
+    expect(local.map.has(THEME_KEY)).toBe(false);
+
+    g.localStorage = throwingStorage();
+    expect(readTheme()).toBe("auto");
+  });
+
+  test("light/dark round-trip; auto stores nothing at all", () => {
+    const local = memoryStorage();
+    g.localStorage = local;
+    persistTheme("dark");
+    expect(local.map.get(THEME_KEY)).toBe("dark");
+    expect(readTheme()).toBe("dark");
+    persistTheme("light");
+    expect(readTheme()).toBe("light");
+    // Absence IS the default, so a cleared key can never read back as an
+    // override.
+    persistTheme("auto");
+    expect(local.map.has(THEME_KEY)).toBe(false);
+    expect(readTheme()).toBe("auto");
   });
 });
 

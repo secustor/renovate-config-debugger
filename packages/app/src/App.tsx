@@ -17,6 +17,7 @@ import type {
   TraceResult,
 } from "@renovate-config-visualizer/engine";
 import { ConfigEditor, type ConfigEditorHandle } from "./components/ConfigEditor";
+import { CopyButton } from "./components/CopyButton";
 import type { EffectiveStats } from "./components/EffectiveConfig";
 import { type AuthState, GithubAuthHint } from "./components/GithubAuthHint";
 import {
@@ -25,6 +26,7 @@ import {
   presetTreeSummary,
 } from "./components/preset-tree-stats";
 import type { ResultsTabDescriptor } from "./components/ResultsPanel";
+import { ThemeSwitch } from "./components/ThemeSwitch";
 import { Term } from "./glossary";
 import { legacyTabForView, type ResultsTabId } from "./results-tabs";
 import { buildRunDigest, type DigestInput, type DigestProblem } from "./run-digest";
@@ -325,7 +327,6 @@ export function App() {
   // scroll its consequence into view instead of appearing to do nothing.
   const resultsColRef = useRef<HTMLDivElement>(null);
   const focusResultsRef = useRef(false);
-  const [copied, setCopied] = useState(false);
   // Roadmap 016: End/Home always scroll the page, never a nested card's own
   // scroll box; a back-to-top button appears once the page has scrolled down.
   useHomeEndPageScroll();
@@ -995,10 +996,10 @@ export function App() {
     };
   }
 
+  // Roadmap 036: the copied state now lives in CopyButton — this is only the
+  // share-link build, which mirrors the URL into the address bar too.
   async function onCopyLink() {
     await buildShareLinkAndCopy();
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
   }
 
   // Fetches a repo's Renovate config file and runs it. Derives the platform
@@ -1150,9 +1151,14 @@ export function App() {
         ) : null}
         <header className="app-header">
           <h1>Renovate Config Visualizer</h1>
-          {result ? (
-            <span className="version-badge">Renovate v{result.renovateVersion}</span>
-          ) : null}
+          {/* Roadmap 037: the theme override sits beside the version badge —
+              the header's existing "about this session" corner. */}
+          <span className="app-header-tools">
+            <ThemeSwitch />
+            {result ? (
+              <span className="version-badge">Renovate v{result.renovateVersion}</span>
+            ) : null}
+          </span>
         </header>
         <p className="subtitle">
           Understand your Renovate config by watching Renovate&apos;s own code process it, step by
@@ -1342,14 +1348,14 @@ export function App() {
               >
                 {running ? "Running…" : "Run"}
               </button>
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => void onCopyLink()}
+              {/* Roadmap 036: the shared copy affordance. `buildShareLinkAndCopy`
+                  writes the clipboard itself (it also mirrors the URL into the
+                  address bar), so this passes `onCopy`, not `getText`. */}
+              <CopyButton
+                onCopy={onCopyLink}
+                label="Copy link"
                 title="Copy a link that reopens this config and view — never includes your tokens"
-              >
-                {copied ? "Copied!" : "Copy link"}
-              </button>
+              />
             </div>
 
             <details
