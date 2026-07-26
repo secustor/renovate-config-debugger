@@ -51,6 +51,8 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [044](044-simulator-merge-step-through.md)              | Simulator: step through rule merges one at a time         | M12                  | done   |
 | [045](045-auto-load-inherited-config.md)                | Auto-load the inherited config for a loaded repository    | M12                  | done   |
 | [046](046-simulator-verdict-card-and-merge-timeline.md) | Simulator: verdict card + merge timeline                  | M12                  | done   |
+| [047](047-simulator-progressive-disclosure.md)          | Simulator: progressive disclosure                         | M12                  | done   |
+| [048](048-app-decomposition-and-depth-ratchet.md)       | App decomposition + depth ratchet to 3                    | M13                  | in progress |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live
@@ -118,3 +120,10 @@ disclosure (research-backed: see
 drawers for the evidence layers, a conditional consumed-blocks aside,
 and the provenance-chip hover card, per the approved
 [mockups/047/simulator-progressive-disclosure.html](mockups/047/simulator-progressive-disclosure.html).
+
+M13 — **Structure** — is the 2026-07-26 research-driven maintainability
+pass: a commissioned, adversarially verified report on Vite/React project
+structure ([2026-07-vite-structure-research.md](2026-07-vite-structure-research.md))
+applied as 048 — the first `features/` folder (simulator), hook/component
+extraction across the four depth-4 offenders, and the jsx-max-depth
+ratchet's next step (4 → 3), run as an implement → reevaluate loop.
