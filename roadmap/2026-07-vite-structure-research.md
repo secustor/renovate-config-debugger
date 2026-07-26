@@ -34,10 +34,10 @@ Source: https://feature-sliced.design/ (docs/reference/layers)
 single file → multiple files → component folders → technical folders →
 feature folders → domain grouping → monorepo with multiple apps sharing
 packages (medium confidence — single source, Wieruch, updated 2026-05).
-Monorepo is the *final* stage of the same progression, which this repo already
+Monorepo is the _final_ stage of the same progression, which this repo already
 occupies (pnpm workspace, `engine`/`app`/`worker`).
 
-**Known weakness of type-subfolders *inside* features** (medium confidence,
+**Known weakness of type-subfolders _inside_ features** (medium confidence,
 2-1 vote): when a component and its hook are tightly coupled, sorting them
 into `components/` and `hooks/` splits what belongs together — colocating the
 pair side by side beats strict type-sorting within a feature.
@@ -62,7 +62,7 @@ https://feature-sliced.design/docs/guides/issues/cross-imports
 
 **Custom-hook extraction is the officially sanctioned first move**
 (react.dev): wrap Effects and stateful logic in custom hooks so the component
-expresses *intent* rather than implementation. Reuse is **not** a
+expresses _intent_ rather than implementation. Reuse is **not** a
 prerequisite — a single-use hook extracted for clarity is legitimate. The
 concrete, checkable signal: a long run of `useState`/`useEffect` calls at the
 top of the component.
@@ -78,7 +78,7 @@ https://codescene.com/blog/refactoring-components-in-react-with-custom-hooks
    carry it.
 2. Anti-criterion: "You don't need to extract a custom Hook for every little
    duplicated bit of code. Some duplication is fine." Generic lifecycle
-   wrappers (`useMount`, `useEffectOnce`) are explicitly marked *avoid*;
+   wrappers (`useMount`, `useEffectOnce`) are explicitly marked _avoid_;
    prefer concrete hooks named after use cases.
 
 **No numeric threshold survived verification.** The ">5 lines of logic before
@@ -93,7 +93,7 @@ evidence availability, not necessarily merit.
 
 **Official Vite guidance** ("Avoid Barrel Files", vite.dev/guide/performance):
 importing a single API from a barrel forces Vite to fetch and transform
-*every* re-exported file (any may contain the API or side effects), slowing
+_every_ re-exported file (any may contain the API or side effects), slowing
 dev-server page loads. Recommended alternative: import directly from the
 source module. bulletproof-react independently drops barrels (tree-shaking +
 performance). Corroborating measurement: a 4K-LOC app transformed 11,798
@@ -107,7 +107,7 @@ feature." Within app source, direct imports win outright.
 **Scope caveats:** the documented cost is the dev-server crawl; build-time
 tree-shaking is Rollup's domain. Rolldown-based Vite may reduce (not yet
 eliminate) the cost. The corpus contained nothing on pnpm-workspace package
-boundaries, where `package.json` `exports` effectively *are* barrels — an
+boundaries, where `package.json` `exports` effectively _are_ barrels — an
 engine-style curated entry point is a package API surface, a different animal
 from intra-app convenience barrels, and this research does not condemn it.
 
@@ -122,13 +122,13 @@ from intra-app convenience barrels, and this research does not condemn it.
 
 ## 6. Refuted claims (do not cite)
 
-| Claim | Vote |
-| --- | --- |
-| Barrels are good practice as a deliberate feature public API | 0-3 |
-| Type-based layout only works for very small projects | 0-3 |
-| FSD's full hierarchy scales better than alternatives (as stated) | 0-3 |
-| >5 lines of pre-`return` logic = code smell → extract hook | 0-3 |
-| CodeScene's measurable-maintainability framing of hook extraction | 1-2 |
+| Claim                                                             | Vote |
+| ----------------------------------------------------------------- | ---- |
+| Barrels are good practice as a deliberate feature public API      | 0-3  |
+| Type-based layout only works for very small projects              | 0-3  |
+| FSD's full hierarchy scales better than alternatives (as stated)  | 0-3  |
+| >5 lines of pre-`return` logic = code smell → extract hook        | 0-3  |
+| CodeScene's measurable-maintainability framing of hook extraction | 1-2  |
 
 ## Application to this repo (assessment, 2026-07-26)
 
