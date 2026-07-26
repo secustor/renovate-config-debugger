@@ -1,6 +1,7 @@
 import { enqueueEngineTask } from "./pipeline";
 import {
   GlobalConfig,
+  getDefaultConfig,
   memCache,
   mergeChildConfig,
   packageRuleMatchers,
@@ -136,6 +137,18 @@ export interface FlattenResult {
    * types other than the current one.
    */
   blocks: Record<string, Record<string, unknown>>;
+  /**
+   * Roadmap 047: which of `blocks`' keys the USER authored, as opposed to
+   * merely inheriting Renovate's own pinned defaults (`getDefaultConfig()`).
+   * Renovate's defaults declare all seven update-type blocks on every config
+   * (major/minor/patch empty, the rest with their own baked-in defaults), so
+   * "the block is present" is true on nearly every run — not interesting on
+   * its own. A key here means the block's content differs from what
+   * `getDefaultConfig()` ships for that key (or, for a key defaults doesn't
+   * define at all, that it's present with non-empty content) — i.e. a human
+   * actually put something in it.
+   */
+  authoredBlocks: string[];
 }
 
 export interface RuleEvaluation {
@@ -651,6 +664,30 @@ async function execute(input: SimulationInput): Promise<SimulationResult> {
         blocks[key] = config[key] as Record<string, unknown>;
       }
     }
+    // Roadmap 047: a block only counts as "authored" if its content differs
+    // from Renovate's own pinned defaults for that key — see FlattenResult's
+    // `authoredBlocks` doc for why (defaults declare all seven blocks on
+    // every config, so mere presence is nearly always true).
+    const defaultConfig = getDefaultConfig() as Record<string, unknown>;
+    const authoredBlocks: string[] = [];
+    for (const key of UPDATE_TYPE_KEYS) {
+      const block = blocks[key];
+      if (!block) {
+        continue;
+      }
+      const defaultBlock = isPlainObject(defaultConfig[key])
+        ? (defaultConfig[key] as Record<string, unknown>)
+        : undefined;
+      if (defaultBlock === undefined) {
+        // Defaults don't define this key at all — any non-empty content is
+        // necessarily user-authored.
+        if (Object.keys(block).length > 0) {
+          authoredBlocks.push(key);
+        }
+      } else if (!jsonEqual(block, defaultBlock)) {
+        authoredBlocks.push(key);
+      }
+    }
     const preFlatten: Record<string, unknown> = { ...config };
     for (const key of UPDATE_TYPE_KEYS) {
       delete preFlatten[key];
@@ -699,7 +736,7 @@ async function execute(input: SimulationInput): Promise<SimulationResult> {
       rules,
       rawFinalConfig: config,
       finalDependencyConfig,
-      flattened: { updateType, merged: flattenMerged, blocks },
+      flattened: { updateType, merged: flattenMerged, blocks, authoredBlocks },
       mergeSteps,
       errors,
       warnings,

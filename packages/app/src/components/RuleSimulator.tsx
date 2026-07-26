@@ -43,6 +43,8 @@ import {
   SequenceTimeline,
 } from "./SequenceTimeline";
 import { StepThrough, type StepThroughStep } from "./StepThrough";
+import { SummaryDrawer } from "./SummaryDrawer";
+import { layerId, layerLabel } from "./provenance-layer";
 
 /**
  * Roadmap 046: the update-type blocks Renovate's flattening consumes, an
@@ -397,6 +399,124 @@ function automergeScopeSource(
 }
 
 /**
+ * Roadmap 047: an update-type block the USER authored (per the engine's
+ * `flattened.authoredBlocks`) that flattening consumed WITHOUT applying — the
+ * only case where the consumed-blocks aside earns its place on the verdict
+ * card. Renovate's defaults declare all seven blocks on every config, so
+ * "blocks were consumed" is true on virtually every run; naming only the
+ * authored ones turns furniture back into signal. The block that actually
+ * merged up is excluded — it applied, so there is nothing to explain.
+ */
+interface ConsumedBlock {
+  /** The update-type key, e.g. `minor`. */
+  key: string;
+  /** The block's own option keys, e.g. `["automerge"]`. */
+  keys: string[];
+  /** The preset that contributed it, when a single matched rule set it. */
+  layer?: ProvenanceLayer;
+}
+
+/**
+ * Which layer contributed an update-type block, for the aside's attribution
+ * chip — the same best-effort reading `automergeScopeSource` does, generalized
+ * to the whole block: only when EXACTLY ONE matched rule merged that key, and
+ * only when that rule traces to a preset. A block that came from the base
+ * config, or one several rules touched, is left uncredited rather than guessed.
+ */
+function blockSourceLayer(
+  sim: SimulationResult,
+  blockKey: string,
+  ruleAttribution: RuleAttribution[] | null | undefined,
+): ProvenanceLayer | undefined {
+  const setters = sim.rules.filter(
+    (r) => r.verdict === "matched" && r.merged?.some((m) => m.key === blockKey),
+  );
+  if (setters.length !== 1) {
+    return undefined;
+  }
+  const attribution = ruleAttribution?.find((a) => a.index === setters[0]?.index);
+  return attribution?.layer.kind === "preset" ? attribution.layer : undefined;
+}
+
+function consumedAuthoredBlocks(
+  sim: SimulationResult,
+  ruleAttribution: RuleAttribution[] | null | undefined,
+): ConsumedBlock[] {
+  const applied = sim.flattened.merged.length > 0 ? sim.flattened.updateType : undefined;
+  return sim.flattened.authoredBlocks
+    .filter((key) => key !== applied)
+    .map((key) => ({
+      key,
+      keys: Object.keys(sim.flattened.blocks[key] ?? {}),
+      layer: blockSourceLayer(sim, key, ruleAttribution),
+    }));
+}
+
+/** Roadmap 047: the aside itself — one line per authored block that didn't
+ *  apply, naming its own keys, its source preset when that is unambiguous,
+ *  and why it stayed inert. */
+function SimConsumedBlock({
+  block,
+  updateType,
+  flattenStopIndex,
+  onSelectPreset,
+  onJumpToStep,
+}: {
+  block: ConsumedBlock;
+  updateType?: string;
+  flattenStopIndex?: number;
+  onSelectPreset?: (nodeId: string) => void;
+  onJumpToStep?: (stopIndex: number) => void;
+}) {
+  return (
+    <p className="sim-consumed-note">
+      <span className="sim-consumed-glyph">⊘</span> Your <code>{block.key}</code> block
+      {block.keys.length > 0 || block.layer ? (
+        <>
+          {" ("}
+          {block.keys.map((key, i) => (
+            <Fragment key={key}>
+              {i > 0 ? ", " : null}
+              <code>{key}</code>
+            </Fragment>
+          ))}
+          {block.layer ? (
+            <>
+              {block.keys.length > 0 ? ", " : null}
+              from <ProvenanceChip layer={block.layer} onSelectPreset={onSelectPreset} />
+            </>
+          ) : null}
+          {")"}
+        </>
+      ) : null}{" "}
+      didn&apos;t apply —{" "}
+      {updateType === undefined ? (
+        <>
+          no <Term id="updateType">updateType</Term> is set; fill the version pair or pick one to
+          see it apply.
+        </>
+      ) : (
+        <>
+          this is a <code>{updateType}</code> update.
+        </>
+      )}
+      {flattenStopIndex !== undefined && onJumpToStep !== undefined ? (
+        <>
+          {" "}
+          <button
+            type="button"
+            className="sim-step-link"
+            onClick={() => onJumpToStep(flattenStopIndex)}
+          >
+            see the flatten step →
+          </button>
+        </>
+      ) : null}
+    </p>
+  );
+}
+
+/**
  * The plain-language outcome sentence (roadmap 012). Covers the high-signal
  * options — enabled/skipReason, automerge (with update-type scoping and,
  * when known, its source preset), labels, grouping, schedule — splitting
@@ -621,6 +741,99 @@ function RuleRow({
 }
 
 /**
+ * Roadmap 023/047: the body of the "Matched rules" drawer — the shown/filter
+ * controls the persona study leaned on, then the rule rows themselves. The
+ * "N of M rules shown" line stays inside the body: the drawer's own summary
+ * row already carries the headline count, and this one tracks what the
+ * filters are currently doing to the list below it.
+ */
+function SimRulesBody({
+  rules,
+  shownRules,
+  notableCount,
+  hiddenCount,
+  repoRuleCount,
+  myRulesOnly,
+  onMyRulesOnlyChange,
+  showAll,
+  onShowAllChange,
+  layerByIndex,
+  onSelectPreset,
+}: {
+  rules: RuleEvaluation[];
+  shownRules: RuleEvaluation[];
+  notableCount: number;
+  hiddenCount: number;
+  repoRuleCount: number;
+  myRulesOnly: boolean;
+  onMyRulesOnlyChange: (value: boolean) => void;
+  showAll: boolean;
+  onShowAllChange: (value: boolean) => void;
+  layerByIndex: Map<number, ProvenanceLayer>;
+  onSelectPreset?: (nodeId: string) => void;
+}) {
+  const plural = rules.length === 1 ? "" : "s";
+  return (
+    <>
+      <div className="sim-rules-head">
+        <span className="sim-summary">
+          {myRulesOnly
+            ? `your ${repoRuleCount} config rule${repoRuleCount === 1 ? "" : "s"}`
+            : showAll
+              ? `all ${rules.length} rule${plural}`
+              : `${notableCount} of ${rules.length} rule${plural} shown`}
+        </span>
+        {repoRuleCount > 0 ? (
+          <button
+            type="button"
+            className={`sim-toggle${myRulesOnly ? " active" : ""}`}
+            onClick={() => onMyRulesOnlyChange(!myRulesOnly)}
+            title="Show only the packageRules from your own repo config, with their clause evidence expanded"
+          >
+            {myRulesOnly ? "show all rules" : "my rules only"}
+          </button>
+        ) : null}
+        {hiddenCount > 0 && !myRulesOnly ? (
+          <button type="button" className="sim-toggle" onClick={() => onShowAllChange(!showAll)}>
+            {showAll ? "show matched only" : `show all ${rules.length}`}
+          </button>
+        ) : null}
+      </div>
+      {shownRules.length > 0 ? (
+        <div className="sim-rules">
+          {shownRules.map((rule) => (
+            <RuleRow
+              key={rule.index}
+              rule={rule}
+              layer={layerByIndex.get(rule.index)}
+              onSelectPreset={onSelectPreset}
+              defaultExpanded={myRulesOnly}
+            />
+          ))}
+        </div>
+      ) : myRulesOnly ? (
+        <p className="empty-note">
+          None of your repo config&apos;s rules are in the merged set for this run.
+        </p>
+      ) : (
+        <p className="empty-note">
+          No rule matched this dependency.{" "}
+          {hiddenCount > 0 ? (
+            <button
+              type="button"
+              className="sim-toggle inline"
+              onClick={() => onShowAllChange(true)}
+            >
+              Show all {rules.length} anyway.
+            </button>
+          ) : null}
+        </p>
+      )}
+    </>
+  );
+}
+
+/**
  * Roadmap 021: the fields two descriptors disagree on, sorted for a stable
  * warning message. Compared via JSON so array-valued fields (lockFiles,
  * registryUrls, categories) and the `isBump` flag (only present when
@@ -825,11 +1038,15 @@ function Field({
   value,
   onChange,
   placeholder,
+  datalistId,
 }: {
   label: ReactNode;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  /** Roadmap 047: a `<datalist>` id — turns the field into a native
+   *  type-to-search combobox without changing anything else about it. */
+  datalistId?: string;
 }) {
   return (
     <label className="sim-field">
@@ -838,6 +1055,7 @@ function Field({
         type="text"
         value={value}
         placeholder={placeholder}
+        list={datalistId}
         onChange={(e) => onChange(e.target.value)}
         // Roadmap 021: select-on-focus. A quick-fill or a re-run leaves a
         // field pre-filled; without this, the persona study's users typed
@@ -849,6 +1067,230 @@ function Field({
         spellCheck={false}
       />
     </label>
+  );
+}
+
+/** Roadmap 047: the two `<datalist>` ids the registry comboboxes reference —
+ *  the lists themselves are rendered once per simulator card. */
+const DATASOURCE_LIST_ID = "sim-datasource-names";
+const MANAGER_LIST_ID = "sim-manager-names";
+
+/**
+ * Roadmap 047: `datasource` (81 entries) and `manager` (115) are backed by
+ * Renovate's own registries, but they are far too long for a `<select>` — so
+ * they are native comboboxes: a plain text input with a `<datalist>`. Typing
+ * filters the list natively, focus/arrow still shows all of it, and free text
+ * stays legal, which matters twice over — `FormState` remains a plain string
+ * (share-link encoding untouched) and a value the registry doesn't know (a
+ * custom datasource, a newer Renovate) is neither rejected nor rewritten.
+ *
+ * The options ride along with the engine chunk. Before it resolves the input
+ * is a perfectly ordinary text field — typing is never blocked on a fetch —
+ * and the suggestions simply appear once the list arrives.
+ */
+function RegistryDatalist({
+  id,
+  names,
+}: {
+  id: string;
+  /** null until the engine module has loaded — then no options, no dropdown. */
+  names: readonly string[] | null;
+}) {
+  return (
+    <datalist id={id}>
+      {(names ?? []).map((name) => (
+        <option key={name} value={name} />
+      ))}
+    </datalist>
+  );
+}
+
+/** Roadmap 047: the "More about this update" drawer's computed abstract — the
+ *  values it currently holds, so a wrong quick-fill is catchable without
+ *  opening it, and `sourceUrl`'s scent (015's decisive matcher) survives its
+ *  demotion out of the primary grid. */
+function MoreFieldsSummary({ form }: { form: FormState }) {
+  const shown: [string, string][] = [
+    ["manager", form.manager],
+    ["depType", form.depType],
+    ["packageFile", form.packageFile],
+    ["sourceUrl", form.sourceUrl],
+  ];
+  return (
+    <>
+      {shown.map(([key, value], i) => (
+        <Fragment key={key}>
+          {i > 0 ? " · " : null}
+          {key} <span className="stat">{value.trim() === "" ? "—" : value.trim()}</span>
+        </Fragment>
+      ))}
+      {" · versioning, lock files, categories, age…"}
+    </>
+  );
+}
+
+/**
+ * Roadmap 015/047: `updateType` is no longer a primary field — 015's
+ * derivation already answers it, so the form states the derived value and
+ * offers the select only on demand ("cut before you hide"). Every 015
+ * semantic is intact: the value tracks currentValue → newValue live while
+ * untouched, "override" pins the user's own choice, and a value that could
+ * NOT be derived says so instead of posing as a derivation.
+ */
+function UpdateTypeLine({
+  effectiveUpdateType,
+  derivedUpdateType,
+  currentValue,
+  newValue,
+  onOverride,
+}: {
+  effectiveUpdateType: string;
+  derivedUpdateType: string | undefined;
+  currentValue: string;
+  newValue: string;
+  onOverride: () => void;
+}) {
+  const derived = derivedUpdateType !== undefined && effectiveUpdateType === derivedUpdateType;
+  const pair = `${currentValue.trim() || "?"} → ${newValue.trim() || "?"}`;
+  const hasPair = currentValue.trim() !== "" && newValue.trim() !== "";
+  let note: string;
+  if (derived) {
+    note = `derived from ${pair}`;
+  } else if (effectiveUpdateType !== "") {
+    note = "not derived from these versions";
+  } else if (hasPair) {
+    note = `no update type could be derived from ${pair}`;
+  } else {
+    note = "fill the version pair to derive it";
+  }
+  return (
+    <p className="sim-derived-line">
+      <span className="value">
+        <Term id="updateType">updateType</Term>: {effectiveUpdateType || "(unset)"}
+      </span>{" "}
+      — {note} ·{" "}
+      <button type="button" className="sim-link" onClick={onOverride}>
+        {effectiveUpdateType === "" ? "set one" : "override"}
+      </button>
+    </p>
+  );
+}
+
+/** Roadmap 047: the matched rules grouped by the provenance layer that
+ *  contributed them — the rules drawer's badge row ("config:recommended ×1 ·
+ *  repo config ×1"), computed from the same 013 attribution the rule rows
+ *  already wear. */
+interface LayerMatchCount {
+  layer: ProvenanceLayer;
+  count: number;
+}
+
+function matchedLayerCounts(
+  rules: RuleEvaluation[],
+  layerByIndex: Map<number, ProvenanceLayer>,
+): LayerMatchCount[] {
+  const byLayer = new Map<string, LayerMatchCount>();
+  for (const rule of rules) {
+    if (rule.verdict !== "matched") {
+      continue;
+    }
+    const layer = layerByIndex.get(rule.index);
+    if (!layer) {
+      continue;
+    }
+    const id = layerId(layer);
+    const entry = byLayer.get(id);
+    if (entry) {
+      entry.count += 1;
+    } else {
+      byLayer.set(id, { layer, count: 1 });
+    }
+  }
+  return [...byLayer.values()].toSorted(
+    (a, b) => b.count - a.count || layerLabel(a.layer).localeCompare(layerLabel(b.layer)),
+  );
+}
+
+/** How many distinct provenance layers the rules drawer names before it
+ *  collapses the tail into "+N more" — a config extending a dozen presets
+ *  would otherwise turn the summary row into a second rule list. */
+const LAYER_BADGE_CAP = 3;
+
+function RuleLayerBadges({
+  counts,
+  onSelectPreset,
+}: {
+  counts: LayerMatchCount[];
+  onSelectPreset?: (nodeId: string) => void;
+}) {
+  const shown = counts.slice(0, LAYER_BADGE_CAP);
+  const rest = counts.length - shown.length;
+  return (
+    <>
+      {shown.map(({ layer, count }) => (
+        <span key={layerId(layer)} className="drawer-badge">
+          <ProvenanceChip layer={layer} onSelectPreset={onSelectPreset} />
+          <span className="drawer-badge-count">×{count}</span>
+        </span>
+      ))}
+      {rest > 0 ? <span className="drawer-badge-more">+{rest} more</span> : null}
+    </>
+  );
+}
+
+/** Roadmap 047: the rules drawer's computed abstract. "0 of 714 matched" with
+ *  no badges beside it IS the no-match state — no separate empty copy. */
+function RulesSummary({ matchedCount, totalRules }: { matchedCount: number; totalRules: number }) {
+  return (
+    <>
+      <span className="stat">
+        {matchedCount} of {totalRules}
+      </span>{" "}
+      matched
+    </>
+  );
+}
+
+/** Roadmap 047: the merge drawer's computed abstract — the whole timeline
+ *  compressed to `base → N merges → flatten ⊘7 → final · changed groupName`,
+ *  so the collapsed row still says what the merge history did. */
+function MergeSummary({
+  mergeCount,
+  flattenCount,
+  changedKeys,
+}: {
+  mergeCount: number;
+  /** The flatten chip's own count (`+1` / `⊘7`); absent when nothing flattened. */
+  flattenCount?: string;
+  changedKeys: string[];
+}) {
+  const shown = changedKeys.slice(0, 3);
+  const rest = changedKeys.length - shown.length;
+  return (
+    <>
+      base → <span className="stat">{mergeCount}</span> merge{mergeCount === 1 ? "" : "s"}
+      {flattenCount === undefined ? null : (
+        <>
+          {" → flatten "}
+          <span className="stat">{flattenCount}</span>
+        </>
+      )}
+      {" → final · "}
+      {shown.length === 0 ? (
+        "nothing changed"
+      ) : (
+        <>
+          changed{" "}
+          {shown.map((key, i) => (
+            <Fragment key={key}>
+              {i > 0 ? ", " : null}
+              <code>{key}</code>
+            </Fragment>
+          ))}
+          {rest > 0 ? ` +${rest} more` : null}
+        </>
+      )}
+    </>
   );
 }
 
@@ -924,9 +1366,10 @@ function VerdictKeyRow({
  * the Simulate button. An answer band (eyebrow naming the simulated update,
  * then the sentence with the modal verbs badged), the ledger of settings the
  * rules genuinely changed (with provenance and jumps into the merge timeline),
- * the consumed-blocks aside when flattening dropped the update-type blocks
- * without applying any, and a footer with the rule-list jump and the
- * evidence-export affordances (share link, A/B pinning).
+ * the consumed-blocks aside when an AUTHORED update-type block was consumed
+ * without applying (047 — default-only consumption says nothing and renders
+ * nothing), and a footer with the rule-list jump and the evidence-export
+ * affordances (share link, A/B pinning).
  */
 function SimVerdictBlock({
   matchedCount,
@@ -934,6 +1377,7 @@ function SimVerdictBlock({
   segments,
   changes,
   flattened,
+  consumed,
   flattenStopIndex,
   dep,
   onSelectPreset,
@@ -949,6 +1393,9 @@ function SimVerdictBlock({
   segments: VerdictSegment[];
   changes: VerdictChange[];
   flattened: SimulationResult["flattened"];
+  /** Roadmap 047: authored update-type blocks flattening consumed without
+   *  applying — empty on a run where only Renovate's own defaults were. */
+  consumed: ConsumedBlock[];
   /** The flatten stop's position on the merge timeline, when it renders. */
   flattenStopIndex?: number;
   /** The simulated update, for the card's eyebrow line. */
@@ -962,8 +1409,6 @@ function SimVerdictBlock({
   onUnpin: () => void;
   onPin: () => void;
 }) {
-  const blockKeys = Object.keys(flattened.blocks);
-  const consumedOnly = blockKeys.length > 0 && flattened.merged.length === 0;
   const depName = [dep?.manager, dep?.packageName].filter(Boolean).join(" / ");
   const versions = dep?.currentValue
     ? `${dep.currentValue}${dep.newValue ? ` → ${dep.newValue}` : ""}`
@@ -1017,40 +1462,16 @@ function SimVerdictBlock({
             No rule changed anything for this dependency — the defaults apply.
           </p>
         )}
-        {consumedOnly ? (
-          <p className="sim-consumed-note">
-            <span className="sim-consumed-glyph">⊘</span> Update-type blocks (
-            {blockKeys.map((key, i) => (
-              <Fragment key={key}>
-                {i > 0 ? ", " : null}
-                <code>{key}</code>
-              </Fragment>
-            ))}
-            ) were consumed by flattening —{" "}
-            {flattened.updateType === undefined ? (
-              <>
-                <Term id="updateType">updateType</Term> is unset, so none of them applied to this
-                update
-              </>
-            ) : (
-              <>
-                none of them changed anything for this <code>{flattened.updateType}</code> update
-              </>
-            )}
-            {flattenStopIndex !== undefined && onJumpToStep !== undefined ? (
-              <>
-                {" — "}
-                <button
-                  type="button"
-                  className="sim-step-link"
-                  onClick={() => onJumpToStep(flattenStopIndex)}
-                >
-                  see the flatten step →
-                </button>
-              </>
-            ) : null}
-          </p>
-        ) : null}
+        {consumed.map((block) => (
+          <SimConsumedBlock
+            key={block.key}
+            block={block}
+            updateType={flattened.updateType}
+            flattenStopIndex={flattenStopIndex}
+            onSelectPreset={onSelectPreset}
+            onJumpToStep={onJumpToStep}
+          />
+        ))}
       </div>
       <div className="sim-verdict-foot">
         <button type="button" className="sim-jump" onClick={onJumpToRules}>
@@ -1397,13 +1818,14 @@ function SimMergeTimeline({
   );
 }
 
-/** The tail of the results block: the counted summary of what the rules
- *  changed, and the merge timeline (046). When nothing merged, the timeline
- *  has no sequence to walk and the final config falls back to the plain
- *  disclosure. */
-function SimFinal({
-  matchedCount,
-  changedKeys,
+/**
+ * Roadmap 046/047: the body of the "How the final config was built" drawer —
+ * the merge timeline. The 046 micro-heading and its standalone summary
+ * sentence are gone: the drawer's own title and computed summary row say the
+ * same thing while collapsed. When nothing merged, the timeline has no
+ * sequence to walk and the final config falls back to the plain disclosure.
+ */
+function SimMergeBody({
   finalDependencyConfig,
   stops,
   showTimeline,
@@ -1411,8 +1833,6 @@ function SimFinal({
   onMergeStepChange,
   timelineRef,
 }: {
-  matchedCount: number;
-  changedKeys: string[];
   finalDependencyConfig: SimulationResult["finalDependencyConfig"];
   stops: MergeStop[];
   showTimeline: boolean;
@@ -1420,47 +1840,20 @@ function SimFinal({
   onMergeStepChange?: (index: number) => void;
   timelineRef?: React.RefObject<HTMLDivElement | null>;
 }) {
-  return (
-    <div className="sim-final">
-      <div className="sim-merged-title">Final per-dependency config</div>
-      {matchedCount === 0 ? (
-        <p className="sim-changed">No rule changed anything for this dependency.</p>
-      ) : changedKeys.length > 0 ? (
-        <p className="sim-changed">
-          {matchedCount} rule{matchedCount === 1 ? "" : "s"} matched and changed{" "}
-          {changedKeys.length} setting{changedKeys.length === 1 ? "" : "s"}:{" "}
-          {changedKeys.map((key, i) => (
-            <span key={key}>
-              {i > 0 ? ", " : null}
-              <code>
-                <OptionKey name={key} flagUnknown />
-              </code>
-            </span>
-          ))}
-          .
-        </p>
-      ) : (
-        <p className="sim-changed">
-          {matchedCount} rule{matchedCount === 1 ? "" : "s"} matched and changed nothing — the
-          defaults apply.
-        </p>
-      )}
-      {showTimeline ? (
-        <SimMergeTimeline
-          stops={stops}
-          index={mergeStepIndex}
-          onIndexChange={onMergeStepChange}
-          timelineRef={timelineRef}
-        />
-      ) : (
-        <details>
-          <summary>Show the full resolved dependency config</summary>
-          <pre className="config-view">
-            <ConfigJson value={finalDependencyConfig} />
-          </pre>
-        </details>
-      )}
-    </div>
+  return showTimeline ? (
+    <SimMergeTimeline
+      stops={stops}
+      index={mergeStepIndex}
+      onIndexChange={onMergeStepChange}
+      timelineRef={timelineRef}
+    />
+  ) : (
+    <details className="sim-final">
+      <summary>Show the full resolved dependency config</summary>
+      <pre className="config-view">
+        <ConfigJson value={finalDependencyConfig} />
+      </pre>
+    </details>
   );
 }
 
@@ -1554,7 +1947,16 @@ export const RuleSimulator = memo(function RuleSimulator({
   // Roadmap 015: set when Simulate is clicked on a form with no identifying
   // input; cleared reactively the moment the form has ANY meaningful field.
   const [emptyGuardTriggered, setEmptyGuardTriggered] = useState(false);
-  const rulesRef = useRef<HTMLDivElement>(null);
+  // Roadmap 047: the three summary drawers' open state. It lives here rather
+  // than on the <details> elements so it survives a quick-fill, a
+  // re-simulation and a new pipeline run — "a disclosure must not move or
+  // reset unrelated UI", and a re-run must never fold what the user opened —
+  // and so cross-links can open the drawer they target.
+  const [moreFieldsOpen, setMoreFieldsOpen] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const [mergeOpen, setMergeOpen] = useState(false);
+  const rulesDrawerRef = useRef<HTMLDetailsElement>(null);
+  const mergeDrawerRef = useRef<HTMLDetailsElement>(null);
   const ruleAttribution = useRuleProvenance(result);
   // Roadmap 023: the user's own repo-config rules (013 provenance) — the merged
   // indices that came from the repo layer, for the "my rules only" filter.
@@ -1672,6 +2074,13 @@ export const RuleSimulator = memo(function RuleSimulator({
       onRuleFocused?.();
       return;
     }
+    // Roadmap 047: the rows live inside the rules drawer now — open it first
+    // (nothing a link can reach may sit behind a closed drawer), then let the
+    // effect re-run once the row is actually in the DOM.
+    if (!rulesOpen) {
+      setRulesOpen(true);
+      return;
+    }
     // Reveal the target row if a filter is hiding it, then let the effect re-run.
     if (myRulesOnly && !repoRuleIndices.has(rule.index)) {
       setMyRulesOnly(false);
@@ -1690,7 +2099,16 @@ export const RuleSimulator = memo(function RuleSimulator({
     }
     setScrollTarget(null);
     onRuleFocused?.();
-  }, [scrollTarget, sim, showAll, myRulesOnly, repoRuleIndices, onRuleFocused]);
+  }, [scrollTarget, sim, showAll, myRulesOnly, rulesOpen, repoRuleIndices, onRuleFocused]);
+
+  // Roadmap 047: a share link whose `simStep` points at a merge stop must
+  // arrive with the merge drawer open — the stop it restored is inside it.
+  // One-way: a re-simulation resetting the index to 0 never folds the drawer.
+  useEffect(() => {
+    if ((mergeStepIndex ?? 0) > 0) {
+      setMergeOpen(true);
+    }
+  }, [mergeStepIndex]);
 
   /** A merged rule index a click on a `packageRules[N]` message link asked to see. */
   function focusRule(mergedIndex: number) {
@@ -1719,6 +2137,15 @@ export const RuleSimulator = memo(function RuleSimulator({
   );
   const effectiveUpdateType =
     updateTypeTouched || derivedUpdateType === undefined ? form.updateType : derivedUpdateType;
+
+  // Roadmap 047: Renovate's own datasource/manager registries, for the two
+  // dropdowns. They ride along with the engine chunk the derivation above
+  // already needs, so they cost no extra fetch — null until it resolves.
+  const datasourceNames = useMemo(
+    () => engineModule?.listDatasourceNames() ?? null,
+    [engineModule],
+  );
+  const managerNames = useMemo(() => engineModule?.listManagerNames() ?? null, [engineModule]);
 
   // Roadmap 018: the A/B comparison — the pinned run (A) vs the current run (B).
   // Null until a NEW simulation replaces the one that was pinned (comparing a
@@ -1956,6 +2383,14 @@ export const RuleSimulator = memo(function RuleSimulator({
   const verdictSegments = sim
     ? buildVerdictSegments(sim, sim.flattened.updateType, changedKeys, ruleAttribution)
     : [];
+  // Roadmap 047: the drawers' computed abstracts — matched rules per
+  // provenance layer, and the flatten chip's own count for the merge summary.
+  const layerCounts = sim ? matchedLayerCounts(sim.rules, layerByIndex) : [];
+  const flattenChipCount =
+    flattenStopIndex === undefined ? undefined : mergeStops[flattenStopIndex]?.chip.count;
+  // Roadmap 047: the authored update-type blocks flattening consumed without
+  // applying — the only thing that still earns the verdict card's aside.
+  const consumedBlocks = sim ? consumedAuthoredBlocks(sim, ruleAttribution) : [];
   // Roadmap 046: each ledger entry carries the merge stop that last set its
   // key — later merges win, so the LAST stop naming the key is authoritative.
   const nRuleStops = mergeStops.filter((s) => s.kind === "rule").length;
@@ -1988,14 +2423,21 @@ export const RuleSimulator = memo(function RuleSimulator({
     };
   });
 
+  // Roadmap 047: cross-links OPEN what they target. The scroll runs against
+  // the drawer's own <details> element, which exists whether or not its body
+  // is currently mounted — so the same call works on a closed drawer that this
+  // click is opening in the very same tick.
   function jumpToRules() {
-    rulesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setRulesOpen(true);
+    rulesDrawerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  /** A verdict-card jump link → select that stop and bring the timeline into view. */
+  /** A verdict-card jump link → open the merge drawer, select that stop, and
+   *  bring the drawer into view. */
   function jumpToStep(stopIndex: number) {
+    setMergeOpen(true);
     onMergeStepChange?.(stopIndex);
-    timelineRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    mergeDrawerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   return (
@@ -2027,42 +2469,25 @@ export const RuleSimulator = memo(function RuleSimulator({
           </button>
         ))}
       </div>
+      {/* Roadmap 047: four fields before the first decision — what identifies
+          the dependency and what identifies the update. Everything a
+          quick-fill pre-fills, and everything 015 kept behind "More fields",
+          now shares ONE drawer whose summary line shows what it holds. */}
+      <RegistryDatalist id={DATASOURCE_LIST_ID} names={datasourceNames} />
+      <RegistryDatalist id={MANAGER_LIST_ID} names={managerNames} />
       <div className="sim-form">
-        <Field
-          label="manager"
-          value={form.manager}
-          onChange={(v) => setForm({ ...form, manager: v })}
-          placeholder="npm"
-        />
         <Field
           label="datasource"
           value={form.datasource}
           onChange={(v) => setForm({ ...form, datasource: v })}
-          placeholder="npm"
+          placeholder="(unset) — type to search"
+          datalistId={DATASOURCE_LIST_ID}
         />
         <Field
           label="packageName"
           value={form.packageName}
           onChange={(v) => setForm({ ...form, packageName: v })}
           placeholder="lodash"
-        />
-        <Field
-          label="depName"
-          value={form.depName}
-          onChange={(v) => setForm({ ...form, depName: v })}
-          placeholder="= packageName"
-        />
-        <Field
-          label="depType"
-          value={form.depType}
-          onChange={(v) => setForm({ ...form, depType: v })}
-          placeholder="dependencies"
-        />
-        <Field
-          label="packageFile"
-          value={form.packageFile}
-          onChange={(v) => setForm({ ...form, packageFile: v })}
-          placeholder="package.json"
         />
         <Field
           label="currentValue"
@@ -2076,53 +2501,86 @@ export const RuleSimulator = memo(function RuleSimulator({
           onChange={(v) => setForm({ ...form, newValue: v })}
           placeholder="4.17.21"
         />
-        {/* Roadmap 015: promoted out of "More fields" — sourceUrl was the
-            decisive matcher in two of the persona study's three problems. */}
-        <Field
-          label={<Term id="simSourceUrl">sourceUrl</Term>}
-          value={form.sourceUrl}
-          onChange={(v) => setForm({ ...form, sourceUrl: v })}
-          placeholder="https://github.com/facebook/react — the DEPENDENCY's repo"
-        />
-        <label className="sim-field">
-          updateType
-          <select
-            value={effectiveUpdateType}
-            onChange={(e) => {
-              setUpdateTypeTouched(true);
-              setForm({ ...form, updateType: e.target.value });
-            }}
-            onKeyDown={updateTypeKeyDown}
-          >
-            <option value="">(unset)</option>
-            {UPDATE_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-          {/* Roadmap 015: a quick-fill's updateType must not silently survive
-              editing the versions — while untouched, this tracks
-              currentValue -> newValue live via the selected versioning
-              scheme, and says so, so "major (derived)" can't be mistaken for
-              a manual choice. */}
-          {!updateTypeTouched && derivedUpdateType !== undefined ? (
-            <span className="sim-derived-hint">
-              (derived from currentValue → newValue —{" "}
-              <button type="button" className="sim-link" onClick={() => setUpdateTypeTouched(true)}>
-                override
-              </button>
-              )
-            </span>
-          ) : null}
-        </label>
       </div>
-      <details className="sim-more">
-        <summary>
-          More fields
-          <span className="advanced-hint"> — versioning, lock files, URLs, categories, age…</span>
-        </summary>
+      {updateTypeTouched ? (
+        <div className="sim-form sim-form-updatetype">
+          <label className="sim-field">
+            updateType
+            <select
+              value={effectiveUpdateType}
+              onChange={(e) => {
+                setUpdateTypeTouched(true);
+                setForm({ ...form, updateType: e.target.value });
+              }}
+              onKeyDown={updateTypeKeyDown}
+            >
+              <option value="">(unset)</option>
+              {UPDATE_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      ) : (
+        <UpdateTypeLine
+          effectiveUpdateType={effectiveUpdateType}
+          derivedUpdateType={derivedUpdateType}
+          currentValue={form.currentValue}
+          newValue={form.newValue}
+          onOverride={() => setUpdateTypeTouched(true)}
+        />
+      )}
+      <SummaryDrawer
+        className="sim-drawer"
+        title="More about this update"
+        summary={<MoreFieldsSummary form={form} />}
+        open={moreFieldsOpen}
+        onToggle={setMoreFieldsOpen}
+      >
         <div className="sim-form">
+          <Field
+            label="manager"
+            value={form.manager}
+            onChange={(v) => setForm({ ...form, manager: v })}
+            placeholder="(unset) — type to search"
+            datalistId={MANAGER_LIST_ID}
+          />
+          {/* Roadmap 015/047: sourceUrl was the decisive matcher in two of the
+              persona study's three problems — it sits first among the text
+              fields here, and the drawer's summary line always shows its
+              value, so demoting it costs no scent. */}
+          <Field
+            label={<Term id="simSourceUrl">sourceUrl</Term>}
+            value={form.sourceUrl}
+            onChange={(v) => setForm({ ...form, sourceUrl: v })}
+            placeholder="https://github.com/facebook/react — the DEPENDENCY's repo"
+          />
+          <Field
+            label="depName"
+            value={form.depName}
+            onChange={(v) => setForm({ ...form, depName: v })}
+            placeholder="= packageName"
+          />
+          <Field
+            label="depType"
+            value={form.depType}
+            onChange={(v) => setForm({ ...form, depType: v })}
+            placeholder="dependencies"
+          />
+          <Field
+            label="packageFile"
+            value={form.packageFile}
+            onChange={(v) => setForm({ ...form, packageFile: v })}
+            placeholder="package.json"
+          />
+          <Field
+            label="versioning"
+            value={form.versioning}
+            onChange={(v) => setForm({ ...form, versioning: v })}
+            placeholder="semver"
+          />
           <Field
             label="currentVersion"
             value={form.currentVersion}
@@ -2138,12 +2596,6 @@ export const RuleSimulator = memo(function RuleSimulator({
             value={form.lockFiles}
             onChange={(v) => setForm({ ...form, lockFiles: v })}
             placeholder="package-lock.json"
-          />
-          <Field
-            label="versioning"
-            value={form.versioning}
-            onChange={(v) => setForm({ ...form, versioning: v })}
-            placeholder="semver"
           />
           <Field
             label="registryUrls (comma-separated)"
@@ -2176,7 +2628,7 @@ export const RuleSimulator = memo(function RuleSimulator({
             placeholder="2024-01-01T00:00:00.000Z"
           />
         </div>
-      </details>
+      </SummaryDrawer>
       <div className="sim-actions">
         <button
           type="button"
@@ -2223,6 +2675,7 @@ export const RuleSimulator = memo(function RuleSimulator({
               segments={verdictSegments}
               changes={verdictChanges}
               flattened={sim.flattened}
+              consumed={consumedBlocks}
               flattenStopIndex={showTimeline ? flattenStopIndex : undefined}
               dep={
                 simForm
@@ -2277,70 +2730,59 @@ export const RuleSimulator = memo(function RuleSimulator({
                 {note}
               </p>
             ))}
-            <div className="sim-rules-head" ref={rulesRef}>
-              <span className="sim-summary">
-                {myRulesOnly
-                  ? `your ${repoRuleIndices.size} config rule${repoRuleIndices.size === 1 ? "" : "s"}`
-                  : showAll
-                    ? `all ${sim.rules.length} rule${sim.rules.length === 1 ? "" : "s"}`
-                    : `${notableRules.length} of ${sim.rules.length} rule${sim.rules.length === 1 ? "" : "s"} shown`}
-              </span>
-              {repoRuleIndices.size > 0 ? (
-                <button
-                  type="button"
-                  className={`sim-toggle${myRulesOnly ? " active" : ""}`}
-                  onClick={() => setMyRulesOnly(!myRulesOnly)}
-                  title="Show only the packageRules from your own repo config, with their clause evidence expanded"
-                >
-                  {myRulesOnly ? "show all rules" : "my rules only"}
-                </button>
-              ) : null}
-              {hiddenCount > 0 && !myRulesOnly ? (
-                <button type="button" className="sim-toggle" onClick={() => setShowAll(!showAll)}>
-                  {showAll ? "show matched only" : `show all ${sim.rules.length}`}
-                </button>
-              ) : null}
-            </div>
-            {shownRules.length > 0 ? (
-              <div className="sim-rules">
-                {shownRules.map((rule) => (
-                  <RuleRow
-                    key={rule.index}
-                    rule={rule}
-                    layer={layerByIndex.get(rule.index)}
-                    onSelectPreset={onSelectPreset}
-                    defaultExpanded={myRulesOnly}
-                  />
-                ))}
-              </div>
-            ) : myRulesOnly ? (
-              <p className="empty-note">
-                None of your repo config&apos;s rules are in the merged set for this run.
-              </p>
-            ) : (
-              <p className="empty-note">
-                No rule matched this dependency.{" "}
-                {hiddenCount > 0 ? (
-                  <button
-                    type="button"
-                    className="sim-toggle inline"
-                    onClick={() => setShowAll(true)}
-                  >
-                    Show all {sim.rules.length} anyway.
-                  </button>
-                ) : null}
-              </p>
-            )}
-            <SimFinal
-              matchedCount={matchedCount}
-              changedKeys={changedKeys}
-              finalDependencyConfig={sim.finalDependencyConfig}
-              stops={mergeStops}
-              showTimeline={showTimeline}
-              mergeStepIndex={mergeStepIndex}
-              onMergeStepChange={onMergeStepChange}
-              timelineRef={timelineRef}
-            />
+            {/* Roadmap 047: the evidence layers, each behind a summary drawer
+                whose collapsed row abstracts what it holds. "0 of N matched"
+                with no badges IS the no-match explanation. */}
+            <SummaryDrawer
+              className="sim-drawer"
+              detailsRef={rulesDrawerRef}
+              title="Matched rules"
+              summary={<RulesSummary matchedCount={matchedCount} totalRules={sim.rules.length} />}
+              badges={
+                layerCounts.length > 0 ? (
+                  <RuleLayerBadges counts={layerCounts} onSelectPreset={onSelectPreset} />
+                ) : undefined
+              }
+              open={rulesOpen}
+              onToggle={setRulesOpen}
+            >
+              <SimRulesBody
+                rules={sim.rules}
+                shownRules={shownRules}
+                notableCount={notableRules.length}
+                hiddenCount={hiddenCount}
+                repoRuleCount={repoRuleIndices.size}
+                myRulesOnly={myRulesOnly}
+                onMyRulesOnlyChange={setMyRulesOnly}
+                showAll={showAll}
+                onShowAllChange={setShowAll}
+                layerByIndex={layerByIndex}
+                onSelectPreset={onSelectPreset}
+              />
+            </SummaryDrawer>
+            <SummaryDrawer
+              className="sim-drawer"
+              detailsRef={mergeDrawerRef}
+              title="How the final config was built"
+              summary={
+                <MergeSummary
+                  mergeCount={nRuleStops}
+                  flattenCount={flattenChipCount}
+                  changedKeys={changedKeys}
+                />
+              }
+              open={mergeOpen}
+              onToggle={setMergeOpen}
+            >
+              <SimMergeBody
+                finalDependencyConfig={sim.finalDependencyConfig}
+                stops={mergeStops}
+                showTimeline={showTimeline}
+                mergeStepIndex={mergeStepIndex}
+                onMergeStepChange={onMergeStepChange}
+                timelineRef={timelineRef}
+              />
+            </SummaryDrawer>
           </div>
         </div>
       ) : null}

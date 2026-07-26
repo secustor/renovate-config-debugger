@@ -229,6 +229,27 @@ export const PACKAGE_RULES_CONFIG = `{
 `;
 
 /**
+ * Roadmap 047: a config with an AUTHORED update-type block. The "npm
+ * dependency" quick-fill is a PATCH update, so the `minor` block is consumed
+ * by flattening without ever applying — the one case where the verdict card
+ * still shows the consumed-blocks aside (Renovate's own default blocks, which
+ * every other fixture has, must stay silent).
+ */
+export const AUTHORED_BLOCK_CONFIG = `{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "minor": {
+    "automerge": true
+  },
+  "packageRules": [
+    {
+      "matchPackageNames": ["lodash"],
+      "addLabels": ["from-lodash-rule"]
+    }
+  ]
+}
+`;
+
+/**
  * Roadmap 044: a packageRules config where the "npm dependency" quick-fill
  * (lodash, patch) matches TWO rules that touch the same key — the merge
  * step-through's whole subject. The middle rule never matches, so it must not

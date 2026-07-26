@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "test": "pnpm test:golden && pnpm test:shimmed",
     "test:golden": "vitest run --project golden",
-    "test:shimmed": "vitest run --project shimmed"
+    "test:shimmed": "vitest run --project shimmed",
+    "generate:registries": "node scripts/generate-registry-names.mjs"
   },
   "dependencies": {
     "fast-json-patch": "3.1.1",

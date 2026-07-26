@@ -23,6 +23,7 @@ export { setPresetAuth, type PresetAuth } from "./auth";
 export { deriveUpdateType, renovateVersion } from "./version";
 export { getOptions, mergeChildConfig } from "./renovate-adapter";
 export { getOptionIndex, type OptionDoc, type OptionIndex } from "./option-docs";
+export { listDatasourceNames, listManagerNames } from "./registries";
 export {
   type ConfigPathSegment,
   ERROR_TRANSLATIONS,

@@ -1,6 +1,20 @@
-import { expect, test } from "@playwright/test";
-import { encodeShareFragment, MERGE_STEPS_CONFIG, PACKAGE_RULES_CONFIG } from "./fixtures";
+import { expect, type Locator, type Page, test } from "@playwright/test";
+import {
+  AUTHORED_BLOCK_CONFIG,
+  encodeShareFragment,
+  MERGE_STEPS_CONFIG,
+  PACKAGE_RULES_CONFIG,
+} from "./fixtures";
 import { openTab } from "./helpers";
+
+/**
+ * Roadmap 047: the results are staged into summary drawers — a `<details>`
+ * whose summary row abstracts the body. Addressed by their visible title, the
+ * way a user finds them.
+ */
+function drawer(page: Page, title: string): Locator {
+  return page.locator("details.drawer", { hasText: title });
+}
 
 /**
  * Journey 4 — the packageRules simulator. After a run whose config has a
@@ -8,6 +22,10 @@ import { openTab } from "./helpers";
  * describes exactly such an update; simulating it must yield a verdict block
  * with a matched rule count ≥ 1 and a matched rule row carrying its applied
  * diff (automerge → true).
+ *
+ * Roadmap 047: the rule rows are one disclosure away, and the verdict's own
+ * "N of M rules matched →" link is what opens it — a cross-link opens what it
+ * targets rather than pointing into a closed drawer.
  */
 test("simulating a matching dependency shows a verdict with a matched rule and its applied diff", async ({
   page,
@@ -29,6 +47,16 @@ test("simulating a matching dependency shows a verdict with a matched rule and i
   await expect(verdict).toBeVisible({ timeout: 15_000 });
   const jump = verdict.locator(".sim-jump");
   await expect(jump).toContainText(/[1-9]\d* of \d+ rule/);
+
+  // The rules drawer starts collapsed, but its summary row already carries the
+  // count — the collapsed state still answers "is it worth opening".
+  const rulesDrawer = drawer(page, "Matched rules");
+  await expect(rulesDrawer).toHaveJSProperty("open", false);
+  await expect(rulesDrawer.locator(".drawer-summary")).toContainText(/[1-9]\d* of \d+ matched/);
+
+  // The verdict's rule-count link opens it.
+  await jump.click();
+  await expect(rulesDrawer).toHaveJSProperty("open", true);
 
   // At least one rule row reports a "matched" verdict.
   const matchedRow = page.locator(".sim-rule", {
@@ -125,6 +153,14 @@ test("the merge timeline walks the matching rules one stop at a time", async ({ 
   await simulator.getByRole("button", { name: "npm dependency" }).click();
   await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
 
+  // Roadmap 047: the timeline lives in a drawer whose collapsed row already
+  // compresses it — `base → 2 merges → flatten ⊘N → final · changed …`.
+  const mergeDrawer = drawer(page, "How the final config was built");
+  await expect(mergeDrawer).toHaveJSProperty("open", false);
+  await expect(mergeDrawer.locator(".drawer-summary")).toContainText("base → 2 merges");
+  await expect(mergeDrawer.locator(".drawer-summary")).toContainText("changed");
+  await mergeDrawer.getByText("How the final config was built").click();
+
   // The sequence lands on its base stop; two matching rules → two rule chips
   // (the non-matching middle rule has none) plus flatten and the final config.
   const stepper = page.locator(".sim-merge-steps");
@@ -174,8 +210,144 @@ test("the merge timeline walks the matching rules one stop at a time", async ({ 
   await expect(stepper.locator(".config-view")).toBeVisible();
 
   // A dependency no rule matches has no merge sequence — the timeline is gone,
-  // not an empty frame.
+  // not an empty frame. The drawer itself stays OPEN across the re-simulation
+  // (047: a re-run must never fold what the user opened).
   await simulator.getByRole("button", { name: "Dockerfile image" }).click();
   await expect(page.locator(".sim-verdict-block")).toContainText("0 of 3 rules");
+  await expect(mergeDrawer).toHaveJSProperty("open", true);
   await expect(stepper).toHaveCount(0);
+});
+
+/**
+ * Roadmap 047 — a cross-link opens what it targets. The verdict ledger's
+ * "step N of M →" points at a stop inside the (collapsed) merge drawer, so
+ * clicking it must open the drawer AND land on that exact stop, not merely
+ * scroll to a closed row.
+ */
+test("a verdict ledger step link opens the merge drawer at the stop it names", async ({ page }) => {
+  const fragment = await encodeShareFragment({ config: MERGE_STEPS_CONFIG });
+  await page.goto(fragment);
+
+  await openTab(page, "simulator");
+  const simulator = page.locator(".card", { hasText: "Update simulator" });
+  await simulator.getByRole("button", { name: "npm dependency" }).click();
+
+  const verdict = page.locator(".sim-verdict-block");
+  await expect(verdict).toBeVisible({ timeout: 15_000 });
+
+  const mergeDrawer = drawer(page, "How the final config was built");
+  await expect(mergeDrawer).toHaveJSProperty("open", false);
+
+  // `automerge` was last set by packageRules[2] — the second (and last) rule
+  // stop, so the ledger link reads "step 2 of 2".
+  const stepLink = verdict.locator(".sim-step-link").first();
+  await expect(stepLink).toContainText("step 2 of 2");
+  await stepLink.click();
+
+  await expect(mergeDrawer).toHaveJSProperty("open", true);
+  const stepper = page.locator(".sim-merge-steps");
+  await expect(stepper.locator(".migration-step-counter")).toHaveText("Step 2 of 2");
+  await expect(stepper.locator(".stage-chip").filter({ hasText: "packageRules[2]" })).toHaveClass(
+    /selected/,
+  );
+
+  // Opening one drawer never folds the other.
+  const rulesDrawer = drawer(page, "Matched rules");
+  await expect(rulesDrawer).toHaveJSProperty("open", false);
+  await verdict.locator(".sim-jump").click();
+  await expect(rulesDrawer).toHaveJSProperty("open", true);
+  await expect(mergeDrawer).toHaveJSProperty("open", true);
+});
+
+/**
+ * Roadmap 047 — the consumed-blocks aside only when it earns its place.
+ * Renovate's defaults declare all seven update-type blocks on every config, so
+ * the 046 always-on aside was furniture; it now renders only when a block the
+ * USER authored was consumed without applying, and names that block's own keys.
+ */
+test("the consumed-blocks aside names an authored block that didn't apply, and stays silent otherwise", async ({
+  page,
+}) => {
+  // Default-only consumption: a patch update against a config with no authored
+  // update-type block says nothing on the card.
+  await page.goto(await encodeShareFragment({ config: PACKAGE_RULES_CONFIG }));
+  await openTab(page, "simulator");
+  let simulator = page.locator(".card", { hasText: "Update simulator" });
+  await simulator.getByRole("button", { name: "npm dependency" }).click();
+  await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator(".sim-consumed-note")).toHaveCount(0);
+
+  // The same patch update against a config carrying `minor: { automerge: true }`
+  // explains why that block stayed inert.
+  await page.goto(await encodeShareFragment({ config: AUTHORED_BLOCK_CONFIG }));
+  await openTab(page, "simulator");
+  simulator = page.locator(".card", { hasText: "Update simulator" });
+  await simulator.getByRole("button", { name: "npm dependency" }).click();
+  await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
+
+  const consumed = page.locator(".sim-consumed-note");
+  await expect(consumed).toHaveCount(1);
+  await expect(consumed).toContainText("minor");
+  await expect(consumed).toContainText("automerge");
+  await expect(consumed).toContainText("patch");
+
+  // Its flatten link is a cross-link too — it opens the merge drawer.
+  const mergeDrawer = drawer(page, "How the final config was built");
+  await expect(mergeDrawer).toHaveJSProperty("open", false);
+  await consumed.getByRole("button", { name: /see the flatten step/ }).click();
+  await expect(mergeDrawer).toHaveJSProperty("open", true);
+  await expect(page.locator(".sim-merge-steps .migration-step-head")).toContainText(
+    "Update-type flattening",
+  );
+});
+
+/**
+ * Roadmap 047 — the form's own staging. Four primary fields; everything else
+ * (including `manager` and `sourceUrl`) sits in one drawer whose summary line
+ * shows the values it holds, so a wrong quick-fill is catchable while closed.
+ * `updateType` is a derived one-liner, not a select, until "override".
+ */
+test("the form shows four fields, a derived updateType, and a self-describing drawer", async ({
+  page,
+}) => {
+  await page.goto(await encodeShareFragment({ config: PACKAGE_RULES_CONFIG }));
+  await openTab(page, "simulator");
+  const simulator = page.locator(".card", { hasText: "Update simulator" });
+  await expect(simulator).toBeVisible();
+
+  await simulator.getByRole("button", { name: "npm dependency" }).click();
+  await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
+
+  // The primary grid is exactly datasource / packageName / currentValue / newValue.
+  const primary = simulator.locator(".sim-form").first();
+  await expect(primary.locator(".sim-field")).toHaveCount(4);
+  await expect(simulator.getByLabel("datasource", { exact: true })).toHaveValue("npm");
+
+  // updateType is stated, not asked — and the version pair it came from is named.
+  const derived = simulator.locator(".sim-derived-line");
+  await expect(derived).toContainText("updateType: patch");
+  await expect(derived).toContainText("4.17.20 → 4.17.21");
+
+  // The quick-fill's other writes are visible on the closed drawer's summary.
+  const moreDrawer = drawer(page, "More about this update");
+  await expect(moreDrawer).toHaveJSProperty("open", false);
+  const summary = moreDrawer.locator(".drawer-summary");
+  await expect(summary).toContainText("manager npm");
+  await expect(summary).toContainText("packageFile package.json");
+  await expect(summary).toContainText("sourceUrl —");
+
+  // "override" reveals the select, which still drives the simulation.
+  await derived.getByRole("button", { name: "override" }).click();
+  await expect(derived).toHaveCount(0);
+  // The only <select> left on the form is the revealed updateType override.
+  await expect(simulator.locator("select")).toHaveValue("patch");
+
+  // The drawer holds `manager` (a registry combobox) and survives a re-run.
+  await moreDrawer.getByText("More about this update").click();
+  await expect(moreDrawer).toHaveJSProperty("open", true);
+  const manager = simulator.getByLabel("manager", { exact: true });
+  await expect(manager).toHaveValue("npm");
+  await expect(manager).toHaveAttribute("list", "sim-manager-names");
+  await simulator.getByRole("button", { name: "Simulate" }).click();
+  await expect(moreDrawer).toHaveJSProperty("open", true);
 });

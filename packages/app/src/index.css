@@ -1747,19 +1747,6 @@ pre.config-view.prov-before {
   padding: 0.25rem 0.45rem;
 }
 
-.sim-more {
-  padding: 0.5rem 0.75rem 0;
-}
-
-.sim-more > summary {
-  cursor: pointer;
-  font-size: 0.85rem;
-}
-
-.sim-more .sim-form {
-  padding: 0.5rem 0 0;
-}
-
 .sim-actions {
   align-items: center;
   display: flex;
@@ -1970,13 +1957,10 @@ pre.config-view.prov-before {
   font-size: 0.78rem;
 }
 
+/* 047: the no-timeline fallback inside the merge drawer — a plain disclosure
+   for the resolved config when nothing merged. */
 .sim-final {
-  margin-top: 0.75rem;
-}
-
-.sim-changed {
-  font-size: 0.85rem;
-  margin: 0.35rem 0;
+  margin-top: 0.25rem;
 }
 
 /* 044: the merge step-through inside the final-config section. It reuses the
@@ -2006,7 +1990,7 @@ pre.config-view.prov-before {
   margin-bottom: 0.4rem;
 }
 
-.sim-final > details > summary {
+.sim-final > summary {
   cursor: pointer;
   font-size: 0.85rem;
   margin-bottom: 0.4rem;
@@ -2689,15 +2673,10 @@ pre.config-view.prov-before {
   margin-top: 0.35rem;
 }
 
-/* Roadmap 015: simulator input ergonomics — derived-updateType hint, the
-   empty-form guard, and an unmissable stale-results veil (the small
-   .sim-stale text hint alone was skimmed past in the persona study). */
-
-.sim-derived-hint {
-  color: var(--muted);
-  font-size: 0.72rem;
-  margin-top: 0.15rem;
-}
+/* Roadmap 015: simulator input ergonomics — the empty-form guard and an
+   unmissable stale-results veil (the small .sim-stale text hint alone was
+   skimmed past in the persona study). 047 moved the derived-updateType hint
+   into its own one-liner, `.sim-derived-line`. */
 
 .sim-link {
   background: none;
@@ -3085,4 +3064,121 @@ main:has(.app-split.has-results) {
   font-size: 0.85rem;
   margin: 0;
   padding: 0.5rem 0.75rem 0;
+}
+
+/* ---------- 047: simulator progressive disclosure ---------- */
+
+/* The summary drawer (`SummaryDrawer`) — the tab's signature disclosure. Its
+   collapsed row is an ABSTRACT of the body: caret, title, a muted computed
+   summary, and optional right-aligned badges; the body sits below a hairline
+   so the row still reads as one line when open. */
+.drawer {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 0.6rem;
+}
+
+.drawer > summary {
+  align-items: baseline;
+  cursor: pointer;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.6rem;
+  list-style: none;
+  padding: 0.5rem 0.75rem;
+}
+
+.drawer > summary::-webkit-details-marker {
+  display: none;
+}
+
+.drawer > summary::before {
+  color: var(--muted);
+  content: "▸";
+  font-size: 0.8rem;
+}
+
+.drawer[open] > summary::before {
+  content: "▾";
+}
+
+.drawer-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.drawer-summary {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+/* Counts and filled-in values inside a summary line: monospaced and
+   tabular so a re-simulation's new numbers don't reflow the row. */
+.drawer-summary .stat {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.drawer-summary code {
+  font-size: 0.95em;
+}
+
+.drawer-badges {
+  align-items: baseline;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.drawer-badge {
+  align-items: baseline;
+  display: inline-flex;
+  gap: 0.2rem;
+}
+
+.drawer-badge-count,
+.drawer-badge-more {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.drawer-body {
+  border-top: 1px solid var(--border);
+  padding: 0.6rem 0.75rem;
+}
+
+/* The simulator's own drawers carry the card's horizontal inset; the form's
+   grid inside one already sits in the body's padding. */
+.sim-drawer {
+  margin: 0.5rem 0.75rem 0;
+}
+
+.sim-results-body > .sim-drawer {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.sim-drawer .sim-form {
+  padding: 0;
+}
+
+/* 047: `updateType` as a derived one-liner instead of a primary select — the
+   value first, then how it was arrived at, then the override affordance. */
+.sim-derived-line {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin: 0.5rem 0 0;
+  padding: 0 0.75rem;
+}
+
+.sim-derived-line .value {
+  color: light-dark(#1f2328, #f0f6fc);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* The manual-override select sits where the derived line was. */
+.sim-form-updatetype {
+  padding-top: 0.5rem;
 }

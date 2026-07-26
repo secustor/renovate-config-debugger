@@ -349,6 +349,28 @@ describe("simulatePackageRules", () => {
   });
 
   /**
+   * Roadmap 047: `flattened.authoredBlocks` should only name update-type
+   * blocks a human actually put content in, not every block Renovate's own
+   * defaults declare (major/minor/patch default to `{}` on every config, so
+   * "present" is true on nearly every run).
+   */
+  it("reports authoredBlocks empty when the config has no update-type blocks at all", async () => {
+    const config = { packageRules: [] };
+    const result = await simulatePackageRules({ config, dep: npmDep });
+    expect(result.flattened.authoredBlocks).toEqual([]);
+  });
+
+  it("reports a block as authored only when its content differs from Renovate's defaults", async () => {
+    const config = {
+      // no packageRules needed — the block is on the base config itself.
+      minor: { automerge: true },
+    };
+    const result = await simulatePackageRules({ config, dep: npmDep });
+    expect(result.flattened.blocks.minor).toEqual({ automerge: true });
+    expect(result.flattened.authoredBlocks).toEqual(["minor"]);
+  });
+
+  /**
    * Roadmap 038: the groupSlug derivation used to `String(groupName)` before
    * slugifying, so an object-valued groupName — trivially reachable from user
    * config — produced the nonsense slug `objectobject`. Upstream never gets

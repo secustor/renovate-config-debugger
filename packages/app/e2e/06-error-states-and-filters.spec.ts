@@ -53,6 +53,10 @@ test("the simulator 'my rules only' filter shows repo rules with clause evidence
   await simulator.getByRole("button", { name: "npm dependency" }).click();
   await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
 
+  // Roadmap 047: the rule list and its filters live in the "Matched rules"
+  // drawer now — the filter is one disclosure away, not gone.
+  await simulator.getByText("Matched rules").click();
+
   const myRules = simulator.getByRole("button", { name: "my rules only" });
   await expect(myRules).toBeVisible();
   await myRules.click();

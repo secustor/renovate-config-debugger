@@ -207,6 +207,21 @@ declare module "renovate/dist/types/errors/external-host-error.js" {
   }
 }
 
+declare module "renovate/dist/modules/datasource/api.js" {
+  // The real value is `Map<name, DatasourceImplementation>`; only the key set
+  // (roadmap 047's `listDatasourceNames`) is ever read through this type, so
+  // the implementation is modelled as `unknown`.
+  const datasources: ReadonlyMap<string, unknown>;
+  export default datasources;
+}
+
+declare module "renovate/dist/modules/manager/api.js" {
+  // Same shape as the datasource registry above — only the key set (roadmap
+  // 047's `listManagerNames`) is ever read through this type.
+  const managers: ReadonlyMap<string, unknown>;
+  export default managers;
+}
+
 declare module "renovate/package.json" {
   const pkg: { name: string; version: string };
   export default pkg;

@@ -111,4 +111,10 @@ fix ("removed" update-type blocks that no rule removed), the verdict
 card, and the merge timeline on the Pipeline tab's chip grammar —
 settled through the approved
 [mockups/046/simulator-redesign.html](mockups/046/simulator-redesign.html)
-(variant 2B).
+(variant 2B). 047 staged the whole Simulator tab with progressive
+disclosure (research-backed: see
+[2026-07-progressive-disclosure-research.md](2026-07-progressive-disclosure-research.md))
+— minimal form with registry-fed type-to-search fields, summary
+drawers for the evidence layers, a conditional consumed-blocks aside,
+and the provenance-chip hover card, per the approved
+[mockups/047/simulator-progressive-disclosure.html](mockups/047/simulator-progressive-disclosure.html).

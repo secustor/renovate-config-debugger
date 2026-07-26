@@ -35,7 +35,7 @@ function sim(
     rules,
     rawFinalConfig: {},
     finalDependencyConfig,
-    flattened: { merged: [], blocks: {} },
+    flattened: { merged: [], blocks: {}, authoredBlocks: [] },
     // Roadmap 044: the merge step-through's snapshots — the A/B comparison
     // (021) does not read them, so a hand-built fixture leaves them empty.
     mergeSteps: [],
