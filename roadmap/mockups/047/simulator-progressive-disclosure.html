@@ -1,0 +1,1044 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mockup 047 — Simulator progressive disclosure</title>
+    <style>
+      /* ---- app tokens, verbatim from packages/app/src/index.css ---- */
+      :root {
+        color-scheme: light dark;
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        --border: light-dark(#d0d7de, #3d444d);
+        --surface: light-dark(#f6f8fa, #151b23);
+        --accent: #0969da;
+        --ok: #1a7f37;
+        --error: #cf222e;
+        --warn: #9a6700;
+        --muted: light-dark(#59636e, #9198a1);
+        --preset: light-dark(#8250df, #c297ff);
+        --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: light-dark(#ffffff, #0d1117);
+        color: light-dark(#1f2328, #f0f6fc);
+      }
+      main {
+        margin: 0 auto;
+        max-width: 62rem;
+        padding: 1.5rem 1rem 4rem;
+      }
+      h1 {
+        font-size: 1.5rem;
+        margin: 0 0 0.25rem;
+      }
+      h2 {
+        font-size: 1.05rem;
+        margin: 2.5rem 0 0.25rem;
+      }
+      h3 {
+        font-size: 0.95rem;
+        margin: 1.75rem 0 0.25rem;
+      }
+      h2 .num,
+      h3 .num {
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .section-note {
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin: 0.25rem 0 1rem;
+        max-width: 56rem;
+      }
+      .section-note code,
+      p code,
+      .research code,
+      li code {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-family: var(--mono);
+        font-size: 0.85em;
+        padding: 0.05em 0.3em;
+      }
+      .mock-banner {
+        background: light-dark(#fff8c5, #3a2d00);
+        border: 1px solid var(--warn);
+        border-radius: 8px;
+        font-size: 0.85rem;
+        margin-bottom: 1rem;
+        padding: 0.5rem 0.75rem;
+      }
+      .pane-label {
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        margin: 1rem 0 0.35rem;
+        text-transform: uppercase;
+      }
+      .pane-label.now {
+        color: var(--error);
+      }
+      .problem-list {
+        color: var(--muted);
+        font-size: 0.88rem;
+        margin: 0.35rem 0 1rem;
+        max-width: 56rem;
+        padding-left: 1.25rem;
+      }
+      .problem-list li {
+        margin: 0.2rem 0;
+      }
+      .problem-list strong {
+        color: var(--error);
+        font-weight: 600;
+      }
+      button {
+        font: inherit;
+      }
+      :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      /* ---- app chrome ---- */
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        overflow: hidden;
+      }
+      .card-body {
+        padding: 0.75rem;
+      }
+      .btn {
+        align-items: center;
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: inherit;
+        cursor: pointer;
+        display: inline-flex;
+        font-size: 0.8rem;
+        gap: 0.35rem;
+        padding: 0.25rem 0.6rem;
+        white-space: nowrap;
+      }
+      .btn.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+        font-weight: 600;
+      }
+      .chip {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        padding: 0.3rem 0.8rem;
+      }
+      .chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-bottom: 0.75rem;
+      }
+      .field-grid {
+        display: grid;
+        gap: 0.6rem 1rem;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        margin-bottom: 0.6rem;
+      }
+      @media (max-width: 46rem) {
+        .field-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      .field {
+        display: flex;
+        flex-direction: column;
+        font-size: 0.82rem;
+        gap: 0.25rem;
+      }
+      .field input,
+      .field select {
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: inherit;
+        font: inherit;
+        font-size: 0.85rem;
+        padding: 0.3rem 0.5rem;
+        width: 100%;
+      }
+      .field input::placeholder {
+        color: var(--muted);
+      }
+      .derived-note {
+        color: var(--muted);
+        font-size: 0.78rem;
+        margin: 0 0 0.6rem;
+      }
+      .derived-note .value {
+        font-family: var(--mono);
+      }
+      .derived-note button {
+        background: none;
+        border: none;
+        color: var(--accent);
+        cursor: pointer;
+        font-size: inherit;
+        padding: 0;
+      }
+
+      /* ---- 047 signature: the summary drawer ----
+         A collapsed layer is never a bare label: its one-line summary IS an
+         abstract of the content (counts, provenance, filled values), so the
+         collapsed state still answers "what's in here / is it worth opening". */
+      .drawer {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-bottom: 0.6rem;
+      }
+      .drawer > summary {
+        align-items: baseline;
+        cursor: pointer;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem 0.6rem;
+        list-style: none;
+        padding: 0.5rem 0.75rem;
+      }
+      .drawer > summary::-webkit-details-marker {
+        display: none;
+      }
+      .drawer > summary::before {
+        color: var(--muted);
+        content: "▸";
+        font-size: 0.8rem;
+      }
+      .drawer[open] > summary::before {
+        content: "▾";
+      }
+      .drawer-title {
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+      .drawer-summary {
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+      .drawer-summary .stat {
+        font-family: var(--mono);
+        font-variant-numeric: tabular-nums;
+      }
+      .drawer-badges {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        margin-left: auto;
+      }
+      .drawer-body {
+        border-top: 1px solid var(--border);
+        padding: 0.6rem 0.75rem;
+      }
+      .badge {
+        border: 1px solid;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        line-height: 1.5;
+        padding: 0 0.5rem;
+        white-space: nowrap;
+      }
+      .badge.preset {
+        background: color-mix(in srgb, var(--preset) 12%, transparent);
+        border-color: color-mix(in srgb, var(--preset) 45%, transparent);
+        color: var(--preset);
+      }
+      .badge.repo {
+        background: color-mix(in srgb, var(--accent) 12%, transparent);
+        border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+        color: var(--accent);
+      }
+      .badge.matched {
+        border-color: color-mix(in srgb, var(--ok) 45%, transparent);
+        color: var(--ok);
+      }
+
+      /* ---- 046 verdict card, condensed reproductions ---- */
+      .sim-verdict-block {
+        border: 1px solid color-mix(in srgb, var(--ok) 35%, var(--border));
+        border-radius: 8px;
+        margin-bottom: 0.75rem;
+        overflow: hidden;
+      }
+      .sim-verdict-band {
+        background: color-mix(in srgb, var(--ok) 7%, var(--surface));
+        border-bottom: 1px solid var(--border);
+        padding: 0.6rem 0.85rem 0.7rem;
+      }
+      .sim-verdict-eyebrow {
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        letter-spacing: 0.06em;
+        margin: 0 0 0.4rem;
+        text-transform: uppercase;
+      }
+      .sim-verdict-sentence {
+        font-size: 1.15rem;
+        font-weight: 500;
+        line-height: 1.5;
+        margin: 0;
+        max-width: 46rem;
+        text-wrap: balance;
+      }
+      .sim-modal-verb {
+        background: color-mix(in srgb, var(--ok) 14%, transparent);
+        border: 1px solid color-mix(in srgb, var(--ok) 40%, transparent);
+        border-radius: 5px;
+        color: var(--ok);
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 0.72em;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        line-height: 1.4;
+        padding: 0 0.35em;
+        text-transform: uppercase;
+        transform: translateY(-0.08em);
+      }
+      .sim-verdict-body {
+        padding: 0.6rem 0.85rem 0.7rem;
+      }
+      .sim-verdict-ledger-label {
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        margin: 0 0 0.25rem;
+        text-transform: uppercase;
+      }
+      .sim-verdict-keys {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .sim-verdict-keys li {
+        font-size: 0.83rem;
+        padding: 0.1rem 0;
+      }
+      .sim-verdict-keys code {
+        text-decoration: underline dotted;
+        text-underline-offset: 2px;
+      }
+      .sim-verdict-value {
+        color: var(--ok);
+        font-family: var(--mono);
+        font-size: 0.8rem;
+      }
+      .sim-step-link {
+        background: none;
+        border: none;
+        color: var(--accent);
+        cursor: pointer;
+        font-size: 0.78rem;
+        margin-left: 0.5rem;
+        padding: 0;
+      }
+      .sim-step-link:hover {
+        text-decoration: underline;
+      }
+      /* 047: the consumed-blocks aside collapses to one line; the block list
+         and the reason expand in place. */
+      .consumed-line {
+        color: var(--muted);
+        font-size: 0.8rem;
+        margin: 0.6rem 0 0;
+      }
+      .consumed-line > summary {
+        cursor: pointer;
+        list-style: none;
+      }
+      .consumed-line > summary::-webkit-details-marker {
+        display: none;
+      }
+      .consumed-line .glyph {
+        color: var(--warn);
+        font-family: var(--mono);
+      }
+      .consumed-line .expander {
+        color: var(--accent);
+      }
+      .consumed-line[open] .expander {
+        display: none;
+      }
+      .consumed-detail {
+        border-left: 3px solid color-mix(in srgb, var(--warn) 45%, transparent);
+        margin: 0.35rem 0 0;
+        max-width: 46rem;
+        padding-left: 0.6rem;
+      }
+      .sim-verdict-foot {
+        align-items: center;
+        border-top: 1px solid var(--border);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 0.9rem;
+        padding: 0.45rem 0.85rem;
+      }
+      .sim-jump {
+        background: none;
+        border: none;
+        color: var(--accent);
+        cursor: pointer;
+        font-size: 0.82rem;
+        padding: 0;
+      }
+      .sim-jump:hover {
+        text-decoration: underline;
+      }
+      .sim-verdict-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 0.9rem;
+        margin-left: auto;
+      }
+      .quiet-action {
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--accent);
+        cursor: pointer;
+        font-size: 0.8rem;
+        padding: 0.2rem 0.55rem;
+      }
+
+      /* rule rows + timeline echoes for drawer bodies */
+      .rule-row {
+        align-items: baseline;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        display: flex;
+        flex-wrap: wrap;
+        font-family: var(--mono);
+        font-size: 0.85rem;
+        gap: 0.5rem;
+        margin-bottom: 0.4rem;
+        padding: 0.45rem 0.6rem;
+      }
+      .rule-row .spacer {
+        flex: 1;
+      }
+      .rule-controls {
+        color: var(--muted);
+        display: flex;
+        font-size: 0.82rem;
+        gap: 1rem;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+      }
+      .rule-controls .link {
+        color: var(--accent);
+        cursor: pointer;
+      }
+      .stage-timeline {
+        column-gap: 0.15rem;
+        display: flex;
+        flex-wrap: wrap;
+        margin: 0.25rem 0 0.5rem;
+        row-gap: 0.4rem;
+      }
+      .stage-sep {
+        align-self: center;
+        color: var(--muted);
+        flex: none;
+        font-size: 0.8rem;
+        padding: 0 0.1rem;
+        user-select: none;
+      }
+      .stage-chip {
+        align-items: center;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        color: inherit;
+        cursor: pointer;
+        display: inline-flex;
+        font-size: 0.85rem;
+        gap: 0.35rem;
+        padding: 0.3rem 0.8rem;
+      }
+      .stage-chip.selected {
+        border-color: var(--accent);
+        outline: 1px solid var(--accent);
+      }
+      .stage-chip .dot {
+        border-radius: 50%;
+        flex: none;
+        height: 0.55rem;
+        width: 0.55rem;
+      }
+      .stage-chip .dot.clean {
+        background: var(--ok);
+      }
+      .stage-chip .dot.changed {
+        background: var(--warn);
+        border-radius: 2px;
+        transform: rotate(45deg);
+      }
+      .stage-chip .dot.skipped {
+        background: transparent;
+        border: 1.5px solid var(--muted);
+      }
+      .stage-chip-count {
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .stage-chip .rule-ref {
+        font-family: var(--mono);
+        font-size: 0.8rem;
+      }
+      .panel-stub {
+        border: 1px dashed var(--border);
+        border-radius: 6px;
+        color: var(--muted);
+        font-size: 0.82rem;
+        padding: 0.5rem 0.65rem;
+      }
+
+      /* mad-libs sentence form (1B) */
+      .sentence-form {
+        font-size: 1.05rem;
+        line-height: 2.2;
+        max-width: 52rem;
+      }
+      .sentence-form input,
+      .sentence-form select {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: inherit;
+        font: inherit;
+        font-size: 0.9em;
+        padding: 0.15rem 0.45rem;
+      }
+      .sentence-form input.pkg {
+        width: 9ch;
+      }
+      .sentence-form input.ver {
+        font-family: var(--mono);
+        font-size: 0.82em;
+        width: 9ch;
+      }
+      .sentence-form input.url {
+        width: 010rem;
+        width: 16rem;
+      }
+      .sentence-form .derived {
+        color: var(--muted);
+        font-size: 0.82em;
+      }
+
+      /* 047: the provenance-chip hover exhibit (016 glossary-card styling) */
+      .hover-exhibit {
+        margin: 0.5rem 0 1.25rem;
+      }
+      .glossary-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
+        font-size: 0.82rem;
+        margin-top: 0.4rem;
+        max-width: 34rem;
+        padding: 0.6rem 0.75rem;
+      }
+      .glossary-card p {
+        margin: 0 0 0.4rem;
+      }
+      .glossary-card p:last-child {
+        margin-bottom: 0;
+      }
+      .glossary-title {
+        font-weight: 600;
+      }
+      .glossary-card ol {
+        margin: 0 0 0.4rem;
+        padding-left: 1.4rem;
+      }
+      .glossary-card li {
+        margin: 0.2rem 0;
+      }
+      .badge.lvl {
+        border-color: var(--border);
+        color: var(--muted);
+      }
+
+      /* research + notes */
+      .research {
+        border-top: 1px solid var(--border);
+        margin-top: 3rem;
+        padding-top: 1rem;
+      }
+      .research h2 {
+        margin-top: 0.5rem;
+      }
+      .research p,
+      .research li {
+        color: var(--muted);
+        font-size: 0.88rem;
+        max-width: 56rem;
+      }
+      .research strong {
+        color: light-dark(#1f2328, #f0f6fc);
+      }
+      .research cite {
+        font-style: normal;
+        opacity: 0.8;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Mockup 047 — Simulator progressive disclosure</h1>
+      <p class="section-note">
+        The Simulator tab currently shows everything at once: the explainer, five quick-fill chips,
+        ten form fields plus a "More fields" disclosure, and — after Simulate — the verdict card,
+        the rule list with its filter controls, and the merge timeline with an open diff panel. This
+        mock stages it into three layers matched to the user's journey:
+        <strong>the ask</strong> (a minimal form), <strong>the answer</strong> (the verdict card,
+        never hidden), and <strong>the evidence</strong> (rules and merge history as summary
+        drawers, opened on demand). Research notes at the bottom.
+      </p>
+      <div class="mock-banner">
+        Mockup — app tokens from <code>packages/app/src/index.css</code>; the drawers and the
+        consumed-blocks line are interactive, the rest is static. Scenario: the 046 run — npm
+        <code>react</code> 4.17.20 → 4.17.21, 2 of 714 rules matched, <code>groupName</code>
+        changed.
+      </div>
+
+      <!-- ============================================================ -->
+      <h2><span class="num">1 ·</span> Before the first run — the ask</h2>
+      <p class="section-note">
+        <strong>User decision 2026-07-26:</strong> variant 1A, with <code>datasource</code>-first
+        essentials — <code>datasource</code>, <code>packageName</code>, <code>currentValue</code>,
+        <code>newValue</code> — and <code>datasource</code>/<code>manager</code> as dropdowns
+        generated from Renovate's own registries (<code>lib/modules/datasource/api.ts</code> ·
+        <code>lib/modules/manager/api.ts</code>, both already bundled — the adapter re-exports the
+        name lists). The sentence form (old 1B) is rejected. <code>sourceUrl</code> and
+        <code>manager</code> move into the drawer; because 015 promoted <code>sourceUrl</code>
+        for being the decisive matcher in the persona study, the drawer's summary line always
+        surfaces its value when set, so its scent survives the demotion.
+        <code>updateType</code> stays a derived one-liner with an override link instead of a select.
+      </p>
+
+      <p class="pane-label now">Now — ten fields before the first decision</p>
+      <div class="card">
+        <div class="card-body">
+          <div class="chip-row">
+            <button type="button" class="chip">npm dependency</button>
+            <button type="button" class="chip">Dockerfile image</button>
+            <button type="button" class="chip">GitHub Action</button>
+            <button type="button" class="chip">pep621 / pip</button>
+            <button type="button" class="chip">nuget</button>
+          </div>
+          <div class="field-grid">
+            <label class="field">manager<input value="npm" /></label>
+            <label class="field">datasource<input value="npm" /></label>
+            <label class="field">packageName<input value="react" /></label>
+            <label class="field">depName<input placeholder="= packageName" /></label>
+            <label class="field">depType<input value="dependencies" /></label>
+            <label class="field">packageFile<input value="package.json" /></label>
+            <label class="field">currentValue<input value="4.17.20" /></label>
+            <label class="field">newValue<input value="4.17.21" /></label>
+            <label class="field"
+              >sourceUrl<input placeholder="https://github.com/facebook/react"
+            /></label>
+            <label class="field"
+              >updateType<select>
+                <option>(unset)</option>
+              </select></label
+            >
+          </div>
+          <p class="derived-note">▸ More fields — versioning, lock files, URLs, categories, age…</p>
+          <button type="button" class="btn primary">Simulate</button>
+        </div>
+      </div>
+      <ul class="problem-list">
+        <li>
+          <strong>Ten decisions up front</strong> for a task the chips already solve — the five
+          fields a quick-fill fills sit at the same visual rank as the four a user actually edits.
+        </li>
+        <li>
+          <strong>Two disclosure tiers already exist</strong> ("More fields" and the chips), but the
+          primary tier is not minimal, so the staging does not read as staging.
+        </li>
+      </ul>
+
+      <h3><span class="num">1A ·</span> Essentials + a self-describing rest (approved shape)</h3>
+      <p class="section-note">
+        Four fields: <code>datasource</code> as a dropdown fed by Renovate's datasource registry
+        (60+ entries, <code>(unset)</code> first), then the package and the version pair. Everything
+        else — <code>manager</code> (a registry dropdown too, 90+ entries), <code>sourceUrl</code>,
+        and the prefilled/tail fields — lives in ONE drawer whose summary line lists the values it
+        currently holds, so a wrong prefill is catchable without opening anything. The old "More
+        fields" tail merges into the same drawer: one secondary tier, not two.
+      </p>
+      <div class="card">
+        <div class="card-body">
+          <div class="chip-row">
+            <button type="button" class="chip">npm dependency</button>
+            <button type="button" class="chip">Dockerfile image</button>
+            <button type="button" class="chip">GitHub Action</button>
+            <button type="button" class="chip">pep621 / pip</button>
+            <button type="button" class="chip">nuget</button>
+          </div>
+          <div class="field-grid">
+            <label class="field">
+              datasource
+              <select>
+                <option selected>npm</option>
+                <option>(unset)</option>
+                <option>docker</option>
+                <option>github-tags</option>
+                <option>maven</option>
+                <option>pypi</option>
+                <option>… 60+ from Renovate's registry</option>
+              </select>
+            </label>
+            <label class="field">packageName<input value="react" /></label>
+            <label class="field">currentValue<input value="4.17.20" /></label>
+            <label class="field">newValue<input value="4.17.21" /></label>
+          </div>
+          <p class="derived-note">
+            <span class="value">updateType: patch</span> — derived from 4.17.20 → 4.17.21 ·
+            <button type="button">override</button>
+          </p>
+          <details class="drawer">
+            <summary>
+              <span class="drawer-title">More about this update</span>
+              <span class="drawer-summary">
+                manager <span class="stat">npm</span> · depType
+                <span class="stat">dependencies</span> · packageFile
+                <span class="stat">package.json</span> · sourceUrl <span class="stat">—</span> ·
+                versioning, lock files, categories, age…
+              </span>
+            </summary>
+            <div class="drawer-body">
+              <div class="field-grid">
+                <label class="field">
+                  manager
+                  <select>
+                    <option selected>npm</option>
+                    <option>(unset)</option>
+                    <option>dockerfile</option>
+                    <option>github-actions</option>
+                    <option>gradle</option>
+                    <option>… 90+ from Renovate's registry</option>
+                  </select>
+                </label>
+                <label class="field"
+                  >sourceUrl<input placeholder="https://github.com/facebook/react"
+                /></label>
+                <label class="field">depName<input placeholder="= packageName" /></label>
+                <label class="field">depType<input value="dependencies" /></label>
+                <label class="field">packageFile<input value="package.json" /></label>
+                <label class="field">versioning<input placeholder="semver" /></label>
+              </div>
+              <p class="derived-note" style="margin: 0">… and the rest of the 015 tail fields.</p>
+            </div>
+          </details>
+          <button type="button" class="btn primary">Simulate</button>
+        </div>
+      </div>
+
+      <!-- ============================================================ -->
+      <h2><span class="num">2 ·</span> After Simulate — the answer, then evidence on demand</h2>
+      <p class="section-note">
+        The verdict card is the summary layer and is never collapsed — hiding the primary answer is
+        the classic progressive-disclosure failure. Everything below it becomes a
+        <strong>summary drawer</strong>: one line that abstracts its content (counts, provenance,
+        what changed), so the collapsed state still carries the scent. The consumed-blocks aside
+        inside the card gets the same treatment — one line, expandable in place.
+      </p>
+
+      <p class="pane-label now">Now — three fully-expanded layers after every run</p>
+      <p class="section-note" style="margin-top: 0">
+        (As shipped in 046 — verdict card, then the rule list with its controls, then the full merge
+        timeline with an open diff panel. Roughly two screens of content before the user has asked a
+        second question.)
+      </p>
+
+      <h3><span class="num">2A ·</span> Verdict + summary drawers (approved shape)</h3>
+      <p class="section-note">
+        <strong>User decisions 2026-07-26:</strong> 2A; tabs rejected. The
+        <code>repo config</code> label STAYS — it is a <strong>provenance</strong> chip (which layer
+        contributed the rule, not the docs' Repository-vs-Self-hosted option tier), and instead of
+        renaming, the chip becomes one shared component with a glossary hover (016) that explains
+        the config levels. Hovering any provenance chip, anywhere in the app, opens:
+      </p>
+      <div class="hover-exhibit">
+        <span class="badge repo">repo config</span>
+        <div class="glossary-card">
+          <p class="glossary-title">repo config — where this rule comes from</p>
+          <p>
+            This rule is written in the repository's own <code>renovate.json</code> (the editor pane
+            on the left). Chips name the config <em>level</em> that contributed a rule, in
+            Renovate's merge order — later levels win:
+          </p>
+          <ol>
+            <li><span class="badge lvl">default</span> Renovate's built-in defaults</li>
+            <li><span class="badge lvl">global config</span> the self-hosted bot's config</li>
+            <li><span class="badge lvl">inherited config</span> the org's shared config (045)</li>
+            <li><span class="badge repo">repo config</span> this repository's renovate.json</li>
+          </ol>
+          <p>
+            <span class="badge preset">config:recommended</span> a preset chip names the preset that
+            pulled the rule in, resolved from whichever level <code>extends</code> it — click it to
+            open that preset in the tree.
+          </p>
+        </div>
+      </div>
+      <div class="sim-verdict-block">
+        <div class="sim-verdict-band">
+          <p class="sim-verdict-eyebrow">Simulation · npm / react · 4.17.20 → 4.17.21</p>
+          <p class="sim-verdict-sentence">
+            This update <span class="sim-modal-verb">would</span> be grouped as
+            <span class="sim-verdict-value">"react"</span> and only run on schedule
+            <span class="sim-verdict-value">before 6am on monday</span>.
+          </p>
+        </div>
+        <div class="sim-verdict-body">
+          <p class="sim-verdict-ledger-label">Changed by the rules — 1 setting</p>
+          <ul class="sim-verdict-keys">
+            <li>
+              <code>groupName</code> = <span class="sim-verdict-value">"react"</span>
+              <span class="badge repo" style="margin-left: 0.5rem">repo config</span>
+              <button type="button" class="sim-step-link">step 2 of 2 →</button>
+            </li>
+          </ul>
+        </div>
+        <div class="sim-verdict-foot">
+          <button type="button" class="sim-jump">Copy link with this simulation</button>
+          <div class="sim-verdict-actions">
+            <button type="button" class="quiet-action">Pin result for comparison</button>
+          </div>
+        </div>
+      </div>
+
+      <details class="drawer" id="rules-drawer">
+        <summary>
+          <span class="drawer-title">Matched rules</span>
+          <span class="drawer-summary"><span class="stat">2 of 714</span> matched</span>
+          <span class="drawer-badges">
+            <span class="badge preset">config:recommended ×1</span>
+            <span class="badge repo">repo config ×1</span>
+          </span>
+        </summary>
+        <div class="drawer-body">
+          <div class="rule-controls">
+            <span>2 of 714 rules shown</span>
+            <span class="link">my rules only</span>
+            <span class="link">show all 714</span>
+          </div>
+          <div class="rule-row">
+            <span>▸ packageRules[0]</span> <span>matchPackageNames</span>
+            <span class="spacer"></span>
+            <span class="badge matched">matched</span>
+            <span class="badge preset">config:recommended</span>
+          </div>
+          <div class="rule-row">
+            <span>▸ packageRules[713]</span> <span>matchPackageNames</span>
+            <span class="spacer"></span>
+            <span class="badge matched">matched</span>
+            <span class="badge repo">repo config</span>
+          </div>
+        </div>
+      </details>
+
+      <details class="drawer" id="merge-drawer">
+        <summary>
+          <span class="drawer-title">How the final config was built</span>
+          <span class="drawer-summary">
+            base → <span class="stat">2</span> merges → flatten <span class="stat">⊘7</span> → final
+            · changed <code>groupName</code>
+          </span>
+        </summary>
+        <div class="drawer-body">
+          <div class="stage-timeline">
+            <button type="button" class="stage-chip"><span class="dot skipped"></span>base</button>
+            <span class="stage-sep">→</span>
+            <button type="button" class="stage-chip">
+              <span class="dot clean"></span><span class="rule-ref">packageRules[0]</span>
+              <span class="stage-chip-count">±0</span>
+            </button>
+            <span class="stage-sep">→</span>
+            <button type="button" class="stage-chip selected">
+              <span class="dot changed"></span><span class="rule-ref">packageRules[713]</span>
+              <span class="stage-chip-count">+1</span>
+            </button>
+            <span class="stage-sep">→</span>
+            <button type="button" class="stage-chip">
+              <span class="dot changed"></span>flatten<span class="stage-chip-count">⊘7</span>
+            </button>
+            <span class="stage-sep">→</span>
+            <button type="button" class="stage-chip">final config</button>
+          </div>
+          <div class="panel-stub">
+            Step 2 of 2 · packageRules[713] · the 046 detail panel (explanation + diff + nav),
+            unchanged — it only renders once this drawer is open.
+          </div>
+        </div>
+      </details>
+
+      <p class="section-note">
+        The drawer summaries are computed from the result, not hardcoded labels: the rules drawer
+        counts matches per provenance layer, the merge drawer compresses the timeline to
+        <code>base → N merges → flatten → final</code> plus the changed keys. "0 of 714 matched"
+        with no badges is itself the no-match explanation. Both drawers keep their open/closed state
+        across simulations — a re-run must not fold what the user opened.
+      </p>
+
+      <h3><span class="num">2A′ ·</span> The consumed-blocks line only when it earns its place</h3>
+      <p class="section-note">
+        <strong>Confirmed 2026-07-26:</strong> Renovate's defaults define all seven update-type
+        blocks on every config, and <code>major</code>/<code>minor</code>/<code>patch</code> are
+        empty <code>{}</code> — so "consumed by flattening, none applied" is true on virtually every
+        major/minor/patch simulation. A line that is always present is furniture, not signal (the
+        same reasoning 022 used to drop no-op clauses from the verdict sentence). New rule: the
+        verdict card shows the aside
+        <strong>only when an AUTHORED block was consumed without applying</strong> — a block whose
+        content differs from the defaults (someone wrote <code>minor: { automerge: true }</code>),
+        detectable from the effective-config provenance the app already computes (winning layer ≠
+        defaults). It names only those blocks and says why they didn't apply. Default-only
+        consumption renders nothing here — the timeline's <code>flatten ⊘7</code> chip keeps the
+        mechanics discoverable. With an authored block, the card gains:
+      </p>
+      <div class="card">
+        <div class="card-body">
+          <details class="consumed-line" open>
+            <summary>
+              <span class="glyph">⊘</span> Your <code>minor</code> block (<code>automerge</code>,
+              from <span class="badge preset">:automergeMinor</span>) didn't apply — this is a
+              <code>patch</code> update.
+              <button type="button" class="sim-step-link">see the flatten step →</button>
+            </summary>
+          </details>
+          <p class="derived-note" style="margin: 0.4rem 0 0">
+            …and with <code>updateType</code> unset: "— no <code>updateType</code> is set; fill the
+            version pair or pick one to see it apply."
+          </p>
+        </div>
+      </div>
+
+      <!-- ============================================================ -->
+      <h2><span class="num">3 ·</span> The scent survives the folding</h2>
+      <p class="section-note">
+        Every cross-link that exists today keeps working by
+        <strong>opening what it targets</strong>: the ledger's "step 2 of 2 →" and the aside's "see
+        the flatten step →" open the merge drawer and select the stop; "2 of 714 rules matched"
+        opens the rules drawer; a share link whose <code>simStep</code> points at a stop arrives
+        with the merge drawer open. Nothing a link can reach is ever behind a closed drawer when the
+        user lands on it.
+      </p>
+
+      <!-- ============================================================ -->
+      <section class="research">
+        <h2>Research notes — why these choices</h2>
+        <p>
+          Compiled 2026-07-26 from NN/g, Shneiderman, and the Carbon / Primer / GitLab Pajamas
+          design systems. Each principle below names the design decision it produced.
+        </p>
+        <ul>
+          <li>
+            <strong>Never gate the primary answer.</strong> Progressive disclosure works only when
+            "everything users frequently need" stays up front — get the split wrong and the extra
+            click plus the implied "this is unimportant" actively hurt.
+            <cite>(NN/g, "Progressive Disclosure")</cite> → the verdict card is never collapsed;
+            only the evidence layers fold.
+          </li>
+          <li>
+            <strong>Cap disclosure at 2 levels</strong> — "designs that go beyond 2 disclosure
+            levels typically have low usability." <cite>(NN/g, ibid.)</cite> → 1A merges the two
+            existing form tiers (visible-but-prefilled fields + "More fields") into ONE drawer; the
+            results page is page → drawer, nothing deeper.
+          </li>
+          <li>
+            <strong>Cut before you hide.</strong> Field-minimized forms hit 78% one-try completion
+            vs. 42% without. <cite>(NN/g, "Website Forms Usability")</cite> → the
+            <code>updateType</code> select is not moved — it is REMOVED, replaced by the derived
+            value as text with an override link (the 015 derivation made it redundant).
+          </li>
+          <li>
+            <strong>Chips must populate or replace the form, not sit beside it.</strong>
+            Conditional revelation keeps workflows short only when the primary view depends on the
+            selection. <cite>(Carbon, "Disclosures")</cite> → the quick-fill's writes land in the
+            drawer whose summary line SHOWS the written values — chips and a ten-field form no
+            longer compete at the same rank.
+          </li>
+          <li>
+            <strong>"Overview first, zoom and filter, then details-on-demand."</strong>
+            <cite>(Shneiderman, "The Eyes Have It", 1996)</cite> → verdict (overview) → rules drawer
+            with its filters (zoom/filter) → merge timeline and step diff (details), each stage
+            entered by an action on the previous one instead of all rendered open.
+          </li>
+          <li>
+            <strong>Collapsed headers need a count or preview, not a bare label</strong> — hidden
+            content with weak scent is simply missed (hidden navigation: 27% usage vs. 48% visible;
+            "valuable content hidden under an accordion may be missed altogether").
+            <cite>(NN/g, "Hamburger Menus…"; "Accordions on Desktop")</cite> → the 047 signature:
+            every drawer's summary line is an abstract of its content ("2 of 714 matched ·
+            config:recommended ×1 · repo config ×1"), computed from the result.
+          </li>
+          <li>
+            <strong>Keep a persistent status summary regardless of what's collapsed.</strong>
+            GitHub's PR review keeps the viewed-count header while diffs collapse; Vercel keeps
+            deploy status above collapsed build phases. <cite>(GitHub Docs; Vercel Docs)</cite> →
+            the verdict card plays that role here.
+          </li>
+          <li>
+            <strong>A disclosure must not move or reset unrelated UI.</strong>
+            <cite>(GitHub Primer, "Progressive Disclosure")</cite> → drawers are independent
+            (opening one never folds another), they keep their state across re-simulations, and
+            cross-links open what they target (section 3) rather than pointing into a closed drawer.
+          </li>
+          <li>
+            <strong>Tabs mean mutually exclusive; accordion rows mean secondary siblings.</strong>
+            <cite>(Carbon; NN/g)</cite> → why 2A (drawers) is recommended over 2B (tabs): the rule
+            list and the merge diff are complementary evidence a user reads together.
+          </li>
+          <li>
+            <strong
+              >Use disclosure sparingly — fix the worst signal-to-noise, not every section.</strong
+            >
+            <cite>(Primer; GitLab Pajamas)</cite> → exactly three folds on the whole tab: the form's
+            prefilled details, the rule list, the merge history.
+          </li>
+        </ul>
+      </section>
+    </main>
+    <script>
+      // Section 3 behavior: a step link opens the merge drawer it targets.
+      document.querySelectorAll(".sim-step-link").forEach((el) => {
+        el.addEventListener("click", () => {
+          const drawer = document.getElementById("merge-drawer");
+          if (drawer) {
+            drawer.open = true;
+            drawer.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
