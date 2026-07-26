@@ -1,6 +1,6 @@
 # 048 — App decomposition + depth ratchet to 3
 
-Milestone: M13 · Status: in progress (2026-07-26)
+Milestone: M13 · Status: done (2026-07-27, three loop iterations)
 
 Research basis (commissioned for this work, adversarially verified):
 [2026-07-vite-structure-research.md](2026-07-vite-structure-research.md)
@@ -59,3 +59,35 @@ to match).
 
 Full suite per iteration: typecheck, lint (at the ratcheted depth),
 unit, build, e2e — green with zero test edits.
+
+## Loop record
+
+- **Iteration 1** (three parallel agents): `features/simulator/` (30
+  files, 7 named hooks, RuleSimulator 2,791 → 434 lines), the App/
+  EffectiveConfig/AdvancedZone depth extractions, and the 4 → 3 ratchet.
+- **Reevaluation 1** (full-tree audit): found one real layer inversion
+  (`ResultsColumn`, a shared-layer file importing the feature), rated
+  the boundary lint + `useRunSummary` + the 045/repo-load hook
+  extractions SIGNIFICANT; rejected with evidence an AdvancedZone pass
+  (zero hook calls), a PresetTree feature split (fails "when next
+  touched"), and a SummaryDrawer demotion (no demotion rule survived
+  verification).
+- **Iteration 2**: `ResultsColumn` → app shell; `no-restricted-imports`
+  overrides pin `app → features → shared` (oxlint overrides REPLACE
+  rule options, so both overrides restate the renovate/dist group —
+  measured); `useRunSummary` (pure derivation; `resultsTabs`
+  deliberately unmemoized) and `useInheritedConfigLayer` extracted.
+- **Iteration 3**: `useRepoLoad` (largest App block; same-tick guard
+  ordering and probe position moved verbatim; the hook↔hook cycle
+  broken by a late-bound `resolveInheritedConfig` host member);
+  `RunInputs` promoted to `lib/run-inputs.ts`.
+- **Termination.** Two independent assessments concur that nothing
+  significant remains: the leftover clusters are either anti-criterion
+  territory (the ~55-line untrusted-guard cluster), would worsen
+  hook↔hook coupling (platform context, the run path — read by all
+  three existing hooks), or carry load-bearing effect-ordering risk for
+  marginal gain (tab/navigation). Further extraction lands on the
+  research's own unsettled open question — the post-split state-sharing
+  mechanism (props vs context vs store) — which is where a future item
+  should start, not this one. App.tsx ended at 1,073 lines (from
+  1,563); PresetTree stays as-is per "when next touched".
