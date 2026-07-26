@@ -136,26 +136,8 @@ pnpm -r typecheck
 pnpm lint && pnpm format:check
 ```
 
-<details>
-<summary>How it works</summary>
-
-- `packages/engine` deep-imports the `renovate` package
-  (`renovate/dist/config/**`, all in one adapter module) and records the trace;
-  `packages/app` is the React SPA that renders it.
-- A Vite `resolveId` plugin swaps Node-only internals (OpenTelemetry, bunyan,
-  re2, datasource lookups, preset HTTP clients) for browser-safe shims; the
-  logger shim doubles as the trace collector, and preset fetching becomes plain
-  `fetch()` against CORS-enabled host APIs.
-- **Golden tests** prove the shims don't alter behavior — the same fixtures run
-  against untouched Renovate modules and through the browser module graph, and
-  must produce byte-identical results.
-- Renovate's config code is not a public API, so the dependency is pinned
-  exactly and every Renovate release PR runs the full CI.
-- `matchCurrentVersion` uses Renovate's real versioning modules for every
-  ecosystem except `conda`, whose ~3 MB WebAssembly parser is excluded from the
-  bundle (such clauses report an honest error instead).
-
-</details>
+How it all works — the shim plugin, the golden tests, the pinned Renovate —
+lives in [docs/Architecture.md](docs/Architecture.md).
 
 <details>
 <summary>Privacy, tokens & GitHub sign-in</summary>
