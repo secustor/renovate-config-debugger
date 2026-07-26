@@ -13,7 +13,12 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { TraceResult } from "@renovate-config-visualizer/engine";
-import { completeCallback, type OAuthConfig, readCallbackParams, type StoredUser } from "@/platform/oauth";
+import {
+  completeCallback,
+  type OAuthConfig,
+  readCallbackParams,
+  type StoredUser,
+} from "@/platform/oauth";
 import { getRenovateVersion } from "@/platform/run";
 import {
   buildShareUrl,

@@ -12,7 +12,12 @@
  * closing the tab clears them. GitHub Apps issue 8 h user tokens with a 6-month
  * refresh token; refreshing is a Worker round-trip.
  */
-import { isHttpUrl, isValidOAuthParam, isValidToken, sanitizeStoredUser } from "@/lib/input-schemas";
+import {
+  isHttpUrl,
+  isValidOAuthParam,
+  isValidToken,
+  sanitizeStoredUser,
+} from "@/lib/input-schemas";
 // Roadmap 033: storage access goes through the safe wrappers — a
 // storage-disabled browser reads "signed out" (get → null) and writes are
 // no-ops, instead of a throw taking down whatever called into this module.
