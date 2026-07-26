@@ -188,16 +188,56 @@
         gap: 0.3rem;
         white-space: nowrap;
       }
-      /* B: its own sub-row under the inputs — full label fits. */
+      /* B: its own sub-row under the inputs — full label fits, and the
+         probe's repo/file are right there as editable prefills. */
       .repo-panel-row2 {
         align-items: center;
         background: var(--surface);
         border-bottom: 1px solid var(--border);
         color: var(--muted);
         display: flex;
+        flex-wrap: wrap;
         font-size: 0.8rem;
-        gap: 0.3rem;
+        gap: 0.4rem;
         padding: 0 0.75rem 0.5rem;
+      }
+      .repo-panel-row2 .ctl {
+        flex: 1 1 9rem;
+        min-width: 7rem;
+      }
+
+      /* ---- glossary term + hover card, verbatim grammar (016/025) ---- */
+      .term {
+        border-bottom: 1px dotted var(--muted);
+        cursor: help;
+      }
+      .option-card {
+        background: light-dark(#ffffff, #151b23);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: 0 8px 24px light-dark(rgba(140, 149, 159, 0.3), rgba(0, 0, 0, 0.5));
+        font-size: 0.8rem;
+        max-width: 340px;
+        overflow-wrap: anywhere;
+        padding: 0.6rem 0.75rem;
+      }
+      /* Rendered inline in the mockup; the real card is position: fixed. */
+      .option-card.static-demo {
+        margin: 0.5rem 0 0 1.5rem;
+      }
+      .option-card-name {
+        font-size: 0.9rem;
+        font-weight: 600;
+      }
+      .option-card-desc {
+        margin: 0.35rem 0;
+      }
+      .option-card-row {
+        color: var(--muted);
+        margin: 0;
+      }
+      .option-card a {
+        color: var(--accent);
       }
       .repo-panel.no-border {
         border-bottom: none;
@@ -253,14 +293,18 @@
         gap: 0.4rem;
         margin: 0;
       }
+      /* The app's ONE badge recipe (036): currentColor-tinted fill + border,
+         the variant only sets `color`. */
       .layer-origin .badge {
-        border: 1px solid var(--border);
+        background: color-mix(in srgb, currentColor 13%, transparent);
+        border: 1px solid color-mix(in srgb, currentColor 32%, transparent);
         border-radius: 999px;
-        font-size: 0.72rem;
-        padding: 0.05rem 0.5rem;
+        font-size: 0.7rem;
+        line-height: 1.4;
+        padding: 0 0.45rem;
+        white-space: nowrap;
       }
       .layer-origin .badge.auto {
-        border-color: var(--ok);
         color: var(--ok);
       }
       .layer-miss {
@@ -343,9 +387,12 @@
       <h3><span class="num">1B ·</span> Its own sub-row (recommended)</h3>
       <p class="section-note">
         A second line inside the same surface: the one-row invariant for inputs + buttons stays
-        untouched, the label can say what actually happens, and the row disappears with the
-        disclosure like everything else (039). Costs one line of transient height only while the
-        form is open.
+        untouched, and the probe's repo and file name sit right there as EDITABLE fields — prefilled
+        from the typed owner (<code>{{parentOrg}}/renovate-config</code> ·
+        <code>org-inherited-config.json</code>, or the pasted global config's
+        <code>inheritConfigRepoName</code>/<code>inheritConfigFileName</code> overrides when
+        present). "inherited config" is a glossary term (016): hovering it opens the card shown
+        below, which links Renovate's own docs for the <code>inheritConfig*</code> options.
       </p>
       <div class="card">
         <div class="card-title">Config <span class="card-title-hint">— renovate.json</span></div>
@@ -361,22 +408,50 @@
           <button class="btn quiet" type="button">Cancel</button>
         </div>
         <div class="repo-panel-row2">
-          <label style="display: inline-flex; align-items: center; gap: 0.3rem">
+          <label style="display: inline-flex; align-items: center; gap: 0.3rem; flex: none">
             <input type="checkbox" checked />
-            Also load the org's inherited config
+            Also load the org's <span class="term">inherited config</span> from
           </label>
-          <span
-            >(<code>renovate-org/renovate-config</code> ·
-            <code>org-inherited-config.json</code>)</span
-          >
+          <input
+            class="ctl"
+            type="text"
+            aria-label="Inherited config repository"
+            value="renovate-org/renovate-config"
+          />
+          <input
+            class="ctl"
+            type="text"
+            aria-label="Inherited config file name"
+            value="org-inherited-config.json"
+          />
         </div>
         <div class="editor-stub">{ "extends": ["config:recommended"] }</div>
       </div>
+
+      <div class="option-card static-demo" role="tooltip">
+        <code class="option-card-name">inheritConfig</code>
+        <p class="option-card-desc">
+          Org-level defaults a bot shares across repositories: Renovate reads
+          <code>inheritConfigFileName</code> from <code>inheritConfigRepoName</code> (default
+          <code>{{parentOrg}}/renovate-config</code> · <code>org-inherited-config.json</code>) and
+          merges it between the global config and the repo's own. The public Mend-hosted app runs
+          with it enabled.
+        </p>
+        <p class="option-card-row">
+          Renovate docs:
+          <a href="https://docs.renovatebot.com/self-hosted-configuration/#inheritconfig"
+            >self-hosted-configuration#inheritConfig</a
+          >
+          (covers <code>inheritConfigRepoName</code>, <code>inheritConfigFileName</code>,
+          <code>inheritConfigStrict</code>)
+        </p>
+      </div>
+
       <p class="verdict">
-        <strong>Recommendation: 1B.</strong> The label names the fetch it triggers and previews the
-        exact repo/file it will probe (templated live from the typed owner), which a default-on
-        network action owes the user. 1A's terse label survives the row constraint but explains
-        nothing.
+        <strong>Recommendation: 1B.</strong> The label names the fetch it triggers, the exact
+        repo/file it will probe are visible AND editable, and the glossary term explains the
+        mechanism with a path into Renovate's docs — what a default-on network action owes the user.
+        1A's terse label survives the row constraint but explains nothing.
       </p>
 
       <!-- ============================================================ -->

@@ -33,12 +33,18 @@ global config.
   table), so the only case needing a hint is a pasted global config
   that explicitly sets `inheritConfig: false` — then the auto-loaded
   layer says a run under THAT global config would not apply it.
-- **Resolution, Renovate's own.** `{{parentOrg}}` templates to the
-  loaded repo's owner/group; `inheritConfigRepoName` /
-  `inheritConfigFileName` overrides in the pasted global config are
-  honored. The fetch goes browser → platform API under the existing
-  platform context, with the same support matrix, sign-in, and per-host
-  tokens as repo loading (hosts that don't serve CORS stay paste-only).
+  "inherited config" in the label is a glossary term (016) whose hover
+  card explains the mechanism and links Renovate's own
+  `inheritConfig*` docs.
+- **Resolution, Renovate's own — and editable in the form.** The
+  sub-row shows the probe's repo and file name as editable fields,
+  prefilled with `{{parentOrg}}` templated to the loaded repo's
+  owner/group (or the pasted global config's `inheritConfigRepoName` /
+  `inheritConfigFileName` overrides when present) — orgs that
+  customized either just type theirs. The fetch goes browser →
+  platform API under the existing platform context, with the same
+  support matrix, sign-in, and per-host tokens as repo loading (hosts
+  that don't serve CORS stay paste-only).
 - **Missing-file semantics match `inheritConfigStrict`.** Absent file
   with `inheritConfigStrict: false` (default): a quiet note, layer
   stays empty — exactly what a real run does. With `strict: true`: the
