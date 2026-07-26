@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mockup 045 — Auto-load the org's inherited config on repo load</title>
+    <style>
+      /* ---- app tokens, verbatim from packages/app/src/index.css ---- */
+      :root {
+        color-scheme: light dark;
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        --border: light-dark(#d0d7de, #3d444d);
+        --surface: light-dark(#f6f8fa, #151b23);
+        --accent: #0969da;
+        --ok: #1a7f37;
+        --error: #cf222e;
+        --warn: #9a6700;
+        --muted: light-dark(#59636e, #9198a1);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: light-dark(#ffffff, #0d1117);
+        color: light-dark(#1f2328, #f0f6fc);
+      }
+      main {
+        margin: 0 auto;
+        max-width: 62rem;
+        padding: 1.5rem 1rem 4rem;
+      }
+      h1 {
+        font-size: 1.5rem;
+        margin: 0 0 0.25rem;
+      }
+      h2 {
+        font-size: 1.05rem;
+        margin: 2.5rem 0 0.25rem;
+      }
+      h3 {
+        font-size: 0.95rem;
+        margin: 1.75rem 0 0.25rem;
+      }
+      h2 .num,
+      h3 .num {
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .section-note {
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin: 0.25rem 0 1rem;
+        max-width: 56rem;
+      }
+      .mock-banner {
+        background: light-dark(#fff8c5, #3a2d00);
+        border: 1px solid var(--warn);
+        border-radius: 8px;
+        font-size: 0.85rem;
+        margin-bottom: 1rem;
+        padding: 0.5rem 0.75rem;
+      }
+      .verdict {
+        border-left: 3px solid var(--ok);
+        color: var(--muted);
+        font-size: 0.88rem;
+        margin: 0.75rem 0 0;
+        max-width: 56rem;
+        padding: 0.1rem 0 0.1rem 0.75rem;
+      }
+      .verdict strong {
+        color: light-dark(#1f2328, #f0f6fc);
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      p code,
+      .advanced-note code,
+      .layer-origin code {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-size: 0.85em;
+        padding: 0.05em 0.3em;
+      }
+      .pane-label {
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        margin: 1rem 0 0.35rem;
+        text-transform: uppercase;
+      }
+      .pane-label.now {
+        color: var(--error);
+      }
+      .pane-label.proposed {
+        color: var(--ok);
+      }
+
+      /* ---- app chrome, verbatim ---- */
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        overflow: hidden;
+      }
+      .card > .card-title {
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        font-size: 0.85rem;
+        font-weight: 600;
+        padding: 0.5rem 0.75rem;
+      }
+      .card-title-hint {
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .btn {
+        align-items: center;
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: inherit;
+        cursor: pointer;
+        display: inline-flex;
+        flex: none;
+        font: inherit;
+        font-size: 0.8rem;
+        gap: 0.3rem;
+        padding: 0.25rem 0.6rem;
+      }
+      .btn.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+      .btn.quiet {
+        border-color: transparent;
+        color: var(--muted);
+      }
+      .ctl {
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: inherit;
+        font: inherit;
+        font-size: 0.8rem;
+        padding: 0.25rem 0.6rem;
+      }
+      .repo-panel {
+        align-items: center;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 0.4rem;
+        padding: 0.5rem 0.75rem;
+      }
+      .repo-panel-repo {
+        flex: 3 1 8rem;
+        min-width: 6rem;
+      }
+      .repo-panel-ref {
+        flex: 1 1 5rem;
+        min-width: 4rem;
+      }
+      .editor-stub {
+        color: var(--muted);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.85rem;
+        padding: 0.75rem;
+        white-space: pre;
+      }
+
+      /* ---- the 045 checkbox, two placements ---- */
+      /* A: inline in the one unwrappable row — label must stay terse. */
+      .repo-panel-inherit {
+        align-items: center;
+        color: var(--muted);
+        display: inline-flex;
+        flex: none;
+        font-size: 0.8rem;
+        gap: 0.3rem;
+        white-space: nowrap;
+      }
+      /* B: its own sub-row under the inputs — full label fits. */
+      .repo-panel-row2 {
+        align-items: center;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        color: var(--muted);
+        display: flex;
+        font-size: 0.8rem;
+        gap: 0.3rem;
+        padding: 0 0.75rem 0.5rem;
+      }
+      .repo-panel.no-border {
+        border-bottom: none;
+      }
+
+      /* ---- advanced zone, verbatim geometry ---- */
+      .advanced-settings {
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        margin: 0.5rem 0 0.75rem;
+        padding: 0.4rem 0.75rem;
+      }
+      .advanced-settings summary {
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+      .advanced-hint {
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .advanced-body {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        margin-top: 0.6rem;
+      }
+      .advanced-note {
+        color: var(--muted);
+        font-size: 0.8rem;
+        margin: 0;
+      }
+      textarea.layer-editor {
+        background: light-dark(#ffffff, #0d1117);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: inherit;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.85rem;
+        line-height: 1.45;
+        padding: 0.5rem 0.6rem;
+        resize: vertical;
+        width: 100%;
+      }
+
+      /* ---- 045 layer states ---- */
+      .layer-origin {
+        align-items: baseline;
+        color: var(--muted);
+        display: flex;
+        flex-wrap: wrap;
+        font-size: 0.8rem;
+        gap: 0.4rem;
+        margin: 0;
+      }
+      .layer-origin .badge {
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        font-size: 0.72rem;
+        padding: 0.05rem 0.5rem;
+      }
+      .layer-origin .badge.auto {
+        border-color: var(--ok);
+        color: var(--ok);
+      }
+      .layer-miss {
+        color: var(--muted);
+        font-size: 0.8rem;
+        margin: 0;
+      }
+      .layer-hint {
+        border-left: 3px solid var(--warn);
+        color: var(--warn);
+        font-size: 0.8rem;
+        margin: 0;
+        padding-left: 0.6rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Mockup 045 — auto-load the org's inherited config</h1>
+      <p class="section-note">
+        A default-enabled checkbox in the repo-load disclosure (039) probes
+        <code>{{parentOrg}}/renovate-config</code> for <code>org-inherited-config.json</code> on
+        every successful load and fills the inherited-config layer (008). Section 1: where the
+        checkbox lives. Section 2: the three states the auto-loaded layer can land in.
+      </p>
+      <div class="mock-banner">
+        Mockup — static HTML, tokens and geometry copied from
+        <code>packages/app/src/index.css</code>. Nothing is interactive except the disclosure
+        toggles.
+      </div>
+
+      <!-- ============================================================ -->
+      <h2><span class="num">1 ·</span> The checkbox in the repo-load row</h2>
+      <p class="section-note">
+        Constraint from 035: the repo-load panel is ONE unwrappable row — inputs shrink, buttons
+        never do, and nothing may orphan <em>Load</em> onto its own line. The checkbox has to
+        respect that.
+      </p>
+
+      <p class="pane-label now">Now — no way to bring the org's inherited config along</p>
+      <div class="card">
+        <div class="card-title">Config <span class="card-title-hint">— renovate.json</span></div>
+        <div class="repo-panel">
+          <input
+            class="ctl repo-panel-repo"
+            type="text"
+            placeholder="owner/repo, github.com/owner/repo, or a full repository URL"
+            value="renovate-org/backend-api"
+          />
+          <input class="ctl repo-panel-ref" type="text" placeholder="branch or tag (optional)" />
+          <button class="btn primary" type="button">Load</button>
+          <button class="btn quiet" type="button">Cancel</button>
+        </div>
+        <div class="editor-stub">{ "extends": ["config:recommended"] }</div>
+      </div>
+
+      <h3><span class="num">1A ·</span> Inline in the row (terse label)</h3>
+      <p class="section-note">
+        Fits the one-row invariant only with a terse label ("org config") — the full sentence would
+        crush the inputs at narrow widths, and a bare two-word label under-explains a default-on
+        network fetch.
+      </p>
+      <div class="card">
+        <div class="card-title">Config <span class="card-title-hint">— renovate.json</span></div>
+        <div class="repo-panel">
+          <input
+            class="ctl repo-panel-repo"
+            type="text"
+            placeholder="owner/repo, github.com/owner/repo, or a full repository URL"
+            value="renovate-org/backend-api"
+          />
+          <input class="ctl repo-panel-ref" type="text" placeholder="branch or tag (optional)" />
+          <label class="repo-panel-inherit"><input type="checkbox" checked /> org config</label>
+          <button class="btn primary" type="button">Load</button>
+          <button class="btn quiet" type="button">Cancel</button>
+        </div>
+        <div class="editor-stub">{ "extends": ["config:recommended"] }</div>
+      </div>
+
+      <h3><span class="num">1B ·</span> Its own sub-row (recommended)</h3>
+      <p class="section-note">
+        A second line inside the same surface: the one-row invariant for inputs + buttons stays
+        untouched, the label can say what actually happens, and the row disappears with the
+        disclosure like everything else (039). Costs one line of transient height only while the
+        form is open.
+      </p>
+      <div class="card">
+        <div class="card-title">Config <span class="card-title-hint">— renovate.json</span></div>
+        <div class="repo-panel no-border">
+          <input
+            class="ctl repo-panel-repo"
+            type="text"
+            placeholder="owner/repo, github.com/owner/repo, or a full repository URL"
+            value="renovate-org/backend-api"
+          />
+          <input class="ctl repo-panel-ref" type="text" placeholder="branch or tag (optional)" />
+          <button class="btn primary" type="button">Load</button>
+          <button class="btn quiet" type="button">Cancel</button>
+        </div>
+        <div class="repo-panel-row2">
+          <label style="display: inline-flex; align-items: center; gap: 0.3rem">
+            <input type="checkbox" checked />
+            Also load the org's inherited config
+          </label>
+          <span
+            >(<code>renovate-org/renovate-config</code> ·
+            <code>org-inherited-config.json</code>)</span
+          >
+        </div>
+        <div class="editor-stub">{ "extends": ["config:recommended"] }</div>
+      </div>
+      <p class="verdict">
+        <strong>Recommendation: 1B.</strong> The label names the fetch it triggers and previews the
+        exact repo/file it will probe (templated live from the typed owner), which a default-on
+        network action owes the user. 1A's terse label survives the row constraint but explains
+        nothing.
+      </p>
+
+      <!-- ============================================================ -->
+      <h2><span class="num">2 ·</span> The layer after the load</h2>
+      <p class="section-note">
+        The Advanced zone's existing "Inherited config" section (008) — the probe only fills it, the
+        section itself is unchanged. Three possible states.
+      </p>
+
+      <h3><span class="num">2a ·</span> Found — layer filled, origin labeled, still editable</h3>
+      <details class="advanced-settings" open>
+        <summary>
+          Inherited config
+          <span class="advanced-hint">
+            — org-wide defaults shared across repositories · active</span
+          >
+        </summary>
+        <div class="advanced-body">
+          <p class="layer-origin">
+            <span class="badge auto">auto-loaded</span>
+            from <code>renovate-org/renovate-config</code> · <code>org-inherited-config.json</code>
+            — editing makes it yours, like a pasted layer.
+          </p>
+          <textarea class="layer-editor" rows="6" spellcheck="false">
+{
+  "extends": ["github>renovate-org/renovate-config:base"],
+  "labels": ["dependencies"],
+  "prHourlyLimit": 4
+}</textarea>
+        </div>
+      </details>
+
+      <h3><span class="num">2b ·</span> Not found — quiet note, layer stays empty</h3>
+      <details class="advanced-settings" open>
+        <summary>
+          Inherited config
+          <span class="advanced-hint"> — org-wide defaults shared across repositories</span>
+        </summary>
+        <div class="advanced-body">
+          <p class="layer-miss">
+            No org inherited config: <code>renovate-org/renovate-config</code> has no
+            <code>org-inherited-config.json</code> (404). A real run tolerates this too (<code
+              >inheritConfigStrict</code
+            >
+            is off by default).
+          </p>
+          <textarea
+            class="layer-editor"
+            rows="3"
+            spellcheck="false"
+            placeholder='{ "extends": ["github>my-org/renovate-config:base"] }'
+          ></textarea>
+        </div>
+      </details>
+
+      <h3><span class="num">2c ·</span> Found, but the pasted global config disables it</h3>
+      <p class="section-note">
+        The only case needing a warning: default-on matches the Mend-hosted app (which runs with
+        <code>inheritConfig</code> enabled), so the hint appears solely when a pasted global config
+        EXPLICITLY sets <code>inheritConfig: false</code>.
+      </p>
+      <details class="advanced-settings" open>
+        <summary>
+          Inherited config
+          <span class="advanced-hint">
+            — org-wide defaults shared across repositories · active</span
+          >
+        </summary>
+        <div class="advanced-body">
+          <p class="layer-origin">
+            <span class="badge auto">auto-loaded</span>
+            from <code>renovate-org/renovate-config</code> · <code>org-inherited-config.json</code>
+          </p>
+          <p class="layer-hint">
+            Your global config sets <code>inheritConfig: false</code> — a run under that global
+            config would not apply this layer.
+          </p>
+          <textarea class="layer-editor" rows="4" spellcheck="false">
+{
+  "extends": ["github>renovate-org/renovate-config:base"]
+}</textarea>
+        </div>
+      </details>
+
+      <p class="verdict">
+        <strong>Sum:</strong> 1B for the checkbox; the layer states reuse the 008 section verbatim
+        with one new origin line (badge + source) and the inverted honesty hint from the 045 doc —
+        no new UI surface anywhere else.
+      </p>
+    </main>
+  </body>
+</html>

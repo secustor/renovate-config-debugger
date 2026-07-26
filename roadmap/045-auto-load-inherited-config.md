@@ -2,6 +2,9 @@
 
 Milestone: M12 · Status: planned
 
+Mockup (proposed, recommends variant 1B):
+[mockups/045/auto-load-inherited-config.html](mockups/045/auto-load-inherited-config.html)
+
 ## Summary
 
 The inherited-config layer (008) is paste-only: a user modeling their
