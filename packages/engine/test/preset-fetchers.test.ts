@@ -358,4 +358,22 @@ describe("preset fetcher URL encoding", () => {
     expect(result.stageStatus.merge).toBe("ok");
     expect(result.finalConfig).toBeDefined();
   });
+
+  it("refuses a traversal segment in a gitea preset FILE path without ever fetching", async () => {
+    const body = JSON.stringify({ type: "file", encoding: "base64", content: base64(PRESET_BODY) });
+    const fetchMock = vi.fn().mockResolvedValue(new Response(body, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    // The `//` sub-path lands in `fileName`, not `repo` — the segment the
+    // gitea/forgejo transport encoded with plain `encodeURIComponent` until
+    // it was aligned with the github transport's per-segment refusal.
+    const result = await runPipeline({
+      fileName: "renovate.json",
+      content: '{ "extends": ["gitea>example-org/repo//../../admin/secret"] }',
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.stageStatus.merge).toBe("ok");
+    expect(result.finalConfig).toBeDefined();
+  });
 });

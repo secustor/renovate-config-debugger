@@ -44,9 +44,10 @@ function makeFetchJSONFile(source: Source) {
     tag?: string,
   ): Promise<Record<string, unknown> | null> {
     const ref = tag ? `?ref=${encodeURIComponent(tag)}` : "";
-    // Security 2026-07-25: `repo` is config-supplied — encoded per segment so
-    // it cannot reshape the path (`fileName`/`tag` were already encoded).
-    const url = `${endpoint}api/v1/repos/${encodePathSegments(repo)}/contents/${encodeURIComponent(fileName)}${ref}`;
+    // Security 2026-07-25: `repo` and `fileName` are config-supplied — encoded
+    // per segment (refusing `.`/`..`) so neither can reshape the path, same as
+    // the github transport (`tag` lands in the query, plain encoding suffices).
+    const url = `${endpoint}api/v1/repos/${encodePathSegments(repo)}/contents/${encodePathSegments(fileName)}${ref}`;
     const headers: Record<string, string> = { accept: "application/json" };
     const token = tokenFor(source);
     if (token) {

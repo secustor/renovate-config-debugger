@@ -26,19 +26,6 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm --filter @renovate-config-visualizer/app build
 
-# --- app (default target) ----------------------------------------------------
-FROM nginx:alpine AS app
-
-COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
-COPY docker/40-rcv-config.sh /docker-entrypoint.d/40-rcv-config.sh
-# Explicit, because a checkout on a filesystem without an exec bit would
-# otherwise have the nginx entrypoint silently skip the script.
-RUN chmod +x /docker-entrypoint.d/40-rcv-config.sh
-
-COPY --from=build /repo/packages/app/dist /usr/share/nginx/html
-
-EXPOSE 80
-
 # --- oauth-proxy -------------------------------------------------------------
 # The OAuth token exchange (roadmap 009) without Cloudflare. Only needed by a
 # self-hoster who wants "Sign in with GitHub"; the app works without it.
@@ -58,3 +45,18 @@ EXPOSE 8788
 USER node
 
 CMD ["node", "server.mjs"]
+
+# --- app (default target) ----------------------------------------------------
+# LAST stage on purpose: a bare `docker build .` must produce the app, because
+# Docker builds the final stage when no --target is given.
+FROM nginx:alpine AS app
+
+COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker/40-rcv-config.sh /docker-entrypoint.d/40-rcv-config.sh
+# Explicit, because a checkout on a filesystem without an exec bit would
+# otherwise have the nginx entrypoint silently skip the script.
+RUN chmod +x /docker-entrypoint.d/40-rcv-config.sh
+
+COPY --from=build /repo/packages/app/dist /usr/share/nginx/html
+
+EXPOSE 80
