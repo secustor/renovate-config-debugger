@@ -29,7 +29,8 @@ global config.
   persists like the form's other state. Default-on is the honest
   default: the public Mend-hosted GitHub app runs with `inheritConfig`
   enabled, so for the most common real-world setup the probe models
-  exactly what the bot does. The option itself defaults to `false` and
+  exactly what the bot does. **[Wrong — see "Correction (2026-07-26)"
+  below; the default flipped to off.]** The option itself defaults to `false` and
   is `globalOnly` (verified against the pinned renovate's option
   table), so the only case needing a hint is a pasted global config
   that explicitly sets `inheritConfig: false` — then the auto-loaded
@@ -171,3 +172,35 @@ global config.
   `e2e/14-auto-load-inherited-config.spec.ts`; the two `12-layout-regressions`
   "Repository" locators became `exact` because the sub-row's field name contains
   the word).
+
+## Correction (2026-07-26)
+
+This item's "default-on" decision was justified above with "the public
+Mend-hosted app runs with `inheritConfig` enabled." That is wrong. Per
+[self-hosted-configuration/#inheritconfig](https://docs.renovatebot.com/self-hosted-configuration/#inheritconfig):
+
+> We disabled inheritConfig in the Mend Renovate App to avoid wasting
+> millions of API calls per week... We will add a smart/dynamic approach
+> in future.
+
+The option also defaults to `false` and is `globalOnly`. So for the
+common real-world setup — the hosted app — a real run does NOT apply an
+org's inherited config. Modeling that run with a default-checked box was
+backwards.
+
+Fixed: the checkbox now defaults to **off**. It auto-checks only when the
+pasted global config sets `inheritConfig: true` explicitly — the one case
+where a real run under that config actually would fetch this layer.
+Touching the checkbox by hand (either direction) makes it the user's own
+for the session, same as the two probe-target fields already did;
+clearing or changing the pasted global config afterward does not clobber
+that choice.
+
+Changed: `App.tsx` (`inheritAutoEdit`, replacing the old `inheritAuto`
+state; the checkbox's displayed value is now
+`inheritAutoEdit ?? inheritPolicy.explicitlyEnabled`), `inherit-probe.ts`
+(new `InheritPolicy.explicitlyEnabled`), `RepoLoadForm.tsx` and the
+`inheritedConfig` glossary entry (rationale copy only — no behavior
+change in either), and `e2e/14-auto-load-inherited-config.spec.ts`
+(reworked for the new default). This document's Scope bullet above is
+left as written, with a pointer here, rather than silently edited.

@@ -99,10 +99,17 @@ export interface InheritPolicy {
   /** `inheritConfigFileName`, when the global config sets one. */
   fileOverride?: string;
   /** `inheritConfig: false` — explicitly OFF, so a real run under this global
-   *  config would not apply the layer at all (the only case worth a warning:
-   *  the option's own default is false, but the Mend-hosted app runs with it
-   *  enabled, which is what the checkbox's default-on models). */
+   *  config would not apply the layer at all. Worth a warning because it
+   *  overrides the option's own default (`false`, same as this app's
+   *  checkbox) — see `explicitlyEnabled` for the opposite override. */
   explicitlyDisabled: boolean;
+  /** `inheritConfig: true` — explicitly ON. Corrected 2026-07-26: the option
+   *  defaults to `false` and the Mend-hosted app currently disables it too
+   *  (self-hosted-configuration docs, #inheritconfig — enabling it there would
+   *  cost "millions of API calls per week" until a smarter approach ships), so
+   *  the repo-load form's checkbox is off by default and auto-checks only when
+   *  a pasted global config sets this explicitly. */
+  explicitlyEnabled: boolean;
   /** `inheritConfigStrict: true` — a missing file aborts a real run. */
   strict: boolean;
 }
@@ -120,6 +127,7 @@ export function inheritPolicyOf(globalConfig: Record<string, unknown> | null): I
     ...(repoOverride ? { repoOverride } : {}),
     ...(fileOverride ? { fileOverride } : {}),
     explicitlyDisabled: globalConfig?.inheritConfig === false,
+    explicitlyEnabled: globalConfig?.inheritConfig === true,
     strict: globalConfig?.inheritConfigStrict === true,
   };
 }
@@ -200,9 +208,9 @@ export type InheritProbeOutcome =
  *
  * - `auto-loaded` (2a) — filled, labeled with its origin. `disabledByGlobal`
  *   (2c) additionally says a run under the PASTED global config would not apply
- *   it: `inheritConfig` defaults to false, so only an explicit `false` is worth
- *   warning about — the checkbox's default-on models the Mend-hosted app, which
- *   runs with it enabled.
+ *   it: `inheritConfig` defaults to false (and, corrected 2026-07-26, so does
+ *   the checkbox above — the Mend-hosted app disables it too), so only an
+ *   explicit `false` is worth warning about.
  * - `missing` (2b) — nothing there. With `inheritConfigStrict` off (the
  *   default) that is exactly what a real run tolerates; with it on, a real run
  *   aborts, so the layer reports that instead of a quiet note.

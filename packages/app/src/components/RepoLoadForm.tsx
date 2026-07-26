@@ -15,10 +15,11 @@ import { Term } from "./glossary";
  * button that opened it.
  *
  * Roadmap 045 adds a SECOND row under the inputs (approved mockup variant 1B):
- * the default-on "also load the org's inherited config" checkbox plus the exact
- * repo and file the probe will read, as editable prefills. The first row's
- * one-unwrappable-row invariant (035) is untouched — the sub-row is a separate
- * flex row that may wrap — and both rows disappear with the disclosure.
+ * an "also load the org's inherited config" checkbox (off by default, corrected
+ * 2026-07-26 — see App's `inheritAutoEdit`) plus the exact repo and file the
+ * probe will read, as editable prefills. The first row's one-unwrappable-row
+ * invariant (035) is untouched — the sub-row is a separate flex row that may
+ * wrap — and both rows disappear with the disclosure.
  */
 
 interface Props {
@@ -106,10 +107,12 @@ export function RepoLoadForm({
           Cancel
         </button>
       </div>
-      {/* Roadmap 045: the sub-row. Default-on because that is what the common
-          real-world setup does (the Mend-hosted app runs with `inheritConfig`
-          enabled), and a default-on network fetch owes the user both the term
-          that explains it and the exact target it will read. */}
+      {/* Roadmap 045, corrected 2026-07-26: the sub-row. Off by default —
+          `inheritConfig` itself defaults to false, and the Mend-hosted app
+          currently disables it too — auto-checked only when a pasted global
+          config sets `inheritConfig: true`. Either way, a network fetch owes
+          the user both the term that explains it and the exact target it will
+          read. */}
       <div className="repo-panel-row2">
         <label className="repo-panel-inherit">
           <input

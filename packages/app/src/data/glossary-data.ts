@@ -61,7 +61,7 @@ export const GLOSSARY = {
   inheritedConfig: {
     name: "inheritConfig",
     plain:
-      "Org-level defaults a bot shares across repositories: Renovate reads inheritConfigFileName from inheritConfigRepoName (default {{parentOrg}}/renovate-config · org-inherited-config.json) and merges it between the global config and the repo's own. inheritConfigStrict decides whether a missing file aborts the run. The public Mend-hosted app runs with it enabled.",
+      "Org-level defaults a bot shares across repositories: Renovate reads inheritConfigFileName from inheritConfigRepoName (default {{parentOrg}}/renovate-config · org-inherited-config.json) and merges it between the global config and the repo's own. inheritConfigStrict decides whether a missing file aborts the run. Disabled by default — the public Mend-hosted app currently disables it too, to save API calls, with selective enablement planned — so a self-hosted config must set inheritConfig: true to use it.",
     url: "https://docs.renovatebot.com/self-hosted-configuration/#inheritconfig",
   },
   platform: {

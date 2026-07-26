@@ -427,14 +427,20 @@ export function App() {
   const [repoInput, setRepoInput] = useState("");
   const [repoRef, setRepoRef] = useState("");
   const [repoLoading, setRepoLoading] = useState(false);
-  // Roadmap 045: the form's second row. Default-ON — the public Mend-hosted app
-  // runs with `inheritConfig` enabled, so for the most common real setup the
-  // probe models exactly what the bot does. The two target fields hold `null`
-  // while they track the derivation (the typed owner, or a pasted global
-  // config's `inheritConfigRepoName`/`inheritConfigFileName`) and a string once
-  // the user owns them. Session state, like the rest of the form: no
-  // localStorage — see `inheritFieldValues` for the tracking rule.
-  const [inheritAuto, setInheritAuto] = useState(true);
+  // Roadmap 045: the form's second row. Corrected 2026-07-26 — this was
+  // default-ON on the (wrong) claim that the public Mend-hosted app runs with
+  // `inheritConfig` enabled. It does not: the option itself defaults to
+  // `false`, AND Mend currently disables it in their hosted app too, to avoid
+  // "wasting millions of API calls per week" until they ship a smarter,
+  // dynamic approach (self-hosted-configuration docs, #inheritconfig). A
+  // default-on checkbox would model a run that mostly does not happen, so it
+  // starts OFF. `null` until the user touches it, so it can still track a live
+  // derivation — here, a pasted global config's own `inheritConfig: true` —
+  // the same null-until-touched idiom `inheritRepoEdit`/`inheritFileEdit` use
+  // below; once touched, the user's choice wins for the session even if the
+  // global config later changes or is cleared. See
+  // roadmap/045-auto-load-inherited-config.md's "Correction (2026-07-26)".
+  const [inheritAutoEdit, setInheritAutoEdit] = useState<boolean | null>(null);
   const [inheritRepoEdit, setInheritRepoEdit] = useState<string | null>(null);
   const [inheritFileEdit, setInheritFileEdit] = useState<string | null>(null);
   // What the last probe did (008 layer origin / miss). Cleared by any hand edit
@@ -585,6 +591,12 @@ export function App() {
     setInheritFileEdit(value === "" ? null : value);
   }
 
+  /** Roadmap 045, corrected 2026-07-26: any hand-toggle of the checkbox — on or
+   *  off — is the user's for the session; see `inheritAuto` above. */
+  function onInheritAutoFieldChange(value: boolean) {
+    setInheritAutoEdit(value);
+  }
+
   useEffect(() => {
     setSelectedNodeId(null);
     setMigrationStepIndex(0);
@@ -620,6 +632,13 @@ export function App() {
     () => inheritPolicyOf(globalParse.config ?? null),
     [globalParse.config],
   );
+  // Roadmap 045, corrected 2026-07-26: the checkbox tracks the pasted global
+  // config's `inheritConfig: true` until the user flips it by hand — the same
+  // derivation-until-touched rule as `inheritFields` below, just for a
+  // checkbox instead of a text field, so there is no "clear to go back to the
+  // default" gesture: any explicit toggle (on OR off) is the user's from then
+  // on, session-scoped, and survives the global config changing or clearing.
+  const inheritAuto = inheritAutoEdit ?? inheritPolicy.explicitlyEnabled;
   const inheritFields = useMemo(
     () =>
       inheritFieldValues({
@@ -1408,7 +1427,7 @@ export function App() {
               onLoadRepo={() => void onLoadRepo()}
               onCloseRepoForm={closeRepoForm}
               inheritAuto={inheritAuto}
-              onInheritAutoChange={setInheritAuto}
+              onInheritAutoChange={onInheritAutoFieldChange}
               inheritRepo={inheritFields.repo}
               onInheritRepoChange={onInheritRepoFieldChange}
               inheritFile={inheritFields.file}

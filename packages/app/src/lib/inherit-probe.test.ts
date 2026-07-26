@@ -108,6 +108,7 @@ describe("inheritPolicyOf", () => {
       repoOverride: "my-org/bot-config",
       fileOverride: "defaults.json",
       explicitlyDisabled: false,
+      explicitlyEnabled: false,
       strict: false,
     });
   });
@@ -117,6 +118,15 @@ describe("inheritPolicyOf", () => {
     expect(inheritPolicyOf({}).explicitlyDisabled).toBe(false);
     expect(inheritPolicyOf({ inheritConfig: true }).explicitlyDisabled).toBe(false);
     expect(inheritPolicyOf({ inheritConfig: false }).explicitlyDisabled).toBe(true);
+  });
+
+  // Roadmap 045, corrected 2026-07-26: the checkbox's auto-enable reads this
+  // flag — see App's `inheritAuto`.
+  test("only an EXPLICIT true counts as enabled", () => {
+    expect(inheritPolicyOf(null).explicitlyEnabled).toBe(false);
+    expect(inheritPolicyOf({}).explicitlyEnabled).toBe(false);
+    expect(inheritPolicyOf({ inheritConfig: false }).explicitlyEnabled).toBe(false);
+    expect(inheritPolicyOf({ inheritConfig: true }).explicitlyEnabled).toBe(true);
   });
 
   test("strict is on only for a literal true", () => {
