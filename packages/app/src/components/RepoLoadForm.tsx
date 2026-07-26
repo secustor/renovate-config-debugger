@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Term } from "../glossary";
 
 /**
  * Roadmap 039 — the repo-load disclosure's open state: one chrome row (036
@@ -12,6 +13,12 @@ import { useEffect, useRef } from "react";
  * Focus (023): mounting IS opening, so the effect below lands the caret in the
  * repo field; Escape (or Cancel) closes, and the caller returns focus to the
  * button that opened it.
+ *
+ * Roadmap 045 adds a SECOND row under the inputs (approved mockup variant 1B):
+ * the default-on "also load the org's inherited config" checkbox plus the exact
+ * repo and file the probe will read, as editable prefills. The first row's
+ * one-unwrappable-row invariant (035) is untouched — the sub-row is a separate
+ * flex row that may wrap — and both rows disappear with the disclosure.
  */
 
 interface Props {
@@ -22,6 +29,14 @@ interface Props {
   loading: boolean;
   onSubmit: () => void;
   onClose: () => void;
+  /** 045: whether a successful load also probes for the inherited config. */
+  inheritAuto: boolean;
+  onInheritAutoChange: (value: boolean) => void;
+  /** The probe target as shown: tracked prefill, or the user's own value. */
+  inheritRepo: string;
+  onInheritRepoChange: (value: string) => void;
+  inheritFile: string;
+  onInheritFileChange: (value: string) => void;
 }
 
 export function RepoLoadForm({
@@ -32,6 +47,12 @@ export function RepoLoadForm({
   loading,
   onSubmit,
   onClose,
+  inheritAuto,
+  onInheritAutoChange,
+  inheritRepo,
+  onInheritRepoChange,
+  inheritFile,
+  onInheritFileChange,
 }: Props) {
   const firstFieldRef = useRef<HTMLInputElement>(null);
 
@@ -41,7 +62,6 @@ export function RepoLoadForm({
 
   return (
     <form
-      className="repo-panel"
       aria-label="Load from repository"
       onSubmit={(e) => {
         e.preventDefault();
@@ -59,29 +79,63 @@ export function RepoLoadForm({
       {/* Roadmap 035: both inputs shrink and the two buttons never do, so the
           row stays one row — the submit button can never be orphaned onto a
           line of its own however narrow the config column gets. */}
-      <input
-        ref={firstFieldRef}
-        type="text"
-        className="ctl repo-panel-repo"
-        aria-label="Repository"
-        placeholder="owner/repo, github.com/owner/repo, or a full repository URL"
-        value={repo}
-        onChange={(e) => onRepoChange(e.target.value)}
-      />
-      <input
-        type="text"
-        className="ctl repo-panel-ref"
-        aria-label="Branch or tag"
-        placeholder="branch or tag (optional)"
-        value={gitRef}
-        onChange={(e) => onRefChange(e.target.value)}
-      />
-      <button type="submit" className="btn primary" disabled={loading || repo.trim() === ""}>
-        {loading ? "Loading…" : "Load"}
-      </button>
-      <button type="button" className="btn quiet" onClick={onClose}>
-        Cancel
-      </button>
+      {/* `no-border`: the sub-row below carries the chrome row's bottom border,
+          so the two read as one block (mockup 045, variant 1B). */}
+      <div className="repo-panel no-border">
+        <input
+          ref={firstFieldRef}
+          type="text"
+          className="ctl repo-panel-repo"
+          aria-label="Repository"
+          placeholder="owner/repo, github.com/owner/repo, or a full repository URL"
+          value={repo}
+          onChange={(e) => onRepoChange(e.target.value)}
+        />
+        <input
+          type="text"
+          className="ctl repo-panel-ref"
+          aria-label="Branch or tag"
+          placeholder="branch or tag (optional)"
+          value={gitRef}
+          onChange={(e) => onRefChange(e.target.value)}
+        />
+        <button type="submit" className="btn primary" disabled={loading || repo.trim() === ""}>
+          {loading ? "Loading…" : "Load"}
+        </button>
+        <button type="button" className="btn quiet" onClick={onClose}>
+          Cancel
+        </button>
+      </div>
+      {/* Roadmap 045: the sub-row. Default-on because that is what the common
+          real-world setup does (the Mend-hosted app runs with `inheritConfig`
+          enabled), and a default-on network fetch owes the user both the term
+          that explains it and the exact target it will read. */}
+      <div className="repo-panel-row2">
+        <label className="repo-panel-inherit">
+          <input
+            type="checkbox"
+            checked={inheritAuto}
+            onChange={(e) => onInheritAutoChange(e.target.checked)}
+          />
+          Also load the org&apos;s <Term id="inheritedConfig">inherited config</Term> from
+        </label>
+        <input
+          type="text"
+          className="ctl"
+          aria-label="Inherited config repository"
+          placeholder="owner/renovate-config"
+          value={inheritRepo}
+          onChange={(e) => onInheritRepoChange(e.target.value)}
+        />
+        <input
+          type="text"
+          className="ctl"
+          aria-label="Inherited config file name"
+          placeholder="org-inherited-config.json"
+          value={inheritFile}
+          onChange={(e) => onInheritFileChange(e.target.value)}
+        />
+      </div>
     </form>
   );
 }

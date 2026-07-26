@@ -824,6 +824,33 @@ textarea.layer-editor:focus {
   margin: 0.4rem 0 0;
 }
 
+/* Roadmap 045: where an auto-loaded inherited layer came from. The badge is the
+   one 036 recipe (fill and border from `currentColor`), so the variant sets
+   nothing but the hue; the miss note reuses `.advanced-note` verbatim. */
+.layer-origin {
+  align-items: baseline;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  gap: 0.4rem;
+  margin: 0;
+}
+
+.badge.auto {
+  color: var(--ok);
+}
+
+/* The inverted-honesty hint: the layer WAS fetched, but the pasted global
+   config would stop a real run from applying it. */
+.layer-hint {
+  border-left: 3px solid var(--warn);
+  color: var(--warn);
+  font-size: 0.8rem;
+  margin: 0;
+  padding-left: 0.6rem;
+}
+
 .platform-override-warning {
   color: var(--warn);
 }
@@ -1441,6 +1468,39 @@ pre.config-view.prov-before {
 
 .repo-panel .btn {
   flex: none;
+}
+
+/* Roadmap 045: the sub-row under the inputs — the default-on inherited-config
+   checkbox and the exact repo/file the probe will read. It carries the chrome
+   row's bottom border so the two rows read as one block, and unlike the row
+   above it MAY wrap: it holds no submit button whose position matters, and its
+   two fields need a readable width more than they need one line. */
+.repo-panel.no-border {
+  border-bottom: none;
+}
+
+.repo-panel-row2 {
+  align-items: center;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  gap: 0.4rem;
+  padding: 0 0.75rem 0.5rem;
+}
+
+.repo-panel-row2 .ctl {
+  flex: 1 1 9rem;
+  min-width: 7rem;
+}
+
+.repo-panel-inherit {
+  align-items: center;
+  display: inline-flex;
+  flex: none;
+  gap: 0.3rem;
 }
 
 /* The card title becomes a row when it carries actions (039). Only the editor

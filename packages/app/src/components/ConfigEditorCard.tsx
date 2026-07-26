@@ -33,6 +33,14 @@ interface Props {
   repoLoading: boolean;
   onLoadRepo: () => void;
   onCloseRepoForm: () => void;
+  /** Roadmap 045: the form's second row — the default-on inherited-config
+   *  probe and the exact repo/file it will read (both editable). */
+  inheritAuto: boolean;
+  onInheritAutoChange: (value: boolean) => void;
+  inheritRepo: string;
+  onInheritRepoChange: (value: string) => void;
+  inheritFile: string;
+  onInheritFileChange: (value: string) => void;
 }
 
 export function ConfigEditorCard({
@@ -52,6 +60,12 @@ export function ConfigEditorCard({
   repoLoading,
   onLoadRepo,
   onCloseRepoForm,
+  inheritAuto,
+  onInheritAutoChange,
+  inheritRepo,
+  onInheritRepoChange,
+  inheritFile,
+  onInheritFileChange,
 }: Props) {
   return (
     <ConfigEditor
@@ -86,6 +100,12 @@ export function ConfigEditorCard({
             loading={repoLoading}
             onSubmit={onLoadRepo}
             onClose={onCloseRepoForm}
+            inheritAuto={inheritAuto}
+            onInheritAutoChange={onInheritAutoChange}
+            inheritRepo={inheritRepo}
+            onInheritRepoChange={onInheritRepoChange}
+            inheritFile={inheritFile}
+            onInheritFileChange={onInheritFileChange}
           />
         ) : null
       }

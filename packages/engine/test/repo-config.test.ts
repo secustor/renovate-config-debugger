@@ -1,11 +1,17 @@
 /**
- * Shimmed-project tests for fetchRepoConfig (roadmap 007 "Load from repo"),
+ * Shimmed-project tests for fetchRepoConfig (roadmap 007 "Load from repo") and
+ * fetchRepoFile (roadmap 045, the inherited-config probe's single-file fetch),
  * with fetch stubbed — no live network. Covers the probe order, 404
- * fall-through, package.json `renovate` key handling, CORS abort and the
- * exhausted-search error.
+ * fall-through, package.json `renovate` key handling, CORS abort, the
+ * exhausted-search error, and the single-file variant's absent/refused split.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchRepoConfig, RepoConfigNotFoundError, setPresetAuth } from "../src/index";
+import {
+  fetchRepoConfig,
+  fetchRepoFile,
+  RepoConfigNotFoundError,
+  setPresetAuth,
+} from "../src/index";
 
 const CONFIG_BODY = JSON.stringify({ extends: ["config:recommended"] });
 
@@ -247,6 +253,110 @@ describe("fetchRepoConfig — URL encoding of repo paths", () => {
     await expect(fetchRepoConfig({ platform: "gitea", repo: "org/../../admin" })).rejects.toThrow(
       /traversal/i,
     );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Roadmap 045 — the single-file fetch the inherited-config probe rides on. One
+ * request, no candidate chain, null for an absent file; the transport, auth and
+ * URL-hardening behavior is the config probe's, unchanged.
+ */
+describe("fetchRepoFile", () => {
+  it("fetches exactly one file and returns its text", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(ok(CONFIG_BODY));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const raw = await fetchRepoFile({
+      platform: "github",
+      repo: "org/renovate-config",
+      path: "org-inherited-config.json",
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.github.com/repos/org/renovate-config/contents/org-inherited-config.json",
+      expect.anything(),
+    );
+    expect(raw).toBe(CONFIG_BODY);
+  });
+
+  it("returns null for an absent file instead of throwing", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(notFound());
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(
+      fetchRepoFile({ platform: "github", repo: "org/renovate-config", path: "missing.json" }),
+    ).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("still throws for a refused request — that is not an absent file", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("no", { status: 403 })));
+    // ExternalHostError wraps the detail in `.err`, as above.
+    await expect(
+      fetchRepoFile({ platform: "github", repo: "org/renovate-config", path: "cfg.json" }),
+    ).rejects.toMatchObject({
+      err: { message: expect.stringMatching(/rate limit or missing token/) },
+    });
+  });
+
+  it("carries the host token, like the config probe", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(ok(CONFIG_BODY));
+    vi.stubGlobal("fetch", fetchMock);
+    setPresetAuth({ githubToken: "gh-token" });
+    await fetchRepoFile({ platform: "github", repo: "org/renovate-config", path: "cfg.json" });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        headers: expect.objectContaining({ authorization: "Bearer gh-token" }),
+      }),
+    );
+  });
+
+  it("resolves GitLab's default branch for its raw endpoint", async () => {
+    const fetchMock = vi.fn((url: string) => {
+      if (url.endsWith("/projects/org%2Frenovate-config")) {
+        return Promise.resolve(ok(JSON.stringify({ default_branch: "main" })));
+      }
+      return Promise.resolve(ok(CONFIG_BODY));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const raw = await fetchRepoFile({
+      platform: "gitlab",
+      repo: "org/renovate-config",
+      path: "org-inherited-config.json",
+    });
+
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "https://gitlab.com/api/v4/projects/org%2Frenovate-config/repository/files/org-inherited-config.json/raw?ref=main",
+      expect.anything(),
+    );
+    expect(raw).toBe(CONFIG_BODY);
+  });
+
+  it("percent-encodes the repo AND the file path it is handed", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(ok(CONFIG_BODY));
+    vi.stubGlobal("fetch", fetchMock);
+    await fetchRepoFile({
+      platform: "github",
+      repo: "org/cfg?x=1",
+      path: "dir/cfg.json?ref=evil#f",
+    });
+    const url = fetchMock.mock.calls[0]?.[0] as string;
+    expect(url).toBe(
+      "https://api.github.com/repos/org/cfg%3Fx%3D1/contents/dir/cfg.json%3Fref%3Devil%23f",
+    );
+    expect(new URL(url).search).toBe("");
+    expect(new URL(url).hash).toBe("");
+  });
+
+  it("refuses a traversal segment in the file path", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(ok(CONFIG_BODY));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(
+      fetchRepoFile({ platform: "github", repo: "org/cfg", path: "../../etc/passwd" }),
+    ).rejects.toThrow(/traversal/i);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });

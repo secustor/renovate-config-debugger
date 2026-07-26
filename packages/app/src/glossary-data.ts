@@ -54,10 +54,14 @@ export const GLOSSARY = {
       "Bot-level settings a self-hosted Renovate administrator configures on the bot itself (config file, environment or CLI). Repos on the hosted GitHub App don't have one to worry about.",
     url: "https://docs.renovatebot.com/self-hosted-configuration/",
   },
+  // Roadmap 045: the card covers the whole inheritConfig* family, because the
+  // repo-load form now offers to fetch this layer and names the exact repo and
+  // file it will read — the two options that decide those (and the strict flag
+  // that decides what a missing file means) belong in the same explanation.
   inheritedConfig: {
-    name: "inherited config",
+    name: "inheritConfig",
     plain:
-      "Org-level defaults a self-hosted admin shares across repositories via the inheritConfig setting. It merges between the bot's global config and each repo's own config.",
+      "Org-level defaults a bot shares across repositories: Renovate reads inheritConfigFileName from inheritConfigRepoName (default {{parentOrg}}/renovate-config · org-inherited-config.json) and merges it between the global config and the repo's own. inheritConfigStrict decides whether a missing file aborts the run. The public Mend-hosted app runs with it enabled.",
     url: "https://docs.renovatebot.com/self-hosted-configuration/#inheritconfig",
   },
   platform: {

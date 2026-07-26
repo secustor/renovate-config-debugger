@@ -24,6 +24,16 @@ export interface RepoConfigRequest {
   ref?: string;
 }
 
+/** Roadmap 045 — ONE exact file in a repository, no candidate chain. */
+export interface RepoFileRequest {
+  platform: RepoPlatform;
+  repo: string;
+  /** Exact path inside `repo` (e.g. `org-inherited-config.json`). */
+  path: string;
+  endpoint?: string;
+  ref?: string;
+}
+
 export interface RepoConfigResult {
   /** The winning file's name (e.g. `renovate.json5`, `.github/renovate.json`). */
   fileName: string;
@@ -217,6 +227,29 @@ async function giteaLikeRaw(
 }
 
 /**
+ * One exact file through the platform's own content transport. `gitlabRef` must
+ * already be resolved (GitLab's raw endpoint requires an explicit ref) — the
+ * probe loop below resolves it once for all 14 candidates, and
+ * {@link fetchRepoFile} resolves it for its single fetch.
+ */
+function fetchRawFile(
+  platform: RepoPlatform,
+  repo: string,
+  path: string,
+  endpoint: string,
+  ref: string | undefined,
+  gitlabRef: string,
+): Promise<string | typeof NOT_FOUND> {
+  if (platform === "github") {
+    return githubRaw(repo, path, endpoint, ref);
+  }
+  if (platform === "gitlab") {
+    return gitlabRaw(repo, path, endpoint, gitlabRef);
+  }
+  return giteaLikeRaw(platform, repo, path, endpoint, ref);
+}
+
+/**
  * Probes the documented config-file locations in order and returns the first
  * that exists as raw text. A 404-equivalent moves to the next candidate; any
  * ExternalHostError (CORS / auth / rate limit) aborts immediately — probing 14
@@ -229,19 +262,12 @@ export async function fetchRepoConfig(req: RepoConfigRequest): Promise<RepoConfi
   // GitLab's raw endpoint requires an explicit ref; resolve the default branch
   // once up front rather than per probe.
   const gitlabRef =
-    platform === "gitlab" ? (req.ref ?? (await gitlabDefaultBranch(repo, endpoint))) : req.ref;
+    platform === "gitlab" ? (req.ref ?? (await gitlabDefaultBranch(repo, endpoint))) : "";
 
   const probed: string[] = [];
   for (const fileName of CONFIG_FILE_NAMES) {
     probed.push(fileName);
-    let raw: string | typeof NOT_FOUND;
-    if (platform === "github") {
-      raw = await githubRaw(repo, fileName, endpoint, req.ref);
-    } else if (platform === "gitlab") {
-      raw = await gitlabRaw(repo, fileName, endpoint, gitlabRef as string);
-    } else {
-      raw = await giteaLikeRaw(platform, repo, fileName, endpoint, req.ref);
-    }
+    const raw = await fetchRawFile(platform, repo, fileName, endpoint, req.ref, gitlabRef);
     if (raw === NOT_FOUND) {
       continue;
     }
@@ -257,6 +283,24 @@ export async function fetchRepoConfig(req: RepoConfigRequest): Promise<RepoConfi
   }
 
   throw new RepoConfigNotFoundError(repo, probed);
+}
+
+/**
+ * Roadmap 045 — fetches ONE named file from a repository as raw text, or null
+ * when it is absent (a 404-equivalent). No candidate chain and no parsing: the
+ * inherited-config probe knows exactly which file a real run would read
+ * (`inheritConfigFileName` in `inheritConfigRepoName`), so anything else would
+ * be inventing behavior Renovate does not have. Transport-level failures (CORS,
+ * auth, rate limit) still throw ExternalHostError, exactly as the config probe
+ * does — "the host refused us" is not "the file does not exist".
+ */
+export async function fetchRepoFile(req: RepoFileRequest): Promise<string | null> {
+  const { platform, repo, path } = req;
+  const endpoint = withTrailingSlash(req.endpoint || DEFAULT_ENDPOINTS[platform]);
+  const gitlabRef =
+    platform === "gitlab" ? (req.ref ?? (await gitlabDefaultBranch(repo, endpoint))) : "";
+  const raw = await fetchRawFile(platform, repo, path, endpoint, req.ref, gitlabRef);
+  return raw === NOT_FOUND ? null : raw;
 }
 
 /**

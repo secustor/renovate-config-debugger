@@ -48,9 +48,11 @@ export {
 } from "./shims/presets/injection";
 export {
   fetchRepoConfig,
+  fetchRepoFile,
   RepoConfigNotFoundError,
   type RepoConfigRequest,
   type RepoConfigResult,
+  type RepoFileRequest,
   type RepoPlatform,
 } from "./shims/repo-config";
 export { STAGE_IDS } from "./trace/model";

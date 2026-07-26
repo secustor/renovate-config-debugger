@@ -122,7 +122,7 @@ test("the repo-load panel keeps Load on its inputs' row inside the editor card",
     "the Branch field's bounding box",
   );
   const repo = must(
-    await panel.getByRole("textbox", { name: "Repository" }).boundingBox(),
+    await panel.getByRole("textbox", { name: "Repository", exact: true }).boundingBox(),
     "the Repository field's bounding box",
   );
 
@@ -159,13 +159,13 @@ test("the repo-load form is collapsed by default and leaves no row behind", asyn
   await expect(toggle).toBeVisible();
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
   await expect(page.locator(".repo-panel")).toHaveCount(0);
-  await expect(page.getByRole("textbox", { name: "Repository" })).toHaveCount(0);
+  await expect(page.getByRole("textbox", { name: "Repository", exact: true })).toHaveCount(0);
 
   await toggle.click();
   await expect(page.locator(".repo-panel")).toHaveCount(1);
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
   // Roadmap 023: opening lands the caret in the first field.
-  await expect(page.getByRole("textbox", { name: "Repository" })).toBeFocused();
+  await expect(page.getByRole("textbox", { name: "Repository", exact: true })).toBeFocused();
 
   // Escape closes it, and focus comes back to the button that opened it.
   await page.keyboard.press("Escape");

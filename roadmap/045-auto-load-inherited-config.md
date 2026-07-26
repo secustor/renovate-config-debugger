@@ -1,6 +1,6 @@
 # 045 — Auto-load the inherited config for a loaded repository
 
-Milestone: M12 · Status: planned
+Milestone: M12 · Status: done (2026-07-26)
 
 Mockup (approved 2026-07-26, variant 1B — tinted badge, editable
 repo/file fields, glossary term):
@@ -76,3 +76,98 @@ global config.
   (Load from repo and the platform context the fetch rides on), 009
   (sign-in for private org config repos), 010 (the preset/transport
   support matrix that bounds which hosts work).
+
+## What was done
+
+- **The engine gained ONE new primitive: `fetchRepoFile`** (in
+  `shims/repo-config.ts`, exported from the engine index) — one exact file out
+  of one repository as raw text, `null` when it is absent, and still an
+  `ExternalHostError` when the host refused (a rejected request is not a
+  missing file). The three per-platform transports the 007 config probe
+  already had are now reached through a shared `fetchRawFile` dispatcher that
+  both entry points use, so the probe inherits the GitHub/GitLab/Gitea/Forgejo
+  URL shapes, the per-host auth headers, GitLab's default-branch resolution and
+  the `encodePathSegments` hardening (c429534) for the repo AND the file path —
+  nothing about the fetch is new code. No candidate chain: Renovate has none
+  here, and inventing one would model a bot that does not exist.
+- **The derivation lives in a pure app module, `src/inherit-probe.ts`** — not
+  in a component, because it is the only real logic in the item and it is
+  exactly what needs testing. It reproduces upstream verbatim:
+  `parentOrg` is the repo slug minus its last segment (so a GitLab subgroup
+  path keeps its subgroup) and `topLevelOrg` is its first segment
+  (`workers/global/index.js`), and `inheritConfigRepoName` is compiled against
+  those (`workers/repository/init/inherited.js`). It also owns the tracking
+  rule (`inheritFieldValues`), the probe target (`inheritProbeTarget` +
+  `isProbeTargetResolved`), the `inheritConfig*` reading of a pasted global
+  config (`inheritPolicyOf`) and the three layer states as DATA
+  (`inheritLayerState`), so the component only chooses copy.
+- **The form's second row (approved mockup 1B).** `RepoLoadForm` is now a
+  `<form>` wrapping two rows: the untouched 035 one-unwrappable-row of inputs +
+  buttons (it only lost its bottom border, which the sub-row now carries so the
+  two read as one chrome block), and a wrapping sub-row holding the default-on
+  checkbox, the glossary term and the two prefilled `ctl` fields. Both rows
+  exist only while the disclosure is open, and Escape/Cancel/focus (023/039)
+  are untouched. New CSS is four rules (`.repo-panel.no-border`,
+  `.repo-panel-row2`, its `.ctl` sizing, `.repo-panel-inherit`) plus
+  `.layer-origin`, `.layer-hint` and a one-line `.badge.auto` hue — the badge
+  itself is the single 036 recipe and the quiet note reuses `.advanced-note`.
+- **Prefill and dirty state.** The two fields live in App state as
+  `string | null`, where `null` means "still tracking": an untouched repo field
+  follows the typed owner keystroke by keystroke (`{{parentOrg}}` stays visible
+  while there is no owner yet — `/renovate-config` would name a repository that
+  cannot exist), and a pasted global config's `inheritConfigRepoName` /
+  `inheritConfigFileName` replace the defaults it tracks. Typing makes a field
+  the user's; clearing it hands it back to the derivation. The checkbox and both
+  values persist for the session only (no localStorage), like every other field
+  in the form.
+- **The probe runs between the config arriving and the run that processes it** —
+  the order a real run resolves the two in, so the first result already includes
+  the org layer instead of appearing only on a second Run. It is handed the repo
+  that was actually loaded as the templating authority (a field may itself hold
+  `{{parentOrg}}`), validated with the same `isValidRepoRefPart` rule the repo
+  load uses, and deliberately NOT given the form's branch/tag:
+  `inheritConfigRepoName` is a different repository and a real run reads its
+  default branch. It rides the load's platform context and its `suppressTokens`
+  decision unchanged, so a share link's untrusted-endpoint guard covers the
+  probe too. Its own failures never fail the load — the repo config is already
+  there.
+- **The three layer states, framed live.** The probe stores only what it did
+  (`loaded` / `missing` / `unreachable` + the target); what that MEANS is derived
+  from the current global config, so pasting `inheritConfig: false` or
+  `inheritConfigStrict: true` after the fact re-frames the same outcome
+  immediately. 2a: the origin line (`auto-loaded` badge + `repo · file` +
+  "editing makes it yours"). 2b: the quiet note, verbatim from the mockup —
+  because that is precisely what a non-strict run does — upgraded to the layer's
+  error style when the pasted global config sets `inheritConfigStrict: true`. 2c:
+  the warn-bordered hint (and the origin line drops its "editing makes it yours"
+  trailer, as the mockup has it). A refused request gets its own wording: "the
+  host said no" is not "the file is not there".
+- **A filled layer is not invisible.** A probe that fills the layer (or raises
+  the strict error) opens the Advanced zone AND the inherited section, which is
+  now controlled by App exactly like the host section (009/010 precedent) —
+  otherwise a default-on fetch would change the results from behind a closed
+  disclosure. A quiet miss stays quiet.
+- **Editing an auto-loaded layer makes it a pasted one.** Any text change from
+  outside the probe — the textarea, a share link — goes through
+  `applyInheritedText`, which drops the origin metadata; from then on the layer
+  is the ordinary 008 pasted layer. That is also what keeps links honest: the
+  origin is never in the payload, so a link carries the layer as TEXT and opens
+  without fetching anything (pinned by an e2e that copies a link after an
+  auto-load, reopens it, and asserts zero platform-API requests).
+- **The glossary term now covers the family.** The existing `inheritedConfig`
+  entry is headed `inheritConfig` and explains the mechanism, both defaults and
+  `inheritConfigStrict`, keeping its docs link to
+  `self-hosted-configuration/#inheritconfig` — the mockup's card text.
+- **The 008 pipeline is untouched.** This item only fills the layer's input; no
+  stage, badge, provenance or share-payload shape changed.
+- Verification: `pnpm lint` (silent), `pnpm -r typecheck`, `pnpm format` +
+  `format:check`, app `test:unit` (218 — 29 new in `inherit-probe.test.ts`
+  covering owner templating, the global-config overrides, per-field dirty
+  behavior and the strict/disabled state derivations), app `build`, engine
+  `test:shimmed` (97 — 7 new for `fetchRepoFile`: the single request, null for a
+  404, the throw for a refusal, the token header, GitLab's ref resolution, and
+  encoding/traversal refusal of the file path) and `test:golden` (61,
+  unchanged), and all 54 e2e (4 new in
+  `e2e/14-auto-load-inherited-config.spec.ts`; the two `12-layout-regressions`
+  "Repository" locators became `exact` because the sub-row's field name contains
+  the word).

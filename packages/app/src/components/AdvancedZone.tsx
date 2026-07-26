@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Term } from "../glossary";
+import type { InheritLayerState } from "../inherit-probe";
 import { isValidEndpoint, isValidToken, type LayerParseResult } from "../input-schemas";
 import { PLATFORM_ENDPOINTS, PLATFORMS } from "../platform-endpoints";
 import type { HostTokenField } from "../use-host-tokens";
@@ -40,6 +41,14 @@ interface Props {
   onGlobalTextChange: (value: string) => void;
   inheritedText: string;
   onInheritedTextChange: (value: string) => void;
+  /** Roadmap 045: what the last inherited-config probe did, already framed by
+   *  the pasted global config's `inheritConfig*` options. Null = no probe has
+   *  run (or the layer has been edited since, which makes it a pasted layer). */
+  inheritState: InheritLayerState | null;
+  /** The inherited section is controlled (like the host section above) so a
+   *  probe that just filled the layer can open the section its result is in. */
+  inheritedSectionOpen: boolean;
+  onInheritedSectionOpenChange: (open: boolean) => void;
 }
 
 /** The platform/endpoint pair (010 "reflect, then override"). Its own
@@ -245,6 +254,72 @@ function HostAccessSection({
   );
 }
 
+/**
+ * Roadmap 045: what the last inherited-config probe did, in the three states
+ * the approved mockup defines. Rendered between the section's note and its
+ * editor, above the text the probe wrote — an auto-filled layer says where it
+ * came from and that editing it makes it the user's own (which is literally
+ * true: any edit clears this line, and the layer is a pasted one from then on).
+ */
+function InheritStateNote({ state }: { state: InheritLayerState }) {
+  const target = (
+    <>
+      <code>{state.target.repo}</code> · <code>{state.target.file}</code>
+    </>
+  );
+  if (state.kind === "auto-loaded") {
+    return (
+      <>
+        <p className="layer-origin">
+          <span className="badge auto">auto-loaded</span>
+          from {target}
+          {state.disabledByGlobal ? null : " — editing makes it yours, like a pasted layer."}
+        </p>
+        {state.disabledByGlobal ? (
+          <p className="layer-hint">
+            Your global config sets <code>inheritConfig: false</code> — a run under that global
+            config would not apply this layer.
+          </p>
+        ) : null}
+      </>
+    );
+  }
+  if (state.kind === "missing") {
+    // Absent file, `inheritConfigStrict` off (the default): a real run carries
+    // on without the layer, so the app does too — quietly.
+    return state.strict ? (
+      <p className="layer-editor-error">
+        Your global config sets <code>inheritConfigStrict: true</code> and{" "}
+        <code>{state.target.repo}</code> has no <code>{state.target.file}</code> (404) — a real run
+        would abort here instead of continuing without the layer.
+      </p>
+    ) : (
+      <p className="advanced-note">
+        No org inherited config: <code>{state.target.repo}</code> has no{" "}
+        <code>{state.target.file}</code> (404). A real run tolerates this too (
+        <code>inheritConfigStrict</code> is off by default).
+      </p>
+    );
+  }
+  // A refused request is not an absent file: say which it was.
+  return (
+    <p className={state.strict ? "layer-editor-error" : "advanced-note"}>
+      Couldn&apos;t look for an inherited config in {target}: {state.detail}
+      {state.strict ? (
+        <>
+          {" "}
+          Your global config sets <code>inheritConfigStrict: true</code>, so a real run would abort
+          on this.
+        </>
+      ) : (
+        // The engine's own detail already names the cause (CORS, a missing
+        // token, a rate limit), so this only says what the user can do next.
+        " You can paste the layer by hand below."
+      )}
+    </p>
+  );
+}
+
 /** Roadmap 008: one pasted config layer (global or inherited). The two are the
  *  same section down to the error text — only the copy, the placeholder and
  *  the state they bind to differ — so they share this component rather than
@@ -253,22 +328,36 @@ function LayerSection({
   title,
   hint,
   note,
+  banner,
   placeholder,
   value,
   onChange,
   parse,
+  open,
+  onOpenChange,
 }: {
   title: string;
   /** The em-dashed hint text, verbatim (the dash is part of the copy). */
   hint: string;
   note: ReactNode;
+  /** Roadmap 045: state about where this layer's text came from, above it. */
+  banner?: ReactNode;
   placeholder: string;
   value: string;
   onChange: (value: string) => void;
   parse: LayerParseResult;
+  /** Controlled only where something outside has to be able to open the
+   *  section (the inherited layer, once a probe filled it); the global layer
+   *  passes neither and stays a plain uncontrolled disclosure. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   return (
-    <details className="advanced-settings">
+    <details
+      className="advanced-settings"
+      {...(open === undefined ? {} : { open })}
+      onToggle={onOpenChange ? (e) => onOpenChange(e.currentTarget.open) : undefined}
+    >
       <summary>
         {title}
         <span className="advanced-hint">
@@ -280,6 +369,7 @@ function LayerSection({
       </summary>
       <div className="advanced-body">
         {note}
+        {banner}
         <textarea
           className="layer-editor"
           placeholder={placeholder}
@@ -324,6 +414,9 @@ export function AdvancedZone({
   onGlobalTextChange,
   inheritedText,
   onInheritedTextChange,
+  inheritState,
+  inheritedSectionOpen,
+  onInheritedSectionOpenChange,
 }: Props) {
   return (
     <details
@@ -398,13 +491,16 @@ export function AdvancedZone({
             </Term>
             . Validated with Renovate&apos;s inherit rules, its presets resolved, bot-only options
             stripped — then merged between the global layer and the repo config. Leave empty to run
-            without this layer.
+            without this layer, or let a repo load fetch it for you.
           </p>
         }
+        banner={inheritState ? <InheritStateNote state={inheritState} /> : null}
         placeholder='{ "extends": ["github>my-org/renovate-config"], "automerge": false }'
         value={inheritedText}
         onChange={onInheritedTextChange}
         parse={inheritedParse}
+        open={inheritedSectionOpen}
+        onOpenChange={onInheritedSectionOpenChange}
       />
     </details>
   );

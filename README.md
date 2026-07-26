@@ -47,13 +47,16 @@ which updates that `packageRules` entry actually matches.
   tokens or manually injected presets.
 - **Load from repo** — `owner/repo`, a full URL or `git@host:org/repo.git` with
   an optional ref: it probes Renovate's documented config-file locations, says
-  which file won, and sets the platform context for known hosts.
+  which file won, and sets the platform context for known hosts. It also offers
+  (on by default) to bring the org's **inherited config** along, resolved the way
+  a real `inheritConfig` run resolves it — `org-inherited-config.json` in
+  `{{parentOrg}}/renovate-config`, both editable before you load.
 
 <details>
 <summary>Global + inherited config layers (self-hosted admins)</summary>
 
 Paste a **global config** (the JSON form of `config.js` / env / CLI) and an
-**inherited config** (`inheritConfig`) alongside the repo config, and the
+**inherited config** (`inheritConfig`, or let a repo load fetch it) alongside the repo config, and the
 pipeline models the full stack as two extra timeline stages with matching
 provenance badges: defaults → `globalExtends` presets → global config →
 inherited config (validated with Renovate's `inherit` rules, presets resolved,

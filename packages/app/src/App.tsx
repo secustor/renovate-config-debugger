@@ -32,6 +32,14 @@ import type { ResultsColumnProps } from "./components/ResultsColumn";
 import type { ResultsTabDescriptor } from "./components/ResultsPanel";
 import { ThemeSwitch } from "./components/ThemeSwitch";
 import { WelcomePanel } from "./components/WelcomePanel";
+import {
+  inheritFieldValues,
+  inheritLayerState,
+  inheritPolicyOf,
+  inheritProbeTarget,
+  type InheritProbeOutcome,
+  isProbeTargetResolved,
+} from "./inherit-probe";
 import { legacyTabForView, type ResultsTabId } from "./results-tabs";
 import { buildRunDigest, type DigestInput, type DigestProblem } from "./run-digest";
 import { OptionDocsProvider } from "./option-docs";
@@ -53,6 +61,7 @@ import {
   loadErrorTranslationLib,
   loadOptionIndex,
   loadRepoConfig,
+  loadRepoFile,
   preloadEngine,
   run,
 } from "./run";
@@ -268,6 +277,11 @@ export function App() {
   // (self-hosted layers, platform context, tokens). Auto-opens when a share
   // link arrives carrying self-hosted layers, so their effect isn't invisible.
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  // Roadmap 045: the inherited-layer section is controlled for the same kind of
+  // reason as the host section below — a repo load that auto-fills the layer has
+  // to be able to open the section holding the result, or the fetch it just did
+  // is invisible. Mirrored back on toggle, so the user still owns it.
+  const [inheritedSectionOpen, setInheritedSectionOpen] = useState(false);
   // Security 2026-07-25: the host/tokens sub-section, controlled for the same
   // reason — an untrusted-endpoint guard tells the user to review the host, so
   // the field holding it has to be actually on screen, not one more
@@ -386,7 +400,7 @@ export function App() {
     setPlatform,
     setEndpoint,
     setGlobalText,
-    setInheritedText,
+    setInheritedText: applyInheritedText,
     setPlatformOverride,
     setAdvancedOpen,
     setHostSectionOpen,
@@ -407,6 +421,19 @@ export function App() {
   const [repoInput, setRepoInput] = useState("");
   const [repoRef, setRepoRef] = useState("");
   const [repoLoading, setRepoLoading] = useState(false);
+  // Roadmap 045: the form's second row. Default-ON — the public Mend-hosted app
+  // runs with `inheritConfig` enabled, so for the most common real setup the
+  // probe models exactly what the bot does. The two target fields hold `null`
+  // while they track the derivation (the typed owner, or a pasted global
+  // config's `inheritConfigRepoName`/`inheritConfigFileName`) and a string once
+  // the user owns them. Session state, like the rest of the form: no
+  // localStorage — see `inheritFieldValues` for the tracking rule.
+  const [inheritAuto, setInheritAuto] = useState(true);
+  const [inheritRepoEdit, setInheritRepoEdit] = useState<string | null>(null);
+  const [inheritFileEdit, setInheritFileEdit] = useState<string | null>(null);
+  // What the last probe did (008 layer origin / miss). Cleared by any hand edit
+  // of the layer, which is what makes an auto-loaded layer become a pasted one.
+  const [inheritProbe, setInheritProbe] = useState<InheritProbeOutcome | null>(null);
   // When a GitHub load fails with a not-found/auth/rate-limit error, offer the
   // sign-in / install hint next to the failure (009). null = no hint.
   const [repoAuthHint, setRepoAuthHint] = useState<{ rateLimited: boolean } | null>(null);
@@ -529,6 +556,29 @@ export function App() {
     setEditorKey((k) => k + 1);
   }
 
+  /**
+   * Roadmap 045: the inherited layer's text changing by any route OTHER than a
+   * probe — the user typing in it, a share link carrying one — drops the probe's
+   * origin metadata, so the layer is the ordinary pasted layer from then on.
+   * That is also what keeps share links honest: the origin line is never in the
+   * payload, and a link's inherited layer is content, never a fetch on open.
+   */
+  function applyInheritedText(text: string) {
+    setInheritedText(text);
+    setInheritProbe(null);
+  }
+
+  /** Roadmap 045: a probe-target field the user typed in is theirs from then on;
+   *  clearing it hands it back to the derivation (an empty target is not a
+   *  target, so the empty string can only mean "use the default again"). */
+  function onInheritRepoFieldChange(value: string) {
+    setInheritRepoEdit(value === "" ? null : value);
+  }
+
+  function onInheritFileFieldChange(value: string) {
+    setInheritFileEdit(value === "" ? null : value);
+  }
+
   useEffect(() => {
     setSelectedNodeId(null);
     setMigrationStepIndex(0);
@@ -556,6 +606,27 @@ export function App() {
   const globalEndpoint =
     typeof globalParse.config?.endpoint === "string" ? globalParse.config.endpoint : undefined;
   const hasGlobalContext = globalPlatform !== undefined || globalEndpoint !== undefined;
+  // Roadmap 045: the `inheritConfig*` family of the pasted global config — the
+  // probe target's overrides, and the two flags that decide what a hit (2c) and
+  // a miss (2b) MEAN under that config. Derived live, so pasting or editing the
+  // global config after a probe re-frames the layer immediately.
+  const inheritPolicy = useMemo(
+    () => inheritPolicyOf(globalParse.config ?? null),
+    [globalParse.config],
+  );
+  const inheritFields = useMemo(
+    () =>
+      inheritFieldValues({
+        repoInput,
+        globalConfig: globalParse.config ?? null,
+        edits: { repo: inheritRepoEdit, file: inheritFileEdit },
+      }),
+    [repoInput, globalParse.config, inheritRepoEdit, inheritFileEdit],
+  );
+  const inheritState = useMemo(
+    () => inheritLayerState(inheritProbe, inheritPolicy),
+    [inheritProbe, inheritPolicy],
+  );
   const reflectGlobal = hasGlobalContext && !platformOverride;
   const displayPlatform = reflectGlobal && globalPlatform !== undefined ? globalPlatform : platform;
   // A global-config platform also displaces the toolbar endpoint (it belongs
@@ -1048,6 +1119,83 @@ export function App() {
     repoToggleRef.current?.focus();
   }
 
+  /**
+   * Roadmap 045 — resolves the org's inherited config the way a real
+   * `inheritConfig` run does: ONE exact file (`inheritConfigFileName`) out of
+   * ONE exact repository (`inheritConfigRepoName`, templated against the repo
+   * that was just loaded), through the same browser transports and platform
+   * context the repo load itself used. No location probing chain: Renovate has
+   * no such chain here, and inventing one would model a bot that doesn't exist.
+   *
+   * Deliberately NOT given the form's branch/tag: `inheritConfigRepoName` is a
+   * different repository, and a real run reads its default branch.
+   *
+   * Returns the inherited-config object the run that follows should use — the
+   * probe's when it found one, otherwise whatever the layer already held, so a
+   * miss never destroys a layer the user pasted.
+   */
+  async function probeInheritedConfig(args: {
+    platform: RepoPlatform;
+    endpoint: string;
+    /** The repo slug that was actually loaded — the templating authority. */
+    loadedRepo: string;
+    suppressTokens: boolean;
+  }): Promise<Record<string, unknown> | undefined> {
+    const target = inheritProbeTarget(inheritFields, args.loadedRepo);
+    if (
+      !isProbeTargetResolved(target) ||
+      !isValidRepoRefPart(target.repo) ||
+      !isValidRepoRefPart(target.file)
+    ) {
+      setInheritProbe({
+        status: "unreachable",
+        target,
+        detail: "that is not a repository and file name.",
+      });
+      return inheritedParse.config;
+    }
+    try {
+      const raw = await loadRepoFile(
+        {
+          platform: args.platform,
+          repo: target.repo,
+          path: target.file,
+          endpoint: args.endpoint || undefined,
+        },
+        { suppressTokens: args.suppressTokens },
+      );
+      if (raw === null) {
+        // Exactly what a real run does with `inheritConfigStrict` off: carry on
+        // without the layer. The note says so (and says the opposite when the
+        // pasted global config sets strict).
+        setInheritProbe({ status: "missing", target });
+        if (inheritPolicy.strict) {
+          setAdvancedOpen(true);
+          setInheritedSectionOpen(true);
+        }
+        return inheritedParse.config;
+      }
+      // The layer is a text input (008), so the file's own text goes in
+      // verbatim — including its formatting, which the user may now edit. Set
+      // directly rather than through `applyInheritedText`: this text DOES have
+      // an origin, and that is the one thing that path exists to forget.
+      setInheritedText(raw);
+      setInheritProbe({ status: "loaded", target });
+      setAdvancedOpen(true);
+      setInheritedSectionOpen(true);
+      return parseLayerText(raw).config;
+    } catch (err) {
+      const e = err as { err?: { message?: string } };
+      const detail = e?.err?.message ?? (err instanceof Error ? err.message : String(err));
+      setInheritProbe({ status: "unreachable", target, detail: `${detail}.` });
+      if (inheritPolicy.strict) {
+        setAdvancedOpen(true);
+        setInheritedSectionOpen(true);
+      }
+      return inheritedParse.config;
+    }
+  }
+
   // Fetches a repo's Renovate config file and runs it. Derives the platform
   // from a known host (and sets the platform context so a later run resolves
   // `local>` correctly); a bare slug uses the current platform context.
@@ -1131,6 +1279,19 @@ export function App() {
       // just fetched gets the height back. A FAILED load leaves it open: the
       // reference in it is what the user has to correct.
       closeRepoForm();
+      // Roadmap 045: the inherited-config probe runs between the repo config
+      // arriving and the run that processes it — the order a real run resolves
+      // the two in, so the very first result already includes the org layer
+      // instead of appearing only on a second Run. Its own failures never fail
+      // the load: the repo config is already here.
+      const inheritedForRun = inheritAuto
+        ? await probeInheritedConfig({
+            platform: repoPlatform,
+            endpoint: repoEndpoint,
+            loadedRepo: parsed.repo,
+            suppressTokens,
+          })
+        : inheritedParse.config;
       await onRun(
         undefined,
         {
@@ -1139,7 +1300,7 @@ export function App() {
           platform: repoPlatform,
           endpoint: repoEndpoint || endpoint,
           globalConfig: globalParse.config,
-          inheritedConfig: inheritedParse.config,
+          inheritedConfig: inheritedForRun,
           platformOverride: platformOverride && hasGlobalContext,
         },
         { suppressTokens },
@@ -1240,6 +1401,12 @@ export function App() {
               repoLoading={repoLoading}
               onLoadRepo={() => void onLoadRepo()}
               onCloseRepoForm={closeRepoForm}
+              inheritAuto={inheritAuto}
+              onInheritAutoChange={setInheritAuto}
+              inheritRepo={inheritFields.repo}
+              onInheritRepoChange={onInheritRepoFieldChange}
+              inheritFile={inheritFields.file}
+              onInheritFileChange={onInheritFileFieldChange}
             />
 
             <ConfigToolbar
@@ -1284,7 +1451,10 @@ export function App() {
               globalText={globalText}
               onGlobalTextChange={setGlobalText}
               inheritedText={inheritedText}
-              onInheritedTextChange={setInheritedText}
+              onInheritedTextChange={applyInheritedText}
+              inheritState={inheritState}
+              inheritedSectionOpen={inheritedSectionOpen}
+              onInheritedSectionOpenChange={setInheritedSectionOpen}
             />
 
             {fatal ? <p style={{ color: "var(--error)" }}>{fatal}</p> : null}

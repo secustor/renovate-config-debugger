@@ -6,6 +6,7 @@ import type {
   PipelineInput,
   RepoConfigRequest,
   RepoConfigResult,
+  RepoFileRequest,
   TraceResult,
   TranslatedMessage,
   ValidationMessage,
@@ -161,4 +162,16 @@ export async function loadRepoConfig(
 ): Promise<RepoConfigResult> {
   const engine = await engineWithAuth(opts);
   return engine.fetchRepoConfig(req);
+}
+
+/** Roadmap 045: ONE named file from a repository (the inherited-config probe),
+ *  null when it is absent. Same auth/`suppressTokens` seam as the two above —
+ *  the probe rides exactly the platform context and credentials the repo load
+ *  it follows did. */
+export async function loadRepoFile(
+  req: RepoFileRequest,
+  opts?: RunOptions,
+): Promise<string | null> {
+  const engine = await engineWithAuth(opts);
+  return engine.fetchRepoFile(req);
 }
