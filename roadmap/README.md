@@ -1,7 +1,7 @@
 # Roadmap
 
 Planned features for the Renovate Config Visualizer, in intended build order.
-Full context and architecture: [.agents/spec/renovate-config-visualizer.md](../.agents/spec/renovate-config-visualizer.md).
+Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 
 | #                                                     | Feature                                                   | Milestone            | Status |
 | ----------------------------------------------------- | --------------------------------------------------------- | -------------------- | ------ |
