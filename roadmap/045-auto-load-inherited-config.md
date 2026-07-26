@@ -9,22 +9,25 @@ org's real setup must know where the org keeps its inherited config,
 open it, and paste it — even though "Load from repo" (007) already
 knows the repository and the platform context, and Renovate's own
 resolution is fully deterministic from there. Resolve it the way a real
-run does: when the global config enables `inheritConfig`, fetch
-`inheritConfigFileName` (default `org-inherited-config.json`) from
-`inheritConfigRepoName` (default `{{parentOrg}}/renovate-config`,
-templated with the loaded repo's owner) via the same browser transports,
-and fill the layer automatically.
+run does: fetch `inheritConfigFileName` (default
+`org-inherited-config.json`) from `inheritConfigRepoName` (default
+`{{parentOrg}}/renovate-config`, templated with the loaded repo's
+owner) via the same browser transports, and fill the layer
+automatically. User decision 2026-07-26: this is a **default-enabled
+checkbox in the repo-load form**, not something gated on a pasted
+global config.
 
 ## Scope
 
-- **Trigger and gating, honest to a real run.** Auto-resolution runs on
-  a successful "Load from repo" when the global-config layer sets
-  `inheritConfig: true` (its real default is `false` and it is
-  `globalOnly` — verified against the pinned renovate's option table).
-  No global config, no silent fetching; instead the Advanced zone's
-  inherited-config field gets a one-click "probe for
-  `<org>/renovate-config`" affordance that does the same fetch as an
-  explicit, user-initiated act.
+- **Trigger: a checkbox in the repo-load form (039), checked by
+  default.** "Also load the org's inherited config" runs the probe on
+  every successful "Load from repo" unless unticked; the choice
+  persists like the form's other state. Because a real run only
+  inherits when the admin set `inheritConfig: true` (its default is
+  `false` and it is `globalOnly` — verified against the pinned
+  renovate's option table), a layer loaded WITHOUT a global config
+  enabling it carries a small honesty hint: "a real run applies this
+  only with `inheritConfig: true` in the global config".
 - **Resolution, Renovate's own.** `{{parentOrg}}` templates to the
   loaded repo's owner/group; `inheritConfigRepoName` /
   `inheritConfigFileName` overrides in the pasted global config are
