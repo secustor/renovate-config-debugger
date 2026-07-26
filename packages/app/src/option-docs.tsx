@@ -67,9 +67,14 @@ export function OptionDocsProvider({
 
 /** Renders `code` spans in renovate's markdown-ish description strings. */
 function md(text: string): ReactNode {
-  return text
-    .split(/`([^`]*)`/g)
-    .map((part, i) => (i % 2 === 1 ? <code key={i}>{part}</code> : part));
+  // Roadmap 041 — index keys, deliberately: this array is ONE string split on
+  // backticks, so slot i is always the same span of the same string and the
+  // odd/even parity is what decides `<code>` vs plain text. Parts repeat, and
+  // insertion/reorder cannot happen; there is no other identity to key on.
+  return text.split(/`([^`]*)`/g).map((part, i) =>
+    // oxlint-disable-next-line react/no-array-index-key -- see above
+    i % 2 === 1 ? <code key={i}>{part}</code> : part,
+  );
 }
 
 function OptionCard({

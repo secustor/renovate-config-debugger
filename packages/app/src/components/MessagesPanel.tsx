@@ -52,9 +52,12 @@ export const MessagesPanel = memo(function MessagesPanel({
   return (
     <div className="card">
       <div className="card-title">Errors &amp; warnings</div>
+      {/* Keyed by topic + text (roadmap 041): validator messages name the
+          config path they concern, so the pair is the message's identity —
+          and unlike the list index it survives a message being fixed above. */}
       <ul className="messages">
-        {result.errors.map((m, i) => (
-          <li key={`e${i}`} className="error">
+        {result.errors.map((m) => (
+          <li key={`e:${m.topic}:${m.message}`} className="error">
             <strong>{m.topic}:</strong>{" "}
             <RuleMessage
               message={m}
@@ -71,8 +74,8 @@ export const MessagesPanel = memo(function MessagesPanel({
             />
           </li>
         ))}
-        {result.warnings.map((m, i) => (
-          <li key={`w${i}`} className="warn">
+        {result.warnings.map((m) => (
+          <li key={`w:${m.topic}:${m.message}`} className="warn">
             <strong>{m.topic}:</strong>{" "}
             <RuleMessage
               message={m}

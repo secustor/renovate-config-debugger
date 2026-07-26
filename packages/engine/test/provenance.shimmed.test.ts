@@ -16,6 +16,7 @@ import {
   runPipeline,
   type TraceResult,
 } from "../src/index";
+import { must } from "./helpers";
 
 const injectedPresets = {
   [presetInjectionKey({ presetSource: "github", repo: "test-org/preset-a" })]: {
@@ -64,11 +65,10 @@ function layerName(layer: KeyProvenance["chain"][number]["layer"]): string {
 describe("computeProvenance", () => {
   it("(a) attributes a later preset overwriting an earlier preset's scalar", async () => {
     const prov = await provenance();
-    const range = prov.get("rangeStrategy");
-    expect(range).toBeDefined();
-    expect(range?.finalValue).toBe("replace");
-    expect(range?.isDefaultOnly).toBe(false);
-    const nonDefault = range!.chain.filter((s) => s.layer.kind !== "defaults");
+    const range = must(prov.get("rangeStrategy"), "the 'rangeStrategy' provenance entry");
+    expect(range.finalValue).toBe("replace");
+    expect(range.isDefaultOnly).toBe(false);
+    const nonDefault = range.chain.filter((s) => s.layer.kind !== "defaults");
     expect(nonDefault.map((s) => [layerName(s.layer), s.action])).toEqual([
       ["github>test-org/preset-a", "set"],
       ["github>test-org/preset-b", "overwrite"],
@@ -80,28 +80,26 @@ describe("computeProvenance", () => {
 
   it("(b) records packageRules concat from preset + repo", async () => {
     const prov = await provenance();
-    const rules = prov.get("packageRules");
-    expect(rules).toBeDefined();
-    const nonDefault = rules!.chain.filter((s) => s.layer.kind !== "defaults");
+    const rules = must(prov.get("packageRules"), "the 'packageRules' provenance entry");
+    const nonDefault = rules.chain.filter((s) => s.layer.kind !== "defaults");
     expect(nonDefault.map((s) => [layerName(s.layer), s.action])).toEqual([
       ["github>test-org/preset-a", "set"],
       ["repo", "concat"],
     ]);
     // addLabels (mergeable) concat across the two presets
-    const labels = prov.get("addLabels");
-    const labelSteps = labels!.chain.filter((s) => s.layer.kind !== "defaults");
+    const labels = must(prov.get("addLabels"), "the 'addLabels' provenance entry");
+    const labelSteps = labels.chain.filter((s) => s.layer.kind !== "defaults");
     expect(labelSteps.map((s) => s.action)).toEqual(["set", "concat"]);
-    expect(labels?.finalValue).toEqual(["a", "b"]);
+    expect(labels.finalValue).toEqual(["a", "b"]);
   });
 
   it("(c) a repo key explicitly set to its default is not default-only", async () => {
     const prov = await provenance();
-    const automerge = prov.get("automerge");
-    expect(automerge).toBeDefined();
-    expect(automerge?.finalValue).toBe(false);
-    expect(automerge?.isDefaultOnly).toBe(false);
+    const automerge = must(prov.get("automerge"), "the 'automerge' provenance entry");
+    expect(automerge.finalValue).toBe(false);
+    expect(automerge.isDefaultOnly).toBe(false);
     // the repo layer set it, atop a (no-op) defaults base
-    expect(automerge!.chain.some((s) => s.layer.kind === "repo" && s.action === "set")).toBe(true);
+    expect(automerge.chain.some((s) => s.layer.kind === "repo" && s.action === "set")).toBe(true);
   });
 
   it("(d) an untouched key is default-only", async () => {
@@ -115,11 +113,11 @@ describe("computeProvenance", () => {
 
   it("(e) tags the nested-extends expansion on the repo packageRules step", async () => {
     const prov = await provenance();
-    const rules = prov.get("packageRules");
-    const repoStep = rules!.chain.find((s) => s.layer.kind === "repo");
+    const rules = must(prov.get("packageRules"), "the 'packageRules' provenance entry");
+    const repoStep = rules.chain.find((s) => s.layer.kind === "repo");
     expect(repoStep?.expandedNested).toBe(true);
     // the injected nested preset (enabled:false) is merged in, extends removed
-    const finalRules = rules?.finalValue as Record<string, unknown>[];
+    const finalRules = rules.finalValue as Record<string, unknown>[];
     const devRule = finalRules.find((r) => Array.isArray(r.matchDepTypes));
     expect(devRule).toMatchObject({ matchDepTypes: ["devDependencies"], enabled: false });
     expect(devRule).not.toHaveProperty("extends");
@@ -127,14 +125,15 @@ describe("computeProvenance", () => {
 
   it("(f) attributes a force-sourced win to the preset that forced it", async () => {
     const prov = await provenance();
-    const rebaseWhen = prov.get("rebaseWhen");
-    expect(rebaseWhen).toBeDefined();
-    expect(rebaseWhen?.finalValue).toBe("behind-base-branch");
-    const forced = rebaseWhen!.chain.find((s) => s.action === "forced");
-    expect(forced).toBeDefined();
-    expect(layerName(forced!.layer)).toBe("github>test-org/preset-a");
+    const rebaseWhen = must(prov.get("rebaseWhen"), "the 'rebaseWhen' provenance entry");
+    expect(rebaseWhen.finalValue).toBe("behind-base-branch");
+    const forced = must(
+      rebaseWhen.chain.find((s) => s.action === "forced"),
+      "the 'forced' provenance step for rebaseWhen",
+    );
+    expect(layerName(forced.layer)).toBe("github>test-org/preset-a");
     // forced exactly once (deduped across the later layers that re-flatten force)
-    expect(rebaseWhen!.chain.filter((s) => s.action === "forced")).toHaveLength(1);
+    expect(rebaseWhen.chain.filter((s) => s.action === "forced")).toHaveLength(1);
   });
 
   it("holds the round-trip property: every key's last step reproduces the final value", async () => {
@@ -184,9 +183,11 @@ describe("computeRuleProvenance (013)", () => {
     expect(attribution).toHaveLength(finalRules.length);
     // the repo-attributed entry is the nested-extends-expanded rule (enabled:false
     // merged in from the injected nested preset, per provenance test (e) above).
-    const repoEntry = attribution.find((a) => a.layer.kind === "repo");
-    expect(repoEntry).toBeDefined();
-    expect(finalRules[repoEntry!.index]).toMatchObject({
+    const repoEntry = must(
+      attribution.find((a) => a.layer.kind === "repo"),
+      "the repo-attributed rule entry",
+    );
+    expect(finalRules[repoEntry.index]).toMatchObject({
       matchDepTypes: ["devDependencies"],
       enabled: false,
     });

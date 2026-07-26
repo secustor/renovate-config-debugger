@@ -4,17 +4,28 @@
  * `createRequire(import.meta.url)` at load time, which throws in the browser
  * (Vite externalizes node:module). Production builds tree-shake that binding
  * away, but the dev server evaluates every module, so it needs a shim.
- * __commonJSMin and __exportAll are copied verbatim; __require throws lazily,
- * only if some module actually calls it.
+ * __commonJSMin and __exportAll reproduce upstream's behavior exactly;
+ * __require throws lazily, only if some module actually calls it.
+ *
+ * Roadmap 041: `__commonJSMin` was a verbatim copy of upstream's comma-operator
+ * one-liner, whose two `!`s the promoted `no-non-null-assertion` rule rejects.
+ * Spelled out as statements instead — same semantics (memoize on first call,
+ * drop the factory afterwards, always read `mod.exports` so a factory that
+ * REASSIGNS `module.exports` still wins), no assertions needed.
  */
 
 /* oxlint-disable no-explicit-any, no-underscore-dangle -- names must match renovate's runtime exports */
 type CommonJsFactory = (exports: any, module: { exports: any }) => void;
 
-export const __commonJSMin = (cb: CommonJsFactory | null, mod?: { exports: any }) => (): any => (
-  mod || (cb!(((mod = { exports: {} }) as { exports: any }).exports, mod), (cb = null)),
-  mod!.exports
-);
+export const __commonJSMin = (cb: CommonJsFactory | null, mod?: { exports: any }) => (): any => {
+  if (!mod) {
+    const created: { exports: any } = { exports: {} };
+    mod = created;
+    cb?.(created.exports, created);
+    cb = null;
+  }
+  return mod.exports;
+};
 
 export function __exportAll(all: Record<string, () => any>, noSymbols?: boolean): any {
   const target: Record<string | symbol, unknown> = {};

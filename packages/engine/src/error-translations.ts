@@ -76,13 +76,37 @@ export interface TranslatedMessage {
  *  or a bare top-level key, into path segments. */
 export function parseConfigPath(pathStr: string): ConfigPathSegment[] {
   const segments: ConfigPathSegment[] = [];
-  const re = /([^.[\]]+)|\[(\d+)\]/g;
-  let m: RegExpExecArray | null;
-  // eslint-disable-next-line no-cond-assign
-  while ((m = re.exec(pathStr))) {
-    segments.push(m[2] !== undefined ? Number(m[2]) : m[1]!);
+  // Named groups so the two alternatives narrow by name rather than by index:
+  // exactly one of them participates in any given match.
+  const re = /(?<key>[^.[\]]+)|\[(?<index>\d+)\]/g;
+  for (const { groups } of pathStr.matchAll(re)) {
+    if (groups?.index !== undefined) {
+      segments.push(Number(groups.index));
+    } else if (groups?.key !== undefined) {
+      segments.push(groups.key);
+    }
   }
   return segments;
+}
+
+/**
+ * Walks `container` to the parent of `path`'s last segment and returns it
+ * together with that segment — the shared prologue of the three `with*`
+ * editors below. `null` for an empty path (nothing to address).
+ */
+function resolveParent(
+  container: Record<string, unknown>,
+  path: ConfigPathSegment[],
+): { parent: Record<PropertyKey, unknown>; last: ConfigPathSegment } | null {
+  const last = path.at(-1);
+  if (last === undefined) {
+    return null;
+  }
+  let cur = container as Record<PropertyKey, unknown>;
+  for (const seg of path.slice(0, -1)) {
+    cur = cur[seg] as Record<PropertyKey, unknown>;
+  }
+  return { parent: cur, last };
 }
 
 function getAtPath(obj: unknown, path: ConfigPathSegment[]): unknown {
@@ -102,11 +126,10 @@ function withValueAtPath(
   value: unknown,
 ): Record<string, unknown> {
   const clone = snapshot(config);
-  let cur = clone as Record<PropertyKey, unknown>;
-  for (let i = 0; i < path.length - 1; i++) {
-    cur = cur[path[i]!] as Record<PropertyKey, unknown>;
+  const target = resolveParent(clone, path);
+  if (target) {
+    target.parent[target.last] = value;
   }
-  cur[path[path.length - 1]!] = value;
   return clone;
 }
 
@@ -115,15 +138,15 @@ function withKeyRemoved(
   path: ConfigPathSegment[],
 ): Record<string, unknown> {
   const clone = snapshot(config);
-  let cur = clone as Record<PropertyKey, unknown>;
-  for (let i = 0; i < path.length - 1; i++) {
-    cur = cur[path[i]!] as Record<PropertyKey, unknown>;
+  const target = resolveParent(clone, path);
+  if (!target) {
+    return clone;
   }
-  const last = path[path.length - 1]!;
-  if (Array.isArray(cur) && typeof last === "number") {
-    cur.splice(last, 1);
+  const { parent, last } = target;
+  if (Array.isArray(parent) && typeof last === "number") {
+    parent.splice(last, 1);
   } else {
-    delete cur[last];
+    delete parent[last];
   }
   return clone;
 }
@@ -134,22 +157,24 @@ function withKeyRenamed(
   newKey: string,
 ): Record<string, unknown> {
   const clone = snapshot(config);
-  let cur = clone as Record<PropertyKey, unknown>;
-  for (let i = 0; i < path.length - 1; i++) {
-    cur = cur[path[i]!] as Record<PropertyKey, unknown>;
+  const target = resolveParent(clone, path);
+  if (!target) {
+    return clone;
   }
-  const last = path[path.length - 1]!;
-  const value = cur[last];
-  delete cur[last];
-  cur[newKey] = value;
+  const { parent, last } = target;
+  const value = parent[last];
+  delete parent[last];
+  parent[newKey] = value;
   return clone;
 }
 
 /** Unique `` `identifier` `` tokens mentioned in a free-text message. */
 function backtickedTokens(text: string): string[] {
   const seen = new Set<string>();
-  for (const m of text.matchAll(/`([A-Za-z][\w]*)`/g)) {
-    seen.add(m[1]!);
+  for (const [, token] of text.matchAll(/`([A-Za-z][\w]*)`/g)) {
+    if (token !== undefined) {
+      seen.add(token);
+    }
   }
   return [...seen];
 }
@@ -188,21 +213,20 @@ const redundantGlobStar: ErrorTranslation = {
   docsUrl: REDUNDANT_GLOB_STAR_DOCS_URL,
 
   optionNames: (m) => {
-    const match = REDUNDANT_GLOB_RE.exec(m.message);
-    if (!match) {
+    const pathStr = REDUNDANT_GLOB_RE.exec(m.message)?.[1];
+    if (pathStr === undefined) {
       return [];
     }
-    const segments = parseConfigPath(match[1]!);
-    const last = segments[segments.length - 1];
+    const last = parseConfigPath(pathStr).at(-1);
     return typeof last === "string" ? [last] : [];
   },
 
   suggestFix: (m, config) => {
-    const match = REDUNDANT_GLOB_RE.exec(m.message);
-    if (!match) {
+    const pathStr = REDUNDANT_GLOB_RE.exec(m.message)?.[1];
+    if (pathStr === undefined) {
       return null;
     }
-    const path = parseConfigPath(match[1]!);
+    const path = parseConfigPath(pathStr);
     if (path.length === 0) {
       return null;
     }
@@ -224,7 +248,7 @@ const redundantGlobStar: ErrorTranslation = {
       value: filtered,
       before: arr,
       after: filtered,
-      summary: `Remove ${removed.map((v) => `\`${v}\``).join(" and ")} from \`${match[1]}\``,
+      summary: `Remove ${removed.map((v) => `\`${v}\``).join(" and ")} from \`${pathStr}\``,
       fixedConfig: withValueAtPath(config, path, filtered),
     };
   },
@@ -260,29 +284,28 @@ const deprecatedOption: ErrorTranslation = {
   },
 
   optionNames: (m) => {
-    const match = DEPRECATED_RE.exec(m.message);
-    return match ? [match[1]!] : [];
+    const key = DEPRECATED_RE.exec(m.message)?.[1];
+    return key === undefined ? [] : [key];
   },
 
   suggestFix: (m, config) => {
-    const match = DEPRECATED_RE.exec(m.message);
-    if (!match) {
+    const [, key, detail] = DEPRECATED_RE.exec(m.message) ?? [];
+    if (key === undefined || detail === undefined) {
       return null;
     }
-    const key = match[1]!;
-    const detail = match[2]!;
     if (!(key in config)) {
       // Not present at the root of this snapshot — can't confidently locate
       // it (e.g. it's nested), so no auto-fix.
       return null;
     }
     const knownOptions = getOptionIndex().options;
-    const candidates = backtickedTokens(detail).filter((c) => c !== key && knownOptions.has(c));
-    if (candidates.length !== 1) {
+    const [newKey, ...alsoNamed] = backtickedTokens(detail).filter(
+      (c) => c !== key && knownOptions.has(c),
+    );
+    if (newKey === undefined || alsoNamed.length > 0) {
       // Zero or ambiguous (more than one) alternative named — be conservative.
       return null;
     }
-    const newKey = candidates[0]!;
     if (newKey in config) {
       // Don't clobber an existing value under the new name.
       return null;
@@ -324,16 +347,15 @@ const globalOnlyOption: ErrorTranslation = {
   },
 
   optionNames: (m) => {
-    const match = GLOBAL_ONLY_RE.exec(m.message);
-    return match ? [match[1]!] : [];
+    const key = GLOBAL_ONLY_RE.exec(m.message)?.[1];
+    return key === undefined ? [] : [key];
   },
 
   suggestFix: (m, config) => {
-    const match = GLOBAL_ONLY_RE.exec(m.message);
-    if (!match) {
+    const key = GLOBAL_ONLY_RE.exec(m.message)?.[1];
+    if (key === undefined) {
       return null;
     }
-    const key = match[1]!;
     // Conservative: only offer removal when the key is at the root of this
     // snapshot (the overwhelming common case for global-only options, which
     // have no `parents` restricting them elsewhere) — a nested occurrence is
@@ -400,8 +422,8 @@ export function translateMessage(
 export function findMentionedOption(message: ValidationMessage): OptionDoc | undefined {
   const index = getOptionIndex();
   const tokens = message.message.matchAll(/[`'"]([A-Za-z][\w]*)[`'"]/g);
-  for (const m of tokens) {
-    const doc = index.options.get(m[1]!);
+  for (const [, token] of tokens) {
+    const doc = token === undefined ? undefined : index.options.get(token);
     if (doc) {
       return doc;
     }

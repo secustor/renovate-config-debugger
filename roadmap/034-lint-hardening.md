@@ -18,6 +18,13 @@ grep with a lint rule, and unlocked the type-aware tier via
 `pnpm lint` is now `oxlint --type-aware`. It exits 0 with only the two
 deliberately warn-tier rules reporting.
 
+> **Note (2026-07-26, [041](041-warn-tier-to-error.md)):** the warn tier
+> described throughout this document no longer exists. 041 cleared its
+> backlog and promoted `react/no-array-index-key`,
+> `typescript/no-non-null-assertion` and `categories.suspicious` to
+> `error`, so `pnpm lint` now exits 0 with **nothing** reporting. The
+> settings and counts below are the 034 state, kept as written.
+
 ## What was enabled
 
 ### Hooks and JSX

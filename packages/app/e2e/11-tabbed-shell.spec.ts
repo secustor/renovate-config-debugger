@@ -7,6 +7,7 @@ import {
   SEMANTIC_COMMITS_CONFIG,
 } from "./fixtures";
 import {
+  must,
   openTab,
   resultsPanel,
   runAndAwaitResult,
@@ -279,9 +280,12 @@ test("a narrow viewport stacks the panes and a run scrolls the results into view
 
   // Stacked: the results pane starts below the config pane, full width.
   const geometry = await page.evaluate(() => {
-    const config = document.querySelector(".config-col")!.getBoundingClientRect();
-    const results = document.querySelector(".results-col")!.getBoundingClientRect();
-    return { config, results };
+    const configEl = document.querySelector(".config-col");
+    const resultsEl = document.querySelector(".results-col");
+    if (!configEl || !resultsEl) {
+      throw new Error("expected .config-col and .results-col to be present");
+    }
+    return { config: configEl.getBoundingClientRect(), results: resultsEl.getBoundingClientRect() };
   });
   expect(geometry.results.top).toBeGreaterThan(geometry.config.top);
   expect(Math.abs(geometry.results.width - geometry.config.width)).toBeLessThan(2);
@@ -291,7 +295,9 @@ test("a narrow viewport stacks the panes and a run scrolls the results into view
   await expect
     .poll(async () => page.evaluate(() => window.scrollY), { timeout: 10_000 })
     .toBeGreaterThan(0);
-  const box = await page.locator(".results-panel").boundingBox();
-  expect(box).not.toBeNull();
-  expect(box!.y).toBeLessThan(720);
+  const box = must(
+    await page.locator(".results-panel").boundingBox(),
+    "the results panel's bounding box",
+  );
+  expect(box.y).toBeLessThan(720);
 });

@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { PACKAGE_RULES_CONFIG, SEMANTIC_COMMITS_CONFIG } from "./fixtures";
-import { openTab, runAndAwaitResult, setEditorContent } from "./helpers";
+import { must, openTab, runAndAwaitResult, setEditorContent } from "./helpers";
 
 /**
  * Roadmap 035 — the layout regressions a 2026-07-25 user review found in the
@@ -113,24 +113,36 @@ test("the repo-load panel keeps Load on its inputs' row inside the editor card",
   const panel = page.locator(".repo-panel");
   await expect(panel).toBeVisible();
 
-  const button = await panel.getByRole("button", { name: "Load", exact: true }).boundingBox();
-  const branch = await panel.getByRole("textbox", { name: "Branch or tag" }).boundingBox();
-  const repo = await panel.getByRole("textbox", { name: "Repository" }).boundingBox();
-  expect(button).not.toBeNull();
-  expect(branch).not.toBeNull();
-  expect(repo).not.toBeNull();
+  const button = must(
+    await panel.getByRole("button", { name: "Load", exact: true }).boundingBox(),
+    "the Load button's bounding box",
+  );
+  const branch = must(
+    await panel.getByRole("textbox", { name: "Branch or tag" }).boundingBox(),
+    "the Branch field's bounding box",
+  );
+  const repo = must(
+    await panel.getByRole("textbox", { name: "Repository" }).boundingBox(),
+    "the Repository field's bounding box",
+  );
 
-  expect(Math.abs(centerOf(button!) - centerOf(branch!))).toBeLessThanOrEqual(2);
-  expect(Math.abs(centerOf(button!) - centerOf(repo!))).toBeLessThanOrEqual(2);
+  expect(Math.abs(centerOf(button) - centerOf(branch))).toBeLessThanOrEqual(2);
+  expect(Math.abs(centerOf(button) - centerOf(repo))).toBeLessThanOrEqual(2);
   // Nothing overflows the column either — the row shrinks its inputs instead.
-  const panelBox = await panel.boundingBox();
-  expect(button!.x + button!.width).toBeLessThanOrEqual(panelBox!.x + panelBox!.width + 1);
+  const panelBox = must(await panel.boundingBox(), "the repo panel's bounding box");
+  expect(button.x + button.width).toBeLessThanOrEqual(panelBox.x + panelBox.width + 1);
 
   // It is a row OF the card: it sits under the title bar and above the editor.
-  const title = await page.locator(".config-col .editor-card-title").boundingBox();
-  const editor = await page.locator(".config-col .cm-editor").boundingBox();
-  expect(panelBox!.y).toBeGreaterThanOrEqual(title!.y + title!.height - 1);
-  expect(panelBox!.y + panelBox!.height).toBeLessThanOrEqual(editor!.y + 1);
+  const title = must(
+    await page.locator(".config-col .editor-card-title").boundingBox(),
+    "the editor card title's bounding box",
+  );
+  const editor = must(
+    await page.locator(".config-col .cm-editor").boundingBox(),
+    "the CodeMirror editor's bounding box",
+  );
+  expect(panelBox.y).toBeGreaterThanOrEqual(title.y + title.height - 1);
+  expect(panelBox.y + panelBox.height).toBeLessThanOrEqual(editor.y + 1);
 });
 
 /**
@@ -161,9 +173,15 @@ test("the repo-load form is collapsed by default and leaves no row behind", asyn
   await expect(toggle).toBeFocused();
 
   // The card is whole again: its title bar sits directly on the editor.
-  const title = await page.locator(".config-col .editor-card-title").boundingBox();
-  const editor = await page.locator(".config-col .cm-editor").boundingBox();
-  expect(editor!.y - (title!.y + title!.height)).toBeLessThanOrEqual(1);
+  const title = must(
+    await page.locator(".config-col .editor-card-title").boundingBox(),
+    "the editor card title's bounding box",
+  );
+  const editor = must(
+    await page.locator(".config-col .cm-editor").boundingBox(),
+    "the CodeMirror editor's bounding box",
+  );
+  expect(editor.y - (title.y + title.height)).toBeLessThanOrEqual(1);
 });
 
 /**
@@ -206,7 +224,10 @@ interface PanelMetrics {
 
 function panelMetrics(panel: Locator): Promise<PanelMetrics> {
   return panel.evaluate((el) => {
-    const layout = el.closest(".preset-tree-layout")!;
+    const layout = el.closest(".preset-tree-layout");
+    if (!layout) {
+      throw new Error("expected an ancestor .preset-tree-layout to be present");
+    }
     return {
       clientWidth: el.clientWidth,
       scrollWidth: el.scrollWidth,
@@ -247,22 +268,22 @@ test("the preset detail panel is readable, unclipped and scrollable to its last 
 
   // Stacked, the panel opens below the tree — it must still start within one
   // screen of the card's top, or clicking a preset row appears to do nothing.
-  const [cardBox, openedAt] = await Promise.all([
+  const [cardBoxRaw, openedAtRaw] = await Promise.all([
     page.locator("#panel-presets .card").first().boundingBox(),
     panel.boundingBox(),
   ]);
-  expect(cardBox).not.toBeNull();
-  expect(openedAt).not.toBeNull();
-  expect(openedAt!.y - cardBox!.y).toBeLessThan(720);
+  const cardBox = must(cardBoxRaw, "the preset card's bounding box");
+  const openedAt = must(openedAtRaw, "the opened preset detail panel's bounding box");
+  expect(openedAt.y - cardBox.y).toBeLessThan(720);
 
   // The panel's own last section can be reached — it is not clipped off the
   // bottom of a fixed-height box.
   const last = panel.locator("summary", { hasText: "Contribution to the merged config" });
   await expect(last).toHaveCount(1);
   await last.scrollIntoViewIfNeeded();
-  const [lastBox, panelBox] = await Promise.all([last.boundingBox(), panel.boundingBox()]);
-  expect(lastBox).not.toBeNull();
-  expect(panelBox).not.toBeNull();
-  expect(lastBox!.y).toBeGreaterThanOrEqual(panelBox!.y - 1);
-  expect(lastBox!.y + lastBox!.height).toBeLessThanOrEqual(panelBox!.y + panelBox!.height + 1);
+  const [lastBoxRaw, panelBoxRaw] = await Promise.all([last.boundingBox(), panel.boundingBox()]);
+  const lastBox = must(lastBoxRaw, "the last preset detail section's bounding box");
+  const panelBox = must(panelBoxRaw, "the preset detail panel's bounding box");
+  expect(lastBox.y).toBeGreaterThanOrEqual(panelBox.y - 1);
+  expect(lastBox.y + lastBox.height).toBeLessThanOrEqual(panelBox.y + panelBox.height + 1);
 });

@@ -33,8 +33,12 @@ function input(overrides: Partial<DigestInput> = {}): DigestInput {
 
 function clause(clauses: DigestClause[], id: string): DigestClause {
   const found = clauses.find((c) => c.id === id);
-  expect(found, `no "${id}" clause in: ${clauses.map((c) => c.id).join(", ")}`).toBeDefined();
-  return found!;
+  if (!found) {
+    // Throwing (rather than `expect(...).toBeDefined()` plus an assertion)
+    // both fails the test with the same message and narrows the return type.
+    throw new Error(`no "${id}" clause in: ${clauses.map((c) => c.id).join(", ")}`);
+  }
+  return found;
 }
 
 function ids(clauses: DigestClause[]): string[] {

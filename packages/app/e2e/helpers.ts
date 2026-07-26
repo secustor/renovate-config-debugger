@@ -17,7 +17,22 @@ export async function setEditorContent(page: Page, text: string): Promise<void> 
   await page.keyboard.press("ControlOrMeta+a");
   await page.keyboard.insertText(text);
   // The editor's onChange drives React state; give the doc a beat to settle.
-  await expect(editor).toContainText(text.trim().split("\n")[0]!.trim());
+  const firstLine = must(text.trim().split("\n")[0], "the first line of the editor content");
+  await expect(editor).toContainText(firstLine.trim());
+}
+
+/**
+ * Roadmap 041: `typescript/no-non-null-assertion` is an error everywhere, so
+ * the conventional test `!` is gone. `must` does the same narrowing but fails
+ * with a sentence naming what was missing — a `boundingBox()` that returned
+ * null because the element was not visible now says so, instead of throwing an
+ * unlabelled TypeError on the next property read.
+ */
+export function must<T>(value: T | null | undefined, what: string): T {
+  if (value === null || value === undefined) {
+    throw new Error(`Expected ${what}, got ${value === null ? "null" : "undefined"}`);
+  }
+  return value;
 }
 
 /** The primary Run button in the toolbar (label toggles Run ↔ Running…). */

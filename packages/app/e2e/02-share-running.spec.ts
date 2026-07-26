@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { encodeShareFragment, PACKAGE_RULES_CONFIG } from "./fixtures";
-import { resultsPanel, setEditorContent } from "./helpers";
+import { must, resultsPanel, setEditorContent } from "./helpers";
 
 /**
  * Journey 2 — share link opened into an already-running app (the 017
@@ -69,6 +69,5 @@ test("hash navigation with unsaved edits fires the clobber confirm, then loads o
   await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
 
   // The confirm actually fired, and warned about replacing edits.
-  expect(dialogMessage).not.toBeNull();
-  expect(dialogMessage!).toMatch(/edits will be replaced/i);
+  expect(must(dialogMessage, "the confirm dialog's message")).toMatch(/edits will be replaced/i);
 });

@@ -35,8 +35,10 @@ export const StageDiff = memo(function StageDiff({ result, stage }: Props) {
   if (failed) {
     return (
       <ul className="messages">
-        {(failed.messages ?? [{ topic: "Error", message: failed.title }]).map((m, i) => (
-          <li key={i} className="error">
+        {/* Keyed by topic + text (roadmap 041) — a stage's failure messages
+            name what failed, which is their identity here. */}
+        {(failed.messages ?? [{ topic: "Error", message: failed.title }]).map((m) => (
+          <li key={`${m.topic}:${m.message}`} className="error">
             <strong>{m.topic}:</strong> {m.message}
           </li>
         ))}

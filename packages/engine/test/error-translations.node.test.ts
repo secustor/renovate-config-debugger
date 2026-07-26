@@ -6,6 +6,7 @@ import {
   translateMessage,
 } from "../src/error-translations";
 import type { ValidationMessage } from "../src/trace/model";
+import { must } from "./helpers";
 
 describe("parseConfigPath", () => {
   it("parses a bare top-level key", () => {
@@ -42,18 +43,23 @@ describe("redundant-glob-star translation (P2 study case)", () => {
   const message = redundantGlobMessage;
 
   it("matches the exact upstream message shape", () => {
-    const translation = ERROR_TRANSLATIONS.find((t) => t.id === "redundant-glob-star")!;
+    const translation = must(
+      ERROR_TRANSLATIONS.find((t) => t.id === "redundant-glob-star"),
+      "the redundant-glob-star translation",
+    );
     expect(translation.matches(message("packageRules[1].matchPackageNames"))).toBe(true);
     expect(translation.matches({ topic: "x", message: "unrelated" })).toBe(false);
   });
 
   it("explains the redundancy in plain language, naming the path", () => {
-    const translated = translateMessage(message("packageRules[1].matchPackageNames"), null);
-    expect(translated).not.toBeNull();
-    expect(translated!.explanation).toMatch(/redundant/);
-    expect(translated!.explanation).toContain("packageRules[1].matchPackageNames");
+    const translated = must(
+      translateMessage(message("packageRules[1].matchPackageNames"), null),
+      "a translation for the redundant-glob-star message",
+    );
+    expect(translated.explanation).toMatch(/redundant/);
+    expect(translated.explanation).toContain("packageRules[1].matchPackageNames");
     // no config snapshot given -> no fix computed
-    expect(translated!.fix).toBeNull();
+    expect(translated.fix).toBeNull();
   });
 
   it("suggests removing exactly the * / ** entries from the named array (study's ['*','!gradle'] case)", () => {
@@ -63,9 +69,11 @@ describe("redundant-glob-star translation (P2 study case)", () => {
         { matchPackageNames: ["*", "!gradle"] },
       ],
     };
-    const translated = translateMessage(message("packageRules[1].matchPackageNames"), config);
-    expect(translated!.fix).not.toBeNull();
-    const fix = translated!.fix!;
+    const translated = must(
+      translateMessage(message("packageRules[1].matchPackageNames"), config),
+      "a translation for the redundant-glob-star message",
+    );
+    const fix = must(translated.fix, "a suggested fix for the redundant-glob-star case");
     expect(fix.path).toEqual(["packageRules", 1, "matchPackageNames"]);
     expect(fix.before).toEqual(["*", "!gradle"]);
     expect(fix.after).toEqual(["!gradle"]);
@@ -76,45 +84,67 @@ describe("redundant-glob-star translation (P2 study case)", () => {
       { matchDepTypes: ["devDependencies"] },
       { matchPackageNames: ["!gradle"] },
     ]);
-    expect(config.packageRules[1]!.matchPackageNames).toEqual(["*", "!gradle"]); // original untouched
+    // original untouched
+    expect(
+      must(config.packageRules[1], "the packageRules[1] rule object").matchPackageNames,
+    ).toEqual(["*", "!gradle"]);
   });
 
   it("handles a root-level (non-nested) array", () => {
     const config = { matchPackageNames: ["**", "!gradle", "!npm"] };
-    const translated = translateMessage(message("matchPackageNames"), config);
-    expect(translated!.fix!.after).toEqual(["!gradle", "!npm"]);
+    const translated = must(
+      translateMessage(message("matchPackageNames"), config),
+      "a translation for the root-level matchPackageNames message",
+    );
+    const fix = must(translated.fix, "a suggested fix for the root-level array");
+    expect(fix.after).toEqual(["!gradle", "!npm"]);
   });
 
   it("gives up when the named path isn't an array of strings in this config", () => {
     const config = { packageRules: [{ matchPackageNames: "not-an-array" }] };
-    const translated = translateMessage(message("packageRules[0].matchPackageNames"), config);
-    expect(translated!.fix).toBeNull();
+    const translated = must(
+      translateMessage(message("packageRules[0].matchPackageNames"), config),
+      "a translation for the non-array packageRules[0] message",
+    );
+    expect(translated.fix).toBeNull();
   });
 
   it("gives up when the path can't be found at all (stale message vs. edited config)", () => {
     const config = { packageRules: [] as unknown[] };
-    const translated = translateMessage(message("packageRules[0].matchPackageNames"), config);
-    expect(translated!.fix).toBeNull();
+    const translated = must(
+      translateMessage(message("packageRules[0].matchPackageNames"), config),
+      "a translation for the stale packageRules[0] message",
+    );
+    expect(translated.fix).toBeNull();
   });
 
   it("links the matcher-semantics docs page (negative-matching) rather than the bare option reference", () => {
-    const translated = translateMessage(message("matchPackageNames"), null);
-    expect(translated!.docsUrl).toBe(
+    const translated = must(
+      translateMessage(message("matchPackageNames"), null),
+      "a translation for the matchPackageNames message",
+    );
+    expect(translated.docsUrl).toBe(
       "https://docs.renovatebot.com/string-pattern-matching/#negative-matching",
     );
   });
 
   it("states the negation-only match-all-except rule instead of the false 'other patterns already covered every case' claim", () => {
-    const translated = translateMessage(message("matchPackageNames"), null);
-    expect(translated!.explanation).not.toMatch(/already covered every case/);
-    expect(translated!.explanation).toMatch(/negation-only/);
-    expect(translated!.explanation).toMatch(/string-pattern-matching/);
+    const translated = must(
+      translateMessage(message("matchPackageNames"), null),
+      "a translation for the matchPackageNames message",
+    );
+    expect(translated.explanation).not.toMatch(/already covered every case/);
+    expect(translated.explanation).toMatch(/negation-only/);
+    expect(translated.explanation).toMatch(/string-pattern-matching/);
   });
 });
 
 describe("deprecated-option translation", () => {
   it("matches only Deprecation Warning messages with the exact upstream shape", () => {
-    const translation = ERROR_TRANSLATIONS.find((t) => t.id === "deprecated-option")!;
+    const translation = must(
+      ERROR_TRANSLATIONS.find((t) => t.id === "deprecated-option"),
+      "the deprecated-option translation",
+    );
     expect(
       translation.matches({
         topic: "Deprecation Warning",
@@ -131,40 +161,48 @@ describe("deprecated-option translation", () => {
   });
 
   it("explains and points at the migration step-through", () => {
-    const translated = translateMessage(
-      {
-        topic: "Deprecation Warning",
-        message:
-          "The 'dnsCache' option is deprecated: This option is deprecated and will be removed.",
-      },
-      null,
+    const translated = must(
+      translateMessage(
+        {
+          topic: "Deprecation Warning",
+          message:
+            "The 'dnsCache' option is deprecated: This option is deprecated and will be removed.",
+        },
+        null,
+      ),
+      "a translation for the dnsCache deprecation message",
     );
-    expect(translated).not.toBeNull();
-    expect(translated!.explanation).toMatch(/migration/i);
-    expect(translated!.explanation).toContain("dnsCache");
+    expect(translated.explanation).toMatch(/migration/i);
+    expect(translated.explanation).toContain("dnsCache");
   });
 
   it("offers no auto-fix for a real deprecated option with no single named replacement (dnsCache)", () => {
-    const translated = translateMessage(
-      {
-        topic: "Deprecation Warning",
-        message:
-          "The 'dnsCache' option is deprecated: This option is deprecated and will be removed.",
-      },
-      { dnsCache: true },
+    const translated = must(
+      translateMessage(
+        {
+          topic: "Deprecation Warning",
+          message:
+            "The 'dnsCache' option is deprecated: This option is deprecated and will be removed.",
+        },
+        { dnsCache: true },
+      ),
+      "a translation for the dnsCache deprecation message",
     );
-    expect(translated!.fix).toBeNull();
+    expect(translated.fix).toBeNull();
   });
 
   it("renames unambiguously when the deprecation text names exactly one known replacement option", () => {
-    const translated = translateMessage(
-      {
-        topic: "Deprecation Warning",
-        message: "The 'versionScheme' option is deprecated: Renamed to `versioning`.",
-      },
-      { versionScheme: "semver" },
+    const translated = must(
+      translateMessage(
+        {
+          topic: "Deprecation Warning",
+          message: "The 'versionScheme' option is deprecated: Renamed to `versioning`.",
+        },
+        { versionScheme: "semver" },
+      ),
+      "a translation for the versionScheme deprecation message",
     );
-    const fix = translated!.fix!;
+    const fix = must(translated.fix, "a rename fix for the versionScheme deprecation");
     expect(fix.renameTo).toBe("versioning");
     expect(fix.before).toBe("semver");
     expect(fix.after).toBe("semver");
@@ -172,26 +210,32 @@ describe("deprecated-option translation", () => {
   });
 
   it("declines to clobber an existing value under the replacement name", () => {
-    const translated = translateMessage(
-      {
-        topic: "Deprecation Warning",
-        message: "The 'versionScheme' option is deprecated: Renamed to `versioning`.",
-      },
-      { versionScheme: "semver", versioning: "npm" },
+    const translated = must(
+      translateMessage(
+        {
+          topic: "Deprecation Warning",
+          message: "The 'versionScheme' option is deprecated: Renamed to `versioning`.",
+        },
+        { versionScheme: "semver", versioning: "npm" },
+      ),
+      "a translation for the versionScheme deprecation message",
     );
-    expect(translated!.fix).toBeNull();
+    expect(translated.fix).toBeNull();
   });
 
   it("declines when two or more candidate replacements are named (ambiguous)", () => {
-    const translated = translateMessage(
-      {
-        topic: "Deprecation Warning",
-        message:
-          "The 'branchName' option is deprecated: Please edit `branchPrefix`, `additionalBranchPrefix`, or `branchTopic` instead.",
-      },
-      { branchName: "renovate/{{depName}}" },
+    const translated = must(
+      translateMessage(
+        {
+          topic: "Deprecation Warning",
+          message:
+            "The 'branchName' option is deprecated: Please edit `branchPrefix`, `additionalBranchPrefix`, or `branchTopic` instead.",
+        },
+        { branchName: "renovate/{{depName}}" },
+      ),
+      "a translation for the branchName deprecation message",
     );
-    expect(translated!.fix).toBeNull();
+    expect(translated.fix).toBeNull();
   });
 });
 
@@ -203,20 +247,29 @@ describe("global-only-option translation (008 boundary warning)", () => {
   };
 
   it("matches the exact upstream boundary-warning shape", () => {
-    const translation = ERROR_TRANSLATIONS.find((t) => t.id === "global-only-option")!;
+    const translation = must(
+      ERROR_TRANSLATIONS.find((t) => t.id === "global-only-option"),
+      "the global-only-option translation",
+    );
     expect(translation.matches(message)).toBe(true);
     expect(translation.matches({ topic: "x", message: "unrelated" })).toBe(false);
   });
 
   it("explains that the option only works in global config", () => {
-    const translated = translateMessage(message, null);
-    expect(translated!.explanation).toMatch(/global/i);
-    expect(translated!.explanation).toContain("token");
+    const translated = must(
+      translateMessage(message, null),
+      "a translation for the global-only token message",
+    );
+    expect(translated.explanation).toMatch(/global/i);
+    expect(translated.explanation).toContain("token");
   });
 
   it("suggests removing the option when it's present at the config root", () => {
-    const translated = translateMessage(message, { token: "abc", extends: ["config:recommended"] });
-    const fix = translated!.fix!;
+    const translated = must(
+      translateMessage(message, { token: "abc", extends: ["config:recommended"] }),
+      "a translation for the global-only token message",
+    );
+    const fix = must(translated.fix, "a remove fix for the global-only token option");
     expect(fix.remove).toBe(true);
     expect(fix.path).toEqual(["token"]);
     expect(fix.before).toBe("abc");
@@ -225,8 +278,11 @@ describe("global-only-option translation (008 boundary warning)", () => {
   });
 
   it("declines when the option isn't present at the root of this snapshot (can't confidently locate it)", () => {
-    const translated = translateMessage(message, { packageRules: [{ token: "abc" }] });
-    expect(translated!.fix).toBeNull();
+    const translated = must(
+      translateMessage(message, { packageRules: [{ token: "abc" }] }),
+      "a translation for the global-only token message",
+    );
+    expect(translated.fix).toBeNull();
   });
 });
 

@@ -54,9 +54,19 @@ const VERBS: Record<ProvenanceStep["action"], string> = {
   forced: "forces",
 };
 
-/** The step whose value survives into the final config (skips no-op steps). */
-function winningStep(entry: KeyProvenance): ProvenanceStep {
-  return entry.chain.findLast((s) => !s.noop) ?? entry.chain[entry.chain.length - 1]!;
+/** The step whose value survives into the final config (skips no-op steps).
+ *  `undefined` only for an empty chain, which the provenance builder never
+ *  produces — a key exists in this view because some layer set it. */
+function winningStep(entry: KeyProvenance): ProvenanceStep | undefined {
+  return entry.chain.findLast((s) => !s.noop) ?? entry.chain.at(-1);
+}
+
+/** React key for an override-chain row (roadmap 041). Each layer contributes at
+ *  most one step to a key's chain, and preset node ids are unique across the
+ *  tree — so this is a genuine identity even when two `extends` entries resolve
+ *  to presets with the same NAME (which `layerId` deliberately conflates). */
+function stepKey(step: ProvenanceStep): string {
+  return step.layer.kind === "preset" ? `preset:${step.layer.nodeId}` : step.layer.kind;
 }
 
 /** Non-no-op layers that contributed to a key, for the layer filter. */
@@ -228,7 +238,13 @@ function PackageRulesProvenance({
       <ul className="prov-rules-list">
         {rules.map((rule, i) => {
           const attr = byIndex.get(i);
+          // Roadmap 041 — index key, deliberately: the index IS the identity
+          // here. The row renders `packageRules[i]`, displays it as `#i+1` and
+          // looks its provenance up by that index; rules never reorder within a
+          // render, and rule content is not unique (two identical rules are
+          // legal JSON), so nothing else can key this list.
           return (
+            // oxlint-disable-next-line react/no-array-index-key -- see above
             <li key={i}>
               <span className="prov-rule-index">#{i + 1}</span>
               {attr ? (
@@ -282,7 +298,7 @@ function KeyRow({
           )}
         </span>
         <MultiContribBadgeChip entry={entry} />
-        <ProvenanceChip layer={winner.layer} onSelectPreset={onSelectPreset} />
+        {winner ? <ProvenanceChip layer={winner.layer} onSelectPreset={onSelectPreset} /> : null}
       </button>
       {expanded ? (
         <div className="prov-detail">
@@ -305,8 +321,8 @@ function KeyRow({
           <div className="prov-chain-title">
             Override chain ({visibleSteps.length} step{visibleSteps.length === 1 ? "" : "s"})
           </div>
-          {visibleSteps.map((step, i) => (
-            <Step key={i} step={step} onSelectPreset={onSelectPreset} />
+          {visibleSteps.map((step) => (
+            <Step key={stepKey(step)} step={step} onSelectPreset={onSelectPreset} />
           ))}
         </div>
       ) : null}

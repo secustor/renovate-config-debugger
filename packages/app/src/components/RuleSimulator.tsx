@@ -943,10 +943,13 @@ function SimMessages({
   onJumpToSimRule?: (mergedIndex: number) => void;
   errorLib: ErrorTranslationLib | null;
 }) {
+  // Keyed by topic + text (roadmap 041) — same identity the messages panel
+  // uses; the simulator re-runs on every edit, so a stale index would carry a
+  // fixed message's DOM over to its replacement.
   return (
     <ul className="messages sim-messages">
-      {errors.map((m, i) => (
-        <li key={`e${i}`} className="error">
+      {errors.map((m) => (
+        <li key={`e:${m.topic}:${m.message}`} className="error">
           <strong>{m.topic}</strong>:{" "}
           <RuleMessage
             message={m}
@@ -958,8 +961,8 @@ function SimMessages({
           <ErrorTranslationView message={m} errorLib={errorLib} config={null} />
         </li>
       ))}
-      {warnings.map((m, i) => (
-        <li key={`w${i}`} className="warn">
+      {warnings.map((m) => (
+        <li key={`w:${m.topic}:${m.message}`} className="warn">
           <strong>{m.topic}</strong>:{" "}
           <RuleMessage
             message={m}

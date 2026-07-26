@@ -8,13 +8,17 @@ import type { DigestClause } from "../run-digest";
  * renderer turns those into `<code>` spans, matching the mockup's mono names.
  */
 function CodeText({ text }: { text: string }) {
+  // Roadmap 041 — index keys, deliberately: this array is ONE string split on
+  // backticks, so slot i is always the same span of the same string and the
+  // odd/even parity is what decides `<code>` vs plain text. Parts repeat, and
+  // insertion/reorder cannot happen; there is no other identity to key on.
+  const parts = text.split(/`([^`]+)`/);
   return (
     <>
-      {text
-        .split(/`([^`]+)`/)
-        .map((part, i) =>
-          i % 2 === 1 ? <code key={i}>{part}</code> : <Fragment key={i}>{part}</Fragment>,
-        )}
+      {parts.map((part, i) =>
+        // oxlint-disable-next-line react/no-array-index-key -- see above
+        i % 2 === 1 ? <code key={i}>{part}</code> : <Fragment key={i}>{part}</Fragment>,
+      )}
     </>
   );
 }

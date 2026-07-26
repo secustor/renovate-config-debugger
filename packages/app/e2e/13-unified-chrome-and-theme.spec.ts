@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { SEMANTIC_COMMITS_CONFIG } from "./fixtures";
-import { openTab, runAndAwaitResult, setEditorContent } from "./helpers";
+import { must, openTab, runAndAwaitResult, setEditorContent } from "./helpers";
 
 /**
  * Roadmap 036 + 037 — the unified chrome and the theme switcher.
@@ -186,13 +186,13 @@ test("the diff chrome names the active view and offers Copy result (036)", async
 
   // The chrome bar is a bar: it paints the surface fill and sits above the
   // diff body, not floating over it.
-  const [chromeBox, diffBox] = await Promise.all([
+  const [chromeBoxRaw, diffBoxRaw] = await Promise.all([
     chrome.boundingBox(),
     page.locator("#panel-pipeline .diff-wrapper").boundingBox(),
   ]);
-  expect(chromeBox).not.toBeNull();
-  expect(diffBox).not.toBeNull();
-  expect(chromeBox!.y + chromeBox!.height).toBeLessThanOrEqual(diffBox!.y + 1);
+  const chromeBox = must(chromeBoxRaw, "the diff chrome bar's bounding box");
+  const diffBox = must(diffBoxRaw, "the diff wrapper's bounding box");
+  expect(chromeBox.y + chromeBox.height).toBeLessThanOrEqual(diffBox.y + 1);
   const chromeBg = await chrome.evaluate((el) => getComputedStyle(el).backgroundColor);
   expect(chromeBg).not.toBe("rgba(0, 0, 0, 0)");
 });

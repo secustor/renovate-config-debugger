@@ -424,23 +424,26 @@ function OriginFraming({ root, stats }: { root: PresetNode; stats: TreeStats }) 
     .toSorted((a, b) => b.count - a.count);
   const top = contributions[0];
 
-  if (roots.length === 1) {
+  const [onlyRoot] = roots;
+  if (roots.length === 1 && onlyRoot) {
     return (
       <p className="origin-framing">
-        Your <Term id="extends">extends</Term> entry <code>{roots[0]!.name}</code> expands to{" "}
+        Your <Term id="extends">extends</Term> entry <code>{onlyRoot.name}</code> expands to{" "}
         {nf.format(total)} preset{total === 1 ? "" : "s"}.
       </p>
     );
   }
 
-  const majority = top && top.count > 1 && top.count / total > 0.5;
+  // Only named when it is a clear majority — narrowed to the contribution
+  // itself (not a boolean) so the JSX below reads it without an assertion.
+  const majority = top && top.count > 1 && top.count / total > 0.5 ? top : null;
   return (
     <p className="origin-framing">
       Your {nf.format(roots.length)} <Term id="extends">extends</Term> entries expand to{" "}
       {nf.format(total)} preset{total === 1 ? "" : "s"}
       {majority ? (
         <>
-          , mostly via <code>{top!.name}</code> ({nf.format(top!.count)})
+          , mostly via <code>{majority.name}</code> ({nf.format(majority.count)})
         </>
       ) : null}
       .
@@ -511,6 +514,9 @@ function TreeRow({
     paddingLeft: row.depth * INDENT,
   };
   const chain = row.elidedChain;
+  // Hoisted out of the JSX: the render-prop closure below is created inside a
+  // callback, so `node.source?.presetSource` re-widens to `| undefined` there.
+  const presetSource = node.source?.presetSource;
 
   return (
     <div
@@ -554,15 +560,11 @@ function TreeRow({
       >
         {node.name}
       </button>
-      {node.source?.presetSource ? (
-        <Explained entry={sourceKindEntry(node.source.presetSource)}>
+      {presetSource ? (
+        <Explained entry={sourceKindEntry(presetSource)}>
           {(handlers) => (
-            <span
-              className={`badge src src-${node.source!.presetSource} explained`}
-              tabIndex={0}
-              {...handlers}
-            >
-              {node.source!.presetSource}
+            <span className={`badge src src-${presetSource} explained`} tabIndex={0} {...handlers}>
+              {presetSource}
             </span>
           )}
         </Explained>
@@ -1106,11 +1108,16 @@ function PresetInjector({
   if (!key || !parse) {
     return null;
   }
+  // Re-bound as consts so the narrowing above survives into `submit`: `parse`
+  // is a parameter (never const-narrowed inside a closure) and `submit` was a
+  // hoisted function declaration, which TS can't assume runs after the guard.
+  const injectionTarget = key;
+  const parseConfig = parse;
 
-  function submit() {
+  const submit = () => {
     setError(null);
     try {
-      const parsed = parse!(text);
+      const parsed = parseConfig(text);
       // Roadmap 030: injected preset content is user-supplied JSON that
       // flows straight into the pipeline's merges — reject an own
       // `__proto__`/`constructor`/`prototype` key anywhere in it (including
@@ -1120,14 +1127,14 @@ function PresetInjector({
       const pollutedAt = findPollutedPath(parsed);
       if (pollutedAt) {
         throw new Error(
-          `Preset content must not contain a "${pollutedAt[pollutedAt.length - 1]}" key (at ${pollutedAt.join(".")})`,
+          `Preset content must not contain a "${pollutedAt.at(-1)}" key (at ${pollutedAt.join(".")})`,
         );
       }
-      onInject(key!, parsed);
+      onInject(injectionTarget, parsed);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
-  }
+  };
 
   return (
     <details className="preset-inject" open>

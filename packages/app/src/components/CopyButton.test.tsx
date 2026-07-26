@@ -90,7 +90,10 @@ describe("CopyButton", () => {
       </details>,
     );
 
-    const details = view.container.querySelector("details")!;
+    const details = view.container.querySelector("details");
+    if (!details) {
+      throw new Error("expected the rendered output to contain a <details> element");
+    }
     expect(details.open).toBe(false);
     await act(async () => {
       fireEvent.click(view.getByRole("button", { name: "Copy as markdown" }));

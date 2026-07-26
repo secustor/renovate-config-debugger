@@ -100,11 +100,30 @@ function skipComment(text: string, start: number): number | null {
   return null;
 }
 
+/** Whitespace at `i`? Past the end counts as "no" — every caller is scanning
+ *  forward and stops at the end of the text anyway. */
+function isSpaceAt(text: string, i: number): boolean {
+  const c = text[i];
+  return c !== undefined && /\s/.test(c);
+}
+
+/** Space or tab at `i`? (Line indentation, so newlines deliberately don't count.) */
+function isIndentAt(text: string, i: number): boolean {
+  const c = text[i];
+  return c === " " || c === "\t";
+}
+
+/** End of a scalar token at `i` — `,`, a closing bracket, or whitespace. */
+function isDelimiterAt(text: string, i: number): boolean {
+  const c = text[i];
+  return c !== undefined && /[,}\]\s]/.test(c);
+}
+
 /** Advances past whitespace and comments starting at `i`. */
 function skipTrivia(text: string, i: number): number {
   let pos = i;
   while (pos < text.length) {
-    if (/\s/.test(text[pos]!)) {
+    if (isSpaceAt(text, pos)) {
       pos++;
       continue;
     }
@@ -171,7 +190,7 @@ function scanValue(text: string, start: number): number | null {
   }
   // Scalar: number / true / false / null — scan up to a delimiter.
   let i = start;
-  while (i < text.length && !/[,}\]\s]/.test(text[i]!) && skipComment(text, i) === null) {
+  while (i < text.length && !isDelimiterAt(text, i) && skipComment(text, i) === null) {
     i++;
   }
   return i > start ? i : null;
@@ -266,8 +285,7 @@ function locateEntry(text: string, path: ConfigPathSegment[]): EntryLocation | n
     return null;
   }
   let containerStart = rootStart;
-  for (let i = 0; i < path.length; i++) {
-    const seg = path[i]!;
+  for (const [i, seg] of path.entries()) {
     const isLast = i === path.length - 1;
     if (typeof seg === "string") {
       const found = findKeyInObject(text, containerStart, seg);
@@ -295,19 +313,19 @@ function spliceRemove(text: string, loc: EntryLocation): string {
   // Eat back to the start of the line if only indentation precedes the key,
   // so removal doesn't leave a blank indented line behind.
   let lineStart = loc.keyStart;
-  while (lineStart > 0 && text[lineStart - 1] !== "\n" && /[ \t]/.test(text[lineStart - 1]!)) {
+  while (lineStart > 0 && text[lineStart - 1] !== "\n" && isIndentAt(text, lineStart - 1)) {
     lineStart--;
   }
   const cutStart = /^[ \t]*$/.test(text.slice(lineStart, loc.keyStart)) ? lineStart : loc.keyStart;
 
   let before = lineStart;
-  while (before > 0 && /\s/.test(text[before - 1]!)) {
+  while (before > 0 && isSpaceAt(text, before - 1)) {
     before--;
   }
   const precedingComma = text[before - 1] === ",";
 
   let after = loc.valueEnd;
-  while (after < text.length && /\s/.test(text[after]!)) {
+  while (after < text.length && isSpaceAt(text, after)) {
     after++;
   }
   const followingComma = text[after] === ",";

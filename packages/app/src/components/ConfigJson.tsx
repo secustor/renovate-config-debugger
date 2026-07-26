@@ -17,10 +17,15 @@ export function ConfigJson({ value }: { value: unknown }) {
         return "[]";
       }
       const pad = "  ".repeat(indent + 1);
+      // Roadmap 041 — index keys, deliberately: this IS the array being
+      // pretty-printed, so element i is line i of the rendered JSON. Array
+      // elements have no identity beyond their position (duplicates are legal
+      // JSON), and a re-render re-prints the whole value anyway.
       return (
         <>
           {"[\n"}
           {v.map((item, i) => (
+            // oxlint-disable-next-line react/no-array-index-key -- see above
             <Fragment key={i}>
               {pad}
               {render(item, indent + 1, configContext)}

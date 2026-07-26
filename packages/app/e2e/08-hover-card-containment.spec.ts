@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { openTab, runAndAwaitResult } from "./helpers";
+import { must, openTab, runAndAwaitResult } from "./helpers";
 
 /**
  * Roadmap 025 — a badge-glossary hover card used to inherit `white-space:
@@ -37,12 +37,10 @@ test("the preset-tree 'own options' hover card wraps its text and stays on-scree
   // Text wraps inside the box rather than overflowing it.
   expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1);
 
-  const box = await card.boundingBox();
-  expect(box).not.toBeNull();
-  const viewport = page.viewportSize();
-  expect(viewport).not.toBeNull();
-  expect(box!.x).toBeGreaterThanOrEqual(0);
-  expect(box!.y).toBeGreaterThanOrEqual(0);
-  expect(box!.x + box!.width).toBeLessThanOrEqual(viewport!.width + 1);
-  expect(box!.y + box!.height).toBeLessThanOrEqual(viewport!.height + 1);
+  const box = must(await card.boundingBox(), "the hover card's bounding box");
+  const viewport = must(page.viewportSize(), "the page's viewport size");
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 1);
+  expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + 1);
 });

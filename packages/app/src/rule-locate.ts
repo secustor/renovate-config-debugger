@@ -58,6 +58,13 @@ function skipComment(text: string, start: number): number | null {
   return null;
 }
 
+/** Whitespace at `i`? Past the end counts as "no" — the scanners below only
+ *  ever walk forward and stop at the end of the text anyway. */
+function isSpaceAt(text: string, i: number): boolean {
+  const c = text[i];
+  return c !== undefined && /\s/.test(c);
+}
+
 /** Finds the `[` of the top-level `key`'s array value (directly inside the root `{}`), or `null`. */
 function findTopLevelArrayStart(text: string, key: string): number | null {
   const n = text.length;
@@ -74,12 +81,12 @@ function findTopLevelArrayStart(text: string, key: string): number | null {
       const strEnd = skipString(text, i);
       const str = text.slice(i + 1, strEnd - 1);
       let j = strEnd;
-      while (j < n && /\s/.test(text[j]!)) {
+      while (j < n && isSpaceAt(text, j)) {
         j++;
       }
       if (text[j] === ":" && stack.length === 1 && stack[0] === "{" && str === key) {
         let k = j + 1;
-        while (k < n && /\s/.test(text[k]!)) {
+        while (k < n && isSpaceAt(text, k)) {
           k++;
         }
         return text[k] === "[" ? k : null;

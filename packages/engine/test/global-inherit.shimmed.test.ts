@@ -13,6 +13,7 @@ import {
   presetInjectionKey,
   runPipeline,
 } from "../src/index";
+import { must } from "./helpers";
 
 const injectedPresets = {
   [presetInjectionKey({ presetSource: "github", repo: "test-org/global-preset" })]: {
@@ -73,7 +74,7 @@ describe("global + inherited config layers", () => {
     expect(result.stageStatus.global).toBe("ok");
     expect(result.stageStatus.inherit).toBe("ok");
     expect(result.stageStatus.merge).toBe("ok");
-    const final = result.finalConfig!;
+    const final = must(result.finalConfig, "the final merged config");
     // set by every layer — the repo config wins
     expect(final.rangeStrategy).toBe("replace");
     // globalExtends-only key survives to the final config
@@ -139,9 +140,12 @@ describe("global + inherited config layers", () => {
     const result = await runAll();
     const provenance = computeProvenance(result);
     expect(provenance).toBeDefined();
-    const range = (provenance as Map<string, KeyProvenance>).get("rangeStrategy");
-    expect(range?.finalValue).toBe("replace");
-    const nonDefault = range!.chain.filter((s) => s.layer.kind !== "defaults");
+    const range = must(
+      (provenance as Map<string, KeyProvenance>).get("rangeStrategy"),
+      "the 'rangeStrategy' provenance entry",
+    );
+    expect(range.finalValue).toBe("replace");
+    const nonDefault = range.chain.filter((s) => s.layer.kind !== "defaults");
     expect(nonDefault.map((s) => [s.layer.kind, s.action])).toEqual([
       ["global", "set"],
       ["inherited", "overwrite"],
