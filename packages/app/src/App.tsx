@@ -22,24 +22,10 @@ import type { ConfigEditorHandle } from "@/components/ConfigEditor";
 import { ConfigColumn } from "@/ConfigColumn";
 import type { EffectiveStats } from "@/components/EffectiveConfig";
 import type { AuthState } from "@/components/GithubAuthHint";
-import {
-  identityForNodeId,
-  nodeIdForIdentity,
-  presetTreeSummary,
-} from "@/components/preset-tree-stats";
-import type { ResultsColumnProps } from "@/components/ResultsColumn";
-import type { ResultsTabDescriptor } from "@/components/ResultsPanel";
+import { identityForNodeId, nodeIdForIdentity } from "@/components/preset-tree-stats";
+import type { ResultsColumnProps } from "@/ResultsColumn";
 import { UntrustedHostBanner } from "@/UntrustedHostBanner";
-import {
-  inheritFieldValues,
-  inheritLayerState,
-  inheritPolicyOf,
-  inheritProbeTarget,
-  type InheritProbeOutcome,
-  isProbeTargetResolved,
-} from "@/lib/inherit-probe";
 import { legacyTabForView, type ResultsTabId } from "@/data/results-tabs";
-import { buildRunDigest, type DigestInput, type DigestProblem } from "@/lib/run-digest";
 import { OptionDocsProvider } from "@/components/option-docs";
 import { buildPresetLookup, type PresetHoverContext } from "@/lib/preset-hover";
 import { findPackageRuleOffsets } from "@/lib/rule-locate";
@@ -59,7 +45,6 @@ import {
   loadErrorTranslationLib,
   loadOptionIndex,
   loadRepoConfig,
-  loadRepoFile,
   preloadEngine,
   run,
 } from "@/platform/run";
@@ -87,6 +72,8 @@ import {
   readLocal,
 } from "@/platform/storage";
 import { useHostTokens } from "@/hooks/use-host-tokens";
+import { useInheritedConfigLayer } from "@/hooks/use-inherited-config-layer";
+import { useRunSummary } from "@/hooks/use-run-summary";
 import { type RunInputs, useShareLink } from "@/hooks/use-share-link";
 
 const DEFAULT_CONFIG = `{
@@ -139,7 +126,7 @@ const INSTALL_URL = installUrl();
  *  (`result` never returns to null and a resolved `lazy` never re-suspends),
  *  so the 028 always-mounted tab-shell state is untouched by the boundary. */
 const ResultsColumn = lazy(() =>
-  import("@/components/ResultsColumn").then((m) => ({ default: m.ResultsColumn })),
+  import("@/ResultsColumn").then((m) => ({ default: m.ResultsColumn })),
 );
 
 /**
@@ -167,7 +154,7 @@ function ResultsPane(props: ResultsColumnProps) {
  *  behind the click. Both dynamic imports are module-cached (idempotent). */
 function preloadRunChunks(): void {
   preloadEngine();
-  void import("@/components/ResultsColumn").catch(() => {});
+  void import("@/ResultsColumn").catch(() => {});
 }
 
 /** Strips a trailing `.git` and slashes from a repo path. */
@@ -253,10 +240,10 @@ export function App() {
   const [endpoint, setEndpoint] = useState(() =>
     readLocal(ENDPOINT_KEY, "https://api.github.com", isValidEndpoint),
   );
-  // 008 layer inputs (JSON text; empty = layer off) + the explicit override of
-  // the global config's platform/endpoint (010 "reflect, then override").
+  // The 008 global layer's input (JSON text; empty = layer off) + the explicit
+  // override of the global config's platform/endpoint (010 "reflect, then
+  // override"). The inherited layer's own text lives in the hook below.
   const [globalText, setGlobalText] = useState("");
-  const [inheritedText, setInheritedText] = useState("");
   const [platformOverride, setPlatformOverride] = useState(false);
   // The single collapsed home of everything a typical repo user never touches
   // (self-hosted layers, platform context, tokens). Auto-opens when a share
@@ -376,7 +363,9 @@ export function App() {
   // prominent, top-of-page banner below (not the dismissable notice), so a
   // broken link never reads as "nothing happened"; `simRequest` is handed to
   // the RuleSimulator. Everything referenced here that is declared later in
-  // this body is a hoisted function declaration, and the hook re-reads the
+  // this body is either a hoisted function declaration or (for the inherited
+  // layer's `applyInheritedText`, which the hook below owns) reached through an
+  // arrow that only runs after this render — and the share hook re-reads the
   // host object every render, so nothing goes stale.
   const { shareError, simRequest, buildShareLinkAndCopy } = useShareLink(oauthConfig, {
     onRun: (inputs, opts) => onRun(undefined, inputs, opts),
@@ -385,7 +374,7 @@ export function App() {
     setPlatform,
     setEndpoint,
     setGlobalText,
-    setInheritedText: applyInheritedText,
+    setInheritedText: (text) => applyInheritedText(text),
     setPlatformOverride,
     setAdvancedOpen,
     setHostSectionOpen,
@@ -406,25 +395,6 @@ export function App() {
   const [repoInput, setRepoInput] = useState("");
   const [repoRef, setRepoRef] = useState("");
   const [repoLoading, setRepoLoading] = useState(false);
-  // Roadmap 045: the form's second row. Corrected 2026-07-26 — this was
-  // default-ON on the (wrong) claim that the public Mend-hosted app runs with
-  // `inheritConfig` enabled. It does not: the option itself defaults to
-  // `false`, AND Mend currently disables it in their hosted app too, to avoid
-  // "wasting millions of API calls per week" until they ship a smarter,
-  // dynamic approach (self-hosted-configuration docs, #inheritconfig). A
-  // default-on checkbox would model a run that mostly does not happen, so it
-  // starts OFF. `null` until the user touches it, so it can still track a live
-  // derivation — here, a pasted global config's own `inheritConfig: true` —
-  // the same null-until-touched idiom `inheritRepoEdit`/`inheritFileEdit` use
-  // below; once touched, the user's choice wins for the session even if the
-  // global config later changes or is cleared. See
-  // roadmap/045-auto-load-inherited-config.md's "Correction (2026-07-26)".
-  const [inheritAutoEdit, setInheritAutoEdit] = useState<boolean | null>(null);
-  const [inheritRepoEdit, setInheritRepoEdit] = useState<string | null>(null);
-  const [inheritFileEdit, setInheritFileEdit] = useState<string | null>(null);
-  // What the last probe did (008 layer origin / miss). Cleared by any hand edit
-  // of the layer, which is what makes an auto-loaded layer become a pasted one.
-  const [inheritProbe, setInheritProbe] = useState<InheritProbeOutcome | null>(null);
   // When a GitHub load fails with a not-found/auth/rate-limit error, offer the
   // sign-in / install hint next to the failure (009). null = no hint.
   const [repoAuthHint, setRepoAuthHint] = useState<{ rateLimited: boolean } | null>(null);
@@ -547,35 +517,6 @@ export function App() {
     setEditorKey((k) => k + 1);
   }
 
-  /**
-   * Roadmap 045: the inherited layer's text changing by any route OTHER than a
-   * probe — the user typing in it, a share link carrying one — drops the probe's
-   * origin metadata, so the layer is the ordinary pasted layer from then on.
-   * That is also what keeps share links honest: the origin line is never in the
-   * payload, and a link's inherited layer is content, never a fetch on open.
-   */
-  function applyInheritedText(text: string) {
-    setInheritedText(text);
-    setInheritProbe(null);
-  }
-
-  /** Roadmap 045: a probe-target field the user typed in is theirs from then on;
-   *  clearing it hands it back to the derivation (an empty target is not a
-   *  target, so the empty string can only mean "use the default again"). */
-  function onInheritRepoFieldChange(value: string) {
-    setInheritRepoEdit(value === "" ? null : value);
-  }
-
-  function onInheritFileFieldChange(value: string) {
-    setInheritFileEdit(value === "" ? null : value);
-  }
-
-  /** Roadmap 045, corrected 2026-07-26: any hand-toggle of the checkbox — on or
-   *  off — is the user's for the session; see `inheritAuto` above. */
-  function onInheritAutoFieldChange(value: boolean) {
-    setInheritAutoEdit(value);
-  }
-
   useEffect(() => {
     setSelectedNodeId(null);
     setMigrationStepIndex(0);
@@ -595,7 +536,27 @@ export function App() {
   // onRun below) and `resultsColRef` (the pane to measure) are handed down.
 
   const globalParse = useMemo(() => parseLayerText(globalText), [globalText]);
-  const inheritedParse = useMemo(() => parseLayerText(inheritedText), [inheritedText]);
+  // Roadmap 045/048: the inherited-config layer — its text and parse, the
+  // probe-target fields, the `inheritConfig*` policy read off the global
+  // config, and the probe `onLoadRepo` calls between the repo config arriving
+  // and the run that processes it.
+  const {
+    inheritedText,
+    inheritedParse,
+    applyInheritedText,
+    inheritAuto,
+    inheritFields,
+    inheritState,
+    onInheritAutoFieldChange,
+    onInheritRepoFieldChange,
+    onInheritFileFieldChange,
+    probeInheritedConfig,
+  } = useInheritedConfigLayer({
+    globalConfig: globalParse.config,
+    repoInput,
+    setAdvancedOpen,
+    setInheritedSectionOpen,
+  });
   // Platform context values the global config carries (008/010 interplay): the
   // control reflects them unless the user explicitly overrides.
   const globalPlatform =
@@ -603,34 +564,6 @@ export function App() {
   const globalEndpoint =
     typeof globalParse.config?.endpoint === "string" ? globalParse.config.endpoint : undefined;
   const hasGlobalContext = globalPlatform !== undefined || globalEndpoint !== undefined;
-  // Roadmap 045: the `inheritConfig*` family of the pasted global config — the
-  // probe target's overrides, and the two flags that decide what a hit (2c) and
-  // a miss (2b) MEAN under that config. Derived live, so pasting or editing the
-  // global config after a probe re-frames the layer immediately.
-  const inheritPolicy = useMemo(
-    () => inheritPolicyOf(globalParse.config ?? null),
-    [globalParse.config],
-  );
-  // Roadmap 045, corrected 2026-07-26: the checkbox tracks the pasted global
-  // config's `inheritConfig: true` until the user flips it by hand — the same
-  // derivation-until-touched rule as `inheritFields` below, just for a
-  // checkbox instead of a text field, so there is no "clear to go back to the
-  // default" gesture: any explicit toggle (on OR off) is the user's from then
-  // on, session-scoped, and survives the global config changing or clearing.
-  const inheritAuto = inheritAutoEdit ?? inheritPolicy.explicitlyEnabled;
-  const inheritFields = useMemo(
-    () =>
-      inheritFieldValues({
-        repoInput,
-        globalConfig: globalParse.config ?? null,
-        edits: { repo: inheritRepoEdit, file: inheritFileEdit },
-      }),
-    [repoInput, globalParse.config, inheritRepoEdit, inheritFileEdit],
-  );
-  const inheritState = useMemo(
-    () => inheritLayerState(inheritProbe, inheritPolicy),
-    [inheritProbe, inheritPolicy],
-  );
   const reflectGlobal = hasGlobalContext && !platformOverride;
   const displayPlatform = reflectGlobal && globalPlatform !== undefined ? globalPlatform : platform;
   // A global-config platform also displaces the toolbar endpoint (it belongs
@@ -936,139 +869,19 @@ export function App() {
 
   const usesLocal = displayPlatform !== "github";
 
-  // Granular migrate-stage steps (004); the migrate stage shows the stepper
-  // when any exist, otherwise falls back to the whole-stage blob diff.
-  const migrateSteps = useMemo(
-    () =>
-      result?.events.filter((e) => e.stage === "migrate" && e.kind === "migration-applied") ?? [],
-    [result],
-  );
-  const finalMigrated = useMemo(
-    () =>
-      result?.events.findLast((e) => e.stage === "migrate" && e.kind === "stage-complete")?.after,
-    [result],
-  );
-
-  // Roadmap 028: the migration stepper lives in the Rewrites tab and stays
-  // mounted whenever the run produced steps, so a link can always carry its
-  // index (it no longer depends on which stage is selected).
-  const migrateStepperMounted = migrateSteps.length > 0;
-
-  // Roadmap 028: preset-resolution failures render in the Problems tab
-  // alongside the validator's errors/warnings, so they count toward its badge.
-  // One filter pass per result (032): the badge counts these and the digest
-  // quotes the first one — both previously re-filtered the event stream.
-  const presetErrors = useMemo(
-    () => result?.events.filter((e) => e.kind === "preset-error") ?? [],
-    [result],
-  );
-  const presetErrorCount = presetErrors.length;
-  const errorCount = (result?.errors.length ?? 0) + presetErrorCount;
-  const warningCount = result?.warnings.length ?? 0;
-  const presetSummary = useMemo(() => presetTreeSummary(result?.presetTree), [result]);
-  const presetCount = presetSummary?.resolved ?? 0;
-
-  // Roadmap 028: the tab strip's ambient counts. A tab whose run produced
-  // nothing keeps its place (dimmed, showing its zero) rather than
-  // disappearing; `undefined` marks the tabs that have no count to give.
-  const resultsTabs: ResultsTabDescriptor[] = [
-    { id: "overview" },
-    { id: "pipeline" },
-    { id: "rewrites", count: migrateSteps.length },
-    { id: "presets", count: presetCount },
-    // Provenance is computed asynchronously by the effective-config view; no
-    // badge until it reports, rather than a wrong zero.
-    { id: "effective", count: effectiveStats?.keys },
-    { id: "simulator" },
-    {
-      id: "problems",
-      count: errorCount + warningCount,
-      tone: errorCount > 0 ? "error" : warningCount > 0 ? "warn" : undefined,
-    },
-  ];
-
-  /**
-   * Roadmap 029: the Overview's plain-English digest. Assembled from exactly
-   * the derivations that feed the tab badges above (preset summary, migration
-   * steps, the effective-config view's reported stats, the problem counts), so
-   * a number in the paragraph can never disagree with the badge beside it.
-   * The clause logic itself lives in the pure `run-digest` module.
-   */
-  const digest = useMemo(() => {
-    if (!result) {
-      return [];
-    }
-    // The Problems tab lists validator errors, then warnings, then preset
-    // failures — the digest quotes whichever of those comes first.
-    const firstProblem: DigestProblem | undefined = result.errors[0]
-      ? { severity: "error", topic: result.errors[0].topic, message: result.errors[0].message }
-      : result.warnings[0]
-        ? {
-            severity: "warning",
-            topic: result.warnings[0].topic,
-            message: result.warnings[0].message,
-          }
-        : presetErrors[0]
-          ? { severity: "error", topic: "Preset", message: presetErrors[0].title }
-          : undefined;
-    const input: DigestInput = {
-      // A parse failure ends the run: the only honest thing to report is why.
-      ...(result.stageStatus.parse === "error"
-        ? { fatalParse: result.errors[0]?.message ?? "the file could not be parsed" }
-        : {}),
-      refused: result.stageStatus.validate === "error",
-      errors: errorCount,
-      warnings: warningCount,
-      ...(firstProblem ? { firstProblem } : {}),
-      migrations: {
-        count: migrateSteps.length,
-        // Named only when the digest will use them (≤ 2 rewrites); a rename
-        // reads best as `old → new`, anything else by the key it acted on.
-        labels:
-          migrateSteps.length <= 2
-            ? migrateSteps.map((step) => {
-                const info = step.migration;
-                if (!info) {
-                  return step.title;
-                }
-                return info.key && info.newKey
-                  ? `${info.key} → ${info.newKey}`
-                  : (info.key ?? info.name);
-              })
-            : [],
-      },
-      presets: {
-        // Nested extends (packageRules[n].extends) are not entries the user
-        // wrote at the top level, so they are not named as such.
-        entries: (result.presetTree?.children ?? []).filter((c) => !c.nested).map((c) => c.name),
-        resolved: presetCount,
-        optionSetting: presetSummary?.optionSetting ?? 0,
-        rules: presetSummary?.rules ?? 0,
-        // The tree's own error count, so the clause matches the Presets tab it
-        // links to (the Problems badge additionally counts validator errors).
-        failed: presetSummary?.errors ?? 0,
-        injected: result.usedInjections.length,
-      },
-      effective: {
-        options: effectiveStats?.keys ?? null,
-        overridden: effectiveStats?.overridden ?? null,
-      },
-      layers: {
-        global: Boolean(result.layerConfigs?.globalResolved),
-        inherited: Boolean(result.layerConfigs?.inheritedResolved),
-      },
-    };
-    return buildRunDigest(input);
-  }, [
-    result,
-    presetErrors,
+  // Roadmap 048: every number derived from a finished run — the tab-strip
+  // counts, the migration-stepper inputs and the Overview digest they must
+  // agree with — as one pure derivation over the result and the effective
+  // config's reported stats.
+  const {
+    migrateSteps,
+    finalMigrated,
+    migrateStepperMounted,
     errorCount,
     warningCount,
-    migrateSteps,
-    presetCount,
-    presetSummary,
-    effectiveStats,
-  ]);
+    resultsTabs,
+    digest,
+  } = useRunSummary(result, effectiveStats);
 
   // The encode side of `useShareLink`'s copy-link path: assembles the CURRENT
   // state (config + view, optionally simulator inputs) for the share codec.
@@ -1121,83 +934,6 @@ export function App() {
   function closeRepoForm() {
     setRepoFormOpen(false);
     repoToggleRef.current?.focus();
-  }
-
-  /**
-   * Roadmap 045 — resolves the org's inherited config the way a real
-   * `inheritConfig` run does: ONE exact file (`inheritConfigFileName`) out of
-   * ONE exact repository (`inheritConfigRepoName`, templated against the repo
-   * that was just loaded), through the same browser transports and platform
-   * context the repo load itself used. No location probing chain: Renovate has
-   * no such chain here, and inventing one would model a bot that doesn't exist.
-   *
-   * Deliberately NOT given the form's branch/tag: `inheritConfigRepoName` is a
-   * different repository, and a real run reads its default branch.
-   *
-   * Returns the inherited-config object the run that follows should use — the
-   * probe's when it found one, otherwise whatever the layer already held, so a
-   * miss never destroys a layer the user pasted.
-   */
-  async function probeInheritedConfig(args: {
-    platform: RepoPlatform;
-    endpoint: string;
-    /** The repo slug that was actually loaded — the templating authority. */
-    loadedRepo: string;
-    suppressTokens: boolean;
-  }): Promise<Record<string, unknown> | undefined> {
-    const target = inheritProbeTarget(inheritFields, args.loadedRepo);
-    if (
-      !isProbeTargetResolved(target) ||
-      !isValidRepoRefPart(target.repo) ||
-      !isValidRepoRefPart(target.file)
-    ) {
-      setInheritProbe({
-        status: "unreachable",
-        target,
-        detail: "that is not a repository and file name.",
-      });
-      return inheritedParse.config;
-    }
-    try {
-      const raw = await loadRepoFile(
-        {
-          platform: args.platform,
-          repo: target.repo,
-          path: target.file,
-          endpoint: args.endpoint || undefined,
-        },
-        { suppressTokens: args.suppressTokens },
-      );
-      if (raw === null) {
-        // Exactly what a real run does with `inheritConfigStrict` off: carry on
-        // without the layer. The note says so (and says the opposite when the
-        // pasted global config sets strict).
-        setInheritProbe({ status: "missing", target });
-        if (inheritPolicy.strict) {
-          setAdvancedOpen(true);
-          setInheritedSectionOpen(true);
-        }
-        return inheritedParse.config;
-      }
-      // The layer is a text input (008), so the file's own text goes in
-      // verbatim — including its formatting, which the user may now edit. Set
-      // directly rather than through `applyInheritedText`: this text DOES have
-      // an origin, and that is the one thing that path exists to forget.
-      setInheritedText(raw);
-      setInheritProbe({ status: "loaded", target });
-      setAdvancedOpen(true);
-      setInheritedSectionOpen(true);
-      return parseLayerText(raw).config;
-    } catch (err) {
-      const e = err as { err?: { message?: string } };
-      const detail = e?.err?.message ?? (err instanceof Error ? err.message : String(err));
-      setInheritProbe({ status: "unreachable", target, detail: `${detail}.` });
-      if (inheritPolicy.strict) {
-        setAdvancedOpen(true);
-        setInheritedSectionOpen(true);
-      }
-      return inheritedParse.config;
-    }
   }
 
   // Fetches a repo's Renovate config file and runs it. Derives the platform

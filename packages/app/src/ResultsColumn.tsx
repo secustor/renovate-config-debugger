@@ -6,17 +6,17 @@ import type {
   TraceEvent,
   TraceResult,
 } from "@renovate-config-visualizer/engine";
-import { EffectiveConfig, type EffectiveStats } from "./EffectiveConfig";
-import type { AuthState } from "./GithubAuthHint";
-import { HypotheticalBanner } from "./HypotheticalBanner";
-import { MessagesPanel } from "./MessagesPanel";
-import { MigrationSteps } from "./MigrationSteps";
-import { OverviewTab } from "./OverviewTab";
-import { PresetTree } from "./PresetTree";
-import { ResultsPanel, type ResultsTabDescriptor } from "./ResultsPanel";
+import { EffectiveConfig, type EffectiveStats } from "@/components/EffectiveConfig";
+import type { AuthState } from "@/components/GithubAuthHint";
+import { HypotheticalBanner } from "@/components/HypotheticalBanner";
+import { MessagesPanel } from "@/components/MessagesPanel";
+import { MigrationSteps } from "@/components/MigrationSteps";
+import { OverviewTab } from "@/components/OverviewTab";
+import { PresetTree } from "@/components/PresetTree";
+import { ResultsPanel, type ResultsTabDescriptor } from "@/components/ResultsPanel";
 import { RuleSimulator } from "@/features/simulator/RuleSimulator";
-import { StageDiff } from "./StageDiff";
-import { StageTimeline } from "./StageTimeline";
+import { StageDiff } from "@/components/StageDiff";
+import { StageTimeline } from "@/components/StageTimeline";
 import type { ResultsTabId } from "@/data/results-tabs";
 import type { DigestClause } from "@/lib/run-digest";
 import type { ErrorTranslationLib } from "@/platform/run";

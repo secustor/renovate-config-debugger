@@ -104,8 +104,7 @@ function HostPresetIntro() {
       <Term id="localPreset">
         <code>local&gt;</code>
       </Term>{" "}
-      or a bare <code>owner/repo</code>). Set the host and API endpoint they should resolve
-      against.
+      or a bare <code>owner/repo</code>). Set the host and API endpoint they should resolve against.
     </p>
   );
 }
@@ -134,8 +133,8 @@ function PlatformFromGlobalNote({
           endpoint <code>{globalEndpoint}</code>
         </>
       ) : null}{" "}
-      come from the pasted global config — a real Renovate run would use them. Changing the
-      control overrides them for this visualization.
+      come from the pasted global config — a real Renovate run would use them. Changing the control
+      overrides them for this visualization.
     </p>
   );
 }
