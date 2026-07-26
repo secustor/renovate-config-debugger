@@ -22,11 +22,13 @@ import { ConfigEditorCard } from "./components/ConfigEditorCard";
 import { ConfigToolbar } from "./components/ConfigToolbar";
 import type { EffectiveStats } from "./components/EffectiveConfig";
 import { type AuthState, GithubAuthHint } from "./components/GithubAuthHint";
+import { NoticeBar } from "./components/NoticeBar";
 import {
   identityForNodeId,
   nodeIdForIdentity,
   presetTreeSummary,
 } from "./components/preset-tree-stats";
+import type { ResultsColumnProps } from "./components/ResultsColumn";
 import type { ResultsTabDescriptor } from "./components/ResultsPanel";
 import { ThemeSwitch } from "./components/ThemeSwitch";
 import { WelcomePanel } from "./components/WelcomePanel";
@@ -126,6 +128,26 @@ const INSTALL_URL = installUrl();
 const ResultsColumn = lazy(() =>
   import("./components/ResultsColumn").then((m) => ({ default: m.ResultsColumn })),
 );
+
+/**
+ * Roadmap 031/040: the results half — its column wrapper, the lazy boundary
+ * and the column itself. One component since 040's depth ratchet: the split's
+ * right-hand pane has one level left, and these are three. Props are the
+ * column's own, forwarded unchanged.
+ */
+function ResultsPane(props: ResultsColumnProps) {
+  return (
+    <div className="results-col" ref={props.resultsColRef}>
+      {/* Roadmap 031: the results chunk is preloaded at idle and on Run
+          intent, so this fallback is a formality — and once the lazy module
+          has resolved, re-renders never suspend, so the mounted shell (and all
+          its per-tab state) is never torn down by the boundary. */}
+      <Suspense fallback={null}>
+        <ResultsColumn {...props} />
+      </Suspense>
+    </div>
+  );
+}
 
 /** Roadmap 031: warms the two chunks a Run needs — the engine, and the
  *  results column that renders its output — so neither download serializes
@@ -1254,72 +1276,52 @@ export function App() {
                 installUrl={INSTALL_URL}
               />
             ) : null}
-            {notice ? (
-              <p className="app-notice">
-                {notice}
-                <button
-                  type="button"
-                  className="app-notice-dismiss"
-                  onClick={() => setNotice(null)}
-                >
-                  dismiss
-                </button>
-              </p>
-            ) : null}
+            {notice ? <NoticeBar message={notice} onDismiss={() => setNotice(null)} /> : null}
           </div>
 
           {result ? (
-            <div className="results-col" ref={resultsColRef}>
-              {/* Roadmap 031: the results chunk is preloaded at idle and on
-                  Run intent, so this fallback is a formality — and once the
-                  lazy module has resolved, re-renders never suspend, so the
-                  mounted shell (and all its per-tab state) is never torn
-                  down by the boundary. */}
-              <Suspense fallback={null}>
-                <ResultsColumn
-                  result={result}
-                  resultsColRef={resultsColRef}
-                  focusResultsRef={focusResultsRef}
-                  tabs={resultsTabs}
-                  tab={tab}
-                  onSelectTab={setTab}
-                  backTab={backTab}
-                  onBack={() => setTab(backTab ?? "overview")}
-                  digest={digest}
-                  validateHasErrors={validateHasErrors}
-                  jumpToTab={jumpToTab}
-                  onWhereFrom={onWhereFrom}
-                  selectedStage={selectedStage}
-                  onSelectStage={setSelectedStage}
-                  deferredStage={deferredStage}
-                  migrateSteps={migrateSteps}
-                  migrateStepperMounted={migrateStepperMounted}
-                  finalMigrated={finalMigrated}
-                  migrationStepIndex={migrationStepIndex}
-                  onMigrationStepChange={setMigrationStepIndex}
-                  onInject={onInject}
-                  selectedNodeId={selectedNodeId}
-                  onSelectNode={setSelectedNodeId}
-                  authState={authState}
-                  onSignIn={onSignIn}
-                  installUrl={INSTALL_URL}
-                  selectPresetNode={selectPresetNode}
-                  onEffectiveStats={setEffectiveStats}
-                  effectiveFilterNonce={effectiveFilterNonce}
-                  focusEditorRepoIndex={focusEditorRepoIndex}
-                  pendingRuleFocus={pendingRuleFocus}
-                  onRuleFocused={onRuleFocused}
-                  errorLib={errorLib}
-                  simRequest={simRequest}
-                  onCopySimLink={buildShareLinkAndCopy}
-                  errorCount={errorCount}
-                  warningCount={warningCount}
-                  ruleProvenance={ruleProvenance}
-                  onJumpToSimRule={onJumpToSimRule}
-                  onApplyFix={onApplyFix}
-                />
-              </Suspense>
-            </div>
+            <ResultsPane
+              result={result}
+              resultsColRef={resultsColRef}
+              focusResultsRef={focusResultsRef}
+              tabs={resultsTabs}
+              tab={tab}
+              onSelectTab={setTab}
+              backTab={backTab}
+              onBack={() => setTab(backTab ?? "overview")}
+              digest={digest}
+              validateHasErrors={validateHasErrors}
+              jumpToTab={jumpToTab}
+              onWhereFrom={onWhereFrom}
+              selectedStage={selectedStage}
+              onSelectStage={setSelectedStage}
+              deferredStage={deferredStage}
+              migrateSteps={migrateSteps}
+              migrateStepperMounted={migrateStepperMounted}
+              finalMigrated={finalMigrated}
+              migrationStepIndex={migrationStepIndex}
+              onMigrationStepChange={setMigrationStepIndex}
+              onInject={onInject}
+              selectedNodeId={selectedNodeId}
+              onSelectNode={setSelectedNodeId}
+              authState={authState}
+              onSignIn={onSignIn}
+              installUrl={INSTALL_URL}
+              selectPresetNode={selectPresetNode}
+              onEffectiveStats={setEffectiveStats}
+              effectiveFilterNonce={effectiveFilterNonce}
+              focusEditorRepoIndex={focusEditorRepoIndex}
+              pendingRuleFocus={pendingRuleFocus}
+              onRuleFocused={onRuleFocused}
+              errorLib={errorLib}
+              simRequest={simRequest}
+              onCopySimLink={buildShareLinkAndCopy}
+              errorCount={errorCount}
+              warningCount={warningCount}
+              ruleProvenance={ruleProvenance}
+              onJumpToSimRule={onJumpToSimRule}
+              onApplyFix={onApplyFix}
+            />
           ) : null}
         </div>
       </main>

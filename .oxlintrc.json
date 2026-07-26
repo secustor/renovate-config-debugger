@@ -26,7 +26,7 @@
     // in three commits (6 → 5 → 4); depth ≤ 4 is this codebase's own empirical
     // norm, met by every file except the three monoliths 040 decomposed.
     // (oxlint spells the option `max`, not eslint-plugin-react's `maxDepth`.)
-    "react/jsx-max-depth": ["error", { "max": 5 }],
+    "react/jsx-max-depth": ["error", { "max": 4 }],
     // Warn-tier (roadmap 034): real signal, but a backlog of hits that are
     // future scoped work — they must not block a build in the meantime.
     // Current baseline (re-measured 2026-07-26, roadmap 039): 130

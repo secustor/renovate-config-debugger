@@ -11,6 +11,7 @@ import type {
   SimulationComparison,
   SimulationResult,
   TraceResult,
+  ValidationMessage,
 } from "@renovate-config-visualizer/engine";
 import type * as EngineModule from "@renovate-config-visualizer/engine";
 import { Term } from "../glossary";
@@ -462,6 +463,25 @@ function ruleLabel(rule: RuleEvaluation): string {
   return failing ? `${joined} — failed on ${failing.key}` : joined;
 }
 
+/** Roadmap 006/040: a rule's clause-by-clause evidence — one row per `match*`
+ *  selector, with the value it was compared against and why it did or didn't
+ *  match. */
+function SimClauseList({ clauses }: { clauses: ClauseEvaluation[] }) {
+  return (
+    <ul className="sim-clauses">
+      {clauses.map((clause) => (
+        <li key={clause.key} className={`sim-clause state-${clause.state}`}>
+          <span className="sim-clause-icon">{clauseIcon(clause.state)}</span>
+          <span className="sim-clause-text">
+            <code>{clause.key}</code>: {previewValue(clause.value, 60)} —{" "}
+            {clauseExplanation(clause)}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** Roadmap 018/040: what a matching rule applied to the dependency config, as
  *  `key: before → after` rows plus the copy-as-markdown export of the same. */
 function SimMergedApplied({ rule, merged }: { rule: RuleEvaluation; merged: MergedKey[] }) {
@@ -540,17 +560,7 @@ function RuleRow({
           {rule.clauses.length === 0 ? (
             <p className="empty-note">No match* clauses — the rule applies to everything.</p>
           ) : (
-            <ul className="sim-clauses">
-              {rule.clauses.map((clause) => (
-                <li key={clause.key} className={`sim-clause state-${clause.state}`}>
-                  <span className="sim-clause-icon">{clauseIcon(clause.state)}</span>
-                  <span className="sim-clause-text">
-                    <code>{clause.key}</code>: {previewValue(clause.value, 60)} —{" "}
-                    {clauseExplanation(clause)}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <SimClauseList clauses={rule.clauses} />
           )}
           {rule.notes.map((note) => (
             <p key={note} className="sim-note">
@@ -835,6 +845,133 @@ function VerdictKeyRow({
         <span className="sim-verdict-value removed"> removed</span>
       )}
     </li>
+  );
+}
+
+/**
+ * Roadmap 012/018/040: the answer first — the pinned verdict directly under
+ * the Simulate button, with the keys the rules changed, the jump into the rule
+ * list, and the evidence-export affordances (share link, A/B pinning).
+ */
+function SimVerdictBlock({
+  matchedCount,
+  totalRules,
+  verdictSentence,
+  changedWithValues,
+  flattened,
+  onJumpToRules,
+  copySimLink,
+  pinned,
+  onUnpin,
+  onPin,
+}: {
+  matchedCount: number;
+  totalRules: number;
+  verdictSentence: string;
+  changedWithValues: { key: string; value: unknown; present: boolean }[];
+  flattened: SimulationResult["flattened"];
+  onJumpToRules: () => void;
+  /** null when the host gave no share-link callback — no button then. */
+  copySimLink: (() => Promise<void>) | null;
+  pinned: boolean;
+  onUnpin: () => void;
+  onPin: () => void;
+}) {
+  return (
+    <div className={`sim-verdict-block${matchedCount === 0 ? " none" : ""}`}>
+      <p className="sim-verdict-sentence">{verdictSentence}</p>
+      {changedWithValues.length > 0 ? (
+        <ul className="sim-verdict-keys">
+          {changedWithValues.map(({ key, value, present }) => (
+            <VerdictKeyRow
+              key={key}
+              optionKey={key}
+              value={value}
+              present={present}
+              fromUpdateType={flattened.merged.some((m) => m.key === key)}
+              updateType={flattened.updateType}
+            />
+          ))}
+        </ul>
+      ) : (
+        <p className="sim-verdict-none">
+          No rule changed anything for this dependency — the defaults apply.
+        </p>
+      )}
+      <button type="button" className="sim-jump" onClick={onJumpToRules}>
+        {matchedCount} of {totalRules} rule{totalRules === 1 ? "" : "s"} matched →
+      </button>
+      {/* Roadmap 018: evidence-export affordances on the verdict block —
+          a reproducible link (form + auto-run encoded) and A/B pinning. */}
+      <div className="sim-verdict-actions">
+        {copySimLink ? (
+          <CopyButton onCopy={copySimLink} label="Copy link with this simulation" />
+        ) : null}
+        {pinned ? (
+          <button type="button" className="sim-verdict-action" onClick={onUnpin}>
+            Unpin comparison
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="sim-verdict-action"
+            onClick={onPin}
+            title="Pin this result as A, edit the config, then simulate again to compare"
+          >
+            Pin result for comparison
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** The simulation's own validator output — errors then warnings, each with the
+ *  014 translation below it. */
+function SimMessages({
+  errors,
+  warnings,
+  ruleAttribution,
+  onJumpToEditor,
+  onJumpToSimRule,
+  errorLib,
+}: {
+  errors: ValidationMessage[];
+  warnings: ValidationMessage[];
+  ruleAttribution: RuleAttribution[] | null | undefined;
+  onJumpToEditor?: (repoIndex: number) => void;
+  onJumpToSimRule?: (mergedIndex: number) => void;
+  errorLib: ErrorTranslationLib | null;
+}) {
+  return (
+    <ul className="messages sim-messages">
+      {errors.map((m, i) => (
+        <li key={`e${i}`} className="error">
+          <strong>{m.topic}</strong>:{" "}
+          <RuleMessage
+            message={m}
+            indexKind="merged"
+            ruleAttribution={ruleAttribution}
+            onJumpToEditor={onJumpToEditor}
+            onJumpToSimRule={onJumpToSimRule}
+          />
+          <ErrorTranslationView message={m} errorLib={errorLib} config={null} />
+        </li>
+      ))}
+      {warnings.map((m, i) => (
+        <li key={`w${i}`} className="warn">
+          <strong>{m.topic}</strong>:{" "}
+          <RuleMessage
+            message={m}
+            indexKind="merged"
+            ruleAttribution={ruleAttribution}
+            onJumpToEditor={onJumpToEditor}
+            onJumpToSimRule={onJumpToSimRule}
+          />
+          <ErrorTranslationView message={m} errorLib={errorLib} config={null} />
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -1557,67 +1694,29 @@ export const RuleSimulator = memo(function RuleSimulator({
           <div className={`sim-results-body${stale ? " stale" : ""}`}>
             {/* Roadmap 012: the answer first — a pinned verdict directly under
               the Simulate button, before the rule list. */}
-            <div className={`sim-verdict-block${matchedCount === 0 ? " none" : ""}`}>
-              <p className="sim-verdict-sentence">{verdictSentence}</p>
-              {changedWithValues.length > 0 ? (
-                <ul className="sim-verdict-keys">
-                  {changedWithValues.map(({ key, value, present }) => (
-                    <VerdictKeyRow
-                      key={key}
-                      optionKey={key}
-                      value={value}
-                      present={present}
-                      fromUpdateType={sim.flattened.merged.some((m) => m.key === key)}
-                      updateType={sim.flattened.updateType}
-                    />
-                  ))}
-                </ul>
-              ) : (
-                <p className="sim-verdict-none">
-                  No rule changed anything for this dependency — the defaults apply.
-                </p>
-              )}
-              <button type="button" className="sim-jump" onClick={jumpToRules}>
-                {matchedCount} of {sim.rules.length} rule{sim.rules.length === 1 ? "" : "s"} matched
-                →
-              </button>
-              {/* Roadmap 018: evidence-export affordances on the verdict block —
-                  a reproducible link (form + auto-run encoded) and A/B pinning. */}
-              <div className="sim-verdict-actions">
-                {onCopySimLink ? (
-                  <CopyButton onCopy={copySimLink} label="Copy link with this simulation" />
-                ) : null}
-                {pinned ? (
-                  <button
-                    type="button"
-                    className="sim-verdict-action"
-                    onClick={() => setPinned(null)}
-                  >
-                    Unpin comparison
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="sim-verdict-action"
-                    onClick={() => {
-                      // Roadmap 021: simForm is set in the same simulate() call as
-                      // sim, so it is never null here — the guard is only to
-                      // satisfy the type checker, not a real runtime branch.
-                      if (simForm) {
-                        setPinned({
-                          sim,
-                          form: simForm,
-                          effectiveUpdateType: simEffectiveUpdateType,
-                        });
-                      }
-                    }}
-                    title="Pin this result as A, edit the config, then simulate again to compare"
-                  >
-                    Pin result for comparison
-                  </button>
-                )}
-              </div>
-            </div>
+            <SimVerdictBlock
+              matchedCount={matchedCount}
+              totalRules={sim.rules.length}
+              verdictSentence={verdictSentence}
+              changedWithValues={changedWithValues}
+              flattened={sim.flattened}
+              onJumpToRules={jumpToRules}
+              copySimLink={onCopySimLink ? copySimLink : null}
+              pinned={pinned !== null}
+              onUnpin={() => setPinned(null)}
+              onPin={() => {
+                // Roadmap 021: simForm is set in the same simulate() call as
+                // sim, so it is never null here — the guard is only to
+                // satisfy the type checker, not a real runtime branch.
+                if (simForm) {
+                  setPinned({
+                    sim,
+                    form: simForm,
+                    effectiveUpdateType: simEffectiveUpdateType,
+                  });
+                }
+              }}
+            />
 
             {pinned ? (
               <ComparisonPanel
@@ -1628,34 +1727,14 @@ export const RuleSimulator = memo(function RuleSimulator({
             ) : null}
 
             {[...sim.errors, ...sim.warnings].length > 0 ? (
-              <ul className="messages sim-messages">
-                {sim.errors.map((m, i) => (
-                  <li key={`e${i}`} className="error">
-                    <strong>{m.topic}</strong>:{" "}
-                    <RuleMessage
-                      message={m}
-                      indexKind="merged"
-                      ruleAttribution={ruleAttribution}
-                      onJumpToEditor={onJumpToEditor}
-                      onJumpToSimRule={focusRule}
-                    />
-                    <ErrorTranslationView message={m} errorLib={errorLib ?? null} config={null} />
-                  </li>
-                ))}
-                {sim.warnings.map((m, i) => (
-                  <li key={`w${i}`} className="warn">
-                    <strong>{m.topic}</strong>:{" "}
-                    <RuleMessage
-                      message={m}
-                      indexKind="merged"
-                      ruleAttribution={ruleAttribution}
-                      onJumpToEditor={onJumpToEditor}
-                      onJumpToSimRule={focusRule}
-                    />
-                    <ErrorTranslationView message={m} errorLib={errorLib ?? null} config={null} />
-                  </li>
-                ))}
-              </ul>
+              <SimMessages
+                errors={sim.errors}
+                warnings={sim.warnings}
+                ruleAttribution={ruleAttribution}
+                onJumpToEditor={onJumpToEditor}
+                onJumpToSimRule={focusRule}
+                errorLib={errorLib ?? null}
+              />
             ) : null}
             {sim.notes.map((note) => (
               <p key={note} className="sim-note">

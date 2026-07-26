@@ -1,6 +1,6 @@
 # 040 — JSX-depth ratchet: decompose the three monoliths to maxDepth 4
 
-Milestone: M10 · Status: planned (2026-07-26)
+Milestone: M10 · Status: done (2026-07-26)
 
 ## Summary
 
@@ -38,6 +38,67 @@ reviewable:
 Each step lands as its own commit with the full suite green; the e2e
 suite is the behavior-preservation net (033's rule: extractions are
 behavior-preserving, proven by untouched tests).
+
+## What was done
+
+Three commits, one per ratchet step, each with the full suite green. The
+counts below were re-measured on the post-039 tree (the numbers in the
+Scope section above predate 039's `RepoLoadForm`/`.btn` work).
+
+| step     | offending sites when the step began | files                                  |
+| -------- | ----------------------------------- | -------------------------------------- |
+| `max: 6` | 53 (App 44, PresetTree 5, Sim 4)    | App.tsx to depth **10**, Sim 8, Tree 8 |
+| `max: 5` | 15 (App 7, Tree 4, Sim 2, Adv 2)    | all ≤ 6 by then                        |
+| `max: 4` | 18 (Sim 11, Adv 5, App 2)           | all ≤ 5 by then                        |
+| **end**  | **0**                               | config pins `["error", { "max": 4 }]`  |
+
+(For reference, the same measurement on the pre-ratchet tree at depth 4 was
+94 sites — App 64, RuleSimulator 20, PresetTree 10.)
+
+**Note on the option name**: oxlint spells it `max`, not eslint-plugin-react's
+`maxDepth`; a config using `maxDepth` fails to parse.
+
+**Depth counting** (established empirically, since it decides where an
+extraction has to sit): the outermost element of a component's JSX is depth
+**0**, each nesting level adds one, a fragment counts as a level, and JSX
+inside an attribute (`titleAction={<button/>}`) starts at its owner's depth
+plus one. So `max: 4` means five levels of elements per component.
+
+Components extracted (all behavior-preserving; DOM byte-identical):
+
+- **Step 1** — `components/WelcomePanel.tsx` (the pre-run "How it works"
+  steps), `components/ConfigEditorCard.tsx` (039's title action + repo-load
+  chrome row, which are two elements deep inside a prop),
+  `components/AdvancedZone.tsx` (the depth-10 corner: host/tokens + both
+  layer editors); `VerdictKeyRow` + `SimFinal` in RuleSimulator;
+  `PresetTableRow` in PresetTree.
+- **Step 2** — `components/ConfigToolbar.tsx` (file name, revert, the GitHub
+  auth chip, the standing untrusted-host reminder, Run, Copy link);
+  `PlatformEndpointRow` in AdvancedZone; `SimMergedApplied` in RuleSimulator;
+  `PresetListPane` in PresetTree (table header + the windowed row slice).
+- **Step 3** — `components/NoticeBar.tsx`; `ResultsPane` in App.tsx (the
+  `.results-col` wrapper + the 031 lazy boundary + the column, forwarding
+  `ResultsColumnProps` unchanged); `HostAccessSection` and `LayerSection` in
+  AdvancedZone (the global and inherited sections were identical down to the
+  error text, so they now share one component); `SimClauseList`,
+  `SimVerdictBlock` and `SimMessages` in RuleSimulator.
+
+Placement follows 033/039: page-level sections became files under
+`components/`, panel-internal pieces stayed local (non-exported) in the file
+they came from, next to the `TreeRow`/`RuleRow`/`Field` they sit beside.
+
+The 032 invariants hold: no extraction introduces a new prop identity below a
+memoized panel (the memoized panels' props still come from App's `useCallback`
+/ latest-ref idioms, unchanged), and `keystroke-render.test.tsx` keeps its
+0-re-render assertion green at every step. Verification per step: `pnpm lint`
+(0 errors; the warn-tier baseline stayed at exactly 141 = 130
+`no-non-null-assertion` + 11 `no-array-index-key`), `pnpm typecheck`,
+`pnpm format`/`format:check`, 178 unit tests, the app build, and all 49
+Playwright e2e tests — every test file unmodified, which is what proves the
+extractions behavior-preserving. As an extra net for the re-flowed copy, the
+new `AdvancedZone`, `WelcomePanel` and `ConfigToolbar` were diffed against the
+pre-040 JSX with `renderToStaticMarkup` across their branch combinations
+(identical markup); that throwaway harness was deleted after it passed.
 
 ## Out of scope
 
