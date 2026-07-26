@@ -139,6 +139,87 @@
       "rules": {
         "no-restricted-imports": "off"
       }
+    },
+    // ---- Roadmap 048: the layer boundary ---------------------------------
+    // §2 of the structure research (2026-07-vite-structure-research.md) is a
+    // unidirectional flow, `app → features → shared`: the app shell composes
+    // features, features are built out of the shared layer, and neither of the
+    // lower two ever reaches back up. The two overrides below are that rule,
+    // mechanized — the arrows are otherwise invisible until an import has
+    // already welded two things together.
+    //
+    // Both restate the renovate/dist group: oxlint overrides REPLACE a rule's
+    // options rather than merging them (measured), so an override that listed
+    // only the feature patterns would silently switch the renovate/dist
+    // boundary OFF for every file it matched.
+    {
+      // The shared layer. Reaching DOWN into a feature inverts the flow and
+      // makes the two inseparable; the fix is always to hoist the composition
+      // into the app shell (`packages/app/src/*.tsx` — App.tsx and siblings),
+      // which is exactly why ResultsColumn.tsx lives there.
+      "files": [
+        "packages/app/src/components/**",
+        "packages/app/src/hooks/**",
+        "packages/app/src/lib/**",
+        "packages/app/src/data/**",
+        "packages/app/src/platform/**"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["renovate/dist", "renovate/dist/**"],
+                "message": "Deep renovate/dist imports belong in renovate-adapter.ts, shims/ or types/ — go through the adapter instead."
+              },
+              {
+                // The `**/features/**` variants are belt-and-braces: the `@/`
+                // alias is the only spelling in use today, but a `../` escape
+                // out of a nested folder would resolve just as well.
+                "group": [
+                  "@/features",
+                  "@/features/*",
+                  "@/features/**",
+                  "**/features/*",
+                  "**/features/**"
+                ],
+                "message": "Shared modules must not import a feature — compose features at the app level (roadmap 048)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      // Feature slices. A feature imports its own files relatively (`./`) and
+      // everything else from the shared layer; the same pattern that forbids
+      // shared → feature therefore forbids feature → OTHER feature, which is
+      // what keeps a slice extractable.
+      "files": ["packages/app/src/features/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["renovate/dist", "renovate/dist/**"],
+                "message": "Deep renovate/dist imports belong in renovate-adapter.ts, shims/ or types/ — go through the adapter instead."
+              },
+              {
+                "group": [
+                  "@/features",
+                  "@/features/*",
+                  "@/features/**",
+                  "**/features/*",
+                  "**/features/**"
+                ],
+                "message": "No cross-feature imports — inside a feature import relatively (`./`); features are composed at the app level (roadmap 048)."
+              }
+            ]
+          }
+        ]
+      }
     }
   ]
 }
