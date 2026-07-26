@@ -7,6 +7,12 @@
   </head>
   <body>
     <div id="root"></div>
+    <!--
+      Roadmap 043: deployment-time config, served verbatim from public/ so it
+      never 404s. A classic script would run before the module below anyway;
+      the order is explicit because the module reads what this file defines.
+    -->
+    <script src="/rcv-config.js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

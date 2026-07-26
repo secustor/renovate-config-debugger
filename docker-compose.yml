@@ -1,0 +1,52 @@
+# Roadmap 043 — a self-hosting example. See "Self-hosting (Docker)" in the
+# root README.md for the full story; `docker compose up` here gives you the app
+# on http://localhost:8080 with sign-in off, which is the intended default.
+#
+# `image:` points at the published image and `build:` at this checkout, so
+# `docker compose up` uses the published one and `docker compose up --build`
+# builds locally.
+
+services:
+  app:
+    image: ghcr.io/secustor/renovate-config-visualizer:latest
+    build:
+      context: .
+      target: app
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    # Sign in with GitHub (optional). Uncomment ALL of the first two to turn it
+    # on — the entrypoint writes /rcv-config.js only when both are set, so no
+    # rebuild is needed. They require your OWN GitHub App (the client id below
+    # is public; its secret lives in the oauth-proxy service, never here).
+    # environment:
+    #   # Client id of the GitHub App you created (see the README).
+    #   RCV_GITHUB_CLIENT_ID: "Iv1.0123456789abcdef"
+    #   # Public base URL of the oauth-proxy below, as the BROWSER reaches it —
+    #   # not a compose service name, which a browser cannot resolve.
+    #   RCV_OAUTH_WORKER_URL: "http://localhost:8788"
+    #   # Optional: the App's slug, for a direct "install on repositories" link.
+    #   RCV_GITHUB_APP_SLUG: "my-renovate-config-visualizer"
+
+  # OPTIONAL — only needed for "Sign in with GitHub". A static page cannot hold
+  # the client_secret GitHub requires at the token exchange, so this tiny proxy
+  # does that exchange and nothing else: it never sees a config, a preset or an
+  # API request.
+  oauth-proxy:
+    image: ghcr.io/secustor/renovate-config-visualizer-oauth-proxy:latest
+    build:
+      context: .
+      target: oauth-proxy
+    ports:
+      - "8788:8788"
+    restart: unless-stopped
+    # environment:
+    #   # Same client id as RCV_GITHUB_CLIENT_ID above.
+    #   GITHUB_CLIENT_ID: "Iv1.0123456789abcdef"
+    #   # The App's client secret. Prefer a secret store or an env_file over a
+    #   # literal here; it is the one credential in this whole deployment.
+    #   GITHUB_CLIENT_SECRET: "..."
+    #   # Comma-separated EXACT origins allowed to call the proxy — the origin
+    #   # the app is served from. Anything else is refused with 403 before
+    #   # GitHub is contacted, so this list is the security boundary.
+    #   ALLOWED_ORIGINS: "http://localhost:8080"

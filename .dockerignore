@@ -1,0 +1,18 @@
+# Roadmap 043 — the build context is the repo root, so everything the image
+# does not need is excluded. The build needs the sources, the manifests and
+# pnpm-lock.yaml; nothing below is one of those.
+node_modules
+**/node_modules
+.git
+.pnpm-store
+**/dist
+coverage
+**/test-results
+**/playwright-report
+.playwright
+.claude
+.agents
+roadmap/mockups
+stats.html
+*.log
+.DS_Store

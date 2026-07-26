@@ -12,3 +12,15 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/**
+ * Roadmap 043 — deployment-time OAuth config, set by the `/rcv-config.js`
+ * script that ships in `public/`. Expected shape:
+ * `{ clientId: string, workerUrl: string, appSlug?: string }`.
+ *
+ * Deliberately typed `unknown`: unlike the `VITE_*` vars this is not a
+ * build-time constant but whatever a deployment wrote into a served file, so
+ * `getOAuthConfig` must validate it. The stub in `public/` defines nothing —
+ * only the Docker entrypoint (and equivalent self-host setups) fills it in.
+ */
+declare var __RCV_OAUTH__: unknown;

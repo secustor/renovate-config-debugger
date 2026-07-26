@@ -46,15 +46,63 @@ const K = {
   user: "rcv.oauth.user",
 } as const;
 
-/** Returns the OAuth config only when fully configured, else null (feature off). */
-export function getOAuthConfig(): OAuthConfig | null {
-  const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID?.trim();
-  const workerUrl = import.meta.env.VITE_OAUTH_WORKER_URL?.trim();
-  if (!clientId || !workerUrl) {
+/**
+ * The one validity rule, shared by both config sources: a client id AND a
+ * worker URL, both non-blank; the worker URL is joined with `${path}` below,
+ * so its trailing slashes are stripped exactly once, here.
+ */
+function toOAuthConfig(
+  clientId: string | undefined,
+  workerUrl: string | undefined,
+  appSlug: string | undefined,
+): OAuthConfig | null {
+  const id = clientId?.trim();
+  const url = workerUrl?.trim();
+  if (!id || !url) {
     return null;
   }
-  const appSlug = import.meta.env.VITE_GITHUB_APP_SLUG?.trim() || undefined;
-  return { clientId, workerUrl: workerUrl.replace(/\/+$/, ""), appSlug };
+  return {
+    clientId: id,
+    workerUrl: url.replace(/\/+$/, ""),
+    appSlug: appSlug?.trim() || undefined,
+  };
+}
+
+/**
+ * Roadmap 043 — the `globalThis.__RCV_OAUTH__` a deployment's `/rcv-config.js`
+ * may define. It is a served file, not a build-time constant, so every field is
+ * checked; anything malformed reads as "not configured" and the build-time vars
+ * get their turn.
+ */
+function runtimeOAuthConfig(): OAuthConfig | null {
+  const raw = globalThis.__RCV_OAUTH__;
+  if (typeof raw !== "object" || raw === null) {
+    return null;
+  }
+  const { clientId, workerUrl, appSlug } = raw as Record<string, unknown>;
+  return toOAuthConfig(
+    typeof clientId === "string" ? clientId : undefined,
+    typeof workerUrl === "string" ? workerUrl : undefined,
+    typeof appSlug === "string" ? appSlug : undefined,
+  );
+}
+
+/**
+ * Returns the OAuth config only when fully configured, else null (feature off).
+ *
+ * Runtime config wins over the build-time `VITE_*` vars so ONE published image
+ * (roadmap 043) serves both an OAuth-off and an OAuth-on deployment; the Pages
+ * build, which has no `/rcv-config.js` content, still reads its vars.
+ */
+export function getOAuthConfig(): OAuthConfig | null {
+  return (
+    runtimeOAuthConfig() ??
+    toOAuthConfig(
+      import.meta.env.VITE_GITHUB_CLIENT_ID,
+      import.meta.env.VITE_OAUTH_WORKER_URL,
+      import.meta.env.VITE_GITHUB_APP_SLUG,
+    )
+  );
 }
 
 /** Where the user manages / installs the app on repositories. */

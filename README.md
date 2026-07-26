@@ -156,6 +156,85 @@ with the PAT fallback as the only GitHub auth. Provisioning (GitHub App +
 Worker + repo variables) is documented in
 [`packages/oauth-worker/README.md`](packages/oauth-worker/README.md).
 
+## Self-hosting (Docker)
+
+The app is a static bundle, so hosting it is one container:
+
+```bash
+docker run -p 8080:80 ghcr.io/secustor/renovate-config-visualizer
+```
+
+That is the whole quickstart — <http://localhost:8080> gives you the full
+pipeline, the preset tree and the simulator. Sign-in is off (see below); the
+per-host personal-access-token fallback is available as it always is. Nothing
+in the image phones home, and configs still never leave the browser.
+
+Two images are published from every push to `main`, tagged `latest` and
+`sha-<short>`, for `linux/amd64` and `linux/arm64`:
+
+| Image                                                     | What it is                                           |
+| --------------------------------------------------------- | ---------------------------------------------------- |
+| `ghcr.io/secustor/renovate-config-visualizer`             | the app, served by nginx on port 80                  |
+| `ghcr.io/secustor/renovate-config-visualizer-oauth-proxy` | optional OAuth token-exchange proxy, Node, port 8788 |
+
+### Configuration
+
+The app image is configured at **run** time, not build time — one published
+image serves both an OAuth-off and an OAuth-on deployment. When both required
+variables are set, the container writes a small `/rcv-config.js` at startup and
+the sign-in UI appears; otherwise the shipped stub stays and the feature is off.
+
+| Variable               | Required for sign-in | Notes                                                               |
+| ---------------------- | -------------------- | ------------------------------------------------------------------- |
+| `RCV_GITHUB_CLIENT_ID` | yes                  | Client id of **your own** GitHub App (public value).                |
+| `RCV_OAUTH_WORKER_URL` | yes                  | Base URL of the token-exchange proxy **as the browser reaches it**. |
+| `RCV_GITHUB_APP_SLUG`  | no                   | The App's slug; enables a direct "install on repositories" link.    |
+
+The proxy image reads the Worker's own variables: `GITHUB_CLIENT_ID`,
+`GITHUB_CLIENT_SECRET` and `ALLOWED_ORIGINS` (comma-separated exact origins —
+the origin you serve the app from; anything else is refused with `403` before
+GitHub is contacted).
+
+### Sign-in, self-hosted
+
+"Sign in with GitHub" cannot be shipped turned on: it needs a GitHub App that
+**you** own, because the callback URL, the consent screen and the client secret
+all belong to your deployment. Two things to provision:
+
+1. **A GitHub App** with `Contents: read-only` and your own callback URL —
+   step-by-step in
+   [`packages/oauth-worker/README.md`](packages/oauth-worker/README.md#provisioning).
+2. **The token-exchange proxy**, because a static page cannot hold the
+   `client_secret` GitHub still requires at the token exchange. Either deploy
+   the Cloudflare Worker from that same README, or run the `-oauth-proxy` image
+   — identical code (the request handler is a pure function; the image just
+   runs it under Node instead of Workers).
+
+The privacy boundary is unchanged by self-hosting: the proxy only ever sees the
+OAuth `code → token` / `refresh_token → token` exchange. It never sees a
+config, a preset or an API request, keeps no state and logs no bodies or
+tokens; every GitHub content fetch still goes browser → `api.github.com`.
+
+### Compose
+
+[`docker-compose.yml`](docker-compose.yml) is a worked example of both services
+with every optional variable present but commented out:
+
+```bash
+docker compose up            # published images
+docker compose up --build    # build from this checkout instead
+```
+
+### Building locally
+
+```bash
+docker build --target app -t rcv-app .                    # the app image
+docker build --target oauth-proxy -t rcv-oauth-proxy .    # the proxy image
+```
+
+The build context is the repo root. TLS termination and reverse-proxy setup are
+deliberately out of scope — put the app image behind whatever you already run.
+
 ## Development
 
 ```bash

@@ -13,7 +13,10 @@
     "correctness": "error",
     "suspicious": "error"
   },
-  "ignorePatterns": ["dist", "coverage", "node_modules"],
+  // `public/` is copied into the bundle verbatim — it is deployment payload,
+  // not app source (roadmap 043's `rcv-config.js` stub is a comment and
+  // nothing else, by design).
+  "ignorePatterns": ["dist", "coverage", "node_modules", "packages/app/public"],
   "rules": {
     // Only rules the categories above do NOT already cover are listed here
     // (roadmap 041 dropped `react/jsx-key` + `react/exhaustive-deps`, which
@@ -52,6 +55,10 @@
     "typescript/no-import-type-side-effects": "error",
     "typescript/no-explicit-any": "error",
     "unicorn/no-array-for-each": "error",
+    // Roadmap 043: `__RCV_OAUTH__` is the ONE injected global — the dangling
+    // underscores are the convention that says "written by a deployment, not
+    // by this codebase". Everything else keeps the rule.
+    "no-underscore-dangle": ["error", { "allow": ["__RCV_OAUTH__"] }],
 
     // --- Type-aware tier (needs `--type-aware` + oxlint-tsgolint) -----------
     "typescript/no-misused-promises": "error",

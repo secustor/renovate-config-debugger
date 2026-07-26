@@ -47,6 +47,7 @@ Full context and architecture: [.agents/spec/renovate-config-visualizer.md](../.
 | [040](040-jsx-depth-decomposition.md)                 | JSX-depth ratchet: decompose the monoliths to depth 4     | M10                  | done   |
 | [041](041-warn-tier-to-error.md)                      | Promote the warn tier to error                            | M10                  | done   |
 | [042](042-rewrites-inset-and-pipeline-arrows.md)      | Rewrites inset + Pipeline order arrows                    | M10                  | done   |
+| [043](043-docker-self-host.md)                        | Docker self-host distribution                             | M11                  | done   |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live
@@ -89,3 +90,8 @@ the Rewrites card's missing inset and the Pipeline chips' missing order
 signal — settled through the approved
 [mockups/042/rewrites-padding-and-pipeline-order.html](mockups/042/rewrites-padding-and-pipeline-order.html)
 (variants 1B and 2A).
+
+M11 — **Distribution** — opens with 043, the user request to make the app
+installable rather than only visitable: published container images, and the
+runtime-configuration mechanism a single published image needs to offer an
+optional sign-in it cannot bake in.

@@ -101,3 +101,20 @@ pnpm --filter @renovate-config-visualizer/oauth-worker typecheck
 The request handler is the pure exported `handleRequest(req, env)` so the tests
 run without wrangler. `wrangler` itself is only needed to deploy and is invoked
 via `pnpm dlx` (no devDependency, no `node_modules` weight).
+
+## Running it without Cloudflare
+
+That same purity means the Worker does not need Workers. `server.mjs` is a
+dependency-free `node:http` adapter around `handleRequest` — it converts the
+request, passes headers and body through verbatim (so the `Origin` allow-list
+stays the security boundary, unchanged) and writes the response back:
+
+```bash
+GITHUB_CLIENT_ID=... GITHUB_CLIENT_SECRET=... ALLOWED_ORIGINS=https://rcv.example \
+  node packages/oauth-worker/server.mjs        # PORT defaults to 8788
+```
+
+This is what the `ghcr.io/secustor/renovate-config-visualizer-oauth-proxy`
+image runs (roadmap [043](../../roadmap/043-docker-self-host.md)); the
+provisioning above — the GitHub App, its callback URL, the allow-listed
+origins — is identical either way.
