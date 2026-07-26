@@ -2,7 +2,8 @@
 
 Milestone: M12 · Status: planned
 
-Mockup (proposed, recommends variant 1B):
+Mockup (approved 2026-07-26, variant 1B — tinted badge, editable
+repo/file fields, glossary term):
 [mockups/045/auto-load-inherited-config.html](mockups/045/auto-load-inherited-config.html)
 
 ## Summary
