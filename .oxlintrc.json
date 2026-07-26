@@ -20,6 +20,13 @@
     // else; a stray helper export silently turns edits into full reloads.
     "react/only-export-components": "error",
     "react/jsx-no-useless-fragment": "error",
+    // Roadmap 040: JSX depth is a decomposition driver with a measurable exit
+    // criterion — the rule counts nesting within ONE JSX expression, so an
+    // extraction resets the counter at the component boundary. Ratcheted down
+    // in three commits (6 → 5 → 4); depth ≤ 4 is this codebase's own empirical
+    // norm, met by every file except the three monoliths 040 decomposed.
+    // (oxlint spells the option `max`, not eslint-plugin-react's `maxDepth`.)
+    "react/jsx-max-depth": ["error", { "max": 6 }],
     // Warn-tier (roadmap 034): real signal, but a backlog of hits that are
     // future scoped work — they must not block a build in the meantime.
     // Current baseline (re-measured 2026-07-26, roadmap 039): 130

@@ -16,7 +16,9 @@ import type {
   StageId,
   TraceResult,
 } from "@renovate-config-visualizer/engine";
-import { ConfigEditor, type ConfigEditorHandle } from "./components/ConfigEditor";
+import { AdvancedZone } from "./components/AdvancedZone";
+import type { ConfigEditorHandle } from "./components/ConfigEditor";
+import { ConfigEditorCard } from "./components/ConfigEditorCard";
 import { CopyButton } from "./components/CopyButton";
 import type { EffectiveStats } from "./components/EffectiveConfig";
 import { type AuthState, GithubAuthHint } from "./components/GithubAuthHint";
@@ -25,10 +27,9 @@ import {
   nodeIdForIdentity,
   presetTreeSummary,
 } from "./components/preset-tree-stats";
-import { RepoLoadForm } from "./components/RepoLoadForm";
 import type { ResultsTabDescriptor } from "./components/ResultsPanel";
 import { ThemeSwitch } from "./components/ThemeSwitch";
-import { Term } from "./glossary";
+import { WelcomePanel } from "./components/WelcomePanel";
 import { legacyTabForView, type ResultsTabId } from "./results-tabs";
 import { buildRunDigest, type DigestInput, type DigestProblem } from "./run-digest";
 import { OptionDocsProvider } from "./option-docs";
@@ -67,10 +68,9 @@ import {
   isValidPlatform,
   isValidRepoHost,
   isValidRepoRefPart,
-  isValidToken,
   parseLayerJson,
 } from "./input-schemas";
-import { PLATFORM_ENDPOINTS, PLATFORMS } from "./platform-endpoints";
+import { PLATFORM_ENDPOINTS } from "./platform-endpoints";
 import { ENDPOINT_KEY, localRemove, persistLocal, PLATFORM_KEY, readLocal } from "./storage";
 import { useHostTokens } from "./use-host-tokens";
 import { type RunInputs, useShareLink } from "./use-share-link";
@@ -184,7 +184,8 @@ type InjectionMap = Record<string, Record<string, unknown>>;
 // (own `__proto__`/`constructor`/`prototype` keys anywhere, including nested
 // `packageRules[n]`, are rejected). Empty text = layer off, unchanged; the
 // "must be a JSON object" message and native JSON.parse error text are kept
-// verbatim — both `layer-editor-error` render sites below depend on them.
+// verbatim — both `layer-editor-error` render sites (AdvancedZone) depend on
+// them.
 const parseLayerText = parseLayerJson;
 
 /** Starts the redirect sign-in, stashing the current fragment to restore it. */
@@ -1179,82 +1180,25 @@ export function App() {
             column simply keeps the full width. */}
         <div className={`app-split${result ? " has-results" : ""}`}>
           <div className="config-col">
-            {result ? null : (
-              <section className="welcome" aria-label="How it works">
-                <ol className="welcome-steps">
-                  <li>
-                    <strong>Bring a config.</strong> Paste your <code>renovate.json</code> below,
-                    load it straight from a repository, or{" "}
-                    <button
-                      type="button"
-                      className="linklike"
-                      onClick={() => loadConfigText(EXAMPLE_CONFIG)}
-                    >
-                      try an example
-                    </button>
-                    .
-                  </li>
-                  <li>
-                    <strong>Run it.</strong> The same code the real bot uses resolves your{" "}
-                    <Term id="preset">presets</Term>, applies{" "}
-                    <Term id="migration">config migration</Term> and validates every option.
-                  </li>
-                  <li>
-                    <strong>Explore the result.</strong> Step through each stage, hover any option
-                    for its docs, and simulate which <Term id="packageRules">packageRules</Term>{" "}
-                    would apply to a dependency update.
-                  </li>
-                </ol>
-                <p className="welcome-footnote">
-                  New to Renovate? Start with the{" "}
-                  <a href="https://docs.renovatebot.com/" target="_blank" rel="noreferrer">
-                    official docs ↗
-                  </a>
-                  . Your config and any tokens stay in this browser tab.
-                </p>
-              </section>
-            )}
+            {result ? null : <WelcomePanel onTryExample={() => loadConfigText(EXAMPLE_CONFIG)} />}
 
-            {/* Roadmap 039: loading a repo config REPLACES this card's
-                content, so the affordance sits on the card it acts on — a
-                quiet button in the title bar, where the fetched file name
-                lands too. Collapsed by default; the form below only exists
-                while it is open. */}
-            <ConfigEditor
-              key={editorKey}
-              ref={configEditorRef}
+            <ConfigEditorCard
+              editorKey={editorKey}
+              editorRef={configEditorRef}
               fileName={fileName}
               value={content}
               onChange={setContent}
               presetHover={presetHover}
-              titleAction={
-                <button
-                  ref={repoToggleRef}
-                  type="button"
-                  className="btn quiet repo-toggle"
-                  aria-expanded={repoFormOpen}
-                  onClick={() => (repoFormOpen ? closeRepoForm() : setRepoFormOpen(true))}
-                  title="Fetch a Renovate config from a repository into this editor"
-                >
-                  <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
-                    <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8ZM5 12.25a.25.25 0 0 1 .25-.25h3.5a.25.25 0 0 1 .25.25v3.25a.25.25 0 0 1-.4.2l-1.45-1.087a.249.249 0 0 0-.3 0L5.4 15.7a.25.25 0 0 1-.4-.2Z" />
-                  </svg>
-                  Load from repo…
-                </button>
-              }
-              chromeRow={
-                repoFormOpen ? (
-                  <RepoLoadForm
-                    repo={repoInput}
-                    onRepoChange={setRepoInput}
-                    gitRef={repoRef}
-                    onRefChange={setRepoRef}
-                    loading={repoLoading}
-                    onSubmit={() => void onLoadRepo()}
-                    onClose={closeRepoForm}
-                  />
-                ) : null
-              }
+              repoFormOpen={repoFormOpen}
+              repoToggleRef={repoToggleRef}
+              onToggleRepoForm={() => (repoFormOpen ? closeRepoForm() : setRepoFormOpen(true))}
+              repo={repoInput}
+              onRepoChange={setRepoInput}
+              gitRef={repoRef}
+              onRefChange={setRepoRef}
+              repoLoading={repoLoading}
+              onLoadRepo={() => void onLoadRepo()}
+              onCloseRepoForm={closeRepoForm}
             />
 
             <div className="toolbar">
@@ -1366,253 +1310,32 @@ export function App() {
               />
             </div>
 
-            <details
-              className="advanced-zone"
+            <AdvancedZone
               open={advancedOpen}
-              onToggle={(e) => setAdvancedOpen(e.currentTarget.open)}
-            >
-              <summary>
-                Advanced options
-                <span className="advanced-hint">
-                  {" "}
-                  — repository host, access tokens, self-hosted bot config
-                </span>
-                {globalParse.config || inheritedParse.config ? (
-                  <span className="advanced-active-chip">self-hosted config active</span>
-                ) : null}
-                {globalParse.error || inheritedParse.error ? (
-                  <span className="advanced-active-chip invalid">invalid JSON</span>
-                ) : null}
-              </summary>
-
-              <p className="advanced-intro">
-                Everything here is optional — the defaults suit a repository on github.com using the
-                hosted Renovate app.
-              </p>
-
-              <details
-                className="advanced-settings"
-                open={hostSectionOpen}
-                onToggle={(e) => setHostSectionOpen(e.currentTarget.open)}
-              >
-                <summary>
-                  Repository host &amp; access tokens
-                  <span className="advanced-hint">
-                    {" "}
-                    — where presets that live in other repositories are fetched from
-                  </span>
-                </summary>
-                <div className="advanced-body">
-                  <p className="advanced-note">
-                    Some presets live in other repositories on your{" "}
-                    <Term id="platform">code host</Term> (referenced as{" "}
-                    <Term id="localPreset">
-                      <code>local&gt;</code>
-                    </Term>{" "}
-                    or a bare <code>owner/repo</code>). Set the host and API endpoint they should
-                    resolve against.
-                  </p>
-                  <div className="advanced-row">
-                    <label>
-                      Platform
-                      <select
-                        value={displayPlatform}
-                        onChange={(e) => onPlatformChange(e.target.value)}
-                      >
-                        {PLATFORMS.map((p) => (
-                          <option key={p} value={p}>
-                            {p}
-                          </option>
-                        ))}
-                        {!PLATFORMS.includes(displayPlatform) ? (
-                          <option value={displayPlatform}>{displayPlatform}</option>
-                        ) : null}
-                      </select>
-                    </label>
-                    <label className="grow">
-                      Endpoint
-                      <input
-                        type="text"
-                        placeholder={
-                          PLATFORM_ENDPOINTS[displayPlatform] || "not fetched in the browser"
-                        }
-                        value={displayEndpoint}
-                        onChange={(e) => onEndpointChange(e.target.value)}
-                      />
-                    </label>
-                  </div>
-                  {/* Roadmap 030: the "dangerous URL" rule, surfaced inline
-                      (014/023 style) — the same check that gates Run in
-                      `blockedByLayerErrors` and the one that keeps a bad
-                      value out of storage in `onEndpointChange`. */}
-                  {displayEndpoint && !isValidEndpoint(displayEndpoint) ? (
-                    <p className="layer-editor-error">
-                      Not a valid endpoint: must be an http(s) URL. The pipeline won&apos;t run
-                      until this is fixed or the field is cleared.
-                    </p>
-                  ) : null}
-                  {reflectGlobal ? (
-                    <p className="advanced-note platform-from-global">
-                      <span className="badge prov-global">from global config</span>{" "}
-                      {globalPlatform !== undefined ? (
-                        <>
-                          platform <code>{globalPlatform}</code>
-                        </>
-                      ) : null}
-                      {globalPlatform !== undefined && globalEndpoint !== undefined
-                        ? " and "
-                        : null}
-                      {globalEndpoint !== undefined ? (
-                        <>
-                          endpoint <code>{globalEndpoint}</code>
-                        </>
-                      ) : null}{" "}
-                      come from the pasted global config — a real Renovate run would use them.
-                      Changing the control overrides them for this visualization.
-                    </p>
-                  ) : null}
-                  {platformOverride && hasGlobalContext ? (
-                    <p className="advanced-note platform-override-warning">
-                      Overriding <code>platform</code>/<code>endpoint</code> from the global config
-                      — a real Renovate run would use{" "}
-                      <code>{globalPlatform ?? displayPlatform}</code>
-                      {" / "}
-                      <code>
-                        {globalEndpoint ??
-                          (PLATFORM_ENDPOINTS[globalPlatform ?? ""] || "the platform default")}
-                      </code>
-                      .{" "}
-                      <button
-                        type="button"
-                        className="platform-override-clear"
-                        onClick={() => setPlatformOverride(false)}
-                      >
-                        use global config values
-                      </button>
-                    </p>
-                  ) : null}
-                  {usesLocal &&
-                  !(platform in PLATFORM_ENDPOINTS && PLATFORM_ENDPOINTS[platform]) ? (
-                    <p className="advanced-note">
-                      <code>{platform}</code> presets are not fetched in the browser — a real
-                      Renovate run reaches them. You can still provide their content manually from a
-                      failed node below.
-                    </p>
-                  ) : null}
-                  {oauthConfig ? (
-                    <p className="advanced-note">
-                      Signing in with GitHub (top of the page) is the recommended way to reach
-                      private GitHub presets and repos. A personal access token is only a fallback —
-                      for GitHub Enterprise Server, when the app installation can&apos;t be
-                      approved, or if the sign-in service is unavailable.
-                    </p>
-                  ) : (
-                    <p className="advanced-note">
-                      A GitHub personal access token lifts preset rate limits and reaches private
-                      repositories. It stays in this browser tab only.
-                    </p>
-                  )}
-                  <div className="advanced-row">
-                    {hostTokens.map((host) => (
-                      <label className="grow" key={host.id}>
-                        {host.inputLabel}
-                        <input
-                          type="password"
-                          placeholder="optional — stays in this browser tab"
-                          value={host.value}
-                          onChange={(e) => host.onChange(e.target.value)}
-                        />
-                      </label>
-                    ))}
-                  </div>
-                  {/* Roadmap 030: the "header injection" rule (control
-                      characters, incl. CR/LF, or an unreasonable length) —
-                      a token failing this was never written to storage
-                      (see `useHostTokens`). */}
-                  {hostTokens
-                    .filter((host) => host.value && !isValidToken(host.value))
-                    .map((host) => (
-                      <p className="layer-editor-error" key={host.id}>
-                        {host.label} token contains characters that can&apos;t be sent in a request
-                        header, or is too long — it was not saved.
-                      </p>
-                    ))}
-                </div>
-              </details>
-
-              <details className="advanced-settings">
-                <summary>
-                  Global config
-                  <span className="advanced-hint">
-                    {" "}
-                    — bot-level settings from a self-hosted administrator
-                    {globalParse.config ? " · active" : ""}
-                    {globalParse.error ? " · invalid JSON" : ""}
-                  </span>
-                </summary>
-                <div className="advanced-body">
-                  <p className="advanced-note">
-                    Running your own Renovate bot? Paste its{" "}
-                    <Term id="globalConfig">global config</Term> as JSON to model the full layer
-                    stack: it merges between Renovate&apos;s defaults and your repo config, after
-                    its own <code>globalExtends</code> presets. Options like <code>platform</code>,{" "}
-                    <code>endpoint</code> or <code>onboarding</code> become run context instead of
-                    merging. Leave empty to run without this layer.
-                  </p>
-                  <textarea
-                    className="layer-editor"
-                    placeholder='{ "globalExtends": ["config:best-practices"], "platform": "gitlab" }'
-                    value={globalText}
-                    onChange={(e) => setGlobalText(e.target.value)}
-                    spellCheck={false}
-                    rows={8}
-                  />
-                  {globalParse.error ? (
-                    <p className="layer-editor-error">
-                      Not valid JSON: {globalParse.error}. The pipeline won&apos;t run until this
-                      parses or the field is cleared.
-                    </p>
-                  ) : null}
-                </div>
-              </details>
-
-              <details className="advanced-settings">
-                <summary>
-                  Inherited config
-                  <span className="advanced-hint">
-                    {" "}
-                    — org-wide defaults shared across repositories
-                    {inheritedParse.config ? " · active" : ""}
-                    {inheritedParse.error ? " · invalid JSON" : ""}
-                  </span>
-                </summary>
-                <div className="advanced-body">
-                  <p className="advanced-note">
-                    Defaults a self-hosted bot shares across repositories via{" "}
-                    <Term id="inheritedConfig">
-                      <code>inheritConfig</code>
-                    </Term>
-                    . Validated with Renovate&apos;s inherit rules, its presets resolved, bot-only
-                    options stripped — then merged between the global layer and the repo config.
-                    Leave empty to run without this layer.
-                  </p>
-                  <textarea
-                    className="layer-editor"
-                    placeholder='{ "extends": ["github>my-org/renovate-config"], "automerge": false }'
-                    value={inheritedText}
-                    onChange={(e) => setInheritedText(e.target.value)}
-                    spellCheck={false}
-                    rows={8}
-                  />
-                  {inheritedParse.error ? (
-                    <p className="layer-editor-error">
-                      Not valid JSON: {inheritedParse.error}. The pipeline won&apos;t run until this
-                      parses or the field is cleared.
-                    </p>
-                  ) : null}
-                </div>
-              </details>
-            </details>
+              onOpenChange={setAdvancedOpen}
+              hostSectionOpen={hostSectionOpen}
+              onHostSectionOpenChange={setHostSectionOpen}
+              globalParse={globalParse}
+              inheritedParse={inheritedParse}
+              displayPlatform={displayPlatform}
+              displayEndpoint={displayEndpoint}
+              onPlatformChange={onPlatformChange}
+              onEndpointChange={onEndpointChange}
+              reflectGlobal={reflectGlobal}
+              globalPlatform={globalPlatform}
+              globalEndpoint={globalEndpoint}
+              platformOverride={platformOverride}
+              hasGlobalContext={hasGlobalContext}
+              onUseGlobalValues={() => setPlatformOverride(false)}
+              usesLocal={usesLocal}
+              platform={platform}
+              oauthConfigured={Boolean(oauthConfig)}
+              hostTokens={hostTokens}
+              globalText={globalText}
+              onGlobalTextChange={setGlobalText}
+              inheritedText={inheritedText}
+              onInheritedTextChange={setInheritedText}
+            />
 
             {fatal ? <p style={{ color: "var(--error)" }}>{fatal}</p> : null}
             {repoAuthHint ? (

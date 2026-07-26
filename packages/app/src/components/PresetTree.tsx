@@ -619,6 +619,36 @@ function TreeRow({
   );
 }
 
+/** One row of the flat table view — the same five columns its header sorts by.
+ *  Its own component since 040's depth ratchet: the source cell nests a badge
+ *  inside the cell inside the row button. */
+function PresetTableRow({
+  row,
+  selected,
+  onSelect,
+}: {
+  row: TableRow;
+  selected: boolean;
+  onSelect: (id: string | null) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`preset-table-row${selected ? " selected" : ""}`}
+      style={{ height: ROW_HEIGHT }}
+      onClick={() => onSelect(row.node.id)}
+    >
+      <span className="col-name">{row.name}</span>
+      <span className="col-source">
+        <span className={`badge src src-${row.sourceKind}`}>{row.sourceKind}</span>
+      </span>
+      <span className="col-opts">{row.opts || ""}</span>
+      <span className="col-rules">{row.rules || ""}</span>
+      <span className="col-count">{row.count > 1 ? `×${row.count}` : ""}</span>
+    </button>
+  );
+}
+
 export const PresetTree = memo(function PresetTree({
   result,
   onInject,
@@ -906,21 +936,12 @@ export const PresetTree = memo(function PresetTree({
                         />
                       ))
                     : tableSlice.map((r) => (
-                        <button
-                          type="button"
+                        <PresetTableRow
                           key={r.node.id}
-                          className={`preset-table-row${r.node.id === selectedId ? " selected" : ""}`}
-                          style={{ height: ROW_HEIGHT }}
-                          onClick={() => onSelectNode(r.node.id)}
-                        >
-                          <span className="col-name">{r.name}</span>
-                          <span className="col-source">
-                            <span className={`badge src src-${r.sourceKind}`}>{r.sourceKind}</span>
-                          </span>
-                          <span className="col-opts">{r.opts || ""}</span>
-                          <span className="col-rules">{r.rules || ""}</span>
-                          <span className="col-count">{r.count > 1 ? `×${r.count}` : ""}</span>
-                        </button>
+                          row={r}
+                          selected={r.node.id === selectedId}
+                          onSelect={onSelectNode}
+                        />
                       ))}
                   <div style={{ height: win.padBottom }} />
                 </>

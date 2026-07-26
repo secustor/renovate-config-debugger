@@ -790,6 +790,83 @@ function Field({
   );
 }
 
+/** Roadmap 012/040: one key of the pinned verdict — the option a rule set,
+ *  its value, and (when the update-type block supplied it) where it came
+ *  from. Its own component since 040's depth ratchet: the "from the <type>
+ *  block" aside is four elements deep inside the verdict block. */
+function VerdictKeyRow({
+  optionKey,
+  value,
+  present,
+  fromUpdateType,
+  updateType,
+}: {
+  optionKey: string;
+  value: unknown;
+  present: boolean;
+  fromUpdateType: boolean;
+  updateType?: string;
+}) {
+  return (
+    <li>
+      <code>
+        <OptionKey name={optionKey} flagUnknown />
+      </code>
+      {present ? (
+        <>
+          {" = "}
+          <span className="sim-verdict-value">{previewValue(value, 80)}</span>
+          {fromUpdateType ? (
+            <span className="sim-verdict-from">
+              {" "}
+              from the <Term id="updateType">{updateType}</Term> block
+            </span>
+          ) : null}
+        </>
+      ) : (
+        <span className="sim-verdict-value removed"> removed</span>
+      )}
+    </li>
+  );
+}
+
+/** The tail of the results block: which keys the rules changed, and the full
+ *  resolved dependency config behind a disclosure. */
+function SimFinal({
+  changedKeys,
+  finalDependencyConfig,
+}: {
+  changedKeys: string[];
+  finalDependencyConfig: SimulationResult["finalDependencyConfig"];
+}) {
+  return (
+    <div className="sim-final">
+      <div className="sim-merged-title">Final per-dependency config</div>
+      {changedKeys.length > 0 ? (
+        <p className="sim-changed">
+          Rules changed:{" "}
+          {changedKeys.map((key, i) => (
+            <span key={key}>
+              {i > 0 ? ", " : null}
+              <code>
+                <OptionKey name={key} flagUnknown />
+              </code>
+            </span>
+          ))}
+        </p>
+      ) : (
+        <p className="sim-changed">No rule changed anything for this dependency.</p>
+      )}
+      <details>
+        <summary>Show the full resolved dependency config</summary>
+        <pre className="config-view">
+          <ConfigJson value={finalDependencyConfig} />
+        </pre>
+      </details>
+    </div>
+  );
+}
+
 // Roadmap 032: memoized — the simulator renders the full merged rule list and
 // reads nothing from the editor; its callback props are identity-stable in
 // App (useCallback / the latest-ref idiom), so typing never re-renders it.
@@ -1477,25 +1554,14 @@ export const RuleSimulator = memo(function RuleSimulator({
               {changedWithValues.length > 0 ? (
                 <ul className="sim-verdict-keys">
                   {changedWithValues.map(({ key, value, present }) => (
-                    <li key={key}>
-                      <code>
-                        <OptionKey name={key} flagUnknown />
-                      </code>
-                      {present ? (
-                        <>
-                          {" = "}
-                          <span className="sim-verdict-value">{previewValue(value, 80)}</span>
-                          {sim.flattened.merged.some((m) => m.key === key) ? (
-                            <span className="sim-verdict-from">
-                              {" "}
-                              from the <Term id="updateType">{sim.flattened.updateType}</Term> block
-                            </span>
-                          ) : null}
-                        </>
-                      ) : (
-                        <span className="sim-verdict-value removed"> removed</span>
-                      )}
-                    </li>
+                    <VerdictKeyRow
+                      key={key}
+                      optionKey={key}
+                      value={value}
+                      present={present}
+                      fromUpdateType={sim.flattened.merged.some((m) => m.key === key)}
+                      updateType={sim.flattened.updateType}
+                    />
                   ))}
                 </ul>
               ) : (
@@ -1642,30 +1708,7 @@ export const RuleSimulator = memo(function RuleSimulator({
                 ) : null}
               </p>
             )}
-            <div className="sim-final">
-              <div className="sim-merged-title">Final per-dependency config</div>
-              {changedKeys.length > 0 ? (
-                <p className="sim-changed">
-                  Rules changed:{" "}
-                  {changedKeys.map((key, i) => (
-                    <span key={key}>
-                      {i > 0 ? ", " : null}
-                      <code>
-                        <OptionKey name={key} flagUnknown />
-                      </code>
-                    </span>
-                  ))}
-                </p>
-              ) : (
-                <p className="sim-changed">No rule changed anything for this dependency.</p>
-              )}
-              <details>
-                <summary>Show the full resolved dependency config</summary>
-                <pre className="config-view">
-                  <ConfigJson value={sim.finalDependencyConfig} />
-                </pre>
-              </details>
-            </div>
+            <SimFinal changedKeys={changedKeys} finalDependencyConfig={sim.finalDependencyConfig} />
           </div>
         </div>
       ) : null}
