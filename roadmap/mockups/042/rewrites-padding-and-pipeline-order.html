@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mockup 042 — Rewrites padding + backticks · Pipeline stage order</title>
+    <style>
+      /* ---- app tokens, verbatim from packages/app/src/index.css ---- */
+      :root {
+        color-scheme: light dark;
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        --border: light-dark(#d0d7de, #3d444d);
+        --surface: light-dark(#f6f8fa, #151b23);
+        --accent: #0969da;
+        --ok: #1a7f37;
+        --error: #cf222e;
+        --warn: #9a6700;
+        --muted: light-dark(#59636e, #9198a1);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: light-dark(#ffffff, #0d1117);
+        color: light-dark(#1f2328, #f0f6fc);
+      }
+      main {
+        margin: 0 auto;
+        max-width: 68rem;
+        padding: 1.5rem 1rem 4rem;
+      }
+      h1 {
+        font-size: 1.5rem;
+        margin: 0 0 0.25rem;
+      }
+      h2 {
+        font-size: 1.05rem;
+        margin: 2.5rem 0 0.25rem;
+      }
+      h3 {
+        font-size: 0.95rem;
+        margin: 1.75rem 0 0.25rem;
+      }
+      h2 .num,
+      h3 .num {
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .section-note {
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin: 0.25rem 0 1rem;
+        max-width: 60rem;
+      }
+      .mock-banner {
+        background: light-dark(#fff8c5, #3a2d00);
+        border: 1px solid var(--warn);
+        border-radius: 8px;
+        font-size: 0.85rem;
+        margin-bottom: 1rem;
+        padding: 0.5rem 0.75rem;
+      }
+      .verdict {
+        border-left: 3px solid var(--ok);
+        color: var(--muted);
+        font-size: 0.88rem;
+        margin: 0.75rem 0 0;
+        max-width: 60rem;
+        padding: 0.1rem 0 0.1rem 0.75rem;
+      }
+      .verdict strong {
+        color: light-dark(#1f2328, #f0f6fc);
+      }
+      code,
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      p code,
+      .migration-explanation code {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-size: 0.85em;
+        padding: 0.05em 0.3em;
+      }
+      .pane-label {
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        margin: 1rem 0 0.35rem;
+        text-transform: uppercase;
+      }
+      .pane-label.now {
+        color: var(--error);
+      }
+      .pane-label.proposed {
+        color: var(--ok);
+      }
+
+      /* ---- app chrome, verbatim ---- */
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        overflow: hidden;
+      }
+      .card > .card-title {
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        font-size: 0.85rem;
+        font-weight: 600;
+        padding: 0.5rem 0.75rem;
+      }
+      .card-title-hint {
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .btn {
+        align-items: center;
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: inherit;
+        cursor: pointer;
+        display: inline-flex;
+        font: inherit;
+        font-size: 0.8rem;
+        gap: 0.3rem;
+        padding: 0.25rem 0.6rem;
+      }
+      .btn:disabled {
+        cursor: default;
+        opacity: 0.5;
+      }
+      .badge {
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 0.72rem;
+        padding: 0.05rem 0.5rem;
+      }
+
+      /* ---- migration stepper, current geometry ---- */
+      .migration-steps {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+      }
+      .migration-step-head {
+        align-items: baseline;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .migration-step-counter {
+        color: var(--muted);
+        font-size: 0.8rem;
+        white-space: nowrap;
+      }
+      .migration-step-name {
+        font-weight: 600;
+      }
+      .migration-step-key {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        font-size: 0.8rem;
+        padding: 0.05rem 0.35rem;
+      }
+      .migration-explanation {
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin: 0;
+      }
+      .migration-nav {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .migration-cumulative {
+        align-items: center;
+        color: var(--muted);
+        display: flex;
+        font-size: 0.85rem;
+        gap: 0.3rem;
+      }
+      .migration-nav .copy-btn {
+        margin-left: auto;
+      }
+
+      /* Option 1B: the text rows carry their own inset (the .stage-crosslink
+         pattern); the diff stays full-bleed like the Pipeline card. */
+      .opt-b .migration-step-head {
+        padding: 0.6rem 0.75rem 0;
+      }
+      .opt-b .migration-explanation {
+        padding: 0 0.75rem;
+      }
+      .opt-b .migration-nav {
+        padding: 0 0.75rem 0.75rem;
+      }
+
+      /* Option 1A: one padded body; the diff becomes a nested bordered panel. */
+      .opt-a .migration-steps {
+        padding: 0.6rem 0.75rem 0.75rem;
+      }
+      .opt-a .mini-diff {
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        overflow: hidden;
+      }
+
+      /* ---- a small stand-in diff (chrome bar + rows), app grammar ---- */
+      .mini-diff {
+        font-size: 0.8rem;
+      }
+      .diff-chrome {
+        align-items: center;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        flex-wrap: wrap;
+        font-size: 0.8rem;
+        gap: 0.5rem;
+        padding: 0.4rem 0.75rem;
+      }
+      .diff-chrome .spacer {
+        flex: 1;
+      }
+      .diff-stat .plus {
+        color: var(--ok);
+      }
+      .diff-stat .minus {
+        color: var(--error);
+      }
+      .diff-rows {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        line-height: 1.5;
+        padding: 0.3rem 0;
+        overflow-x: auto;
+      }
+      /* pre on the ROWS, not the container — container-level pre renders the
+         HTML source's newlines between row divs as phantom empty lines. */
+      .diff-rows div {
+        padding: 0 0.75rem;
+        white-space: pre;
+      }
+      .diff-rows .del {
+        background: light-dark(#ffebe9, #3a1c1f);
+        color: light-dark(#82071e, #ff9492);
+      }
+      .diff-rows .add {
+        background: light-dark(#dafbe1, #12261e);
+        color: light-dark(#116329, #7ee2a8);
+      }
+
+      /* ---- stage timeline, current geometry ---- */
+      .stage-timeline {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin: 1rem 0;
+      }
+      .stage-chip {
+        align-items: center;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        cursor: pointer;
+        display: inline-flex;
+        font: inherit;
+        font-size: 0.85rem;
+        gap: 0.35rem;
+        padding: 0.3rem 0.8rem;
+      }
+      .stage-chip.selected {
+        border-color: var(--accent);
+        outline: 1px solid var(--accent);
+      }
+      .stage-chip .dot {
+        border-radius: 50%;
+        flex: none;
+        height: 0.55rem;
+        width: 0.55rem;
+      }
+      .stage-chip .dot.clean {
+        background: var(--ok);
+      }
+      .stage-chip .dot.changed {
+        background: var(--warn);
+        border-radius: 2px;
+        transform: rotate(45deg);
+      }
+      .stage-chip .dot.skipped {
+        background: transparent;
+        border: 1.5px solid var(--muted);
+      }
+      .stage-chip-count {
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .stage-chip .dot.changed ~ .stage-chip-count {
+        color: var(--warn);
+      }
+
+      /* Narrow harness: forces the 8 chips onto multiple lines, the shape the
+         real results column has at typical widths. */
+      .narrow {
+        border: 1px dashed var(--border);
+        border-radius: 8px;
+        max-width: 24rem;
+        padding: 0 0.75rem;
+      }
+
+      /* Option 2A: arrow separators. The arrow is a flex item BETWEEN chips, so
+         after a wrap it lands at the head of the next line — reading as "the
+         line above continues here". */
+      .t-arrows {
+        column-gap: 0.15rem;
+      }
+      .t-arrows .sep {
+        align-self: center;
+        color: var(--muted);
+        flex: none;
+        font-size: 0.8rem;
+        padding: 0 0.1rem;
+        user-select: none;
+      }
+
+      /* Option 2B: ordinals inside the chips. */
+      .t-nums .ord {
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* Option 2C: connected stepper — no gaps, shared borders, arrowless. */
+      .t-joined {
+        gap: 0;
+        row-gap: 0.4rem;
+      }
+      .t-joined .stage-chip {
+        border-radius: 0;
+        margin-left: -1px;
+      }
+      .t-joined .stage-chip:first-child {
+        border-radius: 999px 0 0 999px;
+        margin-left: 0;
+      }
+      .t-joined .stage-chip:last-child {
+        border-radius: 0 999px 999px 0;
+      }
+      .t-joined .stage-chip.selected {
+        position: relative;
+        z-index: 1;
+      }
+
+      /* Option 2D: one line always, horizontal scroll. */
+      .t-scroll {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-bottom: 0.4rem;
+      }
+      .t-scroll .stage-chip {
+        flex: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Mockup 042 — two Results-column fixes</h1>
+      <p class="section-note">
+        1) The <strong>Rewrites</strong> tab's step information sits flush against the card border
+        and renders the explanation's backticks literally. 2) The <strong>Pipeline</strong> tab's
+        stage chips wrap onto multiple lines with nothing signalling execution order. Both sections
+        show the current state first, then the options.
+      </p>
+      <div class="mock-banner">
+        Mockup — static HTML, app tokens and geometry copied verbatim from
+        <code>packages/app/src/index.css</code>. Buttons do nothing.
+      </div>
+
+      <!-- ============================================================ -->
+      <h2><span class="num">1 ·</span> Rewrites: padding + backtick rendering</h2>
+      <p class="section-note">
+        Root cause: <code>.card</code> deliberately has no body padding — children bring their own
+        inset (that is how <code>.stage-crosslink</code> and the diff chrome work) — but
+        <code>.migration-steps</code> brings none. And the engine's migration explanations are
+        written with markdown backticks (<code>migration-names.ts</code>) that
+        <code>MigrationSteps</code> prints as raw text, even though the app already owns a
+        backtick→<code>&lt;code&gt;</code> renderer (<code>CodeText</code> in the Overview tab).
+      </p>
+
+      <p class="pane-label now">Now — text flush against the border, literal backticks</p>
+      <div class="card">
+        <div class="card-title">
+          Rewrites
+          <span class="card-title-hint">
+            — the deprecated options Renovate rewrote, one at a time</span
+          >
+        </div>
+        <div class="migration-steps">
+          <div class="migration-step-head">
+            <span class="migration-step-counter">Step 2 of 3</span>
+            <span class="migration-step-name">masterIssue → dependencyDashboard</span>
+            <code class="migration-step-key">masterIssue</code>
+          </div>
+          <p class="migration-explanation">
+            Renamed to `dependencyDashboard` along with the rest of the dashboard options.
+          </p>
+          <div class="mini-diff">
+            <div class="diff-chrome">
+              <span style="color: var(--muted)">before → after</span>
+              <span class="diff-stat mono"
+                ><span class="plus">+1</span> <span class="minus">−1</span></span
+              >
+              <span class="spacer"></span>
+              <button class="btn" type="button">Copy result</button>
+            </div>
+            <div class="diff-rows">
+              <div>{</div>
+              <div class="del">- "masterIssue": true,</div>
+              <div class="add">+ "dependencyDashboard": true,</div>
+              <div>"extends": ["config:recommended"]</div>
+              <div>}</div>
+            </div>
+          </div>
+          <div class="migration-nav">
+            <button class="btn" type="button">‹ Prev</button>
+            <button class="btn" type="button">Next ›</button>
+            <button class="btn" type="button">Jump to end</button>
+            <label class="migration-cumulative"><input type="checkbox" /> Cumulative</label>
+            <button class="btn copy-btn" type="button">Copy migrated config</button>
+          </div>
+        </div>
+      </div>
+
+      <h3>
+        <span class="num">1B ·</span> Text rows carry their own inset, diff stays full-bleed
+        (recommended)
+      </h3>
+      <p class="section-note">
+        The <code>.stage-crosslink</code> pattern, applied consistently: head, explanation and nav
+        each get the card's <code>0.75rem</code> inset; the diff keeps running edge-to-edge exactly
+        like it does in the Pipeline card, so the two tabs share one grammar. Explanation rendered
+        through <code>CodeText</code>.
+      </p>
+      <p class="pane-label proposed">Proposed (1B)</p>
+      <div class="card opt-b">
+        <div class="card-title">
+          Rewrites
+          <span class="card-title-hint">
+            — the deprecated options Renovate rewrote, one at a time</span
+          >
+        </div>
+        <div class="migration-steps">
+          <div class="migration-step-head">
+            <span class="migration-step-counter">Step 2 of 3</span>
+            <span class="migration-step-name">masterIssue → dependencyDashboard</span>
+            <code class="migration-step-key">masterIssue</code>
+          </div>
+          <p class="migration-explanation">
+            Renamed to <code>dependencyDashboard</code> along with the rest of the dashboard
+            options.
+          </p>
+          <div class="mini-diff">
+            <div class="diff-chrome">
+              <span style="color: var(--muted)">before → after</span>
+              <span class="diff-stat mono"
+                ><span class="plus">+1</span> <span class="minus">−1</span></span
+              >
+              <span class="spacer"></span>
+              <button class="btn" type="button">Copy result</button>
+            </div>
+            <div class="diff-rows">
+              <div>{</div>
+              <div class="del">- "masterIssue": true,</div>
+              <div class="add">+ "dependencyDashboard": true,</div>
+              <div>"extends": ["config:recommended"]</div>
+              <div>}</div>
+            </div>
+          </div>
+          <div class="migration-nav">
+            <button class="btn" type="button">‹ Prev</button>
+            <button class="btn" type="button">Next ›</button>
+            <button class="btn" type="button">Jump to end</button>
+            <label class="migration-cumulative"><input type="checkbox" /> Cumulative</label>
+            <button class="btn copy-btn" type="button">Copy migrated config</button>
+          </div>
+        </div>
+      </div>
+
+      <h3><span class="num">1A ·</span> One padded body, diff becomes a nested panel</h3>
+      <p class="section-note">
+        Simpler CSS (one padding on <code>.migration-steps</code>) but the diff needs its own border
+        + radius to not look raw, which departs from the Pipeline card's full-bleed diff — two diff
+        framings in the same app.
+      </p>
+      <p class="pane-label proposed">Alternative (1A)</p>
+      <div class="card opt-a">
+        <div class="card-title">
+          Rewrites
+          <span class="card-title-hint">
+            — the deprecated options Renovate rewrote, one at a time</span
+          >
+        </div>
+        <div class="migration-steps">
+          <div class="migration-step-head">
+            <span class="migration-step-counter">Step 2 of 3</span>
+            <span class="migration-step-name">masterIssue → dependencyDashboard</span>
+            <code class="migration-step-key">masterIssue</code>
+          </div>
+          <p class="migration-explanation">
+            Renamed to <code>dependencyDashboard</code> along with the rest of the dashboard
+            options.
+          </p>
+          <div class="mini-diff">
+            <div class="diff-chrome">
+              <span style="color: var(--muted)">before → after</span>
+              <span class="diff-stat mono"
+                ><span class="plus">+1</span> <span class="minus">−1</span></span
+              >
+              <span class="spacer"></span>
+              <button class="btn" type="button">Copy result</button>
+            </div>
+            <div class="diff-rows">
+              <div>{</div>
+              <div class="del">- "masterIssue": true,</div>
+              <div class="add">+ "dependencyDashboard": true,</div>
+              <div>"extends": ["config:recommended"]</div>
+              <div>}</div>
+            </div>
+          </div>
+          <div class="migration-nav">
+            <button class="btn" type="button">‹ Prev</button>
+            <button class="btn" type="button">Next ›</button>
+            <button class="btn" type="button">Jump to end</button>
+            <label class="migration-cumulative"><input type="checkbox" /> Cumulative</label>
+            <button class="btn copy-btn" type="button">Copy migrated config</button>
+          </div>
+        </div>
+      </div>
+
+      <p class="verdict">
+        <strong>Recommendation: 1B.</strong> Same inset as every other card child, the diff keeps
+        the exact framing it has on the Pipeline tab, and the compact stepper embedded in preset
+        rows (which is NOT inside a card) is unaffected because the padding hangs off the card
+        context, not off <code>.migration-steps</code> itself. The backtick fix is independent of
+        the padding choice: hoist <code>CodeText</code> out of <code>OverviewTab</code> into a
+        shared component and render the explanation through it.
+      </p>
+
+      <!-- ============================================================ -->
+      <h2><span class="num">2 ·</span> Pipeline: stage order across wrapped lines</h2>
+      <p class="section-note">
+        The 8 chips (Global config, Inherited config, Parse, Migrate, Massage, Validate, Presets,
+        Merge) are a wrapping flex row. On one line, left-to-right reads as order; the moment it
+        wraps, nothing says whether reading continues on the next line or the lines are parallel
+        groups. All variants below render in a narrow harness that forces the wrap.
+      </p>
+
+      <p class="pane-label now">Now — wrapped, no order signal</p>
+      <div class="narrow">
+        <div class="stage-timeline">
+          <button class="stage-chip" type="button">
+            <span class="dot skipped"></span>Global config
+          </button>
+          <button class="stage-chip" type="button">
+            <span class="dot skipped"></span>Inherited config
+          </button>
+          <button class="stage-chip" type="button"><span class="dot clean"></span>Parse</button>
+          <button class="stage-chip selected" type="button">
+            <span class="dot changed"></span>Migrate<span class="stage-chip-count">·3</span>
+          </button>
+          <button class="stage-chip" type="button"><span class="dot clean"></span>Massage</button>
+          <button class="stage-chip" type="button"><span class="dot clean"></span>Validate</button>
+          <button class="stage-chip" type="button">
+            <span class="dot changed"></span>Presets<span class="stage-chip-count">·12</span>
+          </button>
+          <button class="stage-chip" type="button"><span class="dot changed"></span>Merge</button>
+        </div>
+      </div>
+
+      <h3><span class="num">2A ·</span> Arrows between chips (recommended)</h3>
+      <p class="section-note">
+        A muted <code>→</code> between consecutive chips. Because the arrow is its own flex item, a
+        wrap puts it at the head of the continuation line — precisely where the "this continues from
+        above" cue is needed. No chip geometry changes; the arrows are
+        <code>aria-hidden</code> decoration.
+      </p>
+      <div class="narrow">
+        <div class="stage-timeline t-arrows">
+          <button class="stage-chip" type="button">
+            <span class="dot skipped"></span>Global config
+          </button>
+          <span class="sep" aria-hidden="true">→</span>
+          <button class="stage-chip" type="button">
+            <span class="dot skipped"></span>Inherited config
+          </button>
+          <span class="sep" aria-hidden="true">→</span>
+          <button class="stage-chip" type="button"><span class="dot clean"></span>Parse</button>
+          <span class="sep" aria-hidden="true">→</span>
+          <button class="stage-chip selected" type="button">
+            <span class="dot changed"></span>Migrate<span class="stage-chip-count">·3</span>
+          </button>
+          <span class="sep" aria-hidden="true">→</span>
+          <button class="stage-chip" type="button"><span class="dot clean"></span>Massage</button>
+          <span class="sep" aria-hidden="true">→</span>
+          <button class="stage-chip" type="button"><span class="dot clean"></span>Validate</button>
+          <span class="sep" aria-hidden="true">→</span>
+          <button class="stage-chip" type="button">
+            <span class="dot changed"></span>Presets<span class="stage-chip-count">·12</span>
+          </button>
+          <span class="sep" aria-hidden="true">→</span>
+          <button class="stage-chip" type="button"><span class="dot changed"></span>Merge</button>
+        </div>
+      </div>
+
+      <h3><span class="num">2B ·</span> Ordinals inside the chips</h3>
+      <p class="section-note">
+        A small muted number leads each chip. Order survives any wrap and is even sortable at a
+        glance ("which stage is 5th?"), but it adds a permanent character to every chip and reads
+        busier next to the dot + count that are already there.
+      </p>
+      <div class="narrow">
+        <div class="stage-timeline t-nums">
+          <button class="stage-chip" type="button">
+            <span class="ord">1</span><span class="dot skipped"></span>Global config
+          </button>
+          <button class="stage-chip" type="button">
+            <span class="ord">2</span><span class="dot skipped"></span>Inherited config
+          </button>
+          <button class="stage-chip" type="button">
+            <span class="ord">3</span><span class="dot clean"></span>Parse
+          </button>
+          <button class="stage-chip selected" type="button">
+            <span class="ord">4</span><span class="dot changed"></span>Migrate<span
+              class="stage-chip-count"
+              >·3</span
+            >
+          </button>
+          <button class="stage-chip" type="button">
+            <span class="ord">5</span><span class="dot clean"></span>Massage
+          </button>
+          <button class="stage-chip" type="button">
+            <span class="ord">6</span><span class="dot clean"></span>Validate
+          </button>
+          <button class="stage-chip" type="button">
+            <span class="ord">7</span><span class="dot changed"></span>Presets<span
+              class="stage-chip-count"
+              >·12</span
+            >
+          </button>
+          <button class="stage-chip" type="button">
+            <span class="ord">8</span><span class="dot changed"></span>Merge
+          </button>
+        </div>
+      </div>
+
+      <h3><span class="num">2C ·</span> Joined segments (breadcrumb / stepper look)</h3>
+      <p class="section-note">
+        Chips fuse into runs with shared borders — inside a line the sequence is unmistakable, but
+        the wrap point still needs interpretation, the pill silhouette that the rest of the app uses
+        disappears, and the selected-chip outline needs z-index games.
+      </p>
+      <div class="narrow">
+        <div class="stage-timeline t-joined">
+          <button class="stage-chip" type="button">
+            <span class="dot skipped"></span>Global config
+          </button>
+          <button class="stage-chip" type="button">
+            <span class="dot skipped"></span>Inherited config
+          </button>
+          <button class="stage-chip" type="button"><span class="dot clean"></span>Parse</button>
+          <button class="stage-chip selected" type="button">
+            <span class="dot changed"></span>Migrate<span class="stage-chip-count">·3</span>
+          </button>
+          <button class="stage-chip" type="button"><span class="dot clean"></span>Massage</button>
+          <button class="stage-chip" type="button"><span class="dot clean"></span>Validate</button>
+          <button class="stage-chip" type="button">
+            <span class="dot changed"></span>Presets<span class="stage-chip-count">·12</span>
+          </button>
+          <button class="stage-chip" type="button"><span class="dot changed"></span>Merge</button>
+        </div>
+      </div>
+
+      <h3><span class="num">2D ·</span> Never wrap — one line, horizontal scroll</h3>
+      <p class="section-note">
+        Geometry itself states the order, and arrows become unnecessary. But it hides stages
+        off-screen at exactly the widths where the problem occurs — an error dot on a hidden stage
+        is worse than an ambiguous wrap — and horizontal scrolling inside a column is easy to miss.
+      </p>
+      <div class="narrow">
+        <div class="stage-timeline t-scroll">
+          <button class="stage-chip" type="button">
+            <span class="dot skipped"></span>Global config
+          </button>
+          <button class="stage-chip" type="button">
+            <span class="dot skipped"></span>Inherited config
+          </button>
+          <button class="stage-chip" type="button"><span class="dot clean"></span>Parse</button>
+          <button class="stage-chip selected" type="button">
+            <span class="dot changed"></span>Migrate<span class="stage-chip-count">·3</span>
+          </button>
+          <button class="stage-chip" type="button"><span class="dot clean"></span>Massage</button>
+          <button class="stage-chip" type="button"><span class="dot clean"></span>Validate</button>
+          <button class="stage-chip" type="button">
+            <span class="dot changed"></span>Presets<span class="stage-chip-count">·12</span>
+          </button>
+          <button class="stage-chip" type="button"><span class="dot changed"></span>Merge</button>
+        </div>
+      </div>
+
+      <p class="verdict">
+        <strong>Recommendation: 2A.</strong> The arrows say "this is a sequence" without touching
+        chip geometry, and the wrap behavior works in its favor: a continuation line leads with an
+        arrow, which is the exact cue that was missing. All stages stay visible (unlike 2D), chips
+        stay uncluttered (unlike 2B), and the app-wide pill silhouette survives (unlike 2C). If
+        arrows alone ever prove insufficient at a glance, 2B's ordinals compose cleanly on top — but
+        start with arrows only.
+      </p>
+    </main>
+  </body>
+</html>

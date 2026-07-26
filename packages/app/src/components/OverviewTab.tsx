@@ -1,27 +1,7 @@
-import { Fragment, memo, type ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import type { ResultsTabId } from "../results-tabs";
 import type { DigestClause } from "../run-digest";
-
-/**
- * Roadmap 029: clause prose marks option/preset names with backticks (the
- * generator stays plain text, so it can be unit-tested and snapshotted); the
- * renderer turns those into `<code>` spans, matching the mockup's mono names.
- */
-function CodeText({ text }: { text: string }) {
-  // Roadmap 041 — index keys, deliberately: this array is ONE string split on
-  // backticks, so slot i is always the same span of the same string and the
-  // odd/even parity is what decides `<code>` vs plain text. Parts repeat, and
-  // insertion/reorder cannot happen; there is no other identity to key on.
-  const parts = text.split(/`([^`]+)`/);
-  return (
-    <>
-      {parts.map((part, i) =>
-        // oxlint-disable-next-line react/no-array-index-key -- see above
-        i % 2 === 1 ? <code key={i}>{part}</code> : <Fragment key={i}>{part}</Fragment>,
-      )}
-    </>
-  );
-}
+import { CodeText } from "./CodeText";
 
 /**
  * Roadmap 029: the run digest — the whole run as one paragraph of prose whose

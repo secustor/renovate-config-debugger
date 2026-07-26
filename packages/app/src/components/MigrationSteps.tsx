@@ -1,5 +1,6 @@
 import { memo, useEffect, useState } from "react";
 import type { TraceEvent } from "@renovate-config-visualizer/engine";
+import { CodeText } from "./CodeText";
 import { CopyButton } from "./CopyButton";
 import { JsonDiff } from "./JsonDiff";
 
@@ -83,7 +84,9 @@ export const MigrationSteps = memo(function MigrationSteps({
         ) : null}
       </div>
       {migration?.explanation ? (
-        <p className="migration-explanation">{migration.explanation}</p>
+        <p className="migration-explanation">
+          <CodeText text={migration.explanation} />
+        </p>
       ) : null}
 
       <JsonDiff

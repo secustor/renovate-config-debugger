@@ -174,10 +174,23 @@ h1 {
 }
 
 .stage-timeline {
+  column-gap: 0.15rem;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
   margin: 1rem 0;
+  row-gap: 0.4rem;
+}
+
+/* 042: the arrow is its own flex item, so a wrap puts it at the head of the
+   continuation line — the cue that the sequence carries on. Decoration only:
+   aria-hidden, not focusable, no handler. */
+.stage-sep {
+  align-self: center;
+  color: var(--muted);
+  flex: none;
+  font-size: 0.8rem;
+  padding: 0 0.1rem;
+  user-select: none;
 }
 
 .stage-chip {
@@ -1092,6 +1105,17 @@ textarea.layer-editor:focus {
   margin: 0;
 }
 
+/* The engine writes explanations with markdown backticks; CodeText turns them
+   into `<code>`, which needs the app's inline-name chip (a lighter
+   `.migration-step-key`). */
+.migration-explanation code {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.85em;
+  padding: 0.05em 0.3em;
+}
+
 .migration-nav {
   align-items: center;
   display: flex;
@@ -1111,6 +1135,24 @@ textarea.layer-editor:focus {
    away from the step controls it must never be mistaken for. */
 .migration-nav .copy-btn {
   margin-left: auto;
+}
+
+/* 042: `.card` carries no body padding — every child brings its own inset. In
+   the Rewrites card the TEXT rows take the card's 0.75rem while the diff stays
+   full-bleed, the same grammar the Pipeline card's stage diff uses. Scoped to
+   the card context so the compact stepper nested in a preset row (a child of
+   `.preset-migration-steps`, never of `.card`) keeps its own spacing. The
+   0.6rem flex gap already separates the rows, so only the outer edges here. */
+.card > .migration-steps > .migration-step-head {
+  padding: 0.6rem 0.75rem 0;
+}
+
+.card > .migration-steps > .migration-explanation {
+  padding: 0 0.75rem;
+}
+
+.card > .migration-steps > .migration-nav {
+  padding: 0 0.75rem 0.75rem;
 }
 
 /* The one deliberate departure from the shared metrics: the stepper embedded

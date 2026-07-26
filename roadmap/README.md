@@ -46,6 +46,7 @@ Full context and architecture: [.agents/spec/renovate-config-visualizer.md](../.
 | [039](039-editor-column-polish.md)                    | Editor column polish: theme, one Button, repo-load        | M10                  | done   |
 | [040](040-jsx-depth-decomposition.md)                 | JSX-depth ratchet: decompose the monoliths to depth 4     | M10                  | done   |
 | [041](041-warn-tier-to-error.md)                      | Promote the warn tier to error                            | M10                  | done   |
+| [042](042-rewrites-inset-and-pipeline-arrows.md)      | Rewrites inset + Pipeline order arrows                    | M10                  | done   |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live
@@ -83,3 +84,8 @@ column, settled through the approved
 (Option B); 040 from the same day's measured JSX-depth analysis (above
 depth 4 only three monolith files violate — the codebase's own norm);
 041 is the user decision to make the whole warn tier fail CI.
+042 is a 2026-07-26 user-reported polish pass on the results column —
+the Rewrites card's missing inset and the Pipeline chips' missing order
+signal — settled through the approved
+[mockups/042/rewrites-padding-and-pipeline-order.html](mockups/042/rewrites-padding-and-pipeline-order.html)
+(variants 1B and 2A).
