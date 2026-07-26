@@ -22,12 +22,14 @@ global config.
 - **Trigger: a checkbox in the repo-load form (039), checked by
   default.** "Also load the org's inherited config" runs the probe on
   every successful "Load from repo" unless unticked; the choice
-  persists like the form's other state. Because a real run only
-  inherits when the admin set `inheritConfig: true` (its default is
-  `false` and it is `globalOnly` — verified against the pinned
-  renovate's option table), a layer loaded WITHOUT a global config
-  enabling it carries a small honesty hint: "a real run applies this
-  only with `inheritConfig: true` in the global config".
+  persists like the form's other state. Default-on is the honest
+  default: the public Mend-hosted GitHub app runs with `inheritConfig`
+  enabled, so for the most common real-world setup the probe models
+  exactly what the bot does. The option itself defaults to `false` and
+  is `globalOnly` (verified against the pinned renovate's option
+  table), so the only case needing a hint is a pasted global config
+  that explicitly sets `inheritConfig: false` — then the auto-loaded
+  layer says a run under THAT global config would not apply it.
 - **Resolution, Renovate's own.** `{{parentOrg}}` templates to the
   loaded repo's owner/group; `inheritConfigRepoName` /
   `inheritConfigFileName` overrides in the pasted global config are
