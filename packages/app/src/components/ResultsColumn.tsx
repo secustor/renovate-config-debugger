@@ -14,7 +14,7 @@ import { MigrationSteps } from "./MigrationSteps";
 import { OverviewTab } from "./OverviewTab";
 import { PresetTree } from "./PresetTree";
 import { ResultsPanel, type ResultsTabDescriptor } from "./ResultsPanel";
-import { RuleSimulator } from "./RuleSimulator";
+import { RuleSimulator } from "@/features/simulator/RuleSimulator";
 import { StageDiff } from "./StageDiff";
 import { StageTimeline } from "./StageTimeline";
 import type { ResultsTabId } from "@/data/results-tabs";

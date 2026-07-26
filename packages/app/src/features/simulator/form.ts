@@ -1,0 +1,182 @@
+import type { DependencyDescriptor } from "@renovate-config-visualizer/engine";
+
+export interface FormState {
+  manager: string;
+  datasource: string;
+  packageName: string;
+  depName: string;
+  depType: string;
+  packageFile: string;
+  currentValue: string;
+  currentVersion: string;
+  newValue: string;
+  updateType: string;
+  lockedVersion: string;
+  lockFiles: string;
+  versioning: string;
+  sourceUrl: string;
+  registryUrls: string;
+  categories: string;
+  repository: string;
+  baseBranch: string;
+  currentVersionTimestamp: string;
+}
+
+export const EMPTY_FORM: FormState = {
+  manager: "",
+  datasource: "",
+  packageName: "",
+  depName: "",
+  depType: "",
+  packageFile: "",
+  currentValue: "",
+  currentVersion: "",
+  newValue: "",
+  updateType: "",
+  lockedVersion: "",
+  lockFiles: "",
+  versioning: "",
+  sourceUrl: "",
+  registryUrls: "",
+  categories: "",
+  repository: "",
+  baseBranch: "",
+  currentVersionTimestamp: "",
+};
+
+export const UPDATE_TYPES = [
+  "major",
+  "minor",
+  "patch",
+  "pin",
+  "digest",
+  "lockFileMaintenance",
+  "rollback",
+  "replacement",
+  "bump",
+];
+
+/** Quick-fill presets for common dependency shapes. */
+export const QUICK_FILLS: { label: string; fill: Partial<FormState> }[] = [
+  {
+    label: "npm dependency",
+    fill: {
+      manager: "npm",
+      datasource: "npm",
+      packageFile: "package.json",
+      packageName: "lodash",
+      depType: "dependencies",
+      currentValue: "4.17.20",
+      newValue: "4.17.21",
+      updateType: "patch",
+    },
+  },
+  {
+    label: "Dockerfile image",
+    fill: {
+      manager: "dockerfile",
+      datasource: "docker",
+      packageFile: "Dockerfile",
+      packageName: "node",
+      currentValue: "20-alpine",
+      newValue: "22-alpine",
+      updateType: "major",
+    },
+  },
+  {
+    label: "GitHub Action",
+    fill: {
+      manager: "github-actions",
+      datasource: "github-tags",
+      packageFile: ".github/workflows/ci.yml",
+      packageName: "actions/checkout",
+      currentValue: "v4",
+      newValue: "v5",
+      updateType: "major",
+    },
+  },
+  {
+    label: "pep621 / pip",
+    fill: {
+      manager: "pep621",
+      datasource: "pypi",
+      packageFile: "pyproject.toml",
+      packageName: "requests",
+      depType: "project.dependencies",
+      currentValue: "2.31.0",
+      newValue: "2.32.0",
+      updateType: "minor",
+    },
+  },
+  {
+    // Roadmap 015: Azure DevOps / .NET users had no chip that matched their
+    // stack.
+    label: "nuget",
+    fill: {
+      manager: "nuget",
+      datasource: "nuget",
+      packageFile: "src/App.csproj",
+      packageName: "Newtonsoft.Json",
+      currentValue: "13.0.1",
+      newValue: "13.0.3",
+      updateType: "patch",
+      versioning: "nuget",
+    },
+  },
+];
+
+function trimmed(value: string): string | undefined {
+  const t = value.trim();
+  return t === "" ? undefined : t;
+}
+
+function list(value: string): string[] | undefined {
+  const items = value
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s !== "");
+  return items.length > 0 ? items : undefined;
+}
+
+/**
+ * @param effectiveUpdateType Roadmap 015: the updateType to actually send —
+ * the derived value when the user hasn't manually overridden the select,
+ * `form.updateType` otherwise. Defaults to `form.updateType` so callers that
+ * only need e.g. the empty-form check don't have to compute derivation.
+ */
+export function toDescriptor(form: FormState, effectiveUpdateType?: string): DependencyDescriptor {
+  // "bump" is a real Renovate updateType, but matchUpdateTypes only sees it
+  // via the isBump flag on in-range updates — set both.
+  const updateType = trimmed(effectiveUpdateType ?? form.updateType);
+  return {
+    manager: trimmed(form.manager),
+    datasource: trimmed(form.datasource),
+    packageName: trimmed(form.packageName),
+    depName: trimmed(form.depName),
+    depType: trimmed(form.depType),
+    packageFile: trimmed(form.packageFile),
+    currentValue: trimmed(form.currentValue),
+    currentVersion: trimmed(form.currentVersion),
+    newValue: trimmed(form.newValue),
+    updateType,
+    ...(updateType === "bump" ? { isBump: true } : {}),
+    lockedVersion: trimmed(form.lockedVersion),
+    lockFiles: list(form.lockFiles),
+    versioning: trimmed(form.versioning),
+    sourceUrl: trimmed(form.sourceUrl),
+    registryUrls: list(form.registryUrls),
+    categories: list(form.categories),
+    repository: trimmed(form.repository),
+    baseBranch: trimmed(form.baseBranch),
+    currentVersionTimestamp: trimmed(form.currentVersionTimestamp),
+  };
+}
+
+/**
+ * Roadmap 015: an empty-form guard. True once ANY descriptor field carries a
+ * value — a form with nothing filled in is guaranteed to match nothing, and
+ * running it just renders hundreds of "no match" rows with no explanation.
+ */
+export function hasMeaningfulInput(form: FormState): boolean {
+  return Object.values(toDescriptor(form)).some((v) => v !== undefined);
+}

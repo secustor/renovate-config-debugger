@@ -1,0 +1,100 @@
+import type {
+  ClauseEvaluation,
+  MergedKey,
+  RuleEvaluation,
+} from "@renovate-config-visualizer/engine";
+
+export function previewValue(value: unknown, max = 60): string {
+  const text = JSON.stringify(value) ?? "undefined";
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
+/** Untruncated JSON rendering for copy-as-markdown export. */
+function fullValue(value: unknown): string {
+  return JSON.stringify(value) ?? "undefined";
+}
+
+/** Roadmap 018: a matched rule's applied keys as `key: before → after` lines. */
+export function ruleAppliedMarkdown(merged: MergedKey[]): string {
+  return merged
+    .map((m) =>
+      "before" in m
+        ? `${m.key}: ${fullValue(m.before)} → ${fullValue(m.after)}`
+        : `${m.key}: ${fullValue(m.after)}`,
+    )
+    .join("\n");
+}
+
+function inputsPreview(clause: ClauseEvaluation): string {
+  return Object.entries(clause.inputValues)
+    .map(([key, value]) => `${key} = ${previewValue(value, 40)}`)
+    .join(", ");
+}
+
+export function clauseIcon(state: ClauseEvaluation["state"]): string {
+  if (state === "matched") {
+    return "✓";
+  }
+  if (state === "no-match" || state === "error") {
+    return "✗";
+  }
+  // no-input — evaluated to a real fail-closed `false` (see clauseExplanation),
+  // but flagged rather than a plain ✗ since the cause is a missing input, not
+  // a genuine mismatch against a value. not-applicable / not-simulated — the
+  // matcher never produced a true-or-false verdict at all.
+  return "⚠";
+}
+
+/**
+ * Roadmap 018/022: the clause row's right-hand explanation, precise about WHY
+ * a clause did not match — a genuine mismatch names the input it compared
+ * ("no match against sourceUrl = …"); a fail-closed clause states the actual
+ * verdict and its cause ("evaluated false — the simulated dependency has no
+ * sourceUrl (Renovate treats a missing value as a non-match)", from the
+ * engine's note) rather than reading like the clause was never evaluated; a
+ * null-returning matcher reads "not applicable (skipped)".
+ */
+export function clauseExplanation(clause: ClauseEvaluation): string {
+  const hasInputs = Object.keys(clause.inputValues).length > 0;
+  switch (clause.state) {
+    case "matched":
+      return hasInputs ? `matched (${inputsPreview(clause)})` : "matched";
+    case "no-match":
+      return hasInputs ? `no match against ${inputsPreview(clause)}` : "no match";
+    case "no-input":
+      return (
+        clause.note ??
+        "evaluated false — required input not set on the simulated dependency (Renovate treats a missing value as a non-match)"
+      );
+    case "not-applicable":
+      return clause.note ?? "not applicable (skipped)";
+    default:
+      return clause.note ?? clause.state;
+  }
+}
+
+export const VERDICT_LABEL: Record<RuleEvaluation["verdict"], string> = {
+  matched: "matched",
+  "no-match": "no match",
+  "not-simulated": "not simulated",
+};
+
+/**
+ * Roadmap 013: label lists EVERY `match*` / `exclude*` clause the rule
+ * carries, and names the one that decided a no-match verdict — e.g.
+ * `matchSourceUrls + matchUpdateTypes — failed on matchSourceUrls`. A caption
+ * with only the first clause plus a bare "no match" reads as broken when that
+ * first clause actually matched and a LATER one is what failed it.
+ */
+export function ruleLabel(rule: RuleEvaluation): string {
+  if (rule.clauses.length === 0) {
+    return "no match* selectors";
+  }
+  const joined = rule.clauses.map((c) => c.key).join(" + ");
+  // no-input (fail-closed: the dependency lacks the field) fails the rule just
+  // like a genuine no-match, so it counts as the deciding clause here too.
+  const failing = rule.clauses.find(
+    (c) => c.state === "no-match" || c.state === "no-input" || c.state === "error",
+  );
+  return failing ? `${joined} — failed on ${failing.key}` : joined;
+}

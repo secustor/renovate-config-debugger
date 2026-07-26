@@ -28,7 +28,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { ConfigEditorHandle } from "@/components/ConfigEditor";
 import type * as PresetTreeModule from "@/components/PresetTree";
 import type * as EffectiveConfigModule from "@/components/EffectiveConfig";
-import type * as RuleSimulatorModule from "@/components/RuleSimulator";
+import type * as RuleSimulatorModule from "@/features/simulator/RuleSimulator";
 import type * as MessagesPanelModule from "@/components/MessagesPanel";
 import type * as OverviewTabModule from "@/components/OverviewTab";
 
@@ -96,7 +96,7 @@ vi.mock("./components/EffectiveConfig", async (importOriginal) => {
   const mod = await importOriginal<typeof EffectiveConfigModule>();
   return { ...mod, EffectiveConfig: wrapCounting("EffectiveConfig", mod.EffectiveConfig) };
 });
-vi.mock("./components/RuleSimulator", async (importOriginal) => {
+vi.mock("./features/simulator/RuleSimulator", async (importOriginal) => {
   const mod = await importOriginal<typeof RuleSimulatorModule>();
   return { ...mod, RuleSimulator: wrapCounting("RuleSimulator", mod.RuleSimulator) };
 });

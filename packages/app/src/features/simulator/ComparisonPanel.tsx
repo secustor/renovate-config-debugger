@@ -1,0 +1,209 @@
+import type {
+  ConfigKeyDelta,
+  DependencyDescriptor,
+  RuleRef,
+  SimulationComparison,
+} from "@renovate-config-visualizer/engine";
+import { OptionKey } from "@/components/option-docs";
+import { toDescriptor } from "./form";
+import { previewValue } from "./rule-format";
+import type { PinnedRun } from "./use-ab-comparison";
+
+/**
+ * Roadmap 021: the fields two descriptors disagree on, sorted for a stable
+ * warning message. Compared via JSON so array-valued fields (lockFiles,
+ * registryUrls, categories) and the `isBump` flag (only present when
+ * updateType is "bump") are handled the same as everywhere else in this file.
+ */
+function descriptorDiffKeys(a: DependencyDescriptor, b: DependencyDescriptor): string[] {
+  const keys = new Set<string>([...Object.keys(a), ...Object.keys(b)]);
+  const diffs: string[] = [];
+  for (const key of keys) {
+    const av = (a as Record<string, unknown>)[key];
+    const bv = (b as Record<string, unknown>)[key];
+    if (JSON.stringify(av) !== JSON.stringify(bv)) {
+      diffs.push(key);
+    }
+  }
+  return diffs.toSorted();
+}
+
+/** Roadmap 021: one column ("A (pinned)" / "B (current)") of the A/B input
+ *  descriptor comparison — every field the simulator actually sent the
+ *  engine, with the fields that differ from the other column called out. */
+function DescriptorList({
+  title,
+  descriptor,
+  diffKeys,
+}: {
+  title: string;
+  descriptor: DependencyDescriptor;
+  diffKeys: Set<string>;
+}) {
+  const entries = Object.entries(descriptor).filter(([, v]) => v !== undefined);
+  return (
+    <div className="sim-compare-col">
+      <div className="sim-compare-col-title">{title}</div>
+      {entries.length === 0 ? (
+        <p className="empty-note">no fields set</p>
+      ) : (
+        <ul>
+          {entries.map(([key, value]) => (
+            <li key={key} className={diffKeys.has(key) ? "sim-input-diff" : undefined}>
+              <code>{key}</code>: {previewValue(value, 60)}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** Roadmap 018: one of the three matched-rule columns in the A/B comparison. */
+function RuleDeltaList({
+  title,
+  refs,
+  kind,
+}: {
+  title: string;
+  refs: RuleRef[];
+  kind: "only-a" | "only-b" | "both";
+}) {
+  return (
+    <div className={`sim-compare-col ${kind}`}>
+      <div className="sim-compare-col-title">
+        {title} <span className="count">{refs.length}</span>
+      </div>
+      {refs.length === 0 ? (
+        <p className="empty-note">none</p>
+      ) : (
+        <ul>
+          {refs.map((r) => (
+            <li key={`${r.index}-${r.signature}`}>
+              <span className="sim-rule-index">packageRules[{r.index}]</span> <code>{r.label}</code>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** Roadmap 018: one changed key of the final per-dependency config (A → B). */
+function ConfigDeltaRow({ delta }: { delta: ConfigKeyDelta }) {
+  return (
+    <li>
+      <span className="sim-merged-key">
+        <OptionKey name={delta.key} flagUnknown />
+      </span>{" "}
+      <span className="sim-merged-before">
+        {delta.inA ? previewValue(delta.before) : "(unset)"}
+      </span>
+      {" → "}
+      <span className="sim-merged-after">
+        {delta.inB ? previewValue(delta.after) : "(removed)"}
+      </span>
+    </li>
+  );
+}
+
+/** Roadmap 018: the final-config key delta — the settings A and B actually
+ *  disagree on, or an explicit "only the matched-rule set differs". */
+function ConfigDeltaSection({ configDelta }: { configDelta: ConfigKeyDelta[] }) {
+  return (
+    <div className="sim-compare-config">
+      <div className="sim-merged-title">Final per-dependency config changes</div>
+      {configDelta.length > 0 ? (
+        <ul>
+          {configDelta.map((d) => (
+            <ConfigDeltaRow key={d.key} delta={d} />
+          ))}
+        </ul>
+      ) : (
+        <p className="empty-note">
+          Final per-dependency config is identical — only the matched-rule set differs.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Roadmap 018: the A/B comparison panel. `comparison` is null while a result is
+ * pinned but no NEW simulation has replaced it yet (a "waiting" hint shows);
+ * once a fresh run produces B, it renders the matched-rule set delta, the
+ * final-config key delta, and an explicit "no behavioral change" verdict when
+ * both are identical.
+ *
+ * Roadmap 021: A and B can come from simulating two entirely different
+ * hypothetical dependencies (pin a lodash run, then quick-fill a Docker
+ * image and re-simulate) — the delta above would render as if it were a
+ * config edit, with no hint that the INPUTS changed too. `currentDescriptor`
+ * is always what actually produced `sim` (or, before any run since the pin,
+ * the live form) so the two input sets can be shown and diffed regardless of
+ * whether `comparison` exists yet.
+ */
+export function ComparisonPanel({
+  pinned,
+  comparison,
+  currentDescriptor,
+}: {
+  pinned: PinnedRun;
+  comparison: SimulationComparison | null;
+  currentDescriptor: DependencyDescriptor;
+}) {
+  const pinnedDescriptor = toDescriptor(pinned.form, pinned.effectiveUpdateType);
+  const diffKeys = new Set(descriptorDiffKeys(pinnedDescriptor, currentDescriptor));
+  return (
+    <div className="sim-compare">
+      <div className="sim-compare-title">A/B comparison — pinned (A) vs current (B)</div>
+      {diffKeys.size > 0 ? (
+        <p className="sim-compare-mismatch">
+          ⚠ Inputs differ between A and B — this compares two different simulated dependencies, not
+          just a config edit. Differing fields:{" "}
+          {[...diffKeys].map((k, i) => (
+            <span key={k}>
+              {i > 0 ? ", " : null}
+              <code>{k}</code>
+            </span>
+          ))}
+        </p>
+      ) : null}
+      {!comparison ? (
+        <p className="empty-note">
+          Pinned this result as <strong>A</strong>. Edit the config and run the pipeline again, then
+          simulate to compare it against <strong>B</strong>.
+        </p>
+      ) : comparison.noChange ? (
+        <p className="sim-compare-nochange">
+          No behavioral change — the matched rules and the final per-dependency config are identical
+          in A and B.
+        </p>
+      ) : (
+        <>
+          <div className="sim-compare-rules">
+            <RuleDeltaList
+              title="Only in A (stopped matching)"
+              refs={comparison.matchedOnlyInA}
+              kind="only-a"
+            />
+            <RuleDeltaList
+              title="Only in B (now matching)"
+              refs={comparison.matchedOnlyInB}
+              kind="only-b"
+            />
+            <RuleDeltaList title="Matched in both" refs={comparison.matchedInBoth} kind="both" />
+          </div>
+          <ConfigDeltaSection configDelta={comparison.configDelta} />
+        </>
+      )}
+      <details className="sim-compare-inputs" open={diffKeys.size > 0}>
+        <summary>Inputs compared</summary>
+        <div className="sim-compare-rules">
+          <DescriptorList title="A (pinned)" descriptor={pinnedDescriptor} diffKeys={diffKeys} />
+          <DescriptorList title="B (current)" descriptor={currentDescriptor} diffKeys={diffKeys} />
+        </div>
+      </details>
+    </div>
+  );
+}
