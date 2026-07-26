@@ -321,6 +321,11 @@ export function App() {
   // Migration stepper index, owned here so a shareable link (007) can restore
   // the step; reset to 0 on a new result just like the uncontrolled stepper.
   const [migrationStepIndex, setMigrationStepIndex] = useState(0);
+  // Roadmap 044: the simulator's merge-stepper index, owned here for the same
+  // reason — a shareable link restores it. The simulator itself resets it when
+  // a new simulation runs (a new merge sequence), and the reset effect below
+  // clears it on a new pipeline result.
+  const [mergeStepIndex, setMergeStepIndex] = useState(0);
   // Roadmap 028: the active results tab, and the one-step "back to where I
   // was" target recorded whenever something OTHER than a tab click moved the
   // user (a provenance chip, a message jump, an Overview pill). The ref
@@ -527,6 +532,7 @@ export function App() {
   useEffect(() => {
     setSelectedNodeId(null);
     setMigrationStepIndex(0);
+    setMergeStepIndex(0);
     // Roadmap 028: a new run invalidates both the previous run's key counts
     // (recomputed asynchronously by the effective-config view) and any
     // "back to where I was" target from the run that just ended.
@@ -585,6 +591,12 @@ export function App() {
     }
     if (typeof pending.step === "number") {
       setMigrationStepIndex(pending.step);
+    }
+    // Roadmap 044: applied BEFORE the simulator's auto-run (a `sim` link's
+    // simulation starts from the simulator's own effect, which deliberately
+    // keeps this index instead of resetting to step 0).
+    if (typeof pending.simStep === "number") {
+      setMergeStepIndex(pending.simStep);
     }
     if (pending.node && result.presetTree) {
       const id = nodeIdForIdentity(result.presetTree, pending.node);
@@ -999,6 +1011,14 @@ export function App() {
     if (migrateStepperMounted) {
       view.step = migrationStepIndex;
     }
+    // Roadmap 044: the simulator's merge step. Omitted at 0 (its default on
+    // both sides) — unlike `step`, nothing infers a tab from it (028's
+    // `legacyTabForView` predates it and every link that can carry it also
+    // carries an explicit `tab`), so an absent field costs nothing and old
+    // links keep decoding unchanged.
+    if (mergeStepIndex > 0) {
+      view.simStep = mergeStepIndex;
+    }
     return {
       config: content,
       fileName,
@@ -1316,6 +1336,8 @@ export function App() {
               errorLib={errorLib}
               simRequest={simRequest}
               onCopySimLink={buildShareLinkAndCopy}
+              mergeStepIndex={mergeStepIndex}
+              onMergeStepChange={setMergeStepIndex}
               errorCount={errorCount}
               warningCount={warningCount}
               ruleProvenance={ruleProvenance}

@@ -24,6 +24,11 @@ import type { ValidationMessage } from "./trace/model";
  * `automerge: true` for a minor update. What the flattening changed, and which
  * update-type blocks were present, is recorded on `result.flattened`.
  *
+ * Roadmap 044: both of those merge phases also record a full before/after
+ * config snapshot per merge (`result.mergeSteps`), so the app can step through
+ * HOW the final config accumulated. Recording only — no match/merge semantics
+ * change, and the 006 oracle-parity fields are untouched.
+ *
  * The one deliberate gap: `matchConfidence` needs a Merge Confidence API
  * token and upstream THROWS without one, so rules containing it are reported
  * as "not-simulated" instead of being decided — mirroring that a real run
@@ -145,6 +150,45 @@ export interface RuleEvaluation {
   notes: string[];
 }
 
+/**
+ * Roadmap 044: one merge in the sequence that built the final per-dependency
+ * config, with the FULL config on both sides so the UI can step through the
+ * accumulation (per-step diff = `before` → `after`, cumulative diff =
+ * `mergeSteps[0].before` → this step's `after`).
+ *
+ * The steps are contiguous by construction: `mergeSteps[i].after` is
+ * `mergeSteps[i + 1].before`, and `mergeSteps[0].before` is the pre-rules base
+ * (the effective config with the dependency's fields layered on, exactly the
+ * `PackageRuleInputConfig` upstream builds). Snapshots are structured clones,
+ * so a later merge can never mutate an earlier step's record.
+ */
+export interface MergeStep {
+  /**
+   * `rule` — a MATCHING packageRule's merge (upstream `mergeChildConfig` in the
+   * `applyPackageRules` tail). `flatten` — the synthetic final step for
+   * upstream's update-type flattening (`flattenUpdates`), present only when the
+   * flattening actually merged something up.
+   */
+  kind: "rule" | "flatten";
+  /** `kind: "rule"` only — the rule's position in `packageRules`, i.e. the
+   *  `RuleEvaluation.index` whose identity/provenance names this step. */
+  ruleIndex?: number;
+  /** `kind: "flatten"` only — the update type whose block merged up. */
+  updateType?: string;
+  /** The cumulative config before this merge. */
+  before: Record<string, unknown>;
+  /** The cumulative config after this merge. */
+  after: Record<string, unknown>;
+  /**
+   * The keys this merge set/changed — the same array as
+   * `RuleEvaluation.merged` / `FlattenResult.merged`. For the flatten step this
+   * names what the update-type block merged UP; the step's before/after
+   * additionally shows the update-type blocks being dropped, because that is
+   * the other half of what `flattenUpdates` does.
+   */
+  merged: MergedKey[];
+}
+
 export interface SimulationResult {
   rules: RuleEvaluation[];
   /** Exactly what `applyPackageRules` would return (dep fields included). */
@@ -157,6 +201,12 @@ export interface SimulationResult {
   finalDependencyConfig: Record<string, unknown>;
   /** What Renovate's update-type flattening changed (roadmap 012). */
   flattened: FlattenResult;
+  /**
+   * Roadmap 044: the merge sequence that produced the config above, one entry
+   * per MATCHING rule (in order) plus the synthetic update-type flattening step
+   * when it merged something. Empty when no rule matched.
+   */
+  mergeSteps: MergeStep[];
   /** `validateConfig("repo", { packageRules })` output for the rules block. */
   errors: ValidationMessage[];
   warnings: ValidationMessage[];
@@ -409,6 +459,22 @@ async function evaluateRule(
   return { index, verdict, clauses, notes };
 }
 
+/**
+ * Roadmap 044: a detached copy of a cumulative config for a merge step. The
+ * configs here are JSON (a resolved Renovate config plus the simulated
+ * dependency's fields), so `structuredClone` is exact; the JSON round-trip
+ * fallback covers the theoretical value it would refuse (a function reaching
+ * the config would make the whole simulation unserializable anyway) rather
+ * than letting a snapshot throw and take the simulation down with it.
+ */
+function snapshot(config: Record<string, unknown>): Record<string, unknown> {
+  try {
+    return structuredClone(config);
+  } catch {
+    return JSON.parse(JSON.stringify(config)) as Record<string, unknown>;
+  }
+}
+
 /** Keys whose value changed between two cumulative configs. */
 function diffKeys(before: Record<string, unknown>, after: Record<string, unknown>): MergedKey[] {
   const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
@@ -455,6 +521,10 @@ async function execute(input: SimulationInput): Promise<SimulationResult> {
     }
 
     const rules: RuleEvaluation[] = [];
+    // Roadmap 044: full before/after snapshots of every merge, so the UI can
+    // step through the accumulation. Configs here are small (one resolved
+    // config), so the clone per matching rule is negligible.
+    const mergeSteps: MergeStep[] = [];
     let config: Record<string, unknown> = { ...inputConfig };
     let anyNotSimulated = false;
 
@@ -480,6 +550,10 @@ async function execute(input: SimulationInput): Promise<SimulationResult> {
 
       // ---- upstream applyPackageRules merge tail, replicated ----
       const before = config;
+      // Roadmap 044: taken BEFORE the merge runs — `before` and `config` share
+      // their nested objects, so a snapshot taken afterwards could no longer be
+      // trusted to show the pre-merge state.
+      const beforeSnapshot = snapshot(before);
       config = { ...config };
       const toApply = removeMatchers(rawRule);
       if (config.groupSlug && rawRule.groupName && !rawRule.groupSlug) {
@@ -540,6 +614,17 @@ async function execute(input: SimulationInput): Promise<SimulationResult> {
       delete toApply.overridePackageName;
       config = mergeChildConfig(config, toApply) as Record<string, unknown>;
       evaluation.merged = diffKeys(before, config);
+      // Roadmap 044: recorded for EVERY matching rule, `merged` empty or not —
+      // "this rule matched and changed nothing" is an answer the stepper has to
+      // be able to give, and it keeps the step count equal to the matched-rule
+      // count the verdict block reports.
+      mergeSteps.push({
+        kind: "rule",
+        ruleIndex: index,
+        before: beforeSnapshot,
+        after: snapshot(config),
+        merged: evaluation.merged,
+      });
     }
 
     if (anyNotSimulated) {
@@ -566,6 +651,12 @@ async function execute(input: SimulationInput): Promise<SimulationResult> {
     for (const key of UPDATE_TYPE_KEYS) {
       delete preFlatten[key];
     }
+    // Roadmap 044: the flatten step's `before` is the config as the rules left
+    // it — update-type blocks INCLUDED — so consecutive steps stay contiguous
+    // (`step[i].after === step[i + 1].before`) and the step's own diff shows
+    // both halves of what `flattenUpdates` does: the block merged up, and every
+    // update-type block then dropped.
+    const preFlattenSnapshot = snapshot(config);
     let flattenedConfig: Record<string, unknown> = { ...config };
     const updateBlock = updateType !== undefined ? config[updateType] : undefined;
     if (isPlainObject(updateBlock)) {
@@ -580,6 +671,16 @@ async function execute(input: SimulationInput): Promise<SimulationResult> {
         `update-type flattening merged the \`${updateType}\` block up into the config: ` +
           flattenMerged.map((m) => `\`${m.key}\``).join(", "),
       );
+      // Roadmap 044: the synthetic final step — only when the flattening really
+      // merged something up (a run that merely dropped blocks it had no use for
+      // has nothing to step through).
+      mergeSteps.push({
+        kind: "flatten",
+        updateType,
+        before: preFlattenSnapshot,
+        after: snapshot(flattenedConfig),
+        merged: flattenMerged,
+      });
     }
 
     const finalDependencyConfig = { ...flattenedConfig };
@@ -595,6 +696,7 @@ async function execute(input: SimulationInput): Promise<SimulationResult> {
       rawFinalConfig: config,
       finalDependencyConfig,
       flattened: { updateType, merged: flattenMerged, blocks },
+      mergeSteps,
       errors,
       warnings,
       notes,

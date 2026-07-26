@@ -86,6 +86,8 @@ export interface SanitizedShareView {
   stage?: StageId;
   node?: string | null;
   step?: number;
+  /** Roadmap 044: the simulator's merge-step index. */
+  simStep?: number;
   tab?: ResultsTabId;
 }
 
@@ -120,6 +122,12 @@ export function sanitizeShareView(raw: unknown): SanitizedShareView | undefined 
   const step = stepIndexSchema.safeParse(raw.step);
   if (step.success) {
     out.step = step.data;
+  }
+  // Roadmap 044: same rule as `step` — a nonnegative integer index, dropped on
+  // its own if malformed rather than failing the link.
+  const simStep = stepIndexSchema.safeParse(raw.simStep);
+  if (simStep.success) {
+    out.simStep = simStep.data;
   }
   const tab = resultsTabIdSchema.safeParse(raw.tab);
   if (tab.success) {

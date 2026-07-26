@@ -70,6 +70,10 @@ export interface ResultsColumnProps {
   errorLib: ErrorTranslationLib | null;
   simRequest: SimRequest | null;
   onCopySimLink: (sim: ShareSimulator) => Promise<void>;
+  /** Roadmap 044: the simulator's merge-stepper index (owned by App so a share
+   *  link can restore it, exactly like `migrationStepIndex`). */
+  mergeStepIndex: number;
+  onMergeStepChange: (index: number) => void;
   errorCount: number;
   warningCount: number;
   ruleProvenance: RuleAttribution[] | null | undefined;
@@ -134,6 +138,8 @@ export function ResultsColumn({
   errorLib,
   simRequest,
   onCopySimLink,
+  mergeStepIndex,
+  onMergeStepChange,
   errorCount,
   warningCount,
   ruleProvenance,
@@ -274,6 +280,8 @@ export function ResultsColumn({
           simRequest={simRequest}
           onCopySimLink={onCopySimLink}
           configInvalid={validateHasErrors}
+          mergeStepIndex={mergeStepIndex}
+          onMergeStepChange={onMergeStepChange}
         />
       ) : (
         <p className="empty-note">
@@ -325,6 +333,8 @@ export function ResultsColumn({
     errorLib,
     simRequest,
     onCopySimLink,
+    mergeStepIndex,
+    onMergeStepChange,
     errorCount,
     warningCount,
     ruleProvenance,

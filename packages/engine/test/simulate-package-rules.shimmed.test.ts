@@ -396,4 +396,94 @@ describe("simulatePackageRules", () => {
     expect(result.errors).toEqual([]);
     expect(result.finalDependencyConfig.automerge).toBe(true);
   });
+
+  /**
+   * Roadmap 044: the merge sequence is recorded with FULL before/after config
+   * snapshots — one step per MATCHING rule (non-matching rules merge nothing
+   * and get none) plus the synthetic update-type flattening step — so the app's
+   * stepper can derive both the per-step and the cumulative diff from it.
+   */
+  it("records a before/after snapshot per matching rule merge plus the flatten step", async () => {
+    const config = {
+      packageRules: [
+        { matchManagers: ["npm"], automerge: false, addLabels: ["from-first"] },
+        { matchPackageNames: ["react"], labels: ["never-applied"] },
+        { matchDatasources: ["npm"], addLabels: ["from-second"], minor: { automerge: true } },
+      ],
+    };
+    const minorDep: DependencyDescriptor = { ...npmDep, updateType: "minor" };
+    const result = await simulatePackageRules({ config, dep: minorDep });
+    expect(result.rules.map((r) => r.verdict)).toEqual(["matched", "no-match", "matched"]);
+
+    const steps = result.mergeSteps;
+    // Two matching rules, in order, then the flattening — the middle rule
+    // matched nothing and contributes no step.
+    expect(steps.map((s) => s.kind)).toEqual(["rule", "rule", "flatten"]);
+    expect(steps.map((s) => s.ruleIndex)).toEqual([0, 2, undefined]);
+    expect(steps[2]?.updateType).toBe("minor");
+
+    // Step 0 starts from the pre-rules base: the effective config with the
+    // dependency's fields layered on, exactly upstream's PackageRuleInputConfig.
+    expect(steps[0]?.before).toEqual(oracleInput(config, minorDep));
+    expect(steps[0]?.before).not.toHaveProperty("automerge");
+    expect(steps[0]?.after.automerge).toBe(false);
+    expect(steps[0]?.after.addLabels).toEqual(["from-first"]);
+
+    // Contiguous: each step's `after` is the next step's `before`, which is what
+    // makes the cumulative diff (step 0's `before` → step N's `after`) exact.
+    for (const [i, step] of steps.slice(0, -1).entries()) {
+      expect(step.after).toEqual(steps[i + 1]?.before);
+      // …but a distinct snapshot, never the same object aliased twice.
+      expect(step.after).not.toBe(steps[i + 1]?.before);
+    }
+
+    // The second matching rule concatenates the mergeable list and carries the
+    // update-type block that only the flattening resolves.
+    expect(steps[1]?.after.addLabels).toEqual(["from-first", "from-second"]);
+    expect(steps[1]?.after.automerge).toBe(false);
+    expect(steps[1]?.after.minor).toEqual({ automerge: true });
+
+    // The flatten step merges the `minor` block up and drops every update-type
+    // block — both halves of what upstream `flattenUpdates` does.
+    expect(steps[2]?.before.minor).toEqual({ automerge: true });
+    expect(steps[2]?.after).not.toHaveProperty("minor");
+    expect(steps[2]?.after.automerge).toBe(true);
+
+    // Each step's changed-key list is the one the rest of the result already
+    // reports for that merge, so the stepper and the chips can never disagree.
+    expect(steps[0]?.merged).toEqual(result.rules[0]?.merged);
+    expect(steps[1]?.merged).toEqual(result.rules[2]?.merged);
+    expect(steps[2]?.merged).toEqual(result.flattened.merged);
+    expect(steps[2]?.merged).toContainEqual({ key: "automerge", before: false, after: true });
+
+    // The last step's `after` IS the final per-dependency config (modulo the
+    // display stripping the simulator already does).
+    const last = steps[steps.length - 1];
+    expect(toDisplay(last?.after ?? {}, minorDep)).toEqual(result.finalDependencyConfig);
+  });
+
+  /**
+   * Roadmap 044: a rule that matches but sets nothing still gets a step (the
+   * honest answer to "what did THIS rule change?" is "nothing", and the step
+   * count stays equal to the matched-rule count the verdict block reports),
+   * while a simulation where nothing matched and nothing flattened has no
+   * sequence to step through at all.
+   */
+  it("records a step for a matching rule that changed nothing, and none when nothing merged", async () => {
+    const matchedNoop = await simulatePackageRules({
+      config: { packageRules: [{ matchManagers: ["npm"] }] },
+      dep: npmDep,
+    });
+    expect(matchedNoop.rules[0]?.verdict).toBe("matched");
+    expect(matchedNoop.mergeSteps).toHaveLength(1);
+    expect(matchedNoop.mergeSteps[0]?.merged).toEqual([]);
+    expect(matchedNoop.mergeSteps[0]?.before).toEqual(matchedNoop.mergeSteps[0]?.after);
+
+    const nothingMatched = await simulatePackageRules({
+      config: { packageRules: [{ matchPackageNames: ["react"], automerge: true }] },
+      dep: npmDep,
+    });
+    expect(nothingMatched.rules[0]?.verdict).toBe("no-match");
+    expect(nothingMatched.mergeSteps).toEqual([]);
+  });
 });

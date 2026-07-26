@@ -171,6 +171,29 @@ describe("033: one sanitizer — encode∘decode fixpoints", () => {
     }
   });
 
+  test("simStep (044) round-trips alongside the migrate step and the sim inputs", async () => {
+    const token = await encodeShare(
+      minimalState({
+        view: { stage: "merge", step: 0, simStep: 2, tab: "simulator" },
+        sim: { form: { packageName: "lodash" }, autoSimulate: true },
+      }),
+    );
+    const result = await decodeShareResult(token);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.view).toEqual({
+        stage: "merge",
+        step: 0,
+        simStep: 2,
+        tab: "simulator",
+      });
+      expect(result.payload.sim).toEqual({
+        form: { packageName: "lodash" },
+        autoSimulate: true,
+      });
+    }
+  });
+
   test("an all-empty view is still omitted from the payload", async () => {
     const token = await encodeShare(minimalState({ view: {} }));
     const result = await decodeShareResult(token);
@@ -321,6 +344,30 @@ describe("030: view/sim are sanitized per-field, never hard-fail the payload", (
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.payload.view).toEqual({ stage: "preset" });
+    }
+  });
+
+  // Roadmap 044: the new field is additive within v2 in BOTH directions — a
+  // pre-044 link (no `simStep`) decodes exactly as it did, and a hand-edited or
+  // future-mangled `simStep` is dropped on its own like every other view field.
+  test("a pre-044 link without simStep decodes unchanged; a malformed simStep is dropped alone", async () => {
+    const old = await rawEncodeToken(
+      taggedPayload({ view: { stage: "preset", step: 1, tab: "rewrites" } }),
+    );
+    const oldResult = await decodeShareResult(old);
+    expect(oldResult.ok).toBe(true);
+    if (oldResult.ok) {
+      expect(oldResult.payload.view).toEqual({ stage: "preset", step: 1, tab: "rewrites" });
+      expect(oldResult.payload.view?.simStep).toBeUndefined();
+    }
+
+    const mangled = await rawEncodeToken(
+      taggedPayload({ view: { tab: "simulator", simStep: -3 } }),
+    );
+    const mangledResult = await decodeShareResult(mangled);
+    expect(mangledResult.ok).toBe(true);
+    if (mangledResult.ok) {
+      expect(mangledResult.payload.view).toEqual({ tab: "simulator" });
     }
   });
 

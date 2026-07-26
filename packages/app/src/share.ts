@@ -35,6 +35,13 @@ export interface ShareView {
   /** Migration step index (only meaningful while the migrate stepper is mounted). */
   step?: number;
   /**
+   * Roadmap 044: the simulator's merge-step index. Additive within v2 exactly
+   * like `tab` — a pre-044 link simply lacks it (absent = step 0) and a pre-044
+   * reader ignores the unknown key. Only meaningful together with a `sim`
+   * descriptor that reproduces the simulation; on its own it restores nothing.
+   */
+  simStep?: number;
+  /**
    * Roadmap 028: the active results tab. Additive within v2 — a pre-028 link
    * simply lacks it and the opener infers a tab from stage/node/step
    * (`legacyTabForView`), and a pre-028 reader ignores the unknown key.

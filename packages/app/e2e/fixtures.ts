@@ -227,3 +227,31 @@ export const PACKAGE_RULES_CONFIG = `{
   ]
 }
 `;
+
+/**
+ * Roadmap 044: a packageRules config where the "npm dependency" quick-fill
+ * (lodash, patch) matches TWO rules that touch the same key — the merge
+ * step-through's whole subject. The middle rule never matches, so it must not
+ * appear as a step. No `extends`, so it runs offline.
+ */
+export const MERGE_STEPS_CONFIG = `{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "packageRules": [
+    {
+      "matchManagers": ["npm"],
+      "automerge": false,
+      "addLabels": ["from-managers-rule"]
+    },
+    {
+      "matchPackageNames": ["react"],
+      "addLabels": ["never-applied"]
+    },
+    {
+      "matchPackageNames": ["lodash"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true,
+      "addLabels": ["from-lodash-rule"]
+    }
+  ]
+}
+`;

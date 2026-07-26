@@ -27,6 +27,7 @@ import { ErrorTranslationView } from "./ErrorTranslationView";
 import { HypotheticalBanner } from "./HypotheticalBanner";
 import { ProvenanceChip } from "./ProvenanceChip";
 import { RuleMessage } from "./RuleMessage";
+import { StepThrough, type StepThroughStep } from "./StepThrough";
 
 /** Roadmap 018: a share link's simulator inputs, applied to the form once. */
 interface SimRequest {
@@ -978,14 +979,135 @@ function SimMessages({
   );
 }
 
-/** The tail of the results block: which keys the rules changed, and the full
- *  resolved dependency config behind a disclosure. */
+/** Roadmap 044: the changed keys of one merge step, as inline `<code>` chips
+ *  inside the stepper's explanation row. */
+function mergedKeyList(merged: MergedKey[]): ReactNode {
+  return merged.map((m, i) => (
+    <span key={m.key}>
+      {i > 0 ? ", " : null}
+      <code>
+        <OptionKey name={m.key} flagUnknown />
+      </code>
+    </span>
+  ));
+}
+
+/**
+ * Roadmap 044: the merge sequence as a step-through — the 004 stepper's exact
+ * interaction (Step N of M, Prev/Next/Jump to end, per-step diff, Cumulative)
+ * over the engine's `mergeSteps`: one step per MATCHING rule, in merge order,
+ * plus the synthetic update-type flattening step when it merged something.
+ * Non-matching rules are deliberately absent — they merge nothing, and the rule
+ * list already explains them clause by clause (they'd be empty diffs here).
+ *
+ * Each rule step is titled by the rule's 013 identity — the same
+ * `packageRules[N]` + clause label + provenance chip a rule row carries — so a
+ * step and its row are unmistakably the same rule.
+ */
+function SimMergeSteps({
+  sim,
+  layerByIndex,
+  onSelectPreset,
+  index,
+  onIndexChange,
+}: {
+  sim: SimulationResult;
+  layerByIndex: Map<number, ProvenanceLayer>;
+  onSelectPreset?: (nodeId: string) => void;
+  index?: number;
+  onIndexChange?: (index: number) => void;
+}) {
+  const steps = useMemo<StepThroughStep[]>(
+    () =>
+      sim.mergeSteps.map((step) => {
+        if (step.kind === "flatten") {
+          return {
+            id: "flatten",
+            before: step.before,
+            after: step.after,
+            head: (
+              <>
+                <span className="migration-step-name">Update-type flattening</span>
+                {step.updateType ? (
+                  <code className="migration-step-key">{step.updateType}</code>
+                ) : null}
+              </>
+            ),
+            explanation: (
+              <>
+                After the rules, Renovate merges the <code>{step.updateType}</code> block up into
+                the config and then drops every update-type block. Merged:{" "}
+                {mergedKeyList(step.merged)}.
+              </>
+            ),
+          };
+        }
+        const rule = sim.rules.find((r) => r.index === step.ruleIndex);
+        const layer = step.ruleIndex === undefined ? undefined : layerByIndex.get(step.ruleIndex);
+        return {
+          id: `rule-${step.ruleIndex}`,
+          before: step.before,
+          after: step.after,
+          head: (
+            <>
+              <span className="sim-rule-index">packageRules[{step.ruleIndex}]</span>
+              <span className="migration-step-name">{rule ? ruleLabel(rule) : "matched rule"}</span>
+              {layer ? (
+                <span className="sim-rule-provenance">
+                  <ProvenanceChip layer={layer} onSelectPreset={onSelectPreset} />
+                </span>
+              ) : null}
+            </>
+          ),
+          explanation:
+            step.merged.length > 0 ? (
+              <>This rule set {mergedKeyList(step.merged)}.</>
+            ) : (
+              <>
+                This rule matched but set nothing beyond its <code>match*</code> selectors — the
+                config is unchanged by it.
+              </>
+            ),
+        };
+      }),
+    [sim, layerByIndex, onSelectPreset],
+  );
+
+  if (steps.length === 0) {
+    return null;
+  }
+  return (
+    <div className="sim-merge-steps">
+      <div className="sim-merged-title">How the rules built it, one merge at a time</div>
+      <StepThrough
+        steps={steps}
+        index={index}
+        onIndexChange={onIndexChange}
+        cumulativeNames={["before any rule", "after this step"]}
+      />
+    </div>
+  );
+}
+
+/** The tail of the results block: which keys the rules changed, the merge
+ *  step-through (044), and the full resolved dependency config behind a
+ *  disclosure. */
 function SimFinal({
   changedKeys,
   finalDependencyConfig,
+  sim,
+  layerByIndex,
+  onSelectPreset,
+  mergeStepIndex,
+  onMergeStepChange,
 }: {
   changedKeys: string[];
   finalDependencyConfig: SimulationResult["finalDependencyConfig"];
+  sim: SimulationResult;
+  layerByIndex: Map<number, ProvenanceLayer>;
+  onSelectPreset?: (nodeId: string) => void;
+  mergeStepIndex?: number;
+  onMergeStepChange?: (index: number) => void;
 }) {
   return (
     <div className="sim-final">
@@ -1005,6 +1127,15 @@ function SimFinal({
       ) : (
         <p className="sim-changed">No rule changed anything for this dependency.</p>
       )}
+      {/* Hidden outright when nothing merged (no rule matched and no update-type
+          block flattened): there is no sequence to step through. */}
+      <SimMergeSteps
+        sim={sim}
+        layerByIndex={layerByIndex}
+        onSelectPreset={onSelectPreset}
+        index={mergeStepIndex}
+        onIndexChange={onMergeStepChange}
+      />
       <details>
         <summary>Show the full resolved dependency config</summary>
         <pre className="config-view">
@@ -1028,6 +1159,8 @@ export const RuleSimulator = memo(function RuleSimulator({
   simRequest,
   onCopySimLink,
   configInvalid,
+  mergeStepIndex,
+  onMergeStepChange,
 }: {
   result: TraceResult;
   /** Roadmap 013: a rule row's provenance chip → the contributing preset node in the tree. */
@@ -1055,6 +1188,10 @@ export const RuleSimulator = memo(function RuleSimulator({
   /** Roadmap 023: validation reported errors — a real Renovate run would refuse
    *  this config, so these simulation results are hypothetical. */
   configInvalid?: boolean;
+  /** Roadmap 044: the merge stepper's index, owned by App so a share link can
+   *  restore it (mirrors `migrationStepIndex`). Absent = uncontrolled. */
+  mergeStepIndex?: number;
+  onMergeStepChange?: (index: number) => void;
 }) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [sim, setSim] = useState<SimulationResult | null>(null);
@@ -1122,9 +1259,9 @@ export const RuleSimulator = memo(function RuleSimulator({
   // latest-ref pattern keeps the deps `[simRequest, result]` while the effect
   // still invokes the CURRENT closure — the one that sees the config the run
   // this link triggered just produced.
-  const simulateRef = useRef<((nextForm: FormState, touched: boolean) => Promise<void>) | null>(
-    null,
-  );
+  const simulateRef = useRef<
+    ((nextForm: FormState, touched: boolean, keepStep?: boolean) => Promise<void>) | null
+  >(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -1179,7 +1316,10 @@ export const RuleSimulator = memo(function RuleSimulator({
     const touched = next.updateType.trim() !== "";
     setUpdateTypeTouched(touched);
     if (simRequest.autoSimulate) {
-      void simulateRef.current?.(next, touched);
+      // Roadmap 044: the link's own merge-step index has already been applied
+      // by App — this auto-run must not reset it back to step 0, which is the
+      // whole point of a link that says "look at what THIS rule does".
+      void simulateRef.current?.(next, touched, true);
     }
   }, [simRequest, result]);
 
@@ -1323,7 +1463,7 @@ export const RuleSimulator = memo(function RuleSimulator({
    * `quickFill` below also resets the state flag in the same tick — reading
    * it here would race against that update.
    */
-  async function simulate(nextForm: FormState, touched: boolean) {
+  async function simulate(nextForm: FormState, touched: boolean, keepStep = false) {
     if (!finalConfig) {
       return;
     }
@@ -1360,6 +1500,13 @@ export const RuleSimulator = memo(function RuleSimulator({
       setRanKey(JSON.stringify(nextForm));
       setShowAll(false);
       setFocusHint(null);
+      // Roadmap 044: a new simulation is a new merge sequence — start at its
+      // first step (the controlled index lives in App, so the reset does too,
+      // exactly like the migration stepper's). `keepStep` is the share-link
+      // auto-run, whose index the link itself just restored.
+      if (!keepStep) {
+        onMergeStepChange?.(0);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -1798,7 +1945,15 @@ export const RuleSimulator = memo(function RuleSimulator({
                 ) : null}
               </p>
             )}
-            <SimFinal changedKeys={changedKeys} finalDependencyConfig={sim.finalDependencyConfig} />
+            <SimFinal
+              changedKeys={changedKeys}
+              finalDependencyConfig={sim.finalDependencyConfig}
+              sim={sim}
+              layerByIndex={layerByIndex}
+              onSelectPreset={onSelectPreset}
+              mergeStepIndex={mergeStepIndex}
+              onMergeStepChange={onMergeStepChange}
+            />
           </div>
         </div>
       ) : null}

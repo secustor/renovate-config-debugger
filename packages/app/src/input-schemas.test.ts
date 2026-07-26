@@ -390,6 +390,15 @@ describe("sanitizeShareView", () => {
       tab: "presets",
     });
   });
+  // Roadmap 044: the simulator's merge-step index, validated by the same rule.
+  test("a valid simStep passes through; a malformed one is dropped alone", () => {
+    expect(sanitizeShareView({ tab: "simulator", simStep: 0 })).toEqual({
+      tab: "simulator",
+      simStep: 0,
+    });
+    expect(sanitizeShareView({ tab: "simulator", simStep: "2" })).toEqual({ tab: "simulator" });
+    expect(sanitizeShareView({ simStep: -1 })).toBeUndefined();
+  });
   test("a string step is dropped, not the whole view", () => {
     expect(sanitizeShareView({ stage: "preset", step: "2" })).toEqual({ stage: "preset" });
   });

@@ -1912,6 +1912,19 @@ pre.config-view.prov-before {
   margin: 0.35rem 0;
 }
 
+/* 044: the merge step-through inside the final-config section. It reuses the
+   004 `.migration-steps` grammar verbatim — the only thing it adds is the
+   section spacing every other `.sim-final` block has. 042's insets are scoped
+   to `.card > .migration-steps`, so they deliberately don't reach this one: it
+   sits inside `.sim-results`, which already brings the card's 0.75rem inset. */
+.sim-merge-steps {
+  margin: 0.5rem 0 0.75rem;
+}
+
+.sim-merge-steps .migration-steps {
+  margin-top: 0.4rem;
+}
+
 .sim-final > details > summary {
   cursor: pointer;
   font-size: 0.85rem;

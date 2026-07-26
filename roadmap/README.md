@@ -48,7 +48,7 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [041](041-warn-tier-to-error.md)                      | Promote the warn tier to error                            | M10                  | done    |
 | [042](042-rewrites-inset-and-pipeline-arrows.md)      | Rewrites inset + Pipeline order arrows                    | M10                  | done    |
 | [043](043-docker-self-host.md)                        | Docker self-host distribution                             | M11                  | done    |
-| [044](044-simulator-merge-step-through.md)            | Simulator: step through rule merges one at a time         | M12                  | planned |
+| [044](044-simulator-merge-step-through.md)            | Simulator: step through rule merges one at a time         | M12                  | done    |
 | [045](045-auto-load-inherited-config.md)              | Auto-load the inherited config for a loaded repository    | M12                  | planned |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
@@ -98,7 +98,7 @@ installable rather than only visitable: published container images, and the
 runtime-configuration mechanism a single published image needs to offer an
 optional sign-in it cannot bake in.
 
-M12 collects the 2026-07-26 user-requested feature work, both planned:
-044 gives the simulator the migration stepper's step-through over its
-rule-merge sequence, and 045 auto-resolves the inherited-config layer
+M12 collects the 2026-07-26 user-requested feature work. 044 gave the
+simulator the migration stepper's step-through over its rule-merge
+sequence; 045, still planned, auto-resolves the inherited-config layer
 from a loaded repository the way a real `inheritConfig` run does.

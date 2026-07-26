@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { encodeShareFragment, PACKAGE_RULES_CONFIG } from "./fixtures";
+import { encodeShareFragment, MERGE_STEPS_CONFIG, PACKAGE_RULES_CONFIG } from "./fixtures";
 import { openTab } from "./helpers";
 
 /**
@@ -105,4 +105,63 @@ test("A/B pin warns when the compared runs describe different simulated inputs",
   const inputsPanel = page.locator(".sim-compare-inputs");
   await expect(inputsPanel).toContainText("lodash");
   await expect(inputsPanel).toContainText("actions/checkout");
+});
+
+/**
+ * Roadmap 044 — the merge step-through. With two rules matching the same
+ * dependency and fighting over `automerge`, the stepper must walk the merges one
+ * at a time: step 1 is the rule that set `automerge: false`, step 2 the rule
+ * that overrode it, and the diff has to change when the user steps forward. The
+ * rule that never matched contributes no step.
+ */
+test("the merge stepper walks the matching rules one at a time", async ({ page }) => {
+  const fragment = await encodeShareFragment({ config: MERGE_STEPS_CONFIG });
+  await page.goto(fragment);
+
+  await openTab(page, "simulator");
+  const simulator = page.locator(".card", { hasText: "Update simulator" });
+  await expect(simulator).toBeVisible();
+
+  await simulator.getByRole("button", { name: "npm dependency" }).click();
+  await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
+
+  // Two matching rules → two steps; the non-matching middle rule has none.
+  const stepper = page.locator(".sim-merge-steps");
+  await expect(stepper).toBeVisible();
+  const counter = stepper.locator(".migration-step-counter");
+  await expect(counter).toHaveText("Step 1 of 2");
+  const head = stepper.locator(".migration-step-head");
+  await expect(head).toContainText("packageRules[0]");
+  // Only `addLabels`: this rule's `automerge: false` matches the default the
+  // effective config already carried, so it changed nothing — exactly the kind
+  // of thing the per-step record is here to make visible.
+  await expect(stepper.locator(".migration-explanation")).toContainText("addLabels");
+
+  const diff = stepper.locator(".diff-wrapper");
+  const firstDiff = await diff.innerText();
+  expect(firstDiff).toContain("from-managers-rule");
+
+  // Stepping forward lands on the LAST rule — the one that wins `automerge`.
+  await stepper.getByRole("button", { name: "Next ›" }).click();
+  await expect(counter).toHaveText("Step 2 of 2");
+  await expect(head).toContainText("packageRules[2]");
+  await expect(stepper.locator(".migration-explanation")).toContainText("automerge");
+  const secondDiff = await diff.innerText();
+  expect(secondDiff).not.toBe(firstDiff);
+  expect(secondDiff).toContain("from-lodash-rule");
+
+  // The cumulative toggle re-frames the same step against the pre-rules base,
+  // so the diff changes again without moving the step.
+  await stepper.getByLabel("Cumulative").check();
+  await expect(counter).toHaveText("Step 2 of 2");
+  const cumulativeDiff = await stepper.locator(".diff-wrapper").innerText();
+  expect(cumulativeDiff).not.toBe(secondDiff);
+  expect(cumulativeDiff).toContain("from-managers-rule");
+  expect(cumulativeDiff).toContain("from-lodash-rule");
+
+  // A dependency no rule matches has no merge sequence — the stepper is gone,
+  // not an empty frame.
+  await simulator.getByRole("button", { name: "Dockerfile image" }).click();
+  await expect(page.locator(".sim-verdict-block")).toContainText("0 of 3 rules");
+  await expect(stepper).toHaveCount(0);
 });

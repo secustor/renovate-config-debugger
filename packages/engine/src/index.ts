@@ -5,6 +5,7 @@ export {
   type DependencyDescriptor,
   type FlattenResult,
   type MergedKey,
+  type MergeStep,
   type RuleEvaluation,
   type RuleVerdict,
   simulatePackageRules,
