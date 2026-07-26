@@ -41,6 +41,48 @@ interface Props {
   onInheritedTextChange: (value: string) => void;
 }
 
+/** The platform/endpoint pair (010 "reflect, then override"). Its own
+ *  component since 040's depth ratchet: an `<option>` inside the select inside
+ *  its label is three elements below the row. */
+function PlatformEndpointRow({
+  displayPlatform,
+  displayEndpoint,
+  onPlatformChange,
+  onEndpointChange,
+}: {
+  displayPlatform: string;
+  displayEndpoint: string;
+  onPlatformChange: (value: string) => void;
+  onEndpointChange: (value: string) => void;
+}) {
+  return (
+    <div className="advanced-row">
+      <label>
+        Platform
+        <select value={displayPlatform} onChange={(e) => onPlatformChange(e.target.value)}>
+          {PLATFORMS.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+          {!PLATFORMS.includes(displayPlatform) ? (
+            <option value={displayPlatform}>{displayPlatform}</option>
+          ) : null}
+        </select>
+      </label>
+      <label className="grow">
+        Endpoint
+        <input
+          type="text"
+          placeholder={PLATFORM_ENDPOINTS[displayPlatform] || "not fetched in the browser"}
+          value={displayEndpoint}
+          onChange={(e) => onEndpointChange(e.target.value)}
+        />
+      </label>
+    </div>
+  );
+}
+
 export function AdvancedZone({
   open,
   onOpenChange,
@@ -116,30 +158,12 @@ export function AdvancedZone({
             or a bare <code>owner/repo</code>). Set the host and API endpoint they should resolve
             against.
           </p>
-          <div className="advanced-row">
-            <label>
-              Platform
-              <select value={displayPlatform} onChange={(e) => onPlatformChange(e.target.value)}>
-                {PLATFORMS.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-                {!PLATFORMS.includes(displayPlatform) ? (
-                  <option value={displayPlatform}>{displayPlatform}</option>
-                ) : null}
-              </select>
-            </label>
-            <label className="grow">
-              Endpoint
-              <input
-                type="text"
-                placeholder={PLATFORM_ENDPOINTS[displayPlatform] || "not fetched in the browser"}
-                value={displayEndpoint}
-                onChange={(e) => onEndpointChange(e.target.value)}
-              />
-            </label>
-          </div>
+          <PlatformEndpointRow
+            displayPlatform={displayPlatform}
+            displayEndpoint={displayEndpoint}
+            onPlatformChange={onPlatformChange}
+            onEndpointChange={onEndpointChange}
+          />
           {/* Roadmap 030: the "dangerous URL" rule, surfaced inline
               (014/023 style) — the same check that gates Run in
               `blockedByLayerErrors` and the one that keeps a bad

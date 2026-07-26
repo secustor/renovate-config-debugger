@@ -19,7 +19,7 @@ import type {
 import { AdvancedZone } from "./components/AdvancedZone";
 import type { ConfigEditorHandle } from "./components/ConfigEditor";
 import { ConfigEditorCard } from "./components/ConfigEditorCard";
-import { CopyButton } from "./components/CopyButton";
+import { ConfigToolbar } from "./components/ConfigToolbar";
 import type { EffectiveStats } from "./components/EffectiveConfig";
 import { type AuthState, GithubAuthHint } from "./components/GithubAuthHint";
 import {
@@ -42,7 +42,6 @@ import {
   getStoredUser,
   installUrl,
   isSignedIn,
-  REVOKE_URL,
   signOut,
   type StoredUser,
 } from "./oauth";
@@ -1201,114 +1200,23 @@ export function App() {
               onCloseRepoForm={closeRepoForm}
             />
 
-            <div className="toolbar">
-              {/* Roadmap 039: `.ctl` gives form controls the same metrics as
-                  `.btn`, so this row is ONE height end to end. */}
-              <select
-                className="ctl"
-                value={fileName}
-                onChange={(e) => setFileName(e.target.value as typeof fileName)}
-              >
-                <option value="renovate.json">renovate.json</option>
-                <option value="renovate.json5">renovate.json5</option>
-              </select>
-              {/* Roadmap 035: rendered only when there is something to revert.
-                  It used to be permanently present and merely `disabled`, which
-                  looked identical to the enabled state — an offer of an action
-                  that silently did nothing. Absence is the honest signal. */}
-              {content === loadedContent ? null : (
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => loadConfigText(loadedContent)}
-                  title="Restore the config text as it was last loaded — the default, an example, a share link, a repo fetch, or an applied fix — discarding edits made since"
-                >
-                  Revert to loaded config
-                </button>
-              )}
-              {oauthConfig ? (
-                signedIn ? (
-                  <span className="gh-auth-chip" title="Signed in with GitHub">
-                    {authUser?.avatarUrl ? (
-                      <img
-                        className="gh-auth-avatar"
-                        src={authUser.avatarUrl}
-                        alt=""
-                        width={18}
-                        height={18}
-                      />
-                    ) : null}
-                    <span className="gh-auth-login">{authUser?.login || "signed in"}</span>
-                    <button type="button" className="gh-auth-signout" onClick={onSignOut}>
-                      Sign out
-                    </button>
-                    <a
-                      className="gh-auth-revoke"
-                      href={REVOKE_URL}
-                      target="_blank"
-                      rel="noreferrer"
-                      title="Revoke this app's access on GitHub (sign-out only clears the local token)"
-                    >
-                      revoke
-                    </a>
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={onSignIn}
-                    title="Sign in to reach private GitHub presets and repositories (read-only)"
-                  >
-                    Sign in with GitHub
-                  </button>
-                )
-              ) : null}
-              <span className="toolbar-spacer" />
-              {/* Security 2026-07-25: the standing reminder. Small, but right
-                  where the risk materializes — the Run button — and it never
-                  goes away on its own, because the suppression it describes
-                  never does either. The opt-in stays reachable from here so a
-                  user who acknowledged the banner is not stuck. */}
-              {untrustedGuard ? (
-                <span
-                  className="untrusted-endpoint-chip"
-                  title="A shared link chose this host. Runs leave your sign-in and tokens behind until you allow it."
-                >
-                  runs against {untrustedGuard.host} without tokens
-                  <button
-                    type="button"
-                    className="untrusted-endpoint-allow"
-                    onClick={onTrustUntrustedHost}
-                  >
-                    use my tokens
-                  </button>
-                </span>
-              ) : null}
-              <button
-                type="button"
-                className="btn primary"
-                onClick={() =>
-                  void onRun(undefined, undefined, { preserveScroll: Boolean(result) })
-                }
-                // Roadmap 031: hover/focus signal Run intent — start the
-                // engine download then (no-op when the idle preload or an
-                // earlier run already fetched it).
-                onPointerEnter={preloadRunChunks}
-                onFocus={preloadRunChunks}
-                disabled={running}
-                title="Process this config with Renovate's own code — it never leaves your browser"
-              >
-                {running ? "Running…" : "Run"}
-              </button>
-              {/* Roadmap 036: the shared copy affordance. `buildShareLinkAndCopy`
-                  writes the clipboard itself (it also mirrors the URL into the
-                  address bar), so this passes `onCopy`, not `getText`. */}
-              <CopyButton
-                onCopy={onCopyLink}
-                label="Copy link"
-                title="Copy a link that reopens this config and view — never includes your tokens"
-              />
-            </div>
+            <ConfigToolbar
+              fileName={fileName}
+              onFileNameChange={(value) => setFileName(value as typeof fileName)}
+              canRevert={content !== loadedContent}
+              onRevert={() => loadConfigText(loadedContent)}
+              oauthConfigured={Boolean(oauthConfig)}
+              signedIn={signedIn}
+              authUser={authUser}
+              onSignIn={onSignIn}
+              onSignOut={onSignOut}
+              untrustedHost={untrustedGuard ? untrustedGuard.host : null}
+              onTrustUntrustedHost={onTrustUntrustedHost}
+              running={running}
+              onRun={() => void onRun(undefined, undefined, { preserveScroll: Boolean(result) })}
+              onRunIntent={preloadRunChunks}
+              onCopyLink={onCopyLink}
+            />
 
             <AdvancedZone
               open={advancedOpen}

@@ -462,6 +462,41 @@ function ruleLabel(rule: RuleEvaluation): string {
   return failing ? `${joined} — failed on ${failing.key}` : joined;
 }
 
+/** Roadmap 018/040: what a matching rule applied to the dependency config, as
+ *  `key: before → after` rows plus the copy-as-markdown export of the same. */
+function SimMergedApplied({ rule, merged }: { rule: RuleEvaluation; merged: MergedKey[] }) {
+  return (
+    <div className="sim-merged">
+      <div className="sim-merged-title">
+        Applied to the dependency config
+        <CopyMarkdownButton
+          className="inline"
+          header={`\`packageRules[${rule.index}]\` ${ruleLabel(rule)} — ${VERDICT_LABEL[rule.verdict]}`}
+          code={ruleAppliedMarkdown(merged)}
+        />
+      </div>
+      <ul>
+        {merged.map((m) => (
+          <li key={m.key}>
+            <span className="sim-merged-key">
+              <OptionKey name={m.key} flagUnknown />
+            </span>
+            {"before" in m ? (
+              <>
+                {" "}
+                <span className="sim-merged-before">{previewValue(m.before)}</span> →{" "}
+              </>
+            ) : (
+              " → "
+            )}
+            <span className="sim-merged-after">{previewValue(m.after)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function RuleRow({
   rule,
   layer,
@@ -523,34 +558,7 @@ function RuleRow({
             </p>
           ))}
           {rule.merged && rule.merged.length > 0 ? (
-            <div className="sim-merged">
-              <div className="sim-merged-title">
-                Applied to the dependency config
-                <CopyMarkdownButton
-                  className="inline"
-                  header={`\`packageRules[${rule.index}]\` ${ruleLabel(rule)} — ${VERDICT_LABEL[rule.verdict]}`}
-                  code={ruleAppliedMarkdown(rule.merged)}
-                />
-              </div>
-              <ul>
-                {rule.merged.map((m) => (
-                  <li key={m.key}>
-                    <span className="sim-merged-key">
-                      <OptionKey name={m.key} flagUnknown />
-                    </span>
-                    {"before" in m ? (
-                      <>
-                        {" "}
-                        <span className="sim-merged-before">{previewValue(m.before)}</span> →{" "}
-                      </>
-                    ) : (
-                      " → "
-                    )}
-                    <span className="sim-merged-after">{previewValue(m.after)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <SimMergedApplied rule={rule} merged={rule.merged} />
           ) : null}
         </div>
       ) : null}
