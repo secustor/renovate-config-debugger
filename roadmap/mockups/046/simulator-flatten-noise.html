@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mockup 046 — simulator: flatten-noise in changed keys, final-section clarity</title>
+    <style>
+      /* ---- app tokens, verbatim from packages/app/src/index.css ---- */
+      :root {
+        color-scheme: light dark;
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        --border: light-dark(#d0d7de, #3d444d);
+        --surface: light-dark(#f6f8fa, #151b23);
+        --accent: #0969da;
+        --ok: #1a7f37;
+        --error: #cf222e;
+        --warn: #9a6700;
+        --muted: light-dark(#59636e, #9198a1);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: light-dark(#ffffff, #0d1117);
+        color: light-dark(#1f2328, #f0f6fc);
+      }
+      main {
+        margin: 0 auto;
+        max-width: 62rem;
+        padding: 1.5rem 1rem 4rem;
+      }
+      h1 {
+        font-size: 1.5rem;
+        margin: 0 0 0.25rem;
+      }
+      h2 {
+        font-size: 1.05rem;
+        margin: 2.5rem 0 0.25rem;
+      }
+      h3 {
+        font-size: 0.95rem;
+        margin: 1.75rem 0 0.25rem;
+      }
+      h2 .num,
+      h3 .num {
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .section-note {
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin: 0.25rem 0 1rem;
+        max-width: 56rem;
+      }
+      .mock-banner {
+        background: light-dark(#fff8c5, #3a2d00);
+        border: 1px solid var(--warn);
+        border-radius: 8px;
+        font-size: 0.85rem;
+        margin-bottom: 1rem;
+        padding: 0.5rem 0.75rem;
+      }
+      .pane-label {
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        margin: 1rem 0 0.35rem;
+        text-transform: uppercase;
+      }
+      .pane-label.now {
+        color: var(--error);
+      }
+      .pane-label.proposed {
+        color: var(--ok);
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      p code,
+      .section-note code,
+      .problem-list code {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-size: 0.85em;
+        padding: 0.05em 0.3em;
+      }
+      .problem-list {
+        color: var(--muted);
+        font-size: 0.88rem;
+        margin: 0.35rem 0 1rem;
+        max-width: 56rem;
+        padding-left: 1.25rem;
+      }
+      .problem-list li {
+        margin: 0.2rem 0;
+      }
+      .problem-list strong {
+        color: var(--error);
+        font-weight: 600;
+      }
+
+      /* ---- app chrome, copied from index.css ---- */
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        overflow: hidden;
+      }
+      .card-body {
+        padding: 0.75rem;
+      }
+      .btn {
+        align-items: center;
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: inherit;
+        cursor: pointer;
+        display: inline-flex;
+        font: inherit;
+        font-size: 0.8rem;
+        gap: 0.35rem;
+        padding: 0.25rem 0.6rem;
+        white-space: nowrap;
+      }
+      .empty-note {
+        color: var(--muted);
+        font-size: 0.85rem;
+        padding: 0.35rem 0;
+      }
+
+      /* ---- 012/018 verdict block ---- */
+      .sim-verdict-block {
+        background: color-mix(in srgb, var(--ok) 8%, var(--surface));
+        border: 1px solid color-mix(in srgb, var(--ok) 35%, var(--border));
+        border-radius: 8px;
+        margin-bottom: 0.75rem;
+        padding: 0.7rem 0.85rem;
+      }
+      .sim-verdict-sentence {
+        font-size: 0.95rem;
+        line-height: 1.5;
+        margin: 0;
+      }
+      .sim-verdict-keys {
+        list-style: none;
+        margin: 0.55rem 0 0;
+        padding: 0;
+      }
+      .sim-verdict-keys li {
+        font-size: 0.83rem;
+        overflow-wrap: anywhere;
+        padding: 0.1rem 0;
+      }
+      .sim-verdict-keys code {
+        text-decoration: underline dotted;
+        text-underline-offset: 2px;
+      }
+      .sim-verdict-value {
+        color: var(--ok);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.8rem;
+      }
+      .sim-verdict-value.removed {
+        color: var(--muted);
+        font-style: italic;
+      }
+      .sim-verdict-aside {
+        color: var(--muted);
+        font-size: 0.78rem;
+        margin: 0.55rem 0 0;
+      }
+      .sim-verdict-aside code {
+        text-decoration: none;
+      }
+      .sim-jump {
+        background: transparent;
+        border: none;
+        color: var(--accent);
+        cursor: pointer;
+        display: inline-block;
+        font: inherit;
+        font-size: 0.82rem;
+        margin-top: 0.55rem;
+        padding: 0;
+      }
+      .sim-verdict-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 0.9rem;
+        margin-top: 0.55rem;
+      }
+      .sim-verdict-action {
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--accent);
+        cursor: pointer;
+        font: inherit;
+        font-size: 0.8rem;
+        padding: 0.2rem 0.55rem;
+      }
+
+      /* ---- 044 final section + step-through ---- */
+      .sim-final {
+        margin-top: 0.75rem;
+      }
+      .sim-merged-title {
+        color: var(--muted);
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+      }
+      .sim-changed {
+        font-size: 0.85rem;
+        margin: 0.35rem 0;
+      }
+      .sim-changed code {
+        text-decoration: underline dotted;
+        text-underline-offset: 2px;
+      }
+      .sim-merge-steps {
+        margin: 0.5rem 0 0.75rem;
+      }
+      .migration-steps {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        margin-top: 0.4rem;
+      }
+      .migration-step-head {
+        align-items: baseline;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .migration-step-counter {
+        color: var(--muted);
+        font-size: 0.8rem;
+        white-space: nowrap;
+      }
+      .migration-step-name {
+        font-weight: 600;
+      }
+      .sim-rule-index {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.85rem;
+      }
+      .migration-explanation {
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin: 0;
+      }
+      .migration-explanation code {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-size: 0.85em;
+        padding: 0.05em 0.3em;
+      }
+      .migration-nav {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .migration-cumulative {
+        align-items: center;
+        color: var(--muted);
+        display: flex;
+        font-size: 0.85rem;
+        gap: 0.3rem;
+      }
+      .badge {
+        border: 1px solid;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        line-height: 1.5;
+        padding: 0 0.5rem;
+        white-space: nowrap;
+      }
+      .badge.preset {
+        border-color: color-mix(in srgb, #8250df 45%, transparent);
+        background: color-mix(in srgb, #8250df 12%, transparent);
+        color: light-dark(#8250df, #c297ff);
+      }
+      .badge.repo {
+        border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+        background: color-mix(in srgb, var(--accent) 12%, transparent);
+        color: var(--accent);
+      }
+      .sim-final details > summary {
+        cursor: pointer;
+        font-size: 0.85rem;
+        margin-bottom: 0.4rem;
+      }
+
+      /* ---- 2A: the stepper on its own sub-surface ---- */
+      .merge-steps-inset {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin: 0.6rem 0 0.75rem;
+        padding: 0.6rem 0.75rem;
+      }
+      .merge-steps-inset .migration-explanation code,
+      .merge-steps-inset .badge {
+        background: light-dark(#ffffff, #0d1117);
+      }
+      .merge-steps-inset .sim-merged-title {
+        margin-bottom: 0.1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Mockup 046 — simulator flatten-noise &amp; final-section clarity</h1>
+      <p class="section-note">
+        Two defects from the 2026-07-26 review of the 044 stepper, both UI-side only (the engine's
+        oracle parity is untouched). <strong>Section 1:</strong> <code>changedKeys</code> diffs the
+        pre-rules effective config against the post-flatten per-dependency config, so the seven
+        update-type blocks Renovate's <code>flattenUpdates</code> always deletes
+        (<code>major</code>, <code>minor</code>, <code>patch</code>, <code>pin</code>,
+        <code>digest</code>, <code>lockFileMaintenance</code>, <code>replacement</code>) show up as
+        "removed" — no rule removed them. <strong>Section 2:</strong> the final section claims
+        "Rules changed: <em>8 keys</em>" while its own stepper opens with "this rule changed nothing
+        — No differences", and the section heading promises a config that is actually hidden behind
+        the disclosure at the bottom.
+      </p>
+      <div class="mock-banner">
+        Mockup — static HTML, tokens and geometry copied from
+        <code>packages/app/src/index.css</code>. Nothing is interactive except the disclosure
+        toggles. Scenario throughout: the screenshot's run — npm <code>react</code> 4.17.20 →
+        4.17.21, <code>updateType</code> unset, 2 of 714 rules matched, the repo rule sets
+        <code>groupName: "react"</code>.
+      </div>
+
+      <!-- ============================================================ -->
+      <h2><span class="num">1 ·</span> The verdict block's changed-keys list</h2>
+      <p class="section-note">
+        Fix: flatten the BASE config the same way the engine flattens the final one before diffing
+        (drop the update-type blocks from both sides), so only keys a rule (or a real update-type
+        merge-up) changed survive. A block that genuinely merged up keeps its existing "from the
+        <code>minor</code> block" attribution — that path is unaffected.
+      </p>
+
+      <p class="pane-label now">Now — 7 of the 8 rows are flatten-noise</p>
+      <div class="sim-verdict-block">
+        <p class="sim-verdict-sentence">
+          This update WOULD be grouped as "react" and only run on schedule [before 6am on monday].
+        </p>
+        <ul class="sim-verdict-keys">
+          <li><code>digest</code> <span class="sim-verdict-value removed">removed</span></li>
+          <li><code>groupName</code> = <span class="sim-verdict-value">"react"</span></li>
+          <li>
+            <code>lockFileMaintenance</code>
+            <span class="sim-verdict-value removed">removed</span>
+          </li>
+          <li><code>major</code> <span class="sim-verdict-value removed">removed</span></li>
+          <li><code>minor</code> <span class="sim-verdict-value removed">removed</span></li>
+          <li><code>patch</code> <span class="sim-verdict-value removed">removed</span></li>
+          <li><code>pin</code> <span class="sim-verdict-value removed">removed</span></li>
+          <li><code>replacement</code> <span class="sim-verdict-value removed">removed</span></li>
+        </ul>
+        <button type="button" class="sim-jump">2 of 714 rules matched →</button>
+        <div class="sim-verdict-actions">
+          <button type="button" class="sim-verdict-action">Copy link with this simulation</button>
+          <button type="button" class="sim-verdict-action">Pin result for comparison</button>
+        </div>
+      </div>
+      <ul class="problem-list">
+        <li>
+          <strong>Misleading:</strong> "removed" reads as "a rule turned this off" — but these
+          blocks are consumed by Renovate's update-type flattening on every simulation, whatever the
+          rules do.
+        </li>
+        <li>
+          <strong>Buries the signal:</strong> the one real change (<code>groupName</code>) is row 2
+          of 8.
+        </li>
+      </ul>
+
+      <h3><span class="num">1A ·</span> Filter the flatten-dropped blocks out</h3>
+      <p class="section-note">
+        Only genuine changes remain. Smallest possible change; the blocks' existence stays
+        discoverable in "Show the full resolved dependency config" — by their absence — and in the
+        rule rows' own merged-keys detail.
+      </p>
+      <div class="sim-verdict-block">
+        <p class="sim-verdict-sentence">
+          This update WOULD be grouped as "react" and only run on schedule [before 6am on monday].
+        </p>
+        <ul class="sim-verdict-keys">
+          <li><code>groupName</code> = <span class="sim-verdict-value">"react"</span></li>
+        </ul>
+        <button type="button" class="sim-jump">2 of 714 rules matched →</button>
+        <div class="sim-verdict-actions">
+          <button type="button" class="sim-verdict-action">Copy link with this simulation</button>
+          <button type="button" class="sim-verdict-action">Pin result for comparison</button>
+        </div>
+      </div>
+
+      <h3><span class="num">1B ·</span> Filter + one muted aside (recommended)</h3>
+      <p class="section-note">
+        Same filtering, plus one muted line naming what happened to the blocks — so an expert who
+        expects <code>major</code>/<code>minor</code> in the per-dependency config learns where they
+        went instead of suspecting the simulator lost them. When an update-type block DID merge up
+        (e.g. a <code>minor</code> update with <code>minor: { automerge: true }</code>), the aside
+        is replaced by the existing per-key "from the <code>minor</code> block" attribution, which
+        already covers that case.
+      </p>
+      <div class="sim-verdict-block">
+        <p class="sim-verdict-sentence">
+          This update WOULD be grouped as "react" and only run on schedule [before 6am on monday].
+        </p>
+        <ul class="sim-verdict-keys">
+          <li><code>groupName</code> = <span class="sim-verdict-value">"react"</span></li>
+        </ul>
+        <p class="sim-verdict-aside">
+          Update-type blocks (<code>major</code>, <code>minor</code>, <code>patch</code>,
+          <code>pin</code>, <code>digest</code>, <code>lockFileMaintenance</code>,
+          <code>replacement</code>) are resolved into the config and dropped — with
+          <code>updateType</code> unset, none of them applied to this update.
+        </p>
+        <button type="button" class="sim-jump">2 of 714 rules matched →</button>
+        <div class="sim-verdict-actions">
+          <button type="button" class="sim-verdict-action">Copy link with this simulation</button>
+          <button type="button" class="sim-verdict-action">Pin result for comparison</button>
+        </div>
+      </div>
+
+      <!-- ============================================================ -->
+      <h2><span class="num">2 ·</span> The "Final per-dependency config" section</h2>
+      <p class="section-note">
+        The 1A/1B filtering already fixes this section's "Rules changed:" line (it renders the same
+        <code>changedKeys</code>). What remains is structure and copy: make the summary agree with
+        the stepper, and stop promising a config the heading doesn't deliver.
+      </p>
+
+      <p class="pane-label now">Now — summary contradicts the stepper, headings stack</p>
+      <div class="card">
+        <div class="card-body">
+          <div class="sim-final">
+            <div class="sim-merged-title">Final per-dependency config</div>
+            <p class="sim-changed">
+              Rules changed: <code>digest</code>, <code>groupName</code>,
+              <code>lockFileMaintenance</code>, <code>major</code>, <code>minor</code>,
+              <code>patch</code>, <code>pin</code>, <code>replacement</code>
+            </p>
+            <div class="sim-merge-steps">
+              <div class="sim-merged-title">How the rules built it, one merge at a time</div>
+              <div class="migration-steps">
+                <div class="migration-step-head">
+                  <span class="migration-step-counter">Step 1 of 2</span>
+                  <span class="sim-rule-index">packageRules[0]</span>
+                  <span class="migration-step-name">matchPackageNames</span>
+                  <span class="badge preset">config:recommended</span>
+                </div>
+                <p class="migration-explanation">
+                  This rule matched but set nothing beyond its <code>match*</code> selectors — the
+                  config is unchanged by it.
+                </p>
+                <div class="empty-note">No differences.</div>
+                <div class="migration-nav">
+                  <button type="button" class="btn">‹ Prev</button>
+                  <button type="button" class="btn">Next ›</button>
+                  <button type="button" class="btn">Jump to end</button>
+                  <label class="migration-cumulative"><input type="checkbox" /> Cumulative</label>
+                </div>
+              </div>
+            </div>
+            <details>
+              <summary>Show the full resolved dependency config</summary>
+            </details>
+          </div>
+        </div>
+      </div>
+      <ul class="problem-list">
+        <li>
+          <strong>Contradiction:</strong> "Rules changed: <em>8 keys</em>" directly above a step
+          saying "the config is unchanged by it" / "No differences." — the 7 flatten-dropped keys
+          appear in the summary but never in any step.
+        </li>
+        <li>
+          <strong>Heading promises the wrong thing:</strong> "FINAL PER-DEPENDENCY CONFIG" is
+          followed by a key list, a stepper, and only then (behind a disclosure) the config itself.
+        </li>
+        <li>
+          <strong>No separation:</strong> two uppercase micro-headings and the step header stack
+          into one undifferentiated block — the reviewer read it as a single unclear paragraph.
+        </li>
+        <li>
+          <strong>Vague referents:</strong> "How the rules built <em>it</em>", "the config is
+          unchanged by <em>it</em>".
+        </li>
+      </ul>
+
+      <h3>
+        <span class="num">2A ·</span> One heading, counted summary, stepper on its own surface
+        (recommended)
+      </h3>
+      <p class="section-note">
+        The section keeps ONE uppercase heading. The summary line carries the counts and names the
+        keys — and now agrees with the stepper because the flatten-noise is gone (section 1). The
+        stepper moves onto a tinted inset (the <code>.sim-merged</code> surface the rule rows
+        already use for their merged-keys detail), with a plain-language title naming the step
+        count; step copy names the rule instead of "it". The config disclosure is unchanged.
+      </p>
+      <div class="card">
+        <div class="card-body">
+          <div class="sim-final">
+            <div class="sim-merged-title">Final per-dependency config</div>
+            <p class="sim-changed">
+              2 rules matched and changed 1 setting: <code>groupName</code>.
+            </p>
+            <div class="merge-steps-inset">
+              <div class="sim-merged-title">Step through the 2 merges that built this config</div>
+              <div class="migration-steps">
+                <div class="migration-step-head">
+                  <span class="migration-step-counter">Step 1 of 2</span>
+                  <span class="sim-rule-index">packageRules[0]</span>
+                  <span class="migration-step-name">matchPackageNames</span>
+                  <span class="badge preset">config:recommended</span>
+                </div>
+                <p class="migration-explanation">
+                  This rule matched but sets nothing beyond its <code>match*</code> selectors — the
+                  config is unchanged after this step.
+                </p>
+                <div class="empty-note">No differences.</div>
+                <div class="migration-nav">
+                  <button type="button" class="btn">‹ Prev</button>
+                  <button type="button" class="btn">Next ›</button>
+                  <button type="button" class="btn">Jump to end</button>
+                  <label class="migration-cumulative"><input type="checkbox" /> Cumulative</label>
+                </div>
+              </div>
+            </div>
+            <details>
+              <summary>Show the full resolved dependency config</summary>
+            </details>
+          </div>
+        </div>
+      </div>
+
+      <h3><span class="num">2B ·</span> Same, but the stepper collapses behind a disclosure</h3>
+      <p class="section-note">
+        The stepper becomes the second of two disclosures — the section shrinks to heading + summary
+        + two <code>&lt;details&gt;</code>. Quieter, but it demotes the 044 feature to
+        invisible-by-default, and the persona study showed collapsed affordances in this panel go
+        unopened. Included for comparison; 2A is preferred.
+      </p>
+      <div class="card">
+        <div class="card-body">
+          <div class="sim-final">
+            <div class="sim-merged-title">Final per-dependency config</div>
+            <p class="sim-changed">
+              2 rules matched and changed 1 setting: <code>groupName</code>.
+            </p>
+            <details>
+              <summary>Step through the 2 merges that built this config</summary>
+            </details>
+            <details>
+              <summary>Show the full resolved dependency config</summary>
+            </details>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================ -->
+      <h2><span class="num">3 ·</span> Step 2 for reference — a step that DOES change something</h2>
+      <p class="section-note">
+        Not a variant — just the 2A treatment on the scenario's second step, to show the stepper's
+        normal (non-empty) state on the new surface. Copy tweak mirrors step 1: "…after this step"
+        instead of "…by it".
+      </p>
+      <div class="card">
+        <div class="card-body">
+          <div class="sim-final">
+            <div class="merge-steps-inset">
+              <div class="sim-merged-title">Step through the 2 merges that built this config</div>
+              <div class="migration-steps">
+                <div class="migration-step-head">
+                  <span class="migration-step-counter">Step 2 of 2</span>
+                  <span class="sim-rule-index">packageRules[713]</span>
+                  <span class="migration-step-name">matchPackageNames</span>
+                  <span class="badge repo">repo config</span>
+                </div>
+                <p class="migration-explanation">
+                  This rule set <code>groupName</code>, <code>groupSlug</code>.
+                </p>
+                <div
+                  class="empty-note"
+                  style="
+                    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+                    font-size: 0.78rem;
+                  "
+                >
+                  <span style="color: var(--ok)">+ "groupName": "react"</span><br />
+                  <span style="color: var(--ok)">+ "groupSlug": "react"</span>
+                </div>
+                <div class="migration-nav">
+                  <button type="button" class="btn">‹ Prev</button>
+                  <button type="button" class="btn">Next ›</button>
+                  <button type="button" class="btn">Jump to end</button>
+                  <label class="migration-cumulative"><input type="checkbox" /> Cumulative</label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="section-note">
+        <strong>Implementation notes (no engine changes):</strong> ① <code>changedKeys</code> in
+        <code>RuleSimulator.tsx</code> deletes the 7 update-type keys from its base copy before
+        diffing (the engine already exports the exact set via its flatten replication) — keys the
+        flattening genuinely merged UP still surface, since they land as top-level keys. ②
+        <code>SimVerdictBlock</code> gains the 1B aside, shown only when no block merged up. ③
+        <code>SimFinal</code>/<code>SimMergeSteps</code> copy + the inset surface per 2A.
+      </p>
+    </main>
+  </body>
+</html>

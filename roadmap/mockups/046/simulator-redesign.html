@@ -1,0 +1,1027 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mockup 046R — simulator verdict card &amp; merge rail (redesign)</title>
+    <style>
+      /* ---- app tokens, verbatim from packages/app/src/index.css ---- */
+      :root {
+        color-scheme: light dark;
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        --border: light-dark(#d0d7de, #3d444d);
+        --surface: light-dark(#f6f8fa, #151b23);
+        --accent: #0969da;
+        --ok: #1a7f37;
+        --error: #cf222e;
+        --warn: #9a6700;
+        --muted: light-dark(#59636e, #9198a1);
+        /* redesign roles, all derived from app colors */
+        --ink: light-dark(#1f2328, #f0f6fc);
+        --paper: light-dark(#ffffff, #0d1117);
+        --preset: light-dark(#8250df, #c297ff);
+        --repo: var(--accent);
+        --consume: var(--warn);
+        --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+      }
+      main {
+        margin: 0 auto;
+        max-width: 62rem;
+        padding: 1.5rem 1rem 4rem;
+      }
+      h1 {
+        font-size: 1.5rem;
+        margin: 0 0 0.25rem;
+      }
+      h2 {
+        font-size: 1.05rem;
+        margin: 2.5rem 0 0.25rem;
+      }
+      h3 {
+        font-size: 0.95rem;
+        margin: 1.75rem 0 0.25rem;
+      }
+      h2 .num,
+      h3 .num {
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .section-note {
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin: 0.25rem 0 1rem;
+        max-width: 56rem;
+      }
+      .section-note code,
+      p code,
+      .design-notes code {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-family: var(--mono);
+        font-size: 0.85em;
+        padding: 0.05em 0.3em;
+      }
+      .mock-banner {
+        background: light-dark(#fff8c5, #3a2d00);
+        border: 1px solid var(--warn);
+        border-radius: 8px;
+        font-size: 0.85rem;
+        margin-bottom: 1rem;
+        padding: 0.5rem 0.75rem;
+      }
+      button {
+        font: inherit;
+      }
+      :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      /* =========================================================
+         Section 1 — the verdict card
+         ========================================================= */
+      .verdict-card {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        margin-bottom: 1rem;
+        overflow: hidden;
+      }
+      /* The answer band: quiet tint, everything below it is paper. */
+      .verdict-band {
+        background: color-mix(in srgb, var(--ok) 6%, var(--surface));
+        border-bottom: 1px solid var(--border);
+        padding: 0.85rem 1rem 0.95rem;
+      }
+      .verdict-eyebrow {
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        letter-spacing: 0.07em;
+        margin: 0 0 0.5rem;
+        text-transform: uppercase;
+      }
+      .verdict-eyebrow .arrow {
+        color: var(--ok);
+      }
+      .verdict-sentence {
+        font-size: 1.25rem;
+        font-weight: 500;
+        line-height: 1.5;
+        margin: 0;
+        max-width: 46rem;
+        text-wrap: balance;
+      }
+      /* The signature: the modal verb as a set piece. The single most
+         information-bearing word the simulator produces. */
+      .modal-verb {
+        background: color-mix(in srgb, var(--ok) 14%, transparent);
+        border: 1px solid color-mix(in srgb, var(--ok) 40%, transparent);
+        border-radius: 5px;
+        color: var(--ok);
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 0.72em;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        line-height: 1.4;
+        padding: 0 0.35em;
+        text-transform: uppercase;
+        transform: translateY(-0.08em);
+      }
+      .modal-verb.not {
+        background: color-mix(in srgb, var(--error) 12%, transparent);
+        border-color: color-mix(in srgb, var(--error) 40%, transparent);
+        color: var(--error);
+      }
+      .verdict-sentence .val {
+        font-family: var(--mono);
+        font-size: 0.82em;
+        font-weight: 600;
+      }
+      .verdict-body {
+        padding: 0.75rem 1rem 0.85rem;
+      }
+      .ledger-label {
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        letter-spacing: 0.07em;
+        margin: 0 0 0.35rem;
+        text-transform: uppercase;
+      }
+      .ledger {
+        display: grid;
+        gap: 0.25rem 1rem;
+        grid-template-columns: max-content 1fr max-content max-content;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .ledger li {
+        align-items: baseline;
+        display: grid;
+        grid-column: 1 / -1;
+        grid-template-columns: subgrid;
+      }
+      .ledger .key {
+        font-family: var(--mono);
+        font-size: 0.85rem;
+        text-decoration: underline dotted;
+        text-underline-offset: 2px;
+      }
+      .ledger .val {
+        color: var(--ok);
+        font-family: var(--mono);
+        font-size: 0.82rem;
+        overflow-wrap: anywhere;
+      }
+      .step-link {
+        background: none;
+        border: none;
+        color: var(--accent);
+        cursor: pointer;
+        font-size: 0.78rem;
+        padding: 0;
+        white-space: nowrap;
+      }
+      .step-link:hover {
+        text-decoration: underline;
+      }
+      /* 1B's aside, wearing the flatten step's glyph + color so the two
+         surfaces teach each other. */
+      .consumed-note {
+        border-left: 3px solid color-mix(in srgb, var(--consume) 45%, transparent);
+        color: var(--muted);
+        font-size: 0.8rem;
+        line-height: 1.55;
+        margin: 0.7rem 0 0;
+        max-width: 46rem;
+        padding-left: 0.6rem;
+      }
+      .consumed-note .glyph {
+        color: var(--consume);
+        font-family: var(--mono);
+      }
+      .consumed-note code {
+        background: none;
+        border: none;
+        font-size: 0.9em;
+        padding: 0;
+      }
+      .verdict-foot {
+        align-items: center;
+        border-top: 1px solid var(--border);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 0.9rem;
+        padding: 0.55rem 1rem;
+      }
+      .sim-jump {
+        background: none;
+        border: none;
+        color: var(--accent);
+        cursor: pointer;
+        font-size: 0.82rem;
+        padding: 0;
+      }
+      .sim-jump:hover {
+        text-decoration: underline;
+      }
+      .verdict-foot .spacer {
+        flex: 1;
+      }
+      .quiet-action {
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--accent);
+        cursor: pointer;
+        font-size: 0.8rem;
+        padding: 0.2rem 0.55rem;
+      }
+      .quiet-action:hover {
+        border-color: var(--accent);
+      }
+
+      /* =========================================================
+         Section 2 — the merge rail
+         ========================================================= */
+      .final-card {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 0.85rem 1rem 1rem;
+      }
+      .final-head {
+        align-items: baseline;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem 0.75rem;
+        margin-bottom: 0.25rem;
+      }
+      .final-title {
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+      }
+      .final-summary {
+        font-size: 0.88rem;
+        margin: 0;
+      }
+      .final-summary .key {
+        font-family: var(--mono);
+        font-size: 0.85em;
+        text-decoration: underline dotted;
+        text-underline-offset: 2px;
+      }
+
+      .rail {
+        display: flex;
+        margin: 0.9rem 0 0.75rem;
+        overflow-x: auto;
+        padding: 0.25rem 0;
+      }
+      .station {
+        background: none;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.35rem;
+        min-width: 5.2rem;
+        padding: 0.25rem 0 0.35rem;
+        position: relative;
+      }
+      /* the rail line, drawn between node centers */
+      .station::before {
+        background: var(--border);
+        content: "";
+        height: 2px;
+        left: calc(-50% + 8px);
+        position: absolute;
+        top: calc(0.25rem + 7px);
+        width: calc(100% - 16px);
+      }
+      .station:first-child::before {
+        display: none;
+      }
+      .node {
+        background: var(--paper);
+        border: 2px solid var(--muted);
+        border-radius: 50%;
+        height: 14px;
+        position: relative;
+        width: 14px;
+      }
+      /* provenance = color, kind = shape, "changed nothing" = hollow */
+      .station.preset .node {
+        border-color: var(--preset);
+      }
+      .station.repo .node {
+        background: var(--repo);
+        border-color: var(--repo);
+      }
+      .station.noop .node {
+        border-style: dashed;
+      }
+      .station.flatten .node {
+        border-color: var(--consume);
+        border-radius: 3px;
+        transform: rotate(45deg);
+      }
+      .station.terminal .node {
+        background: var(--ok);
+        border-color: var(--ok);
+        border-radius: 3.5px;
+      }
+      .station[aria-pressed="true"] .node {
+        box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
+      }
+      .station-label {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+      }
+      .station[aria-pressed="true"] .station-label {
+        font-weight: 700;
+      }
+      .station-delta {
+        border-radius: 999px;
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        line-height: 1.5;
+        padding: 0 0.4rem;
+      }
+      .station-delta.add {
+        background: color-mix(in srgb, var(--ok) 12%, transparent);
+        color: var(--ok);
+      }
+      .station-delta.zero {
+        color: var(--muted);
+      }
+      .station-delta.consume {
+        background: color-mix(in srgb, var(--consume) 12%, transparent);
+        color: var(--consume);
+      }
+
+      /* one orchestrated moment: the rail assembles once, left to right */
+      .station {
+        animation: station-in 0.25s backwards;
+      }
+      .station::before {
+        animation: line-in 0.25s backwards;
+        transform-origin: left;
+      }
+      .station:nth-child(1) {
+        animation-delay: 0s;
+      }
+      .station:nth-child(2),
+      .station:nth-child(2)::before {
+        animation-delay: 0.1s;
+      }
+      .station:nth-child(3),
+      .station:nth-child(3)::before {
+        animation-delay: 0.2s;
+      }
+      .station:nth-child(4),
+      .station:nth-child(4)::before {
+        animation-delay: 0.3s;
+      }
+      .station:nth-child(5),
+      .station:nth-child(5)::before {
+        animation-delay: 0.4s;
+      }
+      @keyframes station-in {
+        from {
+          opacity: 0;
+          transform: translateY(3px);
+        }
+      }
+      @keyframes line-in {
+        from {
+          transform: scaleX(0);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .station,
+        .station::before {
+          animation: none;
+        }
+      }
+
+      /* ---- 2B: the Pipeline tab's chip grammar, verbatim from index.css ---- */
+      .stage-timeline {
+        column-gap: 0.15rem;
+        display: flex;
+        flex-wrap: wrap;
+        margin: 0.9rem 0 0.75rem;
+        row-gap: 0.4rem;
+      }
+      .stage-sep {
+        align-self: center;
+        color: var(--muted);
+        flex: none;
+        font-size: 0.8rem;
+        padding: 0 0.1rem;
+        user-select: none;
+      }
+      .stage-chip {
+        align-items: center;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        color: inherit;
+        cursor: pointer;
+        display: inline-flex;
+        font-size: 0.85rem;
+        gap: 0.35rem;
+        padding: 0.3rem 0.8rem;
+      }
+      .stage-chip.selected {
+        border-color: var(--accent);
+        outline: 1px solid var(--accent);
+      }
+      .stage-chip .dot {
+        border-radius: 50%;
+        flex: none;
+        height: 0.55rem;
+        width: 0.55rem;
+      }
+      .stage-chip .dot.clean {
+        background: var(--ok);
+      }
+      .stage-chip .dot.changed {
+        background: var(--warn);
+        border-radius: 2px;
+        transform: rotate(45deg);
+      }
+      .stage-chip .dot.skipped {
+        background: transparent;
+        border: 1.5px solid var(--muted);
+      }
+      .stage-chip-count {
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .stage-chip .dot.changed ~ .stage-chip-count {
+        color: var(--warn);
+      }
+      .stage-chip .rule-ref {
+        font-family: var(--mono);
+        font-size: 0.8rem;
+      }
+
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.65rem 0.8rem 0.7rem;
+      }
+      .panel-head {
+        align-items: baseline;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 0.3rem;
+      }
+      .panel-counter {
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        white-space: nowrap;
+      }
+      .panel-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+      }
+      .panel-title .rule-index {
+        font-family: var(--mono);
+        font-weight: 400;
+      }
+      .badge {
+        border: 1px solid;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        line-height: 1.5;
+        padding: 0 0.5rem;
+        white-space: nowrap;
+      }
+      .badge.preset {
+        background: color-mix(in srgb, var(--preset) 12%, transparent);
+        border-color: color-mix(in srgb, var(--preset) 45%, transparent);
+        color: var(--preset);
+      }
+      .badge.repo {
+        background: color-mix(in srgb, var(--repo) 12%, transparent);
+        border-color: color-mix(in srgb, var(--repo) 45%, transparent);
+        color: var(--repo);
+      }
+      .badge.flatten {
+        background: color-mix(in srgb, var(--consume) 12%, transparent);
+        border-color: color-mix(in srgb, var(--consume) 45%, transparent);
+        color: var(--consume);
+      }
+      .panel-expl {
+        color: var(--muted);
+        font-size: 0.88rem;
+        line-height: 1.55;
+        margin: 0 0 0.5rem;
+        max-width: 50rem;
+      }
+      .panel-expl code {
+        background: var(--paper);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-family: var(--mono);
+        font-size: 0.85em;
+        padding: 0.05em 0.3em;
+      }
+      /* The detail panel's diff is the real app's StepThrough + JsonDiff;
+         the mock mimics its chrome row (names + the `+N −N` stat). */
+      .panel-diff-wrap {
+        background: var(--paper);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        margin: 0 0 0.55rem;
+        overflow: hidden;
+      }
+      .mini-chrome {
+        align-items: center;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        font-size: 0.75rem;
+        gap: 0.6rem;
+        padding: 0.3rem 0.65rem;
+      }
+      .mini-chrome .names {
+        color: var(--muted);
+        font-family: var(--mono);
+      }
+      .mini-chrome .stat {
+        font-family: var(--mono);
+        margin-left: auto;
+      }
+      .mini-chrome .plus {
+        color: var(--ok);
+      }
+      .mini-chrome .minus {
+        color: var(--error);
+      }
+      .panel-diff {
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        line-height: 1.7;
+        margin: 0;
+        overflow-x: auto;
+        padding: 0.5rem 0.65rem;
+        white-space: pre;
+      }
+      .panel-diff .add {
+        color: var(--ok);
+      }
+      .panel-diff .rem {
+        color: var(--error);
+      }
+      .panel-diff .con {
+        color: var(--consume);
+      }
+      .panel-diff .mut {
+        color: var(--muted);
+      }
+      /* the 026 benign-note pattern, reused for consumed blocks */
+      .panel-diff .benign-note {
+        background: color-mix(in srgb, var(--consume) 10%, transparent);
+        border-radius: 4px;
+        color: var(--consume);
+        font-family: system-ui, sans-serif;
+        font-size: 0.72rem;
+        padding: 0.05rem 0.4rem;
+        white-space: normal;
+      }
+      .panel-nav {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .btn {
+        align-items: center;
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: inherit;
+        cursor: pointer;
+        display: inline-flex;
+        font-size: 0.8rem;
+        gap: 0.35rem;
+        padding: 0.25rem 0.6rem;
+        white-space: nowrap;
+      }
+      .btn:hover {
+        border-color: var(--accent);
+      }
+      .btn:disabled {
+        cursor: default;
+        opacity: 0.55;
+      }
+      .panel-nav .cumulative {
+        align-items: center;
+        color: var(--muted);
+        display: flex;
+        font-size: 0.85rem;
+        gap: 0.3rem;
+        margin-left: auto;
+      }
+
+      /* ---- design notes ---- */
+      .design-notes {
+        border-top: 1px solid var(--border);
+        color: var(--muted);
+        font-size: 0.88rem;
+        margin-top: 3rem;
+        padding-top: 1rem;
+      }
+      .design-notes h2 {
+        color: var(--ink);
+        margin-top: 0.5rem;
+      }
+      .design-notes dt {
+        color: var(--ink);
+        font-weight: 600;
+        margin-top: 0.6rem;
+      }
+      .design-notes dd {
+        margin: 0.15rem 0 0;
+        max-width: 56rem;
+      }
+      .swatch {
+        border: 1px solid var(--border);
+        border-radius: 3px;
+        display: inline-block;
+        height: 0.75em;
+        margin-right: 0.25em;
+        vertical-align: baseline;
+        width: 0.75em;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Mockup 046R — verdict card &amp; merge rail</h1>
+      <p class="section-note">
+        Redesign of the previous mock's recommended variants (1B + 2A), same scenario: npm
+        <code>react</code> 4.17.20 → 4.17.21, <code>updateType</code> unset, 2 of 714 rules matched.
+        Two ideas carry the redesign: the <strong>modal verb</strong> — the verdict's WOULD /
+        WOULD&nbsp;NOT set as the typographic signature — and the <strong>merge rail</strong>, which
+        replaces the hidden stepper with an always-visible line of stations where color =
+        provenance, shape = kind of merge, and hollow = changed nothing.
+      </p>
+      <div class="mock-banner">
+        Mockup — app tokens from <code>packages/app/src/index.css</code>; provenance purple/blue and
+        the amber "consumed" tint are the colors the rule chips already use. The rail is clickable
+        (arrow keys work too); everything else is static.
+      </div>
+
+      <!-- ============================================================ -->
+      <h2><span class="num">1 ·</span> The verdict card</h2>
+      <p class="section-note">
+        The answer band leads with what the run was, then the sentence — with the modal verb badged
+        so the eye lands on the judgment before the details. The ledger below lists only genuine
+        changes (the flatten-noise fix), and each row says <em>where</em> the value came from and
+        links to its merge step. The consumed-blocks aside wears the flatten station's glyph and
+        amber, so the two surfaces explain each other.
+      </p>
+
+      <div class="verdict-card">
+        <div class="verdict-band">
+          <p class="verdict-eyebrow">
+            Simulation · npm / react · 4.17.20 <span class="arrow">→</span> 4.17.21
+          </p>
+          <p class="verdict-sentence">
+            This update <span class="modal-verb">would</span> be grouped as
+            <span class="val">"react"</span> and <span class="modal-verb">would</span> run only on
+            the schedule <span class="val">before 6am on Monday</span>.
+          </p>
+        </div>
+        <div class="verdict-body">
+          <p class="ledger-label">Changed by the rules — 1 setting</p>
+          <ul class="ledger">
+            <li>
+              <span class="key">groupName</span>
+              <span class="val">"react"</span>
+              <span class="badge repo">repo config</span>
+              <button type="button" class="step-link" data-goto="2">step 2 of 2 →</button>
+            </li>
+          </ul>
+          <p class="consumed-note">
+            <span class="glyph">⊘</span> Update-type blocks (<code>major</code>, <code>minor</code>,
+            <code>patch</code>, <code>pin</code>, <code>digest</code>,
+            <code>lockFileMaintenance</code>, <code>replacement</code>) were consumed by flattening.
+            <code>updateType</code> is unset, so none of them applied to this update —
+            <button type="button" class="step-link" data-goto="3">see the flatten step</button>.
+          </p>
+        </div>
+        <div class="verdict-foot">
+          <button type="button" class="sim-jump">2 of 714 rules matched →</button>
+          <span class="spacer"></span>
+          <button type="button" class="quiet-action">Copy link with this simulation</button>
+          <button type="button" class="quiet-action">Pin result for comparison</button>
+        </div>
+      </div>
+
+      <!-- ============================================================ -->
+      <h2><span class="num">2 ·</span> The final config &amp; the merge rail</h2>
+      <p class="section-note">
+        Every merge is visible at once, so "2 rules matched, 1 setting changed" can be read straight
+        off the geometry, and the final config becomes the sequence's terminal stop — replacing the
+        old buried "show the full resolved dependency config" disclosure. Two treatments of the same
+        idea below; <strong>both drive the same detail panel</strong>, which in the real app is the
+        existing <code>StepThrough</code> with its <code>JsonDiff</code> (chrome row, cumulative
+        toggle) — the flatten step's block removals get the roadmap-026 benign-note treatment so a
+        red line can say "consumed, not rejected". Clicking a stop opens its detail; Prev/Next and
+        arrow keys walk the sequence in both.
+      </p>
+
+      <h3><span class="num">2A ·</span> Custom rail (previous proposal)</h3>
+      <p class="section-note">
+        Color = provenance, shape = kind of merge, hollow = changed nothing. Distinctive, but it
+        invents a second sequence grammar next to the Pipeline tab's, and at many matched rules it
+        can only scroll sideways.
+      </p>
+      <div class="final-card">
+        <div class="final-head">
+          <span class="final-title">Final per-dependency config</span>
+          <p class="final-summary">
+            2 rules matched and changed 1 setting: <span class="key">groupName</span>.
+          </p>
+        </div>
+
+        <div class="rail" role="group" aria-label="Merge sequence">
+          <button type="button" class="station" data-i="0" aria-pressed="false">
+            <span class="node"></span>
+            <span class="station-label">base</span>
+            <span class="station-delta zero">start</span>
+          </button>
+          <button type="button" class="station preset noop" data-i="1" aria-pressed="false">
+            <span class="node"></span>
+            <span class="station-label">[0]</span>
+            <span class="station-delta zero">±0</span>
+          </button>
+          <button type="button" class="station repo" data-i="2" aria-pressed="true">
+            <span class="node"></span>
+            <span class="station-label">[713]</span>
+            <span class="station-delta add">+2</span>
+          </button>
+          <button type="button" class="station flatten" data-i="3" aria-pressed="false">
+            <span class="node"></span>
+            <span class="station-label">flatten</span>
+            <span class="station-delta consume">⊘7</span>
+          </button>
+          <button type="button" class="station terminal" data-i="4" aria-pressed="false">
+            <span class="node"></span>
+            <span class="station-label">final</span>
+            <span class="station-delta zero">config</span>
+          </button>
+        </div>
+
+        <div class="panel" aria-live="polite"></div>
+      </div>
+
+      <h3><span class="num">2B ·</span> The Pipeline tab's chip grammar (recommended)</h3>
+      <p class="section-note">
+        The same sequence as <code>stage-chip</code>s with <code>→</code> separators — the app's
+        existing "clickable sequence" vocabulary, reused verbatim. The 024 dot signals carry over
+        with their meanings intact: green circle = ran clean (matched, changed nothing), amber
+        diamond = changed things (with the count as the chip's <code>·N</code> suffix slot), hollow
+        ring = nothing happened (the base). Provenance moves into the detail panel's chip, where the
+        stepper already shows it — dot color keeps meaning the same thing in both timelines. Chips
+        wrap with a leading arrow at any rule count (042), no sideways scrolling.
+      </p>
+      <div class="final-card">
+        <div class="final-head">
+          <span class="final-title">Final per-dependency config</span>
+          <p class="final-summary">
+            2 rules matched and changed 1 setting: <span class="key">groupName</span>.
+          </p>
+        </div>
+
+        <div class="stage-timeline" role="group" aria-label="Merge sequence">
+          <button type="button" class="stage-chip" data-i="0">
+            <span class="dot skipped"></span>base
+          </button>
+          <span class="stage-sep" aria-hidden="true">→</span>
+          <button type="button" class="stage-chip" data-i="1">
+            <span class="dot clean"></span><span class="rule-ref">packageRules[0]</span>
+            <span class="stage-chip-count">±0</span>
+          </button>
+          <span class="stage-sep" aria-hidden="true">→</span>
+          <button type="button" class="stage-chip selected" data-i="2">
+            <span class="dot changed"></span><span class="rule-ref">packageRules[713]</span>
+            <span class="stage-chip-count">+2</span>
+          </button>
+          <span class="stage-sep" aria-hidden="true">→</span>
+          <button type="button" class="stage-chip" data-i="3">
+            <span class="dot changed"></span>flatten
+            <span class="stage-chip-count">⊘7</span>
+          </button>
+          <span class="stage-sep" aria-hidden="true">→</span>
+          <button type="button" class="stage-chip" data-i="4">final config</button>
+        </div>
+
+        <div class="panel" aria-live="polite"></div>
+      </div>
+
+      <!-- ============================================================ -->
+      <section class="design-notes">
+        <h2>Design notes</h2>
+        <dl>
+          <dt>Palette — nothing new, roles sharpened</dt>
+          <dd>
+            <span class="swatch" style="background: #1a7f37"></span>verdict green (app
+            <code>--ok</code>) is reserved for the judgment and genuine changes;
+            <span class="swatch" style="background: #8250df"></span>preset purple and
+            <span class="swatch" style="background: #0969da"></span>repo blue are the provenance
+            colors the rule chips already use, now doing structural work on the rail;
+            <span class="swatch" style="background: #9a6700"></span>amber (app <code>--warn</code>)
+            marks consumption — the flatten step and its aside, and nothing else.
+          </dd>
+          <dt>Type — the modal verb is the display moment</dt>
+          <dd>
+            One size up for the verdict sentence (1.25rem, balanced wrap), config values inline in
+            the mono utility face, and the WOULD / WOULD&nbsp;NOT badge as the only display
+            flourish. A negative verdict reads
+            <span class="modal-verb not">would not</span> in the same grammar — the badge color is
+            the verdict.
+          </dd>
+          <dt>Structure — geometry that can't contradict the copy</dt>
+          <dd>
+            The old section claimed "8 keys changed" above a step showing "No differences". On the
+            sequence those two facts are one drawing: in 2B, the 024 dot vocabulary carries it —
+            green circle = ran clean (matched, changed nothing), amber diamond = changed things,
+            with the delta in the chip's count slot. Step numbering survives because merge order is
+            real information — later stops win.
+          </dd>
+          <dt>Motion — one orchestrated moment</dt>
+          <dd>
+            The 2A rail assembles left-to-right once on result load (~0.5s), miming accumulation;
+            nothing else animates, and <code>prefers-reduced-motion</code> turns it off. 2B keeps
+            the Pipeline timeline's stillness — chips appear with the result, like the tab it
+            echoes.
+          </dd>
+          <dt>Implementation</dt>
+          <dd>
+            UI-only, as before: <code>changedKeys</code> drops the update-type blocks from its base
+            copy; <code>SimVerdictBlock</code> becomes the card (band / ledger / foot). For 2B the
+            sequence is a sibling of <code>StageTimeline</code> reusing the
+            <code>.stage-timeline</code>/<code>.stage-chip</code>/<code>.stage-sep</code> CSS and
+            aria pattern verbatim, rendered from <code>mergeSteps</code> — plus a synthetic flatten
+            stop built from <code>flattened.blocks</code> when nothing merged up, and a terminal
+            stop that replaces the config <code>&lt;details&gt;</code>. The detail panel is the
+            existing <code>StepThrough</code> + <code>JsonDiff</code> (its cumulative toggle is the
+            "diff vs. base" here); the flatten stop's removals get a widget in the roadmap-026
+            benign-note pattern. Engine untouched.
+          </dd>
+        </dl>
+      </section>
+    </main>
+
+    <script>
+      const CONSUMED_NOTE =
+        '<span class="benign-note">consumed by flattening — resolved into this update’s config, then dropped; not a rejection</span>';
+      const STATIONS = [
+        {
+          counter: "Start",
+          title: "Base config",
+          badge: null,
+          expl: "The effective config with the simulated dependency's fields layered on — what every one of the 714 packageRules is tested against.",
+          diff: '<span class="mut">Starting point — no diff yet.</span>',
+          cumulative: '<span class="mut">Starting point — no diff yet.</span>',
+        },
+        {
+          counter: "Step 1 of 2",
+          title: '<span class="rule-index">packageRules[0]</span> matchPackageNames',
+          badge: '<span class="badge preset">config:recommended</span>',
+          expl: "This rule matched, but sets nothing beyond its <code>match*</code> selectors — the config is unchanged after this step.",
+          diff: '<span class="mut">No differences.</span>',
+          cumulative: '<span class="mut">No differences.</span>',
+        },
+        {
+          counter: "Step 2 of 2",
+          title: '<span class="rule-index">packageRules[713]</span> matchPackageNames',
+          badge: '<span class="badge repo">repo config</span>',
+          expl: 'Sets the two grouping keys — this is the step that groups the update as "react".',
+          stat: { plus: 2, minus: 0 },
+          diff: '<span class="add">+ "groupName": "react"</span>\n<span class="add">+ "groupSlug": "react"</span>',
+          cumulativeStat: { plus: 2, minus: 0 },
+          cumulative:
+            '<span class="add">+ "groupName": "react"</span>\n<span class="add">+ "groupSlug": "react"</span>',
+        },
+        {
+          counter: "After the rules",
+          title: "Update-type flattening",
+          badge: '<span class="badge flatten">⊘ consumed 7 blocks</span>',
+          expl: "Renovate resolves the update-type blocks into the config for this update, then drops them all. <code>updateType</code> is unset, so none of them applied — the seven blocks were consumed without merging anything up.",
+          stat: { plus: 0, minus: 7 },
+          diff:
+            `<span class="rem">- "major": {},</span> ${CONSUMED_NOTE}\n` +
+            '<span class="rem">- "minor": {},</span>\n' +
+            '<span class="rem">- "patch": {},</span>\n' +
+            '<span class="rem">- "pin": { "rangeStrategy": "pin", … },</span>\n' +
+            '<span class="rem">- "digest": {},</span>\n' +
+            '<span class="rem">- "lockFileMaintenance": { "enabled": false, … },</span>\n' +
+            '<span class="rem">- "replacement": {},</span>',
+          cumulativeStat: { plus: 2, minus: 7 },
+          cumulative:
+            '<span class="add">+ "groupName": "react"</span>\n<span class="add">+ "groupSlug": "react"</span>\n<span class="rem">- 7 update-type blocks</span> ' +
+            CONSUMED_NOTE,
+        },
+        {
+          counter: "Result",
+          title: "Final per-dependency config",
+          badge: null,
+          expl: "What Renovate would use for this update — the base config plus everything the stops before this one applied.",
+          diff: '{\n  "rangeStrategy": "replace",\n  "schedule": ["before 6am on monday"],\n  <span class="add">"groupName": "react",</span>\n  <span class="add">"groupSlug": "react",</span>\n  <span class="mut">… 38 more keys unchanged from base</span>\n}',
+          cumulative:
+            '{\n  "rangeStrategy": "replace",\n  "schedule": ["before 6am on monday"],\n  <span class="add">"groupName": "react",</span>\n  <span class="add">"groupSlug": "react",</span>\n  <span class="mut">… 38 more keys unchanged from base</span>\n}',
+        },
+      ];
+
+      let selected = 2;
+      let cumulative = false;
+      const panels = [...document.querySelectorAll(".panel")];
+      const stations = [...document.querySelectorAll(".station")];
+      const chips = [...document.querySelectorAll(".stage-chip[data-i]")];
+
+      function render() {
+        const s = STATIONS[selected];
+        const useCum = cumulative && selected !== 0 && selected !== STATIONS.length - 1;
+        const stat = useCum ? s.cumulativeStat : s.stat;
+        const names = useCum ? "before any rule → after this step" : "before → after this step";
+        const chrome = stat
+          ? `<div class="mini-chrome"><span class="names">${names}</span><span class="stat"><span class="plus">+${stat.plus}</span> <span class="minus">−${stat.minus}</span></span></div>`
+          : "";
+        for (const panel of panels) {
+          panel.innerHTML = `
+            <div class="panel-head">
+              <span class="panel-counter">${s.counter}</span>
+              <span class="panel-title">${s.title}</span>
+              ${s.badge ?? ""}
+            </div>
+            <p class="panel-expl">${s.expl}</p>
+            <div class="panel-diff-wrap">${chrome}<div class="panel-diff">${useCum ? s.cumulative : s.diff}</div></div>
+            <div class="panel-nav">
+              <button type="button" class="btn prev" ${selected === 0 ? "disabled" : ""}>‹ Prev</button>
+              <button type="button" class="btn next" ${selected === STATIONS.length - 1 ? "disabled" : ""}>Next ›</button>
+              <label class="cumulative">
+                <input type="checkbox" class="cum" ${cumulative ? "checked" : ""} /> Diff vs. base config
+              </label>
+            </div>`;
+          panel.querySelector(".prev").onclick = () => select(selected - 1);
+          panel.querySelector(".next").onclick = () => select(selected + 1);
+          panel.querySelector(".cum").onchange = (e) => {
+            cumulative = e.target.checked;
+            render();
+          };
+        }
+        stations.forEach((el, i) => el.setAttribute("aria-pressed", String(i === selected)));
+        chips.forEach((el) => el.classList.toggle("selected", Number(el.dataset.i) === selected));
+      }
+
+      function select(i) {
+        selected = Math.max(0, Math.min(STATIONS.length - 1, i));
+        render();
+      }
+
+      [...stations, ...chips].forEach((el) => (el.onclick = () => select(Number(el.dataset.i))));
+      for (const seq of document.querySelectorAll(".rail, .stage-timeline")) {
+        seq.addEventListener("keydown", (e) => {
+          if (e.key === "ArrowRight") select(selected + 1);
+          if (e.key === "ArrowLeft") select(selected - 1);
+        });
+      }
+      document.querySelectorAll(".step-link").forEach((el) => {
+        el.onclick = () => {
+          select(Number(el.dataset.goto));
+          document
+            .querySelector(".stage-timeline")
+            .scrollIntoView({ behavior: "smooth", block: "center" });
+        };
+      });
+      render();
+    </script>
+  </body>
+</html>
