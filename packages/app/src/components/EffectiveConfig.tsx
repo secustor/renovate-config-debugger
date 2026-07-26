@@ -5,14 +5,14 @@ import type {
   RuleAttribution,
   TraceResult,
 } from "@renovate-config-visualizer/engine";
-import { Explained, Term } from "../glossary";
-import { GLOSSARY } from "../glossary-data";
-import { OptionKey } from "../option-docs";
+import { Explained, Term } from "./glossary";
+import { GLOSSARY } from "@/data/glossary-data";
+import { OptionKey } from "./option-docs";
 import { ConfigJson } from "./ConfigJson";
 import { ProvenanceChip } from "./ProvenanceChip";
 import { layerId, layerLabel, type LayerId } from "./provenance-layer";
-import { useRuleProvenance } from "../rule-provenance";
-import { RuleFramingText } from "../rule-framing";
+import { useRuleProvenance } from "@/hooks/rule-provenance";
+import { RuleFramingText } from "./rule-framing";
 
 /**
  * Roadmap 005: the effective config as a provenance view. Every top-level key

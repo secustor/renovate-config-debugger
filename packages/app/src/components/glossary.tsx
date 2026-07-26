@@ -1,7 +1,7 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { GLOSSARY, type GlossaryEntry, type TermId } from "./glossary-data";
-import { useMoveGatedHover } from "./hover-gate";
+import { GLOSSARY, type GlossaryEntry, type TermId } from "@/data/glossary-data";
+import { useMoveGatedHover } from "@/hooks/hover-gate";
 
 /**
  * The hover/focus card UI for the glossary. The entries themselves live in

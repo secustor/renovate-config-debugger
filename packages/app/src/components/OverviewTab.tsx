@@ -1,6 +1,6 @@
 import { memo, type ReactNode } from "react";
-import type { ResultsTabId } from "../results-tabs";
-import type { DigestClause } from "../run-digest";
+import type { ResultsTabId } from "@/data/results-tabs";
+import type { DigestClause } from "@/lib/run-digest";
 import { CodeText } from "./CodeText";
 
 /**

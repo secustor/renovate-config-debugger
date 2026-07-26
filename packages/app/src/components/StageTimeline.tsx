@@ -1,9 +1,9 @@
 import { Fragment } from "react";
 import type { StageId, TraceResult } from "@renovate-config-visualizer/engine";
-import { Explained } from "../glossary";
-import { STAGE_IDS } from "../input-schemas";
-import { STAGE_EXPLAINERS, STAGE_LABELS } from "../stage-copy";
-import { describeStageActivity, getStageActivity } from "../stage-activity";
+import { Explained } from "./glossary";
+import { STAGE_IDS } from "@/lib/input-schemas";
+import { STAGE_EXPLAINERS, STAGE_LABELS } from "@/data/stage-copy";
+import { describeStageActivity, getStageActivity } from "@/lib/stage-activity";
 
 // Roadmap 033: the app's single stage list (satisfies-checked against the
 // engine's exported STAGE_IDS), already in execution order.

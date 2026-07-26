@@ -1,5 +1,8 @@
+import { fileURLToPath } from "node:url";
 import { renovateShims } from "@renovate-config-visualizer/engine/vite-plugin";
 import { defineConfig } from "vitest/config";
+
+const srcAlias = { "@": fileURLToPath(new URL("./src", import.meta.url)) };
 
 /**
  * Two projects:
@@ -20,6 +23,7 @@ export default defineConfig({
   test: {
     projects: [
       {
+        resolve: { alias: srcAlias },
         test: {
           name: "unit",
           include: ["src/**/*.test.ts"],
@@ -27,6 +31,7 @@ export default defineConfig({
         },
       },
       {
+        resolve: { alias: srcAlias },
         plugins: [renovateShims()],
         test: {
           name: "render",

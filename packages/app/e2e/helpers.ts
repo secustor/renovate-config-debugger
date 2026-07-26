@@ -1,5 +1,5 @@
 import { expect, type Page } from "@playwright/test";
-import type { ResultsTabId } from "../src/results-tabs";
+import type { ResultsTabId } from "../src/data/results-tabs";
 
 /**
  * Replaces the CodeMirror editor's whole content with `text`.

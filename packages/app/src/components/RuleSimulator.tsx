@@ -14,12 +14,12 @@ import type {
   ValidationMessage,
 } from "@renovate-config-visualizer/engine";
 import type * as EngineModule from "@renovate-config-visualizer/engine";
-import { Term } from "../glossary";
-import { OptionKey } from "../option-docs";
-import { useRuleProvenance } from "../rule-provenance";
-import { RuleFramingText } from "../rule-framing";
-import type { ErrorTranslationLib } from "../run";
-import type { ShareSimulator } from "../share";
+import { Term } from "./glossary";
+import { OptionKey } from "./option-docs";
+import { useRuleProvenance } from "@/hooks/rule-provenance";
+import { RuleFramingText } from "./rule-framing";
+import type { ErrorTranslationLib } from "@/platform/run";
+import type { ShareSimulator } from "@/lib/share";
 import { ConfigJson } from "./ConfigJson";
 import { CopyButton } from "./CopyButton";
 import { CopyMarkdownButton } from "./CopyMarkdownButton";

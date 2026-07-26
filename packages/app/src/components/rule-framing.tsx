@@ -1,6 +1,6 @@
 import type { RuleAttribution } from "@renovate-config-visualizer/engine";
 import type { ReactNode } from "react";
-import { layerLabel } from "./components/provenance-layer";
+import { layerLabel } from "./provenance-layer";
 
 /**
  * Roadmap 016: honest "N rules — M from your config, K pulled in by

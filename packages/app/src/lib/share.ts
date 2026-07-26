@@ -11,8 +11,8 @@
  * current at encode time rides along so the opener can warn on version drift.
  */
 import type { StageId } from "@renovate-config-visualizer/engine";
-import type { ResultsTabId } from "./results-tabs";
-import { isTrustedEndpoint, PLATFORM_ENDPOINTS } from "./platform-endpoints";
+import type { ResultsTabId } from "@/data/results-tabs";
+import { isTrustedEndpoint, PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
 
 // Roadmap 031: the payload schemas (and with them zod) load with the first
 // encode/decode — both call sites are already async — via this module-cached

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { RESULTS_TAB_IDS, RESULTS_TAB_LABELS, type ResultsTabId } from "../results-tabs";
+import { RESULTS_TAB_IDS, RESULTS_TAB_LABELS, type ResultsTabId } from "@/data/results-tabs";
 
 const nf = new Intl.NumberFormat();
 

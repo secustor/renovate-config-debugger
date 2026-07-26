@@ -17,7 +17,7 @@ import { jsonSchema, jsonSchemaHover } from "codemirror-json-schema";
 import type { RefObject } from "react";
 import { renovateSchema } from "@renovate-config-visualizer/engine/schema";
 import type { PresetNodeState } from "@renovate-config-visualizer/engine";
-import type { PresetHoverContext, PresetHoverInfo } from "./preset-hover";
+import type { PresetHoverContext, PresetHoverInfo } from "@/lib/preset-hover";
 
 const STRING_RE = /"(?:[^"\\]|\\.)*"/g;
 

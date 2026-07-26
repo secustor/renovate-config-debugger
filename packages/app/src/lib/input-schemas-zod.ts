@@ -16,7 +16,7 @@
  */
 import * as z from "zod/mini";
 import type { StageId } from "@renovate-config-visualizer/engine";
-import { RESULTS_TAB_IDS, type ResultsTabId } from "./results-tabs";
+import { RESULTS_TAB_IDS, type ResultsTabId } from "@/data/results-tabs";
 import {
   isHttpUrl,
   isPlainObject,

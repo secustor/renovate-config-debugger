@@ -1,9 +1,15 @@
+import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { renovateShims } from "@renovate-config-visualizer/engine/vite-plugin";
 
 export default defineConfig({
   base: process.env.GITHUB_ACTIONS ? "/renovate-config-visualizer/" : "/",
+  resolve: {
+    alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+    },
+  },
   plugins: [react(), renovateShims()],
   build: {
     /**

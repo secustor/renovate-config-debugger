@@ -1,4 +1,4 @@
-import type { ResultsTabId } from "./results-tabs";
+import type { ResultsTabId } from "@/data/results-tabs";
 
 /**
  * Roadmap 029: the run digest — the whole run narrated as a short paragraph

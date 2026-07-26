@@ -12,8 +12,8 @@ import type {
   ValidationMessage,
 } from "@renovate-config-visualizer/engine";
 import type * as EngineModule from "@renovate-config-visualizer/engine";
-import { HOST_TOKENS } from "./host-tokens";
-import { isValidToken } from "./input-schemas";
+import { HOST_TOKENS } from "@/data/host-tokens";
+import { isValidToken } from "@/lib/input-schemas";
 import { getValidToken } from "./oauth";
 import { sessionGet } from "./storage";
 

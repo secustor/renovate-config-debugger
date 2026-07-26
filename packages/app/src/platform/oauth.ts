@@ -12,7 +12,7 @@
  * closing the tab clears them. GitHub Apps issue 8 h user tokens with a 6-month
  * refresh token; refreshing is a Worker round-trip.
  */
-import { isHttpUrl, isValidOAuthParam, isValidToken, sanitizeStoredUser } from "./input-schemas";
+import { isHttpUrl, isValidOAuthParam, isValidToken, sanitizeStoredUser } from "@/lib/input-schemas";
 // Roadmap 033: storage access goes through the safe wrappers — a
 // storage-disabled browser reads "signed out" (get → null) and writes are
 // no-ops, instead of a throw taking down whatever called into this module.
@@ -245,7 +245,7 @@ async function postWorker(path: string, body: unknown): Promise<TokenResponse> {
   // token at all, so it fails the same "Token exchange failed" path below
   // rather than something malformed ever being stored. Roadmap 031: the
   // schema module (zod) loads here, on an already-network-bound async path.
-  const { tokenResponseSchema } = await import("./input-schemas-zod");
+  const { tokenResponseSchema } = await import("@/lib/input-schemas-zod");
   const parsed = tokenResponseSchema.safeParse(raw);
   const data: TokenResponse = parsed.success ? parsed.data : {};
   if (!res.ok || data.error || !data.access_token) {
@@ -279,7 +279,7 @@ async function fetchUser(token: string): Promise<StoredUser> {
   if (!res.ok) {
     throw new Error(`Could not load your GitHub profile (HTTP ${res.status}).`);
   }
-  const { userApiResponseSchema } = await import("./input-schemas-zod");
+  const { userApiResponseSchema } = await import("@/lib/input-schemas-zod");
   const parsed = userApiResponseSchema.safeParse(await res.json());
   const login = parsed.success ? (parsed.data.login ?? "") : "";
   const avatarUrl = parsed.success && parsed.data.avatar_url;
@@ -394,7 +394,7 @@ export async function completeCallback(
   } catch {
     throw new Error("Sign-in state was corrupted.");
   }
-  const { pendingSignInSchema } = await import("./input-schemas-zod");
+  const { pendingSignInSchema } = await import("@/lib/input-schemas-zod");
   const pendingResult = pendingSignInSchema.safeParse(parsedPending);
   if (!pendingResult.success) {
     throw new Error("Sign-in state was corrupted.");

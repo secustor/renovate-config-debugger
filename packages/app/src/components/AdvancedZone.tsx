@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
-import { Term } from "../glossary";
-import type { InheritLayerState } from "../inherit-probe";
-import { isValidEndpoint, isValidToken, type LayerParseResult } from "../input-schemas";
-import { PLATFORM_ENDPOINTS, PLATFORMS } from "../platform-endpoints";
-import type { HostTokenField } from "../use-host-tokens";
+import { Term } from "./glossary";
+import type { InheritLayerState } from "@/lib/inherit-probe";
+import { isValidEndpoint, isValidToken, type LayerParseResult } from "@/lib/input-schemas";
+import { PLATFORM_ENDPOINTS, PLATFORMS } from "@/data/platform-endpoints";
+import type { HostTokenField } from "@/hooks/use-host-tokens";
 
 /**
  * Roadmap 040 — the single collapsed home of everything a typical repo user

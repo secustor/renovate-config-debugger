@@ -1,4 +1,4 @@
-import { REVOKE_URL, type StoredUser } from "../oauth";
+import { REVOKE_URL, type StoredUser } from "@/platform/oauth";
 import { CopyButton } from "./CopyButton";
 
 /**

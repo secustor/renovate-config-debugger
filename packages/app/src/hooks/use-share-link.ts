@@ -13,8 +13,8 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { TraceResult } from "@renovate-config-visualizer/engine";
-import { completeCallback, type OAuthConfig, readCallbackParams, type StoredUser } from "./oauth";
-import { getRenovateVersion } from "./run";
+import { completeCallback, type OAuthConfig, readCallbackParams, type StoredUser } from "@/platform/oauth";
+import { getRenovateVersion } from "@/platform/run";
 import {
   buildShareUrl,
   decideHashChangeAction,
@@ -29,8 +29,8 @@ import {
   type ShareView,
   type UntrustedEndpointGuard,
   untrustedGuardForPolicy,
-} from "./share";
-import { ENDPOINT_KEY, persistLocal, PLATFORM_KEY } from "./storage";
+} from "@/lib/share";
+import { ENDPOINT_KEY, persistLocal, PLATFORM_KEY } from "@/platform/storage";
 
 /** Roadmap 018: a share link's simulator inputs, applied once by nonce. */
 export interface SimRequest {

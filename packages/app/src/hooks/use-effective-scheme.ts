@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { getTheme, subscribeTheme } from "./storage";
+import { getTheme, subscribeTheme } from "@/platform/storage";
 
 /**
  * Roadmap 039 — the scheme the app is ACTUALLY painted in, subscribed.

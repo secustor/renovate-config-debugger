@@ -1,7 +1,7 @@
 import type { RefObject } from "react";
 import { ConfigEditor, type ConfigEditorHandle } from "./ConfigEditor";
 import { RepoLoadForm } from "./RepoLoadForm";
-import type { PresetHoverContext } from "../preset-hover";
+import type { PresetHoverContext } from "@/lib/preset-hover";
 
 /**
  * Roadmap 039/040 — the editor card with its own chrome: loading a repo config

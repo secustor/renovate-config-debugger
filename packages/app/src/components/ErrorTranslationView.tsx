@@ -1,5 +1,5 @@
 import type { ErrorFixResult, ValidationMessage } from "@renovate-config-visualizer/engine";
-import type { ErrorTranslationLib } from "../run";
+import type { ErrorTranslationLib } from "@/platform/run";
 
 /**
  * Roadmap 014: renders ALONGSIDE Renovate's original validator message (never

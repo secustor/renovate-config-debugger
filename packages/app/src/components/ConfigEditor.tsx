@@ -5,8 +5,8 @@ import CodeMirror, {
 } from "@uiw/react-codemirror";
 import { json } from "@codemirror/lang-json";
 import { forwardRef, type ReactNode, useEffect, useImperativeHandle, useMemo, useRef } from "react";
-import type { PresetHoverContext } from "../preset-hover";
-import { useEffectiveScheme } from "../use-effective-scheme";
+import type { PresetHoverContext } from "@/lib/preset-hover";
+import { useEffectiveScheme } from "@/hooks/use-effective-scheme";
 
 interface Props {
   fileName: string;
@@ -56,7 +56,7 @@ export const ConfigEditor = forwardRef<ConfigEditorHandle, Props>(function Confi
     let cancelled = false;
     void (async () => {
       try {
-        const { buildSchemaExtensions } = await import("../editor-schema");
+        const { buildSchemaExtensions } = await import("@/platform/editor-schema");
         const schemaExtensions = await buildSchemaExtensions(
           fileName.endsWith(".json5"),
           presetHoverRef,

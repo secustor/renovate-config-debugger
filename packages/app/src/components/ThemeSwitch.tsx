@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { applyTheme, getTheme, persistTheme, subscribeTheme, type Theme } from "../storage";
+import { applyTheme, getTheme, persistTheme, subscribeTheme, type Theme } from "@/platform/storage";
 
 /**
  * Roadmap 037 — the Auto / Light / Dark override, in the header beside the

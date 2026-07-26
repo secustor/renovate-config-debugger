@@ -10,7 +10,7 @@
  * didn't stick" (set/remove → no-op): exactly the behavior the app already
  * has for a value that was never stored, so no caller needs a special path.
  */
-import { HOST_TOKENS } from "./host-tokens";
+import { HOST_TOKENS } from "@/data/host-tokens";
 
 /** localStorage keys for the non-secret platform context (see readLocal). */
 export const PLATFORM_KEY = "rcv.platform";

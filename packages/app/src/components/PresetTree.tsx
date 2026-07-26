@@ -5,18 +5,18 @@ import type {
   TraceEvent,
   TraceResult,
 } from "@renovate-config-visualizer/engine";
-import { Explained, Term } from "../glossary";
+import { Explained, Term } from "./glossary";
 import {
   computeTreeStats,
   type NodeStats,
   type TreeStats,
   type TreeSummary,
 } from "./preset-tree-stats";
-import { GLOSSARY, type GlossaryEntry } from "../glossary-data";
+import { GLOSSARY, type GlossaryEntry } from "@/data/glossary-data";
 import { ConfigJson } from "./ConfigJson";
 import { CopyMarkdownButton } from "./CopyMarkdownButton";
 import { type AuthState, GithubAuthHint } from "./GithubAuthHint";
-import { findPollutedPath } from "../input-schemas";
+import { findPollutedPath } from "@/lib/input-schemas";
 import { JsonDiff } from "./JsonDiff";
 import { MigrationSteps } from "./MigrationSteps";
 

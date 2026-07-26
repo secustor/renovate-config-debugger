@@ -6,9 +6,9 @@
  * allocated closures inline in JSX).
  */
 import { useState } from "react";
-import { HOST_TOKENS, type HostTokenDescriptor, type HostTokenId } from "./host-tokens";
-import { isValidToken } from "./input-schemas";
-import { persistSession, readSession, sessionRemove } from "./storage";
+import { HOST_TOKENS, type HostTokenDescriptor, type HostTokenId } from "@/data/host-tokens";
+import { isValidToken } from "@/lib/input-schemas";
+import { persistSession, readSession, sessionRemove } from "@/platform/storage";
 
 /** A host row ready for the token inputs: the table entry plus live state. */
 export interface HostTokenField extends HostTokenDescriptor {

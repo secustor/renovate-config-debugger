@@ -2,7 +2,7 @@
  * Roadmap 020 — share-link fixtures for the browser e2e suite.
  *
  * Roadmap 033: well-formed tokens come from the app's REAL codec
- * (`encodeShare` in src/share.ts) — the wire format lives in one place, so a
+ * (`encodeShare` in src/lib/share.ts) — the wire format lives in one place, so a
  * codec change cannot silently diverge from what these tests produce. Only
  * the deliberately-shaped builders stay hand-written: raw JSON tokens for
  * payloads `encodeShare` refuses to produce (adversarial fields, pre-027
@@ -10,7 +10,7 @@
  * use web globals only (CompressionStream, TextEncoder, btoa — available in
  * Node 20+ and the browser), the same wire shape the codec itself writes.
  */
-import { configChecksum, encodeShare, type ShareSimulator, type ShareView } from "../src/share";
+import { configChecksum, encodeShare, type ShareSimulator, type ShareView } from "../src/lib/share";
 
 export { configChecksum };
 
@@ -50,7 +50,7 @@ export const RENOVATE_VERSION = "43.275.0";
 
 async function pipeThrough(bytes: Uint8Array, stream: GenericTransformStream): Promise<Uint8Array> {
   // Type the stream as GenericTransformStream (writable: WritableStream) so the
-  // writer accepts a plain Uint8Array — same pattern as src/share.ts, which
+  // writer accepts a plain Uint8Array — same pattern as src/lib/share.ts, which
   // works around TextEncoder outputs being typed as ArrayBufferLike.
   const writer = stream.writable.getWriter();
   void writer.write(new Uint8Array(bytes));
@@ -78,7 +78,7 @@ export interface EncodeOptions {
 }
 
 /** Builds the `#config=` fragment token for a payload. The default path IS
- *  `encodeShare()` from src/share.ts; `integrity: false` reproduces a
+ *  `encodeShare()` from src/lib/share.ts; `integrity: false` reproduces a
  *  pre-027 link, which the real codec can no longer emit, so that payload is
  *  built by hand (see module doc comment). */
 export async function encodeShareToken(

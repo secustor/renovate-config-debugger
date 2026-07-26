@@ -25,12 +25,12 @@ import {
 } from "react";
 import { act, fireEvent, render, waitFor } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import type { ConfigEditorHandle } from "./components/ConfigEditor";
-import type * as PresetTreeModule from "./components/PresetTree";
-import type * as EffectiveConfigModule from "./components/EffectiveConfig";
-import type * as RuleSimulatorModule from "./components/RuleSimulator";
-import type * as MessagesPanelModule from "./components/MessagesPanel";
-import type * as OverviewTabModule from "./components/OverviewTab";
+import type { ConfigEditorHandle } from "@/components/ConfigEditor";
+import type * as PresetTreeModule from "@/components/PresetTree";
+import type * as EffectiveConfigModule from "@/components/EffectiveConfig";
+import type * as RuleSimulatorModule from "@/components/RuleSimulator";
+import type * as MessagesPanelModule from "@/components/MessagesPanel";
+import type * as OverviewTabModule from "@/components/OverviewTab";
 
 /** Render-function invocations per wrapped panel (memo bailouts excluded). */
 const renderCounts: Record<string, number> = {};

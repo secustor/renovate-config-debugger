@@ -16,22 +16,22 @@ import type {
   StageId,
   TraceResult,
 } from "@renovate-config-visualizer/engine";
-import { AdvancedZone } from "./components/AdvancedZone";
-import type { ConfigEditorHandle } from "./components/ConfigEditor";
-import { ConfigEditorCard } from "./components/ConfigEditorCard";
-import { ConfigToolbar } from "./components/ConfigToolbar";
-import type { EffectiveStats } from "./components/EffectiveConfig";
-import { type AuthState, GithubAuthHint } from "./components/GithubAuthHint";
-import { NoticeBar } from "./components/NoticeBar";
+import { AdvancedZone } from "@/components/AdvancedZone";
+import type { ConfigEditorHandle } from "@/components/ConfigEditor";
+import { ConfigEditorCard } from "@/components/ConfigEditorCard";
+import { ConfigToolbar } from "@/components/ConfigToolbar";
+import type { EffectiveStats } from "@/components/EffectiveConfig";
+import { type AuthState, GithubAuthHint } from "@/components/GithubAuthHint";
+import { NoticeBar } from "@/components/NoticeBar";
 import {
   identityForNodeId,
   nodeIdForIdentity,
   presetTreeSummary,
-} from "./components/preset-tree-stats";
-import type { ResultsColumnProps } from "./components/ResultsColumn";
-import type { ResultsTabDescriptor } from "./components/ResultsPanel";
-import { ThemeSwitch } from "./components/ThemeSwitch";
-import { WelcomePanel } from "./components/WelcomePanel";
+} from "@/components/preset-tree-stats";
+import type { ResultsColumnProps } from "@/components/ResultsColumn";
+import type { ResultsTabDescriptor } from "@/components/ResultsPanel";
+import { ThemeSwitch } from "@/components/ThemeSwitch";
+import { WelcomePanel } from "@/components/WelcomePanel";
 import {
   inheritFieldValues,
   inheritLayerState,
@@ -39,13 +39,13 @@ import {
   inheritProbeTarget,
   type InheritProbeOutcome,
   isProbeTargetResolved,
-} from "./inherit-probe";
-import { legacyTabForView, type ResultsTabId } from "./results-tabs";
-import { buildRunDigest, type DigestInput, type DigestProblem } from "./run-digest";
-import { OptionDocsProvider } from "./option-docs";
-import { buildPresetLookup, type PresetHoverContext } from "./preset-hover";
-import { findPackageRuleOffsets } from "./rule-locate";
-import { useRuleProvenance } from "./rule-provenance";
+} from "@/lib/inherit-probe";
+import { legacyTabForView, type ResultsTabId } from "@/data/results-tabs";
+import { buildRunDigest, type DigestInput, type DigestProblem } from "@/lib/run-digest";
+import { OptionDocsProvider } from "@/components/option-docs";
+import { buildPresetLookup, type PresetHoverContext } from "@/lib/preset-hover";
+import { findPackageRuleOffsets } from "@/lib/rule-locate";
+import { useRuleProvenance } from "@/hooks/rule-provenance";
 import {
   beginSignIn,
   getOAuthConfig,
@@ -54,7 +54,7 @@ import {
   isSignedIn,
   signOut,
   type StoredUser,
-} from "./oauth";
+} from "@/platform/oauth";
 import {
   type ErrorTranslationLib,
   getRenovateVersion,
@@ -64,26 +64,26 @@ import {
   loadRepoFile,
   preloadEngine,
   run,
-} from "./run";
+} from "@/platform/run";
 import type {
   ShareFileName,
   ShareSimulator,
   ShareState,
   ShareView,
   UntrustedEndpointGuard,
-} from "./share";
-import { useBackToTopVisible, useHomeEndPageScroll } from "./scroll-ergonomics";
+} from "@/lib/share";
+import { useBackToTopVisible, useHomeEndPageScroll } from "@/hooks/scroll-ergonomics";
 import {
   isValidEndpoint,
   isValidPlatform,
   isValidRepoHost,
   isValidRepoRefPart,
   parseLayerJson,
-} from "./input-schemas";
-import { PLATFORM_ENDPOINTS } from "./platform-endpoints";
-import { ENDPOINT_KEY, localRemove, persistLocal, PLATFORM_KEY, readLocal } from "./storage";
-import { useHostTokens } from "./use-host-tokens";
-import { type RunInputs, useShareLink } from "./use-share-link";
+} from "@/lib/input-schemas";
+import { PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
+import { ENDPOINT_KEY, localRemove, persistLocal, PLATFORM_KEY, readLocal } from "@/platform/storage";
+import { useHostTokens } from "@/hooks/use-host-tokens";
+import { type RunInputs, useShareLink } from "@/hooks/use-share-link";
 
 const DEFAULT_CONFIG = `{
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
@@ -135,7 +135,7 @@ const INSTALL_URL = installUrl();
  *  (`result` never returns to null and a resolved `lazy` never re-suspends),
  *  so the 028 always-mounted tab-shell state is untouched by the boundary. */
 const ResultsColumn = lazy(() =>
-  import("./components/ResultsColumn").then((m) => ({ default: m.ResultsColumn })),
+  import("@/components/ResultsColumn").then((m) => ({ default: m.ResultsColumn })),
 );
 
 /**
@@ -163,7 +163,7 @@ function ResultsPane(props: ResultsColumnProps) {
  *  behind the click. Both dynamic imports are module-cached (idempotent). */
 function preloadRunChunks(): void {
   preloadEngine();
-  void import("./components/ResultsColumn").catch(() => {});
+  void import("@/components/ResultsColumn").catch(() => {});
 }
 
 /** Strips a trailing `.git` and slashes from a repo path. */

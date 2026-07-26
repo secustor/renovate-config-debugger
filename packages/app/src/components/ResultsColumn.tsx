@@ -17,12 +17,12 @@ import { ResultsPanel, type ResultsTabDescriptor } from "./ResultsPanel";
 import { RuleSimulator } from "./RuleSimulator";
 import { StageDiff } from "./StageDiff";
 import { StageTimeline } from "./StageTimeline";
-import type { ResultsTabId } from "../results-tabs";
-import type { DigestClause } from "../run-digest";
-import type { ErrorTranslationLib } from "../run";
-import type { ShareSimulator } from "../share";
-import { STAGE_EXPLAINERS, STAGE_LABELS } from "../stage-copy";
-import type { SimRequest } from "../use-share-link";
+import type { ResultsTabId } from "@/data/results-tabs";
+import type { DigestClause } from "@/lib/run-digest";
+import type { ErrorTranslationLib } from "@/platform/run";
+import type { ShareSimulator } from "@/lib/share";
+import { STAGE_EXPLAINERS, STAGE_LABELS } from "@/data/stage-copy";
+import type { SimRequest } from "@/hooks/use-share-link";
 
 /**
  * Everything the seven tab panels consume, handed down from App.tsx. All of

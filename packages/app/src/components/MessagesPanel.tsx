@@ -4,7 +4,7 @@ import type {
   TraceResult,
 } from "@renovate-config-visualizer/engine";
 import { memo, useMemo } from "react";
-import type { ErrorTranslationLib } from "../run";
+import type { ErrorTranslationLib } from "@/platform/run";
 import { ErrorTranslationView } from "./ErrorTranslationView";
 import { RuleMessage } from "./RuleMessage";
 

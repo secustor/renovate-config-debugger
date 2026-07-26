@@ -1,7 +1,7 @@
 import { type ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import type { OptionDoc, OptionIndex } from "@renovate-config-visualizer/engine";
-import { useMoveGatedHover } from "./hover-gate";
-import { OptionDocsContext, useOptionDocs } from "./option-docs-hooks";
+import { useMoveGatedHover } from "@/hooks/hover-gate";
+import { OptionDocsContext, useOptionDocs } from "@/hooks/option-docs-hooks";
 
 /**
  * Inline documentation for renovate options (roadmap 003): a context carrying

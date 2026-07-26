@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
-import { applyTheme, readTheme, runStorageMigrations } from "./storage";
+import { applyTheme, readTheme, runStorageMigrations } from "@/platform/storage";
 import "./index.css";
 
 // Roadmap 033: one-time storage migrations run before the App's `useState`
