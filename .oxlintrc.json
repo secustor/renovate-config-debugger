@@ -34,10 +34,11 @@
     // Roadmap 040: JSX depth is a decomposition driver with a measurable exit
     // criterion — the rule counts nesting within ONE JSX expression, so an
     // extraction resets the counter at the component boundary. Ratcheted down
-    // in three commits (6 → 5 → 4); depth ≤ 4 is this codebase's own empirical
-    // norm, met by every file except the three monoliths 040 decomposed.
+    // over four commits (6 → 5 → 4 → 3); the step to 3 is roadmap 048's exit
+    // criterion, met once 048 decomposed the four remaining depth-4 files
+    // (RuleSimulator, App, EffectiveConfig, AdvancedZone).
     // (oxlint spells the option `max`, not eslint-plugin-react's `maxDepth`.)
-    "react/jsx-max-depth": ["error", { "max": 4 }],
+    "react/jsx-max-depth": ["error", { "max": 3 }],
     // Roadmap 034 parked these two at warn behind a 141-hit backlog; roadmap
     // 041 cleared the backlog and promoted them. The handful of sites where the
     // index/assertion really is the honest answer carry an inline disable that
