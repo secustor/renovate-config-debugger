@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import type {
   KeyProvenance,
   ProvenanceStep,
@@ -24,6 +24,14 @@ import { RuleFramingText } from "./rule-framing";
  */
 
 type Provenance = Map<string, KeyProvenance>;
+
+// `LayerId` IS `string`, so `| "all"` is formally redundant — it stays as
+// documentation that "all" is the sentinel this filter uses for "no layer
+// selected", which every read of a `LayerFilterValue` relies on. Named here
+// (rather than inlined at each use) so the one disable comment covers both
+// the state and the filter bar's props.
+// oxlint-disable-next-line typescript/no-redundant-type-constituents
+type LayerFilterValue = LayerId | "all";
 
 /** Loads + computes provenance for a result once the engine chunk is present. */
 function useProvenance(result: TraceResult): Provenance | null | undefined {
@@ -261,6 +269,20 @@ function PackageRulesProvenance({
   );
 }
 
+/** The "Final value" block of an expanded row — its own component since the
+ *  nested `<pre><ConfigJson /></pre>` puts it one level past the depth
+ *  ratchet when left inline in `KeyRow`. */
+function FinalValueBlock({ value }: { value: unknown }) {
+  return (
+    <div className="prov-final">
+      <div className="prov-final-title">Final value</div>
+      <pre className="config-view prov-value">
+        <ConfigJson value={value} />
+      </pre>
+    </div>
+  );
+}
+
 function KeyRow({
   entry,
   expanded,
@@ -302,12 +324,7 @@ function KeyRow({
       </button>
       {expanded ? (
         <div className="prov-detail">
-          <div className="prov-final">
-            <div className="prov-final-title">Final value</div>
-            <pre className="config-view prov-value">
-              <ConfigJson value={entry.finalValue} />
-            </pre>
-          </div>
+          <FinalValueBlock value={entry.finalValue} />
           {rules &&
           rules.length > 0 &&
           ruleAttribution &&
@@ -326,6 +343,72 @@ function KeyRow({
           ))}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** The filter bar above the key list — its own component since the
+ *  `select > option` and `label > input` pairs each put the bar one level
+ *  past the depth ratchet when left inline. */
+function ProvFilters({
+  filterInputRef,
+  query,
+  onQueryChange,
+  layerFilter,
+  onLayerFilterChange,
+  layerOptions,
+  onlyOverridden,
+  onOnlyOverriddenChange,
+  showDefaults,
+  onShowDefaultsChange,
+  hiddenDefaults,
+}: {
+  filterInputRef: RefObject<HTMLInputElement | null>;
+  query: string;
+  onQueryChange: (value: string) => void;
+  layerFilter: LayerFilterValue;
+  onLayerFilterChange: (value: string) => void;
+  layerOptions: [LayerId, string][];
+  onlyOverridden: boolean;
+  onOnlyOverriddenChange: (checked: boolean) => void;
+  showDefaults: boolean;
+  onShowDefaultsChange: (checked: boolean) => void;
+  hiddenDefaults: number;
+}) {
+  return (
+    <div className="prov-filters">
+      <input
+        ref={filterInputRef}
+        type="text"
+        className="prov-filter-input"
+        placeholder="Filter keys…"
+        value={query}
+        onChange={(e) => onQueryChange(e.target.value)}
+      />
+      <select value={layerFilter} onChange={(e) => onLayerFilterChange(e.target.value)}>
+        <option value="all">All layers</option>
+        {layerOptions.map(([id, label]) => (
+          <option key={id} value={id}>
+            only set by {label}
+          </option>
+        ))}
+      </select>
+      <label className="prov-check">
+        <input
+          type="checkbox"
+          checked={onlyOverridden}
+          onChange={(e) => onOnlyOverriddenChange(e.target.checked)}
+        />{" "}
+        only overridden
+      </label>
+      <label className="prov-check">
+        <input
+          type="checkbox"
+          checked={showDefaults}
+          onChange={(e) => onShowDefaultsChange(e.target.checked)}
+        />{" "}
+        show default-only ({hiddenDefaults})
+      </label>
     </div>
   );
 }
@@ -354,11 +437,7 @@ export const EffectiveConfig = memo(function EffectiveConfig({
   const ruleAttribution = useRuleProvenance(result);
   const filterInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
-  // `LayerId` IS `string`, so `| "all"` is formally redundant — it stays as
-  // documentation that "all" is the sentinel this filter uses for "no layer
-  // selected", which every read of `layerFilter` below relies on.
-  // oxlint-disable-next-line typescript/no-redundant-type-constituents
-  const [layerFilter, setLayerFilter] = useState<LayerId | "all">("all");
+  const [layerFilter, setLayerFilter] = useState<LayerFilterValue>("all");
   const [onlyOverridden, setOnlyOverridden] = useState(false);
   const [showDefaults, setShowDefaults] = useState(false);
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
@@ -477,40 +556,19 @@ export const EffectiveConfig = memo(function EffectiveConfig({
         <p className="empty-note">Computing provenance…</p>
       ) : (
         <>
-          <div className="prov-filters">
-            <input
-              ref={filterInputRef}
-              type="text"
-              className="prov-filter-input"
-              placeholder="Filter keys…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            <select value={layerFilter} onChange={(e) => setLayerFilter(e.target.value)}>
-              <option value="all">All layers</option>
-              {layerOptions.map(([id, label]) => (
-                <option key={id} value={id}>
-                  only set by {label}
-                </option>
-              ))}
-            </select>
-            <label className="prov-check">
-              <input
-                type="checkbox"
-                checked={onlyOverridden}
-                onChange={(e) => setOnlyOverridden(e.target.checked)}
-              />{" "}
-              only overridden
-            </label>
-            <label className="prov-check">
-              <input
-                type="checkbox"
-                checked={showDefaults}
-                onChange={(e) => setShowDefaults(e.target.checked)}
-              />{" "}
-              show default-only ({hiddenDefaults})
-            </label>
-          </div>
+          <ProvFilters
+            filterInputRef={filterInputRef}
+            query={query}
+            onQueryChange={setQuery}
+            layerFilter={layerFilter}
+            onLayerFilterChange={setLayerFilter}
+            layerOptions={layerOptions}
+            onlyOverridden={onlyOverridden}
+            onOnlyOverriddenChange={setOnlyOverridden}
+            showDefaults={showDefaults}
+            onShowDefaultsChange={setShowDefaults}
+            hiddenDefaults={hiddenDefaults}
+          />
           <div className="prov-list">
             {filtered.length === 0 ? (
               <p className="empty-note">

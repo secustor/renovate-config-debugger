@@ -93,6 +93,70 @@ function PlatformEndpointRow({
   );
 }
 
+/** The "some presets live elsewhere" intro paragraph — its own component
+ *  since the nested `<Term><code>…</code></Term>` pushes the paragraph one
+ *  level past the depth ratchet when left inline in `HostAccessSection`. */
+function HostPresetIntro() {
+  return (
+    <p className="advanced-note">
+      Some presets live in other repositories on your <Term id="platform">code host</Term>{" "}
+      (referenced as{" "}
+      <Term id="localPreset">
+        <code>local&gt;</code>
+      </Term>{" "}
+      or a bare <code>owner/repo</code>). Set the host and API endpoint they should resolve
+      against.
+    </p>
+  );
+}
+
+/** The "platform/endpoint came from the global config" banner — split out for
+ *  the same reason as `HostPresetIntro`: the conditional `<code>` values
+ *  inside the fragments put the paragraph one level past the depth ratchet. */
+function PlatformFromGlobalNote({
+  globalPlatform,
+  globalEndpoint,
+}: {
+  globalPlatform: string | undefined;
+  globalEndpoint: string | undefined;
+}) {
+  return (
+    <p className="advanced-note platform-from-global">
+      <span className="badge prov-global">from global config</span>{" "}
+      {globalPlatform !== undefined ? (
+        <>
+          platform <code>{globalPlatform}</code>
+        </>
+      ) : null}
+      {globalPlatform !== undefined && globalEndpoint !== undefined ? " and " : null}
+      {globalEndpoint !== undefined ? (
+        <>
+          endpoint <code>{globalEndpoint}</code>
+        </>
+      ) : null}{" "}
+      come from the pasted global config — a real Renovate run would use them. Changing the
+      control overrides them for this visualization.
+    </p>
+  );
+}
+
+/** One host-token input row (033's table). Its own component since the map
+ *  callback's `label > input` pair is one level past the depth ratchet when
+ *  left inline. */
+function HostTokenInput({ host }: { host: HostTokenField }) {
+  return (
+    <label className="grow">
+      {host.inputLabel}
+      <input
+        type="password"
+        placeholder="optional — stays in this browser tab"
+        value={host.value}
+        onChange={(e) => host.onChange(e.target.value)}
+      />
+    </label>
+  );
+}
+
 /** Where presets living in other repositories are fetched from: the platform
  *  context (010), what the global config contributes to it, and the per-host
  *  access tokens (033's table, mapped over twice — inputs and error rows). */
@@ -147,15 +211,7 @@ function HostAccessSection({
         </span>
       </summary>
       <div className="advanced-body">
-        <p className="advanced-note">
-          Some presets live in other repositories on your <Term id="platform">code host</Term>{" "}
-          (referenced as{" "}
-          <Term id="localPreset">
-            <code>local&gt;</code>
-          </Term>{" "}
-          or a bare <code>owner/repo</code>). Set the host and API endpoint they should resolve
-          against.
-        </p>
+        <HostPresetIntro />
         <PlatformEndpointRow
           displayPlatform={displayPlatform}
           displayEndpoint={displayEndpoint}
@@ -173,22 +229,7 @@ function HostAccessSection({
           </p>
         ) : null}
         {reflectGlobal ? (
-          <p className="advanced-note platform-from-global">
-            <span className="badge prov-global">from global config</span>{" "}
-            {globalPlatform !== undefined ? (
-              <>
-                platform <code>{globalPlatform}</code>
-              </>
-            ) : null}
-            {globalPlatform !== undefined && globalEndpoint !== undefined ? " and " : null}
-            {globalEndpoint !== undefined ? (
-              <>
-                endpoint <code>{globalEndpoint}</code>
-              </>
-            ) : null}{" "}
-            come from the pasted global config — a real Renovate run would use them. Changing the
-            control overrides them for this visualization.
-          </p>
+          <PlatformFromGlobalNote globalPlatform={globalPlatform} globalEndpoint={globalEndpoint} />
         ) : null}
         {platformOverride && hasGlobalContext ? (
           <p className="advanced-note platform-override-warning">
@@ -226,15 +267,7 @@ function HostAccessSection({
         )}
         <div className="advanced-row">
           {hostTokens.map((host) => (
-            <label className="grow" key={host.id}>
-              {host.inputLabel}
-              <input
-                type="password"
-                placeholder="optional — stays in this browser tab"
-                value={host.value}
-                onChange={(e) => host.onChange(e.target.value)}
-              />
-            </label>
+            <HostTokenInput key={host.id} host={host} />
           ))}
         </div>
         {/* Roadmap 030: the "header injection" rule (control
@@ -389,6 +422,24 @@ function LayerSection({
   );
 }
 
+/** The "Inherited config" section's explanatory note — its own component
+ *  since the nested `<Term><code>…</code></Term>` puts it one level past the
+ *  depth ratchet (the sibling "Global config" note has no such nesting and
+ *  stays inline). */
+function InheritedConfigNote() {
+  return (
+    <p className="advanced-note">
+      Defaults a self-hosted bot shares across repositories via{" "}
+      <Term id="inheritedConfig">
+        <code>inheritConfig</code>
+      </Term>
+      . Validated with Renovate&apos;s inherit rules, its presets resolved, bot-only options
+      stripped — then merged between the global layer and the repo config. Leave empty to run
+      without this layer, or let a repo load fetch it for you.
+    </p>
+  );
+}
+
 export function AdvancedZone({
   open,
   onOpenChange,
@@ -483,17 +534,7 @@ export function AdvancedZone({
       <LayerSection
         title="Inherited config"
         hint="— org-wide defaults shared across repositories"
-        note={
-          <p className="advanced-note">
-            Defaults a self-hosted bot shares across repositories via{" "}
-            <Term id="inheritedConfig">
-              <code>inheritConfig</code>
-            </Term>
-            . Validated with Renovate&apos;s inherit rules, its presets resolved, bot-only options
-            stripped — then merged between the global layer and the repo config. Leave empty to run
-            without this layer, or let a repo load fetch it for you.
-          </p>
-        }
+        note={<InheritedConfigNote />}
         banner={inheritState ? <InheritStateNote state={inheritState} /> : null}
         placeholder='{ "extends": ["github>my-org/renovate-config"], "automerge": false }'
         value={inheritedText}

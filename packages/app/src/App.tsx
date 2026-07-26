@@ -17,12 +17,11 @@ import type {
   TraceResult,
 } from "@renovate-config-visualizer/engine";
 import { AdvancedZone } from "@/components/AdvancedZone";
+import { AppHeaderTools } from "@/AppHeaderTools";
 import type { ConfigEditorHandle } from "@/components/ConfigEditor";
-import { ConfigEditorCard } from "@/components/ConfigEditorCard";
-import { ConfigToolbar } from "@/components/ConfigToolbar";
+import { ConfigColumn } from "@/ConfigColumn";
 import type { EffectiveStats } from "@/components/EffectiveConfig";
-import { type AuthState, GithubAuthHint } from "@/components/GithubAuthHint";
-import { NoticeBar } from "@/components/NoticeBar";
+import type { AuthState } from "@/components/GithubAuthHint";
 import {
   identityForNodeId,
   nodeIdForIdentity,
@@ -30,8 +29,7 @@ import {
 } from "@/components/preset-tree-stats";
 import type { ResultsColumnProps } from "@/components/ResultsColumn";
 import type { ResultsTabDescriptor } from "@/components/ResultsPanel";
-import { ThemeSwitch } from "@/components/ThemeSwitch";
-import { WelcomePanel } from "@/components/WelcomePanel";
+import { UntrustedHostBanner } from "@/UntrustedHostBanner";
 import {
   inheritFieldValues,
   inheritLayerState,
@@ -227,25 +225,6 @@ const parseLayerText = parseLayerJson;
 /** Starts the redirect sign-in, stashing the current fragment to restore it. */
 function onSignIn(): void {
   void beginSignIn(window.location.hash);
-}
-
-/**
- * Security 2026-07-25: the banner shown while an untrusted-endpoint guard
- * stands. It names the host and states plainly that nothing is being sent to
- * it. Never a `window.confirm` — a modal would block the run (and every
- * automated/persona session) on a decision the user cannot even evaluate yet,
- * since the endpoint only becomes visible once the link has loaded. The two
- * ways out are the banner's own buttons, so the choice is always explicit and
- * always names the host.
- */
-function untrustedEndpointMessage(endpoints: readonly string[]): string {
-  const list = endpoints.map((endpoint) => `“${endpoint}”`).join(" and ");
-  return (
-    `This link asks the analysis to contact ${list}, which is not one of the public code hosts this app trusts. ` +
-    `It was opened WITHOUT your GitHub sign-in and without any token you have saved — nothing was sent to that host — ` +
-    `and your saved platform settings were left unchanged. ` +
-    `Every run keeps leaving your tokens behind until you decide otherwise below; you can review the host under Advanced options → “Repository host & access tokens”.`
-  );
 }
 
 export function App() {
@@ -1357,6 +1336,42 @@ export function App() {
     }
   }
 
+  // Hoisted so its literal JSX call — props unchanged — stays textually in
+  // this file (AdvancedZone.tsx is owned by a concurrent pass) while still
+  // being handed to ConfigColumn as an already-built element, which keeps
+  // ConfigColumn's own JSX shallow.
+  const advancedZone = (
+    <AdvancedZone
+      open={advancedOpen}
+      onOpenChange={setAdvancedOpen}
+      hostSectionOpen={hostSectionOpen}
+      onHostSectionOpenChange={setHostSectionOpen}
+      globalParse={globalParse}
+      inheritedParse={inheritedParse}
+      displayPlatform={displayPlatform}
+      displayEndpoint={displayEndpoint}
+      onPlatformChange={onPlatformChange}
+      onEndpointChange={onEndpointChange}
+      reflectGlobal={reflectGlobal}
+      globalPlatform={globalPlatform}
+      globalEndpoint={globalEndpoint}
+      platformOverride={platformOverride}
+      hasGlobalContext={hasGlobalContext}
+      onUseGlobalValues={() => setPlatformOverride(false)}
+      usesLocal={usesLocal}
+      platform={platform}
+      oauthConfigured={Boolean(oauthConfig)}
+      hostTokens={hostTokens}
+      globalText={globalText}
+      onGlobalTextChange={setGlobalText}
+      inheritedText={inheritedText}
+      onInheritedTextChange={applyInheritedText}
+      inheritState={inheritState}
+      inheritedSectionOpen={inheritedSectionOpen}
+      onInheritedSectionOpenChange={setInheritedSectionOpen}
+    />
+  );
+
   return (
     <OptionDocsProvider index={optionIndex}>
       <main>
@@ -1367,34 +1382,15 @@ export function App() {
           </div>
         ) : null}
         {untrustedGuard && !untrustedGuard.acknowledged ? (
-          <div className="share-error-banner share-warning-banner" role="alert">
-            <strong className="share-error-banner-title">
-              Shared link points at an untrusted host — running without your tokens
-            </strong>
-            <span>{untrustedEndpointMessage(untrustedGuard.endpoints)}</span>
-            {/* Two explicit choices, both naming the host. Neither is a
-                dismissal: "continue" only collapses this to the standing
-                reminder beside Run, the suppression itself stays on. */}
-            <div className="share-warning-actions">
-              <button type="button" className="share-warning-ack" onClick={onAcknowledgeUntrusted}>
-                Continue without tokens
-              </button>
-              <button type="button" className="share-warning-trust" onClick={onTrustUntrustedHost}>
-                Use my tokens with {untrustedGuard.host}
-              </button>
-            </div>
-          </div>
+          <UntrustedHostBanner
+            untrustedGuard={untrustedGuard}
+            onAcknowledge={onAcknowledgeUntrusted}
+            onTrust={onTrustUntrustedHost}
+          />
         ) : null}
         <header className="app-header">
           <h1>Renovate Config Visualizer</h1>
-          {/* Roadmap 037: the theme override sits beside the version badge —
-              the header's existing "about this session" corner. */}
-          <span className="app-header-tools">
-            <ThemeSwitch />
-            {result ? (
-              <span className="version-badge">Renovate v{result.renovateVersion}</span>
-            ) : null}
-          </span>
+          <AppHeaderTools renovateVersion={result?.renovateVersion} />
         </header>
         <p className="subtitle">
           Understand your Renovate config by watching Renovate&apos;s own code process it, step by
@@ -1406,93 +1402,53 @@ export function App() {
             first run there is nothing to put beside the editor, so the config
             column simply keeps the full width. */}
         <div className={`app-split${result ? " has-results" : ""}`}>
-          <div className="config-col">
-            {result ? null : <WelcomePanel onTryExample={() => loadConfigText(EXAMPLE_CONFIG)} />}
-
-            <ConfigEditorCard
-              editorKey={editorKey}
-              editorRef={configEditorRef}
-              fileName={fileName}
-              value={content}
-              onChange={setContent}
-              presetHover={presetHover}
-              repoFormOpen={repoFormOpen}
-              repoToggleRef={repoToggleRef}
-              onToggleRepoForm={() => (repoFormOpen ? closeRepoForm() : setRepoFormOpen(true))}
-              repo={repoInput}
-              onRepoChange={setRepoInput}
-              gitRef={repoRef}
-              onRefChange={setRepoRef}
-              repoLoading={repoLoading}
-              onLoadRepo={() => void onLoadRepo()}
-              onCloseRepoForm={closeRepoForm}
-              inheritAuto={inheritAuto}
-              onInheritAutoChange={onInheritAutoFieldChange}
-              inheritRepo={inheritFields.repo}
-              onInheritRepoChange={onInheritRepoFieldChange}
-              inheritFile={inheritFields.file}
-              onInheritFileChange={onInheritFileFieldChange}
-            />
-
-            <ConfigToolbar
-              fileName={fileName}
-              onFileNameChange={(value) => setFileName(value as typeof fileName)}
-              canRevert={content !== loadedContent}
-              onRevert={() => loadConfigText(loadedContent)}
-              oauthConfigured={Boolean(oauthConfig)}
-              signedIn={signedIn}
-              authUser={authUser}
-              onSignIn={onSignIn}
-              onSignOut={onSignOut}
-              untrustedHost={untrustedGuard ? untrustedGuard.host : null}
-              onTrustUntrustedHost={onTrustUntrustedHost}
-              running={running}
-              onRun={() => void onRun(undefined, undefined, { preserveScroll: Boolean(result) })}
-              onRunIntent={preloadRunChunks}
-              onCopyLink={onCopyLink}
-            />
-
-            <AdvancedZone
-              open={advancedOpen}
-              onOpenChange={setAdvancedOpen}
-              hostSectionOpen={hostSectionOpen}
-              onHostSectionOpenChange={setHostSectionOpen}
-              globalParse={globalParse}
-              inheritedParse={inheritedParse}
-              displayPlatform={displayPlatform}
-              displayEndpoint={displayEndpoint}
-              onPlatformChange={onPlatformChange}
-              onEndpointChange={onEndpointChange}
-              reflectGlobal={reflectGlobal}
-              globalPlatform={globalPlatform}
-              globalEndpoint={globalEndpoint}
-              platformOverride={platformOverride}
-              hasGlobalContext={hasGlobalContext}
-              onUseGlobalValues={() => setPlatformOverride(false)}
-              usesLocal={usesLocal}
-              platform={platform}
-              oauthConfigured={Boolean(oauthConfig)}
-              hostTokens={hostTokens}
-              globalText={globalText}
-              onGlobalTextChange={setGlobalText}
-              inheritedText={inheritedText}
-              onInheritedTextChange={applyInheritedText}
-              inheritState={inheritState}
-              inheritedSectionOpen={inheritedSectionOpen}
-              onInheritedSectionOpenChange={setInheritedSectionOpen}
-            />
-
-            {fatal ? <p style={{ color: "var(--error)" }}>{fatal}</p> : null}
-            {repoAuthHint ? (
-              <GithubAuthHint
-                authState={authState}
-                rateLimited={repoAuthHint.rateLimited}
-                onSignIn={onSignIn}
-                installUrl={INSTALL_URL}
-              />
-            ) : null}
-            {notice ? <NoticeBar message={notice} onDismiss={() => setNotice(null)} /> : null}
-          </div>
+          <ConfigColumn
+            hasResult={Boolean(result)}
+            onTryExample={() => loadConfigText(EXAMPLE_CONFIG)}
+            editorKey={editorKey}
+            editorRef={configEditorRef}
+            fileName={fileName}
+            value={content}
+            onChange={setContent}
+            presetHover={presetHover}
+            repoFormOpen={repoFormOpen}
+            repoToggleRef={repoToggleRef}
+            onToggleRepoForm={() => (repoFormOpen ? closeRepoForm() : setRepoFormOpen(true))}
+            repo={repoInput}
+            onRepoChange={setRepoInput}
+            gitRef={repoRef}
+            onRefChange={setRepoRef}
+            repoLoading={repoLoading}
+            onLoadRepo={() => void onLoadRepo()}
+            onCloseRepoForm={closeRepoForm}
+            inheritAuto={inheritAuto}
+            onInheritAutoChange={onInheritAutoFieldChange}
+            inheritRepo={inheritFields.repo}
+            onInheritRepoChange={onInheritRepoFieldChange}
+            inheritFile={inheritFields.file}
+            onInheritFileChange={onInheritFileFieldChange}
+            onFileNameChange={(value) => setFileName(value as typeof fileName)}
+            canRevert={content !== loadedContent}
+            onRevert={() => loadConfigText(loadedContent)}
+            oauthConfigured={Boolean(oauthConfig)}
+            signedIn={signedIn}
+            authUser={authUser}
+            onSignIn={onSignIn}
+            onSignOut={onSignOut}
+            untrustedHost={untrustedGuard ? untrustedGuard.host : null}
+            onTrustUntrustedHost={onTrustUntrustedHost}
+            running={running}
+            onRun={() => void onRun(undefined, undefined, { preserveScroll: Boolean(result) })}
+            onRunIntent={preloadRunChunks}
+            onCopyLink={onCopyLink}
+            advancedZone={advancedZone}
+            fatal={fatal}
+            repoAuthHint={repoAuthHint}
+            authState={authState}
+            installUrl={INSTALL_URL}
+            notice={notice}
+            onDismissNotice={() => setNotice(null)}
+          />
 
           {result ? (
             <ResultsPane
