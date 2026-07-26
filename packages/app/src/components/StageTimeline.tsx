@@ -4,6 +4,7 @@ import { Explained } from "./glossary";
 import { STAGE_IDS } from "@/lib/input-schemas";
 import { STAGE_EXPLAINERS, STAGE_LABELS } from "@/data/stage-copy";
 import { describeStageActivity, getStageActivity } from "@/lib/stage-activity";
+import { SequenceChip, SequenceSep, SequenceTimeline } from "./SequenceTimeline";
 
 // Roadmap 033: the app's single stage list (satisfies-checked against the
 // engine's exported STAGE_IDS), already in execution order.
@@ -15,42 +16,34 @@ interface Props {
   onSelect: (stage: StageId) => void;
 }
 
+/** Roadmap 046: a thin adapter over the shared `SequenceTimeline` grammar —
+ *  the DOM (`.stage-chip` + dot + `·N` count) is unchanged from 024/042. */
 export function StageTimeline({ result, selected, onSelect }: Props) {
   return (
-    <div className="stage-timeline">
+    <SequenceTimeline label="Pipeline stages">
       {STAGE_ORDER.map((stage, i) => {
         const activity = getStageActivity(result, stage);
         return (
           <Fragment key={stage}>
-            {/* Roadmap 042: the order signal. A separator between consecutive
-                chips is its own flex item, so a wrapped line leads with an
-                arrow — decoration, hidden from the accessibility tree. */}
-            {i > 0 ? (
-              <span className="stage-sep" aria-hidden="true">
-                →
-              </span>
-            ) : null}
+            {i > 0 ? <SequenceSep /> : null}
             <Explained entry={STAGE_EXPLAINERS[stage]}>
               {(handlers) => (
-                <button
-                  type="button"
+                <SequenceChip
                   data-stage={stage}
-                  className={`stage-chip${stage === selected ? " selected" : ""}`}
+                  selected={stage === selected}
+                  dot={activity.level}
+                  count={activity.count !== undefined ? `·${activity.count}` : undefined}
                   aria-label={describeStageActivity(stage, STAGE_LABELS[stage], activity)}
                   onClick={() => onSelect(stage)}
                   {...handlers}
                 >
-                  <span className={`dot ${activity.level}`} />
                   {STAGE_LABELS[stage]}
-                  {activity.count !== undefined ? (
-                    <span className="stage-chip-count">·{activity.count}</span>
-                  ) : null}
-                </button>
+                </SequenceChip>
               )}
             </Explained>
           </Fragment>
         );
       })}
-    </div>
+    </SequenceTimeline>
   );
 }

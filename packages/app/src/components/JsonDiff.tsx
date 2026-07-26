@@ -39,6 +39,40 @@ function schemaRemovalWidgets(files: FileData[]): Record<string, ReactNode> {
 }
 
 /**
+ * Roadmap 046: the same benign-note pattern, parameterized — a caller can name
+ * keys whose red removal lines mean housekeeping rather than rejection (the
+ * simulator's flatten step, where Renovate CONSUMES the update-type blocks).
+ * The note is attached to the first matching line only; one annotation reframes
+ * the whole run of removals without repeating itself seven times.
+ */
+export interface BenignRemovals {
+  keys: readonly string[];
+  note: ReactNode;
+}
+
+function benignRemovalWidgets(
+  files: FileData[],
+  benign: BenignRemovals | undefined,
+): Record<string, ReactNode> {
+  if (!benign || benign.keys.length === 0) {
+    return {};
+  }
+  const keyRe = new RegExp(`^\\s*"(?:${benign.keys.join("|")})"\\s*:`);
+  for (const file of files) {
+    for (const hunk of file.hunks) {
+      for (const change of hunk.changes) {
+        if (change.type === "delete" && keyRe.test(change.content)) {
+          return {
+            [getChangeKey(change)]: <span className="diff-benign-note">{benign.note}</span>,
+          };
+        }
+      }
+    }
+  }
+  return {};
+}
+
+/**
  * The preset and merge stages produce diffs of thousands of lines
  * (config:recommended alone resolves >1000 presets); rendering every row
  * blocks the main thread for seconds, so anything beyond this budget is
@@ -78,6 +112,8 @@ interface Props {
   names?: [string, string];
   /** Optional text rendered at the head of the chrome row */
   title?: string;
+  /** Removals of these keys get an inline note instead of reading as errors. */
+  benignRemovals?: BenignRemovals;
 }
 
 /**
@@ -87,7 +123,7 @@ interface Props {
  * Give it a `key` when reusing one instance for changing content so the
  * expansion state resets.
  */
-export function JsonDiff({ before, after, names, title }: Props) {
+export function JsonDiff({ before, after, names, title, benignRemovals }: Props) {
   const [viewType, setViewType] = useState<"unified" | "split">("unified");
   const [showAllRequested, setShowAllRequested] = useState(false);
   const [, startTransition] = useTransition();
@@ -159,7 +195,13 @@ export function JsonDiff({ before, after, names, title }: Props) {
     [files, showAll],
   );
   // Computed before the early return below — hooks can't follow one.
-  const widgets = useMemo(() => schemaRemovalWidgets(visibleFiles), [visibleFiles]);
+  const widgets = useMemo(
+    () => ({
+      ...schemaRemovalWidgets(visibleFiles),
+      ...benignRemovalWidgets(visibleFiles, benignRemovals),
+    }),
+    [visibleFiles, benignRemovals],
+  );
 
   if (totalLines === 0) {
     return <div className="empty-note">No differences.</div>;

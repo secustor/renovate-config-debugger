@@ -1,4 +1,13 @@
-import { memo, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  memo,
+  type ReactNode,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type {
   ClauseEvaluation,
   ConfigKeyDelta,
@@ -27,7 +36,30 @@ import { ErrorTranslationView } from "./ErrorTranslationView";
 import { HypotheticalBanner } from "./HypotheticalBanner";
 import { ProvenanceChip } from "./ProvenanceChip";
 import { RuleMessage } from "./RuleMessage";
+import {
+  SequenceChip,
+  type SequenceDotLevel,
+  SequenceSep,
+  SequenceTimeline,
+} from "./SequenceTimeline";
 import { StepThrough, type StepThroughStep } from "./StepThrough";
+
+/**
+ * Roadmap 046: the update-type blocks Renovate's flattening consumes, an
+ * app-local copy of the engine's `UPDATE_TYPE_KEYS` — typed against the real
+ * export so a drift fails the build, but without a static VALUE import that
+ * would pull the renovate chunk into the initial bundle (the same pattern as
+ * 033's `STAGE_IDS`).
+ */
+const UPDATE_TYPE_KEYS: typeof EngineModule.UPDATE_TYPE_KEYS = [
+  "major",
+  "minor",
+  "patch",
+  "pin",
+  "digest",
+  "lockFileMaintenance",
+  "replacement",
+];
 
 /** Roadmap 018: a share link's simulator inputs, applied to the form once. */
 interface SimRequest {
@@ -374,13 +406,20 @@ function automergeScopeSource(
  * 022: no-op clauses (an empty label list, the default unrestricted
  * schedule) are left out entirely rather than quoted as if they meant
  * something, so the sentence stays quotable verbatim.
+ *
+ * Roadmap 046: returned as SEGMENTS rather than one string, so the verdict
+ * card can set the modal verbs — the single most information-bearing words the
+ * simulator produces — as badges, while `verdictText` below keeps the plain
+ * sentence for aria/exports.
  */
-function buildVerdictSentence(
+type VerdictSegment = string | { modal: "would" | "would not" };
+
+function buildVerdictSegments(
   sim: SimulationResult,
   updateType: string | undefined,
   changedKeys: string[],
   ruleAttribution: RuleAttribution[] | null | undefined,
-): string {
+): VerdictSegment[] {
   const c = sim.finalDependencyConfig;
   const subject = `This ${updateType ? `${updateType} ` : ""}update`;
   const changed = new Set(changedKeys);
@@ -431,17 +470,21 @@ function buildVerdictSentence(
     positives.push(`only run on schedule ${plainValue(c.schedule)}`);
   }
 
-  const parts: string[] = [];
+  if (positives.length === 0 && negatives.length === 0) {
+    return [`${subject} gets no special handling from your matched rules — the defaults apply.`];
+  }
+  const segments: VerdictSegment[] = [`${subject} `];
   if (positives.length > 0) {
-    parts.push(`WOULD ${joinClauses(positives)}`);
+    segments.push({ modal: "would" }, ` ${joinClauses(positives)}`);
   }
   if (negatives.length > 0) {
-    parts.push(`would NOT ${joinClauses(negatives)}`);
+    if (positives.length > 0) {
+      segments.push(", but ");
+    }
+    segments.push({ modal: "would not" }, ` ${joinClauses(negatives)}`);
   }
-  if (parts.length === 0) {
-    return `${subject} gets no special handling from your matched rules — the defaults apply.`;
-  }
-  return `${subject} ${parts.join(", but ")}.`;
+  segments.push(".");
+  return segments;
 }
 
 /**
@@ -809,32 +852,45 @@ function Field({
   );
 }
 
-/** Roadmap 012/040: one key of the pinned verdict — the option a rule set,
- *  its value, and (when the update-type block supplied it) where it came
- *  from. Its own component since 040's depth ratchet: the "from the <type>
- *  block" aside is four elements deep inside the verdict block. */
-function VerdictKeyRow({
-  optionKey,
-  value,
-  present,
-  fromUpdateType,
-  updateType,
-}: {
-  optionKey: string;
+/** Roadmap 046: one ledger entry of the verdict card — a setting the rules
+ *  genuinely changed, plus where it came from and the merge stop that set it. */
+interface VerdictChange {
+  key: string;
   value: unknown;
   present: boolean;
+  /** The layer that owns the rule that last set this key. */
+  layer?: ProvenanceLayer;
+  /** The merge-timeline stop that last set this key, and its human name. */
+  stopIndex?: number;
+  stopLabel?: string;
+}
+
+/** Roadmap 012/040/046: one row of the verdict card's ledger — the option a
+ *  rule set, its value, (when the update-type block supplied it) where it came
+ *  from, the owning layer's provenance chip, and a jump into the merge
+ *  timeline. Its own component since 040's depth ratchet. */
+function VerdictKeyRow({
+  change,
+  fromUpdateType,
+  updateType,
+  onSelectPreset,
+  onJumpToStep,
+}: {
+  change: VerdictChange;
   fromUpdateType: boolean;
   updateType?: string;
+  onSelectPreset?: (nodeId: string) => void;
+  onJumpToStep?: (stopIndex: number) => void;
 }) {
   return (
     <li>
       <code>
-        <OptionKey name={optionKey} flagUnknown />
+        <OptionKey name={change.key} flagUnknown />
       </code>
-      {present ? (
+      {change.present ? (
         <>
           {" = "}
-          <span className="sim-verdict-value">{previewValue(value, 80)}</span>
+          <span className="sim-verdict-value">{previewValue(change.value, 80)}</span>
           {fromUpdateType ? (
             <span className="sim-verdict-from">
               {" "}
@@ -845,21 +901,43 @@ function VerdictKeyRow({
       ) : (
         <span className="sim-verdict-value removed"> removed</span>
       )}
+      {change.layer ? (
+        <span className="sim-verdict-origin">
+          <ProvenanceChip layer={change.layer} onSelectPreset={onSelectPreset} />
+        </span>
+      ) : null}
+      {change.stopIndex !== undefined && onJumpToStep !== undefined ? (
+        <button
+          type="button"
+          className="sim-step-link"
+          onClick={() => onJumpToStep(change.stopIndex as number)}
+        >
+          {change.stopLabel ?? "see the step"} →
+        </button>
+      ) : null}
     </li>
   );
 }
 
 /**
- * Roadmap 012/018/040: the answer first — the pinned verdict directly under
- * the Simulate button, with the keys the rules changed, the jump into the rule
- * list, and the evidence-export affordances (share link, A/B pinning).
+ * Roadmap 012/018/040/046: the answer first — the verdict CARD directly under
+ * the Simulate button. An answer band (eyebrow naming the simulated update,
+ * then the sentence with the modal verbs badged), the ledger of settings the
+ * rules genuinely changed (with provenance and jumps into the merge timeline),
+ * the consumed-blocks aside when flattening dropped the update-type blocks
+ * without applying any, and a footer with the rule-list jump and the
+ * evidence-export affordances (share link, A/B pinning).
  */
 function SimVerdictBlock({
   matchedCount,
   totalRules,
-  verdictSentence,
-  changedWithValues,
+  segments,
+  changes,
   flattened,
+  flattenStopIndex,
+  dep,
+  onSelectPreset,
+  onJumpToStep,
   onJumpToRules,
   copySimLink,
   pinned,
@@ -868,9 +946,15 @@ function SimVerdictBlock({
 }: {
   matchedCount: number;
   totalRules: number;
-  verdictSentence: string;
-  changedWithValues: { key: string; value: unknown; present: boolean }[];
+  segments: VerdictSegment[];
+  changes: VerdictChange[];
   flattened: SimulationResult["flattened"];
+  /** The flatten stop's position on the merge timeline, when it renders. */
+  flattenStopIndex?: number;
+  /** The simulated update, for the card's eyebrow line. */
+  dep: { manager?: string; packageName?: string; currentValue?: string; newValue?: string } | null;
+  onSelectPreset?: (nodeId: string) => void;
+  onJumpToStep?: (stopIndex: number) => void;
   onJumpToRules: () => void;
   /** null when the host gave no share-link callback — no button then. */
   copySimLink: (() => Promise<void>) | null;
@@ -878,50 +962,121 @@ function SimVerdictBlock({
   onUnpin: () => void;
   onPin: () => void;
 }) {
+  const blockKeys = Object.keys(flattened.blocks);
+  const consumedOnly = blockKeys.length > 0 && flattened.merged.length === 0;
+  const depName = [dep?.manager, dep?.packageName].filter(Boolean).join(" / ");
+  const versions = dep?.currentValue
+    ? `${dep.currentValue}${dep.newValue ? ` → ${dep.newValue}` : ""}`
+    : "";
   return (
     <div className={`sim-verdict-block${matchedCount === 0 ? " none" : ""}`}>
-      <p className="sim-verdict-sentence">{verdictSentence}</p>
-      {changedWithValues.length > 0 ? (
-        <ul className="sim-verdict-keys">
-          {changedWithValues.map(({ key, value, present }) => (
-            <VerdictKeyRow
-              key={key}
-              optionKey={key}
-              value={value}
-              present={present}
-              fromUpdateType={flattened.merged.some((m) => m.key === key)}
-              updateType={flattened.updateType}
-            />
-          ))}
-        </ul>
-      ) : (
-        <p className="sim-verdict-none">
-          No rule changed anything for this dependency — the defaults apply.
+      <div className="sim-verdict-band">
+        <p className="sim-verdict-eyebrow">
+          Simulation
+          {depName ? ` · ${depName}` : ""}
+          {versions ? ` · ${versions}` : ""}
         </p>
-      )}
-      <button type="button" className="sim-jump" onClick={onJumpToRules}>
-        {matchedCount} of {totalRules} rule{totalRules === 1 ? "" : "s"} matched →
-      </button>
-      {/* Roadmap 018: evidence-export affordances on the verdict block —
-          a reproducible link (form + auto-run encoded) and A/B pinning. */}
-      <div className="sim-verdict-actions">
-        {copySimLink ? (
-          <CopyButton onCopy={copySimLink} label="Copy link with this simulation" />
-        ) : null}
-        {pinned ? (
-          <button type="button" className="sim-verdict-action" onClick={onUnpin}>
-            Unpin comparison
-          </button>
+        <p className="sim-verdict-sentence">
+          {segments.map((seg) =>
+            // Content-keyed: the sentence grammar never repeats a segment
+            // (subject, at most one of each modal, distinct clause texts).
+            typeof seg === "string" ? (
+              <Fragment key={`s:${seg}`}>{seg}</Fragment>
+            ) : (
+              <span
+                key={`m:${seg.modal}`}
+                className={`sim-modal-verb${seg.modal === "would not" ? " not" : ""}`}
+              >
+                {seg.modal}
+              </span>
+            ),
+          )}
+        </p>
+      </div>
+      <div className="sim-verdict-body">
+        {changes.length > 0 ? (
+          <>
+            <p className="sim-verdict-ledger-label">
+              Changed by the rules — {changes.length} setting{changes.length === 1 ? "" : "s"}
+            </p>
+            <ul className="sim-verdict-keys">
+              {changes.map((change) => (
+                <VerdictKeyRow
+                  key={change.key}
+                  change={change}
+                  fromUpdateType={flattened.merged.some((m) => m.key === change.key)}
+                  updateType={flattened.updateType}
+                  onSelectPreset={onSelectPreset}
+                  onJumpToStep={onJumpToStep}
+                />
+              ))}
+            </ul>
+          </>
         ) : (
-          <button
-            type="button"
-            className="sim-verdict-action"
-            onClick={onPin}
-            title="Pin this result as A, edit the config, then simulate again to compare"
-          >
-            Pin result for comparison
-          </button>
+          <p className="sim-verdict-none">
+            No rule changed anything for this dependency — the defaults apply.
+          </p>
         )}
+        {consumedOnly ? (
+          <p className="sim-consumed-note">
+            <span className="sim-consumed-glyph">⊘</span> Update-type blocks (
+            {blockKeys.map((key, i) => (
+              <Fragment key={key}>
+                {i > 0 ? ", " : null}
+                <code>{key}</code>
+              </Fragment>
+            ))}
+            ) were consumed by flattening —{" "}
+            {flattened.updateType === undefined ? (
+              <>
+                <Term id="updateType">updateType</Term> is unset, so none of them applied to this
+                update
+              </>
+            ) : (
+              <>
+                none of them changed anything for this <code>{flattened.updateType}</code> update
+              </>
+            )}
+            {flattenStopIndex !== undefined && onJumpToStep !== undefined ? (
+              <>
+                {" — "}
+                <button
+                  type="button"
+                  className="sim-step-link"
+                  onClick={() => onJumpToStep(flattenStopIndex)}
+                >
+                  see the flatten step →
+                </button>
+              </>
+            ) : null}
+          </p>
+        ) : null}
+      </div>
+      <div className="sim-verdict-foot">
+        <button type="button" className="sim-jump" onClick={onJumpToRules}>
+          {matchedCount} of {totalRules} rule{totalRules === 1 ? "" : "s"} matched →
+        </button>
+        {/* Roadmap 018: evidence-export affordances on the verdict card —
+            a reproducible link (form + auto-run encoded) and A/B pinning. */}
+        <div className="sim-verdict-actions">
+          {copySimLink ? (
+            <CopyButton onCopy={copySimLink} label="Copy link with this simulation" />
+          ) : null}
+          {pinned ? (
+            <button type="button" className="sim-verdict-action" onClick={onUnpin}>
+              Unpin comparison
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="sim-verdict-action"
+              onClick={onPin}
+              title="Pin this result as A, edit the config, then simulate again to compare"
+            >
+              Pin result for comparison
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -993,128 +1148,287 @@ function mergedKeyList(merged: MergedKey[]): ReactNode {
 }
 
 /**
- * Roadmap 044: the merge sequence as a step-through — the 004 stepper's exact
- * interaction (Step N of M, Prev/Next/Jump to end, per-step diff, Cumulative)
- * over the engine's `mergeSteps`: one step per MATCHING rule, in merge order,
- * plus the synthetic update-type flattening step when it merged something.
- * Non-matching rules are deliberately absent — they merge nothing, and the rule
- * list already explains them clause by clause (they'd be empty diffs here).
- *
- * Each rule step is titled by the rule's 013 identity — the same
- * `packageRules[N]` + clause label + provenance chip a rule row carries — so a
- * step and its row are unmistakably the same rule.
+ * Roadmap 044/046: one stop of the merge timeline — its chip on the shared
+ * sequence grammar and its `StepThrough` step. The sequence is base → each
+ * MATCHING rule (in merge order) → update-type flattening (whenever blocks
+ * existed, merged up or merely consumed) → the final per-dependency config,
+ * which replaces the old "show the full resolved dependency config"
+ * disclosure. Non-matching rules are deliberately absent — they merge nothing,
+ * and the rule list already explains them clause by clause.
  */
-function SimMergeSteps({
-  sim,
-  layerByIndex,
-  onSelectPreset,
-  index,
-  onIndexChange,
-}: {
-  sim: SimulationResult;
-  layerByIndex: Map<number, ProvenanceLayer>;
-  onSelectPreset?: (nodeId: string) => void;
-  index?: number;
-  onIndexChange?: (index: number) => void;
-}) {
-  const steps = useMemo<StepThroughStep[]>(
-    () =>
-      sim.mergeSteps.map((step) => {
-        if (step.kind === "flatten") {
-          return {
-            id: "flatten",
-            before: step.before,
-            after: step.after,
-            head: (
-              <>
-                <span className="migration-step-name">Update-type flattening</span>
-                {step.updateType ? (
-                  <code className="migration-step-key">{step.updateType}</code>
-                ) : null}
-              </>
-            ),
-            explanation: (
-              <>
-                After the rules, Renovate merges the <code>{step.updateType}</code> block up into
-                the config and then drops every update-type block. Merged:{" "}
-                {mergedKeyList(step.merged)}.
-              </>
-            ),
-          };
-        }
-        const rule = sim.rules.find((r) => r.index === step.ruleIndex);
-        const layer = step.ruleIndex === undefined ? undefined : layerByIndex.get(step.ruleIndex);
-        return {
-          id: `rule-${step.ruleIndex}`,
-          before: step.before,
-          after: step.after,
-          head: (
+interface MergeStop {
+  kind: "base" | "rule" | "flatten" | "final";
+  /** `kind: "rule"` only — the rule's position in `packageRules`. */
+  ruleIndex?: number;
+  /** The keys this stop changed (rule and flatten stops). */
+  merged?: MergedKey[];
+  chip: { dot?: SequenceDotLevel; label: ReactNode; count?: string; ariaLabel: string };
+  step: StepThroughStep;
+}
+
+/** Stable identity so the flatten diff's widget memo never rebuilds. */
+const FLATTEN_BENIGN_REMOVALS = {
+  keys: UPDATE_TYPE_KEYS,
+  note: "consumed by flattening — resolved into this update's config, then dropped; not a rejection",
+};
+
+function buildMergeStops(
+  sim: SimulationResult,
+  layerByIndex: Map<number, ProvenanceLayer>,
+  onSelectPreset?: (nodeId: string) => void,
+): MergeStop[] {
+  const ruleSteps = sim.mergeSteps.filter((s) => s.kind === "rule");
+  const nRules = ruleSteps.length;
+  const flattenStep = sim.mergeSteps.find((s) => s.kind === "flatten");
+  const blockKeys = Object.keys(sim.flattened.blocks);
+  const base = sim.mergeSteps[0]?.before ?? sim.rawFinalConfig;
+
+  const stops: MergeStop[] = [
+    {
+      kind: "base",
+      chip: { dot: "skipped", label: "base", ariaLabel: "Base config — before any rule" },
+      step: {
+        id: "base",
+        before: base,
+        after: base,
+        counter: "Start",
+        head: <span className="migration-step-name">Base config</span>,
+        explanation:
+          "The effective config with the simulated dependency's fields layered on — what every rule was tested against.",
+        body: <div className="empty-note">Starting point — select a merge to see its diff.</div>,
+      },
+    },
+  ];
+
+  for (const [i, ms] of ruleSteps.entries()) {
+    const rule = sim.rules.find((r) => r.index === ms.ruleIndex);
+    const layer = ms.ruleIndex === undefined ? undefined : layerByIndex.get(ms.ruleIndex);
+    const changed = ms.merged.length;
+    stops.push({
+      kind: "rule",
+      ruleIndex: ms.ruleIndex,
+      merged: ms.merged,
+      chip: {
+        // The 024 dot vocabulary, meanings intact: green circle = ran and
+        // changed nothing, amber diamond = changed things.
+        dot: changed > 0 ? "changed" : "clean",
+        label: <span className="stage-chip-mono">packageRules[{ms.ruleIndex}]</span>,
+        count: changed > 0 ? `+${changed}` : "±0",
+        ariaLabel: `Step ${i + 1} of ${nRules}: packageRules[${ms.ruleIndex}] ${
+          changed > 0 ? `changed ${changed} key${changed === 1 ? "" : "s"}` : "changed nothing"
+        }`,
+      },
+      step: {
+        id: `rule-${ms.ruleIndex}`,
+        before: ms.before,
+        after: ms.after,
+        counter: `Step ${i + 1} of ${nRules}`,
+        head: (
+          <>
+            <span className="sim-rule-index">packageRules[{ms.ruleIndex}]</span>
+            <span className="migration-step-name">{rule ? ruleLabel(rule) : "matched rule"}</span>
+            {layer ? (
+              <span className="sim-rule-provenance">
+                <ProvenanceChip layer={layer} onSelectPreset={onSelectPreset} />
+              </span>
+            ) : null}
+          </>
+        ),
+        explanation:
+          changed > 0 ? (
+            <>This rule set {mergedKeyList(ms.merged)}.</>
+          ) : (
             <>
-              <span className="sim-rule-index">packageRules[{step.ruleIndex}]</span>
-              <span className="migration-step-name">{rule ? ruleLabel(rule) : "matched rule"}</span>
-              {layer ? (
-                <span className="sim-rule-provenance">
-                  <ProvenanceChip layer={layer} onSelectPreset={onSelectPreset} />
-                </span>
-              ) : null}
+              This rule matched but sets nothing beyond its <code>match*</code> selectors — the
+              config is unchanged after this step.
             </>
           ),
-          explanation:
-            step.merged.length > 0 ? (
-              <>This rule set {mergedKeyList(step.merged)}.</>
-            ) : (
-              <>
-                This rule matched but set nothing beyond its <code>match*</code> selectors — the
-                config is unchanged by it.
-              </>
-            ),
-        };
-      }),
-    [sim, layerByIndex, onSelectPreset],
-  );
-
-  if (steps.length === 0) {
-    return null;
+      },
+    });
   }
+
+  // The flatten stop renders whenever update-type blocks existed — merged up
+  // or merely consumed. The consumed-only diff is derived here (the engine
+  // only records a step when something merged up): the blocks are deleted from
+  // the config exactly as upstream `flattenUpdates` does.
+  if (flattenStep !== undefined || blockKeys.length > 0) {
+    const before = flattenStep?.before ?? sim.rawFinalConfig;
+    let after = flattenStep?.after;
+    if (after === undefined) {
+      const cleaned = { ...before };
+      for (const key of UPDATE_TYPE_KEYS) {
+        delete cleaned[key];
+      }
+      after = cleaned;
+    }
+    const mergedUp = flattenStep?.merged ?? [];
+    stops.push({
+      kind: "flatten",
+      merged: mergedUp,
+      chip: {
+        dot: "changed",
+        label: "flatten",
+        count: mergedUp.length > 0 ? `+${mergedUp.length}` : `⊘${blockKeys.length}`,
+        ariaLabel:
+          mergedUp.length > 0
+            ? `Update-type flattening: merged the ${flattenStep?.updateType} block up, ${mergedUp.length} key${mergedUp.length === 1 ? "" : "s"}`
+            : `Update-type flattening: consumed ${blockKeys.length} block${blockKeys.length === 1 ? "" : "s"}`,
+      },
+      step: {
+        id: "flatten",
+        before,
+        after,
+        counter: "After the rules",
+        head: (
+          <>
+            <span className="migration-step-name">Update-type flattening</span>
+            {flattenStep?.updateType ? (
+              <code className="migration-step-key">{flattenStep.updateType}</code>
+            ) : null}
+          </>
+        ),
+        explanation:
+          mergedUp.length > 0 ? (
+            <>
+              After the rules, Renovate merges the <code>{flattenStep?.updateType}</code> block up
+              into the config and then drops every update-type block. Merged:{" "}
+              {mergedKeyList(mergedUp)}.
+            </>
+          ) : (
+            <>
+              Renovate resolves the update-type blocks into the config for this update, then drops
+              them all —{" "}
+              {sim.flattened.updateType === undefined ? (
+                <>
+                  <Term id="updateType">updateType</Term> is unset, so none of them applied
+                </>
+              ) : (
+                <>
+                  none of them changed anything for this <code>{sim.flattened.updateType}</code>{" "}
+                  update
+                </>
+              )}
+              ; the {blockKeys.length} block{blockKeys.length === 1 ? " was" : "s were"} consumed
+              without merging anything up.
+            </>
+          ),
+        benignRemovals: FLATTEN_BENIGN_REMOVALS,
+      },
+    });
+  }
+
+  stops.push({
+    kind: "final",
+    chip: { label: "final config", ariaLabel: "Final per-dependency config" },
+    step: {
+      id: "final",
+      before: sim.finalDependencyConfig,
+      after: sim.finalDependencyConfig,
+      counter: "Result",
+      head: <span className="migration-step-name">Final per-dependency config</span>,
+      explanation:
+        "What Renovate would use for this update — the base config plus everything the stops before this one applied.",
+      body: (
+        <div className="sim-final-config">
+          <div className="sim-final-config-actions">
+            <CopyButton
+              getText={() => `${JSON.stringify(sim.finalDependencyConfig, null, 2)}\n`}
+              label="Copy config"
+              title="Copy the final per-dependency config as JSON"
+            />
+          </div>
+          <pre className="config-view">
+            <ConfigJson value={sim.finalDependencyConfig} />
+          </pre>
+        </div>
+      ),
+    },
+  });
+
+  return stops;
+}
+
+/**
+ * Roadmap 046: the merge sequence on the app's shared sequence grammar (2B of
+ * the approved mockup) — every stop visible at once as a `SequenceChip`, the
+ * selected stop's detail below as the SAME 004/044 `StepThrough` interaction.
+ * The chips and the stepper share one index, so Prev/Next and chip clicks are
+ * two handles on the same walk.
+ */
+function SimMergeTimeline({
+  stops,
+  index,
+  onIndexChange,
+  timelineRef,
+}: {
+  stops: MergeStop[];
+  index?: number;
+  onIndexChange?: (index: number) => void;
+  timelineRef?: React.RefObject<HTMLDivElement | null>;
+}) {
+  const steps = useMemo(() => stops.map((s) => s.step), [stops]);
+  const selected = Math.min(Math.max(index ?? 0, 0), stops.length - 1);
   return (
-    <div className="sim-merge-steps">
-      <div className="sim-merged-title">How the rules built it, one merge at a time</div>
+    <div className="sim-merge-steps" ref={timelineRef}>
+      <SequenceTimeline label="Merge sequence">
+        {stops.map((stop, i) => (
+          <Fragment key={stop.step.id}>
+            {i > 0 ? <SequenceSep /> : null}
+            <SequenceChip
+              selected={i === selected}
+              dot={stop.chip.dot}
+              count={stop.chip.count}
+              aria-label={stop.chip.ariaLabel}
+              onClick={() => onIndexChange?.(i)}
+            >
+              {stop.chip.label}
+            </SequenceChip>
+          </Fragment>
+        ))}
+      </SequenceTimeline>
       <StepThrough
         steps={steps}
         index={index}
         onIndexChange={onIndexChange}
         cumulativeNames={["before any rule", "after this step"]}
+        cumulativeLabel="Diff vs. base config"
       />
     </div>
   );
 }
 
-/** The tail of the results block: which keys the rules changed, the merge
- *  step-through (044), and the full resolved dependency config behind a
+/** The tail of the results block: the counted summary of what the rules
+ *  changed, and the merge timeline (046). When nothing merged, the timeline
+ *  has no sequence to walk and the final config falls back to the plain
  *  disclosure. */
 function SimFinal({
+  matchedCount,
   changedKeys,
   finalDependencyConfig,
-  sim,
-  layerByIndex,
-  onSelectPreset,
+  stops,
+  showTimeline,
   mergeStepIndex,
   onMergeStepChange,
+  timelineRef,
 }: {
+  matchedCount: number;
   changedKeys: string[];
   finalDependencyConfig: SimulationResult["finalDependencyConfig"];
-  sim: SimulationResult;
-  layerByIndex: Map<number, ProvenanceLayer>;
-  onSelectPreset?: (nodeId: string) => void;
+  stops: MergeStop[];
+  showTimeline: boolean;
   mergeStepIndex?: number;
   onMergeStepChange?: (index: number) => void;
+  timelineRef?: React.RefObject<HTMLDivElement | null>;
 }) {
   return (
     <div className="sim-final">
       <div className="sim-merged-title">Final per-dependency config</div>
-      {changedKeys.length > 0 ? (
+      {matchedCount === 0 ? (
+        <p className="sim-changed">No rule changed anything for this dependency.</p>
+      ) : changedKeys.length > 0 ? (
         <p className="sim-changed">
-          Rules changed:{" "}
+          {matchedCount} rule{matchedCount === 1 ? "" : "s"} matched and changed{" "}
+          {changedKeys.length} setting{changedKeys.length === 1 ? "" : "s"}:{" "}
           {changedKeys.map((key, i) => (
             <span key={key}>
               {i > 0 ? ", " : null}
@@ -1123,25 +1437,29 @@ function SimFinal({
               </code>
             </span>
           ))}
+          .
         </p>
       ) : (
-        <p className="sim-changed">No rule changed anything for this dependency.</p>
+        <p className="sim-changed">
+          {matchedCount} rule{matchedCount === 1 ? "" : "s"} matched and changed nothing — the
+          defaults apply.
+        </p>
       )}
-      {/* Hidden outright when nothing merged (no rule matched and no update-type
-          block flattened): there is no sequence to step through. */}
-      <SimMergeSteps
-        sim={sim}
-        layerByIndex={layerByIndex}
-        onSelectPreset={onSelectPreset}
-        index={mergeStepIndex}
-        onIndexChange={onMergeStepChange}
-      />
-      <details>
-        <summary>Show the full resolved dependency config</summary>
-        <pre className="config-view">
-          <ConfigJson value={finalDependencyConfig} />
-        </pre>
-      </details>
+      {showTimeline ? (
+        <SimMergeTimeline
+          stops={stops}
+          index={mergeStepIndex}
+          onIndexChange={onMergeStepChange}
+          timelineRef={timelineRef}
+        />
+      ) : (
+        <details>
+          <summary>Show the full resolved dependency config</summary>
+          <pre className="config-view">
+            <ConfigJson value={finalDependencyConfig} />
+          </pre>
+        </details>
+      )}
     </div>
   );
 }
@@ -1425,19 +1743,42 @@ export const RuleSimulator = memo(function RuleSimulator({
     [simForm, simEffectiveUpdateType, form, effectiveUpdateType],
   );
 
-  // Keys the rules changed vs. the pre-rules effective config, for the final
-  // section's summary chips.
+  // Keys the rules changed vs. the pre-rules effective config, for the verdict
+  // ledger and the final section's summary. Roadmap 046: the base is flattened
+  // the same way the engine flattens `finalDependencyConfig` — the update-type
+  // blocks Renovate ALWAYS deletes are not "removed by the rules", and listing
+  // them as such buried the one real change under seven `removed` rows. A key
+  // an update-type block genuinely merged UP still surfaces: it lands
+  // top-level on the final config, where the base never had it.
   const changedKeys = useMemo(() => {
     if (!sim || !finalConfig) {
       return [];
     }
     const base: Record<string, unknown> = { ...finalConfig };
     delete base.packageRules;
+    for (const key of UPDATE_TYPE_KEYS) {
+      delete base[key];
+    }
     const keys = new Set([...Object.keys(base), ...Object.keys(sim.finalDependencyConfig)]);
     return [...keys]
       .filter((key) => JSON.stringify(base[key]) !== JSON.stringify(sim.finalDependencyConfig[key]))
       .toSorted();
   }, [sim, finalConfig]);
+
+  // Roadmap 046: the merge timeline's stops — shared between the timeline
+  // itself and the verdict ledger's "step N of M →" jump links.
+  const mergeStops = useMemo(
+    () => (sim ? buildMergeStops(sim, layerByIndex, onSelectPreset) : []),
+    [sim, layerByIndex, onSelectPreset],
+  );
+  const flattenStopIndex = useMemo(() => {
+    const i = mergeStops.findIndex((s) => s.kind === "flatten");
+    return i === -1 ? undefined : i;
+  }, [mergeStops]);
+  // No merge recorded and no matched rule → no sequence to walk (matches the
+  // 044 stepper's own guard); the final config falls back to the disclosure.
+  const showTimeline = (sim?.mergeSteps.length ?? 0) > 0;
+  const timelineRef = useRef<HTMLDivElement>(null);
 
   // Roadmap 016: restore the scroll position captured in `simulate` right
   // before the DOM the browser is about to repaint — after `sim`/`showAll`
@@ -1612,17 +1953,49 @@ export const RuleSimulator = memo(function RuleSimulator({
         ? sim.rules
         : notableRules
     : [];
-  const verdictSentence = sim
-    ? buildVerdictSentence(sim, sim.flattened.updateType, changedKeys, ruleAttribution)
-    : "";
-  const changedWithValues = changedKeys.map((key) => ({
-    key,
-    value: sim?.finalDependencyConfig[key],
-    present: sim ? key in sim.finalDependencyConfig : false,
-  }));
+  const verdictSegments = sim
+    ? buildVerdictSegments(sim, sim.flattened.updateType, changedKeys, ruleAttribution)
+    : [];
+  // Roadmap 046: each ledger entry carries the merge stop that last set its
+  // key — later merges win, so the LAST stop naming the key is authoritative.
+  const nRuleStops = mergeStops.filter((s) => s.kind === "rule").length;
+  const verdictChanges: VerdictChange[] = changedKeys.map((key) => {
+    let layer: ProvenanceLayer | undefined;
+    let stopIndex: number | undefined;
+    let stopLabel: string | undefined;
+    for (let i = mergeStops.length - 1; i >= 0; i--) {
+      const stop = mergeStops[i];
+      if (!stop?.merged?.some((m) => m.key === key)) {
+        continue;
+      }
+      stopIndex = i;
+      if (stop.kind === "rule") {
+        layer = stop.ruleIndex === undefined ? undefined : layerByIndex.get(stop.ruleIndex);
+        const ordinal = mergeStops.slice(0, i + 1).filter((s) => s.kind === "rule").length;
+        stopLabel = `step ${ordinal} of ${nRuleStops}`;
+      } else {
+        stopLabel = "flatten step";
+      }
+      break;
+    }
+    return {
+      key,
+      value: sim?.finalDependencyConfig[key],
+      present: sim ? key in sim.finalDependencyConfig : false,
+      layer,
+      stopIndex,
+      stopLabel,
+    };
+  });
 
   function jumpToRules() {
     rulesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  /** A verdict-card jump link → select that stop and bring the timeline into view. */
+  function jumpToStep(stopIndex: number) {
+    onMergeStepChange?.(stopIndex);
+    timelineRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   return (
@@ -1847,9 +2220,22 @@ export const RuleSimulator = memo(function RuleSimulator({
             <SimVerdictBlock
               matchedCount={matchedCount}
               totalRules={sim.rules.length}
-              verdictSentence={verdictSentence}
-              changedWithValues={changedWithValues}
+              segments={verdictSegments}
+              changes={verdictChanges}
               flattened={sim.flattened}
+              flattenStopIndex={showTimeline ? flattenStopIndex : undefined}
+              dep={
+                simForm
+                  ? {
+                      manager: simForm.manager || simForm.datasource || undefined,
+                      packageName: simForm.packageName || simForm.depName || undefined,
+                      currentValue: simForm.currentValue || undefined,
+                      newValue: simForm.newValue || undefined,
+                    }
+                  : null
+              }
+              onSelectPreset={onSelectPreset}
+              onJumpToStep={showTimeline ? jumpToStep : undefined}
               onJumpToRules={jumpToRules}
               copySimLink={onCopySimLink ? copySimLink : null}
               pinned={pinned !== null}
@@ -1946,13 +2332,14 @@ export const RuleSimulator = memo(function RuleSimulator({
               </p>
             )}
             <SimFinal
+              matchedCount={matchedCount}
               changedKeys={changedKeys}
               finalDependencyConfig={sim.finalDependencyConfig}
-              sim={sim}
-              layerByIndex={layerByIndex}
-              onSelectPreset={onSelectPreset}
+              stops={mergeStops}
+              showTimeline={showTimeline}
               mergeStepIndex={mergeStepIndex}
               onMergeStepChange={onMergeStepChange}
+              timelineRef={timelineRef}
             />
           </div>
         </div>

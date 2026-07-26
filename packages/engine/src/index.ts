@@ -11,6 +11,7 @@ export {
   simulatePackageRules,
   type SimulationInput,
   type SimulationResult,
+  UPDATE_TYPE_KEYS,
 } from "./simulate-package-rules";
 export {
   compareSimulations,

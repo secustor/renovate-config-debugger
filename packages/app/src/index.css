@@ -245,6 +245,13 @@ h1 {
   font-variant-numeric: tabular-nums;
 }
 
+/* 046: a chip labeled by a config location (`packageRules[N]`) rather than a
+   word — the merge timeline's rule stops. */
+.stage-chip-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+}
+
 .stage-chip .dot.changed ~ .stage-chip-count {
   color: var(--warn);
 }
@@ -1981,8 +1988,22 @@ pre.config-view.prov-before {
   margin: 0.5rem 0 0.75rem;
 }
 
+/* 046: the merge timeline reuses the `.stage-timeline` grammar; only the
+   Pipeline tab's outer margins are re-tuned for this context. */
+.sim-merge-steps .stage-timeline {
+  margin: 0.5rem 0;
+}
+
 .sim-merge-steps .migration-steps {
   margin-top: 0.4rem;
+}
+
+/* 046: the final stop's body — the resolved config with its copy affordance,
+   replacing the old details disclosure. */
+.sim-final-config-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.4rem;
 }
 
 .sim-final > details > summary {
@@ -1991,30 +2012,89 @@ pre.config-view.prov-before {
   margin-bottom: 0.4rem;
 }
 
-/* ---------- verdict block + matched-only results (012) ---------- */
+/* ---------- verdict card (012 → 046: band / ledger / foot) ---------- */
 
 .sim-verdict-block {
-  background: color-mix(in srgb, var(--ok) 8%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--ok) 35%, var(--border));
   border-radius: 8px;
   margin-bottom: 0.75rem;
-  padding: 0.7rem 0.85rem;
+  overflow: hidden;
 }
 
 .sim-verdict-block.none {
-  background: var(--surface);
   border-color: var(--border);
 }
 
+/* The answer band — the only tinted surface on the card; everything below it
+   sits on the page background so the judgment reads first. */
+.sim-verdict-band {
+  background: color-mix(in srgb, var(--ok) 7%, var(--surface));
+  border-bottom: 1px solid var(--border);
+  padding: 0.6rem 0.85rem 0.7rem;
+}
+
+.sim-verdict-block.none .sim-verdict-band {
+  background: var(--surface);
+}
+
+.sim-verdict-eyebrow {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  margin: 0 0 0.4rem;
+  text-transform: uppercase;
+}
+
 .sim-verdict-sentence {
-  font-size: 0.95rem;
+  font-size: 1.15rem;
+  font-weight: 500;
   line-height: 1.5;
   margin: 0;
+  max-width: 46rem;
+  text-wrap: balance;
+}
+
+/* 046: the modal verb as a set piece — the single most information-bearing
+   word the simulator produces; the badge color IS the verdict. */
+.sim-modal-verb {
+  background: color-mix(in srgb, var(--ok) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ok) 40%, transparent);
+  border-radius: 5px;
+  color: var(--ok);
+  display: inline-block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+  padding: 0 0.35em;
+  text-transform: uppercase;
+  transform: translateY(-0.08em);
+}
+
+.sim-modal-verb.not {
+  background: color-mix(in srgb, var(--error) 12%, transparent);
+  border-color: color-mix(in srgb, var(--error) 40%, transparent);
+  color: var(--error);
+}
+
+.sim-verdict-body {
+  padding: 0.6rem 0.85rem 0.7rem;
+}
+
+.sim-verdict-ledger-label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  margin: 0 0 0.25rem;
+  text-transform: uppercase;
 }
 
 .sim-verdict-keys {
   list-style: none;
-  margin: 0.55rem 0 0;
+  margin: 0;
   padding: 0;
 }
 
@@ -2022,6 +2102,57 @@ pre.config-view.prov-before {
   font-size: 0.83rem;
   overflow-wrap: anywhere;
   padding: 0.1rem 0;
+}
+
+/* Inline flow after the value: the owning layer's chip, then the timeline
+   jump — they wrap naturally on narrow widths. */
+.sim-verdict-origin {
+  margin-left: 0.5rem;
+}
+
+.sim-step-link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  margin-left: 0.5rem;
+  padding: 0;
+}
+
+.sim-step-link:hover {
+  text-decoration: underline;
+}
+
+/* 046: the consumed-blocks aside wears the flatten step's glyph and amber, so
+   the two surfaces explain each other. */
+.sim-consumed-note {
+  border-left: 3px solid color-mix(in srgb, var(--warn) 45%, transparent);
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  margin: 0.6rem 0 0;
+  max-width: 46rem;
+  padding-left: 0.6rem;
+}
+
+.sim-consumed-note .sim-step-link {
+  margin-left: 0;
+}
+
+.sim-consumed-glyph {
+  color: var(--warn);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.sim-verdict-foot {
+  align-items: center;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.9rem;
+  padding: 0.45rem 0.85rem;
 }
 
 .sim-verdict-value {
@@ -2054,7 +2185,6 @@ pre.config-view.prov-before {
   display: inline-block;
   font: inherit;
   font-size: 0.82rem;
-  margin-top: 0.55rem;
   padding: 0;
 }
 
@@ -2068,7 +2198,7 @@ pre.config-view.prov-before {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem 0.9rem;
-  margin-top: 0.55rem;
+  margin-left: auto;
 }
 
 .sim-verdict-action {

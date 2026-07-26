@@ -108,13 +108,13 @@ test("A/B pin warns when the compared runs describe different simulated inputs",
 });
 
 /**
- * Roadmap 044 — the merge step-through. With two rules matching the same
- * dependency and fighting over `automerge`, the stepper must walk the merges one
- * at a time: step 1 is the rule that set `automerge: false`, step 2 the rule
- * that overrode it, and the diff has to change when the user steps forward. The
- * rule that never matched contributes no step.
+ * Roadmap 044/046 — the merge timeline. With two rules matching the same
+ * dependency and fighting over `automerge`, the sequence must expose the merges
+ * one stop at a time: chips for base → each matching rule → flattening → the
+ * final config, with the detail panel walking the same index. The rule that
+ * never matched contributes no stop.
  */
-test("the merge stepper walks the matching rules one at a time", async ({ page }) => {
+test("the merge timeline walks the matching rules one stop at a time", async ({ page }) => {
   const fragment = await encodeShareFragment({ config: MERGE_STEPS_CONFIG });
   await page.goto(fragment);
 
@@ -125,10 +125,17 @@ test("the merge stepper walks the matching rules one at a time", async ({ page }
   await simulator.getByRole("button", { name: "npm dependency" }).click();
   await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
 
-  // Two matching rules → two steps; the non-matching middle rule has none.
+  // The sequence lands on its base stop; two matching rules → two rule chips
+  // (the non-matching middle rule has none) plus flatten and the final config.
   const stepper = page.locator(".sim-merge-steps");
   await expect(stepper).toBeVisible();
   const counter = stepper.locator(".migration-step-counter");
+  await expect(counter).toHaveText("Start");
+  const chips = stepper.locator(".stage-chip");
+  await expect(chips).toHaveCount(5);
+
+  // Selecting the first rule chip opens its merge.
+  await chips.filter({ hasText: "packageRules[0]" }).click();
   await expect(counter).toHaveText("Step 1 of 2");
   const head = stepper.locator(".migration-step-head");
   await expect(head).toContainText("packageRules[0]");
@@ -141,25 +148,32 @@ test("the merge stepper walks the matching rules one at a time", async ({ page }
   const firstDiff = await diff.innerText();
   expect(firstDiff).toContain("from-managers-rule");
 
-  // Stepping forward lands on the LAST rule — the one that wins `automerge`.
+  // Stepping forward lands on the LAST rule — the one that wins `automerge` —
+  // and the chip row tracks the same selection.
   await stepper.getByRole("button", { name: "Next ›" }).click();
   await expect(counter).toHaveText("Step 2 of 2");
   await expect(head).toContainText("packageRules[2]");
+  await expect(chips.filter({ hasText: "packageRules[2]" })).toHaveClass(/selected/);
   await expect(stepper.locator(".migration-explanation")).toContainText("automerge");
   const secondDiff = await diff.innerText();
   expect(secondDiff).not.toBe(firstDiff);
   expect(secondDiff).toContain("from-lodash-rule");
 
-  // The cumulative toggle re-frames the same step against the pre-rules base,
+  // The base-diff toggle re-frames the same step against the pre-rules base,
   // so the diff changes again without moving the step.
-  await stepper.getByLabel("Cumulative").check();
+  await stepper.getByLabel("Diff vs. base config").check();
   await expect(counter).toHaveText("Step 2 of 2");
   const cumulativeDiff = await stepper.locator(".diff-wrapper").innerText();
   expect(cumulativeDiff).not.toBe(secondDiff);
   expect(cumulativeDiff).toContain("from-managers-rule");
   expect(cumulativeDiff).toContain("from-lodash-rule");
 
-  // A dependency no rule matches has no merge sequence — the stepper is gone,
+  // The terminal stop IS the final config (046) — no separate disclosure.
+  await chips.filter({ hasText: "final config" }).click();
+  await expect(counter).toHaveText("Result");
+  await expect(stepper.locator(".config-view")).toBeVisible();
+
+  // A dependency no rule matches has no merge sequence — the timeline is gone,
   // not an empty frame.
   await simulator.getByRole("button", { name: "Dockerfile image" }).click();
   await expect(page.locator(".sim-verdict-block")).toContainText("0 of 3 rules");

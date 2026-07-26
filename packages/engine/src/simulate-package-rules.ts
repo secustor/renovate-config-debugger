@@ -256,8 +256,12 @@ const KNOWN_SELECTORS = new Set(MATCHER_TABLE.map((entry) => entry.key));
  * The update-type config blocks Renovate flattens and then deletes, in the
  * exact set and order of upstream `flattenUpdates`. `rollback`/`bump` are NOT
  * flattenable blocks upstream and are intentionally absent.
+ *
+ * Exported (roadmap 046) so the app can flatten a BASE config the same way
+ * before diffing it against `finalDependencyConfig` — without the shared set,
+ * the blocks this replication always deletes read as "removed by the rules".
  */
-const UPDATE_TYPE_KEYS = [
+export const UPDATE_TYPE_KEYS = [
   "major",
   "minor",
   "patch",
