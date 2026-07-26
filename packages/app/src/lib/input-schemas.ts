@@ -289,7 +289,7 @@ export function parseLayerJson(text: string): LayerParseResult {
 }
 
 // ---------------------------------------------------------------------------
-// Repo-load input (App.tsx's `parseRepoRef` result, before request building)
+// Repo-load input (use-repo-load's `parseRepoRef` result, before request building)
 // ---------------------------------------------------------------------------
 
 const MAX_REPO_REF_LENGTH = 512;
@@ -327,7 +327,8 @@ export function isValidRepoRefPart(value: string): boolean {
  *  optional `:port` — a self-hosted reference like `gitea.example.com:3000/o/r`
  *  must keep reaching the "Unknown host … set its endpoint under Advanced
  *  options" guidance rather than the generic "not a repo reference" refusal.
- *  The host never composes a URL (it only looks up `HOST_PLATFORM`). */
+ *  The host never composes a URL (it only looks up use-repo-load's
+ *  `HOST_PLATFORM`). */
 export function isValidRepoHost(value: string): boolean {
   if (value.length > MAX_REPO_REF_LENGTH) {
     return false;

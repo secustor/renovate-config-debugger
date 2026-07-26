@@ -12,7 +12,6 @@ import {
 import type {
   ErrorFixResult,
   OptionIndex,
-  RepoPlatform,
   StageId,
   TraceResult,
 } from "@renovate-config-visualizer/engine";
@@ -44,25 +43,12 @@ import {
   getRenovateVersion,
   loadErrorTranslationLib,
   loadOptionIndex,
-  loadRepoConfig,
   preloadEngine,
   run,
 } from "@/platform/run";
-import type {
-  ShareFileName,
-  ShareSimulator,
-  ShareState,
-  ShareView,
-  UntrustedEndpointGuard,
-} from "@/lib/share";
+import type { ShareSimulator, ShareState, ShareView, UntrustedEndpointGuard } from "@/lib/share";
 import { useBackToTopVisible, useHomeEndPageScroll } from "@/hooks/scroll-ergonomics";
-import {
-  isValidEndpoint,
-  isValidPlatform,
-  isValidRepoHost,
-  isValidRepoRefPart,
-  parseLayerJson,
-} from "@/lib/input-schemas";
+import { isValidEndpoint, isValidPlatform, parseLayerJson } from "@/lib/input-schemas";
 import { PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
 import {
   ENDPOINT_KEY,
@@ -73,8 +59,10 @@ import {
 } from "@/platform/storage";
 import { useHostTokens } from "@/hooks/use-host-tokens";
 import { useInheritedConfigLayer } from "@/hooks/use-inherited-config-layer";
+import { useRepoLoad } from "@/hooks/use-repo-load";
 import { useRunSummary } from "@/hooks/use-run-summary";
-import { type RunInputs, useShareLink } from "@/hooks/use-share-link";
+import { useShareLink } from "@/hooks/use-share-link";
+import type { RunInputs } from "@/lib/run-inputs";
 
 const DEFAULT_CONFIG = `{
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
@@ -103,17 +91,6 @@ const EXAMPLE_CONFIG = `{
   ]
 }
 `;
-
-/** Platforms whose repos can be fetched from the browser (roadmap 007/010). */
-const FETCHABLE_PLATFORMS = new Set<RepoPlatform>(["github", "gitlab", "gitea", "forgejo"]);
-
-/** Known public hosts → the platform that serves their repos. */
-const HOST_PLATFORM: Record<string, RepoPlatform> = {
-  "github.com": "github",
-  "gitlab.com": "gitlab",
-  "gitea.com": "gitea",
-  "codeberg.org": "forgejo",
-};
 
 /** Roadmap 032: evaluated once — it derives from build-time env only, and a
  *  per-render call handed a fresh value to memoized children for nothing. */
@@ -155,48 +132,6 @@ function ResultsPane(props: ResultsColumnProps) {
 function preloadRunChunks(): void {
   preloadEngine();
   void import("@/ResultsColumn").catch(() => {});
-}
-
-/** Strips a trailing `.git` and slashes from a repo path. */
-function stripRepoSuffix(path: string): string {
-  return path.replace(/\.git$/, "").replace(/^\/+|\/+$/g, "");
-}
-
-/**
- * Parses a repo reference liberally: `org/repo`, `github.com/org/repo`, a full
- * URL (`https://gitlab.com/org/repo`), or scp-style (`git@github.com:org/repo.git`).
- * Returns the host (null for a bare slug) and the repo path (may be nested for
- * GitLab subgroups), or null when it is not a recognizable reference.
- */
-function parseRepoRef(raw: string): { host: string | null; repo: string } | null {
-  const trimmed = raw.trim();
-  if (!trimmed) {
-    return null;
-  }
-  const scp = /^git@([^:]+):(.+)$/.exec(trimmed);
-  if (scp?.[1] && scp[2]) {
-    return { host: scp[1], repo: stripRepoSuffix(scp[2]) };
-  }
-  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)) {
-    try {
-      const u = new URL(trimmed);
-      const repo = stripRepoSuffix(u.pathname);
-      return repo ? { host: u.host, repo } : null;
-    } catch {
-      return null;
-    }
-  }
-  const path = stripRepoSuffix(trimmed);
-  const segments = path.split("/");
-  // A first segment that looks like a domain (contains a dot) is treated as a
-  // host; owners/groups never contain dots on the supported hosts.
-  if (segments.length >= 3 && segments[0]?.includes(".")) {
-    return { host: segments[0], repo: segments.slice(1).join("/") };
-  }
-  if (segments.length < 2 || segments.some((s) => s === "")) {
-    return null;
-  }
-  return { host: null, repo: path };
 }
 
 type InjectionMap = Record<string, Record<string, unknown>>;
@@ -387,17 +322,6 @@ export function App() {
     loadedContentRef,
     buildShareState,
   });
-  // Load-from-repo disclosure (039): collapsed by default — the form only
-  // exists while `repoFormOpen`, and the button that opens it lives in the
-  // editor card's title bar.
-  const [repoFormOpen, setRepoFormOpen] = useState(false);
-  const repoToggleRef = useRef<HTMLButtonElement>(null);
-  const [repoInput, setRepoInput] = useState("");
-  const [repoRef, setRepoRef] = useState("");
-  const [repoLoading, setRepoLoading] = useState(false);
-  // When a GitHub load fails with a not-found/auth/rate-limit error, offer the
-  // sign-in / install hint next to the failure (009). null = no hint.
-  const [repoAuthHint, setRepoAuthHint] = useState<{ rateLimited: boolean } | null>(null);
   // Roadmap 013: rule identity cross-links. The editor is an imperative jump
   // target (CodeMirror has no declarative "scroll to offset X" prop); the
   // simulator's target rule is prop-driven since it is a sibling component.
@@ -536,9 +460,56 @@ export function App() {
   // onRun below) and `resultsColRef` (the pane to measure) are handed down.
 
   const globalParse = useMemo(() => parseLayerText(globalText), [globalText]);
+  // Platform context values the global config carries (008/010 interplay): the
+  // control reflects them unless the user explicitly overrides.
+  const globalPlatform =
+    typeof globalParse.config?.platform === "string" ? globalParse.config.platform : undefined;
+  const globalEndpoint =
+    typeof globalParse.config?.endpoint === "string" ? globalParse.config.endpoint : undefined;
+  const hasGlobalContext = globalPlatform !== undefined || globalEndpoint !== undefined;
+  // Roadmap 048: the load-from-repo cluster — the disclosure and its focus
+  // hand-back, the reference fields, the in-flight flag, the auth hint, and
+  // the load itself. Called BEFORE the inherited-config layer because that
+  // layer derives its probe target from `repoInput`, which this hook owns;
+  // everything the load acts on is either declared above or (for the run path,
+  // the layer gate and the guard) a hoisted function declaration below.
+  const {
+    repoFormOpen,
+    repoToggleRef,
+    toggleRepoForm,
+    closeRepoForm,
+    repoInput,
+    setRepoInput,
+    repoRef,
+    setRepoRef,
+    repoLoading,
+    repoAuthHint,
+    onLoadRepo,
+  } = useRepoLoad({
+    platform,
+    endpoint,
+    setPlatform,
+    setEndpoint,
+    loadConfigText,
+    setFileName,
+    setNotice,
+    setFatal,
+    blockedByLayerErrors,
+    applyUntrustedGuard,
+    untrustedGuardRef,
+    onRun: (inputs, opts) => onRun(undefined, inputs, opts),
+    globalConfig: globalParse.config,
+    platformOverride: platformOverride && hasGlobalContext,
+    oauthConfigured: Boolean(oauthConfig),
+    // Roadmap 045: the org probe when auto-load is on, otherwise the layer as
+    // it already stands. An arrow, so it reads the inherited-config layer
+    // declared below — by the time a load calls it, that binding exists.
+    resolveInheritedConfig: async (args) =>
+      inheritAuto ? await probeInheritedConfig(args) : inheritedParse.config,
+  });
   // Roadmap 045/048: the inherited-config layer — its text and parse, the
   // probe-target fields, the `inheritConfig*` policy read off the global
-  // config, and the probe `onLoadRepo` calls between the repo config arriving
+  // config, and the probe the repo load calls between the repo config arriving
   // and the run that processes it.
   const {
     inheritedText,
@@ -557,13 +528,6 @@ export function App() {
     setAdvancedOpen,
     setInheritedSectionOpen,
   });
-  // Platform context values the global config carries (008/010 interplay): the
-  // control reflects them unless the user explicitly overrides.
-  const globalPlatform =
-    typeof globalParse.config?.platform === "string" ? globalParse.config.platform : undefined;
-  const globalEndpoint =
-    typeof globalParse.config?.endpoint === "string" ? globalParse.config.endpoint : undefined;
-  const hasGlobalContext = globalPlatform !== undefined || globalEndpoint !== undefined;
   const reflectGlobal = hasGlobalContext && !platformOverride;
   const displayPlatform = reflectGlobal && globalPlatform !== undefined ? globalPlatform : platform;
   // A global-config platform also displaces the toolbar endpoint (it belongs
@@ -927,151 +891,6 @@ export function App() {
     await buildShareLinkAndCopy();
   }
 
-  /** Roadmap 023/039: closing the repo panel — by Cancel, by Escape, or by a
-   *  load that succeeded — hands focus back to the button that opened it. The
-   *  panel is gone, so focus must land somewhere deliberate, and that button
-   *  is both where the user came from and what describes what just closed. */
-  function closeRepoForm() {
-    setRepoFormOpen(false);
-    repoToggleRef.current?.focus();
-  }
-
-  // Fetches a repo's Renovate config file and runs it. Derives the platform
-  // from a known host (and sets the platform context so a later run resolves
-  // `local>` correctly); a bare slug uses the current platform context.
-  async function onLoadRepo() {
-    const parsed = parseRepoRef(repoInput);
-    const trimmedRef = repoRef.trim();
-    // Roadmap 030: the parsed host/repo/ref are bounded and control-character
-    // free before they compose a request URL/path — the same "Enter a repo
-    // as..." notice covers a reference that parsed but shouldn't be trusted.
-    if (
-      !parsed ||
-      !isValidRepoRefPart(parsed.repo) ||
-      (parsed.host && !isValidRepoHost(parsed.host)) ||
-      !isValidRepoRefPart(trimmedRef)
-    ) {
-      setNotice("Enter a repo as owner/repo, github.com/owner/repo, or a full repository URL.");
-      return;
-    }
-    let repoPlatform: RepoPlatform;
-    let repoEndpoint: string;
-    const knownHost = parsed.host ? HOST_PLATFORM[parsed.host] : undefined;
-    if (parsed.host && !knownHost) {
-      setNotice(
-        `Unknown host ${parsed.host}. Set its host and API endpoint under Advanced options → "Repository host & access tokens", then load with the owner/repo form.`,
-      );
-      return;
-    }
-    if (knownHost) {
-      repoPlatform = knownHost;
-      repoEndpoint = PLATFORM_ENDPOINTS[knownHost] ?? "";
-    } else {
-      if (!FETCHABLE_PLATFORMS.has(platform as RepoPlatform)) {
-        setNotice(
-          `The current repository host (${platform}) can't be fetched from the browser. Choose github, gitlab, gitea or forgejo under Advanced options → "Repository host & access tokens", or use a full URL.`,
-        );
-        return;
-      }
-      repoPlatform = platform as RepoPlatform;
-      repoEndpoint = endpoint;
-    }
-
-    if (blockedByLayerErrors()) {
-      return;
-    }
-    // Security 2026-07-25: a load from a KNOWN host replaces the platform
-    // context with that host's shipped default, so it ends a link's guard —
-    // nothing untrusted is left in force. A bare `owner/repo` load reuses the
-    // current endpoint, which may be exactly the host the link chose, so it
-    // stays suppressed (both for the file probe and the run that follows).
-    const suppressTokens = !knownHost && untrustedGuardRef.current !== null;
-    if (knownHost) {
-      applyUntrustedGuard(null);
-    }
-    setRepoLoading(true);
-    setFatal(null);
-    setNotice(null);
-    setRepoAuthHint(null);
-    try {
-      const loaded = await loadRepoConfig(
-        {
-          platform: repoPlatform,
-          repo: parsed.repo,
-          endpoint: repoEndpoint || undefined,
-          ref: trimmedRef || undefined,
-        },
-        { suppressTokens },
-      );
-      const nextFileName: ShareFileName = loaded.fileName.endsWith(".json5")
-        ? "renovate.json5"
-        : "renovate.json";
-      if (knownHost) {
-        setPlatform(repoPlatform);
-        persistLocal(PLATFORM_KEY, repoPlatform);
-        setEndpoint(repoEndpoint);
-        persistLocal(ENDPOINT_KEY, repoEndpoint);
-      }
-      loadConfigText(loaded.content);
-      setFileName(nextFileName);
-      setNotice(`Loaded ${loaded.fileName} from ${parsed.repo}`);
-      // Roadmap 039: the panel's job is done — it collapses so the config it
-      // just fetched gets the height back. A FAILED load leaves it open: the
-      // reference in it is what the user has to correct.
-      closeRepoForm();
-      // Roadmap 045: the inherited-config probe runs between the repo config
-      // arriving and the run that processes it — the order a real run resolves
-      // the two in, so the very first result already includes the org layer
-      // instead of appearing only on a second Run. Its own failures never fail
-      // the load: the repo config is already here.
-      const inheritedForRun = inheritAuto
-        ? await probeInheritedConfig({
-            platform: repoPlatform,
-            endpoint: repoEndpoint,
-            loadedRepo: parsed.repo,
-            suppressTokens,
-          })
-        : inheritedParse.config;
-      await onRun(
-        undefined,
-        {
-          fileName: nextFileName,
-          content: loaded.content,
-          platform: repoPlatform,
-          endpoint: repoEndpoint || endpoint,
-          globalConfig: globalParse.config,
-          inheritedConfig: inheritedForRun,
-          platformOverride: platformOverride && hasGlobalContext,
-        },
-        { suppressTokens },
-      );
-    } catch (err) {
-      const e = err as { name?: string; probed?: string[]; err?: { message?: string } };
-      let detail = "";
-      if (e?.name === "RepoConfigNotFoundError") {
-        const count = e.probed?.length ?? 0;
-        setFatal(
-          `No Renovate config found in ${parsed.repo} (tried ${count} locations). It may keep its config elsewhere, on a non-default branch, or in a private repo needing a token.`,
-        );
-      } else {
-        detail = e?.err?.message ?? (err instanceof Error ? err.message : String(err));
-        setFatal(
-          `Could not load from ${repoEndpoint || "the default endpoint"}: ${detail}. For a private repo, sign in or add a token; some hosts block browser (CORS) requests entirely.`,
-        );
-      }
-      // Offer the sign-in / install hint for GitHub loads that look like a
-      // private-repo (not-found) or auth/rate-limit failure (009).
-      if (oauthConfig && repoPlatform === "github") {
-        const rateLimited = /rate limit or missing token/i.test(detail);
-        if (e?.name === "RepoConfigNotFoundError" || rateLimited) {
-          setRepoAuthHint({ rateLimited });
-        }
-      }
-    } finally {
-      setRepoLoading(false);
-    }
-  }
-
   // Hoisted so its literal JSX call — props unchanged — stays textually in
   // this file (AdvancedZone.tsx is owned by a concurrent pass) while still
   // being handed to ConfigColumn as an already-built element, which keeps
@@ -1149,7 +968,7 @@ export function App() {
             presetHover={presetHover}
             repoFormOpen={repoFormOpen}
             repoToggleRef={repoToggleRef}
-            onToggleRepoForm={() => (repoFormOpen ? closeRepoForm() : setRepoFormOpen(true))}
+            onToggleRepoForm={toggleRepoForm}
             repo={repoInput}
             onRepoChange={setRepoInput}
             gitRef={repoRef}

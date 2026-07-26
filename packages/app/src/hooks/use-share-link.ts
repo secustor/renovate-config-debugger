@@ -20,6 +20,7 @@ import {
   type StoredUser,
 } from "@/platform/oauth";
 import { getRenovateVersion } from "@/platform/run";
+import type { RunInputs } from "@/lib/run-inputs";
 import {
   buildShareUrl,
   decideHashChangeAction,
@@ -42,18 +43,6 @@ export interface SimRequest {
   form: Record<string, string>;
   autoSimulate: boolean;
   nonce: number;
-}
-
-export interface RunInputs {
-  fileName: ShareFileName;
-  content: string;
-  platform: string;
-  endpoint: string;
-  /** Parsed 008 layers; absent = layer off. */
-  globalConfig?: Record<string, unknown>;
-  inheritedConfig?: Record<string, unknown>;
-  /** The user explicitly overrode the global config's platform/endpoint. */
-  platformOverride?: boolean;
 }
 
 /**
