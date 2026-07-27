@@ -53,6 +53,7 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [046](046-simulator-verdict-card-and-merge-timeline.md) | Simulator: verdict card + merge timeline                  | M12                  | done   |
 | [047](047-simulator-progressive-disclosure.md)          | Simulator: progressive disclosure                         | M12                  | done   |
 | [048](048-app-decomposition-and-depth-ratchet.md)       | App decomposition + depth ratchet to 3                    | M13                  | done   |
+| [049](049-feature-layer-expansion.md)                   | Feature-layer expansion: editor, presets                  | M13                  | done   |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live
@@ -126,4 +127,8 @@ pass: a commissioned, adversarially verified report on Vite/React project
 structure ([2026-07-vite-structure-research.md](2026-07-vite-structure-research.md))
 applied as 048 — the first `features/` folder (simulator), hook/component
 extraction across the four depth-4 offenders, and the jsx-max-depth
-ratchet's next step (4 → 3), run as an implement → reevaluate loop.
+ratchet's next step (4 → 3), run as an implement → reevaluate loop. 049
+extended the feature layer from a consumer-map review of `components/`:
+`features/editor/` (the config-input column), `features/presets/`
+(PresetTree decomposed into ten files), and SummaryDrawer joining the
+simulator.
