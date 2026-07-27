@@ -60,8 +60,8 @@ jobs:
         run: pnpm --filter @renovate-config-visualizer/app exec playwright install --with-deps chromium
       - name: Browser e2e tests
         # Drives the production dist built above via `vite preview` (reuses that
-        # output, never rebuilds). GITHUB_ACTIONS is set here, so both vite's
-        # base path and the Playwright baseURL resolve to /renovate-config-visualizer/.
+        # output, never rebuilds). Base is "/" everywhere — the site serves
+        # from the domain root (renovate.secustor.dev).
         run: pnpm --filter @renovate-config-visualizer/app test:e2e
       - name: Upload Playwright report
         if: ${{ !cancelled() }}

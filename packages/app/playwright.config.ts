@@ -11,13 +11,11 @@ import { defineConfig, devices } from "@playwright/test";
  * The dist must already be built (`pnpm --filter …/app build`) — the `test:e2e`
  * script builds first locally; CI reuses the dist from its build step.
  *
- * Base path: `vite.config.ts` sets `base: "/renovate-config-visualizer/"` when
- * GITHUB_ACTIONS is set, "/" otherwise. `vite preview` serves under that same
- * base, so the Playwright baseURL must mirror it exactly.
+ * Base path: `vite.config.ts` serves from the domain root everywhere
+ * (renovate.secustor.dev), so the Playwright baseURL is simply "/".
  */
 const PORT = 4322;
-const BASE = process.env.GITHUB_ACTIONS ? "/renovate-config-visualizer/" : "/";
-const BASE_URL = `http://localhost:${PORT}${BASE}`;
+const BASE_URL = `http://localhost:${PORT}/`;
 
 export default defineConfig({
   testDir: "./e2e",

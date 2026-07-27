@@ -81,7 +81,10 @@ function codemirrorJsonSchemaShims(): Plugin {
 }
 
 export default defineConfig({
-  base: process.env.GITHUB_ACTIONS ? "/renovate-config-visualizer/" : "/",
+  // Served from the domain root everywhere: renovate.secustor.dev in
+  // production (custom domains host at "/", and a repo-prefixed base 404s
+  // every asset there), localhost + the self-host images elsewhere.
+  base: "/",
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
