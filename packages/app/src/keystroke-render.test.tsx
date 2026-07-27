@@ -26,7 +26,7 @@ import {
 import { act, fireEvent, render, waitFor } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { ConfigEditorHandle } from "@/features/editor/ConfigEditor";
-import type * as PresetTreeModule from "@/components/PresetTree";
+import type * as PresetTreeModule from "@/features/presets/PresetTree";
 import type * as EffectiveConfigModule from "@/components/EffectiveConfig";
 import type * as RuleSimulatorModule from "@/features/simulator/RuleSimulator";
 import type * as MessagesPanelModule from "@/components/MessagesPanel";
@@ -88,7 +88,7 @@ vi.mock("./features/editor/ConfigEditor", () => {
 // `import()` — and that editor is stubbed above. preset-hover.ts itself is
 // now just the pure lookup App builds per run.
 
-vi.mock("./components/PresetTree", async (importOriginal) => {
+vi.mock("./features/presets/PresetTree", async (importOriginal) => {
   const mod = await importOriginal<typeof PresetTreeModule>();
   return { ...mod, PresetTree: wrapCounting("PresetTree", mod.PresetTree) };
 });

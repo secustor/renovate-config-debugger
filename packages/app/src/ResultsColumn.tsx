@@ -12,7 +12,7 @@ import { HypotheticalBanner } from "@/components/HypotheticalBanner";
 import { MessagesPanel } from "@/components/MessagesPanel";
 import { MigrationSteps } from "@/components/MigrationSteps";
 import { OverviewTab } from "@/components/OverviewTab";
-import { PresetTree } from "@/components/PresetTree";
+import { PresetTree } from "@/features/presets/PresetTree";
 import { ResultsPanel, type ResultsTabDescriptor } from "@/components/ResultsPanel";
 import { RuleSimulator } from "@/features/simulator/RuleSimulator";
 import { StageDiff } from "@/components/StageDiff";
