@@ -1,4 +1,4 @@
-import { Fragment, type RefObject } from "react";
+import { Fragment, memo, type RefObject } from "react";
 import type { SimulationResult } from "@renovate-config-visualizer/engine";
 import { SummaryDrawer } from "@/components/SummaryDrawer";
 import type { MergeStop } from "./merge-stops";
@@ -47,8 +47,14 @@ function MergeSummary({
   );
 }
 
-/** Roadmap 047: the "How the final config was built" evidence layer. */
-export function SimMergeDrawer({
+/**
+ * Roadmap 047: the "How the final config was built" evidence layer.
+ *
+ * Roadmap 032: memoized — its subtree is the merge stepper and a multi-thousand
+ * line `JsonDiff`, and every prop comes from the last RUN, not the live form,
+ * so typing in the simulator form must not re-render it.
+ */
+export const SimMergeDrawer = memo(function SimMergeDrawer({
   finalDependencyConfig,
   stops,
   showTimeline,
@@ -93,4 +99,4 @@ export function SimMergeDrawer({
       />
     </SummaryDrawer>
   );
-}
+});

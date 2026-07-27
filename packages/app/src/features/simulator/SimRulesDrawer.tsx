@@ -1,4 +1,4 @@
-import type { RefObject } from "react";
+import { memo, type RefObject } from "react";
 import type { ProvenanceLayer, RuleEvaluation } from "@renovate-config-visualizer/engine";
 import { layerId } from "@/components/provenance-layer";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
@@ -51,8 +51,12 @@ function RulesSummary({ matchedCount, totalRules }: { matchedCount: number; tota
  * rules that actually did something (matched or unresolved), hiding the sea of
  * "no match" rows behind a toggle; "my rules only" narrows it to the user's
  * own repo-config rules.
+ *
+ * Roadmap 032: memoized — it filters the whole rule list (hundreds of entries
+ * for a preset-heavy config) and every prop it takes comes from the last RUN,
+ * not from the live form, so typing in the form must not re-render it.
  */
-export function SimRulesDrawer({
+export const SimRulesDrawer = memo(function SimRulesDrawer({
   rules,
   matchedCount,
   repoRuleIndices,
@@ -116,4 +120,4 @@ export function SimRulesDrawer({
       />
     </SummaryDrawer>
   );
-}
+});

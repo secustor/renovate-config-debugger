@@ -1194,10 +1194,24 @@ function PresetDetail({
   const key = nodeInjectionKey(node.source, injectionKey);
   const userSupplied = key !== null && usedInjections.has(key);
   const ghFailure = githubAuthFailure(node);
-  const migrationChanged =
-    node.fetched !== undefined &&
-    node.input !== undefined &&
-    JSON.stringify(node.fetched) !== JSON.stringify(node.input);
+  // Roadmap 032: these compare FULLY RESOLVED preset bodies, and the tree
+  // re-renders on every filter keystroke and every scroll tick — so they are
+  // memoized on the node (a stable per-run identity, WeakMap-cached) and
+  // short-circuit on reference equality before stringifying anything.
+  const { migrationChanged, resolvedChanged } = useMemo(() => {
+    const { fetched, input, resolved } = node;
+    return {
+      migrationChanged:
+        fetched !== undefined &&
+        input !== undefined &&
+        fetched !== input &&
+        JSON.stringify(fetched) !== JSON.stringify(input),
+      resolvedChanged:
+        resolved !== undefined &&
+        resolved !== input &&
+        JSON.stringify(resolved) !== JSON.stringify(input),
+    };
+  }, [node]);
 
   return (
     <div className="preset-panel">
@@ -1269,8 +1283,7 @@ function PresetDetail({
           ) : null}
         </details>
       ) : null}
-      {node.resolved !== undefined &&
-      JSON.stringify(node.resolved) !== JSON.stringify(node.input) ? (
+      {resolvedChanged ? (
         <details>
           <summary>
             Fully resolved (sub-presets merged)

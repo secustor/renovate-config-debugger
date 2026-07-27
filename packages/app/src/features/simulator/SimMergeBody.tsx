@@ -5,6 +5,10 @@ import { SequenceChip, SequenceSep, SequenceTimeline } from "@/components/Sequen
 import { StepThrough } from "@/components/StepThrough";
 import type { MergeStop } from "./merge-stops";
 
+/** Module-level so `StepThrough`'s memo can bail — an inline literal here is a
+ *  fresh identity on every keystroke in the simulator form above. */
+const MERGE_CUMULATIVE_NAMES: [string, string] = ["before any rule", "after this step"];
+
 /**
  * Roadmap 046: the merge sequence on the app's shared sequence grammar (2B of
  * the approved mockup) — every stop visible at once as a `SequenceChip`, the
@@ -46,7 +50,7 @@ function SimMergeTimeline({
         steps={steps}
         index={index}
         onIndexChange={onIndexChange}
-        cumulativeNames={["before any rule", "after this step"]}
+        cumulativeNames={MERGE_CUMULATIVE_NAMES}
         cumulativeLabel="Diff vs. base config"
       />
     </div>

@@ -4,6 +4,10 @@ import { CodeText } from "./CodeText";
 import { CopyButton } from "./CopyButton";
 import { StepThrough, type StepThroughStep } from "./StepThrough";
 
+/** Module-level so `StepThrough`'s memo can bail — an inline literal here is a
+ *  fresh identity on every render of this adapter. */
+const MIGRATION_CUMULATIVE_NAMES: [string, string] = ["stage start", "after this step"];
+
 interface Props {
   /** Granular `migration-applied` events, in the order Renovate applied them. */
   steps: TraceEvent[];
@@ -69,10 +73,24 @@ export const MigrationSteps = memo(function MigrationSteps({
     [steps],
   );
 
+  const finalAfter = finalConfig ?? steps[steps.length - 1]?.after;
+  /* The FINAL migrated config — deliberately not the same thing as the current
+     step's "Copy result" in the diff chrome above (036). Memoized because an
+     inline element is a fresh identity that would defeat StepThrough's memo. */
+  const actions = useMemo(
+    () => (
+      <CopyButton
+        getText={() => `${JSON.stringify(finalAfter, null, 2)}\n`}
+        label="Copy migrated config"
+        title="Copy the fully migrated config as JSON"
+      />
+    ),
+    [finalAfter],
+  );
+
   if (steps.length === 0) {
     return null;
   }
-  const finalAfter = finalConfig ?? steps[steps.length - 1]?.after;
 
   return (
     <StepThrough
@@ -80,16 +98,8 @@ export const MigrationSteps = memo(function MigrationSteps({
       compact={compact}
       index={index}
       onIndexChange={onIndexChange}
-      cumulativeNames={["stage start", "after this step"]}
-      actions={
-        /* The FINAL migrated config — deliberately not the same thing as the
-           current step's "Copy result" in the diff chrome above (036). */
-        <CopyButton
-          getText={() => `${JSON.stringify(finalAfter, null, 2)}\n`}
-          label="Copy migrated config"
-          title="Copy the fully migrated config as JSON"
-        />
-      }
+      cumulativeNames={MIGRATION_CUMULATIVE_NAMES}
+      actions={actions}
     />
   );
 });

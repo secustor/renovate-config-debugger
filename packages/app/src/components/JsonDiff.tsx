@@ -160,21 +160,19 @@ export function JsonDiff({ before, after, names, title, benignRemovals }: Props)
     }
   }, [diffText]);
 
-  const totalLines = files.reduce(
-    (n, file) => n + file.hunks.reduce((m, hunk) => m + hunk.changes.length, 0),
-    0,
-  );
-
   // Roadmap 036: the `+N −N` stat counts the WHOLE diff, not the truncated
   // render — the number the chrome row reports is the size of the change, and
   // pressing "Show all" must not appear to change it. Memoized (032) so a
-  // parent re-render doesn't rescan a multi-thousand-line diff.
+  // parent re-render doesn't rescan a multi-thousand-line diff; `total` (the
+  // render budget's input) rides along in the same pass for the same reason.
   const stat = useMemo(() => {
     let insert = 0;
     let remove = 0;
+    let total = 0;
     for (const file of files) {
       for (const hunk of file.hunks) {
         for (const change of hunk.changes) {
+          total++;
           if (change.type === "insert") {
             insert++;
           } else if (change.type === "delete") {
@@ -183,10 +181,10 @@ export function JsonDiff({ before, after, names, title, benignRemovals }: Props)
         }
       }
     }
-    return { insert, remove };
+    return { insert, remove, total };
   }, [files]);
 
-  const showAll = showAllRequested || totalLines <= MAX_RENDERED_LINES;
+  const showAll = showAllRequested || stat.total <= MAX_RENDERED_LINES;
   // Memoized (032) so the truncation pass — and the widgets scan below, which
   // depends on its identity — doesn't re-run on a render that changed neither
   // the diff nor the budget toggle.
@@ -203,7 +201,7 @@ export function JsonDiff({ before, after, names, title, benignRemovals }: Props)
     [visibleFiles, benignRemovals],
   );
 
-  if (totalLines === 0) {
+  if (stat.total === 0) {
     return <div className="empty-note">No differences.</div>;
   }
 
@@ -265,13 +263,13 @@ export function JsonDiff({ before, after, names, title, benignRemovals }: Props)
           diff, where "Show all" read as prose. A footer bar makes it chrome. */}
       {!showAll && (
         <div className="diff-foot">
-          Showing the first {MAX_RENDERED_LINES} of {totalLines} diff lines
+          Showing the first {MAX_RENDERED_LINES} of {stat.total} diff lines
           <button
             type="button"
             className="btn accent-text"
             onClick={() => startTransition(() => setShowAllRequested(true))}
           >
-            Show all {totalLines} lines
+            Show all {stat.total} lines
           </button>
         </div>
       )}

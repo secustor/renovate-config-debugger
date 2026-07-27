@@ -204,6 +204,30 @@ export const RuleSimulator = memo(function RuleSimulator({
   // 044 stepper's own guard); the final config falls back to the disclosure.
   const showTimeline = (sim?.mergeSteps.length ?? 0) > 0;
 
+  // Roadmap 032: these four all walk the (potentially several-hundred-entry)
+  // rule list and depend only on the last RUN, never on the live form — so
+  // they must not re-derive on every keystroke in the form above. They sit
+  // above the early returns below because hooks can't follow one.
+  const matchedCount = useMemo(
+    () => sim?.rules.filter((r) => r.verdict === "matched").length ?? 0,
+    [sim],
+  );
+  const verdictSegments = useMemo(
+    () =>
+      sim ? buildVerdictSegments(sim, sim.flattened.updateType, changedKeys, ruleAttribution) : [],
+    [sim, changedKeys, ruleAttribution],
+  );
+  // Roadmap 047: the authored update-type blocks flattening consumed without
+  // applying — the only thing that still earns the verdict card's aside.
+  const consumedBlocks = useMemo(
+    () => (sim ? consumedAuthoredBlocks(sim, ruleAttribution) : []),
+    [sim, ruleAttribution],
+  );
+  const verdictChanges = useMemo(
+    () => buildVerdictChanges(changedKeys, mergeStops, layerByIndex, sim),
+    [changedKeys, mergeStops, layerByIndex, sim],
+  );
+
   if (!finalConfig) {
     return null;
   }
@@ -263,14 +287,6 @@ export const RuleSimulator = memo(function RuleSimulator({
   // Roadmap 015: reactive, not sticky — the moment the form gains ANY
   // meaningful field, the guard clears itself even without clicking Simulate.
   const showEmptyGuard = emptyGuardTriggered && !hasMeaningfulInput(form);
-  const matchedCount = sim?.rules.filter((r) => r.verdict === "matched").length ?? 0;
-  const verdictSegments = sim
-    ? buildVerdictSegments(sim, sim.flattened.updateType, changedKeys, ruleAttribution)
-    : [];
-  // Roadmap 047: the authored update-type blocks flattening consumed without
-  // applying — the only thing that still earns the verdict card's aside.
-  const consumedBlocks = sim ? consumedAuthoredBlocks(sim, ruleAttribution) : [];
-  const verdictChanges = buildVerdictChanges(changedKeys, mergeStops, layerByIndex, sim);
 
   return (
     <div className="card" ref={cardRef}>
