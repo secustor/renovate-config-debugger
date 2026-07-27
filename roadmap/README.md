@@ -54,6 +54,7 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [047](047-simulator-progressive-disclosure.md)          | Simulator: progressive disclosure                         | M12                  | done   |
 | [048](048-app-decomposition-and-depth-ratchet.md)       | App decomposition + depth ratchet to 3                    | M13                  | done   |
 | [049](049-feature-layer-expansion.md)                   | Feature-layer expansion: editor, presets                  | M13                  | done   |
+| [050](050-css-design-tokens.md)                         | CSS design tokens: dedup, consolidation, enforcement      | M13                  | done   |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live
@@ -131,4 +132,7 @@ ratchet's next step (4 → 3), run as an implement → reevaluate loop. 049
 extended the feature layer from a consumer-map review of `components/`:
 `features/editor/` (the config-input column), `features/presets/`
 (PresetTree decomposed into ten files), and SummaryDrawer joining the
-simulator.
+simulator. 050 brought the same discipline to the stylesheet: repeated
+theme values promoted to design tokens, drifted status tints
+consolidated onto token families, and stylelint enforcing var()-only
+colors from then on.
