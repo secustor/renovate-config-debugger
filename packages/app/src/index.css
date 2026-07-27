@@ -21,8 +21,63 @@
   --accent-teal: light-dark(#1b7c83, #56d4dd);
   /* Promoted from 3 identical inline literals — purple layer-badge accent (prov-preset/src-*). */
   --accent-purple: #8250df;
+  /* The fourth 008 layer-badge hue (prov-inherited). Single-use, promoted so
+     the badge palette is complete at :root rather than three-quarters here and
+     one quarter buried in a rule 1400 lines down. */
+  --accent-pink: light-dark(#bf3989, #ff80c8);
   /* Promoted from 7 identical inline literals — text color placed on --accent-colored backgrounds. */
   --on-accent: #fff;
+
+  /* ---------- surfaces & elevation ----------
+     The popover plane sits ABOVE the page in both themes, which is why it
+     matches neither --canvas nor --surface: brighter than --surface in light
+     (a hover card is not an inset), lighter than --canvas in dark (where
+     "raised" means lighter, not whiter). Deliberately equal to the dark half
+     of --surface — that IS the dark theme's raised plane. */
+  --surface-raised: light-dark(#ffffff, #151b23);
+  /* Consolidated: the two floating pills at the bottom of the viewport
+     (.back-to-top, .rcv-toast) had drifted to 10px/0.25 and 12px/0.3 for one
+     and the same "hovering above the page" role. */
+  --shadow-float: 0 2px 12px rgb(0 0 0 / 0.3);
+  /* The higher plane: hover/option cards, which float over content the user is
+     reading rather than over the page as a whole. */
+  --shadow-popover: 0 8px 24px light-dark(rgba(140, 149, 159, 0.3), rgba(0, 0, 0, 0.5));
+
+  /* ---------- status tints ----------
+     Every status hue's surfaces, reachable from :root, in three roles:
+     `-bg` / `-border` — the notice tint: the hue blended INTO --surface /
+       --border, for banners, hints and tinted controls that sit on a card.
+       One background step (10%) and one border step (40%) for all four hues;
+       these had drifted across 7/10/12/16% and 35/40/45/55% for the same job.
+     `-strong` — the one louder step above it, for a surface that must
+       out-shout a neighbouring notice, and for the hover of a tinted control.
+     `-wash` — the flat, opaque tint worn by elements that sit on --canvas
+       rather than on a card. Stated as literal light-dark() pairs, NOT as a
+       mix into --surface: mixing would wash them out in the dark theme, and
+       these are exactly the "must be unmissable" surfaces (027's share-link
+       banner, the advanced-zone chips). */
+  --ok-bg: color-mix(in srgb, var(--ok) 10%, var(--surface));
+  --ok-bg-strong: color-mix(in srgb, var(--ok) 20%, var(--surface));
+  --ok-border: color-mix(in srgb, var(--ok) 40%, var(--border));
+  --warn-bg: color-mix(in srgb, var(--warn) 10%, var(--surface));
+  --warn-bg-strong: color-mix(in srgb, var(--warn) 20%, var(--surface));
+  --warn-border: color-mix(in srgb, var(--warn) 40%, var(--border));
+  --warn-border-strong: color-mix(in srgb, var(--warn) 55%, var(--border));
+  --warn-wash: light-dark(#fff8e6, #2b2413);
+  --error-bg: color-mix(in srgb, var(--error) 10%, var(--surface));
+  --error-border: color-mix(in srgb, var(--error) 40%, var(--border));
+  --error-wash: light-dark(#fff1f0, #2b1614);
+  --accent-bg: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  --accent-border: color-mix(in srgb, var(--accent) 40%, var(--border));
+  --accent-wash: light-dark(#ddf4ff, #121d2f);
+
+  /* ---------- chip fills (036) ----------
+     A badge/chip tints ITSELF from its own `color`, so a variant gains a fill
+     by declaring nothing but the hue — see the `.badge` rule for why. The
+     046 verdict verb wears the same fill with the heavier `-strong` outline. */
+  --chip-fill: color-mix(in srgb, currentColor 13%, transparent);
+  --chip-border: color-mix(in srgb, currentColor 32%, transparent);
+  --chip-border-strong: color-mix(in srgb, currentColor 40%, transparent);
 }
 
 * {
@@ -511,10 +566,12 @@ pre.config-view {
    chips overpowers the content it annotates.) Variants therefore declare
    `color` ONLY; a `border-color` of their own would defeat the softening. Two
    deliberate exceptions keep their meaning and opt out below: `.elided`
-   (dashed = a collapsed chain) and `.rollup` (borderless). */
+   (dashed = a collapsed chain) and `.rollup` (borderless). The fill itself
+   lives on --chip-fill/--chip-border so the 046 verdict verb — the other
+   currentColor-tinted chip in the app — can wear the same one. */
 .badge {
-  background: color-mix(in srgb, currentColor 13%, transparent);
-  border: 1px solid color-mix(in srgb, currentColor 32%, transparent);
+  background: var(--chip-fill);
+  border: 1px solid var(--chip-border);
   border-radius: 999px;
   font-size: 0.7rem;
   line-height: 1.4;
@@ -1031,10 +1088,10 @@ textarea.layer-editor:focus {
 }
 
 .option-card {
-  background: light-dark(#ffffff, #151b23);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 8px 24px light-dark(rgba(140, 149, 159, 0.3), rgba(0, 0, 0, 0.5));
+  box-shadow: var(--shadow-popover);
   font-size: 0.8rem;
   /* Fallback for producers that don't compute an inline max-width themselves
      (the CodeMirror preset-string hover, roadmap 023). Anchors that DO set an
@@ -1244,7 +1301,12 @@ textarea.layer-editor:focus {
    react-diff-view 3.3.3 default for that variable, read from its stylesheet,
    except the text colors: their library default resolves to
    guaranteed-invalid, which made the text simply INHERIT — so the light half
-   states the app's own body text color, which is what was inheriting. */
+   states the app's own body text color, which is what was inheriting.
+   These hexes look like the app's --error/--ok tints and are deliberately NOT
+   folded into them: every light half is a verbatim library default and every
+   dark half was tuned to clear 4.5:1 against --diff-text-color (the assertion
+   in e2e/12-layout-regressions.spec.ts). They are the library's palette that
+   the app matches, not the app's palette — so they stay stated here. */
 .diff-wrapper {
   --diff-background-color: transparent;
   --diff-code-delete-background-color: light-dark(#fdeff0, #3d1418);
@@ -1393,7 +1455,7 @@ textarea.layer-editor:focus {
 }
 
 .badge.prov-inherited {
-  color: light-dark(#bf3989, #ff80c8);
+  color: var(--accent-pink);
 }
 
 .badge.prov-overridden {
@@ -1541,7 +1603,7 @@ pre.config-view.prov-before {
 /* Roadmap 027: a broken share link must be unmissable — a full-width banner at
    the top of the page, not the small dismissable notice below the fold. */
 .share-error-banner {
-  background: light-dark(#fff1f0, #2b1614);
+  background: var(--error-wash);
   border: 1px solid var(--error);
   border-left: 4px solid var(--error);
   border-radius: 6px;
@@ -1564,7 +1626,7 @@ pre.config-view.prov-before {
    decision the app already made (the run happened, just without tokens),
    not a failure, and stays until the user acknowledges it. */
 .share-warning-banner {
-  background: light-dark(#fff8e6, #2b2413);
+  background: var(--warn-wash);
   border-color: var(--warn);
   border-left-color: var(--warn);
 }
@@ -2011,7 +2073,7 @@ pre.config-view.prov-before {
 /* ---------- verdict card (012 → 046: band / ledger / foot) ---------- */
 
 .sim-verdict-block {
-  border: 1px solid color-mix(in srgb, var(--ok) 35%, var(--border));
+  border: 1px solid var(--ok-border);
   border-radius: 8px;
   margin-bottom: 0.75rem;
   overflow: hidden;
@@ -2024,7 +2086,7 @@ pre.config-view.prov-before {
 /* The answer band — the only tinted surface on the card; everything below it
    sits on the page background so the judgment reads first. */
 .sim-verdict-band {
-  background: color-mix(in srgb, var(--ok) 7%, var(--surface));
+  background: var(--ok-bg);
   border-bottom: 1px solid var(--border);
   padding: 0.6rem 0.85rem 0.7rem;
 }
@@ -2052,10 +2114,13 @@ pre.config-view.prov-before {
 }
 
 /* 046: the modal verb as a set piece — the single most information-bearing
-   word the simulator produces; the badge color IS the verdict. */
+   word the simulator produces; the badge color IS the verdict. It is a `.badge`
+   in everything but class, so it takes the same currentColor fill and, like a
+   badge variant, `.not` states nothing but the hue. The heavier `-strong`
+   outline is what keeps it louder than the badges around it. */
 .sim-modal-verb {
-  background: color-mix(in srgb, var(--ok) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--ok) 40%, transparent);
+  background: var(--chip-fill);
+  border: 1px solid var(--chip-border-strong);
   border-radius: 5px;
   color: var(--ok);
   display: inline-block;
@@ -2070,8 +2135,6 @@ pre.config-view.prov-before {
 }
 
 .sim-modal-verb.not {
-  background: color-mix(in srgb, var(--error) 12%, transparent);
-  border-color: color-mix(in srgb, var(--error) 40%, transparent);
   color: var(--error);
 }
 
@@ -2256,10 +2319,11 @@ pre.config-view.prov-before {
 /* Roadmap 021: prominent — A and B describe different simulated dependencies,
    not just a config edit — deliberately louder than .sim-compare-nochange /
    .sim-stale-banner (bold, stronger tint) since a silently-wrong comparison
-   is the failure mode this exists to prevent. */
+   is the failure mode this exists to prevent — hence the `-strong` step of the
+   warn tint where those two take the plain one. */
 .sim-compare-mismatch {
-  background: color-mix(in srgb, var(--warn) 16%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--warn) 55%, var(--border));
+  background: var(--warn-bg-strong);
+  border: 1px solid var(--warn-border-strong);
   border-radius: 6px;
   color: var(--warn);
   font-size: 0.85rem;
@@ -2288,8 +2352,8 @@ pre.config-view.prov-before {
 }
 
 .sim-compare-nochange {
-  background: color-mix(in srgb, var(--ok) 10%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--ok) 35%, var(--border));
+  background: var(--ok-bg);
+  border: 1px solid var(--ok-border);
   border-radius: 6px;
   color: var(--ok);
   font-size: 0.88rem;
@@ -2311,11 +2375,11 @@ pre.config-view.prov-before {
 }
 
 .sim-compare-col.only-a {
-  border-color: color-mix(in srgb, var(--error) 40%, var(--border));
+  border-color: var(--error-border);
 }
 
 .sim-compare-col.only-b {
-  border-color: color-mix(in srgb, var(--ok) 40%, var(--border));
+  border-color: var(--ok-border);
 }
 
 .sim-compare-col-title {
@@ -2500,7 +2564,7 @@ pre.config-view.prov-before {
 }
 
 .advanced-active-chip {
-  background: light-dark(#ddf4ff, #121d2f);
+  background: var(--accent-wash);
   border: 1px solid var(--accent);
   border-radius: 999px;
   color: var(--accent);
@@ -2512,7 +2576,7 @@ pre.config-view.prov-before {
 }
 
 .advanced-active-chip.invalid {
-  background: light-dark(#fff1f0, #2d1516);
+  background: var(--error-wash);
   border-color: var(--error);
   color: var(--error);
 }
@@ -2663,8 +2727,8 @@ pre.config-view.prov-before {
 }
 
 .error-translation-apply {
-  background: color-mix(in srgb, var(--ok) 12%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--ok) 45%, var(--border));
+  background: var(--ok-bg);
+  border: 1px solid var(--ok-border);
   border-radius: 6px;
   color: var(--ok);
   cursor: pointer;
@@ -2675,7 +2739,7 @@ pre.config-view.prov-before {
 }
 
 .error-translation-apply:hover {
-  background: color-mix(in srgb, var(--ok) 22%, var(--surface));
+  background: var(--ok-bg-strong);
 }
 
 .error-translation-docs {
@@ -2708,8 +2772,8 @@ pre.config-view.prov-before {
 }
 
 .sim-stale-banner {
-  background: color-mix(in srgb, var(--warn) 12%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--border));
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-border);
   border-radius: 6px;
   color: var(--warn);
   font-size: 0.85rem;
@@ -2779,7 +2843,7 @@ pre.config-view.prov-before {
   border: none;
   border-radius: 999px;
   bottom: 1.25rem;
-  box-shadow: 0 2px 10px rgb(0 0 0 / 0.25);
+  box-shadow: var(--shadow-float);
   color: var(--on-accent);
   cursor: pointer;
   font-size: 0.85rem;
@@ -2799,8 +2863,8 @@ pre.config-view.prov-before {
 /* Shown on post-Validate results (stage diffs, effective config, simulator)
    when validation reported errors — everything below is hypothetical. */
 .hypothetical-banner {
-  background: color-mix(in srgb, var(--error) 10%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--error) 45%, var(--border));
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
   border-left: 3px solid var(--error);
   border-radius: 6px;
   color: inherit;
@@ -2815,7 +2879,7 @@ pre.config-view.prov-before {
   background: var(--accent);
   border-radius: 8px;
   bottom: 1.25rem;
-  box-shadow: 0 2px 12px rgb(0 0 0 / 0.3);
+  box-shadow: var(--shadow-float);
   color: var(--on-accent);
   font-size: 0.9rem;
   font-weight: 600;
@@ -2836,8 +2900,8 @@ pre.config-view.prov-before {
 /* Hint shown when a "packageRules[N]" cross-link is clicked before any
    simulation exists to render that row. */
 .sim-focus-hint {
-  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
   border-radius: 6px;
   font-size: 0.85rem;
   margin: 0 0 0.6rem;
