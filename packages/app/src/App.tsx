@@ -1015,14 +1015,17 @@ export function App() {
               onSelectTab={setTab}
               backTab={backTab}
               onBack={() => setTab(backTab ?? "overview")}
-              digest={digest}
               validateHasErrors={validateHasErrors}
               jumpToTab={jumpToTab}
+              migrateSteps={migrateSteps}
+              selectPresetNode={selectPresetNode}
+              focusEditorRepoIndex={focusEditorRepoIndex}
+              errorLib={errorLib}
+              digest={digest}
               onWhereFrom={onWhereFrom}
               selectedStage={selectedStage}
               onSelectStage={setSelectedStage}
               deferredStage={deferredStage}
-              migrateSteps={migrateSteps}
               migrateStepperMounted={migrateStepperMounted}
               finalMigrated={finalMigrated}
               migrationStepIndex={migrationStepIndex}
@@ -1033,13 +1036,10 @@ export function App() {
               authState={authState}
               onSignIn={onSignIn}
               installUrl={INSTALL_URL}
-              selectPresetNode={selectPresetNode}
               onEffectiveStats={setEffectiveStats}
               effectiveFilterNonce={effectiveFilterNonce}
-              focusEditorRepoIndex={focusEditorRepoIndex}
               pendingRuleFocus={pendingRuleFocus}
               onRuleFocused={onRuleFocused}
-              errorLib={errorLib}
               simRequest={simRequest}
               onCopySimLink={buildShareLinkAndCopy}
               mergeStepIndex={mergeStepIndex}

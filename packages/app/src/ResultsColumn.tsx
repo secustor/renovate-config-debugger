@@ -31,6 +31,7 @@ import type { SimRequest } from "@/hooks/use-share-link";
  * `panels` memo below keep its element tree between renders.
  */
 export interface ResultsColumnProps {
+  // —— run result + refs ——
   result: TraceResult;
   /** The `.results-col` wrapper (owned by App), measured by the stacked-
    *  viewport scroll-into-view effect below. */
@@ -38,42 +39,66 @@ export interface ResultsColumnProps {
   /** Armed by App's onRun right before a result commits; consumed (and
    *  cleared) here once per run. */
   focusResultsRef: RefObject<boolean>;
+
+  // —— tab shell (forwarded to ResultsPanel) ——
   tabs: ResultsTabDescriptor[];
   tab: ResultsTabId;
   onSelectTab: (tab: ResultsTabId) => void;
   backTab: ResultsTabId | null;
   onBack: () => void;
-  digest: DigestClause[];
+
+  // —— shared across tabs ——
+  /** Consumed by: overview, pipeline, effective, simulator. */
   validateHasErrors: boolean;
+  /** Consumed by: overview, pipeline. */
   jumpToTab: (tab: ResultsTabId) => void;
+  /** Consumed by: pipeline (rewrite-count crosslink), rewrites. */
+  migrateSteps: TraceEvent[];
+  /** Consumed by: effective, simulator. */
+  selectPresetNode: (nodeId: string) => void;
+  /** Consumed by: simulator, problems. */
+  focusEditorRepoIndex: (repoIndex: number) => void;
+  /** Consumed by: simulator, problems. */
+  errorLib: ErrorTranslationLib | null;
+
+  // —— overview ——
+  digest: DigestClause[];
   onWhereFrom: () => void;
+
+  // —— pipeline ——
   selectedStage: StageId;
   onSelectStage: (stage: StageId) => void;
   deferredStage: StageId;
-  migrateSteps: TraceEvent[];
+
+  // —— rewrites ——
   migrateStepperMounted: boolean;
   finalMigrated: unknown;
   migrationStepIndex: number;
   onMigrationStepChange: (index: number) => void;
+
+  // —— presets ——
   onInject: (key: string, content: Record<string, unknown>) => void;
   selectedNodeId: string | null;
   onSelectNode: (id: string | null) => void;
   authState: AuthState;
   onSignIn: () => void;
   installUrl: string;
-  selectPresetNode: (nodeId: string) => void;
+
+  // —— effective ——
   onEffectiveStats: (stats: EffectiveStats) => void;
   effectiveFilterNonce: number;
-  focusEditorRepoIndex: (repoIndex: number) => void;
+
+  // —— simulator ——
   pendingRuleFocus: number | null;
   onRuleFocused: () => void;
-  errorLib: ErrorTranslationLib | null;
   simRequest: SimRequest | null;
   onCopySimLink: (sim: ShareSimulator) => Promise<void>;
   /** Roadmap 044: the simulator's merge-stepper index (owned by App so a share
    *  link can restore it, exactly like `migrationStepIndex`). */
   mergeStepIndex: number;
   onMergeStepChange: (index: number) => void;
+
+  // —— problems ——
   errorCount: number;
   warningCount: number;
   ruleProvenance: RuleAttribution[] | null | undefined;
@@ -102,6 +127,10 @@ const STACKED_VIEWPORT_QUERY = "(max-width: 60rem)";
  *  Run to have visibly produced something. Below this, the run is landed on. */
 const MIN_VISIBLE_RESULTS_PX = 200;
 
+function EmptyNote({ children }: { children: ReactNode }) {
+  return <p className="empty-note">{children}</p>;
+}
+
 export function ResultsColumn({
   result,
   resultsColRef,
@@ -111,14 +140,17 @@ export function ResultsColumn({
   onSelectTab,
   backTab,
   onBack,
-  digest,
   validateHasErrors,
   jumpToTab,
+  migrateSteps,
+  selectPresetNode,
+  focusEditorRepoIndex,
+  errorLib,
+  digest,
   onWhereFrom,
   selectedStage,
   onSelectStage,
   deferredStage,
-  migrateSteps,
   migrateStepperMounted,
   finalMigrated,
   migrationStepIndex,
@@ -129,13 +161,10 @@ export function ResultsColumn({
   authState,
   onSignIn,
   installUrl,
-  selectPresetNode,
   onEffectiveStats,
   effectiveFilterNonce,
-  focusEditorRepoIndex,
   pendingRuleFocus,
   onRuleFocused,
-  errorLib,
   simRequest,
   onCopySimLink,
   mergeStepIndex,
@@ -237,7 +266,7 @@ export function ResultsColumn({
           />
         </div>
       ) : (
-        <p className="empty-note">No rewrites — this config already uses current option names.</p>
+        <EmptyNote>No rewrites — this config already uses current option names.</EmptyNote>
       ),
       presets: result.presetTree?.children.length ? (
         <PresetTree
@@ -250,9 +279,9 @@ export function ResultsColumn({
           installUrl={installUrl}
         />
       ) : (
-        <p className="empty-note">
+        <EmptyNote>
           No presets — this config has no <code>extends</code> entries to resolve.
-        </p>
+        </EmptyNote>
       ),
       effective: result.finalConfig ? (
         <>
@@ -265,9 +294,9 @@ export function ResultsColumn({
           />
         </>
       ) : (
-        <p className="empty-note">
+        <EmptyNote>
           No effective config — the pipeline did not get far enough to merge one.
-        </p>
+        </EmptyNote>
       ),
       simulator: result.finalConfig ? (
         <RuleSimulator
@@ -284,9 +313,7 @@ export function ResultsColumn({
           onMergeStepChange={onMergeStepChange}
         />
       ) : (
-        <p className="empty-note">
-          Nothing to simulate — the pipeline produced no effective config.
-        </p>
+        <EmptyNote>Nothing to simulate — the pipeline produced no effective config.</EmptyNote>
       ),
       problems:
         errorCount + warningCount > 0 ? (
@@ -299,21 +326,24 @@ export function ResultsColumn({
             onApplyFix={onApplyFix}
           />
         ) : (
-          <p className="empty-note">
+          <EmptyNote>
             No errors or warnings — Renovate accepted every option in this config.
-          </p>
+          </EmptyNote>
         ),
     };
   }, [
     result,
-    digest,
     validateHasErrors,
     jumpToTab,
+    migrateSteps,
+    selectPresetNode,
+    focusEditorRepoIndex,
+    errorLib,
+    digest,
     onWhereFrom,
     selectedStage,
     onSelectStage,
     deferredStage,
-    migrateSteps,
     migrateStepperMounted,
     finalMigrated,
     migrationStepIndex,
@@ -324,13 +354,10 @@ export function ResultsColumn({
     authState,
     onSignIn,
     installUrl,
-    selectPresetNode,
     onEffectiveStats,
     effectiveFilterNonce,
-    focusEditorRepoIndex,
     pendingRuleFocus,
     onRuleFocused,
-    errorLib,
     simRequest,
     onCopySimLink,
     mergeStepIndex,
