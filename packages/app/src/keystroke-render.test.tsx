@@ -25,7 +25,7 @@ import {
 } from "react";
 import { act, fireEvent, render, waitFor } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import type { ConfigEditorHandle } from "@/components/ConfigEditor";
+import type { ConfigEditorHandle } from "@/features/editor/ConfigEditor";
 import type * as PresetTreeModule from "@/components/PresetTree";
 import type * as EffectiveConfigModule from "@/components/EffectiveConfig";
 import type * as RuleSimulatorModule from "@/features/simulator/RuleSimulator";
@@ -65,7 +65,7 @@ function wrapCounting<P extends object>(
   return isMemo ? memo(Counting, memoLike.compare ?? undefined) : Counting;
 }
 
-vi.mock("./components/ConfigEditor", () => {
+vi.mock("./features/editor/ConfigEditor", () => {
   const ConfigEditor = forwardRef<
     ConfigEditorHandle,
     { fileName: string; value: string; onChange: (value: string) => void }

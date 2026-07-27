@@ -1,6 +1,6 @@
 import { Fragment, memo, type RefObject } from "react";
 import type { SimulationResult } from "@renovate-config-visualizer/engine";
-import { SummaryDrawer } from "@/components/SummaryDrawer";
+import { SummaryDrawer } from "./SummaryDrawer";
 import type { MergeStop } from "./merge-stops";
 import { SimMergeBody } from "./SimMergeBody";
 

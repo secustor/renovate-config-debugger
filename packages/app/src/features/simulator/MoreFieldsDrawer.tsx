@@ -1,6 +1,6 @@
 import { type Dispatch, Fragment, type SetStateAction } from "react";
 import { Term } from "@/components/glossary";
-import { SummaryDrawer } from "@/components/SummaryDrawer";
+import { SummaryDrawer } from "./SummaryDrawer";
 import { MANAGER_LIST_ID } from "./datalist-ids";
 import { Field } from "./Field";
 import type { FormState } from "./form";

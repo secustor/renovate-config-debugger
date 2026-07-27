@@ -1,5 +1,5 @@
 import { REVOKE_URL, type StoredUser } from "@/platform/oauth";
-import { CopyButton } from "./CopyButton";
+import { CopyButton } from "@/components/CopyButton";
 
 /**
  * Roadmap 040 — the config column's action row: file name, revert, GitHub

@@ -1,4 +1,4 @@
-import { Term } from "./glossary";
+import { Term } from "@/components/glossary";
 
 /**
  * Roadmap 040 — the pre-run "How it works" panel, lifted out of App.tsx by the

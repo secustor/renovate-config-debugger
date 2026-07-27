@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Term } from "./glossary";
+import { Term } from "@/components/glossary";
 
 /**
  * Roadmap 039 — the repo-load disclosure's open state: one chrome row (036

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Term } from "./glossary";
+import { Term } from "@/components/glossary";
 import type { InheritLayerState } from "@/lib/inherit-probe";
 import { isValidEndpoint, isValidToken, type LayerParseResult } from "@/lib/input-schemas";
 import { PLATFORM_ENDPOINTS, PLATFORMS } from "@/data/platform-endpoints";

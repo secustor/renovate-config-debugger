@@ -2,7 +2,7 @@ import { memo, type RefObject } from "react";
 import type { ProvenanceLayer, RuleEvaluation } from "@renovate-config-visualizer/engine";
 import { layerId } from "@/components/provenance-layer";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
-import { SummaryDrawer } from "@/components/SummaryDrawer";
+import { SummaryDrawer } from "./SummaryDrawer";
 import { type LayerMatchCount, matchedLayerCounts } from "./layer-counts";
 import { SimRulesBody } from "./SimRulesBody";
 

@@ -1,10 +1,10 @@
 import type { ReactNode, RefObject } from "react";
-import type { ConfigEditorHandle } from "@/components/ConfigEditor";
-import { ConfigEditorCard } from "@/components/ConfigEditorCard";
-import { ConfigToolbar } from "@/components/ConfigToolbar";
+import type { ConfigEditorHandle } from "@/features/editor/ConfigEditor";
+import { ConfigEditorCard } from "@/features/editor/ConfigEditorCard";
+import { ConfigToolbar } from "@/features/editor/ConfigToolbar";
 import { type AuthState, GithubAuthHint } from "@/components/GithubAuthHint";
-import { NoticeBar } from "@/components/NoticeBar";
-import { WelcomePanel } from "@/components/WelcomePanel";
+import { NoticeBar } from "@/features/editor/NoticeBar";
+import { WelcomePanel } from "@/features/editor/WelcomePanel";
 import type { PresetHoverContext } from "@/lib/preset-hover";
 import type { StoredUser } from "@/platform/oauth";
 

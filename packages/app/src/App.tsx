@@ -15,9 +15,9 @@ import type {
   StageId,
   TraceResult,
 } from "@renovate-config-visualizer/engine";
-import { AdvancedZone } from "@/components/AdvancedZone";
+import { AdvancedZone } from "@/features/editor/AdvancedZone";
 import { AppHeaderTools } from "@/AppHeaderTools";
-import type { ConfigEditorHandle } from "@/components/ConfigEditor";
+import type { ConfigEditorHandle } from "@/features/editor/ConfigEditor";
 import { ConfigColumn } from "@/ConfigColumn";
 import type { EffectiveStats } from "@/components/EffectiveConfig";
 import type { AuthState } from "@/components/GithubAuthHint";
