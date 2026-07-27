@@ -1,3 +1,11 @@
+/* stylelint-disable scale-unlimited/declaration-strict-value -- this IS the
+   token block: every raw hex/light-dark() literal below is the single source
+   of truth a var() token elsewhere resolves to, so it belongs here as a
+   literal by design. (In practice the rule never fires inside :root anyway —
+   scale-unlimited/declaration-strict-value unconditionally skips custom
+   property declarations, i.e. anything starting with `--`. This disable
+   documents that intent explicitly and guards the block if that ever
+   changes.) */
 :root {
   color-scheme: light dark;
   font-family:
@@ -79,6 +87,7 @@
   --chip-border: color-mix(in srgb, currentColor 32%, transparent);
   --chip-border-strong: color-mix(in srgb, currentColor 40%, transparent);
 }
+/* stylelint-enable scale-unlimited/declaration-strict-value */
 
 * {
   box-sizing: border-box;
@@ -1307,6 +1316,14 @@ textarea.layer-editor:focus {
    dark half was tuned to clear 4.5:1 against --diff-text-color (the assertion
    in e2e/12-layout-regressions.spec.ts). They are the library's palette that
    the app matches, not the app's palette — so they stay stated here. */
+/* stylelint-disable scale-unlimited/declaration-strict-value -- mirrors
+   react-diff-view's own palette verbatim (see the comment above): every
+   light-dark() pair here is either a library default or a dark half tuned to
+   clear 4.5:1 against --diff-text-color, an invariant asserted by
+   e2e/12-layout-regressions.spec.ts, not a value this app is free to retoken.
+   (Structurally a no-op today too: these are all custom-property
+   declarations, which the rule always skips — kept for documentation and as
+   a guard if that ever changes.) */
 .diff-wrapper {
   --diff-background-color: transparent;
   --diff-code-delete-background-color: light-dark(#fdeff0, #3d1418);
@@ -1332,6 +1349,7 @@ textarea.layer-editor:focus {
   --diff-selection-text-color: var(--ink);
   --diff-text-color: var(--ink);
 }
+/* stylelint-enable scale-unlimited/declaration-strict-value */
 
 /* Unchanged gutters carry no library color of their own, so this quiet
    override is order-independent already. 037: it used to apply in dark only

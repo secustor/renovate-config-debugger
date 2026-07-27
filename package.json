@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @renovate-config-visualizer/app dev",
-    "lint": "oxlint --type-aware",
+    "lint": "oxlint --type-aware && pnpm lint:css",
+    "lint:css": "stylelint \"packages/app/src/**/*.css\"",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "typecheck": "pnpm -r typecheck",
@@ -16,6 +17,9 @@
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
+    "stylelint": "^17.14.1",
+    "stylelint-declaration-strict-value": "^1.11.1",
+    "stylelint-value-no-unknown-custom-properties": "^6.1.1",
     "typescript": "catalog:"
   },
   "engines": {

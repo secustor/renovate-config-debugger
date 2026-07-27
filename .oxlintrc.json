@@ -100,7 +100,8 @@
         "packages/*/vite.config.ts",
         "packages/*/vitest.config.ts",
         "packages/*/playwright.config.ts",
-        "packages/oauth-worker/src/index.ts"
+        "packages/oauth-worker/src/index.ts",
+        "stylelint.config.mjs"
       ],
       "rules": {
         "import/no-default-export": "off"
