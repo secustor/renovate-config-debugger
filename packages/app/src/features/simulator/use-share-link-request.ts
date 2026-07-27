@@ -1,14 +1,16 @@
 import { type Dispatch, type RefObject, type SetStateAction, useEffect, useRef } from "react";
 import type { TraceResult } from "@renovate-config-visualizer/engine";
+import type { SimRequest } from "@/hooks/use-share-link";
 import { EMPTY_FORM, type FormState } from "./form";
 import type { Simulate } from "./use-simulation-run";
 
-/** Roadmap 018: a share link's simulator inputs, applied to the form once. */
-export interface SimRequest {
-  form: Record<string, string>;
-  autoSimulate: boolean;
-  nonce: number;
-}
+// Roadmap 018/048: `SimRequest` is declared once, in hooks/use-share-link.ts
+// (the module that actually produces one, from a decoded share link) — this
+// used to be a second, structurally-identical copy of that interface.
+// Re-exported (not just imported) instead of duplicated, so there is one
+// source of truth: RuleSimulator.tsx imports its `SimRequest` from THIS
+// module, not from the hook, and is outside this change's file list.
+export type { SimRequest };
 
 /**
  * Roadmap 018: apply a decoded share link's simulator inputs exactly once (by

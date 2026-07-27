@@ -140,6 +140,53 @@
         "no-restricted-imports": "off"
       }
     },
+    // ---- Roadmap 048: two single-import-site invariants ------------------
+    // Until now these were comment-only: the header comments on
+    // input-schemas-zod.ts and editor-schema.ts *said* "only this module may
+    // import X" but nothing enforced it. Mechanized the same way as the
+    // renovate/dist boundary above — a named group per forbidden specifier,
+    // with the one designated file exempted in its own override further down
+    // (oxlint overrides REPLACE, so that exemption must restate everything
+    // else that still applies to it).
+    //
+    // Scoped to `packages/app/src/**` only (not the engine package): neither
+    // specifier is imported from engine/src today (measured — zero hits), and
+    // the invariant as written ("packages/app/src/…") is app-side by design.
+    {
+      "files": ["packages/app/src/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["renovate/dist", "renovate/dist/**"],
+                "message": "Deep renovate/dist imports belong in renovate-adapter.ts, shims/ or types/ — go through the adapter instead."
+              },
+              {
+                // "zod" itself is included alongside "zod/**": the module's
+                // own header comment requires every import to come from the
+                // "zod/mini" subpath specifically, but the group here only
+                // needs to catch "an import of the zod package from the
+                // wrong file" — the full-vs-mini choice is enforced by
+                // review, not lintable via a specifier group.
+                "group": ["zod", "zod/**"],
+                "message": "zod may only be imported statically from lib/input-schemas-zod.ts (via zod/mini) — a static import anywhere else pulls the zod chunk back into the entry bundle (roadmap 030/031)."
+              },
+              {
+                "group": [
+                  "codemirror-json-schema",
+                  "codemirror-json-schema/**",
+                  "@renovate-config-visualizer/engine/schema",
+                  "@renovate-config-visualizer/engine/schema/**"
+                ],
+                "message": "codemirror-json-schema and the engine's schema export may only be imported statically from platform/editor-schema.ts — that's the one place the ~160 kB gz schema stack is allowed into a chunk (roadmap 031)."
+              }
+            ]
+          }
+        ]
+      }
+    },
     // ---- Roadmap 048: the layer boundary ---------------------------------
     // §2 of the structure research (2026-07-vite-structure-research.md) is a
     // unidirectional flow, `app → features → shared`: the app shell composes
@@ -148,22 +195,32 @@
     // mechanized — the arrows are otherwise invisible until an import has
     // already welded two things together.
     //
-    // Both restate the renovate/dist group: oxlint overrides REPLACE a rule's
+    // All four restate the renovate/dist group, plus the zod/schema-stack
+    // groups from the override above: oxlint overrides REPLACE a rule's
     // options rather than merging them (measured), so an override that listed
-    // only the feature patterns would silently switch the renovate/dist
-    // boundary OFF for every file it matched.
+    // only its own patterns would silently switch every OTHER boundary off
+    // for every file it matched.
     {
       // The shared layer. Reaching DOWN into a feature inverts the flow and
       // makes the two inseparable; the fix is always to hoist the composition
       // into the app shell (`packages/app/src/*.tsx` — App.tsx and siblings),
       // which is exactly why ResultsColumn.tsx lives there.
-      "files": [
-        "packages/app/src/components/**",
-        "packages/app/src/hooks/**",
-        "packages/app/src/lib/**",
-        "packages/app/src/data/**",
-        "packages/app/src/platform/**"
-      ],
+      //
+      // Roadmap 048 follow-up: this used to enumerate the five shared folders
+      // by name (components/hooks/lib/data/platform), which meant a future
+      // `src/utils/` (or stores/, types/, styles/, api/ — all plausible next
+      // additions) would silently sit OUTSIDE the boundary until someone
+      // remembered to add it here. Inverted to "everything under src/ that
+      // isn't a feature or the app shell" so shared is the default, not an
+      // allow-list — measured via excludeFiles (confirmed against
+      // configuration_schema.json: `OxlintOverride.excludeFiles` takes a
+      // GlobSet of paths this override does NOT apply to, verified empirically
+      // that it works as documented). `packages/app/src/*.tsx` excludes
+      // exactly the app-shell files (App.tsx and siblings, plus main.tsx and
+      // the root-level test file) because `*` does not cross `/` — confirmed
+      // empirically it does not also swallow `components/ConfigEditor.tsx`.
+      "files": ["packages/app/src/**"],
+      "excludeFiles": ["packages/app/src/features/**", "packages/app/src/*.tsx"],
       "rules": {
         "no-restricted-imports": [
           "error",
@@ -185,6 +242,35 @@
                   "**/features/**"
                 ],
                 "message": "Shared modules must not import a feature — compose features at the app level (roadmap 048)."
+              },
+              {
+                // Closes the upward arrow: nothing previously forbade shared
+                // modules from reaching UP into the app shell. `@/*` matches
+                // `@/App` but not `@/components/glossary` (confirmed
+                // empirically — minimatch `*` does not cross `/`); the three
+                // `../` variants cover every nesting depth actually present
+                // under the shared folders today (all are one level below
+                // `src/`, so `../*` alone would suffice, but the extra two
+                // are cheap insurance against a future subfolder) without
+                // catching a legal same-folder `./x` or a legal
+                // shared-to-shared `../lib/foo` (measured: zero existing `../`
+                // imports anywhere in the shared or feature layers today, so
+                // this starts and stays at zero hits).
+                "group": ["@/*", "../*", "../../*", "../../../*"],
+                "message": "Shared modules must not import the app shell — compose downward: the app shell composes features, features compose the shared layer (roadmap 048)."
+              },
+              {
+                "group": ["zod", "zod/**"],
+                "message": "zod may only be imported statically from lib/input-schemas-zod.ts (via zod/mini) — a static import anywhere else pulls the zod chunk back into the entry bundle (roadmap 030/031)."
+              },
+              {
+                "group": [
+                  "codemirror-json-schema",
+                  "codemirror-json-schema/**",
+                  "@renovate-config-visualizer/engine/schema",
+                  "@renovate-config-visualizer/engine/schema/**"
+                ],
+                "message": "codemirror-json-schema and the engine's schema export may only be imported statically from platform/editor-schema.ts — that's the one place the ~160 kB gz schema stack is allowed into a chunk (roadmap 031)."
               }
             ]
           }
@@ -215,6 +301,92 @@
                   "**/features/**"
                 ],
                 "message": "No cross-feature imports — inside a feature import relatively (`./`); features are composed at the app level (roadmap 048)."
+              },
+              {
+                // Same upward-arrow closure as the shared-layer override
+                // above, restated per the REPLACE rule. `features/simulator/`
+                // is one folder deeper than the shared layer's folders, so
+                // `../../*` (not just `../*`) is the one that actually
+                // matters here — reaching `src/App` from
+                // `features/simulator/*.ts` takes two `../` hops.
+                "group": ["@/*", "../*", "../../*", "../../../*"],
+                "message": "Features must not import the app shell — compose downward: the app shell composes features (roadmap 048)."
+              },
+              {
+                "group": ["zod", "zod/**"],
+                "message": "zod may only be imported statically from lib/input-schemas-zod.ts (via zod/mini) — a static import anywhere else pulls the zod chunk back into the entry bundle (roadmap 030/031)."
+              },
+              {
+                "group": [
+                  "codemirror-json-schema",
+                  "codemirror-json-schema/**",
+                  "@renovate-config-visualizer/engine/schema",
+                  "@renovate-config-visualizer/engine/schema/**"
+                ],
+                "message": "codemirror-json-schema and the engine's schema export may only be imported statically from platform/editor-schema.ts — that's the one place the ~160 kB gz schema stack is allowed into a chunk (roadmap 031)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    // ---- Roadmap 048: the two single-import-site exemptions ---------------
+    // One override per file, not one override for both: input-schemas-zod.ts
+    // is the designated zod site but is NOT the designated schema-stack site
+    // (and vice versa for editor-schema.ts), so each exemption restates the
+    // OTHER file's ban alongside the shared-layer boundary (both files live
+    // under a shared folder — lib/ and platform/ respectively) plus the
+    // renovate/dist group. Placed last so they win per the REPLACE/last-match
+    // rule (confirmed empirically against a throwaway config: when two
+    // overrides in the array match the same file, the LAST one's rule value
+    // is what applies, not a merge of both).
+    {
+      "files": ["packages/app/src/lib/input-schemas-zod.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["renovate/dist", "renovate/dist/**"],
+                "message": "Deep renovate/dist imports belong in renovate-adapter.ts, shims/ or types/ — go through the adapter instead."
+              },
+              {
+                "group": ["@/*", "../*", "../../*", "../../../*"],
+                "message": "Shared modules must not import the app shell — compose downward: the app shell composes features, features compose the shared layer (roadmap 048)."
+              },
+              {
+                "group": [
+                  "codemirror-json-schema",
+                  "codemirror-json-schema/**",
+                  "@renovate-config-visualizer/engine/schema",
+                  "@renovate-config-visualizer/engine/schema/**"
+                ],
+                "message": "codemirror-json-schema and the engine's schema export may only be imported statically from platform/editor-schema.ts — that's the one place the ~160 kB gz schema stack is allowed into a chunk (roadmap 031)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/app/src/platform/editor-schema.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["renovate/dist", "renovate/dist/**"],
+                "message": "Deep renovate/dist imports belong in renovate-adapter.ts, shims/ or types/ — go through the adapter instead."
+              },
+              {
+                "group": ["@/*", "../*", "../../*", "../../../*"],
+                "message": "Shared modules must not import the app shell — compose downward: the app shell composes features, features compose the shared layer (roadmap 048)."
+              },
+              {
+                "group": ["zod", "zod/**"],
+                "message": "zod may only be imported statically from lib/input-schemas-zod.ts (via zod/mini) — a static import anywhere else pulls the zod chunk back into the entry bundle (roadmap 030/031)."
               }
             ]
           }
