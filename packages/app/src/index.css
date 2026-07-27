@@ -11,6 +11,18 @@
   --error: #cf222e;
   --warn: #9a6700;
   --muted: light-dark(#59636e, #9198a1);
+  /* Promoted from 14 identical inline light-dark() calls — the app's primary foreground/ink text color. */
+  --ink: light-dark(#1f2328, #f0f6fc);
+  /* Promoted from 3 identical inline light-dark() calls — base page/input background (distinct from --surface). */
+  --canvas: light-dark(#ffffff, #0d1117);
+  /* Promoted from 2 identical inline light-dark() calls — diff "selected line" highlight background. */
+  --highlight: light-dark(#fffce0, #3b2f0b);
+  /* Promoted from 2 identical inline light-dark() calls — teal layer-badge accent (prov-global/prov-merged). */
+  --accent-teal: light-dark(#1b7c83, #56d4dd);
+  /* Promoted from 3 identical inline literals — purple layer-badge accent (prov-preset/src-*). */
+  --accent-purple: #8250df;
+  /* Promoted from 7 identical inline literals — text color placed on --accent-colored backgrounds. */
+  --on-accent: #fff;
 }
 
 * {
@@ -19,8 +31,8 @@
 
 body {
   margin: 0;
-  background: light-dark(#ffffff, #0d1117);
-  color: light-dark(#1f2328, #f0f6fc);
+  background: var(--canvas);
+  color: var(--ink);
 }
 
 main {
@@ -117,7 +129,7 @@ h1 {
 .btn.primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font-weight: 600;
 }
 
@@ -522,7 +534,7 @@ pre.config-view {
 .badge.src-gitlab,
 .badge.src-gitea,
 .badge.src-forgejo {
-  color: #8250df;
+  color: var(--accent-purple);
 }
 
 .badge.src-npm,
@@ -566,7 +578,7 @@ pre.config-view {
 }
 
 .preset-summary-stat strong {
-  color: light-dark(#1f2328, #f0f6fc);
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
 
@@ -639,7 +651,7 @@ pre.config-view {
 }
 
 .badge.contrib.rules {
-  color: #8250df;
+  color: var(--accent-purple);
 }
 
 /* Deliberate 036 exception: the roll-up is a bare count, not a chip. */
@@ -808,7 +820,7 @@ button.badge.dup {
 /* ---------- global + inherited config layers (008) ---------- */
 
 textarea.layer-editor {
-  background: light-dark(#ffffff, #0d1117);
+  background: var(--canvas);
   border: 1px solid var(--border);
   border-radius: 6px;
   color: inherit;
@@ -900,7 +912,7 @@ textarea.layer-editor:focus {
   background: var(--accent);
   border: 1px solid var(--accent);
   border-radius: 6px;
-  color: #fff;
+  color: var(--on-accent);
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 600;
@@ -1080,7 +1092,7 @@ textarea.layer-editor:focus {
 }
 
 .option-card-row strong {
-  color: light-dark(#1f2328, #f0f6fc);
+  color: var(--ink);
 }
 
 .option-card a {
@@ -1240,23 +1252,23 @@ textarea.layer-editor:focus {
      paints it #f39ea2/#c0dc91, which left light text on a light chip inside
      an otherwise dark row. Both pass 4.5:1 against --diff-text-color. */
   --diff-code-delete-edit-background-color: light-dark(#f39ea2, #8e2f36);
-  --diff-code-delete-edit-text-color: light-dark(#1f2328, #f0f6fc);
-  --diff-code-delete-text-color: light-dark(#1f2328, #f0f6fc);
+  --diff-code-delete-edit-text-color: var(--ink);
+  --diff-code-delete-text-color: var(--ink);
   --diff-code-insert-background-color: light-dark(#eaffee, #103218);
   --diff-code-insert-edit-background-color: light-dark(#c0dc91, #1a5c2e);
-  --diff-code-insert-edit-text-color: light-dark(#1f2328, #f0f6fc);
-  --diff-code-insert-text-color: light-dark(#1f2328, #f0f6fc);
-  --diff-code-selected-background-color: light-dark(#fffce0, #3b2f0b);
-  --diff-code-selected-text-color: light-dark(#1f2328, #f0f6fc);
+  --diff-code-insert-edit-text-color: var(--ink);
+  --diff-code-insert-text-color: var(--ink);
+  --diff-code-selected-background-color: var(--highlight);
+  --diff-code-selected-text-color: var(--ink);
   --diff-gutter-delete-background-color: light-dark(#fadde0, #67060c);
-  --diff-gutter-delete-text-color: light-dark(#1f2328, #f0f6fc);
+  --diff-gutter-delete-text-color: var(--ink);
   --diff-gutter-insert-background-color: light-dark(#d6fedb, #033a16);
-  --diff-gutter-insert-text-color: light-dark(#1f2328, #f0f6fc);
-  --diff-gutter-selected-background-color: light-dark(#fffce0, #3b2f0b);
-  --diff-gutter-selected-text-color: light-dark(#1f2328, #f0f6fc);
+  --diff-gutter-insert-text-color: var(--ink);
+  --diff-gutter-selected-background-color: var(--highlight);
+  --diff-gutter-selected-text-color: var(--ink);
   --diff-selection-background-color: light-dark(#b3d7ff, #1c4f82);
-  --diff-selection-text-color: light-dark(#1f2328, #f0f6fc);
-  --diff-text-color: light-dark(#1f2328, #f0f6fc);
+  --diff-selection-text-color: var(--ink);
+  --diff-text-color: var(--ink);
 }
 
 /* Unchanged gutters carry no library color of their own, so this quiet
@@ -1372,12 +1384,12 @@ textarea.layer-editor:focus {
 }
 
 .badge.prov-preset {
-  color: #8250df;
+  color: var(--accent-purple);
 }
 
 /* 008 layer badges — distinct hues next to the repo blue / preset purple */
 .badge.prov-global {
-  color: light-dark(#1b7c83, #56d4dd);
+  color: var(--accent-teal);
 }
 
 .badge.prov-inherited {
@@ -1738,7 +1750,7 @@ pre.config-view.prov-before {
 
 .sim-field input,
 .sim-field select {
-  background: light-dark(#ffffff, #0d1117);
+  background: var(--canvas);
   border: 1px solid var(--border);
   border-radius: 6px;
   color: inherit;
@@ -1758,7 +1770,7 @@ pre.config-view.prov-before {
   background: var(--accent);
   border: 1px solid var(--accent);
   border-radius: 6px;
-  color: #fff;
+  color: var(--on-accent);
   cursor: pointer;
   font-size: 0.9rem;
   padding: 0.3rem 1rem;
@@ -2411,7 +2423,7 @@ pre.config-view.prov-before {
   align-items: center;
   background: var(--accent);
   border-radius: 50%;
-  color: #fff;
+  color: var(--on-accent);
   content: counter(step);
   display: inline-flex;
   font-size: 0.8rem;
@@ -2757,7 +2769,7 @@ pre.config-view.prov-before {
 }
 
 .badge.prov-merged {
-  color: light-dark(#1b7c83, #56d4dd);
+  color: var(--accent-teal);
 }
 
 /* Back-to-top affordance (roadmap 016): appears once the page has scrolled
@@ -2768,7 +2780,7 @@ pre.config-view.prov-before {
   border-radius: 999px;
   bottom: 1.25rem;
   box-shadow: 0 2px 10px rgb(0 0 0 / 0.25);
-  color: #fff;
+  color: var(--on-accent);
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 600;
@@ -2804,7 +2816,7 @@ pre.config-view.prov-before {
   border-radius: 8px;
   bottom: 1.25rem;
   box-shadow: 0 2px 12px rgb(0 0 0 / 0.3);
-  color: #fff;
+  color: var(--on-accent);
   font-size: 0.9rem;
   font-weight: 600;
   left: 50%;
@@ -2818,7 +2830,7 @@ pre.config-view.prov-before {
 .sim-toggle.active {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 /* Hint shown when a "packageRules[N]" cross-link is clicked before any
@@ -3174,7 +3186,7 @@ main:has(.app-split.has-results) {
 }
 
 .sim-derived-line .value {
-  color: light-dark(#1f2328, #f0f6fc);
+  color: var(--ink);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
