@@ -36,6 +36,10 @@ const compareStrings = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 const datasourceNames = [...datasources.keys()].toSorted(compareStrings);
 const managerNames = [...managers.keys()].toSorted(compareStrings);
 
+/** Emits the oxfmt-stable form (trailing commas), so regenerating never
+ *  produces a diff against the formatted checked-in file. */
+const toArrayLiteral = (names) => `[\n${names.map((n) => `  "${n}",`).join("\n")}\n]`;
+
 const contents = `/**
  * GENERATED FILE — do not hand-edit.
  *
@@ -46,9 +50,9 @@ const contents = `/**
  * this is a build-time snapshot rather than a runtime import.
  */
 
-export const DATASOURCE_NAMES: readonly string[] = ${JSON.stringify(datasourceNames, null, 2)};
+export const DATASOURCE_NAMES: readonly string[] = ${toArrayLiteral(datasourceNames)};
 
-export const MANAGER_NAMES: readonly string[] = ${JSON.stringify(managerNames, null, 2)};
+export const MANAGER_NAMES: readonly string[] = ${toArrayLiteral(managerNames)};
 `;
 
 writeFileSync(outPath, contents);

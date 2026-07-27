@@ -1,5 +1,23 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["local>secustor/renovate-config"],
-  "postUpdateOptions": ["pnpmDedupe"]
+  "postUpdateOptions": ["pnpmDedupe"],
+  "packageRules": [
+    {
+      "description": "Regnerate shims and snapshots",
+      "matchPackageNames": ["renovate"],
+      "postUpgradeTasks": {
+        "commands": [
+          "pnpm install --frozen-lockfile",
+          "pnpm --filter @renovate-config-visualizer/engine generate:registries",
+          "pnpm --filter @renovate-config-visualizer/engine exec vitest run --project golden --update"
+        ],
+        "executionMode": "update",
+        "fileFilters": [
+          "packages/engine/src/registry-names.generated.ts",
+          "packages/engine/test/__snapshots__/**"
+        ]
+      }
+    }
+  ]
 }
