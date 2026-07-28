@@ -27,6 +27,9 @@ services:
     #   RCV_OAUTH_WORKER_URL: "http://localhost:8788"
     #   # Optional: the App's slug, for a direct "install on repositories" link.
     #   RCV_GITHUB_APP_SLUG: "my-renovate-config-visualizer"
+    #   # Optional and independent of sign-in: a GA4 measurement id turns on
+    #   # Google Analytics; without it the app loads no tracking at all.
+    #   RCV_GA_MEASUREMENT_ID: "G-XXXXXXXXXX"
 
   # OPTIONAL — only needed for "Sign in with GitHub". A static page cannot hold
   # the client_secret GitHub requires at the token exchange, so this tiny proxy

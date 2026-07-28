@@ -86,11 +86,12 @@ OAuth-off and an OAuth-on deployment: with both required variables set the
 container writes `/rcv-config.js` at startup and the sign-in UI appears,
 otherwise the shipped stub stays and the feature is off.
 
-| Variable               | Required for sign-in | Notes                                                               |
-| ---------------------- | -------------------- | ------------------------------------------------------------------- |
-| `RCV_GITHUB_CLIENT_ID` | yes                  | Client id of **your own** GitHub App (public value).                |
-| `RCV_OAUTH_WORKER_URL` | yes                  | Base URL of the token-exchange proxy **as the browser reaches it**. |
-| `RCV_GITHUB_APP_SLUG`  | no                   | The App's slug; enables a direct "install on repositories" link.    |
+| Variable                | Required for sign-in | Notes                                                               |
+| ----------------------- | -------------------- | ------------------------------------------------------------------- |
+| `RCV_GITHUB_CLIENT_ID`  | yes                  | Client id of **your own** GitHub App (public value).                |
+| `RCV_OAUTH_WORKER_URL`  | yes                  | Base URL of the token-exchange proxy **as the browser reaches it**. |
+| `RCV_GITHUB_APP_SLUG`   | no                   | The App's slug; enables a direct "install on repositories" link.    |
+| `RCV_GA_MEASUREMENT_ID` | no                   | GA4 measurement id (`G-…`); enables Google Analytics. Off unset.    |
 
 <details>
 <summary>Sign in with GitHub, self-hosted</summary>

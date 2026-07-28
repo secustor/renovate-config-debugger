@@ -56,10 +56,10 @@
     "typescript/no-import-type-side-effects": "error",
     "typescript/no-explicit-any": "error",
     "unicorn/no-array-for-each": "error",
-    // Roadmap 043: `__RCV_OAUTH__` is the ONE injected global — the dangling
-    // underscores are the convention that says "written by a deployment, not
-    // by this codebase". Everything else keeps the rule.
-    "no-underscore-dangle": ["error", { "allow": ["__RCV_OAUTH__"] }],
+    // Roadmap 043: the `__RCV_*__` globals are the injected deployment config —
+    // the dangling underscores are the convention that says "written by a
+    // deployment, not by this codebase". Everything else keeps the rule.
+    "no-underscore-dangle": ["error", { "allow": ["__RCV_OAUTH__", "__RCV_ANALYTICS__"] }],
 
     // --- Type-aware tier (needs `--type-aware` + oxlint-tsgolint) -----------
     "typescript/no-misused-promises": "error",
