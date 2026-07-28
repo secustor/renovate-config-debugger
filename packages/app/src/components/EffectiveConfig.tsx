@@ -2,6 +2,8 @@ import { memo, type RefObject, useEffect, useMemo, useRef, useState } from "reac
 import type {
   KeyProvenance,
   ProvenanceStep,
+  ResolvedConfigMode,
+  ResolvedConfigOutput,
   RuleAttribution,
   TraceResult,
 } from "@renovate-config-visualizer/engine";
@@ -9,6 +11,7 @@ import { Explained, Term } from "./glossary";
 import { GLOSSARY } from "@/data/glossary-data";
 import { OptionKey } from "./option-docs";
 import { ConfigJson } from "./ConfigJson";
+import { CopyButton } from "./CopyButton";
 import { ProvenanceChip } from "./ProvenanceChip";
 import { layerId, layerLabel, type LayerId } from "./provenance-layer";
 import { useRuleProvenance } from "@/hooks/rule-provenance";
@@ -50,6 +53,45 @@ function useProvenance(result: TraceResult): Provenance | null | undefined {
       live = false;
     };
   }, [result]);
+  return state;
+}
+
+/** Roadmap 051: the card's two renderings — provenance rows / a standalone
+ *  JSON document. A MODE, not a filter: the JSON view is a different document
+ *  (and a different computation), so it must not sit in the filter bar where
+ *  checkboxes promise row-level composition. */
+type EffectiveView = "keys" | "json";
+
+/**
+ * Roadmap 051: computes the copyable resolved-config document once the JSON
+ * view is active. Mirrors `useProvenance` above — `undefined` = inactive or
+ * computing, `null` = unavailable (same guards as provenance). Cheap enough to
+ * recompute per option change: a handful of `mergeChildConfig` calls, and the
+ * engine chunk is already resident by the time this view can be reached.
+ */
+function useResolvedConfig(
+  result: TraceResult,
+  active: boolean,
+  mode: ResolvedConfigMode,
+  includeDefaults: boolean,
+): ResolvedConfigOutput | null | undefined {
+  const [state, setState] = useState<ResolvedConfigOutput | null | undefined>(undefined);
+  useEffect(() => {
+    if (!active) {
+      return;
+    }
+    let live = true;
+    setState(undefined);
+    void (async () => {
+      const engine = await import("@renovate-config-visualizer/engine");
+      if (live) {
+        setState(engine.computeResolvedConfig(result, mode, { includeDefaults }) ?? null);
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [result, active, mode, includeDefaults]);
   return state;
 }
 
@@ -417,6 +459,158 @@ function ProvFilters({
   );
 }
 
+/** Roadmap 051: the card-title view switch. Segmented, like the diff's
+ *  unified/side-by-side control and for the same 036 reason — it labels the
+ *  STATE, not an action, so the active rendering is always legible. */
+function ViewSwitch({
+  view,
+  onViewChange,
+}: {
+  view: EffectiveView;
+  onViewChange: (view: EffectiveView) => void;
+}) {
+  return (
+    <span className="card-title-actions">
+      <span className="seg" role="radiogroup" aria-label="Effective config view">
+        <button
+          type="button"
+          role="radio"
+          aria-checked={view === "keys"}
+          className={view === "keys" ? "active" : undefined}
+          onClick={() => onViewChange("keys")}
+        >
+          By key
+        </button>
+        <button
+          type="button"
+          role="radio"
+          aria-checked={view === "json"}
+          className={view === "json" ? "active" : undefined}
+          onClick={() => onViewChange("json")}
+        >
+          As JSON
+        </button>
+      </span>
+    </span>
+  );
+}
+
+/** The JSON view's options row — the same chrome-row grammar as ProvFilters,
+ *  its own component for the same depth-ratchet reason. */
+function ResolvedOptionsRow({
+  expand,
+  onExpandChange,
+  includeDefaults,
+  onIncludeDefaultsChange,
+  defaultsCount,
+  getText,
+}: {
+  expand: ResolvedConfigMode;
+  onExpandChange: (mode: ResolvedConfigMode) => void;
+  includeDefaults: boolean;
+  onIncludeDefaultsChange: (checked: boolean) => void;
+  defaultsCount: number;
+  /** Null while the document is still computing — the copy button waits. */
+  getText: (() => string) | null;
+}) {
+  return (
+    <div className="prov-filters">
+      <label className="resolved-label" htmlFor="resolved-expand">
+        Expand presets:
+      </label>
+      <select
+        id="resolved-expand"
+        value={expand}
+        onChange={(e) => onExpandChange(e.target.value as ResolvedConfigMode)}
+      >
+        <option value="keep-internal">keep internal presets</option>
+        <option value="full">fully</option>
+      </select>
+      <label
+        className="prov-check"
+        title={
+          expand === "keep-internal"
+            ? "Defaults apply to the fully expanded document only — written into a config that still extends presets, they would override those presets"
+            : "Also write out every option Renovate defaults — the fully hydrated document"
+        }
+      >
+        <input
+          type="checkbox"
+          checked={includeDefaults}
+          disabled={expand === "keep-internal"}
+          onChange={(e) => onIncludeDefaultsChange(e.target.checked)}
+        />{" "}
+        include defaults ({defaultsCount})
+      </label>
+      {getText ? (
+        <CopyButton
+          className="resolved-copy"
+          getText={getText}
+          label="Copy resolved config"
+          title="Copy this document as JSON — ready to paste into a renovate.json"
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Roadmap 051: the resolved config as a standalone document — hosted presets
+ * inlined, internal presets kept as `extends` references (or everything
+ * expanded). The counterpart artifact to the Rewrites tab's "Copy migrated
+ * config", which owns the pre-resolution document.
+ */
+function ResolvedJsonView({
+  output,
+  expand,
+  onExpandChange,
+  includeDefaults,
+  onIncludeDefaultsChange,
+  defaultsCount,
+}: {
+  output: ResolvedConfigOutput | null | undefined;
+  expand: ResolvedConfigMode;
+  onExpandChange: (mode: ResolvedConfigMode) => void;
+  includeDefaults: boolean;
+  onIncludeDefaultsChange: (checked: boolean) => void;
+  defaultsCount: number;
+}) {
+  return (
+    <>
+      <ResolvedOptionsRow
+        expand={expand}
+        onExpandChange={onExpandChange}
+        includeDefaults={includeDefaults}
+        onIncludeDefaultsChange={onIncludeDefaultsChange}
+        defaultsCount={defaultsCount}
+        getText={output ? () => `${JSON.stringify(output.config, null, 2)}\n` : null}
+      />
+      {output === undefined ? <p className="empty-note">Computing…</p> : null}
+      {output === null ? (
+        <p className="empty-note">
+          This document needs a completed preset resolution — see the Problems tab.
+        </p>
+      ) : null}
+      {output ? (
+        <pre className="config-view">
+          <ConfigJson value={output.config} />
+        </pre>
+      ) : null}
+      {output && output.divergingKeys.length > 0 ? (
+        <p className="resolved-caveat">
+          Merge-order caveat: <code>{output.divergingKeys.join(", ")}</code> would resolve
+          differently from this document — a kept internal preset written after an inlined preset
+          now merges first. Switch “Expand presets” to “fully” for an exact document.
+        </p>
+      ) : null}
+      <p className="empty-note">
+        Need the config <em>before</em> preset resolution? The Rewrites tab’s “Copy migrated config”
+        has it — syntax modernised, extends untouched.
+      </p>
+    </>
+  );
+}
+
 // Roadmap 032: memoized — this view renders ~100 provenance rows and reads
 // nothing that changes while the user types in the editor, so a keystroke
 // must not re-render it. All props are identity-stable in App (the callbacks
@@ -445,6 +639,16 @@ export const EffectiveConfig = memo(function EffectiveConfig({
   const [onlyOverridden, setOnlyOverridden] = useState(false);
   const [showDefaults, setShowDefaults] = useState(false);
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  // Roadmap 051: the As-JSON rendering and its output options
+  const [view, setView] = useState<EffectiveView>("keys");
+  const [expand, setExpand] = useState<ResolvedConfigMode>("keep-internal");
+  const [includeDefaults, setIncludeDefaults] = useState(false);
+  const resolvedOutput = useResolvedConfig(
+    result,
+    provenance !== undefined && view === "json",
+    expand,
+    expand === "full" && includeDefaults,
+  );
 
   // node ids and keys are per-run, so drop any stale expansion/filter state
   useEffect(() => {
@@ -453,6 +657,9 @@ export const EffectiveConfig = memo(function EffectiveConfig({
     setLayerFilter("all");
     setOnlyOverridden(false);
     setShowDefaults(false);
+    setView("keys");
+    setExpand("keep-internal");
+    setIncludeDefaults(false);
   }, [provenance]);
 
   const entries = useMemo(() => (provenance ? [...provenance.values()] : []), [provenance]);
@@ -552,13 +759,27 @@ export const EffectiveConfig = memo(function EffectiveConfig({
 
   return (
     <div className="card">
-      <div className="card-title">
+      <div className="card-title effective-card-title">
         <Term id="effectiveConfig">Effective config</Term>
-        <span className="card-title-hint"> — and which layer set each option</span>
+        <span className="card-title-hint">
+          {view === "json"
+            ? " — the resolved config as a document"
+            : " — and which layer set each option"}
+        </span>
+        {provenance !== undefined ? <ViewSwitch view={view} onViewChange={setView} /> : null}
       </div>
-      {provenance === undefined ? (
-        <p className="empty-note">Computing provenance…</p>
-      ) : (
+      {provenance === undefined ? <p className="empty-note">Computing provenance…</p> : null}
+      {provenance !== undefined && view === "json" ? (
+        <ResolvedJsonView
+          output={resolvedOutput}
+          expand={expand}
+          onExpandChange={setExpand}
+          includeDefaults={includeDefaults}
+          onIncludeDefaultsChange={setIncludeDefaults}
+          defaultsCount={hiddenDefaults}
+        />
+      ) : null}
+      {provenance !== undefined && view === "keys" ? (
         <>
           <ProvFilters
             filterInputRef={filterInputRef}
@@ -611,7 +832,7 @@ export const EffectiveConfig = memo(function EffectiveConfig({
             </p>
           ) : null}
         </>
-      )}
+      ) : null}
     </div>
   );
 });

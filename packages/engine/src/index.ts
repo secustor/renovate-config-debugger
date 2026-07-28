@@ -44,6 +44,11 @@ export {
   type RuleAttribution,
 } from "./trace/provenance";
 export {
+  computeResolvedConfig,
+  type ResolvedConfigMode,
+  type ResolvedConfigOutput,
+} from "./trace/resolved-config";
+export {
   parseInjectedPreset,
   type PresetIdentity,
   presetInjectionKey,
