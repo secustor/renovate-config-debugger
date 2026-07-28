@@ -7,6 +7,7 @@ import { json } from "@codemirror/lang-json";
 import { forwardRef, type ReactNode, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import type { PresetHoverContext } from "@/lib/preset-hover";
 import { useEffectiveScheme } from "@/hooks/use-effective-scheme";
+import { oneDarkAccessible } from "./one-dark-accessible";
 
 interface Props {
   fileName: string;
@@ -49,7 +50,15 @@ export const ConfigEditor = forwardRef<ConfigEditorHandle, Props>(function Confi
   // swapped in through this compartment, so first paint and typing never
   // wait on it; schema lint/hover appears a beat later.
   const compartment = useMemo(() => new Compartment(), []);
-  const extensions = useMemo(() => [compartment.of(json())], [compartment]);
+  const extensions = useMemo(
+    () => [
+      compartment.of(json()),
+      // PageSpeed a11y: CodeMirror's contenteditable is a role="textbox" with
+      // no accessible name of its own.
+      EditorView.contentAttributes.of({ "aria-label": "Renovate config" }),
+    ],
+    [compartment],
+  );
   const cmRef = useRef<ReactCodeMirrorRef>(null);
 
   useEffect(() => {
@@ -125,7 +134,7 @@ export const ConfigEditor = forwardRef<ConfigEditorHandle, Props>(function Confi
         value={value}
         onChange={onChange}
         extensions={extensions}
-        theme={scheme}
+        theme={scheme === "dark" ? oneDarkAccessible : scheme}
         minHeight="14rem"
         maxHeight="28rem"
       />

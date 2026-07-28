@@ -385,7 +385,11 @@ function ProvFilters({
         value={query}
         onChange={(e) => onQueryChange(e.target.value)}
       />
-      <select value={layerFilter} onChange={(e) => onLayerFilterChange(e.target.value)}>
+      <select
+        aria-label="Filter keys by layer"
+        value={layerFilter}
+        onChange={(e) => onLayerFilterChange(e.target.value)}
+      >
         <option value="all">All layers</option>
         {layerOptions.map(([id, label]) => (
           <option key={id} value={id}>
