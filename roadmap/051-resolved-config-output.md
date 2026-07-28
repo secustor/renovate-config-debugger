@@ -16,11 +16,16 @@ migrated config" — the pre-resolution document, extends untouched. 051
 adds the post-resolution counterpart: an **As JSON** rendering of the
 Effective config card with two expansion levels —
 
-- **keep internal presets** (default): hosted/fetched presets inlined,
-  internal presets kept as `extends` references. The consolidation
-  people actually paste back into a renovate.json: their own preset
-  plumbing flattened, `config:recommended` still readable and still
-  tracking upstream.
+- **keep internal presets** (default): hosted/fetched presets inlined
+  AT ANY DEPTH, internal presets kept as `extends` references wherever
+  they were found — an internal reference inside an inlined hosted
+  preset is hoisted into the root `extends` (deduped, encounter order).
+  The common real-world shape is one org preset wrapping
+  `config:recommended` (e.g. `github>renovatebot/.github`); a top-level-
+  only split would collapse this mode into "fully" for exactly that
+  case. The result is the consolidation people actually paste back into
+  a renovate.json: their own preset plumbing flattened,
+  `config:recommended` still readable and still tracking upstream.
 - **fully**: every preset consumed, no `extends` left — optionally
   hydrated with the defaults underneath ("include defaults"), matching
   how Renovate applies them (defaults first, resolved config on top).
@@ -55,11 +60,17 @@ the same `mergeChildConfig` replay, same availability guards.
 - `"full"` is `root.resolved` (the repo-level resolution), optionally
   defaults-hydrated. Deliberately repo-scoped: the 008 global/inherited
   layers are runtime context, not part of a committable repo config.
-- `"keep-internal"` inlines only children positively known to be
-  non-internal AND successfully resolved; everything else (internal,
-  errored, ignored, unclassifiable) stays referenced — a kept reference
-  is at worst verbose, a wrongly-inlined one is wrong. `ignorePresets`
-  is preserved so kept-but-ignored references stay ignored.
+- `"keep-internal"` recursively flattens the tree: a node is inlined
+  only when positively known to be non-internal AND successfully
+  resolved (with a migrated body to inline); its own internal
+  references bubble up into the root `extends`. Everything else
+  (internal, errored, ignored, unclassifiable) stays referenced — a
+  kept reference is at worst verbose, a wrongly-inlined one is wrong.
+  `ignorePresets` is preserved so kept-but-ignored references stay
+  ignored; nested `extends` inside body values (`packageRules[n]`) ride
+  along as written. `description` is excluded from the divergence
+  check: it concatenates once per reference, so deduping a preset kept
+  at several depths legitimately drops the repeat.
 - **Merge-order honesty.** The emitted document necessarily reorders
   merges: kept references resolve before the body, even when written
   after an inlined preset. Rather than pretend exactness, the replay

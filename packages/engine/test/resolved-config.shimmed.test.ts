@@ -23,6 +23,21 @@ const injectedPresets = {
   [presetInjectionKey({ presetSource: "github", repo: "test-org/sets-automerge" })]: {
     automerge: true,
   },
+  // The renovatebot/.github shape: a hosted org preset wrapping internal ones.
+  [presetInjectionKey({ presetSource: "github", repo: "test-org/org-preset" })]: {
+    extends: [":dependencyDashboard"],
+    automergeType: "branch",
+  },
+  // …and its full-size variant: internal presets (one parameterized) PLUS a
+  // second-level hosted preset, all behind one root reference.
+  [presetInjectionKey({ presetSource: "github", repo: "test-org/deep" })]: {
+    extends: ["config:recommended", ":semanticCommitScope(deps)", "github>test-org/preset-b"],
+    commitBodyTable: true,
+  },
+  [presetInjectionKey({ presetSource: "github", repo: "test-org/preset-b" })]: {
+    rangeStrategy: "replace",
+    addLabels: ["b"],
+  },
 };
 
 async function run(content: Record<string, unknown>): Promise<TraceResult> {
@@ -97,6 +112,58 @@ describe("computeResolvedConfig — keep-internal", () => {
       injectedPresets,
     });
     expect(rerun.finalConfig?.automerge).toBe(true);
+  });
+
+  it("hoists internal references out of an inlined hosted preset (any depth)", async () => {
+    // The renovatebot/.github case: the repo config extends ONE hosted preset,
+    // which itself extends internal presets. Those must not be silently
+    // expanded — they hoist into the root extends.
+    const original = await run({ extends: ["github>test-org/org-preset"], automerge: false });
+    const out = keepInternal(original);
+    expect(out.config.extends).toEqual([":dependencyDashboard"]);
+    // the hosted preset's own body is inlined…
+    expect(out.config.automergeType).toBe("branch");
+    // …but the internal preset's contribution is not
+    expect(out.config).not.toHaveProperty("dependencyDashboard");
+    expect(out.divergingKeys).toEqual([]);
+    // and the emitted document re-resolves (offline: only internal refs
+    // remain) to the exact same effective config
+    const rerun = await runPipeline({
+      fileName: "renovate.json",
+      content: JSON.stringify(out.config),
+    });
+    expect(rerun.stageStatus.preset).toBe("ok");
+    expect(rerun.finalConfig).toEqual(original.finalConfig);
+  });
+
+  it("handles the renovatebot/.github shape: config:recommended + a parameterized internal + a second-level hosted preset", async () => {
+    const original = await run({ extends: ["github>test-org/deep"] });
+    const out = keepInternal(original);
+    // internal references hoist in encounter order — including the
+    // parameterized one, kept by its raw string
+    expect(out.config.extends).toEqual(["config:recommended", ":semanticCommitScope(deps)"]);
+    // both hosted levels are inlined
+    expect(out.config.commitBodyTable).toBe(true);
+    expect(out.config.rangeStrategy).toBe("replace");
+    expect(out.config.addLabels).toEqual(["b"]);
+    // config:recommended's own contribution stays behind its reference
+    expect(out.config).not.toHaveProperty("dependencyDashboard");
+    expect(out.divergingKeys).toEqual([]);
+    // the emitted document re-resolves offline to the same effective config
+    const rerun = await runPipeline({
+      fileName: "renovate.json",
+      content: JSON.stringify(out.config),
+    });
+    expect(rerun.stageStatus.preset).toBe("ok");
+    expect(rerun.finalConfig).toEqual(original.finalConfig);
+  });
+
+  it("dedupes a reference kept at several depths", async () => {
+    const out = keepInternal(
+      await run({ extends: [":dependencyDashboard", "github>test-org/org-preset"] }),
+    );
+    expect(out.config.extends).toEqual([":dependencyDashboard"]);
+    expect(out.divergingKeys).toEqual([]);
   });
 
   it("emits no extends key when every preset was inlined", async () => {
