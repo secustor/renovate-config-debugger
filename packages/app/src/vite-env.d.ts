@@ -7,6 +7,8 @@ interface ImportMetaEnv {
   readonly VITE_OAUTH_WORKER_URL?: string;
   /** GitHub App slug — optional; enables a direct install/manage link (009). */
   readonly VITE_GITHUB_APP_SLUG?: string;
+  /** GA4 measurement id — enables Google Analytics when set (Pages build). */
+  readonly VITE_GA_MEASUREMENT_ID?: string;
 }
 
 interface ImportMeta {
@@ -24,3 +26,9 @@ interface ImportMeta {
  * only the Docker entrypoint (and equivalent self-host setups) fills it in.
  */
 declare var __RCV_OAUTH__: unknown;
+
+/**
+ * Deployment-time analytics config, same mechanism and caveats as above.
+ * Expected shape: `{ measurementId: string }` (a GA4 `G-…` id).
+ */
+declare var __RCV_ANALYTICS__: unknown;

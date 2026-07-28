@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import { initAnalytics } from "@/platform/analytics";
 import { applyTheme, readTheme, runStorageMigrations } from "@/platform/storage";
 import "./index.css";
 
@@ -14,6 +15,10 @@ runStorageMigrations();
 // `createRoot()`. From a React effect the first paint would use the OS scheme
 // and then flip — the theme flash the switcher exists to avoid.
 applyTheme(readTheme());
+
+// Google Analytics loads only when a deployment configured a measurement id
+// (rcv-config.js or the Pages build var) — dev and self-hosts stay silent.
+initAnalytics();
 
 const root = document.getElementById("root");
 if (!root) {

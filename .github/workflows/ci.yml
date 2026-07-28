@@ -42,12 +42,14 @@ jobs:
         # a regime neither the Node tests nor the production build exercise.
         run: pnpm --filter @renovate-config-visualizer/app check:dev-graph
       - name: Browser bundle build
-        # Sign-in (009) is enabled only when these repo Actions variables are
-        # set; absent = empty string = feature cleanly off (PAT UX remains).
+        # Sign-in (009) and Google Analytics are enabled only when these repo
+        # Actions variables are set; absent = empty string = feature cleanly
+        # off (PAT UX remains, no analytics).
         env:
           VITE_GITHUB_CLIENT_ID: ${{ vars.VITE_GITHUB_CLIENT_ID }}
           VITE_OAUTH_WORKER_URL: ${{ vars.VITE_OAUTH_WORKER_URL }}
           VITE_GITHUB_APP_SLUG: ${{ vars.VITE_GITHUB_APP_SLUG }}
+          VITE_GA_MEASUREMENT_ID: ${{ vars.VITE_GA_MEASUREMENT_ID }}
         run: pnpm --filter @renovate-config-visualizer/app build
       - name: Critical-path entry-set sizes (roadmap 031)
         # Prints the gzip size of everything fetched before first paint (the
