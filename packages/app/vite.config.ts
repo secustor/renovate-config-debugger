@@ -106,5 +106,12 @@ export default defineConfig({
      * already put the floor.
      */
     cssTarget: ["chrome123", "firefox120", "safari17.5"],
+    /**
+     * PageSpeed best-practices: production stack traces stay readable and
+     * Lighthouse stops flagging the large chunks as unmapped. `.map` files
+     * are fetched only when devtools asks for them, so shipping them costs
+     * page weight nothing.
+     */
+    sourcemap: true,
   },
 });

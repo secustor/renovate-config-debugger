@@ -50,7 +50,12 @@ export function ConfigToolbar({
     <div className="toolbar">
       {/* Roadmap 039: `.ctl` gives form controls the same metrics as
           `.btn`, so this row is ONE height end to end. */}
-      <select className="ctl" value={fileName} onChange={(e) => onFileNameChange(e.target.value)}>
+      <select
+        className="ctl"
+        aria-label="Config file name"
+        value={fileName}
+        onChange={(e) => onFileNameChange(e.target.value)}
+      >
         <option value="renovate.json">renovate.json</option>
         <option value="renovate.json5">renovate.json5</option>
       </select>

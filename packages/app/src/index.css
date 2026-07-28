@@ -14,7 +14,13 @@
     sans-serif;
   --border: light-dark(#d0d7de, #3d444d);
   --surface: light-dark(#f6f8fa, #151b23);
-  --accent: #0969da;
+  /* PageSpeed a11y: #0969da is only 3.3–3.6:1 on the dark surfaces, so dark
+     gets GitHub's dark-mode accent (5.6:1 on --surface, 6.1:1 on --canvas). */
+  --accent: light-dark(#0969da, #4493f8);
+  /* Solid fills carrying --on-accent text need the INVERSE correction: the
+     link blue above is too light under white text (3.1:1), so fills keep a
+     deeper blue per theme (5.2:1 / 4.6:1 with #fff). */
+  --accent-fill: light-dark(#0969da, #1f6feb);
   --ok: #1a7f37;
   --error: #cf222e;
   --warn: #9a6700;
@@ -191,14 +197,14 @@ h1 {
 }
 
 .btn.primary {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
   color: var(--on-accent);
   font-weight: 600;
 }
 
 .btn.primary:hover {
-  background: color-mix(in srgb, var(--accent) 88%, #000);
+  background: color-mix(in srgb, var(--accent-fill) 88%, #000);
 }
 
 .btn.quiet {
@@ -975,8 +981,8 @@ textarea.layer-editor:focus {
 }
 
 .preset-inject-button {
-  background: var(--accent);
-  border: 1px solid var(--accent);
+  background: var(--accent-fill);
+  border: 1px solid var(--accent-fill);
   border-radius: 6px;
   color: var(--on-accent);
   cursor: pointer;
@@ -1847,8 +1853,8 @@ pre.config-view.prov-before {
 }
 
 .sim-actions button.primary {
-  background: var(--accent);
-  border: 1px solid var(--accent);
+  background: var(--accent-fill);
+  border: 1px solid var(--accent-fill);
   border-radius: 6px;
   color: var(--on-accent);
   cursor: pointer;
@@ -2503,7 +2509,7 @@ pre.config-view.prov-before {
 
 .welcome-steps li::before {
   align-items: center;
-  background: var(--accent);
+  background: var(--accent-fill);
   border-radius: 50%;
   color: var(--on-accent);
   content: counter(step);
@@ -2857,7 +2863,7 @@ pre.config-view.prov-before {
 /* Back-to-top affordance (roadmap 016): appears once the page has scrolled
    past the fold; simpler and more robust than a sticky mini-toolbar. */
 .back-to-top {
-  background: var(--accent);
+  background: var(--accent-fill);
   border: none;
   border-radius: 999px;
   bottom: 1.25rem;
@@ -2894,7 +2900,7 @@ pre.config-view.prov-before {
 /* Transient toast (e.g. Apply fix → "re-ran: 0 errors"): lands the user on a
    consequence without moving their scroll. */
 .rcv-toast {
-  background: var(--accent);
+  background: var(--accent-fill);
   border-radius: 8px;
   bottom: 1.25rem;
   box-shadow: var(--shadow-float);
@@ -2910,8 +2916,8 @@ pre.config-view.prov-before {
 
 /* The active state of the simulator "my rules only" filter toggle. */
 .sim-toggle.active {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
   color: var(--on-accent);
 }
 
