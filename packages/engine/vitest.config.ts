@@ -29,6 +29,7 @@ export default defineConfig({
             "test/preset-fetchers.test.ts",
             "test/provenance.shimmed.test.ts",
             "test/repo-config.test.ts",
+            "test/resolved-config.shimmed.test.ts",
             "test/simulate-package-rules.shimmed.test.ts",
             "test/version.shimmed.test.ts",
           ],

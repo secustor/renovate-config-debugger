@@ -13,20 +13,26 @@ import { deepEqual } from "./provenance";
  *   (`root.resolved`): every preset inlined, no `extends` left. Optionally
  *   hydrated with the defaults underneath, matching how Renovate itself
  *   applies them (defaults first, resolved config on top).
- * - `"keep-internal"` — hosted/fetched presets inlined, internal presets
- *   (and anything that cannot be inlined: errored, ignored, unclassifiable
- *   nodes) kept as `extends` references. The consolidation people actually
- *   paste back into a renovate.json: their own preset plumbing flattened,
+ * - `"keep-internal"` — hosted/fetched presets inlined AT ANY DEPTH, internal
+ *   presets kept as `extends` references wherever they were found: an internal
+ *   reference inside an inlined hosted preset is hoisted into the root
+ *   `extends` (deduped, encounter order) rather than silently expanded — the
+ *   common real-world shape is one org preset wrapping `config:recommended`,
+ *   and expanding that would make this mode collapse into `"full"`. Anything
+ *   that cannot be inlined (internal, errored, ignored, unclassifiable) stays
+ *   referenced. The result is the consolidation people actually paste back
+ *   into a renovate.json: their own preset plumbing flattened,
  *   `config:recommended` still readable and still tracking upstream.
  *
  * The keep-internal document necessarily reorders merges: a kept reference
- * resolves BEFORE the emitted body, even when it was written after an inlined
- * preset. `mergeChildConfig` is order-sensitive (overwrites, concat order), so
- * instead of pretending the output is always exact, the same replay is run in
- * both orders and every top-level key whose value changes is reported in
- * `divergingKeys` — the UI's honesty note. In the common shape (internal
- * presets listed before hosted ones, or touching disjoint keys) the list is
- * empty.
+ * resolves BEFORE the emitted body, even when the traced run merged it later
+ * (or deeper). `mergeChildConfig` is order-sensitive (overwrites, concat
+ * order), so instead of pretending the output is always exact, the same
+ * building blocks — internal presets' resolved payloads and every inlined
+ * body — are replayed in both the traced order and the emitted order, and
+ * every top-level key whose value changes is reported in `divergingKeys` —
+ * the UI's honesty note. In the common shape (internal presets ahead of
+ * hosted bodies, or touching disjoint keys) the list is empty.
  *
  * Deliberately repo-scoped: the 008 global/inherited layers are runtime
  * context, not part of a committable repo config, so they never appear here —
@@ -40,7 +46,7 @@ export interface ResolvedConfigOutput {
   /**
    * `keep-internal` only (always empty for `full`): top-level keys whose
    * value would differ when the emitted document is re-resolved, because a
-   * kept `extends` reference now merges before formerly-later inlined
+   * kept `extends` reference now merges before formerly-earlier inlined
    * content. Empty = the document reproduces the traced resolution exactly.
    */
   divergingKeys: string[];
@@ -48,13 +54,15 @@ export interface ResolvedConfigOutput {
 
 type Obj = Record<string, unknown>;
 
-/** A child the emitted document can safely inline: successfully resolved AND
- *  positively known to be non-internal. Unclassifiable nodes stay referenced —
- *  a kept reference is at worst verbose, a wrongly-inlined one is wrong. */
+/** A child the emitted document can safely inline: successfully resolved,
+ *  with a migrated body to inline, AND positively known to be non-internal.
+ *  Unclassifiable nodes stay referenced — a kept reference is at worst
+ *  verbose, a wrongly-inlined one is wrong. */
 function inlineable(child: PresetNode): boolean {
   return (
     child.state === "resolved" &&
     child.resolved !== undefined &&
+    child.input !== undefined &&
     child.source?.presetSource !== undefined &&
     child.source.presetSource !== "internal"
   );
@@ -66,16 +74,76 @@ function resolvedOf(child: PresetNode): Obj | undefined {
     : undefined;
 }
 
-/** `mergeChildConfig` folded over the layers, then the body — both cloned,
- *  since Renovate's merge mutates its parent argument. */
-function replay(layers: (Obj | undefined)[], body: Obj): Obj {
+/** The node's own migrated body, without the `extends` its children realize.
+ *  `ignorePresets` is deliberately KEPT: a kept-but-ignored reference
+ *  re-resolves to "skipped" only while the body still says to ignore it. */
+function bodyOf(node: PresetNode): Obj {
+  const body = structuredClone(node.input ?? {}) as Obj;
+  delete body.extends;
+  return body;
+}
+
+/** Top-level (non-nested) children — the same participant filter as
+ *  provenance's buildLayers: nested nodes merge inside their parent value. */
+function topChildren(node: PresetNode): PresetNode[] {
+  return node.children.filter((child) => !child.nested);
+}
+
+/**
+ * The recursive flatten: inlineable children contribute their own flattened
+ * body (their kept references bubbling up in encounter order); everything
+ * else contributes its raw `extends` string. Nested extends inside body
+ * values (packageRules[n].extends) ride along as written — they re-resolve,
+ * and internal ones stay referenced there too.
+ */
+function flatten(node: PresetNode): { kept: string[]; body: Obj } {
+  const kept: string[] = [];
   let acc: Obj = {};
-  for (const layer of layers) {
-    if (layer) {
-      acc = mergeChildConfig(acc, structuredClone(layer)) as Obj;
+  for (const child of topChildren(node)) {
+    if (inlineable(child)) {
+      const sub = flatten(child);
+      kept.push(...sub.kept);
+      acc = mergeChildConfig(acc, sub.body) as Obj;
+    } else {
+      kept.push(child.name);
     }
   }
-  return mergeChildConfig(acc, structuredClone(body)) as Obj;
+  return { kept, body: mergeChildConfig(acc, bodyOf(node)) as Obj };
+}
+
+/** The traced-order counterpart built from the SAME building blocks (kept
+ *  presets' resolved payloads, inlined bodies) so that comparing it against
+ *  the emitted-order replay isolates pure reordering effects. */
+function tracedOrder(node: PresetNode): Obj {
+  let acc: Obj = {};
+  for (const child of topChildren(node)) {
+    if (inlineable(child)) {
+      acc = mergeChildConfig(acc, tracedOrder(child)) as Obj;
+    } else {
+      const contribution = resolvedOf(child);
+      if (contribution) {
+        acc = mergeChildConfig(acc, structuredClone(contribution)) as Obj;
+      }
+    }
+  }
+  return mergeChildConfig(acc, bodyOf(node)) as Obj;
+}
+
+/** First resolved payload per raw preset name, anywhere in the tree — what a
+ *  kept (possibly hoisted) reference will re-resolve to. */
+function resolvedByName(root: PresetNode): Map<string, Obj> {
+  const byName = new Map<string, Obj>();
+  const walk = (node: PresetNode): void => {
+    for (const child of node.children) {
+      const payload = resolvedOf(child);
+      if (payload && !byName.has(child.name)) {
+        byName.set(child.name, payload);
+      }
+      walk(child);
+    }
+  };
+  walk(root);
+  return byName;
 }
 
 /**
@@ -106,44 +174,37 @@ export function computeResolvedConfig(
     return { config, divergingKeys: [] };
   }
 
-  // Same participant filter as provenance's buildLayers: nested nodes merge
-  // inside their parent value, never at the top level.
-  const children = root.children.filter((child) => !child.nested);
-  const kept = children.filter((child) => !inlineable(child));
-  const inlined = children.filter(inlineable);
-
-  // `extends` is consumed by resolution and `ignorePresets` is deliberately
-  // KEPT: a kept-but-ignored reference re-resolves to "skipped" only while
-  // the body still says to ignore it.
-  const body = structuredClone(root.input) as Obj;
+  const { kept, body } = flatten(root);
+  // Dedupe hoisted references (the same internal preset commonly recurs at
+  // several depths; Renovate resolves each once anyway), keeping first
+  // encounter order. Resolved preset payloads never carry `extends`
+  // (resolution consumes it), but if one ever does, the entries belong after
+  // the kept references.
+  const carried = Array.isArray(body.extends) ? (body.extends as unknown[]) : [];
   delete body.extends;
+  const extendsList = [...new Set(kept), ...carried];
+  const config: Obj = extendsList.length > 0 ? { extends: extendsList, ...body } : body;
 
-  const merged = replay(
-    inlined.map((child) => child.resolved as Obj),
-    body,
-  );
-  // Resolved preset payloads never carry `extends` (resolution consumes it),
-  // but if one ever does, the entries belong after the kept references.
-  const carried = Array.isArray(merged.extends) ? (merged.extends as unknown[]) : [];
-  delete merged.extends;
-  const extendsList = [...kept.map((child) => child.name), ...carried];
-  const config: Obj = extendsList.length > 0 ? { extends: extendsList, ...merged } : merged;
-
-  // Order honesty: the traced run merged the children in tree order; the
-  // emitted document resolves kept references first, then the inlined+body
-  // content. Replay both sequences (identically nested-unexpanded, so only
-  // the reordering can differ) and report every key that changes.
-  const original = replay(
-    children.map((child) => resolvedOf(child)),
-    body,
-  );
-  const reordered = replay(
-    [...kept, ...inlined].map((child) => resolvedOf(child)),
-    body,
-  );
+  // Order honesty: replay the emitted document's resolution — every kept
+  // reference (in extends order) from its resolved payload, then the
+  // flattened body — against the traced-order replay of the same pieces, and
+  // report every top-level key that changes.
+  const byName = resolvedByName(root);
+  let emitted: Obj = {};
+  for (const name of new Set(kept)) {
+    const payload = byName.get(name);
+    if (payload) {
+      emitted = mergeChildConfig(emitted, structuredClone(payload)) as Obj;
+    }
+  }
+  emitted = mergeChildConfig(emitted, structuredClone(body)) as Obj;
+  const traced = tracedOrder(root);
   const divergingKeys: string[] = [];
-  for (const key of new Set([...Object.keys(original), ...Object.keys(reordered)])) {
-    if (!deepEqual(original[key], reordered[key])) {
+  for (const key of new Set([...Object.keys(traced), ...Object.keys(emitted)])) {
+    // `description` is preset metadata that concatenates once per REFERENCE —
+    // deduping a preset kept at several depths legitimately drops the repeat.
+    // Not a behavior difference, so it never warrants the caveat.
+    if (key !== "extends" && key !== "description" && !deepEqual(traced[key], emitted[key])) {
       divergingKeys.push(key);
     }
   }
