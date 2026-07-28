@@ -61,7 +61,8 @@ function isPlainObject(v: unknown): v is Obj {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
-function deepEqual(a: unknown, b: unknown): boolean {
+/** Structural equality over JSON-shaped values (also used by resolved-config.ts). */
+export function deepEqual(a: unknown, b: unknown): boolean {
   if (a === b) {
     return true;
   }

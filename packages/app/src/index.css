@@ -1397,6 +1397,27 @@ textarea.layer-editor:focus {
   white-space: nowrap;
 }
 
+/* Roadmap 051: the As-JSON view's options row shares the .prov-filters chrome;
+   only its own pieces live here. */
+.resolved-label {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.resolved-copy {
+  margin-left: auto;
+}
+
+/* The merge-order honesty note — the warn notice tint (050 families), attached
+   under the document it qualifies. */
+.resolved-caveat {
+  background: var(--warn-bg);
+  border-top: 1px solid var(--warn-border);
+  font-size: 0.85rem;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+}
+
 .prov-list {
   max-height: 40rem;
   overflow: auto;
@@ -1609,12 +1630,21 @@ pre.config-view.prov-before {
 }
 
 /* The card title becomes a row when it carries actions (039). Only the editor
-   card does; every other card title stays plain text so its inline hints and
-   copy buttons keep wrapping as prose. */
-.editor-card-title {
+   card and the effective config's card (051: the view switch) do; every other
+   card title stays plain text so its inline hints and copy buttons keep
+   wrapping as prose. The hint is allowed to vanish before the actions wrap. */
+.editor-card-title,
+.effective-card-title {
   align-items: center;
   display: flex;
   gap: 0.5rem;
+}
+
+.effective-card-title .card-title-hint {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .card-title-actions {

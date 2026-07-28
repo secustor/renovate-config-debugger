@@ -55,6 +55,7 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [048](048-app-decomposition-and-depth-ratchet.md)       | App decomposition + depth ratchet to 3                    | M13                  | done   |
 | [049](049-feature-layer-expansion.md)                   | Feature-layer expansion: editor, presets                  | M13                  | done   |
 | [050](050-css-design-tokens.md)                         | CSS design tokens: dedup, consolidation, enforcement      | M13                  | done   |
+| [051](051-resolved-config-output.md)                    | Effective config: resolved config as a copyable document  | M14                  | done   |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live
@@ -136,3 +137,13 @@ simulator. 050 brought the same discipline to the stylesheet: repeated
 theme values promoted to design tokens, drifted status tints
 consolidated onto token families, and stylelint enforcing var()-only
 colors from then on.
+
+M14 opens with 051, the 2026-07-28 user request to read the resolved
+config "without internal presets" out of the Effective config tab —
+landed as an As-JSON rendering with two expansion levels (hosted
+presets inlined with internal ones kept as `extends` references, or
+everything expanded, optionally defaults-hydrated), settled through the
+approved
+[mockups/051/effective-config-output.html](mockups/051/effective-config-output.html)
+(variant B; the originally proposed filter-bar checkbox was rejected as
+a mode masquerading as a filter).

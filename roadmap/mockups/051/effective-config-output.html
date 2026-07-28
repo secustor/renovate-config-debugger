@@ -1,0 +1,989 @@
+<title>Effective Config — resolved-output mock</title>
+<style>
+  :root {
+    --canvas: #ffffff;
+    --surface: #f6f8fa;
+    --surface-raised: #ffffff;
+    --border: #d0d7de;
+    --ink: #1f2328;
+    --muted: #59636e;
+    --accent: #0969da;
+    --accent-fill: #0969da;
+    --on-accent: #fff;
+    --accent-purple: #8250df;
+    --accent-teal: #1b7c83;
+    --warn: #9a6700;
+    --ok: #1a7f37;
+    --json-key: #0550ae;
+    --json-str: #0a3069;
+    --json-lit: #953800;
+    --shadow-popover: 0 8px 24px rgba(140, 149, 159, 0.3);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --canvas: #0d1117;
+      --surface: #151b23;
+      --surface-raised: #151b23;
+      --border: #3d444d;
+      --ink: #f0f6fc;
+      --muted: #9198a1;
+      --accent: #4493f8;
+      --accent-fill: #1f6feb;
+      --accent-teal: #56d4dd;
+      --warn: #d4a72c;
+      --ok: #3fb950;
+      --json-key: #79c0ff;
+      --json-str: #a5d6ff;
+      --json-lit: #ffa657;
+      --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --canvas: #0d1117;
+    --surface: #151b23;
+    --surface-raised: #151b23;
+    --border: #3d444d;
+    --ink: #f0f6fc;
+    --muted: #9198a1;
+    --accent: #4493f8;
+    --accent-fill: #1f6feb;
+    --accent-teal: #56d4dd;
+    --warn: #d4a72c;
+    --ok: #3fb950;
+    --json-key: #79c0ff;
+    --json-str: #a5d6ff;
+    --json-lit: #ffa657;
+    --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.5);
+  }
+  :root[data-theme="light"] {
+    --canvas: #ffffff;
+    --surface: #f6f8fa;
+    --surface-raised: #ffffff;
+    --border: #d0d7de;
+    --ink: #1f2328;
+    --muted: #59636e;
+    --accent: #0969da;
+    --accent-fill: #0969da;
+    --accent-teal: #1b7c83;
+    --warn: #9a6700;
+    --ok: #1a7f37;
+    --json-key: #0550ae;
+    --json-str: #0a3069;
+    --json-lit: #953800;
+    --shadow-popover: 0 8px 24px rgba(140, 149, 159, 0.3);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    background: var(--canvas);
+    color: var(--ink);
+    font-family:
+      system-ui,
+      -apple-system,
+      sans-serif;
+    line-height: 1.5;
+    margin: 0 auto;
+    max-width: 60rem;
+    padding: 2rem 1.25rem 4rem;
+  }
+  a {
+    color: var(--accent);
+  }
+
+  .eyebrow {
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  h1 {
+    font-size: 1.55rem;
+    line-height: 1.25;
+    margin: 0.25rem 0 0.5rem;
+    text-wrap: balance;
+  }
+  .lede {
+    color: var(--muted);
+    margin: 0 0 1.5rem;
+    max-width: 46rem;
+  }
+
+  .verdict {
+    background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+    border-radius: 8px;
+    margin-bottom: 2.5rem;
+    padding: 0.9rem 1.1rem;
+  }
+  .verdict strong {
+    display: block;
+    margin-bottom: 0.3rem;
+  }
+  .verdict p {
+    margin: 0.35rem 0 0;
+  }
+
+  section.variant {
+    margin-bottom: 3rem;
+  }
+  h2 {
+    font-size: 1.1rem;
+    margin: 0 0 0.15rem;
+  }
+  h2 .tag {
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-left: 0.5rem;
+    padding: 0.15rem 0.6rem;
+    vertical-align: 0.15rem;
+  }
+  .tag.flagged {
+    background: color-mix(in srgb, var(--warn) 15%, var(--surface));
+    color: var(--warn);
+  }
+  .tag.recommended {
+    background: color-mix(in srgb, var(--ok) 15%, var(--surface));
+    color: var(--ok);
+  }
+  .tag.alt {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .variant > .sub {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin: 0 0 1rem;
+    max-width: 46rem;
+  }
+
+  /* ---------- faithful app chrome ---------- */
+  .card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .card-title {
+    align-items: baseline;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    font-size: 0.85rem;
+    font-weight: 600;
+    gap: 0.25rem;
+    padding: 0.5rem 0.75rem;
+    position: relative;
+  }
+  .card-title-hint {
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .card-title-actions {
+    margin-left: auto;
+  }
+
+  .prov-filters {
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    position: relative;
+  }
+  .prov-filters input[type="text"],
+  .prov-filters select,
+  .options-row select {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: inherit;
+    font-family: inherit;
+    font-size: 0.85rem;
+    padding: 0.3rem 0.5rem;
+  }
+  .prov-filters input[type="text"] {
+    flex: 1;
+    min-width: 9rem;
+  }
+  .prov-check {
+    align-items: center;
+    color: var(--muted);
+    display: inline-flex;
+    font-size: 0.85rem;
+    gap: 0.3rem;
+    white-space: nowrap;
+  }
+  .prov-check input {
+    accent-color: var(--accent-fill);
+  }
+
+  .prov-row {
+    border-bottom: 1px solid var(--border);
+  }
+  .prov-row:last-child {
+    border-bottom: none;
+  }
+  .prov-row-head {
+    align-items: center;
+    background: none;
+    border: 0;
+    color: inherit;
+    cursor: pointer;
+    display: flex;
+    font-size: 0.85rem;
+    gap: 0.5rem;
+    padding: 0.45rem 0.75rem;
+    text-align: left;
+    width: 100%;
+  }
+  .prov-row-head:hover {
+    background: color-mix(in srgb, var(--surface) 60%, var(--canvas));
+  }
+  .caret {
+    color: var(--muted);
+    font-size: 0.7rem;
+  }
+  .prov-key {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .prov-preview {
+    color: var(--muted);
+    flex: 1;
+    font-size: 0.8rem;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .badge {
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.05rem 0.5rem;
+    white-space: nowrap;
+  }
+  .badge.layer-repo {
+    border-color: color-mix(in srgb, var(--accent-teal) 55%, var(--border));
+    color: var(--accent-teal);
+  }
+  .badge.layer-preset {
+    border-color: color-mix(in srgb, var(--accent-purple) 55%, var(--border));
+    color: var(--accent-purple);
+  }
+  .badge.overridden {
+    border-color: color-mix(in srgb, var(--warn) 55%, var(--border));
+    color: var(--warn);
+  }
+  .badge.appended {
+    border-color: var(--border);
+    color: var(--muted);
+  }
+
+  /* segmented view switch (variant B) */
+  .segmented {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    display: inline-flex;
+    overflow: hidden;
+  }
+  .segmented button {
+    background: transparent;
+    border: 0;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.25rem 0.7rem;
+  }
+  .segmented button + button {
+    border-left: 1px solid var(--border);
+  }
+  .segmented button[aria-pressed="true"] {
+    background: var(--accent-fill);
+    color: var(--on-accent);
+  }
+  .segmented button:focus-visible,
+  .btn:focus-visible,
+  .prov-row-head:focus-visible,
+  .menu button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .options-row {
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    position: relative;
+  }
+  .options-row .label {
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+  .btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: inherit;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.8rem;
+    padding: 0.25rem 0.6rem;
+  }
+  .btn.quiet {
+    border-color: transparent;
+    color: var(--muted);
+  }
+  .btn:hover {
+    background: var(--surface);
+  }
+  .push-end {
+    margin-left: auto;
+  }
+
+  pre.config-view {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.8rem;
+    line-height: 1.55;
+    margin: 0;
+    overflow-x: auto;
+    padding: 0.75rem;
+  }
+  .j-k {
+    color: var(--json-key);
+  }
+  .j-s {
+    color: var(--json-str);
+  }
+  .j-l {
+    color: var(--json-lit);
+  }
+  .j-mut {
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  /* export menu (variant C) */
+  .menu {
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: var(--shadow-popover);
+    font-size: 0.83rem;
+    font-weight: 400;
+    padding: 0.3rem;
+    position: absolute;
+    right: 0.5rem;
+    top: calc(100% + 0.25rem);
+    width: 21rem;
+    z-index: 2;
+  }
+  .menu button {
+    background: none;
+    border: 0;
+    border-radius: 6px;
+    color: inherit;
+    cursor: pointer;
+    display: block;
+    font-family: inherit;
+    font-size: inherit;
+    padding: 0.4rem 0.6rem;
+    text-align: left;
+    width: 100%;
+  }
+  .menu button:hover {
+    background: var(--surface);
+  }
+  .menu .hint {
+    color: var(--muted);
+    display: block;
+    font-size: 0.75rem;
+  }
+  .mock-c-stage {
+    padding-bottom: 7.5rem;
+    position: relative;
+  }
+
+  /* annotation dots + notes */
+  .dot {
+    align-items: center;
+    background: var(--warn);
+    border-radius: 50%;
+    color: var(--canvas);
+    display: inline-flex;
+    flex: none;
+    font-size: 0.68rem;
+    font-weight: 700;
+    height: 1.05rem;
+    justify-content: center;
+    width: 1.05rem;
+  }
+  .dot.good {
+    background: var(--ok);
+  }
+  ol.notes {
+    font-size: 0.88rem;
+    margin: 1rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  ol.notes li {
+    display: flex;
+    gap: 0.55rem;
+    margin: 0.45rem 0;
+  }
+  ol.notes .dot {
+    margin-top: 0.15rem;
+  }
+  ol.notes code,
+  .sub code,
+  .verdict code,
+  .lede code {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 0.85em;
+    padding: 0 0.25em;
+  }
+
+  .crosslink {
+    border-top: 1px dashed var(--border);
+    color: var(--muted);
+    font-size: 0.8rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  /* pipeline fit strip */
+  .stages {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 1rem 0 0;
+  }
+  .stage {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    flex: 1 1 12rem;
+    min-width: 11rem;
+    padding: 0.6rem 0.75rem;
+    position: relative;
+  }
+  .stage.new {
+    border-color: color-mix(in srgb, var(--ok) 45%, var(--border));
+  }
+  .stage .where {
+    color: var(--muted);
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .stage .doc {
+    display: block;
+    font-size: 0.88rem;
+    font-weight: 600;
+    margin: 0.15rem 0;
+  }
+  .stage .how {
+    color: var(--muted);
+    display: block;
+    font-size: 0.78rem;
+  }
+  .stage .status {
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 0.1rem 0.5rem;
+    position: absolute;
+    right: 0.5rem;
+    top: 0.5rem;
+  }
+  .status.exists {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .status.added {
+    background: color-mix(in srgb, var(--ok) 15%, var(--surface));
+    color: var(--ok);
+  }
+  .stage-arrow {
+    align-self: center;
+    color: var(--muted);
+    flex: none;
+  }
+
+  .footnote {
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-top: 1rem;
+    max-width: 46rem;
+    padding-top: 1.25rem;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .menu {
+      transition: opacity 120ms ease;
+    }
+  }
+</style>
+
+<p class="eyebrow">UI mock · Effective Config panel</p>
+<h1>Showing the resolved config without internal presets</h1>
+<p class="lede">
+  Three ways to surface a “resolved config, internal presets kept as
+  <code>extends</code>” output in the Effective Config card — starting with the proposed checkbox,
+  then two alternatives. Amber dots flag problems, green dots mark what a variant gets right.
+</p>
+
+<div class="verdict">
+  <strong>Verdict: a checkbox is the wrong control here.</strong>
+  <p>
+    The existing checkboxes (<em>only overridden</em>, <em>show default-only</em>) filter rows of
+    the <em>same</em> document. This option produces a <em>different</em> document — a second merge
+    pass that stops at internal presets — in a different rendering (plain JSON instead of provenance
+    rows). That is a view mode, not a filter. Variant B makes the mode explicit; Variant C does it
+    with zero new chrome if preview isn’t needed.
+  </p>
+</div>
+
+<!-- ================= VARIANT A ================= -->
+<section class="variant">
+  <h2>Variant A — checkbox in the filter bar <span class="tag flagged">as proposed</span></h2>
+  <p class="sub">The new option dropped next to the existing row filters.</p>
+
+  <div class="card">
+    <div class="card-title">
+      Effective config <span class="card-title-hint">— and which layer set each option</span>
+    </div>
+    <div class="prov-filters">
+      <input type="text" placeholder="Filter keys…" aria-label="Filter keys" />
+      <select aria-label="Filter keys by layer">
+        <option>All layers</option>
+      </select>
+      <label class="prov-check"
+        ><input type="checkbox" /> only overridden <span class="dot">2</span></label
+      >
+      <label class="prov-check"><input type="checkbox" /> show default-only (382)</label>
+      <label class="prov-check"
+        ><input type="checkbox" checked /> resolved shallow config, without internal presets
+        <span class="dot">1</span><span class="dot">3</span></label
+      >
+    </div>
+    <pre class="config-view">{
+  <span class="j-k">"extends"</span>: [<span class="j-s">"config:recommended"</span>, <span class="j-s">":semanticCommits"</span>],
+  <span class="j-k">"labels"</span>: [<span class="j-s">"dependencies"</span>],
+  <span class="j-k">"rangeStrategy"</span>: <span class="j-s">"bump"</span>,
+  <span class="j-k">"automerge"</span>: <span class="j-l">true</span>  <span class="j-mut">// ← where did the chips, badges and chains go? ④</span>
+}</pre>
+  </div>
+
+  <ol class="notes">
+    <li>
+      <span class="dot">1</span
+      ><span
+        >The label bundles two axes into one boolean — “shallow” <em>and</em> “without internal
+        presets”. What does unchecking half of that mean? A checkbox can’t answer.</span
+      >
+    </li>
+    <li>
+      <span class="dot">2</span
+      ><span
+        >Checkboxes in this bar promise composition: they filter rows of the same list. Combine this
+        one with <em>only overridden</em> and the state is incoherent — the override chains
+        reference preset layers that no longer exist in the shallow document.</span
+      >
+    </li>
+    <li>
+      <span class="dot">3</span
+      ><span
+        >Negative phrasing (“without …”) means <em>checked = absence</em>, and the 6-word label
+        wraps the bar on mobile. Checkbox labels should name a positive, single thing.</span
+      >
+    </li>
+    <li>
+      <span class="dot">4</span
+      ><span
+        >Ticking it silently swaps provenance rows for plain JSON — the filter input, layer select
+        and both other checkboxes stop applying but stay enabled. Half the card’s UI becomes a
+        lie.</span
+      >
+    </li>
+  </ol>
+</section>
+
+<!-- ================= VARIANT B ================= -->
+<section class="variant">
+  <h2>
+    Variant B — explicit view switch + output options
+    <span class="tag recommended">recommended · interactive</span>
+  </h2>
+  <p class="sub">
+    A segmented control in the title bar names the two things this card can show. Row filters live
+    only in the provenance view; output options (expansion level, defaults, copy) live only in the
+    JSON view. Try it.
+  </p>
+
+  <div class="card">
+    <div class="card-title">
+      Effective config
+      <span class="card-title-hint" id="b-hint">— and which layer set each option</span>
+      <span class="card-title-actions">
+        <span class="segmented" role="group" aria-label="View">
+          <button type="button" id="b-mode-prov" aria-pressed="true">By key</button>
+          <button type="button" id="b-mode-json" aria-pressed="false">As JSON</button>
+        </span>
+        <span class="dot" style="vertical-align: middle">1</span>
+      </span>
+    </div>
+
+    <div id="b-prov-panel">
+      <div class="prov-filters">
+        <input type="text" placeholder="Filter keys…" aria-label="Filter keys" />
+        <select aria-label="Filter keys by layer">
+          <option>All layers</option>
+        </select>
+        <label class="prov-check"><input type="checkbox" /> only overridden</label>
+        <label class="prov-check"><input type="checkbox" /> show default-only (382)</label>
+        <span class="dot" style="align-self: center">2</span>
+      </div>
+      <div class="prov-row">
+        <button type="button" class="prov-row-head">
+          <span class="caret">▸</span><span class="prov-key">automerge</span
+          ><span class="prov-preview">true</span
+          ><span class="badge layer-preset">preset · secustor/renovate-config</span>
+        </button>
+      </div>
+      <div class="prov-row">
+        <button type="button" class="prov-row-head">
+          <span class="caret">▸</span><span class="prov-key">dependencyDashboard</span
+          ><span class="prov-preview">true</span
+          ><span class="badge layer-preset">preset · config:recommended</span>
+        </button>
+      </div>
+      <div class="prov-row">
+        <button type="button" class="prov-row-head">
+          <span class="caret">▸</span><span class="prov-key">labels</span
+          ><span class="prov-preview">[ 1 item ]</span
+          ><span class="badge layer-repo">repo config</span>
+        </button>
+      </div>
+      <div class="prov-row">
+        <button type="button" class="prov-row-head">
+          <span class="caret">▸</span><span class="prov-key">packageRules</span
+          ><span class="prov-preview">6 rules — 5 from presets, 1 from repo config</span
+          ><span class="badge appended">appended</span
+          ><span class="badge layer-repo">repo config</span>
+        </button>
+      </div>
+      <div class="prov-row">
+        <button type="button" class="prov-row-head">
+          <span class="caret">▸</span><span class="prov-key">rangeStrategy</span
+          ><span class="prov-preview">"bump"</span><span class="badge overridden">overridden</span
+          ><span class="badge layer-repo">repo config</span>
+        </button>
+      </div>
+    </div>
+
+    <div id="b-json-panel" hidden>
+      <div class="options-row">
+        <label class="label" for="b-expand">Expand presets:</label>
+        <select id="b-expand">
+          <option value="keep" selected>keep internal presets</option>
+          <option value="full">fully</option>
+        </select>
+        <span class="dot good">3</span>
+        <label class="prov-check"
+          ><input type="checkbox" id="b-defaults" /> include defaults (382)</label
+        >
+        <button type="button" class="btn push-end" id="b-copy">Copy JSON</button>
+        <span class="dot good">4</span>
+      </div>
+
+      <pre class="config-view" id="b-json-keep">{
+  <span class="j-k">"$schema"</span>: <span class="j-s">"https://docs.renovatebot.com/renovate-schema.json"</span>,
+  <span class="j-k">"extends"</span>: [
+    <span class="j-s">"config:recommended"</span>,
+    <span class="j-s">":semanticCommits"</span>
+  ],
+  <span class="j-k">"labels"</span>: [<span class="j-s">"dependencies"</span>],
+  <span class="j-k">"rangeStrategy"</span>: <span class="j-s">"bump"</span>,
+  <span class="j-k">"automerge"</span>: <span class="j-l">true</span>,
+  <span class="j-k">"platformAutomerge"</span>: <span class="j-l">true</span>,
+  <span class="j-k">"packageRules"</span>: [
+    {
+      <span class="j-k">"matchManagers"</span>: [<span class="j-s">"github-actions"</span>],
+      <span class="j-k">"groupName"</span>: <span class="j-s">"github actions"</span>
+    }
+  ]<span class="defaults-line" hidden>,
+  <span class="j-mut">… + 382 default-valued options</span></span>
+}
+<span class="j-mut">// github&gt;secustor/renovate-config inlined; internal presets stay referenced</span></pre>
+
+      <pre class="config-view" id="b-json-full" hidden>{
+  <span class="j-k">"$schema"</span>: <span class="j-s">"https://docs.renovatebot.com/renovate-schema.json"</span>,
+  <span class="j-k">"labels"</span>: [<span class="j-s">"dependencies"</span>],
+  <span class="j-k">"rangeStrategy"</span>: <span class="j-s">"bump"</span>,
+  <span class="j-k">"automerge"</span>: <span class="j-l">true</span>,
+  <span class="j-k">"platformAutomerge"</span>: <span class="j-l">true</span>,
+  <span class="j-k">"semanticCommits"</span>: <span class="j-s">"enabled"</span>,
+  <span class="j-k">"dependencyDashboard"</span>: <span class="j-l">true</span>,
+  <span class="j-k">"configMigration"</span>: <span class="j-l">true</span>,
+  <span class="j-k">"minimumReleaseAge"</span>: <span class="j-s">"3 days"</span>,
+  <span class="j-k">"packageRules"</span>: [
+    <span class="j-mut">… 5 rules from config:recommended …</span>
+    {
+      <span class="j-k">"matchManagers"</span>: [<span class="j-s">"github-actions"</span>],
+      <span class="j-k">"groupName"</span>: <span class="j-s">"github actions"</span>
+    }
+  ]<span class="defaults-line" hidden>,
+  <span class="j-mut">… + 382 default-valued options</span></span>
+}
+<span class="j-mut">// every preset expanded — no extends left</span></pre>
+
+      <div class="crosslink">
+        Need the config <em>before</em> preset resolution? That document already exists:
+        <strong>Rewrites → Copy migrated config</strong>.
+      </div>
+    </div>
+  </div>
+
+  <ol class="notes">
+    <li>
+      <span class="dot">1</span
+      ><span
+        >The one honest cost: a second control surface in the title bar. It earns its place by
+        telling the truth — the whole panel changes, and the control that changes it says so.</span
+      >
+    </li>
+    <li>
+      <span class="dot good">2</span
+      ><span
+        >Row filters render only in the “By key” view, so no combination of controls can produce a
+        state the UI can’t honour.</span
+      >
+    </li>
+    <li>
+      <span class="dot good">3</span
+      ><span
+        >“Expand presets” names the axis by outcome, with exactly two values. No “as written” option
+        — that document (migrated, extends intact) is already copyable from the Rewrites tab, so
+        this view starts where Rewrites stops. And no “shallow” — that word already means
+        <code>shallow-merge</code> in the override chains.</span
+      >
+    </li>
+    <li>
+      <span class="dot good">4</span
+      ><span
+        >This view’s job is producing an artifact you paste into <code>renovate.json</code>, so Copy
+        (and later Download) belongs here — the provenance view never needed it.</span
+      >
+    </li>
+  </ol>
+</section>
+
+<!-- ================= UX FIT ================= -->
+<section class="variant">
+  <h2>How this fits the copies that already exist</h2>
+  <p class="sub">
+    Each copyable document is one stage of the pipeline the app already teaches, owned by the tab
+    that explains that stage. Variant B doesn’t duplicate the Rewrites copy — it continues the
+    progression where Rewrites stops. The tab boundary <em>is</em> preset resolution.
+  </p>
+
+  <div class="stages">
+    <div class="stage">
+      <span class="status exists">exists</span>
+      <span class="where">Editor</span>
+      <span class="doc">Config as written</span>
+      <span class="how">the source itself — select &amp; copy</span>
+    </div>
+    <span class="stage-arrow" aria-hidden="true">→</span>
+    <div class="stage">
+      <span class="status exists">exists</span>
+      <span class="where">Rewrites tab</span>
+      <span class="doc">Migrated config</span>
+      <span class="how">“Copy migrated config” — syntax modernised, extends untouched</span>
+    </div>
+    <span class="stage-arrow" aria-hidden="true">→</span>
+    <div class="stage new">
+      <span class="status added">new</span>
+      <span class="where">Effective config · As JSON</span>
+      <span class="doc">Keep internal presets</span>
+      <span class="how"
+        >hosted presets inlined, <code>config:*</code> / <code>:*</code> stay referenced</span
+      >
+    </div>
+    <span class="stage-arrow" aria-hidden="true">→</span>
+    <div class="stage new">
+      <span class="status added">new</span>
+      <span class="where">Effective config · As JSON</span>
+      <span class="doc">Fully expanded</span>
+      <span class="how">no extends left; “include defaults” hydrates the rest</span>
+    </div>
+  </div>
+
+  <ol class="notes">
+    <li>
+      <span class="dot good">·</span
+      ><span
+        ><strong>No overlap:</strong> the mock’s “as written” expansion option is dropped — that
+        artifact is Rewrites’ “Copy migrated config”. B’s JSON view now starts strictly after preset
+        resolution, and cross-links back for the pre-resolution document.</span
+      >
+    </li>
+    <li>
+      <span class="dot good">·</span
+      ><span
+        ><strong>Same pattern, per tab:</strong> Rewrites’ copy sits in its step-through chrome; B’s
+        copy sits in the JSON view’s options row. Each tab exports the document it explains — no
+        global “export” concept to invent.</span
+      >
+    </li>
+    <li>
+      <span class="dot">·</span
+      ><span
+        ><strong>One naming debt:</strong> “Copy migrated config” vs “Copy JSON” should share a
+        vocabulary once both exist — e.g. both name their document: “Copy migrated config” / “Copy
+        resolved config”. Worth aligning in the same PR.</span
+      >
+    </li>
+  </ol>
+</section>
+
+<!-- ================= VARIANT C ================= -->
+<section class="variant">
+  <h2>Variant C — export menu, zero new chrome <span class="tag alt">lighter alternative</span></h2>
+  <p class="sub">
+    The provenance view stays exactly as it is; the outputs become a quiet “Copy as…” action in the
+    title bar, following the editor card’s title-action pattern.
+  </p>
+
+  <div class="card">
+    <div class="card-title mock-c-stage">
+      Effective config <span class="card-title-hint">— and which layer set each option</span>
+      <span class="card-title-actions"
+        ><button type="button" class="btn quiet" aria-expanded="true">Copy as… ▾</button>
+        <span class="dot good">1</span></span
+      >
+      <div class="menu" role="menu">
+        <button type="button" role="menuitem">
+          Resolved config — keep internal presets
+          <span class="hint">hosted presets inlined, config:recommended stays referenced</span>
+        </button>
+        <button type="button" role="menuitem">
+          Resolved config — fully expanded
+          <span class="hint">every preset inlined, no extends left</span>
+        </button>
+        <button type="button" role="menuitem">
+          Provenance table — markdown
+          <span class="hint"
+            >key · value · winning layer, for PRs and issues
+            <span class="dot" style="vertical-align: middle">2</span></span
+          >
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <ol class="notes">
+    <li>
+      <span class="dot good">1</span
+      ><span
+        >Nothing new to learn and no mode state to reset per run — but the output isn’t previewable
+        before copying. Fine for the power user consolidating a config; weaker for the learning
+        persona this app optimises for.</span
+      >
+    </li>
+    <li>
+      <span class="dot">2</span
+      ><span
+        >Menus invite scope creep (markdown export, download, share…). If that list is wanted
+        anyway, C composes with B: the menu becomes the Copy button’s dropdown inside B’s JSON
+        view.</span
+      >
+    </li>
+  </ol>
+</section>
+
+<p class="footnote">
+  <strong>Engine note:</strong> “keep internal presets” is not a filter over the existing trace — it
+  needs a second resolution pass that stops descending at
+  <code>presetSource === "internal"</code> nodes and merges only the fetched layers over the repo
+  config. That’s also why the provenance chips can’t annotate this document: its layer set differs
+  from the traced one. Cheap to compute (the preset tree is already resolved), but it is a new
+  engine output, which is the underlying reason it deserves a mode, not a checkbox.
+</p>
+
+<script>
+  (function () {
+    var provBtn = document.getElementById("b-mode-prov");
+    var jsonBtn = document.getElementById("b-mode-json");
+    var provPanel = document.getElementById("b-prov-panel");
+    var jsonPanel = document.getElementById("b-json-panel");
+    var hint = document.getElementById("b-hint");
+    function setMode(json) {
+      provBtn.setAttribute("aria-pressed", String(!json));
+      jsonBtn.setAttribute("aria-pressed", String(json));
+      provPanel.hidden = json;
+      jsonPanel.hidden = !json;
+      hint.textContent = json
+        ? "— the resolved config as a document"
+        : "— and which layer set each option";
+    }
+    provBtn.addEventListener("click", function () {
+      setMode(false);
+    });
+    jsonBtn.addEventListener("click", function () {
+      setMode(true);
+    });
+
+    var expand = document.getElementById("b-expand");
+    var panes = {
+      keep: document.getElementById("b-json-keep"),
+      full: document.getElementById("b-json-full"),
+    };
+    var defaults = document.getElementById("b-defaults");
+    function refresh() {
+      Object.keys(panes).forEach(function (k) {
+        panes[k].hidden = k !== expand.value;
+      });
+      document.querySelectorAll(".defaults-line").forEach(function (el) {
+        el.hidden = !defaults.checked;
+      });
+    }
+    expand.addEventListener("change", refresh);
+    defaults.addEventListener("change", refresh);
+    refresh();
+
+    var copy = document.getElementById("b-copy");
+    copy.addEventListener("click", function () {
+      var text = panes[expand.value].textContent;
+      var done = function () {
+        copy.textContent = "Copied ✓";
+        setTimeout(function () {
+          copy.textContent = "Copy JSON";
+        }, 1500);
+      };
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(done, done);
+      } else {
+        done();
+      }
+    });
+  })();
+</script>
