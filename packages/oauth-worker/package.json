@@ -6,10 +6,11 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "deploy": "pnpm dlx wrangler deploy"
+    "deploy": "wrangler deploy"
   },
   "devDependencies": {
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "wrangler": "4.114.0"
   }
 }

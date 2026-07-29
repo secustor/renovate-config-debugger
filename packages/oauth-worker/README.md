@@ -50,14 +50,14 @@ survives every future deploy:
 
 ```bash
 cd packages/oauth-worker
-pnpm dlx wrangler secret put GITHUB_CLIENT_SECRET   # paste the client secret
+pnpm exec wrangler secret put GITHUB_CLIENT_SECRET   # paste the client secret
 ```
 
 **Manual deploy** (bootstrap or fallback) is the same as CI does:
 
 ```bash
 cd packages/oauth-worker
-pnpm dlx wrangler deploy --var GITHUB_CLIENT_ID:<client id>
+pnpm run deploy --var GITHUB_CLIENT_ID:<client id>
 ```
 
 - Note the deployed Worker URL from the deploy output (also in the CI job
@@ -124,7 +124,7 @@ pnpm --filter @renovate-config-visualizer/oauth-worker typecheck
 ```
 
 The request handler is the pure exported `handleRequest(req, env)` so the tests
-run without wrangler. `wrangler` itself is only needed to deploy and is invoked
-via `pnpm dlx` (no devDependency, no `node_modules` weight).
+run without wrangler. `wrangler` itself is only needed to deploy and is a
+pinned devDependency of this package (`pnpm run deploy`).
 
 </details>

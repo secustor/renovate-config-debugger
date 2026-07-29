@@ -4,7 +4,7 @@
   // `refresh_token`) into a GitHub user token — it never sees a config, a
   // preset, or an API request. Stateless, no persistence, no body logging.
   //
-  // Deploy: `pnpm dlx wrangler deploy` (see README.md for full provisioning).
+  // Deploy: `pnpm run deploy` (see README.md for full provisioning).
   "name": "rcv-oauth-worker",
   "main": "src/index.ts",
   "compatibility_date": "2025-07-01",
@@ -26,5 +26,5 @@
   },
 
   // GITHUB_CLIENT_SECRET is NOT stored here. Set it as an encrypted secret:
-  //   pnpm dlx wrangler secret put GITHUB_CLIENT_SECRET
+  //   pnpm exec wrangler secret put GITHUB_CLIENT_SECRET
 }
