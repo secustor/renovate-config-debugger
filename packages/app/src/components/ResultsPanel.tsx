@@ -21,6 +21,11 @@ interface Props {
    *  pill). null = the current tab was reached by an explicit tab click. */
   back: ResultsTabId | null;
   onBack: () => void;
+  /** Roadmap 009: a run-level banner shown above the panels, on every tab —
+   *  the auth-failure notice describes the RUN, not one instrument, and a run
+   *  that failed on a preset lands the user on Problems rather than on the
+   *  Overview whose own `banner` slot the 023 hypothetical notice occupies. */
+  banner?: ReactNode;
   panels: Record<ResultsTabId, ReactNode>;
 }
 
@@ -30,7 +35,7 @@ interface Props {
  * (tree expansion and search, effective-config filters, the stepper index,
  * simulation results, scroll positions) survives switching for free.
  */
-export function ResultsPanel({ tabs, active, onSelect, back, onBack, panels }: Props) {
+export function ResultsPanel({ tabs, active, onSelect, back, onBack, banner, panels }: Props) {
   return (
     <div className="results-panel">
       <div className="tab-bar" role="tablist" aria-label="Results">
@@ -59,6 +64,7 @@ export function ResultsPanel({ tabs, active, onSelect, back, onBack, panels }: P
         ))}
       </div>
       <div className="tab-body">
+        {banner}
         {back ? (
           <button type="button" className="tab-back" onClick={onBack}>
             ← Back to {RESULTS_TAB_LABELS[back]}

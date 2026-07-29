@@ -107,6 +107,11 @@ export interface ShareLink {
    *  pipeline run this link triggered has produced its result. */
   simRequest: SimRequest | null;
   buildShareLinkAndCopy: (sim?: ShareSimulator) => Promise<void>;
+  /** Roadmap 009 (auth-failure surfacing): the `#config=…` fragment a sign-in
+   *  redirect should return to — the current state as a share token, so the
+   *  round trip through GitHub keeps the config (and re-runs it on arrival).
+   *  See App.tsx's `signInRef` for why the sign-in path needs one at all. */
+  buildSignInReturnHash: () => Promise<string>;
 }
 
 export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHost): ShareLink {
@@ -301,11 +306,24 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
           // the mount latch (not the decode generation) — a hashchange
           // superseding the DECODE must not strand the chip nameless.
           hostRef.current.setSignedIn(true);
-          writeHash(window.location.pathname + returnHash, readShareToken(returnHash));
+          // Roadmap 009 (auth-failure surfacing): a token on the return
+          // fragment means step 2 below is about to re-run the config the user
+          // signed in FROM — the auto-rerun that closes the auth-failure loop.
+          // It happens exactly once per callback (this effect is one-shot),
+          // and only when a run existed to encode (App.tsx's `signInRef`).
+          const returnToken = readShareToken(returnHash);
+          writeHash(window.location.pathname + returnHash, returnToken);
           void (async () => {
             const user = await userPromise;
             if (user && mountedRef.current) {
               hostRef.current.setAuthUser(user);
+              // Said only once the login is known — a nameless "running
+              // again…" would be the app narrating itself; with the login it
+              // is the confirmation that the sign-in took, which is the
+              // question a user who just came back from GitHub actually has.
+              if (returnToken) {
+                hostRef.current.setNotice(`Signed in as ${user.login} — running again…`);
+              }
             }
           })();
         } catch (err) {
@@ -396,5 +414,22 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
     [],
   );
 
-  return { shareError, simRequest, buildShareLinkAndCopy };
+  /**
+   * Roadmap 009 (auth-failure surfacing): the same encode, WITHOUT the copy or
+   * the address-bar write — the caller hands the result to `beginSignIn`,
+   * which stashes it in sessionStorage and restores it after the callback.
+   * Reusing `buildShareUrl` rather than re-spelling `#config=` keeps the one
+   * definition of the wire format in share.ts.
+   */
+  async function buildSignInReturnHashImpl(): Promise<string> {
+    return new URL(buildShareUrl(await encodeShare(await host.buildShareState()))).hash;
+  }
+  // Same latest-ref reason as above: the impl closes over this render's `host`
+  // (it must — the return hash IS the current state), and the identity handed
+  // out reaches App's own stable `onSignIn`.
+  const buildSignInReturnHashRef = useRef(buildSignInReturnHashImpl);
+  buildSignInReturnHashRef.current = buildSignInReturnHashImpl;
+  const buildSignInReturnHash = useCallback(() => buildSignInReturnHashRef.current(), []);
+
+  return { shareError, simRequest, buildShareLinkAndCopy, buildSignInReturnHash };
 }
