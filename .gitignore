@@ -5,6 +5,10 @@
 node_modules/
 dist/
 coverage/
+
+# Local env (e.g. packages/app/.env — GitHub OAuth vars for local testing)
+.env
+.env.*
 *.log
 .DS_Store
 stats.html

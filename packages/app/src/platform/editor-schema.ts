@@ -13,7 +13,9 @@
  * boot for the lookup side) would drag the whole stack back into the entry.
  */
 import { type EditorView, type Extension, hoverTooltip, type Tooltip } from "@uiw/react-codemirror";
-import { jsonSchema, jsonSchemaHover } from "codemirror-json-schema";
+import type { CompletionContext } from "@codemirror/autocomplete";
+import { jsonLanguage } from "@codemirror/lang-json";
+import { jsonCompletion, jsonSchema, jsonSchemaHover } from "codemirror-json-schema";
 import type { RefObject } from "react";
 import { renovateSchema } from "@renovate-config-visualizer/engine/schema";
 import type { PresetNodeState } from "@renovate-config-visualizer/engine";
@@ -157,6 +159,27 @@ function withPresetHover(
 }
 
 /**
+ * Completion only when ASKED (Ctrl+Space), never while typing. The schema
+ * completion source rebuilds its candidate set by walking Renovate's 373 kB
+ * schema on every invocation, and with `activateOnTyping` (the basic-setup
+ * default) that invocation happens per keystroke: measured 70–100 ms of
+ * main-thread stall PER TYPED CHARACTER (2026-07-30) — typing lagged and
+ * clipboard interactions dropped mid-stall. `null` from the wrapped source
+ * costs nothing; an explicit request still gets the full schema completion,
+ * and hover and the (debounced) linters are untouched.
+ */
+function explicitOnly<R>(
+  source: (ctx: CompletionContext) => R,
+): (ctx: CompletionContext) => R | null {
+  return (ctx) => (ctx.explicit ? source(ctx) : null);
+}
+
+/** The bundled arrays are `[lang, linter, linter, autocomplete, hover, state]`
+ *  (see codemirror-json-schema's `bundled.js`, pinned — the same layout
+ *  `withPresetHover` indexes into), so the completion registration is element 3. */
+const COMPLETION_INDEX = 3;
+
+/**
  * Builds the full schema-aware extension set for the given file flavor. The
  * json5 variant (codemirror-json5 + the json5 parser, ~10 kB gz) rides its
  * own chunk behind a further `import()`, loaded only when a `.json5` file is
@@ -167,8 +190,16 @@ export async function buildSchemaExtensions(
   ctxRef: RefObject<PresetHoverContext | null>,
 ): Promise<Extension[]> {
   if (isJson5) {
-    const { json5Schema, json5SchemaHover } = await import("codemirror-json-schema/json5");
-    return withPresetHover(json5Schema(renovateSchema), json5SchemaHover(), ctxRef);
+    const { json5Schema, json5SchemaHover, json5Completion } =
+      await import("codemirror-json-schema/json5");
+    const { json5Language } = await import("codemirror-json5");
+    const base = json5Schema(renovateSchema);
+    base[COMPLETION_INDEX] = json5Language.data.of({
+      autocomplete: explicitOnly(json5Completion()),
+    });
+    return withPresetHover(base, json5SchemaHover(), ctxRef);
   }
-  return withPresetHover(jsonSchema(renovateSchema), jsonSchemaHover(), ctxRef);
+  const base = jsonSchema(renovateSchema);
+  base[COMPLETION_INDEX] = jsonLanguage.data.of({ autocomplete: explicitOnly(jsonCompletion()) });
+  return withPresetHover(base, jsonSchemaHover(), ctxRef);
 }
