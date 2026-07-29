@@ -1,0 +1,112 @@
+diff --git a/cjs/features/completion.js b/cjs/features/completion.js
+index 99d7645027c28f6ec3ad4a5423cd0913d8ea76bb..4cc50cce3d486aee9be02c37d5a7532e2936a518 100644
+--- a/cjs/features/completion.js
++++ b/cjs/features/completion.js
+@@ -46,6 +46,22 @@ function isRealSchema(subSchema) {
+         subSchema.name === "UnknownPropertyError" ||
+         subSchema.type === "undefined");
+ }
++/**
++ * PATCHED (renovate-config-visualizer): `new Draft07(schema)` pre-processes the
++ * whole schema — ~123ms for Renovate's 258kb schema — and upstream constructs a
++ * fresh one at every call site, up to 6x per keystroke. Memoized on the schema
++ * object's identity; schemas are already assumed immutable here (see the
++ * `originalSchema` check in `doComplete`).
++ */
++const __draftCache = new WeakMap();
++function __getDraft(schema) {
++    let draft = __draftCache.get(schema);
++    if (!draft) {
++        draft = new json_schema_library_1.Draft07(schema);
++        __draftCache.set(schema, draft);
++    }
++    return draft;
++}
+ class JSONCompletion {
+     // private lastKnownValidData: object | null = null;
+     constructor(opts) {
+@@ -70,6 +86,9 @@ class JSONCompletion {
+         const schemaFromState = (0, state_1.getJSONSchema)(ctx.state);
+         if (this.originalSchema !== schemaFromState) {
+             // only process schema when it changed (could be huge)
++            // PATCHED: upstream compares originalSchema but never assigns it, so
++            // this block (and makeSchemaLax over the whole schema) ran every call.
++            this.originalSchema = schemaFromState;
+             this.schema =
+                 (_a = expandSchemaProperty(schemaFromState, schemaFromState)) !== null && _a !== void 0 ? _a : schemaFromState;
+             this.laxSchema = makeSchemaLax(this.schema);
+@@ -622,7 +641,7 @@ class JSONCompletion {
+     getSchemas(rootSchema, ctx) {
+         var _a, _b, _c;
+         const { data: documentData } = this.parser(ctx.state);
+-        const draft = new json_schema_library_1.Draft07(rootSchema);
++        const draft = __getDraft(rootSchema);
+         let pointer = (0, json_pointers_1.jsonPointerForPosition)(ctx.state, ctx.pos, -1, this.mode);
+         // TODO make jsonPointer consistent and compatible with json-schema-library by default (root path '/' or ' ' or undefined or '#', idk)
+         if (pointer === "")
+@@ -797,8 +816,7 @@ function makeSchemaLax(schema) {
+  * @param pointer
+  */
+ function getEffectiveObjectWithPropertiesSchema(schema, data, pointer) {
+-    // TODO (unimportant): [performance] cache Draft07 in case it does some pre-processing? but does not seem to be significant
+-    const draft = new json_schema_library_1.Draft07(schema);
++    const draft = __getDraft(schema);
+     const subSchema = draft.getSchema({
+         pointer,
+         data: data !== null && data !== void 0 ? data : undefined,
+diff --git a/dist/features/completion.js b/dist/features/completion.js
+index f10aafb9b76663fc04bf4d48193d1b3902e05756..80501af6d9751dc70be47f5d349e00ef9fc970e1 100644
+--- a/dist/features/completion.js
++++ b/dist/features/completion.js
+@@ -42,6 +42,22 @@ function isRealSchema(subSchema) {
+         subSchema.name === "UnknownPropertyError" ||
+         subSchema.type === "undefined");
+ }
++/**
++ * PATCHED (renovate-config-visualizer): `new Draft07(schema)` pre-processes the
++ * whole schema — ~123ms for Renovate's 258kb schema — and upstream constructs a
++ * fresh one at every call site, up to 6x per keystroke. Memoized on the schema
++ * object's identity; schemas are already assumed immutable here (see the
++ * `originalSchema` check in `doComplete`).
++ */
++const __draftCache = new WeakMap();
++function __getDraft(schema) {
++    let draft = __draftCache.get(schema);
++    if (!draft) {
++        draft = new Draft07(schema);
++        __draftCache.set(schema, draft);
++    }
++    return draft;
++}
+ export class JSONCompletion {
+     // private lastKnownValidData: object | null = null;
+     constructor(opts) {
+@@ -66,6 +82,9 @@ export class JSONCompletion {
+         const schemaFromState = getJSONSchema(ctx.state);
+         if (this.originalSchema !== schemaFromState) {
+             // only process schema when it changed (could be huge)
++            // PATCHED: upstream compares originalSchema but never assigns it, so
++            // this block (and makeSchemaLax over the whole schema) ran every call.
++            this.originalSchema = schemaFromState;
+             this.schema =
+                 (_a = expandSchemaProperty(schemaFromState, schemaFromState)) !== null && _a !== void 0 ? _a : schemaFromState;
+             this.laxSchema = makeSchemaLax(this.schema);
+@@ -618,7 +637,7 @@ export class JSONCompletion {
+     getSchemas(rootSchema, ctx) {
+         var _a, _b, _c;
+         const { data: documentData } = this.parser(ctx.state);
+-        const draft = new Draft07(rootSchema);
++        const draft = __getDraft(rootSchema);
+         let pointer = jsonPointerForPosition(ctx.state, ctx.pos, -1, this.mode);
+         // TODO make jsonPointer consistent and compatible with json-schema-library by default (root path '/' or ' ' or undefined or '#', idk)
+         if (pointer === "")
+@@ -792,8 +811,7 @@ function makeSchemaLax(schema) {
+  * @param pointer
+  */
+ function getEffectiveObjectWithPropertiesSchema(schema, data, pointer) {
+-    // TODO (unimportant): [performance] cache Draft07 in case it does some pre-processing? but does not seem to be significant
+-    const draft = new Draft07(schema);
++    const draft = __getDraft(schema);
+     const subSchema = draft.getSchema({
+         pointer,
+         data: data !== null && data !== void 0 ? data : undefined,

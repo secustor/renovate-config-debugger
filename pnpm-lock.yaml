@@ -28,6 +28,9 @@ catalogs:
       specifier: 4.4.3
       version: 4.4.3
 
+patchedDependencies:
+  codemirror-json-schema@0.8.1: 660f97bbfcc2ccfe1d97a14f54f3a814534ed98bba2f70b189d9370493ce637c
+
 importers:
 
   .:
@@ -73,7 +76,7 @@ importers:
         version: 4.25.11(@babel/runtime@8.0.0)(@codemirror/autocomplete@6.20.3)(@codemirror/language@6.12.4)(@codemirror/lint@6.9.7)(@codemirror/search@6.7.1)(@codemirror/state@6.7.1)(@codemirror/theme-one-dark@6.1.3)(@codemirror/view@6.43.6)(codemirror@6.0.2)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       codemirror-json-schema:
         specifier: 0.8.1
-        version: 0.8.1(@codemirror/language@6.12.4)(@codemirror/lint@6.9.7)(@codemirror/state@6.7.1)(@codemirror/view@6.43.6)(@lezer/common@1.5.2)
+        version: 0.8.1(patch_hash=660f97bbfcc2ccfe1d97a14f54f3a814534ed98bba2f70b189d9370493ce637c)(@codemirror/language@6.12.4)(@codemirror/lint@6.9.7)(@codemirror/state@6.7.1)(@codemirror/view@6.43.6)(@lezer/common@1.5.2)
       codemirror-json5:
         specifier: 1.0.3
         version: 1.0.3
@@ -6570,7 +6573,7 @@ snapshots:
 
   cluster-key-slot@1.1.2: {}
 
-  codemirror-json-schema@0.8.1(@codemirror/language@6.12.4)(@codemirror/lint@6.9.7)(@codemirror/state@6.7.1)(@codemirror/view@6.43.6)(@lezer/common@1.5.2):
+  codemirror-json-schema@0.8.1(patch_hash=660f97bbfcc2ccfe1d97a14f54f3a814534ed98bba2f70b189d9370493ce637c)(@codemirror/language@6.12.4)(@codemirror/lint@6.9.7)(@codemirror/state@6.7.1)(@codemirror/view@6.43.6)(@lezer/common@1.5.2):
     dependencies:
       '@codemirror/language': 6.12.4
       '@codemirror/lint': 6.9.7
