@@ -13,7 +13,6 @@
  * boot for the lookup side) would drag the whole stack back into the entry.
  */
 import { type EditorView, type Extension, hoverTooltip, type Tooltip } from "@uiw/react-codemirror";
-import type { CompletionContext } from "@codemirror/autocomplete";
 import { jsonLanguage } from "@codemirror/lang-json";
 import { jsonCompletion, jsonSchema, jsonSchemaHover } from "codemirror-json-schema";
 import type { RefObject } from "react";
@@ -158,20 +157,42 @@ function withPresetHover(
   return base;
 }
 
+/** How long a NON-explicit completion query waits before doing any work. A
+ *  keystroke inside this window supersedes the query (ctx.aborted), so a
+ *  typing burst runs the expensive source once, after the pause. */
+const COMPLETION_DEBOUNCE_MS = 250;
+
 /**
- * Completion only when ASKED (Ctrl+Space), never while typing. The schema
- * completion source rebuilds its candidate set by walking Renovate's 373 kB
- * schema on every invocation, and with `activateOnTyping` (the basic-setup
- * default) that invocation happens per keystroke: measured 70–100 ms of
- * main-thread stall PER TYPED CHARACTER (2026-07-30) — typing lagged and
- * clipboard interactions dropped mid-stall. `null` from the wrapped source
- * costs nothing; an explicit request still gets the full schema completion,
- * and hover and the (debounced) linters are untouched.
+ * The schema completion source, debounced (2026-07-30). The library returns
+ * `filter: false` (it filters manually), which makes CodeMirror re-invoke
+ * the source on EVERY typed character — and one invocation walks Renovate's
+ * 373 kB schema through json-schema-library: measured 70–300 ms of
+ * main-thread stall per keystroke, the editor's typing lag (its own schema
+ * cache is also broken — `originalSchema` is compared but never written —
+ * but the walk, not the schema prep, dominates). Async + debounce moves the
+ * one real walk to ~250 ms after typing pauses and lets every mid-burst
+ * query resolve to null for free; an explicit request (Ctrl-Space) still
+ * runs immediately. Re-check on codemirror-json-schema bumps.
  */
-function explicitOnly<R>(
-  source: (ctx: CompletionContext) => R,
-): (ctx: CompletionContext) => R | null {
-  return (ctx) => (ctx.explicit ? source(ctx) : null);
+function debouncedCompletionSource<C extends CompletionContextLike>(
+  base: (ctx: C) => unknown,
+): (ctx: C) => Promise<unknown> {
+  return async (ctx) => {
+    if (!ctx.explicit) {
+      await new Promise((resolve) => setTimeout(resolve, COMPLETION_DEBOUNCE_MS));
+      if (ctx.aborted) {
+        return null;
+      }
+    }
+    return base(ctx);
+  };
+}
+
+/** The slice of @codemirror/autocomplete's CompletionContext this module
+ *  reads — typed structurally so the transitive package stays undeclared. */
+interface CompletionContextLike {
+  explicit: boolean;
+  aborted: boolean;
 }
 
 /** The bundled arrays are `[lang, linter, linter, autocomplete, hover, state]`
@@ -190,16 +211,18 @@ export async function buildSchemaExtensions(
   ctxRef: RefObject<PresetHoverContext | null>,
 ): Promise<Extension[]> {
   if (isJson5) {
-    const { json5Schema, json5SchemaHover, json5Completion } =
+    const { json5Completion, json5Schema, json5SchemaHover } =
       await import("codemirror-json-schema/json5");
     const { json5Language } = await import("codemirror-json5");
     const base = json5Schema(renovateSchema);
     base[COMPLETION_INDEX] = json5Language.data.of({
-      autocomplete: explicitOnly(json5Completion()),
+      autocomplete: debouncedCompletionSource(json5Completion()),
     });
     return withPresetHover(base, json5SchemaHover(), ctxRef);
   }
   const base = jsonSchema(renovateSchema);
-  base[COMPLETION_INDEX] = jsonLanguage.data.of({ autocomplete: explicitOnly(jsonCompletion()) });
+  base[COMPLETION_INDEX] = jsonLanguage.data.of({
+    autocomplete: debouncedCompletionSource(jsonCompletion()),
+  });
   return withPresetHover(base, jsonSchemaHover(), ctxRef);
 }

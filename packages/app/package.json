@@ -13,7 +13,6 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@codemirror/autocomplete": "6.20.3",
     "@codemirror/lang-json": "6.0.2",
     "@codemirror/language": "6.12.4",
     "@lezer/highlight": "1.2.3",
