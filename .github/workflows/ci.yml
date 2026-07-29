@@ -97,6 +97,38 @@ jobs:
       - id: deployment
         uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
 
+  # Roadmap 009 — deploys the GitHub OAuth token-exchange proxy to Cloudflare
+  # Workers. Opt-in like the Pages deploy above: set the repo Actions variable
+  # DEPLOY_OAUTH_WORKER=true once Cloudflare + the GitHub App are provisioned
+  # (see packages/oauth-worker/README.md#provisioning). Runs on every main
+  # push, not path-filtered — `wrangler deploy` is fast and idempotent.
+  deploy-oauth-worker:
+    if: github.ref == 'refs/heads/main' && vars.DEPLOY_OAUTH_WORKER == 'true'
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26
+          cache: pnpm
+
+      # No `pnpm install` — wrangler is invoked via `pnpm dlx` and bundles the
+      # Worker itself. `wrangler deploy` REPLACES dashboard-set vars on every
+      # run, so GITHUB_CLIENT_ID is not committed to wrangler.jsonc; it is
+      # threaded through from the same repo variable (VITE_GITHUB_CLIENT_ID)
+      # that configures the app build — one source of truth for the client id.
+      - name: Deploy the OAuth worker
+        working-directory: packages/oauth-worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GITHUB_CLIENT_ID: ${{ vars.VITE_GITHUB_CLIENT_ID }}
+        run: pnpm dlx wrangler deploy --var GITHUB_CLIENT_ID:$GITHUB_CLIENT_ID
+
   # Roadmap 043 — the self-host images. Push-only (i.e. main), because a PR
   # from a fork has no package-write token and an untagged PR image has no
   # consumer. The Dockerfile builds the app WITHOUT any VITE_* variables: these

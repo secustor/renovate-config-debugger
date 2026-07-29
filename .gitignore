@@ -15,3 +15,8 @@ stats.html
 test-results/
 playwright-report/
 .playwright/
+
+# npx skills
+.claude/skills/vercel-react-best-practices
+.claude/skills/vercel-react-view-transitions
+skills-lock.json
