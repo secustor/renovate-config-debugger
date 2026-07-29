@@ -4,7 +4,11 @@ packages:
 allowBuilds:
   core-js-pure: false
   dtrace-provider: false
+  # esbuild and workerd (via wrangler) get their platform binaries from
+  # optionalDependencies; their install scripts only re-validate the binary.
+  esbuild: false
   re2: false
+  workerd: false
 
 catalog:
   typescript: 7.0.2
@@ -18,6 +22,8 @@ catalog:
 ignoredBuiltDependencies:
   - core-js-pure
   - dtrace-provider
+  - esbuild
   - re2
+  - workerd
 
 verifyDepsBeforeRun: false

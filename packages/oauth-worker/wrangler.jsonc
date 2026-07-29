@@ -4,21 +4,27 @@
   // `refresh_token`) into a GitHub user token — it never sees a config, a
   // preset, or an API request. Stateless, no persistence, no body logging.
   //
-  // Deploy: `pnpm dlx wrangler deploy` (see README.md for full provisioning).
+  // Deploy: `pnpm run deploy` (see README.md for full provisioning).
   "name": "rcv-oauth-worker",
   "main": "src/index.ts",
   "compatibility_date": "2025-07-01",
 
-  // Non-secret configuration. Override per environment / via the dashboard.
+  // Non-secret configuration. NOTE: every `wrangler deploy` publishes exactly
+  // these vars, overwriting anything set through the Cloudflare dashboard.
   //   GITHUB_CLIENT_ID  — the GitHub App's client id (public, not a secret).
+  //                       Left empty on purpose: CI's `deploy-oauth-worker`
+  //                       job supplies it via `wrangler deploy --var`, sourced
+  //                       from the repo Actions variable VITE_GITHUB_CLIENT_ID
+  //                       (see .github/workflows/ci.yml). Manual deploys must
+  //                       pass the same `--var GITHUB_CLIENT_ID:<id>` flag.
   //   ALLOWED_ORIGINS   — comma-separated exact origins allowed to call this
   //                       Worker; requests from any other origin get 403 and
   //                       never reach GitHub.
   "vars": {
     "GITHUB_CLIENT_ID": "",
-    "ALLOWED_ORIGINS": "https://secustor.github.io,http://localhost:5173",
+    "ALLOWED_ORIGINS": "https://renovate.secustor.dev,http://localhost:5173",
   },
 
   // GITHUB_CLIENT_SECRET is NOT stored here. Set it as an encrypted secret:
-  //   pnpm dlx wrangler secret put GITHUB_CLIENT_SECRET
+  //   pnpm exec wrangler secret put GITHUB_CLIENT_SECRET
 }

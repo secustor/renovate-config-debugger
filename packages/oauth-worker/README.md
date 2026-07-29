@@ -26,23 +26,42 @@ Settings → Developer settings → **GitHub Apps** → New GitHub App:
 - **Request user authorization (OAuth) during installation: ON**.
 - **Enable Device Flow: OFF** (CORS-blocked from browsers anyway).
 - **Callback URL**: add both
-  - `https://secustor.github.io/renovate-config-visualizer/` (production Pages)
+  - `https://renovate.secustor.dev/` (production)
   - `http://localhost:5173/` (local dev)
 - Note the **Client ID**, and generate a **Client secret**.
 
 ### 2. Deploy the Worker
 
+**Recommended: via CI.** Once the repo settings below are in place, every push
+to `main` deploys the Worker automatically (`.github/workflows/ci.yml`, job
+`deploy-oauth-worker`). The job passes `GITHUB_CLIENT_ID` from the repo
+variable `VITE_GITHUB_CLIENT_ID`; `ALLOWED_ORIGINS` comes from
+`wrangler.jsonc` (`https://renovate.secustor.dev,http://localhost:5173`).
+
+| Name                    | Kind          | Notes                                                                 |
+| ----------------------- | ------------- | --------------------------------------------------------------------- |
+| `DEPLOY_OAUTH_WORKER`   | repo variable | Set to `true` to enable the deploy job (opt-in, like `DEPLOY_PAGES`). |
+| `CLOUDFLARE_API_TOKEN`  | repo secret   | Custom token scoped to `Account → Workers Scripts → Edit`.            |
+| `CLOUDFLARE_ACCOUNT_ID` | repo secret   | Dashboard right sidebar, or `wrangler whoami`.                        |
+
+CI never touches `GITHUB_CLIENT_SECRET` — set it once, from any shell with
+Cloudflare credentials; `wrangler deploy` leaves secrets untouched, so it
+survives every future deploy:
+
 ```bash
 cd packages/oauth-worker
-pnpm dlx wrangler deploy
-pnpm dlx wrangler secret put GITHUB_CLIENT_SECRET   # paste the client secret
+pnpm exec wrangler secret put GITHUB_CLIENT_SECRET   # paste the client secret
 ```
 
-- Set the vars in `wrangler.jsonc` `vars` (or via the dashboard / `wrangler`):
-  `GITHUB_CLIENT_ID` = the App's client id, `ALLOWED_ORIGINS` =
-  `https://secustor.github.io,http://localhost:5173`.
-- Note the deployed Worker URL, e.g.
-  `https://rcv-oauth-worker.<subdomain>.workers.dev`.
+**Manual deploy** (bootstrap or fallback) is the same as CI does:
+
+```bash
+cd packages/oauth-worker
+pnpm run deploy --var GITHUB_CLIENT_ID:<client id>
+```
+
+- Note the deployed Worker URL from the deploy output (also in the CI job
+  log), e.g. `https://rcv-oauth-worker.<subdomain>.workers.dev`.
 
 ### 3. Point the app at it
 
@@ -105,7 +124,7 @@ pnpm --filter @renovate-config-visualizer/oauth-worker typecheck
 ```
 
 The request handler is the pure exported `handleRequest(req, env)` so the tests
-run without wrangler. `wrangler` itself is only needed to deploy and is invoked
-via `pnpm dlx` (no devDependency, no `node_modules` weight).
+run without wrangler. `wrangler` itself is only needed to deploy and is a
+pinned devDependency of this package (`pnpm run deploy`).
 
 </details>
