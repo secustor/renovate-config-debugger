@@ -944,7 +944,7 @@ export function App() {
           />
         ) : null}
         <header className="app-header">
-          <h1>Renovate Config Visualizer</h1>
+          <h1>Renovate Config Debugger</h1>
           <AppHeaderTools renovateVersion={result?.renovateVersion} />
         </header>
         <p className="subtitle">
