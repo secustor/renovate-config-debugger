@@ -10,10 +10,15 @@ import { getOAuthConfig } from "./oauth";
  * because it is a served file a deployment can get wrong.
  */
 
-/** `vi.stubEnv` covers `import.meta.env` too, so both sources are drivable. */
+/** `vi.stubEnv` covers `import.meta.env` too, so both sources are drivable.
+ *  ALL three vars are stubbed — vitest loads a developer's gitignored
+ *  `packages/app/.env` (the local-testing OAuth config) into
+ *  `import.meta.env`, so any var left unstubbed leaks that machine's value
+ *  into the fixture. */
 function setEnv(clientId: string | undefined, workerUrl: string | undefined): void {
   vi.stubEnv("VITE_GITHUB_CLIENT_ID", clientId);
   vi.stubEnv("VITE_OAUTH_WORKER_URL", workerUrl);
+  vi.stubEnv("VITE_GITHUB_APP_SLUG", undefined);
 }
 
 function setGlobal(value: unknown): void {

@@ -379,8 +379,31 @@ export function readCallbackParams(search: string): { code: string; state: strin
  * promise the caller consumes whenever it lands instead of gating the
  * sign-in (and, downstream, a share link's decode and auto-run). Throws on
  * state mismatch or exchange failure (caller stays signed out).
+ *
+ * Single-flight per callback (like `getValidToken`'s refresh below): the
+ * pending stash is consume-once and the `code` is single-use at GitHub, but
+ * React's StrictMode mounts the completing effect twice in dev — the second
+ * invocation of the SAME code+state must join the first's exchange, not find
+ * an empty stash and paint "sign-in failed" over a sign-in that succeeded.
+ * A genuinely new callback (fresh redirect, different code) starts fresh.
  */
-export async function completeCallback(
+let callbackInFlight: {
+  key: string;
+  promise: Promise<{ userPromise: Promise<StoredUser | null>; returnHash: string }>;
+} | null = null;
+
+export function completeCallback(
+  code: string,
+  state: string,
+): Promise<{ userPromise: Promise<StoredUser | null>; returnHash: string }> {
+  const key = `${state} ${code}`;
+  if (callbackInFlight?.key !== key) {
+    callbackInFlight = { key, promise: completeCallbackImpl(code, state) };
+  }
+  return callbackInFlight.promise;
+}
+
+async function completeCallbackImpl(
   code: string,
   state: string,
 ): Promise<{ userPromise: Promise<StoredUser | null>; returnHash: string }> {
