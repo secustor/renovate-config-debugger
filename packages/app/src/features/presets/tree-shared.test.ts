@@ -62,7 +62,8 @@ describe("collectGithubAuthFailures", () => {
       name: "repo config",
       children: [
         node({
-          name: "config:recommended",
+          name: "github>org/shared-config",
+          source: { presetSource: "github", repo: "org/shared-config" },
           children: [githubFailure("org/private-presets", NOT_FOUND_MESSAGE)],
         }),
       ],
@@ -72,6 +73,23 @@ describe("collectGithubAuthFailures", () => {
     expect(failures[0]?.name).toBe("github>org/private-presets");
     expect(failures[0]?.rateLimited).toBe(false);
     expect(rateLimited).toBe(false);
+  });
+
+  test("prunes internal subtrees — internal presets never reference external ones", () => {
+    const root = node({
+      name: "repo config",
+      children: [
+        node({
+          name: "config:recommended",
+          source: { presetSource: "internal" },
+          // Cannot happen on a real run (internal presets only reference other
+          // internal presets); the fixture pins that the walk RELIES on that
+          // invariant instead of re-checking every internal node.
+          children: [githubFailure("org/private-presets", NOT_FOUND_MESSAGE)],
+        }),
+      ],
+    });
+    expect(collectGithubAuthFailures(root).failures).toEqual([]);
   });
 
   test("matches renovate's rewritten not-found message (the shape real runs carry)", () => {

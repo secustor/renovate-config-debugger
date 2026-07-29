@@ -73,6 +73,14 @@ export function collectGithubAuthFailures(root: PresetNode | undefined): GithubA
   // recursive one would also be at the mercy of a pathological chain depth.
   const stack: PresetNode[] = root ? [root] : [];
   for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
+    // An internal preset (`config:*`, `group:*`, …) is a static definition
+    // inside renovate itself and can only reference other internal presets —
+    // nothing sign-in-fixable can live below one, so the whole subtree is
+    // skipped (review, PR #61). Only an EXPLICIT "internal" prunes: the root
+    // user-config node has no parsed source and must always descend.
+    if (node.source?.presetSource === "internal") {
+      continue;
+    }
     // Children pushed in reverse so the walk still reports them left-to-right —
     // the banner names the FIRST failure, which must be the first one the user
     // would find in the tree.
