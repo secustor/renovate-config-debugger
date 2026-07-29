@@ -218,7 +218,14 @@ export class PresetTreeBuilder {
 
   private onFetchError(meta: Record<string, unknown>): void {
     const preset = typeof meta.preset === "string" ? meta.preset : "(unknown)";
-    const err = meta.err;
+    // Renovate wraps host failures in ExternalHostError, whose OWN message is
+    // the constant "external-host-error" — the descriptive message (the one
+    // the app's 009 auth-failure detection reads, e.g. "… rate limit or
+    // missing token") lives on its `.err`. Unwrapped structurally, not by
+    // class: the instance comes from renovate's bundle, not our import graph.
+    const raw = meta.err;
+    const inner = (raw as { err?: unknown } | undefined)?.err;
+    const err = inner instanceof Error ? inner : raw;
     const errMsg = err instanceof Error ? err.message : String(err ?? "unknown error");
     const top = this.top();
     let node = top?.pendingChild;

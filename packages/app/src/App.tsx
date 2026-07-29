@@ -144,11 +144,6 @@ type InjectionMap = Record<string, Record<string, unknown>>;
 // them.
 const parseLayerText = parseLayerJson;
 
-/** Starts the redirect sign-in, stashing the current fragment to restore it. */
-function onSignIn(): void {
-  void beginSignIn(window.location.hash);
-}
-
 export function App() {
   const [content, setContent] = useState(DEFAULT_CONFIG);
   // Roadmap 016: the text last loaded from an authoritative source (the
@@ -302,26 +297,29 @@ export function App() {
   // layer's `applyInheritedText`, which the hook below owns) reached through an
   // arrow that only runs after this render — and the share hook re-reads the
   // host object every render, so nothing goes stale.
-  const { shareError, simRequest, buildShareLinkAndCopy } = useShareLink(oauthConfig, {
-    onRun: (inputs, opts) => onRun(undefined, inputs, opts),
-    loadConfigText,
-    setFileName,
-    setPlatform,
-    setEndpoint,
-    setGlobalText,
-    setInheritedText: (text) => applyInheritedText(text),
-    setPlatformOverride,
-    setAdvancedOpen,
-    setHostSectionOpen,
-    setNotice,
-    setSignedIn,
-    setAuthUser,
-    applyUntrustedGuard,
-    pendingViewRef,
-    contentRef,
-    loadedContentRef,
-    buildShareState,
-  });
+  const { shareError, simRequest, buildShareLinkAndCopy, buildSignInReturnHash } = useShareLink(
+    oauthConfig,
+    {
+      onRun: (inputs, opts) => onRun(undefined, inputs, opts),
+      loadConfigText,
+      setFileName,
+      setPlatform,
+      setEndpoint,
+      setGlobalText,
+      setInheritedText: (text) => applyInheritedText(text),
+      setPlatformOverride,
+      setAdvancedOpen,
+      setHostSectionOpen,
+      setNotice,
+      setSignedIn,
+      setAuthUser,
+      applyUntrustedGuard,
+      pendingViewRef,
+      contentRef,
+      loadedContentRef,
+      buildShareState,
+    },
+  );
   // Roadmap 013: rule identity cross-links. The editor is an imperative jump
   // target (CodeMirror has no declarative "scroll to offset X" prop); the
   // simulator's target rule is prop-driven since it is a sibling component.
@@ -807,6 +805,63 @@ export function App() {
       ? "signed-in"
       : "signed-out";
 
+  /**
+   * Roadmap 009 (auth-failure surfacing): starts the redirect sign-in — and
+   * decides what the user comes BACK to. Signing in is a full-page navigation
+   * to GitHub, so everything on screen is gone by the time they return,
+   * including the run whose private preset they signed in FOR: the pre-009
+   * behavior handed `beginSignIn` the bare fragment, which for anyone who had
+   * not also copied a share link meant returning to the DEFAULT config with
+   * their work — and the failure they were acting on — silently discarded.
+   *
+   * So once a run exists, the return fragment is the CURRENT state encoded as
+   * a share token. `beginSignIn` stashes it in sessionStorage (never in the
+   * URL handed to GitHub, so nothing is exposed by encoding it) and the
+   * callback restores it before the share path reads the hash — which then
+   * decodes, populates state and auto-runs through the one path that already
+   * does exactly that. THAT is the "run again once signed in" loop: the preset
+   * that 401'd is re-fetched with the new token, with no second re-run
+   * mechanism to keep in step with the first. Before the first run there is
+   * nothing to carry and the plain fragment is kept, exactly as before.
+   *
+   * Deliberately not narrowed to runs that HAD an auth failure: the failure
+   * set lives in the tree this redirect is about to destroy, and a sign-in
+   * that quietly threw away a clean run's config would be the same bug in a
+   * case that is merely less annoying.
+   */
+  const signInRef = useRef<(() => Promise<void>) | undefined>(undefined);
+  signInRef.current = async () => {
+    let returnHash = window.location.hash;
+    if (result) {
+      try {
+        returnHash = await buildSignInReturnHash();
+      } catch {
+        // Best-effort: an encode failure costs the round trip's state, never
+        // the sign-in itself.
+      }
+    }
+    await beginSignIn(returnHash);
+  };
+  // Roadmap 032: identity-stable (latest-ref idiom) — this prop reaches the
+  // memoized results panels, and it reads `result`, which changes per run.
+  const onSignIn = useCallback(() => {
+    void signInRef.current?.();
+  }, []);
+
+  /**
+   * Roadmap 009 (auth-failure surfacing): the banner's "Run again" — the same
+   * pipeline run the Run button performs, for the case sign-in cannot fix by
+   * itself (signed in already, access granted on GitHub in another tab). It
+   * keeps the tab and the scroll position because the banner sits above every
+   * panel: the user is looking at the thing they just acted on, and a run that
+   * bounced them to the Overview would hide its own answer.
+   */
+  const onRunAgainRef = useRef<(() => void) | undefined>(undefined);
+  onRunAgainRef.current = () => {
+    void onRun(undefined, undefined, { preserveScroll: true, keepTab: true });
+  };
+  const onRunAgain = useCallback(() => onRunAgainRef.current?.(), []);
+
   function onSignOut() {
     signOut();
     setSignedIn(false);
@@ -1036,6 +1091,7 @@ export function App() {
               authState={authState}
               onSignIn={onSignIn}
               installUrl={INSTALL_URL}
+              onRunAgain={onRunAgain}
               onEffectiveStats={setEffectiveStats}
               effectiveFilterNonce={effectiveFilterNonce}
               pendingRuleFocus={pendingRuleFocus}

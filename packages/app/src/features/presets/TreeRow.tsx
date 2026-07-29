@@ -11,7 +11,7 @@ import {
   nodeInjectionKey,
   ROW_HEIGHT,
   sourceKindEntry,
-  STATE_LABELS,
+  stateBadge,
 } from "./tree-shared";
 
 function ContributionBadges({ stats, collapsed }: { stats: NodeStats; collapsed: boolean }) {
@@ -69,7 +69,9 @@ export function TreeRow({
   dupCount: number;
 }) {
   const { node, stats } = row;
-  const stateLabel = STATE_LABELS[node.state];
+  // Roadmap 009: `failed` for every error except the two a user can act on —
+  // see `stateBadge`, which owns that decision.
+  const badge = stateBadge(node);
   const key = nodeInjectionKey(node.source, injectionKey);
   const userSupplied = key !== null && usedInjections.has(key);
   const style: CSSProperties = {
@@ -174,7 +176,7 @@ export function TreeRow({
           )}
         </Explained>
       ) : null}
-      {stateLabel ? <span className={`badge state state-${node.state}`}>{stateLabel}</span> : null}
+      {badge ? <span className={`badge state ${badge.className}`}>{badge.label}</span> : null}
       {node.state === "error" && node.error ? (
         <span className="preset-row-error" title={node.error.message}>
           {node.error.message}
