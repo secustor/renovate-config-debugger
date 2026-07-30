@@ -628,6 +628,22 @@ pre.config-view {
   color: var(--error);
 }
 
+/* Roadmap 009 (auth-failure surfacing): the two failures a user can act on say
+   so in the badge, and wear their own hue so the tree can be scanned for
+   "which of these is about my access?" without opening a node. Violet is
+   already the app's remote-source hue (`.badge.src-github` and friends — this
+   IS a github fetch that did not happen); amber is its "throttled, come back"
+   hue. Both declare `color` only, per the 036 chip rule that derives the fill
+   from it. Placed after `.state-error` deliberately: same specificity, and
+   these nodes still carry `state-error`, so source order is the override. */
+.badge.state.auth-no-access {
+  color: var(--accent-purple);
+}
+
+.badge.state.auth-rate-limited {
+  color: var(--warn);
+}
+
 .badge.via {
   color: var(--accent);
 }
@@ -1820,6 +1836,48 @@ pre.config-view.prov-before {
   font: inherit;
   padding: 0;
   text-decoration: underline;
+}
+
+/* Roadmap 009 (auth-failure surfacing): the run-level counterpart of the hint
+   above — it sits inside the results shell, above every tab panel, so it takes
+   the same tint-on-a-card treatment as 023's hypothetical banner rather than
+   the full-bleed page banners (`.share-error-banner`), which belong to the
+   page and not to a result. */
+.auth-failure-banner {
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
+  border-left: 3px solid var(--error);
+  border-radius: 6px;
+  color: inherit;
+  margin: 0 0 0.6rem;
+  padding: 0.5rem 0.7rem;
+}
+
+.auth-failure-banner-line {
+  color: var(--error);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+/* The hint sits directly under the sentence it qualifies — its own default
+   margins would read as a second, unrelated paragraph. */
+.auth-failure-banner .gh-auth-hint {
+  margin: 0.2rem 0 0;
+}
+
+.auth-failure-rerun {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.8rem;
+  margin-top: 0.35rem;
+  padding: 0.25rem 0.7rem;
+}
+
+.auth-failure-rerun:hover {
+  border-color: var(--accent);
 }
 
 /* ---------- packageRules simulator (006) ---------- */

@@ -6,6 +6,8 @@ import type {
   TraceEvent,
   TraceResult,
 } from "@renovate-config-visualizer/engine";
+import { AuthFailureBanner } from "@/components/AuthFailureBanner";
+import { collectGithubAuthFailures } from "@/features/presets/tree-shared";
 import { EffectiveConfig, type EffectiveStats } from "@/components/EffectiveConfig";
 import type { AuthState } from "@/components/GithubAuthHint";
 import { HypotheticalBanner } from "@/components/HypotheticalBanner";
@@ -83,6 +85,9 @@ export interface ResultsColumnProps {
   authState: AuthState;
   onSignIn: () => void;
   installUrl: string;
+  /** Roadmap 009: re-runs the pipeline with the inputs currently on screen —
+   *  the auth-failure banner's "Run again", for access granted mid-session. */
+  onRunAgain: () => void;
 
   // —— effective ——
   onEffectiveStats: (stats: EffectiveStats) => void;
@@ -161,6 +166,7 @@ export function ResultsColumn({
   authState,
   onSignIn,
   installUrl,
+  onRunAgain,
   onEffectiveStats,
   effectiveFilterNonce,
   pendingRuleFocus,
@@ -199,6 +205,32 @@ export function ResultsColumn({
       el.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [result, focusResultsRef, resultsColRef]);
+
+  // Roadmap 009: one walk of the finished run's tree per result — the banner
+  // below is the only consumer, and the tree is a per-run value, so this must
+  // never be recomputed on a keystroke (032's contract) even though the walk
+  // itself is cheap.
+  const authFailures = useMemo(
+    () => collectGithubAuthFailures(result.presetTree),
+    [result.presetTree],
+  );
+  // Rendered by the tab shell above ALL panels rather than inside one: the
+  // failure is a property of the run, and the tab a run lands on depends on
+  // which stage errored — a preset-stage failure lands on Problems, so an
+  // Overview-only banner would be exactly invisible in its own main case.
+  const banner = useMemo(
+    () => (
+      <AuthFailureBanner
+        failures={authFailures.failures}
+        rateLimited={authFailures.rateLimited}
+        authState={authState}
+        onSignIn={onSignIn}
+        installUrl={installUrl}
+        onRunAgain={onRunAgain}
+      />
+    ),
+    [authFailures, authState, onSignIn, installUrl, onRunAgain],
+  );
 
   // Roadmap 032: the seven tab panels render RUN RESULTS — they change when a
   // run completes or a view-state jump lands, never while the user types. So
@@ -376,6 +408,7 @@ export function ResultsColumn({
       onSelect={onSelectTab}
       back={backTab}
       onBack={onBack}
+      banner={banner}
       panels={panels}
     />
   );
