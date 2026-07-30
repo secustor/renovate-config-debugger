@@ -3,8 +3,13 @@ node = "26.5.1"
 pnpm = "11.17.0"
 
 [hooks]
+# Local convenience only. CI must NOT install here: jdx/mise-action runs
+# `mise install`, which fires this hook — that would run a full, uncached
+# install *before* the workflow restores the pnpm store cache, so the cache
+# would be restored after the only step that could have used it. CI installs
+# explicitly (and frozen) after the cache step instead.
 postinstall = '''
-pnpm install
+[ -n "$CI" ] || pnpm install
 '''
 
 [settings]

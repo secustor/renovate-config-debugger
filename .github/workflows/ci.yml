@@ -8,24 +8,34 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   checks:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
         with:
-          node-version: 26
-          cache: pnpm
+          cache: true
 
-      - run: pnpm install --frozen-lockfile
+      # Resolved, not hardcoded: mise-installed pnpm does not use the store path
+      # that pnpm/action-setup produced.
+      - id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
 
-      # The renovate/dist import boundary is enforced by oxlint's
-      # `no-restricted-imports` (see .oxlintrc.json overrides) — same guarantee
-      # as the grep step this replaces, but visible in the editor too.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
+
+      - run: pnpm install --frozen-lockfile --prefer-offline
+
       - run: pnpm lint
       - run: pnpm format:check
       - run: pnpm -r typecheck
@@ -57,9 +67,30 @@ jobs:
         # sliding back into the entry set is visible next to the build.
         run: node packages/app/scripts/report-entry-size.mjs
 
+      # Keyed on the resolved Playwright version rather than the lockfile: the
+      # browser build only changes when Playwright does, so an unrelated dep
+      # bump must not force a re-download.
+      - id: playwright-version
+        working-directory: packages/app
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - id: playwright-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+
       - name: Install Playwright chromium
         # Only chromium, with its OS deps — the e2e suite is chromium-only.
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm --filter @renovate-config-visualizer/app exec playwright install --with-deps chromium
+
+      - name: Install Playwright OS deps
+        # The cache covers ~/.cache/ms-playwright (the browser binaries) but not
+        # the apt packages `--with-deps` pulls in, so those are still needed on a
+        # hit. Cheap — most are already on the runner image.
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter @renovate-config-visualizer/app exec playwright install-deps chromium
       - name: Browser e2e tests
         # Drives the production dist built above via `vite preview` (reuses that
         # output, never rebuilds). Base is "/" everywhere — the site serves
@@ -87,6 +118,7 @@ jobs:
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_PAGES == 'true'
     needs: checks
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       pages: write
       id-token: write
@@ -106,19 +138,28 @@ jobs:
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_OAUTH_WORKER == 'true'
     needs: checks
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
         with:
-          node-version: 26
-          cache: pnpm
+          cache: true
+
+      - id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      # Shares the `checks` job's cache entries — same key, and this job's
+      # narrower install is a subset of that store.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
 
       # Only the worker package's deps — the deploy needs wrangler (a pinned
       # devDependency there), not the app workspace.
-      - run: pnpm install --frozen-lockfile --filter @renovate-config-visualizer/oauth-worker
+      - run: pnpm install --frozen-lockfile --prefer-offline --filter @renovate-config-visualizer/oauth-worker
 
       # `wrangler deploy` REPLACES dashboard-set vars on every run, so
       # GITHUB_CLIENT_ID is not committed to wrangler.jsonc; it is threaded
@@ -140,6 +181,10 @@ jobs:
     needs: checks
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    # Normally 2–6 min; the spread is the emulated arm64 build reacting to
+    # buildkit cache hits. Generous headroom, but it caps the stall class that
+    # once left this job wedged for 90+ minutes inside the app image build.
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write

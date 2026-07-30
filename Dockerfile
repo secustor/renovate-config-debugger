@@ -12,9 +12,13 @@
 FROM node:26.5.0-alpine AS build
 WORKDIR /repo
 
-# Matches the root package.json `packageManager` field. Installed via npm
+# Matches the root package.json `packageManager` field — kept in step by
+# Renovate via `customManagers:dockerfileVersions`, which needs the version in
+# an ARG named *_VERSION preceded by the comment below. Installed via npm
 # rather than corepack, which node:26 no longer bundles.
-RUN npm install --global pnpm@11.16.0
+# renovate: datasource=npm depName=pnpm
+ARG PNPM_VERSION=11.17.0
+RUN npm install --global "pnpm@${PNPM_VERSION}"
 
 # Manifests first: dependencies only re-resolve when one of these changes.
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
