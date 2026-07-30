@@ -1,0 +1,256 @@
+diff --git a/cjs/features/completion.js b/cjs/features/completion.js
+index 99d7645027c28f6ec3ad4a5423cd0913d8ea76bb..4cc50cce3d486aee9be02c37d5a7532e2936a518 100644
+--- a/cjs/features/completion.js
++++ b/cjs/features/completion.js
+@@ -46,6 +46,22 @@ function isRealSchema(subSchema) {
+         subSchema.name === "UnknownPropertyError" ||
+         subSchema.type === "undefined");
+ }
++/**
++ * PATCHED (renovate-config-visualizer): `new Draft07(schema)` pre-processes the
++ * whole schema — ~123ms for Renovate's 258kb schema — and upstream constructs a
++ * fresh one at every call site, up to 6x per keystroke. Memoized on the schema
++ * object's identity; schemas are already assumed immutable here (see the
++ * `originalSchema` check in `doComplete`).
++ */
++const __draftCache = new WeakMap();
++function __getDraft(schema) {
++    let draft = __draftCache.get(schema);
++    if (!draft) {
++        draft = new json_schema_library_1.Draft07(schema);
++        __draftCache.set(schema, draft);
++    }
++    return draft;
++}
+ class JSONCompletion {
+     // private lastKnownValidData: object | null = null;
+     constructor(opts) {
+@@ -70,6 +86,9 @@ class JSONCompletion {
+         const schemaFromState = (0, state_1.getJSONSchema)(ctx.state);
+         if (this.originalSchema !== schemaFromState) {
+             // only process schema when it changed (could be huge)
++            // PATCHED: upstream compares originalSchema but never assigns it, so
++            // this block (and makeSchemaLax over the whole schema) ran every call.
++            this.originalSchema = schemaFromState;
+             this.schema =
+                 (_a = expandSchemaProperty(schemaFromState, schemaFromState)) !== null && _a !== void 0 ? _a : schemaFromState;
+             this.laxSchema = makeSchemaLax(this.schema);
+@@ -622,7 +641,7 @@ class JSONCompletion {
+     getSchemas(rootSchema, ctx) {
+         var _a, _b, _c;
+         const { data: documentData } = this.parser(ctx.state);
+-        const draft = new json_schema_library_1.Draft07(rootSchema);
++        const draft = __getDraft(rootSchema);
+         let pointer = (0, json_pointers_1.jsonPointerForPosition)(ctx.state, ctx.pos, -1, this.mode);
+         // TODO make jsonPointer consistent and compatible with json-schema-library by default (root path '/' or ' ' or undefined or '#', idk)
+         if (pointer === "")
+@@ -797,8 +816,7 @@ function makeSchemaLax(schema) {
+  * @param pointer
+  */
+ function getEffectiveObjectWithPropertiesSchema(schema, data, pointer) {
+-    // TODO (unimportant): [performance] cache Draft07 in case it does some pre-processing? but does not seem to be significant
+-    const draft = new json_schema_library_1.Draft07(schema);
++    const draft = __getDraft(schema);
+     const subSchema = draft.getSchema({
+         pointer,
+         data: data !== null && data !== void 0 ? data : undefined,
+diff --git a/cjs/features/hover.js b/cjs/features/hover.js
+index 1fd624928c71419e4ff62e76debf964b705e4448..b9fef7380360a18cb80ff7c59baf6347d6c9d207 100644
+--- a/cjs/features/hover.js
++++ b/cjs/features/hover.js
+@@ -45,6 +45,22 @@ function formatComplexType(schema, complexType, draft) {
+         }
+     }))}`;
+ }
++/**
++ * PATCHED (renovate-config-visualizer): `new Draft04(schema)` pre-processes the
++ * whole schema — ~69ms for Renovate's 253kb schema — and upstream builds a fresh
++ * one on every hover, so resting the pointer over the editor stalls the main
++ * thread. Memoized on the schema object's identity, matching the Draft07 cache
++ * in completion.js; schemas are already assumed immutable here.
++ */
++const __draft04Cache = new WeakMap();
++function __getDraft04(schema) {
++    let draft = __draft04Cache.get(schema);
++    if (!draft) {
++        draft = new json_schema_library_1.Draft04(schema);
++        __draft04Cache.set(schema, draft);
++    }
++    return draft;
++}
+ class JSONHover {
+     constructor(opts) {
+         var _a, _b;
+@@ -61,7 +77,7 @@ class JSONHover {
+             // without taking over the existing mode responsibilties?
+             return null;
+         }
+-        this.schema = new json_schema_library_1.Draft04(schema);
++        this.schema = __getDraft04(schema);
+         const pointer = (0, json_pointers_1.jsonPointerForPosition)(view.state, pos, side, this.mode);
+         let data = undefined;
+         // TODO: use the AST tree to return the right hand, data so that we don't have to parse the doc
+diff --git a/cjs/features/validation.js b/cjs/features/validation.js
+index dfd96c603d4414d7a1ecfd76a4d56dd40f54b672..e635146584c6419a3d5459245303652872621244 100644
+--- a/cjs/features/validation.js
++++ b/cjs/features/validation.js
+@@ -46,6 +46,22 @@ const positionalErrors = [
+     "ForbiddenPropertyError",
+     "UndefinedValueError",
+ ];
++/**
++ * PATCHED (renovate-config-visualizer): `new Draft04(schema)` pre-processes the
++ * whole schema — ~69ms for Renovate's 253kb schema — and upstream builds a fresh
++ * one on every `doValidation` call, i.e. 750ms after every typing pause.
++ * Memoized on the schema object's identity, matching the Draft07 cache in
++ * completion.js; schemas are already assumed immutable here.
++ */
++const __draft04Cache = new WeakMap();
++function __getDraft04(schema) {
++    let draft = __draft04Cache.get(schema);
++    if (!draft) {
++        draft = new json_schema_library_1.Draft04(schema);
++        __draft04Cache.set(schema, draft);
++    }
++    return draft;
++}
+ class JSONValidation {
+     constructor(options) {
+         var _a, _b, _c, _d;
+@@ -91,7 +107,7 @@ class JSONValidation {
+         if (!schema) {
+             return [];
+         }
+-        this.schema = new json_schema_library_1.Draft04(schema);
++        this.schema = __getDraft04(schema);
+         if (!this.schema)
+             return [];
+         const text = view.state.doc.toString();
+diff --git a/dist/features/completion.js b/dist/features/completion.js
+index f10aafb9b76663fc04bf4d48193d1b3902e05756..80501af6d9751dc70be47f5d349e00ef9fc970e1 100644
+--- a/dist/features/completion.js
++++ b/dist/features/completion.js
+@@ -42,6 +42,22 @@ function isRealSchema(subSchema) {
+         subSchema.name === "UnknownPropertyError" ||
+         subSchema.type === "undefined");
+ }
++/**
++ * PATCHED (renovate-config-visualizer): `new Draft07(schema)` pre-processes the
++ * whole schema — ~123ms for Renovate's 258kb schema — and upstream constructs a
++ * fresh one at every call site, up to 6x per keystroke. Memoized on the schema
++ * object's identity; schemas are already assumed immutable here (see the
++ * `originalSchema` check in `doComplete`).
++ */
++const __draftCache = new WeakMap();
++function __getDraft(schema) {
++    let draft = __draftCache.get(schema);
++    if (!draft) {
++        draft = new Draft07(schema);
++        __draftCache.set(schema, draft);
++    }
++    return draft;
++}
+ export class JSONCompletion {
+     // private lastKnownValidData: object | null = null;
+     constructor(opts) {
+@@ -66,6 +82,9 @@ export class JSONCompletion {
+         const schemaFromState = getJSONSchema(ctx.state);
+         if (this.originalSchema !== schemaFromState) {
+             // only process schema when it changed (could be huge)
++            // PATCHED: upstream compares originalSchema but never assigns it, so
++            // this block (and makeSchemaLax over the whole schema) ran every call.
++            this.originalSchema = schemaFromState;
+             this.schema =
+                 (_a = expandSchemaProperty(schemaFromState, schemaFromState)) !== null && _a !== void 0 ? _a : schemaFromState;
+             this.laxSchema = makeSchemaLax(this.schema);
+@@ -618,7 +637,7 @@ export class JSONCompletion {
+     getSchemas(rootSchema, ctx) {
+         var _a, _b, _c;
+         const { data: documentData } = this.parser(ctx.state);
+-        const draft = new Draft07(rootSchema);
++        const draft = __getDraft(rootSchema);
+         let pointer = jsonPointerForPosition(ctx.state, ctx.pos, -1, this.mode);
+         // TODO make jsonPointer consistent and compatible with json-schema-library by default (root path '/' or ' ' or undefined or '#', idk)
+         if (pointer === "")
+@@ -792,8 +811,7 @@ function makeSchemaLax(schema) {
+  * @param pointer
+  */
+ function getEffectiveObjectWithPropertiesSchema(schema, data, pointer) {
+-    // TODO (unimportant): [performance] cache Draft07 in case it does some pre-processing? but does not seem to be significant
+-    const draft = new Draft07(schema);
++    const draft = __getDraft(schema);
+     const subSchema = draft.getSchema({
+         pointer,
+         data: data !== null && data !== void 0 ? data : undefined,
+diff --git a/dist/features/hover.js b/dist/features/hover.js
+index 7634362ab0d8c39ef8e80541c2d0d1c2b129c34c..fd270790034d9dd403697bf490c7ae46a9d64781 100644
+--- a/dist/features/hover.js
++++ b/dist/features/hover.js
+@@ -41,6 +41,22 @@ function formatComplexType(schema, complexType, draft) {
+         }
+     }))}`;
+ }
++/**
++ * PATCHED (renovate-config-visualizer): `new Draft04(schema)` pre-processes the
++ * whole schema — ~69ms for Renovate's 253kb schema — and upstream builds a fresh
++ * one on every hover, so resting the pointer over the editor stalls the main
++ * thread. Memoized on the schema object's identity, matching the Draft07 cache
++ * in completion.js; schemas are already assumed immutable here.
++ */
++const __draft04Cache = new WeakMap();
++function __getDraft04(schema) {
++    let draft = __draft04Cache.get(schema);
++    if (!draft) {
++        draft = new Draft04(schema);
++        __draft04Cache.set(schema, draft);
++    }
++    return draft;
++}
+ export class JSONHover {
+     constructor(opts) {
+         var _a, _b;
+@@ -57,7 +73,7 @@ export class JSONHover {
+             // without taking over the existing mode responsibilties?
+             return null;
+         }
+-        this.schema = new Draft04(schema);
++        this.schema = __getDraft04(schema);
+         const pointer = jsonPointerForPosition(view.state, pos, side, this.mode);
+         let data = undefined;
+         // TODO: use the AST tree to return the right hand, data so that we don't have to parse the doc
+diff --git a/dist/features/validation.js b/dist/features/validation.js
+index e307501345ecbca4410bf8a2f6a6eb11569e9447..a3a86649c75e1bdc4ee18fc36dc1b3104f3db420 100644
+--- a/dist/features/validation.js
++++ b/dist/features/validation.js
+@@ -41,6 +41,22 @@ const positionalErrors = [
+     "ForbiddenPropertyError",
+     "UndefinedValueError",
+ ];
++/**
++ * PATCHED (renovate-config-visualizer): `new Draft04(schema)` pre-processes the
++ * whole schema — ~69ms for Renovate's 253kb schema — and upstream builds a fresh
++ * one on every `doValidation` call, i.e. 750ms after every typing pause.
++ * Memoized on the schema object's identity, matching the Draft07 cache in
++ * completion.js; schemas are already assumed immutable here.
++ */
++const __draft04Cache = new WeakMap();
++function __getDraft04(schema) {
++    let draft = __draft04Cache.get(schema);
++    if (!draft) {
++        draft = new Draft04(schema);
++        __draft04Cache.set(schema, draft);
++    }
++    return draft;
++}
+ export class JSONValidation {
+     constructor(options) {
+         var _a, _b, _c, _d;
+@@ -86,7 +102,7 @@ export class JSONValidation {
+         if (!schema) {
+             return [];
+         }
+-        this.schema = new Draft04(schema);
++        this.schema = __getDraft04(schema);
+         if (!this.schema)
+             return [];
+         const text = view.state.doc.toString();

@@ -65,7 +65,8 @@ export const ConfigEditor = forwardRef<ConfigEditorHandle, Props>(function Confi
     let cancelled = false;
     void (async () => {
       try {
-        const { buildSchemaExtensions } = await import("@/platform/editor-schema");
+        const { buildSchemaExtensions, warmSchemaCaches } =
+          await import("@/platform/editor-schema");
         const schemaExtensions = await buildSchemaExtensions(
           fileName.endsWith(".json5"),
           presetHoverRef,
@@ -76,7 +77,14 @@ export const ConfigEditor = forwardRef<ConfigEditorHandle, Props>(function Confi
         // The view exists by now: CodeMirror (a child) creates it in its own
         // mount effect, and child effects flush before this one — and the
         // awaits above put this a macrotask later regardless.
-        cmRef.current?.view?.dispatch({ effects: compartment.reconfigure(schemaExtensions) });
+        const view = cmRef.current?.view;
+        view?.dispatch({ effects: compartment.reconfigure(schemaExtensions) });
+        // Only once the extensions are installed: the first schema query walks
+        // Renovate's whole $ref graph (~1.1s), and whichever one goes first
+        // pays for it. Do it at idle so it is never a keystroke.
+        if (view) {
+          warmSchemaCaches(view);
+        }
       } catch {
         // Schema layer failed to load (e.g. offline after first paint) — the
         // plain JSON editor keeps working; lint/hover just never appears.

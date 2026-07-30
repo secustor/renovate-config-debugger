@@ -26,4 +26,5 @@ ignoredBuiltDependencies:
   - re2
   - workerd
 
-verifyDepsBeforeRun: false
+patchedDependencies:
+  codemirror-json-schema@0.8.1: patches/codemirror-json-schema@0.8.1.patch

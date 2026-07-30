@@ -13,7 +13,8 @@
  * boot for the lookup side) would drag the whole stack back into the entry.
  */
 import { type EditorView, type Extension, hoverTooltip, type Tooltip } from "@uiw/react-codemirror";
-import { jsonSchema, jsonSchemaHover } from "codemirror-json-schema";
+import { jsonLanguage } from "@codemirror/lang-json";
+import { jsonCompletion, jsonSchema, jsonSchemaHover } from "codemirror-json-schema";
 import type { RefObject } from "react";
 import { renovateSchema } from "@renovate-config-visualizer/engine/schema";
 import type { PresetNodeState } from "@renovate-config-visualizer/engine";
@@ -156,6 +157,143 @@ function withPresetHover(
   return base;
 }
 
+/** How long a NON-explicit completion query waits before doing any work. A
+ *  keystroke inside this window supersedes the query (ctx.aborted), so a
+ *  typing burst runs the expensive source once, after the pause. */
+const COMPLETION_DEBOUNCE_MS = 250;
+
+/**
+ * The schema completion source, debounced (2026-07-30). The library returns
+ * `filter: false` (it filters manually), which makes CodeMirror re-invoke
+ * the source on EVERY typed character — and one invocation walks Renovate's
+ * 373 kB schema through json-schema-library: measured 70–300 ms of
+ * main-thread stall per keystroke, the editor's typing lag (its own schema
+ * cache is also broken — `originalSchema` is compared but never written —
+ * but the walk, not the schema prep, dominates). Async + debounce moves the
+ * one real walk to ~250 ms after typing pauses and lets every mid-burst
+ * query resolve to null for free; an explicit request (Ctrl-Space) still
+ * runs immediately. Re-check on codemirror-json-schema bumps.
+ */
+function debouncedCompletionSource<C extends CompletionContextLike>(
+  base: (ctx: C) => unknown,
+): (ctx: C) => Promise<unknown> {
+  return async (ctx) => {
+    if (!ctx.explicit) {
+      await new Promise((resolve) => setTimeout(resolve, COMPLETION_DEBOUNCE_MS));
+      if (ctx.aborted) {
+        return null;
+      }
+    }
+    return base(ctx);
+  };
+}
+
+/** The slice of @codemirror/autocomplete's CompletionContext this module
+ *  reads — typed structurally so the transitive package stays undeclared. */
+interface CompletionContextLike {
+  explicit: boolean;
+  aborted: boolean;
+}
+
+/** The bundled arrays are `[lang, linter, linter, autocomplete, hover, state]`
+ *  (see codemirror-json-schema's `bundled.js`, pinned — the same layout
+ *  `withPresetHover` indexes into), so the completion registration is element 3. */
+const COMPLETION_INDEX = 3;
+
+/** The warm-up steps for the flavor currently installed, set by
+ *  `buildSchemaExtensions` and drained by `warmSchemaCaches`. */
+let warmupSteps: ((view: EditorView) => void)[] = [];
+
+/** Where to aim a warm-up query: inside the first string literal, if there is
+ *  one — a position the schema actually has to resolve, rather than whitespace
+ *  it can answer for free. Null when the document is too short to have one. */
+function warmPos(view: EditorView): number | null {
+  const doc = view.state.doc.toString();
+  const quote = doc.indexOf('"');
+  const pos = quote === -1 ? Math.min(1, doc.length) : quote + 2;
+  return pos > doc.length ? null : pos;
+}
+
+/** Warming is an optimization: if a source rejects, the first real query simply
+ *  pays what it would have paid anyway. */
+function settle(result: unknown): void {
+  void Promise.resolve(result).catch(() => undefined);
+}
+
+/**
+ * The warm-up steps for one flavor's sources: one throwaway hover, then one
+ * throwaway completion, so the FIRST real one isn't the one that pays for them.
+ *
+ * json-schema-library resolves Renovate's `$ref` graph lazily and memoizes it
+ * on the schema object, so the first consumer to walk it eats the whole cost —
+ * measured 1118 ms for a cold completion against ~3 ms once warm. Whoever goes
+ * first pays, which is why the editor felt fine if you happened to hover before
+ * typing (the hover absorbed ~300 ms of it) and awful if you clicked and typed
+ * straight away.
+ *
+ * Two steps rather than one call because each is an unbreakable chunk of main
+ * thread (~290 ms and ~690 ms measured): run separately, a keystroke that
+ * arrives mid-warm-up waits for one of them, not for both.
+ *
+ * The completion source is called directly rather than through CodeMirror: it
+ * reads only `state`, `pos`, `explicit` and `matchBefore` off the context, so a
+ * literal stands in for the real CompletionContext (hence the one cast).
+ * `explicit` skips the debounce; both results are discarded.
+ */
+function buildWarmupSteps<Ctx>(
+  hover: HoverSource,
+  completion: (ctx: Ctx) => unknown,
+): ((view: EditorView) => void)[] {
+  return [
+    (view) => {
+      const pos = warmPos(view);
+      if (pos !== null) {
+        settle(hover(view, pos, 1));
+      }
+    },
+    (view) => {
+      const pos = warmPos(view);
+      if (pos !== null) {
+        settle(
+          completion({
+            state: view.state,
+            pos,
+            explicit: true,
+            aborted: false,
+            matchBefore: () => null,
+          } as unknown as Ctx),
+        );
+      }
+    },
+  ];
+}
+
+/**
+ * Warms the schema caches off the typing path — see `buildWarmupSteps`. Call
+ * once per editor, AFTER the extensions are installed: both sources read the
+ * schema out of the editor state field that `stateExtensions` adds.
+ */
+export function warmSchemaCaches(view: EditorView): void {
+  const steps = warmupSteps;
+  const schedule =
+    typeof requestIdleCallback === "function"
+      ? // Idle, but not indefinitely: the window this closes is "user clicked
+        // into the editor and typed straight away", so a step still queued when
+        // that happens has bought nothing. By here the lazy schema chunk has
+        // already loaded, so there is no first-paint work left to yield to.
+        (fn: () => void) => requestIdleCallback(fn, { timeout: 1000 })
+      : (fn: () => void) => setTimeout(fn, 0);
+  for (const step of steps) {
+    schedule(() => {
+      try {
+        step(view);
+      } catch {
+        // See `buildWarmupSteps` — best-effort.
+      }
+    });
+  }
+}
+
 /**
  * Builds the full schema-aware extension set for the given file flavor. The
  * json5 variant (codemirror-json5 + the json5 parser, ~10 kB gz) rides its
@@ -167,8 +305,24 @@ export async function buildSchemaExtensions(
   ctxRef: RefObject<PresetHoverContext | null>,
 ): Promise<Extension[]> {
   if (isJson5) {
-    const { json5Schema, json5SchemaHover } = await import("codemirror-json-schema/json5");
-    return withPresetHover(json5Schema(renovateSchema), json5SchemaHover(), ctxRef);
+    const { json5Completion, json5Schema, json5SchemaHover } =
+      await import("codemirror-json-schema/json5");
+    const { json5Language } = await import("codemirror-json5");
+    const base = json5Schema(renovateSchema);
+    const completion = json5Completion();
+    const hover = json5SchemaHover();
+    warmupSteps = buildWarmupSteps(hover, completion);
+    base[COMPLETION_INDEX] = json5Language.data.of({
+      autocomplete: debouncedCompletionSource(completion),
+    });
+    return withPresetHover(base, hover, ctxRef);
   }
-  return withPresetHover(jsonSchema(renovateSchema), jsonSchemaHover(), ctxRef);
+  const base = jsonSchema(renovateSchema);
+  const completion = jsonCompletion();
+  const hover = jsonSchemaHover();
+  warmupSteps = buildWarmupSteps(hover, completion);
+  base[COMPLETION_INDEX] = jsonLanguage.data.of({
+    autocomplete: debouncedCompletionSource(completion),
+  });
+  return withPresetHover(base, hover, ctxRef);
 }
