@@ -999,7 +999,10 @@ export function App() {
           />
         ) : null}
         <header className="app-header">
-          <h1>Renovate Config Debugger</h1>
+          <div className="app-brand">
+            <img src="/logo-192.png" alt="" width={36} height={36} />
+            <h1>Renovate Config Debugger</h1>
+          </div>
           <AppHeaderTools renovateVersion={result?.renovateVersion} />
         </header>
         <p className="subtitle">

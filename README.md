@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="packages/app/public/logo-192.png" width="120" alt="Renovate Config Debugger logo" />
+</p>
+
 # renovate-config-visualizer
 
 Step through what [Renovate](https://github.com/renovatebot/renovate) actually
