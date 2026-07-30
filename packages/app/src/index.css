@@ -112,11 +112,22 @@ main {
 }
 
 header.app-header {
-  align-items: baseline;
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
   justify-content: space-between;
+}
+
+.app-brand {
+  align-items: center;
+  display: flex;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.app-brand img {
+  flex: none;
 }
 
 /* Roadmap 037: the header's session corner — theme switcher + version badge. */

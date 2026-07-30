@@ -126,6 +126,17 @@ function ResultsPane(props: ResultsColumnProps) {
   );
 }
 
+/** The header's identity corner: logo + title. Its own component for the same
+ *  reason as ResultsPane — the header sits at the depth ratchet's limit. */
+function AppBrand() {
+  return (
+    <div className="app-brand">
+      <img src="/logo-192.png" alt="" width={36} height={36} />
+      <h1>Renovate Config Debugger</h1>
+    </div>
+  );
+}
+
 /** Roadmap 031: warms the two chunks a Run needs — the engine, and the
  *  results column that renders its output — so neither download serializes
  *  behind the click. Both dynamic imports are module-cached (idempotent). */
@@ -999,7 +1010,7 @@ export function App() {
           />
         ) : null}
         <header className="app-header">
-          <h1>Renovate Config Debugger</h1>
+          <AppBrand />
           <AppHeaderTools renovateVersion={result?.renovateVersion} />
         </header>
         <p className="subtitle">
