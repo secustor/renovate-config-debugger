@@ -124,6 +124,24 @@ describe("trace shape", () => {
     expect(afterRules.some((r) => Array.isArray(r.packageRules))).toBe(false);
   });
 
+  it("re-migration stays silent for configs that don't need it", async () => {
+    // The post-resolution migration pass must not add noise for ordinary
+    // configs: no orphan (presetName-less) migration events in the preset
+    // stage, and no title suffix — the Migrate chip/stepper and the preset
+    // tree read exactly the streams asserted here.
+    for (const name of ["legacy-config.json", "migration-steps.json", "internal-presets.json"]) {
+      const result = await runPipeline({ fileName: name, content: fixture(name) });
+      const orphanSteps = result.events.filter(
+        (e) => e.kind === "migration-applied" && e.stage === "preset" && !e.migration?.presetName,
+      );
+      expect(orphanSteps, name).toEqual([]);
+      const title = result.events.findLast(
+        (e) => e.stage === "preset" && e.kind === "stage-complete",
+      )?.title;
+      expect(title, name).not.toContain("re-migrated");
+    }
+  });
+
   it("tracks visited presets and preset-fetch events", async () => {
     const result = await runPipeline({
       fileName: "internal-presets.json",
