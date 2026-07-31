@@ -40,7 +40,7 @@ pnpm workspace with three packages:
 
 ### The shim system (the core trick)
 
-`packages/engine/src/shims/vite-plugin-renovate-shims.ts` is a Vite `resolveId` plugin that swaps Renovate's Node-only internals (OpenTelemetry, bunyan, re2, datasource lookups, preset HTTP clients) for browser-safe shims in `src/shims/`. The logger shim doubles as the trace collector — preset-tree and provenance events **only exist in the shimmed module graph**. Preset fetching becomes plain `fetch()` against CORS-enabled host APIs. Shim matching is on path *suffix* (survives pnpm's `.pnpm/...` real paths) via `resolveId`, not `resolve.alias`, because relative extensionless imports inside dist never hit aliases — the app's `vite.config.ts` copies the same mechanism for codemirror-json-schema.
+`packages/engine/src/shims/vite-plugin-renovate-shims.ts` is a Vite `resolveId` plugin that swaps Renovate's Node-only internals (OpenTelemetry, bunyan, re2, datasource lookups, preset HTTP clients) for browser-safe shims in `src/shims/`. The logger shim doubles as the trace collector — preset-tree and provenance events **only exist in the shimmed module graph**. Preset fetching becomes plain `fetch()` against CORS-enabled host APIs. Shim matching is on path _suffix_ (survives pnpm's `.pnpm/...` real paths) via `resolveId`, not `resolve.alias`, because relative extensionless imports inside dist never hit aliases — the app's `vite.config.ts` copies the same mechanism for codemirror-json-schema.
 
 ### Test regimes
 
@@ -64,6 +64,6 @@ The app's vitest config also has a `render` project (`src/**/*.test.tsx`, jsdom 
 ## Other constraints worth knowing
 
 - `matchCurrentVersion` uses Renovate's real versioning modules for every ecosystem **except `conda`** (its ~3 MB WASM parser is excluded; such clauses report an honest error).
-- Share links carry state in the URL *fragment* only (never reaches server logs) and must never carry tokens or manually injected presets. Tokens live in `sessionStorage`/memory only.
+- Share links carry state in the URL _fragment_ only (never reaches server logs) and must never carry tokens or manually injected presets. Tokens live in `sessionStorage`/memory only.
 - `public/` is deployment payload copied verbatim, not app source; `rcv-config.js` there is a stub that the Docker entrypoint may overwrite at container start (runtime `RCV_*` config).
 - CI must not install via mise hooks — the `postinstall` hook in `mise.toml` is local-only convenience (see the comment there before touching caching in workflows).
