@@ -1,0 +1,1188 @@
+{
+  "mode": "full",
+  "allowedHeaders": [
+    "X-*"
+  ],
+  "autodiscoverRepoOrder": null,
+  "autodiscoverRepoSort": null,
+  "allowedEnv": [],
+  "detectGlobalManagerConfig": false,
+  "detectHostRulesFromEnv": false,
+  "mergeConfidenceEndpoint": "https://developer.mend.io/",
+  "mergeConfidenceDatasources": [
+    "go",
+    "maven",
+    "npm",
+    "nuget",
+    "packagist",
+    "pypi",
+    "rubygems"
+  ],
+  "useCloudMetadataServices": true,
+  "userAgent": "Renovate/{{renovateVersion}} (https://github.com/renovatebot/renovate)",
+  "allowedCommands": [],
+  "bumpVersions": [],
+  "postUpgradeTasks": {
+    "commands": [],
+    "fileFilters": [],
+    "executionMode": "update",
+    "installTools": {}
+  },
+  "onboardingBranch": "renovate/configure",
+  "onboardingAutoCloseAge": null,
+  "onboardingCommitMessage": null,
+  "configFileNames": null,
+  "onboardingConfigFileName": "renovate.json",
+  "onboardingNoDeps": "auto",
+  "onboardingPrTitle": "Configure Renovate",
+  "configMigration": false,
+  "productLinks": {
+    "documentation": "https://docs.renovatebot.com/",
+    "help": "https://github.com/renovatebot/renovate/discussions",
+    "homepage": "https://github.com/renovatebot/renovate"
+  },
+  "secrets": {},
+  "variables": {},
+  "statusCheckNames": {
+    "artifactError": "renovate/artifacts",
+    "configValidation": "renovate/config-validation",
+    "mergeConfidence": "renovate/merge-confidence",
+    "minimumReleaseAge": "renovate/stability-days"
+  },
+  "statusCheckWhen": {
+    "artifactError": "failed",
+    "configValidation": "always",
+    "mergeConfidence": "always",
+    "minimumReleaseAge": "always"
+  },
+  "extends": [],
+  "ignorePresets": [],
+  "migratePresets": {},
+  "minimumGroupSize": 1,
+  "presetCachePersistence": false,
+  "globalExtends": [],
+  "description": [],
+  "enabled": true,
+  "constraintsFiltering": "none",
+  "repositoryCache": "disabled",
+  "repositoryCacheType": "local",
+  "repositoryCacheForceLocal": false,
+  "reportType": null,
+  "reportPath": null,
+  "reportFormatting": false,
+  "force": null,
+  "forceCli": true,
+  "draftPR": false,
+  "dryRun": null,
+  "printConfig": false,
+  "binarySource": "install",
+  "redisUrl": null,
+  "redisPrefix": null,
+  "baseDir": null,
+  "cacheDir": null,
+  "containerbaseDir": null,
+  "customEnvVariables": {},
+  "env": {},
+  "customDatasources": {},
+  "dockerChildPrefix": "renovate_",
+  "dockerCliOptions": null,
+  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.76.9",
+  "dockerUser": "12021",
+  "composerIgnorePlatformReqs": [],
+  "goGetDirs": [
+    "./..."
+  ],
+  "logContext": null,
+  "onboarding": true,
+  "onboardingConfig": {
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json"
+  },
+  "onboardingRebaseCheckbox": false,
+  "forkProcessing": "auto",
+  "includeMirrors": false,
+  "forkCreation": true,
+  "forkToken": null,
+  "forkOrg": null,
+  "githubTokenWarn": true,
+  "encryptedWarning": null,
+  "inheritConfig": false,
+  "inheritConfigRepoName": "{{parentOrg}}/renovate-config",
+  "inheritConfigFileName": "org-inherited-config.json",
+  "inheritConfigStrict": false,
+  "requireConfig": "required",
+  "optimizeForDisabled": false,
+  "dependencyDashboard": false,
+  "dependencyDashboardApproval": false,
+  "dependencyDashboardAutoclose": false,
+  "dependencyDashboardTitle": "Dependency Dashboard",
+  "dependencyDashboardCategory": null,
+  "dependencyDashboardHeader": "This issue lists Renovate updates and detected dependencies. Read the [Dependency Dashboard](https://docs.renovatebot.com/key-concepts/dashboard/) docs to learn more.",
+  "dependencyDashboardFooter": null,
+  "dependencyDashboardLabels": null,
+  "dependencyDashboardOSVVulnerabilitySummary": "none",
+  "configWarningReuseIssue": false,
+  "privateKey": null,
+  "privateKeyOld": null,
+  "privateKeyPath": null,
+  "privateKeyPathOld": null,
+  "encrypted": null,
+  "timezone": null,
+  "schedule": [
+    "at any time"
+  ],
+  "automergeSchedule": [
+    "at any time"
+  ],
+  "updateNotScheduled": true,
+  "persistRepoData": false,
+  "exposeAllEnv": false,
+  "allowPlugins": false,
+  "allowScripts": false,
+  "allowShellExecutorForPostUpgradeCommands": false,
+  "allowCustomCrateRegistries": false,
+  "ignorePlugins": false,
+  "ignoreScripts": true,
+  "platform": "github",
+  "endpoint": null,
+  "token": null,
+  "username": null,
+  "password": null,
+  "npmrc": null,
+  "npmrcMerge": false,
+  "npmToken": null,
+  "skipArtifactsUpdate": false,
+  "skipInstalls": null,
+  "autodiscover": false,
+  "autodiscoverFilter": null,
+  "autodiscoverNamespaces": null,
+  "autodiscoverProjects": null,
+  "autodiscoverTopics": null,
+  "prCommitsPerRunLimit": 0,
+  "repositories": [],
+  "baseBranchPatterns": [],
+  "useBaseBranchConfig": "none",
+  "gitAuthor": null,
+  "gitPrivateKey": null,
+  "gitPrivateKeyPassphrase": null,
+  "gitIgnoredAuthors": [],
+  "gitTimeout": 0,
+  "enabledManagers": [],
+  "includePaths": [],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/bower_components/**"
+  ],
+  "excludeCommitPaths": [],
+  "executionTimeout": 15,
+  "registryAliases": {},
+  "defaultRegistryUrls": null,
+  "registryUrls": null,
+  "extractVersion": null,
+  "versionCompatibility": null,
+  "versioning": null,
+  "azureWorkItemId": 0,
+  "autoApprove": false,
+  "ignoreDeps": [],
+  "updateInternalDeps": false,
+  "packageRules": [
+    {
+      "description": [
+        "Group anything that looks like Node.js together so that it's updated together.",
+        "Automerge safe NodeJS updates"
+      ],
+      "groupName": "NodeJS",
+      "matchUpdateTypes": [
+        "patch",
+        "minor"
+      ],
+      "automerge": true,
+      "commitMessageTopic": "Node.js",
+      "matchDatasources": [
+        "docker",
+        "node-version"
+      ],
+      "matchPackageNames": [
+        "/(?:^|/)node$/",
+        "!calico/node",
+        "!docker.io/calico/node",
+        "!ghcr.io/devcontainers/features/node",
+        "!kindest/node",
+        "!docker.io/kindest/node"
+      ]
+    }
+  ],
+  "autoReplaceGlobalMatch": true,
+  "replacementApproach": "replace",
+  "pinDigests": false,
+  "separateMajorMinor": true,
+  "separateMultipleMajor": false,
+  "separateMultipleMinor": false,
+  "separateMinorPatch": false,
+  "ignoreUnstable": true,
+  "ignoreDeprecated": true,
+  "followTag": null,
+  "maxMajorIncrement": 500,
+  "respectLatest": true,
+  "rangeStrategy": "auto",
+  "branchPrefix": "renovate/",
+  "branchPrefixOld": "renovate/",
+  "bumpVersion": null,
+  "major": {},
+  "minor": {},
+  "patch": {},
+  "pin": {
+    "rebaseWhen": "behind-base-branch",
+    "groupName": "Pin Dependencies",
+    "groupSlug": "pin-dependencies",
+    "commitMessageAction": "Pin",
+    "group": {
+      "commitMessageTopic": "dependencies",
+      "commitMessageExtra": ""
+    }
+  },
+  "digest": {
+    "branchTopic": "{{{depNameSanitized}}}-digest",
+    "commitMessageExtra": "to {{newDigestShort}}",
+    "commitMessageTopic": "{{{depName}}} digest"
+  },
+  "pinDigest": {
+    "groupName": "Pin Dependencies",
+    "groupSlug": "pin-dependencies",
+    "commitMessageAction": "Pin",
+    "group": {
+      "commitMessageTopic": "dependencies",
+      "commitMessageExtra": ""
+    }
+  },
+  "rollback": {
+    "branchTopic": "{{{depNameSanitized}}}-rollback",
+    "commitMessageAction": "Roll back",
+    "semanticCommitType": "fix"
+  },
+  "replacement": {
+    "branchTopic": "{{{depNameSanitized}}}-replacement",
+    "commitMessageAction": "Replace",
+    "commitMessageExtra": "with {{newName}} {{#if isMajor}}{{{prettyNewMajor}}}{{else}}{{#if isSingleVersion}}{{{prettyNewVersion}}}{{else}}{{{newValue}}}{{/if}}{{/if}}",
+    "prBodyNotes": [
+      "This is a special PR that replaces `{{{depName}}}` with the community suggested minimal stable replacement version."
+    ]
+  },
+  "semanticCommits": "auto",
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps",
+  "commitMessageLowerCase": "auto",
+  "keepUpdatedLabel": null,
+  "rollbackPrs": false,
+  "recreateWhen": "auto",
+  "rebaseWhen": "auto",
+  "rebaseLabel": "rebase",
+  "stopUpdatingLabel": "stop-updating",
+  "minimumReleaseAge": null,
+  "minimumReleaseAgeBehaviour": "timestamp-required",
+  "abandonmentThreshold": null,
+  "dependencyDashboardReportAbandonment": true,
+  "internalChecksAsSuccess": false,
+  "internalChecksFilter": "strict",
+  "processEnv": {},
+  "prCreation": "immediate",
+  "prNotPendingHours": 25,
+  "commitHourlyLimit": 0,
+  "prHourlyLimit": 2,
+  "prConcurrentLimit": 10,
+  "branchConcurrentLimit": null,
+  "bbAutoResolvePrTasks": false,
+  "bbUseDefaultReviewers": true,
+  "bbUseDevelopmentBranch": false,
+  "automerge": false,
+  "automergeType": "pr",
+  "automergeStrategy": "auto",
+  "automergeComment": "automergeComment",
+  "ignoreTests": false,
+  "vulnerabilityAlerts": {
+    "groupName": null,
+    "schedule": [],
+    "dependencyDashboardApproval": false,
+    "minimumReleaseAge": null,
+    "rangeStrategy": "update-lockfile",
+    "commitMessageSuffix": "[SECURITY]",
+    "branchTopic": "{{{datasource}}}-{{{depNameSanitized}}}-vulnerability",
+    "prCreation": "immediate",
+    "vulnerabilityFixStrategy": "lowest"
+  },
+  "osvVulnerabilityAlerts": false,
+  "pruneBranchAfterAutomerge": true,
+  "branchName": "{{{branchPrefix}}}{{{additionalBranchPrefix}}}{{{branchTopic}}}",
+  "additionalBranchPrefix": "",
+  "branchTopic": "{{{depNameSanitized}}}-{{{newMajor}}}{{#if separateMinorPatch}}{{#if isPatch}}.{{{newMinor}}}{{/if}}{{/if}}{{#if separateMultipleMinor}}{{#if isMinor}}.{{{newMinor}}}{{/if}}{{/if}}.x{{#if isLockfileUpdate}}-lockfile{{/if}}",
+  "commitMessage": "{{{commitMessagePrefix}}} {{{commitMessageAction}}} {{{commitMessageTopic}}} {{{commitMessageExtra}}} {{{commitMessageSuffix}}}",
+  "commitBody": null,
+  "commitBodyTable": false,
+  "commitMessagePrefix": null,
+  "commitMessageAction": "Update",
+  "commitMessageTopic": "dependency {{depName}}",
+  "commitMessageExtra": "to {{#if isPinDigest}}{{{newDigestShort}}}{{else}}{{#if isMajor}}{{prettyNewMajor}}{{else}}{{#if isSingleVersion}}{{prettyNewVersion}}{{else}}{{#if newValue}}{{{newValue}}}{{else}}{{{newDigestShort}}}{{/if}}{{/if}}{{/if}}{{/if}}",
+  "commitMessageSuffix": null,
+  "prBodyTemplate": "{{{header}}}{{{table}}}{{{warnings}}}{{{notes}}}{{{changelogs}}}{{{configDescription}}}{{{controls}}}{{{footer}}}",
+  "prTitle": null,
+  "prTitleStrict": false,
+  "prHeader": null,
+  "prFooter": "This PR has been generated by [Mend Renovate](https://github.com/renovatebot/renovate).",
+  "customizeDashboard": {},
+  "lockFileMaintenance": {
+    "enabled": false,
+    "recreateWhen": "always",
+    "branchTopic": "lock-file-maintenance",
+    "commitMessageAction": "Lock file maintenance",
+    "commitMessageTopic": null,
+    "commitMessageExtra": null,
+    "schedule": [
+      "before 4am on monday"
+    ],
+    "groupName": null,
+    "prBodyDefinitions": {
+      "Change": "All locks refreshed"
+    }
+  },
+  "hashedBranchLength": null,
+  "groupName": null,
+  "groupSlug": null,
+  "group": {
+    "branchTopic": "{{{groupSlug}}}",
+    "commitMessageTopic": "{{{groupName}}}"
+  },
+  "groupSingleUpdates": false,
+  "labels": [],
+  "addLabels": [],
+  "assignees": [],
+  "assigneesFromCodeOwners": false,
+  "expandCodeOwnersGroups": false,
+  "assigneesSampleSize": null,
+  "assignAutomerge": false,
+  "ignoreReviewers": [],
+  "reviewers": [],
+  "reviewersFromCodeOwners": false,
+  "filterUnavailableUsers": false,
+  "forkModeDisallowMaintainerEdits": false,
+  "confidential": false,
+  "reviewersSampleSize": null,
+  "additionalReviewers": [],
+  "postUpdateOptions": [],
+  "constraints": {},
+  "hostRules": [],
+  "cacheHardTtlMinutes": 10080,
+  "cacheTtlOverride": {},
+  "prBodyDefinitions": {
+    "Package": "{{{depNameLinked}}}{{#if newName}}{{#unless (equals depName newName)}} → {{{newNameLinked}}}{{/unless}}{{/if}}",
+    "Type": "{{{depType}}}",
+    "Update": "{{{updateType}}}",
+    "Current value": "{{{currentValue}}}",
+    "New value": "{{{newValue}}}",
+    "Change": "`{{{displayFrom}}}` → `{{{displayTo}}}`",
+    "Pending": "{{{displayPending}}}",
+    "References": "{{{references}}}",
+    "Package file": "{{{packageFile}}}",
+    "Age": "{{#if newVersion}}![age](https://developer.mend.io/api/mc/badges/age/{{datasource}}/{{replace '/' '%2f' packageName}}/{{{newVersion}}}?slim=true){{/if}}",
+    "Adoption": "{{#if newVersion}}![adoption](https://developer.mend.io/api/mc/badges/adoption/{{datasource}}/{{replace '/' '%2f' packageName}}/{{{newVersion}}}?slim=true){{/if}}",
+    "Passing": "{{#if newVersion}}![passing](https://developer.mend.io/api/mc/badges/compatibility/{{datasource}}/{{replace '/' '%2f' packageName}}/{{{currentVersion}}}/{{{newVersion}}}?slim=true){{/if}}",
+    "Confidence": "{{#if newVersion}}![confidence](https://developer.mend.io/api/mc/badges/confidence/{{datasource}}/{{replace '/' '%2f' packageName}}/{{{currentVersion}}}/{{{newVersion}}}?slim=true){{/if}}"
+  },
+  "prBodyHeadingDefinitions": {
+    "Age": "[Age](https://docs.renovatebot.com/merge-confidence/)",
+    "Adoption": "[Adoption](https://docs.renovatebot.com/merge-confidence/)",
+    "Passing": "[Passing](https://docs.renovatebot.com/merge-confidence/)",
+    "Confidence": "[Confidence](https://docs.renovatebot.com/merge-confidence/)"
+  },
+  "prBodyColumns": [
+    "Package",
+    "Type",
+    "Update",
+    "Change",
+    "Pending"
+  ],
+  "prBodyNotes": [],
+  "suppressNotifications": [],
+  "pruneStaleBranches": true,
+  "unicodeEmoji": true,
+  "gitLabIgnoreApprovals": false,
+  "customManagers": [],
+  "fetchChangeLogs": "pr",
+  "cloneSubmodules": false,
+  "cloneSubmodulesFilter": [
+    "*"
+  ],
+  "ignorePrAuthor": false,
+  "allowedUnsafeExecutions": [],
+  "gitNoVerify": [
+    "commit",
+    "push"
+  ],
+  "updatePinnedDependencies": true,
+  "gitUrl": "default",
+  "writeDiscoveredRepos": null,
+  "platformAutomerge": true,
+  "userStrings": {
+    "ignoreTopic": "Renovate Ignore Notification",
+    "ignoreMajor": "Because you closed this PR without merging, Renovate will ignore this update. You will not get PRs for *any* future `{{{newMajor}}}.x` releases. But if you manually upgrade to `{{{newMajor}}}.x` then Renovate will re-enable `minor` and `patch` updates automatically.",
+    "ignoreDigest": "Because you closed this PR without merging, Renovate will ignore this update. You will not get PRs for the `{{{depName}}}` `{{{newDigestShort}}}` update again.",
+    "ignoreOther": "Because you closed this PR without merging, Renovate will ignore this update (`{{{newValue}}}`). You will get a PR once a newer version is released. To ignore this dependency forever, add it to the `ignoreDeps` array of your Renovate config.",
+    "artifactErrorWarning": "You probably do not want to merge this PR as-is."
+  },
+  "platformCommit": "auto",
+  "branchNameStrict": false,
+  "checkedBranches": [],
+  "rebaseAllOpenBranches": false,
+  "logLevelRemap": [],
+  "milestone": null,
+  "httpCacheTtlDays": 90,
+  "prCacheSyncMaxPages": 100,
+  "dockerMaxPages": 20,
+  "deleteConfigFile": false,
+  "deleteAdditionalConfigFile": false,
+  "s3Endpoint": null,
+  "s3PathStyle": false,
+  "cachePrivatePackages": false,
+  "configValidationError": false,
+  "toolSettings": {
+    "jvmMaxMemory": 512,
+    "jvmMemory": 512
+  },
+  "constraintsVersioning": {},
+  "ant": {
+    "managerFilePatterns": [
+      "**/build.xml"
+    ]
+  },
+  "ansible": {
+    "managerFilePatterns": [
+      "/(^|/)tasks/[^/]+\\.ya?ml$/"
+    ]
+  },
+  "ansible-galaxy": {
+    "managerFilePatterns": [
+      "/(^|/)(galaxy|requirements)(\\.ansible)?\\.ya?ml$/"
+    ]
+  },
+  "argocd": {
+    "managerFilePatterns": []
+  },
+  "asdf": {
+    "managerFilePatterns": [
+      "/(^|/)\\.tool-versions$/"
+    ]
+  },
+  "azure-pipelines": {
+    "managerFilePatterns": [
+      "/(^|/).azuredevops/.+\\.ya?ml$/",
+      "/azure.*pipelines?.*\\.ya?ml$/"
+    ],
+    "enabled": false
+  },
+  "batect": {
+    "managerFilePatterns": [
+      "/(^|/)batect(-bundle)?\\.ya?ml$/"
+    ]
+  },
+  "batect-wrapper": {
+    "managerFilePatterns": [
+      "/(^|/)batect$/"
+    ],
+    "versioning": "semver"
+  },
+  "bazel": {
+    "managerFilePatterns": [
+      "/(^|/)WORKSPACE(|\\.bazel|\\.bzlmod)$/",
+      "/\\.WORKSPACE\\.bazel$/",
+      "/\\.bzl$/"
+    ]
+  },
+  "bazel-module": {
+    "managerFilePatterns": [
+      "/(^|/|\\.)MODULE\\.bazel$/"
+    ]
+  },
+  "bazelisk": {
+    "managerFilePatterns": [
+      "/(^|/)\\.bazelversion$/"
+    ],
+    "pinDigests": false,
+    "versioning": "semver"
+  },
+  "bicep": {
+    "managerFilePatterns": [
+      "/\\.bicep$/"
+    ]
+  },
+  "bitbucket-pipelines": {
+    "managerFilePatterns": [
+      "**/*-pipelines.yml"
+    ]
+  },
+  "bitrise": {
+    "managerFilePatterns": [
+      "/(^|/)bitrise\\.ya?ml$/"
+    ]
+  },
+  "buildkite": {
+    "managerFilePatterns": [
+      "/buildkite\\.ya?ml/",
+      "/\\.buildkite/.+\\.ya?ml$/"
+    ],
+    "commitMessageTopic": "buildkite plugin {{depName}}",
+    "commitMessageExtra": "to {{#if isMajor}}{{{prettyNewMajor}}}{{else}}{{{newValue}}}{{/if}}"
+  },
+  "buildpacks": {
+    "commitMessageTopic": "buildpack {{depName}}",
+    "managerFilePatterns": [
+      "/(^|/)project\\.toml$/"
+    ],
+    "pinDigests": false
+  },
+  "bun": {
+    "managerFilePatterns": [
+      "/(^|/)bun\\.lockb?$/",
+      "/(^|/)package\\.json$/"
+    ],
+    "digest": {
+      "prBodyDefinitions": {
+        "Change": "{{#if displayFrom}}`{{{displayFrom}}}` → {{else}}{{#if currentValue}}`{{{currentValue}}}` → {{/if}}{{/if}}{{#if displayTo}}`{{{displayTo}}}`{{else}}`{{{newValue}}}`{{/if}}"
+      }
+    },
+    "prBodyDefinitions": {
+      "Change": "[{{#if displayFrom}}`{{{displayFrom}}}` → {{else}}{{#if currentValue}}`{{{currentValue}}}` → {{/if}}{{/if}}{{#if displayTo}}`{{{displayTo}}}`{{else}}`{{{newValue}}}`{{/if}}]({{#if depName}}https://renovatebot.com/diffs/npm/{{replace '/' '%2f' depName}}/{{{currentVersion}}}/{{{newVersion}}}{{/if}})"
+    }
+  },
+  "bun-version": {
+    "managerFilePatterns": [
+      "/(^|/)\\.bun-version$/"
+    ],
+    "versioning": "npm"
+  },
+  "bundler": {
+    "managerFilePatterns": [
+      "/(^|/)Gemfile$/"
+    ],
+    "versioning": "ruby"
+  },
+  "cake": {
+    "managerFilePatterns": [
+      "/\\.cake$/"
+    ]
+  },
+  "cargo": {
+    "commitMessageTopic": "Rust crate {{depName}}",
+    "managerFilePatterns": [
+      "/(^|/)Cargo\\.toml$/"
+    ]
+  },
+  "cdnurl": {
+    "managerFilePatterns": [],
+    "versioning": "semver"
+  },
+  "circleci": {
+    "managerFilePatterns": [
+      "/(^|/)\\.circleci/.+\\.ya?ml$/"
+    ]
+  },
+  "cloudbuild": {
+    "managerFilePatterns": [
+      "/(^|/)cloudbuild\\.ya?ml/"
+    ]
+  },
+  "cocoapods": {
+    "managerFilePatterns": [
+      "/(^|/)Podfile$/"
+    ],
+    "versioning": "ruby"
+  },
+  "composer": {
+    "managerFilePatterns": [
+      "/(^|/)([\\w-]*)composer\\.json$/"
+    ],
+    "versioning": "composer"
+  },
+  "conan": {
+    "managerFilePatterns": [
+      "/(^|/)conanfile\\.(txt|py)$/"
+    ],
+    "datasource": "conan",
+    "versioning": "conan"
+  },
+  "copier": {
+    "managerFilePatterns": [
+      "/(^|/)\\.copier-answers(\\..+)?\\.ya?ml/"
+    ],
+    "versioning": "pep440"
+  },
+  "cpanfile": {
+    "managerFilePatterns": [
+      "/(^|/)cpanfile$/"
+    ]
+  },
+  "crossplane": {
+    "managerFilePatterns": []
+  },
+  "crow": {
+    "managerFilePatterns": [
+      "/^\\.crow(?:/[^/]+)?\\.ya?ml$/"
+    ]
+  },
+  "deno": {
+    "managerFilePatterns": [
+      "/(^|/)deno\\.lock$/",
+      "/(^|/)deno\\.(json|jsonc)$/"
+    ],
+    "digest": {
+      "prBodyDefinitions": {
+        "Change": "{{#if displayFrom}}`{{{displayFrom}}}` -> {{else}}{{#if currentValue}}`{{{currentValue}}}` -> {{/if}}{{/if}}{{#if displayTo}}`{{{displayTo}}}`{{else}}`{{{newValue}}}`{{/if}}"
+      }
+    },
+    "prBodyDefinitions": {
+      "Change": "{{#if (equals datasource \"npm\")}}[{{#if displayFrom}}`{{{displayFrom}}}` -> {{else}}{{#if currentValue}}`{{{currentValue}}}` -> {{/if}}{{/if}}{{#if displayTo}}`{{{displayTo}}}`{{else}}`{{{newValue}}}`{{/if}}]({{#if depName}}https://renovatebot.com/diffs/npm/{{replace '/' '%2f' depName}}/{{{currentVersion}}}/{{{newVersion}}}{{/if}}){{else}}{{#if displayFrom}}`{{{displayFrom}}}` -> {{else}}{{#if currentValue}}`{{{currentValue}}}` -> {{/if}}{{/if}}{{#if displayTo}}`{{{displayTo}}}`{{else}}`{{{newValue}}}`{{/if}}{{/if}}"
+    }
+  },
+  "deps-edn": {
+    "managerFilePatterns": [
+      "/(^|/)(?:deps|bb)\\.edn$/"
+    ],
+    "versioning": "maven"
+  },
+  "devbox": {
+    "managerFilePatterns": [
+      "/(^|/)devbox\\.json$/"
+    ]
+  },
+  "devcontainer": {
+    "managerFilePatterns": [
+      "/^.devcontainer/devcontainer.json$/",
+      "/^.devcontainer.json$/"
+    ]
+  },
+  "docker-compose": {
+    "managerFilePatterns": [
+      "/(^|/)(?:docker-)?compose[^/]*\\.ya?ml$/"
+    ]
+  },
+  "dockerfile": {
+    "managerFilePatterns": [
+      "/(^|/|\\.)([Dd]ocker|[Cc]ontainer)file$/",
+      "/(^|/)([Dd]ocker|[Cc]ontainer)file[^/]*$/"
+    ]
+  },
+  "droneci": {
+    "managerFilePatterns": [
+      "/(^|/)\\.drone\\.yml$/"
+    ]
+  },
+  "fleet": {
+    "managerFilePatterns": [
+      "/(^|/)fleet\\.ya?ml/"
+    ]
+  },
+  "flux": {
+    "managerFilePatterns": [
+      "/(?:^|/)gotk-components\\.ya?ml$/"
+    ]
+  },
+  "fvm": {
+    "managerFilePatterns": [
+      "/(^|/)\\.fvm/fvm_config\\.json$/",
+      "/(^|/)\\.fvmrc$/"
+    ],
+    "versioning": "semver"
+  },
+  "git-submodules": {
+    "enabled": false,
+    "versioning": "git",
+    "managerFilePatterns": [
+      "/(^|/)\\.gitmodules$/"
+    ]
+  },
+  "github-actions": {
+    "managerFilePatterns": [
+      "/(^|/)(workflow-templates|\\.(?:github|gitea|forgejo)/(?:workflows|actions))/.+\\.ya?ml$/",
+      "/(^|/)action\\.ya?ml$/"
+    ]
+  },
+  "gitlabci": {
+    "managerFilePatterns": [
+      "/\\.gitlab-ci\\.ya?ml$/"
+    ]
+  },
+  "gitlabci-include": {
+    "managerFilePatterns": [
+      "/\\.gitlab-ci\\.ya?ml$/"
+    ]
+  },
+  "glasskube": {
+    "managerFilePatterns": []
+  },
+  "gleam": {
+    "managerFilePatterns": [
+      "/(^|/)gleam.toml$/"
+    ],
+    "versioning": "hex"
+  },
+  "gomod": {
+    "managerFilePatterns": [
+      "/(^|/)go\\.mod$/"
+    ],
+    "pinDigests": false
+  },
+  "gradle": {
+    "managerFilePatterns": [
+      "/\\.gradle(\\.kts)?$/",
+      "/(^|/)gradle\\.properties$/",
+      "/(^|/)gradle/.+\\.toml$/",
+      "/(^|/)buildSrc/.+\\.kt$/",
+      "/\\.versions\\.toml$/",
+      "/(^|/)versions.props$/",
+      "/(^|/)versions.lock$/"
+    ],
+    "timeout": 600,
+    "versioning": "gradle"
+  },
+  "gradle-wrapper": {
+    "managerFilePatterns": [
+      "/(^|/)gradle/wrapper/gradle-wrapper\\.properties$/"
+    ],
+    "versioning": "gradle"
+  },
+  "haskell-cabal": {
+    "managerFilePatterns": [
+      "/\\.cabal$/"
+    ],
+    "pinDigests": false
+  },
+  "helm-requirements": {
+    "registryAliases": {
+      "stable": "https://charts.helm.sh/stable"
+    },
+    "commitMessageTopic": "helm chart {{depName}}",
+    "managerFilePatterns": [
+      "/(^|/)requirements\\.ya?ml$/"
+    ]
+  },
+  "helm-values": {
+    "commitMessageTopic": "helm values {{depName}}",
+    "managerFilePatterns": [
+      "/(^|/)values\\.ya?ml$/"
+    ],
+    "pinDigests": false
+  },
+  "helmfile": {
+    "registryAliases": {
+      "stable": "https://charts.helm.sh/stable"
+    },
+    "commitMessageTopic": "helm chart {{depName}}",
+    "managerFilePatterns": [
+      "/(^|/)helmfile\\.ya?ml(?:\\.gotmpl)?$/",
+      "/(^|/)helmfile\\.d/.+\\.ya?ml(?:\\.gotmpl)?$/"
+    ]
+  },
+  "helmsman": {
+    "managerFilePatterns": []
+  },
+  "helmv3": {
+    "registryAliases": {
+      "stable": "https://charts.helm.sh/stable"
+    },
+    "commitMessageTopic": "helm chart {{depName}}",
+    "managerFilePatterns": [
+      "/(^|/)Chart\\.ya?ml$/"
+    ]
+  },
+  "hermit": {
+    "managerFilePatterns": [
+      "/(^|/)bin/hermit$/"
+    ],
+    "excludeCommitPaths": [
+      "**/bin/hermit"
+    ],
+    "versioning": "hermit"
+  },
+  "homeassistant-manifest": {
+    "managerFilePatterns": [
+      "/(^|/)manifest\\.json$/"
+    ]
+  },
+  "homebrew": {
+    "commitMessageTopic": "Homebrew Formula {{depName}}",
+    "managerFilePatterns": [
+      "/^Formula/\\w*/?[^/]+[.]rb$/"
+    ]
+  },
+  "html": {
+    "managerFilePatterns": [
+      "/\\.html?$/"
+    ],
+    "versioning": "semver",
+    "digest": {
+      "enabled": false
+    },
+    "pinDigests": false
+  },
+  "jenkins": {
+    "managerFilePatterns": [
+      "/(^|/)plugins\\.(txt|ya?ml)$/"
+    ]
+  },
+  "jsonnet-bundler": {
+    "managerFilePatterns": [
+      "/(^|/)jsonnetfile\\.json$/"
+    ],
+    "datasource": "git-tags"
+  },
+  "kotlin-script": {
+    "managerFilePatterns": [
+      "/^.+\\.main\\.kts$/"
+    ]
+  },
+  "kubernetes": {
+    "managerFilePatterns": []
+  },
+  "kustomize": {
+    "managerFilePatterns": [
+      "/(^|/)kustomization\\.ya?ml$/"
+    ],
+    "pinDigests": false
+  },
+  "leiningen": {
+    "managerFilePatterns": [
+      "/(^|/)project\\.clj$/"
+    ],
+    "versioning": "maven"
+  },
+  "maven": {
+    "managerFilePatterns": [
+      "/(^|/|\\.)pom\\.xml$/",
+      "/(^|/)pom\\.template\\.xml$/",
+      "/^(((\\.mvn)|(\\.m2))/)?settings\\.xml$/",
+      "/(^|/)\\.mvn/extensions\\.xml$/"
+    ]
+  },
+  "maven-wrapper": {
+    "managerFilePatterns": [
+      "/(^|\\/).mvn/wrapper/maven-wrapper.properties$/",
+      "/(^|\\/)mvnw(.cmd)?$/"
+    ]
+  },
+  "meteor": {
+    "managerFilePatterns": [
+      "/(^|/)package\\.js$/"
+    ]
+  },
+  "mint": {
+    "managerFilePatterns": [
+      "/(^|/)Mintfile$/"
+    ]
+  },
+  "mise": {
+    "managerFilePatterns": [
+      "**/{,.}mise{,.*}.toml",
+      "**/{,.}mise/config{,.*}.toml",
+      "**/.config/mise{,.*}.toml",
+      "**/.config/mise/{mise,config}{,.*}.toml",
+      "**/.config/mise/conf.d/*.toml",
+      "**/.rtx{,.*}.toml"
+    ],
+    "pinDigests": false
+  },
+  "mix": {
+    "managerFilePatterns": [
+      "/(^|/)mix\\.exs$/"
+    ]
+  },
+  "nix": {
+    "managerFilePatterns": [
+      "/(^|/)flake\\.nix$/"
+    ],
+    "commitMessageTopic": "nix",
+    "commitMessageExtra": "to {{newValue}}",
+    "enabled": false
+  },
+  "nodenv": {
+    "managerFilePatterns": [
+      "/(^|/)\\.node-version$/"
+    ],
+    "versioning": "node"
+  },
+  "npm": {
+    "managerFilePatterns": [
+      "/(^|/)package\\.json$/",
+      "/(^|/)pnpm-workspace\\.yaml$/",
+      "/(^|/)\\.yarnrc\\.yml$/"
+    ],
+    "digest": {
+      "prBodyDefinitions": {
+        "Change": "{{#if displayFrom}}`{{{displayFrom}}}` → {{else}}{{#if currentValue}}`{{{currentValue}}}` → {{/if}}{{/if}}{{#if displayTo}}`{{{displayTo}}}`{{else}}`{{{newValue}}}`{{/if}}"
+      }
+    },
+    "prBodyDefinitions": {
+      "Change": "[{{#if displayFrom}}`{{{displayFrom}}}` → {{else}}{{#if currentValue}}`{{{currentValue}}}` → {{/if}}{{/if}}{{#if displayTo}}`{{{displayTo}}}`{{else}}`{{{newValue}}}`{{/if}}]({{#if depName}}https://renovatebot.com/diffs/npm/{{replace '/' '%2f' depName}}/{{{currentVersion}}}/{{{newVersion}}}{{/if}})"
+    }
+  },
+  "nuget": {
+    "managerFilePatterns": [
+      "/\\.(?:cs|fs|vb|sql)proj$/",
+      "/\\.(?:props|targets)$/",
+      "/(^|/)dotnet-tools\\.json$/",
+      "/(^|/)global\\.json$/"
+    ],
+    "rangeStrategy": "bump",
+    "packageRules": [
+      {
+        "matchDepTypes": [
+          "msbuild-sdk"
+        ],
+        "rangeStrategy": "bump"
+      }
+    ]
+  },
+  "nvm": {
+    "managerFilePatterns": [
+      "/(^|/)\\.nvmrc$/"
+    ],
+    "versioning": "node",
+    "pinDigests": false
+  },
+  "ocb": {
+    "managerFilePatterns": []
+  },
+  "osgi": {
+    "managerFilePatterns": [
+      "/(^|/)src/main/features/.+\\.json$/"
+    ]
+  },
+  "pep621": {
+    "managerFilePatterns": [
+      "/(^|/)pyproject\\.toml$/"
+    ]
+  },
+  "pep723": {
+    "managerFilePatterns": []
+  },
+  "pip-compile": {
+    "managerFilePatterns": [],
+    "lockFileMaintenance": {
+      "enabled": true,
+      "branchTopic": "pip-compile-refresh",
+      "commitMessageAction": "Refresh pip-compile outputs"
+    }
+  },
+  "pip_requirements": {
+    "managerFilePatterns": [
+      "/(^|/)[\\w-]*requirements([-._]\\w+)?\\.(txt|pip)$/"
+    ]
+  },
+  "pip_setup": {
+    "managerFilePatterns": [
+      "/(^|/)setup\\.py$/"
+    ]
+  },
+  "pipenv": {
+    "managerFilePatterns": [
+      "/(^|/)Pipfile$/"
+    ]
+  },
+  "pixi": {
+    "managerFilePatterns": [
+      "/(^|/)pyproject\\.toml$/",
+      "/(^|/)pixi\\.toml$/"
+    ]
+  },
+  "poetry": {
+    "managerFilePatterns": [
+      "/(^|/)pyproject\\.toml$/"
+    ]
+  },
+  "pre-commit": {
+    "commitMessageTopic": "pre-commit hook {{depName}}",
+    "enabled": false,
+    "managerFilePatterns": [
+      "/(^|/)\\.pre-commit-config\\.ya?ml$/"
+    ],
+    "prBodyNotes": [
+      "Note: The `pre-commit` manager in Renovate is not supported by the `pre-commit` maintainers or community. Please do not report any problems there, instead [create a Discussion in the Renovate repository](https://github.com/renovatebot/renovate/discussions/new) if you have any questions."
+    ]
+  },
+  "proto": {
+    "managerFilePatterns": [
+      "**/.prototools"
+    ]
+  },
+  "pub": {
+    "managerFilePatterns": [
+      "/(^|/)pubspec\\.ya?ml$/"
+    ]
+  },
+  "puppet": {
+    "managerFilePatterns": [
+      "/(^|/)Puppetfile$/"
+    ]
+  },
+  "pyenv": {
+    "managerFilePatterns": [
+      "/(^|/)\\.python-version$/"
+    ],
+    "versioning": "docker",
+    "pinDigests": false
+  },
+  "quadlet": {
+    "managerFilePatterns": [
+      "/.+\\.container$/",
+      "/.+\\.image$/",
+      "/.+\\.volume$/"
+    ]
+  },
+  "renovate-config": {
+    "managerFilePatterns": [
+      "renovate.json",
+      "renovate.jsonc",
+      "renovate.json5",
+      ".github/renovate.json",
+      ".github/renovate.jsonc",
+      ".github/renovate.json5",
+      ".gitlab/renovate.json",
+      ".gitlab/renovate.jsonc",
+      ".gitlab/renovate.json5",
+      ".renovaterc",
+      ".renovaterc.json",
+      ".renovaterc.jsonc",
+      ".renovaterc.json5"
+    ]
+  },
+  "ruby-version": {
+    "managerFilePatterns": [
+      "/(^|/)\\.ruby-version$/"
+    ],
+    "versioning": "ruby"
+  },
+  "runtime-version": {
+    "managerFilePatterns": [
+      "/(^|/)runtime.txt$/"
+    ],
+    "pinDigests": false
+  },
+  "rust-toolchain": {
+    "commitMessageTopic": "Rust",
+    "managerFilePatterns": [
+      "/(^|/)rust-toolchain(\\.toml)?$/"
+    ]
+  },
+  "sbt": {
+    "managerFilePatterns": [
+      "/\\.sbt$/",
+      "/project/[^/]*\\.scala$/",
+      "/project/build\\.properties$/",
+      "/(^|/)repositories$/"
+    ],
+    "versioning": "ivy"
+  },
+  "scalafmt": {
+    "managerFilePatterns": [
+      "/(^|/)\\.scalafmt.conf$/"
+    ]
+  },
+  "setup-cfg": {
+    "managerFilePatterns": [
+      "/(^|/)setup\\.cfg$/"
+    ],
+    "versioning": "pep440"
+  },
+  "sveltos": {
+    "managerFilePatterns": []
+  },
+  "swift": {
+    "managerFilePatterns": [
+      "/(^|/)Package\\.swift/"
+    ],
+    "versioning": "swift",
+    "pinDigests": false
+  },
+  "tekton": {
+    "managerFilePatterns": []
+  },
+  "terraform": {
+    "commitMessageTopic": "Terraform {{depName}}",
+    "managerFilePatterns": [
+      "**/*.tf",
+      "**/*.tofu"
+    ],
+    "pinDigests": false
+  },
+  "terraform-version": {
+    "managerFilePatterns": [
+      "/(^|/)\\.terraform-version$/"
+    ],
+    "versioning": "hashicorp",
+    "extractVersion": "^v(?<version>.*)$"
+  },
+  "terragrunt": {
+    "commitMessageTopic": "Terragrunt dependency {{depName}}",
+    "managerFilePatterns": [
+      "/(^|/)terragrunt\\.hcl$/"
+    ]
+  },
+  "terragrunt-version": {
+    "managerFilePatterns": [
+      "/(^|/)\\.terragrunt-version$/"
+    ],
+    "versioning": "hashicorp",
+    "extractVersion": "^v(?<version>.+)$"
+  },
+  "tflint-plugin": {
+    "commitMessageTopic": "TFLint plugin {{depName}}",
+    "managerFilePatterns": [
+      "/\\.tflint\\.hcl$/"
+    ],
+    "extractVersion": "^v(?<version>.*)$"
+  },
+  "travis": {
+    "managerFilePatterns": [
+      "/^\\.travis\\.ya?ml$/"
+    ],
+    "major": {
+      "enabled": false
+    },
+    "versioning": "node"
+  },
+  "typst": {
+    "managerFilePatterns": [
+      "/\\.typ$/"
+    ]
+  },
+  "unity3d": {
+    "managerFilePatterns": [
+      "**/ProjectSettings/ProjectVersion.txt"
+    ]
+  },
+  "velaci": {
+    "managerFilePatterns": [
+      "/(^|/)\\.vela\\.ya?ml$/"
+    ]
+  },
+  "vendir": {
+    "commitMessageTopic": "vendir {{depName}}",
+    "managerFilePatterns": [
+      "/(^|/)vendir\\.yml$/"
+    ]
+  },
+  "woodpecker": {
+    "managerFilePatterns": [
+      "/^\\.woodpecker(?:/[^/]+)?\\.ya?ml$/"
+    ]
+  },
+  "xcodegen": {
+    "managerFilePatterns": [
+      "**/project.yml"
+    ],
+    "pinDigests": false
+  },
+  "regex": {
+    "pinDigests": false
+  },
+  "jsonata": {
+    "pinDigests": false
+  },
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json"
+}
