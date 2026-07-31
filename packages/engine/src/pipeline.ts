@@ -351,10 +351,24 @@ async function execute(input: PipelineInput): Promise<TraceResult> {
       const resolved = await resolveConfigPresets(config);
       config = resolved.config;
       visitedPresets = resolved.visitedPresets;
+      // Upstream re-migrates the RESOLVED config (mergeRenovateConfig's
+      // "Resolved config needs migrating"): presets can reintroduce deprecated
+      // forms, and `extends` inside a packageRule leaves that preset's rules
+      // NESTED under the rule — only this second migration flattens them into
+      // combined rules (parent matchers AND preset matchers). Without it, such
+      // a rule matches on the parent's matchers alone. Granular
+      // migration-applied events emitted here carry no presetName, which
+      // distinguishes them from fetch-time preset migrations in this stage.
+      const remigrated = migrateConfig(config);
+      if (remigrated.isMigrated) {
+        config = remigrated.migratedConfig;
+      }
       stageStatus.preset = "ok";
       collector.emit({
         kind: "stage-complete",
-        title: `Resolved ${resolved.visitedPresets.merged.length} preset(s)`,
+        title:
+          `Resolved ${resolved.visitedPresets.merged.length} preset(s)` +
+          (remigrated.isMigrated ? ", then re-migrated the resolved config" : ""),
         before: preResolve,
         after: snapshot(config),
         delta: computeDelta(preResolve, config),

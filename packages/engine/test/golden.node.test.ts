@@ -35,7 +35,14 @@ async function reference(fileName: string, content: string): Promise<Record<stri
     const { migratedConfig } = migrateConfig(parsed.parsedContents as Record<string, unknown>);
     const massaged = massageConfig(migratedConfig);
     const { config } = await resolveConfigPresets(massaged);
-    return mergeChildConfig(getDefaultConfig() as Record<string, unknown>, config);
+    // upstream mergeRenovateConfig re-migrates the resolved config ("Resolved
+    // config needs migrating") — this flattens packageRules nested by
+    // `extends` inside a rule, among other post-resolution migrations
+    const remigrated = migrateConfig(config);
+    return mergeChildConfig(
+      getDefaultConfig() as Record<string, unknown>,
+      remigrated.isMigrated ? remigrated.migratedConfig : config,
+    );
   } finally {
     GlobalConfig.reset();
     memCache.reset();
@@ -47,6 +54,7 @@ describe("golden reference", () => {
     "legacy-config.json",
     "migration-steps.json",
     "internal-presets.json",
+    "preset-package-rules.json",
     "invalid.json",
   ]) {
     it(`engine matches renovate's own output for ${name}`, async () => {

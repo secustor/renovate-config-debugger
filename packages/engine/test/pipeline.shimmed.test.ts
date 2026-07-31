@@ -17,6 +17,7 @@ describe("shimmed pipeline matches golden snapshots", () => {
     "legacy-config.json",
     "migration-steps.json",
     "internal-presets.json",
+    "preset-package-rules.json",
     "invalid.json",
   ]) {
     it(`produces the golden final config for ${name}`, async () => {
@@ -81,6 +82,46 @@ describe("trace shape", () => {
     );
     const lastStep = steps.at(-1);
     expect(lastStep?.after).toEqual(stageComplete?.after);
+  });
+
+  it("re-migrates the resolved config like upstream mergeRenovateConfig", async () => {
+    // `extends: ["group:nodeJs"]` INSIDE a packageRule: resolution merges the
+    // preset into the rule, leaving its rules nested under `packageRules` —
+    // only the post-resolution migration flattens them into one combined rule
+    // (parent matchers AND preset matchers). Without it the rule would match
+    // on `matchUpdateTypes` alone, i.e. every patch/minor update.
+    const result = await runPipeline({
+      fileName: "preset-package-rules.json",
+      content: fixture("preset-package-rules.json"),
+    });
+    const rules = (result.finalConfig?.packageRules ?? []) as Record<string, unknown>[];
+    const rule = rules.find((r) => r.groupName === "NodeJS");
+    expect(rule).toBeDefined();
+    expect(rule?.matchUpdateTypes).toEqual(["patch", "minor"]);
+    expect(rule?.matchDatasources).toEqual(["docker", "node-version"]);
+    expect(rule?.automerge).toBe(true);
+    expect(rule).not.toHaveProperty("extends");
+    expect(rule).not.toHaveProperty("packageRules");
+    // the flattening surfaces as a granular preset-stage step, not tied to any
+    // preset fetch (no presetName), and the stage title reports it
+    const flatten = result.events.find(
+      (e) =>
+        e.kind === "migration-applied" &&
+        e.stage === "preset" &&
+        e.migration?.className === "FlattenNestedPackageRules",
+    );
+    expect(flatten).toBeDefined();
+    expect(flatten?.migration?.presetName).toBeUndefined();
+    expect(flatten?.delta?.length).toBeGreaterThan(0);
+    const stageComplete = result.events.findLast(
+      (e) => e.stage === "preset" && e.kind === "stage-complete",
+    );
+    expect(stageComplete?.title).toContain("re-migrated the resolved config");
+    // the stage hands the re-migrated config onward: its `after` already shows
+    // the flattened rule, so the stage diff explains where the rule came from
+    const after = (stageComplete?.after ?? {}) as Record<string, unknown>;
+    const afterRules = after.packageRules as Record<string, unknown>[];
+    expect(afterRules.some((r) => Array.isArray(r.packageRules))).toBe(false);
   });
 
   it("tracks visited presets and preset-fetch events", async () => {
