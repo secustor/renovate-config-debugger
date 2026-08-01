@@ -23,6 +23,10 @@ export default defineConfig({
         plugins: [renovateShims()],
         test: {
           name: "shimmed",
+          // the first test to resolve a large internal preset (e.g.
+          // config:recommended) pays the lazy vite-node transform+import of
+          // renovate's preset data modules — 4-6s on 2-core CI runners
+          testTimeout: 30_000,
           include: [
             "test/global-inherit.shimmed.test.ts",
             "test/pipeline.shimmed.test.ts",
