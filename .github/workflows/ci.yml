@@ -220,11 +220,6 @@ jobs:
   # from a fork has no package-write token and an untagged PR image has no
   # consumer. The Dockerfile builds the app WITHOUT any VITE_* variables: these
   # images are configured at `docker run` time, not baked.
-  #
-  # One job per (image × platform), each on a runner of that architecture —
-  # `ubuntu-24.04-arm` is a native arm64 hosted runner, so nothing is emulated
-  # any more and both architectures build in parallel instead of back to back.
-  # Each job pushes an untagged, single-platform image and hands its digest to
   docker:
     needs: ci-result
     if: github.event_name == 'push'
