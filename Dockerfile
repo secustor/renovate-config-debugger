@@ -17,7 +17,7 @@ WORKDIR /repo
 # an ARG named *_VERSION preceded by the comment below. Installed via npm
 # rather than corepack, which node:26 no longer bundles.
 # renovate: datasource=npm depName=pnpm
-ARG PNPM_VERSION=11.17.0
+ARG PNPM_VERSION=11.18.0
 RUN npm install --global "pnpm@${PNPM_VERSION}"
 
 # Manifests first: dependencies only re-resolve when one of these changes.
