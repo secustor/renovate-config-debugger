@@ -159,7 +159,7 @@ jobs:
 
   deploy:
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_PAGES == 'true'
-    needs: checks
+    needs: ci-result
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -179,7 +179,7 @@ jobs:
   # push, not path-filtered — `wrangler deploy` is fast and idempotent.
   deploy-oauth-worker:
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_OAUTH_WORKER == 'true'
-    needs: checks
+    needs: ci-result
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -221,7 +221,7 @@ jobs:
   # consumer. The Dockerfile builds the app WITHOUT any VITE_* variables: these
   # images are configured at `docker run` time, not baked.
   docker:
-    needs: checks
+    needs: ci-result
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     # Normally 2–6 min; the spread is the emulated arm64 build reacting to
