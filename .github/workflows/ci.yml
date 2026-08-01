@@ -147,12 +147,7 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-  # Fan-in for branch protection: require exactly this check ("checks" — the
-  # name of the former monolithic job, so an existing required-check setting
-  # keeps working). `always()` so it still reports when an upstream job fails;
-  # anything other than across-the-board success (a failure, a cancellation, or
-  # a job skipped because `setup` died) fails it.
-  checks:
+  ci-result:
     if: ${{ always() }}
     needs: [setup, lint, test, build, e2e]
     runs-on: ubuntu-latest
