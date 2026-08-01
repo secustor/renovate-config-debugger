@@ -147,9 +147,24 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+  # Fan-in for branch protection: require exactly this check ("checks" — the
+  # name of the former monolithic job, so an existing required-check setting
+  # keeps working). `always()` so it still reports when an upstream job fails;
+  # anything other than across-the-board success (a failure, a cancellation, or
+  # a job skipped because `setup` died) fails it.
+  checks:
+    if: ${{ always() }}
+    needs: [setup, lint, test, build, e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail unless every check job succeeded
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
+        run: exit 1
+
   deploy:
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_PAGES == 'true'
-    needs: [lint, test, build, e2e]
+    needs: checks
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -169,7 +184,7 @@ jobs:
   # push, not path-filtered — `wrangler deploy` is fast and idempotent.
   deploy-oauth-worker:
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_OAUTH_WORKER == 'true'
-    needs: [lint, test, build, e2e]
+    needs: checks
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -211,7 +226,7 @@ jobs:
   # consumer. The Dockerfile builds the app WITHOUT any VITE_* variables: these
   # images are configured at `docker run` time, not baked.
   docker:
-    needs: [lint, test, build, e2e]
+    needs: checks
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     # Normally 2–6 min; the spread is the emulated arm64 build reacting to
