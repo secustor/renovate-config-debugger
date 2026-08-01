@@ -188,10 +188,10 @@ jobs:
     if: github.event_name == 'push'
     runs-on: ${{ matrix.runner }}
     # Unchanged at 30 even though a native single-platform build is much cheaper
-    # than the emulated one: arm64 hosted runners are 2 vCPU in a private repo
-    # (4 in a public one), so a cold-cache `pnpm install` + vite build there is
-    # the slow case to leave headroom for. The timeout is here to cap the stall
-    # class that once left this job wedged for 90+ minutes, not to be tight.
+    # than the emulated one: the timeout is here to cap the stall class that
+    # once left this job wedged for 90+ minutes, not to be tight. (The arm64
+    # runner is 4 vCPU like ubuntu-latest and free, this repo being public; in
+    # a private repo it would be 2 vCPU and the headroom would earn its keep.)
     timeout-minutes: 30
     permissions:
       contents: read
