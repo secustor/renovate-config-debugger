@@ -14,13 +14,13 @@
     "build": "pnpm -r build"
   },
   "devDependencies": {
-    "oxfmt": "catalog:",
-    "oxlint": "catalog:",
-    "oxlint-tsgolint": "catalog:",
+    "oxfmt": "0.60.0",
+    "oxlint": "1.75.0",
+    "oxlint-tsgolint": "7.0.2001",
     "stylelint": "^17.14.1",
     "stylelint-declaration-strict-value": "^1.11.1",
     "stylelint-value-no-unknown-custom-properties": "^6.1.1",
-    "typescript": "catalog:"
+    "typescript": "7.0.2"
   },
   "engines": {
     "node": ">=24.0.0"
