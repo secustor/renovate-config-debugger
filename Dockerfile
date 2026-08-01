@@ -9,7 +9,12 @@
 # (/rcv-config.js, written by the entrypoint) — see docker/40-rcv-config.sh.
 
 # --- build -------------------------------------------------------------------
-FROM node:26.5.0-alpine AS build
+# Pinned to the BUILD platform, not the target one: this stage emits static
+# HTML/JS/CSS, which is byte-identical whatever architecture produced it. CI
+# builds each architecture on a runner of that architecture and never hits
+# this, but it keeps a local `docker build --platform linux/amd64,linux/arm64`
+# from running pnpm install and the vite build a second time under QEMU.
+FROM --platform=$BUILDPLATFORM node:26.5.0-alpine AS build
 WORKDIR /repo
 
 # Matches the root package.json `packageManager` field — kept in step by

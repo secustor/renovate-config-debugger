@@ -223,20 +223,37 @@ jobs:
   docker:
     needs: ci-result
     if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    # Normally 2–6 min; the spread is the emulated arm64 build reacting to
-    # buildkit cache hits. Generous headroom, but it caps the stall class that
-    # once left this job wedged for 90+ minutes inside the app image build.
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     permissions:
       contents: read
       packages: write
+    strategy:
+      # No fail-fast: a failure on one architecture should still show whether
+      # the other one is healthy — that difference is the whole diagnosis.
+      fail-fast: false
+      matrix:
+        target: [app, oauth-proxy]
+        platform: [linux/amd64, linux/arm64]
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+          - target: app
+            image: ghcr.io/secustor/renovate-config-visualizer
+          - target: oauth-proxy
+            image: ghcr.io/secustor/renovate-config-visualizer-oauth-proxy
     steps:
+      # `linux/amd64` is not usable in a cache tag or an artifact name.
+      - id: platform
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: echo "pair=${PLATFORM//\//-}" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # arm64 is emulated; the app image's heavy work (pnpm install + the vite
-      # build) happens once per platform, so the gha cache below matters.
-      - uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
+      # No setup-qemu-action: every job builds only its own architecture.
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -245,42 +262,93 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - id: meta-app
+      # Only for the labels here — the tags are applied to the manifest list in
+      # `docker-merge`, since these builds push by digest and stay untagged.
+      - id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
-          images: ghcr.io/secustor/renovate-config-visualizer
+          images: ${{ matrix.image }}
+
+      - id: build
+        name: Build and push by digest
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          target: ${{ matrix.target }}
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ matrix.image }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=registry,ref=${{ matrix.image }}:buildcache-${{ steps.platform.outputs.pair }}
+          cache-to: type=registry,ref=${{ matrix.image }}:buildcache-${{ steps.platform.outputs.pair }},mode=max,image-manifest=true,oci-mediatypes=true
+
+      # An empty file named after the digest; the merge job globs the directory.
+      - name: Export the digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p "${RUNNER_TEMP}/digests"
+          touch "${RUNNER_TEMP}/digests/${DIGEST#sha256:}"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: digests-${{ matrix.target }}-${{ steps.platform.outputs.pair }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # The tagging half of `docker`: collects the per-platform digests of one image
+  # and publishes them as a single multi-platform manifest list. Cheap enough to
+  # run on amd64 — it moves no layers, only manifests.
+  docker-merge:
+    needs: docker
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: app
+            image: ghcr.io/secustor/renovate-config-visualizer
+          - target: oauth-proxy
+            image: ghcr.io/secustor/renovate-config-visualizer-oauth-proxy
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-${{ matrix.target }}-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ matrix.image }}
           tags: |
             type=raw,value=latest
             type=sha,prefix=sha-,format=short
 
-      - id: meta-oauth-proxy
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ghcr.io/secustor/renovate-config-visualizer-oauth-proxy
-          tags: |
-            type=raw,value=latest
-            type=sha,prefix=sha-,format=short
+      - name: Create the manifest list and push
+        working-directory: ${{ runner.temp }}/digests
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf "${IMAGE}@sha256:%s " *)
 
-      - name: Build and push the app image
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
-        with:
-          context: .
-          target: app
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta-app.outputs.tags }}
-          labels: ${{ steps.meta-app.outputs.labels }}
-          cache-from: type=gha,scope=app
-          cache-to: type=gha,scope=app,mode=max
-
-      - name: Build and push the oauth-proxy image
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
-        with:
-          context: .
-          target: oauth-proxy
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta-oauth-proxy.outputs.tags }}
-          labels: ${{ steps.meta-oauth-proxy.outputs.labels }}
-          cache-from: type=gha,scope=oauth-proxy
-          cache-to: type=gha,scope=oauth-proxy,mode=max
+      # Fails loudly if a platform is missing from the published list — the one
+      # failure mode of this split that a green build job would otherwise hide.
+      - name: Inspect the manifest
+        env:
+          REF: ${{ matrix.image }}:${{ steps.meta.outputs.version }}
+        run: docker buildx imagetools inspect "$REF"
