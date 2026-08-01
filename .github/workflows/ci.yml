@@ -13,32 +13,36 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  checks:
+  # Warms the toolchain and pnpm store caches once, so the parallel jobs below
+  # all restore the same entries. Without this, a cold cache would be downloaded
+  # (and re-uploaded) independently by every job racing to save the same key.
+  setup:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
 
-      - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
-        with:
-          cache: true
-
-      # Resolved, not hardcoded: mise-installed pnpm does not use the store path
-      # that pnpm/action-setup produced.
-      - id: pnpm-store
-        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.pnpm-store.outputs.path }}
-          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: pnpm-store-${{ runner.os }}-
-
-      - run: pnpm install --frozen-lockfile --prefer-offline
+  lint:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
 
       - run: pnpm lint
       - run: pnpm format:check
       - run: pnpm -r typecheck
+
+  test:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+
       - name: Golden tests (real renovate modules)
         run: pnpm --filter @renovate-config-visualizer/engine test:golden
       - name: Shimmed tests (browser module graph)
@@ -51,6 +55,15 @@ jobs:
         # `vite dev` serves renovate's transitive deps raw (no CJS interop),
         # a regime neither the Node tests nor the production build exercise.
         run: pnpm --filter @renovate-config-visualizer/app check:dev-graph
+
+  build:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+
       - name: Browser bundle build
         # Sign-in (009) and Google Analytics are enabled only when these repo
         # Actions variables are set; absent = empty string = feature cleanly
@@ -66,6 +79,35 @@ jobs:
         # entry script + its modulepreload graph + the stylesheet), so a chunk
         # sliding back into the entry set is visible next to the build.
         run: node packages/app/scripts/report-entry-size.mjs
+
+      # Handed over to the e2e job, which drives this dist via `vite preview`
+      # and never rebuilds.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: app-dist
+          path: packages/app/dist
+
+      # Pages deployment is opt-in: the repo is private and GitHub Pages for
+      # private repos needs a paid plan, so the deploy job would always fail.
+      # To publish the site, enable Pages (build type "GitHub Actions") in the
+      # repo settings and set the repository Actions variable DEPLOY_PAGES=true.
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        if: github.ref == 'refs/heads/main' && vars.DEPLOY_PAGES == 'true'
+        with:
+          path: packages/app/dist
+
+  e2e:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: app-dist
+          path: packages/app/dist
 
       # Keyed on the resolved Playwright version rather than the lockfile: the
       # browser build only changes when Playwright does, so an unrelated dep
@@ -92,9 +134,9 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm --filter @renovate-config-visualizer/app exec playwright install-deps chromium
       - name: Browser e2e tests
-        # Drives the production dist built above via `vite preview` (reuses that
-        # output, never rebuilds). Base is "/" everywhere — the site serves
-        # from the domain root (renovate.secustor.dev).
+        # Drives the production dist from the build job via `vite preview`
+        # (reuses that output, never rebuilds). Base is "/" everywhere — the
+        # site serves from the domain root (renovate.secustor.dev).
         run: pnpm --filter @renovate-config-visualizer/app test:e2e
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
@@ -105,18 +147,19 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      # Pages deployment is opt-in: the repo is private and GitHub Pages for
-      # private repos needs a paid plan, so the deploy job would always fail.
-      # To publish the site, enable Pages (build type "GitHub Actions") in the
-      # repo settings and set the repository Actions variable DEPLOY_PAGES=true.
-      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
-        if: github.ref == 'refs/heads/main' && vars.DEPLOY_PAGES == 'true'
-        with:
-          path: packages/app/dist
+  ci-result:
+    if: ${{ always() }}
+    needs: [setup, lint, test, build, e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail unless every check job succeeded
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
+        run: exit 1
 
   deploy:
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_PAGES == 'true'
-    needs: checks
+    needs: ci-result
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -136,7 +179,7 @@ jobs:
   # push, not path-filtered — `wrangler deploy` is fast and idempotent.
   deploy-oauth-worker:
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_OAUTH_WORKER == 'true'
-    needs: checks
+    needs: ci-result
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -149,7 +192,7 @@ jobs:
       - id: pnpm-store
         run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
 
-      # Shares the `checks` job's cache entries — same key, and this job's
+      # Shares the `setup` job's cache entries — same key, and this job's
       # narrower install is a subset of that store.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -184,7 +227,7 @@ jobs:
   # Each job pushes an untagged, single-platform image and hands its digest to
   # `docker-merge`, which stitches the tagged manifest list together.
   docker:
-    needs: checks
+    needs: ci-result
     if: github.event_name == 'push'
     runs-on: ${{ matrix.runner }}
     # Unchanged at 30 even though a native single-platform build is much cheaper

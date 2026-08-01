@@ -22,8 +22,8 @@
     "renovate": "43.275.0"
   },
   "devDependencies": {
-    "typescript": "catalog:",
-    "vite": "catalog:",
-    "vitest": "catalog:"
+    "typescript": "7.0.2",
+    "vite": "8.1.5",
+    "vitest": "4.1.10"
   }
 }
