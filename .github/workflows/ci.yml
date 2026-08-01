@@ -225,16 +225,10 @@ jobs:
   # `ubuntu-24.04-arm` is a native arm64 hosted runner, so nothing is emulated
   # any more and both architectures build in parallel instead of back to back.
   # Each job pushes an untagged, single-platform image and hands its digest to
-  # `docker-merge`, which stitches the tagged manifest list together.
   docker:
     needs: ci-result
     if: github.event_name == 'push'
     runs-on: ${{ matrix.runner }}
-    # Unchanged at 30 even though a native single-platform build is much cheaper
-    # than the emulated one: the timeout is here to cap the stall class that
-    # once left this job wedged for 90+ minutes, not to be tight. (The arm64
-    # runner is 4 vCPU like ubuntu-latest and free, this repo being public; in
-    # a private repo it would be 2 vCPU and the headroom would earn its keep.)
     timeout-minutes: 30
     permissions:
       contents: read
@@ -288,19 +282,7 @@ jobs:
           target: ${{ matrix.target }}
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
-          # push-by-digest uploads the image without a tag and returns its
-          # digest; `name-canonical` still records the repository so the blobs
-          # land in the right package.
           outputs: type=image,name=${{ matrix.image }},push-by-digest=true,name-canonical=true,push=true
-          # A registry cache rather than type=gha: the GitHub Actions cache is
-          # one 10 GB LRU budget shared with the pnpm store and the Playwright
-          # browsers in `checks`, and a mode=max export of the app image (whose
-          # build stage carries the whole workspace node_modules) is large
-          # enough to evict them. GHCR has no such budget, is readable from
-          # every branch rather than just the one that wrote it, and only
-          # uploads blobs it does not already hold. One ref per platform is
-          # mandatory, not tidiness: a shared ref would have each architecture
-          # overwrite the other's cache manifest.
           cache-from: type=registry,ref=${{ matrix.image }}:buildcache-${{ steps.platform.outputs.pair }}
           cache-to: type=registry,ref=${{ matrix.image }}:buildcache-${{ steps.platform.outputs.pair }},mode=max,image-manifest=true,oci-mediatypes=true
 
