@@ -10,15 +10,6 @@ allowBuilds:
   re2: false
   workerd: false
 
-catalog:
-  typescript: 7.0.2
-  oxlint: 1.75.0
-  oxlint-tsgolint: 7.0.2001
-  oxfmt: 0.60.0
-  vite: 8.1.5
-  vitest: 4.1.10
-  zod: 4.4.3
-
 ignoredBuiltDependencies:
   - core-js-pure
   - dtrace-provider
