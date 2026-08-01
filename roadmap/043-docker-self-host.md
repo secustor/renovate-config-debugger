@@ -84,10 +84,14 @@ token-exchange proxy for deployments that want "Sign in with GitHub".
   as the `node` user; nothing is installed.
 - **`.dockerignore`, `docker-compose.yml`** — a lean context, and a two-service
   worked example with every optional variable present but commented.
-- **CI `docker` job** — `needs: checks`, push-only, `packages: write`; qemu +
-  buildx + ghcr login + two `metadata-action`/`build-push-action` pairs
-  publishing `linux/amd64,linux/arm64` for both targets with `latest` +
-  `sha-<short>` tags and per-target GHA layer caching.
+- **CI `docker` + `docker-merge` jobs** — `needs: checks`, push-only,
+  `packages: write`. `docker` is a (target × platform) matrix, `linux/amd64` on
+  `ubuntu-latest` and `linux/arm64` on the native `ubuntu-24.04-arm` runner —
+  no qemu, both architectures in parallel — each pushing its platform by digest
+  with a per-(target, platform) `type=registry` layer cache in GHCR
+  (`:buildcache-linux-<arch>`). `docker-merge` then joins the digests of one
+  target into the `latest` + `sha-<short>` manifest list with
+  `docker buildx imagetools create`, and inspects it.
 - **Docs** — a "Self-hosting (Docker)" section in the root README (quickstart,
   the `RCV_*` table, the sign-in story with the privacy boundary restated,
   compose, local build) and a note in the Worker README that the same handler
