@@ -23,8 +23,8 @@ import { type SimRequest, useShareLinkRequest } from "./use-share-link-request";
 import { useSimulationRun } from "./use-simulation-run";
 import { useSimulatorDrawers } from "./use-simulator-drawers";
 import { useSimulatorForm } from "./use-simulator-form";
-import { buildVerdictChanges } from "./verdict-changes";
 import { buildVerdictSegments } from "./verdict-sentence";
+import { buildVerdictThreads } from "./verdict-threads";
 
 /**
  * Roadmap 006: the packageRules simulator. Describe a hypothetical dependency
@@ -223,8 +223,11 @@ export const RuleSimulator = memo(function RuleSimulator({
     () => (sim ? consumedAuthoredBlocks(sim, ruleAttribution) : []),
     [sim, ruleAttribution],
   );
-  const verdictChanges = useMemo(
-    () => buildVerdictChanges(changedKeys, mergeStops, layerByIndex, sim),
+  // Roadmap 053: the verdict card's threads — one per changed key, each
+  // carrying its whole cascade. Same memo discipline as the ledger it replaces:
+  // derived from the last RUN only, so typing in the form never re-walks it.
+  const verdictThreads = useMemo(
+    () => buildVerdictThreads(changedKeys, mergeStops, layerByIndex, sim),
     [changedKeys, mergeStops, layerByIndex, sim],
   );
 
@@ -254,6 +257,13 @@ export const RuleSimulator = memo(function RuleSimulator({
     }
     // Roadmap 036: the copied state lives in CopyButton now.
     await onCopySimLink({ form: shareForm, autoSimulate: true });
+  }
+
+  /** Roadmap 053: the verdict foot's "build replay, K stops" link — the
+   *  demoted drawer opens where the reader last left it (the first stop on a
+   *  fresh run), not at a stop they never asked for. */
+  function jumpToReplay() {
+    jumpToStep(mergeStepIndex ?? 0);
   }
 
   function quickFill(fill: Partial<FormState>) {
@@ -368,10 +378,11 @@ export const RuleSimulator = memo(function RuleSimulator({
               matchedCount={matchedCount}
               totalRules={sim.rules.length}
               segments={verdictSegments}
-              changes={verdictChanges}
+              threads={verdictThreads}
               flattened={sim.flattened}
               consumed={consumedBlocks}
               flattenStopIndex={showTimeline ? flattenStopIndex : undefined}
+              replayStops={mergeStops.length}
               dep={
                 simForm
                   ? {
@@ -385,6 +396,7 @@ export const RuleSimulator = memo(function RuleSimulator({
               onSelectPreset={onSelectPreset}
               onJumpToStep={showTimeline ? jumpToStep : undefined}
               onJumpToRules={jumpToRules}
+              onJumpToReplay={showTimeline ? jumpToReplay : undefined}
               copySimLink={onCopySimLink ? copySimLink : null}
               pinned={pinned !== null}
               onUnpin={unpin}

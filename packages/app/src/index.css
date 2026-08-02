@@ -2265,31 +2265,175 @@ pre.config-view.prov-before {
   padding: 0.6rem 0.85rem 0.7rem;
 }
 
-.sim-verdict-ledger-label {
-  color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  margin: 0 0 0.25rem;
-  text-transform: uppercase;
-}
-
-.sim-verdict-keys {
+/* ---------- 053: the thread ledger (variant A) ----------
+   The ledger IS the trace. Collapsed it reads as the 046 ledger did, but every
+   row expands into that key's own causal story, so the three grains 047 kept
+   re-stating (ledger, per-rule applied list, step diff) have one home each.
+   Rows share ONE set of columns — key · value · origin — through `subgrid`, so
+   values start on a common edge instead of wherever the key happens to end;
+   the head button IS the subgrid row, which is why the <li> around it
+   disappears into `display: contents`. */
+.sim-thread-list {
+  column-gap: 0.6rem;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) auto;
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.sim-verdict-keys li {
-  font-size: 0.83rem;
-  overflow-wrap: anywhere;
-  padding: 0.1rem 0;
+.sim-thread {
+  display: contents;
 }
 
-/* Inline flow after the value: the owning layer's chip, then the timeline
-   jump — they wrap naturally on narrow widths. */
-.sim-verdict-origin {
-  margin-left: 0.5rem;
+.sim-thread-head {
+  align-items: baseline;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: inherit;
+  column-gap: 0.6rem;
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  font-size: 0.83rem;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  padding: 0.2rem 0.4rem;
+  text-align: left;
+}
+
+.sim-thread-head:hover {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+.sim-thread-key {
+  white-space: nowrap;
+}
+
+.sim-thread-caret {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.sim-thread-value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sim-thread-final {
+  color: var(--ok);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+}
+
+.sim-thread-final.removed {
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* The contested case the 046 ledger made invisible, stated on the COLLAPSED
+   row — otherwise "who else wrote this?" is a question nobody knows to ask. */
+.sim-thread-writers {
+  margin-left: 0.4rem;
+}
+
+.sim-thread-origin {
+  justify-self: end;
+}
+
+/* The expanded thread hangs off a rule of its own, so the story reads as
+   belonging to the row that opened it. */
+.sim-thread-body {
+  border-left: 2px solid var(--border);
+  font-size: 0.82rem;
+  grid-column: 1 / -1;
+  margin: 0.15rem 0 0.5rem 0.95rem;
+  padding: 0.2rem 0 0.2rem 0.75rem;
+}
+
+.sim-thread-line {
+  color: var(--muted);
+  margin: 0.25rem 0;
+}
+
+/* The verb carries the merge semantics (set / appended / removed), so it is
+   the one word in the thread that gets full-strength ink. */
+.sim-thread-line b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.sim-thread-rule,
+.sim-thread-stop {
+  color: var(--ink);
+}
+
+.sim-thread-chip {
+  margin-left: 0.4rem;
+}
+
+/* A value that never reached the final config — struck through where it lost,
+   the same grammar as the merge drawer's `before` (.sim-merged-before). */
+.sim-thread-old {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  text-decoration: line-through;
+}
+
+.sim-thread-note {
+  font-size: 0.78rem;
+}
+
+.sim-thread-body .sim-step-link {
+  margin-left: 0;
+}
+
+/* 053: clause evidence as COLUMNS — mark · matcher · what it checks · what
+   this update actually is. Rows are subgrid so both value columns line up
+   straight down the grid; the comparison IS the evidence, and the prose form
+   (.sim-clauses, still what the rules drawer uses) hides it in a sentence. */
+.sim-clause-grid {
+  column-gap: 0.45rem;
+  display: grid;
+  grid-template-columns: max-content max-content minmax(0, 1fr) auto;
+  margin: 0.3rem 0;
+  row-gap: 0.2rem;
+}
+
+.sim-clause-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+
+.sim-clause-mark {
+  color: var(--ok);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.sim-clause-row.state-no-match .sim-clause-mark,
+.sim-clause-row.state-error .sim-clause-mark {
+  color: var(--error);
+}
+
+.sim-clause-row.state-no-input .sim-clause-mark,
+.sim-clause-row.state-not-applicable .sim-clause-mark,
+.sim-clause-row.state-not-simulated .sim-clause-mark {
+  color: var(--warn);
+}
+
+.sim-clause-checks,
+.sim-clause-evaluated {
+  color: var(--muted);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sim-clause-value {
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
 }
 
 .sim-step-link {
@@ -2337,22 +2481,6 @@ pre.config-view.prov-before {
   padding: 0.45rem 0.85rem;
 }
 
-.sim-verdict-value {
-  color: var(--ok);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.8rem;
-}
-
-.sim-verdict-value.removed {
-  color: var(--muted);
-  font-style: italic;
-}
-
-.sim-verdict-from {
-  color: var(--muted);
-  font-size: 0.78rem;
-}
-
 .sim-verdict-none {
   color: var(--muted);
   font-size: 0.85rem;
@@ -2371,6 +2499,28 @@ pre.config-view.prov-before {
 }
 
 .sim-jump:hover {
+  text-decoration: underline;
+}
+
+/* 053: the demoted evidence drawers' only mention on the card — one quiet
+   line, with "N of M" stated here and nowhere else on it. */
+.sim-trace-links {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.sim-trace-jump {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  display: inline-block;
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0;
+}
+
+.sim-trace-jump:hover {
   text-decoration: underline;
 }
 

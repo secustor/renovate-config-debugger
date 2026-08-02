@@ -1,16 +1,12 @@
 /**
- * Roadmap 053 (variant A, layer 1): the thread derivation is the simulator's
- * single source of truth about who wrote a setting — the collapsed ledger row
- * (`VerdictChange`) is a projection of it — so it is tested directly, on
- * hand-written `SimulationResult`/`MergeStop` fixtures rather than by running
- * the engine. The fixtures spell the shapes the engine really produces: a
- * `merged` entry omits `before` when the key did not exist yet and omits
- * `after` when the merge removed it (engine `diffKeys`), and merge stops are
- * contiguous, so the earliest writer's `before` IS the pre-rules value.
- *
- * The `VerdictChange` expectations are the pre-053 output of the old
- * standalone `buildVerdictChanges` walk, verified against it before the
- * projection replaced it.
+ * Roadmap 053 (variant A): the thread derivation is the simulator's single
+ * source of truth about who wrote a setting — layer 2's thread ledger is its
+ * only reader — so it is tested directly, on hand-written
+ * `SimulationResult`/`MergeStop` fixtures rather than by running the engine.
+ * The fixtures spell the shapes the engine really produces: a `merged` entry
+ * omits `before` when the key did not exist yet and omits `after` when the
+ * merge removed it (engine `diffKeys`), and merge stops are contiguous, so the
+ * earliest writer's `before` IS the pre-rules value.
  */
 import type {
   ClauseEvaluation,
@@ -21,7 +17,6 @@ import type {
 } from "@renovate-config-visualizer/engine";
 import { describe, expect, test } from "vitest";
 import type { MergeStop } from "./merge-stops";
-import { buildVerdictChanges } from "./verdict-changes";
 import { buildVerdictThreads } from "./verdict-threads";
 
 const PRESET_LAYER: ProvenanceLayer = { kind: "preset", nodeId: "n1", name: "config:recommended" };
@@ -251,44 +246,5 @@ describe("buildVerdictThreads", () => {
     expect(thread?.present).toBe(false);
     expect(thread?.verb).toBe("removed");
     expect(thread?.winner?.stopIndex).toBe(2);
-  });
-});
-
-describe("buildVerdictChanges (projection)", () => {
-  test("a contested key reports the WINNING rule's layer and stop", () => {
-    expect(
-      buildVerdictChanges(["groupName"], CONTESTED_STOPS, CONTESTED_LAYERS, CONTESTED_SIM),
-    ).toEqual([
-      {
-        key: "groupName",
-        value: "renovate core",
-        present: true,
-        layer: REPO_LAYER,
-        stopIndex: 2,
-        stopLabel: "step 2 of 2",
-      },
-    ]);
-  });
-
-  test("a flatten winner has no layer, and a removed key no value", () => {
-    const stops = [...FLATTEN_STOPS];
-    expect(buildVerdictChanges(["automerge", "schedule"], stops, NO_LAYERS, FLATTEN_SIM)).toEqual([
-      {
-        key: "automerge",
-        value: false,
-        present: true,
-        layer: undefined,
-        stopIndex: 2,
-        stopLabel: "flatten step",
-      },
-      {
-        key: "schedule",
-        value: undefined,
-        present: false,
-        layer: undefined,
-        stopIndex: undefined,
-        stopLabel: undefined,
-      },
-    ]);
   });
 });
