@@ -536,6 +536,15 @@
       .rule-pop .clauses {
         margin: 0.35rem 0;
       }
+      .rule-pop .digest {
+        display: block;
+      }
+      /* A write that happened here but lost to a later rule: it IS this
+         step's addition (keeps the add tint) and it's struck, like every
+         other losing value in variant A. */
+      .digest .overridden {
+        text-decoration: line-through;
+      }
       .return-pill {
         align-items: center;
         background: light-dark(#ffffff, #151b23);
@@ -1166,7 +1175,6 @@
                         <span style="display: block">
                           <span class="mono" style="font-weight: 600">packageRules[201]</span>
                           <span class="badge ok">matched</span>
-                          <span class="badge muted">this write overridden</span>
                         </span>
                         <span class="thread-line" style="display: block">
                           <span class="ok-mark">✓</span> <code>matchDatasources</code> checks
@@ -1174,9 +1182,24 @@
                           <span class="value">"npm"</span>
                         </span>
                         <span class="thread-line" style="display: block">
-                          wrote <code>groupName</code> =
-                          <span class="value old">"npm minor+patch"</span> in step 2 · its
-                          <code>schedule</code> write survived
+                          merged in step 2 — 2 writes, 1 survived
+                        </span>
+                        <span class="digest">
+                          <span class="drow">
+                            <span>~</span><span>schedule</span>
+                            <span
+                              ><span class="k-del">["at any time"]</span> →
+                              <span class="k-add">["before 6am on monday"]</span></span
+                            >
+                          </span>
+                          <span class="drow">
+                            <span>~</span><span>groupName</span>
+                            <span
+                              ><span class="k-del">null</span> →
+                              <span class="k-add overridden">"npm minor+patch"</span>
+                              <span style="color: var(--muted)">· ⊘ overridden in step 3</span></span
+                            >
+                          </span>
                         </span>
                         <span style="display: block">
                           <button type="button" class="linkish">open in matched rules →</button>
