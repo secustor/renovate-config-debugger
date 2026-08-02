@@ -57,6 +57,7 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [050](050-css-design-tokens.md)                         | CSS design tokens: dedup, consolidation, enforcement       | M13                  | done   |
 | [051](051-resolved-config-output.md)                    | Effective config: resolved config as a copyable document   | M14                  | done   |
 | [052](052-post-resolution-remigration.md)               | Fidelity: re-migrate the resolved config (upstream parity) | M14                  | done   |
+| [053](053-analytics-localhost-exclusion.md)             | Analytics: CI is not an audience, not tracked on localhost | M14                  | done   |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live
