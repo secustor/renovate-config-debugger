@@ -3,7 +3,9 @@
 Milestone: — · Status: proposed (2026-08-01) — mockup awaiting a variant
 decision
 
-Mockup (three variants):
+Mockup (three variants; revised 2026-08-02 after review — the scenario now
+includes a contested field, `groupName` written by two matched rules with the
+later one winning, and every key/value ledger aligns its columns):
 [mockups/053/simulator-results-readability.html](mockups/053/simulator-results-readability.html)
 
 Research basis (commissioned for this work):
