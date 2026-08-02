@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SimulationResult } from "@renovate-config-visualizer/engine";
 import { flashTarget, motionScrollOptions } from "@/lib/motion";
+import { RULE_POP_SELECTOR } from "./rule-pop-dom";
 
 /**
  * Roadmap 053 (layer 4): thread expansion and the way back from a jump, as one
@@ -86,7 +87,7 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
       return;
     }
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape" && document.querySelector(".sim-rule-pop") === null) {
+      if (e.key === "Escape" && document.querySelector(RULE_POP_SELECTOR) === null) {
         setReturnKey(null);
       }
     }

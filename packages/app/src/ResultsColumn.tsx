@@ -20,6 +20,7 @@ import { RuleSimulator } from "@/features/simulator/RuleSimulator";
 import { StageDiff } from "@/components/StageDiff";
 import { StageTimeline } from "@/components/StageTimeline";
 import type { ResultsTabId } from "@/data/results-tabs";
+import { motionScrollOptions } from "@/lib/motion";
 import type { DigestClause } from "@/lib/run-digest";
 import type { ErrorTranslationLib } from "@/platform/run";
 import type { ShareSimulator } from "@/lib/share";
@@ -202,7 +203,7 @@ export function ResultsColumn({
     const rect = el.getBoundingClientRect();
     const visible = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
     if (visible < MIN_VISIBLE_RESULTS_PX) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      el.scrollIntoView(motionScrollOptions("start"));
     }
   }, [result, focusResultsRef, resultsColRef]);
 

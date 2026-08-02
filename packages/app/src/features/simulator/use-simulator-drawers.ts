@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { motionScrollOptions } from "@/lib/motion";
 
 export interface SimulatorDrawers {
   moreFieldsOpen: boolean;
@@ -55,7 +56,7 @@ export function useSimulatorDrawers({
   // click is opening in the very same tick.
   function jumpToRules() {
     setRulesOpen(true);
-    rulesDrawerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    rulesDrawerRef.current?.scrollIntoView(motionScrollOptions("start"));
   }
 
   /** A verdict-card jump link → open the merge drawer, select that stop, and
@@ -63,7 +64,7 @@ export function useSimulatorDrawers({
   function jumpToStep(stopIndex: number) {
     setMergeOpen(true);
     onMergeStepChange?.(stopIndex);
-    mergeDrawerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    mergeDrawerRef.current?.scrollIntoView(motionScrollOptions("start"));
   }
 
   return {

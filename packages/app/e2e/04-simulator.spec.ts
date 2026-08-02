@@ -36,7 +36,9 @@ test("simulating a matching dependency shows a verdict with a matched rule and i
   // Verdict block appears with a non-zero matched count.
   const verdict = page.locator(".sim-verdict-block");
   await expect(verdict).toBeVisible({ timeout: 15_000 });
-  const jump = verdict.locator(".sim-jump");
+  // Both full-trace links wear `.sim-jump` (one grammar, one rule), so the
+  // matched-rules one is addressed by what it says, not by being the only one.
+  const jump = verdict.getByRole("button", { name: /\d+ of \d+ rules? matched/ });
   await expect(jump).toContainText(/[1-9]\d* of \d+ rule/);
 
   // The rules drawer starts collapsed, but its summary row already carries the
@@ -251,7 +253,7 @@ test("a verdict thread's step link opens the merge drawer at the stop it names",
   // Opening one drawer never folds the other.
   const rulesDrawer = drawer(page, "Matched rules");
   await expect(rulesDrawer).toHaveJSProperty("open", false);
-  await verdict.locator(".sim-jump").click();
+  await verdict.getByRole("button", { name: /\d+ of \d+ rules? matched/ }).click();
   await expect(rulesDrawer).toHaveJSProperty("open", true);
   await expect(mergeDrawer).toHaveJSProperty("open", true);
 });

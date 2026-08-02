@@ -30,6 +30,16 @@ export function motionScrollOptions(block: ScrollLogicalPosition): ScrollIntoVie
 }
 
 /**
+ * The same choice for a WINDOW scroll (`window.scrollTo`), which takes its own
+ * options shape: the page-level jumps — back-to-top, and a results column that
+ * scrolled itself into view — are the longest scrolls the app performs, so
+ * they are the ones the preference matters most for.
+ */
+export function motionScrollToOptions(top: number): ScrollToOptions {
+  return { top, behavior: prefersReducedMotion() ? "auto" : "smooth" };
+}
+
+/**
  * The transient "you are here" flash. The animation itself lives in CSS
  * (`.rcv-flash`), including its reduced-motion form — a static highlight for
  * the same duration, so the target is still marked, just not animated.

@@ -27,6 +27,7 @@ import { UntrustedHostBanner } from "@/UntrustedHostBanner";
 import { legacyTabForView, type ResultsTabId } from "@/data/results-tabs";
 import { OptionDocsProvider } from "@/components/option-docs";
 import { buildPresetLookup, type PresetHoverContext } from "@/lib/preset-hover";
+import { motionScrollToOptions } from "@/lib/motion";
 import { findPackageRuleOffsets } from "@/lib/rule-locate";
 import { useRuleProvenance } from "@/hooks/rule-provenance";
 import {
@@ -1124,7 +1125,7 @@ export function App() {
         <button
           type="button"
           className="back-to-top"
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          onClick={() => window.scrollTo(motionScrollToOptions(0))}
           title="Back to top"
           aria-label="Back to top"
         >
