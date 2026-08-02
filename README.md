@@ -97,6 +97,11 @@ otherwise the shipped stub stays and the feature is off.
 | `RCV_GITHUB_APP_SLUG`   | no                   | The App's slug; enables a direct "install on repositories" link.    |
 | `RCV_GA_MEASUREMENT_ID` | no                   | GA4 measurement id (`G-…`); enables Google Analytics. Off unset.    |
 
+`RCV_GA_MEASUREMENT_ID` names **your** property, so it is honoured on any
+hostname — including a container reached at `localhost:8080`. The hosted
+build's own id is the opposite: it is ignored on loopback hostnames, so a local
+preview or a browser test of this repo never reports to it.
+
 <details>
 <summary>Sign in with GitHub, self-hosted</summary>
 

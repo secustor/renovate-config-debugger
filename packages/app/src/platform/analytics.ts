@@ -7,6 +7,14 @@
  * `VITE_GA_MEASUREMENT_ID` var (what the Pages build inlines). With no usable
  * id from either source gtag.js is never loaded — `vite dev`, previews and
  * unconfigured self-hosts send nothing.
+ *
+ * Roadmap 053: the build-time id additionally requires a non-local hostname.
+ * The Pages `dist` is also the artifact the e2e job serves on
+ * `http://localhost:4322/`, and Playwright gives every test a fresh browser
+ * context — no `_ga` cookie to reuse, so each test counted as a brand-new user
+ * and CI came to dominate the property's traffic. The runtime id is exempt: it
+ * belongs to whoever set `RCV_GA_MEASUREMENT_ID`, and a self-host reached at
+ * `localhost:8080` is a real deployment of theirs, not our test rig.
  */
 
 declare global {
@@ -38,14 +46,36 @@ function runtimeMeasurementId(): string | null {
   return toMeasurementId((raw as Record<string, unknown>).measurementId);
 }
 
+/**
+ * Hostnames that serve a development, test or preview copy rather than a
+ * deployment: the loopback names plus the reserved `.localhost` TLD, and the
+ * empty hostname a `file://` page reports. Matched exactly or as a dot-suffix,
+ * never as a substring — `localhost-mirror.example.com` is somebody's real
+ * host. IPv6 literals arrive from `location.hostname` bracketed.
+ */
+const LOCAL_HOSTNAMES = new Set(["", "localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]);
+
+/** Whether a hostname is a real deployment, i.e. worth reporting traffic for. */
+export function isTrackableHostname(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  return !LOCAL_HOSTNAMES.has(host) && !host.endsWith(".localhost");
+}
+
 /** The measurement id to track with, or null when analytics is off. */
-export function getMeasurementId(): string | null {
-  return runtimeMeasurementId() ?? toMeasurementId(import.meta.env.VITE_GA_MEASUREMENT_ID);
+export function getMeasurementId(hostname: string): string | null {
+  const runtime = runtimeMeasurementId();
+  if (runtime) {
+    return runtime;
+  }
+  if (!isTrackableHostname(hostname)) {
+    return null;
+  }
+  return toMeasurementId(import.meta.env.VITE_GA_MEASUREMENT_ID);
 }
 
 /** Loads gtag.js and sends the initial page_view — a no-op without an id. */
 export function initAnalytics(): void {
-  const id = getMeasurementId();
+  const id = getMeasurementId(window.location.hostname);
   if (!id) {
     return;
   }
