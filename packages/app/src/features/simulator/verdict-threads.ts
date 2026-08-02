@@ -92,7 +92,9 @@ export interface ThreadModel {
   writerCount: number;
 }
 
-interface StopLabel {
+/** How one merge stop is named in prose — shared with `rule-evidence.ts`, so
+ *  the popover and the thread cannot name the same stop differently. */
+export interface StopLabel {
   ordinal?: number;
   label: string;
 }
@@ -109,7 +111,7 @@ interface Writer {
  * rule stops count among themselves ("step 2 of 5"), the flatten stop is named
  * rather than numbered.
  */
-function stopLabels(mergeStops: MergeStop[]): StopLabel[] {
+export function stopLabels(mergeStops: MergeStop[]): StopLabel[] {
   const nRuleStops = mergeStops.filter((s) => s.kind === "rule").length;
   let ordinal = 0;
   return mergeStops.map((stop) => {

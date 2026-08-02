@@ -1509,25 +1509,50 @@ textarea.layer-editor:focus {
   cursor: pointer;
 }
 
-.badge.prov-defaults {
+/* 053: the hue rules are shared with the dot variant below — the dot IS the
+   chip's color with the label moved into the hover card, so the two must never
+   be able to disagree about which hue a layer wears. */
+.badge.prov-defaults,
+.prov-dot.prov-defaults {
   color: var(--muted);
 }
 
-.badge.prov-repo {
+.badge.prov-repo,
+.prov-dot.prov-repo {
   color: var(--accent);
 }
 
-.badge.prov-preset {
+.badge.prov-preset,
+.prov-dot.prov-preset {
   color: var(--accent-purple);
 }
 
 /* 008 layer badges — distinct hues next to the repo blue / preset purple */
-.badge.prov-global {
+.badge.prov-global,
+.prov-dot.prov-global {
   color: var(--accent-teal);
 }
 
-.badge.prov-inherited {
+.badge.prov-inherited,
+.prov-dot.prov-inherited {
   color: var(--accent-pink);
+}
+
+/* 053: inside an evidence layer the chip repeats on every row, where a column
+   of colored labels competes with the evidence itself. The dot keeps the one
+   thing that column is scanned for — same origin as the row above, or not —
+   and hands the label to the tooltip and the chip's own hover card. */
+.prov-dot {
+  background: currentColor;
+  border-radius: 50%;
+  display: inline-block;
+  flex: none;
+  height: 0.5rem;
+  width: 0.5rem;
+}
+
+.prov-dot[role="button"] {
+  cursor: pointer;
 }
 
 .badge.prov-overridden {
@@ -2434,6 +2459,101 @@ pre.config-view.prov-before {
   color: var(--ink);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.78rem;
+}
+
+/* 053 layer 3: the rule-evidence popover. The plane is the app's existing
+   hover-card plane (.option-card: raised surface, popover shadow, fixed
+   placement clamped to the viewport by lib/anchored-card) — this only sets the
+   shape the mockup asked for. Nothing here animates: the card is opened by a
+   click and read immediately, so a transition would only delay it. */
+.sim-rule-pop {
+  font-size: 0.78rem;
+  /* The inline max-width from the placement helper wins; this is the shape
+     when the viewport is wide enough for the card's full 36rem. */
+  max-width: min(36rem, 92vw);
+  width: max-content;
+}
+
+.sim-rule-pop-anchor {
+  display: inline;
+}
+
+/* The losing writer's reference IS the link — same mono reference text the
+   thread uses elsewhere, marked as actionable rather than restated. */
+.sim-rule-pop-link {
+  background: none;
+  border: none;
+  border-bottom: 1px dotted var(--accent);
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  /* The reference reads as the same `packageRules[N]` token the winner line
+     sets in <code> — only its color and underline say it opens something. */
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  padding: 0;
+}
+
+.sim-rule-pop-head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 0.35rem;
+}
+
+.sim-rule-pop-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 600;
+}
+
+.sim-rule-pop-line {
+  color: var(--muted);
+  margin: 0.35rem 0;
+}
+
+.sim-rule-pop-foot {
+  margin: 0.4rem 0 0;
+}
+
+/* One row per key the rule wrote, on shared columns (mark · key · values) so
+   the digest reads down the value edge like every other 053 ledger. */
+.sim-digest {
+  column-gap: 0.45rem;
+  display: grid;
+  grid-template-columns: max-content max-content minmax(0, 1fr);
+  row-gap: 0.2rem;
+}
+
+.sim-digest-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+
+.sim-digest-mark {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.sim-digest-key {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+}
+
+.sim-digest-values {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A write that happened here but lost to a later stop: it IS this step's
+   addition, so it keeps the add tint, and it is struck like every other value
+   in 053 that never reached the final config. */
+.sim-merged-after.overridden {
+  text-decoration: line-through;
+}
+
+.sim-digest-note {
+  color: var(--muted);
 }
 
 .sim-step-link {
