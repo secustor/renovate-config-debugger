@@ -1,7 +1,7 @@
 # 054 — Simulator: results readability
 
-Milestone: — · Status: proposed (2026-08-01) · variant A planned in detail
-after mockup review (2026-08-02, see below)
+Milestone: — · Status: **variant A implemented** (2026-08-02), shipped as the
+five-layer stack below; variants B and C remain proposed
 
 Mockup (three variants; revised 2026-08-02 after review — the scenario now
 includes a contested field, `groupName` written by two matched rules with the
@@ -33,7 +33,8 @@ against 719 rules):
 
 ## Proposed variants (see mockup)
 
-- **A — the ledger is the trace.** Each changed setting on the verdict card
+- **A — the ledger is the trace** (shipped, see below)**.** Each changed
+  setting on the verdict card
   expands into its own causal thread: writing rule with predicate/evaluated
   clause evidence inline, the overridden value struck through, a replay jump.
   Rules/merge drawers demote to one "full trace" line. (DevTools
@@ -126,7 +127,8 @@ evidence per rule. A new `verdict-threads.ts` derives, per changed key:
 - Thread expansion is uncontrolled locally, but the share fragment gains
   `simThread?: string` (the expanded key) beside `simStep`, and jumps
   push fragment updates — browser Back and deep links work (mockup's
-  recorded model). Cross-link into the rules drawer reuses
+  recorded model). **Shipped without the history half** — see the layer-4
+  deviation below. Cross-link into the rules drawer reuses
   `use-rule-focus`'s focus/highlight wiring.
 - CSS: the `.kv` subgrid system and `.clause-grid` land in `index.css`
   with existing tokens only (stylelint: no raw colors); flash animation
@@ -148,14 +150,41 @@ evidence per rule. A new `verdict-threads.ts` derives, per changed key:
   shipped — success criterion: the contested-field question ("who else
   wrote groupName?") answerable by entry personas.
 
-### Sequencing (one PR each)
+### Sequencing (one PR each) — as built
 
-1. `verdict-threads.ts` derivation + unit tests (no UI change).
+1. `verdict-threads.ts` derivation + unit tests (no UI change) —
+   `feat/053-01-verdict-threads`.
 2. Thread ledger UI + `.kv`/`.clause-grid` CSS + drawer demotion
-   (replaces the 046 ledger; `verdict-changes.ts` deleted).
-3. `RuleEvidenceCard` popover + `ProvenanceChip` dot variant.
-4. `ReturnPill` + `simThread` fragment state + jump wiring.
-5. e2e suite + persona replay + roadmap status flip.
+   (replaces the 046 ledger; `verdict-changes.ts` deleted) —
+   `feat/053-02-thread-ledger-ui`.
+3. `RuleEvidenceCard` popover + `ProvenanceChip` dot variant —
+   `feat/053-03-rule-evidence-card`.
+4. `ReturnPill` + `simThread` fragment state + jump wiring —
+   `feat/053-04-return-pill-fragment`.
+5. e2e suite + roadmap status flip — `feat/053-05-e2e-and-docs`
+   (`packages/app/e2e/16-verdict-threads.spec.ts`, five scenarios over the
+   new `CONTESTED_KEY_CONFIG` fixture: expand a contested thread, the
+   popover's evidence + Escape-restores-focus, its "open in matched
+   rules →" jump, the step jump's return pill, and a `simThread` +
+   `simStep` deep link). The persona replay is the one piece not run yet
+   — it is a live-app study, not a suite, so it stays a follow-up.
+
+### Deviation recorded in layer 4 — `simThread` is a decode-time one-shot
+
+The plan above says "jumps push fragment updates — browser Back and deep
+links work". Deep links do; **browser Back does not undo a jump, and no jump
+pushes a history entry**. Thread expansion is a SET, meaningful only for the
+last run's evidence and read by nothing outside the simulator, so App does
+not own it the way it owns `mergeStepIndex` (a controlled stepper's index
+that a link must restore). `simThread` is therefore armed on the existing
+`simRequest` nonce at decode time and applied by the run's own reset effect,
+once.
+
+The `ReturnPill` — not the browser's Back button — is what undoes a jump.
+That is consistent with the app's standing rule that the fragment is written
+on **Copy link only** (`useShareLink`): pushing history from a jump would
+have traded a documented limitation for an undocumented exception to that
+rule.
 
 ### Non-goals
 
