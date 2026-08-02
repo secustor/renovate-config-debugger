@@ -1410,6 +1410,48 @@ textarea.layer-editor:focus {
   color: var(--muted);
 }
 
+/* ---------- the shared key/value grid (053 layer 8) ----------
+   ONE primitive for every ledger in the app that reads as `key · value ·
+   origin`. Roadmap 053 planned exactly this and then grew three copies of it
+   (the thread ledger, the clause grid, the writes grid), each re-declaring the
+   same `display: grid` + child `grid-column: 1 / -1; grid-template-columns:
+   subgrid` shape with near-identical gaps; the effective config's key list,
+   older than all three, still had the ragged-column problem the primitive
+   exists to solve.
+
+   A surface configures it with two custom properties and nothing else:
+   `--kv-cols` (its track list) and, when the default gap is wrong, `--kv-gap`
+   / `--kv-row-gap`. Everything surface-specific — a hover fill, a state hue, a
+   column's own typography — stays a small delta on the surface's own classes.
+
+   Why subgrid and not one fixed template per surface: the tracks are sized
+   from ALL the rows at once, so the value column starts on one edge down the
+   whole ledger instead of wherever each row's key happened to end — the
+   alignment IS the feature, and a fixed template cannot size `max-content`
+   across siblings. */
+.kv {
+  column-gap: var(--kv-gap, 0.45rem);
+  display: grid;
+  grid-template-columns: var(--kv-cols);
+  row-gap: var(--kv-row-gap, 0);
+}
+
+/* Anything placed directly in a kv grid spans all of its columns: the rows,
+   and the full-width blocks (an expanded body, an empty note) between them. */
+.kv > * {
+  grid-column: 1 / -1;
+}
+
+/* A ROW re-uses the grid's own tracks. Applied at whatever depth the row
+   actually lives at — a row nested inside another `.kv-row` (a button inside
+   its bordered wrapper) passes the tracks straight through. */
+.kv-row {
+  align-items: baseline;
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+
 /* ---------- merge provenance view (005) ---------- */
 
 .prov-filters {
@@ -1463,11 +1505,25 @@ textarea.layer-editor:focus {
   padding: 0.5rem 0.75rem;
 }
 
+/* 053 layer 8: the key list is a `.kv` ledger — key · value preview · origin,
+   on ONE set of columns, so previews start on a common edge instead of
+   wherever each option name happens to end (this list had the ragged-column
+   problem the simulator's thread ledger was built to fix).
+
+   The key track is `minmax(0, max-content)` rather than the thread ledger's
+   bare `max-content`: this list is filtered, not curated, so it can hold every
+   option Renovate has, and the longest of those must be allowed to wrap in a
+   narrow panel instead of pushing the preview column off the edge. */
 .prov-list {
+  --kv-cols: minmax(0, max-content) minmax(0, 1fr) auto;
+  --kv-gap: 0.5rem;
+
   max-height: 40rem;
   overflow: auto;
 }
 
+/* The row wrapper carries the separator and passes the ledger's tracks down to
+   the head button, which is the cell-bearing row. */
 .prov-row {
   border-bottom: 1px solid var(--border);
 }
@@ -1477,14 +1533,11 @@ textarea.layer-editor:focus {
 }
 
 .prov-row-head {
-  align-items: center;
   background: transparent;
   border: none;
   color: inherit;
   cursor: pointer;
-  display: flex;
   font: inherit;
-  gap: 0.5rem;
   padding: 0.4rem 0.75rem;
   text-align: left;
   width: 100%;
@@ -1494,9 +1547,11 @@ textarea.layer-editor:focus {
   background: var(--surface);
 }
 
+/* Inside the key cell, as in the thread ledger: a fixed width so the option
+   names still start on one edge whichever way the triangle points. */
 .prov-row-head .caret {
   color: var(--muted);
-  flex: none;
+  display: inline-block;
   font-size: 0.75rem;
   width: 0.9rem;
 }
@@ -1504,16 +1559,28 @@ textarea.layer-editor:focus {
 .prov-key-name {
   font-family: var(--font-mono);
   font-size: 0.85rem;
+  overflow-wrap: anywhere;
 }
 
+/* The preview is already truncated in JS (80 chars), so the ellipsis this used
+   to need was a second truncation; what is left wraps like every other value
+   column in the app rather than being clipped mid-token. */
 .prov-key-preview {
   color: var(--muted);
-  flex: 1;
   font-family: var(--font-mono);
   font-size: 0.8rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Both chips a row can wear — the multi-contributor badge and the winning
+   layer — are ONE cell, so the origin column holds even on rows that have
+   neither. */
+.prov-row-origin {
+  align-items: baseline;
+  display: flex;
+  gap: 0.4rem;
+  justify-self: end;
 }
 
 .badge.prov-layer {
@@ -1592,7 +1659,10 @@ textarea.layer-editor:focus {
   color: var(--warn);
 }
 
+/* The expanded detail is a block, not a row: it spans the ledger's columns
+   rather than sharing them. */
 .prov-detail {
+  grid-column: 1 / -1;
   padding: 0 0.75rem 0.75rem 1.65rem;
 }
 
@@ -2305,11 +2375,12 @@ pre.config-view.prov-before {
    Rows share ONE set of columns — key · value · origin — through `subgrid`, so
    values start on a common edge instead of wherever the key happens to end;
    the head button IS the subgrid row, which is why the <li> around it
-   disappears into `display: contents`. */
+   disappears into `display: contents`. Columns come from the shared `.kv`
+   primitive; only the track list and the list reset are this surface's. */
 .sim-thread-list {
-  column-gap: 0.6rem;
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr) auto;
+  --kv-cols: max-content minmax(0, 1fr) auto;
+  --kv-gap: 0.6rem;
+
   list-style: none;
   margin: 0;
   padding: 0;
@@ -2319,19 +2390,16 @@ pre.config-view.prov-before {
   display: contents;
 }
 
+/* The head IS the row (`.kv-row`); this is only the button reset it needs to
+   stop looking like a button. */
 .sim-thread-head {
-  align-items: baseline;
   background: none;
   border: none;
   border-radius: 6px;
   color: inherit;
-  column-gap: 0.6rem;
   cursor: pointer;
-  display: grid;
   font: inherit;
   font-size: 0.83rem;
-  grid-column: 1 / -1;
-  grid-template-columns: subgrid;
   padding: 0.2rem 0.4rem;
   text-align: left;
 }
@@ -2415,17 +2483,10 @@ pre.config-view.prov-before {
    straight down the grid; the comparison IS the evidence, and the prose form
    this replaced (layer 7 retired it) hid the comparison in a sentence. */
 .sim-clause-grid {
-  column-gap: 0.45rem;
-  display: grid;
-  grid-template-columns: max-content max-content minmax(0, 1fr) auto;
-  margin: 0.3rem 0;
-  row-gap: 0.2rem;
-}
+  --kv-cols: max-content max-content minmax(0, 1fr) auto;
+  --kv-row-gap: 0.2rem;
 
-.sim-clause-row {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: subgrid;
+  margin: 0.3rem 0;
 }
 
 /* The neutral default; the state hues come from the per-state mapping above. */
@@ -2522,16 +2583,8 @@ pre.config-view.prov-before {
    evidence card's digest, a thread's beaten values, the matched rule's applied
    diff and the A/B config delta are all this grid. */
 .sim-writes {
-  column-gap: 0.45rem;
-  display: grid;
-  grid-template-columns: max-content max-content minmax(0, 1fr);
-  row-gap: 0.2rem;
-}
-
-.sim-write-row {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: subgrid;
+  --kv-cols: max-content max-content minmax(0, 1fr);
+  --kv-row-gap: 0.2rem;
 }
 
 .sim-write-mark {

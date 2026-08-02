@@ -23,7 +23,7 @@ function SimMergedApplied({ rule, merged }: { rule: RuleEvaluation; merged: Merg
           code={ruleAppliedMarkdown(merged)}
         />
       </div>
-      <div className="sim-writes">
+      <div className="kv sim-writes">
         {merged.map((m) => (
           <WriteRow
             key={m.key}

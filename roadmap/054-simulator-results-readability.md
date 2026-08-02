@@ -195,3 +195,21 @@ rule.
   misfires in practice).
 - No third disclosure level: thread → popover is level two; the popover's
   "open in matched rules" is navigation, not another fold.
+
+### Follow-ups (2026-08-02 audit)
+
+Three layers landed after the plan above, from an audit of what shipped:
+
+6. **Consistency fixes** — `feat/053-06-design-consistency`: the thread
+   ledger's own grammar reconciled with the app's (actionable text, the
+   `explained` affordance on the dot, one clause-state → hue mapping with
+   every state named instead of a green fall-through).
+7. **One `WriteRow`, one `ClauseGrid`** — `feat/053-07-write-row`: four
+   surfaces said `key: before → after` in four dialects and two rendered
+   clause evidence as prose; both collapsed into one component each, so the
+   evidence reads the same wherever it is met.
+8. **One `.kv` subgrid primitive** — `feat/053-08-kv-primitive`: the plan
+   asked for ONE shared-column primitive and got three near-identical grid
+   systems; they are now `--kv-cols` configurations of a single `.kv` /
+   `.kv-row` pair, and the effective config's key list — older than all
+   three, and still ragged — adopted it as well.

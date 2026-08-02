@@ -168,7 +168,7 @@ export function ThreadBody({ thread, actions }: { thread: ThreadModel; actions: 
         <p className="sim-thread-line">No merge step names this setting.</p>
       )}
       {winner && winner.clauses.length > 0 ? <ClauseGrid clauses={winner.clauses} /> : null}
-      <div className="sim-writes">
+      <div className="kv sim-writes">
         {thread.overrides.map((entry) => (
           <ThreadOverrideLine
             key={entry.kind === "base" ? "base" : `stop-${entry.stopIndex}`}

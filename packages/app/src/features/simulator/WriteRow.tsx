@@ -11,7 +11,7 @@ import { previewValue } from "./rule-format";
  * the option-docs hover card (only two of the four gave it one).
  *
  * One component, one grammar: `mark · key · before → after · note`, on shared
- * grid columns (`.sim-writes`) so a column of writes reads straight down its
+ * grid columns (`.kv.sim-writes`) so a column of writes reads straight down its
  * value edge. The mark, the strike and the note are the only knobs, because
  * they are the only things the four surfaces actually disagreed about.
  */
@@ -56,7 +56,7 @@ export function WriteRow({
   max?: number;
 }) {
   return (
-    <div className="sim-write-row">
+    <div className="kv-row sim-write-row">
       <span className="sim-write-mark">{mark ?? ""}</span>
       <span className="sim-write-key">
         <OptionKey name={name} flagUnknown />

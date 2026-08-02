@@ -120,7 +120,7 @@ function RuleEvidenceBody({
       <RuleEvidenceHead evidence={evidence} onSelectPreset={onSelectPreset} />
       {evidence.clauses.length > 0 ? <ClauseGrid clauses={evidence.clauses} /> : null}
       <RuleEvidenceSummary evidence={evidence} />
-      <div className="sim-writes">
+      <div className="kv sim-writes">
         {evidence.writes.map((write) => (
           <RuleWriteRow key={write.key} write={write} />
         ))}

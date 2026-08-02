@@ -99,7 +99,7 @@ function ConfigDeltaSection({ configDelta }: { configDelta: ConfigKeyDelta[] }) 
     <div className="sim-compare-config">
       <div className="sim-merged-title">Final per-dependency config changes</div>
       {configDelta.length > 0 ? (
-        <div className="sim-writes">
+        <div className="kv sim-writes">
           {configDelta.map((d) => (
             <WriteRow
               key={d.key}

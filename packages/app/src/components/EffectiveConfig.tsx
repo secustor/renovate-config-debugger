@@ -325,6 +325,65 @@ function FinalValueBlock({ value }: { value: unknown }) {
   );
 }
 
+/** The key cell of a ledger row: the disclosure caret and the option name,
+ *  with its docs hover card intact (`OptionKey` is a plain span, safe inside
+ *  the button). Its own component so `KeyRow` keeps its cells one level from
+ *  the row, exactly as the simulator's thread ledger does. */
+function KeyRowKey({ name, expanded }: { name: string; expanded: boolean }) {
+  return (
+    <span className="prov-key-name">
+      <span className="caret">{expanded ? "▾" : "▸"}</span>
+      <OptionKey name={name} flagUnknown />
+    </span>
+  );
+}
+
+/** The value cell: what the merged config ends up with — or, for the one row
+ *  whose value is a list of rules, how many of them came from where. */
+function KeyRowPreview({
+  entry,
+  rules,
+  ruleAttribution,
+}: {
+  entry: KeyProvenance;
+  rules: unknown[] | null;
+  ruleAttribution?: RuleAttribution[] | null;
+}) {
+  return (
+    <span className="prov-key-preview">
+      {rules ? (
+        <RuleFramingText
+          total={rules.length}
+          attribution={ruleAttribution ?? null}
+          variant="full"
+        />
+      ) : (
+        preview(entry.finalValue)
+      )}
+    </span>
+  );
+}
+
+/** The origin cell — the multi-contributor badge (an `explained` chip since
+ *  053 layer 6) and the winning layer's chip, as ONE cell so the ledger's
+ *  third column holds on rows that carry neither. */
+function KeyRowOrigin({
+  entry,
+  winner,
+  onSelectPreset,
+}: {
+  entry: KeyProvenance;
+  winner?: ProvenanceStep;
+  onSelectPreset?: (nodeId: string) => void;
+}) {
+  return (
+    <span className="prov-row-origin">
+      <MultiContribBadgeChip entry={entry} />
+      {winner ? <ProvenanceChip layer={winner.layer} onSelectPreset={onSelectPreset} /> : null}
+    </span>
+  );
+}
+
 function KeyRow({
   entry,
   expanded,
@@ -344,25 +403,16 @@ function KeyRow({
   const rules =
     entry.key === "packageRules" && Array.isArray(entry.finalValue) ? entry.finalValue : null;
   return (
-    <div className={`prov-row${expanded ? " expanded" : ""}`}>
-      <button type="button" className="prov-row-head" onClick={onToggle} aria-expanded={expanded}>
-        <span className="caret">{expanded ? "▾" : "▸"}</span>
-        <span className="prov-key-name">
-          <OptionKey name={entry.key} flagUnknown />
-        </span>
-        <span className="prov-key-preview">
-          {rules ? (
-            <RuleFramingText
-              total={rules.length}
-              attribution={ruleAttribution ?? null}
-              variant="full"
-            />
-          ) : (
-            preview(entry.finalValue)
-          )}
-        </span>
-        <MultiContribBadgeChip entry={entry} />
-        {winner ? <ProvenanceChip layer={winner.layer} onSelectPreset={onSelectPreset} /> : null}
+    <div className={`kv-row prov-row${expanded ? " expanded" : ""}`}>
+      <button
+        type="button"
+        className="kv-row prov-row-head"
+        onClick={onToggle}
+        aria-expanded={expanded}
+      >
+        <KeyRowKey name={entry.key} expanded={expanded} />
+        <KeyRowPreview entry={entry} rules={rules} ruleAttribution={ruleAttribution} />
+        <KeyRowOrigin entry={entry} winner={winner} onSelectPreset={onSelectPreset} />
       </button>
       {expanded ? (
         <div className="prov-detail">
@@ -794,7 +844,7 @@ export const EffectiveConfig = memo(function EffectiveConfig({
             onShowDefaultsChange={setShowDefaults}
             hiddenDefaults={hiddenDefaults}
           />
-          <div className="prov-list">
+          <div className="kv prov-list">
             {filtered.length === 0 ? (
               <p className="empty-note">
                 No keys match.{" "}

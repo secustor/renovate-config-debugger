@@ -125,7 +125,7 @@ function ThreadRow({
       <button
         type="button"
         id={threadHeadId(thread.key)}
-        className="sim-thread-head"
+        className="kv-row sim-thread-head"
         aria-expanded={open}
         onClick={() => nav.onToggle(thread.key, !open)}
       >
@@ -150,7 +150,7 @@ export function VerdictThreads({
   nav: ThreadNavigation;
 }) {
   return (
-    <ul className="sim-thread-list">
+    <ul className="kv sim-thread-list">
       {threads.map((thread) => (
         <ThreadRow key={thread.key} thread={thread} actions={actions} nav={nav} />
       ))}

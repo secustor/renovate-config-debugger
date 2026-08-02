@@ -17,7 +17,7 @@ import { clauseEvaluated, clauseIcon, previewValue } from "./rule-format";
 function ClauseGridRow({ clause }: { clause: ClauseEvaluation }) {
   const evaluated = clauseEvaluated(clause);
   return (
-    <div className={`sim-clause-row state-${clause.state}`}>
+    <div className={`kv-row sim-clause-row state-${clause.state}`}>
       <span className="sim-clause-mark">{clauseIcon(clause.state)}</span>
       <code className="sim-clause-key">{clause.key}</code>
       <span className="sim-clause-checks">
@@ -38,7 +38,7 @@ function ClauseGridRow({ clause }: { clause: ClauseEvaluation }) {
  *  022 explanation (so this grid also serves rules that did NOT match). */
 export function ClauseGrid({ clauses }: { clauses: ClauseEvaluation[] }) {
   return (
-    <div className="sim-clause-grid">
+    <div className="kv sim-clause-grid">
       {clauses.map((clause) => (
         <ClauseGridRow key={clause.key} clause={clause} />
       ))}
