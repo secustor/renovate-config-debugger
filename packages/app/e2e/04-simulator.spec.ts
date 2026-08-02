@@ -212,8 +212,8 @@ test("the merge timeline walks the matching rules one stop at a time", async ({ 
 });
 
 /**
- * Roadmap 047/053 — a cross-link opens what it targets. The step link now
- * lives inside a THREAD (053: the ledger row expands into that key's causal
+ * Roadmap 047/054 — a cross-link opens what it targets. The step link now
+ * lives inside a THREAD (054: the ledger row expands into that key's causal
  * story), and it points at a stop inside the collapsed merge drawer — so
  * clicking it must open the drawer AND land on that exact stop, not merely
  * scroll to a closed row.

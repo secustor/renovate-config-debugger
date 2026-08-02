@@ -5,7 +5,7 @@ import { writeMark } from "./rule-format";
 import { WriteRow } from "./WriteRow";
 
 /**
- * Roadmap 053 layer 7 — the one write row, and the prop matrix the four
+ * Roadmap 054 layer 7 — the one write row, and the prop matrix the four
  * surfaces that share it actually exercise: a changed key (before → after), an
  * added one (no before), a removed one (a sentinel where a value would be), a
  * write that lost (struck `after` plus the stop that took it), and a thread's

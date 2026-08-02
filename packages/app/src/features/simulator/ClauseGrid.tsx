@@ -2,7 +2,7 @@ import type { ClauseEvaluation } from "@renovate-config-visualizer/engine";
 import { clauseEvaluated, clauseIcon, previewValue } from "./rule-format";
 
 /**
- * Roadmap 053 (variant A): a rule's clause evidence as ALIGNED columns —
+ * Roadmap 054 (variant A): a rule's clause evidence as ALIGNED columns —
  * mark · matcher · what it checks · what this update actually is. The prose
  * form this replaced (layer 7 retired it from the rules drawer too, so there is
  * one clause renderer now) restated "matched against x = y" per row; read as a

@@ -26,7 +26,7 @@ export function ruleAppliedMarkdown(merged: MergedKey[]): string {
     .join("\n");
 }
 
-/** Roadmap 053 layer 7: `~` changed · `+` added · `−` removed — the mark a
+/** Roadmap 054 layer 7: `~` changed · `+` added · `−` removed — the mark a
  *  {@link WriteRow} leads with, so a write reads without re-parsing its
  *  before/after pair. Here rather than beside the component because a module
  *  that renders may only export components (Fast Refresh). */
@@ -66,7 +66,7 @@ export function clauseIcon(state: ClauseEvaluation["state"]): string {
  * engine's note) rather than reading like the clause was never evaluated; a
  * null-returning matcher reads "not applicable (skipped)".
  *
- * Roadmap 053 layer 7: no longer exported — the prose clause list that read it
+ * Roadmap 054 layer 7: no longer exported — the prose clause list that read it
  * directly is gone, and every clause now arrives through `clauseEvaluated`.
  */
 function clauseExplanation(clause: ClauseEvaluation): string {
@@ -88,7 +88,7 @@ function clauseExplanation(clause: ClauseEvaluation): string {
   }
 }
 
-/** Roadmap 053: the clause grid's last column — the value side of the
+/** Roadmap 054: the clause grid's last column — the value side of the
  *  comparison, split so the grid can style the value itself. */
 export interface ClauseEvaluated {
   text: string;
@@ -98,7 +98,7 @@ export interface ClauseEvaluated {
 }
 
 /**
- * Roadmap 053 (variant A): a matched clause reads as a two-part sentence
+ * Roadmap 054 (variant A): a matched clause reads as a two-part sentence
  * across the grid — `checks ["npm"] · this update is "npm"` — because in a
  * thread the reader is comparing the two value columns, not reading prose.
  * Every other state keeps `clauseExplanation`'s precise wording: a fail-closed

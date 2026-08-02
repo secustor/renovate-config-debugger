@@ -643,12 +643,12 @@ describe("untrustedGuardForPolicy", () => {
 });
 
 /**
- * Roadmap 053 (layer 4): `sim.simThread` — the expanded verdict thread's key —
+ * Roadmap 054 (layer 4): `sim.simThread` — the expanded verdict thread's key —
  * is additive within v2 exactly like `autoSimulate` was, so the tests are the
  * same two questions: does a link that carries it round-trip, and does a link
  * from before it existed still decode as it always did?
  */
-describe("053: sim.simThread round-trips and stays additive", () => {
+describe("054: sim.simThread round-trips and stays additive", () => {
   test("a simulation link carrying an expanded thread round-trips", async () => {
     const token = await encodeShare(
       minimalState({
@@ -690,7 +690,7 @@ describe("053: sim.simThread round-trips and stays additive", () => {
     }
   });
 
-  test("a pre-053 link (no simThread) decodes exactly as before", async () => {
+  test("a pre-054 link (no simThread) decodes exactly as before", async () => {
     const token = await rawEncodeToken(
       taggedPayload({ sim: { form: { packageName: "lodash" }, autoSimulate: true } }),
     );

@@ -11,7 +11,7 @@ import type { RuleEvidence, RuleWrite } from "./rule-evidence";
 import { WriteRow } from "./WriteRow";
 
 /**
- * Roadmap 053 (variant A), layer 3: the second — and last — disclosure level.
+ * Roadmap 054 (variant A), layer 3: the second — and last — disclosure level.
  * A thread names the rules whose values it beat; clicking one of those
  * references opens THIS card, which answers the only question the thread
  * leaves open about a losing rule: what else did it do? Its clause evidence,
@@ -30,7 +30,7 @@ const CARD_WIDTH = 576;
 /** Roughly the card's own height: below this much room, it flips above. */
 const CARD_FLIP_MARGIN = 320;
 
-/** One key the rule merged, as the shared write row (053 layer 7). A write that
+/** One key the rule merged, as the shared write row (054 layer 7). A write that
  *  lost keeps this step's add tint — it IS what this step added — and is struck
  *  through, naming the stop that took it away; that pairing is the whole reason
  *  the card exists. */

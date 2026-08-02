@@ -3,7 +3,7 @@ import { OptionKey } from "@/components/option-docs";
 import { previewValue } from "./rule-format";
 
 /**
- * Roadmap 053 layer 7: THE row for "something wrote this key". Four surfaces
+ * Roadmap 054 layer 7: THE row for "something wrote this key". Four surfaces
  * used to say the same `key: before → after` sentence in four dialects — the
  * matched-rule drawer's list, the A/B config delta, the evidence popover's
  * digest, and a thread's struck-through override line — each with its own

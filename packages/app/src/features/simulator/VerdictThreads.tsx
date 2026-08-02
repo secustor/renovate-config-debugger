@@ -7,7 +7,7 @@ import { threadHeadId } from "./use-thread-nav";
 import type { ThreadModel } from "./verdict-threads";
 
 /**
- * Roadmap 053 (variant A): the verdict card's ledger IS the trace. Collapsed,
+ * Roadmap 054 (variant A): the verdict card's ledger IS the trace. Collapsed,
  * it reads as the 046 ledger did — the settings the rules changed, their final
  * values, where each came from — but every row expands into that key's own
  * causal thread (`ThreadBody`), so the three grains the 047 layout re-stated
@@ -48,7 +48,7 @@ function ThreadHeadValue({ thread }: { thread: ThreadModel }) {
 }
 
 /** The origin cell — kept as a cell even when empty so the column holds.
- *  Roadmap 053 layer 3: a DOT here, not the full chip. Collapsed, the column
+ *  Roadmap 054 layer 3: a DOT here, not the full chip. Collapsed, the column
  *  is read as "same origin or not?" down the ledger, which is exactly what a
  *  hue answers; the label stays one hover (or one expansion, where the writer
  *  line wears the full chip) away. */
@@ -69,7 +69,7 @@ function ThreadHeadOrigin({
 }
 
 /**
- * Roadmap 053 layer 4: expansion moved OUT of the row. Two things outside a
+ * Roadmap 054 layer 4: expansion moved OUT of the row. Two things outside a
  * row now open one — a share link's `simThread` and the return pill — and the
  * copy-link affordance has to know which thread is open to encode it, so the
  * state belongs to the simulator (see `use-thread-nav`). A re-simulation still

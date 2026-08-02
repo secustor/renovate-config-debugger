@@ -6,7 +6,7 @@ import type { ThreadEntry, ThreadModel, ThreadVerb, ThreadWinner } from "./verdi
 import { WriteRow } from "./WriteRow";
 
 /**
- * Roadmap 053 (variant A): the expanded thread — the causal story of ONE
+ * Roadmap 054 (variant A): the expanded thread — the causal story of ONE
  * setting. The winner writes first (the verb carries the merge semantics, so
  * the thread needs no explanatory aside), its clause evidence follows as an
  * aligned grid, and every writer it beat is struck through underneath, newest
@@ -21,7 +21,7 @@ const VERB_LABEL: Record<ThreadVerb, string> = {
 };
 
 /**
- * Roadmap 053: the callbacks a thread's body needs to reach the rest of the
+ * Roadmap 054: the callbacks a thread's body needs to reach the rest of the
  * simulator. Bundled because every level between the ledger and the override
  * line forwards all of them unchanged.
  */
@@ -91,7 +91,7 @@ function ThreadWriterLine({
  * One value the winner beat — struck through in place, with whoever wrote it.
  * The cascade's last entry is the pre-rules value, which has no writer.
  *
- * Roadmap 053 layer 7: this IS the shared write row (`⊘` mark, a struck value,
+ * Roadmap 054 layer 7: this IS the shared write row (`⊘` mark, a struck value,
  * a trailing note), so a lost value looks the same here as in the evidence
  * card's digest. The row states only a `before` — a beaten write has no "and
  * then it became": that is the winner line at the top of the thread.

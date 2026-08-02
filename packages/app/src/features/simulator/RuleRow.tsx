@@ -10,7 +10,7 @@ import { ClauseGrid } from "./ClauseGrid";
 import { ruleAppliedMarkdown, ruleLabel, VERDICT_LABEL, writeMark } from "./rule-format";
 import { WriteRow } from "./WriteRow";
 
-/** Roadmap 018/040/053: what a matching rule applied to the dependency config,
+/** Roadmap 018/040/054: what a matching rule applied to the dependency config,
  *  as the shared write rows plus the copy-as-markdown export of the same. */
 function SimMergedApplied({ rule, merged }: { rule: RuleEvaluation; merged: MergedKey[] }) {
   return (

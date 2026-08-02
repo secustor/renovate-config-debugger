@@ -1,5 +1,5 @@
 /**
- * Roadmap 053 — the two motion-bearing gestures every cross-link in this app
+ * Roadmap 054 — the two motion-bearing gestures every cross-link in this app
  * makes: scroll the target into view, then flash it so the eye can find it.
  * Both were spelled out inline at each call site (013's rule focus, 047's
  * drawer jumps), which is how the scroll came to ignore

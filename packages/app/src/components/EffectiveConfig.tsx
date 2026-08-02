@@ -365,7 +365,7 @@ function KeyRowPreview({
 }
 
 /** The origin cell — the multi-contributor badge (an `explained` chip since
- *  053 layer 6) and the winning layer's chip, as ONE cell so the ledger's
+ *  054 layer 6) and the winning layer's chip, as ONE cell so the ledger's
  *  third column holds on rows that carry neither. */
 function KeyRowOrigin({
   entry,

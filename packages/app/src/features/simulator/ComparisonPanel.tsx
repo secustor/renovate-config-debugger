@@ -91,7 +91,7 @@ function RuleDeltaList({
 
 /** Roadmap 018: the final-config key delta — the settings A and B actually
  *  disagree on, or an explicit "only the matched-rule set differs". Each row is
- *  the shared write row (053 layer 7); a key that exists on only one side keeps
+ *  the shared write row (054 layer 7); a key that exists on only one side keeps
  *  this panel's own sentinels, since `(unset)` and `(removed)` are words, not
  *  values the config carries. */
 function ConfigDeltaSection({ configDelta }: { configDelta: ConfigKeyDelta[] }) {

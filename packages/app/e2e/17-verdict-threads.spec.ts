@@ -48,7 +48,7 @@ async function expandThread(page: Page, key: string): Promise<Locator> {
 }
 
 /**
- * Roadmap 053 — the thread answers "who set this, and what did they beat?" in
+ * Roadmap 054 — the thread answers "who set this, and what did they beat?" in
  * one place. Collapsed, the row still says two rules wrote the key; expanded,
  * the winner writes first with its clause evidence in aligned columns, and the
  * value it overrode is struck through under the rule that wrote it.
@@ -106,7 +106,7 @@ test("expanding a contested thread names its winner, its clause evidence and the
 });
 
 /**
- * Roadmap 053 layer 3 — the second (and last) disclosure level. A thread names
+ * Roadmap 054 layer 3 — the second (and last) disclosure level. A thread names
  * the rule whose value it beat; that reference opens the losing rule's own
  * card, which answers the only question the thread leaves open about it: what
  * ELSE did it do? The card is navigation-free, so it light-dismisses and hands
@@ -157,7 +157,7 @@ test("the losing writer's reference opens its evidence card, and Escape gives fo
 });
 
 /**
- * Roadmap 053 layer 3 — the card's one link out. "open in matched rules →" is
+ * Roadmap 054 layer 3 — the card's one link out. "open in matched rules →" is
  * navigation, not a third fold: it opens the (demoted) rules drawer and lands
  * on that rule's row through the 013 focus wiring, closing the card behind it.
  */
@@ -183,7 +183,7 @@ test("the evidence card's matched-rules link opens the drawer on that rule's row
 });
 
 /**
- * Roadmap 053 layer 4 — the way back. A thread's own jumps land the reader
+ * Roadmap 054 layer 4 — the way back. A thread's own jumps land the reader
  * somewhere the thread is off-screen, so both leave a pill naming it. The pill
  * re-expands that thread, flashes it, and then has nothing left to say.
  */
@@ -226,7 +226,7 @@ test("a thread's step jump leaves a return pill that re-expands and flashes the 
 });
 
 /**
- * Roadmap 053 layer 4 — a link says where to look. `simThread` (the expanded
+ * Roadmap 054 layer 4 — a link says where to look. `simThread` (the expanded
  * key) rides the sim descriptor beside `autoSimulate`, `simStep` restores the
  * replay's stop, and opening the link reproduces the run with both in place —
  * no clicking, no scrolling to find what the sender meant.

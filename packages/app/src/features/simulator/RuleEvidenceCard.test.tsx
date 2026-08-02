@@ -4,7 +4,7 @@ import type { RuleEvidence } from "./rule-evidence";
 import { RuleEvidenceAnchor } from "./RuleEvidenceCard";
 
 /**
- * Roadmap 053 layer 3 — the popover's interaction contract, the part that is
+ * Roadmap 054 layer 3 — the popover's interaction contract, the part that is
  * not the derivation: it opens from the rule reference, it light-dismisses
  * (Escape, click outside), and dismissing hands focus BACK to the reference
  * rather than dropping it on <body>. The e2e suite (layer 5) drives the same

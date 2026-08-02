@@ -67,7 +67,7 @@
 
   /* The stacking ladder, stated in ONE place and in the order the app means:
      a floating pill hovers over the PAGE, a popover hovers over what the
-     reader is reading right now (so it must clear the pills — 053's evidence
+     reader is reading right now (so it must clear the pills — 054's evidence
      card opened low in the viewport was landing behind the return pill), and a
      toast, which speaks for the app itself and dismisses itself, is above
      both. Rungs are 10 apart so a future in-between plane needs no renumbering. */
@@ -1410,9 +1410,9 @@ textarea.layer-editor:focus {
   color: var(--muted);
 }
 
-/* ---------- the shared key/value grid (053 layer 8) ----------
+/* ---------- the shared key/value grid (054 layer 8) ----------
    ONE primitive for every ledger in the app that reads as `key · value ·
-   origin`. Roadmap 053 planned exactly this and then grew three copies of it
+   origin`. Roadmap 054 planned exactly this and then grew three copies of it
    (the thread ledger, the clause grid, the writes grid), each re-declaring the
    same `display: grid` + child `grid-column: 1 / -1; grid-template-columns:
    subgrid` shape with near-identical gaps; the effective config's key list,
@@ -1505,7 +1505,7 @@ textarea.layer-editor:focus {
   padding: 0.5rem 0.75rem;
 }
 
-/* 053 layer 8: the key list is a `.kv` ledger — key · value preview · origin,
+/* 054 layer 8: the key list is a `.kv` ledger — key · value preview · origin,
    on ONE set of columns, so previews start on a common edge instead of
    wherever each option name happens to end (this list had the ragged-column
    problem the simulator's thread ledger was built to fix).
@@ -1594,7 +1594,7 @@ textarea.layer-editor:focus {
   cursor: pointer;
 }
 
-/* 053: the hue rules are shared with the dot variant below — the dot IS the
+/* 054: the hue rules are shared with the dot variant below — the dot IS the
    chip's color with the label moved into the hover card, so the two must never
    be able to disagree about which hue a layer wears. */
 .badge.prov-defaults,
@@ -1623,7 +1623,7 @@ textarea.layer-editor:focus {
   color: var(--accent-pink);
 }
 
-/* 053: inside an evidence layer the chip repeats on every row, where a column
+/* 054: inside an evidence layer the chip repeats on every row, where a column
    of colored labels competes with the evidence itself. The dot keeps the one
    thing that column is scanned for — same origin as the row above, or not —
    and hands the label to the tooltip and the chip's own hover card. */
@@ -2200,7 +2200,7 @@ pre.config-view.prov-before {
   padding: 0.5rem 0.75rem 0.6rem 1.9rem;
 }
 
-/* ONE clause-state → hue mapping for the ONE form a clause is read in (053
+/* ONE clause-state → hue mapping for the ONE form a clause is read in (054
    layer 7 retired the prose list the rules drawer used to have its own copy
    of). Every state is named explicitly on purpose — the grid used to inherit
    green as a fall-through, so a state the list did not know about rendered as
@@ -2242,7 +2242,7 @@ pre.config-view.prov-before {
 }
 
 /* A value that never reached the final config, wherever it is read: what a
-   write replaced, and — since 053 layer 7 — the beaten value a thread's
+   write replaced, and — since 054 layer 7 — the beaten value a thread's
    override row states, which is the same fact in the same grammar. */
 .sim-merged-before {
   color: var(--muted);
@@ -2368,7 +2368,7 @@ pre.config-view.prov-before {
   padding: 0.6rem 0.85rem 0.7rem;
 }
 
-/* ---------- 053: the thread ledger (variant A) ----------
+/* ---------- 054: the thread ledger (variant A) ----------
    The ledger IS the trace. Collapsed it reads as the 046 ledger did, but every
    row expands into that key's own causal story, so the three grains 047 kept
    re-stating (ledger, per-rule applied list, step diff) have one home each.
@@ -2478,7 +2478,7 @@ pre.config-view.prov-before {
   margin-left: 0;
 }
 
-/* 053: clause evidence as COLUMNS — mark · matcher · what it checks · what
+/* 054: clause evidence as COLUMNS — mark · matcher · what it checks · what
    this update actually is. Rows are subgrid so both value columns line up
    straight down the grid; the comparison IS the evidence, and the prose form
    this replaced (layer 7 retired it) hid the comparison in a sentence. */
@@ -2496,7 +2496,7 @@ pre.config-view.prov-before {
 }
 
 /* The matcher name, in the same mono the digest and the merge drawer set their
-   keys in — a key column is a key column wherever a 053 grid puts one. */
+   keys in — a key column is a key column wherever a 054 grid puts one. */
 .sim-clause-key {
   font-family: var(--font-mono);
   font-size: 0.78rem;
@@ -2515,7 +2515,7 @@ pre.config-view.prov-before {
   font-size: 0.78rem;
 }
 
-/* 053 layer 3: the rule-evidence popover. The plane is the app's existing
+/* 054 layer 3: the rule-evidence popover. The plane is the app's existing
    hover-card plane (.option-card: raised surface, popover shadow, fixed
    placement clamped to the viewport by lib/anchored-card) — this only sets the
    shape the mockup asked for. Nothing here animates: the card is opened by a
@@ -2578,7 +2578,7 @@ pre.config-view.prov-before {
   margin: 0.4rem 0 0;
 }
 
-/* 053 layer 7: ONE grammar for "something wrote this key", on shared columns
+/* 054 layer 7: ONE grammar for "something wrote this key", on shared columns
    (mark · key · values) so a column of writes reads down its value edge — the
    evidence card's digest, a thread's beaten values, the matched rule's applied
    diff and the A/B config delta are all this grid. */
@@ -2604,7 +2604,7 @@ pre.config-view.prov-before {
 
 /* A write that happened here but lost to a later stop: it IS this step's
    addition, so it keeps the add tint, and it is struck like every other value
-   in 053 that never reached the final config. */
+   in 054 that never reached the final config. */
 .sim-merged-after.overridden {
   text-decoration: line-through;
 }
@@ -2682,7 +2682,7 @@ pre.config-view.prov-before {
   text-decoration: underline;
 }
 
-/* 053: the demoted evidence drawers' only mention on the card — one quiet
+/* 054: the demoted evidence drawers' only mention on the card — one quiet
    line, with "N of M" stated here and nowhere else on it. Both of its links
    ARE `.sim-jump`; they are the same affordance saying two things. */
 .sim-trace-links {
@@ -3052,7 +3052,7 @@ pre.config-view.prov-before {
   animation: rcv-flash 1.6s ease-out;
 }
 
-/* Roadmap 053: the same "you are here", without the motion — the target still
+/* Roadmap 054: the same "you are here", without the motion — the target still
    has to be markable for a reader who asked for less animation, so the flash
    becomes a static highlight for the same duration (the class is removed on
    the callers' timeout either way). Same HUE as the animation's first frame:
@@ -3260,7 +3260,7 @@ pre.config-view.prov-before {
 
 /* Any badge/stat given a glossary hover card (see glossary.tsx's `Explained`)
    gets a quiet affordance; more-specific rules elsewhere (e.g. the clickable
-   dup/elided badges' own `cursor: pointer`) still win by specificity. The 053
+   dup/elided badges' own `cursor: pointer`) still win by specificity. The 054
    provenance DOT carries the same class and states its own form of this next
    to `.prov-dot`, where the ordering against the clickable case is visible. */
 .badge.explained,
@@ -3313,7 +3313,7 @@ pre.config-view.prov-before {
   filter: brightness(1.1);
 }
 
-/* Roadmap 053: the return pill — the same bottom-of-the-viewport plane as
+/* Roadmap 054: the return pill — the same bottom-of-the-viewport plane as
    .back-to-top and .rcv-toast (same offset, same float shadow, the same
    --z-float rung), but centered and quiet: it answers a jump the reader made
    one click ago, so it must be findable without competing with the page it

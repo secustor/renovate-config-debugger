@@ -3,6 +3,10 @@
 Milestone: — · Status: **variant A implemented** (2026-08-02), shipped as the
 five-layer stack below; variants B and C remain proposed
 
+Renumbered from 053 (2026-08-03): main took that number for the analytics
+localhost-exclusion item while this stack was in review. The `feat/053-*`
+branch names predate the renumber and stay as-is.
+
 Mockup (three variants; revised 2026-08-02 after review — the scenario now
 includes a contested field, `groupName` written by two matched rules with the
 later one winning, and every key/value ledger aligns its columns):
@@ -162,7 +166,7 @@ evidence per rule. A new `verdict-threads.ts` derives, per changed key:
 4. `ReturnPill` + `simThread` fragment state + jump wiring —
    `feat/053-04-return-pill-fragment`.
 5. e2e suite + roadmap status flip — `feat/053-05-e2e-and-docs`
-   (`packages/app/e2e/16-verdict-threads.spec.ts`, five scenarios over the
+   (`packages/app/e2e/17-verdict-threads.spec.ts`, five scenarios over the
    new `CONTESTED_KEY_CONFIG` fixture: expand a contested thread, the
    popover's evidence + Escape-restores-focus, its "open in matched
    rules →" jump, the step jump's return pill, and a `simThread` +

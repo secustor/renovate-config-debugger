@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 
 /**
- * Roadmap 025/053: where a floating card anchored to an element goes. The
+ * Roadmap 025/054: where a floating card anchored to an element goes. The
  * cards render `position: fixed` and are portalled to `<body>` (035), so the
  * numbers below are viewport coordinates; two rules matter and were duplicated
  * per card before this module: clamp the width to the VIEWPORT rather than to

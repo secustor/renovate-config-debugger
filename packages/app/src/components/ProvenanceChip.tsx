@@ -24,7 +24,7 @@ export function ProvenanceChip({
   layer: ProvenanceLayer;
   onSelectPreset?: (nodeId: string) => void;
   /**
-   * Roadmap 053: inside an evidence layer the same chip repeats on every row,
+   * Roadmap 054: inside an evidence layer the same chip repeats on every row,
    * where it is a column of colored labels competing with the evidence itself.
    * `dot` keeps the hue (the thing a reader scans for) and hands the label to
    * the hover card and the tooltip, which is where a reader who cares looks
