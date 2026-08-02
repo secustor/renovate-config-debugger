@@ -1,0 +1,2283 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mockup 054 — Simulator results readability</title>
+    <style>
+      /* ---- app tokens, verbatim from packages/app/src/index.css ---- */
+      :root {
+        color-scheme: light dark;
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        --border: light-dark(#d0d7de, #3d444d);
+        --surface: light-dark(#f6f8fa, #151b23);
+        --accent: light-dark(#0969da, #4493f8);
+        --ok: #1a7f37;
+        --error: #cf222e;
+        --warn: #9a6700;
+        --muted: light-dark(#59636e, #9198a1);
+        --preset: light-dark(#8250df, #c297ff);
+        --highlight: light-dark(#fffce0, #3b2f0b);
+        --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+        --ok-bg: color-mix(in srgb, var(--ok) 10%, var(--surface));
+        --error-bg: color-mix(in srgb, var(--error) 10%, var(--surface));
+        --diff-add: light-dark(#dafbe1, #12261e);
+        --diff-del: light-dark(#ffebe9, #2b1214);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: light-dark(#ffffff, #0d1117);
+        color: light-dark(#1f2328, #f0f6fc);
+      }
+      main {
+        margin: 0 auto;
+        max-width: 62rem;
+        padding: 1.5rem 1rem 4rem;
+      }
+      h1 {
+        font-size: 1.5rem;
+        margin: 0 0 0.25rem;
+      }
+      h2 {
+        font-size: 1.05rem;
+        margin: 2.5rem 0 0.25rem;
+      }
+      h3 {
+        font-size: 0.95rem;
+        margin: 1.75rem 0 0.25rem;
+      }
+      h2 .num,
+      h3 .num {
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .section-note {
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin: 0.25rem 0 1rem;
+        max-width: 56rem;
+      }
+      .section-note code,
+      p code,
+      .research code,
+      li code,
+      td code {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-family: var(--mono);
+        font-size: 0.85em;
+        padding: 0.05em 0.3em;
+      }
+      .mock-banner {
+        background: light-dark(#fff8c5, #3a2d00);
+        border: 1px solid var(--warn);
+        border-radius: 8px;
+        font-size: 0.85rem;
+        margin-bottom: 1rem;
+        padding: 0.5rem 0.75rem;
+      }
+      .pane-label {
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        margin: 1rem 0 0.35rem;
+        text-transform: uppercase;
+      }
+      .pane-label.now {
+        color: var(--error);
+      }
+      .problem-list,
+      .tradeoff-list {
+        color: var(--muted);
+        font-size: 0.88rem;
+        margin: 0.35rem 0 1rem;
+        max-width: 56rem;
+        padding-left: 1.25rem;
+      }
+      .problem-list li,
+      .tradeoff-list li {
+        margin: 0.25rem 0;
+      }
+      .problem-list strong {
+        color: var(--error);
+        font-weight: 600;
+      }
+      .tradeoff-list .win {
+        color: var(--ok);
+        font-weight: 600;
+      }
+      .tradeoff-list .lose {
+        color: var(--error);
+        font-weight: 600;
+      }
+      button {
+        font: inherit;
+      }
+      :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      /* ---- app chrome ---- */
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        overflow: hidden;
+      }
+      .card-body {
+        padding: 0.75rem;
+      }
+      .badge {
+        border: 1px solid;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        line-height: 1.5;
+        padding: 0 0.5rem;
+        white-space: nowrap;
+      }
+      .badge.ok {
+        border-color: var(--ok);
+        color: var(--ok);
+      }
+      .badge.muted {
+        border-color: var(--border);
+        color: var(--muted);
+      }
+      .prov {
+        border: 1px solid var(--preset);
+        border-radius: 999px;
+        color: var(--preset);
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        padding: 0 0.45rem;
+        white-space: nowrap;
+      }
+      .prov-dot {
+        background: var(--preset);
+        border-radius: 50%;
+        cursor: help;
+        display: inline-block;
+        height: 0.5rem;
+        vertical-align: baseline;
+        width: 0.5rem;
+      }
+      .linkish {
+        background: none;
+        border: none;
+        color: var(--accent);
+        cursor: pointer;
+        font-size: inherit;
+        padding: 0;
+        text-align: left;
+      }
+      code,
+      .mono {
+        font-family: var(--mono);
+      }
+
+      /* ---- verdict card (as shipped by 046/047, condensed) ---- */
+      .verdict {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-bottom: 0.6rem;
+        padding: 0.75rem;
+      }
+      .verdict-eyebrow {
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        letter-spacing: 0.05em;
+        margin: 0 0 0.3rem;
+        text-transform: uppercase;
+      }
+      .verdict-sentence {
+        font-size: 1.05rem;
+        margin: 0 0 0.6rem;
+      }
+      .modal-verb {
+        border: 1px solid var(--ok);
+        border-radius: 6px;
+        color: var(--ok);
+        font-size: 0.8em;
+        font-weight: 700;
+        padding: 0.05em 0.4em;
+        text-transform: uppercase;
+      }
+      .verdict-ledger-label {
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        margin: 0 0 0.35rem;
+        text-transform: uppercase;
+      }
+      .verdict-keys {
+        font-size: 0.85rem;
+        list-style: none;
+        margin: 0 0 0.6rem;
+        padding: 0;
+      }
+      .verdict-keys > li {
+        margin: 0.25rem 0;
+      }
+      .verdict-foot {
+        align-items: center;
+        border-top: 1px solid var(--border);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: space-between;
+        margin: 0.6rem -0.75rem 0;
+        padding: 0.6rem 0.75rem 0;
+      }
+      .verdict-foot .btn-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+      }
+      .btn {
+        align-items: center;
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: inherit;
+        cursor: pointer;
+        display: inline-flex;
+        font-size: 0.8rem;
+        gap: 0.35rem;
+        padding: 0.25rem 0.6rem;
+        white-space: nowrap;
+      }
+      .value {
+        color: light-dark(#0a3069, #a5d6ff);
+        font-family: var(--mono);
+        font-size: 0.82rem;
+      }
+      .value.old {
+        color: var(--muted);
+        text-decoration: line-through;
+      }
+
+      /* ---- aligned key/value ledgers (054 review feedback) ----
+         Every list that reads `key  value  origin` shares its columns via
+         subgrid, so values start on one common edge instead of wherever the
+         key happens to end. Rows keep their own box (borders, hover). */
+      .kv {
+        column-gap: 0.6rem;
+        display: grid;
+        grid-template-columns: max-content minmax(0, 1fr) auto;
+      }
+      .kv > li {
+        align-items: baseline;
+        display: grid;
+        grid-column: 1 / -1;
+        grid-template-columns: subgrid;
+      }
+      .kv > li.full {
+        display: block;
+      }
+      .kv .value {
+        overflow-wrap: anywhere;
+      }
+      .kv .cell {
+        min-width: 0;
+      }
+
+      /* ---- the "now" reproduction ---- */
+      .drawer {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-bottom: 0.6rem;
+      }
+      .drawer > summary {
+        align-items: baseline;
+        cursor: pointer;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem 0.6rem;
+        list-style: none;
+        padding: 0.5rem 0.75rem;
+      }
+      .drawer > summary::-webkit-details-marker {
+        display: none;
+      }
+      .drawer > summary::before {
+        color: var(--muted);
+        content: "▸";
+        font-size: 0.8rem;
+      }
+      .drawer[open] > summary::before {
+        content: "▾";
+      }
+      .drawer-title {
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+      .drawer-summary {
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+      .drawer-body {
+        border-top: 1px solid var(--border);
+        padding: 0.6rem 0.75rem;
+      }
+      .filter-row {
+        color: var(--muted);
+        display: flex;
+        flex-wrap: wrap;
+        font-size: 0.78rem;
+        gap: 0.75rem;
+        margin-bottom: 0.5rem;
+      }
+      .rule-row {
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        margin: 0.3rem 0;
+      }
+      .rule-head {
+        align-items: baseline;
+        background: none;
+        border: none;
+        color: inherit;
+        cursor: pointer;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        padding: 0.35rem 0.5rem;
+        text-align: left;
+        width: 100%;
+      }
+      .rule-head .idx {
+        font-family: var(--mono);
+        font-size: 0.8rem;
+      }
+      .rule-head .label {
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 0.78rem;
+      }
+      .rule-detail {
+        border-top: 1px solid var(--border);
+        font-size: 0.82rem;
+        padding: 0.5rem 0.6rem;
+      }
+      .clauses {
+        list-style: none;
+        margin: 0 0 0.5rem;
+        padding: 0;
+      }
+      .clauses li {
+        margin: 0.2rem 0;
+      }
+      .clauses .ok-mark {
+        color: var(--ok);
+      }
+      .diff {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        line-height: 1.5;
+        margin: 0.4rem 0;
+        overflow-x: auto;
+        padding: 0.4rem 0;
+      }
+      .diff .ln {
+        color: var(--muted);
+        display: inline-block;
+        padding-right: 0.75rem;
+        text-align: right;
+        user-select: none;
+        width: 6.5em;
+      }
+      .diff .row {
+        padding: 0 0.6rem;
+        white-space: pre;
+      }
+      .diff .add {
+        background: var(--diff-add);
+      }
+      .diff .del {
+        background: var(--diff-del);
+      }
+      .diff-toolbar {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        font-size: 0.78rem;
+        gap: 0.5rem;
+        justify-content: flex-end;
+        margin: 0.4rem 0;
+      }
+      .timeline {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem;
+        margin: 0.4rem 0 0.6rem;
+      }
+      .seq-chip {
+        align-items: center;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        cursor: pointer;
+        display: inline-flex;
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        gap: 0.3rem;
+        padding: 0.15rem 0.6rem;
+      }
+      .seq-chip.selected {
+        border-color: var(--accent);
+        box-shadow: inset 0 0 0 1px var(--accent);
+      }
+      .seq-chip .delta {
+        color: var(--muted);
+      }
+      .seq-sep {
+        color: var(--muted);
+        font-size: 0.75rem;
+      }
+
+      /* ---- variant A: ledger threads ---- */
+      .thread-head {
+        background: none;
+        border: none;
+        border-radius: 6px;
+        color: inherit;
+        cursor: pointer;
+        padding: 0.3rem 0.4rem;
+        text-align: left;
+      }
+      .kv .thread-head {
+        align-items: baseline;
+        column-gap: 0.6rem;
+        display: grid;
+        grid-column: 1 / -1;
+        grid-template-columns: subgrid;
+      }
+      .thread-head:hover {
+        background: color-mix(in srgb, var(--accent) 7%, transparent);
+      }
+      .thread-head .key {
+        white-space: nowrap;
+      }
+      .thread-head .caret {
+        color: var(--muted);
+        font-size: 0.75rem;
+      }
+      .kv > li.thread {
+        display: contents;
+      }
+      .thread-body {
+        border-left: 2px solid var(--border);
+        display: none;
+        font-size: 0.82rem;
+        grid-column: 1 / -1;
+        margin: 0.15rem 0 0.4rem 0.95rem;
+        padding: 0.2rem 0 0.2rem 0.75rem;
+      }
+      .thread.open .thread-body {
+        display: block;
+      }
+      .thread-line {
+        color: var(--muted);
+        margin: 0.25rem 0;
+      }
+      .thread-line b {
+        color: light-dark(#1f2328, #f0f6fc);
+        font-weight: 600;
+      }
+      .thread-line .ok-mark {
+        color: var(--ok);
+      }
+      /* Clause evidence as columns: mark · matcher · predicate · evaluated.
+         Matchers and both value columns share edges within a thread. */
+      .clause-grid {
+        color: var(--muted);
+        column-gap: 0.45rem;
+        display: grid;
+        font-size: 0.82rem;
+        grid-template-columns: max-content max-content minmax(0, 1fr) auto;
+        margin: 0.25rem 0;
+        row-gap: 0.25rem;
+      }
+      .clause-grid .ok-mark {
+        color: var(--ok);
+      }
+      .clause-grid .value {
+        overflow-wrap: anywhere;
+      }
+
+      /* ---- variant A navigation: rule popover + return pill ----
+         First drill level never navigates (popover, nothing to go back from);
+         a real jump leaves a floating return pill, the app's existing
+         bottom-pill plane (.back-to-top / .rcv-toast). */
+      .pop-anchor {
+        display: inline;
+        position: relative;
+      }
+      .rule-pop {
+        background: light-dark(#ffffff, #151b23);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: 0 8px 24px light-dark(rgba(140, 149, 159, 0.3), rgba(0, 0, 0, 0.5));
+        display: none;
+        font-size: 0.78rem;
+        left: 0;
+        max-width: min(36rem, 92vw);
+        padding: 0.6rem 0.7rem;
+        position: absolute;
+        top: calc(100% + 0.35rem);
+        width: max-content;
+        z-index: 5;
+      }
+      .rule-pop.open {
+        display: block;
+      }
+      .rule-pop p {
+        margin: 0.25rem 0;
+      }
+      .rule-pop .clauses {
+        margin: 0.35rem 0;
+      }
+      .rule-pop .digest {
+        display: block;
+      }
+      /* A write that happened here but lost to a later rule: it IS this
+         step's addition (keeps the add tint) and it's struck, like every
+         other losing value in variant A. */
+      .digest .overridden {
+        text-decoration: line-through;
+      }
+      .return-pill {
+        align-items: center;
+        background: light-dark(#ffffff, #151b23);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        bottom: 1.25rem;
+        box-shadow: 0 2px 12px rgb(0 0 0 / 0.3);
+        color: var(--accent);
+        cursor: pointer;
+        display: none;
+        font-size: 0.82rem;
+        gap: 0.35rem;
+        left: 50%;
+        padding: 0.4rem 0.95rem;
+        position: fixed;
+        transform: translateX(-50%);
+        z-index: 20;
+      }
+      .return-pill.show {
+        display: inline-flex;
+      }
+      .flash {
+        animation: flash-bg 1.4s ease-out 1;
+      }
+      @keyframes flash-bg {
+        0%,
+        55% {
+          background: var(--highlight);
+        }
+        100% {
+          background: transparent;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .flash {
+          animation: none;
+          background: var(--highlight);
+        }
+      }
+
+      /* ---- variant B: inspector ---- */
+      .inspector {
+        display: grid;
+        gap: 0;
+        grid-template-columns: 16rem minmax(0, 1fr);
+      }
+      @media (max-width: 46rem) {
+        .inspector {
+          grid-template-columns: 1fr;
+        }
+        .rail {
+          border-bottom: 1px solid var(--border);
+          border-right: none;
+        }
+      }
+      .rail {
+        border-right: 1px solid var(--border);
+        padding: 0.5rem 0;
+      }
+      .rail-group {
+        color: var(--muted);
+        font-size: 0.68rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        margin: 0.6rem 0 0.15rem;
+        padding: 0 0.75rem;
+        text-transform: uppercase;
+      }
+      .rail-group:first-child {
+        margin-top: 0;
+      }
+      .rail-item {
+        align-items: baseline;
+        background: none;
+        border: none;
+        border-left: 2px solid transparent;
+        color: inherit;
+        cursor: pointer;
+        display: flex;
+        font-size: 0.8rem;
+        gap: 0.4rem;
+        padding: 0.25rem 0.75rem;
+        text-align: left;
+        width: 100%;
+      }
+      .rail-item:hover {
+        background: color-mix(in srgb, var(--accent) 7%, transparent);
+      }
+      .rail-item[aria-selected="true"] {
+        background: color-mix(in srgb, var(--accent) 10%, transparent);
+        border-left-color: var(--accent);
+      }
+      .rail-item .idx {
+        font-family: var(--mono);
+        font-size: 0.78rem;
+      }
+      .rail-item .hint {
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        margin-left: auto;
+        white-space: nowrap;
+      }
+      .rail-item.elided {
+        color: var(--muted);
+      }
+      .insp-pane {
+        display: none;
+        padding: 0.75rem;
+      }
+      .insp-pane.active {
+        display: block;
+      }
+      .insp-title {
+        align-items: baseline;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin: 0 0 0.5rem;
+      }
+      .insp-title .idx {
+        font-family: var(--mono);
+        font-size: 0.9rem;
+        font-weight: 600;
+      }
+      .clause-table {
+        border-collapse: collapse;
+        font-size: 0.8rem;
+        margin: 0.4rem 0 0.75rem;
+        width: 100%;
+      }
+      .clause-table th {
+        color: var(--muted);
+        font-size: 0.68rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        padding: 0.25rem 0.6rem 0.25rem 0;
+        text-align: left;
+        text-transform: uppercase;
+      }
+      .clause-table td {
+        border-top: 1px solid var(--border);
+        padding: 0.3rem 0.6rem 0.3rem 0;
+        vertical-align: top;
+      }
+      .applied-list {
+        font-size: 0.82rem;
+        list-style: none;
+        margin: 0.25rem 0 0.5rem;
+        padding: 0;
+      }
+      .applied-list li {
+        margin: 0.25rem 0;
+      }
+
+      /* ---- variant C: lenses + digest diff ---- */
+      .lens-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0;
+        margin-bottom: 0.6rem;
+      }
+      .lens {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-right-width: 0;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 0.8rem;
+        padding: 0.3rem 0.8rem;
+      }
+      .lens:first-child {
+        border-radius: 6px 0 0 6px;
+      }
+      .lens:last-child {
+        border-radius: 0 6px 6px 0;
+        border-right-width: 1px;
+      }
+      .lens[aria-selected="true"] {
+        background: light-dark(#ffffff, #0d1117);
+        color: inherit;
+        font-weight: 600;
+      }
+      .lens .count {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+      }
+      .lens-pane {
+        display: none;
+      }
+      .lens-pane.active {
+        display: block;
+      }
+      .elide-row {
+        background: none;
+        border: 1px dashed var(--border);
+        border-radius: 6px;
+        color: var(--muted);
+        cursor: pointer;
+        display: block;
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        margin: 0.4rem 0;
+        padding: 0.3rem 0.6rem;
+        text-align: left;
+        width: 100%;
+      }
+      .elide-row:hover {
+        color: var(--accent);
+      }
+      .digest {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        line-height: 1.6;
+        margin: 0.4rem 0;
+        overflow-x: auto;
+        padding: 0.5rem 0.75rem;
+      }
+      .digest .drow {
+        column-gap: 0.6rem;
+        display: grid;
+        grid-template-columns: 1.2em 8.5em minmax(0, 1fr);
+      }
+      .digest .k-del {
+        background: var(--diff-del);
+      }
+      .digest .k-add {
+        background: var(--diff-add);
+      }
+      .computed {
+        font-size: 0.84rem;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .computed > li {
+        border-top: 1px solid var(--border);
+        padding: 0.3rem 0.2rem;
+      }
+      .computed > li:first-child {
+        border-top: none;
+      }
+
+      /* ---- comparison table ---- */
+      .compare {
+        border-collapse: collapse;
+        font-size: 0.82rem;
+        margin: 0.5rem 0 1rem;
+        width: 100%;
+      }
+      .compare th,
+      .compare td {
+        border: 1px solid var(--border);
+        padding: 0.4rem 0.6rem;
+        text-align: left;
+        vertical-align: top;
+      }
+      .compare th {
+        background: var(--surface);
+        font-size: 0.78rem;
+      }
+      .compare td:first-child {
+        color: var(--muted);
+      }
+
+      /* research + notes */
+      .research {
+        border-top: 1px solid var(--border);
+        margin-top: 3rem;
+        padding-top: 1rem;
+      }
+      .research h2 {
+        margin-top: 0.5rem;
+      }
+      .research p,
+      .research li {
+        color: var(--muted);
+        font-size: 0.88rem;
+        max-width: 56rem;
+      }
+      .research strong {
+        color: light-dark(#1f2328, #f0f6fc);
+      }
+      .research cite {
+        font-style: normal;
+        opacity: 0.8;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Mockup 054 — Simulator results readability</h1>
+      <p class="section-note">
+        047 staged the simulator into ask / answer / evidence, and it worked — the verdict is never
+        buried. The remaining problem is <strong>inside the evidence</strong>: opening both drawers
+        rebuilds the pre-047 wall, the same facts (the changed settings) repeat at three grains
+        (ledger, per-rule "applied" lists, step diffs), and the step diff renders the whole
+        10,698-line config to show a handful of changed keys. This mock keeps 047's layers and
+        proposes three different architectures for the evidence itself. Research notes at the
+        bottom; full report in <code>roadmap/2026-08-simulator-readability-research.md</code>.
+      </p>
+      <div class="mock-banner">
+        Mockup — app tokens from <code>packages/app/src/index.css</code>. Ledger threads, the
+        rule-writer popover, and the step-jump return pill (variant A), the inspector rail (variant
+        B), and the lens bar + elision rows (variant C) are interactive; the rest is static.
+        Scenario: npm <code>oxlint</code> 1.75.0 → 1.76.0 (minor), 4 of 719 rules matched —
+        <code>[0]</code> matched but changed nothing, <code>[201]</code> set
+        <code>schedule</code> and <code>groupName</code>, <code>[458]</code>
+        <strong>overrode that <code>groupName</code></strong> and appended to
+        <code>description</code>, <code>[522]</code> set <code>prBodyColumns</code>. The contested
+        <code>groupName</code> (default → [201] → [458]) is the case every variant must survive.
+      </div>
+
+      <!-- ============================================================ -->
+      <h2><span class="num">0 ·</span> Now — the evidence wall</h2>
+      <p class="section-note">
+        A faithful (condensed) reproduction of the results area with both drawers open. The drawers
+        themselves were the 047 fix; the trouble starts when the user actually opens them — and the
+        contested <code>groupName</code> shows a problem the current UI cannot express at all.
+      </p>
+
+      <p class="pane-label now">Now — verdict, then two open drawers, ~2,400&nbsp;px of it</p>
+      <div class="card">
+        <div class="card-body">
+          <div class="verdict">
+            <p class="verdict-eyebrow">Simulation · npm / oxlint · 1.75.0 → 1.76.0</p>
+            <p class="verdict-sentence">
+              This minor update <span class="modal-verb">would</span> be grouped as “oxlint
+              monorepo”.
+            </p>
+            <p class="verdict-ledger-label">Changed by the rules — 4 settings</p>
+            <ul class="verdict-keys">
+              <li>
+                <code>description</code> = <span class="value">["Enable Renovate Dependency…</span>
+                <span class="prov">local&gt;secustor/renovate-config</span>
+                <button type="button" class="linkish">step 3 of 4 →</button>
+              </li>
+              <li>
+                <code>groupName</code> = <span class="value">"oxlint monorepo"</span>
+                <span class="prov">local&gt;secustor/renovate-config</span>
+                <button type="button" class="linkish">step 3 of 4 →</button>
+              </li>
+              <li>
+                <code>prBodyColumns</code> =
+                <span class="value">["Package","Change","Age","Confidence"]</span>
+                <span class="prov">local&gt;secustor/renovate-config</span>
+                <button type="button" class="linkish">step 4 of 4 →</button>
+              </li>
+              <li>
+                <code>schedule</code> = <span class="value">["before 6am on monday"]</span>
+                <span class="prov">local&gt;secustor/renovate-config</span>
+                <button type="button" class="linkish">step 2 of 4 →</button>
+              </li>
+            </ul>
+            <div class="verdict-foot">
+              <button type="button" class="linkish">4 of 719 rules matched →</button>
+              <div class="btn-row">
+                <button type="button" class="btn">⧉ Copy link with this simulation</button>
+                <button type="button" class="btn">Pin result for comparison</button>
+              </div>
+            </div>
+          </div>
+
+          <details class="drawer" open>
+            <summary>
+              <span class="drawer-title">Matched rules</span>
+              <span class="drawer-summary">4 of 719 matched</span>
+              <span class="prov">local&gt;secustor/renovate-config</span>
+              <span class="drawer-summary">×4</span>
+            </summary>
+            <div class="drawer-body">
+              <div class="filter-row">
+                <span>4 of 719 rules shown</span>
+                <button type="button" class="linkish">my rules only</button>
+                <button type="button" class="linkish">show all 719</button>
+              </div>
+              <div class="rule-row">
+                <button type="button" class="rule-head">
+                  <span>▸</span><span class="idx">packageRules[0]</span>
+                  <span class="label">matchPackageNames</span>
+                  <span class="badge ok">matched</span>
+                  <span class="prov">local&gt;secustor/renovate-config</span>
+                </button>
+              </div>
+              <div class="rule-row">
+                <button type="button" class="rule-head">
+                  <span>▸</span><span class="idx">packageRules[201]</span>
+                  <span class="label">matchDatasources</span>
+                  <span class="badge ok">matched</span>
+                  <span class="prov">local&gt;secustor/renovate-config</span>
+                </button>
+              </div>
+              <div class="rule-row">
+                <button type="button" class="rule-head">
+                  <span>▸</span><span class="idx">packageRules[458]</span>
+                  <span class="label">matchPackageNames + matchUpdateTypes</span>
+                  <span class="badge ok">matched</span>
+                  <span class="prov">local&gt;secustor/renovate-config</span>
+                </button>
+              </div>
+              <div class="rule-row">
+                <button type="button" class="rule-head">
+                  <span>▾</span><span class="idx">packageRules[522]</span>
+                  <span class="label">matchDatasources + matchUpdateTypes</span>
+                  <span class="badge ok">matched</span>
+                  <span class="prov">local&gt;secustor/renovate-config</span>
+                </button>
+                <div class="rule-detail">
+                  <ul class="clauses">
+                    <li>
+                      <span class="ok-mark">✓</span>
+                      <code>matchDatasources</code>:
+                      ["go","maven","npm","nuget","packagist","pypi","rubygems"] — matched
+                      (datasource = "npm")
+                    </li>
+                    <li>
+                      <span class="ok-mark">✓</span> <code>matchUpdateTypes</code>:
+                      ["patch","minor","major"] — matched (updateType = "minor")
+                    </li>
+                  </ul>
+                  <p class="verdict-ledger-label">
+                    Applied to the dependency config
+                    <button type="button" class="btn">⧉ Copy as markdown</button>
+                  </p>
+                  <p style="font-size: 0.82rem; margin: 0.25rem 0">
+                    <code>prBodyColumns</code>
+                    <span class="value old">["Package","Type","Update","Change","Pending"]</span> →
+                    <span class="value">["Package","Change","Age","Confidence"]</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details class="drawer" open>
+            <summary>
+              <span class="drawer-title">How the final config was built</span>
+              <span class="drawer-summary"
+                >base → 4 merges → flatten ⊘7 → final · changed <code>description</code>,
+                <code>groupName</code>, <code>prBodyColumns</code>, <code>schedule</code></span
+              >
+            </summary>
+            <div class="drawer-body">
+              <div class="timeline">
+                <span class="seq-chip">○ base</span><span class="seq-sep">→</span>
+                <span class="seq-chip">● packageRules[0] <span class="delta">±0</span></span>
+                <span class="seq-sep">→</span>
+                <span class="seq-chip">◆ packageRules[201] <span class="delta">+2</span></span>
+                <span class="seq-sep">→</span>
+                <span class="seq-chip selected"
+                  >◆ packageRules[458] <span class="delta">+2</span></span
+                >
+                <span class="seq-sep">→</span>
+                <span class="seq-chip">◆ packageRules[522] <span class="delta">+1</span></span>
+                <span class="seq-sep">→</span> <span class="seq-chip">◆ flatten ⊘7</span>
+                <span class="seq-sep">→</span> <span class="seq-chip">final config</span>
+              </div>
+              <p style="font-size: 0.85rem; margin: 0.3rem 0">
+                Step 3 of 4 <code>packageRules[458]</code> matchPackageNames + matchUpdateTypes
+                <span class="prov">local&gt;secustor/renovate-config</span>
+              </p>
+              <p style="font-size: 0.85rem; margin: 0.3rem 0">
+                This rule set <code>description</code>, <code>groupName</code>.
+              </p>
+              <div class="diff-toolbar">
+                <span class="value">+3</span> <span class="value old">−2</span>
+                <button type="button" class="btn">Unified</button>
+                <button type="button" class="btn">Side-by-side</button>
+                <button type="button" class="btn">⧉ Copy result</button>
+              </div>
+              <div class="diff">
+                <div class="row">
+                  <span class="ln">79 79</span>"Provide a link to octochangelog…
+                </div>
+                <div class="row"><span class="ln">80 80</span>"Update `_VERSION` variables in…</div>
+                <div class="row"><span class="ln">81 81</span>"Update `_VERSION` environment…</div>
+                <div class="row del">
+                  <span class="ln">82</span>"Convert pinned GitHub Action digests to SemVer."
+                </div>
+                <div class="row add">
+                  <span class="ln">82</span>"Convert pinned GitHub Action digests to SemVer.",
+                </div>
+                <div class="row add">
+                  <span class="ln">83</span>"Group packages from oxlint monorepo together."
+                </div>
+                <div class="row"><span class="ln">83 84</span>],</div>
+                <div class="row"><span class="ln">84 85</span>"enabled": true,</div>
+                <div class="row"><span class="ln">85 86</span>"constraintsFiltering": "none",</div>
+                <div class="row"><span class="ln">10692 10693</span>}</div>
+                <div class="row"><span class="ln">10693 10694</span>},</div>
+                <div class="row">
+                  <span class="ln">10694 10695</span>"hashedBranchLength": null,
+                </div>
+                <div class="row del">
+                  <span class="ln">10695</span>"groupName": "npm minor+patch",
+                </div>
+                <div class="row add">
+                  <span class="ln">10696</span>"groupName": "oxlint monorepo",
+                </div>
+                <div class="row"><span class="ln">10696 10697</span>"groupSlug": null,</div>
+              </div>
+              <div class="diff-toolbar" style="justify-content: flex-start">
+                <button type="button" class="btn">‹ Prev</button>
+                <button type="button" class="btn">Next ›</button>
+                <button type="button" class="btn">Jump to end</button>
+                <label style="font-size: 0.78rem"
+                  ><input type="checkbox" /> Diff vs. base config</label
+                >
+              </div>
+            </div>
+          </details>
+        </div>
+      </div>
+      <ul class="problem-list">
+        <li>
+          <strong>Overridden writes are invisible.</strong> <code>packageRules[201]</code> set
+          <code>groupName</code> to <code>"npm minor+patch"</code> in step 2;
+          <code>[458]</code> silently clobbered it in step 3. Nothing anywhere says so — the loss is
+          discoverable only by stepping through two diffs and comparing them line by line.
+        </li>
+        <li>
+          <strong>The same facts render at three grains.</strong> <code>groupName</code> appears in
+          the ledger, in two rules' "applied" lists, and four times across the step diffs — the
+          reader cannot tell whether scrolling reveals new information or the same fact again, so
+          they read all of it.
+        </li>
+        <li>
+          <strong>The diff is the whole config.</strong> Two changed keys inside 10,698 lines; the
+          line-number gutter (79&nbsp;…&nbsp;10696) is visually louder than the change itself.
+          Prev/Next/Jump controls exist to survive the layout, not to serve a task.
+        </li>
+        <li>
+          <strong>Open evidence rebuilds the wall.</strong> Both drawers open is ~2,400&nbsp;px of
+          equal-weight monospace; the verdict card and the raw trace compete at the same typographic
+          rank.
+        </li>
+        <li>
+          <strong>"4 of 719" is said four times</strong> — card title, verdict footer, drawer
+          summary, filter row — and each repeat costs a line of reading.
+        </li>
+        <li>
+          <strong>Rows don't align.</strong> A ledger row mixes code, prose, a provenance chip, and
+          a step link inline; values start wherever the key ends, so the eye re-finds the value
+          column on every row.
+        </li>
+      </ul>
+
+      <!-- ============================================================ -->
+      <h2><span class="num">1 ·</span> Variant A — the ledger <em>is</em> the trace</h2>
+      <p class="section-note">
+        DevTools' Computed-pane model: the winning value per key is the index, and expanding a key
+        reveals <em>that key's</em> causal thread — every writer in merge order, winner first,
+        losers struck through in place, each with its clause evidence and a jump into the replay.
+        The rules and merge drawers demote to one quiet "full trace" line. Slices the data by
+        <strong>outcome</strong> instead of by mechanism, so each fact has exactly one home — open
+        <code>groupName</code> below to see the contested field read as a cascade.
+      </p>
+
+      <p class="pane-label">Variant A — expand a changed setting to see its story (interactive)</p>
+      <div class="card">
+        <div class="card-body">
+          <div class="verdict">
+            <p class="verdict-eyebrow">Simulation · npm / oxlint · 1.75.0 → 1.76.0</p>
+            <p class="verdict-sentence">
+              This minor update <span class="modal-verb">would</span> be grouped as “oxlint
+              monorepo”.
+            </p>
+            <ul class="verdict-keys kv">
+              <li class="thread">
+                <button type="button" class="thread-head" aria-expanded="false">
+                  <span class="key"><span class="caret">▸</span> <code>description</code></span>
+                  <span class="value">[…4 items, 1 added]</span>
+                  <span class="prov-dot" title="local>secustor/renovate-config"></span>
+                </button>
+                <div class="thread-body">
+                  <p class="thread-line">
+                    <b>appended by</b> <code>packageRules[458]</code>
+                    <span class="prov">local&gt;secustor/renovate-config</span>
+                  </p>
+                  <div class="clause-grid">
+                    <span class="ok-mark">✓</span>
+                    <code>matchPackageNames</code>
+                    <span>checks <span class="value">["oxlint","oxlint-tsgolint"]</span></span>
+                    <span>· this update is <span class="value">"oxlint"</span></span>
+                    <span class="ok-mark">✓</span>
+                    <code>matchUpdateTypes</code>
+                    <span>checks <span class="value">["patch","minor"]</span></span>
+                    <span>· this update is <span class="value">"minor"</span></span>
+                  </div>
+                  <p class="thread-line">
+                    <b>added</b> <span class="value">"Group packages from oxlint monorepo…"</span> ·
+                    <button type="button" class="linkish">step 3 of 4 in the replay →</button>
+                  </p>
+                </div>
+              </li>
+              <li class="thread">
+                <button
+                  type="button"
+                  class="thread-head"
+                  aria-expanded="false"
+                  id="thread-groupname"
+                >
+                  <span class="key"><span class="caret">▸</span> <code>groupName</code></span>
+                  <span class="cell"
+                    ><span class="value">"oxlint monorepo"</span>
+                    <span class="badge muted">2 writers</span></span
+                  >
+                  <span class="prov-dot" title="local>secustor/renovate-config"></span>
+                </button>
+                <div class="thread-body">
+                  <p class="thread-line">
+                    <b>set by</b> <code>packageRules[458]</code>
+                    <span class="prov">local&gt;secustor/renovate-config</span>
+                  </p>
+                  <div class="clause-grid">
+                    <span class="ok-mark">✓</span>
+                    <code>matchPackageNames</code>
+                    <span>checks <span class="value">["oxlint","oxlint-tsgolint"]</span></span>
+                    <span>· this update is <span class="value">"oxlint"</span></span>
+                    <span class="ok-mark">✓</span>
+                    <code>matchUpdateTypes</code>
+                    <span>checks <span class="value">["patch","minor"]</span></span>
+                    <span>· this update is <span class="value">"minor"</span></span>
+                  </div>
+                  <p class="thread-line">
+                    <b>overrode</b> <span class="value old">"npm minor+patch"</span> written by
+                    <span class="pop-anchor">
+                      <button
+                        type="button"
+                        class="linkish mono"
+                        id="rule-link-201"
+                        aria-haspopup="dialog"
+                      >
+                        packageRules[201]
+                      </button>
+                      <span
+                        class="rule-pop"
+                        id="rule-pop-201"
+                        role="dialog"
+                        aria-label="packageRules[201] evidence"
+                      >
+                        <span style="display: block">
+                          <span class="mono" style="font-weight: 600">packageRules[201]</span>
+                          <span class="badge ok">matched</span>
+                        </span>
+                        <span class="clause-grid">
+                          <span class="ok-mark">✓</span>
+                          <code>matchDatasources</code>
+                          <span>checks <span class="value">["npm"]</span></span>
+                          <span>· this update is <span class="value">"npm"</span></span>
+                        </span>
+                        <span class="thread-line" style="display: block">
+                          merged in step 2 — 2 writes, 1 survived
+                        </span>
+                        <span class="digest">
+                          <span class="drow">
+                            <span>~</span><span>schedule</span>
+                            <span
+                              ><span class="k-del">["at any time"]</span> →
+                              <span class="k-add">["before 6am on monday"]</span></span
+                            >
+                          </span>
+                          <span class="drow">
+                            <span>~</span><span>groupName</span>
+                            <span
+                              ><span class="k-del">null</span> →
+                              <span class="k-add overridden">"npm minor+patch"</span>
+                              <span style="color: var(--muted)"
+                                >· ⊘ overridden in step 3</span
+                              ></span
+                            >
+                          </span>
+                        </span>
+                        <span style="display: block">
+                          <button type="button" class="linkish">open in matched rules →</button>
+                        </span>
+                      </span>
+                    </span>
+                    ·
+                    <button type="button" class="linkish" id="a-step-jump">
+                      step 3 of 4 in the replay →
+                    </button>
+                  </p>
+                  <p class="thread-line">
+                    <b>overrode</b> <span class="value old">null</span>
+                    <span style="font-size: 0.78rem">(Renovate default)</span>
+                  </p>
+                </div>
+              </li>
+              <li class="thread">
+                <button type="button" class="thread-head" aria-expanded="false">
+                  <span class="key"><span class="caret">▸</span> <code>prBodyColumns</code></span>
+                  <span class="value">["Package","Change","Age","Confidence"]</span>
+                  <span class="prov-dot" title="local>secustor/renovate-config"></span>
+                </button>
+                <div class="thread-body">
+                  <p class="thread-line">
+                    <b>set by</b> <code>packageRules[522]</code>
+                    <span class="prov">local&gt;secustor/renovate-config</span>
+                  </p>
+                  <div class="clause-grid">
+                    <span class="ok-mark">✓</span>
+                    <code>matchDatasources</code>
+                    <span>checks <span class="value">["go","maven","npm",…7]</span></span>
+                    <span>· this update is <span class="value">"npm"</span></span>
+                    <span class="ok-mark">✓</span>
+                    <code>matchUpdateTypes</code>
+                    <span>checks <span class="value">["patch","minor","major"]</span></span>
+                    <span>· this update is <span class="value">"minor"</span></span>
+                  </div>
+                  <p class="thread-line">
+                    <b>overrode</b>
+                    <span class="value old">["Package","Type","Update","Change","Pending"]</span>
+                    <span style="font-size: 0.78rem">(Renovate default)</span> ·
+                    <button type="button" class="linkish">step 4 of 4 in the replay →</button>
+                  </p>
+                </div>
+              </li>
+              <li class="thread">
+                <button type="button" class="thread-head" aria-expanded="false">
+                  <span class="key"><span class="caret">▸</span> <code>schedule</code></span>
+                  <span class="value">["before 6am on monday"]</span>
+                  <span class="prov-dot" title="local>secustor/renovate-config"></span>
+                </button>
+                <div class="thread-body">
+                  <p class="thread-line">
+                    <b>set by</b> <code>packageRules[201]</code>
+                    <span class="prov">local&gt;secustor/renovate-config</span>
+                  </p>
+                  <div class="clause-grid">
+                    <span class="ok-mark">✓</span>
+                    <code>matchDatasources</code>
+                    <span>checks <span class="value">["npm"]</span></span>
+                    <span>· this update is <span class="value">"npm"</span></span>
+                  </div>
+                  <p class="thread-line">
+                    <b>overrode</b> <span class="value old">["at any time"]</span>
+                    <span style="font-size: 0.78rem">(Renovate default)</span> ·
+                    <button type="button" class="linkish">step 2 of 4 in the replay →</button>
+                  </p>
+                </div>
+              </li>
+            </ul>
+            <div class="verdict-foot">
+              <span class="drawer-summary"
+                >Full trace: <button type="button" class="linkish">4 of 719 rules matched</button> ·
+                <button type="button" class="linkish">build replay, 7 stops</button></span
+              >
+              <div class="btn-row">
+                <button type="button" class="btn">⧉ Copy link</button>
+                <button type="button" class="btn">Pin for comparison</button>
+              </div>
+            </div>
+          </div>
+          <div class="drawer" id="a-replay-demo" hidden>
+            <div class="drawer-body" style="border-top: none">
+              <p class="verdict-ledger-label">
+                Build replay — step 3 of 4 · packageRules[458] merges
+              </p>
+              <div class="digest">
+                <div class="drow">
+                  <span>~</span><span>description</span>
+                  <span class="k-add">+ "Group packages from oxlint monorepo together."</span>
+                </div>
+                <div class="drow">
+                  <span>~</span><span>groupName</span>
+                  <span
+                    ><span class="k-del">"npm minor+patch"</span> →
+                    <span class="k-add">"oxlint monorepo"</span> · overrides step 2</span
+                  >
+                </div>
+              </div>
+              <p style="color: var(--muted); font-size: 0.78rem; margin: 0.25rem 0">
+                (The demoted full trace, opened exactly where the thread pointed — the floating pill
+                returns to the thread that sent you here.)
+              </p>
+            </div>
+          </div>
+          <button type="button" class="return-pill" id="a-return-pill">
+            ↩ Back to <code>groupName</code>
+          </button>
+        </div>
+      </div>
+      <ul class="tradeoff-list">
+        <li>
+          <span class="win">Wins:</span> the contested field reads as a cascade — winner first,
+          losers struck through in place with their own writing rule and step link (the DevTools
+          Styles-pane device). Today this case is <em>invisible</em>; here it's the
+          <code>2 writers</code> badge plus two "overrode" lines, one click deep.
+        </li>
+        <li>
+          <span class="win">Wins:</span> "why is <code>groupName</code> set?" is answered with zero
+          duplication; the clause evidence (the persona study's "money shot") moves closer; merge
+          semantics live in the verb — <b>set by</b> vs. <b>appended by</b> — so keys that
+          concatenate never masquerade as overrides.
+        </li>
+        <li>
+          <span class="lose">Costs:</span> rule-centric questions ("why did
+          <code>packageRules[522]</code> match?", "which rule <em>almost</em> matched?") take two
+          hops via the demoted full-trace line; the inert rule [0] only gets a footnote.
+        </li>
+        <li>
+          <span class="lose">Costs:</span> threads repeat the clause pair per key when one rule
+          wrote several keys (458 appears twice above) — cheap for 4 settings, noisy for 15.
+        </li>
+      </ul>
+      <p class="section-note">
+        <strong>Navigation model</strong> (both directions demoed above): the first drill level
+        never navigates — a rule reference opens a popover with its clause evidence in place, so
+        there is nothing to go back from (Esc / click-away closes). A real jump (the step link)
+        opens the demoted replay <em>and</em> leaves a floating "↩ back to <code>groupName</code>"
+        pill — the app's existing bottom-pill plane — which scrolls back and re-flashes the thread
+        that sent you. In the real build both jumps also push the target into the URL fragment (the
+        <code>simStep</code> convention), so the browser's Back button and share links work for
+        free.
+      </p>
+
+      <!-- ============================================================ -->
+      <h2><span class="num">2 ·</span> Variant B — inspector: index left, one detail at a time</h2>
+      <p class="section-note">
+        The Compiler-Explorer / Jaeger model: a persistent index rail (matched rules grouped by
+        consequence, then the replay stops) beside a single detail pane. Selecting anything swaps
+        the pane — the page height is constant no matter how much the user investigates. The rail
+        pre-filters to the decisive subset, and a partially-overridden rule wears its
+        <code>⊘</code> right in the rail — select <code>packageRules[201]</code> to see the lost
+        write.
+      </p>
+
+      <p class="pane-label">Variant B — click the rail to inspect (interactive)</p>
+      <div class="card">
+        <div class="card-body">
+          <div class="verdict" style="margin-bottom: 0.75rem">
+            <p class="verdict-eyebrow">Simulation · npm / oxlint · 1.75.0 → 1.76.0</p>
+            <p class="verdict-sentence">
+              This minor update <span class="modal-verb">would</span> be grouped as “oxlint
+              monorepo” — 4 settings changed, by 3 of the 4 matching rules.
+            </p>
+          </div>
+        </div>
+        <div class="inspector">
+          <nav class="rail" aria-label="Evidence index">
+            <p class="rail-group">Matched — changed settings</p>
+            <button type="button" class="rail-item" data-pane="pane-201" aria-selected="false">
+              <span class="idx">packageRules[201]</span><span class="hint">+1 ⊘1</span>
+            </button>
+            <button type="button" class="rail-item" data-pane="pane-458" aria-selected="true">
+              <span class="idx">packageRules[458]</span><span class="hint">+2</span>
+            </button>
+            <button type="button" class="rail-item" data-pane="pane-522" aria-selected="false">
+              <span class="idx">packageRules[522]</span><span class="hint">+1</span>
+            </button>
+            <p class="rail-group">Matched — changed nothing</p>
+            <button type="button" class="rail-item" data-pane="pane-0" aria-selected="false">
+              <span class="idx">packageRules[0]</span><span class="hint">±0</span>
+            </button>
+            <p class="rail-group">Everything else</p>
+            <button
+              type="button"
+              class="rail-item elided"
+              data-pane="pane-rest"
+              aria-selected="false"
+            >
+              715 rules did not match…
+            </button>
+            <p class="rail-group">Build replay</p>
+            <button type="button" class="rail-item" data-pane="pane-step2" aria-selected="false">
+              <span class="idx">step 2 · [201] merges</span><span class="hint">+2</span>
+            </button>
+            <button type="button" class="rail-item" data-pane="pane-step3" aria-selected="false">
+              <span class="idx">step 3 · [458] merges</span><span class="hint">+2</span>
+            </button>
+            <button type="button" class="rail-item" data-pane="pane-step5" aria-selected="false">
+              <span class="idx">step 5 · flatten</span><span class="hint">⊘7</span>
+            </button>
+            <button type="button" class="rail-item" data-pane="pane-final" aria-selected="false">
+              <span class="idx">final config</span>
+            </button>
+          </nav>
+          <div>
+            <section class="insp-pane" id="pane-201">
+              <p class="insp-title">
+                <span class="idx">packageRules[201]</span>
+                <span class="badge ok">matched</span>
+                <span class="badge muted">1 of 2 writes overridden</span>
+                <span class="prov">local&gt;secustor/renovate-config</span>
+              </p>
+              <table class="clause-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Matcher</th>
+                    <th scope="col">Checks for</th>
+                    <th scope="col">This update</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>matchDatasources</code></td>
+                    <td class="mono">["npm"]</td>
+                    <td><span class="mono" style="color: var(--ok)">✓ "npm"</span></td>
+                  </tr>
+                </tbody>
+              </table>
+              <p class="verdict-ledger-label">Applied — 2 settings, 1 survived</p>
+              <ul class="applied-list kv">
+                <li>
+                  <code>schedule</code>
+                  <span class="cell"
+                    ><span class="value old">["at any time"]</span> →
+                    <span class="value">["before 6am on monday"]</span></span
+                  >
+                </li>
+                <li>
+                  <code>groupName</code>
+                  <span class="cell"
+                    ><span class="value old">"npm minor+patch"</span> — overridden by
+                    <button type="button" class="linkish pane-jump" data-pane="pane-step3">
+                      packageRules[458] in step 3 →
+                    </button></span
+                  >
+                </li>
+              </ul>
+              <button type="button" class="btn">⧉ Copy as markdown</button>
+            </section>
+            <section class="insp-pane active" id="pane-458">
+              <p class="insp-title">
+                <span class="idx">packageRules[458]</span>
+                <span class="badge ok">matched</span>
+                <span class="prov">local&gt;secustor/renovate-config</span>
+              </p>
+              <table class="clause-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Matcher</th>
+                    <th scope="col">Checks for</th>
+                    <th scope="col">This update</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>matchPackageNames</code></td>
+                    <td class="mono">["oxlint","oxlint-tsgolint"]</td>
+                    <td><span class="mono" style="color: var(--ok)">✓ "oxlint"</span></td>
+                  </tr>
+                  <tr>
+                    <td><code>matchUpdateTypes</code></td>
+                    <td class="mono">["patch","minor"]</td>
+                    <td><span class="mono" style="color: var(--ok)">✓ "minor"</span></td>
+                  </tr>
+                </tbody>
+              </table>
+              <p class="verdict-ledger-label">Applied — 2 settings</p>
+              <ul class="applied-list kv">
+                <li>
+                  <code>groupName</code>
+                  <span class="cell"
+                    ><span class="value old">"npm minor+patch"</span> →
+                    <span class="value">"oxlint monorepo"</span>
+                    <span style="color: var(--muted); font-size: 0.78rem"
+                      >(overrides
+                      <button type="button" class="linkish pane-jump" data-pane="pane-201">
+                        packageRules[201]</button
+                      >)</span
+                    ></span
+                  >
+                </li>
+                <li>
+                  <code>description</code>
+                  <span class="cell"
+                    ><span class="value">+ "Group packages from oxlint…"</span>
+                    <span style="color: var(--muted); font-size: 0.78rem"
+                      >(arrays concatenate)</span
+                    ></span
+                  >
+                </li>
+              </ul>
+              <button type="button" class="btn">⧉ Copy as markdown</button>
+            </section>
+            <section class="insp-pane" id="pane-522">
+              <p class="insp-title">
+                <span class="idx">packageRules[522]</span>
+                <span class="badge ok">matched</span>
+                <span class="prov">local&gt;secustor/renovate-config</span>
+              </p>
+              <table class="clause-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Matcher</th>
+                    <th scope="col">Checks for</th>
+                    <th scope="col">This update</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>matchDatasources</code></td>
+                    <td class="mono">["go","maven","npm","nuget","packagist","pypi","rubygems"]</td>
+                    <td><span class="mono" style="color: var(--ok)">✓ "npm"</span></td>
+                  </tr>
+                  <tr>
+                    <td><code>matchUpdateTypes</code></td>
+                    <td class="mono">["patch","minor","major"]</td>
+                    <td><span class="mono" style="color: var(--ok)">✓ "minor"</span></td>
+                  </tr>
+                </tbody>
+              </table>
+              <p class="verdict-ledger-label">Applied — 1 setting</p>
+              <ul class="applied-list kv">
+                <li>
+                  <code>prBodyColumns</code>
+                  <span class="cell"
+                    ><span class="value old">["Package","Type","Update","Change","Pending"]</span> →
+                    <span class="value">["Package","Change","Age","Confidence"]</span></span
+                  >
+                </li>
+              </ul>
+              <button type="button" class="btn">⧉ Copy as markdown</button>
+            </section>
+            <section class="insp-pane" id="pane-0">
+              <p class="insp-title">
+                <span class="idx">packageRules[0]</span>
+                <span class="badge ok">matched</span>
+                <span class="badge muted">changed nothing</span>
+                <span class="prov">local&gt;secustor/renovate-config</span>
+              </p>
+              <table class="clause-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Matcher</th>
+                    <th scope="col">Checks for</th>
+                    <th scope="col">This update</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>matchPackageNames</code></td>
+                    <td class="mono">["*"]</td>
+                    <td><span class="mono" style="color: var(--ok)">✓ "oxlint"</span></td>
+                  </tr>
+                </tbody>
+              </table>
+              <p style="color: var(--muted); font-size: 0.82rem">
+                Every value this rule merges (<code>description</code>, <code>enabled</code>) was
+                already identical on the config — it participated, but nothing depended on it.
+              </p>
+            </section>
+            <section class="insp-pane" id="pane-rest">
+              <p class="insp-title"><span class="idx">715 rules did not match</span></p>
+              <p style="color: var(--muted); font-size: 0.82rem">
+                Filter by rule index, matcher, or source to inspect a near miss — the full list
+                never renders unfiltered.
+              </p>
+              <div class="filter-row" style="margin: 0.5rem 0">
+                <input
+                  type="search"
+                  placeholder="packageRules[12], matchConfidence, npm…"
+                  style="
+                    background: transparent;
+                    border: 1px solid var(--border);
+                    border-radius: 6px;
+                    color: inherit;
+                    font: inherit;
+                    font-size: 0.82rem;
+                    padding: 0.3rem 0.5rem;
+                    width: 100%;
+                  "
+                />
+              </div>
+              <p style="color: var(--muted); font-size: 0.82rem">
+                <button type="button" class="linkish">my rules only (1)</button> ·
+                <button type="button" class="linkish">closest misses first</button>
+              </p>
+            </section>
+            <section class="insp-pane" id="pane-step2">
+              <p class="insp-title">
+                <span class="idx">step 2 of 4 — packageRules[201] merges</span>
+                <span class="prov">local&gt;secustor/renovate-config</span>
+              </p>
+              <div class="digest">
+                <div class="drow">
+                  <span>~</span><span>schedule</span>
+                  <span
+                    ><span class="k-del">["at any time"]</span> →
+                    <span class="k-add">["before 6am on monday"]</span></span
+                  >
+                </div>
+                <div class="drow">
+                  <span>~</span><span>groupName</span>
+                  <span
+                    ><span class="k-del">null</span> →
+                    <span class="k-add">"npm minor+patch"</span> · overridden again in step 3</span
+                  >
+                </div>
+                <div class="drow" style="color: var(--muted)">
+                  <span>#</span><span></span><span>10,690 unchanged lines hidden</span>
+                </div>
+              </div>
+              <p style="color: var(--muted); font-size: 0.8rem">
+                <button type="button" class="linkish">open full unified diff</button> ·
+                <button type="button" class="linkish">diff vs. base config</button>
+              </p>
+            </section>
+            <section class="insp-pane" id="pane-step3">
+              <p class="insp-title">
+                <span class="idx">step 3 of 4 — packageRules[458] merges</span>
+                <span class="prov">local&gt;secustor/renovate-config</span>
+              </p>
+              <div class="digest">
+                <div class="drow">
+                  <span>~</span><span>description</span>
+                  <span class="k-add">+ "Group packages from oxlint monorepo together."</span>
+                </div>
+                <div class="drow">
+                  <span>~</span><span>groupName</span>
+                  <span
+                    ><span class="k-del">"npm minor+patch"</span> →
+                    <span class="k-add">"oxlint monorepo"</span> · overrides step 2</span
+                  >
+                </div>
+                <div class="drow" style="color: var(--muted)">
+                  <span>#</span><span></span><span>10,692 unchanged lines hidden</span>
+                </div>
+              </div>
+              <p style="color: var(--muted); font-size: 0.8rem">
+                <button type="button" class="linkish">open full unified diff</button> ·
+                <button type="button" class="linkish">diff vs. base config</button>
+              </p>
+            </section>
+            <section class="insp-pane" id="pane-step5">
+              <p class="insp-title"><span class="idx">step 5 — flatten update-type blocks</span></p>
+              <p style="color: var(--muted); font-size: 0.82rem">
+                Renovate deletes the 7 update-type blocks (<code>major</code>, <code>minor</code>,
+                …) after merging the one that applies. This run: the <code>minor</code> block was
+                empty, so flattening only removed — <span class="mono">⊘7</span>, nothing merged up.
+              </p>
+            </section>
+            <section class="insp-pane" id="pane-final">
+              <p class="insp-title"><span class="idx">final dependency config</span></p>
+              <ul class="computed kv">
+                <li>
+                  <code>groupName</code> <span class="value">"oxlint monorepo"</span>
+                  <span class="prov-dot" title="packageRules[458] — overrode [201]"></span>
+                </li>
+                <li>
+                  <code>prBodyColumns</code>
+                  <span class="value">["Package","Change","Age","Confidence"]</span>
+                  <span class="prov-dot" title="packageRules[522]"></span>
+                </li>
+                <li>
+                  <code>schedule</code> <span class="value">["before 6am on monday"]</span>
+                  <span class="prov-dot" title="packageRules[201]"></span>
+                </li>
+                <li>
+                  <code>description</code> <span class="value">[…4 items]</span>
+                  <span class="prov-dot" title="packageRules[458] appended"></span>
+                </li>
+              </ul>
+              <button type="button" class="elide-row">Show 40 keys the rules didn't touch…</button>
+            </section>
+          </div>
+        </div>
+      </div>
+      <ul class="tradeoff-list">
+        <li>
+          <span class="win">Wins:</span> constant page height — investigating five things costs zero
+          scroll; the three-state grouping (changed / matched-inert / 715 no-match) answers "what
+          mattered" before any click, and the <code>⊘</code> rail hint plus the cross-linking
+          between [201], [458], and step 3 makes the contested field navigable in both directions.
+        </li>
+        <li>
+          <span class="win">Wins:</span> scales to 719 rules because the long tail is a search pane,
+          not a list; rail selection can ride the share-link fragment the same way
+          <code>simStep</code> already does.
+        </li>
+        <li>
+          <span class="lose">Costs:</span> the biggest structural change (new two-column layout
+          inside an already-tabbed page); on narrow screens the rail stacks above the pane and the
+          height advantage shrinks; comparing two rules side-by-side needs a pin affordance later.
+        </li>
+        <li>
+          <span class="lose">Costs:</span> one detail at a time hides the rule list's gestalt — the
+          <code>+1 ⊘1</code> hint has to carry "this rule half-lost" on its own, and it's small.
+        </li>
+      </ul>
+
+      <!-- ============================================================ -->
+      <h2><span class="num">3 ·</span> Variant C — one lens at a time + the digest diff</h2>
+      <p class="section-note">
+        The smallest structural change: keep 047's vertical flow, but the two drawers become three
+        mutually exclusive <strong>lenses</strong> (DevTools' Headers/Preview/Response model) — so
+        the wall can never rebuild itself — and the step diff becomes a Terraform-style
+        <strong>digest</strong>: changed keys only, with the elided remainder acknowledged as a
+        counted row. Matched rules render pre-expanded (severity-driven: they're the abnormal ones);
+        the 715 no-matches are one row; an overridden write is flagged where it happens.
+      </p>
+
+      <p class="pane-label">Variant C — switch lenses; expand elisions (interactive)</p>
+      <div class="card">
+        <div class="card-body">
+          <div class="verdict">
+            <p class="verdict-eyebrow">Simulation · npm / oxlint · 1.75.0 → 1.76.0</p>
+            <p class="verdict-sentence">
+              This minor update <span class="modal-verb">would</span> be grouped as “oxlint
+              monorepo”.
+            </p>
+            <p class="verdict-ledger-label">Changed by the rules — 4 settings</p>
+            <ul class="verdict-keys kv">
+              <li>
+                <code>description</code> <span class="value">[…4 items, 1 added]</span>
+                <span class="prov-dot" title="local>secustor/renovate-config"></span>
+              </li>
+              <li>
+                <code>groupName</code>
+                <span class="cell"
+                  ><span class="value">"oxlint monorepo"</span>
+                  <span class="badge muted">2 writers</span></span
+                >
+                <span class="prov-dot" title="local>secustor/renovate-config"></span>
+              </li>
+              <li>
+                <code>prBodyColumns</code>
+                <span class="value">["Package","Change","Age","Confidence"]</span>
+                <span class="prov-dot" title="local>secustor/renovate-config"></span>
+              </li>
+              <li>
+                <code>schedule</code> <span class="value">["before 6am on monday"]</span>
+                <span class="prov-dot" title="local>secustor/renovate-config"></span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="lens-bar" role="tablist" aria-label="Evidence lens">
+            <button
+              type="button"
+              class="lens"
+              role="tab"
+              aria-selected="true"
+              data-lens="lens-rules"
+            >
+              Matched rules <span class="count">4 / 719</span>
+            </button>
+            <button
+              type="button"
+              class="lens"
+              role="tab"
+              aria-selected="false"
+              data-lens="lens-build"
+            >
+              Build replay <span class="count">7 stops</span>
+            </button>
+            <button
+              type="button"
+              class="lens"
+              role="tab"
+              aria-selected="false"
+              data-lens="lens-final"
+            >
+              Final config
+            </button>
+          </div>
+
+          <section class="lens-pane active" id="lens-rules" role="tabpanel">
+            <div class="rule-row">
+              <div class="rule-head" style="cursor: default">
+                <span class="idx">packageRules[201]</span>
+                <span class="label">matchDatasources</span>
+                <span class="badge ok">matched</span>
+                <span class="prov-dot" title="local>secustor/renovate-config"></span>
+              </div>
+              <div class="rule-detail">
+                <ul class="clauses">
+                  <li>
+                    <span class="ok-mark">✓</span> <code>matchDatasources</code> checks
+                    <span class="value">["npm"]</span> — this update is
+                    <span class="value">"npm"</span>
+                  </li>
+                </ul>
+                <p style="font-size: 0.82rem; margin: 0.25rem 0">
+                  → sets <code>schedule</code>; set <code>groupName</code> =
+                  <span class="value old">"npm minor+patch"</span> — overridden by
+                  <code>packageRules[458]</code> below
+                </p>
+              </div>
+            </div>
+            <div class="rule-row">
+              <div class="rule-head" style="cursor: default">
+                <span class="idx">packageRules[458]</span>
+                <span class="label">matchPackageNames + matchUpdateTypes</span>
+                <span class="badge ok">matched</span>
+                <span class="prov-dot" title="local>secustor/renovate-config"></span>
+              </div>
+              <div class="rule-detail">
+                <ul class="clauses">
+                  <li>
+                    <span class="ok-mark">✓</span> <code>matchPackageNames</code> checks
+                    <span class="value">["oxlint","oxlint-tsgolint"]</span> — this update is
+                    <span class="value">"oxlint"</span>
+                  </li>
+                  <li>
+                    <span class="ok-mark">✓</span> <code>matchUpdateTypes</code> checks
+                    <span class="value">["patch","minor"]</span> — this update is
+                    <span class="value">"minor"</span>
+                  </li>
+                </ul>
+                <p style="font-size: 0.82rem; margin: 0.25rem 0">
+                  → sets <code>groupName</code> (overriding <code>packageRules[201]</code>), appends
+                  to <code>description</code>
+                </p>
+              </div>
+            </div>
+            <div class="rule-row">
+              <div class="rule-head" style="cursor: default">
+                <span class="idx">packageRules[522]</span>
+                <span class="label">matchDatasources + matchUpdateTypes</span>
+                <span class="badge ok">matched</span>
+                <span class="prov-dot" title="local>secustor/renovate-config"></span>
+              </div>
+              <div class="rule-detail">
+                <ul class="clauses">
+                  <li>
+                    <span class="ok-mark">✓</span> <code>matchDatasources</code> checks
+                    <span class="value">["go","maven","npm",…7]</span> — this update is
+                    <span class="value">"npm"</span>
+                  </li>
+                  <li>
+                    <span class="ok-mark">✓</span> <code>matchUpdateTypes</code> checks
+                    <span class="value">["patch","minor","major"]</span> — this update is
+                    <span class="value">"minor"</span>
+                  </li>
+                </ul>
+                <p style="font-size: 0.82rem; margin: 0.25rem 0">
+                  → sets <code>prBodyColumns</code>
+                </p>
+              </div>
+            </div>
+            <button type="button" class="elide-row" data-toggle="inert-rule">
+              ▸ 1 rule matched but changed nothing — packageRules[0]
+            </button>
+            <div class="rule-row" id="inert-rule" hidden>
+              <div class="rule-head" style="cursor: default">
+                <span class="idx">packageRules[0]</span>
+                <span class="label">matchPackageNames</span>
+                <span class="badge ok">matched</span>
+                <span class="badge muted">changed nothing</span>
+              </div>
+            </div>
+            <button type="button" class="elide-row" data-toggle="nomatch-note">
+              ▸ 715 rules did not match — show with filters
+            </button>
+            <p id="nomatch-note" hidden style="color: var(--muted); font-size: 0.82rem">
+              (Real build: reveals the filter row — search, “my rules only”, per-matcher facets —
+              and a windowed list. Never renders 715 rows unfiltered.)
+            </p>
+          </section>
+
+          <section class="lens-pane" id="lens-build" role="tabpanel">
+            <div class="timeline">
+              <span class="seq-chip">○ base</span><span class="seq-sep">→</span>
+              <span class="seq-chip">● [0] <span class="delta">±0</span></span>
+              <span class="seq-sep">→</span>
+              <span class="seq-chip">◆ [201] <span class="delta">+2</span></span>
+              <span class="seq-sep">→</span>
+              <span class="seq-chip selected">◆ [458] <span class="delta">+2</span></span>
+              <span class="seq-sep">→</span>
+              <span class="seq-chip">◆ [522] <span class="delta">+1</span></span>
+              <span class="seq-sep">→</span> <span class="seq-chip">◆ flatten ⊘7</span>
+              <span class="seq-sep">→</span> <span class="seq-chip">final</span>
+            </div>
+            <p style="font-size: 0.85rem; margin: 0.3rem 0">
+              Step 3 of 4 — <code>packageRules[458]</code> merges
+              <span class="prov-dot" title="local>secustor/renovate-config"></span>
+            </p>
+            <div class="digest">
+              <div class="drow">
+                <span>~</span><span>description</span>
+                <span class="k-add">+ "Group packages from oxlint monorepo together."</span>
+              </div>
+              <div class="drow">
+                <span>~</span><span>groupName</span>
+                <span
+                  ><span class="k-del">"npm minor+patch"</span> →
+                  <span class="k-add">"oxlint monorepo"</span> · overrides step 2</span
+                >
+              </div>
+            </div>
+            <button type="button" class="elide-row" data-toggle="digest-context">
+              ▸ 10,692 unchanged lines hidden — show full unified diff
+            </button>
+            <div class="diff" id="digest-context" hidden>
+              <div class="row"><span class="ln">80</span>"Update `_VERSION` variables in…</div>
+              <div class="row"><span class="ln">81</span>"Update `_VERSION` environment…</div>
+              <div class="row del">
+                <span class="ln">82</span>"Convert pinned GitHub Action digests…
+              </div>
+              <div class="row add">
+                <span class="ln">82</span>"Convert pinned GitHub Action digests…",
+              </div>
+              <div class="row add">
+                <span class="ln">83</span>"Group packages from oxlint monorepo…"
+              </div>
+              <div class="row"><span class="ln">84</span>],</div>
+              <div class="row" style="color: var(--muted)">
+                <span class="ln">⋯</span>(full diff, as today)
+              </div>
+            </div>
+            <div class="diff-toolbar" style="justify-content: flex-start">
+              <button type="button" class="btn">‹ Prev step</button>
+              <button type="button" class="btn">Next step ›</button>
+              <label style="font-size: 0.78rem"
+                ><input type="checkbox" /> Diff vs. base config</label
+              >
+            </div>
+          </section>
+
+          <section class="lens-pane" id="lens-final" role="tabpanel">
+            <p class="section-note" style="margin: 0.25rem 0 0.5rem">
+              The computed view — every key's winning value, its writer one hover away. What
+              Renovate would actually use for this update.
+            </p>
+            <ul class="computed kv">
+              <li>
+                <code>groupName</code> <span class="value">"oxlint monorepo"</span>
+                <span class="prov-dot" title="packageRules[458] — overrode [201]"></span>
+              </li>
+              <li>
+                <code>prBodyColumns</code>
+                <span class="value">["Package","Change","Age","Confidence"]</span>
+                <span
+                  class="prov-dot"
+                  title="packageRules[522] · local>secustor/renovate-config"
+                ></span>
+              </li>
+              <li>
+                <code>schedule</code> <span class="value">["before 6am on monday"]</span>
+                <span
+                  class="prov-dot"
+                  title="packageRules[201] · local>secustor/renovate-config"
+                ></span>
+              </li>
+              <li>
+                <code>description</code> <span class="value">[…4 items]</span>
+                <span class="prov-dot" title="packageRules[458] appended one item"></span>
+              </li>
+            </ul>
+            <button type="button" class="elide-row" data-toggle="final-rest">
+              ▸ 40 keys the rules didn't touch — show
+            </button>
+            <ul class="computed kv" id="final-rest" hidden>
+              <li><code>enabled</code> <span class="value">true</span></li>
+              <li><code>constraintsFiltering</code> <span class="value">"none"</span></li>
+              <li class="full" style="color: var(--muted)">
+                ⋯ (and 38 more, as today’s resolved view)
+              </li>
+            </ul>
+          </section>
+        </div>
+      </div>
+      <ul class="tradeoff-list">
+        <li>
+          <span class="win">Wins:</span> cheapest to build — <code>SummaryDrawer</code> becomes a
+          lens bar, everything inside the panes is today's components; the wall is structurally
+          impossible (one lens at a time); the digest diff alone removes ~90% of the rendered pixels
+          in the screenshot's worst section and works in <em>every</em> variant.
+        </li>
+        <li>
+          <span class="win">Wins:</span> severity-driven defaults — matched rules arrive
+          pre-expanded, inert and unmatched arrive as counted rows; the override is flagged at both
+          ends (rule [201]'s struck-through write, step 3's "overrides step 2" digest line).
+        </li>
+        <li>
+          <span class="lose">Costs:</span> lenses hide siblings — tracing
+          <code>groupName</code> across [201], [458], and the replay means switching lenses (drawers
+          allowed both open; nobody could read the result, but it was possible); lens state needs
+          the same share-link treatment <code>simStep</code> got.
+        </li>
+        <li>
+          <span class="lose">Costs:</span> "Final config" duplicates part of 051's resolved-config
+          output — needs a clear "this is per-dependency, that is repo-wide" boundary or one of the
+          two should absorb the other.
+        </li>
+      </ul>
+
+      <!-- ============================================================ -->
+      <h2><span class="num">4 ·</span> Shared fixes — worth shipping under any variant</h2>
+      <ul class="problem-list" style="color: inherit">
+        <li>
+          <strong style="color: var(--ok)">Digest diff.</strong> The step diff defaults to changed
+          keys only (<code>~ / + / −</code>, old → new inline) with
+          <code># N unchanged lines hidden — show</code>; the full unified/side-by-side diff stays
+          one click away. (Terraform's battle-tested shape for exactly this data.)
+        </li>
+        <li>
+          <strong style="color: var(--ok)">Name the override.</strong> A write a later rule clobbers
+          is flagged wherever it appears — struck through with "overridden by packageRules[N] in
+          step M" — and the winning key wears a <code>2 writers</code> badge. Today the loss is
+          silent.
+        </li>
+        <li>
+          <strong style="color: var(--ok)">Aligned ledgers.</strong> Every
+          <code>key value origin</code> list shares its columns (key, value, provenance), so the
+          value column has one edge instead of starting wherever each key ends.
+        </li>
+        <li>
+          <strong style="color: var(--ok)">Say "4 of 719" once.</strong> The verdict owns the count;
+          drawers/lenses/rails reference it without restating it.
+        </li>
+        <li>
+          <strong style="color: var(--ok)">Demote chips in evidence.</strong> Full provenance chips
+          stay on the verdict card; inside evidence layers the same fact is a colored dot with the
+          chip on hover — all four matched rules sharing one source was worth 4 chips × 28
+          characters in the current UI.
+        </li>
+        <li>
+          <strong style="color: var(--ok)">Name the inert state.</strong> "Matched but changed
+          nothing" (rule [0], ±0) is today only visible as a timeline delta; every variant above
+          labels it, because an unexplained matched-rule-with-no-effect reads as a bug.
+        </li>
+      </ul>
+
+      <!-- ============================================================ -->
+      <h2><span class="num">5 ·</span> How the variants answer the actual questions</h2>
+      <table class="compare">
+        <thead>
+          <tr>
+            <th scope="col">Question</th>
+            <th scope="col">A — ledger threads</th>
+            <th scope="col">B — inspector</th>
+            <th scope="col">C — lenses</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>“Why is <code>groupName</code> set?”</td>
+            <td>1 click, inline</td>
+            <td>2 clicks (rail → rule)</td>
+            <td>1–2 clicks (rules lens)</td>
+          </tr>
+          <tr>
+            <td>“Who else wrote <code>groupName</code>?” (contested field)</td>
+            <td>best — full cascade in one thread, losers struck through</td>
+            <td>⊘ rail hint + cross-links, 2–3 clicks to walk it</td>
+            <td>flagged at both ends, but the walk crosses lenses</td>
+          </tr>
+          <tr>
+            <td>“Why did rule 522 match?”</td>
+            <td>2 hops (full-trace line)</td>
+            <td>1 click, richest view</td>
+            <td>0 clicks (pre-expanded)</td>
+          </tr>
+          <tr>
+            <td>“What almost matched?” (719-rule audit)</td>
+            <td>unchanged from today</td>
+            <td>best — search pane, never a list</td>
+            <td>counted row → filters</td>
+          </tr>
+          <tr>
+            <td>Max page height while investigating</td>
+            <td>one card</td>
+            <td>constant (pane swaps)</td>
+            <td>one lens</td>
+          </tr>
+          <tr>
+            <td>Change from the shipped 047 architecture</td>
+            <td>medium — ledger grows threads; drawers demote</td>
+            <td>large — new split layout + rail state</td>
+            <td>small — drawers → lenses; diff → digest</td>
+          </tr>
+          <tr>
+            <td>Mobile (~46&nbsp;rem breakpoint)</td>
+            <td>unchanged, best</td>
+            <td>rail stacks; advantage shrinks</td>
+            <td>lens bar wraps; fine</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="section-note">
+        The variants compose: C's digest diff and elision rows are prerequisites for A and B anyway
+        (shared fixes above), and A's threads could later sit on top of either. A plausible
+        sequencing is <strong>C-then-A</strong> (ship the cheap structural fix, then grow the ledger
+        into the primary trace) with B reserved for a future "audit mode" if the 719-rule population
+        demands it.
+      </p>
+
+      <!-- ============================================================ -->
+      <div class="research">
+        <h2>Research notes (condensed)</h2>
+        <ul>
+          <li>
+            <strong>Two views, two questions.</strong> DevTools separates "what is the value"
+            (Computed pane: winner only, expandable to the ordered cascade with losers struck
+            through and jump-links to source) from "why" (Styles pane) — users default to the cheap
+            answer and escalate on surprise. Variant A is this transplanted to a sequential
+            last-writer-wins merge. <cite>developer.chrome.com/docs/devtools/css</cite>
+          </li>
+          <li>
+            <strong>Decisive subset, never a dump.</strong> IAM policy simulator, GCP Policy
+            Troubleshooter, Skyhigh rule tracing and LaunchDarkly evaluation reasons all pre-compute
+            which rules were causally relevant (typed reason codes, decisive-statement labels, three
+            visual states for matched / evaluated-unmatched / skipped) — the viewer never infers
+            relevance from a flat list. Variant B's rail grouping and the "matched but changed
+            nothing" badge.
+            <cite
+              >docs.aws.amazon.com · cloud.google.com/policy-intelligence ·
+              launchdarkly.com/docs</cite
+            >
+          </li>
+          <li>
+            <strong>Severity-driven expansion.</strong> GitHub Actions / Buildkite auto-expand only
+            failed steps; default disclosure state derives from "is this abnormal", never from
+            position. Variant C pre-expands the 4 matched rules and collapses the 715 no-matches to
+            a counted row.
+            <cite>docs.github.com · buildkite.com/docs</cite>
+          </li>
+          <li>
+            <strong>Elided-but-acknowledged.</strong> Terraform's
+            <code># (12 unchanged attributes hidden)</code> — collapse must render as a counted
+            placeholder, or trust dies; and false-positive "changes" (plan noise) destroy diff
+            scannability, so the digest must be precise about what genuinely changed. The digest
+            diff everywhere above. <cite>developer.hashicorp.com/terraform</cite>
+          </li>
+          <li>
+            <strong>Sequence ⇒ index + one detail pane.</strong> Jaeger keeps the waterfall
+            persistent as a spatial index with a single drill-down panel beside it; Compiler
+            Explorer keeps the floor at two panes and makes depth opt-in with the whole layout in
+            the URL — matching the app's fragment-only share convention.
+            <cite>jaegertracing.io · github.com/compiler-explorer</cite>
+          </li>
+          <li>
+            <strong>Constraints carried over from 047's research:</strong> never gate the verdict;
+            two disclosure levels max; every collapsed header keeps a computed count/preview; and
+            the per-clause predicate-vs-evaluated evidence stays one interaction away — the persona
+            study called it "the single most convincing screen".
+            <cite
+              >roadmap/2026-07-progressive-disclosure-research.md ·
+              roadmap/2026-07-persona-ux-study.md</cite
+            >
+          </li>
+        </ul>
+      </div>
+    </main>
+
+    <script>
+      // Variant A — ledger threads
+      for (const head of document.querySelectorAll(".thread-head")) {
+        head.addEventListener("click", () => {
+          const li = head.closest(".thread");
+          const open = li.classList.toggle("open");
+          head.setAttribute("aria-expanded", String(open));
+          head.querySelector(".caret").textContent = open ? "▾" : "▸";
+        });
+      }
+      // Variant A — rule popover (first drill level: no navigation, nothing to go back from)
+      const pop201 = document.getElementById("rule-pop-201");
+      const popBtn201 = document.getElementById("rule-link-201");
+      popBtn201.addEventListener("click", (e) => {
+        e.stopPropagation();
+        pop201.classList.toggle("open");
+      });
+      document.addEventListener("click", (e) => {
+        if (!pop201.contains(e.target)) pop201.classList.remove("open");
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") pop201.classList.remove("open");
+      });
+      // Variant A — step jump opens the demoted replay and leaves a return pill
+      const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const scrollOpts = { behavior: reducedMotion ? "auto" : "smooth", block: "center" };
+      const replayDemo = document.getElementById("a-replay-demo");
+      const returnPill = document.getElementById("a-return-pill");
+      document.getElementById("a-step-jump").addEventListener("click", () => {
+        replayDemo.hidden = false;
+        replayDemo.scrollIntoView(scrollOpts);
+        returnPill.classList.add("show");
+      });
+      returnPill.addEventListener("click", () => {
+        returnPill.classList.remove("show");
+        const head = document.getElementById("thread-groupname");
+        head.scrollIntoView(scrollOpts);
+        head.classList.add("flash");
+        setTimeout(() => head.classList.remove("flash"), 1600);
+      });
+      // Variant B — inspector: rail items and in-pane jump links share one switcher
+      const railItems = [...document.querySelectorAll(".rail-item")];
+      function showPane(id) {
+        for (const item of railItems) {
+          item.setAttribute("aria-selected", String(item.dataset.pane === id));
+        }
+        for (const pane of document.querySelectorAll(".insp-pane")) {
+          pane.classList.toggle("active", pane.id === id);
+        }
+      }
+      for (const el of document.querySelectorAll("[data-pane]")) {
+        el.addEventListener("click", () => showPane(el.dataset.pane));
+      }
+      // Variant C — lens bar + elision toggles
+      const lenses = document.querySelectorAll(".lens");
+      for (const lens of lenses) {
+        lens.addEventListener("click", () => {
+          for (const other of lenses) other.setAttribute("aria-selected", "false");
+          lens.setAttribute("aria-selected", "true");
+          for (const pane of document.querySelectorAll(".lens-pane")) {
+            pane.classList.toggle("active", pane.id === lens.dataset.lens);
+          }
+        });
+      }
+      for (const btn of document.querySelectorAll("[data-toggle]")) {
+        btn.addEventListener("click", () => {
+          const target = document.getElementById(btn.dataset.toggle);
+          target.hidden = !target.hidden;
+          btn.textContent = btn.textContent.replace(
+            target.hidden ? "▾" : "▸",
+            target.hidden ? "▸" : "▾",
+          );
+        });
+      }
+    </script>
+  </body>
+</html>
