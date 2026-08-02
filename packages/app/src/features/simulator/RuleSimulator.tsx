@@ -10,6 +10,7 @@ import { ComparisonPanel } from "./ComparisonPanel";
 import { consumedAuthoredBlocks } from "./consumed-blocks";
 import { EMPTY_FORM, type FormState, hasMeaningfulInput } from "./form";
 import { buildMergeStops } from "./merge-stops";
+import { ReturnPill } from "./ReturnPill";
 import { buildRuleEvidence } from "./rule-evidence";
 import { SimMergeDrawer } from "./SimMergeDrawer";
 import { SimMessages } from "./SimMessages";
@@ -24,6 +25,7 @@ import { type SimRequest, useShareLinkRequest } from "./use-share-link-request";
 import { useSimulationRun } from "./use-simulation-run";
 import { useSimulatorDrawers } from "./use-simulator-drawers";
 import { useSimulatorForm } from "./use-simulator-form";
+import { useThreadNav } from "./use-thread-nav";
 import { buildVerdictSegments } from "./verdict-sentence";
 import { buildVerdictThreads } from "./verdict-threads";
 
@@ -114,7 +116,19 @@ export const RuleSimulator = memo(function RuleSimulator({
     simulate,
     simulateRef,
   } = useSimulationRun({ result, onMergeStepChange });
-  useShareLinkRequest({ simRequest, result, setForm, setUpdateTypeTouched, simulateRef });
+  // Roadmap 053 layer 4: thread expansion + the return pill. Declared BEFORE
+  // the share-link request so its reset effect (keyed on the run) is
+  // registered first: a link arms the thread it wants, the auto-run it starts
+  // produces the sim, and the reset effect is what applies the armed key.
+  const threadNav = useThreadNav(sim);
+  useShareLinkRequest({
+    simRequest,
+    result,
+    setForm,
+    setUpdateTypeTouched,
+    simulateRef,
+    onThreadRequest: threadNav.requestThread,
+  });
   const {
     moreFieldsOpen,
     setMoreFieldsOpen,
@@ -263,8 +277,16 @@ export const RuleSimulator = memo(function RuleSimulator({
     if (effectiveUpdateType && effectiveUpdateType.trim() !== "") {
       shareForm.updateType = effectiveUpdateType;
     }
+    // Roadmap 053: the link also carries the thread the sender was reading —
+    // but only when exactly ONE is open, since two would make the app pick
+    // which of the sender's questions the link is about. Still never a token:
+    // a thread key is one of the config's own option names.
+    const share: ShareSimulator = { form: shareForm, autoSimulate: true };
+    if (threadNav.shareThreadKey !== undefined) {
+      share.simThread = threadNav.shareThreadKey;
+    }
     // Roadmap 036: the copied state lives in CopyButton now.
-    await onCopySimLink({ form: shareForm, autoSimulate: true });
+    await onCopySimLink(share);
   }
 
   /** Roadmap 053: the verdict foot's "build replay, K stops" link — the
@@ -387,6 +409,11 @@ export const RuleSimulator = memo(function RuleSimulator({
               totalRules={sim.rules.length}
               segments={verdictSegments}
               threads={verdictThreads}
+              threadNav={{
+                open: threadNav.openThreads,
+                onToggle: threadNav.toggleThread,
+                onJumpFrom: threadNav.noteJump,
+              }}
               flattened={sim.flattened}
               consumed={consumedBlocks}
               flattenStopIndex={showTimeline ? flattenStopIndex : undefined}
@@ -415,6 +442,13 @@ export const RuleSimulator = memo(function RuleSimulator({
               onUnpin={unpin}
               onPin={pin}
             />
+
+            {/* Roadmap 053 layer 4: the way back from a thread's own jump.
+                Portalled to <body> (see ReturnPill), so where it sits in this
+                tree decides nothing but its lifetime — which is the run's. */}
+            {threadNav.returnKey !== null ? (
+              <ReturnPill threadKey={threadNav.returnKey} onReturn={threadNav.returnToThread} />
+            ) : null}
 
             {pinned ? (
               <ComparisonPanel

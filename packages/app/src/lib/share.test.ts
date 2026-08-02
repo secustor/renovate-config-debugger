@@ -641,3 +641,88 @@ describe("untrustedGuardForPolicy", () => {
     expect(guard?.host).toBe("https://evil.example/");
   });
 });
+
+/**
+ * Roadmap 053 (layer 4): `sim.simThread` — the expanded verdict thread's key —
+ * is additive within v2 exactly like `autoSimulate` was, so the tests are the
+ * same two questions: does a link that carries it round-trip, and does a link
+ * from before it existed still decode as it always did?
+ */
+describe("053: sim.simThread round-trips and stays additive", () => {
+  test("a simulation link carrying an expanded thread round-trips", async () => {
+    const token = await encodeShare(
+      minimalState({
+        view: { stage: "merge", simStep: 2, tab: "simulator" },
+        sim: { form: { packageName: "oxlint" }, autoSimulate: true, simThread: "groupName" },
+      }),
+    );
+    const result = await decodeShareResult(token);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.sim).toEqual({
+        form: { packageName: "oxlint" },
+        autoSimulate: true,
+        simThread: "groupName",
+      });
+      // The thread rides with the SIM descriptor, not the view: it is only
+      // meaningful for the simulation the form reproduces.
+      expect(result.payload.view).toEqual({ stage: "merge", simStep: 2, tab: "simulator" });
+    }
+  });
+
+  test("re-encoding a decoded sim with a thread is a fixpoint", async () => {
+    const first = await decodeShareResult(
+      await encodeShare(
+        minimalState({ sim: { form: { depName: "lodash" }, simThread: "automerge" } }),
+      ),
+    );
+    expect(first.ok).toBe(true);
+    if (!first.ok) {
+      return;
+    }
+    expect(first.payload.sim).toEqual({ form: { depName: "lodash" }, simThread: "automerge" });
+    const second = await decodeShareResult(
+      await encodeShare(minimalState({ sim: first.payload.sim })),
+    );
+    expect(second.ok).toBe(true);
+    if (second.ok) {
+      expect(second.payload.sim).toEqual(first.payload.sim);
+    }
+  });
+
+  test("a pre-053 link (no simThread) decodes exactly as before", async () => {
+    const token = await rawEncodeToken(
+      taggedPayload({ sim: { form: { packageName: "lodash" }, autoSimulate: true } }),
+    );
+    const result = await decodeShareResult(token);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.sim).toEqual({ form: { packageName: "lodash" }, autoSimulate: true });
+      expect(result.payload.sim?.simThread).toBeUndefined();
+    }
+  });
+
+  test("a malformed simThread is dropped alone — the link still opens and runs", async () => {
+    for (const simThread of [42, "", "x".repeat(200), { key: "groupName" }]) {
+      const token = await rawEncodeToken(
+        taggedPayload({ sim: { form: { packageName: "lodash" }, autoSimulate: true, simThread } }),
+      );
+      const result = await decodeShareResult(token);
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.payload.sim).toEqual({ form: { packageName: "lodash" }, autoSimulate: true });
+      }
+    }
+  });
+
+  test("a simThread without a form is dropped with the rest of the descriptor", async () => {
+    const token = await rawEncodeToken(
+      taggedPayload({ sim: { form: {}, simThread: "groupName" } }),
+    );
+    const result = await decodeShareResult(token);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.sim).toBeUndefined();
+    }
+  });
+});

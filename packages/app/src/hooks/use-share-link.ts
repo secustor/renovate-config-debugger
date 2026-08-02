@@ -42,6 +42,9 @@ import { ENDPOINT_KEY, persistLocal, PLATFORM_KEY } from "@/platform/storage";
 export interface SimRequest {
   form: Record<string, string>;
   autoSimulate: boolean;
+  /** Roadmap 053: the verdict thread the link asked to open, applied to the
+   *  run this request triggers (absent = every thread starts collapsed). */
+  simThread?: string;
   nonce: number;
 }
 
@@ -264,6 +267,10 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
       setSimRequest({
         form: payload.sim.form,
         autoSimulate: payload.sim.autoSimulate === true,
+        // Roadmap 053: rides along with the form rather than through `view`
+        // (where `simStep` lives) because it is only meaningful for the
+        // simulation this descriptor reproduces — see ShareSimulator.
+        simThread: payload.sim.simThread,
         nonce: ++simNonceRef.current,
       });
     }

@@ -6,7 +6,7 @@ import type { RuleEvidence } from "./rule-evidence";
 import { SimConsumedBlock } from "./SimConsumedBlock";
 import type { ThreadModel } from "./verdict-threads";
 import type { VerdictSegment } from "./verdict-sentence";
-import { VerdictThreads } from "./VerdictThreads";
+import { type ThreadNavigation, VerdictThreads } from "./VerdictThreads";
 
 /**
  * Roadmap 053 (variant A): the two full-trace links the evidence drawers
@@ -58,6 +58,7 @@ export function SimVerdictBlock({
   totalRules,
   segments,
   threads,
+  threadNav,
   flattened,
   consumed,
   flattenStopIndex,
@@ -79,6 +80,9 @@ export function SimVerdictBlock({
   segments: VerdictSegment[];
   /** Roadmap 053: one thread per setting the rules changed. */
   threads: ThreadModel[];
+  /** Roadmap 053 layer 4: which threads are expanded, and where a jump out of
+   *  one is recorded (the return pill's origin). */
+  threadNav: ThreadNavigation;
   flattened: SimulationResult["flattened"];
   /** Roadmap 047: authored update-type blocks flattening consumed without
    *  applying — empty on a run where only Renovate's own defaults were. */
@@ -143,6 +147,7 @@ export function SimVerdictBlock({
           <VerdictThreads
             threads={threads}
             actions={{ onSelectPreset, onJumpToStep, evidenceFor, onOpenRule }}
+            nav={threadNav}
           />
         )}
         {consumed.map((block) => (

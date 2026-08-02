@@ -1,9 +1,9 @@
-import { useState } from "react";
 import type { ProvenanceLayer } from "@renovate-config-visualizer/engine";
 import { OptionKey } from "@/components/option-docs";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { previewValue } from "./rule-format";
 import { ThreadBody, type ThreadActions } from "./ThreadBody";
+import { threadHeadId } from "./use-thread-nav";
 import type { ThreadModel } from "./verdict-threads";
 
 /**
@@ -68,24 +68,74 @@ function ThreadHeadOrigin({
   );
 }
 
-/** One thread: the collapsed head button, and the body it discloses.
- *  Expansion is local and uncontrolled — a re-simulation replaces the rows and
- *  collapses them, which is the honest state for a new run's evidence. */
-function ThreadRow({ thread, actions }: { thread: ThreadModel; actions: ThreadActions }) {
-  const [open, setOpen] = useState(false);
+/**
+ * Roadmap 053 layer 4: expansion moved OUT of the row. Two things outside a
+ * row now open one — a share link's `simThread` and the return pill — and the
+ * copy-link affordance has to know which thread is open to encode it, so the
+ * state belongs to the simulator (see `use-thread-nav`). A re-simulation still
+ * collapses everything, which is the honest state for a new run's evidence.
+ */
+export interface ThreadNavigation {
+  open: ReadonlySet<string>;
+  onToggle: (key: string, open: boolean) => void;
+  /** A jump out of a thread — recorded so the pill can point back at it. */
+  onJumpFrom: (key: string) => void;
+}
+
+/** Every jump a thread offers records that thread as the return target first.
+ *  Wrapped once per row, so the pill's origin can never disagree with the row
+ *  the reader actually left — the alternative is each jump site remembering to
+ *  say where it is, which is the kind of thing that stays right for one
+ *  release. */
+function withJumpOrigin(
+  key: string,
+  actions: ThreadActions,
+  onJumpFrom: (key: string) => void,
+): ThreadActions {
+  const wrapped: ThreadActions = { ...actions };
+  const { onJumpToStep, onOpenRule } = actions;
+  if (onJumpToStep) {
+    wrapped.onJumpToStep = (stopIndex) => {
+      onJumpFrom(key);
+      onJumpToStep(stopIndex);
+    };
+  }
+  if (onOpenRule) {
+    wrapped.onOpenRule = (ruleIndex) => {
+      onJumpFrom(key);
+      onOpenRule(ruleIndex);
+    };
+  }
+  return wrapped;
+}
+
+/** One thread: the collapsed head button, and the body it discloses. */
+function ThreadRow({
+  thread,
+  actions,
+  nav,
+}: {
+  thread: ThreadModel;
+  actions: ThreadActions;
+  nav: ThreadNavigation;
+}) {
+  const open = nav.open.has(thread.key);
   return (
     <li className={`sim-thread${open ? " open" : ""}`}>
       <button
         type="button"
+        id={threadHeadId(thread.key)}
         className="sim-thread-head"
         aria-expanded={open}
-        onClick={() => setOpen(!open)}
+        onClick={() => nav.onToggle(thread.key, !open)}
       >
         <ThreadHeadKey name={thread.key} open={open} />
         <ThreadHeadValue thread={thread} />
         <ThreadHeadOrigin layer={thread.winner?.layer} onSelectPreset={actions.onSelectPreset} />
       </button>
-      {open ? <ThreadBody thread={thread} actions={actions} /> : null}
+      {open ? (
+        <ThreadBody thread={thread} actions={withJumpOrigin(thread.key, actions, nav.onJumpFrom)} />
+      ) : null}
     </li>
   );
 }
@@ -93,14 +143,16 @@ function ThreadRow({ thread, actions }: { thread: ThreadModel; actions: ThreadAc
 export function VerdictThreads({
   threads,
   actions,
+  nav,
 }: {
   threads: ThreadModel[];
   actions: ThreadActions;
+  nav: ThreadNavigation;
 }) {
   return (
     <ul className="sim-thread-list">
       {threads.map((thread) => (
-        <ThreadRow key={thread.key} thread={thread} actions={actions} />
+        <ThreadRow key={thread.key} thread={thread} actions={actions} nav={nav} />
       ))}
     </ul>
   );

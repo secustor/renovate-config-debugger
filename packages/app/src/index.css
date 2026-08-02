@@ -3013,6 +3013,17 @@ pre.config-view.prov-before {
   animation: rcv-flash 1.6s ease-out;
 }
 
+/* Roadmap 053: the same "you are here", without the motion — the target still
+   has to be markable for a reader who asked for less animation, so the flash
+   becomes a static highlight for the same duration (the class is removed on
+   the callers' timeout either way). */
+@media (prefers-reduced-motion: reduce) {
+  .rcv-flash {
+    animation: none;
+    background: var(--highlight);
+  }
+}
+
 .sim-rule-provenance {
   flex: none;
 }
@@ -3249,6 +3260,38 @@ pre.config-view.prov-before {
 
 .back-to-top:hover {
   filter: brightness(1.1);
+}
+
+/* Roadmap 053: the return pill — the same bottom-of-the-viewport plane as
+   .back-to-top and .rcv-toast (same offset, same float shadow, same z-index),
+   but centered and quiet: it answers a jump the reader made one click ago, so
+   it must be findable without competing with the page it floats over. */
+.sim-return-pill {
+  align-items: center;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  bottom: 1.25rem;
+  box-shadow: var(--shadow-float);
+  color: var(--accent);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 0.82rem;
+  gap: 0.3rem;
+  left: 50%;
+  padding: 0.4rem 0.95rem;
+  position: fixed;
+  transform: translateX(-50%);
+  z-index: 20;
+}
+
+.sim-return-pill:hover {
+  border-color: var(--accent);
+}
+
+.sim-return-pill code {
+  font-size: 0.95em;
 }
 
 /* ---------- post-action focus, honest error states, rule filters (023) ---------- */

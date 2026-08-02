@@ -26,12 +26,17 @@ export function useShareLinkRequest({
   setForm,
   setUpdateTypeTouched,
   simulateRef,
+  onThreadRequest,
 }: {
   simRequest: SimRequest | null | undefined;
   result: TraceResult;
   setForm: Dispatch<SetStateAction<FormState>>;
   setUpdateTypeTouched: Dispatch<SetStateAction<boolean>>;
   simulateRef: RefObject<Simulate | null>;
+  /** Roadmap 053: the verdict thread the link asked to open, armed BEFORE the
+   *  auto-run below so the run that arrives can expand it (see
+   *  `use-thread-nav`, which consumes it in its own reset effect). */
+  onThreadRequest?: (key: string | null) => void;
 }) {
   // Roadmap 018: applied-once bookkeeping for an incoming share `simRequest`.
   const appliedSimNonce = useRef<number | null>(null);
@@ -53,11 +58,12 @@ export function useShareLinkRequest({
     // deliberate pin — mark it touched so derivation can't override it.
     const touched = next.updateType.trim() !== "";
     setUpdateTypeTouched(touched);
+    onThreadRequest?.(simRequest.simThread ?? null);
     if (simRequest.autoSimulate) {
       // Roadmap 044: the link's own merge-step index has already been applied
       // by App — this auto-run must not reset it back to step 0, which is the
       // whole point of a link that says "look at what THIS rule does".
       void simulateRef.current?.(next, touched, true);
     }
-  }, [simRequest, result, setForm, setUpdateTypeTouched, simulateRef]);
+  }, [simRequest, result, setForm, setUpdateTypeTouched, simulateRef, onThreadRequest]);
 }
