@@ -503,6 +503,23 @@
       .thread-line .ok-mark {
         color: var(--ok);
       }
+      /* Clause evidence as columns: mark · matcher · predicate · evaluated.
+         Matchers and both value columns share edges within a thread. */
+      .clause-grid {
+        color: var(--muted);
+        column-gap: 0.45rem;
+        display: grid;
+        font-size: 0.82rem;
+        grid-template-columns: max-content max-content minmax(0, 1fr) auto;
+        margin: 0.25rem 0;
+        row-gap: 0.25rem;
+      }
+      .clause-grid .ok-mark {
+        color: var(--ok);
+      }
+      .clause-grid .value {
+        overflow-wrap: anywhere;
+      }
 
       /* ---- variant A navigation: rule popover + return pill ----
          First drill level never navigates (popover, nothing to go back from);
@@ -1125,16 +1142,16 @@
                     <span class="prov">local&gt;secustor/renovate-config</span> — arrays of
                     <code>description</code> concatenate, they don't override
                   </p>
-                  <p class="thread-line">
-                    <span class="ok-mark">✓</span> <code>matchPackageNames</code> checks
-                    <span class="value">["oxlint","oxlint-tsgolint"]</span> · this update is
-                    <span class="value">"oxlint"</span>
-                  </p>
-                  <p class="thread-line">
-                    <span class="ok-mark">✓</span> <code>matchUpdateTypes</code> checks
-                    <span class="value">["patch","minor"]</span> · this update is
-                    <span class="value">"minor"</span>
-                  </p>
+                  <div class="clause-grid">
+                    <span class="ok-mark">✓</span>
+                    <code>matchPackageNames</code>
+                    <span>checks <span class="value">["oxlint","oxlint-tsgolint"]</span></span>
+                    <span>· this update is <span class="value">"oxlint"</span></span>
+                    <span class="ok-mark">✓</span>
+                    <code>matchUpdateTypes</code>
+                    <span>checks <span class="value">["patch","minor"]</span></span>
+                    <span>· this update is <span class="value">"minor"</span></span>
+                  </div>
                   <p class="thread-line">
                     <b>added</b> <span class="value">"Group packages from oxlint monorepo…"</span>
                     · <button type="button" class="linkish">step 3 of 4 in the replay →</button>
@@ -1155,16 +1172,16 @@
                     <b>set by</b> <code>packageRules[458]</code>
                     <span class="prov">local&gt;secustor/renovate-config</span>
                   </p>
-                  <p class="thread-line">
-                    <span class="ok-mark">✓</span> <code>matchPackageNames</code> checks
-                    <span class="value">["oxlint","oxlint-tsgolint"]</span> · this update is
-                    <span class="value">"oxlint"</span>
-                  </p>
-                  <p class="thread-line">
-                    <span class="ok-mark">✓</span> <code>matchUpdateTypes</code> checks
-                    <span class="value">["patch","minor"]</span> · this update is
-                    <span class="value">"minor"</span>
-                  </p>
+                  <div class="clause-grid">
+                    <span class="ok-mark">✓</span>
+                    <code>matchPackageNames</code>
+                    <span>checks <span class="value">["oxlint","oxlint-tsgolint"]</span></span>
+                    <span>· this update is <span class="value">"oxlint"</span></span>
+                    <span class="ok-mark">✓</span>
+                    <code>matchUpdateTypes</code>
+                    <span>checks <span class="value">["patch","minor"]</span></span>
+                    <span>· this update is <span class="value">"minor"</span></span>
+                  </div>
                   <p class="thread-line">
                     <b>overrode</b> <span class="value old">"npm minor+patch"</span> written by
                     <span class="pop-anchor">
@@ -1176,10 +1193,11 @@
                           <span class="mono" style="font-weight: 600">packageRules[201]</span>
                           <span class="badge ok">matched</span>
                         </span>
-                        <span class="thread-line" style="display: block">
-                          <span class="ok-mark">✓</span> <code>matchDatasources</code> checks
-                          <span class="value">["npm"]</span> · this update is
-                          <span class="value">"npm"</span>
+                        <span class="clause-grid">
+                          <span class="ok-mark">✓</span>
+                          <code>matchDatasources</code>
+                          <span>checks <span class="value">["npm"]</span></span>
+                          <span>· this update is <span class="value">"npm"</span></span>
                         </span>
                         <span class="thread-line" style="display: block">
                           merged in step 2 — 2 writes, 1 survived
@@ -1229,16 +1247,16 @@
                     <b>set by</b> <code>packageRules[522]</code>
                     <span class="prov">local&gt;secustor/renovate-config</span>
                   </p>
-                  <p class="thread-line">
-                    <span class="ok-mark">✓</span> <code>matchDatasources</code> checks
-                    <span class="value">["go","maven","npm",…7]</span> · this update is
-                    <span class="value">"npm"</span>
-                  </p>
-                  <p class="thread-line">
-                    <span class="ok-mark">✓</span> <code>matchUpdateTypes</code> checks
-                    <span class="value">["patch","minor","major"]</span> · this update is
-                    <span class="value">"minor"</span>
-                  </p>
+                  <div class="clause-grid">
+                    <span class="ok-mark">✓</span>
+                    <code>matchDatasources</code>
+                    <span>checks <span class="value">["go","maven","npm",…7]</span></span>
+                    <span>· this update is <span class="value">"npm"</span></span>
+                    <span class="ok-mark">✓</span>
+                    <code>matchUpdateTypes</code>
+                    <span>checks <span class="value">["patch","minor","major"]</span></span>
+                    <span>· this update is <span class="value">"minor"</span></span>
+                  </div>
                   <p class="thread-line">
                     <b>overrode</b>
                     <span class="value old">["Package","Type","Update","Change","Pending"]</span>
@@ -1259,11 +1277,12 @@
                     <span class="prov">local&gt;secustor/renovate-config</span> — no later rule
                     touched it
                   </p>
-                  <p class="thread-line">
-                    <span class="ok-mark">✓</span> <code>matchDatasources</code> checks
-                    <span class="value">["npm"]</span> · this update is
-                    <span class="value">"npm"</span>
-                  </p>
+                  <div class="clause-grid">
+                    <span class="ok-mark">✓</span>
+                    <code>matchDatasources</code>
+                    <span>checks <span class="value">["npm"]</span></span>
+                    <span>· this update is <span class="value">"npm"</span></span>
+                  </div>
                   <p class="thread-line">
                     <b>overrode</b> <span class="value old">["at any time"]</span>
                     <span style="font-size: 0.78rem">(Renovate default)</span> ·
