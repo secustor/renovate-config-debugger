@@ -15,7 +15,7 @@ import { getMeasurementId, isTrackableHostname } from "./analytics";
  */
 
 /** A hostname that stands in for a real deployment. */
-const DEPLOYED = "renovate.secustor.dev";
+const DEPLOYED = "rcd.example.com";
 
 function setEnv(id: string | undefined): void {
   vi.stubEnv("VITE_GA_MEASUREMENT_ID", id);

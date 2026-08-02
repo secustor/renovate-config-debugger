@@ -7,14 +7,6 @@
  * `VITE_GA_MEASUREMENT_ID` var (what the Pages build inlines). With no usable
  * id from either source gtag.js is never loaded — `vite dev`, previews and
  * unconfigured self-hosts send nothing.
- *
- * Roadmap 053: the build-time id additionally requires a non-local hostname.
- * The Pages `dist` is also the artifact the e2e job serves on
- * `http://localhost:4322/`, and Playwright gives every test a fresh browser
- * context — no `_ga` cookie to reuse, so each test counted as a brand-new user
- * and CI came to dominate the property's traffic. The runtime id is exempt: it
- * belongs to whoever set `RCV_GA_MEASUREMENT_ID`, and a self-host reached at
- * `localhost:8080` is a real deployment of theirs, not our test rig.
  */
 
 declare global {
