@@ -504,6 +504,78 @@
         color: var(--ok);
       }
 
+      /* ---- variant A navigation: rule popover + return pill ----
+         First drill level never navigates (popover, nothing to go back from);
+         a real jump leaves a floating return pill, the app's existing
+         bottom-pill plane (.back-to-top / .rcv-toast). */
+      .pop-anchor {
+        display: inline;
+        position: relative;
+      }
+      .rule-pop {
+        background: light-dark(#ffffff, #151b23);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: 0 8px 24px light-dark(rgba(140, 149, 159, 0.3), rgba(0, 0, 0, 0.5));
+        display: none;
+        font-size: 0.78rem;
+        left: 0;
+        max-width: min(24rem, 88vw);
+        padding: 0.6rem 0.7rem;
+        position: absolute;
+        top: calc(100% + 0.35rem);
+        width: max-content;
+        z-index: 5;
+      }
+      .rule-pop.open {
+        display: block;
+      }
+      .rule-pop p {
+        margin: 0.25rem 0;
+      }
+      .rule-pop .clauses {
+        margin: 0.35rem 0;
+      }
+      .return-pill {
+        align-items: center;
+        background: light-dark(#ffffff, #151b23);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        bottom: 1.25rem;
+        box-shadow: 0 2px 12px rgb(0 0 0 / 0.3);
+        color: var(--accent);
+        cursor: pointer;
+        display: none;
+        font-size: 0.82rem;
+        gap: 0.35rem;
+        left: 50%;
+        padding: 0.4rem 0.95rem;
+        position: fixed;
+        transform: translateX(-50%);
+        z-index: 20;
+      }
+      .return-pill.show {
+        display: inline-flex;
+      }
+      .flash {
+        animation: flash-bg 1.4s ease-out 1;
+      }
+      @keyframes flash-bg {
+        0%,
+        55% {
+          background: var(--highlight);
+        }
+        100% {
+          background: transparent;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .flash {
+          animation: none;
+          background: var(--highlight);
+        }
+      }
+
       /* ---- variant B: inspector ---- */
       .inspector {
         display: grid;
@@ -769,9 +841,10 @@
         bottom; full report in <code>roadmap/2026-08-simulator-readability-research.md</code>.
       </p>
       <div class="mock-banner">
-        Mockup — app tokens from <code>packages/app/src/index.css</code>. Ledger threads (variant
-        A), the inspector rail (variant B), and the lens bar + elision rows (variant C) are
-        interactive; the rest is static. Scenario: npm <code>oxlint</code> 1.75.0 → 1.76.0 (minor),
+        Mockup — app tokens from <code>packages/app/src/index.css</code>. Ledger threads, the
+        rule-writer popover, and the step-jump return pill (variant A), the inspector rail
+        (variant B), and the lens bar + elision rows (variant C) are interactive; the rest is
+        static. Scenario: npm <code>oxlint</code> 1.75.0 → 1.76.0 (minor),
         4 of 719 rules matched — <code>[0]</code> matched but changed nothing, <code>[201]</code>
         set <code>schedule</code> and <code>groupName</code>, <code>[458]</code>
         <strong>overrode that <code>groupName</code></strong> and appended to
@@ -1060,7 +1133,7 @@
                 </div>
               </li>
               <li class="thread">
-                <button type="button" class="thread-head" aria-expanded="false">
+                <button type="button" class="thread-head" aria-expanded="false" id="thread-groupname">
                   <span class="key"><span class="caret">▸</span> <code>groupName</code></span>
                   <span class="cell"
                     ><span class="value">"oxlint monorepo"</span>
@@ -1085,11 +1158,36 @@
                   </p>
                   <p class="thread-line">
                     <b>overrode</b> <span class="value old">"npm minor+patch"</span> written by
-                    <button type="button" class="linkish mono" title="Opens the matched-rules list focused on this rule — its clause evidence and the step it merged in">
-                      packageRules[201]</button
-                    >
+                    <span class="pop-anchor">
+                      <button type="button" class="linkish mono" id="rule-link-201" aria-haspopup="dialog">
+                        packageRules[201]</button
+                      >
+                      <span class="rule-pop" id="rule-pop-201" role="dialog" aria-label="packageRules[201] evidence">
+                        <span style="display: block">
+                          <span class="mono" style="font-weight: 600">packageRules[201]</span>
+                          <span class="badge ok">matched</span>
+                          <span class="badge muted">this write overridden</span>
+                        </span>
+                        <span class="thread-line" style="display: block">
+                          <span class="ok-mark">✓</span> <code>matchDatasources</code> checks
+                          <span class="value">["npm"]</span> · this update is
+                          <span class="value">"npm"</span>
+                        </span>
+                        <span class="thread-line" style="display: block">
+                          wrote <code>groupName</code> =
+                          <span class="value old">"npm minor+patch"</span> in step 2 · its
+                          <code>schedule</code> write survived
+                        </span>
+                        <span style="display: block">
+                          <button type="button" class="linkish">open in matched rules →</button>
+                          <span style="color: var(--muted)">· Esc or click away closes</span>
+                        </span>
+                      </span>
+                    </span>
                     ·
-                    <button type="button" class="linkish">step 3 of 4 in the replay →</button>
+                    <button type="button" class="linkish" id="a-step-jump">
+                      step 3 of 4 in the replay →
+                    </button>
                   </p>
                   <p class="thread-line">
                     <b>overrode</b> <span class="value old">null</span>
@@ -1163,6 +1261,33 @@
               </div>
             </div>
           </div>
+          <div class="drawer" id="a-replay-demo" hidden>
+            <div class="drawer-body" style="border-top: none">
+              <p class="verdict-ledger-label">
+                Build replay — step 3 of 4 · packageRules[458] merges
+              </p>
+              <div class="digest">
+                <div class="drow">
+                  <span>~</span><span>description</span>
+                  <span class="k-add">+ "Group packages from oxlint monorepo together."</span>
+                </div>
+                <div class="drow">
+                  <span>~</span><span>groupName</span>
+                  <span
+                    ><span class="k-del">"npm minor+patch"</span> →
+                    <span class="k-add">"oxlint monorepo"</span> · overrides step 2</span
+                  >
+                </div>
+              </div>
+              <p style="color: var(--muted); font-size: 0.78rem; margin: 0.25rem 0">
+                (The demoted full trace, opened exactly where the thread pointed — the floating
+                pill returns to the thread that sent you here.)
+              </p>
+            </div>
+          </div>
+          <button type="button" class="return-pill" id="a-return-pill">
+            ↩ Back to <code>groupName</code>
+          </button>
         </div>
       </div>
       <ul class="tradeoff-list">
@@ -1188,6 +1313,16 @@
           wrote several keys (458 appears twice above) — cheap for 4 settings, noisy for 15.
         </li>
       </ul>
+      <p class="section-note">
+        <strong>Navigation model</strong> (both directions demoed above): the first drill level
+        never navigates — a rule reference opens a popover with its clause evidence in place, so
+        there is nothing to go back from (Esc / click-away closes). A real jump (the step link)
+        opens the demoted replay <em>and</em> leaves a floating "↩ back to
+        <code>groupName</code>" pill — the app's existing bottom-pill plane — which scrolls back
+        and re-flashes the thread that sent you. In the real build both jumps also push the
+        target into the URL fragment (the <code>simStep</code> convention), so the browser's Back
+        button and share links work for free.
+      </p>
 
       <!-- ============================================================ -->
       <h2><span class="num">2 ·</span> Variant B — inspector: index left, one detail at a time</h2>
@@ -1980,6 +2115,36 @@
           head.querySelector(".caret").textContent = open ? "▾" : "▸";
         });
       }
+      // Variant A — rule popover (first drill level: no navigation, nothing to go back from)
+      const pop201 = document.getElementById("rule-pop-201");
+      const popBtn201 = document.getElementById("rule-link-201");
+      popBtn201.addEventListener("click", (e) => {
+        e.stopPropagation();
+        pop201.classList.toggle("open");
+      });
+      document.addEventListener("click", (e) => {
+        if (!pop201.contains(e.target)) pop201.classList.remove("open");
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") pop201.classList.remove("open");
+      });
+      // Variant A — step jump opens the demoted replay and leaves a return pill
+      const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const scrollOpts = { behavior: reducedMotion ? "auto" : "smooth", block: "center" };
+      const replayDemo = document.getElementById("a-replay-demo");
+      const returnPill = document.getElementById("a-return-pill");
+      document.getElementById("a-step-jump").addEventListener("click", () => {
+        replayDemo.hidden = false;
+        replayDemo.scrollIntoView(scrollOpts);
+        returnPill.classList.add("show");
+      });
+      returnPill.addEventListener("click", () => {
+        returnPill.classList.remove("show");
+        const head = document.getElementById("thread-groupname");
+        head.scrollIntoView(scrollOpts);
+        head.classList.add("flash");
+        setTimeout(() => head.classList.remove("flash"), 1600);
+      });
       // Variant B — inspector: rail items and in-pane jump links share one switcher
       const railItems = [...document.querySelectorAll(".rail-item")];
       function showPane(id) {
