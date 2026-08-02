@@ -2,7 +2,7 @@
 
 Commissioned for mockup 053 (Simulator results readability). The 2026-07
 progressive-disclosure research ([2026-07-progressive-disclosure-research.md](2026-07-progressive-disclosure-research.md))
-covered the *disclosure* literature and produced 047's three-layer staging
+covered the _disclosure_ literature and produced 047's three-layer staging
 (ask / answer / evidence). This report covers the next question: **how do
 established tools lay out the evidence itself** — dense rule-evaluation,
 trace, and config-diff data — once the user opens it. Compiled from primary
@@ -14,10 +14,10 @@ product documentation; the condensed, decision-mapped version lives inside
 - **Styles pane (default)**: every matching rule in cascade order, overridden
   declarations struck through inline — the "loser" marking needs no
   interaction, but finding the winner means scanning the list.
-- **Computed pane (opt-in tab)**: only the *winning* value per property.
+- **Computed pane (opt-in tab)**: only the _winning_ value per property.
   Expanding a property reveals the same cascade list, winner pinned on top,
   each entry a jump-link to its source. Two panes answer two different
-  questions cheaply: *what is happening* (Computed) vs. *why* (Styles); users
+  questions cheaply: _what is happening_ (Computed) vs. _why_ (Styles); users
   default to Computed and escalate only when the answer surprises them.
 - A third state exists besides won/lost: valid-but-inert declarations (e.g.
   `float` on a grid item) render dimmed with an ⓘ hover explaining why —
@@ -40,7 +40,7 @@ further analysis surface — AST, IR, diff-against-another-compiler, execution
 — is added via an explicit "Add new…" menu and tiled/resized by the user
 (GoldenLayout). The whole workspace (open panes, layout, flags) is encoded in
 the URL, so a fully-configured deep-dive is one link away while the landing
-experience stays at two panes. Panes are *linked views*: selecting a source
+experience stays at two panes. Panes are _linked views_: selecting a source
 line highlights the matching output lines.
 Source: https://github.com/compiler-explorer/compiler-explorer/blob/main/docs/UsingCompilerExplorer.md
 
@@ -57,17 +57,17 @@ URL-fragment share convention.
   Source: https://docs.stripe.com/radar/rules
 - **AWS IAM policy simulator**: headline is binary allowed/denied; below it,
   per-statement explains (matched/not-matched action, resource, condition).
-  Community tooling labels which statements were *decisive* — the trace is
+  Community tooling labels which statements were _decisive_ — the trace is
   pre-filtered to the causally relevant subset, never an undifferentiated
   statement dump.
   Source: https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_testing-policies.html
 - **Google Cloud Policy Troubleshooter**: deny evaluates before allow and the
-  *order* is part of the explanation — a deny hit ends the story without
+  _order_ is part of the explanation — a deny hit ends the story without
   enumerating allow policies. Verdict is separated from the hierarchy-grouped
   policy walk.
   Source: https://cloud.google.com/policy-intelligence/docs/troubleshoot-access
 - **Skyhigh SWG rule tracing**: each matched criterion shows two parts — the
-  *predicate* (what the rule checks) and the *evaluated value* (what the
+  _predicate_ (what the rule checks) and the _evaluated value_ (what the
   runtime value actually was). Skipped-at-group-level, evaluated-but-unmatched,
   and matched are three distinct visual states; exactly one action per trace
   gets the "this was decisive" color.
@@ -78,7 +78,7 @@ URL-fragment share convention.
   Source: https://launchdarkly.com/docs/sdk/concepts/evaluation-reasons
 
 **Common thread.** The verdict is always a small fixed-vocabulary value, and
-"why" is *structured, pre-computed, decisive-subset* data — never the full
+"why" is _structured, pre-computed, decisive-subset_ data — never the full
 checked-rules list left for the viewer to sift.
 
 ## 4. CI systems — severity-driven default expansion
@@ -98,7 +98,7 @@ one counted row; a merge step that changed nothing visually recedes.
 
 ## 5. Cloudflare WAF security events — filter the list, group the detail
 
-The event list is filterable (action, rule source, path) *before* opening any
+The event list is filterable (action, rule source, path) _before_ opening any
 event; the detail view is organized by "what produced this decision" (managed
 ruleset vs. custom rule vs. rate limit); the verbose payload is a separate
 opt-in layer even inside the detail view.
@@ -122,7 +122,7 @@ keys only, with a counted, clickable elision row for the rest.
 
 The root view is a compact waterfall, one bar per span, colored by status —
 "where did the interesting thing happen" before any click. Clicking a span
-opens a detail panel *beside* the waterfall; the waterfall never leaves the
+opens a detail panel _beside_ the waterfall; the waterfall never leaves the
 screen, acting as a persistent spatial index. Expand-all and per-span
 collapse both exist.
 Source: https://www.jaegertracing.io/docs/frontend-ui/
@@ -148,7 +148,7 @@ is the size of the diff inside the pane.)
    last-writer-wins per key explicitly; note per-key exceptions (array
    concat) rather than letting a single framing mislead.
 6. **Predicate/evaluated two-part clause** — every matcher row shows what it
-   checks *and* the runtime value it saw (047's clause list already does
+   checks _and_ the runtime value it saw (047's clause list already does
    this; keep it — the persona study called it "the money shot").
 7. **Elided-but-acknowledged collapse** — every hidden set renders as a
    counted "N hidden — show" row. Non-negotiable wherever 2/3 collapse.

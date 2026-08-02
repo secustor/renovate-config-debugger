@@ -868,11 +868,11 @@
       </p>
       <div class="mock-banner">
         Mockup — app tokens from <code>packages/app/src/index.css</code>. Ledger threads, the
-        rule-writer popover, and the step-jump return pill (variant A), the inspector rail
-        (variant B), and the lens bar + elision rows (variant C) are interactive; the rest is
-        static. Scenario: npm <code>oxlint</code> 1.75.0 → 1.76.0 (minor),
-        4 of 719 rules matched — <code>[0]</code> matched but changed nothing, <code>[201]</code>
-        set <code>schedule</code> and <code>groupName</code>, <code>[458]</code>
+        rule-writer popover, and the step-jump return pill (variant A), the inspector rail (variant
+        B), and the lens bar + elision rows (variant C) are interactive; the rest is static.
+        Scenario: npm <code>oxlint</code> 1.75.0 → 1.76.0 (minor), 4 of 719 rules matched —
+        <code>[0]</code> matched but changed nothing, <code>[201]</code> set
+        <code>schedule</code> and <code>groupName</code>, <code>[458]</code>
         <strong>overrode that <code>groupName</code></strong> and appended to
         <code>description</code>, <code>[522]</code> set <code>prBodyColumns</code>. The contested
         <code>groupName</code> (default → [201] → [458]) is the case every variant must survive.
@@ -881,10 +881,9 @@
       <!-- ============================================================ -->
       <h2><span class="num">0 ·</span> Now — the evidence wall</h2>
       <p class="section-note">
-        A faithful (condensed) reproduction of the results area with both drawers open. The
-        drawers themselves were the 047 fix; the trouble starts when the user actually opens them
-        — and the contested <code>groupName</code> shows a problem the current UI cannot express
-        at all.
+        A faithful (condensed) reproduction of the results area with both drawers open. The drawers
+        themselves were the 047 fix; the trouble starts when the user actually opens them — and the
+        contested <code>groupName</code> shows a problem the current UI cannot express at all.
       </p>
 
       <p class="pane-label now">Now — verdict, then two open drawers, ~2,400&nbsp;px of it</p>
@@ -1037,7 +1036,9 @@
                 <button type="button" class="btn">⧉ Copy result</button>
               </div>
               <div class="diff">
-                <div class="row"><span class="ln">79 79</span>"Provide a link to octochangelog…</div>
+                <div class="row">
+                  <span class="ln">79 79</span>"Provide a link to octochangelog…
+                </div>
                 <div class="row"><span class="ln">80 80</span>"Update `_VERSION` variables in…</div>
                 <div class="row"><span class="ln">81 81</span>"Update `_VERSION` environment…</div>
                 <div class="row del">
@@ -1069,7 +1070,9 @@
                 <button type="button" class="btn">‹ Prev</button>
                 <button type="button" class="btn">Next ›</button>
                 <button type="button" class="btn">Jump to end</button>
-                <label style="font-size: 0.78rem"><input type="checkbox" /> Diff vs. base config</label>
+                <label style="font-size: 0.78rem"
+                  ><input type="checkbox" /> Diff vs. base config</label
+                >
               </div>
             </div>
           </details>
@@ -1079,12 +1082,12 @@
         <li>
           <strong>Overridden writes are invisible.</strong> <code>packageRules[201]</code> set
           <code>groupName</code> to <code>"npm minor+patch"</code> in step 2;
-          <code>[458]</code> silently clobbered it in step 3. Nothing anywhere says so — the loss
-          is discoverable only by stepping through two diffs and comparing them line by line.
+          <code>[458]</code> silently clobbered it in step 3. Nothing anywhere says so — the loss is
+          discoverable only by stepping through two diffs and comparing them line by line.
         </li>
         <li>
-          <strong>The same facts render at three grains.</strong> <code>groupName</code> appears
-          in the ledger, in two rules' "applied" lists, and four times across the step diffs — the
+          <strong>The same facts render at three grains.</strong> <code>groupName</code> appears in
+          the ledger, in two rules' "applied" lists, and four times across the step diffs — the
           reader cannot tell whether scrolling reveals new information or the same fact again, so
           they read all of it.
         </li>
@@ -1095,17 +1098,17 @@
         </li>
         <li>
           <strong>Open evidence rebuilds the wall.</strong> Both drawers open is ~2,400&nbsp;px of
-          equal-weight monospace; the verdict card and the raw trace compete at the same
-          typographic rank.
+          equal-weight monospace; the verdict card and the raw trace compete at the same typographic
+          rank.
         </li>
         <li>
           <strong>"4 of 719" is said four times</strong> — card title, verdict footer, drawer
           summary, filter row — and each repeat costs a line of reading.
         </li>
         <li>
-          <strong>Rows don't align.</strong> A ledger row mixes code, prose, a provenance chip,
-          and a step link inline; values start wherever the key ends, so the eye re-finds the
-          value column on every row.
+          <strong>Rows don't align.</strong> A ledger row mixes code, prose, a provenance chip, and
+          a step link inline; values start wherever the key ends, so the eye re-finds the value
+          column on every row.
         </li>
       </ul>
 
@@ -1152,13 +1155,18 @@
                     <span>· this update is <span class="value">"minor"</span></span>
                   </div>
                   <p class="thread-line">
-                    <b>added</b> <span class="value">"Group packages from oxlint monorepo…"</span>
-                    · <button type="button" class="linkish">step 3 of 4 in the replay →</button>
+                    <b>added</b> <span class="value">"Group packages from oxlint monorepo…"</span> ·
+                    <button type="button" class="linkish">step 3 of 4 in the replay →</button>
                   </p>
                 </div>
               </li>
               <li class="thread">
-                <button type="button" class="thread-head" aria-expanded="false" id="thread-groupname">
+                <button
+                  type="button"
+                  class="thread-head"
+                  aria-expanded="false"
+                  id="thread-groupname"
+                >
                   <span class="key"><span class="caret">▸</span> <code>groupName</code></span>
                   <span class="cell"
                     ><span class="value">"oxlint monorepo"</span>
@@ -1184,10 +1192,20 @@
                   <p class="thread-line">
                     <b>overrode</b> <span class="value old">"npm minor+patch"</span> written by
                     <span class="pop-anchor">
-                      <button type="button" class="linkish mono" id="rule-link-201" aria-haspopup="dialog">
-                        packageRules[201]</button
+                      <button
+                        type="button"
+                        class="linkish mono"
+                        id="rule-link-201"
+                        aria-haspopup="dialog"
                       >
-                      <span class="rule-pop" id="rule-pop-201" role="dialog" aria-label="packageRules[201] evidence">
+                        packageRules[201]
+                      </button>
+                      <span
+                        class="rule-pop"
+                        id="rule-pop-201"
+                        role="dialog"
+                        aria-label="packageRules[201] evidence"
+                      >
                         <span style="display: block">
                           <span class="mono" style="font-weight: 600">packageRules[201]</span>
                           <span class="badge ok">matched</span>
@@ -1214,7 +1232,9 @@
                             <span
                               ><span class="k-del">null</span> →
                               <span class="k-add overridden">"npm minor+patch"</span>
-                              <span style="color: var(--muted)">· ⊘ overridden in step 3</span></span
+                              <span style="color: var(--muted)"
+                                >· ⊘ overridden in step 3</span
+                              ></span
                             >
                           </span>
                         </span>
@@ -1290,8 +1310,8 @@
             </ul>
             <div class="verdict-foot">
               <span class="drawer-summary"
-                >Full trace: <button type="button" class="linkish">4 of 719 rules matched</button>
-                · <button type="button" class="linkish">build replay, 7 stops</button></span
+                >Full trace: <button type="button" class="linkish">4 of 719 rules matched</button> ·
+                <button type="button" class="linkish">build replay, 7 stops</button></span
               >
               <div class="btn-row">
                 <button type="button" class="btn">⧉ Copy link</button>
@@ -1318,8 +1338,8 @@
                 </div>
               </div>
               <p style="color: var(--muted); font-size: 0.78rem; margin: 0.25rem 0">
-                (The demoted full trace, opened exactly where the thread pointed — the floating
-                pill returns to the thread that sent you here.)
+                (The demoted full trace, opened exactly where the thread pointed — the floating pill
+                returns to the thread that sent you here.)
               </p>
             </div>
           </div>
@@ -1336,9 +1356,9 @@
           <code>2 writers</code> badge plus two "overrode" lines, one click deep.
         </li>
         <li>
-          <span class="win">Wins:</span> "why is <code>groupName</code> set?" is answered with
-          zero duplication; the clause evidence (the persona study's "money shot") moves closer;
-          merge semantics live in the verb — <b>set by</b> vs. <b>appended by</b> — so keys that
+          <span class="win">Wins:</span> "why is <code>groupName</code> set?" is answered with zero
+          duplication; the clause evidence (the persona study's "money shot") moves closer; merge
+          semantics live in the verb — <b>set by</b> vs. <b>appended by</b> — so keys that
           concatenate never masquerade as overrides.
         </li>
         <li>
@@ -1355,11 +1375,11 @@
         <strong>Navigation model</strong> (both directions demoed above): the first drill level
         never navigates — a rule reference opens a popover with its clause evidence in place, so
         there is nothing to go back from (Esc / click-away closes). A real jump (the step link)
-        opens the demoted replay <em>and</em> leaves a floating "↩ back to
-        <code>groupName</code>" pill — the app's existing bottom-pill plane — which scrolls back
-        and re-flashes the thread that sent you. In the real build both jumps also push the
-        target into the URL fragment (the <code>simStep</code> convention), so the browser's Back
-        button and share links work for free.
+        opens the demoted replay <em>and</em> leaves a floating "↩ back to <code>groupName</code>"
+        pill — the app's existing bottom-pill plane — which scrolls back and re-flashes the thread
+        that sent you. In the real build both jumps also push the target into the URL fragment (the
+        <code>simStep</code> convention), so the browser's Back button and share links work for
+        free.
       </p>
 
       <!-- ============================================================ -->
@@ -1401,7 +1421,12 @@
               <span class="idx">packageRules[0]</span><span class="hint">±0</span>
             </button>
             <p class="rail-group">Everything else</p>
-            <button type="button" class="rail-item elided" data-pane="pane-rest" aria-selected="false">
+            <button
+              type="button"
+              class="rail-item elided"
+              data-pane="pane-rest"
+              aria-selected="false"
+            >
               715 rules did not match…
             </button>
             <p class="rail-group">Build replay</p>
@@ -1549,8 +1574,8 @@
                 <li>
                   <code>prBodyColumns</code>
                   <span class="cell"
-                    ><span class="value old">["Package","Type","Update","Change","Pending"]</span>
-                    → <span class="value">["Package","Change","Age","Confidence"]</span></span
+                    ><span class="value old">["Package","Type","Update","Change","Pending"]</span> →
+                    <span class="value">["Package","Change","Age","Confidence"]</span></span
                   >
                 </li>
               </ul>
@@ -1628,8 +1653,7 @@
                   <span>~</span><span>groupName</span>
                   <span
                     ><span class="k-del">null</span> →
-                    <span class="k-add">"npm minor+patch"</span> · overridden again in step
-                    3</span
+                    <span class="k-add">"npm minor+patch"</span> · overridden again in step 3</span
                   >
                 </div>
                 <div class="drow" style="color: var(--muted)">
@@ -1672,8 +1696,7 @@
               <p style="color: var(--muted); font-size: 0.82rem">
                 Renovate deletes the 7 update-type blocks (<code>major</code>, <code>minor</code>,
                 …) after merging the one that applies. This run: the <code>minor</code> block was
-                empty, so flattening only removed — <span class="mono">⊘7</span>, nothing merged
-                up.
+                empty, so flattening only removed — <span class="mono">⊘7</span>, nothing merged up.
               </p>
             </section>
             <section class="insp-pane" id="pane-final">
@@ -1704,15 +1727,14 @@
       </div>
       <ul class="tradeoff-list">
         <li>
-          <span class="win">Wins:</span> constant page height — investigating five things costs
-          zero scroll; the three-state grouping (changed / matched-inert / 715 no-match) answers
-          "what mattered" before any click, and the <code>⊘</code> rail hint plus the
-          cross-linking between [201], [458], and step 3 makes the contested field navigable in
-          both directions.
+          <span class="win">Wins:</span> constant page height — investigating five things costs zero
+          scroll; the three-state grouping (changed / matched-inert / 715 no-match) answers "what
+          mattered" before any click, and the <code>⊘</code> rail hint plus the cross-linking
+          between [201], [458], and step 3 makes the contested field navigable in both directions.
         </li>
         <li>
-          <span class="win">Wins:</span> scales to 719 rules because the long tail is a search
-          pane, not a list; rail selection can ride the share-link fragment the same way
+          <span class="win">Wins:</span> scales to 719 rules because the long tail is a search pane,
+          not a list; rail selection can ride the share-link fragment the same way
           <code>simStep</code> already does.
         </li>
         <li>
@@ -1721,9 +1743,8 @@
           height advantage shrinks; comparing two rules side-by-side needs a pin affordance later.
         </li>
         <li>
-          <span class="lose">Costs:</span> one detail at a time hides the rule list's gestalt —
-          the <code>+1 ⊘1</code> hint has to carry "this rule half-lost" on its own, and it's
-          small.
+          <span class="lose">Costs:</span> one detail at a time hides the rule list's gestalt — the
+          <code>+1 ⊘1</code> hint has to carry "this rule half-lost" on its own, and it's small.
         </li>
       </ul>
 
@@ -1734,8 +1755,8 @@
         mutually exclusive <strong>lenses</strong> (DevTools' Headers/Preview/Response model) — so
         the wall can never rebuild itself — and the step diff becomes a Terraform-style
         <strong>digest</strong>: changed keys only, with the elided remainder acknowledged as a
-        counted row. Matched rules render pre-expanded (severity-driven: they're the abnormal
-        ones); the 715 no-matches are one row; an overridden write is flagged where it happens.
+        counted row. Matched rules render pre-expanded (severity-driven: they're the abnormal ones);
+        the 715 no-matches are one row; an overridden write is flagged where it happens.
       </p>
 
       <p class="pane-label">Variant C — switch lenses; expand elisions (interactive)</p>
@@ -1774,13 +1795,31 @@
           </div>
 
           <div class="lens-bar" role="tablist" aria-label="Evidence lens">
-            <button type="button" class="lens" role="tab" aria-selected="true" data-lens="lens-rules">
+            <button
+              type="button"
+              class="lens"
+              role="tab"
+              aria-selected="true"
+              data-lens="lens-rules"
+            >
               Matched rules <span class="count">4 / 719</span>
             </button>
-            <button type="button" class="lens" role="tab" aria-selected="false" data-lens="lens-build">
+            <button
+              type="button"
+              class="lens"
+              role="tab"
+              aria-selected="false"
+              data-lens="lens-build"
+            >
               Build replay <span class="count">7 stops</span>
             </button>
-            <button type="button" class="lens" role="tab" aria-selected="false" data-lens="lens-final">
+            <button
+              type="button"
+              class="lens"
+              role="tab"
+              aria-selected="false"
+              data-lens="lens-final"
+            >
               Final config
             </button>
           </div>
@@ -1829,8 +1868,8 @@
                   </li>
                 </ul>
                 <p style="font-size: 0.82rem; margin: 0.25rem 0">
-                  → sets <code>groupName</code> (overriding <code>packageRules[201]</code>),
-                  appends to <code>description</code>
+                  → sets <code>groupName</code> (overriding <code>packageRules[201]</code>), appends
+                  to <code>description</code>
                 </p>
               </div>
             </div>
@@ -1915,16 +1954,26 @@
             <div class="diff" id="digest-context" hidden>
               <div class="row"><span class="ln">80</span>"Update `_VERSION` variables in…</div>
               <div class="row"><span class="ln">81</span>"Update `_VERSION` environment…</div>
-              <div class="row del"><span class="ln">82</span>"Convert pinned GitHub Action digests…</div>
-              <div class="row add"><span class="ln">82</span>"Convert pinned GitHub Action digests…",</div>
-              <div class="row add"><span class="ln">83</span>"Group packages from oxlint monorepo…"</div>
+              <div class="row del">
+                <span class="ln">82</span>"Convert pinned GitHub Action digests…
+              </div>
+              <div class="row add">
+                <span class="ln">82</span>"Convert pinned GitHub Action digests…",
+              </div>
+              <div class="row add">
+                <span class="ln">83</span>"Group packages from oxlint monorepo…"
+              </div>
               <div class="row"><span class="ln">84</span>],</div>
-              <div class="row" style="color: var(--muted)"><span class="ln">⋯</span>(full diff, as today)</div>
+              <div class="row" style="color: var(--muted)">
+                <span class="ln">⋯</span>(full diff, as today)
+              </div>
             </div>
             <div class="diff-toolbar" style="justify-content: flex-start">
               <button type="button" class="btn">‹ Prev step</button>
               <button type="button" class="btn">Next step ›</button>
-              <label style="font-size: 0.78rem"><input type="checkbox" /> Diff vs. base config</label>
+              <label style="font-size: 0.78rem"
+                ><input type="checkbox" /> Diff vs. base config</label
+              >
             </div>
           </section>
 
@@ -1941,11 +1990,17 @@
               <li>
                 <code>prBodyColumns</code>
                 <span class="value">["Package","Change","Age","Confidence"]</span>
-                <span class="prov-dot" title="packageRules[522] · local>secustor/renovate-config"></span>
+                <span
+                  class="prov-dot"
+                  title="packageRules[522] · local>secustor/renovate-config"
+                ></span>
               </li>
               <li>
                 <code>schedule</code> <span class="value">["before 6am on monday"]</span>
-                <span class="prov-dot" title="packageRules[201] · local>secustor/renovate-config"></span>
+                <span
+                  class="prov-dot"
+                  title="packageRules[201] · local>secustor/renovate-config"
+                ></span>
               </li>
               <li>
                 <code>description</code> <span class="value">[…4 items]</span>
@@ -1958,7 +2013,9 @@
             <ul class="computed kv" id="final-rest" hidden>
               <li><code>enabled</code> <span class="value">true</span></li>
               <li><code>constraintsFiltering</code> <span class="value">"none"</span></li>
-              <li class="full" style="color: var(--muted)">⋯ (and 38 more, as today’s resolved view)</li>
+              <li class="full" style="color: var(--muted)">
+                ⋯ (and 38 more, as today’s resolved view)
+              </li>
             </ul>
           </section>
         </div>
@@ -1967,24 +2024,24 @@
         <li>
           <span class="win">Wins:</span> cheapest to build — <code>SummaryDrawer</code> becomes a
           lens bar, everything inside the panes is today's components; the wall is structurally
-          impossible (one lens at a time); the digest diff alone removes ~90% of the rendered
-          pixels in the screenshot's worst section and works in <em>every</em> variant.
+          impossible (one lens at a time); the digest diff alone removes ~90% of the rendered pixels
+          in the screenshot's worst section and works in <em>every</em> variant.
         </li>
         <li>
           <span class="win">Wins:</span> severity-driven defaults — matched rules arrive
-          pre-expanded, inert and unmatched arrive as counted rows; the override is flagged at
-          both ends (rule [201]'s struck-through write, step 3's "overrides step 2" digest line).
+          pre-expanded, inert and unmatched arrive as counted rows; the override is flagged at both
+          ends (rule [201]'s struck-through write, step 3's "overrides step 2" digest line).
         </li>
         <li>
           <span class="lose">Costs:</span> lenses hide siblings — tracing
-          <code>groupName</code> across [201], [458], and the replay means switching lenses
-          (drawers allowed both open; nobody could read the result, but it was possible); lens
-          state needs the same share-link treatment <code>simStep</code> got.
+          <code>groupName</code> across [201], [458], and the replay means switching lenses (drawers
+          allowed both open; nobody could read the result, but it was possible); lens state needs
+          the same share-link treatment <code>simStep</code> got.
         </li>
         <li>
           <span class="lose">Costs:</span> "Final config" duplicates part of 051's resolved-config
-          output — needs a clear "this is per-dependency, that is repo-wide" boundary or one of
-          the two should absorb the other.
+          output — needs a clear "this is per-dependency, that is repo-wide" boundary or one of the
+          two should absorb the other.
         </li>
       </ul>
 
@@ -1998,10 +2055,10 @@
           one click away. (Terraform's battle-tested shape for exactly this data.)
         </li>
         <li>
-          <strong style="color: var(--ok)">Name the override.</strong> A write a later rule
-          clobbers is flagged wherever it appears — struck through with "overridden by
-          packageRules[N] in step M" — and the winning key wears a
-          <code>2 writers</code> badge. Today the loss is silent.
+          <strong style="color: var(--ok)">Name the override.</strong> A write a later rule clobbers
+          is flagged wherever it appears — struck through with "overridden by packageRules[N] in
+          step M" — and the winning key wears a <code>2 writers</code> badge. Today the loss is
+          silent.
         </li>
         <li>
           <strong style="color: var(--ok)">Aligned ledgers.</strong> Every
@@ -2009,14 +2066,14 @@
           value column has one edge instead of starting wherever each key ends.
         </li>
         <li>
-          <strong style="color: var(--ok)">Say "4 of 719" once.</strong> The verdict owns the
-          count; drawers/lenses/rails reference it without restating it.
+          <strong style="color: var(--ok)">Say "4 of 719" once.</strong> The verdict owns the count;
+          drawers/lenses/rails reference it without restating it.
         </li>
         <li>
           <strong style="color: var(--ok)">Demote chips in evidence.</strong> Full provenance chips
           stay on the verdict card; inside evidence layers the same fact is a colored dot with the
-          chip on hover — all four matched rules sharing one source was worth 4 chips ×
-          28 characters in the current UI.
+          chip on hover — all four matched rules sharing one source was worth 4 chips × 28
+          characters in the current UI.
         </li>
         <li>
           <strong style="color: var(--ok)">Name the inert state.</strong> "Matched but changed
@@ -2082,11 +2139,11 @@
         </tbody>
       </table>
       <p class="section-note">
-        The variants compose: C's digest diff and elision rows are prerequisites for A and B
-        anyway (shared fixes above), and A's threads could later sit on top of either. A plausible
-        sequencing is <strong>C-then-A</strong> (ship the cheap structural fix, then grow the
-        ledger into the primary trace) with B reserved for a future "audit mode" if the 719-rule
-        population demands it.
+        The variants compose: C's digest diff and elision rows are prerequisites for A and B anyway
+        (shared fixes above), and A's threads could later sit on top of either. A plausible
+        sequencing is <strong>C-then-A</strong> (ship the cheap structural fix, then grow the ledger
+        into the primary trace) with B reserved for a future "audit mode" if the 719-rule population
+        demands it.
       </p>
 
       <!-- ============================================================ -->
@@ -2096,25 +2153,27 @@
           <li>
             <strong>Two views, two questions.</strong> DevTools separates "what is the value"
             (Computed pane: winner only, expandable to the ordered cascade with losers struck
-            through and jump-links to source) from "why" (Styles pane) — users default to the
-            cheap answer and escalate on surprise. Variant A is this transplanted to a sequential
+            through and jump-links to source) from "why" (Styles pane) — users default to the cheap
+            answer and escalate on surprise. Variant A is this transplanted to a sequential
             last-writer-wins merge. <cite>developer.chrome.com/docs/devtools/css</cite>
           </li>
           <li>
             <strong>Decisive subset, never a dump.</strong> IAM policy simulator, GCP Policy
-            Troubleshooter, Skyhigh rule tracing and LaunchDarkly evaluation reasons all
-            pre-compute which rules were causally relevant (typed reason codes, decisive-statement
-            labels, three visual states for matched / evaluated-unmatched / skipped) — the viewer
-            never infers relevance from a flat list. Variant B's rail grouping and the
-            "matched but changed nothing" badge.
-            <cite>docs.aws.amazon.com · cloud.google.com/policy-intelligence ·
-              launchdarkly.com/docs</cite>
+            Troubleshooter, Skyhigh rule tracing and LaunchDarkly evaluation reasons all pre-compute
+            which rules were causally relevant (typed reason codes, decisive-statement labels, three
+            visual states for matched / evaluated-unmatched / skipped) — the viewer never infers
+            relevance from a flat list. Variant B's rail grouping and the "matched but changed
+            nothing" badge.
+            <cite
+              >docs.aws.amazon.com · cloud.google.com/policy-intelligence ·
+              launchdarkly.com/docs</cite
+            >
           </li>
           <li>
-            <strong>Severity-driven expansion.</strong> GitHub Actions / Buildkite auto-expand
-            only failed steps; default disclosure state derives from "is this abnormal", never
-            from position. Variant C pre-expands the 4 matched rules and collapses the 715
-            no-matches to a counted row.
+            <strong>Severity-driven expansion.</strong> GitHub Actions / Buildkite auto-expand only
+            failed steps; default disclosure state derives from "is this abnormal", never from
+            position. Variant C pre-expands the 4 matched rules and collapses the 715 no-matches to
+            a counted row.
             <cite>docs.github.com · buildkite.com/docs</cite>
           </li>
           <li>
@@ -2134,10 +2193,12 @@
           <li>
             <strong>Constraints carried over from 047's research:</strong> never gate the verdict;
             two disclosure levels max; every collapsed header keeps a computed count/preview; and
-            the per-clause predicate-vs-evaluated evidence stays one interaction away — the
-            persona study called it "the single most convincing screen".
-            <cite>roadmap/2026-07-progressive-disclosure-research.md ·
-              roadmap/2026-07-persona-ux-study.md</cite>
+            the per-clause predicate-vs-evaluated evidence stays one interaction away — the persona
+            study called it "the single most convincing screen".
+            <cite
+              >roadmap/2026-07-progressive-disclosure-research.md ·
+              roadmap/2026-07-persona-ux-study.md</cite
+            >
           </li>
         </ul>
       </div>
@@ -2211,7 +2272,10 @@
         btn.addEventListener("click", () => {
           const target = document.getElementById(btn.dataset.toggle);
           target.hidden = !target.hidden;
-          btn.textContent = btn.textContent.replace(target.hidden ? "▾" : "▸", target.hidden ? "▸" : "▾");
+          btn.textContent = btn.textContent.replace(
+            target.hidden ? "▾" : "▸",
+            target.hidden ? "▸" : "▾",
+          );
         });
       }
     </script>
