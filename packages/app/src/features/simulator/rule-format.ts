@@ -14,15 +14,27 @@ function fullValue(value: unknown): string {
   return JSON.stringify(value) ?? "undefined";
 }
 
-/** Roadmap 018: a matched rule's applied keys as `key: before → after` lines. */
+/** Roadmap 018: a matched rule's applied keys as `key: before → after` lines.
+ *  A merge that took a key away has no `after` at all — the export says so in
+ *  words, the same way the rows do, rather than pasting `undefined`. */
 export function ruleAppliedMarkdown(merged: MergedKey[]): string {
   return merged
-    .map((m) =>
-      "before" in m
-        ? `${m.key}: ${fullValue(m.before)} → ${fullValue(m.after)}`
-        : `${m.key}: ${fullValue(m.after)}`,
-    )
+    .map((m) => {
+      const after = "after" in m ? fullValue(m.after) : "(removed)";
+      return "before" in m ? `${m.key}: ${fullValue(m.before)} → ${after}` : `${m.key}: ${after}`;
+    })
     .join("\n");
+}
+
+/** Roadmap 053 layer 7: `~` changed · `+` added · `−` removed — the mark a
+ *  {@link WriteRow} leads with, so a write reads without re-parsing its
+ *  before/after pair. Here rather than beside the component because a module
+ *  that renders may only export components (Fast Refresh). */
+export function writeMark(hadBefore: boolean, hadAfter: boolean): string {
+  if (!hadAfter) {
+    return "−";
+  }
+  return hadBefore ? "~" : "+";
 }
 
 function inputsPreview(clause: ClauseEvaluation): string {
@@ -53,8 +65,11 @@ export function clauseIcon(state: ClauseEvaluation["state"]): string {
  * sourceUrl (Renovate treats a missing value as a non-match)", from the
  * engine's note) rather than reading like the clause was never evaluated; a
  * null-returning matcher reads "not applicable (skipped)".
+ *
+ * Roadmap 053 layer 7: no longer exported — the prose clause list that read it
+ * directly is gone, and every clause now arrives through `clauseEvaluated`.
  */
-export function clauseExplanation(clause: ClauseEvaluation): string {
+function clauseExplanation(clause: ClauseEvaluation): string {
   const hasInputs = Object.keys(clause.inputValues).length > 0;
   switch (clause.state) {
     case "matched":

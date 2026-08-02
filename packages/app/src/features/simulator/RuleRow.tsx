@@ -1,63 +1,17 @@
 import { useEffect, useState } from "react";
 import type {
-  ClauseEvaluation,
   MergedKey,
   ProvenanceLayer,
   RuleEvaluation,
 } from "@renovate-config-visualizer/engine";
 import { CopyMarkdownButton } from "@/components/CopyMarkdownButton";
-import { OptionKey } from "@/components/option-docs";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
-import {
-  clauseExplanation,
-  clauseIcon,
-  previewValue,
-  ruleAppliedMarkdown,
-  ruleLabel,
-  VERDICT_LABEL,
-} from "./rule-format";
+import { ClauseGrid } from "./ClauseGrid";
+import { ruleAppliedMarkdown, ruleLabel, VERDICT_LABEL, writeMark } from "./rule-format";
+import { WriteRow } from "./WriteRow";
 
-/** Roadmap 006/040: a rule's clause-by-clause evidence — one row per `match*`
- *  selector, with the value it was compared against and why it did or didn't
- *  match. */
-function SimClauseList({ clauses }: { clauses: ClauseEvaluation[] }) {
-  return (
-    <ul className="sim-clauses">
-      {clauses.map((clause) => (
-        <li key={clause.key} className={`sim-clause state-${clause.state}`}>
-          <span className="sim-clause-icon">{clauseIcon(clause.state)}</span>
-          <span className="sim-clause-text">
-            <code>{clause.key}</code>: {previewValue(clause.value, 60)} —{" "}
-            {clauseExplanation(clause)}
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-/** One `key: before → after` row of what a matching rule applied. */
-function MergedKeyRow({ merged }: { merged: MergedKey }) {
-  return (
-    <li>
-      <span className="sim-merged-key">
-        <OptionKey name={merged.key} flagUnknown />
-      </span>
-      {"before" in merged ? (
-        <>
-          {" "}
-          <span className="sim-merged-before">{previewValue(merged.before)}</span> →{" "}
-        </>
-      ) : (
-        " → "
-      )}
-      <span className="sim-merged-after">{previewValue(merged.after)}</span>
-    </li>
-  );
-}
-
-/** Roadmap 018/040: what a matching rule applied to the dependency config, as
- *  `key: before → after` rows plus the copy-as-markdown export of the same. */
+/** Roadmap 018/040/053: what a matching rule applied to the dependency config,
+ *  as the shared write rows plus the copy-as-markdown export of the same. */
 function SimMergedApplied({ rule, merged }: { rule: RuleEvaluation; merged: MergedKey[] }) {
   return (
     <div className="sim-merged">
@@ -69,11 +23,17 @@ function SimMergedApplied({ rule, merged }: { rule: RuleEvaluation; merged: Merg
           code={ruleAppliedMarkdown(merged)}
         />
       </div>
-      <ul>
+      <div className="sim-writes">
         {merged.map((m) => (
-          <MergedKeyRow key={m.key} merged={m} />
+          <WriteRow
+            key={m.key}
+            name={m.key}
+            mark={writeMark("before" in m, "after" in m)}
+            before={"before" in m ? { json: m.before } : undefined}
+            after={"after" in m ? { json: m.after } : { text: "removed" }}
+          />
         ))}
-      </ul>
+      </div>
     </div>
   );
 }
@@ -121,7 +81,7 @@ export function RuleRow({
           {rule.clauses.length === 0 ? (
             <p className="empty-note">No match* clauses — the rule applies to everything.</p>
           ) : (
-            <SimClauseList clauses={rule.clauses} />
+            <ClauseGrid clauses={rule.clauses} />
           )}
           {rule.notes.map((note) => (
             <p key={note} className="sim-note">

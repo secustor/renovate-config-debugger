@@ -2,8 +2,8 @@ import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { ClauseGrid } from "./ClauseGrid";
 import type { RuleEvidence } from "./rule-evidence";
 import { RuleEvidenceAnchor } from "./RuleEvidenceCard";
-import { previewValue } from "./rule-format";
 import type { ThreadEntry, ThreadModel, ThreadVerb, ThreadWinner } from "./verdict-threads";
+import { WriteRow } from "./WriteRow";
 
 /**
  * Roadmap 053 (variant A): the expanded thread — the causal story of ONE
@@ -87,26 +87,48 @@ function ThreadWriterLine({
   );
 }
 
-/** One value the winner beat — struck through in place, with whoever wrote it.
- *  The cascade's last entry is the pre-rules value, which has no writer. */
-function ThreadOverrideLine({ entry, actions }: { entry: ThreadEntry; actions: ThreadActions }) {
+/**
+ * One value the winner beat — struck through in place, with whoever wrote it.
+ * The cascade's last entry is the pre-rules value, which has no writer.
+ *
+ * Roadmap 053 layer 7: this IS the shared write row (`⊘` mark, a struck value,
+ * a trailing note), so a lost value looks the same here as in the evidence
+ * card's digest. The row states only a `before` — a beaten write has no "and
+ * then it became": that is the winner line at the top of the thread.
+ */
+function ThreadOverrideLine({
+  threadKey,
+  entry,
+  actions,
+}: {
+  threadKey: string;
+  entry: ThreadEntry;
+  actions: ThreadActions;
+}) {
   if (entry.kind === "base") {
-    if (!entry.present) {
-      return <p className="sim-thread-line">nothing was set before any rule</p>;
-    }
     return (
-      <p className="sim-thread-line">
-        <b>overrode</b> <span className="sim-thread-old">{previewValue(entry.value, 80)}</span>{" "}
-        <span className="sim-thread-note">before any rule</span>
-      </p>
+      <WriteRow
+        name={threadKey}
+        mark="⊘"
+        max={80}
+        before={entry.present ? { json: entry.value } : undefined}
+        note={entry.present ? "before any rule" : "nothing was set before any rule"}
+      />
     );
   }
   return (
-    <p className="sim-thread-line">
-      <b>overrode</b> <span className="sim-thread-old">{previewValue(entry.value, 80)}</span>{" "}
-      written by{" "}
-      <WriterRef ruleIndex={entry.ruleIndex} stopLabel={entry.stopLabel} evidence={actions} />
-    </p>
+    <WriteRow
+      name={threadKey}
+      mark="⊘"
+      max={80}
+      before={{ json: entry.value }}
+      note={
+        <>
+          written by{" "}
+          <WriterRef ruleIndex={entry.ruleIndex} stopLabel={entry.stopLabel} evidence={actions} />
+        </>
+      }
+    />
   );
 }
 
@@ -146,13 +168,16 @@ export function ThreadBody({ thread, actions }: { thread: ThreadModel; actions: 
         <p className="sim-thread-line">No merge step names this setting.</p>
       )}
       {winner && winner.clauses.length > 0 ? <ClauseGrid clauses={winner.clauses} /> : null}
-      {thread.overrides.map((entry) => (
-        <ThreadOverrideLine
-          key={entry.kind === "base" ? "base" : `stop-${entry.stopIndex}`}
-          entry={entry}
-          actions={actions}
-        />
-      ))}
+      <div className="sim-writes">
+        {thread.overrides.map((entry) => (
+          <ThreadOverrideLine
+            key={entry.kind === "base" ? "base" : `stop-${entry.stopIndex}`}
+            threadKey={thread.key}
+            entry={entry}
+            actions={actions}
+          />
+        ))}
+      </div>
       {winner && onJumpToStep ? (
         <ThreadStepLine winner={winner} onJumpToStep={onJumpToStep} />
       ) : null}

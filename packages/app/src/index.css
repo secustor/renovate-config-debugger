@@ -2130,53 +2130,25 @@ pre.config-view.prov-before {
   padding: 0.5rem 0.75rem 0.6rem 1.9rem;
 }
 
-.sim-clauses {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.sim-clause {
-  display: flex;
-  font-size: 0.82rem;
-  gap: 0.45rem;
-  padding: 0.15rem 0;
-}
-
-.sim-clause-icon {
-  width: 1rem;
-}
-
-/* ONE clause-state → hue mapping, worn by both forms a clause is read in: the
-   prose list (`.sim-clause`, the rules drawer) and 053's evidence grid
-   (`.sim-clause-row`). Every state is named explicitly on purpose — the grid
-   used to inherit green as a fall-through, so a state neither list knew about
-   rendered as "matched". Anything unmapped is muted (see `.sim-clause-mark`),
-   which says nothing rather than the wrong thing. */
-.sim-clause.state-matched .sim-clause-icon,
+/* ONE clause-state → hue mapping for the ONE form a clause is read in (053
+   layer 7 retired the prose list the rules drawer used to have its own copy
+   of). Every state is named explicitly on purpose — the grid used to inherit
+   green as a fall-through, so a state the list did not know about rendered as
+   "matched". Anything unmapped is muted (see `.sim-clause-mark`), which says
+   nothing rather than the wrong thing. */
 .sim-clause-row.state-matched .sim-clause-mark {
   color: var(--ok);
 }
 
-.sim-clause.state-no-match .sim-clause-icon,
-.sim-clause.state-error .sim-clause-icon,
 .sim-clause-row.state-no-match .sim-clause-mark,
 .sim-clause-row.state-error .sim-clause-mark {
   color: var(--error);
 }
 
-.sim-clause.state-no-input .sim-clause-icon,
-.sim-clause.state-not-applicable .sim-clause-icon,
-.sim-clause.state-not-simulated .sim-clause-icon,
 .sim-clause-row.state-no-input .sim-clause-mark,
 .sim-clause-row.state-not-applicable .sim-clause-mark,
 .sim-clause-row.state-not-simulated .sim-clause-mark {
   color: var(--warn);
-}
-
-.sim-clause-text {
-  min-width: 0;
-  overflow-wrap: anywhere;
 }
 
 .sim-merged {
@@ -2187,15 +2159,8 @@ pre.config-view.prov-before {
   padding: 0.5rem 0.7rem;
 }
 
-.sim-merged ul {
-  list-style: none;
-  margin: 0.25rem 0 0;
-  padding: 0;
-}
-
-.sim-merged li {
-  overflow-wrap: anywhere;
-  padding: 0.1rem 0;
+.sim-merged .sim-writes {
+  margin-top: 0.25rem;
 }
 
 .sim-merged-title {
@@ -2206,16 +2171,10 @@ pre.config-view.prov-before {
   text-transform: uppercase;
 }
 
-.sim-merged-key {
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-}
-
-/* A value that never reached the final config, wherever it is read: the merge
-   drawer's `before`, and 053's `.sim-thread-old` (which keeps its own class as
-   the thread's DOM hook, but not a second copy of this rule body). */
-.sim-merged-before,
-.sim-thread-old {
+/* A value that never reached the final config, wherever it is read: what a
+   write replaced, and — since 053 layer 7 — the beaten value a thread's
+   override row states, which is the same fact in the same grammar. */
+.sim-merged-before {
   color: var(--muted);
   font-family: var(--font-mono);
   font-size: 0.78rem;
@@ -2447,10 +2406,6 @@ pre.config-view.prov-before {
   margin-left: 0.4rem;
 }
 
-.sim-thread-note {
-  font-size: 0.78rem;
-}
-
 .sim-thread-body .sim-step-link {
   margin-left: 0;
 }
@@ -2458,7 +2413,7 @@ pre.config-view.prov-before {
 /* 053: clause evidence as COLUMNS — mark · matcher · what it checks · what
    this update actually is. Rows are subgrid so both value columns line up
    straight down the grid; the comparison IS the evidence, and the prose form
-   (.sim-clauses, still what the rules drawer uses) hides it in a sentence. */
+   this replaced (layer 7 retired it) hid the comparison in a sentence. */
 .sim-clause-grid {
   column-gap: 0.45rem;
   display: grid;
@@ -2473,8 +2428,7 @@ pre.config-view.prov-before {
   grid-template-columns: subgrid;
 }
 
-/* The neutral default; the state hues come from the shared mapping the prose
-   form declares (`.sim-clause-icon`, above). */
+/* The neutral default; the state hues come from the per-state mapping above. */
 .sim-clause-mark {
   color: var(--muted);
   font-family: var(--font-mono);
@@ -2563,32 +2517,34 @@ pre.config-view.prov-before {
   margin: 0.4rem 0 0;
 }
 
-/* One row per key the rule wrote, on shared columns (mark · key · values) so
-   the digest reads down the value edge like every other 053 ledger. */
-.sim-digest {
+/* 053 layer 7: ONE grammar for "something wrote this key", on shared columns
+   (mark · key · values) so a column of writes reads down its value edge — the
+   evidence card's digest, a thread's beaten values, the matched rule's applied
+   diff and the A/B config delta are all this grid. */
+.sim-writes {
   column-gap: 0.45rem;
   display: grid;
   grid-template-columns: max-content max-content minmax(0, 1fr);
   row-gap: 0.2rem;
 }
 
-.sim-digest-row {
+.sim-write-row {
   display: grid;
   grid-column: 1 / -1;
   grid-template-columns: subgrid;
 }
 
-.sim-digest-mark {
+.sim-write-mark {
   color: var(--muted);
   font-family: var(--font-mono);
 }
 
-.sim-digest-key {
+.sim-write-key {
   font-family: var(--font-mono);
   font-size: 0.78rem;
 }
 
-.sim-digest-values {
+.sim-write-values {
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -2600,7 +2556,10 @@ pre.config-view.prov-before {
   text-decoration: line-through;
 }
 
-.sim-digest-note {
+/* The trailing aside — who wrote a beaten value, which step took a write away.
+   Muted, so the references inside it (`.sim-thread-rule`, the popover link)
+   stay the only full-strength ink on the row. */
+.sim-write-note {
   color: var(--muted);
 }
 
@@ -2836,16 +2795,9 @@ pre.config-view.prov-before {
   margin-top: 0.6rem;
 }
 
-.sim-compare-config ul {
-  list-style: none;
-  margin: 0.3rem 0 0;
-  padding: 0;
-}
-
-.sim-compare-config li {
+.sim-compare-config .sim-writes {
   font-size: 0.82rem;
-  overflow-wrap: anywhere;
-  padding: 0.1rem 0;
+  margin-top: 0.3rem;
 }
 
 .sim-rules-head {

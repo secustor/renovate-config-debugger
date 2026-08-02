@@ -64,5 +64,7 @@ test("the simulator 'my rules only' filter shows repo rules with clause evidence
   // The repo rule row is shown, pre-expanded, with its clause evidence visible.
   const expandedRow = simulator.locator(".sim-rule.expanded").first();
   await expect(expandedRow).toBeVisible();
-  await expect(expandedRow.locator(".sim-clause").first()).toBeVisible();
+  // 053 layer 7: the drawer reads clause evidence through the SAME grid the
+  // threads and the evidence card use — one clause renderer, one grammar.
+  await expect(expandedRow.locator(".sim-clause-grid .sim-clause-row").first()).toBeVisible();
 });

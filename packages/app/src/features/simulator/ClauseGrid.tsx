@@ -4,10 +4,11 @@ import { clauseEvaluated, clauseIcon, previewValue } from "./rule-format";
 /**
  * Roadmap 053 (variant A): a rule's clause evidence as ALIGNED columns —
  * mark · matcher · what it checks · what this update actually is. The prose
- * form (`.sim-clauses`, still what the rules drawer uses) restates "matched
- * against x = y" per row; read as a thread's evidence, three or four of those
- * in a column are a wall. The columns do the restating instead, so the eye
- * compares the two value columns straight down.
+ * form this replaced (layer 7 retired it from the rules drawer too, so there is
+ * one clause renderer now) restated "matched against x = y" per row; read as a
+ * thread's evidence, three or four of those in a column are a wall. The columns
+ * do the restating instead, so the eye compares the two value columns straight
+ * down.
  *
  * The row is its own grid element sharing the list's tracks (`subgrid`) rather
  * than four loose cells: a row keeps its own box for state styling, and the
