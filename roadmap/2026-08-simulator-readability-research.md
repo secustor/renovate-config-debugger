@@ -1,13 +1,13 @@
 # Simulator results readability — research report (2026-08-01)
 
-Commissioned for mockup 053 (Simulator results readability). The 2026-07
+Commissioned for mockup 054 (Simulator results readability). The 2026-07
 progressive-disclosure research ([2026-07-progressive-disclosure-research.md](2026-07-progressive-disclosure-research.md))
 covered the _disclosure_ literature and produced 047's three-layer staging
 (ask / answer / evidence). This report covers the next question: **how do
 established tools lay out the evidence itself** — dense rule-evaluation,
 trace, and config-diff data — once the user opens it. Compiled from primary
 product documentation; the condensed, decision-mapped version lives inside
-[mockups/053/simulator-results-readability.html](mockups/053/simulator-results-readability.html).
+[mockups/054/simulator-results-readability.html](mockups/054/simulator-results-readability.html).
 
 ## 1. Browser DevTools — the CSS cascade in two panes
 

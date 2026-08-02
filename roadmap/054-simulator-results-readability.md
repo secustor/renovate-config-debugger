@@ -1,4 +1,4 @@
-# 053 — Simulator: results readability
+# 054 — Simulator: results readability
 
 Milestone: — · Status: proposed (2026-08-01) · variant A planned in detail
 after mockup review (2026-08-02, see below)
@@ -6,7 +6,7 @@ after mockup review (2026-08-02, see below)
 Mockup (three variants; revised 2026-08-02 after review — the scenario now
 includes a contested field, `groupName` written by two matched rules with the
 later one winning, and every key/value ledger aligns its columns):
-[mockups/053/simulator-results-readability.html](mockups/053/simulator-results-readability.html)
+[mockups/054/simulator-results-readability.html](mockups/054/simulator-results-readability.html)
 
 Research basis (commissioned for this work):
 [2026-08-simulator-readability-research.md](2026-08-simulator-readability-research.md)
