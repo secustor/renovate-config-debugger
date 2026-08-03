@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { type AnchorRect, anchoredCardStyle, anchorRectOf } from "@/lib/anchored-card";
 import { ClauseGrid } from "./ClauseGrid";
+import { RULE_POP_CLASS, RULE_POP_SELECTOR } from "./rule-pop-dom";
 import { previewValue, VERDICT_LABEL } from "./rule-format";
 import type { RuleEvidence, RuleWrite } from "./rule-evidence";
 
@@ -146,7 +147,7 @@ export function RuleEvidenceCard({
   }, []);
   return createPortal(
     <div
-      className="option-card sim-rule-pop"
+      className={`option-card ${RULE_POP_CLASS}`}
       role="dialog"
       aria-label={`packageRules[${evidence.ruleIndex}] — rule evidence`}
       tabIndex={-1}
@@ -197,7 +198,7 @@ export function RuleEvidenceAnchor({
   // except when the click that dismissed it already moved focus somewhere the
   // user picked themselves. Never scrolls: focus is being restored, not given.
   const close = useCallback(() => {
-    const restore = document.activeElement?.closest(".sim-rule-pop") != null;
+    const restore = document.activeElement?.closest(RULE_POP_SELECTOR) != null;
     setAnchor(null);
     if (restore) {
       buttonRef.current?.focus({ preventScroll: true });
@@ -220,7 +221,7 @@ export function RuleEvidenceAnchor({
       }
       // The card lives in a portal, so "inside" is not a DOM-ancestor test
       // against the anchor — ask the card's own element.
-      if (target instanceof Element && target.closest(".sim-rule-pop")) {
+      if (target instanceof Element && target.closest(RULE_POP_SELECTOR)) {
         return;
       }
       close();

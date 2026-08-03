@@ -36,7 +36,14 @@ export function ProvenanceChip({
   const clickable = layer.kind === "preset" && onSelectPreset;
   const dot = variant === "dot";
   const label = layerLabel(layer);
-  const className = dot ? `prov-dot ${layerClass(layer)}` : `badge prov-layer ${layerClass(layer)}`;
+  // `explained` is the app's one "this has a hover card" affordance (016):
+  // cursor:help plus an accent lift on hover/focus, the same marking TreeRow
+  // and SummaryHeader put on every other card-bearing chip. A clickable chip's
+  // own `cursor: pointer` still wins on specificity — pointing at it is a
+  // click, not a lookup.
+  const className = dot
+    ? `prov-dot explained ${layerClass(layer)}`
+    : `badge prov-layer explained ${layerClass(layer)}`;
   const entry = provenanceGlossaryEntry(layer);
   return (
     <Explained entry={entry}>
@@ -67,8 +74,13 @@ export function ProvenanceChip({
             {dot ? null : label}
           </span>
         ) : (
+          // The dot's label lives in the hover card and the tooltip, so the
+          // element itself is a graphic carrying a name — without `role`, a
+          // focusable span with an aria-label is a node screen readers have no
+          // reason to announce as anything.
           <span
             className={className}
+            role={dot ? "img" : undefined}
             tabIndex={0}
             title={dot ? label : undefined}
             aria-label={dot ? label : undefined}

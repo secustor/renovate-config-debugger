@@ -35,7 +35,7 @@ function VerdictTraceLinks({
       </button>
       {onJumpToReplay ? " · " : null}
       {onJumpToReplay ? (
-        <button type="button" className="sim-trace-jump" onClick={onJumpToReplay}>
+        <button type="button" className="sim-jump" onClick={onJumpToReplay}>
           build replay, {replayStops} stop{replayStops === 1 ? "" : "s"}
         </button>
       ) : null}

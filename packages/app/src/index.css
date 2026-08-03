@@ -12,6 +12,14 @@
     system-ui,
     -apple-system,
     sans-serif;
+
+  /* ---------- type ----------
+     Promoted from ~25 identical inline declarations: every code-bearing
+     surface in the app — config keys, values, `packageRules[N]` references,
+     eyebrows — wears the SAME mono stack, and three of the copies had already
+     drifted to a shorter one. One token, so a change to the stack is a change
+     to all of them. */
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   --border: light-dark(#d0d7de, #3d444d);
   --surface: light-dark(#f6f8fa, #151b23);
   /* PageSpeed a11y: #0969da is only 3.3–3.6:1 on the dark surfaces, so dark
@@ -56,6 +64,16 @@
   /* The higher plane: hover/option cards, which float over content the user is
      reading rather than over the page as a whole. */
   --shadow-popover: 0 8px 24px light-dark(rgba(140, 149, 159, 0.3), rgba(0, 0, 0, 0.5));
+
+  /* The stacking ladder, stated in ONE place and in the order the app means:
+     a floating pill hovers over the PAGE, a popover hovers over what the
+     reader is reading right now (so it must clear the pills — 053's evidence
+     card opened low in the viewport was landing behind the return pill), and a
+     toast, which speaks for the app itself and dismisses itself, is above
+     both. Rungs are 10 apart so a future in-between plane needs no renumbering. */
+  --z-float: 20;
+  --z-popover: 30;
+  --z-toast: 40;
 
   /* ---------- status tints ----------
      Every status hue's surfaces, reachable from :root, in three roles:
@@ -341,7 +359,7 @@ h1 {
 /* 046: a chip labeled by a config location (`packageRules[N]`) rather than a
    word — the merge timeline's rule stops. */
 .stage-chip-mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.8rem;
 }
 
@@ -400,7 +418,7 @@ pre.config-view {
 }
 
 .diff-stat {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   white-space: nowrap;
 }
@@ -558,7 +576,7 @@ pre.config-view {
   border-radius: 4px;
   color: inherit;
   cursor: pointer;
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-size: 0.85rem;
   padding: 0.05rem 0.3rem;
   text-align: left;
@@ -848,7 +866,7 @@ button.badge.dup {
 }
 
 .preset-table-row .col-name {
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-mono);
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -923,7 +941,7 @@ textarea.layer-editor {
   border: 1px solid var(--border);
   border-radius: 6px;
   color: inherit;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.85rem;
   line-height: 1.45;
   padding: 0.5rem 0.6rem;
@@ -999,7 +1017,7 @@ textarea.layer-editor:focus {
   border: 1px solid var(--border);
   border-radius: 6px;
   color: inherit;
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-size: 0.8rem;
   margin: 0.3rem 0;
   padding: 0.4rem 0.6rem;
@@ -1149,7 +1167,7 @@ textarea.layer-editor:focus {
      box. Pin it back to normal explicitly rather than relying on no ancestor
      ever setting nowrap. */
   white-space: normal;
-  z-index: 10;
+  z-index: var(--z-popover);
 }
 
 .option-card-head {
@@ -1484,14 +1502,14 @@ textarea.layer-editor:focus {
 }
 
 .prov-key-name {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.85rem;
 }
 
 .prov-key-preview {
   color: var(--muted);
   flex: 1;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.8rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1549,6 +1567,21 @@ textarea.layer-editor:focus {
   flex: none;
   height: 0.5rem;
   width: 0.5rem;
+}
+
+/* The 016 "this explains itself" affordance (see `.badge.explained`), in the
+   only channel a dot has: a badge lights up by turning accent, but the dot's
+   HUE is its entire content — repainting it would erase the answer at the
+   moment the reader asks for it — so it gains an accent ring instead. Declared
+   here, above the clickable rule, so a dot that is a BUTTON still says
+   pointer: same specificity, and the last one wins. */
+.prov-dot.explained {
+  cursor: help;
+}
+
+.prov-dot.explained:hover,
+.prov-dot.explained:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
 .prov-dot[role="button"] {
@@ -2064,7 +2097,7 @@ pre.config-view.prov-before {
 
 .sim-rule-index {
   color: var(--muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.78rem;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -2072,7 +2105,7 @@ pre.config-view.prov-before {
 
 .sim-rule-label {
   flex: 1;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.78rem;
   min-width: 0;
   overflow: hidden;
@@ -2114,18 +2147,30 @@ pre.config-view.prov-before {
   width: 1rem;
 }
 
-.sim-clause.state-matched .sim-clause-icon {
+/* ONE clause-state → hue mapping, worn by both forms a clause is read in: the
+   prose list (`.sim-clause`, the rules drawer) and 053's evidence grid
+   (`.sim-clause-row`). Every state is named explicitly on purpose — the grid
+   used to inherit green as a fall-through, so a state neither list knew about
+   rendered as "matched". Anything unmapped is muted (see `.sim-clause-mark`),
+   which says nothing rather than the wrong thing. */
+.sim-clause.state-matched .sim-clause-icon,
+.sim-clause-row.state-matched .sim-clause-mark {
   color: var(--ok);
 }
 
 .sim-clause.state-no-match .sim-clause-icon,
-.sim-clause.state-error .sim-clause-icon {
+.sim-clause.state-error .sim-clause-icon,
+.sim-clause-row.state-no-match .sim-clause-mark,
+.sim-clause-row.state-error .sim-clause-mark {
   color: var(--error);
 }
 
 .sim-clause.state-no-input .sim-clause-icon,
 .sim-clause.state-not-applicable .sim-clause-icon,
-.sim-clause.state-not-simulated .sim-clause-icon {
+.sim-clause.state-not-simulated .sim-clause-icon,
+.sim-clause-row.state-no-input .sim-clause-mark,
+.sim-clause-row.state-not-applicable .sim-clause-mark,
+.sim-clause-row.state-not-simulated .sim-clause-mark {
   color: var(--warn);
 }
 
@@ -2162,20 +2207,24 @@ pre.config-view.prov-before {
 }
 
 .sim-merged-key {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.78rem;
 }
 
-.sim-merged-before {
+/* A value that never reached the final config, wherever it is read: the merge
+   drawer's `before`, and 053's `.sim-thread-old` (which keeps its own class as
+   the thread's DOM hook, but not a second copy of this rule body). */
+.sim-merged-before,
+.sim-thread-old {
   color: var(--muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.78rem;
   text-decoration: line-through;
 }
 
 .sim-merged-after {
   color: var(--ok);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.78rem;
 }
 
@@ -2245,7 +2294,7 @@ pre.config-view.prov-before {
 
 .sim-verdict-eyebrow {
   color: var(--muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   letter-spacing: 0.06em;
   margin: 0 0 0.4rem;
@@ -2272,7 +2321,7 @@ pre.config-view.prov-before {
   border-radius: 5px;
   color: var(--ok);
   display: inline-block;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.72em;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -2348,7 +2397,7 @@ pre.config-view.prov-before {
 
 .sim-thread-final {
   color: var(--ok);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.8rem;
 }
 
@@ -2398,14 +2447,6 @@ pre.config-view.prov-before {
   margin-left: 0.4rem;
 }
 
-/* A value that never reached the final config — struck through where it lost,
-   the same grammar as the merge drawer's `before` (.sim-merged-before). */
-.sim-thread-old {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.78rem;
-  text-decoration: line-through;
-}
-
 .sim-thread-note {
   font-size: 0.78rem;
 }
@@ -2432,20 +2473,18 @@ pre.config-view.prov-before {
   grid-template-columns: subgrid;
 }
 
+/* The neutral default; the state hues come from the shared mapping the prose
+   form declares (`.sim-clause-icon`, above). */
 .sim-clause-mark {
-  color: var(--ok);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--muted);
+  font-family: var(--font-mono);
 }
 
-.sim-clause-row.state-no-match .sim-clause-mark,
-.sim-clause-row.state-error .sim-clause-mark {
-  color: var(--error);
-}
-
-.sim-clause-row.state-no-input .sim-clause-mark,
-.sim-clause-row.state-not-applicable .sim-clause-mark,
-.sim-clause-row.state-not-simulated .sim-clause-mark {
-  color: var(--warn);
+/* The matcher name, in the same mono the digest and the merge drawer set their
+   keys in — a key column is a key column wherever a 053 grid puts one. */
+.sim-clause-key {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
 }
 
 .sim-clause-checks,
@@ -2457,7 +2496,7 @@ pre.config-view.prov-before {
 
 .sim-clause-value {
   color: var(--ink);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.78rem;
 }
 
@@ -2479,18 +2518,27 @@ pre.config-view.prov-before {
 }
 
 /* The losing writer's reference IS the link — same mono reference text the
-   thread uses elsewhere, marked as actionable rather than restated. */
+   thread uses elsewhere, marked as actionable rather than restated.
+   Deliberately the app's ACTIONABLE-text grammar (`.linklike`,
+   `.preset-hover-jump`: accent, solid underline at rest, brightened on hover)
+   and not `.term`'s: a dotted accent underline at rest is exactly what a
+   glossary term looks like while HOVERED, so this one read as "there is a
+   definition here" when what it does is open a dialog. */
 .sim-rule-pop-link {
   background: none;
   border: none;
-  border-bottom: 1px dotted var(--accent);
   color: var(--accent);
   cursor: pointer;
   font: inherit;
-  /* The reference reads as the same `packageRules[N]` token the winner line
-     sets in <code> — only its color and underline say it opens something. */
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* The reference stays the same `packageRules[N]` token the winner line sets
+     in <code> — only its color and underline say it opens something. */
+  font-family: var(--font-mono);
   padding: 0;
+  text-decoration: underline;
+}
+
+.sim-rule-pop-link:hover {
+  filter: brightness(1.1);
 }
 
 .sim-rule-pop-head {
@@ -2502,7 +2550,7 @@ pre.config-view.prov-before {
 }
 
 .sim-rule-pop-id {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-weight: 600;
 }
 
@@ -2532,11 +2580,11 @@ pre.config-view.prov-before {
 
 .sim-digest-mark {
   color: var(--muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
 }
 
 .sim-digest-key {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.78rem;
 }
 
@@ -2589,7 +2637,7 @@ pre.config-view.prov-before {
 
 .sim-consumed-glyph {
   color: var(--warn);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
 }
 
 .sim-verdict-foot {
@@ -2623,25 +2671,11 @@ pre.config-view.prov-before {
 }
 
 /* 053: the demoted evidence drawers' only mention on the card — one quiet
-   line, with "N of M" stated here and nowhere else on it. */
+   line, with "N of M" stated here and nowhere else on it. Both of its links
+   ARE `.sim-jump`; they are the same affordance saying two things. */
 .sim-trace-links {
   color: var(--muted);
   font-size: 0.82rem;
-}
-
-.sim-trace-jump {
-  background: transparent;
-  border: none;
-  color: var(--accent);
-  cursor: pointer;
-  display: inline-block;
-  font: inherit;
-  font-size: 0.82rem;
-  padding: 0;
-}
-
-.sim-trace-jump:hover {
-  text-decoration: underline;
 }
 
 /* ---------- 018 evidence export: copy-as-markdown, sim link, A/B ---------- */
@@ -3016,11 +3050,13 @@ pre.config-view.prov-before {
 /* Roadmap 053: the same "you are here", without the motion — the target still
    has to be markable for a reader who asked for less animation, so the flash
    becomes a static highlight for the same duration (the class is removed on
-   the callers' timeout either way). */
+   the callers' timeout either way). Same HUE as the animation's first frame:
+   one signal may only have one color, or the two readings of "you are here"
+   are two different marks. */
 @media (prefers-reduced-motion: reduce) {
   .rcv-flash {
     animation: none;
-    background: var(--highlight);
+    background: color-mix(in srgb, var(--accent) 35%, transparent);
   }
 }
 
@@ -3062,7 +3098,7 @@ pre.config-view.prov-before {
 }
 
 .prov-rule-preview {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.78rem;
   overflow-wrap: anywhere;
 }
@@ -3105,7 +3141,7 @@ pre.config-view.prov-before {
   align-items: baseline;
   display: flex;
   flex-wrap: wrap;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.78rem;
   gap: 0.4rem;
   overflow-wrap: anywhere;
@@ -3188,9 +3224,17 @@ pre.config-view.prov-before {
 .sim-results-body.stale {
   filter: grayscale(65%);
   opacity: 0.5;
-  transition:
-    opacity 0.15s ease,
-    filter 0.15s ease;
+}
+
+/* The veil FADES in only for readers who did not ask for less motion; the
+   state itself (grayed, half-opacity) is the message and always applies —
+   reduced motion must not mean "no stale warning". */
+@media (prefers-reduced-motion: no-preference) {
+  .sim-results-body.stale {
+    transition:
+      opacity 0.15s ease,
+      filter 0.15s ease;
+  }
 }
 
 /* ---------- scale framing, badge glossary, page & editor ergonomics (016) ---------- */
@@ -3211,7 +3255,9 @@ pre.config-view.prov-before {
 
 /* Any badge/stat given a glossary hover card (see glossary.tsx's `Explained`)
    gets a quiet affordance; more-specific rules elsewhere (e.g. the clickable
-   dup/elided badges' own `cursor: pointer`) still win by specificity. */
+   dup/elided badges' own `cursor: pointer`) still win by specificity. The 053
+   provenance DOT carries the same class and states its own form of this next
+   to `.prov-dot`, where the ordering against the clickable case is visible. */
 .badge.explained,
 .preset-summary-stat.explained {
   cursor: help;
@@ -3255,7 +3301,7 @@ pre.config-view.prov-before {
   padding: 0.5rem 0.9rem;
   position: fixed;
   right: 1.25rem;
-  z-index: 20;
+  z-index: var(--z-float);
 }
 
 .back-to-top:hover {
@@ -3263,9 +3309,10 @@ pre.config-view.prov-before {
 }
 
 /* Roadmap 053: the return pill — the same bottom-of-the-viewport plane as
-   .back-to-top and .rcv-toast (same offset, same float shadow, same z-index),
-   but centered and quiet: it answers a jump the reader made one click ago, so
-   it must be findable without competing with the page it floats over. */
+   .back-to-top and .rcv-toast (same offset, same float shadow, the same
+   --z-float rung), but centered and quiet: it answers a jump the reader made
+   one click ago, so it must be findable without competing with the page it
+   floats over. */
 .sim-return-pill {
   align-items: center;
   background: var(--surface-raised);
@@ -3283,7 +3330,7 @@ pre.config-view.prov-before {
   padding: 0.4rem 0.95rem;
   position: fixed;
   transform: translateX(-50%);
-  z-index: 20;
+  z-index: var(--z-float);
 }
 
 .sim-return-pill:hover {
@@ -3323,7 +3370,7 @@ pre.config-view.prov-before {
   padding: 0.6rem 1rem;
   position: fixed;
   transform: translateX(-50%);
-  z-index: 30;
+  z-index: var(--z-toast);
 }
 
 /* The active state of the simulator "my rules only" filter toggle. */
@@ -3627,7 +3674,7 @@ main:has(.app-split.has-results) {
 /* Counts and filled-in values inside a summary line: monospaced and
    tabular so a re-simulation's new numbers don't reflow the row. */
 .drawer-summary .stat {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -3687,7 +3734,7 @@ main:has(.app-split.has-results) {
 
 .sim-derived-line .value {
   color: var(--ink);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
 }
 
 /* The manual-override select sits where the derived line was. */
