@@ -139,7 +139,18 @@ export function sanitizeShareView(raw: unknown): SanitizedShareView | undefined 
 export interface SanitizedShareSimulator {
   form: Record<string, string>;
   autoSimulate?: boolean;
+  /** Roadmap 053: the expanded verdict thread's key. */
+  simThread?: string;
 }
+
+/**
+ * Roadmap 053: a verdict thread's key — a config option name the opener looks
+ * up as a DOM id and scrolls to. Bounded for the same reason every other
+ * string that reaches the DOM is: a hand-edited monster value is dropped on
+ * its own (the link still opens, just without expanding a thread), never
+ * failing the whole link.
+ */
+const threadKeySchema = z.string().check(z.minLength(1), z.maxLength(128));
 
 /**
  * Sanitizes a decoded share payload's `sim` sub-object: keeps only
@@ -164,7 +175,18 @@ export function sanitizeShareSim(raw: unknown): SanitizedShareSimulator | undefi
   if (Object.keys(form).length === 0) {
     return undefined;
   }
-  return raw.autoSimulate === true ? { form, autoSimulate: true } : { form };
+  const out: SanitizedShareSimulator = { form };
+  if (raw.autoSimulate === true) {
+    out.autoSimulate = true;
+  }
+  // Roadmap 053: kept only next to a form — a thread key names a row of a
+  // simulation's verdict, so on its own (no form to reproduce the run) there
+  // is nothing for it to point at.
+  const thread = threadKeySchema.safeParse(raw.simThread);
+  if (thread.success) {
+    out.simThread = thread.data;
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------

@@ -61,6 +61,16 @@ export interface ShareView {
 export interface ShareSimulator {
   form: Record<string, string>;
   autoSimulate?: boolean;
+  /**
+   * Roadmap 053 (layer 4): the verdict thread — a changed setting's KEY — that
+   * was expanded when the link was made, so "look at what happened to
+   * `groupName`" survives the copy. Additive within v2 exactly like
+   * `autoSimulate`: a pre-053 link simply lacks it, a pre-053 reader ignores
+   * the unknown key, and it only means anything next to a `form` that
+   * reproduces the run whose threads it names. Never a token — it is one of
+   * the config's own option names.
+   */
+  simThread?: string;
 }
 
 /** The app-facing shape passed to encodeShare. */

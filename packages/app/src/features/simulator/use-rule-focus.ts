@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import type { SimulationResult } from "@renovate-config-visualizer/engine";
+import { flashTarget, motionScrollOptions } from "@/lib/motion";
 
 export interface RuleFocus {
   /** The simulator card itself — where a cross-link lands when no simulation
@@ -70,7 +71,7 @@ export function useRuleFocus({
       // No simulation has run yet, so the target row isn't rendered anywhere.
       // Land the user on the simulator and prompt them to run one, rather than
       // leaving the cross-link click looking dead (the "looks broken" finding).
-      cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      cardRef.current?.scrollIntoView(motionScrollOptions("start"));
       setFocusHint(scrollTarget);
       setScrollTarget(null);
       onRuleFocused?.();
@@ -101,9 +102,8 @@ export function useRuleFocus({
     }
     const el = document.getElementById(`sim-rule-${scrollTarget}`);
     if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-      el.classList.add("rcv-flash");
-      window.setTimeout(() => el.classList.remove("rcv-flash"), 1600);
+      el.scrollIntoView(motionScrollOptions("center"));
+      flashTarget(el);
     }
     setScrollTarget(null);
     onRuleFocused?.();
