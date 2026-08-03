@@ -47,6 +47,7 @@
  */
 
 import { readFile, readdir } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
@@ -62,7 +63,6 @@ const ENGINE_PKG_JSON = path.resolve(
   "engine",
   "package.json",
 );
-const FALLBACK_RENOVATE_VERSION = "43.275.0";
 
 const HELP = `Usage: node generate-links.mjs --config <path> --port <port> [options]
 
@@ -154,19 +154,24 @@ async function resolveRenovateVersion(explicit) {
   if (explicit) {
     return explicit;
   }
+  // The app embeds renovate/package.json's own `version` in every share link
+  // (engine src/version.ts), so read that same file. `renovate` is a dependency
+  // of the engine package, hence resolution anchored at its package.json.
   try {
-    const pkg = JSON.parse(await readFile(ENGINE_PKG_JSON, "utf8"));
-    const version = pkg.dependencies?.renovate;
+    const pkgPath = createRequire(ENGINE_PKG_JSON).resolve("renovate/package.json");
+    const { version } = JSON.parse(await readFile(pkgPath, "utf8"));
     if (typeof version === "string" && version.length > 0) {
-      return version.replace(/^[\^~]/, "");
+      return version;
     }
   } catch {
-    // fall through to hardcoded fallback
+    // not installed (no `pnpm install` yet) — fall back to the exact pin below
   }
-  process.stderr.write(
-    `warning: could not read renovate version from ${ENGINE_PKG_JSON}; using fallback ${FALLBACK_RENOVATE_VERSION}\n`,
-  );
-  return FALLBACK_RENOVATE_VERSION;
+  const pkg = JSON.parse(await readFile(ENGINE_PKG_JSON, "utf8"));
+  const pinned = pkg.dependencies?.renovate;
+  if (typeof pinned !== "string" || pinned.length === 0) {
+    throw new Error(`no renovate dependency declared in ${ENGINE_PKG_JSON}`);
+  }
+  return pinned.replace(/^[\^~]/, "");
 }
 
 async function deflateRaw(bytes) {
