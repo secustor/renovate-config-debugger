@@ -4,10 +4,10 @@ import type {
   RuleRef,
   SimulationComparison,
 } from "@renovate-config-visualizer/engine";
-import { OptionKey } from "@/components/option-docs";
 import { toDescriptor } from "./form";
-import { previewValue } from "./rule-format";
+import { previewValue, writeMark } from "./rule-format";
 import type { PinnedRun } from "./use-ab-comparison";
+import { WriteRow } from "./WriteRow";
 
 /**
  * Roadmap 021: the fields two descriptors disagree on, sorted for a stable
@@ -89,36 +89,27 @@ function RuleDeltaList({
   );
 }
 
-/** Roadmap 018: one changed key of the final per-dependency config (A → B). */
-function ConfigDeltaRow({ delta }: { delta: ConfigKeyDelta }) {
-  return (
-    <li>
-      <span className="sim-merged-key">
-        <OptionKey name={delta.key} flagUnknown />
-      </span>{" "}
-      <span className="sim-merged-before">
-        {delta.inA ? previewValue(delta.before) : "(unset)"}
-      </span>
-      {" → "}
-      <span className="sim-merged-after">
-        {delta.inB ? previewValue(delta.after) : "(removed)"}
-      </span>
-    </li>
-  );
-}
-
 /** Roadmap 018: the final-config key delta — the settings A and B actually
- *  disagree on, or an explicit "only the matched-rule set differs". */
+ *  disagree on, or an explicit "only the matched-rule set differs". Each row is
+ *  the shared write row (053 layer 7); a key that exists on only one side keeps
+ *  this panel's own sentinels, since `(unset)` and `(removed)` are words, not
+ *  values the config carries. */
 function ConfigDeltaSection({ configDelta }: { configDelta: ConfigKeyDelta[] }) {
   return (
     <div className="sim-compare-config">
       <div className="sim-merged-title">Final per-dependency config changes</div>
       {configDelta.length > 0 ? (
-        <ul>
+        <div className="sim-writes">
           {configDelta.map((d) => (
-            <ConfigDeltaRow key={d.key} delta={d} />
+            <WriteRow
+              key={d.key}
+              name={d.key}
+              mark={writeMark(d.inA, d.inB)}
+              before={d.inA ? { json: d.before } : { text: "(unset)" }}
+              after={d.inB ? { json: d.after } : { text: "(removed)" }}
+            />
           ))}
-        </ul>
+        </div>
       ) : (
         <p className="empty-note">
           Final per-dependency config is identical — only the matched-rule set differs.

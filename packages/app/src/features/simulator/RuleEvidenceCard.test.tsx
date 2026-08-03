@@ -66,6 +66,16 @@ describe("RuleEvidenceCard", () => {
     expect(dialog.querySelectorAll(".sim-merged-after.overridden")).toHaveLength(1);
   });
 
+  // Layer 7 — the two affordances the popover lost by not being the matched-
+  // rules drawer: every written key is an option-docs hook, and the digest is
+  // exportable as markdown like the drawer's applied diff always was.
+  it("gives every written key the option-docs hook and offers the markdown export", () => {
+    const { view } = open();
+    const dialog = view.getByRole("dialog", { name: "packageRules[201] — rule evidence" });
+    expect(dialog.querySelectorAll(".sim-write-key .opt-key")).toHaveLength(2);
+    expect(view.getByRole("button", { name: "Copy as markdown" })).toBeTruthy();
+  });
+
   it("closes on Escape and gives focus back to the anchor", () => {
     const { view, anchor } = open();
     expect(document.activeElement?.getAttribute("role")).toBe("dialog");

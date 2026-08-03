@@ -79,16 +79,19 @@ test("expanding a contested thread names its winner, its clause evidence and the
   await expect(clauses.filter({ hasText: "matchPackageNames" })).toContainText("lodash");
   await expect(clauses.filter({ hasText: "matchUpdateTypes" })).toContainText("patch");
 
-  // The cascade: the beaten value, struck through, under the rule that wrote it.
-  const lostLine = body.locator(".sim-thread-line", { hasText: "written by" });
+  // The cascade: the beaten value, struck through, under the rule that wrote
+  // it. Layer 7: a beaten value is a write like any other, so it is the shared
+  // `.sim-write-row` — `⊘ key  <struck value> · written by …`.
+  const lostLine = body.locator(".sim-write-row", { hasText: "written by" });
   await expect(lostLine).toContainText("packageRules[0]");
-  const overridden = lostLine.locator(".sim-thread-old");
+  await expect(lostLine.locator(".sim-write-mark")).toHaveText("⊘");
+  const overridden = lostLine.locator(".sim-merged-before");
   await expect(overridden).toHaveText('"all npm dependencies"');
   await expect(overridden).toHaveCSS("text-decoration-line", "line-through");
 
   // …and it terminates in the value the key held before any rule ran — here
   // Renovate's own `groupName: null`.
-  await expect(body.locator(".sim-thread-line", { hasText: "before any rule" })).toContainText(
+  await expect(body.locator(".sim-write-row", { hasText: "before any rule" })).toContainText(
     "null",
   );
 
@@ -96,8 +99,8 @@ test("expanding a contested thread names its winner, its clause evidence and the
   // same terminating base line, no manufactured override.
   const automerge = await expandThread(page, "automerge");
   await expect(automerge.locator(".sim-thread-line").first()).toContainText("packageRules[2]");
-  await expect(automerge.locator(".sim-thread-line", { hasText: "written by" })).toHaveCount(0);
-  await expect(automerge.locator(".sim-thread-line", { hasText: "before any rule" })).toContainText(
+  await expect(automerge.locator(".sim-write-row", { hasText: "written by" })).toHaveCount(0);
+  await expect(automerge.locator(".sim-write-row", { hasText: "before any rule" })).toContainText(
     "false",
   );
 });
@@ -133,12 +136,17 @@ test("the losing writer's reference opens its evidence card, and Escape gives fo
 
   // The write the thread came from, struck through and naming the stop that
   // took it; and the write that survived, plain.
-  const lost = card.locator(".sim-digest-row", { hasText: "groupName" });
+  const lost = card.locator(".sim-write-row", { hasText: "groupName" });
   await expect(lost.locator(".sim-merged-after")).toHaveClass(/overridden/);
   await expect(lost).toContainText("overridden in step 2 of 2");
-  const survived = card.locator(".sim-digest-row", { hasText: "addLabels" });
+  const survived = card.locator(".sim-write-row", { hasText: "addLabels" });
   await expect(survived.locator(".sim-merged-after")).not.toHaveClass(/overridden/);
   await expect(survived).toContainText("from-managers-rule");
+
+  // Layer 7: the evidence surfaces export like the drawer they demoted — the
+  // digest is copyable as markdown, and its keys carry the option-docs hook.
+  await expect(card.getByRole("button", { name: "Copy as markdown" })).toBeVisible();
+  await expect(card.locator(".sim-write-key .opt-key").first()).toBeVisible();
 
   // Light dismiss: Escape closes, and focus is back on the reference — the card
   // took it on open, so the reader is where they left off, not at the top.
@@ -239,7 +247,7 @@ test("a share link carrying a thread and a replay stop restores both", async ({ 
   // the run's own reset can neither fold it nor race it.
   const row = thread(page, "groupName");
   await expect(threadHead(page, "groupName")).toHaveAttribute("aria-expanded", "true");
-  await expect(row.locator(".sim-thread-line", { hasText: "written by" })).toContainText(
+  await expect(row.locator(".sim-write-row", { hasText: "written by" })).toContainText(
     '"all npm dependencies"',
   );
 

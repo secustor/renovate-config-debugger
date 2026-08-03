@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import type { MergedKey } from "@renovate-config-visualizer/engine";
+import { CopyMarkdownButton } from "@/components/CopyMarkdownButton";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { type AnchorRect, anchoredCardStyle, anchorRectOf } from "@/lib/anchored-card";
 import { ClauseGrid } from "./ClauseGrid";
 import { RULE_POP_CLASS, RULE_POP_SELECTOR } from "./rule-pop-dom";
-import { previewValue, VERDICT_LABEL } from "./rule-format";
+import { ruleAppliedMarkdown, VERDICT_LABEL, writeMark } from "./rule-format";
 import type { RuleEvidence, RuleWrite } from "./rule-evidence";
+import { WriteRow } from "./WriteRow";
 
 /**
  * Roadmap 053 (variant A), layer 3: the second — and last — disclosure level.
@@ -27,40 +30,39 @@ const CARD_WIDTH = 576;
 /** Roughly the card's own height: below this much room, it flips above. */
 const CARD_FLIP_MARGIN = 320;
 
-/** `~` changed · `+` added · `−` removed — stated once per write so the digest
- *  reads without re-parsing the before/after pair. */
-function writeMark(write: RuleWrite): string {
-  if (!write.hadAfter) {
-    return "−";
-  }
-  return write.hadBefore ? "~" : "+";
-}
-
-/** One key the rule merged. A write that lost keeps this step's add tint — it
- *  IS what this step added — and is struck through, naming the stop that took
- *  it away; that pairing is the whole reason the card exists. */
+/** One key the rule merged, as the shared write row (053 layer 7). A write that
+ *  lost keeps this step's add tint — it IS what this step added — and is struck
+ *  through, naming the stop that took it away; that pairing is the whole reason
+ *  the card exists. */
 function RuleWriteRow({ write }: { write: RuleWrite }) {
   return (
-    <div className="sim-digest-row">
-      <span className="sim-digest-mark">{writeMark(write)}</span>
-      <code className="sim-digest-key">{write.key}</code>
-      <span className="sim-digest-values">
-        {write.hadBefore ? (
-          <span className="sim-merged-before">{previewValue(write.before, 60)}</span>
-        ) : null}
-        {write.hadBefore ? " → " : null}
-        <span className={`sim-merged-after${write.survived ? "" : " overridden"}`}>
-          {write.hadAfter ? previewValue(write.after, 60) : "removed"}
-        </span>
-        {write.survived ? null : (
-          <span className="sim-digest-note"> · ⊘ overridden in {write.overriddenAtLabel}</span>
-        )}
-      </span>
-    </div>
+    <WriteRow
+      name={write.key}
+      mark={writeMark(write.hadBefore, write.hadAfter)}
+      before={write.hadBefore ? { json: write.before } : undefined}
+      after={write.hadAfter ? { json: write.after } : { text: "removed" }}
+      struck={!write.survived}
+      note={write.survived ? undefined : `· ⊘ overridden in ${write.overriddenAtLabel}`}
+    />
   );
 }
 
-/** The rule's name, its verdict, and where it came from. */
+/**
+ * The digest's writes as the engine's own `MergedKey`, whose optional
+ * `before`/`after` say exactly what a `RuleWrite`'s presence flags do — so the
+ * card exports through the SAME markdown builder the matched-rules drawer uses
+ * (roadmap 018), rather than a second rendering of the same rows.
+ */
+function asMergedKeys(writes: RuleWrite[]): MergedKey[] {
+  return writes.map((write) => ({
+    key: write.key,
+    ...(write.hadBefore ? { before: write.before } : {}),
+    ...(write.hadAfter ? { after: write.after } : {}),
+  }));
+}
+
+/** The rule's name, its verdict, where it came from — and, when it wrote
+ *  anything, the copy-as-markdown export of what it wrote. */
 function RuleEvidenceHead({
   evidence,
   onSelectPreset,
@@ -68,6 +70,7 @@ function RuleEvidenceHead({
   evidence: RuleEvidence;
   onSelectPreset?: (nodeId: string) => void;
 }) {
+  const verdict = evidence.verdict ? ` — ${VERDICT_LABEL[evidence.verdict]}` : "";
   return (
     <p className="sim-rule-pop-head">
       <code className="sim-rule-pop-id">packageRules[{evidence.ruleIndex}]</code>
@@ -78,6 +81,13 @@ function RuleEvidenceHead({
       ) : null}
       {evidence.layer ? (
         <ProvenanceChip layer={evidence.layer} onSelectPreset={onSelectPreset} />
+      ) : null}
+      {evidence.writes.length > 0 ? (
+        <CopyMarkdownButton
+          className="inline"
+          header={`\`packageRules[${evidence.ruleIndex}]\`${verdict}${evidence.stopLabel ? ` — merged in ${evidence.stopLabel}` : ""}`}
+          code={ruleAppliedMarkdown(asMergedKeys(evidence.writes))}
+        />
       ) : null}
     </p>
   );
@@ -110,7 +120,7 @@ function RuleEvidenceBody({
       <RuleEvidenceHead evidence={evidence} onSelectPreset={onSelectPreset} />
       {evidence.clauses.length > 0 ? <ClauseGrid clauses={evidence.clauses} /> : null}
       <RuleEvidenceSummary evidence={evidence} />
-      <div className="sim-digest">
+      <div className="sim-writes">
         {evidence.writes.map((write) => (
           <RuleWriteRow key={write.key} write={write} />
         ))}
