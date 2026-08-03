@@ -3,7 +3,7 @@ import { OptionKey } from "@/components/option-docs";
 import { previewValue } from "./rule-format";
 
 /**
- * Roadmap 053 layer 7: THE row for "something wrote this key". Four surfaces
+ * Roadmap 054 layer 7: THE row for "something wrote this key". Four surfaces
  * used to say the same `key: before → after` sentence in four dialects — the
  * matched-rule drawer's list, the A/B config delta, the evidence popover's
  * digest, and a thread's struck-through override line — each with its own
@@ -11,7 +11,7 @@ import { previewValue } from "./rule-format";
  * the option-docs hover card (only two of the four gave it one).
  *
  * One component, one grammar: `mark · key · before → after · note`, on shared
- * grid columns (`.sim-writes`) so a column of writes reads straight down its
+ * grid columns (`.kv.sim-writes`) so a column of writes reads straight down its
  * value edge. The mark, the strike and the note are the only knobs, because
  * they are the only things the four surfaces actually disagreed about.
  */
@@ -56,7 +56,7 @@ export function WriteRow({
   max?: number;
 }) {
   return (
-    <div className="sim-write-row">
+    <div className="kv-row sim-write-row">
       <span className="sim-write-mark">{mark ?? ""}</span>
       <span className="sim-write-key">
         <OptionKey name={name} flagUnknown />

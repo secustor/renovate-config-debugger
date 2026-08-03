@@ -116,7 +116,7 @@ export const RuleSimulator = memo(function RuleSimulator({
     simulate,
     simulateRef,
   } = useSimulationRun({ result, onMergeStepChange });
-  // Roadmap 053 layer 4: thread expansion + the return pill. Declared BEFORE
+  // Roadmap 054 layer 4: thread expansion + the return pill. Declared BEFORE
   // the share-link request so its reset effect (keyed on the run) is
   // registered first: a link arms the thread it wants, the auto-run it starts
   // produces the sim, and the reset effect is what applies the armed key.
@@ -238,14 +238,14 @@ export const RuleSimulator = memo(function RuleSimulator({
     () => (sim ? consumedAuthoredBlocks(sim, ruleAttribution) : []),
     [sim, ruleAttribution],
   );
-  // Roadmap 053: the verdict card's threads — one per changed key, each
+  // Roadmap 054: the verdict card's threads — one per changed key, each
   // carrying its whole cascade. Same memo discipline as the ledger it replaces:
   // derived from the last RUN only, so typing in the form never re-walks it.
   const verdictThreads = useMemo(
     () => buildVerdictThreads(changedKeys, mergeStops, layerByIndex, sim),
     [changedKeys, mergeStops, layerByIndex, sim],
   );
-  // Roadmap 053 layer 3: derived on demand — one popover is open at a time, and
+  // Roadmap 054 layer 3: derived on demand — one popover is open at a time, and
   // a run can have hundreds of rules, so deriving every rule's evidence up
   // front would be work for a card nobody opens.
   const evidenceFor = useCallback(
@@ -277,7 +277,7 @@ export const RuleSimulator = memo(function RuleSimulator({
     if (effectiveUpdateType && effectiveUpdateType.trim() !== "") {
       shareForm.updateType = effectiveUpdateType;
     }
-    // Roadmap 053: the link also carries the thread the sender was reading —
+    // Roadmap 054: the link also carries the thread the sender was reading —
     // but only when exactly ONE is open, since two would make the app pick
     // which of the sender's questions the link is about. Still never a token:
     // a thread key is one of the config's own option names.
@@ -289,7 +289,7 @@ export const RuleSimulator = memo(function RuleSimulator({
     await onCopySimLink(share);
   }
 
-  /** Roadmap 053: the verdict foot's "build replay, K stops" link — the
+  /** Roadmap 054: the verdict foot's "build replay, K stops" link — the
    *  demoted drawer opens where the reader last left it (the first stop on a
    *  fresh run), not at a stop they never asked for. */
   function jumpToReplay() {
@@ -443,7 +443,7 @@ export const RuleSimulator = memo(function RuleSimulator({
               onPin={pin}
             />
 
-            {/* Roadmap 053 layer 4: the way back from a thread's own jump.
+            {/* Roadmap 054 layer 4: the way back from a thread's own jump.
                 Portalled to <body> (see ReturnPill), so where it sits in this
                 tree decides nothing but its lifetime — which is the run's. */}
             {threadNav.returnKey !== null ? (

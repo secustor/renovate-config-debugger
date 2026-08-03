@@ -7,7 +7,7 @@ import type {
 import type { MergeStop } from "./merge-stops";
 
 /**
- * Roadmap 053 (variant A): the causal thread behind every setting the rules
+ * Roadmap 054 (variant A): the causal thread behind every setting the rules
  * changed. The engine already records everything a thread needs — each
  * `mergeSteps[i].merged` names the keys that merge set/changed WITH their
  * before/after, the steps are contiguous snapshots in merge order, and
@@ -201,7 +201,7 @@ function buildOverrides(
 }
 
 /**
- * Roadmap 053: one thread per changed key. `changedKeys` is the caller's
+ * Roadmap 054: one thread per changed key. `changedKeys` is the caller's
  * base→final diff (a key can be changed without any stop naming it — e.g. one
  * the flatten pass merely dropped), so a thread may legitimately have no
  * winner and an empty cascade.

@@ -9,7 +9,7 @@ import type { VerdictSegment } from "./verdict-sentence";
 import { type ThreadNavigation, VerdictThreads } from "./VerdictThreads";
 
 /**
- * Roadmap 053 (variant A): the two full-trace links the evidence drawers
+ * Roadmap 054 (variant A): the two full-trace links the evidence drawers
  * demote to. The card answers the question; the drawers below it are where
  * someone goes to audit the whole run, so they get one quiet line — and "N of
  * M" is stated ONCE on the card, here.
@@ -44,10 +44,10 @@ function VerdictTraceLinks({
 }
 
 /**
- * Roadmap 012/018/040/046/053: the answer first — the verdict CARD directly
+ * Roadmap 012/018/040/046/054: the answer first — the verdict CARD directly
  * under the Simulate button. An answer band (eyebrow naming the simulated
  * update, then the sentence with the modal verbs badged), the THREAD ledger of
- * settings the rules changed (053: each row expands into that key's own causal
+ * settings the rules changed (054: each row expands into that key's own causal
  * story), the consumed-blocks aside when an AUTHORED update-type block was
  * consumed without applying (047 — default-only consumption says nothing and
  * renders nothing), and a footer with the two full-trace links and the
@@ -78,9 +78,9 @@ export function SimVerdictBlock({
   matchedCount: number;
   totalRules: number;
   segments: VerdictSegment[];
-  /** Roadmap 053: one thread per setting the rules changed. */
+  /** Roadmap 054: one thread per setting the rules changed. */
   threads: ThreadModel[];
-  /** Roadmap 053 layer 4: which threads are expanded, and where a jump out of
+  /** Roadmap 054 layer 4: which threads are expanded, and where a jump out of
    *  one is recorded (the return pill's origin). */
   threadNav: ThreadNavigation;
   flattened: SimulationResult["flattened"];
@@ -89,17 +89,17 @@ export function SimVerdictBlock({
   consumed: ConsumedBlock[];
   /** The flatten stop's position on the merge timeline, when it renders. */
   flattenStopIndex?: number;
-  /** Roadmap 053: how many stops the build replay has, for its trace link. */
+  /** Roadmap 054: how many stops the build replay has, for its trace link. */
   replayStops: number;
   /** The simulated update, for the card's eyebrow line. */
   dep: { manager?: string; packageName?: string; currentValue?: string; newValue?: string } | null;
   onSelectPreset?: (nodeId: string) => void;
   onJumpToStep?: (stopIndex: number) => void;
   onJumpToRules: () => void;
-  /** Roadmap 053: open the build replay where it currently stands — absent
+  /** Roadmap 054: open the build replay where it currently stands — absent
    *  when this run has no timeline to open. */
   onJumpToReplay?: () => void;
-  /** Roadmap 053 layer 3: the rule-evidence popover's model, and the jump its
+  /** Roadmap 054 layer 3: the rule-evidence popover's model, and the jump its
    *  footer offers into the matched-rules drawer. */
   evidenceFor?: (ruleIndex: number) => RuleEvidence;
   onOpenRule?: (ruleIndex: number) => void;

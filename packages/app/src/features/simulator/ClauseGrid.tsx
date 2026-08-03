@@ -2,7 +2,7 @@ import type { ClauseEvaluation } from "@renovate-config-visualizer/engine";
 import { clauseEvaluated, clauseIcon, previewValue } from "./rule-format";
 
 /**
- * Roadmap 053 (variant A): a rule's clause evidence as ALIGNED columns —
+ * Roadmap 054 (variant A): a rule's clause evidence as ALIGNED columns —
  * mark · matcher · what it checks · what this update actually is. The prose
  * form this replaced (layer 7 retired it from the rules drawer too, so there is
  * one clause renderer now) restated "matched against x = y" per row; read as a
@@ -17,7 +17,7 @@ import { clauseEvaluated, clauseIcon, previewValue } from "./rule-format";
 function ClauseGridRow({ clause }: { clause: ClauseEvaluation }) {
   const evaluated = clauseEvaluated(clause);
   return (
-    <div className={`sim-clause-row state-${clause.state}`}>
+    <div className={`kv-row sim-clause-row state-${clause.state}`}>
       <span className="sim-clause-mark">{clauseIcon(clause.state)}</span>
       <code className="sim-clause-key">{clause.key}</code>
       <span className="sim-clause-checks">
@@ -38,7 +38,7 @@ function ClauseGridRow({ clause }: { clause: ClauseEvaluation }) {
  *  022 explanation (so this grid also serves rules that did NOT match). */
 export function ClauseGrid({ clauses }: { clauses: ClauseEvaluation[] }) {
   return (
-    <div className="sim-clause-grid">
+    <div className="kv sim-clause-grid">
       {clauses.map((clause) => (
         <ClauseGridRow key={clause.key} clause={clause} />
       ))}

@@ -30,7 +30,7 @@ export interface ShareViewInput {
   node?: string;
   step?: number;
   tab?: string;
-  /** Roadmap 044/053: the merge replay's stop index — restored next to a `sim`
+  /** Roadmap 044/054: the merge replay's stop index — restored next to a `sim`
    *  descriptor that reproduces the run whose replay it indexes. */
   simStep?: number;
 }
@@ -253,7 +253,7 @@ export const AUTHORED_BLOCK_CONFIG = `{
 `;
 
 /**
- * Roadmap 053: a CONTESTED key. Two rules the "npm dependency" quick-fill
+ * Roadmap 054: a CONTESTED key. Two rules the "npm dependency" quick-fill
  * (lodash, patch) matches both write `groupName` with DIFFERENT values, so the
  * later one wins and the earlier one's value never reaches the final config —
  * the override cascade a verdict thread exists to show. The `react` rule never

@@ -4,7 +4,7 @@ import { flashTarget, motionScrollOptions } from "@/lib/motion";
 import { RULE_POP_SELECTOR } from "./rule-pop-dom";
 
 /**
- * Roadmap 053 (layer 4): thread expansion and the way back from a jump, as one
+ * Roadmap 054 (layer 4): thread expansion and the way back from a jump, as one
  * concern — because they are one concern. Expansion was local to each
  * `ThreadRow` in layer 2, which was right until two things outside a row
  * needed to open one: a share link's `simThread`, and the return pill, whose

@@ -1,5 +1,5 @@
 /**
- * Roadmap 053 (variant A), layer 3: the rule popover's model. The claim under
+ * Roadmap 054 (variant A), layer 3: the rule popover's model. The claim under
  * test is the classification — which of a rule's writes reached the final
  * config and which a later stop took away, and WHICH stop that was — because
  * that is the sentence the card prints next to a struck-through value, and

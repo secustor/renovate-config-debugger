@@ -3,6 +3,10 @@
 Milestone: — · Status: **variant A implemented** (2026-08-02), shipped as the
 five-layer stack below; variants B and C remain proposed
 
+Renumbered from 053 (2026-08-03): main took that number for the analytics
+localhost-exclusion item while this stack was in review. The `feat/053-*`
+branch names predate the renumber and stay as-is.
+
 Mockup (three variants; revised 2026-08-02 after review — the scenario now
 includes a contested field, `groupName` written by two matched rules with the
 later one winning, and every key/value ledger aligns its columns):
@@ -162,7 +166,7 @@ evidence per rule. A new `verdict-threads.ts` derives, per changed key:
 4. `ReturnPill` + `simThread` fragment state + jump wiring —
    `feat/053-04-return-pill-fragment`.
 5. e2e suite + roadmap status flip — `feat/053-05-e2e-and-docs`
-   (`packages/app/e2e/16-verdict-threads.spec.ts`, five scenarios over the
+   (`packages/app/e2e/17-verdict-threads.spec.ts`, five scenarios over the
    new `CONTESTED_KEY_CONFIG` fixture: expand a contested thread, the
    popover's evidence + Escape-restores-focus, its "open in matched
    rules →" jump, the step jump's return pill, and a `simThread` +
@@ -195,3 +199,21 @@ rule.
   misfires in practice).
 - No third disclosure level: thread → popover is level two; the popover's
   "open in matched rules" is navigation, not another fold.
+
+### Follow-ups (2026-08-02 audit)
+
+Three layers landed after the plan above, from an audit of what shipped:
+
+6. **Consistency fixes** — `feat/053-06-design-consistency`: the thread
+   ledger's own grammar reconciled with the app's (actionable text, the
+   `explained` affordance on the dot, one clause-state → hue mapping with
+   every state named instead of a green fall-through).
+7. **One `WriteRow`, one `ClauseGrid`** — `feat/053-07-write-row`: four
+   surfaces said `key: before → after` in four dialects and two rendered
+   clause evidence as prose; both collapsed into one component each, so the
+   evidence reads the same wherever it is met.
+8. **One `.kv` subgrid primitive** — `feat/053-08-kv-primitive`: the plan
+   asked for ONE shared-column primitive and got three near-identical grid
+   systems; they are now `--kv-cols` configurations of a single `.kv` /
+   `.kv-row` pair, and the effective config's key list — older than all
+   three, and still ragged — adopted it as well.

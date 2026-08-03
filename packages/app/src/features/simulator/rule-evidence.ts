@@ -8,7 +8,7 @@ import type { MergeStop } from "./merge-stops";
 import { stopLabels } from "./verdict-threads";
 
 /**
- * Roadmap 053 (variant A), layer 3: everything the rule popover states about
+ * Roadmap 054 (variant A), layer 3: everything the rule popover states about
  * ONE rule — its clause evidence, where it merged, and what each of its writes
  * was worth by the end of the run.
  *

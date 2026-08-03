@@ -1,5 +1,5 @@
 /**
- * Roadmap 053 (variant A): the thread derivation is the simulator's single
+ * Roadmap 054 (variant A): the thread derivation is the simulator's single
  * source of truth about who wrote a setting — layer 2's thread ledger is its
  * only reader — so it is tested directly, on hand-written
  * `SimulationResult`/`MergeStop` fixtures rather than by running the engine.

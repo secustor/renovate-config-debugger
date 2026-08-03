@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 
 /**
- * Roadmap 053 (layer 4): the way back. A thread's own jumps — the step link
+ * Roadmap 054 (layer 4): the way back. A thread's own jumps — the step link
  * into the demoted replay, the popover's "open in matched rules" — are the only
  * navigation variant A has, and both land the reader somewhere the thread they
  * came from is off-screen. This pill sits on the app's existing bottom-pill
