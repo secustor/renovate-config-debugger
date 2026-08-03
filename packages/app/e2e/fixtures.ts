@@ -10,6 +10,9 @@
  * use web globals only (CompressionStream, TextEncoder, btoa — available in
  * Node 20+ and the browser), the same wire shape the codec itself writes.
  */
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 import { configChecksum, encodeShare, type ShareSimulator, type ShareView } from "../src/lib/share";
 
 export { configChecksum };
@@ -48,8 +51,26 @@ export interface SharePayloadInput {
   sim?: ShareSimulator;
 }
 
-/** The Renovate version pinned in packages/engine/package.json. */
-export const RENOVATE_VERSION = "44.4.6";
+/**
+ * The Renovate version the engine actually runs — read from the installed
+ * package, not hand-copied. The app embeds `renovateVersion` (engine
+ * `src/version.ts`, i.e. `renovate/package.json`'s own `version`) in every
+ * share link, so reading the same file is what keeps a fixture's version tag
+ * equal to the app's by construction. `renovate` is a dependency of the engine
+ * package, not of this one, so resolution is anchored at the engine's
+ * package.json rather than at this file.
+ */
+export const RENOVATE_VERSION: string = readInstalledRenovateVersion();
+
+function readInstalledRenovateVersion(): string {
+  const enginePkgJson = fileURLToPath(new URL("../../engine/package.json", import.meta.url));
+  const pkgPath = createRequire(enginePkgJson).resolve("renovate/package.json");
+  const { version } = JSON.parse(readFileSync(pkgPath, "utf8")) as { version?: string };
+  if (!version) {
+    throw new Error(`no "version" field in ${pkgPath}`);
+  }
+  return version;
+}
 
 async function pipeThrough(bytes: Uint8Array, stream: GenericTransformStream): Promise<Uint8Array> {
   // Type the stream as GenericTransformStream (writable: WritableStream) so the
