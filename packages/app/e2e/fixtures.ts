@@ -49,7 +49,7 @@ export interface SharePayloadInput {
 }
 
 /** The Renovate version pinned in packages/engine/package.json. */
-export const RENOVATE_VERSION = "43.275.0";
+export const RENOVATE_VERSION = "44.4.6";
 
 async function pipeThrough(bytes: Uint8Array, stream: GenericTransformStream): Promise<Uint8Array> {
   // Type the stream as GenericTransformStream (writable: WritableStream) so the
