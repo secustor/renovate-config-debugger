@@ -73,6 +73,38 @@ export function clauseExplanation(clause: ClauseEvaluation): string {
   }
 }
 
+/** Roadmap 053: the clause grid's last column — the value side of the
+ *  comparison, split so the grid can style the value itself. */
+export interface ClauseEvaluated {
+  text: string;
+  /** The input the matcher was compared against; absent when the state has
+   *  nothing to show but its explanation. */
+  value?: string;
+}
+
+/**
+ * Roadmap 053 (variant A): a matched clause reads as a two-part sentence
+ * across the grid — `checks ["npm"] · this update is "npm"` — because in a
+ * thread the reader is comparing the two value columns, not reading prose.
+ * Every other state keeps `clauseExplanation`'s precise wording: a fail-closed
+ * or not-applicable clause has no "this update is …" to state, and the WHY is
+ * the whole point of showing it.
+ */
+export function clauseEvaluated(clause: ClauseEvaluation): ClauseEvaluated {
+  if (clause.state !== "matched") {
+    return { text: clauseExplanation(clause) };
+  }
+  const inputs = Object.entries(clause.inputValues);
+  const [only] = inputs;
+  if (inputs.length === 0) {
+    return { text: "matched" };
+  }
+  if (inputs.length === 1 && only) {
+    return { text: "this update is", value: previewValue(only[1], 40) };
+  }
+  return { text: "this update has", value: inputsPreview(clause) };
+}
+
 export const VERDICT_LABEL: Record<RuleEvaluation["verdict"], string> = {
   matched: "matched",
   "no-match": "no match",

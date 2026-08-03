@@ -219,12 +219,15 @@ test("the merge timeline walks the matching rules one stop at a time", async ({ 
 });
 
 /**
- * Roadmap 047 — a cross-link opens what it targets. The verdict ledger's
- * "step N of M →" points at a stop inside the (collapsed) merge drawer, so
+ * Roadmap 047/053 — a cross-link opens what it targets. The step link now
+ * lives inside a THREAD (053: the ledger row expands into that key's causal
+ * story), and it points at a stop inside the collapsed merge drawer — so
  * clicking it must open the drawer AND land on that exact stop, not merely
  * scroll to a closed row.
  */
-test("a verdict ledger step link opens the merge drawer at the stop it names", async ({ page }) => {
+test("a verdict thread's step link opens the merge drawer at the stop it names", async ({
+  page,
+}) => {
   const fragment = await encodeShareFragment({ config: MERGE_STEPS_CONFIG });
   await page.goto(fragment);
 
@@ -239,8 +242,11 @@ test("a verdict ledger step link opens the merge drawer at the stop it names", a
   await expect(mergeDrawer).toHaveJSProperty("open", false);
 
   // `automerge` was last set by packageRules[2] — the second (and last) rule
-  // stop, so the ledger link reads "step 2 of 2".
-  const stepLink = verdict.locator(".sim-step-link").first();
+  // stop, so its thread's link reads "step 2 of 2". The thread has to be
+  // expanded first: the story is the disclosure, the row is the index.
+  const automergeThread = verdict.locator(".sim-thread").filter({ hasText: "automerge" }).first();
+  await automergeThread.locator(".sim-thread-head").click();
+  const stepLink = automergeThread.locator(".sim-step-link");
   await expect(stepLink).toContainText("step 2 of 2");
   await stepLink.click();
 

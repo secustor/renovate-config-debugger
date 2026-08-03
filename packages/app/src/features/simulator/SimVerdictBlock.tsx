@@ -1,132 +1,71 @@
 import { Fragment } from "react";
 import type { SimulationResult } from "@renovate-config-visualizer/engine";
 import { CopyButton } from "@/components/CopyButton";
-import { Term } from "@/components/glossary";
-import { OptionKey } from "@/components/option-docs";
-import { ProvenanceChip } from "@/components/ProvenanceChip";
 import type { ConsumedBlock } from "./consumed-blocks";
-import { previewValue } from "./rule-format";
 import { SimConsumedBlock } from "./SimConsumedBlock";
-import type { VerdictChange } from "./verdict-changes";
+import type { ThreadModel } from "./verdict-threads";
 import type { VerdictSegment } from "./verdict-sentence";
+import { VerdictThreads } from "./VerdictThreads";
 
-/** Roadmap 012/040/046: one row of the verdict card's ledger — the option a
- *  rule set, its value, (when the update-type block supplied it) where it came
- *  from, the owning layer's provenance chip, and a jump into the merge
- *  timeline. Its own component since 040's depth ratchet. */
-function VerdictKeyRow({
-  change,
-  fromUpdateType,
-  updateType,
-  onSelectPreset,
-  onJumpToStep,
+/**
+ * Roadmap 053 (variant A): the two full-trace links the evidence drawers
+ * demote to. The card answers the question; the drawers below it are where
+ * someone goes to audit the whole run, so they get one quiet line — and "N of
+ * M" is stated ONCE on the card, here.
+ */
+function VerdictTraceLinks({
+  matchedCount,
+  totalRules,
+  replayStops,
+  onJumpToRules,
+  onJumpToReplay,
 }: {
-  change: VerdictChange;
-  fromUpdateType: boolean;
-  updateType?: string;
-  onSelectPreset?: (nodeId: string) => void;
-  onJumpToStep?: (stopIndex: number) => void;
+  matchedCount: number;
+  totalRules: number;
+  replayStops: number;
+  onJumpToRules: () => void;
+  onJumpToReplay?: () => void;
 }) {
   return (
-    <li>
-      <code>
-        <OptionKey name={change.key} flagUnknown />
-      </code>
-      {change.present ? (
-        <>
-          {" = "}
-          <span className="sim-verdict-value">{previewValue(change.value, 80)}</span>
-          {fromUpdateType ? (
-            <span className="sim-verdict-from">
-              {" "}
-              from the <Term id="updateType">{updateType}</Term> block
-            </span>
-          ) : null}
-        </>
-      ) : (
-        <span className="sim-verdict-value removed"> removed</span>
-      )}
-      {change.layer ? (
-        <span className="sim-verdict-origin">
-          <ProvenanceChip layer={change.layer} onSelectPreset={onSelectPreset} />
-        </span>
-      ) : null}
-      {change.stopIndex !== undefined && onJumpToStep !== undefined ? (
-        <button
-          type="button"
-          className="sim-step-link"
-          onClick={() => onJumpToStep(change.stopIndex as number)}
-        >
-          {change.stopLabel ?? "see the step"} →
+    <span className="sim-trace-links">
+      Full trace:{" "}
+      <button type="button" className="sim-jump" onClick={onJumpToRules}>
+        {matchedCount} of {totalRules} rule{totalRules === 1 ? "" : "s"} matched
+      </button>
+      {onJumpToReplay ? " · " : null}
+      {onJumpToReplay ? (
+        <button type="button" className="sim-trace-jump" onClick={onJumpToReplay}>
+          build replay, {replayStops} stop{replayStops === 1 ? "" : "s"}
         </button>
       ) : null}
-    </li>
-  );
-}
-
-/** Roadmap 046: the ledger of settings the rules genuinely changed — the
- *  verdict card's evidence, one row per key. */
-function VerdictLedger({
-  changes,
-  flattened,
-  onSelectPreset,
-  onJumpToStep,
-}: {
-  changes: VerdictChange[];
-  flattened: SimulationResult["flattened"];
-  onSelectPreset?: (nodeId: string) => void;
-  onJumpToStep?: (stopIndex: number) => void;
-}) {
-  if (changes.length === 0) {
-    return (
-      <p className="sim-verdict-none">
-        No rule changed anything for this dependency — the defaults apply.
-      </p>
-    );
-  }
-  return (
-    <>
-      <p className="sim-verdict-ledger-label">
-        Changed by the rules — {changes.length} setting{changes.length === 1 ? "" : "s"}
-      </p>
-      <ul className="sim-verdict-keys">
-        {changes.map((change) => (
-          <VerdictKeyRow
-            key={change.key}
-            change={change}
-            fromUpdateType={flattened.merged.some((m) => m.key === change.key)}
-            updateType={flattened.updateType}
-            onSelectPreset={onSelectPreset}
-            onJumpToStep={onJumpToStep}
-          />
-        ))}
-      </ul>
-    </>
+    </span>
   );
 }
 
 /**
- * Roadmap 012/018/040/046: the answer first — the verdict CARD directly under
- * the Simulate button. An answer band (eyebrow naming the simulated update,
- * then the sentence with the modal verbs badged), the ledger of settings the
- * rules genuinely changed (with provenance and jumps into the merge timeline),
- * the consumed-blocks aside when an AUTHORED update-type block was consumed
- * without applying (047 — default-only consumption says nothing and renders
- * nothing), and a footer with the rule-list jump and the evidence-export
- * affordances (share link, A/B pinning).
+ * Roadmap 012/018/040/046/053: the answer first — the verdict CARD directly
+ * under the Simulate button. An answer band (eyebrow naming the simulated
+ * update, then the sentence with the modal verbs badged), the THREAD ledger of
+ * settings the rules changed (053: each row expands into that key's own causal
+ * story), the consumed-blocks aside when an AUTHORED update-type block was
+ * consumed without applying (047 — default-only consumption says nothing and
+ * renders nothing), and a footer with the two full-trace links and the
+ * evidence-export affordances (share link, A/B pinning).
  */
 export function SimVerdictBlock({
   matchedCount,
   totalRules,
   segments,
-  changes,
+  threads,
   flattened,
   consumed,
   flattenStopIndex,
+  replayStops,
   dep,
   onSelectPreset,
   onJumpToStep,
   onJumpToRules,
+  onJumpToReplay,
   copySimLink,
   pinned,
   onUnpin,
@@ -135,18 +74,24 @@ export function SimVerdictBlock({
   matchedCount: number;
   totalRules: number;
   segments: VerdictSegment[];
-  changes: VerdictChange[];
+  /** Roadmap 053: one thread per setting the rules changed. */
+  threads: ThreadModel[];
   flattened: SimulationResult["flattened"];
   /** Roadmap 047: authored update-type blocks flattening consumed without
    *  applying — empty on a run where only Renovate's own defaults were. */
   consumed: ConsumedBlock[];
   /** The flatten stop's position on the merge timeline, when it renders. */
   flattenStopIndex?: number;
+  /** Roadmap 053: how many stops the build replay has, for its trace link. */
+  replayStops: number;
   /** The simulated update, for the card's eyebrow line. */
   dep: { manager?: string; packageName?: string; currentValue?: string; newValue?: string } | null;
   onSelectPreset?: (nodeId: string) => void;
   onJumpToStep?: (stopIndex: number) => void;
   onJumpToRules: () => void;
+  /** Roadmap 053: open the build replay where it currently stands — absent
+   *  when this run has no timeline to open. */
+  onJumpToReplay?: () => void;
   /** null when the host gave no share-link callback — no button then. */
   copySimLink: (() => Promise<void>) | null;
   pinned: boolean;
@@ -183,12 +128,17 @@ export function SimVerdictBlock({
         </p>
       </div>
       <div className="sim-verdict-body">
-        <VerdictLedger
-          changes={changes}
-          flattened={flattened}
-          onSelectPreset={onSelectPreset}
-          onJumpToStep={onJumpToStep}
-        />
+        {threads.length === 0 ? (
+          <p className="sim-verdict-none">
+            No rule changed anything for this dependency — the defaults apply.
+          </p>
+        ) : (
+          <VerdictThreads
+            threads={threads}
+            onSelectPreset={onSelectPreset}
+            onJumpToStep={onJumpToStep}
+          />
+        )}
         {consumed.map((block) => (
           <SimConsumedBlock
             key={block.key}
@@ -201,9 +151,13 @@ export function SimVerdictBlock({
         ))}
       </div>
       <div className="sim-verdict-foot">
-        <button type="button" className="sim-jump" onClick={onJumpToRules}>
-          {matchedCount} of {totalRules} rule{totalRules === 1 ? "" : "s"} matched →
-        </button>
+        <VerdictTraceLinks
+          matchedCount={matchedCount}
+          totalRules={totalRules}
+          replayStops={replayStops}
+          onJumpToRules={onJumpToRules}
+          onJumpToReplay={onJumpToReplay}
+        />
         {/* Roadmap 018: evidence-export affordances on the verdict card —
             a reproducible link (form + auto-run encoded) and A/B pinning. */}
         <div className="sim-verdict-actions">
