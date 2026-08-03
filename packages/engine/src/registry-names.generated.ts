@@ -1,7 +1,7 @@
 /**
  * GENERATED FILE — do not hand-edit.
  *
- * Produced by `scripts/generate-registry-names.mjs` from renovate@43.275.0's
+ * Produced by `scripts/generate-registry-names.mjs` from renovate@44.4.6's
  * own datasource/manager registries (`renovate/dist/modules/{datasource,manager}/api.js`).
  * Regenerate with `pnpm --filter @renovate-config-visualizer/engine generate:registries`
  * after bumping the `renovate` dependency — see that script's header for why
@@ -193,6 +193,7 @@ export const MANAGER_NAMES: readonly string[] = [
   "sbt",
   "scalafmt",
   "setup-cfg",
+  "smithy",
   "sveltos",
   "swift",
   "tekton",
