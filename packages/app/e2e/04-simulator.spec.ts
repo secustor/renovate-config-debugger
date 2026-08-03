@@ -1,20 +1,11 @@
-import { expect, type Locator, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import {
   AUTHORED_BLOCK_CONFIG,
   encodeShareFragment,
   MERGE_STEPS_CONFIG,
   PACKAGE_RULES_CONFIG,
 } from "./fixtures";
-import { openTab } from "./helpers";
-
-/**
- * Roadmap 047: the results are staged into summary drawers — a `<details>`
- * whose summary row abstracts the body. Addressed by their visible title, the
- * way a user finds them.
- */
-function drawer(page: Page, title: string): Locator {
-  return page.locator("details.drawer", { hasText: title });
-}
+import { drawer, openTab } from "./helpers";
 
 /**
  * Journey 4 — the packageRules simulator. After a run whose config has a

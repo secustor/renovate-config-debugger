@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 import type { ResultsTabId } from "../src/data/results-tabs";
 
 /**
@@ -70,6 +70,15 @@ export async function openTab(page: Page, id: TabId): Promise<void> {
   await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
   await tabButton(page, id).click();
   await expect(tabPanel(page, id)).toBeVisible();
+}
+
+/**
+ * Roadmap 047: the results are staged into summary drawers — a `<details>`
+ * whose summary row abstracts the body. Addressed by their visible title, the
+ * way a user finds them.
+ */
+export function drawer(page: Page, title: string): Locator {
+  return page.locator("details.drawer", { hasText: title });
 }
 
 /** Clicks Run and waits for the pipeline to produce a result (the results

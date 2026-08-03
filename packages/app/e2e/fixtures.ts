@@ -30,6 +30,9 @@ export interface ShareViewInput {
   node?: string;
   step?: number;
   tab?: string;
+  /** Roadmap 044/053: the merge replay's stop index — restored next to a `sim`
+   *  descriptor that reproduces the run whose replay it indexes. */
+  simStep?: number;
 }
 
 export interface SharePayloadInput {
@@ -244,6 +247,36 @@ export const AUTHORED_BLOCK_CONFIG = `{
     {
       "matchPackageNames": ["lodash"],
       "addLabels": ["from-lodash-rule"]
+    }
+  ]
+}
+`;
+
+/**
+ * Roadmap 053: a CONTESTED key. Two rules the "npm dependency" quick-fill
+ * (lodash, patch) matches both write `groupName` with DIFFERENT values, so the
+ * later one wins and the earlier one's value never reaches the final config —
+ * the override cascade a verdict thread exists to show. The `react` rule never
+ * matches, so it contributes no stop; `addLabels` (written only by the first
+ * rule) gives its popover a surviving write to sit beside the lost one.
+ */
+export const CONTESTED_KEY_CONFIG = `{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "packageRules": [
+    {
+      "matchManagers": ["npm"],
+      "groupName": "all npm dependencies",
+      "addLabels": ["from-managers-rule"]
+    },
+    {
+      "matchPackageNames": ["react"],
+      "groupName": "never-applied"
+    },
+    {
+      "matchPackageNames": ["lodash"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "lodash updates",
+      "automerge": true
     }
   ]
 }
