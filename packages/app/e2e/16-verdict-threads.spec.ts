@@ -2,19 +2,6 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 import { CONTESTED_KEY_CONFIG, encodeShareFragment } from "./fixtures";
 import { drawer, openTab } from "./helpers";
 
-/**
- * Roadmap 053 (variant A) — the verdict ledger IS the trace. Every row of
- * settings the rules changed expands into that key's own causal thread: who had
- * the last word, on what evidence, and every value that lost on the way. This
- * suite drives the contested case end to end against the production build,
- * because that is the case the whole variant exists for: `groupName` written by
- * two matched rules, only one of which reaches the final config.
- *
- * `CONTESTED_KEY_CONFIG`'s stops, for every expectation below: base ·
- * `packageRules[0]` (step 1 of 2) · `packageRules[2]` (step 2 of 2) · flatten ·
- * final. The `react` rule never matches, so it is no stop at all.
- */
-
 /** The `npm dependency` quick-fill's own fields — what a share link has to
  *  carry to reproduce a run this suite otherwise starts by clicking. */
 const NPM_QUICK_FILL: Record<string, string> = {
