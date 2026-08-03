@@ -2,6 +2,7 @@ import { type ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import type { OptionDoc, OptionIndex } from "@renovate-config-visualizer/engine";
 import { useMoveGatedHover } from "@/hooks/hover-gate";
 import { OptionDocsContext, useOptionDocs } from "@/hooks/option-docs-hooks";
+import { type AnchorRect, anchoredCardStyle } from "@/lib/anchored-card";
 
 /**
  * Inline documentation for renovate options (roadmap 003): a context carrying
@@ -14,7 +15,7 @@ import { OptionDocsContext, useOptionDocs } from "@/hooks/option-docs-hooks";
 interface CardState {
   name: string;
   doc?: OptionDoc;
-  anchor: { left: number; top: number; bottom: number };
+  anchor: AnchorRect;
 }
 
 export function OptionDocsProvider({
@@ -87,14 +88,7 @@ function OptionCard({
   onLeave: () => void;
 }) {
   const { doc, name, anchor } = card;
-  // Clamp to the viewport, not just a fixed constant — a 340px card doesn't
-  // fit an under-340px viewport (roadmap 025).
-  const width = Math.min(340, window.innerWidth - 32);
-  const left = Math.max(8, Math.min(anchor.left, window.innerWidth - width - 16));
-  const openUpward = anchor.bottom > window.innerHeight - 280;
-  const style: React.CSSProperties = openUpward
-    ? { left, bottom: window.innerHeight - anchor.top + 6, maxWidth: width }
-    : { left, top: anchor.bottom + 6, maxWidth: width };
+  const style = anchoredCardStyle(anchor, 340, 280);
 
   return (
     <div className="option-card" style={style} onMouseEnter={onEnter} onMouseLeave={onLeave}>

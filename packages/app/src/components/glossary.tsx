@@ -2,21 +2,16 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom";
 import { GLOSSARY, type GlossaryEntry, type TermId } from "@/data/glossary-data";
 import { useMoveGatedHover } from "@/hooks/hover-gate";
+import { type AnchorRect, anchoredCardStyle, anchorRectOf } from "@/lib/anchored-card";
 
 /**
  * The hover/focus card UI for the glossary. The entries themselves live in
  * glossary-data.ts.
  */
 
-interface CardPos {
-  left: number;
-  top: number;
-  bottom: number;
-}
-
 interface CardState {
   entry: GlossaryEntry;
-  pos: CardPos;
+  pos: AnchorRect;
 }
 
 /** Module-level singleton so only one glossary card is ever open. */
@@ -43,8 +38,7 @@ function useHoverCard(entry: GlossaryEntry) {
       }
       activeHide = hideNow;
       window.clearTimeout(hideTimer.current);
-      const rect = el.getBoundingClientRect();
-      setCard({ entry, pos: { left: rect.left, top: rect.top, bottom: rect.bottom } });
+      setCard({ entry, pos: anchorRectOf(el) });
     },
     [entry, hideNow],
   );
@@ -81,14 +75,7 @@ function GlossaryCard({
   onLeave: () => void;
 }) {
   const { entry, pos } = card;
-  // Clamp to the viewport, not just a fixed constant — a 320px card doesn't
-  // fit an under-320px viewport (roadmap 025).
-  const width = Math.min(320, window.innerWidth - 32);
-  const left = Math.max(8, Math.min(pos.left, window.innerWidth - width - 16));
-  const openUpward = pos.bottom > window.innerHeight - 200;
-  const style: React.CSSProperties = openUpward
-    ? { left, bottom: window.innerHeight - pos.top + 6, maxWidth: width }
-    : { left, top: pos.bottom + 6, maxWidth: width };
+  const style = anchoredCardStyle(pos, 320, 200);
   // Roadmap 035: portalled to <body>. The coordinates above are viewport
   // coordinates, which only hold while no ancestor is a containing block for
   // fixed-position descendants — and CSS containment creates exactly that, so

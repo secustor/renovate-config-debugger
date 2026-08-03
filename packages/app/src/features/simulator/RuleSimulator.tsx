@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import { memo, useCallback, useMemo } from "react";
 import type { ProvenanceLayer, TraceResult } from "@renovate-config-visualizer/engine";
 import { Term } from "@/components/glossary";
 import { HypotheticalBanner } from "@/components/HypotheticalBanner";
@@ -10,6 +10,7 @@ import { ComparisonPanel } from "./ComparisonPanel";
 import { consumedAuthoredBlocks } from "./consumed-blocks";
 import { EMPTY_FORM, type FormState, hasMeaningfulInput } from "./form";
 import { buildMergeStops } from "./merge-stops";
+import { buildRuleEvidence } from "./rule-evidence";
 import { SimMergeDrawer } from "./SimMergeDrawer";
 import { SimMessages } from "./SimMessages";
 import { SimRulesDrawer } from "./SimRulesDrawer";
@@ -230,6 +231,13 @@ export const RuleSimulator = memo(function RuleSimulator({
     () => buildVerdictThreads(changedKeys, mergeStops, layerByIndex, sim),
     [changedKeys, mergeStops, layerByIndex, sim],
   );
+  // Roadmap 053 layer 3: derived on demand — one popover is open at a time, and
+  // a run can have hundreds of rules, so deriving every rule's evidence up
+  // front would be work for a card nobody opens.
+  const evidenceFor = useCallback(
+    (ruleIndex: number) => buildRuleEvidence(ruleIndex, mergeStops, layerByIndex, sim),
+    [mergeStops, layerByIndex, sim],
+  );
 
   if (!finalConfig) {
     return null;
@@ -397,6 +405,11 @@ export const RuleSimulator = memo(function RuleSimulator({
               onJumpToStep={showTimeline ? jumpToStep : undefined}
               onJumpToRules={jumpToRules}
               onJumpToReplay={showTimeline ? jumpToReplay : undefined}
+              evidenceFor={evidenceFor}
+              // The popover's footer lands on the rule ROW itself — the 013
+              // focus wiring opens the drawer, clears whatever filter hides
+              // the row, scrolls to it and flashes it.
+              onOpenRule={focusRule}
               copySimLink={onCopySimLink ? copySimLink : null}
               pinned={pinned !== null}
               onUnpin={unpin}

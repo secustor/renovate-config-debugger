@@ -2,6 +2,7 @@ import { Fragment } from "react";
 import type { SimulationResult } from "@renovate-config-visualizer/engine";
 import { CopyButton } from "@/components/CopyButton";
 import type { ConsumedBlock } from "./consumed-blocks";
+import type { RuleEvidence } from "./rule-evidence";
 import { SimConsumedBlock } from "./SimConsumedBlock";
 import type { ThreadModel } from "./verdict-threads";
 import type { VerdictSegment } from "./verdict-sentence";
@@ -66,6 +67,8 @@ export function SimVerdictBlock({
   onJumpToStep,
   onJumpToRules,
   onJumpToReplay,
+  evidenceFor,
+  onOpenRule,
   copySimLink,
   pinned,
   onUnpin,
@@ -92,6 +95,10 @@ export function SimVerdictBlock({
   /** Roadmap 053: open the build replay where it currently stands — absent
    *  when this run has no timeline to open. */
   onJumpToReplay?: () => void;
+  /** Roadmap 053 layer 3: the rule-evidence popover's model, and the jump its
+   *  footer offers into the matched-rules drawer. */
+  evidenceFor?: (ruleIndex: number) => RuleEvidence;
+  onOpenRule?: (ruleIndex: number) => void;
   /** null when the host gave no share-link callback — no button then. */
   copySimLink: (() => Promise<void>) | null;
   pinned: boolean;
@@ -135,8 +142,7 @@ export function SimVerdictBlock({
         ) : (
           <VerdictThreads
             threads={threads}
-            onSelectPreset={onSelectPreset}
-            onJumpToStep={onJumpToStep}
+            actions={{ onSelectPreset, onJumpToStep, evidenceFor, onOpenRule }}
           />
         )}
         {consumed.map((block) => (

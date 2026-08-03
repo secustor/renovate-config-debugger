@@ -3,7 +3,7 @@ import type { ProvenanceLayer } from "@renovate-config-visualizer/engine";
 import { OptionKey } from "@/components/option-docs";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { previewValue } from "./rule-format";
-import { ThreadBody } from "./ThreadBody";
+import { ThreadBody, type ThreadActions } from "./ThreadBody";
 import type { ThreadModel } from "./verdict-threads";
 
 /**
@@ -47,7 +47,11 @@ function ThreadHeadValue({ thread }: { thread: ThreadModel }) {
   );
 }
 
-/** The origin cell — kept as a cell even when empty so the column holds. */
+/** The origin cell — kept as a cell even when empty so the column holds.
+ *  Roadmap 053 layer 3: a DOT here, not the full chip. Collapsed, the column
+ *  is read as "same origin or not?" down the ledger, which is exactly what a
+ *  hue answers; the label stays one hover (or one expansion, where the writer
+ *  line wears the full chip) away. */
 function ThreadHeadOrigin({
   layer,
   onSelectPreset,
@@ -57,7 +61,9 @@ function ThreadHeadOrigin({
 }) {
   return (
     <span className="sim-thread-origin">
-      {layer ? <ProvenanceChip layer={layer} onSelectPreset={onSelectPreset} /> : null}
+      {layer ? (
+        <ProvenanceChip layer={layer} onSelectPreset={onSelectPreset} variant="dot" />
+      ) : null}
     </span>
   );
 }
@@ -65,15 +71,7 @@ function ThreadHeadOrigin({
 /** One thread: the collapsed head button, and the body it discloses.
  *  Expansion is local and uncontrolled — a re-simulation replaces the rows and
  *  collapses them, which is the honest state for a new run's evidence. */
-function ThreadRow({
-  thread,
-  onSelectPreset,
-  onJumpToStep,
-}: {
-  thread: ThreadModel;
-  onSelectPreset?: (nodeId: string) => void;
-  onJumpToStep?: (stopIndex: number) => void;
-}) {
+function ThreadRow({ thread, actions }: { thread: ThreadModel; actions: ThreadActions }) {
   const [open, setOpen] = useState(false);
   return (
     <li className={`sim-thread${open ? " open" : ""}`}>
@@ -85,33 +83,24 @@ function ThreadRow({
       >
         <ThreadHeadKey name={thread.key} open={open} />
         <ThreadHeadValue thread={thread} />
-        <ThreadHeadOrigin layer={thread.winner?.layer} onSelectPreset={onSelectPreset} />
+        <ThreadHeadOrigin layer={thread.winner?.layer} onSelectPreset={actions.onSelectPreset} />
       </button>
-      {open ? (
-        <ThreadBody thread={thread} onSelectPreset={onSelectPreset} onJumpToStep={onJumpToStep} />
-      ) : null}
+      {open ? <ThreadBody thread={thread} actions={actions} /> : null}
     </li>
   );
 }
 
 export function VerdictThreads({
   threads,
-  onSelectPreset,
-  onJumpToStep,
+  actions,
 }: {
   threads: ThreadModel[];
-  onSelectPreset?: (nodeId: string) => void;
-  onJumpToStep?: (stopIndex: number) => void;
+  actions: ThreadActions;
 }) {
   return (
     <ul className="sim-thread-list">
       {threads.map((thread) => (
-        <ThreadRow
-          key={thread.key}
-          thread={thread}
-          onSelectPreset={onSelectPreset}
-          onJumpToStep={onJumpToStep}
-        />
+        <ThreadRow key={thread.key} thread={thread} actions={actions} />
       ))}
     </ul>
   );
