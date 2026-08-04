@@ -1,0 +1,14 @@
+{
+  // Not a workspace package (it has no build, no deps and nothing imports it),
+  // so `pnpm -r typecheck` never sees it — the root `typecheck` script runs
+  // this project explicitly on top.
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": ["node"],
+    // These files are run by `node file.ts` — type stripping, no build step —
+    // which requires the import specifiers to carry the real `.ts` extension.
+    "allowImportingTsExtensions": true
+  },
+  "include": ["agents/**/*.ts"]
+}

@@ -135,8 +135,8 @@ deliberately out of scope. Put the app image behind whatever you already run.
 mise install       # node + pnpm (or use your own, see package.json engines)
 pnpm install
 pnpm dev     # dev server
-pnpm test          # golden + shimmed engine tests
-pnpm -r typecheck
+pnpm test          # every workspace test except e2e (which needs a build first)
+pnpm typecheck
 pnpm lint && pnpm format:check
 ```
 

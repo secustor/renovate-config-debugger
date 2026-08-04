@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 mise install && pnpm install   # node + pnpm versions come from mise.toml
 pnpm dev                       # app dev server (vite)
 pnpm test                      # all workspace tests (engine golden+shimmed, app unit+render, oauth-worker)
-pnpm typecheck                 # tsc across all packages
+pnpm typecheck                 # tsc across all packages, plus tools/ (the agent hooks)
 pnpm lint                      # oxlint --type-aware + stylelint (zero tolerance: any report fails CI)
 pnpm format                    # oxfmt (format:check to verify)
 pnpm build                     # all packages
@@ -29,6 +29,22 @@ pnpm --filter @renovate-config-visualizer/app exec vitest run --project unit src
 pnpm --filter @renovate-config-visualizer/app exec playwright test e2e/04-simulator.spec.ts          # single e2e
 pnpm --filter @renovate-config-visualizer/app check:dev-graph   # guards `vite dev` module graph against Node-only leaks
 ```
+
+## Session hooks
+
+`.claude/settings.json` wires four hooks in `tools/agents/hooks/` (readme
+there). They run as `node <file>.ts` and import nothing outside `node:`, since
+two of them have to work before `pnpm install` has:
+
+- **SessionStart / CwdChanged** — provision the checkout (`mise install`, then
+  `pnpm install`); CwdChanged only fires the install for a root without
+  `node_modules`, i.e. a fresh worktree.
+- **PreToolUse** — denies `npm`/`npx`/`yarn`.
+- **Stop** — runs lint, format:check, typecheck and the tests of every changed
+  package, and blocks the stop with the failing output. **The e2e suite is
+  excluded** (it needs a production build and takes minutes) — run it yourself
+  when the change warrants it. A green run is fingerprinted, so an unchanged
+  working set doesn't pay for the checks twice.
 
 ## Architecture
 
