@@ -1,95 +1,49 @@
 #!/usr/bin/env node
 /**
- * The in-repo `rcd` bin (roadmap 058).
+ * The PUBLISHED `rcd` (roadmap 059) — `pnpm dlx @renovate-config-debugger/cli …`.
  *
- * It boots Vite's SSR module runner with the engine's own shim plugin active
- * and loads `src/main.ts` through it, so the CLI runs the EXACT module graph
- * the browser bundle and the shimmed test suite use. That is the whole point:
- * the preset tree and the provenance events are reconstructed from Renovate's
- * log stream by the logger shim, so a plain Node import of the engine — fast
- * as it is — returns `presetTree: undefined` and no provenance.
+ * No Vite, no transform pipeline: `dist/main.js` is the same shimmed module
+ * graph the dev runner builds on demand, baked at publish time by
+ * `vite build --ssr` with `renovateShims()` active. Renovate is inlined into
+ * it, so the package has no runtime dependencies and startup is a plain import.
  *
- * Plain JavaScript, and the only file that touches the process: everything
- * under `src/` is transformed with `define: { "process.env": "{}" }` (the shim
- * plugin sets it for the browser), so argv, env and stdio have to be handed in
- * as data.
+ * The bin is deliberately NOT part of the bundle: the graph is transformed
+ * with `define: { "process.env": "{}" }`, so this file is the only place that
+ * can read the real environment (see `bin/io.mjs`).
  */
-import { createServer } from "vite";
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { processIo } from "./io.mjs";
 
-guardStderr();
-
-const configFile = new URL("../vite.config.ts", import.meta.url).pathname;
-
-const server = await createServer({
-  configFile,
-  logLevel: "error",
-  server: { middlewareMode: true, hmr: false, watch: null },
+// One of renovate's transitive dependencies still reaches for `node:punycode`.
+// Inlined into the bundle, its deprecation warning is about code no consumer
+// of this package can change, and it would otherwise land on the stderr that
+// agents read. Every other warning is printed exactly as Node would — which
+// is why the default handler has to go first: a `warning` listener ADDS to it
+// rather than replacing it, so registering one alone would print twice.
+process.removeAllListeners("warning");
+process.on("warning", (warning) => {
+  if (warning.name === "DeprecationWarning" && warning.message.includes("punycode")) {
+    return;
+  }
+  process.stderr.write(`${warning.stack ?? `${warning.name}: ${warning.message}`}\n`);
 });
 
-try {
-  const { main } = await server.ssrLoadModule("/src/main.ts");
-  // NOT `process.exit(code)`: on a pipe, stdout is asynchronous, and a hard
-  // exit discards everything still queued — `rcd run … --format json | cat`
-  // used to stop at the 64 KB pipe buffer and report success. Setting the code
-  // instead answers with the same number and lets the loop drain the writes.
-  process.exitCode = await main(process.argv.slice(2), {
-    out: (text) => process.stdout.write(text),
-    err: (text) => process.stderr.write(text),
-    env: process.env,
-    readStdin: async () => {
-      const chunks = [];
-      for await (const chunk of process.stdin) {
-        chunks.push(chunk);
-      }
-      return Buffer.concat(chunks).toString("utf8");
-    },
-    onDisconnect,
-  });
-} finally {
-  await server.close();
+const bundle = new URL("../dist/main.js", import.meta.url);
+
+if (!existsSync(fileURLToPath(bundle))) {
+  process.stderr.write(
+    "rcd: this bin needs the built bundle (dist/main.js).\n" +
+      "     In this repository, run `pnpm --filter @renovate-config-debugger/cli build`,\n" +
+      "     or use the dev runner: `pnpm --filter @renovate-config-debugger/cli rcd …`.\n",
+  );
+  process.exit(1);
 }
 
-/**
- * A stream with no `'error'` listener turns a write failure into an UNCAUGHT
- * exception — so a peer that closes the pipe (`rcd digest … | head`, or an MCP
- * host that stops reading our diagnostics) crashes the process on the next
- * line of stderr, from inside a `write` nobody awaited. The SDK guards stdout
- * for exactly this reason; stderr has the same failure mode and no owner.
- *
- * Silence is the whole point: there is nowhere left to report a broken stderr
- * to. The process keeps running and its own exit code still speaks.
- */
-function guardStderr() {
-  if (process.stderr.listenerCount("error") === 0) {
-    process.stderr.on("error", () => {});
-  }
-}
+const { main } = await import(bundle.href);
 
-/**
- * The stdio peer going away, as an event `src/` can observe without touching a
- * process global. Only `rcd mcp` needs it: the MCP SDK's stdio transport
- * listens for `data` and `error` only, so a client that closes the pipe never
- * reaches `transport.onclose` and the command would wait forever.
- *
- * Registration is per call and never eager — a SIGINT/SIGTERM listener is a
- * libuv handle that refs the loop, so a command that does not ask to be told
- * must not pay for one. Returns the disposer that takes them all back off,
- * which the caller runs once the wait is over however it ended.
- */
-function onDisconnect(callback) {
-  const off = () => {
-    process.stdin.off("end", fire);
-    process.stdin.off("close", fire);
-    process.off("SIGINT", fire);
-    process.off("SIGTERM", fire);
-  };
-  const fire = () => {
-    off();
-    callback();
-  };
-  process.stdin.on("end", fire);
-  process.stdin.on("close", fire);
-  process.on("SIGINT", fire);
-  process.on("SIGTERM", fire);
-  return off;
-}
+// NOT `process.exit(code)`: on a pipe, stdout is asynchronous, and a hard exit
+// discards everything still queued — `rcd run … --format json | cat` used to
+// stop at the 64 KB pipe buffer and report success. Setting the code instead
+// answers with the same number and lets the loop drain the writes first.
+process.exitCode = await main(process.argv.slice(2), processIo());
