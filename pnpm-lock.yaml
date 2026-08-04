@@ -11,6 +11,9 @@ importers:
 
   .:
     devDependencies:
+      '@types/node':
+        specifier: 26.1.2
+        version: 26.1.2
       oxfmt:
         specifier: 0.61.0
         version: 0.61.0

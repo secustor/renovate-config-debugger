@@ -33,7 +33,9 @@ jobs:
 
       - run: pnpm lint
       - run: pnpm format:check
-      - run: pnpm -r typecheck
+      # The root script, not `pnpm -r typecheck`: it adds `tools/` (the agent
+      # hooks), which is not a workspace package and so has no `-r` entry.
+      - run: pnpm typecheck
 
   test:
     needs: setup

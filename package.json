@@ -9,11 +9,12 @@
     "lint:css": "stylelint \"packages/app/src/**/*.css\"",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
-    "typecheck": "pnpm -r typecheck",
+    "typecheck": "pnpm -r typecheck && tsc --noEmit -p tools/tsconfig.json",
     "test": "pnpm -r test",
     "build": "pnpm -r build"
   },
   "devDependencies": {
+    "@types/node": "26.1.2",
     "oxfmt": "0.61.0",
     "oxlint": "1.76.0",
     "oxlint-tsgolint": "7.0.2001",
