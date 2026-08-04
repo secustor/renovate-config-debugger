@@ -4,6 +4,8 @@
 
 # renovate-config-visualizer
 
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/secustor/renovate-config-debugger/badge)](https://scorecard.dev/viewer/?uri=github.com/secustor/renovate-config-debugger)
+
 Step through what [Renovate](https://github.com/renovatebot/renovate) actually
 does with your config: parsing, migration of deprecated options, massaging,
 validation, preset resolution and merging. It runs Renovate's own code in your

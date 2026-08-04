@@ -1,0 +1,53 @@
+# OpenSSF Scorecard (https://scorecard.dev) — automated supply-chain security
+# checks (branch protection, token permissions, pinned dependencies, …). Runs
+# weekly and on main pushes; results land in the Security → Code scanning tab
+# and are published to the public Scorecard API, which feeds the README badge.
+#
+# Publishing imposes restrictions on this workflow (enforced server-side by the
+# Scorecard API): ubuntu runner, no env vars or containers, and only approved
+# actions — see https://github.com/ossf/scorecard-action#workflow-restrictions.
+name: Scorecard
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Weekly, so the score tracks upstream check changes even without pushes.
+    - cron: "30 4 * * 1"
+
+permissions: read-all
+
+jobs:
+  analysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      # Upload to the code-scanning dashboard.
+      security-events: write
+      # OIDC token, required by publish_results.
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run analysis
+        uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc # v2.4.4
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          # Publishes to the Scorecard API — the source for the README badge
+          # and https://scorecard.dev/viewer/. Public data, public repo.
+          publish_results: true
+
+      # The raw SARIF, for debugging a surprising score without re-running.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sarif-results
+          path: results.sarif
+          retention-days: 5
+
+      - name: Upload to code scanning
+        uses: github/codeql-action/upload-sarif@d1ba80a13dd99fba24a470575428917156a28b43 # v4.37.5
+        with:
+          sarif_file: results.sarif
