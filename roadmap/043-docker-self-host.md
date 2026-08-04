@@ -70,9 +70,12 @@ token-exchange proxy for deployments that want "Sign in with GitHub".
   `unknown` in `vite-env.d.ts` (it is a served file, not a build constant) and
   every field is type-checked; anything malformed falls through to the vars.
   Callers are untouched — the function's contract is unchanged.
-- **`Dockerfile`** (root, three stages). `build` on `node:26.5.0-alpine`
-  installs pnpm 11.16.0 (via npm — node:26 no longer bundles corepack), copies
-  the four manifests plus the lockfile before the sources for layer caching,
+- **`Dockerfile`** (root, three stages). `build` on the `mise` image, which
+  installs node and pnpm from `mise.toml` — so the versions are stated once and
+  arrive checksum- and attestation-verified, rather than via an
+  `npm install --global pnpm@x` that OpenSSF Scorecard reads as unpinned. It
+  copies the four manifests plus the lockfile before the sources for layer
+  caching,
   and runs the app build with **no** `VITE_*` in the environment. `app` on
   `nginx:alpine` adds `docker/nginx.conf` (gzip; `/assets/` immutable for a
   year; `index.html` and `rcv-config.js` `no-cache`; `nosniff`; a `try_files`
