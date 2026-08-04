@@ -36,19 +36,19 @@ rediscover which of Renovate's internals refuse to load off a server.
   pinning each engine release to the Renovate version it was built against.
 - A publish workflow with npm provenance, and packaging tests that fail CI
   when the published shape would be broken.
-- Renaming the workspace scope from `@renovate-config-visualizer/*` to
-  `@renovate-config-debugger/*` (see below).
+- Flipping the engine to `private: false`. The **name is already correct**:
+  #120 renamed every workspace package to `@renovate-config-debugger/*` (and
+  the Docker images to match), so this item no longer has to move it.
 
 ## Decisions
 
-- **Scope rename, all packages at once.** The project has been
-  "Renovate Config Debugger" since 016, and GitHub already renamed the
-  repository (`ProjectLinks.tsx` documents the redirect). Publishing the
-  engine under the new name while `app` and `oauth-worker` keep the old scope
-  would leave the workspace speaking two names for one project. All four
-  manifests move to `@renovate-config-debugger/*` in the same change; only the
-  engine gets `private: false`. The Docker images (`ghcr.io/…-visualizer`)
-  are a separate, user-visible rename and stay out of this item.
+- **The name is settled; only publication is left.** This item was drafted
+  expecting to rename the workspace scope as part of publishing. #120
+  (2026-08-04) did it first, for its own reasons — the repository has been
+  `renovate-config-debugger` on GitHub for a while and the packages had
+  drifted from it. The remaining delta between the engine's manifest and a
+  publishable one is therefore small and mechanical: `private`, `files`,
+  `exports` pointing at built output, and the metadata below.
 
 - **AGPL-3.0-only, stated on the tin.** The engine links Renovate's own code
   (`renovate` is `AGPL-3.0-only`), which is why this repository is AGPL too.
@@ -155,14 +155,15 @@ rediscover which of Renovate's internals refuse to load off a server.
 
 ## Verification
 
-- `pnpm -r typecheck`, `pnpm lint`, `pnpm test` unchanged and green after the
-  scope rename (every intra-workspace import and the four `.oxlintrc.json`
-  restricted-import rules name packages by specifier).
+- `pnpm -r typecheck`, `pnpm lint`, `pnpm test` green against the built
+  artifact rather than `src/` — the app resolves the engine through
+  `workspace:*`, so pointing `exports` at `dist/` changes what every consumer
+  in the repo actually loads.
 - The engine's golden and shimmed projects must still produce byte-identical
   results **through the built artifact**, not only through `src/` — the
   shimmed project is what proves the shims don't alter behavior, and the
   build must not alter it either.
 - `publint` and `attw` clean on the tarball; the scratch-consumer smoke test
   green.
-- A dry-run publish (`npm publish --dry-run`) whose file list is reviewed by
+- A dry-run publish (`pnpm publish --dry-run`) whose file list is reviewed by
   hand once, so nothing from `test/` or `scripts/` ships.
