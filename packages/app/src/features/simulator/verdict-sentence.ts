@@ -1,4 +1,4 @@
-import type { RuleAttribution, SimulationResult } from "@renovate-config-visualizer/engine";
+import type { RuleAttribution, SimulationResult } from "@renovate-config-debugger/engine";
 
 /** A config value in a plain-language sentence: `[a, b]`, `"x"`, `42`. */
 function plainValue(value: unknown): string {

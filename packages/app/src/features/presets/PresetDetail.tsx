@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { PresetNode, TraceEvent } from "@renovate-config-visualizer/engine";
+import type { PresetNode, TraceEvent } from "@renovate-config-debugger/engine";
 import { ConfigJson } from "@/components/ConfigJson";
 import { CopyMarkdownButton } from "@/components/CopyMarkdownButton";
 import { type AuthState, GithubAuthHint } from "@/components/GithubAuthHint";

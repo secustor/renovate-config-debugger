@@ -1,4 +1,4 @@
-import type { ErrorFixResult, ValidationMessage } from "@renovate-config-visualizer/engine";
+import type { ErrorFixResult, ValidationMessage } from "@renovate-config-debugger/engine";
 import type { ErrorTranslationLib } from "@/platform/run";
 
 /**

@@ -1,4 +1,4 @@
-import type { RuleAttribution, ValidationMessage } from "@renovate-config-visualizer/engine";
+import type { RuleAttribution, ValidationMessage } from "@renovate-config-debugger/engine";
 
 /**
  * Roadmap 013: one canonical rule presentation + cross-links. A validation

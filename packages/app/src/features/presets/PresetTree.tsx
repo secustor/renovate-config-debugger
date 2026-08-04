@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useState } from "react";
-import type { PresetNode, TraceEvent, TraceResult } from "@renovate-config-visualizer/engine";
+import type { PresetNode, TraceEvent, TraceResult } from "@renovate-config-debugger/engine";
 import { Term } from "@/components/glossary";
 import { computeTreeStats } from "@/components/preset-tree-stats";
 import type { AuthState } from "@/components/GithubAuthHint";

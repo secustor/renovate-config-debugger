@@ -1,4 +1,4 @@
-import type { ProvenanceLayer, RuleEvaluation } from "@renovate-config-visualizer/engine";
+import type { ProvenanceLayer, RuleEvaluation } from "@renovate-config-debugger/engine";
 import { layerId, layerLabel } from "@/components/provenance-layer";
 
 /** Roadmap 047: the matched rules grouped by the provenance layer that

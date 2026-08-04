@@ -1,4 +1,4 @@
-import type { PresetNode } from "@renovate-config-visualizer/engine";
+import type { PresetNode } from "@renovate-config-debugger/engine";
 import type { TreeStats } from "@/components/preset-tree-stats";
 import { Term } from "@/components/glossary";
 import { nf } from "./tree-shared";

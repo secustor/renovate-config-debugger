@@ -1,4 +1,4 @@
-import type { ProvenanceLayer } from "@renovate-config-visualizer/engine";
+import type { ProvenanceLayer } from "@renovate-config-debugger/engine";
 import { Explained } from "./glossary";
 import { layerClass, layerLabel, provenanceGlossaryEntry } from "./provenance-layer";
 

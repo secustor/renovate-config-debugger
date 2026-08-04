@@ -5,7 +5,7 @@
  * this instead, so adding a host is a one-row change. Pure data, no React —
  * run.ts (which must stay engine-chunk-light) imports it too.
  */
-import type { PresetAuth } from "@renovate-config-visualizer/engine";
+import type { PresetAuth } from "@renovate-config-debugger/engine";
 
 export interface HostTokenDescriptor {
   /** Stable id, also the token's field prefix in the engine's PresetAuth. */

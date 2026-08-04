@@ -15,7 +15,7 @@
  * path itself — and hands it in through {@link RepoLoadHost}.
  */
 import { type RefObject, useRef, useState } from "react";
-import type { RepoPlatform, TraceResult } from "@renovate-config-visualizer/engine";
+import type { RepoPlatform, TraceResult } from "@renovate-config-debugger/engine";
 import { PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
 import { isValidRepoHost, isValidRepoRefPart } from "@/lib/input-schemas";
 import type { ShareFileName, UntrustedEndpointGuard } from "@/lib/share";

@@ -3,7 +3,7 @@
  *
  * Produced by `scripts/generate-registry-names.mjs` from renovate@44.4.6's
  * own datasource/manager registries (`renovate/dist/modules/{datasource,manager}/api.js`).
- * Regenerate with `pnpm --filter @renovate-config-visualizer/engine generate:registries`
+ * Regenerate with `pnpm --filter @renovate-config-debugger/engine generate:registries`
  * after bumping the `renovate` dependency — see that script's header for why
  * this is a build-time snapshot rather than a runtime import.
  */

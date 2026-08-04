@@ -1,4 +1,4 @@
-import type { PresetNode } from "@renovate-config-visualizer/engine";
+import type { PresetNode } from "@renovate-config-debugger/engine";
 
 /**
  * The preset tree's derived facts: per-node/per-subtree contribution stats,

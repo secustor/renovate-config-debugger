@@ -1,4 +1,4 @@
-import type { StageId } from "@renovate-config-visualizer/engine";
+import type { StageId } from "@renovate-config-debugger/engine";
 import type { GlossaryEntry } from "./glossary-data";
 
 /**

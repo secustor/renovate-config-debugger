@@ -16,8 +16,8 @@ import { type EditorView, type Extension, hoverTooltip, type Tooltip } from "@ui
 import { jsonLanguage } from "@codemirror/lang-json";
 import { jsonCompletion, jsonSchema, jsonSchemaHover } from "codemirror-json-schema";
 import type { RefObject } from "react";
-import { renovateSchema } from "@renovate-config-visualizer/engine/schema";
-import type { PresetNodeState } from "@renovate-config-visualizer/engine";
+import { renovateSchema } from "@renovate-config-debugger/engine/schema";
+import type { PresetNodeState } from "@renovate-config-debugger/engine";
 import type { PresetHoverContext, PresetHoverInfo } from "@/lib/preset-hover";
 
 const STRING_RE = /"(?:[^"\\]|\\.)*"/g;

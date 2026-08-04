@@ -1,4 +1,4 @@
-import type { ProvenanceLayer, RuleEvaluation } from "@renovate-config-visualizer/engine";
+import type { ProvenanceLayer, RuleEvaluation } from "@renovate-config-debugger/engine";
 import { RuleRow } from "./RuleRow";
 
 /**

@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import type { SimulationResult, TraceResult } from "@renovate-config-visualizer/engine";
+import type { SimulationResult, TraceResult } from "@renovate-config-debugger/engine";
 import { type FormState, hasMeaningfulInput, toDescriptor } from "./form";
 
 export type Simulate = (nextForm: FormState, touched: boolean, keepStep?: boolean) => Promise<void>;
@@ -132,7 +132,7 @@ export function useSimulationRun({
     setRunning(true);
     setError(null);
     try {
-      const engine = await import("@renovate-config-visualizer/engine");
+      const engine = await import("@renovate-config-debugger/engine");
       const derived = engine.deriveUpdateType(
         nextForm.currentValue,
         nextForm.newValue,

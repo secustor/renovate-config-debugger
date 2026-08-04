@@ -15,7 +15,7 @@
  * static generated module keeps that subtree out of the browser graph
  * entirely while still surfacing Renovate's real registry names.
  *
- * Run: `pnpm --filter @renovate-config-visualizer/engine generate:registries`
+ * Run: `pnpm --filter @renovate-config-debugger/engine generate:registries`
  * after every Renovate version bump. `test/registries.node.test.ts` guards
  * against forgetting — it re-imports the real api.js maps (itself running in
  * Node, so this is safe there) and fails if the generated lists have drifted.
@@ -45,7 +45,7 @@ const contents = `/**
  *
  * Produced by \`scripts/generate-registry-names.mjs\` from renovate@${pkg.version}'s
  * own datasource/manager registries (\`renovate/dist/modules/{datasource,manager}/api.js\`).
- * Regenerate with \`pnpm --filter @renovate-config-visualizer/engine generate:registries\`
+ * Regenerate with \`pnpm --filter @renovate-config-debugger/engine generate:registries\`
  * after bumping the \`renovate\` dependency — see that script's header for why
  * this is a build-time snapshot rather than a runtime import.
  */

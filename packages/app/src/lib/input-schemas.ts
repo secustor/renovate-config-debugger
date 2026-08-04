@@ -17,7 +17,7 @@
  * modules are the one place all of that gets checked; callers (share.ts,
  * App.tsx, oauth.ts, PresetTree.tsx) replace their ad hoc checks with these.
  */
-import type { STAGE_IDS as ENGINE_STAGE_IDS } from "@renovate-config-visualizer/engine";
+import type { STAGE_IDS as ENGINE_STAGE_IDS } from "@renovate-config-debugger/engine";
 
 // ---------------------------------------------------------------------------
 // Deep pollution guard

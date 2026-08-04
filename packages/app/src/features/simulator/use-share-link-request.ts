@@ -1,5 +1,5 @@
 import { type Dispatch, type RefObject, type SetStateAction, useEffect, useRef } from "react";
-import type { TraceResult } from "@renovate-config-visualizer/engine";
+import type { TraceResult } from "@renovate-config-debugger/engine";
 import type { SimRequest } from "@/hooks/use-share-link";
 import { EMPTY_FORM, type FormState } from "./form";
 import type { Simulate } from "./use-simulation-run";

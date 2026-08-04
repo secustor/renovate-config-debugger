@@ -14,7 +14,7 @@ import type {
   ProvenanceLayer,
   RuleEvaluation,
   SimulationResult,
-} from "@renovate-config-visualizer/engine";
+} from "@renovate-config-debugger/engine";
 import { describe, expect, test } from "vitest";
 import type { MergeStop } from "./merge-stops";
 import { buildVerdictThreads } from "./verdict-threads";

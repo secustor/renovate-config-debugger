@@ -1,4 +1,4 @@
-import type { PresetNode, PresetSourceRef } from "@renovate-config-visualizer/engine";
+import type { PresetNode, PresetSourceRef } from "@renovate-config-debugger/engine";
 import { GLOSSARY, type GlossaryEntry } from "@/data/glossary-data";
 
 /**

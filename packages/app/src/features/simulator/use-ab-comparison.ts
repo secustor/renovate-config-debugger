@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
-import type * as EngineModule from "@renovate-config-visualizer/engine";
+import type * as EngineModule from "@renovate-config-debugger/engine";
 import type {
   DependencyDescriptor,
   SimulationComparison,
   SimulationResult,
-} from "@renovate-config-visualizer/engine";
+} from "@renovate-config-debugger/engine";
 import { type FormState, toDescriptor } from "./form";
 
 /** Roadmap 021: the pinned A-run plus the full form snapshot it was run

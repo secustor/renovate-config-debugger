@@ -1,4 +1,4 @@
-import type * as EngineModule from "@renovate-config-visualizer/engine";
+import type * as EngineModule from "@renovate-config-debugger/engine";
 
 /**
  * Roadmap 046: the update-type blocks Renovate's flattening consumes, an

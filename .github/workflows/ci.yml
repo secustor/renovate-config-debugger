@@ -46,17 +46,17 @@ jobs:
       - uses: ./.github/actions/setup
 
       - name: Golden tests (real renovate modules)
-        run: pnpm --filter @renovate-config-visualizer/engine test:golden
+        run: pnpm --filter @renovate-config-debugger/engine test:golden
       - name: Shimmed tests (browser module graph)
-        run: pnpm --filter @renovate-config-visualizer/engine test:shimmed
+        run: pnpm --filter @renovate-config-debugger/engine test:shimmed
       - name: OAuth worker tests
-        run: pnpm --filter @renovate-config-visualizer/oauth-worker test
+        run: pnpm --filter @renovate-config-debugger/oauth-worker test
       - name: App unit tests (pure modules — the run digest, …)
-        run: pnpm --filter @renovate-config-visualizer/app test:unit
+        run: pnpm --filter @renovate-config-debugger/app test:unit
       - name: Dev module graph (Node-only import leaks)
         # `vite dev` serves renovate's transitive deps raw (no CJS interop),
         # a regime neither the Node tests nor the production build exercise.
-        run: pnpm --filter @renovate-config-visualizer/app check:dev-graph
+        run: pnpm --filter @renovate-config-debugger/app check:dev-graph
 
   build:
     needs: setup
@@ -75,7 +75,7 @@ jobs:
           VITE_OAUTH_WORKER_URL: ${{ vars.VITE_OAUTH_WORKER_URL }}
           VITE_GITHUB_APP_SLUG: ${{ vars.VITE_GITHUB_APP_SLUG }}
           VITE_GA_MEASUREMENT_ID: ${{ vars.VITE_GA_MEASUREMENT_ID }}
-        run: pnpm --filter @renovate-config-visualizer/app build
+        run: pnpm --filter @renovate-config-debugger/app build
       - name: Critical-path entry-set sizes (roadmap 031)
         # Prints the gzip size of everything fetched before first paint (the
         # entry script + its modulepreload graph + the stylesheet), so a chunk
@@ -127,19 +127,19 @@ jobs:
       - name: Install Playwright chromium
         # Only chromium, with its OS deps — the e2e suite is chromium-only.
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm --filter @renovate-config-visualizer/app exec playwright install --with-deps chromium
+        run: pnpm --filter @renovate-config-debugger/app exec playwright install --with-deps chromium
 
       - name: Install Playwright OS deps
         # The cache covers ~/.cache/ms-playwright (the browser binaries) but not
         # the apt packages `--with-deps` pulls in, so those are still needed on a
         # hit. Cheap — most are already on the runner image.
         if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: pnpm --filter @renovate-config-visualizer/app exec playwright install-deps chromium
+        run: pnpm --filter @renovate-config-debugger/app exec playwright install-deps chromium
       - name: Browser e2e tests
         # Drives the production dist from the build job via `vite preview`
         # (reuses that output, never rebuilds). Base is "/" everywhere — the
         # site serves from the domain root (renovate.secustor.dev).
-        run: pnpm --filter @renovate-config-visualizer/app test:e2e
+        run: pnpm --filter @renovate-config-debugger/app test:e2e
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -204,7 +204,7 @@ jobs:
 
       # Only the worker package's deps — the deploy needs wrangler (a pinned
       # devDependency there), not the app workspace.
-      - run: pnpm install --frozen-lockfile --prefer-offline --filter @renovate-config-visualizer/oauth-worker
+      - run: pnpm install --frozen-lockfile --prefer-offline --filter @renovate-config-debugger/oauth-worker
 
       # `wrangler deploy` REPLACES dashboard-set vars on every run, so
       # GITHUB_CLIENT_ID is not committed to wrangler.jsonc; it is threaded

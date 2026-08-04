@@ -10,8 +10,8 @@ import type {
   TraceResult,
   TranslatedMessage,
   ValidationMessage,
-} from "@renovate-config-visualizer/engine";
-import type * as EngineModule from "@renovate-config-visualizer/engine";
+} from "@renovate-config-debugger/engine";
+import type * as EngineModule from "@renovate-config-debugger/engine";
 import { HOST_TOKENS } from "@/data/host-tokens";
 import { isValidToken } from "@/lib/input-schemas";
 import { getValidToken } from "./oauth";
@@ -89,7 +89,7 @@ function applyAuth(engine: Engine, oauthToken: string | null, opts?: RunOptions)
  */
 async function engineWithAuth(opts?: RunOptions): Promise<Engine> {
   const [engine, oauthToken] = await Promise.all([
-    import("@renovate-config-visualizer/engine"),
+    import("@renovate-config-debugger/engine"),
     opts?.suppressTokens ? null : getValidToken(),
   ]);
   applyAuth(engine, oauthToken, opts);
@@ -104,7 +104,7 @@ async function engineWithAuth(opts?: RunOptions): Promise<Engine> {
  * failure here is swallowed, the real import on Run will surface it.
  */
 export function preloadEngine(): void {
-  void import("@renovate-config-visualizer/engine").catch(() => {});
+  void import("@renovate-config-debugger/engine").catch(() => {});
 }
 
 /**
@@ -118,13 +118,13 @@ export async function run(input: PipelineInput, opts?: RunOptions): Promise<Trac
 
 /** Option metadata for hover docs; cheap once the engine chunk is loaded. */
 export async function loadOptionIndex(): Promise<OptionIndex> {
-  const engine = await import("@renovate-config-visualizer/engine");
+  const engine = await import("@renovate-config-debugger/engine");
   return engine.getOptionIndex();
 }
 
 /** The bundled Renovate version — for the shareable-link version-drift check. */
 export async function getRenovateVersion(): Promise<string> {
-  const engine = await import("@renovate-config-visualizer/engine");
+  const engine = await import("@renovate-config-debugger/engine");
   return engine.renovateVersion;
 }
 
@@ -145,7 +145,7 @@ export interface ErrorTranslationLib {
 }
 
 export async function loadErrorTranslationLib(): Promise<ErrorTranslationLib> {
-  const engine = await import("@renovate-config-visualizer/engine");
+  const engine = await import("@renovate-config-debugger/engine");
   return {
     translateMessage: engine.translateMessage,
     findMentionedOption: engine.findMentionedOption,

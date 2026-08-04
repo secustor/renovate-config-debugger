@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { renovateShims } from "@renovate-config-visualizer/engine/vite-plugin";
+import { renovateShims } from "@renovate-config-debugger/engine/vite-plugin";
 import { defineConfig } from "vitest/config";
 
 const srcAlias = { "@": fileURLToPath(new URL("./src", import.meta.url)) };

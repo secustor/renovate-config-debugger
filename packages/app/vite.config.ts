@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
-import { renovateShims } from "@renovate-config-visualizer/engine/vite-plugin";
+import { renovateShims } from "@renovate-config-debugger/engine/vite-plugin";
 
 /**
  * Bundle review finding — cuts two dependencies out of the lazy schema chunk

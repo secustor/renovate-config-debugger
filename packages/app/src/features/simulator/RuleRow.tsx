@@ -1,9 +1,5 @@
 import { useEffect, useState } from "react";
-import type {
-  MergedKey,
-  ProvenanceLayer,
-  RuleEvaluation,
-} from "@renovate-config-visualizer/engine";
+import type { MergedKey, ProvenanceLayer, RuleEvaluation } from "@renovate-config-debugger/engine";
 import { CopyMarkdownButton } from "@/components/CopyMarkdownButton";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { ClauseGrid } from "./ClauseGrid";

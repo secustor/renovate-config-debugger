@@ -1,8 +1,4 @@
-import type {
-  ClauseEvaluation,
-  MergedKey,
-  RuleEvaluation,
-} from "@renovate-config-visualizer/engine";
+import type { ClauseEvaluation, MergedKey, RuleEvaluation } from "@renovate-config-debugger/engine";
 
 export function previewValue(value: unknown, max = 60): string {
   const text = JSON.stringify(value) ?? "undefined";

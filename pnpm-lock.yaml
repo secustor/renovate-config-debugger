@@ -50,7 +50,7 @@ importers:
       '@lezer/highlight':
         specifier: 1.2.3
         version: 1.2.3
-      '@renovate-config-visualizer/engine':
+      '@renovate-config-debugger/engine':
         specifier: workspace:*
         version: link:../engine
       '@uiw/react-codemirror':

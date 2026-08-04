@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { MergedKey } from "@renovate-config-visualizer/engine";
+import type { MergedKey } from "@renovate-config-debugger/engine";
 import { CopyMarkdownButton } from "@/components/CopyMarkdownButton";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { type AnchorRect, anchoredCardStyle, anchorRectOf } from "@/lib/anchored-card";

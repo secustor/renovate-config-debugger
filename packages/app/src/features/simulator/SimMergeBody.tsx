@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useRef } from "react";
-import type { SimulationResult } from "@renovate-config-visualizer/engine";
+import type { SimulationResult } from "@renovate-config-debugger/engine";
 import { ConfigJson } from "@/components/ConfigJson";
 import { SequenceChip, SequenceSep, SequenceTimeline } from "@/components/SequenceTimeline";
 import { StepThrough } from "@/components/StepThrough";

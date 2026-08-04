@@ -1,4 +1,4 @@
-# @renovate-config-visualizer/oauth-worker
+# @renovate-config-debugger/oauth-worker
 
 A static SPA cannot finish GitHub's OAuth flow on its own: GitHub requires the
 `client_secret` at the token exchange (even with PKCE) and serves no CORS on
@@ -122,8 +122,8 @@ before GitHub is contacted. Responses reflect the exact matched origin (never
 <summary>Development</summary>
 
 ```bash
-pnpm --filter @renovate-config-visualizer/oauth-worker test        # vitest, fetch stubbed
-pnpm --filter @renovate-config-visualizer/oauth-worker typecheck
+pnpm --filter @renovate-config-debugger/oauth-worker test        # vitest, fetch stubbed
+pnpm --filter @renovate-config-debugger/oauth-worker typecheck
 ```
 
 The request handler is the pure exported `handleRequest(req, env)` so the tests

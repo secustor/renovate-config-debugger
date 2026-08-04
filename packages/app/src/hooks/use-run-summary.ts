@@ -11,7 +11,7 @@
  * counts from the digest would be splitting the two halves of that guarantee.
  */
 import { useMemo } from "react";
-import type { TraceEvent, TraceResult } from "@renovate-config-visualizer/engine";
+import type { TraceEvent, TraceResult } from "@renovate-config-debugger/engine";
 import type { EffectiveStats } from "@/components/EffectiveConfig";
 import { presetTreeSummary } from "@/components/preset-tree-stats";
 import type { ResultsTabDescriptor } from "@/components/ResultsPanel";

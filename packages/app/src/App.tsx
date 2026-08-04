@@ -14,7 +14,7 @@ import type {
   OptionIndex,
   StageId,
   TraceResult,
-} from "@renovate-config-visualizer/engine";
+} from "@renovate-config-debugger/engine";
 import { AdvancedZone } from "@/features/editor/AdvancedZone";
 import { AppHeaderTools } from "@/AppHeaderTools";
 import type { ConfigEditorHandle } from "@/features/editor/ConfigEditor";

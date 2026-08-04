@@ -1,4 +1,4 @@
-import type { PresetNode } from "@renovate-config-visualizer/engine";
+import type { PresetNode } from "@renovate-config-debugger/engine";
 import type { NodeStats, TreeStats } from "@/components/preset-tree-stats";
 
 /** Node ids whose subtree (self or any descendant) matches the query. */

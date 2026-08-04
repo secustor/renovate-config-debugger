@@ -1,5 +1,5 @@
 import { Fragment, memo, type RefObject } from "react";
-import type { SimulationResult } from "@renovate-config-visualizer/engine";
+import type { SimulationResult } from "@renovate-config-debugger/engine";
 import { SummaryDrawer } from "./SummaryDrawer";
 import type { MergeStop } from "./merge-stops";
 import { SimMergeBody } from "./SimMergeBody";

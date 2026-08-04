@@ -1,4 +1,4 @@
-import type { ProvenanceLayer } from "@renovate-config-visualizer/engine";
+import type { ProvenanceLayer } from "@renovate-config-debugger/engine";
 import type { GlossaryEntry } from "@/data/glossary-data";
 
 /**

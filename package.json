@@ -1,10 +1,10 @@
 {
-  "name": "renovate-config-visualizer",
+  "name": "renovate-config-debugger",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @renovate-config-visualizer/app dev",
+    "dev": "pnpm --filter @renovate-config-debugger/app dev",
     "lint": "oxlint --type-aware && pnpm lint:css",
     "lint:css": "stylelint \"packages/app/src/**/*.css\"",
     "format": "oxfmt",

@@ -5,7 +5,7 @@ import type {
   StageId,
   TraceEvent,
   TraceResult,
-} from "@renovate-config-visualizer/engine";
+} from "@renovate-config-debugger/engine";
 import { AuthFailureBanner } from "@/components/AuthFailureBanner";
 import { collectGithubAuthFailures } from "@/features/presets/tree-shared";
 import { EffectiveConfig, type EffectiveStats } from "@/components/EffectiveConfig";

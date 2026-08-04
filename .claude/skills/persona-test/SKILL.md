@@ -43,7 +43,7 @@ personas) you're about to run.
 ## 2. Setup: build and serve
 
 ```sh
-pnpm --filter @renovate-config-visualizer/app build
+pnpm --filter @renovate-config-debugger/app build
 ```
 
 Then, from `packages/app`:

@@ -10,10 +10,9 @@
  * self-hoster's fork is not where a bug report about this app belongs.
  */
 
-// The repository's CURRENT name, which is not the one `git remote -v`, the
-// package directories or the `ghcr.io/…-visualizer` images say: GitHub renamed
-// `renovate-config-visualizer` to `renovate-config-debugger` (the app's own
-// title since 016), and the old name lives on as a redirect. Verified against
+// The repository's CURRENT name: GitHub renamed `renovate-config-visualizer`
+// to `renovate-config-debugger` (the app's own title since 016), and the old
+// name lives on as a redirect. Verified against
 // `gh api repos/secustor/renovate-config-debugger`. A link a user reads before
 // clicking should carry the name they will land on.
 const REPO_URL = "https://github.com/secustor/renovate-config-debugger";
