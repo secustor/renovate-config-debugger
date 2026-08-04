@@ -156,6 +156,20 @@ header.app-header {
   gap: 0.75rem;
 }
 
+/* Roadmap 055: source + issues, as icon-only `.btn quiet` anchors. They are
+   buttons in every respect except the element, so the only thing stated here
+   is what an anchor brings that a button does not — an underline, and the
+   horizontal padding of a label that isn't there. */
+.project-links {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.project-links a {
+  padding: 0.25rem;
+  text-decoration: none;
+}
+
 /* The theme switcher is a `.seg` with icons; only the icon layout is its own. */
 .theme-switch button {
   align-items: center;

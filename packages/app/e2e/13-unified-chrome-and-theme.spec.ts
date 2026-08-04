@@ -219,3 +219,24 @@ test("preset-tree badges are filled, not outlines (036)", async ({ page }) => {
     expect(/,\s*0\s*\)$/.test(value), `badge ${name} is fully transparent (${value})`).toBe(false);
   }
 });
+
+test("the header links out to the source and to the issue tracker (055)", async ({ page }) => {
+  await page.goto("/");
+
+  const source = page.getByRole("link", { name: "Source on GitHub" });
+  const issues = page.getByRole("link", { name: "Report an issue" });
+
+  // Icon-only links: an accessible name is the ONLY name they have, so the
+  // name is what this test locates them by. Both open away from the app, and
+  // `noreferrer` is what keeps `window.opener` out of the new tab.
+  for (const [link, href] of [
+    [source, "https://github.com/secustor/renovate-config-debugger"],
+    [issues, "https://github.com/secustor/renovate-config-debugger/issues"],
+  ] as const) {
+    await expect(link).toBeVisible();
+    await expect(link).toHaveAttribute("href", href);
+    await expect(link).toHaveAttribute("target", "_blank");
+    await expect(link).toHaveAttribute("rel", /noreferrer/);
+    await expect(link.locator("svg")).toBeVisible();
+  }
+});
