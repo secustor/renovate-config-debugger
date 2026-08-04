@@ -21,7 +21,12 @@ export {
 } from "./simulate-compare";
 export { setPresetAuth, type PresetAuth } from "./auth";
 export { deriveUpdateType, renovateVersion } from "./version";
-export { getOptions, mergeChildConfig } from "./renovate-adapter";
+// Roadmap 056 froze this surface for publication. `getOptions()` — Renovate's
+// raw option metadata — is deliberately NOT part of it: `getOptionIndex()`
+// below is this package's own curated view of the same data, and anyone who
+// wants the raw list can call Renovate's `getOptions()` directly (the engine
+// pins the exact version it was built against, so both agree by construction).
+export { mergeChildConfig } from "./config-merge";
 export { getOptionIndex, type OptionDoc, type OptionIndex } from "./option-docs";
 export { listDatasourceNames, listManagerNames } from "./registries";
 export {
