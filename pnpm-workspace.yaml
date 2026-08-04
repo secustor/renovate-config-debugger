@@ -17,5 +17,9 @@ ignoredBuiltDependencies:
   - re2
   - workerd
 
+overrides:
+  # miniflare directly pins a version so this is overwriting to an range starting with a not effected version 
+  miniflare>undici: ^7.29.0
+
 patchedDependencies:
   codemirror-json-schema@0.8.1: patches/codemirror-json-schema@0.8.1.patch
