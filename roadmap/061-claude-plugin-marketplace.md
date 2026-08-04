@@ -8,12 +8,14 @@ Milestone: M16 · Status: proposed
 it": the `claude-code-hint` marker is inert until an official-marketplace
 listing exists, and a raw `claude mcp add` one-liner registers the server
 but carries none of the know-how. Claude Code's plugin system closes both —
-a **marketplace** is nothing more than a `.claude-plugin/marketplace.json`
-in a git repository, and a **plugin** bundles the MCP server registration
-together with a skill that teaches the debugging workflow. This item ships
-both from this repository: `/plugin marketplace add
-secustor/renovate-config-debugger`, then one install, and every later
-session has the tools _and_ knows how to use them.
+a **marketplace** is a `.claude-plugin/marketplace.json` in a git
+repository, and a **plugin** bundles the MCP server registration together
+with a skill that teaches the debugging workflow. This item splits the two
+across the right repos: a thin **`secustor/claude-plugins`** catalog
+repository holding only the marketplace manifest, whose entry points back
+at the plugin directory maintained _here_, next to the CLI it describes.
+`/plugin marketplace add secustor/claude-plugins`, one install, and every
+later session has the tools _and_ knows how to use them.
 
 ## User story
 
@@ -24,11 +26,14 @@ starts with the tools and the workflow already in place.
 
 ## Scope
 
-- `.claude-plugin/marketplace.json` at the repository root — marketplace
-  name `renovate-config-debugger`, plugin sources as relative paths, so the
-  catalog versions with the repo and an update is a push (users refresh via
-  `/plugin marketplace update`).
-- One plugin, `plugins/renovate-config-debugger/`:
+- New repository `secustor/claude-plugins` containing only
+  `.claude-plugin/marketplace.json` (marketplace name `claude-plugins`) and
+  a README — the plugin entry uses the `git-subdir` source type
+  (`{url, path, ref?}`, sparse clone, built for monorepos) pointing at
+  `plugins/renovate-config-debugger` in this repository, so consumers
+  fetch a kilobyte catalog, never this monorepo, and the catalog changes
+  only when a plugin is added or repointed.
+- One plugin, maintained here at `plugins/renovate-config-debugger/`:
   - `.claude-plugin/plugin.json` (name, description, version — the name
     matches 060's hint value, `renovate-config-debugger`).
   - MCP server config launching the published CLI:
@@ -48,12 +53,17 @@ starts with the tools and the workflow already in place.
 
 ## Decisions
 
-- **The marketplace lives in this repo, not a separate one.** A dedicated
-  marketplace repository is infrastructure with no second tenant in sight;
-  in-repo, the plugin and the CLI it launches are versioned and reviewed
-  together, and `/plugin marketplace add secustor/renovate-config-debugger`
-  is the whole hosting story. If more plugins ever accumulate, extraction
-  is mechanical (marketplace entries can point at other repos).
+- **Thin catalog repo, plugin content stays here.** `/plugin marketplace
+add` clones the marketplace repository and re-fetches it on update; an
+  in-repo marketplace would make every plugin consumer clone this entire
+  monorepo to read one JSON file. The split takes the best of both:
+  consumers get a kilobyte catalog that is one `marketplace add` for
+  _every_ future secustor plugin, while the plugin's skill and MCP config
+  stay versioned and reviewed in this repo, next to the CLI whose
+  interface they describe — so the drift risk that normally argues against
+  a second repo doesn't apply (the catalog names the plugin, it doesn't
+  restate its content). The `git-subdir` source's optional `ref` pin is
+  the escape hatch if a plugin release ever needs to lag the repo's HEAD.
 - **The plugin wraps the published CLI, never bundles it.** The plugin's
   MCP config shells out to `pnpm dlx @renovate-config-debugger/cli`; the
   plugin version can therefore lag the CLI's without breaking, and a
