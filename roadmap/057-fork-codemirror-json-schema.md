@@ -42,8 +42,10 @@ patch-refresh and a re-measurement.
 
 Together: 242.3 ms → 1.9 ms per completion (measured on the `{ "ran| }`
 fixture against the Renovate schema; verified end-to-end in the app at
-1.95 ms), and the two bundle cuts that keep 031's lazy schema chunk at
-~160 kB gz.
+1.95 ms), and a schema payload at editor mount of 82 kB gz instead of 172 —
+total JS 3,294 → 2,955 kB, with every other engine chunk md5-identical
+(measured in `525a96f`, 2026-07-27; 031's "~160 kB gz schema layer" is the
+figure from *before* these cuts).
 
 ## Scope
 
@@ -173,9 +175,10 @@ they do.
 - `packages/app/src/platform/editor-schema.ts` — the static import and the
   lazy `import("…/json5")`.
 - `.oxlintrc.json` — four `no-restricted-imports` rules name the package by
-  specifier to keep the ~160 kB gz schema stack behind
-  `platform/editor-schema.ts` (031). All four must name the new package, or
-  the guard silently stops guarding.
+  specifier to keep the schema stack behind `platform/editor-schema.ts`
+  (031). All four must name the new package, or the guard silently stops
+  guarding. Their message still quotes 031's pre-shim "~160 kB gz"; worth
+  refreshing to the current 82 while touching all four anyway.
 - Prose references to the package name (`keystroke-render.test.tsx`'s comment
   on why no hover mock is needed, `patches/README.md`, `AGENTS.md`). No test
   or script matches on the specifier, so nothing here can fail silently.
@@ -253,9 +256,9 @@ prove, and the reason to move the fix into source. In this repository, 032's
 keystroke test must match the patched baseline (~1.9 ms per completion), not
 merely beat the unpatched one.
 
-**1.0.0 (bundle).** The schema chunk must not grow past its post-shim size
-(031's ~160 kB gz), measured after the shim plugin is deleted — the fork now
-has to be doing what the plugin did. The e2e suite is what actually exercises
+**1.0.0 (bundle).** The schema payload at editor mount must still be 82 kB gz,
+not 172, once the shim plugin is deleted — the fork now has to be doing what
+the plugin did, and `525a96f`'s measurement is the baseline to reproduce. The e2e suite is what actually exercises
 hover, completion and validation in a real browser, and is where an
 over-aggressive markdown or parser change would surface.
 
