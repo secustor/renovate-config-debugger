@@ -70,7 +70,11 @@ rediscover which of Renovate's internals refuse to load off a server.
 
 - **Version scheme: `0.x`, minor = breaking, plus a compat table.** Until the
   export surface settles, `0.x` with breaking changes in the minor is the
-  honest signal. Every release row records `engine` → `renovate` →
+  honest signal — and with a Renovate bump able to force a release at any
+  time, iteration here is expected to be fast for the foreseeable future.
+  No `1.0.0` is scheduled; it is a decision to make once the exports have
+  stopped moving, not a milestone to aim at. `^0.x` ranges not crossing the
+  minor is the mechanism that keeps that safe for consumers. Every release row records `engine` → `renovate` →
   `renovate-schema` so a consumer can answer "which Renovate does this
   reproduce?" without unpacking the tarball. `renovateVersion` is already
   exported from `src/version.ts` and stays the runtime answer to the same

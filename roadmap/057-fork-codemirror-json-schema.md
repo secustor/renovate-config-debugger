@@ -65,7 +65,10 @@ figure from *before* these cuts).
 | --- | --- | --- |
 | **0.8.1** | upstream `v0.8.1` verbatim, renamed | nothing — a specifier rename |
 | **0.9.0** | + the three `Draft0x` memoizations | 242.3 ms → 1.9 ms per completion; no API change, no visible change |
-| **1.0.0** | + markdown-it rendering, YAML behind `/yaml` | **breaking**: tooltip code fences lose syntax colours, the parsers barrel no longer pulls YAML |
+| **0.10.0** | + markdown-it rendering, YAML behind `/yaml` | **breaking**: tooltip code fences lose syntax colours, the parsers barrel no longer pulls YAML |
+
+There is no `1.0.0` on this roadmap. The fork stays in `0.x` for as long as
+it exists — see the versioning decision below.
 
 ### What "identical" means for 0.8.1, and how it's proven
 
@@ -136,8 +139,19 @@ would make the "no-op" switch quietly not one.
   fork-point commit plus every upstream release merged since (the same
   compat-table pattern as 056).
 
+- **Stay in `0.x`; there is no `1.0.0`.** The fork is expected to iterate
+  fast and to be short-lived — a `1.0.0` would promise a stability we have no
+  intention of offering while upstream's own shape is still moving underneath
+  us, and it would make every subsequent breaking change a major bump we'd
+  have to justify. In `0.x` the minor is the breaking slot (the same scheme
+  056 uses for the engine), which also makes npm's own defaults do the right
+  thing: `^0.9.0` does **not** match `0.10.0`, so a consumer never picks up
+  the bundle changes without deciding to. If the fork ever outlives its
+  purpose enough to deserve a stable major, that is a decision made then, on
+  evidence, not scheduled here.
+
 - **One release per class of change.** The memoizations (`0.9.0`) are
-  behavior-preserving and measurable; the bundle changes (`1.0.0`) are
+  behavior-preserving and measurable; the bundle changes (`0.10.0`) are
   breaking and visible. Bundling them into one release would force a consumer
   to accept unhighlighted tooltips in order to get the 240 ms back, and would
   leave us unable to tell which change moved a number when one of them
@@ -192,7 +206,7 @@ entry and its `patches/README.md` section. Guarded by 032's keystroke-render
 test: the per-completion number must match the patched baseline, because the
 fix is the same fix.
 
-**Step 3 — drop the shims (onto `1.0.0`).** Delete
+**Step 3 — drop the shims (onto `0.10.0`).** Delete
 `codemirrorJsonSchemaShims()` from `vite.config.ts` along with its ~40 lines
 of rationale comment, and `src/platform/shims/codemirror-json-schema-*.ts`.
 Update `editor-schema.ts`'s comments that reason about upstream's `bundled.js`
@@ -211,8 +225,9 @@ size, which must not grow.
   lose syntax colours (already the accepted delta today), and a consumer
   importing the parsers barrel expecting YAML gets an error instead. Both are
   breaking for hypothetical other consumers, which is why they land alone in
-  `1.0.0` with the deltas listed at the top of its README, rather than riding
-  along with the perf fixes.
+  `0.10.0` with the deltas listed at the top of its README, rather than riding
+  along with the perf fixes. Under `0.x` a caret range does not cross the
+  minor, so nobody gets them by accident.
 - **A mirror release can be misread as an endorsement to switch.** `0.8.1`
   under our name is upstream's code, published by us, and someone finding it
   may assume it's maintained beyond the five changes we care about. The
@@ -256,7 +271,7 @@ prove, and the reason to move the fix into source. In this repository, 032's
 keystroke test must match the patched baseline (~1.9 ms per completion), not
 merely beat the unpatched one.
 
-**1.0.0 (bundle).** The schema payload at editor mount must still be 82 kB gz,
+**0.10.0 (bundle).** The schema payload at editor mount must still be 82 kB gz,
 not 172, once the shim plugin is deleted — the fork now has to be doing what
 the plugin did, and `525a96f`'s measurement is the baseline to reproduce. The e2e suite is what actually exercises
 hover, completion and validation in a real browser, and is where an
