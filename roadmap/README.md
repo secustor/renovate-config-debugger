@@ -66,6 +66,9 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [059](059-publish-cli-package.md)                       | Publish the CLI as `@renovate-config-debugger/cli` (experimental) | M16                  | proposed |
 | [060](060-mcp-server-and-agent-discovery.md)            | `rcv mcp` + pointing agents at the headless interface             | M16                  | proposed |
 | [061](061-claude-plugin-marketplace.md)                 | Claude plugin marketplace for the debugger                        | M16                  | proposed |
+| [062](062-results-tab-taxonomy.md)                      | Results tabs: `Simulator` → `packageRules`, + `Extraction`        | M17                  | proposed |
+| [063](063-custom-manager-extraction.md)                 | Custom-manager extraction simulator                               | M17                  | proposed |
+| [064](064-extraction-fidelity-and-mismatch.md)          | Extraction fidelity: RE2 gap + unmatched comments                 | M17                  | proposed |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live
@@ -192,3 +195,18 @@ plugin bundling the MCP server registration with a skill that carries the
 debugging workflow itself — so an installed session starts with the tools
 and the sequencing knowledge together, and consumers never clone the
 monorepo for a kilobyte of catalog.
+
+M17 — **Extraction** — is deferred until the current feature set (054's
+remaining variants in particular) has stabilized. It originates in
+[renovatebot/renovate#45071](https://github.com/renovatebot/renovate/discussions/45071)
+— custom-manager comments that silently match nothing — and is scoped by
+the spike in
+[2026-08-custom-manager-simulation-feasibility.md](2026-08-custom-manager-simulation-feasibility.md),
+which proved Renovate's own extraction code runs unmodified in the browser
+module graph, no new shims required. Build the three in order: 062 fixes
+the tab taxonomy before a second simulator makes `Simulator` a name that
+distinguishes nothing, 063 is the feature (the first input the app has
+ever taken that is not a config), and 064 makes its claims honest — real
+Renovate compiles `matchStrings` with RE2, the browser falls back to
+native `RegExp`, and the two diverge in both directions — while answering
+the discussion's actual question.
