@@ -63,37 +63,140 @@ Two things make this awkward beyond the usual shim caveats:
 './build/Release/re2.node'` on Node 26), so the golden project _also_ falls
   back to native and the invariant passes vacuously. Verified, not assumed.
 - Named capture groups — `(?<depName>…)`, the thing every custom manager uses —
-  _are_ RE2-supported. A lint must not false-positive on them.
+  _are_ RE2-supported, so whatever checks patterns must not flag them.
 
-Mitigation options, cheapest first:
+### 3.1 Can native `RegExp` be configured to behave like RE2?
 
-1. **Static pattern lint** (~50 lines, pure, no upstream dep): flag `(?=`,
-   `(?!`, `(?<=`, `(?<!`, `\1`, `\k<…>` and surface "RE2 rejects this; real
-   Renovate would fail validation". Deliberately narrow and honest about being
-   a heuristic. Recommended.
-2. Bundle a WASM RE2 build and use it as the engine. Highest fidelity, but a
-   new large dependency and a second engine to keep in step — worth pricing
-   separately, not in a first version. (I have not verified any specific WASM
-   RE2 package works in this bundle.)
+**No.** There is no flag, option, or constructor argument in any shipping
+browser that restricts `RegExp` to the RE2 language. Two near-misses, both
+measured:
 
-Precedent for shipping a known, named gap exists: `conda` versioning is
-excluded and reports an honest error (CLAUDE.md).
+- **V8's linear-time engine is real but not web-reachable.** V8 ships a
+  non-backtracking engine behind an `l` flag that rejects precisely the
+  non-regular constructs: `new RegExp("a(?=b)", "l")` fails with _"Cannot be
+  executed in linear time"_. But it requires `--enable-experimental-regexp-engine`
+  at V8 startup — verified: without it, even `new RegExp("a", "l")` is a
+  `SyntaxError`. It is not exposed to web content, and Firefox and Safari have
+  no equivalent at all.
+- **It would only fix one direction anyway.** `l` covers "JS accepts what RE2
+  rejects". It does nothing for "RE2 accepts what JS rejects" — verified below.
 
-## 4. Effort
+The divergence is genuinely two-way, and one class of it is silent:
+
+| Construct                 | RE2     | native `RegExp`       | Direction                                |
+| ------------------------- | ------- | --------------------- | ---------------------------------------- |
+| `(?<name>…)` named group  | accepts | accepts               | — (what real configs use)                |
+| lookahead `(?=`, `(?!`    | rejects | accepts               | works here, fails in prod                |
+| lookbehind `(?<=`, `(?<!` | rejects | accepts               | works here, fails in prod                |
+| backref `\1`, `\k<n>`     | rejects | accepts               | works here, fails in prod                |
+| inline flags `(?i)`       | accepts | **`SyntaxError`**     | fails here, works in prod                |
+| POSIX `[[:alpha:]]`       | letters | **matches `[:alph]`** | **silent** — no error, different matches |
+| `\p{L}` without `u`       | letters | **literal `p{L}`**    | **silent** — no error, different matches |
+
+The last two are the reason a static lint is not sufficient: both engines
+compile the pattern without complaint and simply match different things.
+
+### 3.2 Recommended: `re2js` as an oracle, not as the engine
+
+[`re2js`](https://www.npmjs.com/package/re2js) is a pure-JS port of RE2 (no
+WASM, no native binding), actively maintained, **60 KB gzipped** (246 KB raw).
+Probed against every row above: it reproduces RE2's accept/reject decisions
+exactly, and matches `[[:alpha:]]+` against `"abc"` where native `RegExp`
+returns `null`.
+
+Use it **beside** native `RegExp`, not instead of it:
+
+- **Extraction keeps using upstream's own code path** (native `RegExp` via
+  `regEx()`), so what the app shows is produced by Renovate's real functions.
+- **`re2js` compiles each `matchString` as a validator**, giving exact,
+  non-heuristic verdicts in _both_ directions: "RE2 rejects this — Renovate
+  would fail validation", and "this is valid RE2 that cannot be previewed in a
+  browser" instead of a bogus syntax error.
+- **Running both engines over the sample file catches the silent cases**: if the
+  match spans differ, warn. That is an empirical check no static lint can make.
+
+Swapping `re2js` in as the engine (via the existing `expose.ts` `re2()` slot)
+is the higher-fidelity option but materially more work: `re2js` is not
+RegExp-API-compatible, so the shim would have to implement `exec` with
+`lastIndex` advancement, `test`, and the well-known symbols
+(`Symbol.replace`/`Symbol.match`) that Renovate relies on via
+`String.replace(regEx(…), …)` — and each unimplemented symbol is a silent
+break. Not for a first version.
+
+**Reassurance on priority:** all 60 `matchStrings` in Renovate's own bundled
+`custom-managers` presets use named groups and nothing else — zero RE2-only or
+JS-only constructs. The common subset is where real configs live, so this is an
+edge-case guard, not a blocker. Precedent for shipping a known, named gap
+exists: `conda` versioning is excluded and reports an honest error (CLAUDE.md).
+
+## 4. Decided design
+
+Two decisions are settled and should not be re-litigated during build.
+
+### 4.1 The preprocess input lives in `ConfigColumn`
+
+The files being matched are **input**, not results — they belong on the input
+half of the split, in `ConfigColumn.tsx`, alongside the config editor, its
+toolbar and the Advanced zone. Not in a results tab, and not in a modal.
+
+This means `ConfigColumn` has to grow a representation it does not have today:
+**a set of `{ path, content }` pairs**, not a single text buffer. Concretely:
+
+- The path is a first-class field, not decoration — `managerFilePatterns`
+  matches against it, so `Dockerfile` vs `docker/Dockerfile.ci` changes the
+  answer. Every content buffer needs an editable path next to it.
+- More than one file must be representable, because "which of my files does
+  this manager miss?" is the question being asked; a single-file input answers
+  a strictly weaker one.
+- `ConfigColumn` already threads its state through props (it is a presentational
+  component — ~30 props, no local state). Adding an n-file list this way would
+  make the prop list unmanageable, so the file set should arrive as one grouped
+  prop (or a small already-constructed element, the pattern `advancedZone`
+  already uses) rather than as a dozen new flat props.
+- `jsx-max-depth: 3` applies: the file list is its own component under
+  `features/editor/`, not nesting inside the existing editor card.
+
+### 4.2 Extraction runs on demand, never across all files
+
+Do **not** extract from every file on every keystroke, or even on every run.
+Each file × each custom manager is a full regex sweep with a 10 000-iteration
+ceiling per `matchString` (upstream's `regexMatchAll` cap), plus handlebars
+compilation per matched dependency — the cost scales with
+`files × managers × matchStrings` and lands directly on the typing path the
+`render` vitest project exists to protect.
+
+Instead:
+
+- Extraction is triggered per file, on explicit demand — opening/selecting that
+  file's result, or an explicit action — not as a batch pass over the set.
+- Results are memoized per `(file content, manager config)` pair so a re-render,
+  or reselecting a file, costs nothing.
+- Anything that must be shown for all files at once (e.g. a "3 files matched no
+  dependencies" summary) should be derived from the cheap step only —
+  `getMatchingFiles` on paths, which touches no file content — with the
+  expensive extraction still deferred until that file is opened.
+
+This also keeps the door open to the repo-fetch path (007) later: a repo's worth
+of files can be listed and pattern-matched cheaply, with content fetched and
+extracted only for the file the user actually opens.
+
+## 5. Effort
 
 Roughly **one week** for a version worth shipping; **1–2 days** for a
 demonstrable proof of concept. Split:
 
-**Engine — ~0.5–1 day.** A `simulate-custom-managers.ts` (~250 lines) beside
+**Engine — ~1 day.** A `simulate-custom-managers.ts` (~250 lines) beside
 `simulate-package-rules.ts`: 3 new re-exports in `renovate-adapter.ts`, input =
-`{ files: {path, content}[], config }`, run `getMatchingFiles` per custom
-manager, run `extractPackageFile`, collect the logger trace, return per-file
-results. Match spans come from `indexOf(replaceString)` — upstream's own
-auto-replace anchor, so no second regex pass to drift from. Plus the RE2 lint.
-Tests: a golden/shimmed pair on RE2-safe fixtures.
+`{ files: {path, content}[], config }`, split into the cheap path-only step
+(`getMatchingFiles`) and the per-file extraction step 4.2 defers, run
+`extractPackageFile`, collect the logger trace, return per-file results. Match
+spans come from `indexOf(replaceString)` — upstream's own auto-replace anchor,
+so no second regex pass to drift from. Plus the `re2js` oracle (§3.2), lazily
+imported so its 60 KB stays off the critical path (031). Tests: a golden/shimmed
+pair on RE2-safe fixtures, and a pure unit test for the oracle's verdicts.
 
-**App — ~2–3 days, the bulk.** A file-input surface (path + content, ideally
-n files) and a results view. New results tab, wired into `results-tabs.ts`.
+**App — ~2–3 days, the bulk.** The `ConfigColumn` file-set input of §4.1 and a
+results view for what came out. New results tab, wired into `results-tabs.ts`.
 The reusable parts of the existing simulator (drawers, evidence cards, thread
 nav) do not transfer directly — this is a different shape of answer.
 `jsx-max-depth: 3` means decomposition up front, not after.
@@ -106,10 +209,11 @@ matched spans, flag any line matching a probe pattern (default `#\s*renovate:`)
 that falls outside all of them. Pure, testable, no upstream dependency — and it
 lets this app demonstrate the feature while #45071 is still an open idea.
 
-Biggest unknown is not technical: **how many files at once**. One file keeps
-the UI trivial; a repo's worth is what actually reproduces "which of my 200
-Dockerfiles has the typo", and pulls in the repo-fetch path (007) and
-`ignorePaths`/`includePaths`.
+Remaining open question: how the file set is **populated** — hand-authored
+entries only, or fed from the repo-fetch path (007), which also brings
+`ignorePaths`/`includePaths` into scope. §4.2's split (cheap path matching now,
+content extraction on demand) is what makes the repo-scale version tractable
+later, so the first version should not foreclose it.
 
 ## Appendix — reproducing the spike
 
