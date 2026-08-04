@@ -18,7 +18,7 @@ ignoredBuiltDependencies:
   - workerd
 
 overrides:
-  # miniflare directly pins a version so this is overwriting to an range starting with a not effected version 
+  # miniflare directly pins a version so this is overwriting to an range starting with a not effected version
   miniflare>undici: ^7.29.0
 
 patchedDependencies:
