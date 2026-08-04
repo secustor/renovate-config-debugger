@@ -59,6 +59,8 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [052](052-post-resolution-remigration.md)               | Fidelity: re-migrate the resolved config (upstream parity) | M14                  | done   |
 | [053](053-analytics-localhost-exclusion.md)             | Analytics: CI is not an audience, not tracked on localhost | M14                  | done   |
 | [055](055-header-project-links.md)                      | Header links to the source and the issue tracker           | M14                  | done   |
+| [056](056-publish-engine-package.md)                    | Publish the engine as `@renovate-config-debugger/engine`   | M15                  | proposed |
+| [057](057-fork-codemirror-json-schema.md)               | Fork + publish `codemirror-json-schema`                    | M15                  | proposed |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live
@@ -150,3 +152,15 @@ approved
 [mockups/051/effective-config-output.html](mockups/051/effective-config-output.html)
 (variant B; the originally proposed filter-bar checkbox was rejected as
 a mode masquerading as a filter).
+
+M15 — **Packages** — is the second distribution milestone (after M11's
+images), aimed at npm rather than at self-hosters. 056 publishes the
+engine as `@renovate-config-debugger/engine`: it is the only part of the
+repository that isn't app-specific, and today nothing outside the
+workspace can use it — its `exports` point at `.ts` sources and it is
+`private`. 057 replaces the two local workarounds under the editor — a
+pnpm patch against `codemirror-json-schema`'s build output and a Vite
+shim plugin that cuts two of its modules — with a source-level fork
+published under the same scope, upstream having merged nothing since
+2025-04-21. Both need the npm organization to exist first; whichever
+lands first creates it.
