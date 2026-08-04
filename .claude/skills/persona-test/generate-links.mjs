@@ -42,7 +42,7 @@
  *
  * Examples:
  *   node generate-links.mjs --list
- *   node generate-links.mjs -c scenarios/44772-monorepo-preset.md -p 4173
+ *   node generate-links.mjs -c scenarios/44958-category-grouping.md -p 4173
  *   node generate-links.mjs -c /tmp/my-config.json -p 4173 --renovate 43.275.0
  */
 
@@ -83,7 +83,7 @@ Options:
 
 Examples:
   node generate-links.mjs --list
-  node generate-links.mjs -c scenarios/44772-monorepo-preset.md -p 4173
+  node generate-links.mjs -c scenarios/44958-category-grouping.md -p 4173
   node generate-links.mjs -c /tmp/my-config.json -p 4173 --renovate 43.275.0
 `;
 
