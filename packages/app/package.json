@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./headless": "./src/lib/headless.ts"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
