@@ -1,6 +1,6 @@
 # 056 — Publish the engine as `@renovate-config-debugger/engine`
 
-Milestone: M15 · Status: proposed
+Milestone: M15 · Status: done (2026-08-05)
 
 ## Summary
 
@@ -167,3 +167,50 @@ rediscover which of Renovate's internals refuse to load off a server.
   green.
 - A dry-run publish (`pnpm publish --dry-run`) whose file list is reviewed by
   hand once, so nothing from `test/` or `scripts/` ships.
+
+## As implemented (2026-08-05)
+
+- **`publishConfig`, not a second manifest.** `exports` on disk still points at
+  `src/*.ts`, so the app, the golden/shimmed projects and `vite dev` load
+  exactly what they loaded before; pnpm rewrites `exports`/`types` onto
+  `dist/` when it packs. Verification therefore reads: the repo's suites prove
+  the sources, and the packaging suite proves the tarball. Pointing the
+  workspace at `dist/` instead would have made every dev edit require a build
+  for no gain the packed artifact doesn't already give.
+- **Packaging tests are one vitest project, `packaging`**, wired into CI's
+  test job and re-run by the publish workflow before it uploads anything.
+  It packs, unpacks into a scratch consumer's `node_modules`
+  (tarball + the manifest's own dependencies, symlinked), asserts the packed
+  manifest and file list, **type-checks a consumer that imports all three
+  entry points** against the tarball, and loads the packed Vite plugin to
+  require every shim it redirects to inside `dist/`.
+- **`publint`/`attw` were not adopted.** The scratch consumer above is the
+  same check with a sharper edge (it caught two real defects while being
+  written: the shim map's hard-coded `.ts` suffixes, and `fast-json-patch`
+  reaching the public declarations), and it needs no new dependency. `attw`
+  specifically would report node16 resolution errors that no supported
+  consumer hits: the emitted ESM is deliberately bundler-targeted
+  (extensionless relative specifiers; `renovate/package.json` and
+  `renovate/renovate-schema.json` imported as JSON), which is the same reason
+  "plain Node without a bundler" is out of scope above.
+- **Export-surface audit outcome:** `getOptions` was dropped from `.`, and
+  `mergeChildConfig` moved to `src/config-merge.ts` where its signature is
+  declared locally. Both for the same reason: `renovate-adapter.ts` re-exports
+  a dozen `renovate/dist` modules that ship no `.d.ts` (this repo declares them
+  ambiently in `src/types/`, which does not travel in a tarball), so a public
+  entry point must not route through it. `getOptionIndex()` remains the
+  engine's own view of the option metadata. `error-translations`,
+  `error-fix-text` and `option-docs` were kept as recommended, with no
+  "unstable" subpath: nothing in their shapes is dictated by an app component.
+- **`sideEffects: false` was not set.** The shim modules are pulled into a
+  consumer's graph by a `resolveId` redirect from inside `renovate/dist`, not
+  by an import from this package's own entry points; a blanket
+  side-effect-free claim over that tree is not one this package can honestly
+  make, and it would silently change the app's own bundle (same manifest,
+  workspace resolution) with only the e2e suite as a guard.
+- **Left for the publish-time human:** create the `@renovate-config-debugger`
+  npm organization; add the `NPM_TOKEN` secret and the `npm-publish`
+  environment to the repository; then push the first `engine-v0.1.0` tag. The
+  workflow refuses to publish if the tag and `packages/engine/package.json`
+  disagree, and re-runs lint/format/typecheck/golden/shimmed/packaging before
+  it uploads.
