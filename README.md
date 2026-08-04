@@ -73,8 +73,8 @@ overriding them is explicit and visibly warned.
 
 ## Self-hosting (Docker)
 
-> [!WARN]
-> Docker setups are experimental at the moment
+> [!WARNING]
+> Docker setups are experimental at the moment.
 
 The app is a static bundle, so hosting it is the one container above. There is
 also [`docker-compose.yml`](docker-compose.yml), a worked example of both
@@ -84,6 +84,13 @@ services with every optional variable present but commented out:
 docker compose up            # published images
 docker compose up --build    # build from this checkout instead
 ```
+
+The two services are the app image above and the optional
+`ghcr.io/secustor/renovate-config-visualizer-oauth-proxy` (token exchange, Node,
+port 8788). Both are configured at run time, not build time, so one image serves
+an OAuth-off and an OAuth-on deployment. With both required variables set the
+container writes `/rcv-config.js` at startup and the sign-in UI appears;
+otherwise the shipped stub stays and the feature is off.
 
 | Variable                | Required for sign-in | Notes                                                               |
 | ----------------------- | -------------------- | ------------------------------------------------------------------- |

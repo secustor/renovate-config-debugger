@@ -10,8 +10,12 @@
  * self-hoster's fork is not where a bug report about this app belongs.
  */
 
-// The repository was renamed to `renovate-config-debugger`; the old name still
-// redirects, but a link the user can read should carry the current one.
+// The repository's CURRENT name, which is not the one `git remote -v`, the
+// package directories or the `ghcr.io/…-visualizer` images say: GitHub renamed
+// `renovate-config-visualizer` to `renovate-config-debugger` (the app's own
+// title since 016), and the old name lives on as a redirect. Verified against
+// `gh api repos/secustor/renovate-config-debugger`. A link a user reads before
+// clicking should carry the name they will land on.
 const REPO_URL = "https://github.com/secustor/renovate-config-debugger";
 const ISSUES_URL = `${REPO_URL}/issues`;
 
@@ -22,12 +26,12 @@ const ICONS = {
     "M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z",
 } as const;
 
-const LINKS: readonly { key: keyof typeof ICONS; href: string; label: string; title: string }[] = [
+/** `title` only where the hover text says more than the accessible name. */
+const LINKS: readonly { key: keyof typeof ICONS; href: string; label: string; title?: string }[] = [
   {
     key: "repo",
     href: REPO_URL,
     label: "Source on GitHub",
-    title: "Source on GitHub",
   },
   {
     key: "issues",
@@ -48,7 +52,7 @@ export function ProjectLinks() {
           target="_blank"
           rel="noreferrer"
           aria-label={label}
-          title={title}
+          title={title ?? label}
         >
           <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
             <path d={ICONS[key]} />

@@ -170,10 +170,6 @@ header.app-header {
   text-decoration: none;
 }
 
-.project-links a:hover {
-  color: var(--accent);
-}
-
 /* The theme switcher is a `.seg` with icons; only the icon layout is its own. */
 .theme-switch button {
   align-items: center;
