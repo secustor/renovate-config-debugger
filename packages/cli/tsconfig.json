@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": ["node", "vite/client"],
+    "paths": {
+      "@/*": ["../app/src/*"]
+    }
+  },
+  "include": [
+    "src",
+    "test",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "../engine/src/types/renovate-dist.d.ts"
+  ]
+}

@@ -1,6 +1,6 @@
 # 058 — `rcv`: the debugger CLI on the shimmed engine
 
-Milestone: M16 · Status: proposed · Stability: **experimental**
+Milestone: M16 · Status: done (2026-08-05) · Stability: **experimental**
 
 The CLI is an experimental surface: its subcommands, flags and output
 shapes may change in any release while the interface finds its users.
@@ -86,3 +86,41 @@ plain-Node import.
   pass/fail on the file as written, no preset resolution. `rcv` is the
   debugger; both run the same pinned `renovate` code, so they cannot
   disagree about semantics.
+
+## As built (2026-08-05)
+
+- `packages/cli`: `bin/rcv.mjs` boots `createServer({ configFile: vite.config.ts })`
+  and `ssrLoadModule("/src/main.ts")`. The spike's two-server bootstrap turned
+  out to be unnecessary — Vite loads its own TS config (and with it the shim
+  plugin, imported by package name exactly as `packages/app/vite.config.ts`
+  does it), so one server suffices. `server.hmr: false` alone still binds the
+  dev WebSocket port; `ws: false` is what makes this a process that opens no
+  sockets.
+- The bin is the only file that touches the process. `renovateShims()` sets
+  `define: { "process.env": "{}" }` for the whole graph, so argv, env and
+  stdio are handed to `main(argv, io)` as data — which is also what lets the
+  tests drive every subcommand in-process.
+- **The hoist went further than one function.** `EffectiveConfig.tsx`'s tally
+  is now `lib/effective-tally.ts`, and the digest ASSEMBLY (which was inline in
+  the `use-run-summary` hook, i.e. equally unreachable) is `lib/run-facts.ts`:
+  `deriveRunFacts` + `buildDigestInput`. The hook got shorter and now makes one
+  pass over the event stream instead of three. `@renovate-config-debugger/app/headless`
+  is the single subpath export the CLI imports them through; nothing from
+  `features/` may be added to it (the shared layer must not import a feature).
+- `--inject` needs a preset IDENTITY, which is Renovate's business, not the
+  CLI's. So the run happens once without injections, the named preset is looked
+  up in the resulting tree and its own `source` produces the key — the same
+  path the app's "provide content" action takes. No preset-string parser was
+  added.
+- Exit `2` applies to every pipeline-running subcommand, not just `validate`:
+  once Renovate would refuse the config, every answer that follows is
+  hypothetical (023's framing), and a uniform rule is one thing to document.
+- `simulate`'s pretty output reports the merge DELTA rather than
+  `finalDependencyConfig` — the latter is the effective config with all of
+  Renovate's defaults in it, which buries the answer. `--format json` still
+  carries the whole document.
+
+Left open: the `renovate-config-validator` comparison is documented, not
+tested; nothing yet asserts that the CLI and the app produce byte-identical
+digests for the same config (they call the same functions, which is the
+structural version of that guarantee).

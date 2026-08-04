@@ -1,0 +1,4 @@
+{
+  "labels": ["deps"],
+  "packageRules": [{ "matchPackageNames": ["react"], "groupName": "react monorepo" }]
+}
