@@ -113,7 +113,7 @@ importers:
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.1.2)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(yaml@2.9.0))
 
   packages/cli:
-    dependencies:
+    devDependencies:
       '@modelcontextprotocol/client':
         specifier: 2.0.0
         version: 2.0.0
@@ -126,16 +126,12 @@ importers:
       '@renovate-config-debugger/engine':
         specifier: workspace:*
         version: link:../engine
-      commander:
-        specifier: 15.0.0
-        version: 15.0.0
-      zod:
-        specifier: 4.4.3
-        version: 4.4.3
-    devDependencies:
       '@types/node':
         specifier: 26.1.2
         version: 26.1.2
+      commander:
+        specifier: 15.0.0
+        version: 15.0.0
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -145,6 +141,9 @@ importers:
       vitest:
         specifier: 4.1.10
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.1.2)(jsdom@30.0.1)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(yaml@2.9.0))
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
 
   packages/engine:
     dependencies:
