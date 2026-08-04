@@ -1,5 +1,5 @@
 import { memo } from "react";
-import type { StageId, TraceResult } from "@renovate-config-visualizer/engine";
+import type { StageId, TraceResult } from "@renovate-config-debugger/engine";
 import { JsonDiff } from "./JsonDiff";
 
 interface Props {

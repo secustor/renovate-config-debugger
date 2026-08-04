@@ -1,5 +1,5 @@
 import { type Dispatch, type KeyboardEvent, type SetStateAction, useMemo, useState } from "react";
-import type * as EngineModule from "@renovate-config-visualizer/engine";
+import type * as EngineModule from "@renovate-config-debugger/engine";
 import { EMPTY_FORM, type FormState, UPDATE_TYPES } from "./form";
 
 export interface SimulatorForm {

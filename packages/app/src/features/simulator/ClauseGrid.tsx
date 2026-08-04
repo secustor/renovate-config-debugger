@@ -1,4 +1,4 @@
-import type { ClauseEvaluation } from "@renovate-config-visualizer/engine";
+import type { ClauseEvaluation } from "@renovate-config-debugger/engine";
 import { clauseEvaluated, clauseIcon, previewValue } from "./rule-format";
 
 /**

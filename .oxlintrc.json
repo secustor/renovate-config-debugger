@@ -178,8 +178,8 @@
                 "group": [
                   "codemirror-json-schema",
                   "codemirror-json-schema/**",
-                  "@renovate-config-visualizer/engine/schema",
-                  "@renovate-config-visualizer/engine/schema/**"
+                  "@renovate-config-debugger/engine/schema",
+                  "@renovate-config-debugger/engine/schema/**"
                 ],
                 "message": "codemirror-json-schema and the engine's schema export may only be imported statically from platform/editor-schema.ts — that's the one place the ~160 kB gz schema stack is allowed into a chunk (roadmap 031)."
               }
@@ -268,8 +268,8 @@
                 "group": [
                   "codemirror-json-schema",
                   "codemirror-json-schema/**",
-                  "@renovate-config-visualizer/engine/schema",
-                  "@renovate-config-visualizer/engine/schema/**"
+                  "@renovate-config-debugger/engine/schema",
+                  "@renovate-config-debugger/engine/schema/**"
                 ],
                 "message": "codemirror-json-schema and the engine's schema export may only be imported statically from platform/editor-schema.ts — that's the one place the ~160 kB gz schema stack is allowed into a chunk (roadmap 031)."
               }
@@ -321,8 +321,8 @@
                 "group": [
                   "codemirror-json-schema",
                   "codemirror-json-schema/**",
-                  "@renovate-config-visualizer/engine/schema",
-                  "@renovate-config-visualizer/engine/schema/**"
+                  "@renovate-config-debugger/engine/schema",
+                  "@renovate-config-debugger/engine/schema/**"
                 ],
                 "message": "codemirror-json-schema and the engine's schema export may only be imported statically from platform/editor-schema.ts — that's the one place the ~160 kB gz schema stack is allowed into a chunk (roadmap 031)."
               }
@@ -360,8 +360,8 @@
                 "group": [
                   "codemirror-json-schema",
                   "codemirror-json-schema/**",
-                  "@renovate-config-visualizer/engine/schema",
-                  "@renovate-config-visualizer/engine/schema/**"
+                  "@renovate-config-debugger/engine/schema",
+                  "@renovate-config-debugger/engine/schema/**"
                 ],
                 "message": "codemirror-json-schema and the engine's schema export may only be imported statically from platform/editor-schema.ts — that's the one place the ~160 kB gz schema stack is allowed into a chunk (roadmap 031)."
               }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { SimulationResult } from "@renovate-config-visualizer/engine";
+import type { SimulationResult } from "@renovate-config-debugger/engine";
 import { flashTarget, motionScrollOptions } from "@/lib/motion";
 import { RULE_POP_SELECTOR } from "./rule-pop-dom";
 

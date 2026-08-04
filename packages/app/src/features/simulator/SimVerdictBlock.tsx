@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import type { SimulationResult } from "@renovate-config-visualizer/engine";
+import type { SimulationResult } from "@renovate-config-debugger/engine";
 import { CopyButton } from "@/components/CopyButton";
 import type { ConsumedBlock } from "./consumed-blocks";
 import type { RuleEvidence } from "./rule-evidence";

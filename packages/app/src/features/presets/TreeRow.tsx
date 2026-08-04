@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import type { PresetNode } from "@renovate-config-visualizer/engine";
+import type { PresetNode } from "@renovate-config-debugger/engine";
 import type { NodeStats } from "@/components/preset-tree-stats";
 import { Explained } from "@/components/glossary";
 import { GLOSSARY } from "@/data/glossary-data";

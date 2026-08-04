@@ -1,4 +1,4 @@
-import type { PresetNode, PresetNodeState } from "@renovate-config-visualizer/engine";
+import type { PresetNode, PresetNodeState } from "@renovate-config-debugger/engine";
 
 /**
  * Roadmap 023: preset-string hovers in the config editor. Hovering a preset

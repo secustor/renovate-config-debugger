@@ -1,4 +1,4 @@
-import type { PresetNode } from "@renovate-config-visualizer/engine";
+import type { PresetNode } from "@renovate-config-debugger/engine";
 import type { TreeStats } from "@/components/preset-tree-stats";
 import type { Row, SortColumn, TableRow } from "./rows";
 import { type InjectionKeyFn, ROW_HEIGHT } from "./tree-shared";

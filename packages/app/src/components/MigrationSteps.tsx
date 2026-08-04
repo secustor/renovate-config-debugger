@@ -1,5 +1,5 @@
 import { memo, useMemo } from "react";
-import type { TraceEvent } from "@renovate-config-visualizer/engine";
+import type { TraceEvent } from "@renovate-config-debugger/engine";
 import { CodeText } from "./CodeText";
 import { CopyButton } from "./CopyButton";
 import { StepThrough, type StepThroughStep } from "./StepThrough";

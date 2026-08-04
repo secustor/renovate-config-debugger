@@ -10,7 +10,7 @@
  * the match IS a pair of regexes over those strings: a fixture paraphrasing
  * them would keep passing after the engine's wording moved on.
  */
-import type { PresetNode } from "@renovate-config-visualizer/engine";
+import type { PresetNode } from "@renovate-config-debugger/engine";
 import { describe, expect, test } from "vitest";
 import { collectGithubAuthFailures, githubPresetDisplayName, stateBadge } from "./tree-shared";
 

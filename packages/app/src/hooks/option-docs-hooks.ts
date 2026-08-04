@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useRef } from "react";
-import type { OptionIndex } from "@renovate-config-visualizer/engine";
+import type { OptionIndex } from "@renovate-config-debugger/engine";
 
 /**
  * The option-docs context and the hooks that read it, plus the caret

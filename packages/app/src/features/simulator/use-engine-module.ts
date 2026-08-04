@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type * as EngineModule from "@renovate-config-visualizer/engine";
+import type * as EngineModule from "@renovate-config-debugger/engine";
 
 /**
  * Roadmap 015: the engine module, loaded once up front — by the time the
@@ -14,7 +14,7 @@ export function useEngineModule(): typeof EngineModule | null {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const m = await import("@renovate-config-visualizer/engine");
+      const m = await import("@renovate-config-debugger/engine");
       if (!cancelled) {
         setEngineModule(m);
       }

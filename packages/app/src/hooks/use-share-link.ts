@@ -12,7 +12,7 @@
  * live here; their comments moved with the statements they annotate.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { TraceResult } from "@renovate-config-visualizer/engine";
+import type { TraceResult } from "@renovate-config-debugger/engine";
 import {
   completeCallback,
   type OAuthConfig,

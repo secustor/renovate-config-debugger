@@ -3,7 +3,7 @@ import type {
   DependencyDescriptor,
   RuleRef,
   SimulationComparison,
-} from "@renovate-config-visualizer/engine";
+} from "@renovate-config-debugger/engine";
 import { toDescriptor } from "./form";
 import { previewValue, writeMark } from "./rule-format";
 import type { PinnedRun } from "./use-ab-comparison";

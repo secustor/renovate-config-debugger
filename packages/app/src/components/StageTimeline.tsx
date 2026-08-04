@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import type { StageId, TraceResult } from "@renovate-config-visualizer/engine";
+import type { StageId, TraceResult } from "@renovate-config-debugger/engine";
 import { Explained } from "./glossary";
 import { STAGE_IDS } from "@/lib/input-schemas";
 import { STAGE_EXPLAINERS, STAGE_LABELS } from "@/data/stage-copy";

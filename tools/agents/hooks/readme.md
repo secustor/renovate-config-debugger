@@ -41,7 +41,7 @@ blocks the stop if any fail, handing back the tail of the failing output.
   them.
 - **Never**: the Playwright e2e suite. It needs a production build first and
   takes minutes — running it stays a deliberate step
-  (`pnpm --filter @renovate-config-visualizer/app build` then `… test:e2e`).
+  (`pnpm --filter @renovate-config-debugger/app build` then `… test:e2e`).
 
 Markdown-only changes skip everything, since none of the checks read prose.
 

@@ -3,7 +3,7 @@ import type {
   MergedKey,
   ProvenanceLayer,
   SimulationResult,
-} from "@renovate-config-visualizer/engine";
+} from "@renovate-config-debugger/engine";
 import { ConfigJson } from "@/components/ConfigJson";
 import { CopyButton } from "@/components/CopyButton";
 import { Term } from "@/components/glossary";

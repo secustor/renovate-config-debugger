@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { RuleAttribution, TraceResult } from "@renovate-config-visualizer/engine";
+import type { RuleAttribution, TraceResult } from "@renovate-config-debugger/engine";
 
 /**
  * Roadmap 032: `computeRuleProvenance` replays the layer merge over every
@@ -15,7 +15,7 @@ const ruleProvenanceCache = new WeakMap<TraceResult, Promise<RuleAttribution[] |
 function ruleProvenanceFor(result: TraceResult): Promise<RuleAttribution[] | null> {
   let promise = ruleProvenanceCache.get(result);
   if (!promise) {
-    promise = import("@renovate-config-visualizer/engine").then(
+    promise = import("@renovate-config-debugger/engine").then(
       (engine) => engine.computeRuleProvenance(result) ?? null,
     );
     ruleProvenanceCache.set(result, promise);

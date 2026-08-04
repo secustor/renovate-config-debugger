@@ -1,5 +1,5 @@
 import { memo, useCallback, useMemo } from "react";
-import type { ProvenanceLayer, TraceResult } from "@renovate-config-visualizer/engine";
+import type { ProvenanceLayer, TraceResult } from "@renovate-config-debugger/engine";
 import { Term } from "@/components/glossary";
 import { HypotheticalBanner } from "@/components/HypotheticalBanner";
 import { RuleFramingText } from "@/components/rule-framing";

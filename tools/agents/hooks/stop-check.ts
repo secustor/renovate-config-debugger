@@ -25,7 +25,7 @@ const PACKAGES = ["engine", "app", "oauth-worker"] as const;
 type PackageName = (typeof PACKAGES)[number];
 
 function filter(pkg: PackageName, script: string): string[] {
-  return ["--filter", `@renovate-config-visualizer/${pkg}`, script];
+  return ["--filter", `@renovate-config-debugger/${pkg}`, script];
 }
 
 /** Repo-wide and cheap (~7s together) — run whenever anything at all changed. */

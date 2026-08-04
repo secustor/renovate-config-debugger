@@ -1,4 +1,4 @@
-import type { ProvenanceLayer } from "@renovate-config-visualizer/engine";
+import type { ProvenanceLayer } from "@renovate-config-debugger/engine";
 import { OptionKey } from "@/components/option-docs";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { previewValue } from "./rule-format";

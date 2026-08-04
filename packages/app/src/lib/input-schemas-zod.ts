@@ -15,7 +15,7 @@
  * exists, so the zod and zod-free views of a rule can never disagree.
  */
 import * as z from "zod/mini";
-import type { StageId } from "@renovate-config-visualizer/engine";
+import type { StageId } from "@renovate-config-debugger/engine";
 import { RESULTS_TAB_IDS, type ResultsTabId } from "@/data/results-tabs";
 import {
   isHttpUrl,

@@ -3,7 +3,7 @@ import type {
   ProvenanceLayer,
   RuleEvaluation,
   SimulationResult,
-} from "@renovate-config-visualizer/engine";
+} from "@renovate-config-debugger/engine";
 import type { MergeStop } from "./merge-stops";
 import { stopLabels } from "./verdict-threads";
 

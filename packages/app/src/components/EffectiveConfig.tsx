@@ -6,7 +6,7 @@ import type {
   ResolvedConfigOutput,
   RuleAttribution,
   TraceResult,
-} from "@renovate-config-visualizer/engine";
+} from "@renovate-config-debugger/engine";
 import { Explained, Term } from "./glossary";
 import { GLOSSARY } from "@/data/glossary-data";
 import { OptionKey } from "./option-docs";
@@ -44,7 +44,7 @@ function useProvenance(result: TraceResult): Provenance | null | undefined {
     let live = true;
     setState(undefined);
     void (async () => {
-      const engine = await import("@renovate-config-visualizer/engine");
+      const engine = await import("@renovate-config-debugger/engine");
       if (live) {
         setState(engine.computeProvenance(result) ?? null);
       }
@@ -83,7 +83,7 @@ function useResolvedConfig(
     let live = true;
     setState(undefined);
     void (async () => {
-      const engine = await import("@renovate-config-visualizer/engine");
+      const engine = await import("@renovate-config-debugger/engine");
       if (live) {
         setState(engine.computeResolvedConfig(result, mode, { includeDefaults }) ?? null);
       }

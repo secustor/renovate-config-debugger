@@ -1,4 +1,4 @@
-import type { StageId, TraceEvent, TraceResult } from "@renovate-config-visualizer/engine";
+import type { StageId, TraceEvent, TraceResult } from "@renovate-config-debugger/engine";
 
 /**
  * Roadmap 024: what a stage chip's dot should say happened this run, on top

@@ -8,7 +8,7 @@
 
 services:
   app:
-    image: ghcr.io/secustor/renovate-config-visualizer:latest
+    image: ghcr.io/secustor/renovate-config-debugger:latest
     build:
       context: .
       target: app
@@ -36,7 +36,7 @@ services:
   # does that exchange and nothing else: it never sees a config, a preset or an
   # API request.
   oauth-proxy:
-    image: ghcr.io/secustor/renovate-config-visualizer-oauth-proxy:latest
+    image: ghcr.io/secustor/renovate-config-debugger-oauth-proxy:latest
     build:
       context: .
       target: oauth-proxy

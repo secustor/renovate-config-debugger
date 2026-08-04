@@ -10,7 +10,7 @@
  * Tokens and manually-injected presets are NEVER encoded. The Renovate version
  * current at encode time rides along so the opener can warn on version drift.
  */
-import type { StageId } from "@renovate-config-visualizer/engine";
+import type { StageId } from "@renovate-config-debugger/engine";
 import type { ResultsTabId } from "@/data/results-tabs";
 import { isTrustedEndpoint, PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
 

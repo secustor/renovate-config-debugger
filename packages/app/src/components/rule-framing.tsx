@@ -1,4 +1,4 @@
-import type { RuleAttribution } from "@renovate-config-visualizer/engine";
+import type { RuleAttribution } from "@renovate-config-debugger/engine";
 import type { ReactNode } from "react";
 import { layerLabel } from "./provenance-layer";
 

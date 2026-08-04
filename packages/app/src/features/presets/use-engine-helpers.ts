@@ -12,7 +12,7 @@ export function useEngineHelpers() {
   useEffect(() => {
     let live = true;
     void (async () => {
-      const engine = await import("@renovate-config-visualizer/engine");
+      const engine = await import("@renovate-config-debugger/engine");
       if (live) {
         setHelpers({
           merge: engine.mergeChildConfig as MergeFn,

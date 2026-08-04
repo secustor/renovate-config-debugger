@@ -86,7 +86,7 @@ export function renovateShims(): Plugin {
             "semver-stable",
             "semver-utils",
             "yaml",
-          ].map((dep) => `@renovate-config-visualizer/engine > renovate > ${dep}`),
+          ].map((dep) => `@renovate-config-debugger/engine > renovate > ${dep}`),
         },
         resolve: {
           alias: [

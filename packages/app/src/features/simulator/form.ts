@@ -1,4 +1,4 @@
-import type { DependencyDescriptor } from "@renovate-config-visualizer/engine";
+import type { DependencyDescriptor } from "@renovate-config-debugger/engine";
 
 export interface FormState {
   manager: string;

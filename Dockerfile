@@ -50,7 +50,7 @@ COPY patches/ patches/
 RUN pnpm install --frozen-lockfile
 
 COPY . .
-RUN pnpm --filter @renovate-config-visualizer/app build
+RUN pnpm --filter @renovate-config-debugger/app build
 
 # --- oauth-proxy -------------------------------------------------------------
 # The OAuth token exchange (roadmap 009) without Cloudflare. Only needed by a

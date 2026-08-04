@@ -2,7 +2,7 @@ import type {
   ProvenanceLayer,
   RuleAttribution,
   SimulationResult,
-} from "@renovate-config-visualizer/engine";
+} from "@renovate-config-debugger/engine";
 
 /**
  * Roadmap 047: an update-type block the USER authored (per the engine's

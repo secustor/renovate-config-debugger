@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import type { SimulationResult } from "@renovate-config-visualizer/engine";
+import type { SimulationResult } from "@renovate-config-debugger/engine";
 import { flashTarget, motionScrollOptions } from "@/lib/motion";
 
 export interface RuleFocus {

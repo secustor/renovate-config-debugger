@@ -2,7 +2,7 @@ import type {
   ErrorFixResult,
   RuleAttribution,
   TraceResult,
-} from "@renovate-config-visualizer/engine";
+} from "@renovate-config-debugger/engine";
 import { memo, useMemo } from "react";
 import type { ErrorTranslationLib } from "@/platform/run";
 import { ErrorTranslationView } from "./ErrorTranslationView";

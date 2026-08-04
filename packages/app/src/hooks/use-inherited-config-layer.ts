@@ -17,7 +17,7 @@
  * on but does not own comes in through {@link InheritedConfigLayerHost}.
  */
 import { useMemo, useState } from "react";
-import type { RepoPlatform } from "@renovate-config-visualizer/engine";
+import type { RepoPlatform } from "@renovate-config-debugger/engine";
 import {
   inheritFieldValues,
   type InheritLayerState,

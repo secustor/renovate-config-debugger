@@ -1,4 +1,4 @@
-# @renovate-config-visualizer/oauth-worker
+# @renovate-config-debugger/oauth-worker
 
 A static SPA cannot finish GitHub's OAuth flow on its own: GitHub requires the
 `client_secret` at the token exchange (even with PKCE) and serves no CORS on
@@ -90,7 +90,7 @@ GITHUB_CLIENT_ID=... GITHUB_CLIENT_SECRET=... ALLOWED_ORIGINS=https://rcv.exampl
 `server.mjs` is a dependency-free `node:http` adapter around the same pure
 handler. It passes headers and body through verbatim, so the `Origin`
 allow-list stays the security boundary. It is what the
-`ghcr.io/secustor/renovate-config-visualizer-oauth-proxy` image runs (roadmap
+`ghcr.io/secustor/renovate-config-debugger-oauth-proxy` image runs (roadmap
 [043](../../roadmap/043-docker-self-host.md)); the provisioning above is
 identical either way.
 
@@ -122,8 +122,8 @@ before GitHub is contacted. Responses reflect the exact matched origin (never
 <summary>Development</summary>
 
 ```bash
-pnpm --filter @renovate-config-visualizer/oauth-worker test        # vitest, fetch stubbed
-pnpm --filter @renovate-config-visualizer/oauth-worker typecheck
+pnpm --filter @renovate-config-debugger/oauth-worker test        # vitest, fetch stubbed
+pnpm --filter @renovate-config-debugger/oauth-worker typecheck
 ```
 
 The request handler is the pure exported `handleRequest(req, env)` so the tests

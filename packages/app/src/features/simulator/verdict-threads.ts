@@ -3,7 +3,7 @@ import type {
   MergedKey,
   ProvenanceLayer,
   SimulationResult,
-} from "@renovate-config-visualizer/engine";
+} from "@renovate-config-debugger/engine";
 import type { MergeStop } from "./merge-stops";
 
 /**

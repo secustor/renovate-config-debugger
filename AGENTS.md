@@ -21,13 +21,13 @@ pnpm build                     # all packages
 Targeted tests:
 
 ```bash
-pnpm --filter @renovate-config-visualizer/engine test:golden    # real renovate modules, reference snapshots
-pnpm --filter @renovate-config-visualizer/engine test:shimmed   # browser module graph, must match golden
-pnpm --filter @renovate-config-visualizer/app test:unit         # pure-module unit tests (vitest "unit" project)
-pnpm --filter @renovate-config-visualizer/app test:e2e          # playwright; requires `pnpm --filter …/app build` first
-pnpm --filter @renovate-config-visualizer/app exec vitest run --project unit src/lib/share.test.ts   # single file
-pnpm --filter @renovate-config-visualizer/app exec playwright test e2e/04-simulator.spec.ts          # single e2e
-pnpm --filter @renovate-config-visualizer/app check:dev-graph   # guards `vite dev` module graph against Node-only leaks
+pnpm --filter @renovate-config-debugger/engine test:golden    # real renovate modules, reference snapshots
+pnpm --filter @renovate-config-debugger/engine test:shimmed   # browser module graph, must match golden
+pnpm --filter @renovate-config-debugger/app test:unit         # pure-module unit tests (vitest "unit" project)
+pnpm --filter @renovate-config-debugger/app test:e2e          # playwright; requires `pnpm --filter …/app build` first
+pnpm --filter @renovate-config-debugger/app exec vitest run --project unit src/lib/share.test.ts   # single file
+pnpm --filter @renovate-config-debugger/app exec playwright test e2e/04-simulator.spec.ts          # single e2e
+pnpm --filter @renovate-config-debugger/app check:dev-graph   # guards `vite dev` module graph against Node-only leaks
 ```
 
 ## Session hooks
