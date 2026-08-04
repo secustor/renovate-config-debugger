@@ -1,6 +1,11 @@
 # 058 — `rcv`: the debugger CLI on the shimmed engine
 
-Milestone: M16 · Status: proposed
+Milestone: M16 · Status: proposed · Stability: **experimental**
+
+The CLI is an experimental surface: its subcommands, flags and output
+shapes may change in any release while the interface finds its users.
+Only the engine's own trace semantics (proven by golden↔shimmed parity)
+are stable underneath it.
 
 Derived from the
 [2026-08 agent debug interface research](2026-08-agent-debug-interface-research.md),
