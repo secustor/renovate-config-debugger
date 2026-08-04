@@ -65,10 +65,20 @@ figure from *before* these cuts).
 | --- | --- | --- |
 | **0.8.1** | upstream `v0.8.1` verbatim, renamed | nothing — a specifier rename |
 | **0.9.0** | + the three `Draft0x` memoizations | 242.3 ms → 1.9 ms per completion; no API change, no visible change |
-| **0.10.0** | + markdown-it rendering, YAML behind `/yaml` | **breaking**: tooltip code fences lose syntax colours, the parsers barrel no longer pulls YAML |
+| **0.10.0** | + markdown-it rendering, YAML parser off the default path | no API change; tooltip code fences lose syntax colours |
 
 There is no `1.0.0` on this roadmap. The fork stays in `0.x` for as long as
 it exists — see the versioning decision below.
+
+**None of the three releases breaks the public API**, which is worth stating
+because the app's local versions of these changes would. The library's main
+entry exports the three extensions, `jsonSchema`, the JSON parser, the
+pointer utils and the state module — `getDefaultParser` is **not** among
+them (features import it internally from `../parsers`), and
+`parseYAMLDocumentState` is exported from the `/yaml` entry, not from `.`.
+`renderMarkdown` is likewise internal to `utils/`. So both bundle changes are
+internal rewiring plus one cosmetic delta; `0.10.0` gets its own minor
+because the tooltip change is visible, not because anything is removed.
 
 ### What "identical" means for 0.8.1, and how it's proven
 
@@ -121,6 +131,18 @@ would make the "no-op" switch quietly not one.
   ~330 kB from every consumer's graph and removes the app's shim plugin
   entirely.
 
+- **The YAML change routes around the parser; it does not stub it.** This is
+  the one place where the fork must be more careful than the shim it
+  replaces. `getDefaultParser` is a runtime `switch` over all three parsers,
+  statically importing each — which is why importing the main entry drags
+  `yaml` in even though the mode is fixed by *which entry you imported*. The
+  app's shim can make `yaml-parser.js` throw because the app never uses YAML
+  mode; a library cannot, because `codemirror-json-schema/yaml` must keep
+  working. The fork's fix is for each entry to supply its own parser instead
+  of asking a barrel to pick one — same exported symbols, same behavior per
+  entry, and the static edge from `.` to `yaml` simply doesn't exist. It is
+  also the version of the change that upstream could actually merge.
+
 - **`filter: false` is still left alone.** Upstream re-invokes the completion
   source on every keystroke instead of filtering a cached list. At ~2 ms per
   query that is cheap, and `validFor` is incompatible with the library's own
@@ -142,18 +164,19 @@ would make the "no-op" switch quietly not one.
 - **Stay in `0.x`; there is no `1.0.0`.** The fork is expected to iterate
   fast and to be short-lived — a `1.0.0` would promise a stability we have no
   intention of offering while upstream's own shape is still moving underneath
-  us, and it would make every subsequent breaking change a major bump we'd
-  have to justify. In `0.x` the minor is the breaking slot (the same scheme
-  056 uses for the engine), which also makes npm's own defaults do the right
-  thing: `^0.9.0` does **not** match `0.10.0`, so a consumer never picks up
-  the bundle changes without deciding to. If the fork ever outlives its
-  purpose enough to deserve a stable major, that is a decision made then, on
-  evidence, not scheduled here.
+  us, and it would make every later change of consequence a major bump we'd
+  have to justify. In `0.x` the minor carries anything notable, breaking or
+  not (the same scheme 056 uses for the engine), and npm's defaults back that
+  up: `^0.9.0` does not match `0.10.0`, so nothing arrives without a
+  deliberate bump — useful here not because `0.10.0` breaks anything, but
+  because it is the release with a visible change in it. If the fork ever
+  outlives its purpose enough to deserve a stable major, that is a decision
+  made then, on evidence, not scheduled here.
 
 - **One release per class of change.** The memoizations (`0.9.0`) are
-  behavior-preserving and measurable; the bundle changes (`0.10.0`) are
-  breaking and visible. Bundling them into one release would force a consumer
-  to accept unhighlighted tooltips in order to get the 240 ms back, and would
+  invisible and measurable; the bundle changes (`0.10.0`) are visible and
+  measurable in a different unit. Bundling them would force a consumer to
+  accept unhighlighted tooltips in order to get the 240 ms back, and would
   leave us unable to tell which change moved a number when one of them
   regresses.
 
@@ -221,13 +244,13 @@ size, which must not grow.
   `json-schema-library` drift become ours to track for as long as it lives.
   Mitigated by keeping the diff small, upstream-shaped and filed — and by the
   fork being the thing that lets us stop patching `dist` blind.
-- **The bundle changes alter behavior**, not just size: tooltip code fences
-  lose syntax colours (already the accepted delta today), and a consumer
-  importing the parsers barrel expecting YAML gets an error instead. Both are
-  breaking for hypothetical other consumers, which is why they land alone in
-  `0.10.0` with the deltas listed at the top of its README, rather than riding
-  along with the perf fixes. Under `0.x` a caret range does not cross the
-  minor, so nobody gets them by accident.
+- **One bundle change is visible.** Tooltip code fences lose syntax colours —
+  already the accepted delta in this app, but a change a different consumer
+  might care about, which is why it lands alone in `0.10.0` with the delta at
+  the top of the README rather than riding along with the perf fixes. The
+  YAML rerouting is invisible if done right; if it can't be done without
+  changing an exported symbol, that is the signal to stop and rethink the
+  approach, not to relabel the release.
 - **A mirror release can be misread as an endorsement to switch.** `0.8.1`
   under our name is upstream's code, published by us, and someone finding it
   may assume it's maintained beyond the five changes we care about. The
