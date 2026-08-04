@@ -9,6 +9,13 @@ import type {
 } from "@renovate-config-debugger/engine";
 import { Explained, Term } from "./glossary";
 import { GLOSSARY } from "@/data/glossary-data";
+import {
+  effectiveTally,
+  type EffectiveTally,
+  isOverridden,
+  type MultiContribBadge,
+  multiContribBadgeKind,
+} from "@/lib/effective-tally";
 import { OptionKey } from "./option-docs";
 import { ConfigJson } from "./ConfigJson";
 import { CopyButton } from "./CopyButton";
@@ -130,39 +137,6 @@ function contributingLayerIds(entry: KeyProvenance): Set<LayerId> {
   return ids;
 }
 
-function isOverridden(entry: KeyProvenance): boolean {
-  const contributors = entry.chain.filter((s) => !s.noop && s.layer.kind !== "defaults");
-  return (
-    contributors.length >= 2 ||
-    entry.chain.some((s) => s.action === "overwrite" || s.action === "forced")
-  );
-}
-
-/**
- * Roadmap 016: `isOverridden` above answers "did more than one layer touch
- * this key" — it does NOT mean the value was replaced. A concatenating array
- * key (`packageRules`, `labels`, …) touched by several layers is APPENDED to,
- * never overwritten, so labelling it "overridden" is actively misleading (the
- * expert persona called this out directly). This picks the accurate label
- * from the actual merge actions of the contributing (non-default) steps.
- */
-type MultiContribBadge = "overridden" | "appended" | "merged";
-
-function multiContribBadgeKind(entry: KeyProvenance): MultiContribBadge {
-  const contributors = entry.chain.filter((s) => !s.noop && s.layer.kind !== "defaults");
-  if (contributors.some((s) => s.action === "overwrite" || s.action === "forced")) {
-    return "overridden";
-  }
-  if (contributors.some((s) => s.action === "shallow-merge" || s.action === "deep-merge")) {
-    return "merged";
-  }
-  // Nothing left but "set" (the first contributor establishing the value) and
-  // "concat" (every later contributor appending to it) — this function is
-  // only called once `isOverridden` has already established there are ≥2
-  // contributors, so nothing here was ever replaced.
-  return "appended";
-}
-
 const MULTI_BADGE_GLOSSARY: Record<MultiContribBadge, keyof typeof GLOSSARY> = {
   overridden: "keyOverridden",
   appended: "keyAppended",
@@ -190,16 +164,11 @@ function MultiContribBadgeChip({ entry }: { entry: KeyProvenance }) {
 /**
  * Roadmap 028/029: the numbers this view owns, reported to the shell so the
  * Effective config tab badge and the Overview digest quote exactly what the
- * rows here show. `overridden` counts the rows carrying the literal
- * `overridden` badge (a value a later layer really replaced), not every
- * multi-layer key — 016 established that calling an appended array
- * "overridden" is misleading.
+ * rows here show. Roadmap 058 hoisted the derivation itself into
+ * `lib/effective-tally.ts` so the CLI's `digest` quotes the same function
+ * rather than a copy of it; the name the shell knows it by stays.
  */
-export interface EffectiveStats {
-  /** Options some layer beyond the defaults set — the rows shown by default. */
-  keys: number;
-  overridden: number;
-}
+export type EffectiveStats = EffectiveTally;
 
 function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max)}…` : text;
@@ -751,22 +720,7 @@ export const EffectiveConfig = memo(function EffectiveConfig({
   // three separate filter passes: the stats effect made two and the render
   // counted the defaults again). `filtered` above stays its own memo since it
   // additionally depends on the interactive filters.
-  const tallies = useMemo(() => {
-    let shown = 0;
-    let hiddenDefaults = 0;
-    let overridden = 0;
-    for (const entry of entries) {
-      if (entry.isDefaultOnly) {
-        hiddenDefaults++;
-        continue;
-      }
-      shown++;
-      if (isOverridden(entry) && multiContribBadgeKind(entry) === "overridden") {
-        overridden++;
-      }
-    }
-    return { shown, hiddenDefaults, overridden };
-  }, [entries]);
+  const tallies = useMemo(() => effectiveTally(entries), [entries]);
 
   useEffect(() => {
     // Replay-02 N3: while provenance is still loading (`undefined`), `entries`
@@ -777,7 +731,7 @@ export const EffectiveConfig = memo(function EffectiveConfig({
     if (provenance === undefined) {
       return;
     }
-    onStats?.({ keys: tallies.shown, overridden: tallies.overridden });
+    onStats?.(tallies);
   }, [tallies, onStats, provenance]);
 
   // Focus (and select) the filter box when the Overview's "Where did a setting
