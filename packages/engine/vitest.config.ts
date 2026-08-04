@@ -2,12 +2,16 @@ import { defineConfig } from "vitest/config";
 import { renovateShims } from "./src/shims/vite-plugin-renovate-shims";
 
 /**
- * Two projects sharing the same fixtures and file snapshots:
+ * Three projects. The first two share the same fixtures and file snapshots:
  * - "golden": real renovate modules, no shims — produces the reference
  *   snapshots straight from Renovate's own code.
  * - "shimmed": the exact module graph the browser bundle uses (shim plugin +
  *   renovate inlined through the Vite pipeline) — must match the golden
  *   snapshots, proving the shims don't alter behavior.
+ * - "packaging": neither graph, but the tarball `pnpm publish` would upload
+ *   (roadmap 056) — packs, unpacks and type-checks a scratch consumer against
+ *   it. Split out because it runs a build and a second tsc, which the other
+ *   two must not pay for.
  */
 export default defineConfig({
   test: {
@@ -45,6 +49,17 @@ export default defineConfig({
               inline: [/renovate/],
             },
           },
+        },
+      },
+      {
+        test: {
+          name: "packaging",
+          include: ["test/*.pack.test.ts"],
+          environment: "node",
+          // one `pnpm pack` (tsc build + tarball) and one tsc over the scratch
+          // consumer, both cold on a CI runner
+          testTimeout: 300_000,
+          hookTimeout: 300_000,
         },
       },
     ],
