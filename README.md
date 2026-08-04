@@ -103,6 +103,21 @@ drill-down questions cost milliseconds and describe one consistent run:
 claude mcp add rcd -- npx -y @renovate-config-debugger/cli mcp
 ```
 
+In Claude Code, the plugin bundles that registration together with a skill that
+knows the workflow — validate first, digest for orientation, drill down, and
+`compare` as the oracle that proves an edit changed something:
+
+```
+/plugin marketplace add secustor/claude-plugins
+/plugin install renovate-config-debugger@claude-plugins
+```
+
+Plugins install per user or per project scope; project scope is the better
+default for a repository whose Renovate config people actually debug, since the
+tools and the workflow then travel with the checkout.
+[`plugins/renovate-config-debugger`](plugins/renovate-config-debugger) is the
+plugin itself.
+
 [`packages/cli/README.md`](packages/cli/README.md) has the full surface: input
 options, credentials (environment only), the endpoint guard, and the
 compatibility table.

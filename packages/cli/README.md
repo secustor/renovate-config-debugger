@@ -537,6 +537,18 @@ Everywhere else it is a config file. Most of them take the same JSON:
 | VS Code with Copilot | `.vscode/mcp.json`                                   | `servers`     |
 | Codex                | `.codex/config.toml` or `~/.codex/config.toml`       | `mcp_servers` |
 
+In Claude Code, the [plugin](../../plugins/renovate-config-debugger) registers
+this server and adds the skill that knows the call sequence:
+
+```console
+$ /plugin marketplace add secustor/claude-plugins
+$ /plugin install renovate-config-debugger@claude-plugins
+```
+
+The server holds a small number of recent runs (an LRU), so an agent can
+compare the run before an edit with the run after it. A `runId` that has been
+evicted says so, and lists the ones still held.
+
 ## Compatibility
 
 Every release states the Renovate it carries. The engine and its `renovate`
