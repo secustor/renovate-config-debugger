@@ -24,13 +24,13 @@ importers:
         specifier: 7.0.2001
         version: 7.0.2001
       stylelint:
-        specifier: ^17.14.1
+        specifier: 17.14.1
         version: 17.14.1(supports-color@10.2.2)(typescript@7.0.2)
       stylelint-declaration-strict-value:
-        specifier: ^1.11.1
+        specifier: 1.11.1
         version: 1.11.1(stylelint@17.14.1(supports-color@10.2.2)(typescript@7.0.2))
       stylelint-value-no-unknown-custom-properties:
-        specifier: ^6.1.1
+        specifier: 6.1.1
         version: 6.1.1(stylelint@17.14.1(supports-color@10.2.2)(typescript@7.0.2))
       typescript:
         specifier: 7.0.2
