@@ -180,6 +180,41 @@ This also keeps the door open to the repo-fetch path (007) later: a repo's worth
 of files can be listed and pattern-matched cheaply, with content fetched and
 extracted only for the file the user actually opens.
 
+### 4.3 Tab taxonomy: `Simulator` becomes `packageRules`, `Extraction` joins it
+
+Today's single `Simulator` tab is named after the _mechanism_. Once a second
+simulator exists that answer stops working — both tabs simulate. Name them
+after the **Renovate phase each one reproduces**:
+
+- `Simulator` → **`packageRules`**, spelled as the config key it simulates,
+  consistent with how the app already names things after upstream vocabulary.
+- new **`Extraction`** tab — upstream's own term for this phase
+  (`extractPackageFile`, the extract worker), and it covers both custom manager
+  types without privileging regex.
+
+**Order them in Renovate's execution order: `Extraction` before `packageRules`.**
+Extraction produces the dependencies; `packageRules` are applied to those
+dependencies afterwards. Tab order that mirrors the real pipeline is the same
+teaching device the Pipeline tab already relies on.
+
+**The rename is not free — the tab id is share-link wire format.** `view.tab`
+is encoded into links and validated against `RESULTS_TAB_IDS`
+(`input-schemas-zod.ts`). Decoding already _tolerates_ an unknown tab (the link
+opens, just without selecting a tab), so old links would degrade quietly rather
+than break — but quietly losing the sender's selection is exactly the failure
+017 and 027 exist to prevent. So:
+
+- Change the **label** freely; treat the **id** as a compatibility concern.
+- Either keep the id `simulator` behind the new label (cheapest, zero risk), or
+  rename it and map the legacy value on decode — the same shape as
+  `legacyTabForView`, which already exists for pre-028 links.
+
+Touch points for the rename beyond the label: `results-tabs.ts` (ids + labels),
+`use-run-summary.ts` (tab descriptor list), `App.tsx` (`jumpToTab("simulator")`),
+`OverviewTab.tsx` (`onOpen("simulator")`), and ~15 `openTab(page, "simulator")`
+call sites across the e2e suite. Mechanical, but it spans the e2e specs, so the
+rename wants to be its own commit rather than riding along with the feature.
+
 ## 5. Effort
 
 Roughly **one week** for a version worth shipping; **1–2 days** for a
@@ -196,10 +231,15 @@ imported so its 60 KB stays off the critical path (031). Tests: a golden/shimmed
 pair on RE2-safe fixtures, and a pure unit test for the oracle's verdicts.
 
 **App — ~2–3 days, the bulk.** The `ConfigColumn` file-set input of §4.1 and a
-results view for what came out. New results tab, wired into `results-tabs.ts`.
-The reusable parts of the existing simulator (drawers, evidence cards, thread
-nav) do not transfer directly — this is a different shape of answer.
+results view for what came out, in the new `Extraction` tab (§4.3). The
+reusable parts of the existing simulator (drawers, evidence cards, thread nav)
+do not transfer directly — this is a different shape of answer.
 `jsx-max-depth: 3` means decomposition up front, not after.
+
+**Tab rename — ~0.5 day, separate commit.** `Simulator` → `packageRules` per
+§4.3, including the id-compatibility decision and the e2e call sites. Worth
+landing before the feature so the new tab arrives into an already-correct
+taxonomy.
 
 **Polish — ~2 days.** Share-link encoding for file contents (needs a size cap;
 the fragment is deflated but not free), e2e coverage, docs, roadmap entry.
