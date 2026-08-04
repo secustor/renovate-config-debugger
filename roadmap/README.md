@@ -64,6 +64,7 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [058](058-rcv-debugger-cli.md)                          | `rcv`: the debugger CLI on the shimmed engine              | M16                  | proposed |
 | [059](059-publish-cli-package.md)                       | Publish the CLI as `@renovate-config-debugger/cli`         | M16                  | proposed |
 | [060](060-mcp-server-and-agent-discovery.md)            | `rcv mcp` + pointing agents at the headless interface      | M16                  | proposed |
+| [061](061-claude-plugin-marketplace.md)                 | Claude plugin marketplace for the debugger                 | M16                  | proposed |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live
@@ -183,4 +184,8 @@ published as `@renovate-config-debugger/cli` (bundle proven identical by
 re-running the shimmed snapshots against it). 060 adds `rcv mcp` — warm
 engine, `runId` handles instead of firehose payloads — and the discovery
 surface: visible docs plus Claude Code's plugin-hint marker, with hidden
-agent messaging explicitly ruled out.
+agent messaging explicitly ruled out. 061 closes the loop with a Claude
+plugin marketplace hosted in this repository: one plugin bundling the MCP
+server registration with a skill that carries the debugging workflow
+itself, so an installed session starts with the tools and the sequencing
+knowledge together.
