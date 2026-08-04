@@ -14,7 +14,7 @@
 # builds each architecture on a runner of that architecture and never hits
 # this, but it keeps a local `docker build --platform linux/amd64,linux/arm64`
 # from running pnpm install and the vite build a second time under QEMU.
-FROM --platform=$BUILDPLATFORM node:26.5.1-alpine AS build
+FROM --platform=$BUILDPLATFORM node:26.5.1-alpine@sha256:233761595746769ebfdb6090f44fc7cdf818ae0ce62d2b37e0367723b9823e36 AS build
 WORKDIR /repo
 
 # Matches the root package.json `packageManager` field — kept in step by
@@ -42,7 +42,7 @@ RUN pnpm --filter @renovate-config-visualizer/app build
 # --- oauth-proxy -------------------------------------------------------------
 # The OAuth token exchange (roadmap 009) without Cloudflare. Only needed by a
 # self-hoster who wants "Sign in with GitHub"; the app works without it.
-FROM node:26.5.1-alpine AS oauth-proxy
+FROM node:26.5.1-alpine@sha256:233761595746769ebfdb6090f44fc7cdf818ae0ce62d2b37e0367723b9823e36 AS oauth-proxy
 WORKDIR /app
 
 # The Worker's own manifest, for its `"type": "module"` — nothing is installed
@@ -62,7 +62,7 @@ CMD ["node", "server.mjs"]
 # --- app (default target) ----------------------------------------------------
 # LAST stage on purpose: a bare `docker build .` must produce the app, because
 # Docker builds the final stage when no --target is given.
-FROM nginx:alpine AS app
+FROM nginx:alpine@sha256:4a73073bd557c65b759505da037898b61f1be6cbcc3c2c3aeac22d2a470c1752 AS app
 
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker/40-rcv-config.sh /docker-entrypoint.d/40-rcv-config.sh

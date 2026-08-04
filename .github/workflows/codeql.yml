@@ -1,0 +1,45 @@
+# CodeQL static analysis — satisfies OpenSSF Scorecard's "SAST" check, which
+# requires a SAST tool running on every commit/PR. `actions` is included
+# because CodeQL (and Scorecard's credit for it) now also scans GitHub Actions
+# workflow YAML for injection-style issues, not just application code.
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly, offset from scorecard.yml's Monday 04:30 run so the two don't
+    # contend for runners.
+    - cron: "30 5 * * 3"
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      # Upload results to the code-scanning dashboard.
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript, actions]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # build-mode: none — both languages here are interpreted/analyzed from
+      # source (JS/TS and workflow YAML), so there is nothing to compile and
+      # no pnpm install is needed.
+      - uses: github/codeql-action/init@d1ba80a13dd99fba24a470575428917156a28b43 # v4.37.5
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+
+      - uses: github/codeql-action/analyze@d1ba80a13dd99fba24a470575428917156a28b43 # v4.37.5
+        with:
+          category: /language:${{ matrix.language }}
