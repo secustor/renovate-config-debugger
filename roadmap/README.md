@@ -61,6 +61,9 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [055](055-header-project-links.md)                      | Header links to the source and the issue tracker           | M14                  | done     |
 | [056](056-publish-engine-package.md)                    | Publish the engine as `@renovate-config-debugger/engine`   | M15                  | proposed |
 | [057](057-fork-codemirror-json-schema.md)               | Fork + publish `codemirror-json-schema`                    | M15                  | proposed |
+| [058](058-rcv-debugger-cli.md)                          | `rcv`: the debugger CLI on the shimmed engine              | M16                  | proposed |
+| [059](059-publish-cli-package.md)                       | Publish the CLI as `@renovate-config-debugger/cli`         | M16                  | proposed |
+| [060](060-mcp-server-and-agent-discovery.md)            | `rcv mcp` + pointing agents at the headless interface      | M16                  | proposed |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live
@@ -167,3 +170,17 @@ published under the same scope, upstream having merged nothing since
 changes are separate decisions, and the no-op switch is what proves the
 mirror honest. Both items need the package registry organization to
 exist first; whichever lands first creates it.
+
+M16 — **Agent debug interface** — grows out of the
+[2026-08 research](2026-08-agent-debug-interface-research.md): agents
+debugging config resolution either drive the web app in a browser or
+import the engine in plain Node, where the preset tree and provenance
+silently vanish (they only exist in the shimmed module graph). 058 ships
+`rcv`, a CLI hosting the browser module graph under Node via Vite's SSR
+runner — web-app parity by construction, one subcommand per question,
+hook-grade exit codes. 059 packages the same graph as a prebuilt bundle
+published as `@renovate-config-debugger/cli` (bundle proven identical by
+re-running the shimmed snapshots against it). 060 adds `rcv mcp` — warm
+engine, `runId` handles instead of firehose payloads — and the discovery
+surface: visible docs plus Claude Code's plugin-hint marker, with hidden
+agent messaging explicitly ruled out.
