@@ -144,6 +144,14 @@ changed between them.
 Worth knowing before your first call: **preset-node bodies are large — query
 one node at a time.** The tool descriptions say so too.
 
+In Claude Code, the [plugin](../../plugins/renovate-config-debugger) registers
+this server and adds the skill that knows the call sequence:
+
+```console
+$ /plugin marketplace add secustor/claude-plugins
+$ /plugin install renovate-config-debugger@claude-plugins
+```
+
 The server holds a small number of recent runs (an LRU), so an agent can
 compare the run before an edit with the run after it. A `runId` that has been
 evicted says so, and lists the ones still held.
