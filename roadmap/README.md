@@ -59,6 +59,7 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [052](052-post-resolution-remigration.md)               | Fidelity: re-migrate the resolved config (upstream parity) | M14                  | done   |
 | [053](053-analytics-localhost-exclusion.md)             | Analytics: CI is not an audience, not tracked on localhost | M14                  | done   |
 | [055](055-header-project-links.md)                      | Header links to the source and the issue tracker           | M14                  | done   |
+| [056](056-github-app-access-docs.md)                    | Docs: giving the GitHub App access to your repositories    | M14                  | todo   |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live
