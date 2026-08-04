@@ -19,11 +19,11 @@ all scenario exploration happens inside persona subagents.
 ## 1. Parse arguments
 
 Args come as free text after the skill invocation, e.g. `/persona-test
-simulator advanced` or `/persona-test 44958 all` or with no args at all.
+simulator advanced` or `/persona-test 44529 all` or with no args at all.
 
 - **Scenario filter** — optional. One of:
   - `all` (default) — every file in `scenarios/`.
-  - a discussion id or filename fragment (e.g. `44958`, `star-exclusion`) —
+  - a discussion id or filename fragment (e.g. `44529`, `star-exclusion`) —
     matches against scenario filenames.
   - a thematic word (e.g. `simulator`) — match against scenario content
     (all three current scenarios exercise the simulator; a filter like this
@@ -157,10 +157,11 @@ Once all sessions are collected, produce:
    expert run against it should now succeed where the baseline's expert
    persona couldn't.
 
-   `44958-category-grouping.md` carries a second built-in check: whether the
-   simulator derives `categories` from the selected `manager`. Until it does,
-   personas cannot reach that scenario's diagnosis unaided — report whether
-   they had to hand-supply the answer as input.
+   `44529-group-preset-nesting.md` carries a trap rather than a regression
+   check: its goal 3 asks whether the hand-built replacement is _exactly_
+   equivalent to the built-in group, and it isn't. Grade an expert who
+   asserts equivalence without checking as partial — see that scenario's
+   own note.
 
 **Check each scenario's `### Validity` section (where present) before
 grading.** Scenarios built on upstream data — preset bodies, manager
