@@ -90,7 +90,7 @@ GITHUB_CLIENT_ID=... GITHUB_CLIENT_SECRET=... ALLOWED_ORIGINS=https://rcv.exampl
 `server.mjs` is a dependency-free `node:http` adapter around the same pure
 handler. It passes headers and body through verbatim, so the `Origin`
 allow-list stays the security boundary. It is what the
-`ghcr.io/secustor/renovate-config-visualizer-oauth-proxy` image runs (roadmap
+`ghcr.io/secustor/renovate-config-debugger-oauth-proxy` image runs (roadmap
 [043](../../roadmap/043-docker-self-host.md)); the provisioning above is
 identical either way.
 

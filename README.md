@@ -14,7 +14,7 @@ browser. Think "compiler explorer for Renovate configs".
 **[Try it live](https://renovate.secustor.dev/)**, or run it yourself:
 
 ```bash
-docker run -p 8080:80 ghcr.io/secustor/renovate-config-visualizer   # http://localhost:8080
+docker run -p 8080:80 ghcr.io/secustor/renovate-config-debugger   # http://localhost:8080
 ```
 
 Paste this into the config editor and press _Run pipeline_ or simply [open it with the below content filled](https://renovate.secustor.dev/#config=PZDNToQwFIVfpTlxWRnHEE36Bi50YXRlZ1HKHUCnP2kvqCG8uykDLpvzfeekd8YEdS-RyIfJMEGhrqu6eoCEDf48dFCYtRdC4ybbnpzRUEKjZ45ZHQ5tsLna7SZwZYM77O_bq1F95uA15LWGfph8m0vNh95GVCIbnCPfUqtx2khnMlN6ynmkQnMaaUuisV-mo9fxQluRF0KIeZXY9s_Gm47SPuKjK617-h5bw_T2G3cZbvAhbUiXwhhfjFs3V1dssVjKzEn7RXtInIcLFQ7q_3zrT8vpoHBMj0M-NpCYBvqGmpHZdIWOiTIxJDJThLqTYNNAIUyUVnZZ_gA):
@@ -88,7 +88,7 @@ docker compose up --build    # build from this checkout instead
 ```
 
 The two services are the app image above and the optional
-`ghcr.io/secustor/renovate-config-visualizer-oauth-proxy` (token exchange, Node,
+`ghcr.io/secustor/renovate-config-debugger-oauth-proxy` (token exchange, Node,
 port 8788). Both are configured at run time, not build time, so one image serves
 an OAuth-off and an OAuth-on deployment. With both required variables set the
 container writes `/rcv-config.js` at startup and the sign-in UI appears;
