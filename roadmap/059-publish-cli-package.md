@@ -1,6 +1,13 @@
 # 059 — Publish the CLI as `@renovate-config-debugger/cli`
 
-Milestone: M16 · Status: proposed
+Milestone: M16 · Status: proposed · Stability: **experimental**
+
+The published package is explicitly experimental, and says so where a
+consumer will look: the npm `description` leads with "Experimental", the
+README's first section states that subcommands, flags and output shapes
+may change in any `0.x` release, and the compat table carries the same
+banner. The `0.x` version scheme below is the mechanical half of that
+promise.
 
 ## Summary
 
