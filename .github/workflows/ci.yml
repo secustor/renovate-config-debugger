@@ -49,6 +49,12 @@ jobs:
         run: pnpm --filter @renovate-config-debugger/engine test:golden
       - name: Shimmed tests (browser module graph)
         run: pnpm --filter @renovate-config-debugger/engine test:shimmed
+      # Roadmap 056: packs the engine, unpacks the tarball and type-checks a
+      # scratch consumer against it — a broken `exports`, a missing file or a
+      # renovate/dist type path leaking into the public surface fails here
+      # instead of on someone's `pnpm add`.
+      - name: Packaging tests (the engine's published shape)
+        run: pnpm --filter @renovate-config-debugger/engine test:packaging
       - name: OAuth worker tests
         run: pnpm --filter @renovate-config-debugger/oauth-worker test
       - name: App unit tests (pure modules — the run digest, …)
