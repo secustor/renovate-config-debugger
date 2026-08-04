@@ -1,6 +1,6 @@
 # 054 — Simulator: results readability
 
-Milestone: — · Status: **variant A implemented** (2026-08-02), shipped as the
+Milestone: M14 · Status: **variant A implemented** (2026-08-02), shipped as the
 five-layer stack below; variants B and C remain proposed
 
 Renumbered from 053 (2026-08-03): main took that number for the analytics

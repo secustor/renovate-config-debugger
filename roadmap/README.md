@@ -58,6 +58,7 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [051](051-resolved-config-output.md)                    | Effective config: resolved config as a copyable document          | M14                  | done     |
 | [052](052-post-resolution-remigration.md)               | Fidelity: re-migrate the resolved config (upstream parity)        | M14                  | done     |
 | [053](053-analytics-localhost-exclusion.md)             | Analytics: CI is not an audience, not tracked on localhost        | M14                  | done     |
+| [054](054-simulator-results-readability.md)             | Simulator: results readability — the ledger is the trace          | M14                  | done     |
 | [055](055-header-project-links.md)                      | Header links to the source and the issue tracker                  | M14                  | done     |
 | [056](056-publish-engine-package.md)                    | Publish the engine as `@renovate-config-debugger/engine`          | M15                  | proposed |
 | [057](057-fork-codemirror-json-schema.md)               | Fork + publish `codemirror-json-schema`                           | M15                  | proposed |
