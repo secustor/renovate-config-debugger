@@ -76,16 +76,19 @@ overriding them is explicit and visibly warned.
 ## Private repositories & presets
 
 Reading a private config or preset repo takes two steps, and the second one is
-easy to miss: sign in with GitHub, **then install the App on the repositories it
-should read**. A GitHub App token only reaches repositories the App was
-installed on, so signing in alone still returns "not found" for a private repo.
-Public repos need neither step. The App asks for one permission, Contents:
-read-only, and organization members may need an owner to approve the install.
+easy to miss: sign in with GitHub, then install the App on the repositories it
+should read. Signing in by itself grants nothing, so a private repo keeps coming
+back as "not found" until the App is installed on it. Public repos need neither
+step.
 
-[docs/GitHub-App-Access.md](docs/GitHub-App-Access.md) walks through it:
-installing on an account or an org, requesting owner approval, adding a
-repository later, revoking, and the personal-access-token fallback for GitHub
-Enterprise Server.
+That split is the point. It is what lets you decide, repository by repository,
+what the debugger can read, and the selection stays editable afterwards. The App
+asks for a single permission, Contents: read-only. Inside an organization, a
+member may need an owner to approve the install.
+
+[docs/GitHub-App-Access.md](docs/GitHub-App-Access.md) has the walkthrough,
+including owner approval, changing the selection later, revoking, and the
+personal-access-token fallback for GitHub Enterprise Server.
 
 ## Self-hosting (Docker)
 
