@@ -1,0 +1,97 @@
+name: Publish engine
+
+# Roadmap 056 — publishes @renovate-config-debugger/engine to npm.
+#
+# Tag-triggered only (`engine-v0.1.0`), never from a branch: a publish is an
+# irreversible act tied to one commit, and the tag is what says which one. The
+# tag must match the version in packages/engine/package.json — the first job
+# refuses to go on otherwise, so a forgotten version bump fails before anything
+# is uploaded.
+#
+# The whole check suite re-runs here rather than trusting main's green run:
+# the engine deep-imports renovate/dist internals, so "the tests passed on the
+# commit this tag points at" is the only statement worth publishing on.
+on:
+  push:
+    tags: ["engine-v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-engine-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+
+      - id: version
+        name: The tag and the manifest must agree
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          manifest="$(node -p "require('./packages/engine/package.json').version")"
+          tagged="${TAG#engine-v}"
+          if [ "$manifest" != "$tagged" ]; then
+            echo "::error::tag $TAG says $tagged, packages/engine/package.json says $manifest"
+            exit 1
+          fi
+          echo "version=$manifest" >> "$GITHUB_OUTPUT"
+
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm typecheck
+
+      - name: Golden tests (real renovate modules)
+        run: pnpm --filter @renovate-config-debugger/engine test:golden
+      - name: Shimmed tests (browser module graph)
+        run: pnpm --filter @renovate-config-debugger/engine test:shimmed
+      # Packs the tarball and type-checks a scratch consumer against it — the
+      # published shape, checked before it is published rather than after.
+      - name: Packaging tests (the published shape)
+        run: pnpm --filter @renovate-config-debugger/engine test:packaging
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      # npm provenance: the attestation is signed with a workflow-scoped OIDC
+      # token, which is what lets npm show "Built and signed on GitHub Actions"
+      # next to the package.
+      id-token: write
+    # An environment gate is where a human approval (or a scoped secret) hangs;
+    # create it in the repo settings before the first tag.
+    environment:
+      name: npm-publish
+      url: https://www.npmjs.com/package/@renovate-config-debugger/engine
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+
+      # `prepack` builds, `publishConfig` rewrites exports/main/types onto
+      # dist/, `files` decides what travels — all asserted by the packaging
+      # tests the verify job just ran.
+      #
+      # --no-git-checks: pnpm otherwise refuses to publish from a detached HEAD,
+      # which is exactly what a tag checkout is.
+      - name: Publish to npm with provenance
+        working-directory: packages/engine
+        env:
+          # Granular access token with publish rights on the
+          # @renovate-config-debugger scope. npm's trusted publishing (OIDC,
+          # no stored token) is the better answer as soon as pnpm supports the
+          # exchange — the id-token permission above is already in place for it.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"
+        run: |
+          echo "//registry.npmjs.org/:_authToken=\${NODE_AUTH_TOKEN}" > ~/.npmrc
+          pnpm publish --access public --provenance --no-git-checks
