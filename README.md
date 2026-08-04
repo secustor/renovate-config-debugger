@@ -73,6 +73,23 @@ overriding them is explicit and visibly warned.
 
 </details>
 
+## Private repositories & presets
+
+Reading a private config or preset repo takes two steps, and the second one is
+easy to miss: sign in with GitHub, then install the App on the repositories it
+should read. Signing in by itself grants nothing, so a private repo keeps coming
+back as "not found" until the App is installed on it. Public repos need neither
+step.
+
+That split is the point. It is what lets you decide, repository by repository,
+what the debugger can read, and the selection stays editable afterwards. The App
+asks for a single permission, Contents: read-only. Inside an organization, a
+member may need an owner to approve the install.
+
+[docs/GitHub-App-Access.md](docs/GitHub-App-Access.md) has the walkthrough,
+including owner approval, changing the selection later, revoking, and the
+personal-access-token fallback for GitHub Enterprise Server.
+
 ## Self-hosting (Docker)
 
 > [!WARNING]
@@ -171,6 +188,8 @@ plugin, the golden tests, the pinned Renovate.
   "read the contents of the repositories you select"; signing in also raises the
   rate limit from 60 to 5,000 requests/hour. Sign-out clears the local token,
   and the chip links to GitHub's authorization page for true revocation.
+  Granting the App access to a given repository is a separate step, covered in
+  [docs/GitHub-App-Access.md](docs/GitHub-App-Access.md).
 - Sign-in is off by default. It turns on only when the deploy provides
   `VITE_GITHUB_CLIENT_ID` and `VITE_OAUTH_WORKER_URL` (plus optional
   `VITE_GITHUB_APP_SLUG`) or their `RCV_*` equivalents. Otherwise a personal
