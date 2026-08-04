@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "rcd": {
+      "command": "pnpm",
+      "args": ["dlx", "@renovate-config-debugger/cli", "mcp"]
+    }
+  }
+}
