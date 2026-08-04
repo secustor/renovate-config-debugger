@@ -1,6 +1,6 @@
 # 060 — `rcv mcp` + pointing agents at the headless interface
 
-Milestone: M16 · Status: proposed
+Milestone: M16 · Status: done (2026-08-05)
 
 ## Summary
 
@@ -59,3 +59,43 @@ out that this exists.
   Code only prompts for plugins in the official Anthropic marketplace; until
   a listing exists the marker is inert but forward-compatible, and
   README/AGENTS.md remain the working channel.
+
+## As built (2026-08-05)
+
+- **The tools are the CLI's projections, not a second implementation.** 058's
+  command modules were refactored first: `src/projections/{digest,tree,
+provenance,messages}.ts` now hold the shapes, and the subcommands and the
+  MCP tools both import them. So "no new functionality" is structural — a
+  change to what `get_preset_tree` answers is a change to what `rcv tree`
+  answers.
+- Same for credentials: `applyRunAuth` (with the endpoint guard inside it) is
+  shared, so the guard cannot be enforced on one transport and forgotten on
+  the other. `run_config` takes `trustEndpoints` for the same opt-in the CLI
+  spells `--trust-endpoints`.
+- **`RunStore` is a real LRU** (8 runs): a `get` refreshes recency, so the run
+  an agent keeps drilling into is never the one evicted next, and an expired
+  handle is reported with the ids still held rather than a bare miss. Holding
+  more than one run is what makes `compare_simulations` an edit oracle across
+  two runs.
+- Tested through a real MCP client over the SDK's in-memory transport pair
+  (`test/mcp.test.ts`), so schemas, handlers and result shapes are exercised
+  the way a client exercises them; `rcv mcp` was additionally smoke-tested
+  over stdio against the published bundle.
+- **Nothing is written to stdout by `rcv mcp`** — on a stdio transport stdout
+  IS the protocol. The same rule already applied to the hint marker, which is
+  stderr-only, so it can corrupt neither the protocol stream nor a
+  `--format json` document.
+- The hint fires at most once per process (it matters for `rcv mcp`, which
+  lives for a whole session) from the three moments the doc names: `--help`,
+  an unknown subcommand, and the first run.
+- Discovery, as shipped: `packages/app/src/components/HeadlessNote.tsx` (a
+  visible `<footer>` at the end of the page, in flow, with the copy-pasteable
+  one-liners), a "For agents and scripts" section in the root README, an MCP
+  section in the CLI README, the AGENTS.md pointer, and
+  `packages/app/public/llms.txt`.
+
+Left open: nothing here can be _verified_ end to end until 059's package is
+actually published — every one-liner names `pnpm dlx
+@renovate-config-debugger/cli`. The plugin hint stays inert until an
+official-marketplace listing exists (061 ships the plugin itself and a
+self-hosted marketplace, which the hint protocol deliberately cannot see).

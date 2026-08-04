@@ -73,6 +73,40 @@ overriding them is explicit and visibly warned.
 
 </details>
 
+## For agents and scripts (headless)
+
+> [!NOTE]
+> The CLI and the MCP server are **experimental**: subcommands, flags and
+> output shapes may change in any `0.x` release.
+
+Everything the app shows is available without a browser — the same engine, the
+same pinned Renovate, as structured data:
+
+```bash
+pnpm dlx @renovate-config-debugger/cli digest renovate.json     # the run in one paragraph
+pnpm dlx @renovate-config-debugger/cli validate renovate.json   # exit 2 = Renovate would refuse it
+pnpm dlx @renovate-config-debugger/cli tree renovate.json       # what `extends` expanded into
+pnpm dlx @renovate-config-debugger/cli provenance renovate.json labels
+pnpm dlx @renovate-config-debugger/cli simulate renovate.json --dep '{"depName":"react"}'
+pnpm dlx @renovate-config-debugger/cli compare before.json after.json --dep '{"depName":"react"}'
+```
+
+`--format json` on any subcommand; `--help` lists them all. Exit `2` means
+Renovate would refuse the config, which is the blocking signal a Claude Code
+hook reads, so `validate` drops into one with no wrapper.
+
+For an agent session, register the MCP server once and get typed tools instead
+of flags — the engine boots once and `run_config` holds the trace, so
+drill-down questions cost milliseconds and describe one consistent run:
+
+```bash
+claude mcp add rcv -- pnpm dlx @renovate-config-debugger/cli mcp
+```
+
+[`packages/cli/README.md`](packages/cli/README.md) has the full surface: input
+options, credentials (environment only), the endpoint guard, and the
+compatibility table.
+
 ## Private repositories & presets
 
 Reading a private config or preset repo takes two steps, and the second one is

@@ -5,12 +5,14 @@ import type { Command } from "./command";
 import { compareCommand } from "./commands/compare";
 import { digestCommand } from "./commands/digest";
 import { docsCommand } from "./commands/docs";
+import { mcpCommand } from "./commands/mcp";
 import { provenanceCommand } from "./commands/provenance";
 import { resolvedCommand } from "./commands/resolved";
 import { runCommand } from "./commands/run";
 import { simulateCommand } from "./commands/simulate";
 import { treeCommand } from "./commands/tree";
 import { validateCommand } from "./commands/validate";
+import { emitPluginHint } from "./hint";
 import { CliError, type CliIo, errorMessage, EXIT_ERROR, EXIT_OK } from "./io";
 
 /**
@@ -35,6 +37,7 @@ const COMMANDS: readonly Command[] = [
   simulateCommand,
   compareCommand,
   docsCommand,
+  mcpCommand,
 ];
 
 const BANNER = [
@@ -60,6 +63,9 @@ function topLevelHelp(): string[] {
     "They are withheld when the config under inspection chooses the endpoint.",
     "",
     "`rcv <command> --help` for a command's own flags.",
+    "",
+    "In an MCP-capable client, register the server once and skip the flags entirely:",
+    "  claude mcp add rcv -- pnpm dlx @renovate-config-debugger/cli mcp",
   ];
 }
 
@@ -79,7 +85,11 @@ function commandHelp(command: Command): string[] {
 
 async function dispatch(argv: string[], io: CliIo): Promise<number> {
   const [name, ...rest] = argv;
+  // Roadmap 060: the three moments the plugin hint is worth emitting — help,
+  // a wrong guess at a subcommand, and a first run. It is stderr-only, once
+  // per process, and only inside Claude Code (see `hint.ts`).
   if (!name || name === "--help" || name === "-h" || name === "help") {
+    emitPluginHint(io);
     io.out(`${topLevelHelp().join("\n")}\n`);
     return EXIT_OK;
   }
@@ -89,14 +99,17 @@ async function dispatch(argv: string[], io: CliIo): Promise<number> {
   }
   const command = COMMANDS.find((c) => c.name === name);
   if (!command) {
+    emitPluginHint(io);
     throw new CliError(
       `unknown command "${name}" — try one of: ${COMMANDS.map((c) => c.name).join(", ")}`,
     );
   }
   if (rest.includes("--help") || rest.includes("-h")) {
+    emitPluginHint(io);
     io.out(`${commandHelp(command).join("\n")}\n`);
     return EXIT_OK;
   }
+  emitPluginHint(io);
   return command.run(parseCommandArgs(rest, command.options), io);
 }
 
