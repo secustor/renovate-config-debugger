@@ -2,7 +2,7 @@
   <img src="packages/app/public/logo-192.png" width="120" alt="Renovate Config Debugger logo" />
 </p>
 
-# renovate-config-visualizer
+# Renovate Config Debugger
 
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/secustor/renovate-config-debugger/badge)](https://scorecard.dev/viewer/?uri=github.com/secustor/renovate-config-debugger)
 
