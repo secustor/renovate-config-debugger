@@ -19,11 +19,11 @@ all scenario exploration happens inside persona subagents.
 ## 1. Parse arguments
 
 Args come as free text after the skill invocation, e.g. `/persona-test
-simulator advanced` or `/persona-test 44772 all` or with no args at all.
+simulator advanced` or `/persona-test 44529 all` or with no args at all.
 
 - **Scenario filter** — optional. One of:
   - `all` (default) — every file in `scenarios/`.
-  - a discussion id or filename fragment (e.g. `44772`, `star-exclusion`) —
+  - a discussion id or filename fragment (e.g. `44529`, `star-exclusion`) —
     matches against scenario filenames.
   - a thematic word (e.g. `simulator`) — match against scenario content
     (all three current scenarios exercise the simulator; a filter like this
@@ -156,6 +156,21 @@ Once all sessions are collected, produce:
    built-in regression check for roadmap 012 (update-type flattening) — an
    expert run against it should now succeed where the baseline's expert
    persona couldn't.
+
+   `44529-group-preset-nesting.md` carries a trap rather than a regression
+   check: its goal 3 asks whether the hand-built replacement is _exactly_
+   equivalent to the built-in group, and it isn't. Grade an expert who
+   asserts equivalence without checking as partial — see that scenario's
+   own note.
+
+**Check each scenario's `### Validity` section (where present) before
+grading.** Scenarios built on upstream data — preset bodies, manager
+definitions — go stale when Renovate is bumped, and a stale scenario grades
+correct answers as wrong. The retired `44772-monorepo-preset` scenario failed
+exactly this way: upstream added `react/react` to the `monorepo:react` preset,
+so the bug it was built on no longer existed. If a validity check fails, say
+so and grade against observed current behavior rather than the written
+ground truth.
 
 Present this as your final report; do not silently drop a session's report
 even if it was short (budget ran out, or the persona bailed early) — note
