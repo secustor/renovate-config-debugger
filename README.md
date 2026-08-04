@@ -73,6 +73,9 @@ overriding them is explicit and visibly warned.
 
 ## Self-hosting (Docker)
 
+> [!WARN]
+> Docker setups are experimental at the moment
+
 The app is a static bundle, so hosting it is the one container above. There is
 also [`docker-compose.yml`](docker-compose.yml), a worked example of both
 services with every optional variable present but commented out:
@@ -81,15 +84,6 @@ services with every optional variable present but commented out:
 docker compose up            # published images
 docker compose up --build    # build from this checkout instead
 ```
-
-Every push to `main` publishes `ghcr.io/secustor/renovate-config-visualizer`
-(the app, nginx, port 80) and `…-oauth-proxy` (optional token-exchange proxy,
-Node, port 8788), tagged `latest` and `sha-<short>` for `linux/amd64` and
-`linux/arm64`. They are configured when the container starts rather than when
-the image is built, so one image serves an OAuth-off and an OAuth-on
-deployment: with both required variables set the container writes
-`/rcv-config.js` at startup and the sign-in UI appears, otherwise the shipped
-stub stays and the feature is off.
 
 | Variable                | Required for sign-in | Notes                                                               |
 | ----------------------- | -------------------- | ------------------------------------------------------------------- |
