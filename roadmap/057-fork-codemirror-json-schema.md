@@ -32,20 +32,20 @@ patch-refresh and a re-measurement.
 
 ## What is carried locally today
 
-| Fix | Where it lives now | Why |
-| --- | --- | --- |
-| `Draft07` memoized on schema identity (completion) | `patches/…@0.8.1.patch` | `new Draft07(schema)` pre-processes 258 kB of Renovate schema (~123 ms) and upstream builds a fresh one at every call site, up to 6× per keystroke |
-| `this.originalSchema = schemaFromState` assignment | same patch | upstream compares the field but never assigns it, so the whole change-detection block (including `makeSchemaLax` over the full schema) ran on every call |
-| `Draft04` memoized (hover, validation) | same patch | ~69 ms rebuilt on every hover and every `doValidation` |
-| `utils/markdown.js` → markdown-it only | `packages/app/vite.config.ts` shim | upstream's module runs a top-level async IIFE building a shiki highlighter (~330 kB raw) purely to colour code fences in tooltips, statically imported by three features |
-| `parsers/yaml-parser.js` → throw | same shim | the parsers barrel statically imports the YAML parser, dragging `yaml` into the schema chunk for an app that never uses YAML mode |
+| Fix                                                | Where it lives now                 | Why                                                                                                                                                                      |
+| -------------------------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Draft07` memoized on schema identity (completion) | `patches/…@0.8.1.patch`            | `new Draft07(schema)` pre-processes 258 kB of Renovate schema (~123 ms) and upstream builds a fresh one at every call site, up to 6× per keystroke                       |
+| `this.originalSchema = schemaFromState` assignment | same patch                         | upstream compares the field but never assigns it, so the whole change-detection block (including `makeSchemaLax` over the full schema) ran on every call                 |
+| `Draft04` memoized (hover, validation)             | same patch                         | ~69 ms rebuilt on every hover and every `doValidation`                                                                                                                   |
+| `utils/markdown.js` → markdown-it only             | `packages/app/vite.config.ts` shim | upstream's module runs a top-level async IIFE building a shiki highlighter (~330 kB raw) purely to colour code fences in tooltips, statically imported by three features |
+| `parsers/yaml-parser.js` → throw                   | same shim                          | the parsers barrel statically imports the YAML parser, dragging `yaml` into the schema chunk for an app that never uses YAML mode                                        |
 
 Together: 242.3 ms → 1.9 ms per completion (measured on the `{ "ran| }`
 fixture against the Renovate schema; verified end-to-end in the app at
 1.95 ms), and a schema payload at editor mount of 82 kB gz instead of 172 —
 total JS 3,294 → 2,955 kB, with every other engine chunk md5-identical
 (measured in `525a96f`, 2026-07-27; 031's "~160 kB gz schema layer" is the
-figure from *before* these cuts).
+figure from _before_ these cuts).
 
 ## Scope
 
@@ -61,11 +61,11 @@ figure from *before* these cuts).
 
 ## Release sequence
 
-| Release | Contents | What a consumer sees |
-| --- | --- | --- |
-| **0.8.1** | upstream `v0.8.1` verbatim, renamed | nothing — a specifier rename |
-| **0.9.0** | + the three `Draft0x` memoizations | 242.3 ms → 1.9 ms per completion; no API change, no visible change |
-| **0.10.0** | + markdown-it rendering, YAML parser off the default path | no API change; tooltip code fences lose syntax colours |
+| Release    | Contents                                                  | What a consumer sees                                               |
+| ---------- | --------------------------------------------------------- | ------------------------------------------------------------------ |
+| **0.8.1**  | upstream `v0.8.1` verbatim, renamed                       | nothing — a specifier rename                                       |
+| **0.9.0**  | + the three `Draft0x` memoizations                        | 242.3 ms → 1.9 ms per completion; no API change, no visible change |
+| **0.10.0** | + markdown-it rendering, YAML parser off the default path | no API change; tooltip code fences lose syntax colours             |
 
 There is no `1.0.0` on this roadmap. The fork stays in `0.x` for as long as
 it exists — see the versioning decision below.
@@ -135,7 +135,7 @@ would make the "no-op" switch quietly not one.
   the one place where the fork must be more careful than the shim it
   replaces. `getDefaultParser` is a runtime `switch` over all three parsers,
   statically importing each — which is why importing the main entry drags
-  `yaml` in even though the mode is fixed by *which entry you imported*. The
+  `yaml` in even though the mode is fixed by _which entry you imported_. The
   app's shim can make `yaml-parser.js` throw because the app never uses YAML
   mode; a library cannot, because `codemirror-json-schema/yaml` must keep
   working. The fork's fix is for each entry to supply its own parser instead
