@@ -230,8 +230,8 @@ test("the header links out to the source and to the issue tracker (055)", async 
   // name is what this test locates them by. Both open away from the app, and
   // `noreferrer` is what keeps `window.opener` out of the new tab.
   for (const [link, href] of [
-    [source, "https://github.com/secustor/renovate-config-visualizer"],
-    [issues, "https://github.com/secustor/renovate-config-visualizer/issues"],
+    [source, "https://github.com/secustor/renovate-config-debugger"],
+    [issues, "https://github.com/secustor/renovate-config-debugger/issues"],
   ] as const) {
     await expect(link).toBeVisible();
     await expect(link).toHaveAttribute("href", href);

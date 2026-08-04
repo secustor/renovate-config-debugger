@@ -10,7 +10,9 @@
  * self-hoster's fork is not where a bug report about this app belongs.
  */
 
-const REPO_URL = "https://github.com/secustor/renovate-config-visualizer";
+// The repository was renamed to `renovate-config-debugger`; the old name still
+// redirects, but a link the user can read should carry the current one.
+const REPO_URL = "https://github.com/secustor/renovate-config-debugger";
 const ISSUES_URL = `${REPO_URL}/issues`;
 
 /** Octicons 16px: `mark-github`, `issue-opened`. */
