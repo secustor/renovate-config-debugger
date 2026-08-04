@@ -1,18 +1,62 @@
 {
   "name": "@renovate-config-debugger/engine",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "AGPL-3.0-only. Renovate's own config pipeline — parse, migrate, massage, validate, resolve presets, merge, simulate packageRules — running in a browser, with a trace of every stage.",
+  "keywords": [
+    "browser",
+    "config",
+    "packageRules",
+    "presets",
+    "renovate",
+    "renovate-config",
+    "renovatebot",
+    "vite-plugin"
+  ],
+  "homepage": "https://github.com/secustor/renovate-config-debugger/tree/main/packages/engine#readme",
+  "bugs": "https://github.com/secustor/renovate-config-debugger/issues",
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/secustor/renovate-config-debugger.git",
+    "directory": "packages/engine"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
     "./schema": "./src/schema.ts",
     "./vite-plugin": "./src/shims/vite-plugin-renovate-shims.ts"
   },
+  "publishConfig": {
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./schema": {
+        "types": "./dist/schema.d.ts",
+        "default": "./dist/schema.js"
+      },
+      "./vite-plugin": {
+        "types": "./dist/shims/vite-plugin-renovate-shims.d.ts",
+        "default": "./dist/shims/vite-plugin-renovate-shims.js"
+      }
+    },
+    "access": "public"
+  },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "pnpm build",
     "typecheck": "tsc --noEmit",
-    "test": "pnpm test:golden && pnpm test:shimmed",
+    "test": "pnpm test:golden && pnpm test:shimmed && pnpm test:packaging",
     "test:golden": "vitest run --project golden",
     "test:shimmed": "vitest run --project shimmed",
+    "test:packaging": "vitest run --project packaging",
     "generate:registries": "node scripts/generate-registry-names.mjs"
   },
   "dependencies": {
@@ -25,5 +69,16 @@
     "typescript": "7.0.2",
     "vite": "8.2.1",
     "vitest": "4.1.10"
+  },
+  "peerDependencies": {
+    "vite": ">=6.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=24.0.0"
   }
 }
