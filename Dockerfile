@@ -14,16 +14,29 @@
 # builds each architecture on a runner of that architecture and never hits
 # this, but it keeps a local `docker build --platform linux/amd64,linux/arm64`
 # from running pnpm install and the vite build a second time under QEMU.
-FROM --platform=$BUILDPLATFORM node:26.5.1-alpine@sha256:233761595746769ebfdb6090f44fc7cdf818ae0ce62d2b37e0367723b9823e36 AS build
+#
+# Based on the mise image rather than `node`, so node and pnpm both come from
+# `mise.toml` — the same versions a contributor gets locally, stated once. mise
+# verifies what it downloads (node against nodejs.org's SHASUMS256.txt, pnpm
+# against its GitHub build attestation and checksum), which is also what clears
+# the OpenSSF Scorecard Pinned-Dependencies finding the previous
+# `npm install --global pnpm@x` tripped: that check only ever accepts `npm ci`,
+# never an exact version. No `mise.lock` — mise.toml pins exact versions, so a
+# lock file would resolve nothing the checksums don't already cover.
+FROM --platform=$BUILDPLATFORM jdxcode/mise:2026.8.1@sha256:b2297770273f71e685b8056e3b07bfda4ffc35f0fb62e0339b3cdc1e5766e2fe AS build
+
+# CI is what `mise.toml`'s postinstall hook checks: without it the hook fires a
+# full, unfrozen `pnpm install` here, before any manifest has been copied in.
+ENV MISE_DATA_DIR=/opt/mise \
+    MISE_TRUSTED_CONFIG_PATHS=/repo \
+    CI=1 \
+    PATH=/opt/mise/shims:$PATH
 WORKDIR /repo
 
-# Matches the root package.json `packageManager` field — kept in step by
-# Renovate via `customManagers:dockerfileVersions`, which needs the version in
-# an ARG named *_VERSION preceded by the comment below. Installed via npm
-# rather than corepack, which node:26 no longer bundles.
-# renovate: datasource=npm depName=pnpm
-ARG PNPM_VERSION=11.19.0
-RUN npm install --global "pnpm@${PNPM_VERSION}"
+# Named explicitly: a bare `mise install` also picks up tools declared outside
+# the repo config.
+COPY mise.toml ./
+RUN mise install node pnpm
 
 # Manifests first: dependencies only re-resolve when one of these changes.
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
