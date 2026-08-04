@@ -1,46 +1,44 @@
 #!/usr/bin/env node
 /**
- * The in-repo `rcd` bin (roadmap 058).
+ * The PUBLISHED `rcd` (roadmap 059) — `pnpm dlx @renovate-config-debugger/cli …`.
  *
- * It boots Vite's SSR module runner with the engine's own shim plugin active
- * and loads `src/main.ts` through it, so the CLI runs the EXACT module graph
- * the browser bundle and the shimmed test suite use. That is the whole point:
- * the preset tree and the provenance events are reconstructed from Renovate's
- * log stream by the logger shim, so a plain Node import of the engine — fast
- * as it is — returns `presetTree: undefined` and no provenance.
+ * No Vite, no transform pipeline: `dist/main.js` is the same shimmed module
+ * graph the dev runner builds on demand, baked at publish time by
+ * `vite build --ssr` with `renovateShims()` active. Renovate is inlined into
+ * it, so the package has no runtime dependencies and startup is a plain import.
  *
- * Plain JavaScript, and the only file that touches the process: everything
- * under `src/` is transformed with `define: { "process.env": "{}" }` (the shim
- * plugin sets it for the browser), so argv, env and stdio have to be handed in
- * as data.
+ * The bin is deliberately NOT part of the bundle: the graph is transformed
+ * with `define: { "process.env": "{}" }`, so this file is the only place that
+ * can read the real environment (see `bin/io.mjs`).
  */
-import { createServer } from "vite";
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { processIo } from "./io.mjs";
 
-const configFile = new URL("../vite.config.ts", import.meta.url).pathname;
-
-const server = await createServer({
-  configFile,
-  logLevel: "error",
-  server: { middlewareMode: true, hmr: false, watch: null },
+// One of renovate's transitive dependencies still reaches for `node:punycode`.
+// Inlined into the bundle, its deprecation warning is about code no consumer
+// of this package can change, and it would otherwise land on the stderr that
+// agents read. Every other warning is printed exactly as Node would — which
+// is why the default handler has to go first: a `warning` listener ADDS to it
+// rather than replacing it, so registering one alone would print twice.
+process.removeAllListeners("warning");
+process.on("warning", (warning) => {
+  if (warning.name === "DeprecationWarning" && warning.message.includes("punycode")) {
+    return;
+  }
+  process.stderr.write(`${warning.stack ?? `${warning.name}: ${warning.message}`}\n`);
 });
 
-let code = 1;
-try {
-  const { main } = await server.ssrLoadModule("/src/main.ts");
-  code = await main(process.argv.slice(2), {
-    out: (text) => process.stdout.write(text),
-    err: (text) => process.stderr.write(text),
-    env: process.env,
-    readStdin: async () => {
-      const chunks = [];
-      for await (const chunk of process.stdin) {
-        chunks.push(chunk);
-      }
-      return Buffer.concat(chunks).toString("utf8");
-    },
-  });
-} finally {
-  await server.close();
+const bundle = new URL("../dist/main.js", import.meta.url);
+
+if (!existsSync(fileURLToPath(bundle))) {
+  process.stderr.write(
+    "rcd: this bin needs the built bundle (dist/main.js).\n" +
+      "     In this repository, run `pnpm --filter @renovate-config-debugger/cli build`,\n" +
+      "     or use the dev runner: `pnpm --filter @renovate-config-debugger/cli rcd …`.\n",
+  );
+  process.exit(1);
 }
 
-process.exit(code);
+const { main } = await import(bundle.href);
+process.exit(await main(process.argv.slice(2), processIo()));
