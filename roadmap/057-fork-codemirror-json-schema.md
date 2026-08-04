@@ -19,6 +19,11 @@ changes **at the source**, and publishes the result as
 `@renovate-config-debugger/codemirror-json-schema` — deleting the patch, the
 shim plugin and the two shim modules from this repository.
 
+It ships in three releases, and the **first one changes nothing**: upstream
+0.8.1 under a new name, so switching to the fork is a specifier rename with no
+behavior to evaluate and nothing to trust yet. The fixes arrive after that, one
+release per class of change, each independently adoptable and revertible.
+
 ## User story
 
 As a maintainer, I want the library the editor depends on to already contain
@@ -46,10 +51,43 @@ fixture against the Renovate schema; verified end-to-end in the app at
   five changes applied to `src/features/*.ts` and `src/utils/`, upstream's
   test suite kept green.
 - Published under the project's npm scope with provenance, same pipeline
-  shape as 056.
-- This repository migrates onto it: the patch, `patchedDependencies`,
-  `codemirrorJsonSchemaShims()` and `src/platform/shims/*` all disappear.
+  shape as 056 — in three releases (below), starting with a verbatim mirror.
+- This repository migrates onto it in three matching steps: the patch,
+  `patchedDependencies`, `codemirrorJsonSchemaShims()` and
+  `src/platform/shims/*` all disappear, but not all at once.
 - An upstream-tracking arrangement so the fork can die when upstream revives.
+
+## Release sequence
+
+| Release | Contents | What a consumer sees |
+| --- | --- | --- |
+| **0.8.1** | upstream `v0.8.1` verbatim, renamed | nothing — a specifier rename |
+| **0.9.0** | + the three `Draft0x` memoizations | 242.3 ms → 1.9 ms per completion; no API change, no visible change |
+| **1.0.0** | + markdown-it rendering, YAML behind `/yaml` | **breaking**: tooltip code fences lose syntax colours, the parsers barrel no longer pulls YAML |
+
+### What "identical" means for 0.8.1, and how it's proven
+
+The mirror is only worth publishing if the claim is checkable. The release job
+builds the fork at the upstream tag, then diffs its tarball against
+`codemirror-json-schema@0.8.1`'s published tarball file by file. The only
+permitted differences are the package's identity: `name`, `repository`,
+`homepage`, `bugs`, and the added `publishConfig`/provenance metadata.
+Everything else — `version`, `exports` and every subpath (`/json5`, `/yaml`,
+`…`), `peerDependencies` ranges, `dependencies`, and each emitted file under
+`dist/` and `cjs/` — must match byte for byte.
+
+If upstream's published artifact turns out not to be reproducible from its own
+tag (build-tool version drift, embedded paths), the honest options are to
+republish upstream's tarball contents with only the identity fields rewritten,
+or to build from source and record the exact diff in the release notes. What
+is not acceptable is shipping "basically the same" under a version number that
+promises otherwise. Establishing which case we're in is the first task of this
+item, because it decides how the mirror is built.
+
+Keeping the peer ranges identical also matters mechanically: the app already
+depends on `@codemirror/language`, `@codemirror/view` and friends directly, and
+a widened or narrowed peer range would change how pnpm dedupes them — which
+would make the "no-op" switch quietly not one.
 
 ## Decisions
 
@@ -84,12 +122,24 @@ fixture against the Renovate schema; verified end-to-end in the app at
   manual filtering — the same call made in `patches/README.md`, carried
   forward unchanged.
 
-- **Independent versioning from `1.0.0`, with a fork-point table.** Mirroring
-  upstream's version numbers invites a collision the first time upstream
-  releases `0.8.2`, and a `-rcd.N` prerelease suffix sorts *below* the version
-  it is built on. The package versions itself, and the README states the
-  upstream commit it was forked from and every upstream release merged since —
-  the same compat-table pattern as 056.
+- **Mirror first at upstream's own version number, then diverge.** The first
+  release is `0.8.1` — the same version string as the upstream release it
+  copies, because that is the one number that says exactly what it is. It buys
+  something a diverged first release cannot: adopting the fork and adopting
+  the changes become two separate decisions, for us and for anyone else. If
+  the editor misbehaves after the switch, the fork is not a suspect.
+  Divergence starts at `0.9.0`, which leaves upstream's `0.8.x` line free —
+  a future upstream `0.8.2` then can't be confused for one of ours. From
+  `0.9.0` on the package versions itself, and its README carries the
+  fork-point commit plus every upstream release merged since (the same
+  compat-table pattern as 056).
+
+- **One release per class of change.** The memoizations (`0.9.0`) are
+  behavior-preserving and measurable; the bundle changes (`1.0.0`) are
+  breaking and visible. Bundling them into one release would force a consumer
+  to accept unhighlighted tooltips in order to get the 240 ms back, and would
+  leave us unable to tell which change moved a number when one of them
+  regresses.
 
 - **Every change is filed upstream, and the fork's README says so.** If a PR
   merges and a release ships, the exit is: drop the dependency, go back to
@@ -104,24 +154,49 @@ fixture against the Renovate schema; verified end-to-end in the app at
 
 ## Migration in this repository
 
-- `packages/app/package.json` — swap the dependency.
-- `pnpm-workspace.yaml` — drop the `patchedDependencies` entry;
-  `patches/codemirror-json-schema@0.8.1.patch` and its `patches/README.md`
-  section go with it.
-- `packages/app/vite.config.ts` — delete `codemirrorJsonSchemaShims()` and its
-  ~40 lines of rationale comment; `src/platform/shims/codemirror-json-schema-*.ts`
-  are deleted.
-- `packages/app/src/platform/editor-schema.ts` — update the import specifiers
-  (including the lazy `import("codemirror-json-schema/json5")`) and the
-  comments that reason about upstream's `bundled.js` layout, which the fork
-  now owns.
+Three steps, one per release, each landing on its own and each revertible by
+reverting one commit.
+
+**Step 1 — the no-op switch (onto `0.8.1`).** Nothing but names change; the
+patch and both shims stay exactly where they are and keep doing exactly what
+they do.
+
+- `packages/app/package.json` — swap the specifier.
+- `pnpm-workspace.yaml` — the `patchedDependencies` key becomes
+  `@renovate-config-debugger/codemirror-json-schema@0.8.1`, and the patch file
+  is renamed to match pnpm's convention. Its **contents don't change** — it
+  patches the same `dist`/`cjs` bytes, which is a second, incidental proof
+  that the mirror is identical: a patch that no longer applies cleanly means
+  it isn't.
+- `packages/app/vite.config.ts` — the shim plugin's `require.resolve` and its
+  two path suffixes carry the package name; both must move.
+- `packages/app/src/platform/editor-schema.ts` — the static import and the
+  lazy `import("…/json5")`.
 - `.oxlintrc.json` — four `no-restricted-imports` rules name the package by
   specifier to keep the ~160 kB gz schema stack behind
   `platform/editor-schema.ts` (031). All four must name the new package, or
   the guard silently stops guarding.
-- Root `README.md` / `docs/Architecture.md` — the shim-system section
-  currently cites the codemirror-json-schema plugin as the app's copy of the
-  engine's mechanism; that sentence loses its example.
+- Prose references to the package name (`keystroke-render.test.tsx`'s comment
+  on why no hover mock is needed, `patches/README.md`, `AGENTS.md`). No test
+  or script matches on the specifier, so nothing here can fail silently.
+
+The step is correct exactly when the full suite — unit, render, e2e — passes
+with no other edits and no numbers moving. That is the whole point of it.
+
+**Step 2 — drop the patch (onto `0.9.0`).** Delete
+`patches/…codemirror-json-schema@0.8.1.patch`, its `patchedDependencies`
+entry and its `patches/README.md` section. Guarded by 032's keystroke-render
+test: the per-completion number must match the patched baseline, because the
+fix is the same fix.
+
+**Step 3 — drop the shims (onto `1.0.0`).** Delete
+`codemirrorJsonSchemaShims()` from `vite.config.ts` along with its ~40 lines
+of rationale comment, and `src/platform/shims/codemirror-json-schema-*.ts`.
+Update `editor-schema.ts`'s comments that reason about upstream's `bundled.js`
+layout, which the fork now owns, and the sentence in `AGENTS.md` /
+`docs/Architecture.md` that cites this plugin as the app's copy of the
+engine's shim mechanism — it loses its example. Guarded by the schema chunk's
+size, which must not grow.
 
 ## Risks
 
@@ -132,8 +207,14 @@ fixture against the Renovate schema; verified end-to-end in the app at
 - **The bundle changes alter behavior**, not just size: tooltip code fences
   lose syntax colours (already the accepted delta today), and a consumer
   importing the parsers barrel expecting YAML gets an error instead. Both are
-  breaking for hypothetical other consumers, which is why the fork starts at
-  its own `1.0.0` with the deltas listed at the top of its README.
+  breaking for hypothetical other consumers, which is why they land alone in
+  `1.0.0` with the deltas listed at the top of its README, rather than riding
+  along with the perf fixes.
+- **A mirror release can be misread as an endorsement to switch.** `0.8.1`
+  under our name is upstream's code, published by us, and someone finding it
+  may assume it's maintained beyond the five changes we care about. The
+  package README's first paragraph says what it is, what it will diverge into,
+  and that the intent is for it to become unnecessary.
 
 ## Out of scope
 
@@ -155,15 +236,29 @@ fixture against the Renovate schema; verified end-to-end in the app at
 
 ## Verification
 
-- Upstream's own suite green on the fork (0.8.1's baseline is 50/50 completion
-  tests and a clean `tsc`; the 7 `lang-yaml` failures on that checkout are
-  pre-existing drift and stay documented as such), plus new tests for each of
-  the five changes — the memoization ones assert a single `Draft0x`
-  construction across repeated calls, which is what the patch has never been
-  able to prove.
-- In this repository, after migration: the `render` project's keystroke test
-  (032) must show no regression against the patched baseline, and the schema
-  chunk must not grow — the two numbers this whole arrangement exists to hold.
-- `pnpm lint` (the restricted-import rules resolve against the new
-  specifier), `pnpm typecheck`, `test:unit`, and the e2e suite, which is what
-  actually exercises hover, completion and validation in a real browser.
+Per release, since each is adopted on its own:
+
+**0.8.1 (mirror).** The tarball diff against upstream's published artifact,
+described above — identity fields only. Upstream's own suite green on the
+fork as published (0.8.1's baseline is 50/50 completion tests and a clean
+`tsc`; the 7 `lang-yaml` failures on that checkout are pre-existing drift and
+stay documented as such). In this repository, step 1's rename must leave the
+existing patch applying cleanly and every suite — `test:unit`, the `render`
+project, e2e — passing with **no other change**; a number that moves here
+means the mirror isn't one.
+
+**0.9.0 (perf).** New tests in the fork asserting a single `Draft0x`
+construction across repeated calls — what the patch has never been able to
+prove, and the reason to move the fix into source. In this repository, 032's
+keystroke test must match the patched baseline (~1.9 ms per completion), not
+merely beat the unpatched one.
+
+**1.0.0 (bundle).** The schema chunk must not grow past its post-shim size
+(031's ~160 kB gz), measured after the shim plugin is deleted — the fork now
+has to be doing what the plugin did. The e2e suite is what actually exercises
+hover, completion and validation in a real browser, and is where an
+over-aggressive markdown or parser change would surface.
+
+Throughout: `pnpm lint` (the restricted-import rules must resolve against the
+new specifier — a rule naming a package that is no longer installed enforces
+nothing), `pnpm typecheck`, `pnpm format:check`.

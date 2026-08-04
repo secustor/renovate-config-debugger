@@ -162,5 +162,8 @@ workspace can use it — its `exports` point at `.ts` sources and it is
 pnpm patch against `codemirror-json-schema`'s build output and a Vite
 shim plugin that cuts two of its modules — with a source-level fork
 published under the same scope, upstream having merged nothing since
-2025-04-21. Both need the npm organization to exist first; whichever
-lands first creates it.
+2025-04-21. It ships in three releases, the first of which is upstream
+0.8.1 verbatim under the new name: adopting the fork and adopting its
+changes are separate decisions, and the no-op switch is what proves the
+mirror honest. Both items need the package registry organization to
+exist first; whichever lands first creates it.
