@@ -5,8 +5,10 @@ export function previewValue(value: unknown, max = 60): string {
   return text.length > max ? `${text.slice(0, max)}…` : text;
 }
 
-/** Untruncated JSON rendering for copy-as-markdown export. */
-function fullValue(value: unknown): string {
+/** Untruncated JSON rendering — the copy-as-markdown export and (replay-02
+ *  N6) the clause grid's click-to-expand both need the complete value; a
+ *  60-char preview of a matchSourceUrls list is not a citable artifact. */
+export function fullValue(value: unknown): string {
   return JSON.stringify(value) ?? "undefined";
 }
 

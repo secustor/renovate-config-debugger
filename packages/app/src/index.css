@@ -2694,13 +2694,15 @@ pre.config-view.prov-before {
    this update actually is. Rows are subgrid so both value columns line up
    straight down the grid; the comparison IS the evidence, and the prose form
    this replaced (layer 7 retired it) hid the comparison in a sentence. */
-/* Both text columns are `fr`, not `1fr auto`: an `auto` last track takes its
-   max-content width first, and a clause that did NOT match carries a whole
-   sentence there ("evaluated false — the simulated dependency has no depType
-   …"). That left the checks column ~1ch wide, breaking its value one character
-   per line. Sharing the slack keeps every state on the same tracks; the
-   explanation gets the larger share because it is prose, while the value it
-   sits beside is a `previewValue`, capped at 60 characters. */
+/* Replay-02 N6: both text columns are `fr`, not `1fr auto`. An `auto` track
+   grows toward its max-content BEFORE any fr track gets space, and a clause
+   that did NOT match carries a whole sentence there ("evaluated false — the
+   simulated dependency has no depType …"). That starved the checks column to
+   ~1ch, breaking its value one glyph per line — and because subgrid sizes
+   tracks across ALL rows, a single failing clause collapsed the whole grid.
+   Two minmax(0, fr) tracks can't starve each other; the explanation gets the
+   larger share because it is prose, while the value it sits beside is a
+   `previewValue`, capped at 60 characters. */
 .sim-clause-grid {
   --kv-cols: max-content max-content minmax(0, 1fr) minmax(0, 1.6fr);
   --kv-row-gap: 0.2rem;
@@ -2732,6 +2734,19 @@ pre.config-view.prov-before {
   color: var(--ink);
   font-family: var(--font-mono);
   font-size: 0.78rem;
+}
+
+/* Replay-02 N6: a truncated clause value is a button — click for the full
+   value (also in its title). Inherits the value styling above; the dotted
+   underline is the only affordance chrome. */
+.sim-clause-expand {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
 }
 
 /* 054 layer 3: the rule-evidence popover. The plane is the app's existing
@@ -3456,9 +3471,36 @@ pre.config-view.prov-before {
   padding: 0.5rem 0.65rem;
 }
 
+/* Replay-02 R1: once the hypothetical banner has been shown, its box stays
+   reserved for the session — the banner vanishing after an applied fix used
+   to move the Simulate button out from under the pointer. */
+.sim-banner-slot.ghost {
+  visibility: hidden;
+}
+
 .sim-results-body.stale {
   filter: grayscale(65%);
-  opacity: 0.5;
+  opacity: 0.4;
+  position: relative;
+}
+
+/* Replay-02 R1: the dim alone is invisible in a cropped screenshot — a stale
+   and a fresh card are structurally identical. The stamp makes any capture
+   self-labelling (it dims with the card, but stays legible). */
+.sim-results-body.stale::after {
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-border);
+  border-radius: 6px;
+  color: var(--warn);
+  content: "Stale — inputs changed, simulate again";
+  font-size: 0.9rem;
+  font-weight: 600;
+  left: 50%;
+  padding: 0.4rem 0.8rem;
+  position: absolute;
+  top: 1.5rem;
+  transform: translateX(-50%);
+  white-space: nowrap;
 }
 
 /* The veil FADES in only for readers who did not ask for less motion; the

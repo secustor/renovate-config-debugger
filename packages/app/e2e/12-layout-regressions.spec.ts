@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { PACKAGE_RULES_CONFIG, SEMANTIC_COMMITS_CONFIG } from "./fixtures";
+import { INVALID_RULES_CONFIG, PACKAGE_RULES_CONFIG, SEMANTIC_COMMITS_CONFIG } from "./fixtures";
 import { must, openTab, runAndAwaitResult, setEditorContent } from "./helpers";
 
 /**
@@ -286,4 +286,34 @@ test("the preset detail panel is readable, unclipped and scrollable to its last 
   const panelBox = must(panelBoxRaw, "the preset detail panel's bounding box");
   expect(lastBox.y).toBeGreaterThanOrEqual(panelBox.y - 1);
   expect(lastBox.y + lastBox.height).toBeLessThanOrEqual(panelBox.y + panelBox.height + 1);
+});
+
+/**
+ * Replay-02 R1: the hypothetical banner disappearing after an applied fix
+ * used to move the Simulate button mid-flow — clicks landed on whatever
+ * shifted under the pointer. Once shown, the banner's box stays reserved for
+ * the session, so the button must not move when validation clears.
+ */
+test("the simulate button holds its position when the validation banner clears", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+  await setEditorContent(page, INVALID_RULES_CONFIG);
+  await runAndAwaitResult(page);
+
+  await openTab(page, "simulator");
+  const panel = page.locator("#panel-simulator");
+  await expect(panel.locator(".hypothetical-banner")).toBeVisible();
+  const simulate = panel.getByRole("button", { name: "Simulate", exact: true });
+  const before = must(await simulate.boundingBox(), "the simulate button's bounding box");
+
+  await setEditorContent(page, PACKAGE_RULES_CONFIG);
+  await runAndAwaitResult(page);
+  await openTab(page, "simulator");
+  // The banner is gone from view but its box is reserved (visibility, not unmount)…
+  await expect(panel.locator(".hypothetical-banner")).toBeHidden();
+  // …so the button sits exactly where the pointer left it.
+  const after = must(await simulate.boundingBox(), "the simulate button's bounding box");
+  expect(Math.abs(after.y - before.y)).toBeLessThan(1);
 });

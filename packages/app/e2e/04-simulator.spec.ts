@@ -301,6 +301,27 @@ test("the consumed-blocks aside names an authored block that didn't apply, and s
 });
 
 /**
+ * Replay-02 R1: the stale veil alone is invisible in a cropped screenshot —
+ * a stale and a fresh card are structurally identical. The card must carry
+ * the stale class (which paints the veil + stamp), and the banner must name
+ * the RUN's inputs, not the form's, so any capture is self-labelling.
+ */
+test("stale results are veiled and the banner names the run they belong to", async ({ page }) => {
+  await page.goto(await encodeShareFragment({ config: PACKAGE_RULES_CONFIG }));
+  await openTab(page, "simulator");
+  const simulator = page.locator(".card", { hasText: "Update simulator" });
+  await simulator.getByRole("button", { name: "npm dependency" }).click();
+  await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
+
+  // Change an input WITHOUT re-running: the run below is now stale.
+  await simulator.getByLabel("packageName", { exact: true }).fill("react");
+
+  await expect(page.locator(".sim-results-body")).toHaveClass(/stale/);
+  // The banner quotes the run (lodash, from the quick-fill), not the form (react).
+  await expect(page.locator(".sim-stale-banner")).toContainText("lodash");
+});
+
+/**
  * Replay-02 regression (findings-validity N2): the flatten cross-link used to
  * scroll in the same tick it opened the drawer, so the scroll ran against the
  * closed-drawer document height — from the bottom of the page it clamped into
