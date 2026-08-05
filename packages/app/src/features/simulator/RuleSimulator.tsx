@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import type { ProvenanceLayer, TraceResult } from "@renovate-config-debugger/engine";
 import { Term } from "@/components/glossary";
 import { HypotheticalBanner } from "@/components/HypotheticalBanner";
@@ -42,6 +42,25 @@ import { buildVerdictThreads } from "./verdict-threads";
 // Roadmap 032: memoized — the simulator renders the full merged rule list and
 // reads nothing from the editor; its callback props are identity-stable in
 // App (useCallback / the latest-ref idiom), so typing never re-renders it.
+/** Replay-02 R1: the stale banner names the run it describes, so a cropped
+ *  screenshot of a stale card is self-labelling instead of actively wrong. */
+function SimStaleBanner({ ranLabel }: { ranLabel: string }) {
+  if (!ranLabel) {
+    return (
+      <p className="sim-stale-banner">
+        Inputs changed since this run — these results may no longer reflect the form above. Simulate
+        again to refresh.
+      </p>
+    );
+  }
+  return (
+    <p className="sim-stale-banner">
+      These results are for <code>{ranLabel}</code> — inputs changed since this run. Simulate again
+      to refresh.
+    </p>
+  );
+}
+
 export const RuleSimulator = memo(function RuleSimulator({
   result,
   onSelectPreset,
@@ -231,6 +250,15 @@ export const RuleSimulator = memo(function RuleSimulator({
     () => (sim ? buildNoInputCaveat(sim, ruleAttribution) : undefined),
     [sim, ruleAttribution],
   );
+  // Replay-02 R1: once the hypothetical banner has been shown, its box stays
+  // reserved (visibility, not unmount) — the banner vanishing after an
+  // applied fix used to move the Simulate button out from under the pointer.
+  const [invalidSeen, setInvalidSeen] = useState(false);
+  useEffect(() => {
+    if (configInvalid) {
+      setInvalidSeen(true);
+    }
+  }, [configInvalid]);
   // Roadmap 047: the authored update-type blocks flattening consumed without
   // applying — the only thing that still earns the verdict card's aside.
   const consumedBlocks = useMemo(
@@ -323,6 +351,17 @@ export const RuleSimulator = memo(function RuleSimulator({
   }
 
   const stale = sim !== null && ranKey !== JSON.stringify(form);
+  // Replay-02 R1: what the LAST RUN simulated (not the live form) — the stale
+  // banner quotes it so a stale capture names the inputs it belongs to.
+  const ranLabel = simForm
+    ? [
+        simForm.packageName || simForm.depName,
+        simForm.currentValue,
+        simForm.newValue ? `→ ${simForm.newValue}` : "",
+      ]
+        .filter(Boolean)
+        .join(" ")
+    : "";
   // Roadmap 015: reactive, not sticky — the moment the form gains ANY
   // meaningful field, the guard clears itself even without clicking Simulate.
   const showEmptyGuard = emptyGuardTriggered && !hasMeaningfulInput(form);
@@ -342,7 +381,11 @@ export const RuleSimulator = memo(function RuleSimulator({
           <Term id="packageRules">{packageRules.length === 1 ? "rule" : "rules"}</Term> would apply
         </span>
       </div>
-      {configInvalid ? <HypotheticalBanner /> : null}
+      {configInvalid || invalidSeen ? (
+        <div className={`sim-banner-slot${configInvalid ? "" : " ghost"}`}>
+          <HypotheticalBanner />
+        </div>
+      ) : null}
       {focusHint !== null && !sim ? (
         <p className="sim-focus-hint">
           <code>packageRules[{focusHint}]</code> is evaluated here once you run a simulation —
@@ -392,12 +435,7 @@ export const RuleSimulator = memo(function RuleSimulator({
           found easy to skim past) with a banner explaining why. */}
       {sim ? (
         <div className="sim-results">
-          {stale ? (
-            <p className="sim-stale-banner">
-              Inputs changed since this run — these results may no longer reflect the form above.
-              Simulate again to refresh.
-            </p>
-          ) : null}
+          {stale ? <SimStaleBanner ranLabel={ranLabel} /> : null}
           {/* The banner above stays full-strength; everything below it (the
               actual results) is what gets visibly veiled while stale. */}
           <div className={`sim-results-body${stale ? " stale" : ""}`}>

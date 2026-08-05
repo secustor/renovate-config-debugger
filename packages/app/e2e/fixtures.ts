@@ -211,6 +211,24 @@ export const FIXED_AUTOMERGE_CONFIG = `{
 }
 `;
 
+/** `PACKAGE_RULES_CONFIG` plus the same validate-stage type error the automerge
+ *  pair carries, so fixing it lands exactly on `PACKAGE_RULES_CONFIG`. The
+ *  rules matter: the simulator renders its "hypothetical" banner and Simulate
+ *  button only once there is something to simulate, so the banner's layout
+ *  behaviour (Replay-02 R1) cannot be exercised by a rule-less config. */
+export const INVALID_RULES_CONFIG = `{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "automerge": "yes",
+  "packageRules": [
+    {
+      "matchPackageNames": ["lodash"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    }
+  ]
+}
+`;
+
 /** A config whose only issue is a deprecated option: `semanticCommits` used
  *  to be a boolean and is now the enum `"enabled"`/`"disabled"` — migrateConfig
  *  rewrites it. No `extends`, so it runs offline. Used by journey 024 (the

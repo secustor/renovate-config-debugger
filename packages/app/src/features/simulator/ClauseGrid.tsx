@@ -1,5 +1,6 @@
+import { useState } from "react";
 import type { ClauseEvaluation } from "@renovate-config-debugger/engine";
-import { clauseEvaluated, clauseIcon, previewValue } from "./rule-format";
+import { clauseEvaluated, clauseIcon, fullValue, previewValue } from "./rule-format";
 
 /**
  * Roadmap 054 (variant A): a rule's clause evidence as ALIGNED columns —
@@ -15,13 +16,33 @@ import { clauseEvaluated, clauseIcon, previewValue } from "./rule-format";
  * matcher/value edges still line up across the whole grid.
  */
 function ClauseGridRow({ clause }: { clause: ClauseEvaluation }) {
+  // Replay-02 N6: `previewValue` slices the JSON before it reaches the DOM, so
+  // the complete clause value — the citable artifact for a long
+  // matchSourceUrls array — never existed on the page. A truncated value
+  // renders as click-to-expand, with the full value also in its title.
+  const [valueExpanded, setValueExpanded] = useState(false);
   const evaluated = clauseEvaluated(clause);
+  const preview = previewValue(clause.value, 60);
+  const full = fullValue(clause.value);
   return (
     <div className={`kv-row sim-clause-row state-${clause.state}`}>
       <span className="sim-clause-mark">{clauseIcon(clause.state)}</span>
       <code className="sim-clause-key">{clause.key}</code>
       <span className="sim-clause-checks">
-        checks <span className="sim-clause-value">{previewValue(clause.value, 60)}</span>
+        checks{" "}
+        {preview === full ? (
+          <span className="sim-clause-value">{preview}</span>
+        ) : (
+          <button
+            type="button"
+            className="sim-clause-value sim-clause-expand"
+            title={valueExpanded ? "Collapse" : full}
+            aria-expanded={valueExpanded}
+            onClick={() => setValueExpanded(!valueExpanded)}
+          >
+            {valueExpanded ? full : preview}
+          </button>
+        )}
       </span>
       <span className="sim-clause-evaluated">
         {`· ${evaluated.text}`}
