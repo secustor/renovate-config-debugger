@@ -89,11 +89,46 @@ describe("compareSimulations", () => {
     });
     const cmp = compareSimulations(a, b);
     expect(cmp.noChange).toBe(false);
-    // sorted by key: automerge (changed), groupName (added in B), labels (removed from A)
+    // sorted by key: automerge (changed), groupName (added in B), labels
+    // (removed from A). These fixtures have no merge steps, so every present
+    // value is honestly flagged as inherited (replay-02 N8).
     expect(cmp.configDelta).toEqual([
-      { key: "automerge", before: false, after: true, inA: true, inB: true },
-      { key: "groupName", after: "grp", inA: false, inB: true },
-      { key: "labels", before: ["old"], inA: true, inB: false },
+      {
+        key: "automerge",
+        before: false,
+        after: true,
+        inA: true,
+        inB: true,
+        beforeInherited: true,
+        afterInherited: true,
+      },
+      { key: "groupName", after: "grp", inA: false, inB: true, afterInherited: true },
+      { key: "labels", before: ["old"], inA: true, inB: false, beforeInherited: true },
+    ]);
+  });
+
+  it("distinguishes an inherited default from a value a merge step wrote (replay-02 N8)", () => {
+    // A: automerge=false reached the final config with NO step writing it —
+    // Renovate's default surviving a major run. B: a step (the flatten step of
+    // a minor run) wrote automerge=true. The delta must not present A's
+    // default as an explicit value: that asserts an `automerge: false` the
+    // config never contains.
+    const a = sim([matched(0, [["matchPackageNames", ["x"]]])], { automerge: false });
+    const b = {
+      ...sim([matched(0, [["matchPackageNames", ["x"]]])], { automerge: true }),
+      mergeSteps: [
+        {
+          kind: "flatten" as const,
+          updateType: "minor",
+          before: { automerge: false },
+          after: { automerge: true },
+          merged: [{ key: "automerge", before: false, after: true }],
+        },
+      ],
+    };
+    const cmp = compareSimulations(a, b);
+    expect(cmp.configDelta).toEqual([
+      { key: "automerge", before: false, after: true, inA: true, inB: true, beforeInherited: true },
     ]);
   });
 

@@ -34,6 +34,15 @@ export interface ConfigKeyDelta {
   after?: unknown;
   inA: boolean;
   inB: boolean;
+  /**
+   * Replay-02 N8: true when A carries the key but NO merge step in A wrote it
+   * — the value is an inherited Renovate default, not something the config
+   * set. Without this the delta asserted an explicit `automerge: false` that
+   * A's own field list (correctly) never showed. Present only when true.
+   */
+  beforeInherited?: boolean;
+  /** Same, for B's side of the delta. */
+  afterInherited?: boolean;
 }
 
 export interface SimulationComparison {
@@ -69,6 +78,13 @@ function matchedRules(result: SimulationResult): RuleEvaluation[] {
 
 function jsonEqual(a: unknown, b: unknown): boolean {
   return a === b || JSON.stringify(a) === JSON.stringify(b);
+}
+
+/** Replay-02 N8: a key nothing in the run wrote (no rule step, no flatten
+ *  step) reached the final config by inheritance — Renovate's own default or
+ *  the pre-rules base — not through the user's rules. */
+function inheritedIn(result: SimulationResult, key: string): boolean {
+  return !result.mergeSteps.some((step) => step.merged.some((m) => m.key === key));
 }
 
 /**
@@ -111,6 +127,8 @@ export function compareSimulations(a: SimulationResult, b: SimulationResult): Si
       ...(inB ? { after: configB[key] } : {}),
       inA,
       inB,
+      ...(inA && inheritedIn(a, key) ? { beforeInherited: true } : {}),
+      ...(inB && inheritedIn(b, key) ? { afterInherited: true } : {}),
     });
   }
 
