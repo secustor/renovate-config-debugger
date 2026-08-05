@@ -769,8 +769,16 @@ export const EffectiveConfig = memo(function EffectiveConfig({
   }, [entries]);
 
   useEffect(() => {
+    // Replay-02 N3: while provenance is still loading (`undefined`), `entries`
+    // is empty and the tallies are an honest-looking zero — reporting them
+    // overwrote App's pending `null` and painted "0 effective options" next
+    // to a green verdict on first paint. Stay silent until real numbers
+    // exist; the digest keeps its "still being counted…" clause meanwhile.
+    if (provenance === undefined) {
+      return;
+    }
     onStats?.({ keys: tallies.shown, overridden: tallies.overridden });
-  }, [tallies, onStats]);
+  }, [tallies, onStats, provenance]);
 
   // Focus (and select) the filter box when the Overview's "Where did a setting
   // come from?" pill routed the user here — the tab is already visible by the
