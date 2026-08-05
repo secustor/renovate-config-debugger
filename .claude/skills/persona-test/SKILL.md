@@ -69,9 +69,23 @@ paper over a real startup failure.
 
 ## 3. Generate share links
 
-For each `(scenario, persona)` pair you're running, generate the share URL
-with the bundled generator (no dependencies, already verified to round-trip
-its own tokens):
+**First, verify every scenario you're about to run is still valid** on the
+pinned Renovate version (replay-02 finding S1 — a routine Renovate bump once
+silently fixed the bug a scenario tested, and three sessions chased a fixed
+bug):
+
+```sh
+node .claude/skills/persona-test/generate-links.mjs --verify
+```
+
+If any scenario reports `STALE`, **abort the run for that scenario and say so
+loudly** — do not spawn personas against it, and do not "fix" the run by
+rewording the framing. A stale scenario needs its ground truth re-derived or
+a replacement scenario (see `scenarios/README.md`).
+
+Then, for each `(scenario, persona)` pair you're running, generate the share
+URL with the bundled generator (no dependencies, already verified to
+round-trip its own tokens):
 
 ```sh
 node .claude/skills/persona-test/generate-links.mjs \
@@ -196,6 +210,17 @@ Stop the `vite preview` process you started.
   screenshot, remember the image you're looking at is scaled down from the
   actual viewport; don't feed screenshot pixel coordinates directly to a
   click without accounting for the scale factor.
+- **Interact only with VISIBLE elements — hidden DOM is not UI.** The app's
+  tab shell keeps inactive panels mounted under the HTML `hidden` attribute
+  (`display: none`): those subtrees have no accessibility-tree presence and
+  no geometry, and no real user can reach them. Raw-DOM element discovery
+  reports their controls as clickable anyway, and a coordinate click on a
+  zero-size element dispatches nowhere — replay-02's "Apply fix is dead
+  outside the Problems tab" finding was exactly this tooling artifact, not an
+  app bug. Discover elements via the accessibility tree or visibility-filtered
+  queries, treat anything inside a `[hidden]` ancestor as non-existent, and
+  treat "present in the DOM but silently un-clickable" observations as
+  suspect until reproduced on a visible control.
 - **MCP-injected JavaScript runs in an isolated world** — it cannot see or
   touch the page's own JS state/closures directly; interact through the DOM
   and real events, not by reaching into React internals or module state.

@@ -19,6 +19,22 @@
 }
 ```
 
+## Validity precondition
+
+```js verify
+// Run by `generate-links.mjs --verify` against the pinned renovate.
+// group:jacksonMonorepo is generated from the jackson monorepo group, and the
+// diagnosis hinges on the `you should not extend` validator guard existing.
+assert.ok(
+  read("dist/data/monorepo.js").includes('"jackson": ['),
+  "the jackson monorepo group is gone — rebase this scenario on another group: preset",
+);
+assert.ok(
+  read("dist/config/validation.js").includes("you should not extend"),
+  "the group:-preset extend guard message is gone from the validator",
+);
+```
+
 ## Symptom framing
 
 ### Entry

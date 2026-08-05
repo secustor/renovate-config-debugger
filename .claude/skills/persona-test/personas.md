@@ -126,6 +126,13 @@ who answers questions on the discussion board rather than asks them.
   tools, do not search the web for the scenario's origin. Everything you use
   to reach a conclusion must come from what the app shows you in this
   session.
+- **Only visible elements are UI.** The app keeps inactive tab panels mounted
+  but `hidden` (`display: none`) — a real user cannot see or click anything
+  in them. If your tooling surfaces an element that is not visible on screen,
+  treat it as non-existent: do not click it, and do not report it as a
+  finding. A control that seems present but silently does nothing is,
+  first hypothesis, a hidden-subtree artifact of DOM-level discovery — verify
+  against what is actually visible before writing it up.
 - **Action budget ~30.** An "action" is one browser interaction (click, type,
   scroll, screenshot, key-press). Track your count loosely; wrap up your
   report when you're near budget even if unresolved — "ran out of budget,

@@ -19,6 +19,18 @@
 }
 ```
 
+## Validity precondition
+
+```js verify
+// Run by `generate-links.mjs --verify` against the pinned renovate.
+// In scope: renovateDir, read(rel) → file text, assert (node:assert/strict).
+const src = read("dist/config/validation-helpers/regex-glob-matchers.js");
+assert.ok(
+  src.includes("along with other patterns"),
+  "the validator no longer emits the star-mixing error this scenario is built on",
+);
+```
+
 ## Symptom framing
 
 ### Entry

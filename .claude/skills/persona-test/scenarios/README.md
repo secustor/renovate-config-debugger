@@ -10,12 +10,29 @@ the source discussion number, or any short stable id for a hand-built
 scenario). No registration step elsewhere is needed — `SKILL.md`'s scenario
 filter matches against the filename and the `## Discussion` heading.
 
+Every scenario also carries a **machine-checkable validity precondition**
+(replay-02 finding S1): a scenario's ground truth is written against ONE
+upstream state — a preset body, a validator message, a monorepo group — and a
+routine Renovate bump can silently fix the very bug the scenario tests. When
+that happened to scenario 44772 (the `monorepo:react` source-URL move was
+fixed upstream), three persona sessions chased a fixed bug and the rubric
+would have graded their correct observations as wrong. `generate-links.mjs
+--verify` runs every scenario's precondition against the pinned renovate dist
+and exits non-zero on staleness; `SKILL.md` runs it before any persona is
+spawned, and it should also run on any PR bumping the engine's renovate pin.
+
 ## Template
 
 Copy this into a new file. The `## Config` block is machine-read by
 `generate-links.mjs` (it takes the **first** ` ```json ` fenced block in the
 file), so keep exactly one fenced JSON config block per scenario, and put it
-under a `## Config` heading.
+under a `## Config` heading. The `## Validity precondition` block is run by
+`generate-links.mjs --verify` as an async function body with `renovateDir`
+(the pinned renovate package's absolute path), `read(rel)` (file text under
+it) and `assert` (`node:assert/strict`) in scope — prefer content checks
+(`read(...).includes(...)`) over `require`ing renovate's dist modules, which
+is fragile. Throwing marks the scenario stale; a missing block fails
+verification outright.
 
 ````markdown
 # <id> — <short title>
@@ -31,6 +48,17 @@ under a `## Config` heading.
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"]
 }
+```
+
+## Validity precondition
+
+```js verify
+// Assert the upstream facts the ground truth depends on, against the pinned
+// renovate dist. Throw (via assert) = scenario is stale, personas must not run.
+assert.ok(
+  read("dist/data/monorepo.js").includes('"<the anchor this scenario rests on>"'),
+  "explain what changed upstream and what to do about it",
+);
 ```
 
 ## Symptom framing
