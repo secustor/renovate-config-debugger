@@ -48,9 +48,15 @@ export function clauseIcon(state: ClauseEvaluation["state"]): string {
   }
   // no-input — evaluated to a real fail-closed `false` (see clauseExplanation),
   // but flagged rather than a plain ✗ since the cause is a missing input, not
-  // a genuine mismatch against a value. not-applicable / not-simulated — the
-  // matcher never produced a true-or-false verdict at all.
-  return "⚠";
+  // a genuine mismatch against a value.
+  if (state === "no-input") {
+    return "⚠";
+  }
+  // not-applicable / not-simulated — the matcher never produced a true-or-false
+  // verdict at all. Replay-02 R4: a distinct glyph from no-input, because the
+  // icon is what survives a screenshot and "fail-closed false" vs "never
+  // evaluated" are different facts about the run.
+  return "∅";
 }
 
 /**
@@ -122,6 +128,32 @@ export const VERDICT_LABEL: Record<RuleEvaluation["verdict"], string> = {
   "not-simulated": "not simulated",
 };
 
+/** The clause states that fail a rule (as opposed to the neutral
+ *  not-applicable / not-simulated, which decide nothing). */
+function failingClauses(clauses: ClauseEvaluation[]): ClauseEvaluation[] {
+  return clauses.filter(
+    (c) => c.state === "no-match" || c.state === "no-input" || c.state === "error",
+  );
+}
+
+/**
+ * Replay-02 R3/R4: the badge text for a rule's verdict. A no-match decided
+ * SOLELY by fail-closed no-input clauses says so — "no match — input not set"
+ * — because the badge is what survives a screenshot, and a rule that lost to
+ * an empty simulator field is a different fact from one that mismatched real
+ * data. Field-agnostic: driven by the clause state, not by which field the
+ * matcher reads.
+ */
+export function ruleVerdictLabel(rule: Pick<RuleEvaluation, "verdict" | "clauses">): string {
+  if (rule.verdict === "no-match") {
+    const failing = failingClauses(rule.clauses);
+    if (failing.length > 0 && failing.every((c) => c.state === "no-input")) {
+      return "no match — input not set";
+    }
+  }
+  return VERDICT_LABEL[rule.verdict];
+}
+
 /**
  * Roadmap 013: label lists EVERY `match*` / `exclude*` clause the rule
  * carries, and names the one that decided a no-match verdict — e.g.
@@ -139,5 +171,15 @@ export function ruleLabel(rule: RuleEvaluation): string {
   const failing = rule.clauses.find(
     (c) => c.state === "no-match" || c.state === "no-input" || c.state === "error",
   );
-  return failing ? `${joined} — failed on ${failing.key}` : joined;
+  if (!failing) {
+    return joined;
+  }
+  // Replay-02 R3: a fail-closed deciding clause names the unset field right in
+  // the collapsed label — "failed on matchSourceUrls" alone reads identically
+  // to a genuine mismatch, and the difference is the whole diagnosis. Works
+  // for whatever field(s) the matcher reads (`readFields`), not just sourceUrl.
+  if (failing.state === "no-input" && failing.readFields.length > 0) {
+    return `${joined} — failed on ${failing.key} (${failing.readFields.join("/")} not set in this simulation)`;
+  }
+  return `${joined} — failed on ${failing.key}`;
 }

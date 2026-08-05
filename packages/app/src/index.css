@@ -2413,10 +2413,23 @@ pre.config-view.prov-before {
   color: var(--error);
 }
 
-.sim-clause-row.state-no-input .sim-clause-mark,
+.sim-clause-row.state-no-input .sim-clause-mark {
+  color: var(--warn);
+}
+
+/* Replay-02 R4: neutral states get a neutral hue — a warn-colored glyph on a
+   clause that was never evaluated reads like a problem with the run. */
 .sim-clause-row.state-not-applicable .sim-clause-mark,
 .sim-clause-row.state-not-simulated .sim-clause-mark {
+  color: var(--muted);
+}
+
+/* Replay-02 R3: the verdict card's fail-closed caveat — visually part of the
+   answer band so a screenshot of the sentence carries its own disclaimer. */
+.sim-verdict-caveat {
   color: var(--warn);
+  font-size: 0.82rem;
+  margin: 0.35rem 0 0;
 }
 
 .sim-merged {

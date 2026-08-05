@@ -57,6 +57,7 @@ export function SimVerdictBlock({
   matchedCount,
   totalRules,
   segments,
+  caveat,
   threads,
   threadNav,
   flattened,
@@ -78,6 +79,10 @@ export function SimVerdictBlock({
   matchedCount: number;
   totalRules: number;
   segments: VerdictSegment[];
+  /** Replay-02 R3: "N of your rules failed only because a field was left
+   *  unset" — rendered right under the sentence, because the sentence is what
+   *  gets screenshotted. Absent when every no-match lost on real data. */
+  caveat?: string;
   /** Roadmap 054: one thread per setting the rules changed. */
   threads: ThreadModel[];
   /** Roadmap 054 layer 4: which threads are expanded, and where a jump out of
@@ -137,6 +142,7 @@ export function SimVerdictBlock({
             ),
           )}
         </p>
+        {caveat ? <p className="sim-verdict-caveat">⚠ {caveat}</p> : null}
       </div>
       <div className="sim-verdict-body">
         {threads.length === 0 ? (

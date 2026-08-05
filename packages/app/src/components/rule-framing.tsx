@@ -127,6 +127,11 @@ export function RuleFramingText({
   return (
     <>
       {bare} — <FramingBreakdown framing={framing} />
+      {/* Replay-02 R6: the one visible anchor tying the 1-based count to the
+          0-based `packageRules[N]` citations everywhere else on the page. */}
+      {total > 1 ? (
+        <> (indexed packageRules[0]–packageRules[{nf.format(total - 1)}], as Renovate cites them)</>
+      ) : null}
     </>
   );
 }

@@ -26,7 +26,7 @@ import { useSimulationRun } from "./use-simulation-run";
 import { useSimulatorDrawers } from "./use-simulator-drawers";
 import { useSimulatorForm } from "./use-simulator-form";
 import { useThreadNav } from "./use-thread-nav";
-import { buildVerdictSegments } from "./verdict-sentence";
+import { buildNoInputCaveat, buildVerdictSegments } from "./verdict-sentence";
 import { buildVerdictThreads } from "./verdict-threads";
 
 /**
@@ -232,6 +232,12 @@ export const RuleSimulator = memo(function RuleSimulator({
       sim ? buildVerdictSegments(sim, sim.flattened.updateType, changedKeys, ruleAttribution) : [],
     [sim, changedKeys, ruleAttribution],
   );
+  // Replay-02 R3: "your rule lost to an empty form field, not to your data" —
+  // stated on the card itself, since the card is what gets screenshotted.
+  const verdictCaveat = useMemo(
+    () => (sim ? buildNoInputCaveat(sim, ruleAttribution) : undefined),
+    [sim, ruleAttribution],
+  );
   // Roadmap 047: the authored update-type blocks flattening consumed without
   // applying — the only thing that still earns the verdict card's aside.
   const consumedBlocks = useMemo(
@@ -408,6 +414,7 @@ export const RuleSimulator = memo(function RuleSimulator({
               matchedCount={matchedCount}
               totalRules={sim.rules.length}
               segments={verdictSegments}
+              caveat={verdictCaveat}
               threads={verdictThreads}
               threadNav={{
                 open: threadNav.openThreads,

@@ -3,7 +3,7 @@ import type { MergedKey, ProvenanceLayer, RuleEvaluation } from "@renovate-confi
 import { CopyMarkdownButton } from "@/components/CopyMarkdownButton";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { ClauseGrid } from "./ClauseGrid";
-import { ruleAppliedMarkdown, ruleLabel, VERDICT_LABEL, writeMark } from "./rule-format";
+import { ruleAppliedMarkdown, ruleLabel, ruleVerdictLabel, writeMark } from "./rule-format";
 import { WriteRow } from "./WriteRow";
 
 /** Roadmap 018/040/054: what a matching rule applied to the dependency config,
@@ -15,7 +15,7 @@ function SimMergedApplied({ rule, merged }: { rule: RuleEvaluation; merged: Merg
         Applied to the dependency config
         <CopyMarkdownButton
           className="inline"
-          header={`\`packageRules[${rule.index}]\` ${ruleLabel(rule)} — ${VERDICT_LABEL[rule.verdict]}`}
+          header={`\`packageRules[${rule.index}]\` ${ruleLabel(rule)} — ${ruleVerdictLabel(rule)}`}
           code={ruleAppliedMarkdown(merged)}
         />
       </div>
@@ -60,11 +60,17 @@ export function RuleRow({
         <span className="caret">{expanded ? "▾" : "▸"}</span>
         {/* Roadmap 013: canonical form — the SAME text a validator message and
             the editor cross-link use, so this row is unmistakably the same
-            rule as "packageRules[N]" elsewhere on the page. */}
-        <span className="sim-rule-index">packageRules[{rule.index}]</span>
+            rule as "packageRules[N]" elsewhere on the page. Replay-02 R6: the
+            title says WHY it's 0-based next to the page's 1-based counts. */}
+        <span
+          className="sim-rule-index"
+          title="0-based index — the same numbering Renovate's own validator messages use; the last of N rules is packageRules[N−1]"
+        >
+          packageRules[{rule.index}]
+        </span>
         <span className="sim-rule-label">{ruleLabel(rule)}</span>
         <span className={`badge sim-verdict verdict-${rule.verdict}`}>
-          {VERDICT_LABEL[rule.verdict]}
+          {ruleVerdictLabel(rule)}
         </span>
         {layer ? (
           <span className="sim-rule-provenance">

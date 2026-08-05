@@ -6,7 +6,7 @@ import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { type AnchorRect, anchoredCardStyle, anchorRectOf } from "@/lib/anchored-card";
 import { ClauseGrid } from "./ClauseGrid";
 import { RULE_POP_CLASS, RULE_POP_SELECTOR } from "./rule-pop-dom";
-import { ruleAppliedMarkdown, VERDICT_LABEL, writeMark } from "./rule-format";
+import { ruleAppliedMarkdown, ruleVerdictLabel, writeMark } from "./rule-format";
 import type { RuleEvidence, RuleWrite } from "./rule-evidence";
 import { WriteRow } from "./WriteRow";
 
@@ -70,14 +70,20 @@ function RuleEvidenceHead({
   evidence: RuleEvidence;
   onSelectPreset?: (nodeId: string) => void;
 }) {
-  const verdict = evidence.verdict ? ` — ${VERDICT_LABEL[evidence.verdict]}` : "";
+  const verdictLabel = evidence.verdict
+    ? ruleVerdictLabel({ verdict: evidence.verdict, clauses: evidence.clauses })
+    : undefined;
+  const verdict = verdictLabel ? ` — ${verdictLabel}` : "";
   return (
     <p className="sim-rule-pop-head">
-      <code className="sim-rule-pop-id">packageRules[{evidence.ruleIndex}]</code>
-      {evidence.verdict ? (
-        <span className={`badge sim-verdict verdict-${evidence.verdict}`}>
-          {VERDICT_LABEL[evidence.verdict]}
-        </span>
+      <code
+        className="sim-rule-pop-id"
+        title="0-based index — the same numbering Renovate's own validator messages use; the last of N rules is packageRules[N−1]"
+      >
+        packageRules[{evidence.ruleIndex}]
+      </code>
+      {verdictLabel && evidence.verdict ? (
+        <span className={`badge sim-verdict verdict-${evidence.verdict}`}>{verdictLabel}</span>
       ) : null}
       {evidence.layer ? (
         <ProvenanceChip layer={evidence.layer} onSelectPreset={onSelectPreset} />
