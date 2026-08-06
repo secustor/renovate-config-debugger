@@ -1,17 +1,49 @@
-import { ProjectLinks } from "@/components/ProjectLinks";
-import { ThemeSwitch } from "@/components/ThemeSwitch";
+import { SessionMenu } from "@/components/SessionMenu";
+import type { StoredUser } from "@/platform/oauth";
 
-/** Roadmap 037: the theme override sits beside the version badge — the
- *  header's existing "about this session" corner. Roadmap 055 puts the two
- *  links out of the app — source, issues — in the same corner. */
-export function AppHeaderTools({ renovateVersion }: { renovateVersion: string | undefined }) {
+interface Props {
+  renovateVersion: string | undefined;
+  oauthConfigured: boolean;
+  signedIn: boolean;
+  authUser: StoredUser | null;
+  installUrl: string;
+  onSignIn: () => void;
+  onSignOut: () => void;
+}
+
+/**
+ * Roadmap 037 established this corner as "about this session"; 055 put the
+ * project links here; 066 collapsed all of it into one trigger and brought the
+ * GitHub session up from the config toolbar to join it — the top-right corner
+ * being where an account control is looked for, and nowhere else.
+ *
+ * What is left in the row is what a menu cannot carry: the version badge,
+ * which is a fact rather than an action, and so has to be readable without a
+ * click. It sits LEFT of the trigger because the account control is the
+ * rightmost thing in a header by convention.
+ */
+export function AppHeaderTools({
+  renovateVersion,
+  oauthConfigured,
+  signedIn,
+  authUser,
+  installUrl,
+  onSignIn,
+  onSignOut,
+}: Props) {
   return (
     <span className="app-header-tools">
-      <ProjectLinks />
-      <ThemeSwitch />
       {renovateVersion !== undefined ? (
         <span className="version-badge">Renovate v{renovateVersion}</span>
       ) : null}
+      <SessionMenu
+        oauthConfigured={oauthConfigured}
+        signedIn={signedIn}
+        authUser={authUser}
+        installUrl={installUrl}
+        onSignIn={onSignIn}
+        onSignOut={onSignOut}
+      />
     </span>
   );
 }

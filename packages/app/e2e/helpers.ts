@@ -89,3 +89,27 @@ export async function runAndAwaitResult(page: Page): Promise<void> {
   await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
   await expect(page.locator(".version-badge")).toBeVisible({ timeout: 30_000 });
 }
+
+/**
+ * Roadmap 066: the theme switch and the project links moved behind the
+ * header's session menu, so anything that reaches them has to open it first.
+ *
+ * Idempotent on purpose — the trigger is a toggle, and a helper that blindly
+ * clicked would CLOSE a menu a previous step left open. Every caller can just
+ * ask for it to be open.
+ */
+export async function openSessionMenu(page: Page): Promise<Locator> {
+  const trigger = page.locator(".session-menu-trigger");
+  if ((await trigger.getAttribute("aria-expanded")) !== "true") {
+    await trigger.click();
+  }
+  const panel = page.locator(".session-menu-panel");
+  await expect(panel).toBeVisible();
+  return panel;
+}
+
+/** The 037 theme segment. It lives inside the 066 menu, so callers open that
+ *  first — this is just the locator, so it composes with a plain `await`. */
+export function themeSwitch(page: Page): Locator {
+  return page.getByRole("radiogroup", { name: "Color theme" });
+}

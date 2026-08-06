@@ -6,7 +6,6 @@ import { type AuthState, GithubAuthHint } from "@/components/GithubAuthHint";
 import { NoticeBar } from "@/features/editor/NoticeBar";
 import { WelcomePanel } from "@/features/editor/WelcomePanel";
 import type { PresetHoverContext } from "@/lib/preset-hover";
-import type { StoredUser } from "@/platform/oauth";
 
 interface ConfigColumnProps {
   hasResult: boolean;
@@ -38,11 +37,9 @@ interface ConfigColumnProps {
   onFileNameChange: (value: string) => void;
   canRevert: boolean;
   onRevert: () => void;
-  oauthConfigured: boolean;
-  signedIn: boolean;
-  authUser: StoredUser | null;
+  /** Roadmap 066: the session itself moved to the header — what is left here
+   *  is the auth hint's call to action, which belongs beside the failure. */
   onSignIn: () => void;
-  onSignOut: () => void;
   untrustedHost: string | null;
   onTrustUntrustedHost: () => void;
   running: boolean;
@@ -96,11 +93,7 @@ export function ConfigColumn({
   onFileNameChange,
   canRevert,
   onRevert,
-  oauthConfigured,
-  signedIn,
-  authUser,
   onSignIn,
-  onSignOut,
   untrustedHost,
   onTrustUntrustedHost,
   running,
@@ -149,11 +142,6 @@ export function ConfigColumn({
         onFileNameChange={onFileNameChange}
         canRevert={canRevert}
         onRevert={onRevert}
-        oauthConfigured={oauthConfigured}
-        signedIn={signedIn}
-        authUser={authUser}
-        onSignIn={onSignIn}
-        onSignOut={onSignOut}
         untrustedHost={untrustedHost}
         onTrustUntrustedHost={onTrustUntrustedHost}
         running={running}

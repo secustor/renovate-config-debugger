@@ -1,13 +1,16 @@
+import { SessionMenuItem } from "@/components/SessionMenuItem";
+
 /**
  * Roadmap 055 — the two links out of the app and into its repository: the
- * source, and the place to report what went wrong. They live in the header's
- * "about this session" corner (037) beside the theme switch and the version
- * badge, because that corner already answers "what am I looking at?".
+ * source, and the place to report what went wrong. Both targets are the
+ * UPSTREAM project — a self-hoster's fork is not where a bug report about this
+ * app belongs.
  *
- * Icon-only by design: the corner is the app's most crowded row, and the
- * accessible name lives on the anchor (`aria-label` + `title`), not in a
- * label the layout cannot afford. Both targets are the UPSTREAM project — a
- * self-hoster's fork is not where a bug report about this app belongs.
+ * Roadmap 066 moved them out of the header row and into the session menu, and
+ * that RETIRES 055's icon-only rule: the links were unlabelled because the
+ * header corner was the app's most crowded row and could not afford the words.
+ * A menu row can, so they now say what they are instead of relying on a
+ * `title` the reader has to hover to discover.
  */
 
 // The repository's CURRENT name: GitHub renamed `renovate-config-visualizer`
@@ -25,7 +28,7 @@ const ICONS = {
     "M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z",
 } as const;
 
-/** `title` only where the hover text says more than the accessible name. */
+/** `title` only where the hover text says more than the visible label. */
 const LINKS: readonly { key: keyof typeof ICONS; href: string; label: string; title?: string }[] = [
   {
     key: "repo",
@@ -40,24 +43,19 @@ const LINKS: readonly { key: keyof typeof ICONS; href: string; label: string; ti
   },
 ];
 
-export function ProjectLinks() {
+export function ProjectLinks({ onSelect }: { onSelect: () => void }) {
   return (
-    <span className="project-links">
+    <>
       {LINKS.map(({ key, href, label, title }) => (
-        <a
+        <SessionMenuItem
           key={key}
-          className="btn quiet"
+          icon={ICONS[key]}
+          label={label}
+          title={title}
           href={href}
-          target="_blank"
-          rel="noreferrer"
-          aria-label={label}
-          title={title ?? label}
-        >
-          <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
-            <path d={ICONS[key]} />
-          </svg>
-        </a>
+          onSelect={onSelect}
+        />
       ))}
-    </span>
+    </>
   );
 }

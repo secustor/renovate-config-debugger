@@ -290,11 +290,29 @@ test("a narrow viewport stacks the panes and a run scrolls the results into view
   expect(geometry.results.top).toBeGreaterThan(geometry.config.top);
   expect(Math.abs(geometry.results.width - geometry.config.width)).toBeLessThan(2);
 
-  // 023's land-on-the-consequence: the panel is scrolled into view rather than
-  // left below the fold, where Run would look like it did nothing.
+  // 023's land-on-the-consequence: the results end up on screen rather than
+  // below the fold, where Run would look like it did nothing.
+  //
+  // Asserted as the OUTCOME, not as "the page scrolled". This used to demand
+  // `scrollY > 0`, which was a proxy for the same thing while the header wrapped
+  // to two lines at this width once a run added the version badge. 066 collapsed
+  // the session corner to one control, the header stopped wrapping, and the panel
+  // now clears the fold on its own — the same contract reached without the scroll.
+  // The threshold is ResultsColumn's own MIN_VISIBLE_RESULTS_PX.
   await expect
-    .poll(async () => page.evaluate(() => window.scrollY), { timeout: 10_000 })
-    .toBeGreaterThan(0);
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const el = document.querySelector(".results-col");
+          if (!el) {
+            return 0;
+          }
+          const rect = el.getBoundingClientRect();
+          return Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
+        }),
+      { timeout: 10_000 },
+    )
+    .toBeGreaterThanOrEqual(200);
   const box = must(
     await page.locator(".results-panel").boundingBox(),
     "the results panel's bounding box",
