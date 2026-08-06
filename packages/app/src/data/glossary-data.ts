@@ -122,6 +122,18 @@ export const GLOSSARY = {
       "the sourceUrl field.",
     url: "https://docs.renovatebot.com/configuration-options/#matchrepositories",
   },
+  // Replay-02 R3/R4: the rule row's own verdict chip. A rule that lost to an
+  // empty simulator field is a different fact from one that mismatched real
+  // data, and "no input" is short enough to sit in the row — the card is where
+  // the distinction is spelled out.
+  noInput: {
+    name: "no input",
+    plain:
+      "This rule did not match, but nothing about your dependency contradicted it: a field the " +
+      "rule reads is simply not set in this simulation. Renovate treats a missing value as a " +
+      "non-match, so the rule would be skipped for a real dependency missing that field too. " +
+      "Fill the field in the form above and re-run to see what the rule does with it.",
+  },
   dependencyDashboard: {
     name: "Dependency Dashboard",
     plain:

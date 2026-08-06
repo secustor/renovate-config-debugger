@@ -1,9 +1,17 @@
 import { useEffect, useState } from "react";
 import type { MergedKey, ProvenanceLayer, RuleEvaluation } from "@renovate-config-debugger/engine";
 import { CopyMarkdownButton } from "@/components/CopyMarkdownButton";
+import { Explained } from "@/components/glossary";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
+import { GLOSSARY } from "@/data/glossary-data";
 import { ClauseGrid } from "./ClauseGrid";
-import { ruleAppliedMarkdown, ruleLabel, VERDICT_LABEL, writeMark } from "./rule-format";
+import {
+  isNoInputNoMatch,
+  ruleAppliedMarkdown,
+  ruleLabel,
+  ruleVerdictLabel,
+  writeMark,
+} from "./rule-format";
 import { WriteRow } from "./WriteRow";
 
 /** Roadmap 018/040/054: what a matching rule applied to the dependency config,
@@ -15,7 +23,7 @@ function SimMergedApplied({ rule, merged }: { rule: RuleEvaluation; merged: Merg
         Applied to the dependency config
         <CopyMarkdownButton
           className="inline"
-          header={`\`packageRules[${rule.index}]\` ${ruleLabel(rule)} — ${VERDICT_LABEL[rule.verdict]}`}
+          header={`\`packageRules[${rule.index}]\` ${ruleLabel(rule)} — ${ruleVerdictLabel(rule)}`}
           code={ruleAppliedMarkdown(merged)}
         />
       </div>
@@ -31,6 +39,31 @@ function SimMergedApplied({ rule, merged }: { rule: RuleEvaluation; merged: Merg
         ))}
       </div>
     </div>
+  );
+}
+
+/**
+ * Replay-02 R3/R4: the row's verdict. A no-match decided solely by an unset
+ * simulator field wears its own short chip — "no input", in the warn hue its
+ * clause glyph already uses — with the distinction spelled out in the hover
+ * card beside it, exactly as the provenance chip explains its layer. The full
+ * sentence stays in `ruleVerdictLabel`, which is what the markdown export and
+ * the evidence card render.
+ */
+function RuleVerdictBadge({ rule }: { rule: RuleEvaluation }) {
+  if (isNoInputNoMatch(rule)) {
+    return (
+      <Explained entry={GLOSSARY.noInput}>
+        {(handlers) => (
+          <span className="badge sim-verdict verdict-no-input explained" tabIndex={0} {...handlers}>
+            no input
+          </span>
+        )}
+      </Explained>
+    );
+  }
+  return (
+    <span className={`badge sim-verdict verdict-${rule.verdict}`}>{ruleVerdictLabel(rule)}</span>
   );
 }
 
@@ -60,12 +93,16 @@ export function RuleRow({
         <span className="caret">{expanded ? "▾" : "▸"}</span>
         {/* Roadmap 013: canonical form — the SAME text a validator message and
             the editor cross-link use, so this row is unmistakably the same
-            rule as "packageRules[N]" elsewhere on the page. */}
-        <span className="sim-rule-index">packageRules[{rule.index}]</span>
-        <span className="sim-rule-label">{ruleLabel(rule)}</span>
-        <span className={`badge sim-verdict verdict-${rule.verdict}`}>
-          {VERDICT_LABEL[rule.verdict]}
+            rule as "packageRules[N]" elsewhere on the page. Replay-02 R6: the
+            title says WHY it's 0-based next to the page's 1-based counts. */}
+        <span
+          className="sim-rule-index"
+          title="0-based index — the same numbering Renovate's own validator messages use; the last of N rules is packageRules[N−1]"
+        >
+          packageRules[{rule.index}]
         </span>
+        <span className="sim-rule-label">{ruleLabel(rule)}</span>
+        <RuleVerdictBadge rule={rule} />
         {layer ? (
           <span className="sim-rule-provenance">
             <ProvenanceChip layer={layer} onSelectPreset={onSelectPreset} />

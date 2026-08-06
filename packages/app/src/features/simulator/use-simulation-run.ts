@@ -9,6 +9,7 @@ import {
 } from "react";
 import type { SimulationResult, TraceResult } from "@renovate-config-debugger/engine";
 import { type FormState, hasMeaningfulInput, toDescriptor } from "./form";
+import { DEFAULT_RULE_FILTERS, type RuleFilters } from "./rule-filters";
 
 export type Simulate = (nextForm: FormState, touched: boolean, keepStep?: boolean) => Promise<void>;
 
@@ -25,10 +26,9 @@ export interface SimulationRun {
   running: boolean;
   error: string | null;
   emptyGuardTriggered: boolean;
-  showAll: boolean;
-  setShowAll: Dispatch<SetStateAction<boolean>>;
-  myRulesOnly: boolean;
-  setMyRulesOnly: Dispatch<SetStateAction<boolean>>;
+  /** Roadmap 023/047: the rules drawer's two filter facets (verdict, provenance). */
+  ruleFilters: RuleFilters;
+  setRuleFilters: Dispatch<SetStateAction<RuleFilters>>;
   focusHint: number | null;
   setFocusHint: Dispatch<SetStateAction<number | null>>;
   simulate: Simulate;
@@ -56,10 +56,11 @@ export function useSimulationRun({
   const [ranKey, setRanKey] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showAll, setShowAll] = useState(false);
-  // Roadmap 023: a one-click filter to the user's OWN repo-config rules (their
-  // most common "where's my rule?" wish), with clause evidence pre-expanded.
-  const [myRulesOnly, setMyRulesOnly] = useState(false);
+  // Roadmap 023/047: the rules drawer's filters — the verdict facet defaults to
+  // the matched-and-unresolved view, the provenance facet to every layer. The
+  // user's OWN repo-config rules (their most common "where's my rule?" wish)
+  // are `preset: "repo"`, which also pre-expands those rows' clause evidence.
+  const [ruleFilters, setRuleFilters] = useState<RuleFilters>(DEFAULT_RULE_FILTERS);
   // Roadmap 023: the merged index a cross-link asked to see before any
   // simulation exists to render its row — kept to show a "run a simulation"
   // hint rather than the click doing nothing (the "looks broken" finding).
@@ -68,7 +69,7 @@ export function useSimulationRun({
   // input; cleared reactively the moment the form has ANY meaningful field.
   const [emptyGuardTriggered, setEmptyGuardTriggered] = useState(false);
   // Roadmap 016: re-simulating (e.g. after editing the form and clicking
-  // Simulate again) resets `showAll` to the matched-only default, which can
+  // Simulate again) resets the verdict facet to its default, which can
   // unmount rows the user was scrolled past — the browser's scroll-anchoring
   // then repicks a higher anchor and the page visibly jumps. Capture the
   // scroll position right before the state update that causes the unmount,
@@ -90,23 +91,22 @@ export function useSimulationRun({
     setSimEffectiveUpdateType("");
     setRanKey(null);
     setError(null);
-    setShowAll(false);
-    setMyRulesOnly(false);
+    setRuleFilters(DEFAULT_RULE_FILTERS);
     setFocusHint(null);
     setEmptyGuardTriggered(false);
   }, [result]);
 
   // Roadmap 016: restore the scroll position captured in `simulate` right
-  // before the DOM the browser is about to repaint — after `sim`/`showAll`
-  // change together, so this runs once against the settled layout rather than
-  // an intermediate one.
+  // before the DOM the browser is about to repaint — after `sim` and the
+  // verdict facet change together, so this runs once against the settled
+  // layout rather than an intermediate one.
   useLayoutEffect(() => {
     const y = scrollYBeforeSimulate.current;
     if (y !== null) {
       scrollYBeforeSimulate.current = null;
       window.scrollTo({ top: y, behavior: "auto" });
     }
-  }, [sim, showAll]);
+  }, [sim, ruleFilters.verdict]);
 
   /**
    * @param touched Roadmap 015: whether the CALLER's updateType is a manual
@@ -152,7 +152,10 @@ export function useSimulationRun({
       setSimForm(nextForm);
       setSimEffectiveUpdateType(effectiveType);
       setRanKey(JSON.stringify(nextForm));
-      setShowAll(false);
+      // The verdict facet goes back to the default view for the new run; the
+      // provenance one is left alone — a user filtered to their own rules
+      // stays there across a re-run, as the "my rules only" toggle did.
+      setRuleFilters((prev) => ({ ...prev, verdict: DEFAULT_RULE_FILTERS.verdict }));
       setFocusHint(null);
       // Roadmap 044: a new simulation is a new merge sequence — start at its
       // first step (the controlled index lives in App, so the reset does too,
@@ -180,10 +183,8 @@ export function useSimulationRun({
     running,
     error,
     emptyGuardTriggered,
-    showAll,
-    setShowAll,
-    myRulesOnly,
-    setMyRulesOnly,
+    ruleFilters,
+    setRuleFilters,
     focusHint,
     setFocusHint,
     simulate,

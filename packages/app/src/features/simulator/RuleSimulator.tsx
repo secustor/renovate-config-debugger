@@ -26,7 +26,7 @@ import { useSimulationRun } from "./use-simulation-run";
 import { useSimulatorDrawers } from "./use-simulator-drawers";
 import { useSimulatorForm } from "./use-simulator-form";
 import { useThreadNav } from "./use-thread-nav";
-import { buildVerdictSegments } from "./verdict-sentence";
+import { buildNoInputCaveat, buildVerdictSegments } from "./verdict-sentence";
 import { buildVerdictThreads } from "./verdict-threads";
 
 /**
@@ -107,10 +107,8 @@ export const RuleSimulator = memo(function RuleSimulator({
     running,
     error,
     emptyGuardTriggered,
-    showAll,
-    setShowAll,
-    myRulesOnly,
-    setMyRulesOnly,
+    ruleFilters,
+    setRuleFilters,
     focusHint,
     setFocusHint,
     simulate,
@@ -141,25 +139,28 @@ export const RuleSimulator = memo(function RuleSimulator({
     jumpToRules,
     jumpToStep,
   } = useSimulatorDrawers({ mergeStepIndex, onMergeStepChange });
-  // Roadmap 023: the user's own repo-config rules (013 provenance) — the merged
-  // indices that came from the repo layer, for the "my rules only" filter.
-  const repoRuleIndices = useMemo(
-    () =>
-      new Set((ruleAttribution ?? []).filter((a) => a.layer.kind === "repo").map((a) => a.index)),
-    [ruleAttribution],
-  );
+  // Roadmap 013: which config level contributed each merged rule — the rule
+  // rows' provenance chips, the drawer's badge row, and the provenance filter
+  // facet (the successor to "my rules only") all read it. Declared here rather
+  // than beside the other derived state because `useRuleFocus` needs it to
+  // answer "is the row this link names currently filtered out?".
+  const layerByIndex = useMemo(() => {
+    const map = new Map<number, ProvenanceLayer>();
+    for (const attr of ruleAttribution ?? []) {
+      map.set(attr.index, attr.layer);
+    }
+    return map;
+  }, [ruleAttribution]);
   const { cardRef, focusRule } = useRuleFocus({
     focusRuleIndex,
     onRuleFocused,
     sim,
-    showAll,
-    setShowAll,
-    myRulesOnly,
-    setMyRulesOnly,
+    ruleFilters,
+    setRuleFilters,
+    layerByIndex,
     rulesOpen,
     setRulesOpen,
     setFocusHint,
-    repoRuleIndices,
   });
   const { pinned, pin, unpin, comparison, currentDescriptor } = useAbComparison({
     engineModule,
@@ -175,14 +176,6 @@ export const RuleSimulator = memo(function RuleSimulator({
     () => (Array.isArray(finalConfig?.packageRules) ? finalConfig.packageRules : []),
     [finalConfig],
   );
-  const layerByIndex = useMemo(() => {
-    const map = new Map<number, ProvenanceLayer>();
-    for (const attr of ruleAttribution ?? []) {
-      map.set(attr.index, attr.layer);
-    }
-    return map;
-  }, [ruleAttribution]);
-
   // Keys the rules changed vs. the pre-rules effective config, for the verdict
   // ledger and the final section's summary. Roadmap 046: the base is flattened
   // the same way the engine flattens `finalDependencyConfig` — the update-type
@@ -231,6 +224,12 @@ export const RuleSimulator = memo(function RuleSimulator({
     () =>
       sim ? buildVerdictSegments(sim, sim.flattened.updateType, changedKeys, ruleAttribution) : [],
     [sim, changedKeys, ruleAttribution],
+  );
+  // Replay-02 R3: "your rule lost to an empty form field, not to your data" —
+  // stated on the card itself, since the card is what gets screenshotted.
+  const verdictCaveat = useMemo(
+    () => (sim ? buildNoInputCaveat(sim, ruleAttribution) : undefined),
+    [sim, ruleAttribution],
   );
   // Roadmap 047: the authored update-type blocks flattening consumed without
   // applying — the only thing that still earns the verdict card's aside.
@@ -408,6 +407,7 @@ export const RuleSimulator = memo(function RuleSimulator({
               matchedCount={matchedCount}
               totalRules={sim.rules.length}
               segments={verdictSegments}
+              caveat={verdictCaveat}
               threads={verdictThreads}
               threadNav={{
                 open: threadNav.openThreads,
@@ -479,11 +479,8 @@ export const RuleSimulator = memo(function RuleSimulator({
             <SimRulesDrawer
               rules={sim.rules}
               matchedCount={matchedCount}
-              repoRuleIndices={repoRuleIndices}
-              myRulesOnly={myRulesOnly}
-              onMyRulesOnlyChange={setMyRulesOnly}
-              showAll={showAll}
-              onShowAllChange={setShowAll}
+              filters={ruleFilters}
+              onFiltersChange={setRuleFilters}
               layerByIndex={layerByIndex}
               onSelectPreset={onSelectPreset}
               open={rulesOpen}

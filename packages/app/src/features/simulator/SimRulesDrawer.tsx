@@ -4,6 +4,7 @@ import { layerId } from "@/components/provenance-layer";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { SummaryDrawer } from "./SummaryDrawer";
 import { type LayerMatchCount, matchedLayerCounts } from "./layer-counts";
+import { filterRules, type RuleFilters } from "./rule-filters";
 import { SimRulesBody } from "./SimRulesBody";
 
 /** How many distinct provenance layers the rules drawer names before it
@@ -49,8 +50,8 @@ function RulesSummary({ matchedCount, totalRules }: { matchedCount: number; tota
 /**
  * Roadmap 047: the "Matched rules" evidence layer. The list defaults to the
  * rules that actually did something (matched or unresolved), hiding the sea of
- * "no match" rows behind a toggle; "my rules only" narrows it to the user's
- * own repo-config rules.
+ * "no match" rows; the two filter facets (verdict, provenance) are what open
+ * it up again — including to the user's own repo-config rules.
  *
  * Roadmap 032: memoized — it filters the whole rule list (hundreds of entries
  * for a preset-heavy config) and every prop it takes comes from the last RUN,
@@ -59,11 +60,8 @@ function RulesSummary({ matchedCount, totalRules }: { matchedCount: number; tota
 export const SimRulesDrawer = memo(function SimRulesDrawer({
   rules,
   matchedCount,
-  repoRuleIndices,
-  myRulesOnly,
-  onMyRulesOnlyChange,
-  showAll,
-  onShowAllChange,
+  filters,
+  onFiltersChange,
   layerByIndex,
   onSelectPreset,
   open,
@@ -72,24 +70,15 @@ export const SimRulesDrawer = memo(function SimRulesDrawer({
 }: {
   rules: RuleEvaluation[];
   matchedCount: number;
-  repoRuleIndices: Set<number>;
-  myRulesOnly: boolean;
-  onMyRulesOnlyChange: (value: boolean) => void;
-  showAll: boolean;
-  onShowAllChange: (value: boolean) => void;
+  filters: RuleFilters;
+  onFiltersChange: (filters: RuleFilters) => void;
   layerByIndex: Map<number, ProvenanceLayer>;
   onSelectPreset?: (nodeId: string) => void;
   open: boolean;
   onToggle: (open: boolean) => void;
   detailsRef?: RefObject<HTMLDetailsElement | null>;
 }) {
-  const notableRules = rules.filter((r) => r.verdict !== "no-match");
-  const hiddenCount = rules.length - notableRules.length;
-  const shownRules = myRulesOnly
-    ? rules.filter((r) => repoRuleIndices.has(r.index))
-    : showAll
-      ? rules
-      : notableRules;
+  const shownRules = filterRules(rules, filters, layerByIndex);
   const layerCounts = matchedLayerCounts(rules, layerByIndex);
   return (
     <SummaryDrawer
@@ -108,13 +97,8 @@ export const SimRulesDrawer = memo(function SimRulesDrawer({
       <SimRulesBody
         rules={rules}
         shownRules={shownRules}
-        notableCount={notableRules.length}
-        hiddenCount={hiddenCount}
-        repoRuleCount={repoRuleIndices.size}
-        myRulesOnly={myRulesOnly}
-        onMyRulesOnlyChange={onMyRulesOnlyChange}
-        showAll={showAll}
-        onShowAllChange={onShowAllChange}
+        filters={filters}
+        onFiltersChange={onFiltersChange}
         layerByIndex={layerByIndex}
         onSelectPreset={onSelectPreset}
       />

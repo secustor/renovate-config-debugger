@@ -67,11 +67,15 @@ function automergeScopeSource(
  * options — enabled/skipReason, automerge (with update-type scoping and,
  * when known, its source preset), labels, grouping, schedule — splitting
  * them into what the update WOULD and would NOT get, e.g. "This major update
- * WOULD get labels [deploy_pr] and auto-approval, but would NOT automerge
- * (automerge is scoped to minor/patch — from `:automergeMinor`)". Roadmap
- * 022: no-op clauses (an empty label list, the default unrestricted
- * schedule) are left out entirely rather than quoted as if they meant
- * something, so the sentence stays quotable verbatim.
+ * WOULD get labels [deploy_pr] and get auto-approval, but would NOT automerge
+ * (your config enables automerge only for minor/patch updates — from
+ * `:automergeMinor`)". Roadmap 022: no-op clauses (an empty label list, the
+ * default unrestricted schedule) are left out entirely rather than quoted as
+ * if they meant something, so the sentence stays quotable verbatim. Replay-02
+ * N4: every positive is a verb phrase so the shared "would" distributes over
+ * any ordering, and the automerge parenthetical attributes the scoping to
+ * THIS config — `automerge` is a perfectly valid top-level option, and "is
+ * scoped to" taught a false general rule when quoted.
  *
  * Roadmap 046: returned as SEGMENTS rather than one string, so the verdict
  * card can set the modal verbs — the single most information-bearing words the
@@ -114,7 +118,7 @@ export function buildVerdictSegments(
       ? sources[0]
       : undefined;
     negatives.push(
-      `automerge (automerge is scoped to ${scopedAutomerge.join("/")}${source ? ` — from \`${source}\`` : ""})`,
+      `automerge (your config enables automerge only for ${scopedAutomerge.join("/")} updates${source ? ` — from \`${source}\`` : ""})`,
     );
   } else if (c.automerge === false && changed.has("automerge")) {
     negatives.push("automerge");
@@ -127,7 +131,7 @@ export function buildVerdictSegments(
     positives.push(`add labels ${plainValue(c.addLabels)}`);
   }
   if (c.autoApprove === true) {
-    positives.push("auto-approval");
+    positives.push("get auto-approval");
   }
   if (typeof c.groupName === "string" && c.groupName.length > 0) {
     positives.push(`be grouped as "${c.groupName}"`);
@@ -151,4 +155,50 @@ export function buildVerdictSegments(
   }
   segments.push(".");
   return segments;
+}
+
+/**
+ * Replay-02 R3: the verdict card's honesty caveat. A rule from the user's own
+ * config that reached "no match" SOLELY through fail-closed `no-input` clauses
+ * lost to an empty simulator field, not to the user's data — without saying
+ * so, the card manufactures a confident-looking "no match" that may not
+ * reflect a real Renovate run. Field-agnostic by construction: it names
+ * whatever `readFields` the deciding clauses consulted. Scoped to repo-config
+ * rules (via `ruleAttribution`) because preset rules failing on unset
+ * side-channel fields is the norm on every run, not a signal.
+ */
+export function buildNoInputCaveat(
+  sim: SimulationResult,
+  ruleAttribution: RuleAttribution[] | null | undefined,
+): string | undefined {
+  if (!ruleAttribution) {
+    return undefined;
+  }
+  const repoRules = new Set(
+    ruleAttribution.filter((a) => a.layer.kind === "repo").map((a) => a.index),
+  );
+  const fields = new Set<string>();
+  let count = 0;
+  for (const rule of sim.rules) {
+    if (rule.verdict !== "no-match" || !repoRules.has(rule.index)) {
+      continue;
+    }
+    const failing = rule.clauses.filter(
+      (c) => c.state === "no-match" || c.state === "no-input" || c.state === "error",
+    );
+    if (failing.length === 0 || !failing.every((c) => c.state === "no-input")) {
+      continue;
+    }
+    count++;
+    for (const clause of failing) {
+      for (const field of clause.readFields) {
+        fields.add(field);
+      }
+    }
+  }
+  if (count === 0) {
+    return undefined;
+  }
+  const named = [...fields].join(", ");
+  return `${count} of your rule${count === 1 ? "" : "s"} failed only because a field was left unset in this simulation (${named}) — this result may not reflect a real Renovate run.`;
 }
