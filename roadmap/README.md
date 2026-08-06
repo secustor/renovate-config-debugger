@@ -69,6 +69,7 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [062](062-results-tab-taxonomy.md)                      | Results tabs: `Simulator` → `packageRules`, + `Extraction`        | M17                  | proposed |
 | [063](063-custom-manager-extraction.md)                 | Custom-manager extraction simulator                               | M17                  | proposed |
 | [064](064-extraction-fidelity-and-mismatch.md)          | Extraction fidelity: RE2 gap + unmatched comments                 | M17                  | proposed |
+| [065](065-persistent-sign-in.md)                        | Persistent sign-in: HttpOnly refresh-token cookie                 | M14                  | done     |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live

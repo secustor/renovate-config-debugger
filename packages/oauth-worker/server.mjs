@@ -21,6 +21,12 @@ const env = {
   GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID ?? "",
   GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET ?? "",
   ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS ?? "",
+  // Roadmap 065 — `"true"` opts into the HttpOnly refresh-token cookie. Left
+  // empty by default: the cookie is `Secure` + `SameSite=Strict`, so it only
+  // works where the proxy is served over TLS on the app's own site. A
+  // self-hoster who reverse-proxies this under the app's origin can switch it
+  // on; anything else keeps the 009 body-carries-the-token protocol.
+  REFRESH_COOKIE: process.env.REFRESH_COOKIE ?? "",
 };
 
 /** Bodies here are OAuth JSON (a few hundred bytes), so buffering is fine. */
@@ -41,7 +47,9 @@ function toRequest(req, body) {
       }
     }
   }
-  // Only the pathname is read downstream; a malformed Host must not 500.
+  // Only the pathname and hostname are read downstream (the hostname solely
+  // for the workers.dev cookie-mode exclusion, which can never match here);
+  // a malformed Host must not 500.
   let url;
   try {
     url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
