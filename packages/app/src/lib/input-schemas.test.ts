@@ -629,4 +629,29 @@ describe("Worker token-exchange response", () => {
       tokenResponseSchema.safeParse({ access_token: "gho_x", expires_in: "soon" }).success,
     ).toBe(false);
   });
+
+  // Roadmap 065: cookie mode's body — no `refresh_token` at all, the flag
+  // instead, and `refresh_token_expires_in` kept (it feeds the marker).
+  test("accepts a cookie-mode success response", () => {
+    expect(
+      tokenResponseSchema.safeParse({
+        access_token: "gho_abc123",
+        expires_in: 28800,
+        refresh_token_cookie: true,
+        refresh_token_expires_in: 15552000,
+      }).success,
+    ).toBe(true);
+  });
+  test("a 009 body without the flag still parses (the field is optional)", () => {
+    expect(
+      tokenResponseSchema.safeParse({ access_token: "gho_abc123", refresh_token: "ghr_def456" })
+        .success,
+    ).toBe(true);
+  });
+  test("rejects a wrong-typed refresh_token_cookie", () => {
+    expect(
+      tokenResponseSchema.safeParse({ access_token: "gho_x", refresh_token_cookie: "true" })
+        .success,
+    ).toBe(false);
+  });
 });
