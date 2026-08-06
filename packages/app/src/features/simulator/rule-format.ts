@@ -137,6 +137,22 @@ function failingClauses(clauses: ClauseEvaluation[]): ClauseEvaluation[] {
 }
 
 /**
+ * Replay-02 R3/R4: a no-match decided SOLELY by fail-closed no-input clauses —
+ * the rule lost to an empty simulator field, not to real data that mismatched.
+ * Exported because the rules drawer's verdict filter separates the two into
+ * their own facets, and one predicate must decide the badge text and the
+ * filter alike (a row filtered as "no input" that then says "no match" is the
+ * exact confusion R3/R4 was about).
+ */
+export function isNoInputNoMatch(rule: Pick<RuleEvaluation, "verdict" | "clauses">): boolean {
+  if (rule.verdict !== "no-match") {
+    return false;
+  }
+  const failing = failingClauses(rule.clauses);
+  return failing.length > 0 && failing.every((c) => c.state === "no-input");
+}
+
+/**
  * Replay-02 R3/R4: the badge text for a rule's verdict. A no-match decided
  * SOLELY by fail-closed no-input clauses says so — "no match — input not set"
  * — because the badge is what survives a screenshot, and a rule that lost to
@@ -145,11 +161,8 @@ function failingClauses(clauses: ClauseEvaluation[]): ClauseEvaluation[] {
  * matcher reads.
  */
 export function ruleVerdictLabel(rule: Pick<RuleEvaluation, "verdict" | "clauses">): string {
-  if (rule.verdict === "no-match") {
-    const failing = failingClauses(rule.clauses);
-    if (failing.length > 0 && failing.every((c) => c.state === "no-input")) {
-      return "no match — input not set";
-    }
+  if (isNoInputNoMatch(rule)) {
+    return "no match — input not set";
   }
   return VERDICT_LABEL[rule.verdict];
 }

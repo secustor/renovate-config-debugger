@@ -6,8 +6,9 @@ import {
   useRef,
   useState,
 } from "react";
-import type { SimulationResult } from "@renovate-config-debugger/engine";
+import type { ProvenanceLayer, SimulationResult } from "@renovate-config-debugger/engine";
 import { flashTarget, motionScrollOptions } from "@/lib/motion";
+import { type RuleFilters, ruleVisible } from "./rule-filters";
 
 export interface RuleFocus {
   /** The simulator card itself — where a cross-link lands when no simulation
@@ -21,33 +22,29 @@ export interface RuleFocus {
  * Roadmap 013/023/047: scroll to and flash the rule row a cross-link named —
  * either the external `focusRuleIndex` prop or a click on this component's own
  * `packageRules[N]`-in-message links. Anything hiding the row (a closed rules
- * drawer, the matched-only filter, the my-rules filter) is cleared first and
- * the effect re-runs once the row is actually in the DOM.
+ * drawer, either filter facet) is cleared first and the effect re-runs once
+ * the row is actually in the DOM.
  */
 export function useRuleFocus({
   focusRuleIndex,
   onRuleFocused,
   sim,
-  showAll,
-  setShowAll,
-  myRulesOnly,
-  setMyRulesOnly,
+  ruleFilters,
+  setRuleFilters,
+  layerByIndex,
   rulesOpen,
   setRulesOpen,
   setFocusHint,
-  repoRuleIndices,
 }: {
   focusRuleIndex?: number | null;
   onRuleFocused?: () => void;
   sim: SimulationResult | null;
-  showAll: boolean;
-  setShowAll: Dispatch<SetStateAction<boolean>>;
-  myRulesOnly: boolean;
-  setMyRulesOnly: Dispatch<SetStateAction<boolean>>;
+  ruleFilters: RuleFilters;
+  setRuleFilters: Dispatch<SetStateAction<RuleFilters>>;
+  layerByIndex: Map<number, ProvenanceLayer>;
   rulesOpen: boolean;
   setRulesOpen: Dispatch<SetStateAction<boolean>>;
   setFocusHint: Dispatch<SetStateAction<number | null>>;
-  repoRuleIndices: Set<number>;
 }): RuleFocus {
   const cardRef = useRef<HTMLDivElement>(null);
   // Roadmap 013: the merged index awaiting a scroll+flash.
@@ -60,9 +57,9 @@ export function useRuleFocus({
   }, [focusRuleIndex]);
 
   // Performs the actual scroll+flash once the target row is guaranteed to be
-  // in the DOM: if it is currently hidden behind the matched-only filter,
-  // reveal it first and let the effect re-run on the next render (checked
-  // against `sim` directly rather than the derived `notableRules`).
+  // in the DOM: if a filter facet is currently hiding it, reveal it first and
+  // let the effect re-run on the next render (checked against `sim` and the
+  // list's own `ruleVisible` predicate, never a copy of its filtering).
   useEffect(() => {
     if (scrollTarget == null) {
       return;
@@ -90,14 +87,12 @@ export function useRuleFocus({
       setRulesOpen(true);
       return;
     }
-    // Reveal the target row if a filter is hiding it, then let the effect re-run.
-    if (myRulesOnly && !repoRuleIndices.has(rule.index)) {
-      setMyRulesOnly(false);
-      return;
-    }
-    const visible = myRulesOnly || showAll || rule.verdict !== "no-match";
-    if (!visible) {
-      setShowAll(true);
+    // Reveal the target row if either facet is hiding it, then let the effect
+    // re-run. Both are dropped at once (rather than relaxed one at a time):
+    // the link's promise is "here is that rule", and a second re-run to get
+    // past the other facet would scroll the page twice to keep it.
+    if (!ruleVisible(rule, ruleFilters, layerByIndex)) {
+      setRuleFilters({ verdict: "all", preset: "all" });
       return;
     }
     const el = document.getElementById(`sim-rule-${scrollTarget}`);
@@ -110,13 +105,11 @@ export function useRuleFocus({
   }, [
     scrollTarget,
     sim,
-    showAll,
-    myRulesOnly,
+    ruleFilters,
+    layerByIndex,
     rulesOpen,
-    repoRuleIndices,
     onRuleFocused,
-    setShowAll,
-    setMyRulesOnly,
+    setRuleFilters,
     setRulesOpen,
     setFocusHint,
   ]);

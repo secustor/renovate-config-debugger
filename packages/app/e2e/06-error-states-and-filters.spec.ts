@@ -35,11 +35,13 @@ test("a validation error adds a hypothetical-run banner to post-Validate results
 });
 
 /**
- * Roadmap 023 — the "my rules only" filter. The most common wish across the
- * persona sessions: find your own rule fast. One click filters the simulator
- * results to the repo config's own packageRules, with clause evidence expanded.
+ * Roadmap 023 — the rules drawer's provenance filter, the successor to the
+ * "my rules only" toggle. The most common wish across the persona sessions:
+ * find your own rule fast. Narrowing the facet to `repo config` filters the
+ * simulator results to the repo config's own packageRules, with clause
+ * evidence expanded.
  */
-test("the simulator 'my rules only' filter shows repo rules with clause evidence expanded", async ({
+test("the simulator's repo-config filter shows repo rules with clause evidence expanded", async ({
   page,
 }) => {
   const fragment = await encodeShareFragment({ config: PACKAGE_RULES_CONFIG });
@@ -57,9 +59,9 @@ test("the simulator 'my rules only' filter shows repo rules with clause evidence
   // drawer now — the filter is one disclosure away, not gone.
   await simulator.getByText("Matched rules").click();
 
-  const myRules = simulator.getByRole("button", { name: "my rules only" });
-  await expect(myRules).toBeVisible();
-  await myRules.click();
+  const presetFilter = simulator.getByLabel("Filter rules by preset");
+  await expect(presetFilter).toBeVisible();
+  await presetFilter.selectOption("repo");
 
   // The repo rule row is shown, pre-expanded, with its clause evidence visible.
   const expandedRow = simulator.locator(".sim-rule.expanded").first();

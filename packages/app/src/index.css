@@ -2319,12 +2319,6 @@ pre.config-view.prov-before {
   margin: 0.25rem 0;
 }
 
-.sim-summary {
-  color: var(--muted);
-  font-size: 0.85rem;
-  margin: 0.25rem 0 0.5rem;
-}
-
 .sim-rules {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -2387,6 +2381,13 @@ pre.config-view.prov-before {
 
 .badge.sim-verdict.verdict-no-match {
   color: var(--muted);
+}
+
+/* Replay-02 R3/R4: the fail-closed no-match wears the warn hue its clause
+   glyph already uses — the row says "no input" and the hover card says why,
+   rather than a muted chip carrying a sentence too long for the row. */
+.badge.sim-verdict.verdict-no-input {
+  color: var(--warn);
 }
 
 .badge.sim-verdict.verdict-not-simulated {
@@ -2693,8 +2694,15 @@ pre.config-view.prov-before {
    this update actually is. Rows are subgrid so both value columns line up
    straight down the grid; the comparison IS the evidence, and the prose form
    this replaced (layer 7 retired it) hid the comparison in a sentence. */
+/* Both text columns are `fr`, not `1fr auto`: an `auto` last track takes its
+   max-content width first, and a clause that did NOT match carries a whole
+   sentence there ("evaluated false — the simulated dependency has no depType
+   …"). That left the checks column ~1ch wide, breaking its value one character
+   per line. Sharing the slack keeps every state on the same tracks; the
+   explanation gets the larger share because it is prose, while the value it
+   sits beside is a `previewValue`, capped at 60 characters. */
 .sim-clause-grid {
-  --kv-cols: max-content max-content minmax(0, 1fr) auto;
+  --kv-cols: max-content max-content minmax(0, 1fr) minmax(0, 1.6fr);
   --kv-row-gap: 0.2rem;
 
   margin: 0.3rem 0;
@@ -3064,13 +3072,24 @@ pre.config-view.prov-before {
   margin-top: 0.3rem;
 }
 
-.sim-rules-head {
-  align-items: baseline;
-  display: flex;
-  gap: 0.75rem;
-  justify-content: space-between;
-  margin: 0.25rem 0 0.5rem;
+/* The rules drawer's filter row: the SAME chrome as the Effective Config tab's
+   `.prov-filters` (one `<select>` per facet), but the controls sit on the right
+   edge — the drawer's own summary row already carries the headline count on the
+   left, so the row reads header-left / controls-right. */
+.sim-filters {
+  justify-content: flex-end;
+  margin-bottom: 0.5rem;
   scroll-margin-top: 0.5rem;
+}
+
+/* Stated ONLY while the filters are narrowing the list (the component renders
+   nothing otherwise): unfiltered it would repeat "N of M matched" from the
+   summary row above it. */
+.sim-filter-count {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-right: auto;
+  white-space: nowrap;
 }
 
 .sim-toggle {
@@ -3587,13 +3606,6 @@ pre.config-view.prov-before {
   position: fixed;
   transform: translateX(-50%);
   z-index: var(--z-toast);
-}
-
-/* The active state of the simulator "my rules only" filter toggle. */
-.sim-toggle.active {
-  background: var(--accent-fill);
-  border-color: var(--accent-fill);
-  color: var(--on-accent);
 }
 
 /* Hint shown when a "packageRules[N]" cross-link is clicked before any
