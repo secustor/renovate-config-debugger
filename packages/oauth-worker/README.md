@@ -80,6 +80,45 @@ Until these are set, the app builds cleanly with the feature off: there is no
 sign-in UI, and the personal-access-token fallback (advanced settings) stays
 the only GitHub auth.
 
+## Persistent sign-in (`REFRESH_COOKIE`)
+
+Off by default. With `REFRESH_COOKIE=true` the Worker stops returning the
+`refresh_token` in the JSON body and returns it as an `HttpOnly` cookie
+instead, so closing the tab no longer ends the session while the long-lived
+token stays unreadable to JavaScript (roadmap
+[065](../../roadmap/065-persistent-sign-in.md)). The Worker stays stateless —
+the cookie _is_ the storage.
+
+The response body then carries `refresh_token_cookie: true` (how the app knows
+which mode it is talking to) and keeps `refresh_token_expires_in`; the cookie
+is `__Secure-rcv-refresh=<token>; HttpOnly; Secure; SameSite=Strict;
+Path=<mount>; Max-Age=<refresh_token_expires_in>`. GitHub rotates refresh
+tokens, so every successful `/refresh` re-sets it; a rejected grant and
+`POST /logout` clear it.
+
+> **Same-site only.** A cross-site cookie is dropped outright by Safari and by
+> every browser with third-party-cookie blocking on. A Worker reached from a
+> different site than the app — the `*.workers.dev` URL, a separate host —
+> must leave `REFRESH_COOKIE` unset and keep the 009 body protocol; the app
+> falls back to the in-memory session it has always had.
+
+Production satisfies that by mounting the Worker on the app's own hostname
+with a Cloudflare Workers route, `renovate.secustor.dev/oauth/*` (in
+`wrangler.jsonc`). The handler strips one leading `/oauth` segment, so
+`/oauth/exchange` and a bare `/exchange` are the same endpoint, and it pins the
+cookie `Path` to the mount it was reached through — that is what keeps the
+refresh token off the GitHub Pages requests sharing the hostname, and why the
+cookie name uses `__Secure-` rather than `__Host-` (which would force `Path=/`).
+
+A Workers route only fires on **proxied (orange-cloud) DNS**: while the
+`renovate` record is DNS-only the route is inert and every request falls
+through to GitHub Pages. Proxying needs SSL mode Full (strict) — GitHub Pages
+holds a valid cert for the hostname.
+
+For the Docker image the same switch is the `REFRESH_COOKIE=true` environment
+variable, and the same rule applies: only set it where the proxy is served
+over TLS under the app's own origin (a reverse proxy in front of both).
+
 ## Running it without Cloudflare
 
 ```bash
@@ -106,14 +145,19 @@ before GitHub is contacted. Responses reflect the exact matched origin (never
   `expires_in`, `refresh_token`, `refresh_token_expires_in`, `token_type`,
   `scope`) or an `{ error, ... }` passthrough.
 - `POST /refresh`: body `{ refresh_token }` → `refresh_token` grant, same
-  response shape.
+  response shape. In cookie mode the token may instead come from the cookie
+  (body `{}`); an explicit body token always wins.
+- `POST /logout`: clears the refresh cookie in cookie mode. `204` either way.
 - Everything else → `404`. `OPTIONS` preflights are answered for allowed
-  origins.
+  origins. Each path is also served under an `/oauth` prefix (the Workers
+  route); responses always send `access-control-allow-credentials: true`
+  alongside the exact reflected origin.
 
 | Name                   | Kind   | Notes                                                       |
 | ---------------------- | ------ | ----------------------------------------------------------- |
 | `GITHUB_CLIENT_ID`     | var    | GitHub App client id (public).                              |
 | `ALLOWED_ORIGINS`      | var    | Comma-separated exact origins allowed to call the Worker.   |
+| `REFRESH_COOKIE`       | var    | `true` enables the refresh cookie above. Same-site only.    |
 | `GITHUB_CLIENT_SECRET` | secret | GitHub App client secret. Never in `wrangler.jsonc` or git. |
 
 </details>

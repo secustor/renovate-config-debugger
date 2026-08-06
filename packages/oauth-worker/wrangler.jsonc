@@ -20,10 +20,41 @@
   //   ALLOWED_ORIGINS   — comma-separated exact origins allowed to call this
   //                       Worker; requests from any other origin get 403 and
   //                       never reach GitHub.
+  //   REFRESH_COOKIE    — roadmap 065: "true" returns the refresh token as an
+  //                       HttpOnly `__Secure-rcv-refresh` cookie instead of in
+  //                       the JSON body, so a closed tab no longer ends the
+  //                       session. Only correct on a SAME-SITE deployment —
+  //                       here the route below puts the Worker on the app's
+  //                       own hostname. Unset (or any other value) = the 009
+  //                       protocol, byte-for-byte, which is what a cross-site
+  //                       workers.dev deployment needs (Safari and every
+  //                       third-party-cookie blocker drop such a cookie).
+  //                       The handler enforces that itself: on a
+  //                       `*.workers.dev` host cookie mode never engages, so
+  //                       publishing "true" here is safe while the fallback
+  //                       URL is still the live entry point.
   "vars": {
     "GITHUB_CLIENT_ID": "",
     "ALLOWED_ORIGINS": "https://renovate.secustor.dev,http://localhost:5173",
+    "REFRESH_COOKIE": "true",
   },
+
+  // Same-origin mount: the SPA (GitHub Pages) and this Worker share one
+  // hostname, so there is no cross-site cookie and no third-party context.
+  // The handler strips the `/oauth` segment and pins the cookie `Path` to it,
+  // so the refresh cookie is never sent with a Pages asset request.
+  //
+  // A Workers route only fires on PROXIED (orange-cloud) DNS — with the
+  // `renovate` record DNS-only the route is inert and every request falls
+  // through to GitHub Pages, so this entry is safe to ship ahead of the DNS
+  // switch. `workers_dev` is pinned true because adding a route would
+  // otherwise flip its default to false, and the `*.workers.dev` URL is the
+  // fallback while that is the case. It is NOT a cookie-mode entry point
+  // though: cookie mode is same-site-only, and the handler refuses to engage
+  // it on a `*.workers.dev` host — requests there keep the 009 body protocol
+  // regardless of REFRESH_COOKIE above.
+  "routes": [{ "pattern": "renovate.secustor.dev/oauth/*", "zone_name": "secustor.dev" }],
+  "workers_dev": true,
 
   // GITHUB_CLIENT_SECRET is NOT stored here. Set it as an encrypted secret:
   //   pnpm exec wrangler secret put GITHUB_CLIENT_SECRET
