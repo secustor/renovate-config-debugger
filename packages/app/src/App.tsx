@@ -1012,7 +1012,18 @@ export function App() {
         ) : null}
         <header className="app-header">
           <AppBrand />
-          <AppHeaderTools renovateVersion={result?.renovateVersion} />
+          {/* Roadmap 066: the GitHub session moved here from the config
+              toolbar — the corner every user looks in for an account control,
+              and the corner 037 already called "about this session". */}
+          <AppHeaderTools
+            renovateVersion={result?.renovateVersion}
+            oauthConfigured={Boolean(oauthConfig)}
+            signedIn={signedIn}
+            authUser={authUser}
+            installUrl={INSTALL_URL}
+            onSignIn={onSignIn}
+            onSignOut={onSignOut}
+          />
         </header>
         <p className="subtitle">
           Understand your Renovate config by watching Renovate&apos;s own code process it, step by
@@ -1052,11 +1063,7 @@ export function App() {
             onFileNameChange={(value) => setFileName(value as typeof fileName)}
             canRevert={content !== loadedContent}
             onRevert={() => loadConfigText(loadedContent)}
-            oauthConfigured={Boolean(oauthConfig)}
-            signedIn={signedIn}
-            authUser={authUser}
             onSignIn={onSignIn}
-            onSignOut={onSignOut}
             untrustedHost={untrustedGuard ? untrustedGuard.host : null}
             onTrustUntrustedHost={onTrustUntrustedHost}
             running={running}

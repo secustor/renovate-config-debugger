@@ -1,6 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 import { SEMANTIC_COMMITS_CONFIG } from "./fixtures";
-import { must, openTab, runAndAwaitResult, setEditorContent } from "./helpers";
+import {
+  must,
+  openSessionMenu,
+  openTab,
+  runAndAwaitResult,
+  setEditorContent,
+  themeSwitch,
+} from "./helpers";
 
 /**
  * Roadmap 036 + 037 — the unified chrome and the theme switcher.
@@ -49,7 +56,9 @@ test.describe("theme switcher (037)", () => {
     await expect(page.locator(".cm-content")).toContainText("config:recommended");
     expect(await bodyBackground(page)).toBe(LIGHT_BG);
 
-    const group = page.getByRole("radiogroup", { name: "Color theme" });
+    // Roadmap 066: the switch lives in the header's session menu now.
+    await openSessionMenu(page);
+    const group = themeSwitch(page);
     await expect(group.getByRole("radio")).toHaveCount(3);
     await expect(group.getByRole("radio", { name: "Auto" })).toHaveAttribute(
       "aria-checked",
@@ -58,20 +67,22 @@ test.describe("theme switcher (037)", () => {
 
     await group.getByRole("radio", { name: "Dark" }).click();
     await expect.poll(() => bodyBackground(page)).toBe(DARK_BG);
+    // Roadmap 066: choosing a theme deliberately does NOT dismiss the menu —
+    // the point of a theme control is comparing the result of the choice.
+    await expect(page.locator(".session-menu-panel")).toBeVisible();
 
     // Persisted (roadmap 033 storage wrapper) and applied before first paint,
     // so the reloaded page is dark from the start rather than flashing light.
     await page.reload();
     await expect(page.locator(".cm-content")).toContainText("config:recommended");
     expect(await bodyBackground(page)).toBe(DARK_BG);
-    await expect(
-      page.getByRole("radiogroup", { name: "Color theme" }).getByRole("radio", { name: "Dark" }),
-    ).toHaveAttribute("aria-checked", "true");
+    await openSessionMenu(page);
+    await expect(themeSwitch(page).getByRole("radio", { name: "Dark" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
 
-    await page
-      .getByRole("radiogroup", { name: "Color theme" })
-      .getByRole("radio", { name: "Auto" })
-      .click();
+    await themeSwitch(page).getByRole("radio", { name: "Auto" }).click();
     await expect.poll(() => bodyBackground(page)).toBe(LIGHT_BG);
   });
 
@@ -94,19 +105,14 @@ test.describe("theme switcher (037)", () => {
     const lightBg = await editorBg();
     expect(luminance(lightBg)).toBeGreaterThan(0.5);
 
-    await page
-      .getByRole("radiogroup", { name: "Color theme" })
-      .getByRole("radio", { name: "Dark" })
-      .click();
+    await openSessionMenu(page);
+    await themeSwitch(page).getByRole("radio", { name: "Dark" }).click();
     await expect.poll(() => editorBg()).not.toBe(lightBg);
     expect(luminance(await editorBg())).toBeLessThan(0.2);
 
     // …and back, in the same session: the editor is subscribed, not sampled
     // once at mount.
-    await page
-      .getByRole("radiogroup", { name: "Color theme" })
-      .getByRole("radio", { name: "Light" })
-      .click();
+    await themeSwitch(page).getByRole("radio", { name: "Light" }).click();
     await expect.poll(() => editorBg()).toBe(lightBg);
   });
 
@@ -127,10 +133,8 @@ test.describe("theme switcher (037)", () => {
     await expect(deleted).toBeVisible();
     const lightBg = await deleted.evaluate((el) => getComputedStyle(el).backgroundColor);
 
-    await page
-      .getByRole("radiogroup", { name: "Color theme" })
-      .getByRole("radio", { name: "Dark" })
-      .click();
+    await openSessionMenu(page);
+    await themeSwitch(page).getByRole("radio", { name: "Dark" }).click();
     await expect
       .poll(() => deleted.evaluate((el) => getComputedStyle(el).backgroundColor))
       .not.toBe(lightBg);
@@ -222,13 +226,16 @@ test("preset-tree badges are filled, not outlines (036)", async ({ page }) => {
 
 test("the header links out to the source and to the issue tracker (055)", async ({ page }) => {
   await page.goto("/");
+  // Roadmap 066: the links moved into the header's session menu.
+  await openSessionMenu(page);
 
   const source = page.getByRole("link", { name: "Source on GitHub" });
   const issues = page.getByRole("link", { name: "Report an issue" });
 
-  // Icon-only links: an accessible name is the ONLY name they have, so the
-  // name is what this test locates them by. Both open away from the app, and
-  // `noreferrer` is what keeps `window.opener` out of the new tab.
+  // 055 located these by accessible name because they were icon-only and had
+  // no other name; 066 gave them a visible label, and the name is now that
+  // label. Both still open away from the app, and `noreferrer` is what keeps
+  // `window.opener` out of the new tab.
   for (const [link, href] of [
     [source, "https://github.com/secustor/renovate-config-debugger"],
     [issues, "https://github.com/secustor/renovate-config-debugger/issues"],
@@ -237,6 +244,8 @@ test("the header links out to the source and to the issue tracker (055)", async 
     await expect(link).toHaveAttribute("href", href);
     await expect(link).toHaveAttribute("target", "_blank");
     await expect(link).toHaveAttribute("rel", /noreferrer/);
-    await expect(link.locator("svg")).toBeVisible();
+    // The row's own icon — 066 added a second svg to every external row (the
+    // out-of-app glyph), so this names the one 055 is about.
+    await expect(link.locator("svg.session-menu-item-icon")).toBeVisible();
   }
 });

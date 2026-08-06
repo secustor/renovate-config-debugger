@@ -148,26 +148,14 @@ header.app-header {
   flex: none;
 }
 
-/* Roadmap 037: the header's session corner — theme switcher + version badge. */
+/* Roadmap 037/066: the header's session corner — the version badge and the
+   one trigger everything else now lives behind. It still wraps, but after 066
+   there are only two things left in it to wrap. */
 .app-header-tools {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
-}
-
-/* Roadmap 055: source + issues, as icon-only `.btn quiet` anchors. They are
-   buttons in every respect except the element, so the only thing stated here
-   is what an anchor brings that a button does not — an underline, and the
-   horizontal padding of a label that isn't there. */
-.project-links {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.project-links a {
-  padding: 0.25rem;
-  text-decoration: none;
 }
 
 /* The theme switcher is a `.seg` with icons; only the icon layout is its own. */
@@ -180,6 +168,231 @@ header.app-header {
 .theme-switch svg {
   fill: currentColor;
   flex: none;
+}
+
+/* ---------- session menu (066) ----------
+   The header corner collapsed to one control: account, theme and the project
+   links behind a single trigger, anchored to the corner every user looks in.
+
+   Positioned `absolute` off the trigger rather than through 054's
+   `anchoredCardStyle` portal: the trigger is always at the viewport's right
+   edge, so there is no flip case to compute, and staying in the DOM where it
+   is declared keeps focus management (`use-session-menu.ts`) trivial. */
+
+.session-menu {
+  position: relative;
+}
+
+/* Quiet until it matters: the trigger carries no border at rest so the corner
+   reads as one avatar, and gains the `.btn` outline on hover and while open. */
+.session-menu-trigger {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  gap: 0.15rem;
+  padding: 0.15rem;
+}
+
+.session-menu-trigger:hover,
+.session-menu-trigger[aria-expanded="true"] {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.session-menu-caret {
+  fill: currentColor;
+  flex: none;
+}
+
+/* Both glyphs and the real avatar render into the SAME circle, which is what
+   keeps the header's width constant across signed-in / signed-out / no-OAuth. */
+.session-avatar {
+  border-radius: 50%;
+  display: block;
+  flex: none;
+  /* A pale avatar on the pale surface would otherwise have no edge. */
+  outline: 1px solid var(--border);
+  outline-offset: -1px;
+}
+
+.session-avatar-glyph {
+  align-items: center;
+  background: var(--surface);
+  color: var(--muted);
+  display: inline-flex;
+  justify-content: center;
+}
+
+.session-avatar-glyph svg {
+  fill: currentColor;
+}
+
+.session-menu-panel {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-popover);
+  /* Right-anchored, and capped against the viewport rather than the trigger:
+     a panel hanging off a control this close to the edge has nowhere to go
+     but left, and on a narrow screen it must still fit. */
+  max-width: min(19rem, calc(100vw - 2rem));
+  min-width: 15rem;
+  padding: 0.35rem;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.4rem);
+  z-index: var(--z-popover);
+}
+
+.session-menu-identity {
+  align-items: center;
+  display: flex;
+  gap: 0.55rem;
+  padding: 0.45rem 0.5rem 0.55rem;
+}
+
+.session-menu-identity-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.session-menu-login {
+  font-size: 0.9rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-menu-meta {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.session-menu-sep {
+  background: var(--border);
+  border: none;
+  height: 1px;
+  margin: 0.25rem 0;
+}
+
+.session-menu-group-label {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin: 0;
+  padding: 0.4rem 0.5rem 0.2rem;
+  text-transform: uppercase;
+}
+
+/* One row, whether it is an anchor or a button — the distinction is about what
+   the browser does with it, not about what the reader is looking at. */
+.session-menu-item {
+  /* Top-aligned, NOT centered: a row with a caption is three lines tall, and
+     centering pushed its icon a line and a half down while its single-line
+     neighbours kept theirs at the top — a ragged icon column down the panel.
+     The icons are nudged to sit on the LABEL's line instead. */
+  align-items: flex-start;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font-family: inherit;
+  font-size: 0.85rem;
+  gap: 0.55rem;
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  text-decoration: none;
+  width: 100%;
+}
+
+.session-menu-item:hover,
+.session-menu-item:focus-visible {
+  background: var(--surface);
+}
+
+.session-menu-item-icon,
+.session-menu-item-ext {
+  fill: currentColor;
+  flex: none;
+  /* Optically on the label's baseline given `align-items: flex-start` above. */
+  margin-top: 0.12rem;
+  opacity: 0.75;
+}
+
+/* The out-of-app glyph is a footnote, and it pins itself to the right edge. */
+.session-menu-item-ext {
+  margin-left: auto;
+  opacity: 0.5;
+}
+
+.session-menu-item-body {
+  min-width: 0;
+}
+
+/* Deliberately NOT inheriting the row's tone: a caption explaining what sign
+   out does is not itself a destructive thing to read. */
+.session-menu-item-note {
+  color: var(--muted);
+  display: block;
+  font-size: 0.73rem;
+  line-height: 1.3;
+  margin-top: 0.1rem;
+}
+
+.session-menu-item.danger {
+  color: var(--error);
+}
+
+.session-menu-item.danger:hover {
+  background: var(--error-bg);
+}
+
+.session-menu-item.accent {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.session-menu-item.accent .session-menu-item-icon {
+  opacity: 1;
+}
+
+/* The 037 segmented control, full width of the panel — it keeps its shape and
+   its one-click behavior, it just lives one disclosure deeper now. */
+.session-menu-theme {
+  padding: 0.1rem 0.5rem 0.4rem;
+}
+
+.session-menu-theme .seg {
+  width: 100%;
+}
+
+.session-menu-theme .seg button {
+  flex: 1;
+  justify-content: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .session-menu-panel {
+    animation: session-menu-pop 90ms ease-out;
+    /* Grown out of the trigger, which is up and to the right of it. */
+    transform-origin: top right;
+  }
+
+  @keyframes session-menu-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
 }
 
 h1 {
@@ -1931,44 +2144,15 @@ pre.config-view.prov-before {
   text-decoration: underline;
 }
 
-/* ---------- sign in with GitHub (009) ---------- */
+/* ---------- sign in with GitHub (009) ----------
+   The identity chip that used to live here (`.gh-auth-chip` and its four
+   children) went with 066: the session is a header menu now, styled under
+   "session menu" below. What remains is the ERROR-PATH surfacing, which stays
+   exactly where it was — a hint belongs beside the failure it explains, not in
+   a corner the reader would have to go looking in. */
 
 .toolbar-spacer {
   flex: 1;
-}
-
-.gh-auth-chip {
-  align-items: center;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  display: inline-flex;
-  gap: 0.4rem;
-  padding: 0.2rem 0.5rem 0.2rem 0.35rem;
-}
-
-.gh-auth-avatar {
-  border-radius: 50%;
-  display: block;
-}
-
-.gh-auth-login {
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.gh-auth-signout {
-  background: transparent;
-  border: none;
-  color: var(--accent);
-  cursor: pointer;
-  font-size: 0.8rem;
-  padding: 0;
-}
-
-.gh-auth-revoke {
-  color: var(--muted);
-  font-size: 0.75rem;
-  text-decoration: underline;
 }
 
 .gh-auth-hint {

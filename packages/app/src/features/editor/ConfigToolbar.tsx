@@ -1,11 +1,15 @@
-import { REVOKE_URL, type StoredUser } from "@/platform/oauth";
 import { CopyButton } from "@/components/CopyButton";
 
 /**
- * Roadmap 040 — the config column's action row: file name, revert, GitHub
- * sign-in state, the standing untrusted-host reminder, Run and Copy link.
- * Lifted out of App.tsx by the JSX-depth ratchet; it owns no state, and every
- * prop is a plain value or a callback App already had.
+ * Roadmap 040 — the config column's action row: file name, revert, the
+ * standing untrusted-host reminder, Run and Copy link. Lifted out of App.tsx
+ * by the JSX-depth ratchet; it owns no state, and every prop is a plain value
+ * or a callback App already had.
+ *
+ * Roadmap 066 took the GitHub session chip out of this row: an account control
+ * belongs in the header's top-right corner, not between the file-name select
+ * and the Run button, and the signed-out state was a labelled button competing
+ * with Run two controls away.
  */
 
 interface Props {
@@ -14,11 +18,6 @@ interface Props {
   /** Roadmap 035: there is something to revert TO — see the button's comment. */
   canRevert: boolean;
   onRevert: () => void;
-  oauthConfigured: boolean;
-  signedIn: boolean;
-  authUser: StoredUser | null;
-  onSignIn: () => void;
-  onSignOut: () => void;
   /** Security 2026-07-25: the host a share link chose, while its guard stands. */
   untrustedHost: string | null;
   onTrustUntrustedHost: () => void;
@@ -34,11 +33,6 @@ export function ConfigToolbar({
   onFileNameChange,
   canRevert,
   onRevert,
-  oauthConfigured,
-  signedIn,
-  authUser,
-  onSignIn,
-  onSignOut,
   untrustedHost,
   onTrustUntrustedHost,
   running,
@@ -72,43 +66,6 @@ export function ConfigToolbar({
         >
           Revert to loaded config
         </button>
-      ) : null}
-      {oauthConfigured ? (
-        signedIn ? (
-          <span className="gh-auth-chip" title="Signed in with GitHub">
-            {authUser?.avatarUrl ? (
-              <img
-                className="gh-auth-avatar"
-                src={authUser.avatarUrl}
-                alt=""
-                width={18}
-                height={18}
-              />
-            ) : null}
-            <span className="gh-auth-login">{authUser?.login || "signed in"}</span>
-            <button type="button" className="gh-auth-signout" onClick={onSignOut}>
-              Sign out
-            </button>
-            <a
-              className="gh-auth-revoke"
-              href={REVOKE_URL}
-              target="_blank"
-              rel="noreferrer"
-              title="Revoke this app's access on GitHub (sign-out only clears the local token)"
-            >
-              revoke
-            </a>
-          </span>
-        ) : (
-          <button
-            type="button"
-            className="btn"
-            onClick={onSignIn}
-            title="Sign in to reach private GitHub presets and repositories (read-only)"
-          >
-            Sign in with GitHub
-          </button>
-        )
       ) : null}
       <span className="toolbar-spacer" />
       {/* Security 2026-07-25: the standing reminder. Small, but right
