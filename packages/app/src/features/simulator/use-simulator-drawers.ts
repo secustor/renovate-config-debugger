@@ -50,13 +50,26 @@ export function useSimulatorDrawers({
     }
   }, [mergeStepIndex]);
 
-  // Roadmap 047: cross-links OPEN what they target. The scroll runs against
-  // the drawer's own <details> element, which exists whether or not its body
-  // is currently mounted — so the same call works on a closed drawer that this
-  // click is opening in the very same tick.
+  // Roadmap 047: cross-links OPEN what they target. The drawer's <details>
+  // element exists whether or not its body is mounted, but SummaryDrawer only
+  // mounts the body once `open` is true — a scrollIntoView in the same tick
+  // runs against the closed-drawer document height and gets clamped, so from
+  // near the bottom of the page it is a visual no-op. Defer the scroll until
+  // the commit where the body exists (same pending-target idiom as
+  // `focusKey` in use-thread-nav.ts).
+  const [pendingScroll, setPendingScroll] = useState<"rules" | "merge" | null>(null);
+  useEffect(() => {
+    if (pendingScroll === null) {
+      return;
+    }
+    const ref = pendingScroll === "rules" ? rulesDrawerRef : mergeDrawerRef;
+    ref.current?.scrollIntoView(motionScrollOptions("start"));
+    setPendingScroll(null);
+  }, [pendingScroll]);
+
   function jumpToRules() {
     setRulesOpen(true);
-    rulesDrawerRef.current?.scrollIntoView(motionScrollOptions("start"));
+    setPendingScroll("rules");
   }
 
   /** A verdict-card jump link → open the merge drawer, select that stop, and
@@ -64,7 +77,7 @@ export function useSimulatorDrawers({
   function jumpToStep(stopIndex: number) {
     setMergeOpen(true);
     onMergeStepChange?.(stopIndex);
-    mergeDrawerRef.current?.scrollIntoView(motionScrollOptions("start"));
+    setPendingScroll("merge");
   }
 
   return {

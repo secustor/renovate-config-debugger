@@ -301,6 +301,35 @@ test("the consumed-blocks aside names an authored block that didn't apply, and s
 });
 
 /**
+ * Replay-02 regression (findings-validity N2): the flatten cross-link used to
+ * scroll in the same tick it opened the drawer, so the scroll ran against the
+ * closed-drawer document height — from the bottom of the page it clamped into
+ * a visual no-op and the drawer opened entirely off-screen. The scroll now
+ * waits for the drawer body to mount, so the stepper must actually enter the
+ * viewport, not merely flip `open`.
+ */
+test("the flatten cross-link brings the merge drawer into view from the bottom of the page", async ({
+  page,
+}) => {
+  await page.goto(await encodeShareFragment({ config: AUTHORED_BLOCK_CONFIG }));
+  await openTab(page, "simulator");
+  const simulator = page.locator(".card", { hasText: "Update simulator" });
+  await simulator.getByRole("button", { name: "npm dependency" }).click();
+  await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
+
+  // Stand where the links live: the bottom of the page, where the clamped
+  // same-tick scroll used to have zero slack.
+  await page.evaluate(() => {
+    window.scrollTo(0, document.documentElement.scrollHeight);
+  });
+  await page
+    .locator(".sim-consumed-note")
+    .getByRole("button", { name: /see the flatten step/ })
+    .click();
+  await expect(page.locator(".sim-merge-steps .migration-step-head")).toBeInViewport();
+});
+
+/**
  * Roadmap 047 — the form's own staging. Four primary fields; everything else
  * (including `manager` and `sourceUrl`) sits in one drawer whose summary line
  * shows the values it holds, so a wrong quick-fill is catchable while closed.
