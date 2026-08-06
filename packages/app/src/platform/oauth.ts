@@ -11,6 +11,15 @@
  * never a URL) so a reload inside the token lifetime does not force re-auth but
  * closing the tab clears them. GitHub Apps issue 8 h user tokens with a 6-month
  * refresh token; refreshing is a Worker round-trip.
+ *
+ * Roadmap 065 — a deployment may run the Worker in cookie mode, where the
+ * refresh token never reaches JS at all: it lives in an `HttpOnly` cookie the
+ * Worker sets, and the only thing this module persists across tabs is the
+ * non-secret {@link K.cookieSession} marker ("a cookie session exists until
+ * \<epoch ms\>"). Access tokens are unchanged. Everything below therefore has
+ * two shapes — with an in-JS refresh token (009, and any cookie-off
+ * deployment) and without one — and the mode is read from the Worker's own
+ * `refresh_token_cookie` flag, never assumed.
  */
 import {
   isHttpUrl,
@@ -21,7 +30,7 @@ import {
 // Roadmap 033: storage access goes through the safe wrappers — a
 // storage-disabled browser reads "signed out" (get → null) and writes are
 // no-ops, instead of a throw taking down whatever called into this module.
-import { sessionGet, sessionRemove, sessionSet } from "./storage";
+import { localGet, localRemove, localSet, sessionGet, sessionRemove, sessionSet } from "./storage";
 
 export interface OAuthConfig {
   clientId: string;
@@ -41,7 +50,7 @@ export const REVOKE_URL = "https://github.com/settings/apps/authorizations";
 const AUTHORIZE_URL = "https://github.com/login/oauth/authorize";
 const USER_API = "https://api.github.com/user";
 
-/** sessionStorage keys, all under the `rcv.oauth.*` prefix. */
+/** The `rcv.oauth.*` keys — sessionStorage, except {@link K.cookieSession}. */
 const K = {
   pending: "rcv.oauth.pending",
   token: "rcv.oauth.token",
@@ -49,7 +58,41 @@ const K = {
   refreshToken: "rcv.oauth.refreshToken",
   refreshTokenExpiresAt: "rcv.oauth.refreshTokenExpiresAt",
   user: "rcv.oauth.user",
+  /** Roadmap 065 — the ONE oauth key in localStorage, and the only oauth
+   *  state that outlives the tab. It holds no secret: just the refresh
+   *  horizon as epoch ms, so boot knows whether a silent cookie refresh is
+   *  worth a round trip. The token it refers to is in the `HttpOnly` cookie,
+   *  out of JS's reach entirely. */
+  cookieSession: "rcv.oauth.cookieSession",
 } as const;
+
+/**
+ * Roadmap 065 — the marker's horizon, or null when there is none. Validated
+ * like every other stored value (roadmap 030): a hand-edited/non-numeric
+ * value is dropped and read as absent, rather than poisoning every later
+ * boot with a NaN comparison.
+ */
+function readCookieSession(): number | null {
+  const raw = localGet(K.cookieSession);
+  if (raw === null) {
+    return null;
+  }
+  const horizon = Number(raw);
+  if (!Number.isFinite(horizon)) {
+    localRemove(K.cookieSession);
+    return null;
+  }
+  return horizon;
+}
+
+/** True while the marker says the cookie's refresh token is still good — the
+ *  only evidence in JS that a cookie session exists at all (the cookie itself
+ *  is `HttpOnly` and unreadable). An expired marker reads as "no session":
+ *  the refresh would fail anyway, and probing costs a round trip. */
+function hasLiveCookieSession(): boolean {
+  const horizon = readCookieSession();
+  return horizon !== null && Date.now() < horizon;
+}
 
 /**
  * The one validity rule, shared by both config sources: a client id AND a
@@ -227,22 +270,53 @@ interface TokenResponse {
   expires_in?: number;
   refresh_token?: string;
   refresh_token_expires_in?: number;
+  /** Roadmap 065 — set by a cookie-mode Worker: the refresh token is NOT in
+   *  this body, it is in the `HttpOnly` cookie the same response set. */
+  refresh_token_cookie?: boolean;
   token_type?: string;
   scope?: string;
   error?: string;
   error_description?: string;
 }
 
+/**
+ * A failed Worker round trip. `transient` says the failure MAY be a blip —
+ * a fetch rejection, a 5xx (the Worker itself couldn't reach GitHub), a
+ * malformed body — rather than a definitive 4xx rejection of the credentials
+ * that were sent. Callers must not destroy session state over a transient
+ * failure: dropping the cookie-session marker (or worse, signing out, which
+ * fires `/logout`) on a flaky boot would orphan — or actively burn — a
+ * still-good refresh cookie, the exact session roadmap 065 exists to keep.
+ */
+class WorkerError extends Error {
+  readonly transient: boolean;
+
+  constructor(message: string, transient: boolean) {
+    super(message);
+    this.transient = transient;
+  }
+}
+
 async function postWorker(path: string, body: unknown): Promise<TokenResponse> {
   const cfg = getOAuthConfig();
   if (!cfg) {
-    throw new Error("Sign-in is not configured.");
+    throw new WorkerError("Sign-in is not configured.", false);
   }
-  const res = await fetch(`${cfg.workerUrl}${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${cfg.workerUrl}${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      // Roadmap 065: the refresh cookie must ride along on every Worker call
+      // (it is what `/refresh` reads in cookie mode and what `/exchange` sets).
+      // Harmless when no cookie exists or the deployment is cookie-off, and the
+      // Worker always answers with `access-control-allow-credentials: true`.
+      credentials: "include",
+    });
+  } catch {
+    throw new WorkerError("Could not reach the sign-in service.", true);
+  }
   const raw: unknown = await res.json().catch(() => ({}));
   // Roadmap 030: the Worker's response is network input — a structurally
   // invalid body (wrong types, or an access_token that couldn't safely go
@@ -254,8 +328,12 @@ async function postWorker(path: string, body: unknown): Promise<TokenResponse> {
   const parsed = tokenResponseSchema.safeParse(raw);
   const data: TokenResponse = parsed.success ? parsed.data : {};
   if (!res.ok || data.error || !data.access_token) {
-    throw new Error(
+    throw new WorkerError(
       data.error_description || data.error || `Token exchange failed (HTTP ${res.status}).`,
+      // Only a 4xx is a definitive rejection of what was sent (the Worker
+      // passes GitHub's bad-grant errors through as 400); a 5xx or an
+      // OK-but-malformed body may well resolve on retry.
+      !(res.status >= 400 && res.status < 500),
     );
   }
   return data;
@@ -265,16 +343,30 @@ function applyTokenResponse(data: TokenResponse): void {
   const now = Date.now();
   const tokenExpiresAt =
     typeof data.expires_in === "number" ? now + data.expires_in * 1000 : Number.MAX_SAFE_INTEGER;
+  const refreshExpiresAt =
+    typeof data.refresh_token_expires_in === "number"
+      ? now + data.refresh_token_expires_in * 1000
+      : undefined;
   storeTokenState({
     // access_token presence is guaranteed by postWorker.
     token: data.access_token as string,
     tokenExpiresAt,
-    refreshToken: data.refresh_token,
-    refreshTokenExpiresAt:
-      typeof data.refresh_token_expires_in === "number"
-        ? now + data.refresh_token_expires_in * 1000
-        : undefined,
+    // Roadmap 065: in cookie mode there IS no refresh token to store — the
+    // Worker kept it in the cookie, which is the whole point (XSS can use the
+    // session while the page is open, but cannot exfiltrate the 6-month
+    // token). GitHub rotates on every refresh, so the Worker re-sets the
+    // cookie each time and the horizon below moves with it.
+    refreshToken: data.refresh_token_cookie ? undefined : data.refresh_token,
+    refreshTokenExpiresAt: refreshExpiresAt,
   });
+  if (data.refresh_token_cookie) {
+    localSet(K.cookieSession, String(refreshExpiresAt ?? Number.MAX_SAFE_INTEGER));
+  } else {
+    // Mode-switch hygiene: a deployment that turned cookie mode back off (or
+    // a 009 Worker answering a browser that still carries a marker) must not
+    // leave a marker behind promising a cookie session that nothing refreshes.
+    localRemove(K.cookieSession);
+  }
 }
 
 async function fetchUser(token: string): Promise<StoredUser> {
@@ -448,6 +540,66 @@ async function completeCallbackImpl(
   return { userPromise, returnHash: pending.returnHash ?? "" };
 }
 
+/**
+ * Roadmap 065 — the boot restore: turns a surviving `HttpOnly` refresh cookie
+ * back into a signed-in session, or resolves null (signed out, the 009
+ * fallback). Cheap when there is nothing to restore — an already-loaded token
+ * (a plain reload inside the access token's lifetime) and a missing/expired
+ * marker both answer without touching the network.
+ *
+ * The resolved user is the toolbar chip's, not the session: the profile fetch
+ * is cosmetic and its failure yields null, so {@link isSignedIn} may be true
+ * after this resolves even when the returned user is null — the same contract
+ * `completeCallback`'s `userPromise` has (a nameless chip beats a session
+ * thrown away over a cosmetic fetch).
+ *
+ * Single-flight, and this one MUST be: StrictMode double-mounts the effect
+ * that calls it, and GitHub ROTATES refresh tokens — a second concurrent
+ * `/refresh` would post the cookie the first one already burned and kill the
+ * session it was restoring. Same idiom as `callbackInFlight`, minus the key:
+ * there is only ever one session to restore, so every caller joins the one
+ * promise. Clearing it on completion is safe (and keeps the module from
+ * pinning a stale result forever): by then either a token is loaded, the
+ * marker is gone (both no-network branches), or the failure was transient —
+ * and a retry is exactly what a later caller should get then.
+ */
+let restoreInFlight: Promise<StoredUser | null> | null = null;
+
+export function restoreSession(): Promise<StoredUser | null> {
+  restoreInFlight ??= restoreSessionImpl().finally(() => {
+    restoreInFlight = null;
+  });
+  return restoreInFlight;
+}
+
+async function restoreSessionImpl(): Promise<StoredUser | null> {
+  if (currentToken()) {
+    return getStoredUser();
+  }
+  if (!hasLiveCookieSession()) {
+    return null;
+  }
+  let data: TokenResponse;
+  try {
+    // Empty body: the refresh token is the cookie `credentials: "include"`
+    // sends, and the SPA has no copy of it to offer.
+    data = await postWorker("/refresh", {});
+  } catch (err) {
+    // A definitive rejection (a 4xx: the cookie is gone, expired, or was
+    // already rotated away) drops the marker so later boots stop probing. A
+    // transient failure — an offline boot, a Worker/GitHub 5xx — keeps it:
+    // the cookie may be perfectly fine, and the next boot retrying instead of
+    // stranding it is the entire persistence promise of roadmap 065. Either
+    // way this boot stays signed out.
+    if (!(err instanceof WorkerError && err.transient)) {
+      localRemove(K.cookieSession);
+    }
+    return null;
+  }
+  applyTokenResponse(data);
+  return fetchUser(data.access_token as string).catch(() => null);
+}
+
 let refreshInFlight: Promise<string | null> | null = null;
 
 /**
@@ -466,18 +618,38 @@ export async function getValidToken(): Promise<string | null> {
   }
   const refreshExpired =
     typeof state.refreshTokenExpiresAt === "number" && Date.now() >= state.refreshTokenExpiresAt;
-  if (!state.refreshToken || refreshExpired) {
+  // Roadmap 065: no in-JS refresh token is not the end of the session any
+  // more — in cookie mode there never was one, and a live marker says the
+  // `HttpOnly` cookie still carries a good token, so the refresh goes out
+  // with an EMPTY body for the Worker to fill from the cookie. Without a
+  // marker (009, or an expired horizon) this is the unchanged signOut path.
+  const viaCookie = !state.refreshToken && hasLiveCookieSession();
+  if ((!state.refreshToken && !viaCookie) || refreshExpired) {
     signOut();
     return null;
   }
+  // Both paths share the ONE in-flight refresh: they are mutually exclusive
+  // per session, and a second concurrent cookie refresh would post the
+  // already-rotated (burned) cookie and kill the session it is renewing.
   if (!refreshInFlight) {
     refreshInFlight = (async () => {
       try {
-        const data = await postWorker("/refresh", { refresh_token: state.refreshToken });
+        const data = await postWorker(
+          "/refresh",
+          viaCookie ? {} : { refresh_token: state.refreshToken },
+        );
         applyTokenResponse(data);
         return currentToken()?.token ?? null;
-      } catch {
-        signOut();
+      } catch (err) {
+        // Same split as the boot restore: only a definitive 4xx ends the
+        // session. A transient failure answers null for THIS call (the
+        // caller acts unauthenticated once) but keeps the session so the
+        // next call retries — signOut() here would fire /logout, and with a
+        // reachable Worker behind an unreachable GitHub that would burn a
+        // still-good refresh cookie over a blip.
+        if (!(err instanceof WorkerError && err.transient)) {
+          signOut();
+        }
         return null;
       } finally {
         refreshInFlight = null;
@@ -490,11 +662,28 @@ export async function getValidToken(): Promise<string | null> {
 /**
  * Drops all `rcv.oauth.*` state. Revocation itself cannot be done from the
  * browser — the sign-out UI links to {@link REVOKE_URL} for true revocation.
+ *
+ * Roadmap 065: the refresh cookie has to die with the session too, and only
+ * the Worker can clear it — hence the fire-and-forget `POST /logout`. It is
+ * best-effort by design: this function is synchronous (every caller, down to
+ * `loadTokenState`'s corrupted-state path, relies on that) and must never
+ * throw, so a failed or blocked request costs nothing but the cookie's
+ * server-side lifetime, which the dropped marker already stops the app from
+ * using. `postWorker` is deliberately NOT reused: it expects a token JSON
+ * body and throws on anything that isn't one.
  */
 export function signOut(): void {
   memToken = null;
   memLoaded = true;
   for (const key of Object.values(K)) {
     sessionRemove(key);
+  }
+  // The one localStorage key: the loop above is a no-op for it.
+  localRemove(K.cookieSession);
+  const cfg = getOAuthConfig();
+  if (cfg) {
+    void fetch(`${cfg.workerUrl}/logout`, { method: "POST", credentials: "include" }).catch(
+      () => {},
+    );
   }
 }

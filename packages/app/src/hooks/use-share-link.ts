@@ -15,8 +15,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { TraceResult } from "@renovate-config-debugger/engine";
 import {
   completeCallback,
+  isSignedIn,
   type OAuthConfig,
   readCallbackParams,
+  restoreSession,
   type StoredUser,
 } from "@/platform/oauth";
 import { getRenovateVersion } from "@/platform/run";
@@ -285,9 +287,10 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
   loadShareTokenRef.current = loadShareToken;
 
   // On mount: first complete an OAuth callback if the URL carries one (QUERY
-  // params ?code&state), then — reading the possibly-restored fragment — decode
-  // a shared config, populate state and auto-run. OAuth runs before the share
-  // decode so a share link survives a sign-in round-trip. Still runs once:
+  // params ?code&state) — or, when there is none, try roadmap 065's silent
+  // cookie restore — then, reading the possibly-restored fragment, decode a
+  // shared config, populate state and auto-run. Both auth steps run before the
+  // share decode so a share link survives a sign-in round-trip. Still runs once:
   // `oauthConfig` is a `useMemo(…, [])` over build-time env (App.tsx), so it
   // is a constant for the app's lifetime — it is in the deps only because it
   // is read here, not because this is meant to re-run.
@@ -345,7 +348,28 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
         }
       }
 
-      // 2. Shared config (007) from the URL fragment (survives the OAuth strip).
+      // 2. Roadmap 065 — no callback, but a previous tab may have left a live
+      // `HttpOnly` refresh cookie: one silent /refresh restores the session.
+      // Ordered here for the same reason the callback branch is (and awaited
+      // for the same reason): step 3's decode can auto-run a link whose
+      // presets are private, and that run must see the restored token rather
+      // than a 404 it would have to be re-run to fix. `restoreSession` is
+      // single-flight and returns without a round trip when there is nothing
+      // to restore, so the cost on the ordinary signed-out boot is nil.
+      if (!callback && oauthConfig && !isSignedIn()) {
+        const user = await restoreSession();
+        // The session, not the chip, decides `signedIn`: the profile fetch is
+        // cosmetic and yields null on failure, so a nameless-but-restored
+        // session must still read as signed in (same contract as above).
+        if (!isCancelled() && isSignedIn()) {
+          hostRef.current.setSignedIn(true);
+          if (user) {
+            hostRef.current.setAuthUser(user);
+          }
+        }
+      }
+
+      // 3. Shared config (007) from the URL fragment (survives the OAuth strip).
       const shareToken = readShareToken(window.location.hash);
       if (!shareToken) {
         return;

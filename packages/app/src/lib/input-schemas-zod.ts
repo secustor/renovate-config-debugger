@@ -250,6 +250,11 @@ export const tokenResponseSchema = z.object({
   expires_in: z.optional(z.number()),
   refresh_token: z.optional(tokenSchema),
   refresh_token_expires_in: z.optional(z.number()),
+  // Roadmap 065 — the worker's cookie mode strips `refresh_token` from the
+  // body and says so with this flag (keeping `refresh_token_expires_in`,
+  // which feeds the localStorage marker). Absent on a 009 deployment, so it
+  // is optional here and oauth.ts treats absent exactly as `false`.
+  refresh_token_cookie: z.optional(z.boolean()),
   token_type: z.optional(z.string()),
   scope: z.optional(z.string()),
   error: z.optional(z.string()),

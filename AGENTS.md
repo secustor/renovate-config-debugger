@@ -80,6 +80,6 @@ The app's vitest config also has a `render` project (`src/**/*.test.tsx`, jsdom 
 ## Other constraints worth knowing
 
 - `matchCurrentVersion` uses Renovate's real versioning modules for every ecosystem **except `conda`** (its ~3 MB WASM parser is excluded; such clauses report an honest error).
-- Share links carry state in the URL _fragment_ only (never reaches server logs) and must never carry tokens or manually injected presets. Tokens live in `sessionStorage`/memory only.
+- Share links carry state in the URL _fragment_ only (never reaches server logs) and must never carry tokens or manually injected presets. Tokens live in `sessionStorage`/memory only — except the OAuth refresh token, which (roadmap 065, opt-in per deployment) lives in an `HttpOnly` cookie scoped to the oauth-worker; `localStorage` never holds a secret, only the non-secret cookie-session marker.
 - `public/` is deployment payload copied verbatim, not app source; `rcv-config.js` there is a stub that the Docker entrypoint may overwrite at container start (runtime `RCV_*` config).
 - CI must not install via mise hooks — the `postinstall` hook in `mise.toml` is local-only convenience (see the comment there before touching caching in workflows).
