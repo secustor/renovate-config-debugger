@@ -19,29 +19,38 @@ export function renovateShims(): Plugin {
   const renovateRoot = path.dirname(require.resolve("renovate/package.json"));
   const renovateDist = path.join(renovateRoot, "dist");
   const shimDir = fileURLToPath(new URL(".", import.meta.url));
+  // The shims sit next to this file in both trees this plugin ever runs from:
+  // as `.ts` inside the workspace (app build, vitest "shimmed" project) and as
+  // compiled `.js` inside the published package (roadmap 056). This module's
+  // own extension is which of the two it is, so the map below stays
+  // extensionless and the emitted build needs no path rewriting.
+  const shimExt = path.extname(fileURLToPath(import.meta.url));
 
   const shimMap = new Map<string, string>(
     Object.entries({
-      "_virtual/_rolldown/runtime.js": "rolldown-runtime.ts",
-      "instrumentation/index.js": "instrumentation.ts",
-      "logger/index.js": "logger.ts",
-      "config/migration.js": "migration.ts",
-      "expose.js": "expose.ts",
-      "config/presets/github/index.js": "presets/github.ts",
-      "config/presets/npm/index.js": "presets/npm.ts",
-      "config/presets/gitlab/index.js": "presets/gitlab.ts",
-      "config/presets/http/index.js": "presets/http.ts",
-      "config/presets/local/index.js": "presets/local.ts",
-      "config/presets/gitea/index.js": "presets/gitea.ts",
-      "config/presets/forgejo/index.js": "presets/forgejo.ts",
-      "modules/datasource/index.js": "datasource-index.ts",
-      "util/cache/package/index.js": "package-cache.ts",
-      "util/hash.js": "hash.ts",
-      "util/merge-confidence/index.js": "merge-confidence.ts",
+      "_virtual/_rolldown/runtime.js": "rolldown-runtime",
+      "instrumentation/index.js": "instrumentation",
+      "logger/index.js": "logger",
+      "config/migration.js": "migration",
+      "expose.js": "expose",
+      "config/presets/github/index.js": "presets/github",
+      "config/presets/npm/index.js": "presets/npm",
+      "config/presets/gitlab/index.js": "presets/gitlab",
+      "config/presets/http/index.js": "presets/http",
+      "config/presets/local/index.js": "presets/local",
+      "config/presets/gitea/index.js": "presets/gitea",
+      "config/presets/forgejo/index.js": "presets/forgejo",
+      "modules/datasource/index.js": "datasource-index",
+      "util/cache/package/index.js": "package-cache",
+      "util/hash.js": "hash",
+      "util/merge-confidence/index.js": "merge-confidence",
       // conda's version parser is a ~3.9 MB inlined WASM blob (rattler) —
       // over half the bundle for one niche scheme; see shims/versioning-conda.ts
-      "modules/versioning/conda/index.js": "versioning-conda.ts",
-    }).map(([dist, shim]) => [path.join(renovateDist, dist), path.join(shimDir, shim)]),
+      "modules/versioning/conda/index.js": "versioning-conda",
+    }).map(([dist, shim]) => [
+      path.join(renovateDist, dist),
+      path.join(shimDir, `${shim}${shimExt}`),
+    ]),
   );
 
   function lookup(resolved: string): string | undefined {
