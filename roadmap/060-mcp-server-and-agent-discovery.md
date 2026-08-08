@@ -1,6 +1,6 @@
 # 060 — `rcd mcp` + pointing agents at the headless interface
 
-Milestone: M16 · Status: proposed
+Milestone: M16 · Status: MCP server done (2026-08-05), discovery pending
 
 ## Summary
 
@@ -59,3 +59,31 @@ out that this exists.
   Code only prompts for plugins in the official Anthropic marketplace; until
   a listing exists the marker is inert but forward-compatible, and
   README/AGENTS.md remain the working channel.
+
+## As built — the MCP server (2026-08-05)
+
+- **The tools are the CLI's projections, not a second implementation.** 058's
+  command modules were refactored first: `src/projections/{digest,tree,
+provenance,messages}.ts` now hold the shapes, and the subcommands and the
+  MCP tools both import them. So "no new functionality" is structural — a
+  change to what `get_preset_tree` answers is a change to what `rcv tree`
+  answers.
+- Same for credentials: `applyRunAuth` (with the endpoint guard inside it) is
+  shared, so the guard cannot be enforced on one transport and forgotten on
+  the other. `run_config` takes `trustEndpoints` for the same opt-in the CLI
+  spells `--trust-endpoints`.
+- **`RunStore` is a real LRU** (8 runs): a `get` refreshes recency, so the run
+  an agent keeps drilling into is never the one evicted next, and an expired
+  handle is reported with the ids still held rather than a bare miss. Holding
+  more than one run is what makes `compare_simulations` an edit oracle across
+  two runs.
+- Tested through a real MCP client over the SDK's in-memory transport pair
+  (`test/mcp.test.ts`), so schemas, handlers and result shapes are exercised
+  the way a client exercises them.
+- **Nothing is written to stdout by `rcv mcp`** — on a stdio transport stdout
+  IS the protocol. Diagnostics go to stderr, which is also what keeps them out
+  of a `--format json` document.
+
+Still open here: the discovery half — the app footer, the READMEs, llms.txt
+and the Claude Code hint marker — which lands once 059 has published the
+package every one-liner names.
