@@ -2,11 +2,31 @@
 
 ## Experimental
 
-**This CLI is experimental.** Its subcommands, flags and output shapes may
-change in any release while the interface finds its users. What is stable
-underneath it is the engine's trace semantics, proven by the golden↔shimmed
-parity suite in `packages/engine` — not the surface described below. Pin an
-exact version if you script against it.
+**This CLI is experimental, and `0.x` means it.** Subcommands, flags and
+output shapes may change in **any** `0.x` release — breaking changes land in
+the minor, and a Renovate bump is itself a release, because the CLI's answers
+change when Renovate's code does. What is stable underneath is the engine's
+trace semantics, proven by the golden↔shimmed parity suite in
+`packages/engine` — not the surface described below. Pin an exact version if
+you script against it.
+
+Licensed **AGPL-3.0-only**, like the rest of this project.
+
+## Compatibility
+
+Every release states the Renovate it carries: the engine and its `renovate`
+graph are **inlined at build time**, so a given CLI version always answers with
+exactly this Renovate — nothing resolves at install time.
+
+<!-- compat-table -->
+
+| `cli` | embedded `engine` | `renovate` |
+| ----- | ----------------- | ---------- |
+| 0.1.0 | 0.0.0             | 44.7.4     |
+
+**The table describes an experimental interface**: a new row is not a promise
+that the previous row's flags still work. (`packages/cli/scripts/check-compat.mjs`
+fails the build if the top row does not describe the current build.)
 
 ## What it is
 
@@ -31,11 +51,15 @@ same pinned `renovate` package code, so they cannot disagree about semantics.
 
 ## Use
 
-In this repository:
+Anywhere, with no checkout and no install step:
 
 ```console
-$ pnpm --filter @renovate-config-debugger/cli rcv digest renovate.json
+$ pnpm dlx @renovate-config-debugger/cli validate renovate.json
+$ npx -y @renovate-config-debugger/cli digest renovate.json
 ```
+
+In this repository, `pnpm --filter @renovate-config-debugger/cli rcv …` runs
+the same commands straight from `src/` (see [Two bins](#two-bins)).
 
 ```console
 $ rcv digest renovate.json
@@ -99,6 +123,21 @@ when the config under inspection chooses the endpoint, tokens are withheld and
 the CLI says so on stderr. Pass `--platform-override` to impose your own
 endpoint, or `--trust-endpoints` when the config is yours.
 
+## Two bins
+
+| bin               | what it runs                                     | who uses it                         |
+| ----------------- | ------------------------------------------------ | ----------------------------------- |
+| `bin/rcv.mjs`     | `dist/main.js` — the prebuilt bundle (published) | `pnpm dlx`, `npx`, a global install |
+| `bin/rcv-dev.mjs` | `src/**` through Vite's SSR module runner        | in-repo development (`pnpm rcv`)    |
+
+Both are the same module graph: the bundle is `vite build --ssr` of exactly
+what the dev runner serves, with `renovateShims()` active and `renovate`
+inlined, which is why the published package has no runtime dependencies. CI
+proves it rather than asserting it — the engine's own shimmed snapshot suite
+is re-run with the engine pointed at `dist/engine-surface.js`
+(`pnpm --filter @renovate-config-debugger/cli test:bundle`), so the artifact
+that ships has to reproduce the golden snapshots byte for byte.
+
 ## Read-only, on purpose
 
 There is no `fix` or `migrate-file` verb. Agents edit configs with their own
@@ -108,6 +147,7 @@ fix and the fixed file text without applying anything.
 
 ## Design
 
-`roadmap/058-rcv-debugger-cli.md` for the decisions, and
+`roadmap/058-rcv-debugger-cli.md` and `roadmap/059-publish-cli-package.md` for
+the decisions, and
 `roadmap/2026-08-agent-debug-interface-research.md` for the research and the
 feasibility spike this package turns into a product.

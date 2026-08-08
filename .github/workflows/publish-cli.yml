@@ -1,0 +1,87 @@
+name: Publish CLI
+
+# Roadmap 059 — publishes @renovate-config-debugger/cli to npm.
+#
+# Release-triggered only: nothing on this workflow runs on a push to main, so
+# a merge can never publish. A release is cut by tagging `cli-v<version>`
+# (which must match packages/cli/package.json's version — the job checks) and
+# publishing the GitHub release, or by running the workflow by hand for a
+# dry run.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Build and verify without publishing
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    # Releases for the OTHER publishable packages (056's engine) share this
+    # repository's tags, so a tag that is not ours is not our release.
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'cli-v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      # npm provenance: the attestation is signed with this job's OIDC token.
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+
+      - name: Tag matches the package version
+        if: github.event_name == 'release'
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          version=$(node -p "require('./packages/cli/package.json').version")
+          if [ "$TAG" != "cli-v$version" ]; then
+            echo "tag $TAG does not match packages/cli version $version" >&2
+            exit 1
+          fi
+
+      # The zero-tolerance gates, on the exact tree being published.
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm typecheck
+      - run: pnpm --filter @renovate-config-debugger/cli test
+
+      # `prebuild` (scripts/check-compat.mjs) fails the build when the
+      # README's compat table does not describe this build.
+      - name: Build the SSR bundle
+        run: pnpm --filter @renovate-config-debugger/cli build
+
+      # The parity proof: the engine's own shimmed snapshot suite, re-run with
+      # the engine pointed at dist/engine-surface.js. "The bundle is the same
+      # module graph" is TESTED against the artifact that ships, not assumed
+      # from both having been built with the same plugin.
+      - name: Bundle parity (engine shimmed snapshots vs. the bundle)
+        run: pnpm --filter @renovate-config-debugger/cli test:bundle
+
+      # AGPL-3.0-only is stated in package.json; the text has to travel with
+      # the tarball. It lives at the repo root, so it is copied in rather than
+      # duplicated in the tree.
+      - name: Bundle the license
+        run: cp LICENSE packages/cli/LICENSE
+
+      - name: Smoke-test the published bin
+        run: node packages/cli/bin/rcv.mjs validate packages/cli/test/fixtures/clean.json
+
+      - name: Publish to npm
+        if: github.event_name == 'release'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+          pnpm --filter @renovate-config-debugger/cli publish --access public --no-git-checks
+
+      - name: Dry run only
+        if: github.event_name != 'release'
+        run: pnpm --filter @renovate-config-debugger/cli publish --dry-run --no-git-checks
