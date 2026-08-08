@@ -29,6 +29,9 @@ export default defineConfig({
       {
         resolve: { alias: srcAlias },
         plugins: [renovateShims()],
+        // The MCP SDK ships sourcemaps whose sources it does not ship; Vite
+        // warns once per module and buries the test output. Errors still print.
+        logLevel: "error",
         test: {
           name: "cli",
           include: ["test/*.test.ts"],

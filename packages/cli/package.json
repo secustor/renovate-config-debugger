@@ -46,12 +46,14 @@
     "test:bundle": "vitest run --project bundle"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
     "@renovate-config-debugger/app": "workspace:*",
     "@renovate-config-debugger/engine": "workspace:*",
     "@types/node": "26.1.2",
     "typescript": "7.0.2",
     "vite": "8.2.0",
-    "vitest": "4.1.10"
+    "vitest": "4.1.10",
+    "zod": "4.4.3"
   },
   "engines": {
     "node": ">=24.0.0"
