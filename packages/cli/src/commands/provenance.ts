@@ -57,7 +57,7 @@ export const provenanceCommand: Command = {
     "With a key: that option's full override chain, plus — for",
     "`packageRules` — which layer contributed each merged rule.",
   ],
-  options: [...INPUT_OPTIONS, "format", "help"],
+  options: [...INPUT_OPTIONS, "format"],
   async run(args, io) {
     const format = outputFormat(args);
     const { result, rest, notes } = await runFromArgs(args, io);

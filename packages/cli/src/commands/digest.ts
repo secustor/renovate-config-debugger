@@ -26,7 +26,7 @@ export const digestCommand: Command = {
   name: "digest",
   summary: "the run in one paragraph — start here",
   usage: ["digest [file]"],
-  options: [...INPUT_OPTIONS, "format", "help"],
+  options: [...INPUT_OPTIONS, "format"],
   async run(args, io) {
     const format = outputFormat(args);
     const { result, notes } = await runFromArgs(args, io);

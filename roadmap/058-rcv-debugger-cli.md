@@ -100,6 +100,14 @@ plain-Node import.
   `define: { "process.env": "{}" }` for the whole graph, so argv, env and
   stdio are handed to `main(argv, io)` as data — which is also what lets the
   tests drive every subcommand in-process.
+- Argument parsing is `commander`, not the hand-rolled `node:util` `parseArgs`
+  layer it shipped with: the `Command` registry builds one program, and
+  `exitOverride()` + `configureOutput({ writeOut, writeErr })` keep the io seam
+  intact — the parser throws instead of calling `process.exit`, and writes its
+  help and its diagnostics through `io` like everything else. `args.ts` kept the
+  option table (one description per flag, now commander's) and the
+  `stringOption`/`boolOption`/`listOption` readers, so the flag names the
+  subcommands quote in errors are still the ones the user typed.
 - **The hoist went further than one function.** `EffectiveConfig.tsx`'s tally
   is now `lib/effective-tally.ts`, and the digest ASSEMBLY (which was inline in
   the `use-run-summary` hook, i.e. equally unreachable) is `lib/run-facts.ts`:

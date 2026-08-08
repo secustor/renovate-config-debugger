@@ -22,7 +22,7 @@ export const resolvedCommand: Command = {
     "be written into a fully expanded document — in a document that still",
     "extends presets they would merge AFTER them and override them.",
   ],
-  options: [...INPUT_OPTIONS, "mode", "include-defaults", "format", "help"],
+  options: [...INPUT_OPTIONS, "mode", "include-defaults", "format"],
   async run(args, io) {
     const format = outputFormat(args);
     const raw = stringOption(args, "mode") ?? "keep-internal";

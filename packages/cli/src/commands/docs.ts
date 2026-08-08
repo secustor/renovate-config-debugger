@@ -12,7 +12,7 @@ export const docsCommand: Command = {
   name: "docs",
   summary: "what does this Renovate option mean? (for the pinned version)",
   usage: ["docs <option>", "docs <substring> --search"],
-  options: ["search", "format", "help"],
+  options: ["search", "format"],
   run(args, io) {
     const format = outputFormat(args);
     const query = args.positionals[0];

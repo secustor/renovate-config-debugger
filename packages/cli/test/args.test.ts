@@ -5,10 +5,7 @@ import { endpointTokenPolicy, takeInputFile, tokensFromEnv } from "../src/run-in
 
 describe("parseCommandArgs", () => {
   test("splits flags from positionals", () => {
-    const args = parseCommandArgs(
-      ["renovate.json", "labels", "--format", "json"],
-      ["format", "help"],
-    );
+    const args = parseCommandArgs(["renovate.json", "labels", "--format", "json"], ["format"]);
     expect(args.positionals).toEqual(["renovate.json", "labels"]);
     expect(args.values.format).toBe("json");
   });

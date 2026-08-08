@@ -49,7 +49,7 @@ export const simulateCommand: Command = {
     "`updateType` is derived from currentValue/newValue when you don't set",
     "it, exactly as a real lookup would before the rules run.",
   ],
-  options: [...INPUT_OPTIONS, "dep", "dep-file", "format", "help"],
+  options: [...INPUT_OPTIONS, "dep", "dep-file", "format"],
   async run(args, io) {
     const format = outputFormat(args);
     const dep = await readDependency(args, "dep", "dep-file");
