@@ -13,8 +13,14 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-const read = (relative) => readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
-const readJson = (relative) => JSON.parse(read(relative));
+interface PackageJson {
+  version: string;
+  dependencies?: Record<string, string>;
+}
+
+const read = (relative: string): string =>
+  readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
+const readJson = (relative: string): PackageJson => JSON.parse(read(relative)) as PackageJson;
 
 const cli = readJson("../package.json");
 const engine = readJson("../../engine/package.json");

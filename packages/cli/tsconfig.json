@@ -10,6 +10,7 @@
   "include": [
     "src",
     "test",
+    "scripts",
     "vite.config.ts",
     "vitest.config.ts",
     "../engine/src/types/renovate-dist.d.ts"

@@ -80,7 +80,7 @@ where configs actually live.
   has to reproduce the golden snapshots byte for byte — 73 assertions. It runs
   in `ci.yml` (so a PR that breaks the bundle fails before a release tries to
   ship it) and again in `publish-cli.yml`.
-- **The compat table is checked, not trusted.** `scripts/check-compat.mjs`
+- **The compat table is checked, not trusted.** `scripts/check-compat.ts`
   runs as part of `build` and fails when the README table's top row does not
   match `packages/cli`'s version, `packages/engine`'s version and the exact
   `renovate` pin. A Renovate bump that forgets the table cannot publish.
