@@ -46,6 +46,8 @@
  *   node generate-links.mjs -c /tmp/my-config.json -p 4173 --renovate 43.275.0
  */
 
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -79,10 +81,17 @@ Options:
   --unique <id>         Fixed value for the ?s= cache-busting param
                          (default: random per invocation).
   --list                List scenario files under ./scenarios and exit.
+  --verify              Check scenario validity preconditions against the
+                         PINNED renovate dist (the \`\`\`js verify block under
+                         "## Validity precondition"). With -c, one scenario;
+                         without, every scenario under ./scenarios. Exits
+                         non-zero on any stale scenario — run this before
+                         generating links or bumping the renovate pin.
   --help, -h            Show this help and exit.
 
 Examples:
   node generate-links.mjs --list
+  node generate-links.mjs --verify
   node generate-links.mjs -c scenarios/44529-group-preset-nesting.md -p 4173
   node generate-links.mjs -c /tmp/my-config.json -p 4173 --renovate 43.275.0
 `;
@@ -98,6 +107,9 @@ function parseArgs(argv) {
         break;
       case "--list":
         args.list = true;
+        break;
+      case "--verify":
+        args.verify = true;
         break;
       case "--config":
       case "-c":
@@ -226,6 +238,73 @@ function randomId() {
   return Math.random().toString(36).slice(2, 8);
 }
 
+/**
+ * Replay-02 S1 — scenario validity preconditions. A scenario's ground truth
+ * is written against ONE upstream state (a preset body, a validator message,
+ * a monorepo group); a routine Renovate bump can silently fix the very bug a
+ * scenario tests, after which the rubric grades correct persona observations
+ * as wrong. Each scenario therefore carries a machine-checkable
+ * `## Validity precondition` — a ```js verify fenced block run here with:
+ *   renovateDir  absolute path of the pinned renovate package
+ *   read(rel)    file text, relative to renovateDir
+ *   assert       node:assert/strict
+ * A throw marks the scenario stale. Content-based checks (read + includes)
+ * are deliberate: requiring renovate's dist modules from here is fragile.
+ */
+async function verifyScenario(scenarioPath, renovateDir) {
+  const raw = await readFile(scenarioPath, "utf8");
+  const block = raw.match(/## Validity precondition[\s\S]*?```js[^\n]*\n([\s\S]*?)\n```/);
+  if (!block) {
+    return {
+      ok: false,
+      message:
+        "no `## Validity precondition` ```js verify block — add one (see scenarios/README.md)",
+    };
+  }
+  const read = (rel) => readFileSync(path.join(renovateDir, rel), "utf8");
+  const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor;
+  try {
+    const fn = new AsyncFunction("renovateDir", "read", "assert", block[1]);
+    await fn(renovateDir, read, assert);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, message: err.message };
+  }
+}
+
+async function verifyMain(args) {
+  let renovateDir;
+  try {
+    renovateDir = path.dirname(createRequire(ENGINE_PKG_JSON).resolve("renovate/package.json"));
+  } catch {
+    process.stderr.write(
+      "error: renovate is not installed (run pnpm install) — preconditions check the pinned dist\n",
+    );
+    process.exitCode = 1;
+    return;
+  }
+  const targets = args.config ? [path.resolve(process.cwd(), args.config)] : await listScenarios();
+  let failed = 0;
+  for (const target of targets) {
+    const name = path.relative(process.cwd(), target);
+    const res = await verifyScenario(target, renovateDir);
+    if (res.ok) {
+      process.stderr.write(`ok: ${name}\n`);
+    } else {
+      failed++;
+      process.stderr.write(`STALE: ${name} — ${res.message}\n`);
+    }
+  }
+  if (failed > 0) {
+    process.stderr.write(
+      `${failed} scenario(s) failed their validity precondition — do NOT run personas against them\n`,
+    );
+    process.exitCode = 1;
+  } else {
+    process.stderr.write("all scenario preconditions hold on the pinned renovate\n");
+  }
+}
+
 /** Builds the share token for a payload — same shape encodeShare() in share.ts produces. */
 async function encodeToken(payload) {
   const json = JSON.stringify(payload);
@@ -253,6 +332,11 @@ async function main() {
     for (const f of files) {
       process.stdout.write(`${path.relative(process.cwd(), f)}\n`);
     }
+    return;
+  }
+
+  if (args.verify) {
+    await verifyMain(args);
     return;
   }
 

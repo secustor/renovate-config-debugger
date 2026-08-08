@@ -20,6 +20,28 @@
 }
 ```
 
+## Validity precondition
+
+```js verify
+// Run by `generate-links.mjs --verify` against the pinned renovate.
+// The whole scenario rests on :automergeMinor nesting automerge ONLY under
+// update-type keys — a top-level automerge in the preset would void it.
+const src = read("dist/config/presets/internal/default.preset.js");
+const start = src.indexOf("automergeMinor:");
+assert.ok(start >= 0, ":automergeMinor no longer exists in the bundled presets");
+const block = src.slice(start, src.indexOf("\n\t},", start));
+for (const key of ["minor", "patch", "pin", "lockFileMaintenance"]) {
+  assert.ok(
+    block.includes(`${key}: { automerge: true }`),
+    `:automergeMinor no longer nests automerge under ${key}`,
+  );
+}
+assert.ok(
+  !/\n\t\tautomerge:/.test(block),
+  ":automergeMinor now sets a top-level automerge — the update-type scoping story is gone",
+);
+```
+
 ## Symptom framing
 
 ### Entry
