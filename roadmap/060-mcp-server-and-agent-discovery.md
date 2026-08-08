@@ -1,6 +1,6 @@
 # 060 — `rcd mcp` + pointing agents at the headless interface
 
-Milestone: M16 · Status: MCP server done (2026-08-05), discovery pending
+Milestone: M16 · Status: done (2026-08-05)
 
 ## Summary
 
@@ -79,11 +79,26 @@ provenance,messages}.ts` now hold the shapes, and the subcommands and the
   two runs.
 - Tested through a real MCP client over the SDK's in-memory transport pair
   (`test/mcp.test.ts`), so schemas, handlers and result shapes are exercised
-  the way a client exercises them.
+  the way a client exercises them; `rcv mcp` was additionally smoke-tested
+  over stdio against the built bundle.
 - **Nothing is written to stdout by `rcv mcp`** — on a stdio transport stdout
   IS the protocol. Diagnostics go to stderr, which is also what keeps them out
   of a `--format json` document.
 
-Still open here: the discovery half — the app footer, the READMEs, llms.txt
-and the Claude Code hint marker — which lands once 059 has published the
-package every one-liner names.
+## As built — discovery (2026-08-05)
+
+- The hint fires at most once per process (it matters for `rcv mcp`, which
+  lives for a whole session) from the three moments the doc names: `--help`,
+  an unknown subcommand, and the first run. It is stderr-only, so it can
+  corrupt neither the MCP protocol stream nor a `--format json` document.
+- Discovery, as shipped: `packages/app/src/components/HeadlessNote.tsx` (a
+  visible `<footer>` at the end of the page, in flow, with the copy-pasteable
+  one-liners), a "For agents and scripts" section in the root README, an MCP
+  section in the CLI README, the AGENTS.md pointer, and
+  `packages/app/public/llms.txt`.
+
+Left open: nothing here can be _verified_ end to end until 059's package is
+actually published — every one-liner names `pnpm dlx
+@renovate-config-debugger/cli`. The plugin hint stays inert until an
+official-marketplace listing exists (061 ships the plugin itself and a
+self-hosted marketplace, which the hint protocol deliberately cannot see).

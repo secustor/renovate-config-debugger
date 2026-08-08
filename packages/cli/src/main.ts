@@ -13,6 +13,7 @@ import { runCommand } from "./commands/run";
 import { simulateCommand } from "./commands/simulate";
 import { treeCommand } from "./commands/tree";
 import { validateCommand } from "./commands/validate";
+import { emitPluginHint } from "./hint";
 import { CliError, type CliIo, errorMessage, EXIT_ERROR, EXIT_OK } from "./io";
 
 /**
@@ -57,6 +58,9 @@ const TOP_LEVEL_NOTES = [
   "They are withheld when the config under inspection chooses the endpoint.",
   "",
   "`rcd <command> --help` for a command's own flags.",
+  "",
+  "In an MCP-capable client, register the server once and skip the flags entirely:",
+  "  claude mcp add rcd -- pnpm dlx @renovate-config-debugger/cli mcp",
 ];
 
 /**
@@ -147,6 +151,13 @@ async function dispatch(argv: readonly string[], io: CliIo): Promise<number> {
   const program = buildProgram(io, (code) => {
     exitCode = code;
   });
+  // Roadmap 060: the moments the plugin hint is worth emitting — help, a
+  // wrong guess at a subcommand, and a run itself. It is stderr-only, once
+  // per process, and only inside Claude Code (see `hint.ts`); `--version`
+  // answers without it.
+  if (!(argv[0] === "--version" || argv[0] === "-v")) {
+    emitPluginHint(io);
+  }
   if (argv.length === 0) {
     // Commander would write the help to stderr and exit 1; bare `rcd` asking
     // what `rcd` is has always been a successful question.
