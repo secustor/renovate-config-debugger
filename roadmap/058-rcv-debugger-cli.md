@@ -1,6 +1,6 @@
 # 058 — `rcv`: the debugger CLI on the shimmed engine
 
-Milestone: M16 · Status: proposed · Stability: **experimental**
+Milestone: M16 · Status: done (2026-08-05) · Stability: **experimental**
 
 The CLI is an experimental surface: its subcommands, flags and output
 shapes may change in any release while the interface finds its users.
@@ -86,3 +86,72 @@ plain-Node import.
   pass/fail on the file as written, no preset resolution. `rcv` is the
   debugger; both run the same pinned `renovate` code, so they cannot
   disagree about semantics.
+
+## As built (2026-08-05)
+
+- `packages/cli`: `bin/rcv.mjs` boots `createServer({ configFile: vite.config.ts })`
+  and `ssrLoadModule("/src/main.ts")`. The spike's two-server bootstrap turned
+  out to be unnecessary — Vite loads its own TS config (and with it the shim
+  plugin, imported by package name exactly as `packages/app/vite.config.ts`
+  does it), so one server suffices. `server.hmr: false` alone still binds the
+  dev WebSocket port; `ws: false` is what makes this a process that opens no
+  sockets.
+- The bin is the only file that touches the process. `renovateShims()` sets
+  `define: { "process.env": "{}" }` for the whole graph, so argv, env and
+  stdio are handed to `main(argv, io)` as data — which is also what lets the
+  tests drive every subcommand in-process.
+- **The hoist went further than one function.** `EffectiveConfig.tsx`'s tally
+  is now `lib/effective-tally.ts`, and the digest ASSEMBLY (which was inline in
+  the `use-run-summary` hook, i.e. equally unreachable) is `lib/run-facts.ts`:
+  `deriveRunFacts` + `buildDigestInput`. The hook got shorter and now makes one
+  pass over the event stream instead of three. `@renovate-config-debugger/app/headless`
+  is the single subpath export the CLI imports them through; nothing from
+  `features/` may be added to it (the shared layer must not import a feature).
+- `--inject` needs a preset IDENTITY, which is Renovate's business, not the
+  CLI's. So the run happens once without injections, the named preset is looked
+  up in the resulting tree and its own `source` produces the key — the same
+  path the app's "provide content" action takes. No preset-string parser was
+  added.
+- Exit `2` applies to every pipeline-running subcommand, not just `validate`:
+  once Renovate would refuse the config, every answer that follows is
+  hypothetical (023's framing), and a uniform rule is one thing to document.
+- `simulate`'s pretty output reports the merge DELTA rather than
+  `finalDependencyConfig` — the latter is the effective config with all of
+  Renovate's defaults in it, which buries the answer. `--format json` still
+  carries the whole document.
+
+Left open: the `renovate-config-validator` comparison is documented, not
+tested; nothing yet asserts that the CLI and the app produce byte-identical
+digests for the same config (they call the same functions, which is the
+structural version of that guarantee).
+
+## Follow-up: publishing `rcv` as a second product
+
+Publishing itself is [059](059-publish-cli-package.md): the prebuilt SSR
+bundle (shims applied at build time, `noExternal: true`, no runtime
+dependencies), the bundle-vs-golden parity suite, the compat table, and the
+`0.x`-lockstep-with-the-Renovate-pin version scheme all live there. Two
+notes recorded here (2026-08-08) because they concern 058's as-built shape,
+not the packaging:
+
+- **Measured cost of the dev runner** (Apple Silicon, warm caches, internal
+  presets only): ~0.8 s fixed bootstrap — ~0.1 s `import("vite")`, ~0.1 s
+  `createServer`, ~0.5–0.7 s transform+execute of the shimmed graph — plus
+  ~0.7 s per pipeline run; `validate`/`digest`/`tree` ≈ 1.4 s, `compare`
+  (two runs) ≈ 2.3 s. Of the bootstrap, ~0.35 s is module _execution_ that
+  any packaging keeps; the rest is Vite machinery the 059 bundle deletes,
+  which is why the bundle's measured ~0.11 s startup is plausible. Per-run
+  pipeline cost and per-invocation preset fetches are structural to a
+  one-shot CLI either way — that is the 060 MCP server's territory, not the
+  bundle's.
+- **The `app/headless` seam survives publishing, but stays on watch.**
+  059 bundles the barrel's modules into the artifact, so publishing does
+  not force extracting them; what remains is a hygiene argument. The barrel
+  is a raw-TS subpath export only a Vite consumer can resolve, the `@`
+  alias is duplicated into the CLI's config, and "no React, nothing from
+  `features/`" is enforced by comment rather than resolution. If the barrel
+  grows or a second non-Vite consumer appears, extract the contents
+  (`effective-tally`, `run-facts`, `run-digest`, `preset-tree-stats`, the
+  layer-parse schemas) into a shared `packages/headless` between engine and
+  app; until then the import-not-copy guarantee plus 059's parity suite
+  carry the weight.

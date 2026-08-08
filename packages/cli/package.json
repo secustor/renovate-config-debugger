@@ -1,0 +1,25 @@
+{
+  "name": "@renovate-config-debugger/cli",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Experimental — headless Renovate config debugger: preset tree, provenance, packageRules simulator and validation, as structured data",
+  "bin": {
+    "rcv": "./bin/rcv.mjs"
+  },
+  "type": "module",
+  "scripts": {
+    "rcv": "node ./bin/rcv.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@renovate-config-debugger/app": "workspace:*",
+    "@renovate-config-debugger/engine": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "26.1.2",
+    "typescript": "7.0.2",
+    "vite": "8.2.0",
+    "vitest": "4.1.10"
+  }
+}

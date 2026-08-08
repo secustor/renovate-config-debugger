@@ -30,6 +30,33 @@ pnpm --filter @renovate-config-debugger/app exec playwright test e2e/04-simulato
 pnpm --filter @renovate-config-debugger/app check:dev-graph   # guards `vite dev` module graph against Node-only leaks
 ```
 
+## Debugging config resolution: use `rcv`
+
+**Do not** write a throwaway `*.shimmed.test.ts` to poke the engine, and do not
+drive the app in a browser, to answer a question about a config. `packages/cli`
+(roadmap 058, experimental) hosts the same shimmed module graph under Node and
+answers those questions directly:
+
+```bash
+alias rcv='pnpm --filter @renovate-config-debugger/cli rcv'
+rcv digest renovate.json          # the whole run in one paragraph — start here
+rcv validate renovate.json        # exit 2 = Renovate would refuse it
+rcv tree renovate.json --node "config:best-practices" --body resolved
+rcv provenance renovate.json labels
+rcv simulate renovate.json --dep '{"depName":"react","currentValue":"17.0.0"}'
+rcv compare before.json after.json --dep '{"depName":"react"}'   # the edit oracle
+rcv docs minimumReleaseAge        # option semantics for the pinned Renovate
+```
+
+`--format json` on any subcommand for machine-readable output. Preset-node
+bodies are large — query one node at a time. `packages/cli/README.md` has the
+full surface, the credentials table and the endpoint guard.
+
+A plain Node import of the engine is NOT equivalent: the preset tree and
+provenance are reconstructed by the logger shim, so they exist only in the
+shimmed graph — which the CLI, the browser bundle and the `shimmed` test
+project all share.
+
 ## Session hooks
 
 `.claude/settings.json` wires four hooks in `tools/agents/hooks/` (readme
@@ -48,10 +75,11 @@ two of them have to work before `pnpm install` has:
 
 ## Architecture
 
-pnpm workspace with three packages:
+pnpm workspace with four packages:
 
 - **`packages/engine`** — deep-imports the pinned `renovate` package (`renovate/dist/config/**`, all through one adapter module, `src/renovate-adapter.ts`) and records the pipeline trace. Renovate's config code is **not a public API**: the dependency is pinned exactly, and every Renovate bump PR runs full CI. `test/migration-drift.node.test.ts` catches upstream drift.
 - **`packages/app`** — the React 19 SPA. `src/features/` (editor, presets, simulator) holds feature slices; `src/components/`, `src/hooks/`, `src/lib/` are shared. The engine is imported dynamically so the critical path stays small.
+- **`packages/cli`** — `rcv`, the headless debugger (roadmap 058, experimental). The bin boots Vite's SSR module runner with `renovateShims()` active, so the CLI is the browser module graph running under Node — one subcommand per question, `--format json` everywhere. It imports the app's DOM-free derivations through `@renovate-config-debugger/app/headless` (the run digest, preset-tree stats, the effective-config tally) so its numbers are the app's numbers, not a copy.
 - **`packages/oauth-worker`** — stateless OAuth `code → token` exchange (a static site can't hold the `client_secret`). The handler is a pure function deployed both as a Cloudflare Worker (`wrangler`) and as a Node image (`server.mjs`). It must never see configs, presets, or API traffic.
 
 ### The shim system (the core trick)

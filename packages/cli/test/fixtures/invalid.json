@@ -1,0 +1,4 @@
+{
+  "labels": 5,
+  "packageRules": [{ "matchPackageNames": ["react"], "groupName": "react" }]
+}

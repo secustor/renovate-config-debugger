@@ -62,7 +62,7 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [055](055-header-project-links.md)                      | Header links to the source and the issue tracker                  | M14                  | done     |
 | [056](056-publish-engine-package.md)                    | Publish the engine as `@renovate-config-debugger/engine`          | M15                  | proposed |
 | [057](057-fork-codemirror-json-schema.md)               | Fork + publish `codemirror-json-schema`                           | M15                  | proposed |
-| [058](058-rcv-debugger-cli.md)                          | `rcv`: the debugger CLI on the shimmed engine (experimental)      | M16                  | proposed |
+| [058](058-rcv-debugger-cli.md)                          | `rcv`: the debugger CLI on the shimmed engine (experimental)      | M16                  | done     |
 | [059](059-publish-cli-package.md)                       | Publish the CLI as `@renovate-config-debugger/cli` (experimental) | M16                  | proposed |
 | [060](060-mcp-server-and-agent-discovery.md)            | `rcv mcp` + pointing agents at the headless interface             | M16                  | proposed |
 | [061](061-claude-plugin-marketplace.md)                 | Claude plugin marketplace for the debugger                        | M16                  | proposed |
