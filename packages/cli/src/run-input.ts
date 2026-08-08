@@ -78,17 +78,24 @@ export function hasTokens(auth: PresetAuth): boolean {
  * never to one the config under inspection chose, unless the user says the
  * config is trusted.
  */
+export interface EndpointTrust {
+  /** The caller vouched for the config under inspection. */
+  trustEndpoints?: boolean;
+  /** The caller's own platform/endpoint wins over the global config's. */
+  platformOverride?: boolean;
+}
+
 export function endpointTokenPolicy(
-  args: ParsedArgs,
+  trust: EndpointTrust,
   globalConfig: Record<string, unknown> | undefined,
 ): { suppress: boolean; reason?: string } {
-  if (boolOption(args, "trust-endpoints") || !globalConfig) {
+  if (trust.trustEndpoints || !globalConfig) {
     return { suppress: false };
   }
   const chosen = ["endpoint", "platform"].filter((key) =>
     Object.prototype.hasOwnProperty.call(globalConfig, key),
   );
-  if (chosen.length === 0 || boolOption(args, "platform-override")) {
+  if (chosen.length === 0 || trust.platformOverride) {
     return { suppress: false };
   }
   return {
@@ -98,6 +105,24 @@ export function endpointTokenPolicy(
       "chooses where preset requests go; host tokens were NOT sent. Pass --platform-override " +
       "to impose your own endpoint, or --trust-endpoints if the config is yours.",
   };
+}
+
+/**
+ * Installs the credentials a run may use, and reports what was withheld.
+ * Shared by the CLI's input path and the MCP server's `run_config`, so the
+ * guard cannot be enforced on one transport and forgotten on the other.
+ */
+export function applyRunAuth(
+  env: Readonly<Record<string, string | undefined>>,
+  globalConfig: Record<string, unknown> | undefined,
+  trust: EndpointTrust,
+): string[] {
+  const auth = tokensFromEnv(env);
+  const policy = endpointTokenPolicy(trust, globalConfig);
+  // Overwrite, never skip: `setPresetAuth` replaces module state a previous
+  // run in this process may have populated.
+  setPresetAuth(policy.suppress ? {} : auth);
+  return policy.suppress && hasTokens(auth) ? [`credentials withheld: ${policy.reason ?? ""}`] : [];
 }
 
 async function readTextFile(path: string, what: string): Promise<string> {
@@ -162,18 +187,13 @@ export async function loadPipelineInput(
   io: CliIo,
   file: string | undefined,
 ): Promise<LoadedInput> {
-  const notes: string[] = [];
   const globalConfig = await readLayer(stringOption(args, "global-config"), "--global-config");
   const inheritedConfig = await readLayer(stringOption(args, "inherited"), "--inherited");
 
-  const auth = tokensFromEnv(io.env);
-  const policy = endpointTokenPolicy(args, globalConfig);
-  if (policy.suppress && hasTokens(auth)) {
-    notes.push(`credentials withheld: ${policy.reason ?? ""}`);
-  }
-  // Overwrite, never skip: `setPresetAuth` replaces module state a previous
-  // run in this process may have populated.
-  setPresetAuth(policy.suppress ? {} : auth);
+  const notes = applyRunAuth(io.env, globalConfig, {
+    trustEndpoints: boolOption(args, "trust-endpoints"),
+    platformOverride: boolOption(args, "platform-override"),
+  });
 
   const repo = stringOption(args, "repo");
   let fileName: string;
