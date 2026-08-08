@@ -500,6 +500,20 @@ export const RuleSimulator = memo(function RuleSimulator({
             />
           </div>
         </div>
+      ) : pinned ? (
+        // The pin's whole purpose is surviving a pipeline re-run (which clears
+        // `sim` above) — so the panel must not vanish with the results block,
+        // or the pin reads as deleted at exactly the step the workflow needs
+        // it. It carries its own Unpin here, since the verdict card is gone.
+        <div className="sim-results">
+          <ComparisonPanel
+            pinned={pinned}
+            comparison={null}
+            currentDescriptor={currentDescriptor}
+            awaitingSimulate
+            onUnpin={unpin}
+          />
+        </div>
       ) : null}
     </div>
   );

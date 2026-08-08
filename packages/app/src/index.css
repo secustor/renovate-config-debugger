@@ -2967,11 +2967,22 @@ pre.config-view.prov-before {
 }
 
 .sim-compare-title {
+  align-items: center;
   color: var(--muted);
+  display: flex;
   font-size: 0.75rem;
   font-weight: 600;
+  gap: 0.6rem;
+  justify-content: space-between;
   letter-spacing: 0.02em;
   text-transform: uppercase;
+}
+
+/* The panel's own Unpin (shown while a pipeline re-run leaves it without a
+   verdict card) — a button, not part of the uppercase eyebrow it sits in. */
+.sim-compare-title .sim-verdict-action {
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 /* Roadmap 021: prominent — A and B describe different simulated dependencies,
