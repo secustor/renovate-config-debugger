@@ -121,7 +121,7 @@ export const treeCommand: Command = {
   name: "tree",
   summary: "the `extends` expansion: structure, stats, and per-node bodies",
   usage: ["tree [file] [--depth <n|all>]", "tree [file] --node <name> [--body resolved]"],
-  options: [...INPUT_OPTIONS, "node", "body", "depth", "format", "help"],
+  options: [...INPUT_OPTIONS, "node", "body", "depth", "format"],
   async run(args, io) {
     const format = outputFormat(args);
     const depth = parseDepth(stringOption(args, "depth"));

@@ -1,6 +1,7 @@
+import { Command as CommanderCommand, CommanderError } from "commander";
 import { renovateVersion } from "@renovate-config-debugger/engine";
 import pkg from "../package.json";
-import { optionHelp, type OptionName, parseCommandArgs } from "./args";
+import { addOptions, collectArgs } from "./args";
 import type { Command } from "./command";
 import { compareCommand } from "./commands/compare";
 import { digestCommand } from "./commands/digest";
@@ -22,7 +23,9 @@ import { CliError, type CliIo, errorMessage, EXIT_ERROR, EXIT_OK } from "./io";
  *
  * This module runs INSIDE the shimmed module graph — see `src/io.ts` for why
  * the process (argv, env, stdio) arrives as an argument instead of being read
- * from globals.
+ * from globals. Commander is therefore configured to write through `io` and to
+ * throw instead of calling `process.exit`: nothing under `src/` touches a
+ * process global, including the parser.
  */
 
 const COMMANDS: readonly Command[] = [
@@ -42,62 +45,114 @@ const BANNER = [
   "EXPERIMENTAL: subcommands, flags and output shapes may change in any release.",
 ];
 
-function topLevelHelp(): string[] {
-  return [
-    ...BANNER,
-    "",
-    "Usage: rcv <command> [file] [options]",
-    "",
-    "Commands:",
-    ...COMMANDS.map((c) => `  ${c.name.padEnd(11)} ${c.summary}`),
-    "",
-    "Input: a file path, `--stdin`, or `--repo <owner/repo>`.",
-    "Output: `--format pretty` (default) or `--format json` on every command.",
-    "Exit codes: 0 = clean, 2 = Renovate would refuse the config, 1 = the run failed.",
-    "",
-    "Credentials come from the environment only — RCV_GITHUB_TOKEN (or GITHUB_TOKEN /",
-    "GH_TOKEN), RCV_GITLAB_TOKEN (or GITLAB_TOKEN), RCV_GITEA_TOKEN, RCV_FORGEJO_TOKEN.",
-    "They are withheld when the config under inspection chooses the endpoint.",
-    "",
-    "`rcv <command> --help` for a command's own flags.",
-  ];
+const TOP_LEVEL_NOTES = [
+  "Input: a file path, `--stdin`, or `--repo <owner/repo>`.",
+  "Output: `--format pretty` (default) or `--format json` on every command.",
+  "Exit codes: 0 = clean, 2 = Renovate would refuse the config, 1 = the run failed.",
+  "",
+  "Credentials come from the environment only — RCV_GITHUB_TOKEN (or GITHUB_TOKEN /",
+  "GH_TOKEN), RCV_GITLAB_TOKEN (or GITLAB_TOKEN), RCV_GITEA_TOKEN, RCV_FORGEJO_TOKEN.",
+  "They are withheld when the config under inspection chooses the endpoint.",
+  "",
+  "`rcv <command> --help` for a command's own flags.",
+];
+
+/**
+ * Help is written through `io` like everything else, so its width cannot come
+ * from a terminal the CLI is not allowed to look at.
+ */
+const HELP_WIDTH = 100;
+
+/** `tree [file] [--depth <n|all>]` → what follows `Usage: rcv tree `. */
+function usageArguments(command: Command): string {
+  const first = command.usage[0] ?? command.name;
+  return first.startsWith(`${command.name} `) ? first.slice(command.name.length + 1) : "[options]";
 }
 
-function commandHelp(command: Command): string[] {
-  return [
-    ...BANNER,
-    "",
-    ...command.usage.map((line, i) => `${i === 0 ? "Usage: rcv " : "       rcv "}${line}`),
-    "",
-    command.summary,
-    ...(command.details ? ["", ...command.details] : []),
-    "",
-    "Options:",
-    ...optionHelp(command.options as readonly OptionName[]),
-  ];
-}
+/**
+ * A subcommand's exit code is its answer, so the action handler hands it back
+ * through this sink: commander awaits the handler but discards what it
+ * returns.
+ */
+type ExitSink = (code: number) => void;
 
-async function dispatch(argv: string[], io: CliIo): Promise<number> {
-  const [name, ...rest] = argv;
-  if (!name || name === "--help" || name === "-h" || name === "help") {
-    io.out(`${topLevelHelp().join("\n")}\n`);
-    return EXIT_OK;
-  }
-  if (name === "--version" || name === "-v") {
-    io.out(`rcv ${pkg.version} (renovate ${renovateVersion})\n`);
-    return EXIT_OK;
-  }
-  const command = COMMANDS.find((c) => c.name === name);
-  if (!command) {
-    throw new CliError(
-      `unknown command "${name}" — try one of: ${COMMANDS.map((c) => c.name).join(", ")}`,
+function subcommandOf(
+  program: CommanderCommand,
+  command: Command,
+  io: CliIo,
+  report: ExitSink,
+): CommanderCommand {
+  const sub = program
+    .command(command.name)
+    .summary(command.summary)
+    .description([command.summary, ...(command.details ?? [])].join("\n"))
+    .usage(usageArguments(command))
+    // Named in the usage line above rather than in an `Arguments:` section:
+    // what a positional means differs per subcommand (`[file] [key]`,
+    // `<before.json> <after.json>`), and commander hides the section when no
+    // argument carries a description of its own.
+    .argument("[args...]");
+  addOptions(sub, command.options);
+  if (command.usage.length > 1) {
+    sub.addHelpText(
+      "after",
+      ["", "Other forms:", ...command.usage.slice(1).map((line) => `  rcv ${line}`)].join("\n"),
     );
   }
-  if (rest.includes("--help") || rest.includes("-h")) {
-    io.out(`${commandHelp(command).join("\n")}\n`);
+  sub.action(async (positionals: string[], _options: unknown, self: CommanderCommand) => {
+    report(await command.run(collectArgs(self.opts(), positionals, command.options), io));
+  });
+  return sub;
+}
+
+/**
+ * The whole CLI surface as one commander program. Rebuilt per call because the
+ * `io` it writes through is a per-call argument, not a global.
+ */
+function buildProgram(io: CliIo, report: ExitSink): CommanderCommand {
+  const program = new CommanderCommand("rcv")
+    .exitOverride()
+    .configureOutput({
+      writeOut: (text) => io.out(text),
+      writeErr: (text) => io.err(text),
+      outputError: (text, write) => write(`rcv: ${text}`),
+      getOutHelpWidth: () => HELP_WIDTH,
+      getErrHelpWidth: () => HELP_WIDTH,
+      getOutHasColors: () => false,
+      getErrHasColors: () => false,
+    })
+    // Every subcommand takes the same `[options] [args...]`, so spelling that
+    // out nine times in the command list says nothing; the name and the
+    // summary are the index, `rcv <command> --help` is the detail.
+    .configureHelp({ subcommandTerm: (cmd) => cmd.name() })
+    .showHelpAfterError("(`rcv --help`, or `rcv <command> --help`, lists what is accepted)")
+    .usage("<command> [file] [options]")
+    .version(
+      `rcv ${pkg.version} (renovate ${renovateVersion})`,
+      "-v, --version",
+      "the rcv version and the Renovate it pins",
+    )
+    .addHelpText("beforeAll", [...BANNER, ""].join("\n"))
+    .addHelpText("after", ["", ...TOP_LEVEL_NOTES].join("\n"));
+  for (const command of COMMANDS) {
+    subcommandOf(program, command, io, report);
+  }
+  return program;
+}
+
+async function dispatch(argv: readonly string[], io: CliIo): Promise<number> {
+  let exitCode = EXIT_OK;
+  const program = buildProgram(io, (code) => {
+    exitCode = code;
+  });
+  if (argv.length === 0) {
+    // Commander would write the help to stderr and exit 1; bare `rcv` asking
+    // what `rcv` is has always been a successful question.
+    program.outputHelp();
     return EXIT_OK;
   }
-  return command.run(parseCommandArgs(rest, command.options), io);
+  await program.parseAsync([...argv], { from: "user" });
+  return exitCode;
 }
 
 /** The whole CLI as one function: argv in, exit code out, everything written
@@ -106,6 +161,11 @@ export async function main(argv: string[], io: CliIo): Promise<number> {
   try {
     return await dispatch(argv, io);
   } catch (err) {
+    if (err instanceof CommanderError) {
+      // `--help`, `--version` and every parse failure have already written
+      // their text through `io`; commander's own exit code is the answer.
+      return err.exitCode;
+    }
     io.err(`rcv: ${errorMessage(err)}\n`);
     return err instanceof CliError ? err.exitCode : EXIT_ERROR;
   }

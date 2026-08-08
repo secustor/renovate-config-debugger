@@ -23,7 +23,7 @@ export const compareCommand: Command = {
     `compare <before.json> <after.json> --dep '{"depName":"react"}'`,
     `compare <file> --dep '{…}' --dep-b '{…}'`,
   ],
-  options: [...INPUT_OPTIONS, "dep", "dep-file", "dep-b", "dep-b-file", "format", "help"],
+  options: [...INPUT_OPTIONS, "dep", "dep-file", "dep-b", "dep-b-file", "format"],
   async run(args, io) {
     const format = outputFormat(args);
     const { file, rest } = takeInputFile(args);

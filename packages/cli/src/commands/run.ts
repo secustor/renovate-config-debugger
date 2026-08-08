@@ -52,7 +52,7 @@ export const runCommand: Command = {
     "over a thousand tree nodes with four config bodies each — prefer",
     "`rcv tree` / `rcv provenance`, which project them.",
   ],
-  options: [...INPUT_OPTIONS, "select", "format", "help"],
+  options: [...INPUT_OPTIONS, "select", "format"],
   async run(args, io) {
     const format = outputFormat(args);
     const selection = parseSelection(stringOption(args, "select"));

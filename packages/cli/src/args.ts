@@ -1,111 +1,166 @@
-import { parseArgs } from "node:util";
+import { Command as CommanderCommand, CommanderError } from "commander";
 import { CliError } from "./io";
 
 /**
- * Argument parsing on top of `node:util`'s `parseArgs` — no dependency, and
- * the flag grammar (`--flag value`, `--flag=value`, `--`) is the one every
- * Node CLI already has.
+ * The option vocabulary. Commander does the parsing (`main.ts` builds one
+ * program out of this table and the `Command` registry); this module owns the
+ * names, their flag grammar, their help text and the readers the subcommands
+ * use.
  *
- * Each subcommand declares the option NAMES it accepts and their types are
- * looked up in the one table below, so a flag means the same thing everywhere
- * and `rcv digest --dep …` is an error rather than a silently ignored flag.
+ * Each subcommand declares the option NAMES it accepts and they are looked up
+ * in the one table below, so a flag means the same thing everywhere, its
+ * description has a single source, and `rcv digest --dep …` is an error rather
+ * than a silently ignored flag.
  */
 
 interface OptionSpec {
-  type: "string" | "boolean";
+  /** Commander flag string, `<value>` placeholder included. */
+  flags: string;
+  /** Rendered in `--help`. */
+  description: string;
+  /** Repeatable: every occurrence is collected into a list. */
   multiple?: boolean;
-  /** Rendered in `--help`; `<value>` placeholders included. */
-  help: string;
 }
 
 export const OPTIONS = {
-  format: { type: "string", help: "--format <pretty|json>   output shape (default: pretty)" },
-  help: { type: "boolean", help: "--help                   this text" },
-  stdin: { type: "boolean", help: "--stdin                  read the config from stdin" },
+  format: { flags: "--format <pretty|json>", description: "output shape (default: pretty)" },
+  stdin: { flags: "--stdin", description: "read the config from stdin" },
   "file-name": {
-    type: "string",
-    help: "--file-name <name>       config file name, drives format detection (default: renovate.json)",
+    flags: "--file-name <name>",
+    description: "config file name, drives format detection (default: renovate.json)",
   },
   repo: {
-    type: "string",
-    help: "--repo <owner/repo>      load the config from a repository instead of a file",
+    flags: "--repo <owner/repo>",
+    description: "load the config from a repository instead of a file",
   },
-  ref: { type: "string", help: "--ref <ref>              git ref for --repo" },
+  ref: { flags: "--ref <ref>", description: "git ref for --repo" },
   platform: {
-    type: "string",
-    help: "--platform <name>        platform context for `local>` presets (default: github)",
+    flags: "--platform <name>",
+    description: "platform context for `local>` presets (default: github)",
   },
-  endpoint: { type: "string", help: "--endpoint <url>         API endpoint for the platform" },
+  endpoint: { flags: "--endpoint <url>", description: "API endpoint for the platform" },
   "platform-override": {
-    type: "boolean",
-    help: "--platform-override      let --platform/--endpoint win over the global config",
+    flags: "--platform-override",
+    description: "let --platform/--endpoint win over the global config",
   },
   "global-config": {
-    type: "string",
-    help: "--global-config <file>   self-hosted global config layer (JSON)",
+    flags: "--global-config <file>",
+    description: "self-hosted global config layer (JSON)",
   },
   inherited: {
-    type: "string",
-    help: "--inherited <file>       inherited config layer (JSON)",
+    flags: "--inherited <file>",
+    description: "inherited config layer (JSON)",
   },
   inject: {
-    type: "string",
+    flags: "--inject <preset>=<file>",
     multiple: true,
-    help: "--inject <preset>=<file> supply content for an unreachable preset (repeatable)",
+    description: "supply content for an unreachable preset (repeatable)",
   },
   "trust-endpoints": {
-    type: "boolean",
-    help: "--trust-endpoints        send host tokens even to an endpoint the config chose",
+    flags: "--trust-endpoints",
+    description: "send host tokens even to an endpoint the config chose",
   },
   select: {
-    type: "string",
-    help: "--select <a,b,…>         status|errors|warnings|final|events|tree|layers|platform|all",
+    flags: "--select <a,b,…>",
+    description: "status|errors|warnings|final|events|tree|layers|platform|all",
   },
-  node: { type: "string", help: "--node <name>            one preset node, by name or identity" },
+  node: { flags: "--node <name>", description: "one preset node, by name or identity" },
   body: {
-    type: "string",
-    help: "--body <which>           fetched|afterParams|input|resolved (needs --node)",
+    flags: "--body <which>",
+    description: "fetched|afterParams|input|resolved (needs --node)",
   },
-  depth: { type: "string", help: "--depth <n|all>          tree depth to print (default: 2)" },
+  depth: { flags: "--depth <n|all>", description: "tree depth to print (default: 2)" },
   mode: {
-    type: "string",
-    help: "--mode <m>               full|keep-internal (default: keep-internal)",
+    flags: "--mode <m>",
+    description: "full|keep-internal (default: keep-internal)",
   },
   "include-defaults": {
-    type: "boolean",
-    help: "--include-defaults       write out Renovate's defaults too (--mode full only)",
+    flags: "--include-defaults",
+    description: "write out Renovate's defaults too (--mode full only)",
   },
-  dep: { type: "string", help: "--dep <json>             the dependency update to simulate" },
-  "dep-file": { type: "string", help: "--dep-file <file>        --dep, read from a file" },
-  "dep-b": { type: "string", help: "--dep-b <json>           the B-side dependency to compare" },
-  "dep-b-file": { type: "string", help: "--dep-b-file <file>      --dep-b, read from a file" },
-  search: { type: "boolean", help: "--search                 list options whose name matches" },
+  dep: { flags: "--dep <json>", description: "the dependency update to simulate" },
+  "dep-file": { flags: "--dep-file <file>", description: "--dep, read from a file" },
+  "dep-b": { flags: "--dep-b <json>", description: "the B-side dependency to compare" },
+  "dep-b-file": { flags: "--dep-b-file <file>", description: "--dep-b, read from a file" },
+  search: { flags: "--search", description: "list options whose name matches" },
 } as const satisfies Record<string, OptionSpec>;
 
 export type OptionName = keyof typeof OPTIONS;
 
+/**
+ * What a subcommand's `run` reads. Deliberately NOT commander's own option
+ * object: the keys are the flag names as written (`file-name`, not
+ * `fileName`), so the readers below and the error messages that quote them
+ * stay one string away from the flag the user typed.
+ */
 export interface ParsedArgs {
   values: Partial<Record<OptionName, string | boolean | string[]>>;
   positionals: string[];
 }
 
-export function optionHelp(names: readonly OptionName[]): string[] {
-  return names.map((name) => `  ${OPTIONS[name].help}`);
+/** Commander stores `--file-name` under `fileName`. */
+function attributeName(name: OptionName): string {
+  return name.replaceAll(/-(.)/g, (_match, char: string) => char.toUpperCase());
 }
 
-/** Parses `argv` against the option names a subcommand accepts. */
-export function parseCommandArgs(argv: string[], names: readonly OptionName[]): ParsedArgs {
-  const options: Record<string, { type: "string" | "boolean"; multiple?: boolean }> = {};
+/** Declares the options a subcommand accepts on a commander command. */
+export function addOptions(
+  target: CommanderCommand,
+  names: readonly OptionName[],
+): CommanderCommand {
   for (const name of names) {
     const spec: OptionSpec = OPTIONS[name];
-    options[name] = spec.multiple ? { type: spec.type, multiple: true } : { type: spec.type };
+    if (spec.multiple) {
+      // No `[]` default: commander would print it as "(default: [])", and an
+      // absent repeatable option reads as the empty list anyway.
+      target.option(spec.flags, spec.description, (value: string, previous?: string[]) => [
+        ...(previous ?? []),
+        value,
+      ]);
+    } else {
+      target.option(spec.flags, spec.description);
+    }
   }
+  return target;
+}
+
+/** Commander's parsed options and operands, narrowed back to the registry. */
+export function collectArgs(
+  options: Record<string, unknown>,
+  positionals: readonly string[],
+  names: readonly OptionName[],
+): ParsedArgs {
+  const values: ParsedArgs["values"] = {};
+  for (const name of names) {
+    const value = options[attributeName(name)];
+    if (typeof value === "string" || typeof value === "boolean") {
+      values[name] = value;
+    } else if (Array.isArray(value)) {
+      values[name] = value as string[];
+    }
+  }
+  return { values, positionals: [...positionals] };
+}
+
+/**
+ * Parses `argv` against the option names a subcommand accepts, standalone —
+ * the same grammar `main.ts` gets from the program it builds, without the
+ * program. Used by the tests, and the one place that turns a commander parse
+ * failure into a {@link CliError}.
+ */
+export function parseCommandArgs(
+  argv: readonly string[],
+  names: readonly OptionName[],
+): ParsedArgs {
+  const parser = new CommanderCommand("rcv").exitOverride().helpOption(false).helpCommand(false);
+  parser.configureOutput({ writeOut: () => {}, writeErr: () => {} });
+  addOptions(parser, names).arguments("[args...]");
   try {
-    const parsed = parseArgs({ args: argv, options, allowPositionals: true, strict: true });
-    return { values: parsed.values as ParsedArgs["values"], positionals: parsed.positionals };
+    parser.parse([...argv], { from: "user" });
   } catch (err) {
-    throw new CliError(err instanceof Error ? err.message : String(err));
+    throw new CliError(err instanceof CommanderError ? err.message : String(err));
   }
+  return collectArgs(parser.opts(), parser.args, names);
 }
 
 export function stringOption(args: ParsedArgs, name: OptionName): string | undefined {

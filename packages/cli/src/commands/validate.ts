@@ -79,7 +79,7 @@ export const validateCommand: Command = {
     "failed. Exit 2 is what Claude Code hooks read as the blocking signal,",
     "so this drops into a Stop/PreToolUse hook without a wrapper.",
   ],
-  options: [...INPUT_OPTIONS, "format", "help"],
+  options: [...INPUT_OPTIONS, "format"],
   async run(args, io) {
     const format = outputFormat(args);
     const { result, input, notes } = await runFromArgs(args, io);
