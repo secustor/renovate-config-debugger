@@ -61,6 +61,13 @@ resolution instead of re-resolving per question:
 claude mcp add rcv -- pnpm dlx @renovate-config-debugger/cli mcp
 ```
 
+The workflow those tools want — validate first, digest for orientation, drill
+down one node at a time, `compare` as the oracle before proposing an edit — is
+written down once, in
+`plugins/renovate-config-debugger/skills/debug-renovate-config/SKILL.md`
+(roadmap 061). Read it when you are debugging a config here; it is the same
+skill the published plugin ships to consumers.
+
 A plain Node import of the engine is NOT equivalent: the preset tree and
 provenance are reconstructed by the logger shim, so they exist only in the
 shimmed graph — which the CLI, the browser bundle and the `shimmed` test
