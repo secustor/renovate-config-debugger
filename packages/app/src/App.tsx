@@ -21,6 +21,7 @@ import type { ConfigEditorHandle } from "@/features/editor/ConfigEditor";
 import { ConfigColumn } from "@/ConfigColumn";
 import type { EffectiveStats } from "@/components/EffectiveConfig";
 import type { AuthState } from "@/components/GithubAuthHint";
+import { HeadlessNote } from "@/components/HeadlessNote";
 import { identityForNodeId, nodeIdForIdentity } from "@/components/preset-tree-stats";
 import type { ResultsColumnProps } from "@/ResultsColumn";
 import { UntrustedHostBanner } from "@/UntrustedHostBanner";
@@ -1127,6 +1128,9 @@ export function App() {
             />
           ) : null}
         </div>
+        {/* Roadmap 060: the headless interface, announced in visible copy —
+            the whole discovery mechanism, and deliberately not a hidden hint. */}
+        <HeadlessNote />
       </main>
       {showBackToTop ? (
         <button

@@ -165,8 +165,11 @@ endpoint, or `--trust-endpoints` when the config is yours.
 ## MCP server
 
 `rcd mcp` speaks MCP over stdio — the same answers as the subcommands, better
-economics for a session. Point any MCP-capable client at it as a stdio server;
-it takes no arguments and writes nothing but the protocol to stdout.
+economics for a session. Register it once:
+
+```console
+$ claude mcp add rcd -- pnpm dlx @renovate-config-debugger/cli mcp
+```
 
 `run_config` resolves a config and returns a small summary plus a **runId**;
 `get_final_config`, `get_preset_tree`, `get_preset_node`, `get_provenance`,
