@@ -5,7 +5,7 @@ import {
   MERGE_STEPS_CONFIG,
   PACKAGE_RULES_CONFIG,
 } from "./fixtures";
-import { drawer, openTab } from "./helpers";
+import { drawer, openTab, runAndAwaitResult, setEditorContent, tabButton } from "./helpers";
 
 /**
  * Journey 4 — the packageRules simulator. After a run whose config has a
@@ -126,6 +126,58 @@ test("A/B pin warns when the compared runs describe different simulated inputs",
   const inputsPanel = page.locator(".sim-compare-inputs");
   await expect(inputsPanel).toContainText("lodash");
   await expect(inputsPanel).toContainText("actions/checkout");
+});
+
+/**
+ * Roadmap 018/021 — the pin's whole workflow is pin → edit the config → run
+ * the pipeline again → simulate → compare. A new pipeline run clears the
+ * simulation, but the pinned A must visibly SURVIVE that step (with its own
+ * Unpin), or the workflow dead-ends exactly where the hint sends the user;
+ * the next Simulate then produces B and the real delta.
+ */
+test("a pinned result survives a pipeline re-run and compares against the next simulation", async ({
+  page,
+}) => {
+  const fragment = await encodeShareFragment({ config: PACKAGE_RULES_CONFIG });
+  await page.goto(fragment);
+
+  await openTab(page, "simulator");
+  const simulator = page.locator(".card", { hasText: "Update simulator" });
+  await expect(simulator).toBeVisible();
+
+  // Simulate the lodash patch update and pin it as A.
+  await simulator.getByRole("button", { name: "npm dependency" }).click();
+  await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
+  await simulator.getByRole("button", { name: "Pin result for comparison" }).click();
+  await expect(page.locator(".sim-compare")).toBeVisible();
+
+  // Edit the config (the rule now sets automerge: false) and re-run the
+  // pipeline — the step that used to make the pinned panel vanish.
+  await setEditorContent(
+    page,
+    PACKAGE_RULES_CONFIG.replace('"automerge": true', '"automerge": false'),
+  );
+  await runAndAwaitResult(page);
+  // The tab flipping to Overview is the sign the NEW result committed (the
+  // shell and badge runAndAwaitResult waits on were already there).
+  await expect(tabButton(page, "overview")).toHaveAttribute("aria-selected", "true");
+
+  // The run lands on Overview; back on the simulator, the pin is still there,
+  // says what remains to do, and offers its own Unpin.
+  await openTab(page, "simulator");
+  const compare = page.locator(".sim-compare");
+  await expect(compare).toBeVisible();
+  await expect(compare).toContainText("still pinned");
+  await expect(compare.getByRole("button", { name: "Unpin comparison" })).toBeVisible();
+
+  // The form kept its values, so one Simulate produces B against the edited
+  // config — and the delta names the setting the edit changed.
+  await simulator.getByRole("button", { name: "Simulate", exact: true }).click();
+  const configDelta = page.locator(".sim-compare-config");
+  await expect(configDelta).toBeVisible({ timeout: 15_000 });
+  await expect(configDelta).toContainText("automerge");
+  // Same simulated inputs on both sides — no mismatch warning.
+  await expect(page.locator(".sim-compare-mismatch")).toHaveCount(0);
 });
 
 /**

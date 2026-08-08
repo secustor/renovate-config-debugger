@@ -138,16 +138,31 @@ export function ComparisonPanel({
   pinned,
   comparison,
   currentDescriptor,
+  awaitingSimulate,
+  onUnpin,
 }: {
   pinned: PinnedRun;
   comparison: SimulationComparison | null;
   currentDescriptor: DependencyDescriptor;
+  /** A new pipeline run cleared the simulation this panel used to sit under —
+   *  A is kept, and the hint names the one step left (Simulate). */
+  awaitingSimulate?: boolean;
+  /** The panel's own Unpin — needed while `awaitingSimulate`, when the verdict
+   *  card (the usual home of the pin controls) is not rendered at all. */
+  onUnpin?: () => void;
 }) {
   const pinnedDescriptor = toDescriptor(pinned.form, pinned.effectiveUpdateType);
   const diffKeys = new Set(descriptorDiffKeys(pinnedDescriptor, currentDescriptor));
   return (
     <div className="sim-compare">
-      <div className="sim-compare-title">A/B comparison — pinned (A) vs current (B)</div>
+      <div className="sim-compare-title">
+        A/B comparison — pinned (A) vs current (B)
+        {onUnpin ? (
+          <button type="button" className="sim-verdict-action" onClick={onUnpin}>
+            Unpin comparison
+          </button>
+        ) : null}
+      </div>
       {diffKeys.size > 0 ? (
         <p className="sim-compare-mismatch">
           ⚠ Inputs differ between A and B — this compares two different simulated dependencies, not
@@ -160,7 +175,12 @@ export function ComparisonPanel({
           ))}
         </p>
       ) : null}
-      {!comparison ? (
+      {!comparison && awaitingSimulate ? (
+        <p className="empty-note">
+          Result <strong>A</strong> is still pinned — the pipeline ran with the edited config.
+          Simulate to produce <strong>B</strong> and see the comparison.
+        </p>
+      ) : !comparison ? (
         <p className="empty-note">
           Pinned this result as <strong>A</strong>. Edit the config and run the pipeline again, then
           simulate to compare it against <strong>B</strong>.
