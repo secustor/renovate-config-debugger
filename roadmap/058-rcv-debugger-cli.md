@@ -127,46 +127,31 @@ structural version of that guarantee).
 
 ## Follow-up: publishing `rcv` as a second product
 
-The intent (2026-08-08) is to publish `rcv` to npm as a product in its own
-right, not keep it an in-repo tool. Two things in the as-built shape were
-chosen as "smallest seam now" and do not survive that step; one licensing
-question resolves cleanly.
+Publishing itself is [059](059-publish-cli-package.md): the prebuilt SSR
+bundle (shims applied at build time, `noExternal: true`, no runtime
+dependencies), the bundle-vs-golden parity suite, the compat table, and the
+`0.x`-lockstep-with-the-Renovate-pin version scheme all live there. Two
+notes recorded here (2026-08-08) because they concern 058's as-built shape,
+not the packaging:
 
-- **License: `AGPL-3.0-only`, decided.** Renovate is AGPL-3.0, and so is this
-  repo, so inlining `renovate/dist` into a published artifact is clean — it is
-  exactly the distribution the license anticipates. The CLI's `package.json`
-  declares `AGPL-3.0-only` and the bundle keeps Renovate's license notice.
-  This is what frees the build to use `noExternal` inlining (which the shim
-  trick requires) instead of contorting to keep `renovate` external.
-- **Shims move from run time to build time.** The `ssrLoadModule` bootstrap
-  cannot ship: it makes `vite` a production dependency, pays server boot plus
-  on-the-fly transform of the inlined Renovate modules on every invocation
-  (the transforms are not persistently cached), and sits on Vite's legacy SSR
-  API (Vite 8's current surface is `createServerModuleRunner`). The published
-  package instead runs `vite build` (SSR/library mode, `renovateShims()`
-  active, same `noExternal`) at publish time, emitting a self-contained
-  `dist/` the bin imports directly — the same module graph, baked once. The
-  runtime bootstrap stays as the in-repo dev mode, so iterating on the CLI
-  never waits on a build.
-- **A build step needs a parity proof.** The structural guarantee ("the CLI
-  calls the same functions") no longer covers the built artifact — the build
-  itself could drift (a shim not applied, an extra transform). Publishing
-  therefore adds a test that runs the built `dist/` against the shimmed
-  suite's fixtures and byte-compares the results, making the artifact a
-  fourth checked module regime alongside golden, shimmed, and the app build.
-- **`app/headless` becomes a real package.** A published product cannot
-  source its derivations from a private UI package through a raw-TS subpath
-  export that only resolves inside a Vite graph, guarded by a comment. The
-  barrel's contents (`effective-tally`, `run-facts`, `run-digest`,
-  `preset-tree-stats`, the layer-parse schemas) move to a shared workspace
-  package — `packages/headless`, sitting between engine and app — that both
-  the app and the CLI import. That turns "the CLI quotes the same numbers as
-  the UI" from convention into a resolution-enforced boundary, gives the
-  shared layer its own typecheck/lint surface, and removes the CLI's
-  duplicated `@` alias.
-- **Versioning: lockstep with the Renovate pin.** Each `rcv` release bakes
-  one exact Renovate version (the banner already prints it); Renovate bump
-  PRs, which already run full CI, become the release cadence. Sequencing:
-  extract `packages/headless` first (mechanical, de-risks the current
-  as-built), then the build step plus parity test, then the publish plumbing
-  — at which point "experimental" above gets revisited.
+- **Measured cost of the dev runner** (Apple Silicon, warm caches, internal
+  presets only): ~0.8 s fixed bootstrap — ~0.1 s `import("vite")`, ~0.1 s
+  `createServer`, ~0.5–0.7 s transform+execute of the shimmed graph — plus
+  ~0.7 s per pipeline run; `validate`/`digest`/`tree` ≈ 1.4 s, `compare`
+  (two runs) ≈ 2.3 s. Of the bootstrap, ~0.35 s is module _execution_ that
+  any packaging keeps; the rest is Vite machinery the 059 bundle deletes,
+  which is why the bundle's measured ~0.11 s startup is plausible. Per-run
+  pipeline cost and per-invocation preset fetches are structural to a
+  one-shot CLI either way — that is the 060 MCP server's territory, not the
+  bundle's.
+- **The `app/headless` seam survives publishing, but stays on watch.**
+  059 bundles the barrel's modules into the artifact, so publishing does
+  not force extracting them; what remains is a hygiene argument. The barrel
+  is a raw-TS subpath export only a Vite consumer can resolve, the `@`
+  alias is duplicated into the CLI's config, and "no React, nothing from
+  `features/`" is enforced by comment rather than resolution. If the barrel
+  grows or a second non-Vite consumer appears, extract the contents
+  (`effective-tally`, `run-facts`, `run-digest`, `preset-tree-stats`, the
+  layer-parse schemas) into a shared `packages/headless` between engine and
+  app; until then the import-not-copy guarantee plus 059's parity suite
+  carry the weight.
