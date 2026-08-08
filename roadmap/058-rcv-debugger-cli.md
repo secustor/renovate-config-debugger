@@ -124,3 +124,49 @@ Left open: the `renovate-config-validator` comparison is documented, not
 tested; nothing yet asserts that the CLI and the app produce byte-identical
 digests for the same config (they call the same functions, which is the
 structural version of that guarantee).
+
+## Follow-up: publishing `rcv` as a second product
+
+The intent (2026-08-08) is to publish `rcv` to npm as a product in its own
+right, not keep it an in-repo tool. Two things in the as-built shape were
+chosen as "smallest seam now" and do not survive that step; one licensing
+question resolves cleanly.
+
+- **License: `AGPL-3.0-only`, decided.** Renovate is AGPL-3.0, and so is this
+  repo, so inlining `renovate/dist` into a published artifact is clean — it is
+  exactly the distribution the license anticipates. The CLI's `package.json`
+  declares `AGPL-3.0-only` and the bundle keeps Renovate's license notice.
+  This is what frees the build to use `noExternal` inlining (which the shim
+  trick requires) instead of contorting to keep `renovate` external.
+- **Shims move from run time to build time.** The `ssrLoadModule` bootstrap
+  cannot ship: it makes `vite` a production dependency, pays server boot plus
+  on-the-fly transform of the inlined Renovate modules on every invocation
+  (the transforms are not persistently cached), and sits on Vite's legacy SSR
+  API (Vite 8's current surface is `createServerModuleRunner`). The published
+  package instead runs `vite build` (SSR/library mode, `renovateShims()`
+  active, same `noExternal`) at publish time, emitting a self-contained
+  `dist/` the bin imports directly — the same module graph, baked once. The
+  runtime bootstrap stays as the in-repo dev mode, so iterating on the CLI
+  never waits on a build.
+- **A build step needs a parity proof.** The structural guarantee ("the CLI
+  calls the same functions") no longer covers the built artifact — the build
+  itself could drift (a shim not applied, an extra transform). Publishing
+  therefore adds a test that runs the built `dist/` against the shimmed
+  suite's fixtures and byte-compares the results, making the artifact a
+  fourth checked module regime alongside golden, shimmed, and the app build.
+- **`app/headless` becomes a real package.** A published product cannot
+  source its derivations from a private UI package through a raw-TS subpath
+  export that only resolves inside a Vite graph, guarded by a comment. The
+  barrel's contents (`effective-tally`, `run-facts`, `run-digest`,
+  `preset-tree-stats`, the layer-parse schemas) move to a shared workspace
+  package — `packages/headless`, sitting between engine and app — that both
+  the app and the CLI import. That turns "the CLI quotes the same numbers as
+  the UI" from convention into a resolution-enforced boundary, gives the
+  shared layer its own typecheck/lint surface, and removes the CLI's
+  duplicated `@` alias.
+- **Versioning: lockstep with the Renovate pin.** Each `rcv` release bakes
+  one exact Renovate version (the banner already prints it); Renovate bump
+  PRs, which already run full CI, become the release cadence. Sequencing:
+  extract `packages/headless` first (mechanical, de-risks the current
+  as-built), then the build step plus parity test, then the publish plumbing
+  — at which point "experimental" above gets revisited.
