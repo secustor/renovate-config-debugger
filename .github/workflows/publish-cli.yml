@@ -52,7 +52,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm --filter @renovate-config-debugger/cli test
 
-      # `prebuild` (scripts/check-compat.mjs) fails the build when the
+      # `prebuild` (scripts/check-compat.ts) fails the build when the
       # README's compat table does not describe this build.
       - name: Build the SSR bundle
         run: pnpm --filter @renovate-config-debugger/cli build

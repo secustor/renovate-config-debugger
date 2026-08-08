@@ -40,7 +40,7 @@
   },
   "scripts": {
     "rcd": "node ./bin/rcd-dev.mjs",
-    "build": "node scripts/check-compat.mjs && vite build",
+    "build": "node scripts/check-compat.ts && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --project cli",
     "test:bundle": "vitest run --project bundle"
