@@ -7,7 +7,7 @@ import type {
 import { toDescriptor } from "./form";
 import { previewValue, writeMark } from "./rule-format";
 import type { PinnedRun } from "./use-ab-comparison";
-import { WriteRow } from "./WriteRow";
+import { WriteRow, type WriteValue } from "./WriteRow";
 
 /**
  * Roadmap 021: the fields two descriptors disagree on, sorted for a stable
@@ -94,6 +94,27 @@ function RuleDeltaList({
  *  the shared write row (054 layer 7); a key that exists on only one side keeps
  *  this panel's own sentinels, since `(unset)` and `(removed)` are words, not
  *  values the config carries. */
+/** Replay-02 N8: one side of a delta row. An inherited value — present in the
+ *  run's final config but written by NO merge step — is a Renovate default,
+ *  not something the config set; rendering it as a bare value asserted an
+ *  explicit `automerge: false` that A's own field list (correctly) never
+ *  showed. Words, not JSON, so it can't be read as a value the config carries. */
+function deltaSide(
+  value: unknown,
+  present: boolean,
+  inherited: boolean | undefined,
+  absent: string,
+  run: "A" | "B",
+): WriteValue {
+  if (!present) {
+    return { text: absent };
+  }
+  if (inherited) {
+    return { text: `${previewValue(value, 60)} (default — not set in ${run})` };
+  }
+  return { json: value };
+}
+
 function ConfigDeltaSection({ configDelta }: { configDelta: ConfigKeyDelta[] }) {
   return (
     <div className="sim-compare-config">
@@ -105,8 +126,8 @@ function ConfigDeltaSection({ configDelta }: { configDelta: ConfigKeyDelta[] }) 
               key={d.key}
               name={d.key}
               mark={writeMark(d.inA, d.inB)}
-              before={d.inA ? { json: d.before } : { text: "(unset)" }}
-              after={d.inB ? { json: d.after } : { text: "(removed)" }}
+              before={deltaSide(d.before, d.inA, d.beforeInherited, "(unset)", "A")}
+              after={deltaSide(d.after, d.inB, d.afterInherited, "(removed)", "B")}
             />
           ))}
         </div>
