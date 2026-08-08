@@ -4752,3 +4752,40 @@ button.desc-digest-leaf:focus-visible {
   margin-left: 0;
   margin-right: 0;
 }
+
+/* Roadmap 060 — the visible "this is available headlessly" note at the foot of
+   the page. Deliberately plain and in flow: the discovery mechanism is text a
+   human can read, not a hidden hint aimed at agents. */
+.headless-note {
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 2rem 0 0;
+  padding: 1rem 0 0;
+}
+
+.headless-note-title {
+  color: var(--ink);
+  font-size: 0.9rem;
+  margin: 0 0 0.4rem;
+}
+
+.headless-note-lead {
+  margin: 0 0 0.7rem;
+  max-width: 60rem;
+}
+
+.headless-note-code {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  margin: 0;
+  overflow-x: auto;
+  padding: 0.7rem 0.9rem;
+}
+
+.headless-note-foot {
+  margin: 0.6rem 0 0;
+}
