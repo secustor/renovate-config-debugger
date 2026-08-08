@@ -1,9 +1,15 @@
-import type { PresetNode } from "@renovate-config-debugger/engine";
-import { computeTreeStats, type TreeStats } from "@renovate-config-debugger/app/headless";
 import { outputFormat, stringOption } from "../args";
 import type { Command } from "../command";
 import { CliError, EXIT_OK, EXIT_REFUSED } from "../io";
 import { emitJson, emitLines, json, writeNotes } from "../output";
+import {
+  DEFAULT_TREE_DEPTH,
+  findNode,
+  parseBody,
+  treeLines,
+  treeStatsOf,
+  viewOf,
+} from "../projections/tree";
 import { INPUT_OPTIONS, runFromArgs, wouldRefuse } from "../run-input";
 
 /**
@@ -15,75 +21,9 @@ import { INPUT_OPTIONS, runFromArgs, wouldRefuse } from "../run-input";
  * human or model. Same reason the tree defaults to two levels deep.
  */
 
-const BODIES = ["fetched", "afterParams", "input", "resolved"] as const;
-type BodyKind = (typeof BODIES)[number];
-
-interface NodeView {
-  name: string;
-  identity: string;
-  state: string;
-  depth: number;
-  source?: string;
-  duplicate?: true;
-  nested?: true;
-  error?: string;
-  ownOptions: number;
-  optionKeys: string[];
-  ownRules: number;
-  descendants: { resolved: number; rules: number };
-  children?: NodeView[];
-  /** Set when children were cut by `--depth`. */
-  childrenOmitted?: number;
-}
-
-function viewOf(node: PresetNode, stats: TreeStats, depthLimit: number): NodeView {
-  const st = stats.statsById.get(node.id);
-  const view: NodeView = {
-    name: node.name,
-    identity: stats.identityById.get(node.id) ?? "",
-    state: node.state,
-    depth: st?.depth ?? 0,
-    ...(node.source?.presetSource ? { source: node.source.presetSource } : {}),
-    ...(node.duplicate ? { duplicate: true as const } : {}),
-    ...(node.nested ? { nested: true as const } : {}),
-    ...(node.error ? { error: `${node.error.topic}: ${node.error.message}` } : {}),
-    ownOptions: st?.ownOptions ?? 0,
-    optionKeys: st?.optionKeys ?? [],
-    ownRules: st?.ownRules ?? 0,
-    descendants: { resolved: st?.descResolved ?? 0, rules: st?.descRules ?? 0 },
-  };
-  if (node.children.length === 0) {
-    return view;
-  }
-  if ((st?.depth ?? 0) >= depthLimit) {
-    return { ...view, childrenOmitted: node.children.length };
-  }
-  return { ...view, children: node.children.map((c) => viewOf(c, stats, depthLimit)) };
-}
-
-function treeLines(view: NodeView, out: string[]): string[] {
-  const indent = "  ".repeat(view.depth);
-  const facts = [
-    view.state === "resolved" ? null : view.state,
-    view.ownOptions > 0 ? `${view.ownOptions} option(s): ${view.optionKeys.join(", ")}` : null,
-    view.ownRules > 0 ? `${view.ownRules} rule(s)` : null,
-    view.descendants.resolved > 0 ? `+${view.descendants.resolved} below` : null,
-    view.duplicate ? "duplicate" : null,
-    view.error,
-  ].filter((part) => part !== null && part !== undefined);
-  out.push(`${indent}${view.name}${facts.length > 0 ? `  — ${facts.join("; ")}` : ""}`);
-  for (const child of view.children ?? []) {
-    treeLines(child, out);
-  }
-  if (view.childrenOmitted) {
-    out.push(`${indent}  … ${view.childrenOmitted} more (raise --depth, or query --node)`);
-  }
-  return out;
-}
-
 function parseDepth(raw: string | undefined): number {
   if (raw === undefined) {
-    return 2;
+    return DEFAULT_TREE_DEPTH;
   }
   if (raw === "all") {
     return Number.POSITIVE_INFINITY;
@@ -93,28 +33,6 @@ function parseDepth(raw: string | undefined): number {
     throw new CliError(`--depth must be a non-negative integer or "all" (got "${raw}")`);
   }
   return value;
-}
-
-function parseBody(raw: string | undefined): BodyKind | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  const found = BODIES.find((b) => b === raw);
-  if (!found) {
-    throw new CliError(`--body must be one of ${BODIES.join(", ")} (got "${raw}")`);
-  }
-  return found;
-}
-
-function findNode(stats: TreeStats, query: string): PresetNode {
-  const byIdentity = stats.idByIdentity.get(query);
-  const node = byIdentity
-    ? stats.nodesById.get(byIdentity)
-    : stats.occurrencesByName.get(query)?.[0];
-  if (!node) {
-    throw new CliError(`--node: no preset named "${query}" in this run's tree`);
-  }
-  return node;
 }
 
 export const treeCommand: Command = {
@@ -132,11 +50,7 @@ export const treeCommand: Command = {
     }
     const { result, notes } = await runFromArgs(args, io);
     writeNotes(io, notes);
-    const root = result.presetTree;
-    if (!root) {
-      throw new CliError("this run produced no preset tree — see `rcd validate`");
-    }
-    const stats = computeTreeStats(root);
+    const { root, stats } = treeStatsOf(result);
 
     if (nodeQuery) {
       const node = findNode(stats, nodeQuery);

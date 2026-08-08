@@ -6,6 +6,7 @@ import type { Command } from "./command";
 import { compareCommand } from "./commands/compare";
 import { digestCommand } from "./commands/digest";
 import { docsCommand } from "./commands/docs";
+import { mcpCommand } from "./commands/mcp";
 import { provenanceCommand } from "./commands/provenance";
 import { resolvedCommand } from "./commands/resolved";
 import { runCommand } from "./commands/run";
@@ -38,6 +39,7 @@ const COMMANDS: readonly Command[] = [
   simulateCommand,
   compareCommand,
   docsCommand,
+  mcpCommand,
 ];
 
 const BANNER = [

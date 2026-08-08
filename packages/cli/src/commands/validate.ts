@@ -1,14 +1,9 @@
-import {
-  applyFixToText,
-  findMentionedOption,
-  translateMessage,
-  type ValidationMessage,
-} from "@renovate-config-debugger/engine";
 import { validatedConfigOf } from "@renovate-config-debugger/app/headless";
 import { outputFormat } from "../args";
 import type { Command } from "../command";
 import { EXIT_OK, EXIT_REFUSED } from "../io";
 import { emitJson, emitLines, writeNotes } from "../output";
+import { describeMessage, type ReportedMessage } from "../projections/messages";
 import { INPUT_OPTIONS, runFromArgs, wouldRefuse } from "../run-input";
 
 /**
@@ -21,54 +16,6 @@ import { INPUT_OPTIONS, runFromArgs, wouldRefuse } from "../run-input";
  * fix. The fix is reported, never applied: agents edit configs with their own
  * tools and come back to `validate`/`compare` as the oracle.
  */
-
-interface ReportedMessage {
-  severity: "error" | "warning";
-  topic: string;
-  message: string;
-  explanation?: string;
-  docsUrl?: string;
-  fix?: {
-    summary: string;
-    path: (string | number)[];
-    fixedConfig: Record<string, unknown>;
-    /** The FILE with the fix applied, when the edit could be located in the
-     *  original text (comments and formatting preserved). */
-    fixedText?: string;
-  };
-}
-
-function describe(
-  message: ValidationMessage,
-  severity: "error" | "warning",
-  config: Record<string, unknown> | null,
-  text: string,
-): ReportedMessage {
-  const translated = translateMessage(message, config);
-  const mentioned = translated ? undefined : findMentionedOption(message);
-  const applied = translated?.fix ? applyFixToText(text, translated.fix) : null;
-  return {
-    severity,
-    topic: message.topic,
-    message: message.message,
-    ...(translated ? { explanation: translated.explanation } : {}),
-    ...(translated?.docsUrl
-      ? { docsUrl: translated.docsUrl }
-      : mentioned
-        ? { docsUrl: mentioned.url }
-        : {}),
-    ...(translated?.fix
-      ? {
-          fix: {
-            summary: translated.fix.summary,
-            path: translated.fix.path,
-            fixedConfig: translated.fix.fixedConfig,
-            ...(applied ? { fixedText: applied.text } : {}),
-          },
-        }
-      : {}),
-  };
-}
 
 export const validateCommand: Command = {
   name: "validate",
@@ -89,8 +36,8 @@ export const validateCommand: Command = {
     // path resolves against the same document (`packageRules[N]` included).
     const validated = validatedConfigOf(result);
     const messages: ReportedMessage[] = [
-      ...result.errors.map((m) => describe(m, "error", validated, input.content)),
-      ...result.warnings.map((m) => describe(m, "warning", validated, input.content)),
+      ...result.errors.map((m) => describeMessage(m, "error", validated, input.content)),
+      ...result.warnings.map((m) => describeMessage(m, "warning", validated, input.content)),
     ];
     const presetErrors = result.events.filter((e) => e.kind === "preset-error").map((e) => e.title);
     const refused = wouldRefuse(result);

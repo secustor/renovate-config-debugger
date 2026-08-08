@@ -78,37 +78,31 @@ describe("tokensFromEnv", () => {
   });
 });
 
-const guardArgs = (argv: string[]) =>
-  parseCommandArgs(argv, ["trust-endpoints", "platform-override"]);
-
 describe("endpointTokenPolicy", () => {
-  const args = guardArgs;
-
   test("no global config: the endpoint is ours, tokens flow", () => {
-    expect(endpointTokenPolicy(args([]), undefined).suppress).toBe(false);
+    expect(endpointTokenPolicy({}, undefined).suppress).toBe(false);
   });
 
   test("a global config that chooses the endpoint withholds the tokens", () => {
-    const policy = endpointTokenPolicy(args([]), { endpoint: "https://evil.example" });
+    const policy = endpointTokenPolicy({}, { endpoint: "https://evil.example" });
     expect(policy.suppress).toBe(true);
     expect(policy.reason).toContain("--trust-endpoints");
   });
 
   test("--platform-override puts us back in charge", () => {
     expect(
-      endpointTokenPolicy(args(["--platform-override"]), { endpoint: "https://evil.example" })
+      endpointTokenPolicy({ platformOverride: true }, { endpoint: "https://evil.example" })
         .suppress,
     ).toBe(false);
   });
 
   test("--trust-endpoints is the explicit opt-in", () => {
     expect(
-      endpointTokenPolicy(args(["--trust-endpoints"]), { endpoint: "https://mine.example" })
-        .suppress,
+      endpointTokenPolicy({ trustEndpoints: true }, { endpoint: "https://mine.example" }).suppress,
     ).toBe(false);
   });
 
   test("a global config that sets neither platform nor endpoint is harmless", () => {
-    expect(endpointTokenPolicy(args([]), { onboarding: false }).suppress).toBe(false);
+    expect(endpointTokenPolicy({}, { onboarding: false }).suppress).toBe(false);
   });
 });
