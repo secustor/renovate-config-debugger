@@ -83,6 +83,19 @@ export interface EndpointTrust {
   trustEndpoints?: boolean;
   /** The caller's own platform/endpoint wins over the global config's. */
   platformOverride?: boolean;
+  /**
+   * The endpoint the CALLER supplied, when the caller is not a person.
+   *
+   * On the CLI this stays unset: a human typed `--endpoint`, which is exactly
+   * the "explicit flag" the guard trusts. Over MCP the same value is a tool
+   * PARAMETER the model chose — plausibly from text in the very repository it
+   * is inspecting — so it is not the user's choice at all, and the guard has
+   * to treat it the way it treats an endpoint a config chose.
+   *
+   * Only the endpoint. `platform` on its own moves a token to that platform's
+   * own public API, which is where a token for that platform already goes.
+   */
+  callerEndpoint?: string;
 }
 
 /**
@@ -97,12 +110,37 @@ const OPT_IN_WORDING: Record<RunTransport, string> = {
   mcp: "Set `platformOverride: true` to impose your own endpoint, or `trustEndpoints: true` if the config is yours.",
 };
 
+/** The only opt-in that applies when the CALLER, not the config, picked the
+ *  endpoint — imposing it harder changes nothing about who chose it. */
+const TRUST_WORDING: Record<RunTransport, string> = {
+  cli: "Pass `--trust-endpoints` if that endpoint is yours.",
+  mcp: "Set `trustEndpoints: true` if that endpoint is yours.",
+};
+
 export function endpointTokenPolicy(
   trust: EndpointTrust,
   globalConfig: Record<string, unknown> | undefined,
   transport: RunTransport = "cli",
 ): { suppress: boolean; reason?: string } {
-  if (trust.trustEndpoints || !globalConfig) {
+  if (trust.trustEndpoints) {
+    return { suppress: false };
+  }
+  // The same rule as below, one layer out: the guard asks "did the person
+  // whose tokens these are choose where they go?", and over MCP an `endpoint`
+  // tool parameter is not that person's answer — the model wrote it, and a
+  // config it just read can suggest one. `platformOverride` deliberately does
+  // NOT unlock this: it only says whose endpoint wins between two untrusted
+  // sources. `trustEndpoints` is the one opt-in that means "I vouch for it".
+  if (trust.callerEndpoint) {
+    return {
+      suppress: true,
+      reason:
+        `\`endpoint\` was chosen by the caller (${trust.callerEndpoint}) rather than by the ` +
+        "environment this server runs in, so host tokens were NOT sent there. " +
+        TRUST_WORDING[transport],
+    };
+  }
+  if (!globalConfig) {
     return { suppress: false };
   }
   const chosen = ["endpoint", "platform"].filter((key) =>
