@@ -40,16 +40,16 @@ const REPO_PLATFORMS: readonly RepoPlatform[] = ["github", "gitlab", "gitea", "f
 
 /**
  * Tokens come from the environment ONLY — never from a flag, where they would
- * land in shell history and in every `ps` listing. `RCV_*` wins; the ambient
+ * land in shell history and in every `ps` listing. `RCD_*` wins; the ambient
  * conventions are the fallback, because agents and CI runners already have
  * them. Coverage is identical to the web app's: the `npm` and `http` preset
  * fetchers have no auth at all.
  */
 const HOST_ENV: readonly { key: keyof PresetAuth; vars: readonly string[] }[] = [
-  { key: "githubToken", vars: ["RCV_GITHUB_TOKEN", "GITHUB_TOKEN", "GH_TOKEN"] },
-  { key: "gitlabToken", vars: ["RCV_GITLAB_TOKEN", "GITLAB_TOKEN"] },
-  { key: "giteaToken", vars: ["RCV_GITEA_TOKEN"] },
-  { key: "forgejoToken", vars: ["RCV_FORGEJO_TOKEN"] },
+  { key: "githubToken", vars: ["RCD_GITHUB_TOKEN", "GITHUB_TOKEN", "GH_TOKEN"] },
+  { key: "gitlabToken", vars: ["RCD_GITLAB_TOKEN", "GITLAB_TOKEN"] },
+  { key: "giteaToken", vars: ["RCD_GITEA_TOKEN"] },
+  { key: "forgejoToken", vars: ["RCD_FORGEJO_TOKEN"] },
 ];
 
 export function tokensFromEnv(env: Readonly<Record<string, string | undefined>>): PresetAuth {
@@ -125,7 +125,7 @@ async function readLayer(
 /**
  * The config file is the first positional — unless the config comes from
  * stdin or a repository, in which case every positional belongs to the
- * subcommand (`rcv provenance --repo o/r labels`).
+ * subcommand (`rcd provenance --repo o/r labels`).
  */
 export function takeInputFile(args: ParsedArgs): { file?: string; rest: string[] } {
   if (boolOption(args, "stdin") || stringOption(args, "repo")) {

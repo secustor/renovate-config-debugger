@@ -9,7 +9,7 @@ import { CliError } from "./io";
  *
  * Each subcommand declares the option NAMES it accepts and they are looked up
  * in the one table below, so a flag means the same thing everywhere, its
- * description has a single source, and `rcv digest --dep …` is an error rather
+ * description has a single source, and `rcd digest --dep …` is an error rather
  * than a silently ignored flag.
  */
 
@@ -152,7 +152,7 @@ export function parseCommandArgs(
   argv: readonly string[],
   names: readonly OptionName[],
 ): ParsedArgs {
-  const parser = new CommanderCommand("rcv").exitOverride().helpOption(false).helpCommand(false);
+  const parser = new CommanderCommand("rcd").exitOverride().helpOption(false).helpCommand(false);
   parser.configureOutput({ writeOut: () => {}, writeErr: () => {} });
   addOptions(parser, names).arguments("[args...]");
   try {

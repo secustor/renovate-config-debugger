@@ -15,7 +15,7 @@ import { validateCommand } from "./commands/validate";
 import { CliError, type CliIo, errorMessage, EXIT_ERROR, EXIT_OK } from "./io";
 
 /**
- * `rcv` — the Renovate config debugger, headless.
+ * `rcd` — the Renovate config debugger, headless.
  *
  * EXPERIMENTAL: subcommands, flags and output shapes may change. Only the
  * engine's trace semantics underneath (proven by the golden↔shimmed parity
@@ -41,7 +41,7 @@ const COMMANDS: readonly Command[] = [
 ];
 
 const BANNER = [
-  `rcv ${pkg.version} — Renovate config debugger (Renovate ${renovateVersion})`,
+  `rcd ${pkg.version} — Renovate config debugger (Renovate ${renovateVersion})`,
   "EXPERIMENTAL: subcommands, flags and output shapes may change in any release.",
 ];
 
@@ -50,11 +50,11 @@ const TOP_LEVEL_NOTES = [
   "Output: `--format pretty` (default) or `--format json` on every command.",
   "Exit codes: 0 = clean, 2 = Renovate would refuse the config, 1 = the run failed.",
   "",
-  "Credentials come from the environment only — RCV_GITHUB_TOKEN (or GITHUB_TOKEN /",
-  "GH_TOKEN), RCV_GITLAB_TOKEN (or GITLAB_TOKEN), RCV_GITEA_TOKEN, RCV_FORGEJO_TOKEN.",
+  "Credentials come from the environment only — RCD_GITHUB_TOKEN (or GITHUB_TOKEN /",
+  "GH_TOKEN), RCD_GITLAB_TOKEN (or GITLAB_TOKEN), RCD_GITEA_TOKEN, RCD_FORGEJO_TOKEN.",
   "They are withheld when the config under inspection chooses the endpoint.",
   "",
-  "`rcv <command> --help` for a command's own flags.",
+  "`rcd <command> --help` for a command's own flags.",
 ];
 
 /**
@@ -63,7 +63,7 @@ const TOP_LEVEL_NOTES = [
  */
 const HELP_WIDTH = 100;
 
-/** `tree [file] [--depth <n|all>]` → what follows `Usage: rcv tree `. */
+/** `tree [file] [--depth <n|all>]` → what follows `Usage: rcd tree `. */
 function usageArguments(command: Command): string {
   const first = command.usage[0] ?? command.name;
   return first.startsWith(`${command.name} `) ? first.slice(command.name.length + 1) : "[options]";
@@ -96,7 +96,7 @@ function subcommandOf(
   if (command.usage.length > 1) {
     sub.addHelpText(
       "after",
-      ["", "Other forms:", ...command.usage.slice(1).map((line) => `  rcv ${line}`)].join("\n"),
+      ["", "Other forms:", ...command.usage.slice(1).map((line) => `  rcd ${line}`)].join("\n"),
     );
   }
   sub.action(async (positionals: string[], _options: unknown, self: CommanderCommand) => {
@@ -110,12 +110,12 @@ function subcommandOf(
  * `io` it writes through is a per-call argument, not a global.
  */
 function buildProgram(io: CliIo, report: ExitSink): CommanderCommand {
-  const program = new CommanderCommand("rcv")
+  const program = new CommanderCommand("rcd")
     .exitOverride()
     .configureOutput({
       writeOut: (text) => io.out(text),
       writeErr: (text) => io.err(text),
-      outputError: (text, write) => write(`rcv: ${text}`),
+      outputError: (text, write) => write(`rcd: ${text}`),
       getOutHelpWidth: () => HELP_WIDTH,
       getErrHelpWidth: () => HELP_WIDTH,
       getOutHasColors: () => false,
@@ -123,14 +123,14 @@ function buildProgram(io: CliIo, report: ExitSink): CommanderCommand {
     })
     // Every subcommand takes the same `[options] [args...]`, so spelling that
     // out nine times in the command list says nothing; the name and the
-    // summary are the index, `rcv <command> --help` is the detail.
+    // summary are the index, `rcd <command> --help` is the detail.
     .configureHelp({ subcommandTerm: (cmd) => cmd.name() })
-    .showHelpAfterError("(`rcv --help`, or `rcv <command> --help`, lists what is accepted)")
+    .showHelpAfterError("(`rcd --help`, or `rcd <command> --help`, lists what is accepted)")
     .usage("<command> [file] [options]")
     .version(
-      `rcv ${pkg.version} (renovate ${renovateVersion})`,
+      `rcd ${pkg.version} (renovate ${renovateVersion})`,
       "-v, --version",
-      "the rcv version and the Renovate it pins",
+      "the rcd version and the Renovate it pins",
     )
     .addHelpText("beforeAll", [...BANNER, ""].join("\n"))
     .addHelpText("after", ["", ...TOP_LEVEL_NOTES].join("\n"));
@@ -146,8 +146,8 @@ async function dispatch(argv: readonly string[], io: CliIo): Promise<number> {
     exitCode = code;
   });
   if (argv.length === 0) {
-    // Commander would write the help to stderr and exit 1; bare `rcv` asking
-    // what `rcv` is has always been a successful question.
+    // Commander would write the help to stderr and exit 1; bare `rcd` asking
+    // what `rcd` is has always been a successful question.
     program.outputHelp();
     return EXIT_OK;
   }
@@ -166,7 +166,7 @@ export async function main(argv: string[], io: CliIo): Promise<number> {
       // their text through `io`; commander's own exit code is the answer.
       return err.exitCode;
     }
-    io.err(`rcv: ${errorMessage(err)}\n`);
+    io.err(`rcd: ${errorMessage(err)}\n`);
     return err instanceof CliError ? err.exitCode : EXIT_ERROR;
   }
 }

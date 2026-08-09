@@ -19,7 +19,7 @@ import { fixture } from "../src/test-harness";
  * owns are asserted here.
  */
 
-const BIN = fileURLToPath(new URL("../bin/rcv.mjs", import.meta.url));
+const BIN = fileURLToPath(new URL("../bin/rcd.mjs", import.meta.url));
 const CLI_DIR = fileURLToPath(new URL("..", import.meta.url));
 
 // The bin hands the REAL environment to `main` — tokens, and env markers like
@@ -27,7 +27,7 @@ const CLI_DIR = fileURLToPath(new URL("..", import.meta.url));
 // assertions must not depend on the session that happens to run the suite.
 const CHILD_ENV: Record<string, string | undefined> = { ...process.env };
 for (const key of Object.keys(CHILD_ENV)) {
-  if (key === "CLAUDECODE" || key.startsWith("RCV_") || key.endsWith("_TOKEN")) {
+  if (key === "CLAUDECODE" || key.startsWith("RCD_") || key.endsWith("_TOKEN")) {
     delete CHILD_ENV[key];
   }
 }
@@ -67,7 +67,7 @@ function runBin(args: string[], stdin = ""): Promise<BinRun> {
   });
 }
 
-describe("bin/rcv.mjs", () => {
+describe("bin/rcd.mjs", () => {
   test("--help writes the command list to stdout and exits 0", async () => {
     const run = await runBin(["--help"]);
     expect(run.code).toBe(0);

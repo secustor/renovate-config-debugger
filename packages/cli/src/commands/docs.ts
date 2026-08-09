@@ -17,7 +17,7 @@ export const docsCommand: Command = {
     const format = outputFormat(args);
     const query = args.positionals[0];
     if (!query) {
-      throw new CliError("name an option, e.g. `rcv docs packageRules`");
+      throw new CliError("name an option, e.g. `rcd docs packageRules`");
     }
     const index = getOptionIndex();
 
@@ -40,7 +40,7 @@ export const docsCommand: Command = {
     const doc = index.options.get(query);
     if (!doc) {
       throw new CliError(
-        `Renovate ${renovateVersion} has no option "${query}" — try \`rcv docs ${query} --search\``,
+        `Renovate ${renovateVersion} has no option "${query}" — try \`rcd docs ${query} --search\``,
       );
     }
     if (format === "json") {

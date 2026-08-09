@@ -50,7 +50,7 @@ export const runCommand: Command = {
     "The default selection is the small one. `--select events` and",
     "`--select tree` are the firehose: a `config:recommended` run carries",
     "over a thousand tree nodes with four config bodies each — prefer",
-    "`rcv tree` / `rcv provenance`, which project them.",
+    "`rcd tree` / `rcd provenance`, which project them.",
   ],
   options: [...INPUT_OPTIONS, "select", "format"],
   async run(args, io) {

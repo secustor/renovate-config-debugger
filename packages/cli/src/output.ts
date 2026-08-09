@@ -3,8 +3,8 @@ import type { CliIo } from "./io";
 
 /**
  * Output primitives. Two rules the whole CLI keeps:
- * - the ANSWER goes to stdout, diagnostics go to stderr, so `rcv … | jq` and
- *   `rcv … > file` are always safe;
+ * - the ANSWER goes to stdout, diagnostics go to stderr, so `rcd … | jq` and
+ *   `rcd … > file` are always safe;
  * - `--format json` prints ONE JSON document and nothing else.
  */
 
@@ -18,7 +18,7 @@ export function emitLines(io: CliIo, lines: readonly string[]): void {
 
 export function writeNotes(io: CliIo, notes: readonly string[]): void {
   for (const note of notes) {
-    io.err(`rcv: ${note}\n`);
+    io.err(`rcd: ${note}\n`);
   }
 }
 

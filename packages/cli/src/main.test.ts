@@ -31,7 +31,7 @@ describe("dispatch", () => {
     expect(io.stdout).toContain("EXPERIMENTAL");
   });
 
-  test("bare `rcv` is the same question as --help, and just as successful", async () => {
+  test("bare `rcd` is the same question as --help, and just as successful", async () => {
     const io = recordingIo();
     expect(await main([], io)).toBe(0);
     expect(io.stdout).toContain("EXPERIMENTAL");
@@ -41,7 +41,7 @@ describe("dispatch", () => {
   test("--version names both versions and exits 0", async () => {
     const io = recordingIo();
     expect(await main(["-v"], io)).toBe(0);
-    expect(io.stdout).toMatch(/^rcv \S+ \(renovate \d+\./);
+    expect(io.stdout).toMatch(/^rcd \S+ \(renovate \d+\./);
   });
 
   test("a flag the subcommand does not accept is an error, not a silent no-op", async () => {

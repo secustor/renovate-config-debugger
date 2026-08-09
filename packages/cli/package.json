@@ -4,11 +4,11 @@
   "private": true,
   "description": "Experimental — headless Renovate config debugger: preset tree, provenance, packageRules simulator and validation, as structured data",
   "bin": {
-    "rcv": "./bin/rcv.mjs"
+    "rcd": "./bin/rcd.mjs"
   },
   "type": "module",
   "scripts": {
-    "rcv": "node ./bin/rcv.mjs",
+    "rcd": "node ./bin/rcd.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

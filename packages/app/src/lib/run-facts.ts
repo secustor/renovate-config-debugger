@@ -7,7 +7,7 @@ import type { EffectiveTally } from "./effective-tally";
  * Roadmap 058: the run's derived facts and the digest's input, as pure
  * functions. `use-run-summary.ts` (the React hook) used to hold both inline,
  * which made them unreachable from anything without React — so the CLI's
- * `rcv digest` would have had to restate the assembly that 029 exists to keep
+ * `rcd digest` would have had to restate the assembly that 029 exists to keep
  * single-sourced ("a number in the paragraph can never disagree with the badge
  * beside it"). The hook now memoizes {@link deriveRunFacts} and feeds it to
  * {@link buildDigestInput}; the CLI calls the same two functions.
