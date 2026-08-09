@@ -1,4 +1,5 @@
 import type { Operation } from "fast-json-patch";
+import type { PresetAuth } from "../auth";
 
 /**
  * Roadmap 033: the pipeline's stages, in execution order — the single runtime
@@ -172,6 +173,17 @@ export interface PipelineInput {
    * the canonical injection key (see `presetInjectionKey`).
    */
   injectedPresets?: Record<string, Record<string, unknown>>;
+  /**
+   * The credentials THIS run's preset fetches may use. Set it and the run owns
+   * its own auth: the pipeline installs it as the first step inside the
+   * serialized engine queue and restores the previous module state when the
+   * run ends, so concurrent callers (the MCP server holds several runs and its
+   * handlers run in parallel) cannot leak one run's tokens into another run's
+   * fetches — and, crucially, into an endpoint a config the caller does not
+   * trust has chosen. Omit it to keep using whatever `setPresetAuth` installed
+   * globally (the web app's single-run-at-a-time path).
+   */
+  presetAuth?: PresetAuth;
 }
 
 /** The platform + endpoint a run resolved `local>` presets against. */
