@@ -12,6 +12,7 @@ import {
   resolveConfigPresets,
   validateConfig,
 } from "./renovate-adapter";
+import { getPresetAuth, setPresetAuth } from "./auth";
 import {
   getUsedInjectionKeys,
   resetInjectedPresets,
@@ -105,7 +106,38 @@ export function runPipeline(input: PipelineInput): Promise<TraceResult> {
   return enqueueEngineTask(() => execute(input));
 }
 
-async function execute(input: PipelineInput): Promise<TraceResult> {
+/**
+ * A run that brought its own credentials owns the module-level preset auth for
+ * the duration of the queued task — installed here, as the FIRST thing inside
+ * the queue, and restored when the run ends.
+ *
+ * Why it has to happen here and not at the call site: `setPresetAuth` is
+ * global module state, so a caller that installs credentials and then awaits
+ * `runPipeline` has published them to every run that starts in between. With
+ * concurrent callers (the MCP server's handlers run in parallel) that is a
+ * real credential leak — run B's tokens riding along on run A's remaining
+ * preset fetches, to an endpoint run A's untrusted global config chose. Inside
+ * the queue the pipeline is the only thing running, so the install and every
+ * fetch it feeds are one atomic unit.
+ */
+async function withRunAuth<T>(input: PipelineInput, task: () => Promise<T>): Promise<T> {
+  if (input.presetAuth === undefined) {
+    return task();
+  }
+  const previous = getPresetAuth();
+  setPresetAuth(input.presetAuth);
+  try {
+    return await task();
+  } finally {
+    setPresetAuth(previous);
+  }
+}
+
+function execute(input: PipelineInput): Promise<TraceResult> {
+  return withRunAuth(input, () => executeRun(input));
+}
+
+async function executeRun(input: PipelineInput): Promise<TraceResult> {
   const platformContext = resolvePlatformContext(input);
   const collector = new TraceCollector(parsePreset, platformContext);
   setCurrentCollector(collector);

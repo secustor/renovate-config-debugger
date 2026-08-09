@@ -20,7 +20,7 @@ export {
   type SignatureChange,
   type SimulationComparison,
 } from "./simulate-compare";
-export { setPresetAuth, type PresetAuth } from "./auth";
+export { getPresetAuth, setPresetAuth, type PresetAuth } from "./auth";
 export { deriveUpdateType, renovateVersion } from "./version";
 export { getOptions, mergeChildConfig } from "./renovate-adapter";
 export { getOptionIndex, type OptionDoc, type OptionIndex } from "./option-docs";
