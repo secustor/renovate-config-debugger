@@ -444,6 +444,26 @@ describe("simulate and compare", () => {
     expect(sim.rules[0]?.clauses[0]).toMatchObject({ key: "matchPackageNames" });
   });
 
+  test("verdict/source scope the rule list and say what they hid", async () => {
+    const runId = await runConfig(GROUPED);
+    const dep = { depName: "react", currentValue: "17.0.0", newValue: "18.0.0" };
+    const full = (await call("simulate", { runId, dep })) as { rules: unknown[] };
+    // GROUPED's rules all match this dep, so `no-match` is the facet that
+    // provably hides something.
+    const scoped = (await call("simulate", { runId, dep, verdict: "no-match" })) as {
+      rules: { verdict: string }[];
+      ruleFilter: { verdict: string; total: number; shown: number; hidden: number };
+    };
+    // An unflagged call keeps the exact payload scripts already parse.
+    expect(full).not.toHaveProperty("ruleFilter");
+    expect(full.rules.length).toBeGreaterThan(0);
+    expect(scoped.rules.every((rule) => rule.verdict === "no-match")).toBe(true);
+    expect(scoped.ruleFilter.total).toBe(full.rules.length);
+    expect(scoped.ruleFilter.shown).toBe(scoped.rules.length);
+    expect(scoped.ruleFilter.hidden).toBe(full.rules.length - scoped.rules.length);
+    expect(scoped.ruleFilter.hidden).toBeGreaterThan(0);
+  });
+
   test("two runs, one dependency: the edit oracle", async () => {
     const before = await runConfig(CONFIG);
     const after = await runConfig(GROUPED);
