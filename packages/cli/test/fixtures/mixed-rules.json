@@ -1,0 +1,8 @@
+{
+  "extends": [":disablePeerDependencies"],
+  "packageRules": [
+    { "matchPackageNames": ["react"], "groupName": "react monorepo" },
+    { "matchSourceUrls": ["https://github.com/facebook/react"], "labels": ["upstream"] },
+    { "matchPackageNames": ["lodash"], "labels": ["utils"] }
+  ]
+}

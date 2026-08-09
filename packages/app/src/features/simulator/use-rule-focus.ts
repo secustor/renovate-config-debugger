@@ -8,7 +8,7 @@ import {
 } from "react";
 import type { ProvenanceLayer, SimulationResult } from "@renovate-config-debugger/engine";
 import { flashTarget, motionScrollOptions } from "@/lib/motion";
-import { type RuleFilters, ruleVisible } from "./rule-filters";
+import { type RuleFilters, ruleVisible } from "@/lib/rule-filters";
 
 export interface RuleFocus {
   /** The simulator card itself — where a cross-link lands when no simulation

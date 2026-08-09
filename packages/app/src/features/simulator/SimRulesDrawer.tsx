@@ -4,7 +4,7 @@ import { layerId } from "@/components/provenance-layer";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { SummaryDrawer } from "./SummaryDrawer";
 import { type LayerMatchCount, matchedLayerCounts } from "./layer-counts";
-import { filterRules, type RuleFilters } from "./rule-filters";
+import { filterRules, type RuleFilters } from "@/lib/rule-filters";
 import { SimRulesBody } from "./SimRulesBody";
 
 /** How many distinct provenance layers the rules drawer names before it

@@ -10,7 +10,7 @@ import {
   type VerdictFilter,
   presetFilterOptions,
   verdictFilterOptions,
-} from "./rule-filters";
+} from "@/lib/rule-filters";
 import { RuleRow } from "./RuleRow";
 
 function optionLabel(option: FilterOption): string {

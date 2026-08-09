@@ -8,6 +8,7 @@
 import type {
   ClauseEvaluation,
   ProvenanceLayer,
+  RuleAttribution,
   RuleEvaluation,
 } from "@renovate-config-debugger/engine";
 import { describe, expect, test } from "vitest";
@@ -15,8 +16,10 @@ import {
   ALL_PRESETS,
   DEFAULT_RULE_FILTERS,
   filterRules,
+  filterRulesBySource,
   presetFilterOptions,
   REPO_RULES,
+  ruleLayerIndex,
   ruleVisible,
   verdictFilterOptions,
 } from "./rule-filters";
@@ -102,6 +105,33 @@ describe("the provenance facet", () => {
       count: 0,
     });
   });
+});
+
+describe("the source facet (rcd --source)", () => {
+  test("repo and presets are the two halves a CLI flag can name", () => {
+    expect(indices(filterRulesBySource(RULES, "all", LAYERS))).toEqual([0, 1, 2, 3]);
+    expect(indices(filterRulesBySource(RULES, "repo", LAYERS))).toEqual([0]);
+    expect(indices(filterRulesBySource(RULES, "presets", LAYERS))).toEqual([1, 2, 3]);
+  });
+
+  test("a rule with no attribution is hidden by either narrowed source", () => {
+    const orphan = [rule(9, "matched")];
+    expect(filterRulesBySource(orphan, "repo", LAYERS)).toEqual([]);
+    expect(filterRulesBySource(orphan, "presets", LAYERS)).toEqual([]);
+    expect(filterRulesBySource(orphan, "all", LAYERS)).toEqual(orphan);
+  });
+});
+
+test("ruleLayerIndex turns the engine's attribution into the map the filters take", () => {
+  const attribution: RuleAttribution[] = [
+    { index: 0, layer: REPO_LAYER, sourceIndex: 0 },
+    { index: 1, layer: PRESET_LAYER, sourceIndex: 0 },
+  ];
+  expect([...ruleLayerIndex(attribution).entries()]).toEqual([
+    [0, REPO_LAYER],
+    [1, PRESET_LAYER],
+  ]);
+  expect(ruleLayerIndex(null).size).toBe(0);
 });
 
 test("the verdict options state what each would leave", () => {
