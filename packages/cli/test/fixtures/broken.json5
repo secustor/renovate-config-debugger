@@ -1,0 +1,5 @@
+{
+  // The array is never closed: this file cannot be parsed at all, so the
+  // pipeline stops at `parse` and never reaches `validate`.
+  "labels": ["deps",
+}

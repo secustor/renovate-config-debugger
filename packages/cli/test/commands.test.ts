@@ -73,6 +73,31 @@ describe("dispatch", () => {
   });
 });
 
+describe("input", () => {
+  test("a config file that is not there fails the run and names the path", async () => {
+    const io = recordingIo();
+    expect(await main(["digest", fixture("nope.json")], io)).toBe(1);
+    expect(io.stderr).toContain("cannot read config file");
+    expect(io.stderr).toContain("nope.json");
+    expect(io.stdout).toBe("");
+  });
+
+  test("a config that cannot be parsed is Renovate refusing it, not a failed run", async () => {
+    const io = recordingIo();
+    expect(await main(["validate", fixture("broken.json5"), "--format", "json"], io)).toBe(2);
+    const report = io.json() as {
+      accepted: boolean;
+      stageStatus: { parse: string; validate: string };
+      messages: { message: string }[];
+    };
+    expect(report.accepted).toBe(false);
+    expect(report.stageStatus.parse).toBe("error");
+    // Nothing downstream of a failed parse ran, so the verdict is the parse.
+    expect(report.stageStatus.validate).toBe("skipped");
+    expect(report.messages[0]?.message).toContain("JSON5.parse error");
+  });
+});
+
 describe("validate", () => {
   test("a config Renovate accepts exits 0", async () => {
     const io = recordingIo();
@@ -115,9 +140,30 @@ describe("digest", () => {
     // hoist), so it is a number here rather than "still computing".
     expect(digest.counts.effectiveOptions).toBeGreaterThan(0);
   });
+
+  test("pretty output is the paragraph itself", async () => {
+    const io = recordingIo();
+    expect(await main(["digest", fixture("clean.json")], io)).toBe(0);
+    expect(io.stdout).toContain("Renovate accepted this config");
+    expect(io.stdout).toContain("expanded into 1 preset");
+    expect(io.stderr).toBe("");
+  });
 });
 
 describe("run", () => {
+  test("without --select the trace is the small selection, not the firehose", async () => {
+    const io = recordingIo();
+    expect(await main(["run", fixture("clean.json"), "--format", "json"], io)).toBe(0);
+    const result = io.json() as Record<string, unknown>;
+    expect(Object.keys(result)).toEqual([
+      "renovateVersion",
+      "stageStatus",
+      "errors",
+      "warnings",
+      "finalConfig",
+    ]);
+  });
+
   test("--select trims the trace to the named slices", async () => {
     const io = recordingIo();
     expect(
@@ -220,6 +266,42 @@ describe("resolved", () => {
     expect(output.config.extends).toEqual([":dependencyDashboard"]);
   });
 
+  test("--mode full leaves no preset reference behind", async () => {
+    const io = recordingIo();
+    expect(
+      await main(["resolved", fixture("clean.json"), "--mode", "full", "--format", "json"], io),
+    ).toBe(0);
+    const output = io.json() as { mode: string; config: Record<string, unknown> };
+    expect(output.mode).toBe("full");
+    expect(output.config.extends).toBeUndefined();
+    // …because what `:dependencyDashboard` sets is now written out directly.
+    expect(output.config.dependencyDashboard).toBe(true);
+  });
+
+  test("--include-defaults writes out the options nothing set", async () => {
+    const io = recordingIo();
+    expect(
+      await main(
+        [
+          "resolved",
+          fixture("clean.json"),
+          "--mode",
+          "full",
+          "--include-defaults",
+          "--format",
+          "json",
+        ],
+        io,
+      ),
+    ).toBe(0);
+    const output = io.json() as { includeDefaults: boolean; config: Record<string, unknown> };
+    expect(output.includeDefaults).toBe(true);
+    // Neither the fixture nor the preset mentions rangeStrategy.
+    expect(output.config.rangeStrategy).toBe("auto");
+    // `extends` is back only as its own default — empty, so still no reference.
+    expect(output.config.extends).toEqual([]);
+  });
+
   test("--include-defaults only makes sense fully expanded", async () => {
     const io = recordingIo();
     expect(await main(["resolved", fixture("clean.json"), "--include-defaults"], io)).toBe(1);
@@ -251,6 +333,34 @@ describe("simulate", () => {
     expect(sim.dep.updateType).toBe("major");
     expect(sim.rules[0]?.verdict).toBe("matched");
     expect(sim.rules[0]?.clauses[0]).toMatchObject({ key: "matchPackageNames", state: "matched" });
+  });
+
+  test("a dependency no rule matches is a verdict, not an error", async () => {
+    const io = recordingIo();
+    expect(
+      await main(
+        [
+          "simulate",
+          fixture("grouped.json"),
+          "--dep",
+          '{"depName":"lodash","packageName":"lodash","currentValue":"4.17.20","newValue":"4.17.21"}',
+          "--format",
+          "json",
+        ],
+        io,
+      ),
+    ).toBe(0);
+    const sim = io.json() as {
+      rules: { verdict: string; clauses: { key: string; state: string }[] }[];
+      mergeSteps: unknown[];
+    };
+    expect(sim.rules[0]?.verdict).toBe("no-match");
+    expect(sim.rules[0]?.clauses[0]).toMatchObject({
+      key: "matchPackageNames",
+      state: "no-match",
+    });
+    // Nothing matched, so nothing was merged for this dependency.
+    expect(sim.mergeSteps).toEqual([]);
   });
 
   test("a dependency is required", async () => {
@@ -304,6 +414,25 @@ describe("compare", () => {
       ),
     ).toBe(0);
     expect(io.json()).toMatchObject({ noChange: true });
+  });
+
+  test("pretty output leads with the verdict, then the evidence", async () => {
+    const io = recordingIo();
+    expect(
+      await main(
+        [
+          "compare",
+          fixture("clean.json"),
+          fixture("grouped.json"),
+          "--dep",
+          '{"depName":"react","packageName":"react"}',
+        ],
+        io,
+      ),
+    ).toBe(0);
+    expect(io.stdout.split("\n")[0]).toBe("Behavior differs between A and B.");
+    expect(io.stdout).toContain("Matched only in B:");
+    expect(io.stdout).toContain("groupName");
   });
 });
 
