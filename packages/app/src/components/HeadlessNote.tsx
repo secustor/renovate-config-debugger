@@ -24,6 +24,7 @@ const ONE_LINERS = [
   ``,
   `# or register it once, for an agent session`,
   `claude mcp add rcd -- pnpm dlx ${PACKAGE} mcp`,
+  `claude mcp add rcd -- npx -y ${PACKAGE}@0 mcp`,
 ].join("\n");
 
 export function HeadlessNote() {

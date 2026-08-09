@@ -4,8 +4,8 @@ import { defineConfig } from "vite";
 
 /**
  * Roadmap 058/059: the CLI hosts the BROWSER module graph under Node — served
- * on demand by the dev runner (`vite dev`, `bin/rcv-dev.mjs`), and baked into
- * a Node ESM bundle for publishing (`vite build`, `bin/rcv.mjs`). ONE config,
+ * on demand by the dev runner (`vite dev`, `bin/rcd-dev.mjs`), and baked into
+ * a Node ESM bundle for publishing (`vite build`, `bin/rcd.mjs`). ONE config,
  * so the two can only ever differ in the ways spelled out below.
  *
  * `renovateShims()` is the exact plugin the app's bundle and the engine's
