@@ -1,4 +1,4 @@
-# `rcv` — the Renovate config debugger, headless
+# `rcd` — the Renovate config debugger, headless
 
 ## Experimental
 
@@ -26,7 +26,7 @@ bundle and the engine's shimmed test suite use — so the CLI and the web app
 cannot disagree.
 
 Relation to upstream: `renovate-config-validator` is the linter — pass/fail on
-the file as written, no preset resolution. `rcv` is the debugger. Both run the
+the file as written, no preset resolution. `rcd` is the debugger. Both run the
 same pinned `renovate` package code, so they cannot disagree about semantics.
 
 ## Use
@@ -34,29 +34,29 @@ same pinned `renovate` package code, so they cannot disagree about semantics.
 In this repository:
 
 ```console
-$ pnpm --filter @renovate-config-debugger/cli rcv digest renovate.json
+$ pnpm --filter @renovate-config-debugger/cli rcd digest renovate.json
 ```
 
 ```console
-$ rcv digest renovate.json
+$ rcd digest renovate.json
 ✓ Renovate accepted this config. Your `config:recommended` entry expanded into
 1,076 presets — only 7 of which set options, the rest are package-grouping
 rules. Everything merged into 34 effective options, 6 of them overridden along
 the way.
 
-$ rcv validate renovate.json                       # exit 2 = Renovate refuses it
-$ rcv tree renovate.json --node "config:best-practices" --body resolved
-$ rcv provenance renovate.json labels
-$ rcv resolved renovate.json --mode full
-$ rcv simulate renovate.json --dep '{"depName":"react","currentValue":"17.0.0","newValue":"18.0.0"}'
-$ rcv compare before.json after.json --dep '{"depName":"react"}'
-$ rcv docs minimumReleaseAge
-$ echo '{"extends":["config:recommended"]}' | rcv run --stdin --format json --select status
+$ rcd validate renovate.json                       # exit 2 = Renovate refuses it
+$ rcd tree renovate.json --node "config:best-practices" --body resolved
+$ rcd provenance renovate.json labels
+$ rcd resolved renovate.json --mode full
+$ rcd simulate renovate.json --dep '{"depName":"react","currentValue":"17.0.0","newValue":"18.0.0"}'
+$ rcd compare before.json after.json --dep '{"depName":"react"}'
+$ rcd docs minimumReleaseAge
+$ echo '{"extends":["config:recommended"]}' | rcd run --stdin --format json --select status
 ```
 
 Every subcommand takes `--format pretty` (default, for humans) or
 `--format json` (typed `TraceResult`/`SimulationResult` slices, for agents and
-`jq`). `rcv --help` lists the commands; `rcv <command> --help` its flags.
+`jq`). `rcd --help` lists the commands; `rcd <command> --help` its flags.
 
 ### Input
 
@@ -75,7 +75,7 @@ fetcher can reach can be supplied by hand with
 | `1`  | infrastructure error — bad flag, unreadable file, unfetchable preset |
 
 `2` is deliberate: Claude Code hooks treat exit 2 as the blocking "feed stderr
-back to the model and fix it" signal, so `rcv validate` drops straight into a
+back to the model and fix it" signal, so `rcd validate` drops straight into a
 Stop/PreToolUse hook with no wrapper.
 
 ### Credentials
@@ -85,10 +85,10 @@ land in shell history and in every process listing:
 
 | variable                                       | host    |
 | ---------------------------------------------- | ------- |
-| `RCV_GITHUB_TOKEN`, `GITHUB_TOKEN`, `GH_TOKEN` | GitHub  |
-| `RCV_GITLAB_TOKEN`, `GITLAB_TOKEN`             | GitLab  |
-| `RCV_GITEA_TOKEN`                              | Gitea   |
-| `RCV_FORGEJO_TOKEN`                            | Forgejo |
+| `RCD_GITHUB_TOKEN`, `GITHUB_TOKEN`, `GH_TOKEN` | GitHub  |
+| `RCD_GITLAB_TOKEN`, `GITLAB_TOKEN`             | GitLab  |
+| `RCD_GITEA_TOKEN`                              | Gitea   |
+| `RCD_FORGEJO_TOKEN`                            | Forgejo |
 
 The `npm` and `http` preset fetchers have no auth at all — same coverage, and
 the same gaps, as the web app.
@@ -108,6 +108,6 @@ fix and the fixed file text without applying anything.
 
 ## Design
 
-`roadmap/058-rcv-debugger-cli.md` for the decisions, and
+`roadmap/058-rcd-debugger-cli.md` for the decisions, and
 `roadmap/2026-08-agent-debug-interface-research.md` for the research and the
 feasibility spike this package turns into a product.

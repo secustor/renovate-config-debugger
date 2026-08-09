@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * The in-repo `rcv` bin (roadmap 058).
+ * The in-repo `rcd` bin (roadmap 058).
  *
  * It boots Vite's SSR module runner with the engine's own shim plugin active
  * and loads `src/main.ts` through it, so the CLI runs the EXACT module graph

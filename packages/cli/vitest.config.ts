@@ -4,14 +4,14 @@ import { defineConfig } from "vitest/config";
 
 /**
  * The CLI's tests run its commands in-process against the SAME module graph
- * the `rcv` bin boots (shim plugin + inlined renovate), so an output shape or
+ * the `rcd` bin boots (shim plugin + inlined renovate), so an output shape or
  * an exit code is asserted against the real engine — vitest is simply a second
  * host for the runner. Thin by design: the golden↔shimmed parity suite in
  * `packages/engine` is what proves the resolution semantics; these tests cover
  * argument parsing, output shapes and exit codes.
  *
  * A test sits next to the module it covers, so the suites live under `src/`.
- * The exception is `test/bin.test.ts`: `bin/rcv.mjs` is not a `src` module, and
+ * The exception is `test/bin.test.ts`: `bin/rcd.mjs` is not a `src` module, and
  * `bin/` is published payload that carries no tests. `test/fixtures/` are the
  * configs both regimes feed in.
  */

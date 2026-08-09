@@ -9,11 +9,11 @@ import type { CliIo } from "./io";
  */
 export interface Command {
   name: string;
-  /** One line, listed by `rcv --help`. */
+  /** One line, listed by `rcd --help`. */
   summary: string;
-  /** Usage lines shown by `rcv <name> --help`, without the leading `rcv `. */
+  /** Usage lines shown by `rcd <name> --help`, without the leading `rcd `. */
   usage: string[];
-  /** Longer explanation for `rcv <name> --help`. */
+  /** Longer explanation for `rcd <name> --help`. */
   details?: string[];
   options: readonly OptionName[];
   run(args: ParsedArgs, io: CliIo): Promise<number>;

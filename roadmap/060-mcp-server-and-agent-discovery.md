@@ -1,4 +1,4 @@
-# 060 — `rcv mcp` + pointing agents at the headless interface
+# 060 — `rcd mcp` + pointing agents at the headless interface
 
 Milestone: M16 · Status: proposed
 
@@ -8,7 +8,7 @@ Two closing moves from the
 [2026-08 research](2026-08-agent-debug-interface-research.md): an MCP server
 so interactive agent sessions get a warm engine and typed tools, and the
 discovery surface that tells agents the headless interface exists at all.
-The MCP server is `rcv mcp` — one stdio subcommand over 058's core, no new
+The MCP server is `rcd mcp` — one stdio subcommand over 058's core, no new
 functionality, purely better interaction economics. Discovery is
 deliberately boring: the mechanisms that were researched and rejected
 (hidden in-page hints, `.well-known` manifests, llms.txt-as-signal) are
@@ -25,8 +25,8 @@ out that this exists.
 
 ## Scope
 
-- `rcv mcp`: stdio MCP server registered via
-  `claude mcp add rcv -- pnpm dlx @renovate-config-debugger/cli mcp`.
+- `rcd mcp`: stdio MCP server registered via
+  `claude mcp add rcd -- pnpm dlx @renovate-config-debugger/cli mcp`.
 - Tool surface mirroring the subcommands: `run_config` returning
   `{runId, digest, stageStatus, errors, warnings, treeSummary}`, then
   `get_final_config` / `get_preset_tree` / `get_preset_node` /

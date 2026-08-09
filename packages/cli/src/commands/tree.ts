@@ -134,7 +134,7 @@ export const treeCommand: Command = {
     writeNotes(io, notes);
     const root = result.presetTree;
     if (!root) {
-      throw new CliError("this run produced no preset tree — see `rcv validate`");
+      throw new CliError("this run produced no preset tree — see `rcd validate`");
     }
     const stats = computeTreeStats(root);
 

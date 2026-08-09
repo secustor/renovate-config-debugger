@@ -37,7 +37,7 @@ export const MessagesPanel = memo(function MessagesPanel({
     [result.events],
   );
   // The exact config `validateConfig("repo", …)` ran against — see
-  // `validatedConfigOf` (roadmap 058 hoisted it so `rcv validate` translates
+  // `validatedConfigOf` (roadmap 058 hoisted it so `rcd validate` translates
   // messages against the same snapshot this panel does).
   const validatedConfig = useMemo(() => validatedConfigOf(result), [result]);
   if (result.errors.length + result.warnings.length + presetErrors.length === 0) {

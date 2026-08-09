@@ -30,7 +30,7 @@ export const EXIT_ERROR = 1;
 /**
  * Renovate would refuse this config — the validate stage (or the parse before
  * it) failed. Deliberately `2`: Claude Code hooks treat exit 2 as the blocking
- * "feed stderr back to the model and fix it" signal, so `rcv validate` drops
+ * "feed stderr back to the model and fix it" signal, so `rcd validate` drops
  * straight into a Stop/PreToolUse hook with no wrapper.
  */
 export const EXIT_REFUSED = 2;

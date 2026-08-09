@@ -11,7 +11,7 @@ promise.
 
 ## Summary
 
-058's `rcv` runs in-repo on Vite's dev-time SSR runner. That is the right
+058's `rcd` runs in-repo on Vite's dev-time SSR runner. That is the right
 core, but agents outside this repository can't use it, and every invocation
 pays the transform pipeline. This item packages the same module graph as a
 prebuilt SSR bundle (`vite build`, shim plugin active, Node target) and
@@ -53,6 +53,6 @@ where configs actually live.
 - **Version scheme follows 056**: `0.x`, breaking changes in the minor, and
   a Renovate bump is a release — the CLI's answers change when Renovate's
   code does, and the version must say so.
-- **The dev runner stays.** In-repo, `pnpm rcv …` keeps using the SSR
+- **The dev runner stays.** In-repo, `pnpm rcd …` keeps using the SSR
   runner against `src/` — same code paths the app and tests use, no build
   step during development; the bundle is a packaging concern only.

@@ -67,7 +67,7 @@ export const provenanceCommand: Command = {
     const provenance = computeProvenance(result);
     if (!provenance) {
       throw new CliError(
-        "provenance needs a completed preset resolution — see `rcv validate` for why it stopped",
+        "provenance needs a completed preset resolution — see `rcd validate` for why it stopped",
       );
     }
     const tally = effectiveTally(provenance.values());
@@ -121,7 +121,7 @@ export const provenanceCommand: Command = {
           return `  ${view.key.padEnd(28)} ${view.winner ?? "?"}${view.badge ? ` [${view.badge}]` : ""}  ${preview(view.finalValue, 60)}`;
         }),
         "",
-        "Ask for one key to see its full chain: rcv provenance <file> <key>",
+        "Ask for one key to see its full chain: rcd provenance <file> <key>",
       ]);
     }
     return wouldRefuse(result) ? EXIT_REFUSED : EXIT_OK;

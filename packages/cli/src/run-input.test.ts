@@ -50,10 +50,10 @@ describe("takeInputFile", () => {
 });
 
 describe("tokensFromEnv", () => {
-  test("RCV_* wins over the ambient conventions", () => {
+  test("RCD_* wins over the ambient conventions", () => {
     expect(
-      tokensFromEnv({ RCV_GITHUB_TOKEN: "rcv", GITHUB_TOKEN: "ambient", GH_TOKEN: "gh" }),
-    ).toEqual({ githubToken: "rcv" });
+      tokensFromEnv({ RCD_GITHUB_TOKEN: "rcd", GITHUB_TOKEN: "ambient", GH_TOKEN: "gh" }),
+    ).toEqual({ githubToken: "rcd" });
   });
 
   test("falls back to GITHUB_TOKEN, then GH_TOKEN", () => {
@@ -67,12 +67,12 @@ describe("tokensFromEnv", () => {
     expect(tokensFromEnv({ GITHUB_TOKEN: "   " })).toEqual({});
   });
 
-  test("every supported host has its own RCV_ variable", () => {
+  test("every supported host has its own RCD_ variable", () => {
     expect(
       tokensFromEnv({
-        RCV_GITLAB_TOKEN: "gl",
-        RCV_GITEA_TOKEN: "gt",
-        RCV_FORGEJO_TOKEN: "fj",
+        RCD_GITLAB_TOKEN: "gl",
+        RCD_GITEA_TOKEN: "gt",
+        RCD_FORGEJO_TOKEN: "fj",
       }),
     ).toEqual({ gitlabToken: "gl", giteaToken: "gt", forgejoToken: "fj" });
   });

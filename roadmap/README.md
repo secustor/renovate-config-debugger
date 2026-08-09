@@ -62,9 +62,9 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [055](055-header-project-links.md)                      | Header links to the source and the issue tracker                  | M14                  | done     |
 | [056](056-publish-engine-package.md)                    | Publish the engine as `@renovate-config-debugger/engine`          | M15                  | proposed |
 | [057](057-fork-codemirror-json-schema.md)               | Fork + publish `codemirror-json-schema`                           | M15                  | proposed |
-| [058](058-rcv-debugger-cli.md)                          | `rcv`: the debugger CLI on the shimmed engine (experimental)      | M16                  | done     |
+| [058](058-rcd-debugger-cli.md)                          | `rcd`: the debugger CLI on the shimmed engine (experimental)      | M16                  | done     |
 | [059](059-publish-cli-package.md)                       | Publish the CLI as `@renovate-config-debugger/cli` (experimental) | M16                  | proposed |
-| [060](060-mcp-server-and-agent-discovery.md)            | `rcv mcp` + pointing agents at the headless interface             | M16                  | proposed |
+| [060](060-mcp-server-and-agent-discovery.md)            | `rcd mcp` + pointing agents at the headless interface             | M16                  | proposed |
 | [061](061-claude-plugin-marketplace.md)                 | Claude plugin marketplace for the debugger                        | M16                  | proposed |
 | [062](062-results-tab-taxonomy.md)                      | Results tabs: `Simulator` → `packageRules`, + `Extraction`        | M17                  | proposed |
 | [063](063-custom-manager-extraction.md)                 | Custom-manager extraction simulator                               | M17                  | proposed |
@@ -183,11 +183,11 @@ M16 — **Agent debug interface** — grows out of the
 debugging config resolution either drive the web app in a browser or
 import the engine in plain Node, where the preset tree and provenance
 silently vanish (they only exist in the shimmed module graph). 058 ships
-`rcv`, a CLI hosting the browser module graph under Node via Vite's SSR
+`rcd`, a CLI hosting the browser module graph under Node via Vite's SSR
 runner — web-app parity by construction, one subcommand per question,
 hook-grade exit codes. 059 packages the same graph as a prebuilt bundle
 published as `@renovate-config-debugger/cli` (bundle proven identical by
-re-running the shimmed snapshots against it). 060 adds `rcv mcp` — warm
+re-running the shimmed snapshots against it). 060 adds `rcd mcp` — warm
 engine, `runId` handles instead of firehose payloads — and the discovery
 surface: visible docs plus Claude Code's plugin-hint marker, with hidden
 agent messaging explicitly ruled out. 061 closes the loop with a Claude

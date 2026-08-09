@@ -32,7 +32,7 @@ export const resolvedCommand: Command = {
     }
     const includeDefaults = boolOption(args, "include-defaults");
     if (includeDefaults && mode !== "full") {
-      throw new CliError("--include-defaults needs --mode full (see `rcv resolved --help`)");
+      throw new CliError("--include-defaults needs --mode full (see `rcd resolved --help`)");
     }
     const { result, notes } = await runFromArgs(args, io);
     writeNotes(io, notes);
@@ -40,7 +40,7 @@ export const resolvedCommand: Command = {
     const output = computeResolvedConfig(result, mode, { includeDefaults });
     if (!output) {
       throw new CliError(
-        "this document needs a completed preset resolution — see `rcv validate` for why it stopped",
+        "this document needs a completed preset resolution — see `rcd validate` for why it stopped",
       );
     }
     if (format === "json") {
