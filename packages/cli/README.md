@@ -169,6 +169,7 @@ economics for a session. Register it once:
 
 ```console
 $ claude mcp add rcd -- pnpm dlx @renovate-config-debugger/cli mcp
+$ claude mcp add rcd -- npx -y @renovate-config-debugger/cli@0 mcp
 ```
 
 `run_config` resolves a config and returns a small summary plus a **runId**;
@@ -184,7 +185,15 @@ Worth knowing before your first call: **preset-node bodies are large — query
 one node at a time.** The tool descriptions say so too.
 
 In Claude Code, the [plugin](../../plugins/renovate-config-debugger) registers
-this server and adds the skill that knows the call sequence:
+this server and adds the skill that knows the call sequence. Not published
+yet — until the `secustor/claude-plugins` catalog exists, run it from a
+checkout of this repository instead:
+
+```console
+$ claude --plugin-dir ./plugins/renovate-config-debugger
+```
+
+Once published:
 
 ```console
 $ /plugin marketplace add secustor/claude-plugins
