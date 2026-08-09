@@ -56,6 +56,41 @@ export function entryView(entry: KeyProvenance): ProvenanceView {
   };
 }
 
+export interface ProvenanceIndexEntry {
+  key: string;
+  winner: string | null;
+  badge: string | null;
+  /** Layers that actually changed the value — the chain's length, unexpanded. */
+  contributors: number;
+  /** Enough of the final value to recognise it; the chain is one call away. */
+  preview: string;
+}
+
+/** A value, short enough to scan. */
+export function previewValue(value: unknown, max = 60): string {
+  const text = JSON.stringify(value) ?? String(value);
+  return text.length <= max ? text : `${text.slice(0, max)}… (${text.length} chars)`;
+}
+
+/**
+ * The keyless answer: one line per key instead of every layer's before/after.
+ *
+ * A `config:recommended` run has ~200 keys with long override chains — the
+ * full {@link entryView} of all of them is over half a megabyte, which is not
+ * an answer, it is a haystack. This is the index; ask for a key to get its
+ * chain.
+ */
+export function indexView(entry: KeyProvenance): ProvenanceIndexEntry {
+  const view = entryView(entry);
+  return {
+    key: view.key,
+    winner: view.winner,
+    badge: view.badge,
+    contributors: view.chain.length,
+    preview: previewValue(entry.finalValue),
+  };
+}
+
 /** The run's provenance map, or a legible error explaining why there is none. */
 export function provenanceOf(result: TraceResult): Map<string, KeyProvenance> {
   const provenance = computeProvenance(result);

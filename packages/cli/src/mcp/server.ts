@@ -8,20 +8,24 @@ import {
   deriveUpdateType,
   getOptionIndex,
   type PipelineInput,
+  type PresetNode,
   type ResolvedConfigMode,
   renovateVersion,
   runPipeline,
   simulatePackageRules,
   type SimulationResult,
   type TraceResult,
+  type ValidationMessage,
 } from "@renovate-config-debugger/engine";
 import { validatedConfigOf } from "@renovate-config-debugger/app/headless";
+import pkg from "../../package.json";
 import { errorMessage, type CliIo } from "../io";
 import { digestPayload } from "../projections/digest";
 import { describeMessage } from "../projections/messages";
-import { entryView, layerLabel, provenanceOf } from "../projections/provenance";
+import { entryView, indexView, layerLabel, provenanceOf } from "../projections/provenance";
 import {
   BODIES,
+  type BodyKind,
   DEFAULT_TREE_DEPTH,
   findNode,
   parseBody,
@@ -29,7 +33,8 @@ import {
   treeStatsOf,
   viewOf,
 } from "../projections/tree";
-import { applyRunAuth } from "../run-input";
+import { resolveRunAuth } from "../run-input";
+import { textResult } from "./result";
 import { type HeldRun, RunStore } from "./run-store";
 
 /**
@@ -49,13 +54,42 @@ import { type HeldRun, RunStore } from "./run-store";
  * function to the SDK's stdio entry as a factory, and the entry pins one
  * instance per connection to either the 2026-07-28 protocol or the legacy
  * 2025-era handshake. These registrations serve both unchanged.
+ *
+ * Three protocol details this file takes seriously:
+ *
+ * - Handlers run CONCURRENTLY. Nothing here mutates shared state except the
+ *   run store; the credentials a run may use travel ON the pipeline input
+ *   (`presetAuth`), because installing them in the engine's module state from
+ *   here would let one run's tokens ride along on another run's fetches.
+ * - Input schemas are STRICT. A silently stripped typo gives the agent no
+ *   signal; a validation error naming the unknown key lets it self-correct.
+ * - Annotations are hints a client trusts by default only in their
+ *   worst-case reading, so every tool declares them: read-only,
+ *   non-destructive, and open-world only where a run can fetch a remote
+ *   preset.
  */
+
+/** Same args + same held run = same answer. */
+const HELD_RUN_ANNOTATIONS = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+} as const;
 
 const RUN_ID = z.string().describe("A runId returned by run_config.");
 
-function textResult(payload: unknown) {
-  return { content: [{ type: "text" as const, text: JSON.stringify(payload, null, 2) }] };
-}
+const INSTRUCTIONS =
+  "Debug one Renovate config at a time. Call run_config FIRST: it resolves the config the way " +
+  "Renovate would and returns a runId plus a small summary — `accepted` is the validation " +
+  "verdict, `errors`/`warnings` are Renovate's own messages, `digest` is the orientation " +
+  "paragraph. Every other tool takes that runId and queries the HELD run, so the whole session " +
+  "describes one resolution instead of re-resolving per question. Then drill down ONE question " +
+  "at a time: get_provenance with a key for 'who set this value', get_preset_tree and " +
+  "get_preset_node for what `extends` expanded into (preset bodies are large — one node per " +
+  "call), get_option_docs instead of recalling option semantics, which change between Renovate " +
+  "releases. Before you propose an edit, prove it: run_config the edited text and " +
+  "compare_simulations the two runs against the same dependency. Everything here is read-only.";
 
 function errorResult(err: unknown) {
   return {
@@ -64,24 +98,84 @@ function errorResult(err: unknown) {
   };
 }
 
-/** Every tool answers or explains itself; nothing throws across the wire. */
+/**
+ * Every tool answers or explains itself; nothing throws across the wire.
+ * `hint` names the narrowing to apply when this tool's answer is too large to
+ * return whole (see `./result`).
+ */
 function answer<Args extends unknown[]>(
   // `unknown` covers a promise too — every result is awaited below.
   fn: (...args: Args) => unknown,
+  hint?: string,
 ): (...args: Args) => Promise<ReturnType<typeof textResult>> {
   return async (...args: Args) => {
     try {
-      return textResult(await fn(...args));
+      return textResult(await fn(...args), hint);
     } catch (err) {
       return errorResult(err);
     }
   };
 }
 
+/**
+ * The dependency, as strict as the simulator's own descriptor: a typo'd field
+ * is a validation error naming the key, not a matcher that quietly reports
+ * `no-input` because nothing it reads was ever set.
+ */
+const DEP = z
+  .strictObject({
+    depName: z.string().optional(),
+    packageName: z.string().optional(),
+    datasource: z.string().optional(),
+    manager: z.string().optional(),
+    depType: z.string().optional(),
+    packageFile: z.string().optional(),
+    currentValue: z.string().optional(),
+    currentVersion: z.string().optional(),
+    lockedVersion: z.string().optional(),
+    newValue: z.string().optional(),
+    updateType: z
+      .enum([
+        "major",
+        "minor",
+        "patch",
+        "pin",
+        "digest",
+        "pinDigest",
+        "lockFileMaintenance",
+        "lockfileUpdate",
+        "rollback",
+        "bump",
+        "replacement",
+      ])
+      .optional(),
+    isBump: z.boolean().optional(),
+    versioning: z.string().optional(),
+    sourceUrl: z.string().optional(),
+    registryUrls: z.array(z.string()).optional(),
+    categories: z.array(z.string()).optional(),
+    lockFiles: z.array(z.string()).optional(),
+    repository: z.string().optional(),
+    baseBranch: z.string().optional(),
+    currentVersionTimestamp: z.string().optional(),
+    mergeConfidenceLevel: z.string().optional(),
+  })
+  .describe(
+    "The hypothetical update. Every field is optional; a matcher whose fields you left unset " +
+      "reports `no-input` rather than silently passing. updateType is derived from " +
+      "currentValue/newValue when you omit it. Unknown fields are rejected — the field names are " +
+      "Renovate's own (depName, packageName, datasource, manager, depType, packageFile, " +
+      "currentValue, currentVersion, newValue, updateType, versioning, sourceUrl, registryUrls, " +
+      "categories, baseBranch, currentVersionTimestamp, and lockedVersion/lockFiles/isBump/" +
+      "repository/mergeConfidenceLevel for the matchers that read them).",
+  );
+
+type DepInput = z.infer<typeof DEP>;
+
 /** The dependency descriptor, with `updateType` derived the way a real lookup
  *  would when the caller did not set it. */
-function toDependency(dep: Record<string, unknown>): DependencyDescriptor {
-  const descriptor = dep as DependencyDescriptor;
+function toDependency(dep: DepInput): DependencyDescriptor {
+  const descriptor: DependencyDescriptor = dep;
   if (descriptor.updateType) {
     return descriptor;
   }
@@ -93,12 +187,21 @@ function toDependency(dep: Record<string, unknown>): DependencyDescriptor {
   return derived ? { ...descriptor, updateType: derived } : descriptor;
 }
 
-function simulateRun(run: HeldRun, dep: Record<string, unknown>): Promise<SimulationResult> {
+/** The run's effective config, or the reason there is none — an empty object
+ *  would read as "Renovate set nothing", which is never what happened. */
+function finalConfigOf(run: HeldRun): Record<string, unknown> {
   const config = run.result.finalConfig;
   if (!config) {
-    throw new Error(`${run.runId} produced no effective config — nothing to simulate`);
+    throw new Error(
+      `${run.runId} produced no effective config — the run stopped before the merge stage. ` +
+        "Check `accepted`, `errors` and `stageStatus` from run_config.",
+    );
   }
-  return simulatePackageRules({ config, dep: toDependency(dep) });
+  return config;
+}
+
+function simulateRun(run: HeldRun, dep: DepInput): Promise<SimulationResult> {
+  return simulatePackageRules({ config: finalConfigOf(run), dep: toDependency(dep) });
 }
 
 function runSummary(run: HeldRun, notes: string[]) {
@@ -119,12 +222,40 @@ function runSummary(run: HeldRun, notes: string[]) {
   };
 }
 
-const DEP_DESCRIPTION =
-  "The hypothetical update, as an object: depName, packageName, datasource, manager, depType, " +
-  "packageFile, currentValue, currentVersion, newValue, updateType, versioning, sourceUrl, " +
-  "registryUrls, categories, baseBranch, currentVersionTimestamp. Every field is optional; a " +
-  "matcher whose fields you left unset reports `no-input` rather than silently passing. " +
-  "updateType is derived from currentValue/newValue when you omit it.";
+const sameMessage = (candidate: ValidationMessage, message: string, topic?: string): boolean =>
+  candidate.message === message && (topic === undefined || candidate.topic === topic);
+
+/**
+ * Which list the message came from. A warning explained as an error is a
+ * misreport an agent then acts on, so the run — when one is given — decides.
+ */
+function severityOf(
+  run: HeldRun | null,
+  message: string,
+  topic: string | undefined,
+): "error" | "warning" {
+  if (run?.result.warnings.some((w) => sameMessage(w, message, topic))) {
+    return "warning";
+  }
+  return "error";
+}
+
+/** The body a node holds, or an explicit null saying it holds none — a key
+ *  that just vanishes from the JSON is indistinguishable from a bug. */
+function bodyOf(node: PresetNode, kind: BodyKind) {
+  const body = node[kind];
+  if (body === undefined) {
+    return {
+      body: kind,
+      [kind]: null,
+      note:
+        `this node has no \`${kind}\` body (state: ${node.state}) — it was never reached in that ` +
+        `form. The bodies a run records are ${BODIES.join(", ")}; a node that failed to fetch, ` +
+        "or a duplicate that was not re-resolved, holds fewer of them.",
+    };
+  }
+  return { body: kind, [kind]: body };
+}
 
 export interface McpServerOptions {
   /** Overrides the run store, for tests. */
@@ -133,11 +264,16 @@ export interface McpServerOptions {
 
 export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServer {
   const store = options?.store ?? new RunStore();
-  const server = new McpServer({
-    name: "renovate-config-debugger",
-    version: renovateVersion,
-    title: "Renovate config debugger",
-  });
+  const server = new McpServer(
+    {
+      name: "renovate-config-debugger",
+      // The SERVER's version — the Renovate it speaks for is in the title and
+      // in every answer that quotes a version.
+      version: pkg.version,
+      title: `Renovate Config Debugger (Renovate ${renovateVersion})`,
+    },
+    { instructions: INSTRUCTIONS },
+  );
 
   server.registerTool(
     "run_config",
@@ -148,7 +284,17 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         "validate, resolve presets, merge — and HOLDS the trace. Returns a small summary plus a " +
         "runId; every other tool takes that runId, so a whole debugging session describes ONE " +
         "run instead of re-resolving (and re-fetching remote presets) per question. Start here.",
-      inputSchema: z.object({
+      // The one tool that reaches the network: `extends` can name a preset on
+      // GitHub, GitLab, Gitea or Forgejo. Not idempotent for the same reason —
+      // a remote preset can change between two runs, which is exactly why the
+      // other tools query a held run.
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+      inputSchema: z.strictObject({
         fileName: z
           .string()
           .default("renovate.json")
@@ -181,19 +327,29 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       }),
     },
     answer(async (args) => {
+      const { auth, notes } = resolveRunAuth(
+        io.env,
+        args.globalConfig,
+        {
+          trustEndpoints: args.trustEndpoints ?? false,
+          platformOverride: args.platformOverride ?? false,
+        },
+        "mcp",
+      );
       const input: PipelineInput = {
         fileName: args.fileName,
         content: args.content,
+        // Per-run credentials, installed by the pipeline inside its own
+        // serialized queue: handlers run concurrently here, so module-level
+        // auth would let a trusting run's tokens leak into a run whose
+        // untrusted global config picked the endpoint.
+        presetAuth: auth,
         ...(args.globalConfig ? { globalConfig: args.globalConfig } : {}),
         ...(args.inheritedConfig ? { inheritedConfig: args.inheritedConfig } : {}),
         ...(args.platform ? { platform: args.platform } : {}),
         ...(args.endpoint ? { endpoint: args.endpoint } : {}),
         ...(args.platformOverride ? { platformOverride: true } : {}),
       };
-      const notes = applyRunAuth(io.env, input.globalConfig, {
-        trustEndpoints: args.trustEndpoints ?? false,
-        platformOverride: args.platformOverride ?? false,
-      });
       const result: TraceResult = await runPipeline(input);
       return runSummary(store.put(result, input), notes);
     }),
@@ -207,9 +363,14 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         "The effective config the run produced — everything merged, Renovate's defaults " +
         "included. Large. If the question is 'who set this option', get_provenance answers it " +
         "better; if it is 'what would I write instead of these presets', use get_resolved_config.",
-      inputSchema: z.object({ runId: RUN_ID }),
+      annotations: HELD_RUN_ANNOTATIONS,
+      inputSchema: z.strictObject({ runId: RUN_ID }),
     },
-    answer(({ runId }) => ({ finalConfig: store.get(runId).result.finalConfig })),
+    answer(
+      ({ runId }) => ({ finalConfig: finalConfigOf(store.get(runId)) }),
+      "the effective config is too large to return whole — ask get_provenance for one `key`, " +
+        "or get_resolved_config for the document without the defaults.",
+    ),
   );
 
   server.registerTool(
@@ -221,14 +382,20 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         "bodies. A `config:recommended` expansion is over a thousand nodes, so this is depth-" +
         `limited (default ${DEFAULT_TREE_DEPTH}); pass a query to search the whole tree by name ` +
         "instead. Use get_preset_node for one node's body.",
-      inputSchema: z.object({
+      annotations: HELD_RUN_ANNOTATIONS,
+      inputSchema: z.strictObject({
         runId: RUN_ID,
         depth: z
           .number()
           .int()
           .min(0)
+          .max(6)
           .optional()
-          .describe(`Levels to include (default ${DEFAULT_TREE_DEPTH}).`),
+          .describe(
+            `Levels to include (default ${DEFAULT_TREE_DEPTH}, max 6). The cap is a size one: ` +
+              "a fully expanded `config:recommended` tree is hundreds of kilobytes of JSON. " +
+              "To reach deeper, query one node with get_preset_node or search with `query`.",
+          ),
         query: z
           .string()
           .optional()
@@ -240,7 +407,7 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       return query
         ? { summary: stats.summary, matches: searchNodes(stats, query) }
         : { summary: stats.summary, root: viewOf(root, stats, depth ?? DEFAULT_TREE_DEPTH) };
-    }),
+    }, "the tree is too large at this depth — lower `depth`, pass a `query`, or query one node " + "with get_preset_node."),
   );
 
   server.registerTool(
@@ -252,7 +419,8 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         "reports. PRESET-NODE BODIES ARE LARGE — query one node at a time, and only ask for a " +
         `body when the stats are not enough. Bodies: ${BODIES.join(", ")} (fetched = as served, ` +
         "input = migrated/massaged, resolved = with its own sub-presets merged in).",
-      inputSchema: z.object({
+      annotations: HELD_RUN_ANNOTATIONS,
+      inputSchema: z.strictObject({
         runId: RUN_ID,
         node: z.string().describe("Preset name, or a `a>b>c` structural identity."),
         body: z.enum(BODIES).optional().describe("Omit for structure and stats only."),
@@ -265,9 +433,9 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       return {
         node: viewOf(found, stats, 1),
         occurrences: stats.occurrencesByName.get(found.name)?.length ?? 1,
-        ...(kind ? { body: kind, [kind]: found[kind] } : {}),
+        ...(kind ? bodyOf(found, kind) : {}),
       };
-    }),
+    }, "this node's body is too large to return whole — ask for a deeper child instead, or omit " + "`body` and read the contribution stats."),
   );
 
   server.registerTool(
@@ -276,13 +444,18 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       title: "Who set this option",
       description:
         "Per-key provenance: which layer (defaults / global / inherited / each preset / the repo " +
-        "config) set each option, and who overrode whom. Without a key: every option some layer " +
-        "beyond the defaults set, with the winning layer. With a key: the full override chain — " +
-        "and for `packageRules`, which layer contributed each merged rule. This is the tool for " +
-        "'why is this value what it is'.",
-      inputSchema: z.object({
+        "config) set each option, and who overrode whom. Without a key: a compact INDEX — every " +
+        "option some layer beyond the defaults set, with its winning layer and a short value " +
+        "preview. With a key: the full override chain, every layer's before/after — and for " +
+        "`packageRules`, which layer contributed each merged rule. This is the tool for 'why is " +
+        "this value what it is': read the index, then ask for the one key.",
+      annotations: HELD_RUN_ANNOTATIONS,
+      inputSchema: z.strictObject({
         runId: RUN_ID,
-        key: z.string().optional().describe("A top-level config option, e.g. `labels`."),
+        key: z
+          .string()
+          .optional()
+          .describe("A top-level config option, e.g. `labels`. Omit for the index."),
       }),
     },
     answer(({ runId, key }) => {
@@ -290,7 +463,8 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       const provenance = provenanceOf(result);
       if (!key) {
         return {
-          keys: [...provenance.values()].filter((e) => !e.isDefaultOnly).map(entryView),
+          note: "index only — pass `key` for that option's full override chain.",
+          keys: [...provenance.values()].filter((e) => !e.isDefaultOnly).map(indexView),
         };
       }
       const entry = provenance.get(key);
@@ -305,7 +479,7 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
             }))
           : [];
       return { ...entryView(entry), ...(rules.length > 0 ? { rules } : {}) };
-    }),
+    }, "this key's override chain is too large to return whole — the layers that contributed are " + "listed; ask get_preset_node for the body of the one you care about."),
   );
 
   server.registerTool(
@@ -317,7 +491,8 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         "`extends` entries. `keep-internal` (default) keeps Renovate's own `config:*` references; " +
         "`full` expands everything. Defaults may only be included in a fully expanded document " +
         "(in one that still extends presets they would merge after them and override them).",
-      inputSchema: z.object({
+      annotations: HELD_RUN_ANNOTATIONS,
+      inputSchema: z.strictObject({
         runId: RUN_ID,
         mode: z.enum(["keep-internal", "full"]).optional(),
         includeDefaults: z.boolean().optional(),
@@ -335,7 +510,7 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         throw new Error("this document needs a completed preset resolution — validate the config");
       }
       return { mode: resolvedMode, ...output };
-    }),
+    }, 'the resolved document is too large to return whole — try mode "keep-internal" without ' + "includeDefaults, or read one preset's contribution with get_preset_node."),
   );
 
   server.registerTool(
@@ -346,16 +521,14 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         "Evaluates every packageRule of the run's effective config against one hypothetical " +
         "dependency update: a verdict per rule with clause-level evidence (which matcher fired, " +
         "what it read), and the options the matching rules set for that dependency.",
-      inputSchema: z.object({
-        runId: RUN_ID,
-        dep: z.record(z.string(), z.unknown()).describe(DEP_DESCRIPTION),
-      }),
+      annotations: HELD_RUN_ANNOTATIONS,
+      inputSchema: z.strictObject({ runId: RUN_ID, dep: DEP }),
     },
     answer(async ({ runId, dep }) => {
       const run = store.get(runId);
       const sim = await simulateRun(run, dep);
       return { dep: toDependency(dep), ...sim };
-    }),
+    }, "this config has too many packageRules to report whole — the omission is marked; narrow " + "the dependency (a datasource, a depType) so fewer rules report `no-input`."),
   );
 
   server.registerTool(
@@ -368,14 +541,12 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         "matching and the key-level delta of the resulting config, or an explicit 'no behavioral " +
         "change'. Pass runIdB to compare two configs, or depB to compare two dependencies " +
         "against the same config.",
-      inputSchema: z.object({
+      annotations: HELD_RUN_ANNOTATIONS,
+      inputSchema: z.strictObject({
         runId: RUN_ID,
-        dep: z.record(z.string(), z.unknown()).describe(DEP_DESCRIPTION),
+        dep: DEP,
         runIdB: z.string().optional().describe("The B-side run. Defaults to runId."),
-        depB: z
-          .record(z.string(), z.unknown())
-          .optional()
-          .describe("The B-side dependency. Defaults to dep."),
+        depB: DEP.optional().describe("The B-side dependency. Defaults to dep."),
       }),
     },
     answer(async ({ runId, dep, runIdB, depB }) => {
@@ -387,7 +558,7 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         b: { runId: b.runId, dep: toDependency(depB ?? dep) },
         ...compareSimulations(simA, simB),
       };
-    }),
+    }, "the comparison is too large to return whole — narrow the dependency, or ask simulate for " + "one side at a time."),
   );
 
   server.registerTool(
@@ -398,8 +569,9 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         "Translates one of Renovate's validator messages into what it actually means, with a " +
         "docs link and — when the library knows one — a concrete fix. Pass the runId the message " +
         "came from and the fix is computed against that exact config snapshot, including the " +
-        "edited file text.",
-      inputSchema: z.object({
+        "edited file text, and the reported severity is the list the run itself put it in.",
+      annotations: HELD_RUN_ANNOTATIONS,
+      inputSchema: z.strictObject({
         message: z.string().describe("The message text, verbatim."),
         topic: z.string().optional().describe("The message's topic, e.g. `Configuration Error`."),
         runId: z.string().optional().describe("The run the message came from."),
@@ -409,7 +581,7 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       const run = runId ? store.get(runId) : null;
       return describeMessage(
         { topic: topic ?? "Configuration Error", message },
-        "error",
+        severityOf(run, message, topic),
         run ? validatedConfigOf(run.result) : null,
         run?.input.content ?? null,
       );
@@ -424,7 +596,14 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         `Renovate's own metadata for an option, for the exact pinned version (${renovateVersion}) ` +
         "— type, default, allowed values, where it may appear, deprecation. Use this instead of " +
         "recalling option semantics: they change between Renovate releases.",
-      inputSchema: z.object({
+      // No held run involved — the answer depends only on the pinned Renovate.
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      inputSchema: z.strictObject({
         name: z.string().describe("An option name, or a substring with search: true."),
         search: z.boolean().optional().describe("List every option whose name contains `name`."),
       }),
@@ -447,7 +626,7 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         );
       }
       return { renovateVersion, ...doc, isContainer: index.containers.has(doc.name) };
-    }),
+    }, "too many options matched — search for a longer substring."),
   );
 
   return server;
