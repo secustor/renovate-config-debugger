@@ -43,16 +43,17 @@ the whole trace.
 
 ### 3. Drill down — one question, one tool
 
-| question                                        | tool                            |
-| ----------------------------------------------- | ------------------------------- |
-| "what did `extends` pull in?"                   | `get_preset_tree`               |
-| "what did preset X actually contribute?"        | `get_preset_node`               |
-| "who set this option / who overrode whom?"      | `get_provenance` (with a `key`) |
-| "what does this option even mean?"              | `get_option_docs`               |
-| "what does this validator message mean?"        | `explain_message`               |
-| "what would I write without the presets?"       | `get_resolved_config`           |
-| "would this dependency update match the rules?" | `simulate`                      |
-| "did my edit change behavior?"                  | `compare_simulations`           |
+| question                                                | tool                            |
+| ------------------------------------------------------- | ------------------------------- |
+| "what did `extends` pull in?"                           | `get_preset_tree`               |
+| "what did preset X actually contribute?"                | `get_preset_node`               |
+| "who set this option / who overrode whom?"              | `get_provenance` (with a `key`) |
+| "what does this option even mean?"                      | `get_option_docs`               |
+| "what does this validator message mean?"                | `explain_message`               |
+| "what would I write without the presets?"               | `get_resolved_config`           |
+| "what's the whole effective config, defaults included?" | `get_final_config`              |
+| "would this dependency update match the rules?"         | `simulate`                      |
+| "did my edit change behavior?"                          | `compare_simulations`           |
 
 **Preset-node bodies are large — query one node at a time.** `get_preset_tree`
 deliberately returns structure and contribution stats without bodies, and it is
@@ -63,7 +64,26 @@ actual answer.
 
 `get_provenance` is the tool most debugging questions actually want. "Why is
 `minimumReleaseAge` 3 days when I never set it" is a provenance question, not a
-preset-tree question.
+preset-tree question. `get_final_config` is the whole merged document,
+Renovate's defaults included — it is large, and on a `config:recommended` run
+almost never what you actually want; reach for `get_provenance` with a `key`
+instead, and keep `get_final_config` for when you genuinely need the entire
+document.
+
+A `config:best-practices` config resolves to hundreds of rules — scope
+`simulate` to your own rules first rather than reading the whole list.
+`source: "repo"` limits it to the rules your config itself wrote (the answer
+to "my rule is index 713 of 713"); `source: "presets"` is what `extends`
+pulled in. `verdict` narrows by outcome — `matched`, `no-input`, `no-match`,
+or `notable` (matched + unresolved, everything but a plain non-match).
+Reach for `all`/`all` only once you know you need the whole list.
+
+`explain_message` says so plainly when it has no translation for a message —
+`translationKnown: false` plus a note — instead of quietly echoing the raw
+text back at you; treat that as "go read the message yourself", not as an
+answer. When it does know a message, including warnings like the
+`group:`-preset one, it increasingly ships a concrete fix alongside the
+explanation, not just prose.
 
 ### 4. Proposing an edit: prove it
 
@@ -78,8 +98,11 @@ Never hand over a config change on the strength of reading it. The oracle:
 
 `noChange: true` means the edit is behaviorally inert for that dependency —
 which is either the point (a cleanup) or a bug (you meant to change
-something). Say which one it is. When it is not inert, `matchedOnlyInA` /
-`matchedOnlyInB` and `configDelta` are the evidence to quote.
+something). Say which one it is. `compare_simulations` also carries a
+plain-language net-effect summary — quote that one-liner rather than
+paraphrasing the arrays yourself; when you need to go further,
+`behaviorOnlyInA` / `behaviorOnlyInB` and `configDelta` are the evidence
+underneath it.
 
 For `simulate` and `compare_simulations`, set the dependency fields the rules
 actually match on (`depName`, `packageName`, `datasource`, `manager`,
@@ -119,6 +142,15 @@ infrastructure error, so it works as a check in CI or a hook without a wrapper.
 - A preset that cannot be fetched shows up as a failed node, and everything
   under it is missing from the effective config. Check for that before
   concluding an option "is not set".
+- **An oversized answer is elided, not silently cut.** A tool result too big
+  to return whole rewrites its largest array in place as
+  `{truncated: true, shown, omitted, items: […]}`, and the whole document
+  gets a top-level `truncated: true` plus a `hint` naming the parameter that
+  narrows the question. Index `rules[0]` on an elided answer and you get
+  `undefined` — the array moved to `.items` inside the wrapper. Follow the
+  hint (fewer rules, one preset node, a smaller depth) rather than re-reading
+  the raw shape; elision keeps both ends of a shrunk array, so a rule your
+  own config appended last is not the one that vanished.
 - This tooling is **experimental**: tool names, flags and output shapes may
   change. If a call fails with an unknown-argument error, list the tools (or
   run `--help`) rather than guessing a variant.
