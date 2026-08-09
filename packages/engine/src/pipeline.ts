@@ -91,19 +91,39 @@ function removeGlobalConfig(
 // the active trace collector), so runs must never overlap.
 let queue: Promise<unknown> = Promise.resolve();
 
+/** A task whose caller went away before the queue reached it. */
+export class EngineTaskCancelled extends Error {
+  constructor() {
+    super("cancelled before the engine ran it");
+    this.name = "EngineTaskCancelled";
+  }
+}
+
 /**
  * Serializes every engine entry point that touches renovate's stateful
  * modules through one queue, so e.g. a packageRules simulation (006) never
  * interleaves with a pipeline run.
+ *
+ * `signal` is checked once, at the moment the queue reaches the task — the
+ * only point where cancellation is both cheap and useful. Work already inside
+ * renovate's config modules is NOT interruptible (they are synchronous and
+ * hold module state), but a task that has been sitting in line while an
+ * earlier run finished should not start at all: with concurrent MCP handlers
+ * that is a cancelled call keeping every later question waiting.
  */
-export function enqueueEngineTask<T>(task: () => Promise<T>): Promise<T> {
-  const run = queue.then(() => task());
+export function enqueueEngineTask<T>(task: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+  const run = queue.then(() => {
+    if (signal?.aborted) {
+      throw new EngineTaskCancelled();
+    }
+    return task();
+  });
   queue = run.catch(() => undefined);
   return run;
 }
 
-export function runPipeline(input: PipelineInput): Promise<TraceResult> {
-  return enqueueEngineTask(() => execute(input));
+export function runPipeline(input: PipelineInput, signal?: AbortSignal): Promise<TraceResult> {
+  return enqueueEngineTask(() => execute(input), signal);
 }
 
 /**
