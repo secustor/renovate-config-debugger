@@ -47,11 +47,14 @@ describe("the Claude Code plugin hint (roadmap 060)", () => {
     }
   });
 
-  test("is withheld from `mcp`, which owns stdio for the whole session", async () => {
+  test("still reaches `mcp` — stderr is free, and the session-long process is the target", async () => {
     // Dispatch only — the hint is decided before the command runs, so the
-    // argv failure below is the cheapest way to reach that decision.
+    // argv failure below is the cheapest way to reach that decision. The
+    // server owns stdout; the hint is stderr-only, so the protocol stream
+    // was never at risk (roadmap 060 names `rcd mcp` as a deliberate target).
     const io = recordingIo({ env: { CLAUDECODE: "1" } });
     expect(await main(["mcp", "--dep", "{}"], io)).toBe(1);
-    expect(io.stderr).not.toContain(HINT_MARKER);
+    expect(io.stderr).toContain(HINT_MARKER);
+    expect(io.stdout).not.toContain("claude-code-hint");
   });
 });
