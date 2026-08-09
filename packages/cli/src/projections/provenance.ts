@@ -91,6 +91,40 @@ export function indexView(entry: KeyProvenance): ProvenanceIndexEntry {
   };
 }
 
+/**
+ * Roadmap 068 (2026-07 persona study, 2 of 9 sessions, plus the review):
+ * provenance answers "which LAYER set this option", and two personas read that
+ * as "this is the value Renovate will use". For any key a packageRule can also
+ * set, it is not: the layer chain produces the repository-wide value, and a
+ * rule then overrides it for the dependencies it matches. Both personas
+ * reported a static value as the effective one for an update it did not apply
+ * to.
+ *
+ * Cheap and exact: the key appears inside a rule of the run's OWN final
+ * `packageRules`, so the count is this config's, not Renovate's option
+ * metadata. The clauses of those rules are the simulator's business, which is
+ * what the note points at.
+ */
+export function perDependencyNote(
+  key: string,
+  finalConfig: Record<string, unknown> | undefined,
+): string | undefined {
+  if (key === "packageRules" || !Array.isArray(finalConfig?.packageRules)) {
+    return undefined;
+  }
+  const setters = finalConfig.packageRules.filter(
+    (rule) => rule !== null && typeof rule === "object" && key in rule,
+  ).length;
+  if (setters === 0) {
+    return undefined;
+  }
+  return (
+    `${setters} packageRule${setters === 1 ? "" : "s"} can set \`${key}\` per-dependency — this ` +
+    "chain is the repository-wide value. Simulate a dependency to see the value an actual " +
+    "update would get."
+  );
+}
+
 /** The run's provenance map, or a legible error explaining why there is none. */
 export function provenanceOf(result: TraceResult): Map<string, KeyProvenance> {
   const provenance = computeProvenance(result);

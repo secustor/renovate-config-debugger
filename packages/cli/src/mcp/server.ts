@@ -27,7 +27,13 @@ import { errorMessage, type CliIo } from "../io";
 import { buildRuleView, ruleFilterPayload } from "../rule-view";
 import { digestPayload } from "../projections/digest";
 import { describeMessage } from "../projections/messages";
-import { entryView, indexView, layerLabel, provenanceOf } from "../projections/provenance";
+import {
+  entryView,
+  indexView,
+  layerLabel,
+  perDependencyNote,
+  provenanceOf,
+} from "../projections/provenance";
 import {
   BODIES,
   type BodyKind,
@@ -47,9 +53,11 @@ import { type HeldRun, RunStore } from "./run-store";
  *
  * No new functionality — every tool below is a projection module the CLI
  * already uses — so the justification is purely interaction economics: the
- * module graph and the preset-fetch cache are paid once per session, and the
- * drill-down tools query a HELD run instead of re-running the pipeline (and a
- * fresh round of preset API calls) per question.
+ * engine boots once, and `run_config` HOLDS the trace so the drill-down tools
+ * query one consistent run instead of re-resolving (and re-fetching remote
+ * presets) per question. Only the module graph is amortized across runs;
+ * renovate's own preset cache is memCache, which the pipeline initializes and
+ * resets per run, so a SECOND `run_config` refetches everything.
  *
  * The tool descriptions carry the domain hints an agent would otherwise learn
  * the hard way — above all: preset-node bodies are large, query one node at a
@@ -125,18 +133,50 @@ function errorResult(err: unknown) {
 }
 
 /**
+ * The slice of the SDK's handler context this file reads. Narrow on purpose:
+ * a structural subset keeps the handlers assignable on both protocol eras.
+ */
+export interface ToolContext {
+  mcpReq: { signal: AbortSignal };
+}
+
+class CancelledError extends Error {
+  constructor() {
+    super("the client cancelled this request");
+  }
+}
+
+/**
+ * The client sent `notifications/cancelled`; the SDK aborted the signal and
+ * will drop whatever we answer.
+ *
+ * Checked twice — on entry, and again immediately before an engine call — for
+ * a reason the abort alone does not cover: engine work is SERIALIZED through
+ * one queue, so a cancelled call that still enqueues does not merely waste
+ * its own time, it holds up every question asked after it. Renovate's config
+ * modules are synchronous and stateful, so a run already inside them cannot be
+ * interrupted; not starting one is the whole of what is achievable.
+ */
+function throwIfCancelled(ctx: ToolContext | undefined): void {
+  if (ctx?.mcpReq.signal.aborted) {
+    throw new CancelledError();
+  }
+}
+
+/**
  * Every tool answers or explains itself; nothing throws across the wire.
  * `hint` names the narrowing to apply when this tool's answer is too large to
  * return whole (see `./result`).
  */
-function answer<Args extends unknown[]>(
+function answer<Args>(
   // `unknown` covers a promise too — every result is awaited below.
-  fn: (...args: Args) => unknown,
+  fn: (args: Args, ctx: ToolContext) => unknown,
   hint?: string,
-): (...args: Args) => Promise<ReturnType<typeof textResult>> {
-  return async (...args: Args) => {
+): (args: Args, ctx: ToolContext) => Promise<ReturnType<typeof textResult>> {
+  return async (args: Args, ctx: ToolContext) => {
     try {
-      return textResult(await fn(...args), hint);
+      throwIfCancelled(ctx);
+      return textResult(await fn(args, ctx), hint);
     } catch (err) {
       return errorResult(err);
     }
@@ -247,8 +287,52 @@ function finalConfigOf(run: HeldRun): Record<string, unknown> {
   return config;
 }
 
-function simulateRun(run: HeldRun, dep: DepInput): Promise<SimulationResult> {
-  return simulatePackageRules({ config: finalConfigOf(run), dep: toDependency(dep) });
+function simulateRun(run: HeldRun, dep: DepInput, ctx: ToolContext): Promise<SimulationResult> {
+  const input = { config: finalConfigOf(run), dep: toDependency(dep) };
+  throwIfCancelled(ctx);
+  return simulatePackageRules(input, ctx.mcpReq.signal);
+}
+
+/**
+ * H1 (roadmap 068, 6 of 9 persona sessions): what a simulate answer carries by
+ * default.
+ *
+ * Measured on `config:recommended` + a react update, the whole
+ * `SimulationResult` is 1.36 MB — of which `mergeSteps` is 797 kB (two
+ * elements, each a full config snapshot) and `rawFinalConfig` 199 kB. Those
+ * two answer "how did the merge proceed", a question nobody asked, and they
+ * drowned the one that was: the elision spent its budget on them and returned
+ * 2 of 713 rules, with the merge trace dropped whole anyway. Personas at every
+ * level asked for the same shape by hand — the matched rules, `flattened` and
+ * `finalDependencyConfig`.
+ *
+ * So the merge trace is opt-in. `full` is the old payload, unchanged, for the
+ * caller who is actually stepping through the merge.
+ */
+const SIMULATE_DETAIL = ["verdict", "full"] as const;
+type SimulateDetail = (typeof SIMULATE_DETAIL)[number];
+
+const VERDICT_DETAIL_NOTE =
+  "`mergeSteps` and `rawFinalConfig` are omitted at this detail level — on a `config:recommended` " +
+  'run they are ~1 MB of the payload and describe how the merge proceeded. Pass detail: "full" ' +
+  "for them.";
+
+/** The simulation, at the requested detail. Listed key by key rather than
+ *  subtracted from the result, so the default shape is legible here and a
+ *  future field has to be admitted on purpose. */
+function simulationPayload(sim: SimulationResult, detail: SimulateDetail) {
+  if (detail === "full") {
+    return sim;
+  }
+  return {
+    rules: sim.rules,
+    flattened: sim.flattened,
+    finalDependencyConfig: sim.finalDependencyConfig,
+    errors: sim.errors,
+    warnings: sim.warnings,
+    notes: sim.notes,
+    detailNote: VERDICT_DETAIL_NOTE,
+  };
 }
 
 function runSummary(run: HeldRun, notes: string[]) {
@@ -346,7 +430,12 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
           .string()
           .default("renovate.json")
           .describe("Drives format detection — renovate.json, renovate.json5, .renovaterc, …"),
-        content: z.string().describe("The config file's contents."),
+        content: z
+          .string()
+          .describe(
+            "The config file's contents, as a JSON *string* — the file's text, not the parsed " +
+              "object. Pass it exactly as written, comments and all; parsing it is this tool's job.",
+          ),
         globalConfig: z
           .record(z.string(), z.unknown())
           .optional()
@@ -359,7 +448,14 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
           .string()
           .optional()
           .describe("Platform context for `local>` presets. Defaults to github."),
-        endpoint: z.string().optional().describe("API endpoint for that platform."),
+        endpoint: z
+          .string()
+          .optional()
+          .describe(
+            "API endpoint for that platform. Setting it WITHHOLDS this server's host tokens " +
+              "unless you also set trustEndpoints — you are choosing where credentials would be " +
+              "sent, and the config under inspection is allowed to suggest an endpoint.",
+          ),
         platformOverride: z
           .boolean()
           .optional()
@@ -368,18 +464,23 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
           .boolean()
           .optional()
           .describe(
-            "Send host tokens even when the global config chooses the endpoint. Off by default: " +
-              "a config you did not write must not decide where your credentials go.",
+            "Send host tokens even when the global config — or this call's own `endpoint` — " +
+              "chooses where preset requests go. Off by default: neither a config you did not " +
+              "write nor a value you read out of one may decide where your credentials go.",
           ),
       }),
     },
-    answer(async (args) => {
+    answer(async (args, ctx) => {
       const { auth, notes } = resolveRunAuth(
         io.env,
         args.globalConfig,
         {
           trustEndpoints: args.trustEndpoints ?? false,
           platformOverride: args.platformOverride ?? false,
+          // The endpoint arrived as a tool PARAMETER: over MCP that is the
+          // model's choice, not the user's, and the model may have read it out
+          // of the config it is inspecting. Same guard, one layer earlier.
+          ...(args.endpoint ? { callerEndpoint: args.endpoint } : {}),
         },
         "mcp",
       );
@@ -397,7 +498,8 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         ...(args.endpoint ? { endpoint: args.endpoint } : {}),
         ...(args.platformOverride ? { platformOverride: true } : {}),
       };
-      const result: TraceResult = await runPipeline(input);
+      throwIfCancelled(ctx);
+      const result: TraceResult = await runPipeline(input, ctx.mcpReq.signal);
       return runSummary(store.put(result, input), notes);
     }),
   );
@@ -521,7 +623,12 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
               layer: layerLabel(attr.layer),
             }))
           : [];
-      return { ...entryView(entry), ...(rules.length > 0 ? { rules } : {}) };
+      const perDependency = perDependencyNote(key, result.finalConfig);
+      return {
+        ...entryView(entry),
+        ...(perDependency ? { note: perDependency } : {}),
+        ...(rules.length > 0 ? { rules } : {}),
+      };
     }, HINTS.provenance),
   );
 
@@ -563,31 +670,44 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       description:
         "Evaluates every packageRule of the run's effective config against one hypothetical " +
         "dependency update: a verdict per rule with clause-level evidence (which matcher fired, " +
-        "what it read), and the options the matching rules set for that dependency. " +
+        "what it read), the options the matching rules set for that dependency " +
+        "(`finalDependencyConfig`) and how they got there (`flattened`). " +
         "A `config:recommended` run has ~700 rules — `verdict` and `source` scope the list " +
-        '(`source: "repo"` is "just my own config\'s rules").',
+        '(`source: "repo"` is "just my own config\'s rules"). The step-by-step merge trace is ' +
+        'NOT included unless you ask for detail: "full"; it is the bulk of the payload.',
       annotations: HELD_RUN_ANNOTATIONS,
       inputSchema: z.strictObject({
         runId: RUN_ID,
         dep: DEP,
         verdict: RULE_VERDICT,
         source: RULE_SOURCE,
+        detail: z
+          .enum(SIMULATE_DETAIL)
+          .optional()
+          .describe(
+            '`verdict` (the default) answers "what matched and what does this dependency end up ' +
+              'with"; `full` adds `mergeSteps` and `rawFinalConfig` — ~1 MB on a ' +
+              "`config:recommended` run, so ask for it only when you are stepping through the " +
+              "merge itself.",
+          ),
       }),
     },
-    answer(async ({ runId, dep, verdict, source }) => {
+    answer(async ({ runId, dep, verdict, source, detail }, ctx) => {
       const run = store.get(runId);
-      const sim = await simulateRun(run, dep);
+      const sim = await simulateRun(run, dep, ctx);
+      const payload = simulationPayload(sim, detail ?? "verdict");
       if (verdict === undefined && source === undefined) {
-        return { dep: toDependency(dep), ...sim };
+        return { dep: toDependency(dep), ...payload };
       }
       const view = buildRuleView(sim, run.result, {
         verdict: verdict ?? "all",
         source: source ?? "all",
         explicit: true,
+        transport: "mcp",
       });
       return {
         dep: toDependency(dep),
-        ...sim,
+        ...payload,
         rules: view.rules,
         ...(view.notes.length > 0 ? { filterNotes: view.notes } : {}),
         ...ruleFilterPayload(view),
@@ -601,10 +721,10 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       title: "Did my edit change anything?",
       description:
         "The edit oracle. Run the config before your edit and the config after it, then compare " +
-        "the two runs against the same dependency — you get the rules that started or stopped " +
-        "matching and the key-level delta of the resulting config, or an explicit 'no behavioral " +
-        "change'. Pass runIdB to compare two configs, or depB to compare two dependencies " +
-        "against the same config.",
+        "the two runs against the same dependency — `summary` is the whole verdict in one line " +
+        "(`identical: …` / `differs: …`), with the rules that started or stopped matching and " +
+        "the key-level delta of the resulting config underneath it. Pass runIdB to compare two " +
+        "configs, or depB to compare two dependencies against the same config.",
       annotations: HELD_RUN_ANNOTATIONS,
       inputSchema: z.strictObject({
         runId: RUN_ID,
@@ -613,10 +733,13 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         depB: DEP.optional().describe("The B-side dependency. Defaults to dep."),
       }),
     },
-    answer(async ({ runId, dep, runIdB, depB }) => {
+    answer(async ({ runId, dep, runIdB, depB }, ctx) => {
       const a = store.get(runId);
       const b = runIdB ? store.get(runIdB) : a;
-      const [simA, simB] = await Promise.all([simulateRun(a, dep), simulateRun(b, depB ?? dep)]);
+      const [simA, simB] = await Promise.all([
+        simulateRun(a, dep, ctx),
+        simulateRun(b, depB ?? dep, ctx),
+      ]);
       return {
         a: { runId: a.runId, dep: toDependency(dep) },
         b: { runId: b.runId, dep: toDependency(depB ?? dep) },
@@ -690,7 +813,7 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         );
       }
       return { renovateVersion, ...doc, isContainer: index.containers.has(doc.name) };
-    }, "too many options matched — search for a longer substring."),
+    }, HINTS.optionDocs),
   );
 
   return server;
