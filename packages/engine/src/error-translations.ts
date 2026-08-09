@@ -396,8 +396,13 @@ const globalOnlyOption: ErrorTranslation = {
 // The structural reason: a `group:` preset's body is a `packageRules` ARRAY
 // (`group:jestMonorepo` is `{"packageRules":[{extends:["monorepo:jest"], …}]}`),
 // not a flat fragment of one rule. Merged into a single rule it becomes a
-// `packageRules` key nested inside a package rule, which Renovate never reads
-// — the group's matchers and `groupName` are silently dropped.
+// `packageRules` key nested inside a package rule — a shape no option owns.
+// Renovate's config MIGRATION then flattens it (each inner rule merged over
+// the outer one, re-run after preset resolution), so on current Renovate the
+// construct happens to behave scoped — by migration side-effect, not by
+// contract, and it duplicates the group rule `config:recommended` already
+// ships. See `simulate-package-rules.ts`'s docblock and the golden fidelity
+// tests before "correcting" this account.
 
 const GROUP_PRESET_RE = /^(.+?): you should not extend "group:" presets$/;
 
@@ -455,13 +460,14 @@ const groupPresetInPackageRule: ErrorTranslation = {
     return (
       `\`${path}\` extends a \`group:\` preset from inside a \`packageRules\` entry, and a ` +
       `\`group:\` preset's body is itself a \`packageRules\` array — not a flat fragment of one ` +
-      `rule. Resolving it therefore nests a \`packageRules\` key INSIDE a package rule. Renovate ` +
-      `matches a rule on that rule's own \`match*\` keys, and after the merge yours has none: the ` +
-      `group's matchers, its \`groupName\` and its \`matchUpdateTypes\` all sit one level down, ` +
-      `where the pass that just matched the rule doesn't read them. The rule matches EVERY ` +
-      `dependency and applies whatever else you put in it — an \`automerge: true\` meant for one ` +
-      `monorepo now applies to everything — and the grouping you asked for doesn't happen. ` +
-      `Write the group out inside the rule instead: extend the underlying ` +
+      `rule. Resolving it therefore nests a \`packageRules\` key INSIDE a package rule — a shape ` +
+      `no rule option owns. On current Renovate that still behaves: a config-migration pass ` +
+      `flattens the nested rules (each inner rule merged over your outer one) after preset ` +
+      `resolution, so the matchers and \`groupName\` do land. But it works by migration ` +
+      `side-effect, not by contract — hence the warning — and it adds a DUPLICATE of a group ` +
+      `rule \`config:recommended\` already ships, so every option you set rides on a second copy ` +
+      `of the same rule; a \`group:\` preset with several inner rules would clone your options ` +
+      `onto each of them. Write the group out inside the rule instead: extend the underlying ` +
       `\`monorepo:\`/\`packages:\` preset the group uses — those are pure match criteria and are ` +
       `safe inside a rule — or copy the group's matchers, then restate \`groupName\` and the ` +
       `group's own \`matchUpdateTypes\` alongside your own options. That last part is not ` +
