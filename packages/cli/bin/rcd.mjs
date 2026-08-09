@@ -41,4 +41,9 @@ if (!existsSync(fileURLToPath(bundle))) {
 }
 
 const { main } = await import(bundle.href);
-process.exit(await main(process.argv.slice(2), processIo()));
+
+// NOT `process.exit(code)`: on a pipe, stdout is asynchronous, and a hard exit
+// discards everything still queued — `rcd run … --format json | cat` used to
+// stop at the 64 KB pipe buffer and report success. Setting the code instead
+// answers with the same number and lets the loop drain the writes first.
+process.exitCode = await main(process.argv.slice(2), processIo());

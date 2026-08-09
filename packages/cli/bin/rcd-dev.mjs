@@ -24,12 +24,13 @@ const server = await createServer({
   server: { middlewareMode: true, hmr: false, watch: null },
 });
 
-let code = 1;
 try {
   const { main } = await server.ssrLoadModule("/src/main.ts");
-  code = await main(process.argv.slice(2), processIo());
+  // NOT `process.exit(code)`: on a pipe, stdout is asynchronous, and a hard
+  // exit discards everything still queued — `rcd run … --format json | cat`
+  // used to stop at the 64 KB pipe buffer and report success. Setting the code
+  // instead answers with the same number and lets the loop drain the writes.
+  process.exitCode = await main(process.argv.slice(2), processIo());
 } finally {
   await server.close();
 }
-
-process.exit(code);
