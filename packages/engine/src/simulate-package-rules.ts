@@ -288,8 +288,11 @@ const NOT_SIMULATED_NOTE =
   "not simulated — matchConfidence requires a Merge Confidence API token; " +
   "a real Renovate run without one throws instead of evaluating the rule";
 
-export function simulatePackageRules(input: SimulationInput): Promise<SimulationResult> {
-  return enqueueEngineTask(() => execute(input));
+export function simulatePackageRules(
+  input: SimulationInput,
+  signal?: AbortSignal,
+): Promise<SimulationResult> {
+  return enqueueEngineTask(() => execute(input), signal);
 }
 
 /**
