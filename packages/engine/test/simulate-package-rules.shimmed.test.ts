@@ -508,4 +508,45 @@ describe("simulatePackageRules", () => {
     expect(nothingMatched.rules[0]?.verdict).toBe("no-match");
     expect(nothingMatched.mergeSteps).toEqual([]);
   });
+
+  /**
+   * Roadmap 062: renovate 44.7.4's fetch worker does `dep.packageName ??=
+   * dep.depName` (`dist/workers/repository/process/fetch.js:21`, again at :37)
+   * long before packageRules are applied. Without mirroring it, a descriptor
+   * carrying only a depName made every `matchPackageNames` clause report
+   * `no-input` — a fact about this simulator, not about Renovate.
+   */
+  describe("the two name fields are cross-defaulted, as a real lookup does", () => {
+    const config = { packageRules: [{ matchPackageNames: ["lodash"], automerge: true }] };
+
+    it("packageName defaults from depName, and the run says so", async () => {
+      const result = await simulatePackageRules({
+        config,
+        dep: { ...npmDep, packageName: undefined, depName: "lodash" },
+      });
+      expect(result.rules[0]?.verdict).toBe("matched");
+      expect(result.rules[0]?.clauses[0]?.inputValues).toEqual({ packageName: "lodash" });
+      expect(result.notes).toContainEqual(
+        expect.stringContaining('packageName defaulted from depName ("lodash")'),
+      );
+    });
+
+    it("depName still defaults from packageName, and now says so too", async () => {
+      const result = await simulatePackageRules({ config, dep: npmDep });
+      expect(result.rules[0]?.verdict).toBe("matched");
+      expect(result.notes).toContainEqual(
+        expect.stringContaining('depName defaulted from packageName ("lodash")'),
+      );
+    });
+
+    it("neither field is overwritten when both are given", async () => {
+      const result = await simulatePackageRules({
+        config,
+        dep: { ...npmDep, packageName: "lodash", depName: "lodash-es" },
+      });
+      expect(result.notes.join(" ")).not.toContain("defaulted from");
+      expect(result.rawFinalConfig.depName).toBe("lodash-es");
+      expect(result.rawFinalConfig.packageName).toBe("lodash");
+    });
+  });
 });
