@@ -508,4 +508,34 @@ describe("simulatePackageRules", () => {
     expect(nothingMatched.rules[0]?.verdict).toBe("no-match");
     expect(nothingMatched.mergeSteps).toEqual([]);
   });
+
+  /**
+   * Shimmed twin of the `group:`-preset block in the golden test. A rule left
+   * shaped `{ packageRules: [inner], <options> }` — what `extends: ["group:…"]`
+   * inside a rule resolves to before Renovate's own migration flattens it — is
+   * treated by `applyPackageRules` as a matcher-less rule: it matches EVERY
+   * dependency, contributes only its top-level options, and the nested array is
+   * never descended into. The simulator neither hoists the inner body nor
+   * descends into it, so it stays oracle-identical here too.
+   */
+  it("treats a rule's nested packageRules as inert, like applyPackageRules (oracle parity)", async () => {
+    const config = {
+      groupSlug: "pre-existing",
+      packageRules: [
+        {
+          minimumGroupSize: 5,
+          packageRules: [{ matchPackageNames: ["react"], groupName: "react monorepo" }],
+        },
+      ],
+    };
+    // npmDep is `lodash` — the nested rule's matcher would exclude it if the
+    // simulator hoisted, and upstream matches it anyway.
+    const simulated = await simulatePackageRules({ config, dep: npmDep });
+    const oracle = await applyPackageRules(oracleInput(config, npmDep));
+    expect(simulated.rawFinalConfig).toEqual(oracle);
+    expect(simulated.rules[0]?.verdict).toBe("matched");
+    expect(simulated.rules[0]?.clauses).toEqual([]);
+    expect(simulated.finalDependencyConfig.minimumGroupSize).toBe(5);
+    expect(simulated.finalDependencyConfig.groupName).toBeUndefined();
+  });
 });

@@ -34,6 +34,18 @@ import type { ValidationMessage } from "./trace/model";
  * token and upstream THROWS without one, so rules containing it are reported
  * as "not-simulated" instead of being decided — mirroring that a real run
  * would abort rather than silently match or skip.
+ *
+ * A rule carrying a NESTED `packageRules` array (what `extends: ["group:…"]`
+ * inside a rule resolves to) is treated exactly as `applyPackageRules` treats
+ * it: the nested array is inert — it is neither descended into for matching nor
+ * hoisted into the outer rule — and a rule with no top-level `match*` clause
+ * matches every dependency, because upstream `matchesRule` skips every matcher
+ * that returns null and then returns true. The hoisting a resolved config
+ * usually shows is Renovate's OWN, applied earlier: `migrateConfig`'s flatten
+ * block, which `pipeline.ts` runs on the resolved config in the same position
+ * upstream `mergeRenovateConfig` does. Do not replicate it here — that would
+ * double-apply it. See the `group:`-preset block in
+ * test/simulate-package-rules.node.test.ts.
  */
 
 /** Everything the 18 matchers can read about a hypothetical dependency update. */

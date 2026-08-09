@@ -8,7 +8,8 @@ import { mergeChildConfig } from "renovate/dist/config/utils.js";
 import { applyPackageRules } from "renovate/dist/util/package-rules/index.js";
 import { describe, expect, it } from "vitest";
 import type { DependencyDescriptor } from "../src/index";
-import { simulatePackageRules } from "../src/index";
+import { runPipeline, simulatePackageRules } from "../src/index";
+import { must } from "./helpers";
 
 const UPDATE_TYPE_KEYS = [
   "major",
@@ -125,5 +126,148 @@ describe("simulatePackageRules (golden)", () => {
     expect(simulated.rawFinalConfig).toEqual(oracle);
     expect(simulated.rules.map((r) => r.verdict)).toEqual(["no-match", "matched", "matched"]);
     expect(oracle.automerge).toBe(true);
+  });
+});
+
+/**
+ * `extends: ["group:…"]` INSIDE a packageRules entry — the construct Renovate's
+ * validator warns about (`you should not extend "group:" presets`). Preset
+ * resolution leaves the rule shaped `{ packageRules: [innerGroupRule],
+ * <userOptions> }`, i.e. a rule whose only matcher-carrying content sits one
+ * level down, and it has been claimed that the visualizer "hoists" that inner
+ * body where a real run would ignore it. It does not — the flattening is
+ * Renovate's own, and these tests pin both halves of why with real
+ * `applyPackageRules` as the oracle:
+ *
+ * 1. A real repo run never reaches `applyPackageRules` with the nested shape.
+ *    Upstream `mergeRenovateConfig` re-migrates the RESOLVED config ("Resolved
+ *    config needs migrating"), and `migrateConfig`'s own flatten block
+ *    (`mergeChildConfig(packageRule, subrule)` + `delete
+ *    combinedRule.packageRules`) merges every nested rule into its parent.
+ *    `pipeline.ts` runs that same second migration in the same position, so the
+ *    effective config the simulator is handed is already flattened — by
+ *    Renovate's code, not by the simulator's.
+ * 2. Should such a rule reach the simulator anyway (an effective config that
+ *    never went through migration), the simulator still reproduces upstream
+ *    exactly: with no top-level `match*` clause `matchesRule` returns true for
+ *    EVERY dependency (every matcher returns null and is skipped), only the
+ *    rule's own top-level options merge, and the nested `packageRules` array is
+ *    inert for matching — `applyPackageRules` iterates the snapshot it was
+ *    handed and never descends into it.
+ */
+describe("simulatePackageRules with a `group:` preset extended inside a rule (golden)", () => {
+  const brokenConfig = JSON.stringify({
+    $schema: "https://docs.renovatebot.com/renovate-schema.json",
+    extends: ["config:recommended"],
+    packageRules: [{ extends: ["group:jacksonMonorepo"], minimumGroupSize: 5 }],
+  });
+
+  /** In the extended group. */
+  const jacksonDep: DependencyDescriptor = {
+    manager: "gradle",
+    datasource: "maven",
+    packageName: "com.fasterxml.jackson.core:jackson-databind",
+    sourceUrl: "https://github.com/FasterXML/jackson-databind",
+    currentValue: "2.15.0",
+    newValue: "2.16.0",
+    updateType: "minor",
+  };
+  /** Not in the extended group — the misconfiguration's blast radius, if any. */
+  const reactDep: DependencyDescriptor = {
+    manager: "npm",
+    datasource: "npm",
+    packageName: "react",
+    sourceUrl: "https://github.com/facebook/react",
+    currentValue: "17.0.0",
+    newValue: "18.0.0",
+    updateType: "major",
+  };
+
+  async function resolveBroken(): Promise<Record<string, unknown>> {
+    const run = await runPipeline({ fileName: "renovate.json", content: brokenConfig });
+    expect(run.stageStatus.preset).toBe("ok");
+    return must(run.finalConfig, "a resolved effective config");
+  }
+
+  it("resolves to a FLATTENED rule — upstream's post-preset re-migration, plus the validator's warning", async () => {
+    const run = await runPipeline({ fileName: "renovate.json", content: brokenConfig });
+    expect(run.warnings).toContainEqual({
+      topic: "Configuration Warning",
+      message: 'packageRules[0].extends: you should not extend "group:" presets',
+    });
+    const config = must(run.finalConfig, "a resolved effective config");
+    const rules = config.packageRules;
+    if (!Array.isArray(rules)) {
+      throw new Error("expected the resolved config to carry packageRules");
+    }
+    const objectRules = rules.filter(
+      (rule): rule is Record<string, unknown> =>
+        typeof rule === "object" && rule !== null && !Array.isArray(rule),
+    );
+    // Nothing survives nested: migrateConfig's flatten block ran on the
+    // resolved config, exactly as mergeRenovateConfig does upstream.
+    expect(objectRules.some((rule) => "packageRules" in rule)).toBe(false);
+    const authored = objectRules.filter((rule) => rule.minimumGroupSize === 5);
+    expect(authored).toHaveLength(1);
+    const flattened = must(authored[0], "the flattened jackson rule");
+    // The group preset's body is IN the rule now — matchers and groupName both.
+    expect(flattened.groupName).toBe("jackson monorepo");
+    expect(flattened.matchSourceUrls).toContain("https://github.com/FasterXML/jackson-databind");
+  });
+
+  it("agrees with real applyPackageRules for an in-group and an unrelated dependency", async () => {
+    const config = await resolveBroken();
+    for (const dep of [jacksonDep, reactDep]) {
+      const oracle = await applyPackageRules({ ...config, ...dep, depName: dep.packageName });
+      const simulated = await simulatePackageRules({ config, dep });
+      expect(simulated.rawFinalConfig).toEqual(oracle);
+    }
+    // The scoping is real, not a simulator artifact: only the jackson dep picks
+    // up the rule's option, so the misconfiguration has no global blast radius.
+    const jacksonOracle = await applyPackageRules({
+      ...config,
+      ...jacksonDep,
+      depName: jacksonDep.packageName,
+    });
+    const reactOracle = await applyPackageRules({
+      ...config,
+      ...reactDep,
+      depName: reactDep.packageName,
+    });
+    expect(jacksonOracle.minimumGroupSize).toBe(5);
+    expect(reactOracle.minimumGroupSize).not.toBe(5);
+  });
+
+  it("stays oracle-faithful when a nested rule reaches it un-migrated: match-all, nested array inert", async () => {
+    const config = {
+      groupSlug: "pre-existing",
+      packageRules: [
+        {
+          minimumGroupSize: 5,
+          packageRules: [
+            {
+              matchSourceUrls: ["https://github.com/FasterXML/jackson-databind"],
+              groupName: "jackson monorepo",
+            },
+          ],
+        },
+      ],
+    };
+    for (const dep of [jacksonDep, reactDep]) {
+      const oracle = await applyPackageRules({ ...config, ...dep, depName: dep.packageName });
+      const simulated = await simulatePackageRules({ config, dep });
+      expect(simulated.rawFinalConfig).toEqual(oracle);
+      const rule = must(simulated.rules[0], "the nested rule's evaluation");
+      // No top-level match* clause at all — so nothing to report, and upstream
+      // matches every dependency.
+      expect(rule.clauses).toEqual([]);
+      expect(rule.verdict).toBe("matched");
+      // The nested body is NOT hoisted by either side: the outer option applies
+      // and the inner rule's groupName never lands.
+      expect(oracle.minimumGroupSize).toBe(5);
+      expect(oracle.groupName).toBeUndefined();
+      expect(simulated.finalDependencyConfig.minimumGroupSize).toBe(5);
+      expect(simulated.finalDependencyConfig.groupName).toBeUndefined();
+    }
   });
 });
