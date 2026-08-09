@@ -18,6 +18,15 @@ export interface CliIo {
   env: Readonly<Record<string, string | undefined>>;
   /** Reads stdin to completion (only called for `--stdin`). */
   readStdin(): Promise<string>;
+  /**
+   * Calls back once when the stdio peer goes away — stdin EOF, or a shutdown
+   * signal — and returns the disposer that unregisters it. Optional because
+   * only a bin can observe that, and only `rcd mcp` needs to: the MCP SDK's
+   * stdio transport never reports a closed pipe of its own accord. The
+   * disposer must be called once the wait is over, however it ended: the
+   * listeners behind it hold the process open.
+   */
+  onDisconnect?(callback: () => void): () => void;
 }
 
 /** Renovate accepted the config and the command answered its question. */

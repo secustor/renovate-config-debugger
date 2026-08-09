@@ -11,8 +11,8 @@ import { createMcpServer } from "../mcp/server";
  * protocol. Diagnostics go to stderr, which is why the server takes `io` and
  * uses only `io.err`.
  *
- * The process stays alive until the client closes the transport, so this
- * command returns only when the session ends.
+ * The process stays alive until the client goes away, so this command returns
+ * only when the session ends.
  */
 export const mcpCommand: Command = {
   name: "mcp",
@@ -32,12 +32,25 @@ export const mcpCommand: Command = {
     const transport = new StdioServerTransport();
     await server.connect(transport);
     io.err("rcd: MCP server ready on stdio.\n");
-    await new Promise<void>((resolve) => {
-      // MCP's Transport is not an EventTarget: `onclose` is the SDK's own
-      // callback property, and this is its only consumer in this process.
-      // oxlint-disable-next-line unicorn/prefer-add-event-listener -- see above
-      transport.onclose = () => resolve();
-    });
+    // Two ways a session ends, and the SDK only reports one of them: its stdio
+    // transport listens for `data` and `error`, so a client that closes the
+    // pipe reaches `io.onDisconnect` and never `transport.onclose`. Whichever
+    // arrives first ends the wait.
+    let disposeDisconnect: (() => void) | undefined;
+    try {
+      await new Promise<void>((resolve) => {
+        // MCP's Transport is not an EventTarget: `onclose` is the SDK's own
+        // callback property, and this is its only consumer in this process.
+        // oxlint-disable-next-line unicorn/prefer-add-event-listener -- see above
+        transport.onclose = () => resolve();
+        disposeDisconnect = io.onDisconnect?.(resolve);
+      });
+    } finally {
+      disposeDisconnect?.();
+    }
+    // Flushes whatever the transport still owes and drops its stdin listeners,
+    // so the process can reach its own exit rather than being killed at one.
+    await server.close();
     return EXIT_OK;
   },
 };

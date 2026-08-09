@@ -17,5 +17,35 @@ export function processIo() {
       }
       return Buffer.concat(chunks).toString("utf8");
     },
+    onDisconnect,
   };
+}
+
+/**
+ * The stdio peer going away, as an event `src/` can observe without touching a
+ * process global. Only `rcd mcp` needs it: the MCP SDK's stdio transport
+ * listens for `data` and `error` only, so a client that closes the pipe never
+ * reaches `transport.onclose` and the command would wait forever.
+ *
+ * Registration is per call and never eager — a SIGINT/SIGTERM listener is a
+ * libuv handle that refs the loop, so a command that does not ask to be told
+ * must not pay for one. Returns the disposer that takes them all back off,
+ * which the caller runs once the wait is over however it ended.
+ */
+function onDisconnect(callback) {
+  const off = () => {
+    process.stdin.off("end", fire);
+    process.stdin.off("close", fire);
+    process.off("SIGINT", fire);
+    process.off("SIGTERM", fire);
+  };
+  const fire = () => {
+    off();
+    callback();
+  };
+  process.stdin.on("end", fire);
+  process.stdin.on("close", fire);
+  process.on("SIGINT", fire);
+  process.on("SIGTERM", fire);
+  return off;
 }
