@@ -14,9 +14,11 @@ import { CliError } from "../io";
  * different worlds if a remote preset changed between them, two `{runId}`
  * lookups cannot.
  *
- * Small on purpose. A debugging session works on one config at a time; the
- * older entries exist so an agent can compare the run before its edit with the
- * run after it.
+ * Small on purpose, and measured. A `config:recommended` trace costs ~165 MB
+ * of heap, so the old limit of 8 held ~1.4 GB in a long session — in a process
+ * the host keeps alive for as long as the agent is working. A debugging
+ * session works on one config at a time and the documented before/after oracle
+ * needs two, so three is the whole requirement plus one.
  */
 
 export interface HeldRun {
@@ -27,7 +29,25 @@ export interface HeldRun {
   facts: RunFacts;
 }
 
-export const DEFAULT_RUN_LIMIT = 8;
+export const DEFAULT_RUN_LIMIT = 3;
+
+/**
+ * The held copy, without the logger shim's raw `log` events.
+ *
+ * Measured on a `config:recommended` run: 76.1 MB of events, 74.8 MB of it
+ * `kind: "log"` — and NOTHING on the MCP path reads them. The trace's own
+ * derivations index `stage-complete`, `migration-applied` and `preset-error`;
+ * the preset tree, the provenance replay and the resolved-config projection
+ * read no events at all. `rcd run --slice events` does print them, but that is
+ * the CLI's own one-shot path, which never touches this store.
+ *
+ * A COPY, never a mutation: the caller still holds the result it handed over,
+ * and a store is no place to decide what that caller may still look at.
+ */
+function heldTrace(result: TraceResult): TraceResult {
+  const events = result.events.filter((event) => event.kind !== "log");
+  return events.length === result.events.length ? result : { ...result, events };
+}
 
 export class RunStore {
   readonly #runs = new Map<string, HeldRun>();
@@ -40,11 +60,12 @@ export class RunStore {
 
   put(result: TraceResult, input: PipelineInput): HeldRun {
     this.#counter += 1;
+    const held = heldTrace(result);
     const run: HeldRun = {
       runId: `run-${this.#counter}`,
-      result,
+      result: held,
       input,
-      facts: deriveRunFacts(result),
+      facts: deriveRunFacts(held),
     };
     this.#runs.set(run.runId, run);
     // Map iterates in insertion order, so the first key is the oldest.
