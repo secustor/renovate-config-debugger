@@ -73,6 +73,7 @@ $ rcd tree renovate.json --node "config:best-practices" --body resolved
 $ rcd provenance renovate.json labels
 $ rcd resolved renovate.json --mode full
 $ rcd simulate renovate.json --dep '{"depName":"react","currentValue":"17.0.0","newValue":"18.0.0"}'
+$ rcd simulate renovate.json --dep '{"depName":"react"}' --verdict matched --source repo
 $ rcd compare before.json after.json --dep '{"depName":"react"}'
 $ rcd docs minimumReleaseAge
 $ echo '{"extends":["config:recommended"]}' | rcd run --stdin --format json --select status
@@ -89,6 +90,44 @@ A file path, `--stdin` (with `--file-name` for format detection), or
 layers are `--global-config <file>` and `--inherited <file>`; a preset no
 fetcher can reach can be supplied by hand with
 `--inject 'github>org/repo=./preset.json'`.
+
+### `simulate` and `compare`
+
+Both take the hypothetical update as `--dep <json>` (or `--dep-file`). Only the
+fields you set are set — except the two name fields, which are cross-defaulted
+the way Renovate's fetch worker does before packageRules run
+(`dep.packageName ??= dep.depName`), so `--dep '{"depName":"react"}'` matches a
+`matchPackageNames` rule instead of reporting it as `no-input`. The run's notes
+say when a field was defaulted.
+
+A `config:best-practices` config resolves to hundreds of rules, so `simulate`
+scopes its pretty output:
+
+| flag                                         | effect                                                        |
+| -------------------------------------------- | ------------------------------------------------------------- |
+| `--verdict notable` (pretty default)         | matched + unresolved — everything except a plain no-match     |
+| `--verdict all\|matched\|no-input\|no-match` | one verdict; `no-input` is a rule that lost to an unset field |
+| `--source repo\|presets\|all`                | which config level contributed the rule (default `all`)       |
+
+Nothing is truncated silently: a filtered list ends with `N of M rules hidden
+by … — `--verdict all --source all` shows every rule`. `--format json` keeps the
+FULL `rules` array unless you pass one of the flags, and when you do it adds a
+`ruleFilter` object with `total`/`shown`/`hidden`.
+
+`compare` reports two axes, because they answer different questions:
+
+- **behavior** — `noChange`, plus `behaviorOnlyInA`/`behaviorOnlyInB` and
+  `configDelta`. This is the citable claim: the resulting per-dependency config
+  is identical and no rule started or stopped doing something.
+- **rule identity** — `rulesChanged` and `signatureChanges`. Removing an entry
+  from the very array a rule matches on always rewrites that rule's selector
+  text, so this goes true on edits that provably change nothing. It is reported,
+  not headlined.
+
+If either input config would be refused by Renovate, both commands exit `2` —
+which says nothing about the simulation or the comparison. They now say so on
+their own output (`exitNote` in JSON, a trailing `note:` line in pretty), so the
+exit code never has to be guessed at.
 
 ### Exit codes
 
