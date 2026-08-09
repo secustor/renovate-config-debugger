@@ -319,3 +319,26 @@ export async function runFromArgs(args: ParsedArgs, io: CliIo): Promise<RunOutco
 export function wouldRefuse(result: TraceResult): boolean {
   return result.stageStatus.validate === "error" || result.stageStatus.parse === "error";
 }
+
+/**
+ * Roadmap 062 (2026-07 persona study): `simulate`/`compare` exit 2 whenever an
+ * INPUT config would be refused — which says nothing about the simulation or
+ * the comparison those commands just answered. Two personas hit the bare `2`
+ * with no hint in the output; one ran a control experiment to work out where it
+ * came from. So every command whose exit code can be 2 for a reason other than
+ * its own answer says which input caused it, in words, on the same output.
+ *
+ * The exit-code contract itself is untouched (0/1/2 is documented and
+ * hook-relied-upon) — this is the missing explanation, not a new behavior.
+ */
+export function refusalNote(refused: readonly string[]): string | undefined {
+  if (refused.length === 0) {
+    return undefined;
+  }
+  const subject = refused.length === 1 ? refused[0] : refused.join(" and ");
+  const verb = refused.length === 1 ? "would be" : "would both be";
+  return (
+    `note: ${subject} ${verb} refused by Renovate (the parse or validate stage failed) — ` +
+    "exit code 2 reflects that, not this command's answer. `rcd validate` lists the messages."
+  );
+}
