@@ -28,6 +28,23 @@ function descriptorDiffKeys(a: DependencyDescriptor, b: DependencyDescriptor): s
   return diffs.toSorted();
 }
 
+/**
+ * Roadmap 062: the no-change verdict is about BEHAVIOR — the resulting config
+ * and what every rule did. When a selector's text moved too (the unavoidable
+ * side effect of editing the array a rule matches on), the sentence says so,
+ * so the reader is not left wondering whether the panel noticed their edit.
+ */
+function noChangeText(comparison: SimulationComparison): string {
+  if (comparison.rulesChanged) {
+    return (
+      "No behavioral change — the final per-dependency config is identical in A and B, and every " +
+      "rule still does what it did. A rule's pattern text changed, which is expected when the " +
+      "edit is to the array that rule matches on."
+    );
+  }
+  return "No behavioral change — the matched rules and the final per-dependency config are identical in A and B.";
+}
+
 /** Roadmap 021: one column ("A (pinned)" / "B (current)") of the A/B input
  *  descriptor comparison — every field the simulator actually sent the
  *  engine, with the fields that differ from the other column called out. */
@@ -207,21 +224,18 @@ export function ComparisonPanel({
           simulate to compare it against <strong>B</strong>.
         </p>
       ) : comparison.noChange ? (
-        <p className="sim-compare-nochange">
-          No behavioral change — the matched rules and the final per-dependency config are identical
-          in A and B.
-        </p>
+        <p className="sim-compare-nochange">{noChangeText(comparison)}</p>
       ) : (
         <>
           <div className="sim-compare-rules">
             <RuleDeltaList
               title="Only in A (stopped matching)"
-              refs={comparison.matchedOnlyInA}
+              refs={comparison.behaviorOnlyInA}
               kind="only-a"
             />
             <RuleDeltaList
               title="Only in B (now matching)"
-              refs={comparison.matchedOnlyInB}
+              refs={comparison.behaviorOnlyInB}
               kind="only-b"
             />
             <RuleDeltaList title="Matched in both" refs={comparison.matchedInBoth} kind="both" />
