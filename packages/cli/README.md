@@ -199,6 +199,25 @@ The server holds a small number of recent runs (an LRU), so an agent can
 compare the run before an edit with the run after it. A `runId` that has been
 evicted says so, and lists the ones still held.
 
+Three properties the tools guarantee, because an agent cannot check them:
+
+- **Every answer fits.** A tool result is capped at ~100 kB. Over that it is
+  elided _structurally_ — the largest arrays lose their tail, the omission is a
+  `{ "truncated": true, "shown": …, "omitted": … }` object in place, and the
+  top of the document names the parameter that narrows the question. Nothing is
+  ever cut mid-JSON, and nothing is dropped silently. Small answers are
+  indented for the transcript; large ones are compact, because indentation on
+  100 kB is pure token overhead.
+- **Unknown parameters are errors.** Every input schema is strict, including
+  `dep` — `depname` is a validation error naming the key, not a simulation
+  where no matcher had any input.
+- **Credentials belong to one run.** Tool handlers run concurrently, so the
+  credentials a run may use travel on that run's pipeline input and are
+  installed inside the engine's serialized queue. A run whose global config
+  chose the endpoint sends no token, whatever a concurrent trusted run is
+  doing. On this transport the opt-ins are the `platformOverride` and
+  `trustEndpoints` parameters (the flags of the same name are the CLI's).
+
 ## Two bins
 
 | bin               | what it runs                                     | who uses it                         |
