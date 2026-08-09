@@ -2,11 +2,10 @@
  * The one JSON document every MCP tool answers with — and its size budget.
  *
  * Two economics, one module. A model consumer pays for every byte, and the
- * host truncates what it cannot fit (Claude Code caps tool output at 25k
- * tokens by default), so:
+ * host truncates what it cannot fit, so:
  *
  * - small answers are pretty-printed, because a human reads them in the
- *   transcript; large ones are compact, because indentation on a 100 kB
+ *   transcript; large ones are compact, because indentation on a 60 kB
  *   payload is pure token overhead;
  * - an answer that would blow the budget is elided STRUCTURALLY — never cut
  *   mid-JSON — and says so, with the parameter that narrows the question.
@@ -17,8 +16,25 @@
 /** Above this, indentation stops paying for itself. */
 const PRETTY_LIMIT_BYTES = 4_000;
 
-/** The most any single tool result may carry. */
-export const RESULT_BUDGET_BYTES = 100_000;
+/** Claude Code's default cap on a tool result, in tokens; the hosts that
+ *  publish a number are all in this range. */
+const HOST_TOKEN_CAP = 25_000;
+
+/** Compact JSON of this shape measures out at roughly three bytes to the
+ *  token — identifiers and punctuation tokenize worse than prose. */
+const BYTES_PER_TOKEN = 3;
+
+/**
+ * The most any single tool result may carry: the host's own cap, with head
+ * room for the transport framing around the payload and for a tokenizer that
+ * does worse than the average on a given answer.
+ *
+ * DERIVED, not picked. A budget above the host's cap defeats the one guarantee
+ * this module makes — the host truncates the overflow mid-JSON, and an agent
+ * is left holding a document it cannot parse, from a module that promised it
+ * never would.
+ */
+export const RESULT_BUDGET_BYTES = Math.round(HOST_TOKEN_CAP * BYTES_PER_TOKEN * 0.87);
 
 /** Elide to slightly under, so the wrapper keys still fit. */
 const ELISION_TARGET_BYTES = RESULT_BUDGET_BYTES - 2_000;
@@ -28,6 +44,27 @@ const MAX_ELISION_ROUNDS = 500;
 const DEFAULT_HINT =
   "this answer was elided to fit the tool-output budget — ask a narrower question " +
   "(one key, one node, a smaller depth) and call again.";
+
+/**
+ * What an elided array LOOKS like, said once and appended to whichever hint
+ * the tool supplied. A model that meets `{truncated, shown, omitted, …}`
+ * without being told what it is reads it as data the config contained.
+ */
+const ELIDED_ARRAY_SHAPE =
+  "An elided array is replaced by `{truncated, shown, omitted, omittedFrom, items}`: `items` " +
+  "holds the FIRST and the LAST elements of the original array, `omitted` counts the ones " +
+  "dropped between them, and `omittedFrom` is the index in `items` where they were.";
+
+/** How much of a shrinking array's allowance the TAIL window may claim. */
+const TAIL_SHARE = 0.25;
+
+/** What one array lost, across every round that shrank it. */
+interface Elision {
+  /** Elements dropped in total. */
+  omitted: number;
+  /** Where the gap sits among the elements that remain. */
+  from: number;
+}
 
 function byteLength(text: string): number {
   return new TextEncoder().encode(text).length;
@@ -70,11 +107,19 @@ function largestArray(value: unknown, skip: Set<unknown[]>): unknown[] | null {
 
 /** Rewrites every shortened array into a self-describing wrapper, so the
  *  omission is a fact in the document rather than a missing element. */
-function applyElisions(value: unknown, elided: Map<unknown[], number>): unknown {
+function applyElisions(value: unknown, elided: Map<unknown[], Elision>): unknown {
   if (Array.isArray(value)) {
     const items = value.map((item) => applyElisions(item, elided));
-    const omitted = elided.get(value);
-    return omitted ? { truncated: true, shown: items.length, omitted, items } : items;
+    const elision = elided.get(value);
+    return elision
+      ? {
+          truncated: true,
+          shown: items.length,
+          omitted: elision.omitted,
+          omittedFrom: elision.from,
+          items,
+        }
+      : items;
   }
   if (isRecord(value)) {
     return Object.fromEntries(
@@ -108,41 +153,88 @@ function dropLargestKeys(payload: Record<string, unknown>): string[] {
   return dropped;
 }
 
+/** Everything but the first element, so the next round can work inside it. */
+function collapseToFirst(array: unknown[]): Elision | null {
+  const removed = array.length - 1;
+  if (removed <= 0) {
+    return null;
+  }
+  array.splice(1, removed);
+  return { omitted: removed, from: 1 };
+}
+
 /**
- * Keeps the longest leading run of elements that fits in `allowance`, and at
- * least one — the shape of an answer is part of the answer.
+ * Keeps a HEAD window and a TAIL window of the array — as much of each as
+ * `allowance` affords — and removes the span between them. Returns null when
+ * the array has nothing to give back.
  *
- * Measured, not counted: an array's bytes are never spread evenly across it,
- * so "keep half" either throws away a document to save nothing (a preset
- * tree's fat child is last) or saves nothing at all (it is first). Returns how
- * many elements went.
+ * Two properties earn the bookkeeping:
+ *
+ * - Measured, not counted. An array's bytes are never spread evenly across it,
+ *   so "keep half" either throws away a document to save nothing (a preset
+ *   tree's fat child is last) or saves nothing at all (it is first).
+ * - A tail window AT ALL, because relevance is not spread evenly either. A
+ *   merged `packageRules` array is the presets' rules first and the repo's OWN
+ *   rules last, so a head-only truncation drops precisely the rules the person
+ *   asking wrote — `get_resolved_config` kept rules 0–329 of 714 and lost the
+ *   caller's own rule at index 713, with no parameter that could ask for it.
  */
-function shrinkArray(array: unknown[], allowance: number): number {
+function shrinkArray(array: unknown[], allowance: number): Elision | null {
+  const sizes = array.map((item) => byteLength(stringify(item)) + 1);
+  const first = sizes[0] ?? 0;
+
+  if (sizes.some((size) => size > allowance)) {
+    // An element that alone blows the whole allowance IS the answer — a preset
+    // tree is one enormous child next to a dozen small ones. Truncating AROUND
+    // it returns the leaves and drops the trunk, so this array gives nothing
+    // back and the next round elides INSIDE the big element instead.
+    //
+    // Unless the allowance will not even cover the array's FIRST element: then
+    // nothing here fits, and "give nothing back" is how the pass stalls —
+    // `removed === 0` marks the array exhausted, no array can shrink, and the
+    // blunt key-dropping below inherits the whole problem. That is how a
+    // simulate answer came back holding 2 of 713 rules and no merge trace at
+    // all, on a third of the budget. One element is the honest floor.
+    return allowance >= first ? null : collapseToFirst(array);
+  }
+
+  const last = array.length - 1;
+  // The tail is measured first, so a long head cannot eat the room it needs.
+  const tailAllowance = Math.max(0, Math.floor(allowance * TAIL_SHARE));
   let used = 0;
-  let keep = 0;
-  for (const item of array) {
-    const size = byteLength(stringify(item)) + 1;
-    if (keep > 0 && used + size > allowance) {
-      // An element that alone blows the whole allowance IS the answer — a
-      // preset tree is one enormous child next to a dozen small ones. Keep it
-      // and let the next round elide inside it, rather than returning the
-      // twelve leaves and dropping the trunk.
-      if (size > allowance) {
-        keep += 1;
-      }
+  let tail = 0;
+  while (tail < last) {
+    const size = sizes[last - tail] ?? 0;
+    if (used + size > tailAllowance) {
       break;
     }
     used += size;
-    keep += 1;
+    tail += 1;
   }
-  const removed = array.length - keep;
-  array.length = keep;
-  return removed;
+
+  let head = 0;
+  while (head < array.length - tail) {
+    const size = sizes[head] ?? 0;
+    // The first element is always kept: the shape of an answer is part of the
+    // answer.
+    if (head > 0 && used + size > allowance) {
+      break;
+    }
+    used += size;
+    head += 1;
+  }
+
+  const removed = array.length - head - tail;
+  if (removed <= 0) {
+    return null;
+  }
+  array.splice(head, removed);
+  return { omitted: removed, from: head };
 }
 
 function elideToBudget(compact: string, hint: string | undefined): Record<string, unknown> {
   const clone = JSON.parse(compact) as unknown;
-  const elided = new Map<unknown[], number>();
+  const elided = new Map<unknown[], Elision>();
   // Arrays that cannot give anything back — one oversized element is all they
   // hold. The next round looks inside it instead.
   const exhausted = new Set<unknown[]>();
@@ -157,19 +249,23 @@ function elideToBudget(compact: string, hint: string | undefined): Record<string
     }
     // What this array may still weigh once the payload fits.
     const allowance = byteLength(stringify(largest)) - (size - ELISION_TARGET_BYTES);
-    const removed = shrinkArray(largest, allowance);
-    if (removed === 0) {
+    const shrunk = shrinkArray(largest, allowance);
+    if (!shrunk) {
       exhausted.add(largest);
       continue;
     }
-    elided.set(largest, (elided.get(largest) ?? 0) + removed);
+    const before = elided.get(largest);
+    // `from` is an index into what REMAINS, so the latest round's is the one
+    // that describes the array a caller reads; the counts accumulate.
+    elided.set(largest, { omitted: (before?.omitted ?? 0) + shrunk.omitted, from: shrunk.from });
   }
   const body = applyElisions(clone, elided);
   const payload = isRecord(body) ? { ...body } : { result: body };
   const droppedKeys = dropLargestKeys(payload);
+  const base = hint ?? DEFAULT_HINT;
   return {
     truncated: true,
-    hint: hint ?? DEFAULT_HINT,
+    hint: elided.size > 0 ? `${base} ${ELIDED_ARRAY_SHAPE}` : base,
     ...(droppedKeys.length > 0 ? { omittedKeys: droppedKeys } : {}),
     ...payload,
   };
