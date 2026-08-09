@@ -46,7 +46,8 @@
     "test:bundle": "vitest run --project bundle"
   },
   "devDependencies": {
-    "@modelcontextprotocol/sdk": "1.30.0",
+    "@modelcontextprotocol/client": "2.0.0",
+    "@modelcontextprotocol/server": "2.0.0",
     "@renovate-config-debugger/app": "workspace:*",
     "@renovate-config-debugger/engine": "workspace:*",
     "@types/node": "26.1.2",

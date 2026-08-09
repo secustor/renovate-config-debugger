@@ -181,6 +181,10 @@ preset-fetch cache are paid once, and every answer describes the same run — tw
 separate `rcd` calls can silently describe different worlds if a remote preset
 changed between them.
 
+The server speaks the 2026-07-28 protocol and the legacy 2025-era `initialize`
+handshake, with the era chosen per connection, so older clients keep working
+against the same process.
+
 Worth knowing before your first call: **preset-node bodies are large — query
 one node at a time.** The tool descriptions say so too.
 

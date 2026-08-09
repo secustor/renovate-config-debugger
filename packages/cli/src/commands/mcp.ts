@@ -1,11 +1,20 @@
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { serveStdio, StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import type { Command } from "../command";
-import { EXIT_OK } from "../io";
+import { errorMessage, EXIT_OK } from "../io";
 import { createMcpServer } from "../mcp/server";
 
 /**
  * Roadmap 060: the MCP server, as a subcommand rather than a second package —
  * one entry point to install, document and hint at.
+ *
+ * SDK v2 serves it through the stdio ENTRY (`serveStdio`) rather than by
+ * connecting a server to a transport directly, because the entry owns the era
+ * decision for the connection: an opening `server/discover` pins a 2026-07-28
+ * instance, a plain `initialize` pins a 2025-era one, and both come from the
+ * same factory — so a client that speaks either revision is served by one
+ * process, with no branching in the tool code. `legacy: 'reject'` would turn
+ * the old handshake off; the default that keeps it is deliberate, since that
+ * is still what most hosts speak.
  *
  * NOTHING may be written to stdout here: on a stdio transport, stdout IS the
  * protocol. Diagnostics go to stderr, which is why the server takes `io` and
@@ -25,24 +34,42 @@ export const mcpCommand: Command = {
     "Same answers as the subcommands, better economics for a session: the",
     "engine boots once, and `run_config` HOLDS the trace so the drill-down",
     "tools query one consistent run instead of re-resolving per question.",
+    "",
+    "Speaks MCP 2026-07-28 and the legacy 2025-era handshake; the era is",
+    "chosen per connection, so older clients keep working.",
   ],
   options: [],
   async run(_args, io) {
-    const server = createMcpServer(io);
+    // The wire is built here rather than left to `serveStdio`'s default for
+    // one reason: the command has to observe it closing (below), and the
+    // entry's handle reports only its own teardown. From the call on, the
+    // entry owns it — it starts it, pumps every inbound message through it
+    // and closes it when the connection ends.
     const transport = new StdioServerTransport();
-    await server.connect(transport);
+    // ONE factory serves both eras; a probe instance the entry discards costs
+    // a run store and nothing else.
+    const handle = serveStdio(() => createMcpServer(io), {
+      transport,
+      onerror: (error) => io.err(`rcd: MCP server: ${errorMessage(error)}\n`),
+    });
     io.err("rcd: MCP server ready on stdio.\n");
     // Two ways a session ends, and the SDK only reports one of them: its stdio
     // transport listens for `data` and `error`, so a client that closes the
-    // pipe reaches `io.onDisconnect` and never `transport.onclose`. Whichever
-    // arrives first ends the wait.
+    // pipe reaches `io.onDisconnect` and never the transport's `onclose`.
+    // Whichever arrives first ends the wait.
     let disposeDisconnect: (() => void) | undefined;
     try {
       await new Promise<void>((resolve) => {
         // MCP's Transport is not an EventTarget: `onclose` is the SDK's own
-        // callback property, and this is its only consumer in this process.
+        // callback property, and `serveStdio` already installed the entry's
+        // own handler on it — hence the chain rather than an assignment.
         // oxlint-disable-next-line unicorn/prefer-add-event-listener -- see above
-        transport.onclose = () => resolve();
+        const closeEntry = transport.onclose;
+        // oxlint-disable-next-line unicorn/prefer-add-event-listener -- see above
+        transport.onclose = () => {
+          closeEntry?.();
+          resolve();
+        };
         disposeDisconnect = io.onDisconnect?.(resolve);
       });
     } finally {
@@ -50,7 +77,7 @@ export const mcpCommand: Command = {
     }
     // Flushes whatever the transport still owes and drops its stdin listeners,
     // so the process can reach its own exit rather than being killed at one.
-    await server.close();
+    await handle.close();
     return EXIT_OK;
   },
 };

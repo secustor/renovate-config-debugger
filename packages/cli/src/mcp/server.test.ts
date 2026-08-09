@@ -1,5 +1,6 @@
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client } from "@modelcontextprotocol/client";
+import { InMemoryTransport } from "@modelcontextprotocol/server";
+import { serveStdio, type StdioServerHandle } from "@modelcontextprotocol/server/stdio";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { getPresetAuth, setPresetAuth } from "@renovate-config-debugger/engine";
 import pkg from "../../package.json";
@@ -12,6 +13,15 @@ import { recordingIo } from "../test-harness";
  * Roadmap 060: the tool surface, driven through a real MCP client over the
  * SDK's in-memory transport pair — so the schemas, the handlers and the
  * result shapes are exercised exactly as a client would.
+ *
+ * Under SDK v2 the server side is the PRODUCTION entry point — `serveStdio`
+ * over that in-memory pair rather than over a process's stdio — because the
+ * entry, not the server, owns the era decision. So the suite drives the exact
+ * wiring `rcd mcp` does, including the choice between the 2026-07-28 protocol
+ * and the legacy 2025-era handshake. The v2 client negotiates `legacy` unless
+ * told otherwise, so every test below is a legacy-era run; "the tool surface"
+ * adds one that pins 2026-07-28, and `test/bin.test.ts` proves the legacy era
+ * over a real pipe.
  *
  * Thin, like the CLI's own tests: the answers themselves come from the shared
  * projection modules the subcommands use, and the engine's golden↔shimmed
@@ -26,17 +36,35 @@ const GROUPED =
 /** The big one — every size assertion in this file is measured against it. */
 const RECOMMENDED = '{"extends":["config:recommended"],"labels":["deps"]}';
 
+/** The revision the modern era negotiates. */
+const MODERN_PROTOCOL_VERSION = "2026-07-28";
+
 let client: Client;
 let close: () => Promise<void>;
 
-async function connect(env?: Record<string, string | undefined>): Promise<void> {
-  const server = createMcpServer(recordingIo(env ? { env } : undefined));
+interface ConnectOptions {
+  env?: Record<string, string | undefined>;
+  /** Omitted: the client's default, the 2025-era `initialize` handshake. */
+  era?: "modern";
+}
+
+async function connect(options?: ConnectOptions): Promise<void> {
+  const io = recordingIo(options?.env ? { env: options.env } : undefined);
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  client = new Client({ name: "test", version: "0" });
-  await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+  // One factory, both eras — the entry pins ONE instance per connection.
+  const handle: StdioServerHandle = serveStdio(() => createMcpServer(io), {
+    transport: serverTransport,
+  });
+  client = new Client(
+    { name: "test", version: "0" },
+    options?.era === "modern"
+      ? { versionNegotiation: { mode: { pin: MODERN_PROTOCOL_VERSION } } }
+      : {},
+  );
+  await client.connect(clientTransport);
   close = async () => {
     await client.close();
-    await server.close();
+    await handle.close();
   };
 }
 
@@ -114,6 +142,42 @@ describe("tool surface", () => {
       expect(tool.annotations?.idempotentHint, tool.name).toBe(tool.name !== "run_config");
     }
   });
+
+  /**
+   * Every other test here drives the 2025-era `initialize` handshake (the v2
+   * client's default), which is what today's hosts speak; this one pins
+   * 2026-07-28, so ONE process provably answers both. The entry decides per
+   * connection off the same factory and the same registrations, so what is
+   * worth asserting is that the surface and the answers do not move with it.
+   */
+  test("the same server answers the 2026-07-28 era, not just the legacy handshake", async () => {
+    await close();
+    await connect({ era: "modern" });
+    expect(client.getProtocolEra()).toBe("modern");
+    expect(client.getNegotiatedProtocolVersion()).toBe(MODERN_PROTOCOL_VERSION);
+
+    const { tools } = await client.listTools();
+    expect(tools.map((t) => t.name).toSorted()).toEqual([
+      "compare_simulations",
+      "explain_message",
+      "get_final_config",
+      "get_option_docs",
+      "get_preset_node",
+      "get_preset_tree",
+      "get_provenance",
+      "get_resolved_config",
+      "run_config",
+      "simulate",
+    ]);
+
+    // A whole drill-down, not just a handshake: the held run survives the era.
+    const runId = await runConfig(CONFIG);
+    const entry = (await call("get_provenance", { runId, key: "labels" })) as { winner: string };
+    expect(entry.winner).toBe("repo");
+    // The strictness the tool descriptions promise is schema-level, so it has
+    // to hold on both wires.
+    await expect(call("get_preset_tree", { runId, dept: 3 })).rejects.toThrow(/dept/);
+  });
 });
 
 describe("run_config", () => {
@@ -141,7 +205,7 @@ describe("run_config", () => {
 
   test("the withheld-credentials note names THIS transport's opt-ins, not the CLI flags", async () => {
     await close();
-    await connect({ GITHUB_TOKEN: "gh-token" });
+    await connect({ env: { GITHUB_TOKEN: "gh-token" } });
     const summary = (await call("run_config", {
       fileName: "renovate.json",
       content: "{}",
@@ -165,7 +229,7 @@ describe("credential isolation", () => {
    */
   test("two interleaved runs: no request carries the other run's token", async () => {
     await close();
-    await connect({ GITHUB_TOKEN: "gh-token" });
+    await connect({ env: { GITHUB_TOKEN: "gh-token" } });
     const before = getPresetAuth();
     const requests: { url: string; authorization: string | null }[] = [];
     vi.stubGlobal("fetch", (input: unknown, init?: RequestInit) => {
@@ -205,7 +269,7 @@ describe("credential isolation", () => {
 
   test("a run never installs its credentials outside the engine's queue", async () => {
     await close();
-    await connect({ GITHUB_TOKEN: "gh-token" });
+    await connect({ env: { GITHUB_TOKEN: "gh-token" } });
     setPresetAuth({});
     await runConfig(CONFIG);
     expect(getPresetAuth()).toEqual({});

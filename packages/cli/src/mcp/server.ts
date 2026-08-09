@@ -1,4 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import {
   compareSimulations,
@@ -54,6 +54,11 @@ import { type HeldRun, RunStore } from "./run-store";
  * The tool descriptions carry the domain hints an agent would otherwise learn
  * the hard way — above all: preset-node bodies are large, query one node at a
  * time.
+ *
+ * Nothing below is era-aware, deliberately: `../commands/mcp` hands this
+ * function to the SDK's stdio entry as a factory, and the entry pins one
+ * instance per connection to either the 2026-07-28 protocol or the legacy
+ * 2025-era handshake. These registrations serve both unchanged.
  *
  * Three protocol details this file takes seriously:
  *
