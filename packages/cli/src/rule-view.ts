@@ -15,6 +15,7 @@ import {
 } from "@renovate-config-debugger/app/headless";
 import { type OutputFormat, type ParsedArgs, stringOption } from "./args";
 import { CliError } from "./io";
+import type { RunTransport } from "./run-input";
 
 /**
  * Roadmap 062 (2026-07 persona study, top friction — 6 of 9 sessions): a
@@ -39,6 +40,18 @@ export interface RuleFilterSelection {
   source: SourceFilter;
   /** Either flag was passed explicitly — the JSON payload filters only then. */
   explicit: boolean;
+  /**
+   * How the caller asked. The facets are one implementation with two
+   * spellings — `--source repo` on the CLI, `source: "repo"` over MCP — and a
+   * note that quotes the wrong one is a dead end for whoever reads it: an
+   * agent cannot pass a flag, and telling it to is worse than saying nothing.
+   */
+  transport: RunTransport;
+}
+
+/** The facet as the caller would have to spell it on THEIR surface. */
+function facetText(transport: RunTransport, facet: string, value: string): string {
+  return transport === "mcp" ? `${facet}: "${value}"` : `--${facet} ${value}`;
 }
 
 function parseChoice<T extends string>(
@@ -69,6 +82,7 @@ export function ruleFilterSelection(args: ParsedArgs, format: OutputFormat): Rul
     ),
     source: parseChoice(rawSource, SOURCE_FILTERS, "source", "all"),
     explicit: rawVerdict !== undefined || rawSource !== undefined,
+    transport: "cli",
   };
 }
 
@@ -105,8 +119,9 @@ export function buildRuleView(
     const layerByIndex = ruleLayerIndex(computeRuleProvenance(result));
     if (layerByIndex.size === 0) {
       notes.push(
-        `--source ${source} ignored: this run has no per-rule provenance ` +
-          "(the preset tree is incomplete, so no rule can be attributed to a config level)",
+        `${facetText(selection.transport, "source", source)} ignored: this run has no per-rule ` +
+          "provenance (the preset tree is incomplete, so no rule can be attributed to a config " +
+          "level)",
       );
       source = "all";
     } else {

