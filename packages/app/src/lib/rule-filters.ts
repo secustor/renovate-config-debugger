@@ -1,10 +1,14 @@
-import type { ProvenanceLayer, RuleEvaluation } from "@renovate-config-debugger/engine";
+import type {
+  ProvenanceLayer,
+  RuleAttribution,
+  RuleEvaluation,
+} from "@renovate-config-debugger/engine";
 import { type LayerId, layerId, layerLabel } from "@/components/provenance-layer";
-import { isNoInputNoMatch } from "./rule-format";
+import { isNoInputNoMatch } from "./rule-verdict";
 
 /**
- * The rules drawer's two filter facets — verdict and provenance — as one
- * value, with the pure filtering they drive.
+ * The rules drawer's filter facets — verdict and provenance — as one value,
+ * with the pure filtering they drive.
  *
  * They replace the three link toggles the drawer used to carry ("all N rules"
  * / "my rules only" / "show all N"): a link that both states the current view
@@ -18,6 +22,13 @@ import { isNoInputNoMatch } from "./rule-format";
  * `useRuleFocus` must answer "is this rule currently visible?" with the exact
  * predicate the list renders with — a cross-link that scrolls to a row the
  * filters are hiding is the bug this shape prevents.
+ *
+ * Roadmap 062 hoisted the module out of `features/simulator/` into the shared
+ * layer: the 2026-07 persona study found `rcd simulate` dumping ~713 rule rows
+ * with no way to scope them, in 6 of 9 sessions. The CLI's `--verdict` /
+ * `--source` flags are these predicates, reached through
+ * `@renovate-config-debugger/app/headless` — so the CLI's counts are the app's
+ * counts rather than a second implementation that drifts.
  */
 
 /** The verdict facet. `notable` is the default view (matched + unresolved,
@@ -26,6 +37,15 @@ import { isNoInputNoMatch } from "./rule-format";
  *  The other three are the verdicts a rule row can wear, split the way the
  *  badge splits them (see {@link isNoInputNoMatch}). */
 export type VerdictFilter = "notable" | "all" | "matched" | "no-input" | "no-match";
+
+/** Every {@link VerdictFilter}, for a CLI flag's parse + help text. */
+export const VERDICT_FILTERS: readonly VerdictFilter[] = [
+  "notable",
+  "all",
+  "matched",
+  "no-input",
+  "no-match",
+];
 
 /** The provenance facet: a layer id present in the run, or {@link ALL_PRESETS}.
  *  A plain {@link LayerId} rather than a `"all" | LayerId` union — that union
@@ -100,6 +120,62 @@ export function filterRules(
   layerByIndex: Map<number, ProvenanceLayer>,
 ): RuleEvaluation[] {
   return rules.filter((rule) => ruleVisible(rule, filters, layerByIndex));
+}
+
+/**
+ * The coarse half of the provenance facet: "my rules" versus "everything a
+ * preset brought in". The app's dropdown filters by ONE layer at a time
+ * ({@link PresetFilter}) because it can list the layers the run actually has;
+ * a `--source` flag has no such list to offer, and the question the persona
+ * sessions actually asked of a 713-rule dump was "which of these are mine?".
+ *
+ * `repo` is the repo config's own layer — the same set "my rules only" always
+ * meant. `presets` is every layer an `extends` pulled in. Neither covers the
+ * `global`/`inherited`/`defaults` levels: those are not the repo's rules and
+ * are not a preset either, so naming them under one of the two would be a
+ * claim the run does not support.
+ */
+export type SourceFilter = "all" | "repo" | "presets";
+
+/** Every {@link SourceFilter}, for a CLI flag's parse + help text. */
+export const SOURCE_FILTERS: readonly SourceFilter[] = ["all", "repo", "presets"];
+
+export function matchesSourceFilter(
+  rule: RuleEvaluation,
+  filter: SourceFilter,
+  layerByIndex: Map<number, ProvenanceLayer>,
+): boolean {
+  if (filter === "all") {
+    return true;
+  }
+  const layer = layerByIndex.get(rule.index);
+  if (!layer) {
+    return false;
+  }
+  return filter === "repo" ? layer.kind === "repo" : layer.kind === "preset";
+}
+
+export function filterRulesBySource(
+  rules: RuleEvaluation[],
+  filter: SourceFilter,
+  layerByIndex: Map<number, ProvenanceLayer>,
+): RuleEvaluation[] {
+  return rules.filter((rule) => matchesSourceFilter(rule, filter, layerByIndex));
+}
+
+/**
+ * `computeRuleProvenance`'s array as the index → layer lookup every filter
+ * here takes. Shared so the simulator's memo and the CLI build the map the
+ * same way (and so "provenance unavailable" is one empty map, not two shapes).
+ */
+export function ruleLayerIndex(
+  attribution: readonly RuleAttribution[] | null | undefined,
+): Map<number, ProvenanceLayer> {
+  const map = new Map<number, ProvenanceLayer>();
+  for (const attr of attribution ?? []) {
+    map.set(attr.index, attr.layer);
+  }
+  return map;
 }
 
 export interface FilterOption {

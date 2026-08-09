@@ -4,14 +4,9 @@ import { CopyMarkdownButton } from "@/components/CopyMarkdownButton";
 import { Explained } from "@/components/glossary";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { GLOSSARY } from "@/data/glossary-data";
+import { isNoInputNoMatch } from "@/lib/rule-verdict";
 import { ClauseGrid } from "./ClauseGrid";
-import {
-  isNoInputNoMatch,
-  ruleAppliedMarkdown,
-  ruleLabel,
-  ruleVerdictLabel,
-  writeMark,
-} from "./rule-format";
+import { ruleAppliedMarkdown, ruleLabel, ruleVerdictLabel, writeMark } from "./rule-format";
 import { WriteRow } from "./WriteRow";
 
 /** Roadmap 018/040/054: what a matching rule applied to the dependency config,

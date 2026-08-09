@@ -1,4 +1,5 @@
 import type { ClauseEvaluation, MergedKey, RuleEvaluation } from "@renovate-config-debugger/engine";
+import { isNoInputNoMatch } from "@/lib/rule-verdict";
 
 export function previewValue(value: unknown, max = 60): string {
   const text = JSON.stringify(value) ?? "undefined";
@@ -129,30 +130,6 @@ export const VERDICT_LABEL: Record<RuleEvaluation["verdict"], string> = {
   "no-match": "no match",
   "not-simulated": "not simulated",
 };
-
-/** The clause states that fail a rule (as opposed to the neutral
- *  not-applicable / not-simulated, which decide nothing). */
-function failingClauses(clauses: ClauseEvaluation[]): ClauseEvaluation[] {
-  return clauses.filter(
-    (c) => c.state === "no-match" || c.state === "no-input" || c.state === "error",
-  );
-}
-
-/**
- * Replay-02 R3/R4: a no-match decided SOLELY by fail-closed no-input clauses —
- * the rule lost to an empty simulator field, not to real data that mismatched.
- * Exported because the rules drawer's verdict filter separates the two into
- * their own facets, and one predicate must decide the badge text and the
- * filter alike (a row filtered as "no input" that then says "no match" is the
- * exact confusion R3/R4 was about).
- */
-export function isNoInputNoMatch(rule: Pick<RuleEvaluation, "verdict" | "clauses">): boolean {
-  if (rule.verdict !== "no-match") {
-    return false;
-  }
-  const failing = failingClauses(rule.clauses);
-  return failing.length > 0 && failing.every((c) => c.state === "no-input");
-}
 
 /**
  * Replay-02 R3/R4: the badge text for a rule's verdict. A no-match decided

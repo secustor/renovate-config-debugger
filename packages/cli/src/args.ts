@@ -78,11 +78,26 @@ export const OPTIONS = {
     flags: "--include-defaults",
     description: "write out Renovate's defaults too (--mode full only)",
   },
-  dep: { flags: "--dep <json>", description: "the dependency update to simulate" },
+  dep: {
+    flags: "--dep <json>",
+    description:
+      'the dependency update to simulate, e.g. \'{"depName":"react","currentValue":"17.0.0",' +
+      '"newValue":"18.0.0"}\' — packageName defaults to depName, as in a real run',
+  },
   "dep-file": { flags: "--dep-file <file>", description: "--dep, read from a file" },
   "dep-b": { flags: "--dep-b <json>", description: "the B-side dependency to compare" },
   "dep-b-file": { flags: "--dep-b-file <file>", description: "--dep-b, read from a file" },
   search: { flags: "--search", description: "list options whose name matches" },
+  verdict: {
+    flags: "--verdict <which>",
+    description:
+      "which rule verdicts to print: notable|all|matched|no-input|no-match " +
+      "(pretty default: notable; --format json defaults to all)",
+  },
+  source: {
+    flags: "--source <which>",
+    description: "which config level contributed the rule: repo|presets|all (default: all)",
+  },
 } as const satisfies Record<string, OptionSpec>;
 
 export type OptionName = keyof typeof OPTIONS;
