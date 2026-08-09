@@ -9,7 +9,7 @@ import {
 } from "react";
 import type { SimulationResult, TraceResult } from "@renovate-config-debugger/engine";
 import { type FormState, hasMeaningfulInput, toDescriptor } from "./form";
-import { DEFAULT_RULE_FILTERS, type RuleFilters } from "./rule-filters";
+import { DEFAULT_RULE_FILTERS, type RuleFilters } from "@/lib/rule-filters";
 
 export type Simulate = (nextForm: FormState, touched: boolean, keepStep?: boolean) => Promise<void>;
 

@@ -1,9 +1,10 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import type { ProvenanceLayer, TraceResult } from "@renovate-config-debugger/engine";
+import type { TraceResult } from "@renovate-config-debugger/engine";
 import { Term } from "@/components/glossary";
 import { HypotheticalBanner } from "@/components/HypotheticalBanner";
 import { RuleFramingText } from "@/components/rule-framing";
 import { useRuleProvenance } from "@/hooks/rule-provenance";
+import { ruleLayerIndex } from "@/lib/rule-filters";
 import type { ShareSimulator } from "@/lib/share";
 import type { ErrorTranslationLib } from "@/platform/run";
 import { ComparisonPanel } from "./ComparisonPanel";
@@ -163,13 +164,7 @@ export const RuleSimulator = memo(function RuleSimulator({
   // facet (the successor to "my rules only") all read it. Declared here rather
   // than beside the other derived state because `useRuleFocus` needs it to
   // answer "is the row this link names currently filtered out?".
-  const layerByIndex = useMemo(() => {
-    const map = new Map<number, ProvenanceLayer>();
-    for (const attr of ruleAttribution ?? []) {
-      map.set(attr.index, attr.layer);
-    }
-    return map;
-  }, [ruleAttribution]);
+  const layerByIndex = useMemo(() => ruleLayerIndex(ruleAttribution), [ruleAttribution]);
   const { cardRef, focusRule } = useRuleFocus({
     focusRuleIndex,
     onRuleFocused,
