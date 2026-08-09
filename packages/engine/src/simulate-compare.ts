@@ -101,6 +101,16 @@ export interface SimulationComparison {
    * no longer allowed to speak for behavior.
    */
   noChange: boolean;
+  /**
+   * The whole verdict as one line, starting with `identical:` or `differs:`.
+   *
+   * Roadmap 068 (2026-07 persona study, 4 of 9 sessions): every consumer of
+   * this diff — the CLI's headline, the app's panel, an agent reading the JSON
+   * — was re-deriving "so did it change?" from six arrays and two booleans,
+   * and the readings disagreed. The net effect belongs in the comparison, once
+   * and in words, next to the fields that justify it.
+   */
+  summary: string;
 }
 
 function signatureOf(rule: RuleEvaluation): string {
@@ -149,6 +159,43 @@ function jsonEqual(a: unknown, b: unknown): boolean {
  *  the pre-rules base — not through the user's rules. */
 function inheritedIn(result: SimulationResult, key: string): boolean {
   return !result.mergeSteps.some((step) => step.merged.some((m) => m.key === key));
+}
+
+/** How many changed keys the one-liner names before it starts counting. */
+const SUMMARY_KEY_LIMIT = 6;
+
+function countOf(n: number, noun: string): string {
+  return `${n} ${noun}${n === 1 ? "" : "s"}`;
+}
+
+/**
+ * The net effect, in one line. Ordered by what a reader actually asked: the
+ * config delta is the citable answer when there is one, the rules that started
+ * or stopped doing something is the answer when the config came out the same,
+ * and the identity churn is a parenthetical either way — never the headline,
+ * because for the commonest behavior-preserving edit it is guaranteed true.
+ */
+function summaryOf(comparison: Omit<SimulationComparison, "summary">): string {
+  if (comparison.noChange) {
+    return comparison.rulesChanged
+      ? "identical: the same effective config results (a rule's pattern text changed)"
+      : "identical: the same rules matched and the same effective config results";
+  }
+  const keys = comparison.configDelta.map((delta) => delta.key);
+  if (keys.length > 0) {
+    const named = keys.slice(0, SUMMARY_KEY_LIMIT).join(", ");
+    const rest = keys.length - SUMMARY_KEY_LIMIT;
+    return `differs: ${named}${rest > 0 ? ` and ${rest} more` : ""}`;
+  }
+  const changes = [
+    ...(comparison.behaviorOnlyInB.length > 0
+      ? [`${countOf(comparison.behaviorOnlyInB.length, "rule")} started matching`]
+      : []),
+    ...(comparison.behaviorOnlyInA.length > 0
+      ? [`${countOf(comparison.behaviorOnlyInA.length, "rule")} stopped matching`]
+      : []),
+  ];
+  return `differs: ${changes.join(" and ")}, with no change to the effective config`;
 }
 
 /**
@@ -222,7 +269,7 @@ export function compareSimulations(a: SimulationResult, b: SimulationResult): Si
   const noChange =
     behaviorOnlyInA.length === 0 && behaviorOnlyInB.length === 0 && configDelta.length === 0;
 
-  return {
+  const comparison = {
     matchedOnlyInA,
     matchedOnlyInB,
     matchedInBoth,
@@ -233,4 +280,5 @@ export function compareSimulations(a: SimulationResult, b: SimulationResult): Si
     configDelta,
     noChange,
   };
+  return { ...comparison, summary: summaryOf(comparison) };
 }

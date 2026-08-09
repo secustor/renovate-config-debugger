@@ -24,18 +24,23 @@ import { simulateAgainst } from "./simulate";
  * dropping an entry from the very array a rule matches on — it is guaranteed
  * to be true and means nothing on its own.
  */
+/** The comparison's own one-liner without its `identical:`/`differs:` prefix —
+ *  the headline states the verdict in its own words. */
+function netEffect(comparison: SimulationComparison): string {
+  return comparison.summary.slice(comparison.summary.indexOf(": ") + 2);
+}
+
 export function comparisonHeadline(comparison: SimulationComparison): string {
   if (!comparison.noChange) {
-    return "Behavior differs between A and B.";
+    return `Behavior differs between A and B — ${netEffect(comparison)}.`;
   }
   if (comparison.rulesChanged) {
     return (
-      "✓ No behavioral change — the resulting config is identical and every rule still does " +
-      "what it did (a rule's pattern text changed, which is expected when you edit the array " +
-      "the rule matches on)."
+      `✓ No behavioral change — ${netEffect(comparison)}, which is expected when you edit the ` +
+      "array the rule matches on."
     );
   }
-  return "✓ No behavioral change: the same rules matched and the resulting config is identical.";
+  return `✓ No behavioral change: ${netEffect(comparison)}.`;
 }
 
 export const compareCommand: Command = {

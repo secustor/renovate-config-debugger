@@ -62,9 +62,34 @@ describe("compare", () => {
         io,
       ),
     ).toBe(0);
-    expect(io.stdout.split("\n")[0]).toBe("Behavior differs between A and B.");
+    // The headline is the comparison's own one-liner: the verdict AND what it
+    // was about, so a reader never has to assemble it from the arrays below.
+    expect(io.stdout.split("\n")[0]).toBe(
+      "Behavior differs between A and B — dependencyDashboard, description, groupName.",
+    );
     expect(io.stdout).toContain("Matched only in B:");
     expect(io.stdout).toContain("groupName");
+  });
+
+  test("the JSON carries the same one-liner, so no consumer re-derives it", async () => {
+    const io = recordingIo();
+    expect(
+      await main(
+        [
+          "compare",
+          fixture("clean.json"),
+          fixture("grouped.json"),
+          "--dep",
+          '{"depName":"react","packageName":"react"}',
+          "--format",
+          "json",
+        ],
+        io,
+      ),
+    ).toBe(0);
+    const { summary } = io.json() as { summary: string };
+    expect(summary).toBe("differs: dependencyDashboard, description, groupName");
+    expect(io.stdout).toContain("summary");
   });
 });
 
