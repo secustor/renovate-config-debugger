@@ -1,12 +1,13 @@
 import { execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
-import { fixture } from "./harness";
+import { fixture } from "../src/test-harness";
 
 /**
  * The bin itself, as a real subprocess.
  *
- * `commands.test.ts` calls `main(argv, io)` inside vitest's own module graph,
+ * The suites colocated under `src/` call `main(argv, io)` inside vitest's own
+ * module graph,
  * which leaves the entire entry point untested: booting Vite's SSR runner
  * against `vite.config.ts`, loading `src/main.ts` through it, and the process
  * wiring `src/` is forbidden to touch — argv, stdout/stderr, stdin, and the

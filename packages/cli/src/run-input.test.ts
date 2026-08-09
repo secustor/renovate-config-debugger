@@ -1,34 +1,34 @@
 import { describe, expect, test } from "vitest";
-import { outputFormat, parseCommandArgs } from "../src/args";
-import { CliError } from "../src/io";
-import { endpointTokenPolicy, takeInputFile, tokensFromEnv } from "../src/run-input";
+import { parseCommandArgs } from "./args";
+import { main } from "./main";
+import { endpointTokenPolicy, takeInputFile, tokensFromEnv } from "./run-input";
+import { fixture, recordingIo } from "./test-harness";
 
-describe("parseCommandArgs", () => {
-  test("splits flags from positionals", () => {
-    const args = parseCommandArgs(["renovate.json", "labels", "--format", "json"], ["format"]);
-    expect(args.positionals).toEqual(["renovate.json", "labels"]);
-    expect(args.values.format).toBe("json");
+/** Reaching the config — and what a config that cannot be read or parsed does
+ *  to a run. */
+
+describe("input", () => {
+  test("a config file that is not there fails the run and names the path", async () => {
+    const io = recordingIo();
+    expect(await main(["digest", fixture("nope.json")], io)).toBe(1);
+    expect(io.stderr).toContain("cannot read config file");
+    expect(io.stderr).toContain("nope.json");
+    expect(io.stdout).toBe("");
   });
 
-  test("a flag the subcommand does not accept is an error, not a silent no-op", () => {
-    expect(() => parseCommandArgs(["--dep", "{}"], ["format"])).toThrow(CliError);
-  });
-
-  test("--inject is repeatable", () => {
-    const args = parseCommandArgs(["--inject", "a=1.json", "--inject", "b=2.json"], ["inject"]);
-    expect(args.values.inject).toEqual(["a=1.json", "b=2.json"]);
-  });
-});
-
-describe("outputFormat", () => {
-  test("defaults to pretty", () => {
-    expect(outputFormat(parseCommandArgs([], ["format"]))).toBe("pretty");
-  });
-
-  test("rejects anything but pretty/json", () => {
-    expect(() => outputFormat(parseCommandArgs(["--format", "yaml"], ["format"]))).toThrow(
-      /--format must be/,
-    );
+  test("a config that cannot be parsed is Renovate refusing it, not a failed run", async () => {
+    const io = recordingIo();
+    expect(await main(["validate", fixture("broken.json5"), "--format", "json"], io)).toBe(2);
+    const report = io.json() as {
+      accepted: boolean;
+      stageStatus: { parse: string; validate: string };
+      messages: { message: string }[];
+    };
+    expect(report.accepted).toBe(false);
+    expect(report.stageStatus.parse).toBe("error");
+    // Nothing downstream of a failed parse ran, so the verdict is the parse.
+    expect(report.stageStatus.validate).toBe("skipped");
+    expect(report.messages[0]?.message).toContain("JSON5.parse error");
   });
 });
 

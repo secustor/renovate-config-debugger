@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import type { CliIo } from "../src/io";
+import type { CliIo } from "./io";
 
 /**
  * The commands are driven in-process against the same module graph the bin
@@ -36,5 +36,5 @@ export function recordingIo(options?: {
 }
 
 export function fixture(name: string): string {
-  return fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url));
+  return fileURLToPath(new URL(`../test/fixtures/${name}`, import.meta.url));
 }
