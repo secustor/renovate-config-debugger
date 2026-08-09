@@ -17,9 +17,14 @@ import {
   type TraceResult,
   type ValidationMessage,
 } from "@renovate-config-debugger/engine";
-import { validatedConfigOf } from "@renovate-config-debugger/app/headless";
+import {
+  type SourceFilter,
+  validatedConfigOf,
+  type VerdictFilter,
+} from "@renovate-config-debugger/app/headless";
 import pkg from "../../package.json";
 import { errorMessage, type CliIo } from "../io";
+import { buildRuleView, ruleFilterPayload } from "../rule-view";
 import { digestPayload } from "../projections/digest";
 import { describeMessage } from "../projections/messages";
 import { entryView, indexView, layerLabel, provenanceOf } from "../projections/provenance";
@@ -187,6 +192,27 @@ const DEP = z
   );
 
 type DepInput = z.infer<typeof DEP>;
+
+/**
+ * The rule-list scoping facets, shared with `rcd simulate --verdict/--source`
+ * and the web app's rules drawer (both go through `buildRuleView`). The
+ * literals are spelled out for zod; `satisfies` keeps them from drifting ahead
+ * of the app's `VerdictFilter`/`SourceFilter` unions.
+ */
+const RULE_VERDICT = z
+  .enum(["notable", "all", "matched", "no-input", "no-match"] satisfies readonly VerdictFilter[])
+  .optional()
+  .describe(
+    "Scope the returned rules by verdict: `notable` (matched + unresolved — the app's default " +
+      "view), `matched`, `no-input`, `no-match`, or `all`. Omit for the full list.",
+  );
+const RULE_SOURCE = z
+  .enum(["all", "repo", "presets"] satisfies readonly SourceFilter[])
+  .optional()
+  .describe(
+    "Scope the returned rules by origin: `repo` (rules your config wrote) or `presets` " +
+      "(rules `extends` pulled in). Omit for all.",
+  );
 
 /** The dependency descriptor, with `updateType` derived the way a real lookup
  *  would when the caller did not set it. */
@@ -532,14 +558,35 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       description:
         "Evaluates every packageRule of the run's effective config against one hypothetical " +
         "dependency update: a verdict per rule with clause-level evidence (which matcher fired, " +
-        "what it read), and the options the matching rules set for that dependency.",
+        "what it read), and the options the matching rules set for that dependency. " +
+        "A `config:recommended` run has ~700 rules — `verdict` and `source` scope the list " +
+        '(`source: "repo"` is "just my own config\'s rules").',
       annotations: HELD_RUN_ANNOTATIONS,
-      inputSchema: z.strictObject({ runId: RUN_ID, dep: DEP }),
+      inputSchema: z.strictObject({
+        runId: RUN_ID,
+        dep: DEP,
+        verdict: RULE_VERDICT,
+        source: RULE_SOURCE,
+      }),
     },
-    answer(async ({ runId, dep }) => {
+    answer(async ({ runId, dep, verdict, source }) => {
       const run = store.get(runId);
       const sim = await simulateRun(run, dep);
-      return { dep: toDependency(dep), ...sim };
+      if (verdict === undefined && source === undefined) {
+        return { dep: toDependency(dep), ...sim };
+      }
+      const view = buildRuleView(sim, run.result, {
+        verdict: verdict ?? "all",
+        source: source ?? "all",
+        explicit: true,
+      });
+      return {
+        dep: toDependency(dep),
+        ...sim,
+        rules: view.rules,
+        ...(view.notes.length > 0 ? { filterNotes: view.notes } : {}),
+        ...ruleFilterPayload(view),
+      };
     }, HINTS.simulate),
   );
 
