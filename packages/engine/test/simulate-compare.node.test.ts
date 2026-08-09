@@ -149,6 +149,64 @@ describe("compareSimulations", () => {
     expect(cmp.noChange).toBe(true);
   });
 
+  /**
+   * Roadmap 062: the two axes. `merged` is what a rule DID; two matched rules
+   * that merged the same keys to the same values are the same rule wearing a
+   * different pattern, and that is identity churn — the unavoidable side effect
+   * of editing the array the rule matches on — not a behavior change.
+   */
+  describe("behavior versus rule identity", () => {
+    const effect = [{ key: "groupName", after: "frontend" }];
+    const wide = matched(0, [["matchPackageNames", ["react", "vue"]]]);
+    const narrow = matched(0, [["matchPackageNames", ["react"]]]);
+
+    it("a rewritten selector with the same effect is identity churn, not behavior", () => {
+      const a = sim([{ ...wide, merged: effect }], { groupName: "frontend" });
+      const b = sim([{ ...narrow, merged: effect }], { groupName: "frontend" });
+      const cmp = compareSimulations(a, b);
+      expect(cmp.noChange).toBe(true);
+      expect(cmp.rulesChanged).toBe(true);
+      expect(cmp.behaviorOnlyInA).toEqual([]);
+      expect(cmp.behaviorOnlyInB).toEqual([]);
+      expect(cmp.signatureChanges).toHaveLength(1);
+      // The signature-level fields are unchanged — the identity claim is still
+      // exactly as reported before, it just no longer speaks for behavior.
+      expect(cmp.matchedOnlyInA).toHaveLength(1);
+      expect(cmp.matchedOnlyInB).toHaveLength(1);
+    });
+
+    it("a rewritten selector that changed what the rule did IS a behavior change", () => {
+      const a = sim([{ ...wide, merged: effect }], { groupName: "frontend" });
+      const b = sim([{ ...narrow, merged: [{ key: "groupName", after: "ui" }] }], {
+        groupName: "ui",
+      });
+      const cmp = compareSimulations(a, b);
+      expect(cmp.noChange).toBe(false);
+      expect(cmp.signatureChanges).toEqual([]);
+      expect(cmp.behaviorOnlyInA).toHaveLength(1);
+      expect(cmp.behaviorOnlyInB).toHaveLength(1);
+    });
+
+    it("an unrecorded effect never pairs — two unknowns are not the same rule", () => {
+      // `merged` absent on both sides (a fixture, or a rule from before 044).
+      const a = sim([matched(0, [["matchPackageNames", ["lodash"]]])], {});
+      const b = sim([matched(0, [["matchSourceUrls", ["https://x"]]])], {});
+      const cmp = compareSimulations(a, b);
+      expect(cmp.signatureChanges).toEqual([]);
+      expect(cmp.behaviorOnlyInA).toHaveLength(1);
+      expect(cmp.behaviorOnlyInB).toHaveLength(1);
+      expect(cmp.noChange).toBe(false);
+    });
+
+    it("identical rules on both sides change neither axis", () => {
+      const a = sim([{ ...wide, merged: effect }], { groupName: "frontend" });
+      const cmp = compareSimulations(a, a);
+      expect(cmp.noChange).toBe(true);
+      expect(cmp.rulesChanged).toBe(false);
+      expect(cmp.signatureChanges).toEqual([]);
+    });
+  });
+
   it("pairs duplicate-signature matched rules as a multiset", () => {
     const clause: [string, unknown][] = [["matchDatasources", ["npm"]]];
     const a = sim([matched(0, clause), matched(1, clause)], {});
