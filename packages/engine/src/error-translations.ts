@@ -19,6 +19,7 @@
  * "Apply fix" button.
  */
 
+import { getInternalPreset, parsePreset } from "./renovate-adapter";
 import { snapshot } from "./trace/delta";
 import type { ValidationMessage } from "./trace/model";
 import { getOptionIndex, type OptionDoc } from "./option-docs";
@@ -166,6 +167,14 @@ function withKeyRenamed(
   delete parent[last];
   parent[newKey] = value;
   return clone;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((v) => typeof v === "string");
 }
 
 /** Unique `` `identifier` `` tokens mentioned in a free-text message. */
@@ -376,6 +385,227 @@ const globalOnlyOption: ErrorTranslation = {
 };
 
 // ---------------------------------------------------------------------------
+// 4. `group:` preset extended from inside a packageRules entry
+// ---------------------------------------------------------------------------
+// Message shape (upstream's config/validation.js, `parentName === "packageRules"`):
+// `${currentPath}: you should not extend "group:" presets`
+// Topic is "Configuration Warning", but the matcher deliberately does NOT
+// require it: `explain_message` callers routinely pass the text alone, and the
+// sentence is unique enough in Renovate's validator to stand on its own.
+//
+// The structural reason: a `group:` preset's body is a `packageRules` ARRAY
+// (`group:jestMonorepo` is `{"packageRules":[{extends:["monorepo:jest"], …}]}`),
+// not a flat fragment of one rule. Merged into a single rule it becomes a
+// `packageRules` key nested inside a package rule, which Renovate never reads
+// — the group's matchers and `groupName` are silently dropped.
+
+const GROUP_PRESET_RE = /^(.+?): you should not extend "group:" presets$/;
+
+const GROUP_PRESET_DOCS_URL = "https://docs.renovatebot.com/config-presets/";
+const GROUP_PRESET_LIST_URL = "https://docs.renovatebot.com/presets-group/";
+
+/**
+ * The single package rule a `group:` preset's body consists of, with its
+ * `description` dropped — i.e. exactly what has to be restated inside the
+ * user's own rule. `null` whenever the group isn't collapsible into one rule:
+ * an unbundled/unknown name, a body carrying top-level options besides
+ * `packageRules` (e.g. `group:all`'s `separateMajorMinor`), or a body whose
+ * `packageRules` holds anything other than exactly one rule (e.g.
+ * `group:monorepos`, which is a fan-out over ~500 other group presets).
+ */
+function collapsibleGroupRule(preset: string): Record<string, unknown> | null {
+  let parsed;
+  try {
+    parsed = parsePreset(preset);
+  } catch {
+    return null;
+  }
+  if (parsed.presetSource !== "internal" || parsed.repo !== "group") {
+    return null;
+  }
+  if (parsed.params !== undefined && parsed.params.length > 0) {
+    return null;
+  }
+  const body = getInternalPreset({ repo: parsed.repo, presetName: parsed.presetName });
+  if (!isPlainObject(body)) {
+    return null;
+  }
+  if (Object.keys(body).some((key) => key !== "description" && key !== "packageRules")) {
+    return null;
+  }
+  const rules = body.packageRules;
+  if (!Array.isArray(rules) || rules.length !== 1) {
+    return null;
+  }
+  const [only] = rules;
+  if (!isPlainObject(only)) {
+    return null;
+  }
+  const rule = { ...only };
+  delete rule.description;
+  return Object.keys(rule).length > 0 ? rule : null;
+}
+
+const groupPresetInPackageRule: ErrorTranslation = {
+  id: "group-preset-in-package-rule",
+  matches: (m) => GROUP_PRESET_RE.test(m.message),
+
+  explain: (m) => {
+    const path = GROUP_PRESET_RE.exec(m.message)?.[1] ?? "this rule's `extends`";
+    return (
+      `\`${path}\` extends a \`group:\` preset from inside a \`packageRules\` entry, and a ` +
+      `\`group:\` preset's body is itself a \`packageRules\` array — not a flat fragment of one ` +
+      `rule. Resolving it therefore nests a \`packageRules\` key INSIDE a package rule. Renovate ` +
+      `matches a rule on that rule's own \`match*\` keys, and after the merge yours has none: the ` +
+      `group's matchers, its \`groupName\` and its \`matchUpdateTypes\` all sit one level down, ` +
+      `where the pass that just matched the rule doesn't read them. The rule matches EVERY ` +
+      `dependency and applies whatever else you put in it — an \`automerge: true\` meant for one ` +
+      `monorepo now applies to everything — and the grouping you asked for doesn't happen. ` +
+      `Write the group out inside the rule instead: extend the underlying ` +
+      `\`monorepo:\`/\`packages:\` preset the group uses — those are pure match criteria and are ` +
+      `safe inside a rule — or copy the group's matchers, then restate \`groupName\` and the ` +
+      `group's own \`matchUpdateTypes\` alongside your own options. That last part is not ` +
+      `cosmetic: the built-in monorepo groups carry ` +
+      `\`matchUpdateTypes: ["digest", "patch", "minor", "major"]\`, which deliberately EXCLUDES ` +
+      `\`pin\`; a replacement rule that omits it silently widens the group to pin updates too. ` +
+      `See ${GROUP_PRESET_DOCS_URL} for how \`extends\` merges, and ${GROUP_PRESET_LIST_URL} for ` +
+      `the exact body of the group being replaced.`
+    );
+  },
+
+  docsUrl: GROUP_PRESET_DOCS_URL,
+
+  optionNames: () => ["extends"],
+
+  suggestFix: (m, config) => {
+    const pathStr = GROUP_PRESET_RE.exec(m.message)?.[1];
+    if (pathStr === undefined) {
+      return null;
+    }
+    const extendsPath = parseConfigPath(pathStr);
+    if (extendsPath.at(-1) !== "extends" || extendsPath.length < 2) {
+      return null;
+    }
+    const rulePath = extendsPath.slice(0, -1);
+    const rule = getAtPath(config, rulePath);
+    if (!isPlainObject(rule) || !isStringArray(rule.extends)) {
+      return null;
+    }
+    const groupEntries = rule.extends.filter((e) => e.startsWith("group:"));
+    const [groupEntry] = groupEntries;
+    // Two groups in one rule can't collapse into one rule — the user has to
+    // decide which grouping wins, so explain without guessing.
+    if (groupEntry === undefined || groupEntries.length > 1) {
+      return null;
+    }
+    const groupRule = collapsibleGroupRule(groupEntry);
+    if (!groupRule) {
+      return null;
+    }
+    const groupExtends = isStringArray(groupRule.extends) ? groupRule.extends : [];
+    const inherited = { ...groupRule };
+    delete inherited.extends;
+    const own = { ...rule };
+    delete own.extends;
+    const keptExtends = rule.extends.filter((e) => e !== groupEntry);
+    const mergedExtends = [...new Set([...groupExtends, ...keptExtends])];
+
+    // `extends` first (it's the criteria carrier), then the group's own keys,
+    // then the user's — the user's value wins any key they set explicitly.
+    const merged: Record<string, unknown> = {};
+    if (mergedExtends.length > 0) {
+      merged.extends = mergedExtends;
+    }
+    Object.assign(merged, inherited, own);
+
+    return {
+      path: rulePath,
+      value: merged,
+      before: rule,
+      after: merged,
+      summary: `Replace \`${groupEntry}\` in \`${pathStr}\` with the group's own rule contents`,
+      fixedConfig: withValueAtPath(config, rulePath, merged),
+    };
+  },
+};
+
+// ---------------------------------------------------------------------------
+// 5. `global:` preset extended from a repository config
+// ---------------------------------------------------------------------------
+// Message shape (upstream's config/validation.js, `configType !== "global"`):
+// `${currentPath}: you cannot extend from "global:" presets in a repository config's "extends"`
+// The sibling of pattern 3 (a global-only OPTION set in a repo config), one
+// level up: a whole preset of global-only options, pulled in by name.
+
+const GLOBAL_PRESET_RE =
+  /^(.+?): you cannot extend from "global:" presets in a repository config's "extends"$/;
+
+const GLOBAL_PRESET_DOCS_URL = "https://docs.renovatebot.com/presets-global/";
+
+const globalPresetInExtends: ErrorTranslation = {
+  id: "global-preset-in-extends",
+  matches: (m) => GLOBAL_PRESET_RE.test(m.message),
+
+  explain: (m) => {
+    const path = GLOBAL_PRESET_RE.exec(m.message)?.[1] ?? "this `extends`";
+    return (
+      `\`${path}\` extends a \`global:\` preset. \`global:\` presets are bundles of ` +
+      `self-hosted-only options (the same options roadmap 008's global config layer holds), and ` +
+      `Renovate refuses them in a repository's own config rather than ignoring them — so this is ` +
+      `an error, not a warning, and the whole config is rejected. Move the \`global:\` entry to ` +
+      `the self-hosted global configuration (\`config.js\` / \`RENOVATE_CONFIG\`), where it does ` +
+      `what you meant, and drop it here. See ${GLOBAL_PRESET_DOCS_URL} for what each \`global:\` ` +
+      `preset actually sets.`
+    );
+  },
+
+  docsUrl: GLOBAL_PRESET_DOCS_URL,
+
+  optionNames: () => ["extends"],
+
+  suggestFix: (m, config) => {
+    const pathStr = GLOBAL_PRESET_RE.exec(m.message)?.[1];
+    if (pathStr === undefined) {
+      return null;
+    }
+    const path = parseConfigPath(pathStr);
+    if (path.at(-1) !== "extends") {
+      return null;
+    }
+    const list = getAtPath(config, path);
+    if (!isStringArray(list)) {
+      return null;
+    }
+    const removed = list.filter((e) => e.startsWith("global:"));
+    const kept = list.filter((e) => !e.startsWith("global:"));
+    if (removed.length === 0) {
+      return null;
+    }
+    const summary = `Remove ${removed.map((e) => `\`${e}\``).join(" and ")} from \`${pathStr}\``;
+    if (kept.length === 0) {
+      // An `extends` that held nothing but global: presets: drop the key
+      // rather than leave an empty array behind.
+      return {
+        path,
+        remove: true,
+        before: list,
+        after: undefined,
+        summary,
+        fixedConfig: withKeyRemoved(config, path),
+      };
+    }
+    return {
+      path,
+      value: kept,
+      before: list,
+      after: kept,
+      summary,
+      fixedConfig: withValueAtPath(config, path, kept),
+    };
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -383,6 +613,8 @@ export const ERROR_TRANSLATIONS: ErrorTranslation[] = [
   redundantGlobStar,
   deprecatedOption,
   globalOnlyOption,
+  groupPresetInPackageRule,
+  globalPresetInExtends,
 ];
 
 /**

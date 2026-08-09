@@ -286,6 +286,222 @@ describe("global-only-option translation (008 boundary warning)", () => {
   });
 });
 
+function groupPresetMessage(path: string): ValidationMessage {
+  return {
+    topic: "Configuration Warning",
+    message: `${path}: you should not extend "group:" presets`,
+  };
+}
+
+describe("group-preset-in-package-rule translation (068 — the common WARNING)", () => {
+  const message = groupPresetMessage;
+
+  it("matches the exact upstream message shape, topic-independently", () => {
+    const translation = must(
+      ERROR_TRANSLATIONS.find((t) => t.id === "group-preset-in-package-rule"),
+      "the group-preset-in-package-rule translation",
+    );
+    expect(translation.matches(message("packageRules[0].extends"))).toBe(true);
+    // `explain_message` defaults the topic to "Configuration Error" when a
+    // caller passes only the text — the match must not depend on the topic.
+    expect(
+      translation.matches({
+        topic: "Configuration Error",
+        message: 'packageRules[0].extends: you should not extend "group:" presets',
+      }),
+    ).toBe(true);
+    expect(translation.matches({ topic: "x", message: "unrelated" })).toBe(false);
+  });
+
+  it("explains the structural reason: the preset body is a packageRules array", () => {
+    const translated = must(
+      translateMessage(message("packageRules[0].extends"), null),
+      "a translation for the group-preset message",
+    );
+    expect(translated.explanation).toContain("packageRules[0].extends");
+    expect(translated.explanation).toMatch(/`packageRules` array/);
+    expect(translated.explanation).toMatch(/matchUpdateTypes/);
+    expect(translated.explanation).toMatch(/pin/);
+    expect(translated.docsUrl).toBe("https://docs.renovatebot.com/config-presets/");
+    expect(translated.fix).toBeNull();
+  });
+
+  it("inlines a monorepo group: the underlying monorepo: preset, groupName AND matchUpdateTypes", () => {
+    const config = {
+      packageRules: [{ extends: ["group:jestMonorepo"], automerge: true }],
+    };
+    const translated = must(
+      translateMessage(message("packageRules[0].extends"), config),
+      "a translation for the group-preset message",
+    );
+    const fix = must(translated.fix, "a suggested fix for the jestMonorepo case");
+    expect(fix.path).toEqual(["packageRules", 0]);
+    expect(fix.after).toEqual({
+      extends: ["monorepo:jest"],
+      groupName: "jest monorepo",
+      // the group's own pin-excluding update types, restated verbatim
+      matchUpdateTypes: ["digest", "patch", "minor", "major"],
+      automerge: true,
+    });
+    expect(fix.fixedConfig).toEqual({
+      packageRules: [
+        {
+          extends: ["monorepo:jest"],
+          groupName: "jest monorepo",
+          matchUpdateTypes: ["digest", "patch", "minor", "major"],
+          automerge: true,
+        },
+      ],
+    });
+    expect(fix.summary).toContain("group:jestMonorepo");
+    // original untouched
+    expect(config.packageRules[0]?.extends).toEqual(["group:jestMonorepo"]);
+  });
+
+  it("copies a group's plain matchers when it has no underlying preset to extend", () => {
+    const config = { packageRules: [{ extends: ["group:definitelyTyped"] }] };
+    const translated = must(
+      translateMessage(message("packageRules[0].extends"), config),
+      "a translation for the definitelyTyped group message",
+    );
+    const fix = must(translated.fix, "a suggested fix for the definitelyTyped case");
+    expect(fix.after).toEqual({
+      groupName: "definitelyTyped",
+      matchPackageNames: ["@types/**"],
+    });
+  });
+
+  it("keeps the rule's other presets and lets the user's own value win a conflict", () => {
+    const config = {
+      packageRules: [
+        {
+          extends: ["group:jestMonorepo", "schedule:weekly"],
+          matchUpdateTypes: ["minor", "patch"],
+        },
+      ],
+    };
+    const translated = must(
+      translateMessage(message("packageRules[0].extends"), config),
+      "a translation for the group-preset message",
+    );
+    const fix = must(translated.fix, "a suggested fix that keeps the sibling preset");
+    expect(fix.after).toEqual({
+      extends: ["monorepo:jest", "schedule:weekly"],
+      groupName: "jest monorepo",
+      // explicitly set by the user, so it survives the merge
+      matchUpdateTypes: ["minor", "patch"],
+    });
+  });
+
+  it("explains without a fix when the group is a fan-out over other groups (group:monorepos)", () => {
+    const translated = must(
+      translateMessage(message("packageRules[0].extends"), {
+        packageRules: [{ extends: ["group:monorepos"] }],
+      }),
+      "a translation for the group:monorepos message",
+    );
+    expect(translated.fix).toBeNull();
+  });
+
+  it("explains without a fix when the group carries top-level options (group:all)", () => {
+    const translated = must(
+      translateMessage(message("packageRules[0].extends"), {
+        packageRules: [{ extends: ["group:all"] }],
+      }),
+      "a translation for the group:all message",
+    );
+    expect(translated.fix).toBeNull();
+  });
+
+  it("explains without a fix when two group: presets share one rule (ambiguous)", () => {
+    const translated = must(
+      translateMessage(message("packageRules[0].extends"), {
+        packageRules: [{ extends: ["group:jestMonorepo", "group:definitelyTyped"] }],
+      }),
+      "a translation for the two-group message",
+    );
+    expect(translated.fix).toBeNull();
+  });
+
+  it("explains without a fix for a group name this Renovate doesn't bundle", () => {
+    const translated = must(
+      translateMessage(message("packageRules[0].extends"), {
+        packageRules: [{ extends: ["group:notARealGroupPreset"] }],
+      }),
+      "a translation for the unknown-group message",
+    );
+    expect(translated.fix).toBeNull();
+  });
+
+  it("gives up when the named path isn't in this config (stale message vs. edited config)", () => {
+    const translated = must(
+      translateMessage(message("packageRules[3].extends"), { packageRules: [] as unknown[] }),
+      "a translation for the stale group message",
+    );
+    expect(translated.fix).toBeNull();
+  });
+});
+
+function globalPresetMessage(path: string): ValidationMessage {
+  return {
+    topic: "Configuration Error",
+    message: `${path}: you cannot extend from "global:" presets in a repository config's "extends"`,
+  };
+}
+
+describe("global-preset-in-extends translation", () => {
+  const message = globalPresetMessage;
+
+  it("matches the exact upstream message shape", () => {
+    const translation = must(
+      ERROR_TRANSLATIONS.find((t) => t.id === "global-preset-in-extends"),
+      "the global-preset-in-extends translation",
+    );
+    expect(translation.matches(message("extends"))).toBe(true);
+    expect(translation.matches({ topic: "x", message: "unrelated" })).toBe(false);
+  });
+
+  it("explains that global: presets belong in the self-hosted config", () => {
+    const translated = must(
+      translateMessage(message("extends"), null),
+      "a translation for the global-preset message",
+    );
+    expect(translated.explanation).toMatch(/self-hosted/);
+    expect(translated.docsUrl).toBe("https://docs.renovatebot.com/presets-global/");
+  });
+
+  it("drops only the global: entries, keeping the rest of extends", () => {
+    const translated = must(
+      translateMessage(message("extends"), {
+        extends: ["config:recommended", "global:safeEnv"],
+      }),
+      "a translation for the global-preset message",
+    );
+    const fix = must(translated.fix, "a suggested fix for the global-preset case");
+    expect(fix.path).toEqual(["extends"]);
+    expect(fix.after).toEqual(["config:recommended"]);
+    expect(fix.fixedConfig).toEqual({ extends: ["config:recommended"] });
+  });
+
+  it("removes the key entirely when nothing but global: presets were listed", () => {
+    const translated = must(
+      translateMessage(message("extends"), { extends: ["global:safeEnv"], labels: ["deps"] }),
+      "a translation for the global-only extends message",
+    );
+    const fix = must(translated.fix, "a remove fix for the global-only extends");
+    expect(fix.remove).toBe(true);
+    expect(fix.fixedConfig).toEqual({ labels: ["deps"] });
+  });
+
+  it("gives up when the named path isn't a string array in this config", () => {
+    const translated = must(
+      translateMessage(message("extends"), { extends: "config:recommended" }),
+      "a translation for the non-array extends message",
+    );
+    expect(translated.fix).toBeNull();
+  });
+});
+
 describe("translateMessage", () => {
   it("returns null for a message no curated pattern recognizes", () => {
     expect(
