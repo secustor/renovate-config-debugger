@@ -207,6 +207,57 @@ describe("compareSimulations", () => {
     });
   });
 
+  /**
+   * Roadmap 068 (2026-07 persona study, 4 of 9 sessions): every consumer was
+   * re-deriving "so did it change?" from six arrays and two booleans. The net
+   * effect is stated here, once, in the order a reader asks it: the changed
+   * keys when there are any, the rules that started or stopped otherwise, and
+   * the identity churn only ever as a parenthetical.
+   */
+  describe("summary", () => {
+    const effect = [{ key: "groupName", after: "frontend" }];
+    const wide = matched(0, [["matchPackageNames", ["react", "vue"]]]);
+    const narrow = matched(0, [["matchPackageNames", ["react"]]]);
+
+    it("names the changed keys when the effective config moved", () => {
+      const a = sim([matched(0, [["matchManagers", ["npm"]]])], { groupName: "old" });
+      const b = sim([matched(0, [["matchManagers", ["npm"]]])], { groupName: "new", labels: [] });
+      expect(compareSimulations(a, b).summary).toBe("differs: groupName, labels");
+    });
+
+    it("counts the rules when the config came out the same", () => {
+      const a = sim([matched(0, [["matchPackageNames", ["lodash"]]])], {});
+      const b = sim([matched(0, [["matchSourceUrls", ["https://x"]]])], {});
+      expect(compareSimulations(a, b).summary).toBe(
+        "differs: 1 rule started matching and 1 rule stopped matching, " +
+          "with no change to the effective config",
+      );
+    });
+
+    it("says identical for a behavior-preserving pattern edit, and why", () => {
+      const a = sim([{ ...wide, merged: effect }], { groupName: "frontend" });
+      const b = sim([{ ...narrow, merged: effect }], { groupName: "frontend" });
+      expect(compareSimulations(a, b).summary).toBe(
+        "identical: the same effective config results (a rule's pattern text changed)",
+      );
+    });
+
+    it("says identical without the caveat when nothing moved at all", () => {
+      const a = sim([{ ...wide, merged: effect }], { groupName: "frontend" });
+      expect(compareSimulations(a, a).summary).toBe(
+        "identical: the same rules matched and the same effective config results",
+      );
+    });
+
+    it("stops naming keys once the list would stop being a line", () => {
+      const many = Object.fromEntries(
+        Array.from({ length: 9 }, (_, i) => [`key${i}`, i]),
+      ) as Record<string, unknown>;
+      const cmp = compareSimulations(sim([], {}), sim([], many));
+      expect(cmp.summary).toBe("differs: key0, key1, key2, key3, key4, key5 and 3 more");
+    });
+  });
+
   it("pairs duplicate-signature matched rules as a multiset", () => {
     const clause: [string, unknown][] = [["matchDatasources", ["npm"]]];
     const a = sim([matched(0, clause), matched(1, clause)], {});
