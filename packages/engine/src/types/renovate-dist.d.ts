@@ -99,6 +99,16 @@ declare module "renovate/dist/config/presets/parse.js" {
   export function parsePreset(input: string): ParsedPreset;
 }
 
+declare module "renovate/dist/config/presets/internal/index.js" {
+  /** Renovate's own bundled presets, keyed by `repo` (the part before the `:`)
+   *  and `presetName`. Synchronous — internal presets are data in `dist`, not
+   *  a fetch. `undefined` when the pair names no bundled preset. */
+  export function getPreset(config: {
+    repo?: string;
+    presetName?: string;
+  }): RenovateConfig | undefined;
+}
+
 declare module "renovate/dist/config/presets/util.js" {
   export const PRESET_DEP_NOT_FOUND: string;
   export const PRESET_INVALID: string;

@@ -13,6 +13,12 @@ export { massageConfig } from "renovate/dist/config/massage.js";
 export { validateConfig } from "renovate/dist/config/validation.js";
 export { resolveConfigPresets } from "renovate/dist/config/presets/index.js";
 export { parsePreset } from "renovate/dist/config/presets/parse.js";
+// Renovate's bundled preset bodies (`group:`, `monorepo:`, `packages:`, …).
+// Synchronous and network-free, and already in the module graph via
+// `presets/index.js` — roadmap 014's `group:`-preset translation reads the
+// flagged group's OWN body rather than restating it, so the suggested rule
+// can't drift from the pinned Renovate.
+export { getPreset as getInternalPreset } from "renovate/dist/config/presets/internal/index.js";
 export { mergeChildConfig } from "renovate/dist/config/utils.js";
 export { getConfig as getDefaultConfig } from "renovate/dist/config/defaults.js";
 export { GlobalConfig } from "renovate/dist/config/global.js";
