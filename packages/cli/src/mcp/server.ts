@@ -72,6 +72,27 @@ const HELD_RUN_ANNOTATIONS = {
   openWorldHint: false,
 } as const;
 
+/**
+ * What to do when an answer did not fit the budget (see `./result`): the
+ * narrowing THIS tool takes, named. "Output truncated" tells an agent nothing
+ * it can act on.
+ */
+const HINTS = {
+  finalConfig:
+    "the effective config is too large to return whole — ask get_provenance for one `key`, or get_resolved_config for the document without the defaults.",
+  tree: "the tree is too large at this depth — lower `depth`, pass a `query`, or query one node with get_preset_node.",
+  node: "this node's body is too large to return whole — ask for a deeper child instead, or omit `body` and read the contribution stats.",
+  provenance:
+    "this key's override chain is too large to return whole — the layers that contributed are listed; ask get_preset_node for the body of the one you care about.",
+  resolved:
+    'the resolved document is too large to return whole — try mode "keep-internal" without includeDefaults, or read one preset\'s contribution with get_preset_node.',
+  simulate:
+    "this config has too many packageRules to report whole — the omission is marked; narrow the dependency (a datasource, a depType) so fewer rules report `no-input`.",
+  compare:
+    "the comparison is too large to return whole — narrow the dependency, or ask simulate for one side at a time.",
+  optionDocs: "too many options matched — search for a longer substring.",
+} as const;
+
 const RUN_ID = z.string().describe("A runId returned by run_config.");
 
 const INSTRUCTIONS =
@@ -361,11 +382,7 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       annotations: HELD_RUN_ANNOTATIONS,
       inputSchema: z.strictObject({ runId: RUN_ID }),
     },
-    answer(
-      ({ runId }) => ({ finalConfig: finalConfigOf(store.get(runId)) }),
-      "the effective config is too large to return whole — ask get_provenance for one `key`, " +
-        "or get_resolved_config for the document without the defaults.",
-    ),
+    answer(({ runId }) => ({ finalConfig: finalConfigOf(store.get(runId)) }), HINTS.finalConfig),
   );
 
   server.registerTool(
@@ -402,7 +419,7 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       return query
         ? { summary: stats.summary, matches: searchNodes(stats, query) }
         : { summary: stats.summary, root: viewOf(root, stats, depth ?? DEFAULT_TREE_DEPTH) };
-    }, "the tree is too large at this depth — lower `depth`, pass a `query`, or query one node " + "with get_preset_node."),
+    }, HINTS.tree),
   );
 
   server.registerTool(
@@ -430,7 +447,7 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         occurrences: stats.occurrencesByName.get(found.name)?.length ?? 1,
         ...(kind ? bodyOf(found, kind) : {}),
       };
-    }, "this node's body is too large to return whole — ask for a deeper child instead, or omit " + "`body` and read the contribution stats."),
+    }, HINTS.node),
   );
 
   server.registerTool(
@@ -474,7 +491,7 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
             }))
           : [];
       return { ...entryView(entry), ...(rules.length > 0 ? { rules } : {}) };
-    }, "this key's override chain is too large to return whole — the layers that contributed are " + "listed; ask get_preset_node for the body of the one you care about."),
+    }, HINTS.provenance),
   );
 
   server.registerTool(
@@ -505,7 +522,7 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         throw new Error("this document needs a completed preset resolution — validate the config");
       }
       return { mode: resolvedMode, ...output };
-    }, 'the resolved document is too large to return whole — try mode "keep-internal" without ' + "includeDefaults, or read one preset's contribution with get_preset_node."),
+    }, HINTS.resolved),
   );
 
   server.registerTool(
@@ -523,7 +540,7 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       const run = store.get(runId);
       const sim = await simulateRun(run, dep);
       return { dep: toDependency(dep), ...sim };
-    }, "this config has too many packageRules to report whole — the omission is marked; narrow " + "the dependency (a datasource, a depType) so fewer rules report `no-input`."),
+    }, HINTS.simulate),
   );
 
   server.registerTool(
@@ -553,7 +570,7 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         b: { runId: b.runId, dep: toDependency(depB ?? dep) },
         ...compareSimulations(simA, simB),
       };
-    }, "the comparison is too large to return whole — narrow the dependency, or ask simulate for " + "one side at a time."),
+    }, HINTS.compare),
   );
 
   server.registerTool(
