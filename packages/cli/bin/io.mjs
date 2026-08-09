@@ -6,6 +6,7 @@
  * can never read the environment itself.
  */
 export function processIo() {
+  guardStderr();
   return {
     out: (text) => process.stdout.write(text),
     err: (text) => process.stderr.write(text),
@@ -19,6 +20,22 @@ export function processIo() {
     },
     onDisconnect,
   };
+}
+
+/**
+ * A stream with no `'error'` listener turns a write failure into an UNCAUGHT
+ * exception — so a peer that closes the pipe (`rcd digest … | head`, or an MCP
+ * host that stops reading our diagnostics) crashes the process on the next
+ * line of stderr, from inside a `write` nobody awaited. The SDK guards stdout
+ * for exactly this reason; stderr has the same failure mode and no owner.
+ *
+ * Silence is the whole point: there is nowhere left to report a broken stderr
+ * to. The process keeps running and its own exit code still speaks.
+ */
+function guardStderr() {
+  if (process.stderr.listenerCount("error") === 0) {
+    process.stderr.on("error", () => {});
+  }
 }
 
 /**
