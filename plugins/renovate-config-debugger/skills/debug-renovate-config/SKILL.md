@@ -144,13 +144,20 @@ infrastructure error, so it works as a check in CI or a hook without a wrapper.
   concluding an option "is not set".
 - **An oversized answer is elided, not silently cut.** A tool result too big
   to return whole rewrites its largest array in place as
-  `{truncated: true, shown, omitted, items: […]}`, and the whole document
-  gets a top-level `truncated: true` plus a `hint` naming the parameter that
-  narrows the question. Index `rules[0]` on an elided answer and you get
-  `undefined` — the array moved to `.items` inside the wrapper. Follow the
-  hint (fewer rules, one preset node, a smaller depth) rather than re-reading
-  the raw shape; elision keeps both ends of a shrunk array, so a rule your
-  own config appended last is not the one that vanished.
+  `{truncated: true, shown, omitted, omittedFrom, items: […]}` — the gap sits
+  at index `omittedFrom` in `items` — and the whole document gets a top-level
+  `truncated: true` plus a `hint` naming the parameter that narrows the
+  question. Index `rules[0]` on an elided answer and you get `undefined` — the
+  array moved to `.items` inside the wrapper. Follow the hint (fewer rules,
+  one preset node, a smaller depth) rather than re-reading the raw shape;
+  elision keeps both ends of a shrunk array, so a rule your own config
+  appended last is not the one that vanished.
+- **`simulate` answers the question by default.** Its default `detail:
+"verdict"` payload is the matched rules, `flattened` and
+  `finalDependencyConfig`; the ~1 MB step-by-step merge trace (`mergeSteps`,
+  `rawFinalConfig`) only comes with `detail: "full"`, which is over budget by
+  construction and arrives elided. Reach for it only when the per-step merge
+  order itself is the question.
 - This tooling is **experimental**: tool names, flags and output shapes may
   change. If a call fails with an unknown-argument error, list the tools (or
   run `--help`) rather than guessing a variant.
