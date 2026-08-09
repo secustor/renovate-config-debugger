@@ -149,15 +149,15 @@ function buildProgram(io: CliIo, report: ExitSink): CommanderCommand {
 /**
  * Invocations the plugin hint must stay out of. The marker is stderr-only, but
  * agents run commands with `2>&1` merged, and the hint precedes the payload —
- * so an answer asked for as machine output gets the stream to itself. `mcp`
- * counts: the server owns stdio for the life of the session. `--version` is
- * the same one-line-answer case, and predates the rest.
+ * so an answer asked for as machine output gets the stream to itself. `mcp` is
+ * NOT in this list: the server owns stdout, never stderr, and roadmap 060
+ * deliberately hints there — once per session-long process. `--version` is
+ * the one-line-answer case, and predates the rest.
  */
 function answersWithoutHint(argv: readonly string[]): boolean {
   return (
     argv[0] === "--version" ||
     argv[0] === "-v" ||
-    argv[0] === "mcp" ||
     argv.includes("--format=json") ||
     argv.some((arg, index) => arg === "--format" && argv[index + 1] === "json")
   );
