@@ -292,21 +292,50 @@ export function simulatePackageRules(input: SimulationInput): Promise<Simulation
   return enqueueEngineTask(() => execute(input));
 }
 
-/** The descriptor as config fields, undefineds dropped, depName defaulted. */
-function buildDepFields(dep: DependencyDescriptor): Record<string, unknown> {
-  const withDefaults: DependencyDescriptor = {
-    ...dep,
-    ...(dep.depName === undefined && dep.packageName !== undefined
-      ? { depName: dep.packageName }
-      : {}),
-  };
+/**
+ * The descriptor as config fields, undefineds dropped, with the two name
+ * fields cross-defaulted — plus the notes that make the defaulting visible.
+ *
+ * Roadmap 062 (2026-07 persona study, 3 of 9 sessions): a `{"depName":"react"}`
+ * simulation used to report EVERY `matchPackageNames` clause as `no-input`,
+ * because that matcher reads `packageName` only. No real Renovate run behaves
+ * that way: the fetch worker fills `packageName` in long before packageRules
+ * are applied — renovate 44.7.4,
+ * `dist/workers/repository/process/fetch.js:21` (`dep.packageName ??=
+ * dep.depName`) and again at `:37` on the merged config, after the pre-lookup
+ * rules. Mirroring it here is the difference between a simulation of Renovate
+ * and a simulation of the matcher.
+ *
+ * Both directions are noted rather than applied silently: the defaulted value
+ * is what the clause evidence then quotes, and a reader who did not type that
+ * field deserves to see where it came from.
+ */
+function buildDepFields(dep: DependencyDescriptor): {
+  fields: Record<string, unknown>;
+  notes: string[];
+} {
+  const withDefaults: DependencyDescriptor = { ...dep };
+  const notes: string[] = [];
+  if (withDefaults.depName === undefined && withDefaults.packageName !== undefined) {
+    withDefaults.depName = withDefaults.packageName;
+    notes.push(
+      `depName defaulted from packageName ("${withDefaults.packageName}") — ` +
+        "Renovate does the same before matching",
+    );
+  } else if (withDefaults.packageName === undefined && withDefaults.depName !== undefined) {
+    withDefaults.packageName = withDefaults.depName;
+    notes.push(
+      `packageName defaulted from depName ("${withDefaults.depName}") — ` +
+        "Renovate does the same before matching, so `matchPackageNames` sees it",
+    );
+  }
   const fields: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(withDefaults)) {
     if (value !== undefined) {
       fields[key] = value;
     }
   }
-  return fields;
+  return { fields, notes };
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -518,14 +547,14 @@ async function execute(input: SimulationInput): Promise<SimulationResult> {
     memCache.init();
     GlobalConfig.set({} as Parameters<typeof GlobalConfig.set>[0]);
 
-    const depFields = buildDepFields(input.dep);
+    const { fields: depFields, notes: depNotes } = buildDepFields(input.dep);
     // Upstream builds PackageRuleInputConfig by layering the update's fields
     // over the effective config, so rules (e.g. matchJsonata) can reference
     // config-level values too.
     const inputConfig: Record<string, unknown> = { ...input.config, ...depFields };
 
     const rawRules = Array.isArray(input.config.packageRules) ? input.config.packageRules : [];
-    const notes: string[] = [];
+    const notes: string[] = [...depNotes];
 
     const errors: ValidationMessage[] = [];
     const warnings: ValidationMessage[] = [];
