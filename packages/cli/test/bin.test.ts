@@ -1,12 +1,11 @@
-import { execFile, spawn } from "node:child_process";
-import { once } from "node:events";
-import { createInterface } from "node:readline";
+import { execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 import { fixture } from "../src/test-harness";
+import { CHILD_ENV, CLI_DIR, MCP_TOOL_NAMES, mcpSession, runBin } from "./bin-harness";
 
 /**
- * The bin itself, as a real subprocess.
+ * The DEV bin, as a real subprocess.
  *
  * The suites colocated under `src/` call `main(argv, io)` inside vitest's own
  * module graph,
@@ -20,62 +19,16 @@ import { fixture } from "../src/test-harness";
  * behavior of the commands is asserted in-process and only the seams the bin
  * owns are asserted here.
  *
- * The dev runner is the target, not the published `bin/rcd.mjs`: that one
- * needs `dist/main.js`, which the test job never builds — and the artifact
- * itself is already proven by the `bundle` project's parity suite.
+ * The PUBLISHED bin has its own suite (`published-bin.test.ts`) against the
+ * same harness — it needs `dist/main.js`, so it runs in the `bundle` project,
+ * after the build, rather than here.
  */
 
 const BIN = fileURLToPath(new URL("../bin/rcd-dev.mjs", import.meta.url));
-const CLI_DIR = fileURLToPath(new URL("..", import.meta.url));
-
-// The bin hands the REAL environment to `main` — tokens, and env markers like
-// Claude Code's — so the child gets a copy with those signals stripped. The
-// assertions must not depend on the session that happens to run the suite.
-const CHILD_ENV: Record<string, string | undefined> = { ...process.env };
-for (const key of Object.keys(CHILD_ENV)) {
-  if (key === "CLAUDECODE" || key.startsWith("RCD_") || key.endsWith("_TOKEN")) {
-    delete CHILD_ENV[key];
-  }
-}
-
-interface BinRun {
-  code: number;
-  stdout: string;
-  stderr: string;
-}
-
-function runBin(args: string[], stdin = ""): Promise<BinRun> {
-  return new Promise<BinRun>((resolve, reject) => {
-    const child = execFile(
-      process.execPath,
-      [BIN, ...args],
-      // `--select final` prints Renovate's whole effective config; the default
-      // 1 MB buffer truncates it into a parse error.
-      { cwd: CLI_DIR, env: CHILD_ENV, maxBuffer: 64 * 1024 * 1024 },
-      (error, stdout, stderr) => {
-        if (!error) {
-          resolve({ code: 0, stdout, stderr });
-        } else if (typeof error.code === "number") {
-          // The bin answers with `process.exitCode`, so every non-zero exit
-          // arrives as an `Error` carrying that code — it is the answer, not
-          // a failure.
-          resolve({ code: error.code, stdout, stderr });
-        } else {
-          // No numeric code: the spawn itself failed, which no assertion here
-          // is about.
-          reject(error);
-        }
-      },
-    );
-    // Always closed: a command that does not read stdin would otherwise hold
-    // an open pipe for the life of the child.
-    child.stdin?.end(stdin);
-  });
-}
 
 describe("bin/rcd-dev.mjs", () => {
   test("--help writes the command list to stdout and exits 0", async () => {
-    const run = await runBin(["--help"]);
+    const run = await runBin(BIN, ["--help"]);
     expect(run.code).toBe(0);
     expect(run.stderr).toBe("");
     for (const name of ["validate", "digest", "run", "simulate", "compare", "docs"]) {
@@ -84,7 +37,7 @@ describe("bin/rcd-dev.mjs", () => {
   });
 
   test("a clean config exits 0 and stdout is one JSON document", async () => {
-    const run = await runBin(["digest", fixture("clean.json"), "--format", "json"]);
+    const run = await runBin(BIN, ["digest", fixture("clean.json"), "--format", "json"]);
     expect(run.code).toBe(0);
     const digest = JSON.parse(run.stdout) as { digest: string; accepted: boolean };
     expect(digest.accepted).toBe(true);
@@ -92,13 +45,14 @@ describe("bin/rcd-dev.mjs", () => {
   });
 
   test("a config Renovate would refuse exits 2, with the report still on stdout", async () => {
-    const run = await runBin(["validate", fixture("invalid.json"), "--format", "json"]);
+    const run = await runBin(BIN, ["validate", fixture("invalid.json"), "--format", "json"]);
     expect(run.code).toBe(2);
     expect(JSON.parse(run.stdout)).toMatchObject({ accepted: false });
   });
 
   test("the config can come from the process's own stdin", async () => {
     const run = await runBin(
+      BIN,
       ["run", "--stdin", "--format", "json", "--select", "final"],
       '{"labels":["from-stdin"]}',
     );
@@ -113,6 +67,7 @@ describe("bin/rcd-dev.mjs", () => {
     // on the exit code rather than waiting for the loop used to drop the rest
     // and still report success.
     const run = await runBin(
+      BIN,
       ["run", "--stdin", "--select", "final", "--format", "json"],
       '{"extends":["config:recommended"]}',
     );
@@ -121,6 +76,36 @@ describe("bin/rcd-dev.mjs", () => {
     const result = JSON.parse(run.stdout) as { finalConfig: { extends?: string[] } };
     expect(result.finalConfig).toBeTypeOf("object");
   }, 120_000);
+
+  test("a reader that stops reading does not crash the process", async () => {
+    // `… | head` is the shape an agent uses to peek at a large answer. stdout
+    // with no `'error'` listener turns the resulting EPIPE into an UNCAUGHT
+    // exception — a stack trace and a non-zero exit for a command that did
+    // nothing wrong. `bin/io.mjs` guards both streams; this is that guard.
+    const pipeline = await new Promise<{ code: number; stderr: string }>((resolve, reject) => {
+      execFile(
+        "bash",
+        [
+          "-c",
+          // pipefail: without it the pipeline reports `head`'s status and a
+          // crashed producer would pass unnoticed.
+          `set -o pipefail; echo '{"extends":["config:recommended"]}' | node ${JSON.stringify(BIN)} run --stdin --select final --format json | head -c 100`,
+        ],
+        { cwd: CLI_DIR, env: CHILD_ENV },
+        (error, _stdout, stderr) => {
+          if (!error) {
+            resolve({ code: 0, stderr });
+          } else if (typeof error.code === "number") {
+            resolve({ code: error.code, stderr });
+          } else {
+            reject(error);
+          }
+        },
+      );
+    });
+    expect(pipeline.stderr).not.toMatch(/EPIPE|Unhandled 'error' event/);
+    expect(pipeline.code).toBe(0);
+  }, 120_000);
 });
 
 /**
@@ -128,83 +113,12 @@ describe("bin/rcd-dev.mjs", () => {
  * whole subject is stdio — the SDK owns stdout as the protocol, and the
  * session ends on an EOF only a bin can see.
  */
-
-interface JsonRpcMessage {
-  jsonrpc: string;
-  id?: number;
-  result?: { tools?: { name: string }[] };
-  error?: unknown;
-}
-
 describe("bin/rcd-dev.mjs mcp", () => {
   test("answers JSON-RPC on stdout and exits 0 when the client disconnects", async () => {
-    const child = spawn(process.execPath, [BIN, "mcp"], {
-      cwd: CLI_DIR,
-      env: CHILD_ENV,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-
-    // Piped and never asserted on, but it has to be drained: a stderr nobody
-    // reads fills its own pipe buffer and stalls the child.
-    child.stderr.resume();
-
-    const messages: JsonRpcMessage[] = [];
-    let toolsList: JsonRpcMessage | undefined;
-    const answered = new Promise<void>((resolve) => {
-      const lines = createInterface({ input: child.stdout });
-      lines.on("line", (line) => {
-        if (line.trim() === "") {
-          return;
-        }
-        // Every line is protocol: a stray log or hint on stdout is a bug the
-        // parse below is here to catch.
-        const message = JSON.parse(line) as JsonRpcMessage;
-        messages.push(message);
-        if (message.id === 2) {
-          toolsList = message;
-          resolve();
-        }
-      });
-    });
-
-    for (const message of [
-      {
-        jsonrpc: "2.0",
-        id: 1,
-        method: "initialize",
-        params: {
-          protocolVersion: "2025-06-18",
-          capabilities: {},
-          clientInfo: { name: "rcd-test", version: "0" },
-        },
-      },
-      { jsonrpc: "2.0", method: "notifications/initialized" },
-      { jsonrpc: "2.0", id: 2, method: "tools/list" },
-    ]) {
-      child.stdin.write(`${JSON.stringify(message)}\n`);
-    }
-
-    await answered;
-    expect(messages.every((message) => message.jsonrpc === "2.0")).toBe(true);
-    expect(messages.filter((message) => message.error !== undefined)).toEqual([]);
-    expect(toolsList?.result?.tools?.map((tool) => tool.name)).toEqual([
-      "run_config",
-      "get_final_config",
-      "get_preset_tree",
-      "get_preset_node",
-      "get_provenance",
-      "get_resolved_config",
-      "simulate",
-      "compare_simulations",
-      "explain_message",
-      "get_option_docs",
-    ]);
-
-    // The regression: the SDK's stdio transport ignores EOF, so the command
-    // used to wait forever and Node killed the process at 13 — with the dev
-    // runner's Vite teardown never reached.
-    child.stdin.end();
-    const [code] = (await once(child, "exit")) as [number | null, string | null];
-    expect(code).toBe(0);
+    const session = await mcpSession(BIN);
+    expect(session.messages.every((message) => message.jsonrpc === "2.0")).toBe(true);
+    expect(session.messages.filter((message) => message.error !== undefined)).toEqual([]);
+    expect(session.toolsList?.result?.tools?.map((tool) => tool.name)).toEqual(MCP_TOOL_NAMES);
+    expect(session.code).toBe(0);
   }, 120_000);
 });

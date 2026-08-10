@@ -1,6 +1,10 @@
 import { fileURLToPath } from "node:url";
 import { renovateShims } from "@renovate-config-debugger/engine/vite-plugin";
 import { defineConfig } from "vitest/config";
+// Deliberately the engine's own list rather than a glob: two of those files
+// carry no `.shimmed.` infix, so a glob here silently proved less than the
+// engine's `shimmed` project runs.
+import { SHIMMED_TESTS } from "../engine/vitest.shimmed-tests";
 
 const srcAlias = { "@": fileURLToPath(new URL("../app/src", import.meta.url)) };
 
@@ -18,12 +22,14 @@ const bundledEngine = fileURLToPath(new URL("./dist/engine-surface.js", import.m
  *   under `src/`; the exception is `test/bin.test.ts` (`bin/` is published
  *   payload that carries no tests) next to the `test/fixtures/` both feed in.
  * - "bundle" (roadmap 059) — the parity PROOF for the published artifact. It
- *   runs the engine's own `*.shimmed.test.ts` files, which write and compare
- *   the golden file snapshots, with `../src/index` pointed at
- *   `dist/engine-surface.js`. So "the bundle is the same module graph" is
- *   tested against the thing that ships rather than inferred from both having
- *   been built with the same plugin. Needs `pnpm build` first; CI runs it
- *   right after, and it is NOT part of `pnpm test` for exactly that reason.
+ *   runs the engine's own shimmed suites, which write and compare the golden
+ *   file snapshots, with `../src/index` pointed at `dist/engine-surface.js`.
+ *   So "the bundle is the same module graph" is tested against the thing that
+ *   ships rather than inferred from both having been built with the same
+ *   plugin. `test/published-bin.test.ts` joins them: the engine surface is
+ *   only half of `dist/`, and the bin that consumers actually run — commander,
+ *   the MCP SDK, `dist/main.js` — is the other half. Needs `pnpm build` first;
+ *   CI runs it right after, and it is NOT part of `pnpm test` for that reason.
  */
 export default defineConfig({
   test: {
@@ -36,7 +42,10 @@ export default defineConfig({
         logLevel: "error",
         test: {
           name: "cli",
-          include: ["src/**/*.test.ts", "test/*.test.ts"],
+          // `test/bin.test.ts` by name, not `test/*.test.ts`: its neighbour
+          // `published-bin.test.ts` needs a `dist/` this project never builds
+          // and belongs to the "bundle" project below.
+          include: ["src/**/*.test.ts", "test/bin.test.ts"],
           environment: "node",
           // the first test to resolve a large internal preset pays the lazy
           // transform+import of renovate's preset data modules
@@ -59,7 +68,10 @@ export default defineConfig({
         plugins: [renovateShims()],
         test: {
           name: "bundle",
-          include: ["../engine/test/*.shimmed.test.ts"],
+          include: [
+            ...SHIMMED_TESTS.map((file) => `../engine/${file}`),
+            "test/published-bin.test.ts",
+          ],
           environment: "node",
           testTimeout: 60_000,
           server: { deps: { inline: [/renovate/] } },

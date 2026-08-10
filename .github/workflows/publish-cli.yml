@@ -5,8 +5,12 @@ name: Publish CLI
 # Release-triggered only: nothing on this workflow runs on a push to main, so
 # a merge can never publish. A release is cut by tagging `cli-v<version>`
 # (which must match packages/cli/package.json's version — the job checks) and
-# publishing the GitHub release, or by running the workflow by hand for a
-# dry run.
+# publishing the GitHub release.
+#
+# Running it by hand dry-runs by default; unchecking `dry-run` publishes the
+# ref it was dispatched from, for the re-publish case a cut release cannot
+# repeat. That path has no tag to check the version against — npm's own
+# refusal to overwrite an existing version is the backstop.
 on:
   release:
     types: [published]
@@ -52,10 +56,17 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm --filter @renovate-config-debugger/cli test
 
-      # `prebuild` (scripts/check-compat.ts) fails the build when the
-      # README's compat table does not describe this build.
+      # `build` runs scripts/check-compat.ts, which fails when the README's
+      # compat table does not describe this tree's dependencies.
       - name: Build the SSR bundle
         run: pnpm --filter @renovate-config-debugger/cli build
+
+      # …and only here, where a release is actually being cut, must the row's
+      # `cli` cell name the version about to be published. Requiring that on
+      # every build would make each automated Renovate bump red until someone
+      # bumped the CLI version and added a row for a release nobody is cutting.
+      - name: Compat table names this release
+        run: node packages/cli/scripts/check-compat.ts --release
 
       # The parity proof: the engine's own shimmed snapshot suite, re-run with
       # the engine pointed at dist/engine-surface.js. "The bundle is the same
@@ -64,17 +75,15 @@ jobs:
       - name: Bundle parity (engine shimmed snapshots vs. the bundle)
         run: pnpm --filter @renovate-config-debugger/cli test:bundle
 
-      # AGPL-3.0-only is stated in package.json; the text has to travel with
-      # the tarball. It lives at the repo root, so it is copied in rather than
-      # duplicated in the tree.
-      - name: Bundle the license
-        run: cp LICENSE packages/cli/LICENSE
-
+      # AGPL-3.0-only is stated in package.json and `files` lists LICENSE; the
+      # text itself lives at the repo root, and packages/cli/scripts/prepack.ts
+      # copies it in on `pack`/`publish` — so the tarball carries it whoever
+      # builds it, not only this workflow.
       - name: Smoke-test the published bin
         run: node packages/cli/bin/rcd.mjs validate packages/cli/test/fixtures/clean.json
 
       - name: Publish to npm
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.dry-run == false)
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: "true"
@@ -83,5 +92,5 @@ jobs:
           pnpm --filter @renovate-config-debugger/cli publish --access public --no-git-checks
 
       - name: Dry run only
-        if: github.event_name != 'release'
+        if: github.event_name == 'workflow_dispatch' && inputs.dry-run != false
         run: pnpm --filter @renovate-config-debugger/cli publish --dry-run --no-git-checks

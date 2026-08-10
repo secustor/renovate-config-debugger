@@ -13,10 +13,14 @@
  * prebuilt bundle of this same graph). This one stays: in-repo, an edit is
  * live on the next command with no build step in between.
  */
+import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
 import { processIo } from "./io.mjs";
 
-const configFile = new URL("../vite.config.ts", import.meta.url).pathname;
+// `fileURLToPath`, not `.pathname`: a URL keeps its percent-encoding, so a
+// checkout under a path with a space resolves to a `.../My%20Repos/...` Vite
+// cannot stat, and every in-repo `rcd …` fails before the command runs.
+const configFile = fileURLToPath(new URL("../vite.config.ts", import.meta.url));
 
 const server = await createServer({
   configFile,

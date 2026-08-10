@@ -13,12 +13,12 @@
     "renovatebot"
   ],
   "homepage": "https://renovate.secustor.dev",
-  "bugs": "https://github.com/secustor/renovate-config-visualizer/issues",
+  "bugs": "https://github.com/secustor/renovate-config-debugger/issues",
   "license": "AGPL-3.0-only",
   "author": "secustor",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/secustor/renovate-config-visualizer.git",
+    "url": "git+https://github.com/secustor/renovate-config-debugger.git",
     "directory": "packages/cli"
   },
   "bin": {
@@ -41,6 +41,7 @@
   "scripts": {
     "rcd": "node ./bin/rcd-dev.mjs",
     "build": "node scripts/check-compat.ts && vite build",
+    "prepack": "node scripts/prepack.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --project cli",
     "test:bundle": "vitest run --project bundle"

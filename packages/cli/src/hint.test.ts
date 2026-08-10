@@ -47,6 +47,21 @@ describe("the Claude Code plugin hint (roadmap 060)", () => {
     }
   });
 
+  test("is withheld from `validate`, whose exit-2 stderr a hook feeds to a model", async () => {
+    // `EXIT_REFUSED = 2` exists so `rcd validate` drops straight into a Claude
+    // Code hook — and hook stderr is not where the marker gets stripped, so an
+    // unwithheld hint arrives glued to the errors the model is asked to fix.
+    for (const argv of [
+      ["validate", fixture("invalid.json")],
+      ["validate", fixture("clean.json")],
+    ]) {
+      resetPluginHintForTest();
+      const io = recordingIo({ env: { CLAUDECODE: "1" } });
+      await main(argv, io);
+      expect(io.stderr).not.toContain("claude-code-hint");
+    }
+  });
+
   test("still reaches `mcp` — stderr is free, and the session-long process is the target", async () => {
     // Dispatch only — the hint is decided before the command runs, so the
     // argv failure below is the cheapest way to reach that decision. The

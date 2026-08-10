@@ -153,11 +153,18 @@ function buildProgram(io: CliIo, report: ExitSink): CommanderCommand {
  * NOT in this list: the server owns stdout, never stderr, and roadmap 060
  * deliberately hints there — once per session-long process. `--version` is
  * the one-line-answer case, and predates the rest.
+ *
+ * `validate` is here whatever its format: `EXIT_REFUSED = 2` is the code a
+ * Claude Code hook reads as "feed this command's stderr back to the model"
+ * (see `io.ts`), and hook stderr is NOT where the marker gets stripped — only
+ * tool output is. Unwithheld, the model fixing a config would receive an
+ * install prompt glued to the errors it is supposed to fix.
  */
 function answersWithoutHint(argv: readonly string[]): boolean {
   return (
     argv[0] === "--version" ||
     argv[0] === "-v" ||
+    argv[0] === "validate" ||
     argv.includes("--format=json") ||
     argv.some((arg, index) => arg === "--format" && argv[index + 1] === "json")
   );

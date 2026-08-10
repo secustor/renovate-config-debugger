@@ -4,9 +4,20 @@
  *
  * The CLI's answers change when Renovate's code does, so the version has to
  * say which Renovate a release carries — and a hand-maintained table is
- * exactly the kind of thing that goes stale three releases in. This runs as
- * `prebuild`, so a Renovate bump that forgets the table fails the build (and
- * the publish workflow) instead of shipping a lie.
+ * exactly the kind of thing that goes stale three releases in. This runs from
+ * `build`, so a Renovate bump that forgets the table fails the build (and the
+ * publish workflow) instead of shipping a lie.
+ *
+ * Two strengths, because a build and a release are different claims:
+ *
+ * - by default (every `pnpm build`, so every PR) the top row must describe the
+ *   DEPENDENCIES of this tree — the embedded engine and the Renovate pin. A
+ *   bump PR fixes a stale table by editing those cells.
+ * - `--release` additionally requires the row's `cli` cell to be the version
+ *   being published. Only `publish-cli.yml` passes it: requiring it everywhere
+ *   would mean every automated Renovate bump could only go green by bumping
+ *   the CLI version and adding a row, i.e. cutting a release inside a
+ *   dependency bump.
  *
  * Plain Node, no dependencies: it runs before anything is built.
  */
@@ -34,10 +45,10 @@ if (!renovate || !/^\d+\.\d+\.\d+$/.test(renovate)) {
 
 const MARKER = "<!-- compat-table -->";
 const readme = read("../README.md");
-const table = readme.slice(readme.indexOf(MARKER));
 if (!readme.includes(MARKER)) {
   throw new Error(`packages/cli/README.md must carry a ${MARKER} marker above the compat table`);
 }
+const table = readme.slice(readme.indexOf(MARKER));
 
 // The first row after the marker's header + separator lines.
 const row = table
@@ -49,18 +60,24 @@ const cells = (row ?? "")
   .slice(1, -1)
   .map((cell) => cell.trim().replaceAll("`", ""));
 
+// A release claims the row is about THIS version; a build only claims it
+// describes the dependencies this tree carries.
+const release = process.argv.includes("--release");
 const expected = [cli.version, engine.version, renovate];
-const matches = expected.every((value, i) => cells[i] === value);
+const checked = release ? [0, 1, 2] : [1, 2];
+const stale = checked.filter((i) => cells[i] !== expected[i]);
 
-if (!matches) {
+if (stale.length > 0) {
   throw new Error(
     "packages/cli/README.md: the compat table's top row is stale.\n" +
-      `  expected: | ${expected.join(" | ")} |\n` +
+      `  expected: | ${(release ? expected : ["…", expected[1], expected[2]]).join(" | ")} |\n` +
       `  found:    | ${cells.join(" | ")} |\n` +
-      "Add a row for this release (cli version | embedded engine version | renovate pin).",
+      (release
+        ? "Add a row for this release (cli version | embedded engine version | renovate pin)."
+        : "Update the top row's dependency cells to match this tree — no version bump needed."),
   );
 }
 
 process.stdout.write(
-  `compat ok: cli ${cli.version} · engine ${engine.version} · renovate ${renovate}\n`,
+  `compat ok${release ? " (release)" : ""}: cli ${cli.version} · engine ${engine.version} · renovate ${renovate}\n`,
 );

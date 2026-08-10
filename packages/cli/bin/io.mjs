@@ -6,7 +6,7 @@
  * can never read the environment itself.
  */
 export function processIo() {
-  guardStderr();
+  guardStdio();
   return {
     out: (text) => process.stdout.write(text),
     err: (text) => process.stderr.write(text),
@@ -26,15 +26,21 @@ export function processIo() {
  * A stream with no `'error'` listener turns a write failure into an UNCAUGHT
  * exception — so a peer that closes the pipe (`rcd digest … | head`, or an MCP
  * host that stops reading our diagnostics) crashes the process on the next
- * line of stderr, from inside a `write` nobody awaited. The SDK guards stdout
- * for exactly this reason; stderr has the same failure mode and no owner.
+ * write, from inside a `write` nobody awaited.
  *
- * Silence is the whole point: there is nowhere left to report a broken stderr
+ * BOTH streams, not just stderr: the MCP SDK installs its own stdout guard,
+ * but it does that while `rcd mcp` is running and only then — the other nine
+ * subcommands write their answer to a stdout nobody has claimed, which is
+ * exactly the `| head` case. `out()` below is that write.
+ *
+ * Silence is the whole point: there is nowhere left to report a broken stream
  * to. The process keeps running and its own exit code still speaks.
  */
-function guardStderr() {
-  if (process.stderr.listenerCount("error") === 0) {
-    process.stderr.on("error", () => {});
+function guardStdio() {
+  for (const stream of [process.stdout, process.stderr]) {
+    if (stream.listenerCount("error") === 0) {
+      stream.on("error", () => {});
+    }
   }
 }
 

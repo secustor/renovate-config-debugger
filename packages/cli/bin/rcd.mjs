@@ -27,13 +27,23 @@ setSourceMapsSupport(true);
 // agents read. Every other warning is printed exactly as Node would — which
 // is why the default handler has to go first: a `warning` listener ADDS to it
 // rather than replacing it, so registering one alone would print twice.
-process.removeAllListeners("warning");
-process.on("warning", (warning) => {
-  if (warning.name === "DeprecationWarning" && warning.message.includes("punycode")) {
-    return;
-  }
-  process.stderr.write(`${warning.stack ?? `${warning.name}: ${warning.message}`}\n`);
-});
+//
+// Node's own printer is then called for everything else, rather than a
+// lookalike: it is what honors `--trace-warnings` and prints the
+// `(node:123) Warning: …` prefix, and re-implementing it would turn a one-line
+// warning into a stack trace. And when there is no default listener to take
+// over from, warnings are already suppressed (`--no-warnings`,
+// `NODE_NO_WARNINGS=1`) — so this installs nothing and stays suppressed.
+const [defaultWarningListener] = process.listeners("warning");
+if (defaultWarningListener) {
+  process.removeAllListeners("warning");
+  process.on("warning", (warning) => {
+    if (warning.name === "DeprecationWarning" && warning.message.includes("punycode")) {
+      return;
+    }
+    defaultWarningListener(warning);
+  });
+}
 
 const bundle = new URL("../dist/main.js", import.meta.url);
 

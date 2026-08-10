@@ -22,7 +22,8 @@ import type { CliIo } from "./io";
  * Being off stdout turned out not to be enough: agents run commands with
  * `2>&1`, and a marker printed before a JSON payload becomes the first line of
  * a document that no longer parses. `main.ts` therefore withholds it from any
- * invocation that asked for machine output — see `answersWithoutHint`.
+ * invocation that asked for machine output, and from `validate`, whose exit-2
+ * stderr is read by a hook that strips nothing — see `answersWithoutHint`.
  */
 
 /** Matches the plugin directory's name (roadmap 061). */

@@ -26,7 +26,9 @@ exactly this Renovate — nothing resolves at install time.
 
 **The table describes an experimental interface**: a new row is not a promise
 that the previous row's flags still work. (`packages/cli/scripts/check-compat.ts`
-fails the build if the top row does not describe the current build.)
+fails the build if the top row's `engine`/`renovate` cells do not describe this
+tree — a dependency bump updates them in place — and fails the release, with
+`--release`, if its `cli` cell is not the version being published.)
 
 ## What it is
 
