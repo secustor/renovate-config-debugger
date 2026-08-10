@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { PACKAGE_RULES_CONFIG, SEMANTIC_COMMITS_CONFIG } from "./fixtures";
 import {
+  openSessionMenu,
   openTab,
   resultsPanel,
   runAndAwaitResult,
@@ -210,18 +211,6 @@ test("digits jump straight to a results tab, by strip position", async ({ page }
   await expect(tabButton(page, "presets")).toHaveAttribute("aria-selected", "true");
 });
 
-test("F6 cycles the panes, including from inside the editor", async ({ page }) => {
-  await page.goto("/");
-  await runAndAwaitResult(page);
-
-  await page.locator(".cm-content").click();
-  await page.keyboard.press("F6");
-  await expect(tabButton(page, "overview")).toBeFocused();
-
-  await page.keyboard.press("F6");
-  await expect(page.locator(".cm-content")).toBeFocused();
-});
-
 test("⌘⇧⏎ runs and takes you to the results", async ({ page }) => {
   await page.goto("/");
   await page.locator(".cm-content").click();
@@ -245,6 +234,20 @@ test("? opens the shortcut sheet, listing every global binding", async ({ page }
   // Escape is the dialog's own — the browser closes it, no ladder involved.
   await page.keyboard.press("Escape");
   await expect(sheet).toBeHidden();
+});
+
+test("the session menu names the key that opens the sheet, and opens it", async ({ page }) => {
+  await page.goto("/");
+  const panel = await openSessionMenu(page);
+
+  const row = panel.getByRole("button", { name: /Keyboard shortcuts/ });
+  // The key is printed on the row the way a native menu prints it…
+  await expect(row.locator("kbd")).toHaveText("?");
+  // …and stated in words too, since the printed one is aria-hidden.
+  await expect(row).toContainText("Press ? any time");
+
+  await row.click();
+  await expect(page.getByRole("dialog", { name: "Keyboard shortcuts" })).toBeVisible();
 });
 
 test("the file-name picker opens on Enter", async ({ page }) => {

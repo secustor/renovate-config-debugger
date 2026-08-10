@@ -71,7 +71,7 @@ document generalizes those into rules and fills the holes.
    the pipeline; Enter submits the form you are typing in. No command palette,
    no chorded prefixes, no second keyboard language to learn.
 2. **A bare key never fires while the user is typing.** Anything that must work
-   from inside the editor carries a modifier (or is F6). Everything else — the
+   from inside the editor carries a modifier. Everything else — the
    `e` / `r` / digit jump layer and `?` — is a bare key, because the modified
    space is a browser minefield and the bare space is not; `isTextEditingTarget`
    is what keeps that safe, and it counts a focused `<select>` as typing.
@@ -101,7 +101,6 @@ document generalizes those into rules and fills the holes.
 | **⌘⇧⏎**            | global, editor included     | Run, then jump to the results                                    |
 | **e** / **r**      | global, outside text fields | Jump to the config editor / the results                          |
 | **1** – **7**      | global, outside text fields | Jump to that results tab, by position in the strip               |
-| **F6**             | global, editor included     | Cycle the two panes                                              |
 
 The repo-load form and the glossary/provenance hover cards keep their own
 element-scoped Escape handlers: they only fire when focus is already inside
@@ -288,7 +287,7 @@ appearing in the sheet.
 `<form>` with the Simulate button associated across the DOM by `form=`, and the
 `<kbd>` hint in the Run button.
 
-**Phase 3 — the jump layer** (landed): `e` / `r` / `1`–`7` / `⌘⇧⏎` / F6, and the
+**Phase 3 — the jump layer** (landed): `e` / `r` / `1`–`7` / `⌘⇧⏎`, and the
 `?` sheet that stopped being optional the moment the count passed ten.
 
 Two decisions inside it are worth keeping written down.
@@ -303,12 +302,17 @@ typing — and `isTextEditingTarget` counting a focused `<select>` as typing, so
 e2e test: Tab out of the editor lands on the file-name select, and `r` does
 nothing there. That is correct, not a gap.
 
-**F6 shadows the browser's own F6** (address bar / pane cycling) while this page
-has focus. It is the platform convention for region cycling and the only key
-that works from inside the editor without inventing a chord — but plain Tab
-already leaves the editor since phase 1, so nothing depends on it. Deleting
-`REGION_NEXT_SHORTCUT` / `REGION_PREV_SHORTCUT` and their handler gives the key
-back, and costs one row of the sheet.
+**F6 was built and then removed, deliberately.** It is the platform convention
+for region cycling and the only key that works from inside the editor without
+inventing a chord, which is why it was recommended and shipped in the first cut
+of this phase. It also SHADOWS the browser's own F6 — address-bar and pane
+cycling, a keyboard affordance some users depend on — and taking that away is a
+real cost, paid by everyone, for a convenience nothing else needed: plain Tab
+already leaves the editor since phase 1, and `e` / `r` cover the jump from
+anywhere else. An app should not confiscate a browser-level accessibility key to
+save a keystroke it has another route to. Removed on the author's call before
+the branch landed; nothing in the codebase referenced it, which was the point of
+keeping it to two registry entries and one handler.
 
 Digits bind by POSITION in the rendered strip, never by a digit-to-id map: 062
 renames `Simulator` and inserts `Extraction`, and a frozen map would then point

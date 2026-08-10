@@ -4151,3 +4151,20 @@ main:has(.app-split.has-results) {
   text-align: center;
   white-space: nowrap;
 }
+
+/* Roadmap 067: the key a menu row duplicates, printed at the row's right edge
+   the way a native menu prints it. Same `margin-left: auto` trick as the
+   out-of-app glyph, and the same optical baseline nudge. */
+.session-menu-item-kbd {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1.2;
+  margin-left: auto;
+  margin-top: 0.1rem;
+  padding: 0.05rem 0.3rem;
+}

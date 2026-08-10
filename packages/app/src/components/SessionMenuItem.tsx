@@ -25,6 +25,13 @@ interface Props {
   /** Present ⇒ the row is an external anchor and gains the external glyph. */
   href?: string;
   title?: string;
+  /**
+   * Roadmap 067: the key that does the same thing, printed at the end of the
+   * row the way a native menu prints it — already spelled for this platform by
+   * `formatShortcut`. `aria-hidden`, because the accessible name should stay
+   * the label; the row's `note` is where the key is stated in words.
+   */
+  shortcut?: string;
   /** Runs on activation. Every row closes the menu, so this always dismisses. */
   onSelect: () => void;
 }
@@ -34,9 +41,10 @@ interface BodyProps {
   label: string;
   note: string | undefined;
   external: boolean;
+  shortcut: string | undefined;
 }
 
-function ItemBody({ icon, label, note, external }: BodyProps) {
+function ItemBody({ icon, label, note, external, shortcut }: BodyProps) {
   return (
     <>
       <svg
@@ -52,6 +60,11 @@ function ItemBody({ icon, label, note, external }: BodyProps) {
         {label}
         {note === undefined ? null : <span className="session-menu-item-note">{note}</span>}
       </span>
+      {shortcut === undefined ? null : (
+        <kbd className="session-menu-item-kbd" aria-hidden="true">
+          {shortcut}
+        </kbd>
+      )}
       {external ? (
         <svg
           className="session-menu-item-ext"
@@ -67,9 +80,26 @@ function ItemBody({ icon, label, note, external }: BodyProps) {
   );
 }
 
-export function SessionMenuItem({ icon, label, note, tone, href, title, onSelect }: Props) {
+export function SessionMenuItem({
+  icon,
+  label,
+  note,
+  tone,
+  href,
+  title,
+  shortcut,
+  onSelect,
+}: Props) {
   const className = tone === undefined ? "session-menu-item" : `session-menu-item ${tone}`;
-  const body = <ItemBody icon={icon} label={label} note={note} external={href !== undefined} />;
+  const body = (
+    <ItemBody
+      icon={icon}
+      label={label}
+      note={note}
+      external={href !== undefined}
+      shortcut={shortcut}
+    />
+  );
 
   return href === undefined ? (
     <button type="button" className={className} title={title} onClick={onSelect}>

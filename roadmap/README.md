@@ -230,6 +230,6 @@ listener, the CodeMirror keymap and the hint printed on the Run button all
 derive from, one Escape stack, and — the rule the milestone is really about —
 cross-links that move FOCUS to what they scrolled to, not just the eye. A
 follow-up pass added the jump layer the two-pane shape asks for — bare `e` /
-`r` / `1`–`7`, `⌘⇧⏎` to run and read, F6 to cycle panes — plus the `?` sheet
+`r` / `1`–`7` and `⌘⇧⏎` to run and read — plus the `?` sheet
 that eleven bindings made compulsory, and Enter opening a native `<select>`,
 which nobody noticed was missing until Tab stopped being trapped.

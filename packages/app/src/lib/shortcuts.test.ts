@@ -6,7 +6,6 @@ import {
   HELP_SHORTCUT,
   type KeyChord,
   matchShortcut,
-  REGION_PREV_SHORTCUT,
   RUN_AND_READ_SHORTCUT,
   RUN_SHORTCUT,
   shortcutSheet,
@@ -93,11 +92,6 @@ describe("tier 1 bindings", () => {
   it("ignores Shift for `?`, which needs it on some layouts and not others", () => {
     expect(matchShortcut(chord({ key: "?" }), HELP_SHORTCUT)).toBe(true);
     expect(matchShortcut(chord({ key: "?", shiftKey: true }), HELP_SHORTCUT)).toBe(true);
-  });
-
-  it("keeps F6 distinct from Shift+F6", () => {
-    expect(matchShortcut(chord({ key: "F6", shiftKey: true }), REGION_PREV_SHORTCUT)).toBe(true);
-    expect(matchShortcut(chord({ key: "F6" }), REGION_PREV_SHORTCUT)).toBe(false);
   });
 });
 

@@ -4,6 +4,7 @@ import { SessionMenuItem } from "@/components/SessionMenuItem";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
 import { useSessionMenu } from "@/hooks/use-session-menu";
 import { REVOKE_URL, type StoredUser } from "@/platform/oauth";
+import { formatShortcut, HELP_SHORTCUT } from "@/lib/shortcuts";
 
 /**
  * Roadmap 066 — the header's session corner, collapsed into one control.
@@ -201,7 +202,8 @@ function SessionMenuPanel({
       <SessionMenuItem
         icon={ICONS.keyboard}
         label="Keyboard shortcuts"
-        note="Run, jump between panes, reach any results tab."
+        shortcut={formatShortcut(HELP_SHORTCUT)}
+        note="Press ? any time — run, jump between panes, reach any results tab."
         onSelect={() => {
           onDismiss();
           onShowShortcuts();

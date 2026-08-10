@@ -57,8 +57,6 @@ import {
   FOCUS_EDITOR_SHORTCUT,
   FOCUS_RESULTS_SHORTCUT,
   HELP_SHORTCUT,
-  REGION_NEXT_SHORTCUT,
-  REGION_PREV_SHORTCUT,
   RUN_AND_READ_SHORTCUT,
   RUN_SHORTCUT,
 } from "@/lib/shortcuts";
@@ -952,9 +950,9 @@ export function App() {
   /**
    * Roadmap 067: the app's two jump targets, defined once.
    *
-   * The skip links, the tier-1 `e` / `r` keys and F6's pane cycle all land
-   * through these, so a link and a key can never disagree about where "the
-   * editor" or "the results" is.
+   * The skip links and the tier-1 `e` / `r` keys both land through these, so a
+   * link and a key can never disagree about where "the editor" or "the results"
+   * is.
    *
    * The config target is the EDITOR, not the column: landing on the column
    * (what the bare fragment jump did) put the reader on the pre-run welcome
@@ -1018,24 +1016,6 @@ export function App() {
     enabled: keysLive && Boolean(result),
   });
   useShortcut(HELP_SHORTCUT, showShortcuts, { enabled: keysLive });
-
-  /**
-   * F6 cycles the two panes. It is the platform convention and the only key
-   * that works from INSIDE the editor without inventing a chord — at the cost
-   * of shadowing the browser's own F6 while this page has focus. Both
-   * directions do the same thing here, because two regions have no "backwards".
-   */
-  function cycleRegion() {
-    const column = resultsColRef.current;
-    const inResults = column?.contains(document.activeElement) === true;
-    if (inResults || !result) {
-      focusEditor();
-    } else {
-      focusResults();
-    }
-  }
-  useShortcut(REGION_NEXT_SHORTCUT, cycleRegion, { enabled: keysLive });
-  useShortcut(REGION_PREV_SHORTCUT, cycleRegion, { enabled: keysLive });
 
   /** `⌘⇧⏎` — run AND go read it. Plain ⌘⏎ deliberately leaves focus alone, so
    *  this is the explicit "take me there" variant; the focus move waits for the

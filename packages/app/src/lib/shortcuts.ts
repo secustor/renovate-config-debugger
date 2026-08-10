@@ -21,13 +21,6 @@ export interface Shortcut {
    * value would break one of them.
    */
   readonly shift?: boolean;
-  /**
-   * Fires even while the user is typing. Modified chords always do — ⌘⏎ has to
-   * work from inside the editor, which is the point of it. A BARE key must opt
-   * in explicitly, and only F6 does: its whole job is getting out of a text
-   * field.
-   */
-  readonly whileTyping?: boolean;
   /** What it does, in the imperative — used in `title` text and the sheet. */
   readonly label: string;
 }
@@ -85,32 +78,6 @@ export const FOCUS_RESULTS_SHORTCUT: Shortcut = {
   label: "Jump to the results",
 };
 
-/**
- * Region cycling. F6 is the platform convention and the one key that works
- * from INSIDE the editor without inventing a chord — at the cost of shadowing
- * the browser's own F6 (address bar / pane cycling) while this page has focus.
- * Deleting this entry and its handler is all it takes to give that back; plain
- * Tab already leaves the editor since 067 untrapped it, so nothing else depends
- * on F6 existing.
- */
-export const REGION_NEXT_SHORTCUT: Shortcut = {
-  id: "region-next",
-  key: "F6",
-  mod: false,
-  shift: false,
-  whileTyping: true,
-  label: "Cycle between the config and results panes",
-};
-
-export const REGION_PREV_SHORTCUT: Shortcut = {
-  id: "region-prev",
-  key: "F6",
-  mod: false,
-  shift: true,
-  whileTyping: true,
-  label: "Cycle panes backwards",
-};
-
 export const HELP_SHORTCUT: Shortcut = {
   id: "help",
   key: "?",
@@ -128,7 +95,6 @@ export const GLOBAL_SHORTCUTS: readonly Shortcut[] = [
   RUN_AND_READ_SHORTCUT,
   FOCUS_EDITOR_SHORTCUT,
   FOCUS_RESULTS_SHORTCUT,
-  REGION_NEXT_SHORTCUT,
   HELP_SHORTCUT,
 ];
 
