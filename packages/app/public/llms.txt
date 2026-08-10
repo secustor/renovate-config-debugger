@@ -32,6 +32,7 @@ of flags:
 
 ```
 claude mcp add rcd -- pnpm dlx @renovate-config-debugger/cli mcp
+claude mcp add rcd -- npx -y @renovate-config-debugger/cli@0 mcp
 ```
 
 The CLI is experimental: subcommands, flags and output shapes may change in
