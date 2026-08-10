@@ -16,6 +16,8 @@
  */
 import { createServer } from "vite";
 
+guardStderr();
+
 const configFile = new URL("../vite.config.ts", import.meta.url).pathname;
 
 const server = await createServer({
@@ -45,6 +47,21 @@ try {
   });
 } finally {
   await server.close();
+}
+
+/**
+ * A stream with no `'error'` listener turns a write failure into an UNCAUGHT
+ * exception — so a peer that closes the pipe (`rcd digest … | head`) crashes
+ * the process on the next line of stderr, from inside a `write` nobody
+ * awaited. stderr has that failure mode and no owner.
+ *
+ * Silence is the whole point: there is nowhere left to report a broken stderr
+ * to. The process keeps running and its own exit code still speaks.
+ */
+function guardStderr() {
+  if (process.stderr.listenerCount("error") === 0) {
+    process.stderr.on("error", () => {});
+  }
 }
 
 /**
