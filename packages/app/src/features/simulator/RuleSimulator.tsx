@@ -9,6 +9,7 @@ import type { ShareSimulator } from "@/lib/share";
 import type { ErrorTranslationLib } from "@/platform/run";
 import { ComparisonPanel } from "./ComparisonPanel";
 import { consumedAuthoredBlocks } from "./consumed-blocks";
+import { SIM_FORM_ID } from "./datalist-ids";
 import { EMPTY_FORM, type FormState, hasMeaningfulInput } from "./form";
 import { buildMergeStops } from "./merge-stops";
 import { ReturnPill } from "./ReturnPill";
@@ -400,14 +401,13 @@ export const RuleSimulator = memo(function RuleSimulator({
         moreFieldsOpen={moreFieldsOpen}
         onMoreFieldsToggle={setMoreFieldsOpen}
         onQuickFill={quickFill}
+        onSubmit={() => void simulate(form, updateTypeTouched)}
       />
       <div className="sim-actions">
-        <button
-          type="button"
-          className="primary"
-          onClick={() => void simulate(form, updateTypeTouched)}
-          disabled={running}
-        >
+        {/* Roadmap 067: the form s submit button, associated across the DOM
+            by the form attribute — so Enter in a field and a click here are the
+            same action, not two code paths that have to be kept in step. */}
+        <button type="submit" form={SIM_FORM_ID} className="primary" disabled={running}>
           {running ? "Simulating…" : "Simulate"}
         </button>
         {stale ? (

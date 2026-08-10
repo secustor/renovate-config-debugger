@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
+import { type KeyboardEvent, type ReactNode, useRef } from "react";
 import { RESULTS_TAB_IDS, RESULTS_TAB_LABELS, type ResultsTabId } from "@/data/results-tabs";
+import { nextTabIndex } from "@/lib/roving-tabs";
 
 const nf = new Intl.NumberFormat();
 
@@ -36,9 +37,41 @@ interface Props {
  * simulation results, scroll positions) survives switching for free.
  */
 export function ResultsPanel({ tabs, active, onSelect, back, onBack, banner, panels }: Props) {
+  const barRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Roadmap 067: the ARIA tablist keyboard pattern this shell has claimed since
+   * 028 by rendering `role="tablist"` — arrows move between tabs, Home/End go
+   * to the ends — paired with the roving `tabindex` below, so the whole strip
+   * is ONE tab stop instead of eight on the way to the panel.
+   *
+   * Home/End are also the page-scroll keys (016). `preventDefault` is what
+   * settles that: `useHomeEndPageScroll` ignores an event another handler
+   * already claimed, so the keys scroll the page everywhere except here.
+   */
+  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    const current = tabs.findIndex((tab) => tab.id === active);
+    const next = current === -1 ? null : nextTabIndex(event.key, current, tabs.length);
+    const target = next === null ? undefined : tabs[next];
+    if (!target) {
+      return;
+    }
+    event.preventDefault();
+    onSelect(target.id);
+    // Selection follows focus, so focus has to follow the arrow — otherwise
+    // the next arrow press would move from wherever focus was left behind.
+    barRef.current?.querySelector<HTMLElement>(`[data-tab="${target.id}"]`)?.focus();
+  }
+
   return (
     <div className="results-panel">
-      <div className="tab-bar" role="tablist" aria-label="Results">
+      <div
+        className="tab-bar"
+        role="tablist"
+        aria-label="Results"
+        ref={barRef}
+        onKeyDown={onKeyDown}
+      >
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -48,6 +81,8 @@ export function ResultsPanel({ tabs, active, onSelect, back, onBack, banner, pan
             data-tab={tab.id}
             aria-selected={tab.id === active}
             aria-controls={`panel-${tab.id}`}
+            // Roving tabindex: only the selected tab is in the tab order.
+            tabIndex={tab.id === active ? 0 : -1}
             // A zero-count tab is dimmed but never hidden or disabled: tabs
             // keep their position across runs, and each one still explains
             // that it has nothing to show.

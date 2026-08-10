@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useEscapeLayer } from "@/hooks/use-escape-layer";
 
 /**
  * Roadmap 066 — the open/close contract of the header's session menu.
@@ -34,6 +35,10 @@ export function useSessionMenu() {
     triggerRef.current?.focus();
   }, []);
 
+  // Roadmap 067: Escape through the shared ladder, so a hover card opened
+  // from inside the panel closes first and the menu survives that press.
+  useEscapeLayer(open, dismiss);
+
   useEffect(() => {
     if (!open) {
       return;
@@ -58,13 +63,6 @@ export function useSessionMenu() {
       }
     }
 
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setOpen(false);
-        triggerRef.current?.focus();
-      }
-    }
-
     function onFocusIn(event: FocusEvent) {
       if (!owns(event.target)) {
         setOpen(false);
@@ -74,11 +72,9 @@ export function useSessionMenu() {
     // Capture phase: a handler inside the panel that stops propagation must
     // not be able to keep the menu open behind the user's back.
     document.addEventListener("pointerdown", onPointerDown, true);
-    document.addEventListener("keydown", onKeyDown);
     document.addEventListener("focusin", onFocusIn);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown, true);
-      document.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("focusin", onFocusIn);
     };
   }, [open]);

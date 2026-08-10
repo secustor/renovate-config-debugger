@@ -22,6 +22,8 @@ interface Props {
   fileName: string;
   value: string;
   onChange: (value: string) => void;
+  /** Roadmap 067: ⌘⏎ from inside the editor runs the pipeline. */
+  onRun: () => void;
   presetHover: PresetHoverContext | null;
   repoFormOpen: boolean;
   repoToggleRef: RefObject<HTMLButtonElement | null>;
@@ -49,6 +51,7 @@ export function ConfigEditorCard({
   fileName,
   value,
   onChange,
+  onRun,
   presetHover,
   repoFormOpen,
   repoToggleRef,
@@ -74,6 +77,7 @@ export function ConfigEditorCard({
       fileName={fileName}
       value={value}
       onChange={onChange}
+      onRun={onRun}
       presetHover={presetHover}
       titleAction={
         <button

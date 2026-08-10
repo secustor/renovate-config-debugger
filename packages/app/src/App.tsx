@@ -49,6 +49,8 @@ import {
 } from "@/platform/run";
 import type { ShareSimulator, ShareState, ShareView, UntrustedEndpointGuard } from "@/lib/share";
 import { useBackToTopVisible, useHomeEndPageScroll } from "@/hooks/scroll-ergonomics";
+import { useShortcut } from "@/hooks/use-shortcut";
+import { RUN_SHORTCUT } from "@/lib/shortcuts";
 import { isValidEndpoint, isValidPlatform, parseLayerJson } from "@/lib/input-schemas";
 import { PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
 import {
@@ -115,7 +117,9 @@ const ResultsColumn = lazy(() =>
  */
 function ResultsPane(props: ResultsColumnProps) {
   return (
-    <div className="results-col" ref={props.resultsColRef}>
+    // Roadmap 067: `id`/`tabIndex` are the skip link's target — see the
+    // config column's matching pair.
+    <div className="results-col" id="results-column" tabIndex={-1} ref={props.resultsColRef}>
       {/* Roadmap 031: the results chunk is preloaded at idle and on Run
           intent, so this fallback is a formality — and once the lazy module
           has resolved, re-renders never suspend, so the mounted shell (and all
@@ -914,6 +918,55 @@ export function App() {
     digest,
   } = useRunSummary(result, effectiveStats);
 
+  /**
+   * Roadmap 067: ⌘⏎ (Ctrl+Enter) runs the pipeline from anywhere on the page.
+   * Inside the editor the same chord is handled by CodeMirror instead
+   * (`run-keymap.ts`) — it has to be, or Renovate's config would gain a blank
+   * line every time someone ran it — and that handler marks the event handled,
+   * which is what keeps the two from both firing.
+   *
+   * `preloadRunChunks` is called for the same reason the button calls it on
+   * hover and focus: a shortcut has no hover, so without this the engine
+   * download would serialize behind the keypress.
+   */
+  useShortcut(
+    RUN_SHORTCUT,
+    () => {
+      preloadRunChunks();
+      void onRun(undefined, undefined, { preserveScroll: Boolean(result) });
+    },
+    { enabled: !running },
+  );
+
+  /**
+   * Roadmap 067: a finished run does NOT move focus — the user may still be
+   * typing, and a share link can start a run they never asked for. It announces
+   * itself instead, and the skip link is how a keyboard user gets to the
+   * results in one keystroke.
+   *
+   * The counts come from `useRunSummary`, not from a second derivation, so this
+   * sentence can no more disagree with the tab badges than the 029 digest can.
+   */
+  const [runAnnouncement, setRunAnnouncement] = useState("");
+  const announcementSeq = useRef(0);
+  useEffect(() => {
+    if (!result) {
+      return;
+    }
+    const problems = [
+      errorCount === 0 ? null : `${errorCount} error${errorCount === 1 ? "" : "s"}`,
+      warningCount === 0 ? null : `${warningCount} warning${warningCount === 1 ? "" : "s"}`,
+    ].filter((part) => part !== null);
+    announcementSeq.current += 1;
+    // A live region only speaks when its text CHANGES, and two runs of the
+    // same config produce the same sentence — so alternate an invisible
+    // non-breaking space to make every run a mutation.
+    const pad = announcementSeq.current % 2 === 0 ? " " : "";
+    setRunAnnouncement(
+      `Run finished — ${problems.length === 0 ? "no problems" : problems.join(", ")}.${pad}`,
+    );
+  }, [result, errorCount, warningCount]);
+
   // The encode side of `useShareLink`'s copy-link path: assembles the CURRENT
   // state (config + view, optionally simulator inputs) for the share codec.
   // Tokens are never encoded (see share.ts); `sim` carries only dependency-
@@ -997,6 +1050,17 @@ export function App() {
   return (
     <OptionDocsProvider index={optionIndex}>
       <main>
+        {/* Roadmap 067: the first two tab stops on the page. Off-screen until
+            focused, and the results link exists only once there are results —
+            an offer to skip to nothing is worse than no offer. */}
+        <a className="skip-link" href="#config-column">
+          Skip to the config editor
+        </a>
+        {result ? (
+          <a className="skip-link" href="#results-column">
+            Skip to the results
+          </a>
+        ) : null}
         {shareError ? (
           <div className="share-error-banner" role="alert">
             <strong className="share-error-banner-title">Shared link couldn’t be opened</strong>
@@ -1144,6 +1208,12 @@ export function App() {
           {toast}
         </div>
       ) : null}
+      {/* Roadmap 067: the run's outcome for anyone not watching the screen.
+          Always mounted — a live region has to exist BEFORE its text changes
+          or the change is not announced. */}
+      <p className="visually-hidden" role="status" aria-live="polite">
+        {runAnnouncement}
+      </p>
     </OptionDocsProvider>
   );
 }

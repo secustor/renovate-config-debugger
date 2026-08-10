@@ -109,7 +109,10 @@ export function ConfigColumn({
   onDismissNotice,
 }: ConfigColumnProps) {
   return (
-    <div className="config-col">
+    // Roadmap 067: the skip link's target. `tabIndex={-1}` because a fragment
+    // jump to a non-focusable container moves the scroll but not the focus,
+    // which is the half that matters to a keyboard user.
+    <div className="config-col" id="config-column" tabIndex={-1}>
       {hasResult ? null : <WelcomePanel onTryExample={onTryExample} />}
 
       <ConfigEditorCard
@@ -118,6 +121,7 @@ export function ConfigColumn({
         fileName={fileName}
         value={value}
         onChange={onChange}
+        onRun={onRun}
         presetHover={presetHover}
         repoFormOpen={repoFormOpen}
         repoToggleRef={repoToggleRef}

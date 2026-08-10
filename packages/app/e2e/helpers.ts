@@ -40,6 +40,17 @@ export function runButton(page: Page) {
   return page.locator(".toolbar button.primary");
 }
 
+/**
+ * The Run button is idle again — i.e. the run that was in flight has finished.
+ *
+ * Roadmap 067 put a `<kbd>` shortcut hint inside the button, so its text is no
+ * longer exactly "Run"; what these waits have always MEANT is "no longer
+ * Running…", which is what this asserts.
+ */
+export async function expectRunIdle(page: Page): Promise<void> {
+  await expect(runButton(page)).not.toContainText("Running");
+}
+
 /** Roadmap 028: the tabbed results shell — present only once a run exists. */
 export function resultsPanel(page: Page) {
   return page.locator(".results-panel");

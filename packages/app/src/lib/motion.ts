@@ -48,3 +48,21 @@ export function flashTarget(el: Element): void {
   el.classList.add("rcv-flash");
   window.setTimeout(() => el.classList.remove("rcv-flash"), FLASH_MS);
 }
+
+/**
+ * Roadmap 067: the whole landing, including the half that was missing. Every
+ * cross-link in this app scrolled and flashed its target and left FOCUS where
+ * the user clicked from — so a keyboard user was moved visually while their
+ * next Tab continued from the link they had just left, which reads as the jump
+ * having silently failed.
+ *
+ * `preventScroll` because the scroll above already chose the framing; letting
+ * focus scroll again would undo `motionScrollOptions`' block alignment. The
+ * target must be focusable — the landing sites either are controls already
+ * (a thread head is a `<button>`) or carry `tabIndex={-1}` for this.
+ */
+export function landOnTarget(el: HTMLElement, block: ScrollLogicalPosition): void {
+  el.scrollIntoView(motionScrollOptions(block));
+  flashTarget(el);
+  el.focus({ preventScroll: true });
+}

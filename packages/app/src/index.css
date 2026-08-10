@@ -4022,3 +4022,70 @@ main:has(.app-split.has-results) {
 .sim-form-updatetype {
   padding-top: 0.5rem;
 }
+
+/* ── Roadmap 067: keyboard UX ─────────────────────────────────────────────
+   The three pieces of chrome the keyboard needs and the pointer never sees:
+   the skip links, the run-completion live region, and the shortcut printed on
+   the control it duplicates. */
+
+/* The first tab stops on the page. Off-screen rather than `display: none`,
+   which would take them out of the tab order — the one thing they exist for. */
+.skip-link {
+  background: var(--surface-raised);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  color: var(--accent);
+  font-size: 0.8rem;
+  left: 0.5rem;
+  padding: 0.4rem 0.7rem;
+  position: fixed;
+  text-decoration: none;
+  top: -4rem;
+  transition: top 120ms ease;
+  z-index: var(--z-toast);
+}
+
+.skip-link:focus-visible {
+  top: 0.5rem;
+}
+
+/* Announced, never shown. Not `display: none` / `visibility: hidden`: both
+   remove the text from the accessibility tree, which is where it is going. */
+.visually-hidden {
+  border: 0;
+  clip-path: inset(50%);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+/* The shortcut hint inside the Run button. Dim against the filled primary
+   surface, and gone on narrow viewports, where the row is tight and a physical
+   keyboard is least likely to be there. */
+.btn-kbd {
+  background: color-mix(in srgb, var(--on-accent) 18%, transparent);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.72rem;
+  line-height: 1;
+  padding: 0.15rem 0.3rem;
+}
+
+@media (max-width: 55rem) {
+  .btn-kbd {
+    display: none;
+  }
+}
+
+/* A cross-link now lands focus on its target (`landOnTarget`), so the targets
+   that are containers rather than controls need a ring of their own. */
+.sim-rule:focus-visible,
+.config-col:focus-visible,
+.results-col:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

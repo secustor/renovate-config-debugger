@@ -78,7 +78,14 @@ export function RuleRow({
   // Re-sync when the filter toggles (re-expand my-rules rows, collapse otherwise).
   useEffect(() => setExpanded(defaultExpanded), [defaultExpanded]);
   return (
-    <div id={`sim-rule-${rule.index}`} className={`sim-rule${expanded ? " expanded" : ""}`}>
+    // Roadmap 067: a cross-link lands ON this row (`landOnTarget`), so it has
+    // to be able to hold focus — the flash marks it for the eye, the focus
+    // marks it for the keyboard and for a screen reader.
+    <div
+      id={`sim-rule-${rule.index}`}
+      className={`sim-rule${expanded ? " expanded" : ""}`}
+      tabIndex={-1}
+    >
       <button
         type="button"
         className="sim-rule-head"

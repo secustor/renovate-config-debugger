@@ -4,6 +4,7 @@ import type { MergedKey } from "@renovate-config-debugger/engine";
 import { CopyMarkdownButton } from "@/components/CopyMarkdownButton";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { type AnchorRect, anchoredCardStyle, anchorRectOf } from "@/lib/anchored-card";
+import { useEscapeLayer } from "@/hooks/use-escape-layer";
 import { ClauseGrid } from "./ClauseGrid";
 import { RULE_POP_CLASS, RULE_POP_SELECTOR } from "./rule-pop-dom";
 import { ruleAppliedMarkdown, ruleVerdictLabel, writeMark } from "./rule-format";
@@ -221,14 +222,14 @@ export function RuleEvidenceAnchor({
     }
   }, []);
 
+  // Roadmap 067: Escape goes through the layer stack — this card is the
+  // topmost thing on screen while it is open, and the stack is what says so
+  // (it used to be the return pill querying the DOM for this card's class).
+  useEscapeLayer(open, close);
+
   useEffect(() => {
     if (!open) {
       return;
-    }
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        close();
-      }
     }
     function onPointerDown(e: MouseEvent) {
       const target = e.target;
@@ -250,12 +251,10 @@ export function RuleEvidenceAnchor({
         setAnchor(anchorRectOf(buttonRef.current));
       }
     }
-    document.addEventListener("keydown", onKeyDown);
     document.addEventListener("mousedown", onPointerDown);
     window.addEventListener("scroll", reposition, { capture: true, passive: true });
     window.addEventListener("resize", reposition, { passive: true });
     return () => {
-      document.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("mousedown", onPointerDown);
       window.removeEventListener("scroll", reposition, { capture: true });
       window.removeEventListener("resize", reposition);

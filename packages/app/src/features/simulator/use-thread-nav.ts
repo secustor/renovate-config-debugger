@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SimulationResult } from "@renovate-config-debugger/engine";
-import { flashTarget, motionScrollOptions } from "@/lib/motion";
-import { RULE_POP_SELECTOR } from "./rule-pop-dom";
+import { landOnTarget } from "@/lib/motion";
+import { useEscapeLayer } from "@/hooks/use-escape-layer";
 
 /**
  * Roadmap 054 (layer 4): thread expansion and the way back from a jump, as one
@@ -72,28 +72,18 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
     }
     const el = document.getElementById(threadHeadId(focusKey));
     if (el) {
-      el.scrollIntoView(motionScrollOptions("center"));
-      flashTarget(el);
+      landOnTarget(el, "center");
     }
     setFocusKey(null);
   }, [focusKey]);
 
   // Escape dismisses the pill — but only when it is not the POPOVER's Escape.
-  // A rule-evidence card open over the page owns that key first; its own
-  // document listener closes it, and React has not yet unmounted the card when
-  // this listener runs, which is exactly what the query below tests.
-  useEffect(() => {
-    if (returnKey === null) {
-      return;
-    }
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape" && document.querySelector(RULE_POP_SELECTOR) === null) {
-        setReturnKey(null);
-      }
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [returnKey]);
+  // Roadmap 067: that precedence is now structural. The pill registers as an
+  // Escape layer while it is showing; a rule-evidence card opened afterwards
+  // registers above it and consumes the key first. This used to be a
+  // `document.querySelector(RULE_POP_SELECTOR)` check inside this hook's own
+  // listener — correct for exactly two layers, and a hazard for the third.
+  useEscapeLayer(returnKey !== null, () => setReturnKey(null));
 
   const toggleThread = useCallback((key: string, open: boolean) => {
     setOpenThreads((prev) => {

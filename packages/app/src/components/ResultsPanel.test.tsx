@@ -1,0 +1,95 @@
+import { cleanup, fireEvent, render } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { RESULTS_TAB_IDS, type ResultsTabId } from "@/data/results-tabs";
+import { ResultsPanel, type ResultsTabDescriptor } from "./ResultsPanel";
+
+/**
+ * Roadmap 067 — the shell has rendered `role="tablist"` since 028, which
+ * PROMISES arrow-key navigation and a single tab stop. It implemented neither:
+ * every tab was its own stop, and the arrows did nothing. These tests are that
+ * promise.
+ */
+
+// vitest runs without `globals`, so RTL's automatic cleanup never registers.
+afterEach(cleanup);
+
+const TABS: ResultsTabDescriptor[] = [
+  { id: "overview" },
+  { id: "pipeline" },
+  { id: "presets", count: 3 },
+  { id: "problems", count: 0 },
+];
+
+function panels(): Record<ResultsTabId, string> {
+  return Object.fromEntries(RESULTS_TAB_IDS.map((id) => [id, `${id} body`])) as Record<
+    ResultsTabId,
+    string
+  >;
+}
+
+function renderPanel(active: ResultsTabId, onSelect: (tab: ResultsTabId) => void) {
+  return render(
+    <ResultsPanel
+      tabs={TABS}
+      active={active}
+      onSelect={onSelect}
+      back={null}
+      onBack={() => undefined}
+      panels={panels()}
+    />,
+  );
+}
+
+describe("ResultsPanel keyboard navigation", () => {
+  it("keeps the whole strip to one tab stop (roving tabindex)", () => {
+    const view = renderPanel("pipeline", () => undefined);
+    const tabs = view.getAllByRole("tab");
+
+    const tabbable = tabs.filter((tab) => tab.getAttribute("tabindex") === "0");
+    expect(tabbable).toHaveLength(1);
+    expect(tabbable[0]).toHaveProperty("id", "tab-pipeline");
+  });
+
+  it("moves with the arrows and wraps around", () => {
+    const onSelect = vi.fn();
+    const view = renderPanel("overview", onSelect);
+    const strip = view.getByRole("tablist");
+
+    fireEvent.keyDown(strip, { key: "ArrowRight" });
+    expect(onSelect).toHaveBeenLastCalledWith("pipeline");
+
+    fireEvent.keyDown(strip, { key: "ArrowLeft" });
+    expect(onSelect).toHaveBeenLastCalledWith("problems");
+  });
+
+  it("sends Home and End to the first and last tab", () => {
+    const onSelect = vi.fn();
+    const view = renderPanel("pipeline", onSelect);
+    const strip = view.getByRole("tablist");
+
+    fireEvent.keyDown(strip, { key: "End" });
+    expect(onSelect).toHaveBeenLastCalledWith("problems");
+
+    fireEvent.keyDown(strip, { key: "Home" });
+    expect(onSelect).toHaveBeenLastCalledWith("overview");
+  });
+
+  it("claims Home/End so the page-scroll hook (016) leaves them alone", () => {
+    const view = renderPanel("pipeline", () => undefined);
+    const strip = view.getByRole("tablist");
+
+    // `fireEvent` returns false when a handler called preventDefault — which
+    // is exactly the signal `useHomeEndPageScroll` reads.
+    expect(fireEvent.keyDown(strip, { key: "End" })).toBe(false);
+    // Keys the strip does not own stay unclaimed, so the page still scrolls.
+    expect(fireEvent.keyDown(strip, { key: "PageDown" })).toBe(true);
+  });
+
+  it("leaves only the active panel in the tab order", () => {
+    const view = renderPanel("presets", () => undefined);
+    const active = view.getByRole("tabpanel");
+    expect(active).toHaveProperty("id", "panel-presets");
+    // Every other panel is `hidden`, which is what keeps its controls out of
+    // the tab order — `getByRole` finding exactly one is that guarantee.
+  });
+});

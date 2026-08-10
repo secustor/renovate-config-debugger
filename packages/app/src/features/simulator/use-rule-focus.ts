@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 import type { ProvenanceLayer, SimulationResult } from "@renovate-config-debugger/engine";
-import { flashTarget, motionScrollOptions } from "@/lib/motion";
+import { landOnTarget, motionScrollOptions } from "@/lib/motion";
 import { type RuleFilters, ruleVisible } from "@/lib/rule-filters";
 
 export interface RuleFocus {
@@ -97,8 +97,7 @@ export function useRuleFocus({
     }
     const el = document.getElementById(`sim-rule-${scrollTarget}`);
     if (el) {
-      el.scrollIntoView(motionScrollOptions("center"));
-      flashTarget(el);
+      landOnTarget(el, "center");
     }
     setScrollTarget(null);
     onRuleFocused?.();

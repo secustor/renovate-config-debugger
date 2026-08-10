@@ -1,0 +1,47 @@
+import { useEffect, useRef } from "react";
+import { isTextEditingTarget } from "@/hooks/scroll-ergonomics";
+import { matchShortcut, type Shortcut } from "@/lib/shortcuts";
+
+/**
+ * Roadmap 067: binds one registry entry (`lib/shortcuts.ts`) to a handler for
+ * as long as the component is mounted.
+ *
+ * Three rules are enforced here rather than at each call site:
+ *
+ * - **An already-handled key is left alone.** A CodeMirror keymap that ran the
+ *   same action calls `preventDefault()` (see `run-keymap.ts`), so the page
+ *   listener bailing on `defaultPrevented` is what keeps ⌘⏎ inside the editor
+ *   from running the pipeline twice.
+ * - **Bare-key shortcuts never fire while the user is typing.** Modified ones
+ *   deliberately still do: ⌘⏎ has to work from inside the editor and the
+ *   simulator's fields, which is the whole point of it.
+ * - **The handler is read through a ref**, so the window listener is installed
+ *   once and never churns with a per-render callback identity — the keystroke
+ *   render budget (032) pays nothing for this.
+ */
+export function useShortcut(
+  shortcut: Shortcut,
+  handler: () => void,
+  { enabled = true }: { enabled?: boolean } = {},
+): void {
+  const handlerRef = useRef(handler);
+  handlerRef.current = handler;
+
+  useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented || !matchShortcut(event, shortcut)) {
+        return;
+      }
+      if (!shortcut.mod && !shortcut.shift && isTextEditingTarget(event.target)) {
+        return;
+      }
+      event.preventDefault();
+      handlerRef.current();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [shortcut, enabled]);
+}

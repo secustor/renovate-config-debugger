@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
  * textareas, CodeMirror's contenteditable) where Home/End must keep moving
  * the text cursor, and for any modified key combo (e.g. shift-select).
  */
-function isTextEditingTarget(target: EventTarget | null): boolean {
+export function isTextEditingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
     return false;
   }
@@ -37,6 +37,13 @@ export function useHomeEndPageScroll(): void {
         return;
       }
       if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) {
+        return;
+      }
+      // Roadmap 067: a widget with its own Home/End semantics gets them. The
+      // results tab strip is the first (ARIA tablist: Home/End = first/last
+      // tab) and claims the key by calling `preventDefault`; anything that
+      // doesn't claim it still scrolls the page, exactly as before.
+      if (e.defaultPrevented) {
         return;
       }
       if (isTextEditingTarget(e.target)) {

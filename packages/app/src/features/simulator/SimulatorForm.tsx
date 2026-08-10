@@ -1,5 +1,5 @@
 import type { Dispatch, KeyboardEvent, SetStateAction } from "react";
-import { DATASOURCE_LIST_ID, MANAGER_LIST_ID } from "./datalist-ids";
+import { DATASOURCE_LIST_ID, MANAGER_LIST_ID, SIM_FORM_ID } from "./datalist-ids";
 import { Field } from "./Field";
 import { type FormState, QUICK_FILLS } from "./form";
 import { MoreFieldsDrawer } from "./MoreFieldsDrawer";
@@ -54,6 +54,7 @@ export function SimulatorForm({
   moreFieldsOpen,
   onMoreFieldsToggle,
   onQuickFill,
+  onSubmit,
 }: {
   form: FormState;
   setForm: Dispatch<SetStateAction<FormState>>;
@@ -67,9 +68,19 @@ export function SimulatorForm({
   moreFieldsOpen: boolean;
   onMoreFieldsToggle: (open: boolean) => void;
   onQuickFill: (fill: Partial<FormState>) => void;
+  /** Roadmap 067: Enter in any field — the form owns the simulate action now,
+   *  and the Simulate button submits it from the actions row. */
+  onSubmit: () => void;
 }) {
   return (
-    <>
+    <form
+      id={SIM_FORM_ID}
+      aria-label="Dependency update to simulate"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit();
+      }}
+    >
       <div className="sim-presets">
         {QUICK_FILLS.map(({ label, fill }) => (
           <button key={label} type="button" onClick={() => onQuickFill(fill)}>
@@ -130,6 +141,6 @@ export function SimulatorForm({
         open={moreFieldsOpen}
         onToggle={onMoreFieldsToggle}
       />
-    </>
+    </form>
   );
 }
