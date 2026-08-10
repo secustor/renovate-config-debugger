@@ -32,10 +32,29 @@ describe("the Claude Code plugin hint (roadmap 060)", () => {
     expect(io.stderr.split(HINT_MARKER)).toHaveLength(2);
   });
 
-  test("never reaches a --format json document", async () => {
+  test("is withheld from an invocation that asked for machine output", async () => {
+    // Not just off stdout: an agent merges the streams with `2>&1`, and the
+    // marker prints before the payload.
+    for (const argv of [
+      ["digest", fixture("clean.json"), "--format", "json"],
+      ["digest", "--format=json", fixture("clean.json")],
+    ]) {
+      resetPluginHintForTest();
+      const io = recordingIo({ env: { CLAUDECODE: "1" } });
+      expect(await main(argv, io)).toBe(0);
+      expect(io.json()).toHaveProperty("digest");
+      expect(io.stderr).toBe("");
+    }
+  });
+
+  test("still reaches `mcp` — stderr is free, and the session-long process is the target", async () => {
+    // Dispatch only — the hint is decided before the command runs, so the
+    // argv failure below is the cheapest way to reach that decision. The
+    // server owns stdout; the hint is stderr-only, so the protocol stream
+    // was never at risk (roadmap 060 names `rcd mcp` as a deliberate target).
     const io = recordingIo({ env: { CLAUDECODE: "1" } });
-    expect(await main(["digest", fixture("clean.json"), "--format", "json"], io)).toBe(0);
-    expect(io.json()).toHaveProperty("digest");
+    expect(await main(["mcp", "--dep", "{}"], io)).toBe(1);
     expect(io.stderr).toContain(HINT_MARKER);
+    expect(io.stdout).not.toContain("claude-code-hint");
   });
 });
