@@ -14,6 +14,19 @@
  * `--no-git-checks` because the working tree is legitimately dirty here:
  * `prepare.ts` has just stamped the version, and @semantic-release/git commits
  * it only after publishing succeeds.
+ *
+ * No credential is passed or read. pnpm performs the npm trusted-publishing
+ * exchange itself — it asks GitHub for an OIDC token and trades it with the
+ * registry for short-lived publish rights on this one package. That happens
+ * with no flag: pnpm's publish path enables OIDC by default. A 404 here
+ * therefore means "the registry does not recognise this repository/workflow as
+ * a trusted publisher for that package", not "wrong password": check the
+ * package's trusted-publisher record on npmjs.com, and that it still names
+ * `.github/workflows/release.yml`.
+ *
+ * Do NOT add `--batch`. It publishes every package in one request through a
+ * code path that turns OIDC off, so the release would fall back to looking for
+ * a token that does not exist.
  */
 import { execFileSync } from "node:child_process";
 import { publicPackages, repoRoot } from "./workspace.ts";
