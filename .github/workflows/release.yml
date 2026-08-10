@@ -1,0 +1,121 @@
+name: Release
+
+# Roadmap 067 — semantic-release cuts the release: it reads the conventional
+# commits since the last `v*` tag, decides the version, stamps it into every
+# public package, publishes them to npm, and writes the GitHub release.
+#
+# Manual only. Nothing here runs on a push, so a merge can never publish; the
+# decision to release stays a decision, while *which version* stops being one.
+# Run it with `dry-run` ticked (the default) to see the version and the notes
+# without touching the registry, the tags or main.
+#
+# There is NO npm token, here or in the repository secrets. Publishing is
+# authenticated with npm trusted publishing (OIDC): the registry trusts a short
+# lived token minted by GitHub for this job, having been told on npmjs.com which
+# repository and which workflow file are allowed to mint it. See
+# https://docs.npmjs.com/trusted-publishers, and roadmap/067 for the setup.
+#
+# TWO CONSEQUENCES, both easy to trip over:
+#   * The trusted-publisher record names this file BY NAME. Renaming or moving
+#     `release.yml` silently breaks publishing until the record is updated.
+#   * The record is PER PACKAGE. A second public package needs its own record
+#     before its first automated release (and its own manual first publish —
+#     npm cannot configure a trusted publisher for a package that does not
+#     exist yet: https://github.com/npm/cli/issues/8544).
+on:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Compute the version and the release notes, publish nothing
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+# A second release racing the first would tag the same commit twice.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      # The tag, the GitHub release, and the `chore(release):` commit that
+      # brings the versions and the compat row back to main.
+      contents: write
+      # @semantic-release/github comments on the issues and PRs a release ships.
+      issues: write
+      pull-requests: write
+      # The whole basis of the publish: this is what lets the job mint the OIDC
+      # token the registry exchanges for publish rights, and what signs the
+      # provenance attestation. Without it there is no other credential to fall
+      # back to, and the publish fails rather than degrading to something weaker.
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # semantic-release reads the whole history and every tag to work out
+          # what has changed since the last release.
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup
+
+      # The zero-tolerance gates, on the exact tree being released. CI has run
+      # these on the PR, but the tree that gets published is this one.
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm typecheck
+      - run: pnpm --filter @renovate-config-debugger/cli test
+
+      # `build` runs scripts/check-compat.ts, which fails when the README's
+      # compat table does not describe this build.
+      - name: Build the SSR bundle
+        run: pnpm --filter @renovate-config-debugger/cli build
+
+      # The parity proof: the engine's own shimmed snapshot suite, re-run with
+      # the engine pointed at dist/engine-surface.js. "The bundle is the same
+      # module graph" is TESTED against the artifact that ships, not assumed
+      # from both having been built with the same plugin. Only the version
+      # string changes between this build and the one semantic-release makes.
+      - name: Bundle parity (engine shimmed snapshots vs. the bundle)
+        run: pnpm --filter @renovate-config-debugger/cli test:bundle
+
+      - name: Smoke-test the published bin
+        run: node packages/cli/bin/rcd.mjs validate packages/cli/test/fixtures/clean.json
+
+      # @semantic-release/git pushes the release commit straight to main, which
+      # is protected against the job's own token. The credential for that push
+      # is an installation token minted here from the release GitHub App (see
+      # roadmap/067 step 5): short-lived, scoped to this repository, and no PAT
+      # in the secrets. Skipped when the app is not configured — semantic-release
+      # then falls back to the job token, which works only while main is
+      # unprotected. This is the GitHub side; it has nothing to do with
+      # publishing.
+      - name: Mint the release app token
+        id: app-token
+        if: ${{ vars.RELEASE_APP_ID != '' }}
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      # No "authenticate to npm" step, and deliberately no ~/.npmrc: pnpm mints
+      # the OIDC token itself at publish time. An `_authToken` line written here
+      # would take precedence over the exchange and quietly put a long-lived
+      # credential back in the path this workflow exists to remove.
+      - name: semantic-release
+        env:
+          # The app token when the step above ran, the job token otherwise.
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+          # Trusted publishing attests provenance on its own. Stated anyway, so
+          # a package whose manifest omits `publishConfig.provenance` still gets
+          # it, and so the intent survives someone reading only this file.
+          NPM_CONFIG_PROVENANCE: "true"
+          # Read by tools/release/verify.ts, so a job that cannot mint an OIDC
+          # token fails before anything is computed rather than at the publish
+          # step with the tree already stamped.
+          RELEASE_DRY_RUN: ${{ inputs.dry-run }}
+        run: pnpm exec semantic-release ${{ inputs.dry-run && '--dry-run' || '' }}

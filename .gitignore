@@ -6,9 +6,9 @@ node_modules/
 dist/
 coverage/
 
-# Copied in by .github/workflows/publish-cli.yml so the AGPL text travels with
-# the npm tarball — the tree keeps exactly one copy, at the root.
-packages/cli/LICENSE
+# Copied into every public package by tools/release/prepare.ts so the AGPL text
+# travels with each npm tarball — the tree keeps exactly one copy, at the root.
+packages/*/LICENSE
 
 # Local env (e.g. packages/app/.env — GitHub OAuth vars for local testing)
 .env

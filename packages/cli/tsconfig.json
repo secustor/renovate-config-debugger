@@ -3,6 +3,11 @@
   "compilerOptions": {
     "lib": ["ES2023"],
     "types": ["node", "vite/client"],
+    // `scripts/` is run by `node file.ts` — type stripping, no build step —
+    // which requires the import specifiers to carry the real `.ts` extension
+    // (same reason as tools/tsconfig.json). `src/` goes through Vite and keeps
+    // extensionless imports; this only permits the suffix, it never demands it.
+    "allowImportingTsExtensions": true,
     "paths": {
       "@/*": ["../app/src/*"]
     }
