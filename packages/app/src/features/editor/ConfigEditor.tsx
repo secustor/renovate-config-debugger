@@ -6,6 +6,7 @@ import CodeMirror, {
 import { json } from "@codemirror/lang-json";
 import { forwardRef, type ReactNode, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import type { PresetHoverContext } from "@/lib/preset-hover";
+import { motionScrollOptions } from "@/lib/motion";
 import { useEffectiveScheme } from "@/hooks/use-effective-scheme";
 import { oneDarkAccessible } from "./one-dark-accessible";
 import { runKeymap } from "./run-keymap";
@@ -39,6 +40,9 @@ interface Props {
 export interface ConfigEditorHandle {
   /** Scrolls the line at `offset` into view, selects it, and flashes it briefly. */
   highlightOffset(offset: number): void;
+  /** Roadmap 067: scrolls the editor into view and puts the caret in it — what
+   *  the "Skip to the config editor" link means by "the config editor". */
+  focus(): void;
 }
 
 export const ConfigEditor = forwardRef<ConfigEditorHandle, Props>(function ConfigEditor(
@@ -128,6 +132,17 @@ export const ConfigEditor = forwardRef<ConfigEditorHandle, Props>(function Confi
           lineEl.classList.add("rcv-flash");
           window.setTimeout(() => lineEl.classList.remove("rcv-flash"), 1600);
         }
+      },
+      focus() {
+        const view = cmRef.current?.view;
+        if (!view) {
+          return;
+        }
+        // Scroll the CARD, not the editor's own scroller: the card carries the
+        // file-name title bar, and landing with that off-screen would put the
+        // reader in a text box with no label above it.
+        (view.dom.closest(".card") ?? view.dom).scrollIntoView(motionScrollOptions("start"));
+        view.focus();
       },
     }),
     [],

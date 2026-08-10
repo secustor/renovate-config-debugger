@@ -164,8 +164,11 @@ the session menu already do; this makes it the rule and fixes the rest.
 The intended document order, top to bottom — worth stating because half of it
 is conditional and conditional controls are where tab order rots:
 
-1. **Skip links** (new, first focusable): "Skip to config" and, once a run
-   exists, "Skip to results". Visible on focus only.
+1. **Skip links** (new, first focusable): "Skip to the config editor" and, once
+   a run exists, "Skip to the results". Visible on focus only, and each lands on
+   the thing it names — the caret in the editor, focus on the selected results
+   tab. See "Where a skip link lands" below: the obvious implementation is
+   wrong here in two separate ways.
 2. **Header**: project links, then the session-menu trigger.
 3. **Config column**: Try example (pre-run only) → the editor card's
    "Load from repo…" toggle → the repo form's fields when open → the editor →
@@ -182,6 +185,33 @@ vanishing after a revert click, or the untrusted chip after the opt-in, must
 both land on Run, never on `<body>`. Second, panels stay `hidden` when
 inactive, so the tab order of the results column is always exactly the active
 tab's — an e2e assertion, not a convention.
+
+### Where a skip link lands
+
+The first implementation was two plain `<a href="#config-column">` anchors onto
+the column containers, which is the textbook shape and is wrong here twice —
+both found by using them, not by reading them:
+
+- **It lands on the column, not on what the link names.** The config column
+  begins with the pre-run welcome panel, so "Skip to the config editor" put
+  focus on a blurb with the editor still two tab stops away (the next Tab went
+  to "try an example"), and on a viewport where the page did not scroll,
+  nothing visibly happened at all. A skip link whose landing is invisible is
+  indistinguishable from a broken one.
+- **It evicts the share link.** `location.hash` in this app is where
+  `#config=<token>` lives (007/017). A fragment jump rewrites it to
+  `#config-column`, discarding the shareable URL the user may be about to copy.
+  It does not break decoding — `readShareToken` returns null for a hash with no
+  `config=` key, so `decideHashChangeAction` ignores it — but the link in the
+  address bar is gone.
+
+So both links keep their `href` (link semantics, and the `id` targets stay as
+its fallback) and handle the jump themselves: the config link calls the
+editor's own `focus()` — which scrolls the CARD into view, title bar included,
+and puts the caret in the text — and the results link scrolls the column and
+focuses the selected tab, the first thing there worth acting on. Dropping
+someone into a text editor is only acceptable because this same document
+untrapped Tab; before 067 it would have been a one-way door.
 
 ### Focus and announcements
 
@@ -239,8 +269,10 @@ appearing in the sheet.
 - `lib/motion.ts` gains `landOnTarget` — scroll, flash **and focus** — used by
   `use-rule-focus` and `use-thread-nav`; `RuleRow` takes `tabIndex={-1}` to
   receive it.
-- Skip links in `App.tsx` with `#config-column` / `#results-column` targets, and
-  the polite run-completion live region fed by `useRunSummary`'s counts.
+- Skip links in `App.tsx` landing in the editor (`ConfigEditorHandle.focus()`)
+  and on the selected results tab, without touching `location.hash` — see
+  "Where a skip link lands". Plus the polite run-completion live region, fed by
+  `useRunSummary`'s counts so it cannot disagree with the tab badges.
 - `isTextEditingTarget` is exported from `scroll-ergonomics.ts`, and
   `useHomeEndPageScroll` now yields to an event another handler claimed.
 
@@ -280,10 +312,13 @@ sheet makes one worth having; per-panel "first meaningful control" focus polish.
   Mod+Enter inside the editor runs the pipeline **and leaves the line count
   unchanged** — the `insertBlankLine` regression test, and the reason this
   binding needed `Prec.highest` at all; Mod+Enter from outside the editor;
-  Tab leaving the editor (the trap); the skip link as first tab stop, landing
-  focus on the column; the tab strip as one stop with arrows and End; Enter in
-  a simulator field producing a verdict; and a run announcing itself in the
-  live region while focus stays where the user left it.
+  Tab leaving the editor (the trap); the config skip link as first tab stop,
+  landing the caret IN the editor with the hash untouched, and — on a viewport
+  short enough that the page really scrolls — bringing the editor back into
+  view from the bottom of the page; the results skip link landing on the
+  selected tab; the tab strip as one stop with arrows and End; Enter in a
+  simulator field producing a verdict; and a run announcing itself in the live
+  region while focus stays where the user left it.
 
 Two things are deliberately covered only at unit level: the Escape ladder's
 ordering (a browser test would have to open a popover over a return pill to

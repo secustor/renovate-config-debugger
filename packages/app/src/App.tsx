@@ -1,5 +1,6 @@
 import {
   lazy,
+  type MouseEvent,
   Suspense,
   useCallback,
   useDeferredValue,
@@ -27,7 +28,7 @@ import { UntrustedHostBanner } from "@/UntrustedHostBanner";
 import { legacyTabForView, type ResultsTabId } from "@/data/results-tabs";
 import { OptionDocsProvider } from "@/components/option-docs";
 import { buildPresetLookup, type PresetHoverContext } from "@/lib/preset-hover";
-import { motionScrollToOptions } from "@/lib/motion";
+import { motionScrollOptions, motionScrollToOptions } from "@/lib/motion";
 import { findPackageRuleOffsets } from "@/lib/rule-locate";
 import { useRuleProvenance } from "@/hooks/rule-provenance";
 import {
@@ -939,6 +940,36 @@ export function App() {
   );
 
   /**
+   * Roadmap 067: where the skip links actually land.
+   *
+   * The config link names the EDITOR, so it lands in the editor — scrolled into
+   * view with its title bar, caret in the text. Landing on the column instead
+   * (what the bare fragment did) put the reader on the welcome blurb with the
+   * editor still a Tab or two away, which reads as the link having done
+   * nothing. Safe to drop someone into a text box now, because 067 also stopped
+   * the editor from trapping Tab.
+   */
+  function skipToConfig(event: MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+    configEditorRef.current?.focus();
+  }
+
+  /** The results link's equivalent: the tab strip is the first thing to act on
+   *  there, and a focused tab announces which one is selected. Falls back to
+   *  the column itself (which carries `tabIndex={-1}`) before the strip
+   *  exists. */
+  function skipToResults(event: MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+    const column = resultsColRef.current;
+    if (!column) {
+      return;
+    }
+    column.scrollIntoView(motionScrollOptions("start"));
+    const selectedTab = column.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
+    (selectedTab ?? column).focus({ preventScroll: true });
+  }
+
+  /**
    * Roadmap 067: a finished run does NOT move focus — the user may still be
    * typing, and a share link can start a run they never asked for. It announces
    * itself instead, and the skip link is how a keyboard user gets to the
@@ -1052,12 +1083,20 @@ export function App() {
       <main>
         {/* Roadmap 067: the first two tab stops on the page. Off-screen until
             focused, and the results link exists only once there are results —
-            an offer to skip to nothing is worse than no offer. */}
-        <a className="skip-link" href="#config-column">
+            an offer to skip to nothing is worse than no offer.
+
+            Both handle their own jump instead of letting the browser follow the
+            fragment, for two reasons found by using them: a plain fragment jump
+            lands on the COLUMN — for the config that is the welcome blurb, not
+            the editor the link names — and it writes `#config-column` into the
+            address bar, which in this app is where a `#config=` share link
+            lives. The `href` stays for link semantics; the `id` targets stay as
+            its fallback. */}
+        <a className="skip-link" href="#config-column" onClick={skipToConfig}>
           Skip to the config editor
         </a>
         {result ? (
-          <a className="skip-link" href="#results-column">
+          <a className="skip-link" href="#results-column" onClick={skipToResults}>
             Skip to the results
           </a>
         ) : null}

@@ -55,7 +55,7 @@ test("the editor does not trap Tab", async ({ page }) => {
   expect(insideEditor).toBe(false);
 });
 
-test("the skip links are the first tab stops, and land focus on the column", async ({ page }) => {
+test("the config skip link is the first tab stop and lands IN the editor", async ({ page }) => {
   await page.goto("/");
   await page.keyboard.press("Tab");
 
@@ -64,7 +64,57 @@ test("the skip links are the first tab stops, and land focus on the column", asy
   await expect(skip).toBeVisible();
 
   await page.keyboard.press("Enter");
-  await expect(page.locator("#config-column")).toBeFocused();
+
+  // The link says "the config editor", so the caret lands in the editor — not
+  // on the column, whose first content is the welcome blurb and whose next tab
+  // stop was "try an example".
+  await expect(page.locator(".cm-content")).toBeFocused();
+  // And it does not write the fragment: in this app the hash is where a
+  // `#config=` share link lives, and `#config-column` would evict it.
+  expect(await page.evaluate(() => location.hash)).toBe("");
+});
+
+test("the config skip link scrolls the editor into view from far down the page", async ({
+  page,
+}) => {
+  // A viewport short enough that the post-run page genuinely scrolls — the
+  // default one does not, which is how "it lands on the column" managed to look
+  // like "it does nothing at all".
+  await page.setViewportSize({ width: 900, height: 400 });
+  await page.goto("/");
+  await runAndAwaitResult(page);
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBeGreaterThan(0);
+
+  await page.locator(".skip-link").first().focus();
+  await page.keyboard.press("Enter");
+
+  await expect(page.locator(".cm-content")).toBeFocused();
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const box = document.querySelector(".cm-editor")?.getBoundingClientRect();
+        return box ? box.top >= 0 && box.top < window.innerHeight : false;
+      }),
+    )
+    .toBe(true);
+});
+
+test("the results skip link lands on the selected tab", async ({ page }) => {
+  await page.goto("/");
+  await runAndAwaitResult(page);
+
+  // Reachable from the top of the document, where a keyboard user starts.
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.locator(".skip-link").first().focus();
+  await page.keyboard.press("Tab");
+
+  const resultsSkip = page.locator(".skip-link").nth(1);
+  await expect(resultsSkip).toBeFocused();
+  await page.keyboard.press("Enter");
+
+  await expect(tabButton(page, "overview")).toBeFocused();
+  expect(await page.evaluate(() => location.hash)).toBe("");
 });
 
 test("the results tab strip is one tab stop, driven by the arrows", async ({ page }) => {
