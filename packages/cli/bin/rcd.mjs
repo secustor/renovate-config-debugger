@@ -12,8 +12,14 @@
  * can read the real environment (see `bin/io.mjs`).
  */
 import { existsSync } from "node:fs";
+import { setSourceMapsSupport } from "node:module";
 import { fileURLToPath } from "node:url";
 import { processIo } from "./io.mjs";
+
+// The bundle ships with sourcemap: true precisely so a crash trace reads as
+// original TS, not `dist/main.js` positions — but Node ignores the shipped
+// `.map` files unless this is switched on before the bundle is imported.
+setSourceMapsSupport(true);
 
 // One of renovate's transitive dependencies still reaches for `node:punycode`.
 // Inlined into the bundle, its deprecation warning is about code no consumer
