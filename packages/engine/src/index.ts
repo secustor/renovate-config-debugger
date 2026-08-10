@@ -17,6 +17,7 @@ export {
   compareSimulations,
   type ConfigKeyDelta,
   type RuleRef,
+  type SignatureChange,
   type SimulationComparison,
 } from "./simulate-compare";
 export { setPresetAuth, type PresetAuth } from "./auth";

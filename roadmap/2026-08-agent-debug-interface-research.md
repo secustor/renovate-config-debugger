@@ -103,9 +103,9 @@ server.
 
 ## Options
 
-### A. `rcv` CLI on the Vite SSR runner — recommended core
+### A. `rcd` CLI on the Vite SSR runner — recommended core
 
-A new workspace package (`packages/cli`) exposing a `rcv` bin that boots the
+A new workspace package (`packages/cli`) exposing a `rcd` bin that boots the
 spike's runner once and dispatches subcommands. Dev-time startup (~1.5 s cold)
 is fine for debugging. It reuses the _exact_ plugin the browser bundle and the
 shimmed tests use, so parity is enforced by construction — and the existing
@@ -117,33 +117,33 @@ Sketch of the command surface. Every subcommand takes
 for agents and `jq`:
 
 ```
-rcv run <file> [--global-config g.json] [--inherited i.json]
+rcd run <file> [--global-config g.json] [--inherited i.json]
                [--platform gitlab --endpoint … --platform-override]
                [--inject 'github>org/repo=./local-preset.json']
                [--select events|tree|final|status]     # trim the firehose
-rcv tree <file> [--node <name> --body resolved]  # structure+stats; bodies per node
-rcv provenance <file> [key]
-rcv resolved <file> [--mode …] [--include-defaults]
-rcv validate <file>        # errors/warnings + translations + quick fixes
-rcv simulate <file> --dep '{"depName":"react","currentValue":"17.0.0",…}'
-rcv compare …              # two simulate runs → SimulationComparison
-rcv digest <file>          # the Overview sentence (reuse app's run-digest.ts)
-rcv docs <option>          # OptionIndex lookup
+rcd tree <file> [--node <name> --body resolved]  # structure+stats; bodies per node
+rcd provenance <file> [key]
+rcd resolved <file> [--mode …] [--include-defaults]
+rcd validate <file>        # errors/warnings + translations + quick fixes
+rcd simulate <file> --dep '{"depName":"react","currentValue":"17.0.0",…}'
+rcd compare …              # two simulate runs → SimulationComparison
+rcd digest <file>          # the Overview sentence (reuse app's run-digest.ts)
+rcd docs <option>          # OptionIndex lookup
 ```
 
 What a session looks like:
 
 ```console
-$ rcv digest renovate.json
+$ rcd digest renovate.json
 ✓ Renovate accepted this config. It rewrote `semanticCommits` in your file.
 Your `config:recommended` entry expanded into 1,076 presets — 7 of which set
 options, the rest are package-grouping rules. …
 
-$ rcv run renovate.json --format json --select status
+$ rcd run renovate.json --format json --select status
 {"stageStatus":{"parse":"ok","migrate":"ok",…},"errors":[],"warnings":[…]}
 
-$ rcv tree renovate.json --node "helpers:pinGitHubActionDigests" --body resolved
-$ echo '{"extends":["config:recommended"]}' | rcv run --stdin --file-name renovate.json
+$ rcd tree renovate.json --node "helpers:pinGitHubActionDigests" --body resolved
+$ echo '{"extends":["config:recommended"]}' | rcd run --stdin --file-name renovate.json
 ```
 
 Inputs: file path or stdin; `--repo owner/repo` via `fetchRepoConfig`. Tokens
@@ -152,7 +152,7 @@ clean, `2` Renovate would refuse the config (validation errors), `1`
 infrastructure error (bad flags, unfetchable preset) — `2` for the
 config-refused case deliberately, because Claude Code hooks treat exit 2 as
 the blocking "feed stderr back to the model and fix it" signal, so
-`rcv validate` drops straight into a Stop/PreToolUse hook without a wrapper.
+`rcd validate` drops straight into a Stop/PreToolUse hook without a wrapper.
 Output size needs care: a
 full `TraceResult` for `config:recommended` embeds 1,080 nodes with four
 config bodies each — hence `--select`, and tree output defaults to
@@ -202,15 +202,15 @@ the file; it does **not** resolve presets, so any question about what
 `extends` pulls in, what the effective config is, or where a value came
 from is out of its scope. The nearest upstream alternative for those,
 `renovate --dry-run`, needs a real repository, platform credentials and a
-full bot run, and emits logs rather than data. What `rcv` adds is exactly
+full bot run, and emits logs rather than data. What `rcd` adds is exactly
 the visualizer's reason to exist, headless: the preset tree with per-node
 bodies, per-key provenance, the resolved-config document, the packageRules
 simulator and the A/B compare oracle, error translations with quick fixes,
-and `--format json` everywhere. Even the overlapping `rcv validate` sees
+and `--format json` everywhere. Even the overlapping `rcd validate` sees
 more than the file as written: the run continues through preset resolution,
 so unresolvable or erroring presets surface too — plus translations, quick
 fixes, structured output and hook-grade exit codes. The honest framing:
-`renovate-config-validator` is the linter; `rcv` is the debugger — and
+`renovate-config-validator` is the linter; `rcd` is the debugger — and
 because both run the same pinned `renovate` package code, they cannot
 disagree about semantics.
 
@@ -229,7 +229,7 @@ repo. Cost: a second build artifact whose graph must be proven identical
 Same package, one extra subcommand speaking MCP over stdio, registered once:
 
 ```console
-$ claude mcp add rcv -- pnpm dlx @renovate-config-debugger/cli mcp
+$ claude mcp add rcd -- pnpm dlx @renovate-config-debugger/cli mcp
 ```
 
 It wraps A's core 1:1 — same commands, zero extra functionality — so its
@@ -243,7 +243,7 @@ justification is purely interaction economics:
 2. **Run handles instead of firehose output** — `run_config` returns a small
    summary plus a `runId`; the trace stays in server memory (small LRU of
    recent runs) and drill-down tools query it. Beyond size, this buys
-   **consistency**: `rcv tree` then `rcv provenance` are two pipeline runs
+   **consistency**: `rcd tree` then `rcd provenance` are two pipeline runs
    that can silently describe different worlds if a remote preset changed
    in between; two `{runId}` lookups describe the same run. This is the web
    app's progressive disclosure, as tool calls:
@@ -274,13 +274,13 @@ Three further advantages over shelling out to the CLI:
   environments where agents have no Bash tool (claude.ai, restricted
   enterprise setups, other vendors' agents); registered once, present in
   every later session.
-- **Permission granularity** — `mcp__rcv__simulate` can be allowlisted as a
+- **Permission granularity** — `mcp__rcd__simulate` can be allowlisted as a
   specific read-only tool, where CLI calls arrive through coarse generic
   Bash permissions.
 
 The honest counterweight: for one-shot questions from an agent that _has_ a
 shell ("is this config valid?"), the CLI is strictly simpler — no resident
-process, composable with `jq`, works in CI. Hence: build after A, as a `rcv
+process, composable with `jq`, works in CI. Hence: build after A, as a `rcd
 mcp` subcommand rather than a separate package — the CLI stays the universal
 least-common-denominator, the MCP server is strictly better for interactive
 debugging sessions.
@@ -304,7 +304,7 @@ changes needed; the CLI populates `PresetAuth` before `runPipeline`.
 Token sources, in order:
 
 1. **Environment variables** (primary — agents/CI already have them):
-   `RCV_GITHUB_TOKEN`/`RCV_GITLAB_TOKEN`/… mapped onto `PresetAuth`, falling
+   `RCD_GITHUB_TOKEN`/`RCD_GITLAB_TOKEN`/… mapped onto `PresetAuth`, falling
    back to the ambient conventions (`GITHUB_TOKEN`/`GH_TOKEN`,
    `GITLAB_TOKEN`, arguably `RENOVATE_TOKEN`). Never accepted as argv flags
    (shell history / process lists).
@@ -317,7 +317,7 @@ doesn't have — env vars cover the agent use case entirely.
 
 The one design decision to carry over is the app's `suppressTokens` guard:
 the fetchers send the host token to whatever endpoint the platform context
-resolves to, so running `rcv` against an _untrusted_ config whose global
+resolves to, so running `rcd` against an _untrusted_ config whose global
 config sets `endpoint: https://evil.example` would leak the token there. The
 CLI must mirror the guard — only attach tokens to endpoints that came from
 explicit flags/env, not from the config file under inspection, unless the
@@ -353,7 +353,7 @@ What was checked, and the verdicts:
   `pnpm dlx …` / `claude mcp add …`"), a README/docs section with the exact
   copy-pasteable one-liner, and registry listings (npm, MCP registry). MCP
   discovery today is human/config-mediated: a developer (or an agent reading
-  the README) runs `claude mcp add rcv -- npx -y @renovate-config-debugger/cli mcp`
+  the README) runs `claude mcp add rcd -- npx -y @renovate-config-debugger/cli mcp`
   once, and every later session has the tool.
 - **Claude Code plugin hints** — the one shipped in-band mechanism: when the
   CLI detects it is running inside Claude Code (`CLAUDECODE=1` in the env),
@@ -382,10 +382,10 @@ counterproductive.
 1. **Phase 1** — `packages/cli` with the Vite-runner core and the subcommands
    above; hoist the effective-config tally derivation out of
    `EffectiveConfig.tsx` so digest/tally parity is import-level. Wire
-   `rcv` into CLAUDE.md as the sanctioned debug path.
+   `rcd` into CLAUDE.md as the sanctioned debug path.
 2. **Phase 2** — SSR-bundle build + npm publish as
    `@renovate-config-debugger/cli` for `pnpm dlx` use outside the repo; CI
    job runs the shimmed snapshot suite against the bundle.
-3. **Phase 3** — `rcv mcp` stdio server, plus the discovery surface: visible
+3. **Phase 3** — `rcd mcp` stdio server, plus the discovery surface: visible
    in-app "for agents/scripts" note with the install one-liner, README/docs
    section, the `claude-code-hint` stderr marker, optional `public/llms.txt`.

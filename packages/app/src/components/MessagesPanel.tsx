@@ -5,6 +5,7 @@ import type {
 } from "@renovate-config-debugger/engine";
 import { memo, useMemo } from "react";
 import type { ErrorTranslationLib } from "@/platform/run";
+import { validatedConfigOf } from "@/lib/run-facts";
 import { ErrorTranslationView } from "./ErrorTranslationView";
 import { RuleMessage } from "./RuleMessage";
 
@@ -35,17 +36,10 @@ export const MessagesPanel = memo(function MessagesPanel({
     () => result.events.filter((e) => e.kind === "preset-error"),
     [result.events],
   );
-  // The exact config `validateConfig("repo", …)` ran against (post-migrate/
-  // massage, pre-preset-merge) — matches the `packageRules[N]` indices these
-  // messages name, so a suggested fix's path resolves against the SAME
-  // snapshot the message was produced from.
-  const validatedConfig = useMemo(
-    () =>
-      (result.events.find((e) => e.stage === "massage" && e.kind === "stage-complete")?.after as
-        | Record<string, unknown>
-        | undefined) ?? null,
-    [result],
-  );
+  // The exact config `validateConfig("repo", …)` ran against — see
+  // `validatedConfigOf` (roadmap 058 hoisted it so `rcd validate` translates
+  // messages against the same snapshot this panel does).
+  const validatedConfig = useMemo(() => validatedConfigOf(result), [result]);
   if (result.errors.length + result.warnings.length + presetErrors.length === 0) {
     return null;
   }
