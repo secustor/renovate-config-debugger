@@ -538,7 +538,15 @@ Everywhere else it is a config file. Most of them take the same JSON:
 | Codex                | `.codex/config.toml` or `~/.codex/config.toml`       | `mcp_servers` |
 
 In Claude Code, the [plugin](../../plugins/renovate-config-debugger) registers
-this server and adds the skill that knows the call sequence:
+this server and adds the skill that knows the call sequence. Not published
+yet — until the `secustor/claude-plugins` catalog exists, run it from a
+checkout of this repository instead:
+
+```console
+$ claude --plugin-dir ./plugins/renovate-config-debugger
+```
+
+Once published:
 
 ```console
 $ /plugin marketplace add secustor/claude-plugins
