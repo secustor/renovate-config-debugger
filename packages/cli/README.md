@@ -25,8 +25,10 @@ exactly this Renovate — nothing resolves at install time.
 | 0.1.0 | 0.0.0             | 44.7.4     |
 
 **The table describes an experimental interface**: a new row is not a promise
-that the previous row's flags still work. (`packages/cli/scripts/check-compat.ts`
-fails the build if the top row does not describe the current build.)
+that the previous row's flags still work. The rows are written by the release
+(`scripts/stamp-compat.ts`), and `scripts/check-compat.ts` fails the build
+whenever the top one stops describing the current build — so the table cannot
+be stale and cannot be edited into a lie.
 
 ## What it is
 

@@ -71,6 +71,7 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [064](064-extraction-fidelity-and-mismatch.md)          | Extraction fidelity: RE2 gap + unmatched comments                 | M17                  | proposed |
 | [065](065-persistent-sign-in.md)                        | Persistent sign-in: HttpOnly refresh-token cookie                 | M14                  | done     |
 | [066](066-header-account-menu.md)                       | Header session menu: account, theme and links in one corner       | M14                  | done     |
+| [067](067-semantic-release.md)                          | semantic-release: one version for every public package            | M16                  | done     |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live

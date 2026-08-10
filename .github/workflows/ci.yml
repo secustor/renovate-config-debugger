@@ -81,7 +81,7 @@ jobs:
       # Roadmap 059 — the publishable CLI bundle, and the proof that it is the
       # same module graph the tests and the browser bundle use: the engine's
       # own shimmed snapshot suite, re-run against `dist/engine-surface.js`.
-      # Here rather than only in publish-cli.yml, so a PR that breaks the
+      # Here rather than only in release.yml, so a PR that breaks the
       # bundle fails before a release tries to ship it.
       - name: CLI bundle build
         run: pnpm --filter @renovate-config-debugger/cli build

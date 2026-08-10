@@ -1,0 +1,89 @@
+name: Release
+
+# Roadmap 067 — semantic-release cuts the release: it reads the conventional
+# commits since the last `v*` tag, decides the version, stamps it into every
+# public package, publishes them to npm, and writes the GitHub release.
+#
+# Manual only. Nothing here runs on a push, so a merge can never publish; the
+# decision to release stays a decision, while *which version* stops being one.
+# Run it with `dry-run` ticked (the default) to see the version and the notes
+# without touching npm, the tags or main.
+on:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Compute the version and the release notes, publish nothing
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+# A second release racing the first would tag the same commit twice.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      # The tag, the GitHub release, and the `chore(release):` commit that
+      # brings the versions and the compat row back to main.
+      contents: write
+      # @semantic-release/github comments on the issues and PRs a release ships.
+      issues: write
+      pull-requests: write
+      # npm provenance: the attestation is signed with this job's OIDC token.
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # semantic-release reads the whole history and every tag to work out
+          # what has changed since the last release.
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup
+
+      # The zero-tolerance gates, on the exact tree being released. CI has run
+      # these on the PR, but the tree that gets published is this one.
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm typecheck
+      - run: pnpm --filter @renovate-config-debugger/cli test
+
+      # `build` runs scripts/check-compat.ts, which fails when the README's
+      # compat table does not describe this build.
+      - name: Build the SSR bundle
+        run: pnpm --filter @renovate-config-debugger/cli build
+
+      # The parity proof: the engine's own shimmed snapshot suite, re-run with
+      # the engine pointed at dist/engine-surface.js. "The bundle is the same
+      # module graph" is TESTED against the artifact that ships, not assumed
+      # from both having been built with the same plugin. Only the version
+      # string changes between this build and the one semantic-release makes.
+      - name: Bundle parity (engine shimmed snapshots vs. the bundle)
+        run: pnpm --filter @renovate-config-debugger/cli test:bundle
+
+      - name: Smoke-test the published bin
+        run: node packages/cli/bin/rcd.mjs validate packages/cli/test/fixtures/clean.json
+
+      - name: Authenticate to npm
+        if: ${{ !inputs.dry-run }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+
+      - name: semantic-release
+        env:
+          # A PAT is only needed if main is protected against the default token
+          # — @semantic-release/git pushes the release commit straight to it.
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"
+          # Read by tools/release/verify.ts, so a missing npm token is caught
+          # before anything is computed rather than at the publish step.
+          RELEASE_DRY_RUN: ${{ inputs.dry-run }}
+        run: pnpm exec semantic-release ${{ inputs.dry-run && '--dry-run' || '' }}
