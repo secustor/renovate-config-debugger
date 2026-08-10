@@ -10,6 +10,16 @@ accept this", "does my edit change which packageRules fire".
 
 ## Install
 
+Not published yet — the `secustor/claude-plugins` catalog repository doesn't
+exist, so `/plugin marketplace add` below doesn't resolve. Until it does, run
+from a checkout of this repository:
+
+```
+claude --plugin-dir ./plugins/renovate-config-debugger
+```
+
+Once published:
+
 ```
 /plugin marketplace add secustor/claude-plugins
 /plugin install renovate-config-debugger@claude-plugins
@@ -32,9 +42,9 @@ The plugin contains **no engine code**. It shells out to the published CLI, so
 updates ride that package's releases (including a Renovate bump, which is a
 release of its own) and the plugin version can lag without breaking.
 
-If `pnpm` is not on your machine, change `.mcp.json`'s command to
-`npx` with args `["-y", "@renovate-config-debugger/cli", "mcp"]` — same
-package, same server.
+`.mcp.json` runs the server via `npx`, so no package manager is assumed.
+Hand-editing it isn't necessary — and wouldn't persist anyway, since plugin
+files are overwritten on update.
 
 ## Why a skill and not just the server
 
