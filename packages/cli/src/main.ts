@@ -61,7 +61,7 @@ const TOP_LEVEL_NOTES = [
   "`rcd <command> --help` for a command's own flags.",
   "",
   "In an MCP-capable client, register the server once and skip the flags entirely:",
-  "  claude mcp add rcd -- pnpm dlx @renovate-config-debugger/cli mcp",
+  "  claude mcp add rcd -- npx -y @renovate-config-debugger/cli mcp",
 ];
 
 /**

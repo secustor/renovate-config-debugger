@@ -59,7 +59,7 @@ drill-down tools query that held run, so the whole session describes one
 resolution instead of re-resolving per question:
 
 ```bash
-claude mcp add rcd -- pnpm dlx @renovate-config-debugger/cli mcp
+claude mcp add rcd -- npx -y @renovate-config-debugger/cli mcp
 ```
 
 A plain Node import of the engine is NOT equivalent: the preset tree and

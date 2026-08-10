@@ -83,12 +83,12 @@ Everything the app shows is available without a browser — the same engine, the
 same pinned Renovate, as structured data:
 
 ```bash
-pnpm dlx @renovate-config-debugger/cli digest renovate.json     # the run in one paragraph
-pnpm dlx @renovate-config-debugger/cli validate renovate.json   # exit 2 = Renovate would refuse it
-pnpm dlx @renovate-config-debugger/cli tree renovate.json       # what `extends` expanded into
-pnpm dlx @renovate-config-debugger/cli provenance renovate.json labels
-pnpm dlx @renovate-config-debugger/cli simulate renovate.json --dep '{"depName":"react"}'
-pnpm dlx @renovate-config-debugger/cli compare before.json after.json --dep '{"depName":"react"}'
+npx -y @renovate-config-debugger/cli digest renovate.json     # the run in one paragraph
+npx -y @renovate-config-debugger/cli validate renovate.json   # exit 2 = Renovate would refuse it
+npx -y @renovate-config-debugger/cli tree renovate.json       # what `extends` expanded into
+npx -y @renovate-config-debugger/cli provenance renovate.json labels
+npx -y @renovate-config-debugger/cli simulate renovate.json --dep '{"depName":"react"}'
+npx -y @renovate-config-debugger/cli compare before.json after.json --dep '{"depName":"react"}'
 ```
 
 `--format json` on any subcommand; `--help` lists them all. Exit `2` means
@@ -100,7 +100,7 @@ of flags — the engine boots once and `run_config` holds the trace, so
 drill-down questions cost milliseconds and describe one consistent run:
 
 ```bash
-claude mcp add rcd -- pnpm dlx @renovate-config-debugger/cli mcp
+claude mcp add rcd -- npx -y @renovate-config-debugger/cli mcp
 ```
 
 [`packages/cli/README.md`](packages/cli/README.md) has the full surface: input

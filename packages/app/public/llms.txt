@@ -11,18 +11,18 @@ structured output, no browser:
 
 ```
 # the whole run in one paragraph
-pnpm dlx @renovate-config-debugger/cli digest renovate.json
+npx -y @renovate-config-debugger/cli digest renovate.json
 
 # would Renovate accept it? exit 2 = no (a blocking signal for hooks)
-pnpm dlx @renovate-config-debugger/cli validate renovate.json
+npx -y @renovate-config-debugger/cli validate renovate.json
 
 # what did `extends` expand into / who set this option / would this PR match
-pnpm dlx @renovate-config-debugger/cli tree renovate.json
-pnpm dlx @renovate-config-debugger/cli provenance renovate.json labels
-pnpm dlx @renovate-config-debugger/cli simulate renovate.json --dep '{"depName":"react"}'
+npx -y @renovate-config-debugger/cli tree renovate.json
+npx -y @renovate-config-debugger/cli provenance renovate.json labels
+npx -y @renovate-config-debugger/cli simulate renovate.json --dep '{"depName":"react"}'
 
 # prove an edit changed (or did not change) behavior
-pnpm dlx @renovate-config-debugger/cli compare before.json after.json --dep '{"depName":"react"}'
+npx -y @renovate-config-debugger/cli compare before.json after.json --dep '{"depName":"react"}'
 ```
 
 `--format json` on any subcommand. `--help` lists them all.
@@ -31,7 +31,7 @@ In an MCP-capable client, register the server once and get typed tools instead
 of flags:
 
 ```
-claude mcp add rcd -- pnpm dlx @renovate-config-debugger/cli mcp
+claude mcp add rcd -- npx -y @renovate-config-debugger/cli mcp
 ```
 
 The CLI is experimental: subcommands, flags and output shapes may change in

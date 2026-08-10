@@ -19,11 +19,11 @@ const DOCS_URL = "https://github.com/secustor/renovate-config-debugger/tree/main
 
 const ONE_LINERS = [
   `# every answer on this page, as JSON`,
-  `pnpm dlx ${PACKAGE} digest renovate.json`,
-  `pnpm dlx ${PACKAGE} validate renovate.json    # exit 2 = Renovate would refuse it`,
+  `npx -y ${PACKAGE} digest renovate.json`,
+  `npx -y ${PACKAGE} validate renovate.json    # exit 2 = Renovate would refuse it`,
   ``,
   `# or register it once, for an agent session`,
-  `claude mcp add rcd -- pnpm dlx ${PACKAGE} mcp`,
+  `claude mcp add rcd -- npx -y ${PACKAGE} mcp`,
 ].join("\n");
 
 export function HeadlessNote() {
