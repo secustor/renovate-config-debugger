@@ -22,7 +22,7 @@ exactly this Renovate — nothing resolves at install time.
 
 | `cli` | embedded `engine` | `renovate` |
 | ----- | ----------------- | ---------- |
-| 0.1.0 | 0.0.0             | 44.7.4     |
+| 0.1.0 | 0.1.0             | 44.7.4     |
 
 **The table describes an experimental interface**: a new row is not a promise
 that the previous row's flags still work. The rows are written by the release
