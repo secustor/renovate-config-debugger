@@ -123,8 +123,17 @@ describe("serializeResult", () => {
     // Every key survives — the arrays gave the bytes back themselves.
     expect(parsed.omittedKeys).toBeUndefined();
     expect(parsed.answer).toEqual({ a: "b" });
-    expect(parsed.rules.shown).toBeGreaterThan(0);
-    expect(parsed.trace.shown).toBeGreaterThan(0);
+    // The floor keeps BOTH ends — the exact promise ELIDED_ARRAY_SHAPE ships,
+    // and the tail is where a merged packageRules array keeps the repo's own
+    // rules. The gap marker must sit inside `items`, never past its end.
+    for (const elided of [parsed.rules, parsed.trace]) {
+      const items = elided.items as { i: number }[];
+      expect(elided.shown).toBeGreaterThanOrEqual(2);
+      expect(items[0]?.i).toBe(0);
+      expect(items.at(-1)?.i).toBe(699);
+      expect(elided.omittedFrom).toBeGreaterThan(0);
+      expect(elided.omittedFrom).toBeLessThan(items.length);
+    }
   });
 
   /**
