@@ -754,9 +754,12 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       title: "Explain a validation message",
       description:
         "Translates one of Renovate's validator messages into what it actually means, with a " +
-        "docs link and — when the library knows one — a concrete fix. Pass the runId the message " +
-        "came from and the fix is computed against that exact config snapshot, including the " +
-        "edited file text, and the reported severity is the list the run itself put it in.",
+        "docs link and — when the library knows one — a concrete fix. It always says which you " +
+        "got: `translationKnown` is false, with a `note` explaining why, when the curated " +
+        "library has no entry for the message, so a bare echo is never ambiguous. Pass the " +
+        "runId the message came from and the fix is computed against that exact config " +
+        "snapshot, including the edited file text, and the reported severity is the list the " +
+        "run itself put it in.",
       annotations: HELD_RUN_ANNOTATIONS,
       inputSchema: z.strictObject({
         message: z.string().describe("The message text, verbatim."),

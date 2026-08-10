@@ -148,8 +148,10 @@ it takes no arguments and writes nothing but the protocol to stdout.
 `get_final_config`, `get_preset_tree`, `get_preset_node`, `get_provenance`,
 `get_resolved_config`, `simulate`, `compare_simulations`, `explain_message` and
 `get_option_docs` all take that runId and query the HELD trace. That buys two
-things a series of CLI invocations cannot give: the module graph and the
-preset-fetch cache are paid once, and every answer describes the same run — two
+things a series of CLI invocations cannot give: the module graph is paid once
+per session — only the engine boot is amortized, since Renovate's own preset
+`memCache` resets on every run, so a fresh `run_config` still fetches its
+presets over the network — and every answer describes the same run — two
 separate `rcd` calls can silently describe different worlds if a remote preset
 changed between them.
 
@@ -158,7 +160,11 @@ handshake, with the era chosen per connection, so older clients keep working
 against the same process.
 
 Worth knowing before your first call: **preset-node bodies are large — query
-one node at a time.** The tool descriptions say so too.
+one node at a time.** The tool descriptions say so too. `simulate` takes the
+same `verdict`/`source` scoping as `rcd simulate --verdict/--source` (see
+[above](#simulate-and-compare)) — `source: "repo"` is the fix for a
+`config:best-practices` run's several-hundred-rule list when the question is
+about your own config's rules, not the presets it pulled in.
 
 The server holds a small number of recent runs (an LRU), so an agent can
 compare the run before an edit with the run after it. A `runId` that has been
