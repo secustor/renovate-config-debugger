@@ -183,7 +183,23 @@ does not exist.
    that tag call for.
 
 5. **Push access to main for the release commit.** If main is protected, the
-   default `GITHUB_TOKEN` cannot push; the workflow prefers a `RELEASE_TOKEN`
-   secret (a PAT with `contents: write`) when one is set, and falls back to
-   `GITHUB_TOKEN` when it is not. This is the GitHub side and has nothing to do
-   with publishing.
+   default `GITHUB_TOKEN` cannot push. The workflow mints an installation token
+   from a dedicated GitHub App instead of holding a PAT — the token is
+   short-lived (one hour), scoped to this repository, and survives account
+   changes the way a personal token does not. One-time setup:
+
+   1. Create a GitHub App (Settings → Developer settings → GitHub Apps; an
+      org-less personal app is fine). Webhook off. Repository permissions:
+      **Contents: read & write** (the push), **Issues: read & write** and
+      **Pull requests: read & write** (`@semantic-release/github` comments on
+      what a release ships).
+   2. Install the app on `renovate-config-debugger` only.
+   3. Store the App ID as a repository **variable** `RELEASE_APP_ID` and a
+      generated private key as the **secret** `RELEASE_APP_PRIVATE_KEY`.
+   4. Add the app to main's protection bypass list (branch protection: allow
+      the app to push; ruleset: add it under "bypass list") — the token is
+      only as strong as the app, and without the bypass the push still 403s.
+
+   When `RELEASE_APP_ID` is unset the mint step is skipped and semantic-release
+   falls back to the job's `GITHUB_TOKEN`, which works only while main is
+   unprotected. This is the GitHub side and has nothing to do with publishing.

@@ -86,16 +86,30 @@ jobs:
       - name: Smoke-test the published bin
         run: node packages/cli/bin/rcd.mjs validate packages/cli/test/fixtures/clean.json
 
+      # @semantic-release/git pushes the release commit straight to main, which
+      # is protected against the job's own token. The credential for that push
+      # is an installation token minted here from the release GitHub App (see
+      # roadmap/067 step 5): short-lived, scoped to this repository, and no PAT
+      # in the secrets. Skipped when the app is not configured — semantic-release
+      # then falls back to the job token, which works only while main is
+      # unprotected. This is the GitHub side; it has nothing to do with
+      # publishing.
+      - name: Mint the release app token
+        id: app-token
+        if: ${{ vars.RELEASE_APP_ID != '' }}
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
       # No "authenticate to npm" step, and deliberately no ~/.npmrc: pnpm mints
       # the OIDC token itself at publish time. An `_authToken` line written here
       # would take precedence over the exchange and quietly put a long-lived
       # credential back in the path this workflow exists to remove.
       - name: semantic-release
         env:
-          # A PAT is only needed if main is protected against the default token
-          # — @semantic-release/git pushes the release commit straight to it.
-          # This is the GitHub side; it has nothing to do with publishing.
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          # The app token when the step above ran, the job token otherwise.
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
           # Trusted publishing attests provenance on its own. Stated anyway, so
           # a package whose manifest omits `publishConfig.provenance` still gets
           # it, and so the intent survives someone reading only this file.
