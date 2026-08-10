@@ -341,6 +341,32 @@ describe("drill-down", () => {
     expect(node.input.dependencyDashboard).toBe(true);
   });
 
+  test("a node's own children are one level, not zero — depth is relative to the query", async () => {
+    // Regression: get_preset_node used to pass viewOf an ABSOLUTE depth limit
+    // of 1, but config:recommended already sits at depth 1 (root is depth 0),
+    // so every real preset was cut before its children ever showed.
+    const runId = await runConfig(RECOMMENDED);
+    const node = (await call("get_preset_node", {
+      runId,
+      node: "config:recommended",
+    })) as {
+      node: {
+        children?: { name: string; children?: unknown; childrenOmitted?: number }[];
+        childrenOmitted?: number;
+      };
+    };
+    expect(node.node.childrenOmitted).toBeUndefined();
+    expect(node.node.children).toBeDefined();
+    const children = node.node.children ?? [];
+    expect(children.length).toBeGreaterThan(0);
+    expect(children.map((c) => c.name)).toContain(":dependencyDashboard");
+    // One level only: a grandchild-bearing child summarizes its own children
+    // as childrenOmitted rather than recursing into them.
+    const grandparent = children.find((c) => c.name === "group:monorepos");
+    expect(grandparent?.children).toBeUndefined();
+    expect(grandparent?.childrenOmitted).toBeGreaterThan(0);
+  });
+
   test("provenance answers who set a key", async () => {
     const runId = await runConfig(CONFIG);
     const entry = (await call("get_provenance", { runId, key: "labels" })) as {

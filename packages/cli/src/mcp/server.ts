@@ -575,8 +575,9 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       const { stats } = treeStatsOf(store.get(runId).result);
       const found = findNode(stats, node);
       const kind = parseBody(body);
+      const foundDepth = stats.statsById.get(found.id)?.depth ?? 0;
       return {
-        node: viewOf(found, stats, 1),
+        node: viewOf(found, stats, foundDepth + 1),
         occurrences: stats.occurrencesByName.get(found.name)?.length ?? 1,
         ...(kind ? bodyOf(found, kind) : {}),
       };
