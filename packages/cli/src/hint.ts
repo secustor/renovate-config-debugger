@@ -8,8 +8,7 @@ import type { CliIo } from "./io";
  * stderr is stripped from the output before the model ever sees it, and turned
  * into a one-time "install this plugin?" prompt for the *user*. Deduplicated
  * per plugin on their side, so emitting more than once is harmless — but the
- * flag below keeps it to once per process anyway, which is what makes it
- * bearable in `rcd mcp`, a process that lives for a whole session.
+ * flag below keeps it to once per process anyway.
  *
  * Everything else researched for this — hidden in-page hints, `.well-known`
  * manifests, llms.txt as a signal — was rejected: the first is the canonical
@@ -18,8 +17,12 @@ import type { CliIo } from "./io";
  *
  * Expectations, deliberately set low: Claude Code only prompts for plugins
  * listed in the official Anthropic marketplace, so until such a listing exists
- * the marker is inert. It is cheap, forward-compatible, and never on stdout —
- * so it cannot corrupt `--format json` or the MCP protocol stream.
+ * the marker is inert. It is cheap, forward-compatible, and never on stdout.
+ *
+ * Being off stdout turned out not to be enough: agents run commands with
+ * `2>&1`, and a marker printed before a JSON payload becomes the first line of
+ * a document that no longer parses. `main.ts` therefore withholds it from any
+ * invocation that asked for machine output — see `answersWithoutHint`.
  */
 
 /** Matches the plugin directory's name (roadmap 061). */
