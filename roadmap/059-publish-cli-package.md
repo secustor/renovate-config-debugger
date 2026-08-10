@@ -92,13 +92,14 @@ where configs actually live.
 
 Not done here, deliberately: nothing was published, and no registry
 organization was created. The first release needs the
-`@renovate-config-debugger` scope to exist and a publish token in the
-repository secrets. 056 publishes the engine into the same organization —
-whichever lands first creates it.
+`@renovate-config-debugger` scope to exist. 056 publishes the engine into the
+same organization — whichever lands first creates it.
 
 **Superseded in part by [067](067-semantic-release.md).** The hand-cut
 `cli-v<version>` tag described here is gone: releases are one
 `workflow_dispatch` run of semantic-release, tagged `v<version>` because the
 version is now shared by every public package. `publish-cli.yml` was retired
-into `release.yml`, and the compat row above is stamped by the release rather
-than added by hand.
+into `release.yml`; the compat row above is stamped by the release rather than
+added by hand; and the publish token this document assumed is gone too —
+authentication is npm trusted publishing (OIDC), so the repository stores no
+npm credential.

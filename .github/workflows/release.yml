@@ -7,7 +7,21 @@ name: Release
 # Manual only. Nothing here runs on a push, so a merge can never publish; the
 # decision to release stays a decision, while *which version* stops being one.
 # Run it with `dry-run` ticked (the default) to see the version and the notes
-# without touching npm, the tags or main.
+# without touching the registry, the tags or main.
+#
+# There is NO npm token, here or in the repository secrets. Publishing is
+# authenticated with npm trusted publishing (OIDC): the registry trusts a short
+# lived token minted by GitHub for this job, having been told on npmjs.com which
+# repository and which workflow file are allowed to mint it. See
+# https://docs.npmjs.com/trusted-publishers, and roadmap/067 for the setup.
+#
+# TWO CONSEQUENCES, both easy to trip over:
+#   * The trusted-publisher record names this file BY NAME. Renaming or moving
+#     `release.yml` silently breaks publishing until the record is updated.
+#   * The record is PER PACKAGE. A second public package needs its own record
+#     before its first automated release (and its own manual first publish —
+#     npm cannot configure a trusted publisher for a package that does not
+#     exist yet: https://github.com/npm/cli/issues/8544).
 on:
   workflow_dispatch:
     inputs:
@@ -35,7 +49,10 @@ jobs:
       # @semantic-release/github comments on the issues and PRs a release ships.
       issues: write
       pull-requests: write
-      # npm provenance: the attestation is signed with this job's OIDC token.
+      # The whole basis of the publish: this is what lets the job mint the OIDC
+      # token the registry exchanges for publish rights, and what signs the
+      # provenance attestation. Without it there is no other credential to fall
+      # back to, and the publish fails rather than degrading to something weaker.
       id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -69,21 +86,22 @@ jobs:
       - name: Smoke-test the published bin
         run: node packages/cli/bin/rcd.mjs validate packages/cli/test/fixtures/clean.json
 
-      - name: Authenticate to npm
-        if: ${{ !inputs.dry-run }}
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
-
+      # No "authenticate to npm" step, and deliberately no ~/.npmrc: pnpm mints
+      # the OIDC token itself at publish time. An `_authToken` line written here
+      # would take precedence over the exchange and quietly put a long-lived
+      # credential back in the path this workflow exists to remove.
       - name: semantic-release
         env:
           # A PAT is only needed if main is protected against the default token
           # — @semantic-release/git pushes the release commit straight to it.
+          # This is the GitHub side; it has nothing to do with publishing.
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # Trusted publishing attests provenance on its own. Stated anyway, so
+          # a package whose manifest omits `publishConfig.provenance` still gets
+          # it, and so the intent survives someone reading only this file.
           NPM_CONFIG_PROVENANCE: "true"
-          # Read by tools/release/verify.ts, so a missing npm token is caught
-          # before anything is computed rather than at the publish step.
+          # Read by tools/release/verify.ts, so a job that cannot mint an OIDC
+          # token fails before anything is computed rather than at the publish
+          # step with the tree already stamped.
           RELEASE_DRY_RUN: ${{ inputs.dry-run }}
         run: pnpm exec semantic-release ${{ inputs.dry-run && '--dry-run' || '' }}
