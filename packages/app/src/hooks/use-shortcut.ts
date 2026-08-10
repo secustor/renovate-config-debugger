@@ -35,7 +35,12 @@ export function useShortcut(
       if (event.defaultPrevented || !matchShortcut(event, shortcut)) {
         return;
       }
-      if (!shortcut.mod && !shortcut.shift && isTextEditingTarget(event.target)) {
+      // A bare key never fires while the user is typing — `isTextEditingTarget`
+      // counts a focused `<select>` too, so `e` and `r` cannot eat its
+      // type-ahead. Modified chords always fire (⌘⏎ from inside the editor is
+      // the point of them), and F6 opts in explicitly because getting OUT of a
+      // text field is its whole job.
+      if (!shortcut.mod && !shortcut.whileTyping && isTextEditingTarget(event.target)) {
         return;
       }
       event.preventDefault();

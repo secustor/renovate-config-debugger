@@ -51,7 +51,17 @@ import {
 import type { ShareSimulator, ShareState, ShareView, UntrustedEndpointGuard } from "@/lib/share";
 import { useBackToTopVisible, useHomeEndPageScroll } from "@/hooks/scroll-ergonomics";
 import { useShortcut } from "@/hooks/use-shortcut";
-import { RUN_SHORTCUT } from "@/lib/shortcuts";
+import { useTabDigits } from "@/hooks/use-tab-digits";
+import { ShortcutSheet } from "@/components/ShortcutSheet";
+import {
+  FOCUS_EDITOR_SHORTCUT,
+  FOCUS_RESULTS_SHORTCUT,
+  HELP_SHORTCUT,
+  REGION_NEXT_SHORTCUT,
+  REGION_PREV_SHORTCUT,
+  RUN_AND_READ_SHORTCUT,
+  RUN_SHORTCUT,
+} from "@/lib/shortcuts";
 import { isValidEndpoint, isValidPlatform, parseLayerJson } from "@/lib/input-schemas";
 import { PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
 import {
@@ -940,34 +950,128 @@ export function App() {
   );
 
   /**
-   * Roadmap 067: where the skip links actually land.
+   * Roadmap 067: the app's two jump targets, defined once.
    *
-   * The config link names the EDITOR, so it lands in the editor — scrolled into
-   * view with its title bar, caret in the text. Landing on the column instead
-   * (what the bare fragment did) put the reader on the welcome blurb with the
-   * editor still a Tab or two away, which reads as the link having done
-   * nothing. Safe to drop someone into a text box now, because 067 also stopped
-   * the editor from trapping Tab.
+   * The skip links, the tier-1 `e` / `r` keys and F6's pane cycle all land
+   * through these, so a link and a key can never disagree about where "the
+   * editor" or "the results" is.
+   *
+   * The config target is the EDITOR, not the column: landing on the column
+   * (what the bare fragment jump did) put the reader on the pre-run welcome
+   * blurb with the editor still two tab stops away, which reads as the link
+   * having done nothing. Safe to drop someone into a text box now, because 067
+   * also stopped the editor from trapping Tab.
    */
-  function skipToConfig(event: MouseEvent<HTMLAnchorElement>) {
-    event.preventDefault();
+  function focusEditor() {
     configEditorRef.current?.focus();
   }
 
-  /** The results link's equivalent: the tab strip is the first thing to act on
-   *  there, and a focused tab announces which one is selected. Falls back to
-   *  the column itself (which carries `tabIndex={-1}`) before the strip
-   *  exists. */
-  function skipToResults(event: MouseEvent<HTMLAnchorElement>) {
-    event.preventDefault();
+  /** The results equivalent: the tab strip is the first thing worth acting on
+   *  there, and a focused tab announces which one is selected. */
+  function focusResults(attemptsLeft = 12) {
     const column = resultsColRef.current;
+    const selectedTab =
+      column?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]') ?? null;
+    // The results half is a lazy chunk (031), so on the FIRST run neither the
+    // column nor its tab strip exists yet when ⌘⇧⏎ asks for them. Wait a few
+    // frames for the real landing rather than dumping focus on the bare column
+    // — and give up rather than spin, because a chunk that never arrives is a
+    // failed run, not a focus problem.
+    if (!selectedTab && attemptsLeft > 0) {
+      requestAnimationFrame(() => focusResults(attemptsLeft - 1));
+      return;
+    }
     if (!column) {
       return;
     }
     column.scrollIntoView(motionScrollOptions("start"));
-    const selectedTab = column.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
     (selectedTab ?? column).focus({ preventScroll: true });
   }
+
+  function skipToConfig(event: MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+    focusEditor();
+  }
+
+  function skipToResults(event: MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+    focusResults();
+  }
+
+  /**
+   * Roadmap 067 tier 1. Bare `e` / `r` because the modified space is a
+   * minefield (⌘⇧E is Firefox's network panel, ⌘⇧C/I/J are devtools) while
+   * single letters are free — and `useShortcut` refuses to fire a bare key
+   * while the user is typing, which includes a focused `<select>`.
+   *
+   * Everything here is inert while the shortcut sheet is open: it is a modal
+   * dialog, and a key that acted on the page behind it would be acting on
+   * something the user cannot see.
+   */
+  const [shortcutSheetOpen, setShortcutSheetOpen] = useState(false);
+  const showShortcuts = useCallback(() => setShortcutSheetOpen(true), []);
+  const hideShortcuts = useCallback(() => setShortcutSheetOpen(false), []);
+  const keysLive = !shortcutSheetOpen;
+
+  useShortcut(FOCUS_EDITOR_SHORTCUT, focusEditor, { enabled: keysLive });
+  useShortcut(FOCUS_RESULTS_SHORTCUT, () => focusResults(), {
+    enabled: keysLive && Boolean(result),
+  });
+  useShortcut(HELP_SHORTCUT, showShortcuts, { enabled: keysLive });
+
+  /**
+   * F6 cycles the two panes. It is the platform convention and the only key
+   * that works from INSIDE the editor without inventing a chord — at the cost
+   * of shadowing the browser's own F6 while this page has focus. Both
+   * directions do the same thing here, because two regions have no "backwards".
+   */
+  function cycleRegion() {
+    const column = resultsColRef.current;
+    const inResults = column?.contains(document.activeElement) === true;
+    if (inResults || !result) {
+      focusEditor();
+    } else {
+      focusResults();
+    }
+  }
+  useShortcut(REGION_NEXT_SHORTCUT, cycleRegion, { enabled: keysLive });
+  useShortcut(REGION_PREV_SHORTCUT, cycleRegion, { enabled: keysLive });
+
+  /** `⌘⇧⏎` — run AND go read it. Plain ⌘⏎ deliberately leaves focus alone, so
+   *  this is the explicit "take me there" variant; the focus move waits for the
+   *  run to actually produce a result. */
+  useShortcut(
+    RUN_AND_READ_SHORTCUT,
+    () => {
+      preloadRunChunks();
+      void (async () => {
+        const traceResult = await onRun(undefined, undefined, {
+          preserveScroll: Boolean(result),
+        });
+        if (traceResult) {
+          focusResults();
+        }
+      })();
+    },
+    { enabled: keysLive && !running },
+  );
+
+  /** `1`–`7` — straight to that results tab, by position in the strip. */
+  useTabDigits(
+    resultsTabs.length,
+    (index) => {
+      const target = resultsTabs[index];
+      if (!target) {
+        return;
+      }
+      setTab(target.id);
+      // The tab's own button is focused on the next frame, once the strip has
+      // re-rendered with the new selection — otherwise this would focus the
+      // tab the user just left.
+      requestAnimationFrame(() => focusResults(0));
+    },
+    { enabled: keysLive && Boolean(result) },
+  );
 
   /**
    * Roadmap 067: a finished run does NOT move focus — the user may still be
@@ -1126,6 +1230,7 @@ export function App() {
             installUrl={INSTALL_URL}
             onSignIn={onSignIn}
             onSignOut={onSignOut}
+            onShowShortcuts={showShortcuts}
           />
         </header>
         <p className="subtitle">
@@ -1247,6 +1352,7 @@ export function App() {
           {toast}
         </div>
       ) : null}
+      {shortcutSheetOpen ? <ShortcutSheet onClose={hideShortcuts} /> : null}
       {/* Roadmap 067: the run's outcome for anyone not watching the screen.
           Always mounted — a live region has to exist BEFORE its text changes
           or the change is not announced. */}

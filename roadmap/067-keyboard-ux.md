@@ -1,6 +1,6 @@
 # 067 — Keyboard UX: the run loop without the mouse
 
-Milestone: M18 · Status: done (phases 1–2; phase 3 deliberately unbuilt)
+Milestone: M18 · Status: done (phases 1–3)
 
 ## Problem
 
@@ -70,9 +70,11 @@ document generalizes those into rules and fills the holes.
 1. **One verb per instrument, and the platform does the rest.** Mod+Enter runs
    the pipeline; Enter submits the form you are typing in. No command palette,
    no chorded prefixes, no second keyboard language to learn.
-2. **Bare keys belong to the browser and to the widget under focus.** Global
-   bindings carry a modifier. The one exception is `?` for the shortcut sheet,
-   and only when focus is not in a text-editing context.
+2. **A bare key never fires while the user is typing.** Anything that must work
+   from inside the editor carries a modifier (or is F6). Everything else — the
+   `e` / `r` / digit jump layer and `?` — is a bare key, because the modified
+   space is a browser minefield and the bare space is not; `isTextEditingTarget`
+   is what keeps that safe, and it counts a focused `<select>` as typing.
 3. **Every binding has a visible home.** A shortcut that exists only in this
    document does not exist. It renders in the `title` of the control it
    duplicates, and — for Run — as a dim `<kbd>` inside the button itself.
@@ -95,7 +97,11 @@ document generalizes those into rules and fills the holes.
 | **Tab**            | editor                      | Move focus out — it no longer indents (see below)                |
 | **←/→ · Home/End** | results tab strip           | Move between tabs; the strip is one tab stop                     |
 | **Mod+] · Mod+[**  | editor                      | Indent / outdent — already bound by `basicSetup`, now documented |
-| **?**              | global, outside text fields | Open the shortcut sheet — phase 3, NOT built                     |
+| **?**              | global, outside text fields | Open the shortcut sheet                                          |
+| **⌘⇧⏎**            | global, editor included     | Run, then jump to the results                                    |
+| **e** / **r**      | global, outside text fields | Jump to the config editor / the results                          |
+| **1** – **7**      | global, outside text fields | Jump to that results tab, by position in the strip               |
+| **F6**             | global, editor included     | Cycle the two panes                                              |
 
 The repo-load form and the glossary/provenance hover cards keep their own
 element-scoped Escape handlers: they only fire when focus is already inside
@@ -282,8 +288,47 @@ appearing in the sheet.
 `<form>` with the Simulate button associated across the DOM by `form=`, and the
 `<kbd>` hint in the Run button.
 
-**Phase 3 — optional, not built.** The `?` sheet; a Copy-link binding if the
-sheet makes one worth having; per-panel "first meaningful control" focus polish.
+**Phase 3 — the jump layer** (landed): `e` / `r` / `1`–`7` / `⌘⇧⏎` / F6, and the
+`?` sheet that stopped being optional the moment the count passed ten.
+
+Two decisions inside it are worth keeping written down.
+
+**The jump keys are BARE, and that is the only space with room left.** Every
+mnemonic chord is already taken by a browser: ⌘⇧E is Firefox's network panel,
+⌘⇧C/I/J are devtools, ⌘⇧G is find-previous, ⌘K is Firefox's address bar. Single
+letters are free, which is why every keyboard-first web app uses them. What
+makes them safe is `useShortcut` refusing to fire a bare key while the user is
+typing — and `isTextEditingTarget` counting a focused `<select>` as typing, so
+`e` and `r` cannot eat its type-ahead. The visible consequence, pinned by an
+e2e test: Tab out of the editor lands on the file-name select, and `r` does
+nothing there. That is correct, not a gap.
+
+**F6 shadows the browser's own F6** (address bar / pane cycling) while this page
+has focus. It is the platform convention for region cycling and the only key
+that works from inside the editor without inventing a chord — but plain Tab
+already leaves the editor since phase 1, so nothing depends on it. Deleting
+`REGION_NEXT_SHORTCUT` / `REGION_PREV_SHORTCUT` and their handler gives the key
+back, and costs one row of the sheet.
+
+Digits bind by POSITION in the rendered strip, never by a digit-to-id map: 062
+renames `Simulator` and inserts `Extraction`, and a frozen map would then point
+every digit at the wrong panel.
+
+**Also in this phase — Enter opens a `<select>`.** Reported against the
+`renovate.json` / `renovate.json5` picker and true of every select in the app.
+It is native behavior rather than a regression (a closed select opens on Space
+or Alt+Down; Enter does nothing outside a form) but it became visible because
+phase 1 untrapped Tab, making that select the first thing Tab reaches from the
+editor — so people land on it and press the key the rest of the app just taught
+them means "activate". `lib/select-picker.ts` calls `showPicker()`, guarded on
+support, on no modifiers (⌘⏎ must still Run from a focused control), and on the
+`NotAllowedError` it throws without user activation. Where `showPicker` is
+missing, the handler stands aside: no fallback can conjure a native popup, and
+a hand-built menu would be a worse control than the one the platform ships.
+
+**Still not built.** A Copy-link binding (once-per-session action, no good
+letter left); `/` to focus a panel's filter; `[` / `]` for the steppers; `j` /
+`k` through an instrument's items. Tier 2 in the 2026-08-11 recommendation.
 
 ### Not in scope
 
@@ -296,7 +341,10 @@ sheet makes one worth having; per-panel "first meaningful control" focus polish.
 
 ## Tests
 
-- **unit** (`unit` project, node): `shortcuts.test.ts` — either modifier
+- **unit** (`unit` project, node): `select-picker.test.ts` — Enter opens the
+  picker, every modifier combination is left alone (⌘⏎ must still Run from a
+  focused control), an unsupported browser is not half-handled, and a throwing
+  `showPicker` does not escape. `shortcuts.test.ts` — either modifier
   accepted, bare Enter rejected (so forms keep it), Alt rejected, and
   `codeMirrorKey` deriving `Mod-Enter` from the same entry the page listener
   uses. `escape-stack.test.ts` — topmost-wins, fall-through after release,
@@ -335,6 +383,11 @@ always meant was "no longer Running…".
 2. **Mod+Enter is global, Enter is local.** The simulator got a real `<form>`
    rather than a second meaning for the modified chord.
 
-Still open: whether the `?` sheet earns phase 3. With three bindings the
-`title` attributes and the Run button's `<kbd>` are enough; the sheet is worth
-building the moment a fourth binding lands.
+3. **The `?` sheet earned itself.** Phase 3 took the count from three bindings
+   to eleven — exactly the threshold this document set when it deferred the
+   sheet. It is generated from `GLOBAL_SHORTCUTS`, and a unit test asserts every
+   registry entry has a printed row, so a binding cannot be added without
+   appearing there. It is reachable by pointer too, from the 066 session menu:
+   a keyboard layer nobody can discover is one nobody uses.
+4. **Bare keys, not chords, for the jump layer** — every mnemonic modifier
+   combination is already a browser's. See phase 3 in Scope.

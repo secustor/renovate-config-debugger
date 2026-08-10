@@ -71,7 +71,7 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [064](064-extraction-fidelity-and-mismatch.md)          | Extraction fidelity: RE2 gap + unmatched comments                 | M17                  | proposed |
 | [065](065-persistent-sign-in.md)                        | Persistent sign-in: HttpOnly refresh-token cookie                 | M14                  | done     |
 | [066](066-header-account-menu.md)                       | Header session menu: account, theme and links in one corner       | M14                  | done     |
-| [067](067-keyboard-ux.md)                               | Keyboard UX: ⌘⏎ to run, tab order, one Escape ladder              | M18                  | done     |
+| [067](067-keyboard-ux.md)                               | Keyboard UX: ⌘⏎ to run, a bare-key jump layer, one Escape ladder  | M18                  | done     |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live
@@ -228,4 +228,8 @@ DOM query; and Enter submitted the repo-load form but did nothing in the
 simulator's fields. The fix is one registry (`lib/shortcuts.ts`) that the page
 listener, the CodeMirror keymap and the hint printed on the Run button all
 derive from, one Escape stack, and — the rule the milestone is really about —
-cross-links that move FOCUS to what they scrolled to, not just the eye.
+cross-links that move FOCUS to what they scrolled to, not just the eye. A
+follow-up pass added the jump layer the two-pane shape asks for — bare `e` /
+`r` / `1`–`7`, `⌘⇧⏎` to run and read, F6 to cycle panes — plus the `?` sheet
+that eleven bindings made compulsory, and Enter opening a native `<select>`,
+which nobody noticed was missing until Tab stopped being trapped.

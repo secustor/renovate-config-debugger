@@ -8,6 +8,20 @@
  * node-environment `unit` project, where it can be tested without a DOM.
  */
 
+/**
+ * Roadmap 067 tier 1: the tab a digit key selects, by POSITION in the rendered
+ * strip — never by a hardcoded id-to-digit map. Roadmap 062 renames `Simulator`
+ * and inserts an `Extraction` tab, and a frozen map would then quietly point
+ * every digit at the wrong panel.
+ */
+export function digitTabIndex(key: string, count: number): number | null {
+  if (key.length !== 1 || key < "1" || key > "9") {
+    return null;
+  }
+  const index = Number(key) - 1;
+  return index < count ? index : null;
+}
+
 /** The index this key moves to, or null when the key isn't one of ours. */
 export function nextTabIndex(key: string, current: number, count: number): number | null {
   if (count <= 0) {

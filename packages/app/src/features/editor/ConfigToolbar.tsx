@@ -1,4 +1,5 @@
 import { CopyButton } from "@/components/CopyButton";
+import { openPickerOnEnter } from "@/lib/select-picker";
 import { formatShortcut, RUN_SHORTCUT } from "@/lib/shortcuts";
 
 /**
@@ -53,6 +54,7 @@ export function ConfigToolbar({
         aria-label="Config file name"
         value={fileName}
         onChange={(e) => onFileNameChange(e.target.value)}
+        onKeyDown={openPickerOnEnter}
       >
         <option value="renovate.json">renovate.json</option>
         <option value="renovate.json5">renovate.json5</option>

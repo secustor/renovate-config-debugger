@@ -2,9 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   codeMirrorKey,
   formatShortcut,
+  GLOBAL_SHORTCUTS,
+  HELP_SHORTCUT,
   type KeyChord,
   matchShortcut,
+  REGION_PREV_SHORTCUT,
+  RUN_AND_READ_SHORTCUT,
   RUN_SHORTCUT,
+  shortcutSheet,
 } from "./shortcuts";
 
 /**
@@ -72,5 +77,47 @@ describe("codeMirrorKey", () => {
   it("derives the editor keymap's spelling from the same entry", () => {
     expect(codeMirrorKey(RUN_SHORTCUT)).toBe("Mod-Enter");
     expect(codeMirrorKey({ ...RUN_SHORTCUT, shift: true })).toBe("Mod-Shift-Enter");
+  });
+});
+
+describe("tier 1 bindings", () => {
+  it("separates Run from Run-and-read by Shift alone", () => {
+    const plain = chord({ metaKey: true });
+    const shifted = chord({ metaKey: true, shiftKey: true });
+    expect(matchShortcut(plain, RUN_SHORTCUT)).toBe(true);
+    expect(matchShortcut(plain, RUN_AND_READ_SHORTCUT)).toBe(false);
+    expect(matchShortcut(shifted, RUN_AND_READ_SHORTCUT)).toBe(true);
+    expect(matchShortcut(shifted, RUN_SHORTCUT)).toBe(false);
+  });
+
+  it("ignores Shift for `?`, which needs it on some layouts and not others", () => {
+    expect(matchShortcut(chord({ key: "?" }), HELP_SHORTCUT)).toBe(true);
+    expect(matchShortcut(chord({ key: "?", shiftKey: true }), HELP_SHORTCUT)).toBe(true);
+  });
+
+  it("keeps F6 distinct from Shift+F6", () => {
+    expect(matchShortcut(chord({ key: "F6", shiftKey: true }), REGION_PREV_SHORTCUT)).toBe(true);
+    expect(matchShortcut(chord({ key: "F6" }), REGION_PREV_SHORTCUT)).toBe(false);
+  });
+});
+
+describe("shortcutSheet", () => {
+  it("prints a row for every global binding — the rule 067 set itself", () => {
+    const rows = shortcutSheet(true).flatMap((section) => section.rows);
+    for (const shortcut of GLOBAL_SHORTCUTS) {
+      expect(rows.some((row) => row.what === shortcut.label)).toBe(true);
+    }
+  });
+
+  it("spells the keys for the platform it is asked about", () => {
+    const apple = shortcutSheet(true).flatMap((s) => s.rows.map((r) => r.keys));
+    const other = shortcutSheet(false).flatMap((s) => s.rows.map((r) => r.keys));
+    expect(apple).toContain("⌘⏎");
+    expect(other).toContain("Ctrl+Enter");
+  });
+
+  it("documents the digit jump, which has no registry entry of its own", () => {
+    const rows = shortcutSheet(true).flatMap((section) => section.rows);
+    expect(rows.some((row) => row.keys === "1 – 7")).toBe(true);
   });
 });

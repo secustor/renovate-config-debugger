@@ -9,6 +9,7 @@ interface Props {
   installUrl: string;
   onSignIn: () => void;
   onSignOut: () => void;
+  onShowShortcuts: () => void;
 }
 
 /**
@@ -30,6 +31,7 @@ export function AppHeaderTools({
   installUrl,
   onSignIn,
   onSignOut,
+  onShowShortcuts,
 }: Props) {
   return (
     <span className="app-header-tools">
@@ -43,6 +45,7 @@ export function AppHeaderTools({
         installUrl={installUrl}
         onSignIn={onSignIn}
         onSignOut={onSignOut}
+        onShowShortcuts={onShowShortcuts}
       />
     </span>
   );

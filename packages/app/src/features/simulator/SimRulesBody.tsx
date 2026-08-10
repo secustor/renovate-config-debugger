@@ -11,6 +11,7 @@ import {
   presetFilterOptions,
   verdictFilterOptions,
 } from "@/lib/rule-filters";
+import { openPickerOnEnter } from "@/lib/select-picker";
 import { RuleRow } from "./RuleRow";
 
 function optionLabel(option: FilterOption): string {
@@ -57,6 +58,7 @@ function SimRulesFilters({
       ) : null}
       <select
         aria-label="Filter rules by verdict"
+        onKeyDown={openPickerOnEnter}
         value={filters.verdict}
         onChange={(e) => onFiltersChange({ ...filters, verdict: e.target.value as VerdictFilter })}
       >
@@ -68,6 +70,7 @@ function SimRulesFilters({
       </select>
       <select
         aria-label="Filter rules by preset"
+        onKeyDown={openPickerOnEnter}
         value={filters.preset}
         onChange={(e) => onFiltersChange({ ...filters, preset: e.target.value as PresetFilter })}
       >

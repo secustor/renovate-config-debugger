@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nextTabIndex } from "./roving-tabs";
+import { digitTabIndex, nextTabIndex } from "./roving-tabs";
 
 /** Roadmap 067 — the tab strip's arrow arithmetic, wrap-around included. */
 describe("nextTabIndex", () => {
@@ -23,5 +23,24 @@ describe("nextTabIndex", () => {
 
   it("declines when there are no tabs at all", () => {
     expect(nextTabIndex("ArrowRight", 0, 0)).toBeNull();
+  });
+});
+
+/** Roadmap 067 tier 1 — `1`–`7` jump straight to a tab, BY POSITION. */
+describe("digitTabIndex", () => {
+  it("maps a digit to its zero-based position", () => {
+    expect(digitTabIndex("1", 7)).toBe(0);
+    expect(digitTabIndex("7", 7)).toBe(6);
+  });
+
+  it("declines a digit past the end of the strip", () => {
+    expect(digitTabIndex("8", 7)).toBeNull();
+    expect(digitTabIndex("9", 0)).toBeNull();
+  });
+
+  it("declines 0 and every non-digit", () => {
+    for (const key of ["0", "e", "Enter", "F6", "", "12"]) {
+      expect(digitTabIndex(key, 7)).toBeNull();
+    }
   });
 });

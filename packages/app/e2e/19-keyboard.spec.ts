@@ -166,3 +166,107 @@ test("a finished run is announced instead of stealing focus", async ({ page }) =
   // …and the outcome went to the live region instead.
   await expect(page.locator("p.visually-hidden[role='status']")).toContainText("Run finished");
 });
+
+// ── Roadmap 067 tier 1 ───────────────────────────────────────────────────────
+
+test("e and r jump between the panes, and never fire while typing", async ({ page }) => {
+  await page.goto("/");
+  await runAndAwaitResult(page);
+
+  // From anywhere that is not a text field.
+  await tabButton(page, "overview").focus();
+  await page.keyboard.press("e");
+  await expect(page.locator(".cm-content")).toBeFocused();
+
+  // `e` typed INSIDE the editor is a letter, not a shortcut — the guard that
+  // makes a bare-key layer safe at all.
+  const before = await page.locator(".cm-content").textContent();
+  await page.keyboard.press("e");
+  expect(await page.locator(".cm-content").textContent()).not.toBe(before);
+
+  // Tab lands on the file-name `<select>`, where a bare key is deliberately
+  // suppressed so it cannot eat the select's own type-ahead…
+  await page.keyboard.press("Tab");
+  await expect(page.locator(".toolbar select")).toBeFocused();
+  await page.keyboard.press("r");
+  await expect(page.locator(".toolbar select")).toBeFocused();
+
+  // …but from anywhere that is not a form control, `r` goes to the results.
+  await page.locator("h1").click();
+  await page.keyboard.press("r");
+  await expect(tabButton(page, "overview")).toBeFocused();
+});
+
+test("digits jump straight to a results tab, by strip position", async ({ page }) => {
+  await page.goto("/");
+  await runAndAwaitResult(page);
+  await tabButton(page, "overview").focus();
+
+  await page.keyboard.press("2");
+  await expect(tabButton(page, "pipeline")).toHaveAttribute("aria-selected", "true");
+  await expect(tabPanel(page, "pipeline")).toBeVisible();
+
+  await page.keyboard.press("4");
+  await expect(tabButton(page, "presets")).toHaveAttribute("aria-selected", "true");
+});
+
+test("F6 cycles the panes, including from inside the editor", async ({ page }) => {
+  await page.goto("/");
+  await runAndAwaitResult(page);
+
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("F6");
+  await expect(tabButton(page, "overview")).toBeFocused();
+
+  await page.keyboard.press("F6");
+  await expect(page.locator(".cm-content")).toBeFocused();
+});
+
+test("⌘⇧⏎ runs and takes you to the results", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("ControlOrMeta+Shift+Enter");
+
+  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
+  // Unlike plain ⌘⏎, this one moves focus — that is the whole difference.
+  await expect(tabButton(page, "overview")).toBeFocused();
+});
+
+test("? opens the shortcut sheet, listing every global binding", async ({ page }) => {
+  await page.goto("/");
+  await page.keyboard.press("?");
+
+  const sheet = page.getByRole("dialog", { name: "Keyboard shortcuts" });
+  await expect(sheet).toBeVisible();
+  await expect(sheet).toContainText("Run the pipeline");
+  await expect(sheet).toContainText("Jump to the config editor");
+  await expect(sheet).toContainText("1 – 7");
+
+  // Escape is the dialog's own — the browser closes it, no ladder involved.
+  await page.keyboard.press("Escape");
+  await expect(sheet).toBeHidden();
+});
+
+test("the file-name picker opens on Enter", async ({ page }) => {
+  // The native popup is not in the DOM, so record the call the browser makes.
+  await page.addInitScript(() => {
+    const marker = window as typeof window & { pickerOpened?: string[] };
+    marker.pickerOpened = [];
+    HTMLSelectElement.prototype.showPicker = function record(this: HTMLSelectElement) {
+      marker.pickerOpened?.push(this.getAttribute("aria-label") ?? "");
+    };
+  });
+  await page.goto("/");
+
+  const opened = () =>
+    page.evaluate(() => (window as typeof window & { pickerOpened?: string[] }).pickerOpened);
+
+  await page.locator(".toolbar select").focus();
+  await page.keyboard.press("Enter");
+  expect(await opened()).toEqual(["Config file name"]);
+
+  // ⌘⏎ from the same control still runs the pipeline rather than opening it.
+  await page.keyboard.press("ControlOrMeta+Enter");
+  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
+  expect(await opened()).toHaveLength(1);
+});
