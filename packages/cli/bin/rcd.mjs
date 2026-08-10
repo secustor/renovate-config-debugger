@@ -24,10 +24,13 @@ const server = await createServer({
   server: { middlewareMode: true, hmr: false, watch: null },
 });
 
-let code = 1;
 try {
   const { main } = await server.ssrLoadModule("/src/main.ts");
-  code = await main(process.argv.slice(2), {
+  // NOT `process.exit(code)`: on a pipe, stdout is asynchronous, and a hard
+  // exit discards everything still queued — `rcd run … --format json | cat`
+  // used to stop at the 64 KB pipe buffer and report success. Setting the code
+  // instead answers with the same number and lets the loop drain the writes.
+  process.exitCode = await main(process.argv.slice(2), {
     out: (text) => process.stdout.write(text),
     err: (text) => process.stderr.write(text),
     env: process.env,
@@ -38,9 +41,36 @@ try {
       }
       return Buffer.concat(chunks).toString("utf8");
     },
+    onDisconnect,
   });
 } finally {
   await server.close();
 }
 
-process.exit(code);
+/**
+ * The stdio peer going away, as an event `src/` can observe without touching a
+ * process global. A long-lived command — one that serves a peer rather than
+ * answering and returning — has no other way to learn that the peer left.
+ *
+ * Registration is per call and never eager — a SIGINT/SIGTERM listener is a
+ * libuv handle that refs the loop, so a command that does not ask to be told
+ * must not pay for one. Returns the disposer that takes them all back off,
+ * which the caller runs once the wait is over however it ended.
+ */
+function onDisconnect(callback) {
+  const off = () => {
+    process.stdin.off("end", fire);
+    process.stdin.off("close", fire);
+    process.off("SIGINT", fire);
+    process.off("SIGTERM", fire);
+  };
+  const fire = () => {
+    off();
+    callback();
+  };
+  process.stdin.on("end", fire);
+  process.stdin.on("close", fire);
+  process.on("SIGINT", fire);
+  process.on("SIGTERM", fire);
+  return off;
+}

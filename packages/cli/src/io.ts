@@ -18,6 +18,14 @@ export interface CliIo {
   env: Readonly<Record<string, string | undefined>>;
   /** Reads stdin to completion (only called for `--stdin`). */
   readStdin(): Promise<string>;
+  /**
+   * Calls back once when the stdio peer goes away — stdin EOF, or a shutdown
+   * signal — and returns the disposer that unregisters it. Optional because
+   * only a bin can observe that, and only a command that outlives its own
+   * answer needs to. The disposer must be called once the wait is over,
+   * however it ended: the listeners behind it hold the process open.
+   */
+  onDisconnect?(callback: () => void): () => void;
 }
 
 /** Renovate accepted the config and the command answered its question. */

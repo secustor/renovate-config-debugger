@@ -50,7 +50,7 @@ function runBin(args: string[], stdin = ""): Promise<BinRun> {
         if (!error) {
           resolve({ code: 0, stdout, stderr });
         } else if (typeof error.code === "number") {
-          // The bin ends with `process.exit(code)`, so every non-zero exit
+          // The bin answers with `process.exitCode`, so every non-zero exit
           // arrives as an `Error` carrying that code — it is the answer, not
           // a failure.
           resolve({ code: error.code, stdout, stderr });
@@ -100,4 +100,19 @@ describe("bin/rcd.mjs", () => {
     const result = JSON.parse(run.stdout) as { finalConfig: { labels: string[] } };
     expect(result.finalConfig.labels).toEqual(["from-stdin"]);
   });
+
+  test("a JSON document larger than the pipe buffer survives the pipe", async () => {
+    // `config:recommended` resolved is ~300 KB, so the answer outgrows the
+    // 64 KB a pipe holds and stdout finishes writing asynchronously. Exiting
+    // on the exit code rather than waiting for the loop used to drop the rest
+    // and still report success.
+    const run = await runBin(
+      ["run", "--stdin", "--select", "final", "--format", "json"],
+      '{"extends":["config:recommended"]}',
+    );
+    expect(run.code).toBe(0);
+    expect(run.stdout.length).toBeGreaterThan(64 * 1024);
+    const result = JSON.parse(run.stdout) as { finalConfig: { extends?: string[] } };
+    expect(result.finalConfig).toBeTypeOf("object");
+  }, 120_000);
 });
