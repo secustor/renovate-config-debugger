@@ -19,9 +19,13 @@ import { fixture } from "../src/test-harness";
  * A smoke set on purpose: every case pays a fresh Vite server boot, so the
  * behavior of the commands is asserted in-process and only the seams the bin
  * owns are asserted here.
+ *
+ * The dev runner is the target, not the published `bin/rcd.mjs`: that one
+ * needs `dist/main.js`, which the test job never builds — and the artifact
+ * itself is already proven by the `bundle` project's parity suite.
  */
 
-const BIN = fileURLToPath(new URL("../bin/rcd.mjs", import.meta.url));
+const BIN = fileURLToPath(new URL("../bin/rcd-dev.mjs", import.meta.url));
 const CLI_DIR = fileURLToPath(new URL("..", import.meta.url));
 
 // The bin hands the REAL environment to `main` — tokens, and env markers like
@@ -69,7 +73,7 @@ function runBin(args: string[], stdin = ""): Promise<BinRun> {
   });
 }
 
-describe("bin/rcd.mjs", () => {
+describe("bin/rcd-dev.mjs", () => {
   test("--help writes the command list to stdout and exits 0", async () => {
     const run = await runBin(["--help"]);
     expect(run.code).toBe(0);
@@ -132,7 +136,7 @@ interface JsonRpcMessage {
   error?: unknown;
 }
 
-describe("bin/rcd.mjs mcp", () => {
+describe("bin/rcd-dev.mjs mcp", () => {
   test("answers JSON-RPC on stdout and exits 0 when the client disconnects", async () => {
     const child = spawn(process.execPath, [BIN, "mcp"], {
       cwd: CLI_DIR,

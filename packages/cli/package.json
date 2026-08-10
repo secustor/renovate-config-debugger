@@ -1,29 +1,63 @@
 {
   "name": "@renovate-config-debugger/cli",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "description": "Experimental — headless Renovate config debugger: preset tree, provenance, packageRules simulator and validation, as structured data",
+  "keywords": [
+    "cli",
+    "config",
+    "debugger",
+    "mcp",
+    "presets",
+    "provenance",
+    "renovate",
+    "renovatebot"
+  ],
+  "homepage": "https://renovate.secustor.dev",
+  "bugs": "https://github.com/secustor/renovate-config-visualizer/issues",
+  "license": "AGPL-3.0-only",
+  "author": "secustor",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/secustor/renovate-config-visualizer.git",
+    "directory": "packages/cli"
+  },
   "bin": {
     "rcd": "./bin/rcd.mjs"
   },
+  "files": [
+    "bin",
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
   "type": "module",
-  "scripts": {
-    "rcd": "node ./bin/rcd.mjs",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+  "exports": {
+    "./package.json": "./package.json"
   },
-  "dependencies": {
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "rcd": "node ./bin/rcd-dev.mjs",
+    "build": "node scripts/check-compat.ts && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --project cli",
+    "test:bundle": "vitest run --project bundle"
+  },
+  "devDependencies": {
     "@modelcontextprotocol/client": "2.0.0",
     "@modelcontextprotocol/server": "2.0.0",
     "@renovate-config-debugger/app": "workspace:*",
     "@renovate-config-debugger/engine": "workspace:*",
-    "commander": "15.0.0",
-    "zod": "4.4.3"
-  },
-  "devDependencies": {
     "@types/node": "26.1.2",
+    "commander": "15.0.0",
     "typescript": "7.0.2",
     "vite": "8.2.0",
-    "vitest": "4.1.10"
+    "vitest": "4.1.10",
+    "zod": "4.4.3"
+  },
+  "engines": {
+    "node": ">=24.0.0"
   }
 }
