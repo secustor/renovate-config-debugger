@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { renovateShims } from "@renovate-config-debugger/engine/vite-plugin";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 // Deliberately the engine's own list rather than a glob: two of those files
 // carry no `.shimmed.` infix, so a glob here silently proved less than the
 // engine's `shimmed` project runs.
@@ -42,10 +42,12 @@ export default defineConfig({
         logLevel: "error",
         test: {
           name: "cli",
-          // `test/bin.test.ts` by name, not `test/*.test.ts`: its neighbour
-          // `published-bin.test.ts` needs a `dist/` this project never builds
-          // and belongs to the "bundle" project below.
-          include: ["src/**/*.test.ts", "test/bin.test.ts"],
+          include: ["src/**/*.test.ts", "test/*.test.ts"],
+          // One subtraction from that glob, not a hand-listed include: a suite
+          // added under `test/` must run by default. `published-bin.test.ts`
+          // needs a `dist/` this project never builds — the "bundle" project
+          // below owns it.
+          exclude: [...configDefaults.exclude, "test/published-bin.test.ts"],
           environment: "node",
           // the first test to resolve a large internal preset pays the lazy
           // transform+import of renovate's preset data modules

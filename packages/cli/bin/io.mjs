@@ -33,13 +33,29 @@ export function processIo() {
  * subcommands write their answer to a stdout nobody has claimed, which is
  * exactly the `| head` case. `out()` below is that write.
  *
- * Silence is the whole point: there is nowhere left to report a broken stream
- * to. The process keeps running and its own exit code still speaks.
+ * Silence is the point for EPIPE and only for EPIPE: a reader that stopped
+ * reading asked for nothing more, there is nowhere left to report it to, and
+ * the process's own exit code still speaks. Every other write failure means
+ * the answer did not arrive, which the exit code has to say.
  */
 function guardStdio() {
   for (const stream of [process.stdout, process.stderr]) {
     if (stream.listenerCount("error") === 0) {
-      stream.on("error", () => {});
+      stream.on("error", (error) => {
+        // EPIPE ONLY. A blanket swallow would turn a full disk into a
+        // truncated answer reported as success — `rcd run … > out.json` is
+        // read by the next command in the script, which trusts the exit code.
+        if (error.code === "EPIPE") {
+          return;
+        }
+        // Anything else is a real failure of the answer. Exit code 1 is
+        // `EXIT_ERROR` in `src/io.ts` — "the question was not answered" —
+        // spelled out here because the bin cannot import from the bundle.
+        process.exitCode = 1;
+        if (stream === process.stdout) {
+          process.stderr.write(`rcd: writing the answer failed: ${error.message}\n`);
+        }
+      });
     }
   }
 }

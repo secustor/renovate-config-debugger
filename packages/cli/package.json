@@ -41,7 +41,7 @@
   "scripts": {
     "rcd": "node ./bin/rcd-dev.mjs",
     "build": "node scripts/check-compat.ts && vite build",
-    "prepack": "node scripts/prepack.ts",
+    "prepack": "node scripts/check-compat.ts --release && node scripts/prepack.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --project cli",
     "test:bundle": "vitest run --project bundle"

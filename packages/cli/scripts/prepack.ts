@@ -9,8 +9,11 @@
  * hand, `pnpm pack` to inspect what ships) uploads a package that states a
  * license it does not carry, or a bin with nothing to dispatch to.
  *
- * `prepack` is the hook npm and pnpm run for BOTH `pack` and `publish`, so the
- * guarantee travels with the package rather than with one workflow file.
+ * `prepack` is the hook run for BOTH `pack` and `publish`, so the guarantee
+ * travels with the package rather than with one workflow file. The same hook
+ * runs `check-compat.ts --release` first: a tarball is exactly the moment the
+ * compat table's `cli` cell has to name the version being shipped, and that
+ * cell is deliberately not checked on an ordinary build.
  *
  * Plain Node, no dependencies: like `check-compat.ts`, it may run before
  * anything is built.

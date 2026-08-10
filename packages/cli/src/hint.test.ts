@@ -47,19 +47,29 @@ describe("the Claude Code plugin hint (roadmap 060)", () => {
     }
   });
 
-  test("is withheld from `validate`, whose exit-2 stderr a hook feeds to a model", async () => {
-    // `EXIT_REFUSED = 2` exists so `rcd validate` drops straight into a Claude
-    // Code hook — and hook stderr is not where the marker gets stripped, so an
-    // unwithheld hint arrives glued to the errors the model is asked to fix.
+  test("is withheld from every answer that exits 2, not just `validate`'s", async () => {
+    // `EXIT_REFUSED = 2` exists so a refused config drops straight into a
+    // Claude Code hook — and hook stderr is not where the marker gets
+    // stripped, so an unwithheld hint arrives glued to the errors the model is
+    // asked to fix. Nine commands can answer 2; keying on the command name
+    // would have covered one of them.
     for (const argv of [
       ["validate", fixture("invalid.json")],
-      ["validate", fixture("clean.json")],
+      ["digest", fixture("invalid.json")],
+      ["run", fixture("invalid.json")],
     ]) {
       resetPluginHintForTest();
       const io = recordingIo({ env: { CLAUDECODE: "1" } });
-      await main(argv, io);
+      expect(await main(argv, io)).toBe(2);
       expect(io.stderr).not.toContain("claude-code-hint");
     }
+
+    // …and a clean config still hints: it is the refusal that is protected,
+    // not the command.
+    resetPluginHintForTest();
+    const accepted = recordingIo({ env: { CLAUDECODE: "1" } });
+    expect(await main(["digest", fixture("clean.json")], accepted)).toBe(0);
+    expect(accepted.stderr).toContain(HINT_MARKER);
   });
 
   test("still reaches `mcp` — stderr is free, and the session-long process is the target", async () => {

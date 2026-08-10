@@ -14,7 +14,7 @@ import { simulateCommand } from "./commands/simulate";
 import { treeCommand } from "./commands/tree";
 import { validateCommand } from "./commands/validate";
 import { emitPluginHint } from "./hint";
-import { CliError, type CliIo, errorMessage, EXIT_ERROR, EXIT_OK } from "./io";
+import { CliError, type CliIo, errorMessage, EXIT_ERROR, EXIT_OK, EXIT_REFUSED } from "./io";
 
 /**
  * `rcd` — the Renovate config debugger, headless.
@@ -154,20 +154,29 @@ function buildProgram(io: CliIo, report: ExitSink): CommanderCommand {
  * deliberately hints there — once per session-long process. `--version` is
  * the one-line-answer case, and predates the rest.
  *
- * `validate` is here whatever its format: `EXIT_REFUSED = 2` is the code a
- * Claude Code hook reads as "feed this command's stderr back to the model"
- * (see `io.ts`), and hook stderr is NOT where the marker gets stripped — only
- * tool output is. Unwithheld, the model fixing a config would receive an
- * install prompt glued to the errors it is supposed to fix.
+ * The other withholding rule is not about argv at all and lives in `main`: an
+ * answer of `EXIT_REFUSED` never carries the hint, whichever command produced
+ * it. That is the code a Claude Code hook reads as "feed this command's stderr
+ * back to the model" (see `io.ts`), and hook stderr is NOT where the marker
+ * gets stripped — only tool output is. Nine commands can return it, not just
+ * `validate`, so the exit code is the honest thing to key on.
  */
 function answersWithoutHint(argv: readonly string[]): boolean {
   return (
     argv[0] === "--version" ||
     argv[0] === "-v" ||
-    argv[0] === "validate" ||
     argv.includes("--format=json") ||
     argv.some((arg, index) => arg === "--format" && argv[index + 1] === "json")
   );
+}
+
+/**
+ * `mcp` is the one command whose hint cannot wait for the answer: the server
+ * runs for the length of the session and returns only when the client hangs
+ * up. Everything else hints once its exit code is known.
+ */
+function hintsBeforeRunning(argv: readonly string[]): boolean {
+  return argv[0] === "mcp";
 }
 
 async function dispatch(argv: readonly string[], io: CliIo): Promise<number> {
@@ -175,10 +184,7 @@ async function dispatch(argv: readonly string[], io: CliIo): Promise<number> {
   const program = buildProgram(io, (code) => {
     exitCode = code;
   });
-  // Roadmap 060: the moments the plugin hint is worth emitting — help, a
-  // wrong guess at a subcommand, and a run itself. It is stderr-only, once per
-  // process, and only inside Claude Code (see `hint.ts`).
-  if (!answersWithoutHint(argv)) {
+  if (hintsBeforeRunning(argv) && !answersWithoutHint(argv)) {
     emitPluginHint(io);
   }
   if (argv.length === 0) {
@@ -194,6 +200,19 @@ async function dispatch(argv: readonly string[], io: CliIo): Promise<number> {
 /** The whole CLI as one function: argv in, exit code out, everything written
  *  through `io`. The bin is the only thing that touches the process. */
 export async function main(argv: string[], io: CliIo): Promise<number> {
+  const code = await answer(argv, io);
+  // Roadmap 060: the moments the plugin hint is worth emitting — help, a wrong
+  // guess at a subcommand, and a run itself. It is stderr-only, once per
+  // process, and only inside Claude Code (see `hint.ts`). Emitted here, after
+  // the answer, so `EXIT_REFUSED` — the code a hook feeds back to a model —
+  // can carry the errors alone.
+  if (code !== EXIT_REFUSED && !answersWithoutHint(argv)) {
+    emitPluginHint(io);
+  }
+  return code;
+}
+
+async function answer(argv: string[], io: CliIo): Promise<number> {
   try {
     return await dispatch(argv, io);
   } catch (err) {

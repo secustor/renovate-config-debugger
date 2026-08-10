@@ -7,10 +7,10 @@ name: Publish CLI
 # (which must match packages/cli/package.json's version — the job checks) and
 # publishing the GitHub release.
 #
-# Running it by hand dry-runs by default; unchecking `dry-run` publishes the
-# ref it was dispatched from, for the re-publish case a cut release cannot
-# repeat. That path has no tag to check the version against — npm's own
-# refusal to overwrite an existing version is the backstop.
+# Running it by hand dry-runs by default; unchecking `dry-run` publishes, for
+# the re-publish case a cut release cannot repeat — but only from the `cli-v*`
+# tag naming the version in packages/cli/package.json, which the job checks on
+# both paths. A publish is permanent, so an unmerged ref must not reach one.
 on:
   release:
     types: [published]
@@ -39,14 +39,21 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
 
-      - name: Tag matches the package version
-        if: github.event_name == 'release'
+      # Whatever the trigger, anything that publishes must be standing on a tag
+      # that names the version it publishes: the release's own tag, or — for a
+      # hand-dispatched re-publish — the `cli-v*` tag the run was dispatched
+      # from. Dispatching a publish from a branch is refused here: a version
+      # can never be re-published, so a tarball built from an unmerged ref
+      # would own that version forever.
+      - name: The ref names the version being published
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.dry-run == false)
         env:
-          TAG: ${{ github.event.release.tag_name }}
+          TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || github.ref_name }}
         run: |
           version=$(node -p "require('./packages/cli/package.json').version")
           if [ "$TAG" != "cli-v$version" ]; then
-            echo "tag $TAG does not match packages/cli version $version" >&2
+            echo "ref $TAG does not name packages/cli version $version" >&2
+            echo "dispatch a publish from the cli-v$version tag, or cut a release" >&2
             exit 1
           fi
 
@@ -75,13 +82,13 @@ jobs:
       - name: Bundle parity (engine shimmed snapshots vs. the bundle)
         run: pnpm --filter @renovate-config-debugger/cli test:bundle
 
-      # AGPL-3.0-only is stated in package.json and `files` lists LICENSE; the
-      # text itself lives at the repo root, and packages/cli/scripts/prepack.ts
-      # copies it in on `pack`/`publish` — so the tarball carries it whoever
-      # builds it, not only this workflow.
       - name: Smoke-test the published bin
         run: node packages/cli/bin/rcd.mjs validate packages/cli/test/fixtures/clean.json
 
+      # AGPL-3.0-only is stated in package.json and `files` lists LICENSE; the
+      # text itself lives at the repo root, and packages/cli/scripts/prepack.ts
+      # copies it in — a hook both steps below trigger, so the tarball carries
+      # it whoever builds it, not only this workflow.
       - name: Publish to npm
         if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.dry-run == false)
         env:
