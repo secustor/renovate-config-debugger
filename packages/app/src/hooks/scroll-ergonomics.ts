@@ -16,12 +16,38 @@ import { useEffect, useState } from "react";
  * textareas, CodeMirror's contenteditable) where Home/End must keep moving
  * the text cursor, and for any modified key combo (e.g. shift-select).
  */
+// `<input>` types that do NOT accept free text — a checkbox, radio or button
+// input has no cursor and no type-ahead, so it must not count as "typing".
+// Roadmap 067 reuses this predicate as the bare-key guard for `useShortcut`
+// and `useTabDigits`: without this list, a focused filter checkbox
+// (EffectiveConfig.tsx, PresetTree.tsx) silently swallowed `?`, `1`-`7` and
+// `e`/`r` with no visible cause.
+const NON_TEXT_INPUT_TYPES = new Set([
+  "button",
+  "checkbox",
+  "color",
+  "file",
+  "hidden",
+  "image",
+  "radio",
+  "range",
+  "reset",
+  "submit",
+]);
+
 export function isTextEditingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
     return false;
   }
   const tag = target.tagName;
-  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
+  if (tag === "INPUT") {
+    const type = (target as HTMLInputElement).type.toLowerCase();
+    return !NON_TEXT_INPUT_TYPES.has(type);
+  }
+  // A `<select>` has no free-text cursor either, but its native type-ahead
+  // (jumping to an option by the letter typed) must keep winning over the
+  // jump-layer bare keys — 067 documents this as deliberate.
+  if (tag === "TEXTAREA" || tag === "SELECT") {
     return true;
   }
   if (target.isContentEditable) {

@@ -48,8 +48,16 @@ export function ResultsPanel({ tabs, active, onSelect, back, onBack, banner, pan
    * Home/End are also the page-scroll keys (016). `preventDefault` is what
    * settles that: `useHomeEndPageScroll` ignores an event another handler
    * already claimed, so the keys scroll the page everywhere except here.
+   *
+   * A modified chord is left alone — ⌘←/Alt+← is browser Back, Ctrl+Home/End
+   * is a Windows/Linux page-scroll convention — matching the modifier guard
+   * `useHomeEndPageScroll` and `useTabDigits` already carry (both sibling
+   * bindings added by the same 067 change).
    */
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+      return;
+    }
     const current = tabs.findIndex((tab) => tab.id === active);
     const next = current === -1 ? null : nextTabIndex(event.key, current, tabs.length);
     const target = next === null ? undefined : tabs[next];

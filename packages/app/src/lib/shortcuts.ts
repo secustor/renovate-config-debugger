@@ -68,6 +68,10 @@ export const FOCUS_EDITOR_SHORTCUT: Shortcut = {
   id: "focus-editor",
   key: "e",
   mod: false,
+  // Unlike `?`, `e` has an unshifted meaning on every layout, so Shift+E is
+  // deliberately a different keystroke — a Caps-Lock-on `R` must not yank a
+  // user reading results into the tab strip.
+  shift: false,
   label: "Jump to the config editor",
 };
 
@@ -75,6 +79,7 @@ export const FOCUS_RESULTS_SHORTCUT: Shortcut = {
   id: "focus-results",
   key: "r",
   mod: false,
+  shift: false,
   label: "Jump to the results",
 };
 

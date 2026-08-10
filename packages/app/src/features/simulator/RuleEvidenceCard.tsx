@@ -4,6 +4,7 @@ import type { MergedKey } from "@renovate-config-debugger/engine";
 import { CopyMarkdownButton } from "@/components/CopyMarkdownButton";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { type AnchorRect, anchoredCardStyle, anchorRectOf } from "@/lib/anchored-card";
+import { ESCAPE_PRIORITY } from "@/lib/escape-stack";
 import { useEscapeLayer } from "@/hooks/use-escape-layer";
 import { ClauseGrid } from "./ClauseGrid";
 import { RULE_POP_CLASS, RULE_POP_SELECTOR } from "./rule-pop-dom";
@@ -223,9 +224,11 @@ export function RuleEvidenceAnchor({
   }, []);
 
   // Roadmap 067: Escape goes through the layer stack — this card is the
-  // topmost thing on screen while it is open, and the stack is what says so
+  // topmost thing on screen while it is open, and its RANK is what says so
   // (it used to be the return pill querying the DOM for this card's class).
-  useEscapeLayer(open, close);
+  // Not mount order: a jump out of the thread under this card registers the
+  // return pill after it, and the card must still win.
+  useEscapeLayer(open, close, ESCAPE_PRIORITY.popover);
 
   useEffect(() => {
     if (!open) {

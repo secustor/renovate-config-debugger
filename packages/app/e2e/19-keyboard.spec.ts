@@ -273,3 +273,65 @@ test("the file-name picker opens on Enter", async ({ page }) => {
   await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
   expect(await opened()).toHaveLength(1);
 });
+
+// ── Review follow-ups (2026-08-11) ───────────────────────────────────────────
+
+test("the shortcut sheet is modal: ⌘⏎ behind it does not run, Escape closes it", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.keyboard.press("?");
+  const sheet = page.getByRole("dialog", { name: "Keyboard shortcuts" });
+  await expect(sheet).toBeVisible();
+
+  // The sheet's own row advertises ⌘⏎; pressing it while the modal is up must
+  // not run the pipeline behind the user's back.
+  await page.keyboard.press("ControlOrMeta+Enter");
+  await expect(resultsPanel(page)).toHaveCount(0);
+
+  // And Escape closes the SHEET rather than being eaten by the page's ladder,
+  // whose `preventDefault` used to suppress the dialog's own close request.
+  await page.keyboard.press("Escape");
+  await expect(sheet).toBeHidden();
+});
+
+test("closing the sheet with the button hands focus back to where it came from", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await runAndAwaitResult(page);
+  await tabButton(page, "overview").focus();
+
+  await page.keyboard.press("?");
+  const sheet = page.getByRole("dialog", { name: "Keyboard shortcuts" });
+  await expect(sheet).toBeVisible();
+  await sheet.getByRole("button", { name: "Close" }).click();
+
+  // The Escape path gets this from the browser; the Close button unmounts the
+  // dialog first, so the component has to restore focus itself.
+  await expect(tabButton(page, "overview")).toBeFocused();
+});
+
+test("a bare key still works with a filter checkbox focused", async ({ page }) => {
+  await page.goto("/");
+  await runAndAwaitResult(page);
+  await openTab(page, "effective");
+
+  const checkbox = page.locator("#panel-effective input[type='checkbox']").first();
+  await checkbox.focus();
+  // A checkbox has no cursor and no type-ahead, so it must not count as
+  // "typing" and swallow the jump layer.
+  await page.keyboard.press("e");
+  await expect(page.locator(".cm-content")).toBeFocused();
+});
+
+test("Shift+R does not fire the results jump", async ({ page }) => {
+  await page.goto("/");
+  await runAndAwaitResult(page);
+  await page.locator("h1").click();
+
+  await page.keyboard.press("Shift+r");
+  await expect(tabButton(page, "overview")).not.toBeFocused();
+  await page.keyboard.press("r");
+  await expect(tabButton(page, "overview")).toBeFocused();
+});

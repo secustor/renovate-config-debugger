@@ -134,7 +134,15 @@ export function Term({ id, children }: TermProps) {
         onFocus={(e) => show(e.currentTarget)}
         onBlur={hide}
         onKeyDown={(e) => {
-          if (e.key === "Escape") {
+          // Roadmap 067: an element-scoped Escape that ACTS must also claim the
+          // key, the way the repo-load form's does. React's listener sits on
+          // the root container, below the ladder's document listener, so
+          // without this one press would hide this card and pop the topmost
+          // ladder layer too — typically the simulator's return pill, which the
+          // reader cannot even see from here. With no card up there is nothing
+          // to claim, and the key belongs to the ladder.
+          if (e.key === "Escape" && card) {
+            e.stopPropagation();
             hideNow();
           }
         }}

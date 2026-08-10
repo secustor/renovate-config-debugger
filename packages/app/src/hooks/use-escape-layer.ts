@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
-import { handleEscape, pushEscapeLayer } from "@/lib/escape-stack";
+import { isTextEditingTarget } from "@/hooks/scroll-ergonomics";
+import { type EscapePriority, handleEscape, pushEscapeLayer } from "@/lib/escape-stack";
 
 /**
  * Roadmap 067: the document half of the Escape ladder (`lib/escape-stack.ts`
@@ -16,9 +17,23 @@ function onKeyDown(event: KeyboardEvent): void {
   if (event.key !== "Escape" || event.defaultPrevented) {
     return;
   }
+  // 067: "Escape inside the editor is the editor's own and never reaches the
+  // page ladder". It has to be enforced HERE, not asked for politely: the
+  // editor's Escape is CodeMirror's `simplifySelection`, which runs on every
+  // press and neither prevents the default nor stops propagating when there is
+  // nothing to simplify — so a press meant for the editor would also pop the
+  // topmost layer. Our own element-scoped handlers claim the key with
+  // `stopPropagation()` instead (the repo-load form's, a glossary term's); a
+  // third-party keymap cannot be asked to. Sharing `isTextEditingTarget` with
+  // the bare-key layer keeps one definition of "the user is typing", and makes
+  // this the same rule as principle 2: no page-level key fires mid-sentence.
+  if (isTextEditingTarget(event.target)) {
+    return;
+  }
   if (handleEscape()) {
-    // Claim the key so a layer BELOW an element-scoped handler (the editor's
-    // own Escape, the repo form's) can't also act on the same press.
+    // Claim the key so nothing downstream of this listener acts on the same
+    // press — and so a `<dialog>`'s or a `<details>`'s native Escape default
+    // cannot fire behind the layer that just consumed it.
     event.preventDefault();
   }
 }
@@ -37,12 +52,17 @@ function retain(): () => void {
 }
 
 /**
- * Makes `onEscape` the topmost Escape layer while `active`. Nothing below it
- * sees the key. The handler is read through a ref, so a layer stays put in the
- * stack across re-renders instead of popping to the top whenever its callback
- * identity changes.
+ * Registers `onEscape` on the ladder at `priority` while `active`. Only the
+ * winning layer sees the key — highest priority, then most recently pushed, so
+ * a caller states what it IS rather than relying on when it mounted. The
+ * handler is read through a ref, so a layer stays put in the stack across
+ * re-renders instead of re-registering whenever its callback identity changes.
  */
-export function useEscapeLayer(active: boolean, onEscape: () => void): void {
+export function useEscapeLayer(
+  active: boolean,
+  onEscape: () => void,
+  priority: EscapePriority,
+): void {
   const handlerRef = useRef(onEscape);
   handlerRef.current = onEscape;
 
@@ -50,11 +70,11 @@ export function useEscapeLayer(active: boolean, onEscape: () => void): void {
     if (!active) {
       return;
     }
-    const release = pushEscapeLayer(() => handlerRef.current());
+    const release = pushEscapeLayer(() => handlerRef.current(), priority);
     const stopListening = retain();
     return () => {
       release();
       stopListening();
     };
-  }, [active]);
+  }, [active, priority]);
 }

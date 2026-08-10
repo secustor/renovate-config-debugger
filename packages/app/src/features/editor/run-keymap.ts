@@ -16,6 +16,12 @@ import { codeMirrorKey, RUN_SHORTCUT } from "@/lib/shortcuts";
  * The key string is derived from the registry entry rather than written out,
  * so the editor and the page cannot end up bound to different chords.
  *
+ * Deliberately unguarded against an in-flight run: the binding must consume
+ * ⌘⏎ either way — declining it would hand the keypress back to
+ * `insertBlankLine` exactly while the user is holding the key down — so the
+ * "is a run already going?" question is answered once, inside `App.onRun`,
+ * where every other entry point asks it too.
+ *
  * `run` is read through a ref rather than closed over, so the extension is
  * built once for the editor's lifetime — closing over it would mean a `useMemo`
  * dependency on a callback whose identity changes every render, i.e. a

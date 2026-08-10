@@ -28,7 +28,7 @@ import { UntrustedHostBanner } from "@/UntrustedHostBanner";
 import { legacyTabForView, type ResultsTabId } from "@/data/results-tabs";
 import { OptionDocsProvider } from "@/components/option-docs";
 import { buildPresetLookup, type PresetHoverContext } from "@/lib/preset-hover";
-import { motionScrollOptions, motionScrollToOptions } from "@/lib/motion";
+import { landOnTarget, motionScrollOptions, motionScrollToOptions } from "@/lib/motion";
 import { findPackageRuleOffsets } from "@/lib/rule-locate";
 import { useRuleProvenance } from "@/hooks/rule-provenance";
 import {
@@ -158,6 +158,11 @@ function preloadRunChunks(): void {
   preloadEngine();
   void import("@/ResultsColumn").catch(() => {});
 }
+
+/** Roadmap 067: the selected preset row in whichever view the tree is showing
+ *  — the tree's node-name button, or the flat table's row button. Both are
+ *  real buttons, which is what makes them a landing site (`landOnPresetNode`). */
+const SELECTED_PRESET_ROW = ".preset-name.selected, .preset-table-row.selected";
 
 type InjectionMap = Record<string, Record<string, unknown>>;
 
@@ -400,6 +405,12 @@ export function App() {
   selectPresetNodeRef.current = (nodeId: string) => {
     setSelectedNodeId(nodeId);
     jumpToTab("presets");
+    // Roadmap 067: …and land on the node, like every other cross-link. Without
+    // this the activator (a provenance chip, an editor preset hover, a
+    // simulator rule) is left focused inside a panel the tab switch marks
+    // `hidden` in the very same commit — the browser blurs it, focus falls to
+    // `<body>`, and the user's next Tab restarts at the top of the document.
+    landOnPresetNode();
   };
   const selectPresetNode = useCallback((nodeId: string) => {
     selectPresetNodeRef.current?.(nodeId);
@@ -648,19 +659,41 @@ export function App() {
     };
   }
 
+  /** Roadmap 067: true while a run is on the engine's serial queue — see the
+   *  guard at the top of `onRun`, which is the only reader and writer. */
+  const runInFlightRef = useRef(false);
+
   async function onRun(
     overrideInjected?: InjectionMap,
     overrideInputs?: RunInputs,
     opts?: { preserveScroll?: boolean; keepTab?: boolean; suppressTokens?: boolean },
   ): Promise<TraceResult | null> {
+    // Roadmap 067: the ONE in-flight guard, here rather than at the entry
+    // points, because there are six of them — the button, the page shortcut,
+    // the editor's ⌘⏎ keymap, a share link's auto-run, an apply-fix re-run and
+    // a preset injection — and only three could see `running` at all. `running`
+    // cannot do this job anyway: it commits a render later, so a HELD ⌘⏎
+    // (key auto-repeat) queued a second full run — its own preset fetches
+    // included — before the first had re-rendered anything, and then the first
+    // run's `finally` re-enabled the button while the rest were still on the
+    // engine's serial queue: a UI claiming idle while results kept committing
+    // and the live region kept announcing. A ref read and written in the same
+    // tick is the only thing every caller shares.
+    if (runInFlightRef.current) {
+      return null;
+    }
     const injectedPresets = overrideInjected ?? injected;
     if (!overrideInputs && blockedByLayerErrors()) {
       return null;
     }
     const inputs: RunInputs = overrideInputs ?? buildInputs();
-    setRunning(true);
-    setFatal(null);
+    // Latched with nothing awaited between the check above and here, and
+    // released in the `finally` below — which covers everything after it, so no
+    // throw can leave the app permanently unable to run.
+    runInFlightRef.current = true;
     try {
+      setRunning(true);
+      setFatal(null);
       const traceResult = await run(
         { ...inputs, injectedPresets },
         // Security 2026-07-25: EVERY run while the guard stands — a manual Run
@@ -698,6 +731,7 @@ export function App() {
       setFatal(err instanceof Error ? `${err.name}: ${err.message}` : String(err));
       return null;
     } finally {
+      runInFlightRef.current = false;
       setRunning(false);
     }
   }
@@ -734,6 +768,13 @@ export function App() {
     if (next) {
       setSelectedStage("validate");
       setTab("problems");
+      // Roadmap 067: applying a fix IS a request to go look at something, so
+      // focus goes with the user — onto the Problems tab, the control that
+      // both names where they landed and starts the tab order of the panel
+      // holding the answer. The Apply-fix button they pressed is inside a
+      // panel this switch just marked `hidden`, so leaving focus there means
+      // dropping it on `<body>`.
+      focusTab("problems");
       const n = next.errors.length;
       showToast(
         `Fix applied — re-ran: ${n === 0 ? "0 errors" : `${n} error${n === 1 ? "" : "s"}`}`,
@@ -928,6 +969,19 @@ export function App() {
   } = useRunSummary(result, effectiveStats);
 
   /**
+   * Roadmap 067: the `?` sheet is a modal dialog, so every global binding is
+   * inert while it is open — a key that acted on the page behind it would be
+   * acting on something the user cannot see. Declared here, above the first
+   * binding, because a binding registered above `keysLive` is a binding that
+   * silently opts out of that rule: ⌘⏎ was exactly that, and ran the pipeline,
+   * replaced the results and announced itself from behind the dialog.
+   */
+  const [shortcutSheetOpen, setShortcutSheetOpen] = useState(false);
+  const showShortcuts = useCallback(() => setShortcutSheetOpen(true), []);
+  const hideShortcuts = useCallback(() => setShortcutSheetOpen(false), []);
+  const keysLive = !shortcutSheetOpen;
+
+  /**
    * Roadmap 067: ⌘⏎ (Ctrl+Enter) runs the pipeline from anywhere on the page.
    * Inside the editor the same chord is handled by CodeMirror instead
    * (`run-keymap.ts`) — it has to be, or Renovate's config would gain a blank
@@ -944,7 +998,7 @@ export function App() {
       preloadRunChunks();
       void onRun(undefined, undefined, { preserveScroll: Boolean(result) });
     },
-    { enabled: !running },
+    { enabled: keysLive && !running },
   );
 
   /**
@@ -965,7 +1019,10 @@ export function App() {
   }
 
   /** The results equivalent: the tab strip is the first thing worth acting on
-   *  there, and a focused tab announces which one is selected. */
+   *  there, and a focused tab announces which one is selected. This is the
+   *  "take me to the results" gesture — it scrolls the column to the top of the
+   *  window, which is the point of it. `focusTab` below is the half without the
+   *  scroll, for the gestures that only meant to change tabs. */
   function focusResults(attemptsLeft = 12) {
     const column = resultsColRef.current;
     const selectedTab =
@@ -986,6 +1043,67 @@ export function App() {
     (selectedTab ?? column).focus({ preventScroll: true });
   }
 
+  /**
+   * Roadmap 067: focus one NAMED tab, without moving the page. The digit jump
+   * and the apply-fix landing both switch tabs and want focus to follow the
+   * switch — but neither asked to be taken anywhere: on a side-by-side viewport
+   * both columns are already fully visible, and `focusResults`' scroll would
+   * push the config the user is reading off the top of the screen for a
+   * keystroke that only meant "show me tab 3". The strip is scrolled only when
+   * it is genuinely off screen, since focus landing somewhere invisible is the
+   * one thing worse than a scroll nobody asked for.
+   *
+   * The button is found by `data-tab`, not by `aria-selected`, so this does not
+   * depend on the selection having committed — but it still starts on the next
+   * frame, because a tab that announces itself before the commit announces the
+   * selection it is about to lose. Same lazy-chunk retry budget as
+   * `focusResults`, and the same reason to give up rather than spin.
+   */
+  function focusTab(id: ResultsTabId, attemptsLeft = 12) {
+    requestAnimationFrame(() => {
+      const button = resultsColRef.current?.querySelector<HTMLElement>(`[data-tab="${id}"]`);
+      if (!button) {
+        if (attemptsLeft > 0) {
+          focusTab(id, attemptsLeft - 1);
+        }
+        return;
+      }
+      button.focus({ preventScroll: true });
+      const box = button.getBoundingClientRect();
+      if (box.top < 0 || box.bottom > window.innerHeight) {
+        button.scrollIntoView(motionScrollOptions("nearest"));
+      }
+    });
+  }
+
+  /**
+   * Roadmap 067: the preset tree's half of "every cross-link focuses its
+   * target" (`selectPresetNode` above is the caller). It waits longer than the
+   * other landings because the row takes three commits to exist: the tab
+   * switch, the ancestor expansion the new selection triggers, and the
+   * windowed list (011) scrolling the row into its rendered slice. Until all
+   * three have happened there is no element to focus at all — which is also
+   * why this asks the DOM for "the selected row" rather than being handed one.
+   *
+   * The row's name IS a button, so nothing needs `tabIndex={-1}` here; if the
+   * node is filtered out of the visible tree the budget simply runs out and
+   * focus stays where the user left it, which is the honest outcome.
+   */
+  function landOnPresetNode(attemptsLeft = 30) {
+    requestAnimationFrame(() => {
+      const row = resultsColRef.current?.querySelector<HTMLElement>(SELECTED_PRESET_ROW);
+      if (!row) {
+        if (attemptsLeft > 0) {
+          landOnPresetNode(attemptsLeft - 1);
+        }
+        return;
+      }
+      // "nearest", not "center": the tree already scrolled its own box to the
+      // row, so this is only about the card being on the page.
+      landOnTarget(row, "nearest");
+    });
+  }
+
   function skipToConfig(event: MouseEvent<HTMLAnchorElement>) {
     event.preventDefault();
     focusEditor();
@@ -1002,20 +1120,36 @@ export function App() {
    * single letters are free — and `useShortcut` refuses to fire a bare key
    * while the user is typing, which includes a focused `<select>`.
    *
-   * Everything here is inert while the shortcut sheet is open: it is a modal
-   * dialog, and a key that acted on the page behind it would be acting on
-   * something the user cannot see.
+   * Everything here is inert while the shortcut sheet is open, `keysLive`
+   * being declared above the first binding so it cannot be forgotten.
    */
-  const [shortcutSheetOpen, setShortcutSheetOpen] = useState(false);
-  const showShortcuts = useCallback(() => setShortcutSheetOpen(true), []);
-  const hideShortcuts = useCallback(() => setShortcutSheetOpen(false), []);
-  const keysLive = !shortcutSheetOpen;
-
   useShortcut(FOCUS_EDITOR_SHORTCUT, focusEditor, { enabled: keysLive });
   useShortcut(FOCUS_RESULTS_SHORTCUT, () => focusResults(), {
     enabled: keysLive && Boolean(result),
   });
   useShortcut(HELP_SHORTCUT, showShortcuts, { enabled: keysLive });
+
+  /**
+   * Roadmap 067: `⌘⇧⏎`'s landing, deferred to the commit the run itself
+   * produces. Focusing in the microtask right after `await onRun(…)` looked
+   * right and was not: React has not committed that run's own `setTab` yet, so
+   * on every re-run the "selected" tab the DOM still shows is the one from
+   * BEFORE the run — focus ended up on a button that a moment later was no
+   * longer `aria-selected` (a screen reader announcing a panel that is now
+   * hidden, and the strip's arrows moving from somewhere else entirely).
+   * `focusResults`' retry budget is no help there: it is spent only when there
+   * is no selected tab at all, and there always is one.
+   */
+  const landOnResultsRef = useRef(false);
+  useEffect(() => {
+    if (!landOnResultsRef.current) {
+      return;
+    }
+    landOnResultsRef.current = false;
+    focusResults();
+    // `result` and `tab` are the run's commit; `focusResults` is redeclared
+    // every render and deliberately not a dependency.
+  }, [result, tab]);
 
   /** `⌘⇧⏎` — run AND go read it. Plain ⌘⏎ deliberately leaves focus alone, so
    *  this is the explicit "take me there" variant; the focus move waits for the
@@ -1024,12 +1158,15 @@ export function App() {
     RUN_AND_READ_SHORTCUT,
     () => {
       preloadRunChunks();
+      landOnResultsRef.current = true;
       void (async () => {
         const traceResult = await onRun(undefined, undefined, {
           preserveScroll: Boolean(result),
         });
-        if (traceResult) {
-          focusResults();
+        if (!traceResult) {
+          // Nothing will commit, so nothing would ever consume the request —
+          // and an armed one would fire on whatever run came next.
+          landOnResultsRef.current = false;
         }
       })();
     },
@@ -1045,10 +1182,7 @@ export function App() {
         return;
       }
       setTab(target.id);
-      // The tab's own button is focused on the next frame, once the strip has
-      // re-rendered with the new selection — otherwise this would focus the
-      // tab the user just left.
-      requestAnimationFrame(() => focusResults(0));
+      focusTab(target.id);
     },
     { enabled: keysLive && Boolean(result) },
   );

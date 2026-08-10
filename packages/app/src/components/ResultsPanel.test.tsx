@@ -85,6 +85,22 @@ describe("ResultsPanel keyboard navigation", () => {
     expect(fireEvent.keyDown(strip, { key: "PageDown" })).toBe(true);
   });
 
+  it("leaves a modified arrow alone, so browser Back/Ctrl+Home keep working", () => {
+    // ⌘←/Alt+← is browser Back, Ctrl+Home/End is a Windows/Linux page-scroll
+    // convention — a tab-strip user pressing either must not get a silent tab
+    // switch instead. `fireEvent` returns true when nothing called
+    // `preventDefault`, unlike the claimed-key case above.
+    const onSelect = vi.fn();
+    const view = renderPanel("pipeline", onSelect);
+    const strip = view.getByRole("tablist");
+
+    expect(fireEvent.keyDown(strip, { key: "ArrowLeft", metaKey: true })).toBe(true);
+    expect(fireEvent.keyDown(strip, { key: "ArrowLeft", altKey: true })).toBe(true);
+    expect(fireEvent.keyDown(strip, { key: "Home", ctrlKey: true })).toBe(true);
+    expect(fireEvent.keyDown(strip, { key: "End", ctrlKey: true })).toBe(true);
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
   it("leaves only the active panel in the tab order", () => {
     const view = renderPanel("presets", () => undefined);
     const active = view.getByRole("tabpanel");

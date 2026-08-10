@@ -35,7 +35,7 @@ current source rather than assumed:
 - **Escape has five owners and an ad-hoc referee.** The rule-evidence popover
   (`RuleEvidenceCard.tsx:228`), the session menu (`use-session-menu.ts:61`),
   the repo-load form (`RepoLoadForm.tsx:71`), glossary terms
-  (`glossary.tsx:136`), provenance chips (`ProvenanceChip.tsx:65`) and the
+  (`glossary.tsx:136`) and the
   simulator's return pill (`use-thread-nav.ts:89`) each register their own
   listener. Precedence is settled by the pill asking the DOM whether a popover
   happens to be mounted:
@@ -102,9 +102,14 @@ document generalizes those into rules and fills the holes.
 | **e** / **r**      | global, outside text fields | Jump to the config editor / the results                          |
 | **1** – **7**      | global, outside text fields | Jump to that results tab, by position in the strip               |
 
-The repo-load form and the glossary/provenance hover cards keep their own
-element-scoped Escape handlers: they only fire when focus is already inside
-them, so they never race the ladder and gain nothing by joining it.
+The repo-load form and glossary terms keep their own element-scoped Escape
+handlers rather than joining the ladder, since they only fire when focus is
+already inside them — but "cannot race the ladder" turned out to be wrong as
+first written, and the correction is the interesting part: an element handler
+that _acts_ on Escape must also `stopPropagation()`, or the ladder's document
+listener pops a layer in the same press. The repo-load form always did; the
+glossary term did not, so Escape on a hover card also destroyed the simulator's
+return pill. It now claims the key, and only when it has a card to dismiss.
 
 `Mod` is ⌘ on Apple platforms and Ctrl elsewhere, rendered accordingly by a
 single `formatShortcut()` helper — never hardcoded in copy.
@@ -145,15 +150,34 @@ page ladder.
 
 ### The Escape ladder
 
-A small `useEscapeLayer(active, onEscape)` hook backed by one module-level
-stack in `hooks/`. The topmost active layer consumes the key; nothing else
-sees it. Registration order is mount order, which already matches intent:
+A small `useEscapeLayer(active, onEscape, priority)` hook backed by one
+module-level stack in `lib/`. The winning layer consumes the key; nothing else
+sees it.
 
-1. Rule-evidence popover, glossary and provenance hover cards (opened last, on
-   top, closed first)
-2. Session menu
-3. Repo-load form
-4. Simulator return pill
+**The rank is explicit, not mount order.** The first cut used push order alone,
+on the reasoning that the layer registered last is the one the user opened last.
+The 2026-08-11 review found the case that breaks: open a rule-evidence popover
+from a thread body, then keyboard-activate that thread's step link, and the
+return pill registers _after_ the card drawn over it — so Escape killed the pill
+and left the popover standing, the exact inversion the deleted
+`document.querySelector(RULE_POP_SELECTOR)` check existed to prevent. Layers now
+state what they ARE (`ESCAPE_PRIORITY`), and push order only breaks ties inside
+a rank:
+
+1. `popover` — rule-evidence card and the hover cards: drawn over everything
+2. `menu` — the session menu, anchored to its trigger
+3. `ambient` — the simulator's return pill, which the reader can read past
+
+Two things the ladder does NOT own. A **modal `<dialog>`** (the `?` sheet) parks
+the whole ladder via `suspendEscapeLayers()` while it is up: the browser is
+already the topmost Escape owner, and a ladder that claimed the key with
+`preventDefault` suppressed the dialog's own close request — one press dismissed
+an invisible layer and left the sheet open. And **Escape raised inside a
+text-editing target never reaches the ladder at all**, because CodeMirror's
+`simplifySelection` fires on every press and neither prevents default nor stops
+propagating when there is nothing to simplify; element-scoped handlers that
+_can_ claim the key (the repo-load form's, a glossary term's) do so with
+`stopPropagation()`, and that contract is now written down at both ends.
 
 The DOM query in `use-thread-nav.ts:89-96` is deleted as part of this — it is
 the exact case the stack exists to make unnecessary. Disclosures (`Advanced`,
@@ -224,14 +248,18 @@ untrapped Tab; before 067 it would have been a one-way door.
   can also be triggered by a share link. Instead the digest sentence is
   announced through a polite live region ("Run finished — 41 presets,
   2 errors"), and the skip link gives one-keystroke access to the results.
-- **Apply fix keeps its 023 behavior** (re-run, land on Problems) and adds
-  focus on the Problems panel's heading, because that action _is_ a request to
-  go look at something.
-- **Every cross-link focuses its target.** Provenance chip → preset node,
-  message → rule row, return pill → thread head: the landing element takes
-  `tabIndex={-1}` and receives focus alongside the existing scroll-and-flash,
-  so the next Tab continues from where the user was sent rather than from where
-  they were.
+- **Apply fix keeps its 023 behavior** (re-run, land on Problems) and moves
+  focus to the Problems **tab**, because that action _is_ a request to go look
+  at something. The tab rather than the panel heading: it is a real control,
+  it announces "Problems, selected", and it starts that panel's tab order.
+- **Every cross-link focuses its target.** Message → rule row and return pill →
+  thread head land through `landOnTarget` (scroll, flash, focus). Provenance
+  chip → preset node is the awkward third: the tree row is already a `<button>`,
+  but it only exists after three commits (tab switch, ancestor expansion,
+  windowed-list re-slice), so `landOnPresetNode` polls for the selected row and
+  gives up rather than guessing. A node filtered out of the visible tree leaves
+  focus where it was. This bullet described all three as landed for a while
+  when only two were — see the 2026-08-11 review.
 - **Home/End keep scrolling the page** (016), except inside the tab strip,
   where they move to the first/last tab per the ARIA tablist pattern. The
   exclusion is explicit in `scroll-ergonomics.ts`, and `isTextEditingTarget` is
@@ -245,6 +273,35 @@ only), and every duplicated control names its shortcut in `title`. Tier 2 adds
 a `?` sheet listing every binding, generated from the same registry that
 installs them — one source of truth, so a binding cannot exist without
 appearing in the sheet.
+
+## The 2026-08-11 review
+
+A multi-agent review of the finished branch confirmed 15 defects, 13 of them in
+the keyboard layer itself. They shared one root: **a global key layer that did
+not know which states the app can be in.** Worth keeping, because the same trap
+is waiting for tier 2:
+
+- Three separate bindings were missing a gate the others had — the Escape ladder
+  and `RUN_SHORTCUT` were not gated on the modal sheet, and the editor's ⌘⏎
+  never asked whether a run was already going. Each was written at a different
+  moment, and each looked complete on its own.
+- The run guard now lives in **one** place (`onRun` latches a ref
+  synchronously), rather than three partial ones — `enabled: !running` and
+  `disabled={running}` remain as the visible half only.
+- The tab strip checked `event.key` alone, so ⌘+← (browser Back) and Ctrl+Home
+  were swallowed, while its two sibling handlers written the same week both
+  guarded modifiers.
+- `isTextEditingTarget` counted every `<input>` as typing, so a focused filter
+  **checkbox** silently killed the whole bare-key layer. `<select>` stays
+  counted, deliberately — its type-ahead has to keep winning.
+- `e` / `r` omitted `shift`, and `matchShortcut` reads an absent `shift` as
+  "don't care" (which `?` genuinely needs), so Caps Lock fired them.
+
+**Accepted cost of the run guard:** a run requested while one is in flight is
+now dropped rather than queued. That is the point for ⌘⏎ auto-repeat, but it
+also means clicking "Apply fix" or "Load from repo" _during_ a run no-ops
+instead of queueing a second run. Both are only reachable mid-run because
+neither is disabled by `running`; disabling them is the honest follow-up.
 
 ## Costs, accepted
 

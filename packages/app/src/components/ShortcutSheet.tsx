@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
+import { suspendEscapeLayers } from "@/lib/escape-stack";
 import { type ShortcutRow, type ShortcutSection, shortcutSheet } from "@/lib/shortcuts";
 
 /**
@@ -13,7 +14,10 @@ import { type ShortcutRow, type ShortcutSection, shortcutSheet } from "@/lib/sho
  * things a hand-rolled overlay gets wrong: a real focus trap, and inertness for
  * everything behind it. Escape is the dialog's own (`cancel`) rather than the
  * 067 Escape ladder — a modal dialog IS the topmost layer, and the browser
- * already knows that.
+ * already knows that. The ladder has to be told, though: `inert` does not reach
+ * a document-level listener, so the sheet suspends it for as long as it is up
+ * (see `suspendEscapeLayers`), the same way every other page-level key is gated
+ * on App's `keysLive`.
  */
 
 function SheetRow({ row }: { row: ShortcutRow }) {
@@ -42,8 +46,23 @@ export function ShortcutSheet({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     const dialog = dialogRef.current;
+    // Whatever the sheet was opened from — the results tab under `?`, the
+    // session-menu item under the pointer. The browser restores it when IT
+    // closes the dialog (the Escape path), but the Close button and the
+    // backdrop unmount this component first, so React removes the element
+    // before the cleanup below can call `close()` and focus lands on <body>:
+    // the user's next Tab restarts at the skip link. 067's rule is that a
+    // layer which closes hands focus back, so do it here for all three paths.
+    const opener = document.activeElement;
     dialog?.showModal();
-    return () => dialog?.close();
+    const resume = suspendEscapeLayers();
+    return () => {
+      resume();
+      dialog?.close();
+      if (opener instanceof HTMLElement && opener !== document.body && opener.isConnected) {
+        opener.focus({ preventScroll: true });
+      }
+    };
   }, []);
 
   return (
@@ -52,10 +71,24 @@ export function ShortcutSheet({ onClose }: { onClose: () => void }) {
       ref={dialogRef}
       aria-label="Keyboard shortcuts"
       onCancel={onClose}
-      // A click on the backdrop lands on the dialog element itself — anything
-      // inside it targets a child, so this is the whole light-dismiss test.
+      // A click on the backdrop lands on the dialog element itself — but so
+      // does one on its padding band, which is part of the element's own box,
+      // so `e.target === dialog` would close the sheet on a click in the inner
+      // margin or on a drag-select released there. The rect is the real
+      // boundary; it also spares a click on the dialog's own scrollbar.
+      // `detail === 0` is a keyboard-synthesized click, whose 0,0 coordinates
+      // would read as "outside" everywhere but the top-left corner.
       onClick={(e) => {
-        if (e.target === dialogRef.current) {
+        const box = dialogRef.current?.getBoundingClientRect();
+        if (!box || e.detail === 0) {
+          return;
+        }
+        const inside =
+          e.clientX >= box.left &&
+          e.clientX <= box.right &&
+          e.clientY >= box.top &&
+          e.clientY <= box.bottom;
+        if (!inside) {
           onClose();
         }
       }}

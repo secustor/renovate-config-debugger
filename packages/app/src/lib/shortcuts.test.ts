@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   codeMirrorKey,
+  FOCUS_EDITOR_SHORTCUT,
+  FOCUS_RESULTS_SHORTCUT,
   formatShortcut,
   GLOBAL_SHORTCUTS,
   HELP_SHORTCUT,
@@ -92,6 +94,15 @@ describe("tier 1 bindings", () => {
   it("ignores Shift for `?`, which needs it on some layouts and not others", () => {
     expect(matchShortcut(chord({ key: "?" }), HELP_SHORTCUT)).toBe(true);
     expect(matchShortcut(chord({ key: "?", shiftKey: true }), HELP_SHORTCUT)).toBe(true);
+  });
+
+  it("rejects Shift+E / Shift+R (and Caps Lock), unlike the shift-agnostic `?`", () => {
+    // `event.key` is already the shifted glyph ("E") when Shift or Caps Lock
+    // is down — `shift: false` here is what tells `matchShortcut` to say no.
+    expect(matchShortcut(chord({ key: "e" }), FOCUS_EDITOR_SHORTCUT)).toBe(true);
+    expect(matchShortcut(chord({ key: "E", shiftKey: true }), FOCUS_EDITOR_SHORTCUT)).toBe(false);
+    expect(matchShortcut(chord({ key: "r" }), FOCUS_RESULTS_SHORTCUT)).toBe(true);
+    expect(matchShortcut(chord({ key: "R", shiftKey: true }), FOCUS_RESULTS_SHORTCUT)).toBe(false);
   });
 });
 

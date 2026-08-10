@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Term } from "@/components/glossary";
 import type { InheritLayerState } from "@/lib/inherit-probe";
 import { isValidEndpoint, isValidToken, type LayerParseResult } from "@/lib/input-schemas";
+import { openPickerOnEnter } from "@/lib/select-picker";
 import { PLATFORM_ENDPOINTS, PLATFORMS } from "@/data/platform-endpoints";
 import type { HostTokenField } from "@/hooks/use-host-tokens";
 
@@ -69,7 +70,11 @@ function PlatformEndpointRow({
     <div className="advanced-row">
       <label>
         Platform
-        <select value={displayPlatform} onChange={(e) => onPlatformChange(e.target.value)}>
+        <select
+          value={displayPlatform}
+          onChange={(e) => onPlatformChange(e.target.value)}
+          onKeyDown={openPickerOnEnter}
+        >
           {PLATFORMS.map((p) => (
             <option key={p} value={p}>
               {p}

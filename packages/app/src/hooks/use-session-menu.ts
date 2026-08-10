@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ESCAPE_PRIORITY } from "@/lib/escape-stack";
 import { useEscapeLayer } from "@/hooks/use-escape-layer";
 
 /**
@@ -36,8 +37,9 @@ export function useSessionMenu() {
   }, []);
 
   // Roadmap 067: Escape through the shared ladder, so a hover card opened
-  // from inside the panel closes first and the menu survives that press.
-  useEscapeLayer(open, dismiss);
+  // from inside the panel closes first and the menu survives that press —
+  // by rank, which holds whichever of the two mounted first.
+  useEscapeLayer(open, dismiss, ESCAPE_PRIORITY.menu);
 
   useEffect(() => {
     if (!open) {
