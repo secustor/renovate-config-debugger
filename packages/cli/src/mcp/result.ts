@@ -153,9 +153,15 @@ function dropLargestKeys(payload: Record<string, unknown>): string[] {
   return dropped;
 }
 
-/** Everything but the first element, so the next round can work inside it. */
-function collapseToFirst(array: unknown[]): Elision | null {
-  const removed = array.length - 1;
+/**
+ * Everything but the first and the last element, so the next round can work
+ * inside them. Both ends survive on purpose: `ELIDED_ARRAY_SHAPE` promises
+ * the caller exactly that, and the tail is where a merged `packageRules`
+ * array keeps the repo's own rules — the floor case must not be the one
+ * branch that breaks the promise.
+ */
+function collapseToEnds(array: unknown[]): Elision | null {
+  const removed = array.length - 2;
   if (removed <= 0) {
     return null;
   }
@@ -194,8 +200,8 @@ function shrinkArray(array: unknown[], allowance: number): Elision | null {
     // `removed === 0` marks the array exhausted, no array can shrink, and the
     // blunt key-dropping below inherits the whole problem. That is how a
     // simulate answer came back holding 2 of 713 rules and no merge trace at
-    // all, on a third of the budget. One element is the honest floor.
-    return allowance >= first ? null : collapseToFirst(array);
+    // all, on a third of the budget. First-and-last is the honest floor.
+    return allowance >= first ? null : collapseToEnds(array);
   }
 
   const last = array.length - 1;

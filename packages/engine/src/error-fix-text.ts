@@ -299,7 +299,10 @@ function locateEntry(text: string, path: ConfigPathSegment[]): EntryLocation | n
     } else {
       const found = findArrayElement(text, containerStart, seg);
       if (!found || isLast) {
-        // Our curated fixes always end on an object key, never an array index.
+        // A path ending on an array index has no surgical patch here — the
+        // one curated fix shaped that way (the `group:`-preset rule rewrite)
+        // deliberately falls back to re-serializing the document, and says so
+        // via `fixedTextRewritesDocument`.
         return null;
       }
       containerStart = found.valueStart;
