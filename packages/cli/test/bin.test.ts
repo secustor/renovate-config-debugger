@@ -1,4 +1,6 @@
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
+import { once } from "node:events";
+import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 import { fixture } from "../src/test-harness";
@@ -114,5 +116,91 @@ describe("bin/rcd.mjs", () => {
     expect(run.stdout.length).toBeGreaterThan(64 * 1024);
     const result = JSON.parse(run.stdout) as { finalConfig: { extends?: string[] } };
     expect(result.finalConfig).toBeTypeOf("object");
+  }, 120_000);
+});
+
+/**
+ * `rcd mcp` over a real pipe. Nothing in-process can cover it: the command's
+ * whole subject is stdio — the SDK owns stdout as the protocol, and the
+ * session ends on an EOF only a bin can see.
+ */
+
+interface JsonRpcMessage {
+  jsonrpc: string;
+  id?: number;
+  result?: { tools?: { name: string }[] };
+  error?: unknown;
+}
+
+describe("bin/rcd.mjs mcp", () => {
+  test("answers JSON-RPC on stdout and exits 0 when the client disconnects", async () => {
+    const child = spawn(process.execPath, [BIN, "mcp"], {
+      cwd: CLI_DIR,
+      env: CHILD_ENV,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+
+    // Piped and never asserted on, but it has to be drained: a stderr nobody
+    // reads fills its own pipe buffer and stalls the child.
+    child.stderr.resume();
+
+    const messages: JsonRpcMessage[] = [];
+    let toolsList: JsonRpcMessage | undefined;
+    const answered = new Promise<void>((resolve) => {
+      const lines = createInterface({ input: child.stdout });
+      lines.on("line", (line) => {
+        if (line.trim() === "") {
+          return;
+        }
+        // Every line is protocol: a stray log or hint on stdout is a bug the
+        // parse below is here to catch.
+        const message = JSON.parse(line) as JsonRpcMessage;
+        messages.push(message);
+        if (message.id === 2) {
+          toolsList = message;
+          resolve();
+        }
+      });
+    });
+
+    for (const message of [
+      {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: {
+          protocolVersion: "2025-06-18",
+          capabilities: {},
+          clientInfo: { name: "rcd-test", version: "0" },
+        },
+      },
+      { jsonrpc: "2.0", method: "notifications/initialized" },
+      { jsonrpc: "2.0", id: 2, method: "tools/list" },
+    ]) {
+      child.stdin.write(`${JSON.stringify(message)}\n`);
+    }
+
+    await answered;
+    expect(messages.every((message) => message.jsonrpc === "2.0")).toBe(true);
+    expect(messages.filter((message) => message.error !== undefined)).toEqual([]);
+    expect(toolsList?.result?.tools?.map((tool) => tool.name)).toEqual([
+      "run_config",
+      "get_final_config",
+      "get_preset_tree",
+      "get_preset_node",
+      "get_provenance",
+      "get_resolved_config",
+      "simulate",
+      "compare_simulations",
+      "explain_message",
+      "get_option_docs",
+    ]);
+
+    // The regression: the SDK's stdio transport ignores EOF, so the command
+    // used to wait forever and Node killed the process at 13 — with the dev
+    // runner's Vite teardown never reached.
+    child.stdin.end();
+    const [code] = (await once(child, "exit")) as [number | null, string | null];
+    expect(code).toBe(0);
   }, 120_000);
 });

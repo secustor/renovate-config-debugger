@@ -1,53 +1,17 @@
-import {
-  computeProvenance,
-  computeRuleProvenance,
-  type KeyProvenance,
-  type ProvenanceLayer,
-} from "@renovate-config-debugger/engine";
-import {
-  effectiveTally,
-  isOverridden,
-  multiContribBadgeKind,
-} from "@renovate-config-debugger/app/headless";
+import { computeRuleProvenance } from "@renovate-config-debugger/engine";
+import { effectiveTally } from "@renovate-config-debugger/app/headless";
 import { outputFormat } from "../args";
 import type { Command } from "../command";
 import { CliError, EXIT_OK, EXIT_REFUSED } from "../io";
 import { emitJson, emitLines, preview, writeNotes } from "../output";
+import { entryView, layerLabel, provenanceOf } from "../projections/provenance";
 import { INPUT_OPTIONS, runFromArgs, wouldRefuse } from "../run-input";
 
 /**
  * "Who set this key, and who overrode whom?" — the question behind most real
  * debugging sessions, and the one the web app answers with its effective-config
- * ledger. Same computation (`computeProvenance`), same badges: 016 established
- * that calling an appended array "overridden" is misleading, so the label
- * comes from `multiContribBadgeKind` rather than from "more than one layer
- * touched it".
+ * ledger.
  */
-
-function layerLabel(layer: ProvenanceLayer): string {
-  return layer.kind === "preset" ? `preset ${layer.name}` : layer.kind;
-}
-
-function entryView(entry: KeyProvenance) {
-  const winner = entry.chain.findLast((s) => !s.noop) ?? entry.chain.at(-1);
-  return {
-    key: entry.key,
-    finalValue: entry.finalValue,
-    isDefaultOnly: entry.isDefaultOnly,
-    winner: winner ? layerLabel(winner.layer) : null,
-    badge: isOverridden(entry) ? multiContribBadgeKind(entry) : null,
-    chain: entry.chain
-      .filter((step) => !step.noop)
-      .map((step) => ({
-        layer: layerLabel(step.layer),
-        action: step.action,
-        before: step.before,
-        after: step.after,
-        ...(step.expandedNested ? { expandedNested: true } : {}),
-      })),
-  };
-}
-
 export const provenanceCommand: Command = {
   name: "provenance",
   summary: "per-key provenance: which layer set each option, and who overrode whom",
@@ -64,12 +28,7 @@ export const provenanceCommand: Command = {
     writeNotes(io, notes);
     const key = rest[0];
 
-    const provenance = computeProvenance(result);
-    if (!provenance) {
-      throw new CliError(
-        "provenance needs a completed preset resolution — see `rcd validate` for why it stopped",
-      );
-    }
+    const provenance = provenanceOf(result);
     const tally = effectiveTally(provenance.values());
     const entries = [...provenance.values()];
 

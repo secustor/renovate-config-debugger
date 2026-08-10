@@ -138,6 +138,72 @@ when the config under inspection chooses the endpoint, tokens are withheld and
 the CLI says so on stderr. Pass `--platform-override` to impose your own
 endpoint, or `--trust-endpoints` when the config is yours.
 
+## MCP server
+
+`rcd mcp` speaks MCP over stdio — the same answers as the subcommands, better
+economics for a session. Point any MCP-capable client at it as a stdio server;
+it takes no arguments and writes nothing but the protocol to stdout.
+
+`run_config` resolves a config and returns a small summary plus a **runId**;
+`get_final_config`, `get_preset_tree`, `get_preset_node`, `get_provenance`,
+`get_resolved_config`, `simulate`, `compare_simulations`, `explain_message` and
+`get_option_docs` all take that runId and query the HELD trace. That buys two
+things a series of CLI invocations cannot give: the module graph is paid once
+per session — only the engine boot is amortized, since Renovate's own preset
+`memCache` resets on every run, so a fresh `run_config` still fetches its
+presets over the network — and every answer describes the same run — two
+separate `rcd` calls can silently describe different worlds if a remote preset
+changed between them.
+
+The server speaks the 2026-07-28 protocol and the legacy 2025-era `initialize`
+handshake, with the era chosen per connection, so older clients keep working
+against the same process.
+
+Worth knowing before your first call: **preset-node bodies are large — query
+one node at a time.** The tool descriptions say so too. `simulate` takes the
+same `verdict`/`source` scoping as `rcd simulate --verdict/--source` (see
+[above](#simulate-and-compare)) — `source: "repo"` is the fix for a
+`config:best-practices` run's several-hundred-rule list when the question is
+about your own config's rules, not the presets it pulled in.
+
+The server holds a small number of recent runs (an LRU), so an agent can
+compare the run before an edit with the run after it. A `runId` that has been
+evicted says so, and lists the ones still held.
+
+Four properties the tools guarantee, because an agent cannot check them:
+
+- **The default answer is the question you asked.** `simulate` returns the
+  verdicts, `flattened` and `finalDependencyConfig`; the step-by-step merge
+  trace (`mergeSteps`, `rawFinalConfig`) is ~1 MB on a `config:recommended` run
+  and comes only with `detail: "full"`. `compare_simulations` leads with
+  `summary`, the whole verdict in one line.
+
+- **Every answer fits.** A tool result is capped at ~65 kB — derived from the
+  host's own tool-output cap (~25k tokens), not chosen, because a bigger
+  payload would be truncated by the host mid-JSON and the guarantee would be
+  worth nothing. Over the cap the answer is elided _structurally_: the largest
+  arrays keep a head window AND a tail window, and the omission is a
+  `{ "truncated": true, "shown": …, "omitted": …, "omittedFrom": …, "items": [] }`
+  object in place. The tail window is not decoration — a merged `packageRules`
+  array is the presets' rules first and _your_ rules last. The top of the
+  document names the parameter that narrows the question. Nothing is ever cut
+  mid-JSON, and nothing is dropped silently. Small answers are indented for the
+  transcript; large ones are compact, because indentation at that size is pure
+  token overhead.
+- **Unknown parameters are errors.** Every input schema is strict, including
+  `dep` — `depname` is a validation error naming the key, not a simulation
+  where no matcher had any input.
+- **Credentials belong to one run.** Tool handlers run concurrently, so the
+  credentials a run may use travel on that run's pipeline input and are
+  installed inside the engine's serialized queue. A run whose global config
+  chose the endpoint sends no token, whatever a concurrent trusted run is
+  doing — and so does a run whose `endpoint` came in as a tool PARAMETER,
+  because over MCP that value was written by the model, possibly out of the
+  config it was asked to inspect. On this transport the opt-ins are the
+  `platformOverride` and `trustEndpoints` parameters (the flags of the same
+  name are the CLI's); only `trustEndpoints` vouches for an endpoint the caller
+  supplied.
+
 ## Read-only, on purpose
 
 There is no `fix` or `migrate-file` verb. Agents edit configs with their own

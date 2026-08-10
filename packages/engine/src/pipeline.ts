@@ -12,6 +12,7 @@ import {
   resolveConfigPresets,
   validateConfig,
 } from "./renovate-adapter";
+import { getPresetAuth, setPresetAuth } from "./auth";
 import {
   getUsedInjectionKeys,
   resetInjectedPresets,
@@ -90,22 +91,73 @@ function removeGlobalConfig(
 // the active trace collector), so runs must never overlap.
 let queue: Promise<unknown> = Promise.resolve();
 
+/** A task whose caller went away before the queue reached it. */
+export class EngineTaskCancelled extends Error {
+  constructor() {
+    super("cancelled before the engine ran it");
+    this.name = "EngineTaskCancelled";
+  }
+}
+
 /**
  * Serializes every engine entry point that touches renovate's stateful
  * modules through one queue, so e.g. a packageRules simulation (006) never
  * interleaves with a pipeline run.
+ *
+ * `signal` is checked once, at the moment the queue reaches the task — the
+ * only point where cancellation is both cheap and useful. Work already inside
+ * renovate's config modules is NOT interruptible (they are synchronous and
+ * hold module state), but a task that has been sitting in line while an
+ * earlier run finished should not start at all: with concurrent MCP handlers
+ * that is a cancelled call keeping every later question waiting.
  */
-export function enqueueEngineTask<T>(task: () => Promise<T>): Promise<T> {
-  const run = queue.then(() => task());
+export function enqueueEngineTask<T>(task: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+  const run = queue.then(() => {
+    if (signal?.aborted) {
+      throw new EngineTaskCancelled();
+    }
+    return task();
+  });
   queue = run.catch(() => undefined);
   return run;
 }
 
-export function runPipeline(input: PipelineInput): Promise<TraceResult> {
-  return enqueueEngineTask(() => execute(input));
+export function runPipeline(input: PipelineInput, signal?: AbortSignal): Promise<TraceResult> {
+  return enqueueEngineTask(() => execute(input), signal);
 }
 
-async function execute(input: PipelineInput): Promise<TraceResult> {
+/**
+ * A run that brought its own credentials owns the module-level preset auth for
+ * the duration of the queued task — installed here, as the FIRST thing inside
+ * the queue, and restored when the run ends.
+ *
+ * Why it has to happen here and not at the call site: `setPresetAuth` is
+ * global module state, so a caller that installs credentials and then awaits
+ * `runPipeline` has published them to every run that starts in between. With
+ * concurrent callers (the MCP server's handlers run in parallel) that is a
+ * real credential leak — run B's tokens riding along on run A's remaining
+ * preset fetches, to an endpoint run A's untrusted global config chose. Inside
+ * the queue the pipeline is the only thing running, so the install and every
+ * fetch it feeds are one atomic unit.
+ */
+async function withRunAuth<T>(input: PipelineInput, task: () => Promise<T>): Promise<T> {
+  if (input.presetAuth === undefined) {
+    return task();
+  }
+  const previous = getPresetAuth();
+  setPresetAuth(input.presetAuth);
+  try {
+    return await task();
+  } finally {
+    setPresetAuth(previous);
+  }
+}
+
+function execute(input: PipelineInput): Promise<TraceResult> {
+  return withRunAuth(input, () => executeRun(input));
+}
+
+async function executeRun(input: PipelineInput): Promise<TraceResult> {
   const platformContext = resolvePlatformContext(input);
   const collector = new TraceCollector(parsePreset, platformContext);
   setCurrentCollector(collector);

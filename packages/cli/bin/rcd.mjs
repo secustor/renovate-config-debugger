@@ -51,9 +51,10 @@ try {
 
 /**
  * A stream with no `'error'` listener turns a write failure into an UNCAUGHT
- * exception — so a peer that closes the pipe (`rcd digest … | head`) crashes
- * the process on the next line of stderr, from inside a `write` nobody
- * awaited. stderr has that failure mode and no owner.
+ * exception — so a peer that closes the pipe (`rcd digest … | head`, or an MCP
+ * host that stops reading our diagnostics) crashes the process on the next
+ * line of stderr, from inside a `write` nobody awaited. The SDK guards stdout
+ * for exactly this reason; stderr has the same failure mode and no owner.
  *
  * Silence is the whole point: there is nowhere left to report a broken stderr
  * to. The process keeps running and its own exit code still speaks.
@@ -66,8 +67,9 @@ function guardStderr() {
 
 /**
  * The stdio peer going away, as an event `src/` can observe without touching a
- * process global. A long-lived command — one that serves a peer rather than
- * answering and returning — has no other way to learn that the peer left.
+ * process global. Only `rcd mcp` needs it: the MCP SDK's stdio transport
+ * listens for `data` and `error` only, so a client that closes the pipe never
+ * reaches `transport.onclose` and the command would wait forever.
  *
  * Registration is per call and never eager — a SIGINT/SIGTERM listener is a
  * libuv handle that refs the loop, so a command that does not ask to be told

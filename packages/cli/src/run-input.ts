@@ -78,25 +78,115 @@ export function hasTokens(auth: PresetAuth): boolean {
  * never to one the config under inspection chose, unless the user says the
  * config is trusted.
  */
+export interface EndpointTrust {
+  /** The caller vouched for the config under inspection. */
+  trustEndpoints?: boolean;
+  /** The caller's own platform/endpoint wins over the global config's. */
+  platformOverride?: boolean;
+  /**
+   * The endpoint the CALLER supplied, when the caller is not a person.
+   *
+   * On the CLI this stays unset: a human typed `--endpoint`, which is exactly
+   * the "explicit flag" the guard trusts. Over MCP the same value is a tool
+   * PARAMETER the model chose — plausibly from text in the very repository it
+   * is inspecting — so it is not the user's choice at all, and the guard has
+   * to treat it the way it treats an endpoint a config chose.
+   *
+   * Only the endpoint. `platform` on its own moves a token to that platform's
+   * own public API, which is where a token for that platform already goes.
+   */
+  callerEndpoint?: string;
+}
+
+/**
+ * How the caller reached us. The guard is one rule with two spellings: on the
+ * CLI the opt-ins are flags, over MCP they are tool parameters, and a note
+ * that names the wrong one is a dead end for whoever reads it.
+ */
+export type RunTransport = "cli" | "mcp";
+
+const OPT_IN_WORDING: Record<RunTransport, string> = {
+  cli: "Pass `--platform-override` to impose your own endpoint, or `--trust-endpoints` if the config is yours.",
+  mcp: "Set `platformOverride: true` to impose your own endpoint, or `trustEndpoints: true` if the config is yours.",
+};
+
+/** The only opt-in that applies when the CALLER, not the config, picked the
+ *  endpoint — imposing it harder changes nothing about who chose it. */
+const TRUST_WORDING: Record<RunTransport, string> = {
+  cli: "Pass `--trust-endpoints` if that endpoint is yours.",
+  mcp: "Set `trustEndpoints: true` if that endpoint is yours.",
+};
+
 export function endpointTokenPolicy(
-  args: ParsedArgs,
+  trust: EndpointTrust,
   globalConfig: Record<string, unknown> | undefined,
+  transport: RunTransport = "cli",
 ): { suppress: boolean; reason?: string } {
-  if (boolOption(args, "trust-endpoints") || !globalConfig) {
+  if (trust.trustEndpoints) {
+    return { suppress: false };
+  }
+  // The same rule as below, one layer out: the guard asks "did the person
+  // whose tokens these are choose where they go?", and over MCP an `endpoint`
+  // tool parameter is not that person's answer — the model wrote it, and a
+  // config it just read can suggest one. `platformOverride` deliberately does
+  // NOT unlock this: it only says whose endpoint wins between two untrusted
+  // sources. `trustEndpoints` is the one opt-in that means "I vouch for it".
+  if (trust.callerEndpoint) {
+    return {
+      suppress: true,
+      reason:
+        `\`endpoint\` was chosen by the caller (${trust.callerEndpoint}) rather than by the ` +
+        "environment this server runs in, so host tokens were NOT sent there. " +
+        TRUST_WORDING[transport],
+    };
+  }
+  if (!globalConfig) {
     return { suppress: false };
   }
   const chosen = ["endpoint", "platform"].filter((key) =>
     Object.prototype.hasOwnProperty.call(globalConfig, key),
   );
-  if (chosen.length === 0 || boolOption(args, "platform-override")) {
+  if (chosen.length === 0 || trust.platformOverride) {
     return { suppress: false };
   }
   return {
     suppress: true,
     reason:
       `the global config sets ${chosen.map((k) => `\`${k}\``).join(" and ")}, so it — not you — ` +
-      "chooses where preset requests go; host tokens were NOT sent. Pass --platform-override " +
-      "to impose your own endpoint, or --trust-endpoints if the config is yours.",
+      `chooses where preset requests go; host tokens were NOT sent. ${OPT_IN_WORDING[transport]}`,
+  };
+}
+
+export interface RunAuth {
+  /** The credentials this run may use — `{}` when the guard withheld them. */
+  auth: PresetAuth;
+  /** Diagnostics for the caller; never part of an answer. */
+  notes: string[];
+}
+
+/**
+ * The credentials a run may use, and what was withheld. Shared by the CLI's
+ * input path and the MCP server's `run_config`, so the guard cannot be
+ * enforced on one transport and forgotten on the other.
+ *
+ * It RESOLVES, it does not install: the auth travels on the `PipelineInput`,
+ * and the engine installs it inside its own serialized queue. Installing it
+ * here would publish it to every run that starts before this one finishes —
+ * which, with concurrent MCP handlers, is how run B's tokens end up on run A's
+ * fetches to an endpoint A's untrusted global config chose.
+ */
+export function resolveRunAuth(
+  env: Readonly<Record<string, string | undefined>>,
+  globalConfig: Record<string, unknown> | undefined,
+  trust: EndpointTrust,
+  transport: RunTransport,
+): RunAuth {
+  const auth = tokensFromEnv(env);
+  const policy = endpointTokenPolicy(trust, globalConfig, transport);
+  return {
+    auth: policy.suppress ? {} : auth,
+    notes:
+      policy.suppress && hasTokens(auth) ? [`credentials withheld: ${policy.reason ?? ""}`] : [],
   };
 }
 
@@ -162,18 +252,23 @@ export async function loadPipelineInput(
   io: CliIo,
   file: string | undefined,
 ): Promise<LoadedInput> {
-  const notes: string[] = [];
   const globalConfig = await readLayer(stringOption(args, "global-config"), "--global-config");
   const inheritedConfig = await readLayer(stringOption(args, "inherited"), "--inherited");
 
-  const auth = tokensFromEnv(io.env);
-  const policy = endpointTokenPolicy(args, globalConfig);
-  if (policy.suppress && hasTokens(auth)) {
-    notes.push(`credentials withheld: ${policy.reason ?? ""}`);
-  }
-  // Overwrite, never skip: `setPresetAuth` replaces module state a previous
-  // run in this process may have populated.
-  setPresetAuth(policy.suppress ? {} : auth);
+  const { auth, notes } = resolveRunAuth(
+    io.env,
+    globalConfig,
+    {
+      trustEndpoints: boolOption(args, "trust-endpoints"),
+      platformOverride: boolOption(args, "platform-override"),
+    },
+    "cli",
+  );
+  // `--repo` loads the config through the engine's repo-config fetcher, which
+  // reads the module-level auth and runs OUTSIDE the pipeline — so the CLI
+  // still installs it globally. The run itself is scoped by `presetAuth` on
+  // the input below; one process, one config at a time, so the two agree.
+  setPresetAuth(auth);
 
   const repo = stringOption(args, "repo");
   let fileName: string;
@@ -202,6 +297,7 @@ export async function loadPipelineInput(
     input: {
       fileName,
       content,
+      presetAuth: auth,
       ...(globalConfig ? { globalConfig } : {}),
       ...(inheritedConfig ? { inheritedConfig } : {}),
       ...(stringOption(args, "platform") ? { platform: stringOption(args, "platform") } : {}),
