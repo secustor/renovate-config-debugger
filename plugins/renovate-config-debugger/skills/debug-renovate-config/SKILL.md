@@ -108,9 +108,9 @@ infrastructure error, so it works as a check in CI or a hook without a wrapper.
 
 ## Things worth not re-learning
 
-- **Credentials come from the environment only** — `RCV_GITHUB_TOKEN` or
-  `GITHUB_TOKEN`/`GH_TOKEN`, `RCV_GITLAB_TOKEN`/`GITLAB_TOKEN`,
-  `RCV_GITEA_TOKEN`, `RCV_FORGEJO_TOKEN`. Private preset repositories need one.
+- **Credentials come from the environment only** — `RCD_GITHUB_TOKEN` or
+  `GITHUB_TOKEN`/`GH_TOKEN`, `RCD_GITLAB_TOKEN`/`GITLAB_TOKEN`,
+  `RCD_GITEA_TOKEN`, `RCD_FORGEJO_TOKEN`. Private preset repositories need one.
   Never put a token on a command line.
 - If a config's global layer chooses the API endpoint, tokens are withheld and
   the tool says so — that is a deliberate guard, not a bug. It is bypassed
