@@ -169,6 +169,7 @@ economics for a session. Register it once:
 
 ```console
 $ claude mcp add rcd -- pnpm dlx @renovate-config-debugger/cli mcp
+$ claude mcp add rcd -- npx -y @renovate-config-debugger/cli@0 mcp
 ```
 
 `run_config` resolves a config and returns a small summary plus a **runId**;
