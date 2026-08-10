@@ -5,62 +5,33 @@
  * The CLI's answers change when Renovate's code does, so the version has to
  * say which Renovate a release carries — and a hand-maintained table is
  * exactly the kind of thing that goes stale three releases in. This runs as
- * `prebuild`, so a Renovate bump that forgets the table fails the build (and
- * the publish workflow) instead of shipping a lie.
+ * part of `build`, so a Renovate bump that forgets the table fails the build
+ * (and the release workflow) instead of shipping a lie.
+ *
+ * Roadmap 067 made the row a release artefact rather than a hand edit:
+ * `stamp-compat.ts` writes it from the same data this reads. That does not
+ * make the check redundant — the release stamps one row, and this is what
+ * catches every other way the table can stop being true (a Renovate bump on
+ * main, a manual edit, a botched merge).
  *
  * Plain Node, no dependencies: it runs before anything is built.
  */
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { currentBuild, topRow } from "./compat-table.ts";
 
-interface PackageJson {
-  version: string;
-  dependencies?: Record<string, string>;
-}
-
-const read = (relative: string): string =>
-  readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
-const readJson = (relative: string): PackageJson => JSON.parse(read(relative)) as PackageJson;
-
-const cli = readJson("../package.json");
-const engine = readJson("../../engine/package.json");
-const renovate = engine.dependencies?.renovate;
-
-if (!renovate || !/^\d+\.\d+\.\d+$/.test(renovate)) {
-  throw new Error(
-    `packages/engine must pin renovate to an exact version (found ${JSON.stringify(renovate)})`,
-  );
-}
-
-const MARKER = "<!-- compat-table -->";
-const readme = read("../README.md");
-const table = readme.slice(readme.indexOf(MARKER));
-if (!readme.includes(MARKER)) {
-  throw new Error(`packages/cli/README.md must carry a ${MARKER} marker above the compat table`);
-}
-
-// The first row after the marker's header + separator lines.
-const row = table
-  .split("\n")
-  .filter((line) => line.startsWith("|"))
-  .at(2);
-const cells = (row ?? "")
-  .split("|")
-  .slice(1, -1)
-  .map((cell) => cell.trim().replaceAll("`", ""));
-
-const expected = [cli.version, engine.version, renovate];
-const matches = expected.every((value, i) => cells[i] === value);
+const expected = currentBuild();
+const found = topRow();
+const matches = expected.every((value, i) => found[i]?.replaceAll("`", "") === value);
 
 if (!matches) {
   throw new Error(
     "packages/cli/README.md: the compat table's top row is stale.\n" +
       `  expected: | ${expected.join(" | ")} |\n` +
-      `  found:    | ${cells.join(" | ")} |\n` +
-      "Add a row for this release (cli version | embedded engine version | renovate pin).",
+      `  found:    | ${found.join(" | ")} |\n` +
+      "Add a row for this release (cli version | embedded engine version | renovate pin),\n" +
+      "or run `node packages/cli/scripts/stamp-compat.ts` to write it.",
   );
 }
 
 process.stdout.write(
-  `compat ok: cli ${cli.version} · engine ${engine.version} · renovate ${renovate}\n`,
+  `compat ok: cli ${expected[0]} · engine ${expected[1]} · renovate ${expected[2]}\n`,
 );
