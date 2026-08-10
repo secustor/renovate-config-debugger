@@ -1,0 +1,21 @@
+{
+  // The published build (roadmap 056). `tsconfig.json` stays the editor/
+  // typecheck view (src + test, noEmit); this one emits `src/` only.
+  //
+  // Emit, not bundle: `renovateShims()` hands the consumer's bundler absolute
+  // paths under its own directory, so the shims have to exist as separate
+  // files next to the plugin — a single-file bundle would have nothing to
+  // point at. tsc's mirrored tree gives exactly that.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    // Emitted with the `.d.ts` next to it and no source maps: `files` ships
+    // dist/ only, so a map would point at sources that are not in the tarball.
+    "declarationMap": false,
+    "sourceMap": false
+  },
+  "include": ["src"]
+}
