@@ -17,7 +17,8 @@ import { recordingIo } from "../test-harness";
  * wiring `rcd mcp` does, including the choice between the 2026-07-28 protocol
  * and the legacy 2025-era handshake. The v2 client negotiates `legacy` unless
  * told otherwise, so every test below is a legacy-era run; "the tool surface"
- * adds one that pins 2026-07-28.
+ * adds one that pins 2026-07-28, and `test/bin.test.ts` proves the legacy era
+ * over a real pipe.
  *
  * Thin, like the CLI's own tests: the answers themselves come from the shared
  * projection modules the subcommands use, and the engine's golden↔shimmed
