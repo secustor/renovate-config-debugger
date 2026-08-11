@@ -71,7 +71,9 @@ export interface ResultsColumnProps {
   digest: DigestClause[];
   onWhereFrom: () => void;
   /** Roadmap 069: the digest card's "show raw order" link — jumps to Effective
-   *  config and lands on the `description` row's blame ledger. */
+   *  config and lands on the `description` row's blame ledger. Shared with the
+   *  preset tree (PR 4), whose `→ #16 of 24` position markers are the same
+   *  jump from the other end. */
   onShowDescriptionOrder: () => void;
 
   // —— pipeline ——
@@ -325,6 +327,7 @@ export function ResultsColumn({
           authState={authState}
           onSignIn={onSignIn}
           installUrl={installUrl}
+          onShowDescriptionOrder={onShowDescriptionOrder}
         />
       ) : (
         <EmptyNote>

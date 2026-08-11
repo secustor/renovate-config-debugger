@@ -3,6 +3,8 @@ import type { PresetNode, TraceEvent, TraceResult } from "@renovate-config-debug
 import { Term } from "@/components/glossary";
 import { computeTreeStats } from "@/components/preset-tree-stats";
 import type { AuthState } from "@/components/GithubAuthHint";
+import { useDescriptionProvenance } from "@/hooks/description-provenance";
+import { buildTreeDescriptions, describeCountText } from "@/lib/tree-descriptions";
 import { OriginFraming } from "./OriginFraming";
 import { PresetDetail } from "./PresetDetail";
 import { PresetListPane } from "./PresetListPane";
@@ -24,6 +26,14 @@ import { useWindow } from "./use-window";
  * into an instrument for "what did all of that do?" and "where did this come
  * from?". All per-node/per-subtree aggregates are computed once per result in
  * a single walk (`computeTreeStats`), never per render.
+ *
+ * Roadmap 069 (PR 4) puts each node's descriptions ON the node: a described
+ * name carries a hover card quoting the preset's own sentences (with their
+ * slot in the final array when they reached it — a wrapper preset's sentence,
+ * which Renovate sheds by design, reads the same and simply has no slot), and
+ * the detail panel repeats the same facts as a Description entry. A hover
+ * surface rather than a view mode: the tree already has a tree/table switch,
+ * and the rows stay exactly `ROW_HEIGHT`, which the windowing math depends on.
  */
 
 export const PresetTree = memo(function PresetTree({
@@ -34,6 +44,7 @@ export const PresetTree = memo(function PresetTree({
   authState,
   onSignIn,
   installUrl,
+  onShowDescriptionOrder,
 }: {
   result: TraceResult;
   onInject: (key: string, content: Record<string, unknown>) => void;
@@ -44,6 +55,10 @@ export const PresetTree = memo(function PresetTree({
   authState: AuthState;
   onSignIn: () => void;
   installUrl: string;
+  /** Roadmap 069 (PR 4): the position marker's cross-link — jumps to the
+   *  Effective config and opens the `description` row's blame ledger (PR 3),
+   *  where the same sentence sits in the array's own order. */
+  onShowDescriptionOrder?: () => void;
 }) {
   const root = result.presetTree;
   const helpers = useEngineHelpers();
@@ -68,6 +83,16 @@ export const PresetTree = memo(function PresetTree({
   }, [result.events]);
 
   const stats = useMemo(() => (root ? computeTreeStats(root) : null), [root]);
+
+  // Roadmap 069: the per-string attribution, through the same WeakMap-cached
+  // hook the Overview digest and the blame ledger use — so however many
+  // consumers ask, the walk runs once per run. Inverting it into the per-node
+  // index is a single pass over a few dozen entries, memoized per result.
+  const descriptionProvenance = useDescriptionProvenance(result);
+  const treeDescriptions = useMemo(
+    () => (descriptionProvenance ? buildTreeDescriptions(descriptionProvenance) : null),
+    [descriptionProvenance],
+  );
 
   const [view, setView] = useState<"tree" | "table">("tree");
   const [hideZero, setHideZero] = useState(false);
@@ -103,12 +128,29 @@ export const PresetTree = memo(function PresetTree({
     });
   }, [stats]);
 
+  // `null` when the run has no description facts at all — then no name carries
+  // a hover card and the detail panel shows no Description entry.
+  const descFacts = treeDescriptions?.byNodeId ?? null;
+  // …and the same nodes as a plain id set, which is all the flattening needs:
+  // hide-zero would otherwise elide the wrapper presets, taking their hover
+  // cards (and the drop lines on them) out of reach (see
+  // `FlattenArgs.described`). A few dozen ids, rebuilt only when the run
+  // changes — never on a keystroke.
+  const describedIds = useMemo(() => (descFacts ? new Set(descFacts.keys()) : null), [descFacts]);
+
   const flatRows = useMemo(
     () =>
       root && stats
-        ? flattenTree({ root, stats, expandedIdentities: expanded, hideZero, query })
+        ? flattenTree({
+            root,
+            stats,
+            expandedIdentities: expanded,
+            hideZero,
+            query,
+            described: describedIds,
+          })
         : [],
-    [root, stats, expanded, hideZero, query],
+    [root, stats, expanded, hideZero, query, describedIds],
   );
 
   const tableRows = useMemo(() => {
@@ -228,7 +270,8 @@ export const PresetTree = memo(function PresetTree({
     <div className="card">
       <div className="card-title">
         <Term id="preset">Preset</Term> resolution tree ({nf.format(stats.summary.resolved)}{" "}
-        resolved)
+        resolved
+        {treeDescriptions ? ` · ${describeCountText(treeDescriptions)}` : ""})
       </div>
       <OriginFraming root={root} stats={stats} />
       <SummaryHeader summary={stats.summary} />
@@ -293,11 +336,14 @@ export const PresetTree = memo(function PresetTree({
             injectionKey={injectionKey}
             usedInjections={usedInjections}
             stats={stats}
+            descFacts={descFacts}
+            onShowDescriptionOrder={onShowDescriptionOrder}
           />
           {selected ? (
             <PresetDetail
               node={selected}
               parent={stats.parents.get(selected.id)}
+              descriptionFacts={descFacts?.get(selected.id)}
               onClose={() => onSelectNode(null)}
               injectionKey={injectionKey}
               parse={helpers?.parse ?? null}

@@ -1,6 +1,7 @@
 import type { PresetNode } from "@renovate-config-debugger/engine";
 import type { TreeStats } from "@/components/preset-tree-stats";
 import { presetTableRowClass } from "@/lib/preset-row-dom";
+import type { NodeDescriptionFacts } from "@/lib/tree-descriptions";
 import type { Row, SortColumn, TableRow } from "./rows";
 import { type InjectionKeyFn, ROW_HEIGHT } from "./tree-shared";
 import { TreeRow } from "./TreeRow";
@@ -26,6 +27,8 @@ export function PresetListPane({
   injectionKey,
   usedInjections,
   stats,
+  descFacts,
+  onShowDescriptionOrder,
 }: {
   view: "tree" | "table";
   columns: { key: SortColumn; label: string }[];
@@ -43,6 +46,10 @@ export function PresetListPane({
   injectionKey: InjectionKeyFn | null;
   usedInjections: ReadonlySet<string>;
   stats: TreeStats;
+  /** Roadmap 069 (PR 4): the per-node description index — `null` when the run
+   *  has no description facts, and then no name carries a hover card. */
+  descFacts: ReadonlyMap<string, NodeDescriptionFacts> | null;
+  onShowDescriptionOrder?: () => void;
 }) {
   return (
     <div>
@@ -79,6 +86,8 @@ export function PresetListPane({
                     injectionKey={injectionKey}
                     usedInjections={usedInjections}
                     dupCount={stats.occurrencesByName.get(row.node.name)?.length ?? 1}
+                    facts={descFacts?.get(row.node.id)}
+                    onShowDescriptionOrder={onShowDescriptionOrder}
                   />
                 ))
               : tableSlice.map((r) => (

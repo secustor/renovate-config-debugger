@@ -2,8 +2,11 @@ import type { CSSProperties } from "react";
 import type { PresetNode } from "@renovate-config-debugger/engine";
 import type { NodeStats } from "@/components/preset-tree-stats";
 import { Explained } from "@/components/glossary";
+import { type HoverCardHandlers, HoverCardAnchor } from "@/components/hover-card";
 import { GLOSSARY } from "@/data/glossary-data";
 import { presetTreeNameClass } from "@/lib/preset-row-dom";
+import type { NodeDescriptionFacts } from "@/lib/tree-descriptions";
+import { NodeDescriptionCard } from "./NodeDescriptions";
 import type { Row } from "./rows";
 import {
   INDENT,
@@ -59,6 +62,8 @@ export function TreeRow({
   injectionKey,
   usedInjections,
   dupCount,
+  facts,
+  onShowDescriptionOrder,
 }: {
   row: Row;
   selectedId: string | null;
@@ -68,6 +73,13 @@ export function TreeRow({
   injectionKey: InjectionKeyFn | null;
   usedInjections: ReadonlySet<string>;
   dupCount: number;
+  /** Roadmap 069 (PR 4): this node's description facts — `undefined` for the
+   *  overwhelming majority of nodes, whose name then renders exactly as it
+   *  always did. Present, it puts a hover card on the name. */
+  facts?: NodeDescriptionFacts;
+  /** The card's "Show the full description array →" — jumps to the Effective
+   *  config and opens the `description` row's blame ledger (PR 3). */
+  onShowDescriptionOrder?: () => void;
 }) {
   const { node, stats } = row;
   // Roadmap 009: `failed` for every error except the two a user can act on —
@@ -83,6 +95,22 @@ export function TreeRow({
   // Hoisted out of the JSX: the render-prop closure below is created inside a
   // callback, so `node.source?.presetSource` re-widens to `| undefined` there.
   const presetSource = node.source?.presetSource;
+
+  // The name button, with or without the description hover card's handlers —
+  // one render function so the described and plain variants cannot drift.
+  const nameButton = (handlers?: HoverCardHandlers) => (
+    <button
+      type="button"
+      // The class App's landing finds the selected node by — written through
+      // the same module that spells the selector, so the two cannot drift
+      // (`lib/preset-row-dom.ts`). `described` is the hover affordance's cue.
+      className={`${presetTreeNameClass(node.id === selectedId)}${facts ? " described" : ""}`}
+      onClick={() => onSelect(node.id)}
+      {...handlers}
+    >
+      {node.name}
+    </button>
+  );
 
   return (
     <div
@@ -119,16 +147,19 @@ export function TreeRow({
           {chain.length > 1 ? " › … " : " "}›
         </button>
       ) : null}
-      <button
-        type="button"
-        // The class App's landing finds the selected node by — written through
-        // the same module that spells the selector, so the two cannot drift
-        // (`lib/preset-row-dom.ts`).
-        className={presetTreeNameClass(node.id === selectedId)}
-        onClick={() => onSelect(node.id)}
-      >
-        {node.name}
-      </button>
+      {facts ? (
+        // Roadmap 069 (PR 4): a node that wrote (or lost) a sentence of the
+        // final `description` says so on its NAME — a hover card, so the row
+        // itself stays exactly `ROW_HEIGHT`, which the windowing depends on.
+        <HoverCardAnchor
+          className="preset-desc-hover"
+          card={<NodeDescriptionCard facts={facts} onShowOrder={onShowDescriptionOrder} />}
+        >
+          {nameButton}
+        </HoverCardAnchor>
+      ) : (
+        nameButton()
+      )}
       {presetSource ? (
         <Explained entry={sourceKindEntry(presetSource)}>
           {(handlers) => (

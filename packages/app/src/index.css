@@ -1035,6 +1035,82 @@ button.badge.dup {
   text-overflow: ellipsis;
 }
 
+/* ---------- preset descriptions (roadmap 069 PR 4) ----------
+   A node that wrote (or lost) a sentence of the final `description` says so
+   ON its name: a hover card, so the rows stay exactly one ROW_HEIGHT (which
+   the windowing math depends on), and the detail panel repeats the same facts
+   as a Description entry. Both render the same `.preset-desc-line`s. */
+
+/* The cue on a described name — the `.opt-key.known` dotted-underline grammar,
+   in the preset hue, because the sentence is the preset's own. The name stays
+   a select button, so it keeps its pointer cursor. */
+.preset-name.described {
+  border-bottom: 1px dotted color-mix(in srgb, var(--accent-purple) 65%, transparent);
+}
+
+/* The card body and the panel entry share the line rendering. */
+.preset-desc-lines {
+  display: grid;
+  gap: 0.35rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* One fact: the quote behind a left rail in the preset hue, its muted note,
+   and the slot marker. */
+.preset-desc-line {
+  border-left: 2px solid color-mix(in srgb, var(--accent-purple) 45%, transparent);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  padding-left: 0.55rem;
+}
+
+/* A mute line is a fact about the node, not a quotation — no quote rail. */
+.preset-desc-line.desc-mute {
+  border-left-color: transparent;
+}
+
+.preset-desc-line .preset-desc-note {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.preset-desc-line .preset-desc-text + .preset-desc-note {
+  margin-left: 0.35rem;
+}
+
+/* A dropped sentence renders exactly like a contributed one, minus the slot
+   marker: wrapper and package-list presets shed their description by design,
+   so on the node itself the sentence is simply what the preset says about
+   itself. The drop mechanics live on the blame ledger's footer. */
+
+.preset-desc-line code {
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+}
+
+/* Where the sentence landed in the final array (`→ #16 of 24 · approx`). */
+.preset-desc-pos {
+  color: var(--muted);
+  font-size: 0.7rem;
+  margin-left: 0.4rem;
+  white-space: nowrap;
+}
+
+/* The hover card's jump to the Effective config's description row. */
+.preset-desc-order {
+  display: block;
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+/* The Description entry's value is prose — the source grid's break-all is for
+   URLs and paths and must not tear words apart here. */
+.preset-source .preset-source-desc dd {
+  word-break: normal;
+}
+
 /* flat table view */
 .preset-table-head,
 .preset-table-row {
