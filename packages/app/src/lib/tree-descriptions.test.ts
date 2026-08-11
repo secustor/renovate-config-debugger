@@ -102,6 +102,7 @@ describe("buildTreeDescriptions", () => {
         kind: "contribution",
         text: "Enable Renovate Dependency Dashboard creation.",
         note: undefined,
+        title: "Enable Renovate Dependency Dashboard creation.",
       },
     ]);
     expect(tree.byNodeId.get("p9")?.markers).toEqual([
@@ -212,6 +213,7 @@ describe("buildTreeDescriptions — drops", () => {
         kind: "dropped",
         text: "The config that Renovate recommends.",
         note: droppedNoteText(WRAPPER),
+        title: `The config that Renovate recommends. — ${droppedNoteText(WRAPPER).replaceAll("`", "")}`,
       },
     ]);
     // A drop is not a contribution — the title's count must not claim it.

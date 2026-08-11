@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import type { PresetNode } from "@renovate-config-debugger/engine";
 import type { NodeStats } from "@/components/preset-tree-stats";
-import type { NodeDescriptionFacts } from "@/lib/tree-descriptions";
+import type { DescLine, DescLineKind, NodeDescriptionFacts } from "@/lib/tree-descriptions";
 import { buildTreeListRows, type Row } from "./rows";
 
 /**
@@ -32,6 +32,10 @@ function facts(lines: NodeDescriptionFacts["lines"]): NodeDescriptionFacts {
   return { markers: [], lines };
 }
 
+function line(key: string, kind: DescLineKind, text: string, note?: string): DescLine {
+  return { key, kind, text, note, title: text };
+}
+
 const ROWS = [row("p1", 0), row("p2", 1), row("p3", 1)];
 
 describe("buildTreeListRows", () => {
@@ -47,12 +51,12 @@ describe("buildTreeListRows", () => {
     const list = buildTreeListRows(
       ROWS,
       new Map([
-        ["p2", facts([{ key: "c0", kind: "contribution", text: "Pin Docker digests." }])],
+        ["p2", facts([line("c0", "contribution", "Pin Docker digests.")])],
         [
           "p3",
           facts([
-            { key: "c1", kind: "contribution", text: "Group monorepos." },
-            { key: "mute", kind: "mute", text: "", note: "mutes 3 descriptions below" },
+            line("c1", "contribution", "Group monorepos."),
+            line("mute", "mute", "", "mutes 3 descriptions below"),
           ]),
         ],
       ]),
@@ -71,7 +75,7 @@ describe("buildTreeListRows", () => {
   test("a quote row inherits its node's indent, so it hangs under the name", () => {
     const list = buildTreeListRows(
       [row("p2", 3)],
-      new Map([["p2", facts([{ key: "c0", kind: "contribution", text: "Pin Docker digests." }])]]),
+      new Map([["p2", facts([line("c0", "contribution", "Pin Docker digests.")])]]),
     );
 
     const quote = list[1];

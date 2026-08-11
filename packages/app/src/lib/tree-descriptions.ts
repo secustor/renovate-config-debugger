@@ -60,6 +60,17 @@ export interface DescLine {
   text: string;
   /** The muted explanation after the text. */
   note?: string;
+  /** The row is ellipsized, so the untruncated text is its tooltip —
+   *  backticks stripped, since a `title` cannot render `<code>`. */
+  title: string;
+}
+
+function descLine(key: string, kind: DescLineKind, text: string, note?: string): DescLine {
+  const title = [text, note]
+    .filter((part) => part)
+    .join(" — ")
+    .replaceAll("`", "");
+  return { key, kind, text, note, title };
 }
 
 export interface NodeDescriptionFacts {
@@ -123,21 +134,20 @@ export function buildTreeDescriptions(provenance: DescriptionProvenance): TreeDe
         entry.duplicateOfIndex === undefined ? undefined : entry.duplicateOfIndex + 1,
       approximate: entry.approximate,
     });
-    facts.lines.push({
-      key: `c${entry.index}`,
-      kind: "contribution",
-      text: entry.value,
-      note: entry.approximate ? APPROXIMATE_NOTE : undefined,
-    });
+    facts.lines.push(
+      descLine(
+        `c${entry.index}`,
+        "contribution",
+        entry.value,
+        entry.approximate ? APPROXIMATE_NOTE : undefined,
+      ),
+    );
   }
 
   for (const [index, drop] of provenance.dropped.entries()) {
-    factsFor(drop.node.nodeId).lines.push({
-      key: `x${index}`,
-      kind: "dropped",
-      text: drop.value,
-      note: droppedNoteText(drop),
-    });
+    factsFor(drop.node.nodeId).lines.push(
+      descLine(`x${index}`, "dropped", drop.value, droppedNoteText(drop)),
+    );
     // …and the mute button that pressed it, which is a different node and the
     // one a reader would actually remove.
     const by = drop.droppedBy;
@@ -147,7 +157,7 @@ export function buildTreeDescriptions(provenance: DescriptionProvenance): TreeDe
   }
 
   for (const [nodeId, count] of mutes) {
-    factsFor(nodeId).lines.push({ key: "mute", kind: "mute", text: "", note: muteNoteText(count) });
+    factsFor(nodeId).lines.push(descLine("mute", "mute", "", muteNoteText(count)));
   }
 
   return byNodeId.size === 0 ? null : { byNodeId, contributorCount: contributors.size, total };

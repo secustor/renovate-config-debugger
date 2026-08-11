@@ -111,7 +111,7 @@ export function TreeDescRow({ depth, line }: { depth: number; line: DescLine }) 
     paddingLeft: depth * INDENT + DESC_INDENT,
   };
   return (
-    <div className={`preset-desc-row desc-${line.kind}`} style={style} title={descRowTitle(line)}>
+    <div className={`preset-desc-row desc-${line.kind}`} style={style} title={line.title}>
       {line.kind === "mute" ? null : (
         <span className="preset-desc-mark" aria-hidden="true">
           ❝
@@ -129,13 +129,6 @@ export function TreeDescRow({ depth, line }: { depth: number; line: DescLine }) 
       ) : null}
     </div>
   );
-}
-
-/** The row is ellipsized, so the untruncated text is the tooltip — backticks
- *  stripped, since a `title` cannot render `<code>`. */
-function descRowTitle(line: DescLine): string {
-  const parts = [line.text, line.note].filter((part) => part).join(" — ");
-  return parts.replaceAll("`", "");
 }
 
 /** Where a quote line starts relative to its node's indent: the caret column
