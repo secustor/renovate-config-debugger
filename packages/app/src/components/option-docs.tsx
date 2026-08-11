@@ -3,6 +3,7 @@ import type { OptionDoc, OptionIndex } from "@renovate-config-debugger/engine";
 import { useMoveGatedHover } from "@/hooks/hover-gate";
 import { OptionDocsContext, useOptionDocs } from "@/hooks/option-docs-hooks";
 import { type AnchorRect, anchoredCardStyle } from "@/lib/anchored-card";
+import { truncate } from "@/lib/truncate";
 
 /**
  * Inline documentation for renovate options (roadmap 003): a context carrying
@@ -148,10 +149,6 @@ function OptionCard({
       )}
     </div>
   );
-}
-
-function truncate(text: string, max: number): string {
-  return text.length > max ? `${text.slice(0, max)}…` : text;
 }
 
 interface OptionKeyProps {

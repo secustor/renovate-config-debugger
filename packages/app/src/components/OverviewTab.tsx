@@ -83,6 +83,7 @@ export const OverviewTab = memo(function OverviewTab({
   onOpen,
   onWhereFrom,
   onSelectPreset,
+  onShowRawOrder,
 }: {
   /** Roadmap 069: the run the "What this config does" card reads its
    *  descriptions off. Per-run identity, so the memo still bails on keystrokes. */
@@ -96,12 +97,19 @@ export const OverviewTab = memo(function OverviewTab({
   /** Selects a preset node in the resolution tree — the digest card's chips
    *  and leaf labels, wired exactly like the effective config's (013). */
   onSelectPreset?: (nodeId: string) => void;
+  /** Roadmap 069 (PR 3): opens Effective config on the `description` row's
+   *  blame ledger — the same "jump and land" mechanism as `onWhereFrom`. */
+  onShowRawOrder?: () => void;
 }) {
   return (
     <div className="overview-tab">
       {banner}
       <RunDigest clauses={digest} onOpen={onOpen} />
-      <DescriptionDigestCard result={result} onSelectPreset={onSelectPreset} />
+      <DescriptionDigestCard
+        result={result}
+        onSelectPreset={onSelectPreset}
+        onShowRawOrder={onShowRawOrder}
+      />
       <QuestionPills
         onWhereFrom={onWhereFrom}
         onDependency={() => onOpen("simulator")}

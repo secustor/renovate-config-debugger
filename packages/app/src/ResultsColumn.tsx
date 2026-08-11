@@ -70,6 +70,9 @@ export interface ResultsColumnProps {
   // —— overview ——
   digest: DigestClause[];
   onWhereFrom: () => void;
+  /** Roadmap 069: the digest card's "show raw order" link — jumps to Effective
+   *  config and lands on the `description` row's blame ledger. */
+  onShowDescriptionOrder: () => void;
 
   // —— pipeline ——
   selectedStage: StageId;
@@ -96,6 +99,9 @@ export interface ResultsColumnProps {
   // —— effective ——
   onEffectiveStats: (stats: EffectiveStats) => void;
   effectiveFilterNonce: number;
+  /** Roadmap 069: bumped alongside the jump above, so the row is filtered to
+   *  and expanded once the tab is on screen. */
+  descriptionLedgerNonce: number;
 
   // —— simulator ——
   pendingRuleFocus: number | null;
@@ -158,6 +164,7 @@ export function ResultsColumn({
   errorLib,
   digest,
   onWhereFrom,
+  onShowDescriptionOrder,
   selectedStage,
   onSelectStage,
   deferredStage,
@@ -174,6 +181,7 @@ export function ResultsColumn({
   onRunAgain,
   onEffectiveStats,
   effectiveFilterNonce,
+  descriptionLedgerNonce,
   pendingRuleFocus,
   onRuleFocused,
   simRequest,
@@ -256,6 +264,7 @@ export function ResultsColumn({
           onOpen={jumpToTab}
           onWhereFrom={onWhereFrom}
           onSelectPreset={selectPresetNode}
+          onShowRawOrder={onShowDescriptionOrder}
         />
       ),
       pipeline: (
@@ -330,6 +339,7 @@ export function ResultsColumn({
             onSelectPreset={selectPresetNode}
             onStats={onEffectiveStats}
             focusFilterNonce={effectiveFilterNonce}
+            focusDescriptionNonce={descriptionLedgerNonce}
           />
         </>
       ) : (
@@ -380,6 +390,7 @@ export function ResultsColumn({
     errorLib,
     digest,
     onWhereFrom,
+    onShowDescriptionOrder,
     selectedStage,
     onSelectStage,
     deferredStage,
@@ -395,6 +406,7 @@ export function ResultsColumn({
     installUrl,
     onEffectiveStats,
     effectiveFilterNonce,
+    descriptionLedgerNonce,
     pendingRuleFocus,
     onRuleFocused,
     simRequest,

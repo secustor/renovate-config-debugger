@@ -8,6 +8,7 @@ import {
   type DigestGroup,
   type DigestRule,
   groupContributionText,
+  hasTopLevelDescriptions,
   ruleNoteText,
   unattributedNoteText,
 } from "@/lib/description-digest";
@@ -259,11 +260,16 @@ function DigestFootnotes({ digest }: { digest: DescriptionDigest }) {
 export function DescriptionDigestCard({
   result,
   onSelectPreset,
+  onShowRawOrder,
 }: {
   result: TraceResult;
   /** Selects a node in the Preset Resolution Tree — the same callback the
    *  effective config hands its chips (App's `selectPresetNode`). */
   onSelectPreset?: (nodeId: string) => void;
+  /** Roadmap 069 (PR 3): opens the Effective config's `description` row, whose
+   *  blame ledger keeps the final array's own order — the fact this card
+   *  deliberately trades away by grouping. The link is the way back to it. */
+  onShowRawOrder?: () => void;
 }) {
   const provenance = useDescriptionProvenance(result);
   // "Show all", per group, owned HERE rather than by the list that renders the
@@ -298,6 +304,20 @@ export function DescriptionDigestCard({
       <div className="card-title">
         What this config does
         <span className="desc-digest-count">{descriptionCountText(digest.totals)}</span>
+        {/* Only when there IS a `description` row to land on: a digest built
+            purely from the repo's own `packageRules` prose has no top-level
+            array, so the link would filter the Effective config down to a key
+            that isn't there and land on "No keys match". */}
+        {onShowRawOrder && hasTopLevelDescriptions(digest) ? (
+          <button
+            type="button"
+            className="linklike desc-digest-raw"
+            title="Open the description row in the Effective config — every sentence in Renovate's own array order, with the preset that wrote it"
+            onClick={onShowRawOrder}
+          >
+            show raw order
+          </button>
+        ) : null}
       </div>
       <div className="desc-digest">
         {digest.groups.map((group) => (
