@@ -4,7 +4,7 @@ import type {
   DroppedDescription,
   ProvenanceLayer,
 } from "@renovate-config-debugger/engine";
-import { layerLabel } from "@/components/provenance-layer";
+import { layerId, layerLabel, layerNodeKey } from "@/components/provenance-layer";
 
 /**
  * Roadmap 069 (PR 3): the view-model behind the Effective config's blame
@@ -33,8 +33,16 @@ const nf = new Intl.NumberFormat();
 
 /** A consecutive run of entries that arrived through one top-level layer. */
 export interface LedgerGroup {
-  /** Stable React key: the layer identity plus where the run starts, since the
-   *  same layer can open more than one run. */
+  /**
+   * React key, stable ACROSS RUNS. The runs themselves break on the layer's
+   * NODE (a preset reached through two `extends` entries must stay two runs —
+   * that repeat is the story this row tells), but node ids are minted per run
+   * (`p1`, `p2`, …) and the panel stays mounted across edits, so a node-based
+   * key would let a run's "show all" state reattach to a different preset after
+   * the next keystroke. Hence the name-based `layerId`, plus an ordinal
+   * (`…#2`) for each further run of the same name — the same shape the
+   * Overview digest's group keys use.
+   */
   key: string;
   layer: ProvenanceLayer;
   entries: DescriptionAttribution[];
@@ -66,12 +74,17 @@ export const LEDGER_COLLAPSE_AFTER = 8;
  *  run — a footnote must not become the page. */
 export const DROPPED_COLLAPSE_AFTER = 8;
 
-function layerKey(layer: ProvenanceLayer): string {
-  return layer.kind === "preset" ? `preset:${layer.nodeId}` : layer.kind;
-}
-
+/** Cuts on a code point, never through one: a UTF-16 slice at `max` can land
+ *  between the halves of a surrogate pair and render the emoji it split as
+ *  U+FFFD. Checking the last kept unit is enough — only a trailing HIGH
+ *  surrogate can be an orphan — and costs nothing on a string of any size. */
 function truncate(text: string, max: number): string {
-  return text.length > max ? `${text.slice(0, max)}…` : text;
+  if (text.length <= max) {
+    return text;
+  }
+  const last = text.charCodeAt(max - 1);
+  const end = last >= 0xd800 && last <= 0xdbff ? max - 1 : max;
+  return `${text.slice(0, end)}…`;
 }
 
 /**
@@ -87,22 +100,32 @@ export function buildDescriptionLedger(
   }
   const groups: LedgerGroup[] = [];
   const writers = new Set<string>();
+  const keyUses = new Map<string, number>();
   for (const entry of provenance.entries) {
     // Only strings that arrived through a preset — the repo's own sentences are
     // written by the root node, which is a config, not a preset — and counted
     // by name, because a preset reached twice is still one preset. (The runs
-    // below key on the NODE, deliberately: there the second arrival is the
+    // below BREAK on the node, deliberately: there the second arrival is the
     // whole story.)
     if (entry.node && entry.viaTopLevel.kind === "preset") {
       writers.add(entry.node.name);
     }
-    const key = layerKey(entry.viaTopLevel);
+    const nodeKey = layerNodeKey(entry.viaTopLevel);
     const open = groups.at(-1);
-    if (open && layerKey(open.layer) === key) {
+    if (open && layerNodeKey(open.layer) === nodeKey) {
       open.entries.push(entry);
-    } else {
-      groups.push({ key: `${key}@${entry.index}`, layer: entry.viaTopLevel, entries: [entry] });
+      continue;
     }
+    // A new run: named after the layer, disambiguated by how many runs of that
+    // name opened before it — the per-run node id must not reach the key.
+    const base = layerId(entry.viaTopLevel);
+    const seen = keyUses.get(base) ?? 0;
+    keyUses.set(base, seen + 1);
+    groups.push({
+      key: seen === 0 ? base : `${base}#${seen + 1}`,
+      layer: entry.viaTopLevel,
+      entries: [entry],
+    });
   }
   return {
     groups,
@@ -111,6 +134,36 @@ export function buildDescriptionLedger(
     dropped: provenance.dropped,
     degraded: provenance.degraded,
   };
+}
+
+/**
+ * Is this ledger the row's ACTUAL final value, string for string?
+ *
+ * The engine's walk only ever attributes strings, but `description` is merely
+ * `type: array, subType: string` to Renovate — `{"description": ["keep", 42]}`
+ * validates with a warning and still merges, so the final array can hold
+ * members the ledger has no line for. Rendering it anyway would print "1 entry"
+ * over a two-member array and make the `42` invisible, which is strictly worse
+ * than the generic override chain the row used to show.
+ *
+ * So the row asks this first, positionally: same length, and every member
+ * strictly equal to the string attributed at that index (strict equality
+ * against a string also rejects any non-string member). On `false` the row
+ * falls back to the chain — the ledger is an enrichment, never a replacement
+ * for the truth.
+ */
+export function ledgerMatchesFinalValue(ledger: DescriptionLedger, finalValue: unknown): boolean {
+  if (!Array.isArray(finalValue) || finalValue.length !== ledger.entryCount) {
+    return false;
+  }
+  for (const group of ledger.groups) {
+    for (const entry of group.entries) {
+      if (finalValue[entry.index] !== entry.value) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 /** How much of the array fits in a collapsed row's preview cell. The generic

@@ -13,7 +13,7 @@ import type {
 } from "@renovate-config-debugger/engine";
 import { runPipeline, type TraceResult } from "@renovate-config-debugger/engine";
 import type * as DescriptionProvenanceHook from "@/hooks/description-provenance";
-import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { DescriptionDigestCard } from "./DescriptionDigestCard";
 import { ROOT_NODE_ID } from "./preset-tree-stats";
@@ -113,6 +113,49 @@ it("renders the descriptions grouped by extend, with the user's rules", async ()
   // The leaf label is the tree jump, exactly like the effective config's chips.
   fireEvent.click(leaf);
   expect(onSelectPreset).toHaveBeenCalledTimes(1);
+});
+
+/**
+ * Roadmap 069 (PR 3): the "show raw order" link is a jump to the Effective
+ * config's `description` row — so it may only appear when that row exists.
+ */
+it("offers the raw order only when there is a description row to land on", async () => {
+  const withArray = await runPipeline({
+    fileName: "renovate.json",
+    content: JSON.stringify(CONFIG),
+  });
+  const onShowRawOrder = vi.fn();
+  const view = render(<DescriptionDigestCard result={withArray} onShowRawOrder={onShowRawOrder} />);
+
+  await waitFor(() => expect(view.queryByText("show raw order")).not.toBeNull());
+  fireEvent.click(view.getByText("show raw order"));
+  expect(onShowRawOrder).toHaveBeenCalledTimes(1);
+
+  // Rules-only: the card still has something to say (the user's own rule prose
+  // has no other home), but Renovate never hoists it into `description`, so the
+  // link would filter the Effective config down to a key that is not there.
+  const rulesOnly = await runPipeline({
+    fileName: "renovate.json",
+    content: JSON.stringify({
+      packageRules: [
+        {
+          description: "Slow down risky major updates",
+          matchUpdateTypes: ["major"],
+          minimumReleaseAge: "14 days",
+        },
+      ],
+    }),
+  });
+  const second = render(
+    <DescriptionDigestCard result={rulesOnly} onShowRawOrder={onShowRawOrder} />,
+  );
+  // Scoped to the second render's own container: both are mounted in the same
+  // body, and the bound queries would find the first card's link.
+  const card = within(second.container);
+
+  await waitFor(() => expect(card.getByText("Slow down risky major updates")).toBeTruthy());
+  expect(card.queryByText("show raw order")).toBeNull();
+  expect(onShowRawOrder).toHaveBeenCalledTimes(1);
 });
 
 it("renders nothing when the config has no descriptions at all", async () => {

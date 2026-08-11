@@ -28,6 +28,7 @@ import { useDescriptionProvenance } from "@/hooks/description-provenance";
 import {
   buildDescriptionLedger,
   type DescriptionLedger,
+  ledgerMatchesFinalValue,
   ledgerPreviewText,
   ledgerWriterText,
 } from "@/lib/description-ledger";
@@ -50,6 +51,23 @@ type Provenance = Map<string, KeyProvenance>;
 /** Roadmap 069: the one key whose expanded body is a per-string blame ledger
  *  rather than an override chain — see `BlameLedger`. */
 const DESCRIPTION_KEY = "description";
+
+/**
+ * The ledger a row renders with: only the `description` row has one at all
+ * (`undefined` everywhere else), and only when it accounts for that row's final
+ * value string for string. A `description` array carrying a non-string member
+ * — legal enough for Renovate to merge — has no line in the ledger, so the row
+ * keeps the generic preview and chain rather than quietly under-reporting it.
+ */
+function ledgerForRow(
+  entry: KeyProvenance,
+  ledger: DescriptionLedger | null,
+): DescriptionLedger | null | undefined {
+  if (entry.key !== DESCRIPTION_KEY) {
+    return undefined;
+  }
+  return ledger && ledgerMatchesFinalValue(ledger, entry.finalValue) ? ledger : null;
+}
 
 // `LayerId` IS `string`, so `| "all"` is formally redundant — it stays as
 // documentation that "all" is the sentinel this filter uses for "no layer
@@ -823,10 +841,18 @@ export const EffectiveConfig = memo(function EffectiveConfig({
   // Roadmap 069: the digest card's "show raw order" link lands on the blame
   // ledger — the row is one of ~90, so arriving at the tab is not arriving at
   // the answer. Filter, expand, no focus steal: the reader is here to read.
+  // …which means clearing every OTHER filter too, not just setting the query:
+  // a layer filter or "only overridden" left over from earlier reading would
+  // hide the very row the link promised, and the reader would land on "No keys
+  // match". `showDefaults` is deliberately left alone — `description` has no
+  // Renovate default, so the row can never be default-only and that checkbox
+  // cannot hide it.
   useEffect(() => {
     if (focusDescriptionNonce) {
       setView("keys");
       setQuery(DESCRIPTION_KEY);
+      setLayerFilter("all");
+      setOnlyOverridden(false);
       setExpanded(new Set([DESCRIPTION_KEY]));
     }
   }, [focusDescriptionNonce]);
@@ -907,7 +933,7 @@ export const EffectiveConfig = memo(function EffectiveConfig({
                   key={entry.key}
                   entry={entry}
                   ruleAttribution={entry.key === "packageRules" ? ruleAttribution : undefined}
-                  ledger={entry.key === DESCRIPTION_KEY ? ledger : undefined}
+                  ledger={ledgerForRow(entry, ledger)}
                   expanded={expanded.has(entry.key)}
                   onToggle={() =>
                     setExpanded((prev) => {

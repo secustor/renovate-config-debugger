@@ -20,6 +20,7 @@ import {
   viaNoteText,
 } from "@/lib/description-ledger";
 import { CodeText } from "./CodeText";
+import { ROOT_NODE_ID } from "./preset-tree-stats";
 import { layerLabel } from "./provenance-layer";
 import { ProvenanceChip } from "./ProvenanceChip";
 
@@ -41,12 +42,21 @@ import { ProvenanceChip } from "./ProvenanceChip";
  * "which line do I delete" readable at a glance.
  */
 
-/** The chip a row wears: the node that WROTE the sentence when there is one
- *  (that is the answer the reader came for — usually a preset several levels
- *  below the extend they wrote), falling back to the arrival layer for the
- *  strings that have no preset tree at all (defaults / global / inherited). */
+/**
+ * The chip a row wears: the node that WROTE the sentence when there is one
+ * (that is the answer the reader came for — usually a preset several levels
+ * below the extend they wrote), falling back to the arrival layer for the
+ * strings that have no preset tree at all (defaults / global / inherited).
+ *
+ * The root node falls back too, and for a sharper reason: it is the input
+ * config, not a preset, and the tree has no row for it (`flattenTree` starts at
+ * the root's children). Chipped as a preset it would be clickable and select a
+ * node that never renders — a phantom preset in the detail panel. Its arrival
+ * layer is the repo/global/inherited config that actually wrote the sentence,
+ * which is both true and, being non-preset, not a jump.
+ */
 function sourceLayer(entry: DescriptionAttribution): ProvenanceLayer {
-  return entry.node
+  return entry.node && entry.node.nodeId !== ROOT_NODE_ID
     ? { kind: "preset", nodeId: entry.node.nodeId, name: entry.node.name }
     : entry.viaTopLevel;
 }
@@ -75,9 +85,9 @@ function LedgerSource({
   const via = viaNoteText(entry);
   return (
     <span className="desc-ledger-src">
-      {entry.approximate ? (
-        <ApproximateMark name={entry.node?.name ?? layerLabel(entry.viaTopLevel)} />
-      ) : null}
+      {/* Named after the chip beside it, whatever that resolved to — the two
+          must never disagree about which thing was approximated. */}
+      {entry.approximate ? <ApproximateMark name={layerLabel(sourceLayer(entry))} /> : null}
       <ProvenanceChip layer={sourceLayer(entry)} onSelectPreset={onSelectPreset} />
       {via ? <span className="desc-ledger-via">{via}</span> : null}
     </span>

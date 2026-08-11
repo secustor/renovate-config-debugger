@@ -102,7 +102,77 @@ it("expands the description row into a per-string blame ledger", async () => {
   // The chain rendering belongs to every OTHER key now.
   expect(view.container.textContent).not.toContain("Override chain");
 
+  // The repo's own sentence is written by the ROOT node — the input config,
+  // which is not a preset and has no row in the resolution tree. It wears the
+  // repo-config chip, so there is no jump to promise and none to break.
+  const repoChip = within(ledger).getByText("repo config");
+  expect(repoChip.getAttribute("role")).toBeNull();
+  expect(within(ledger).queryByText("(input config)")).toBeNull();
+  fireEvent.click(repoChip);
+  expect(onSelectPreset).not.toHaveBeenCalled();
+
   // The source chip is the tree jump, exactly like the row's own origin chip.
   fireEvent.click(within(ledger).getByText(":dependencyDashboard"));
   expect(onSelectPreset).toHaveBeenCalledTimes(1);
+});
+
+/**
+ * Roadmap 069 (PR 3): `description` is `type: array, subType: string` to
+ * Renovate — a non-string member is a validation warning, not a refusal, and
+ * still merges. The engine's walk only attributes strings, so the ledger would
+ * silently omit it; the row has to notice and hand back to the generic chain.
+ */
+it("keeps the generic rendering when the ledger cannot account for the whole array", async () => {
+  const result = await runPipeline({
+    fileName: "renovate.json",
+    content: JSON.stringify({ description: ["Keep this.", 42] }),
+  });
+
+  const view = render(<EffectiveConfig result={result} />);
+
+  await waitFor(() => expect(view.container.querySelector(".prov-row")).not.toBeNull());
+  const head = descriptionRow(view.container);
+  // The ledger's "2 entries — …" would be a lie: it has one line for a
+  // two-member array.
+  expect(head.textContent).toContain("[ 2 items ]");
+  expect(head.textContent).not.toContain("entries");
+
+  fireEvent.click(head);
+  expect(view.container.querySelector(".desc-ledger")).toBeNull();
+  expect(view.container.textContent).toContain("Override chain");
+});
+
+/**
+ * Roadmap 069 (PR 3): the digest card's "show raw order" link promises the
+ * description row. Landing has to CLEAR the filters, not just set the query —
+ * a layer filter or "only overridden" left from earlier reading would hide the
+ * one row the link exists to show. (`show default-only` is left alone:
+ * `description` has no Renovate default, so it is never a default-only row.)
+ */
+it("clears the other filters when the digest card lands on the description row", async () => {
+  const result = await runPipeline({
+    fileName: "renovate.json",
+    content: JSON.stringify({
+      extends: [":dependencyDashboard"],
+      description: "My own summary.",
+    }),
+  });
+
+  const view = render(<EffectiveConfig result={result} />);
+  await waitFor(() => expect(view.container.querySelector(".prov-row")).not.toBeNull());
+
+  // Reading state a user can easily be in: "only what the defaults set", plus
+  // "only overridden". Neither can ever show the description row.
+  const layerSelect = view.getByLabelText("Filter keys by layer");
+  fireEvent.change(layerSelect, { target: { value: "defaults" } });
+  const onlyOverridden = view.getByLabelText("only overridden");
+  fireEvent.click(onlyOverridden);
+  expect(view.container.querySelector(".desc-ledger")).toBeNull();
+
+  view.rerender(<EffectiveConfig result={result} focusDescriptionNonce={1} />);
+
+  await waitFor(() => expect(view.container.querySelector(".desc-ledger")).not.toBeNull());
+  expect(descriptionRow(view.container).textContent).toContain("entries");
+  expect((layerSelect as HTMLSelectElement).value).toBe("all");
+  expect((onlyOverridden as HTMLInputElement).checked).toBe(false);
 });

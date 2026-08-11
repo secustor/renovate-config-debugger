@@ -11,6 +11,7 @@ import {
   type DigestGroup,
   type DigestRule,
   groupContributionText,
+  hasTopLevelDescriptions,
   ruleNoteText,
   unattributedNoteText,
 } from "./description-digest";
@@ -383,6 +384,23 @@ describe("totals and empty state", () => {
     // 4 entries, one of them a repeat.
     expect(digest.totals).toEqual({ behaviors: 3, extendsCount: 2, hasUserRules: true });
     expect(descriptionCountText(digest.totals)).toBe("3 behaviors · from 2 extends + your rules");
+    expect(hasTopLevelDescriptions(digest)).toBe(true);
+  });
+
+  test("a digest whose every entry is a repeat still has a description row", () => {
+    // `behaviors: 0` says the strings added nothing NEW — the final
+    // `description` array still holds them, so the row exists.
+    const digest = digestOf(
+      provenance({
+        entries: entries([
+          { value: "Dashboard.", via: BEST_PRACTICES },
+          { value: "Dashboard.", via: DASHBOARD },
+        ]),
+      }),
+    );
+
+    expect(digest.totals.behaviors).toBe(1);
+    expect(hasTopLevelDescriptions(digest)).toBe(true);
   });
 
   test("no descriptions anywhere means no card", () => {
@@ -399,6 +417,9 @@ describe("totals and empty state", () => {
 
     expect(digest.totals).toEqual({ behaviors: 0, extendsCount: 0, hasUserRules: true });
     expect(descriptionCountText(digest.totals)).toBe("from your rules");
+    // …but no top-level `description` key at all: Renovate never hoists a
+    // rule's prose, so there is no Effective config row to send a reader to.
+    expect(hasTopLevelDescriptions(digest)).toBe(false);
   });
 
   test("carries the array members that are not text, and says so", () => {

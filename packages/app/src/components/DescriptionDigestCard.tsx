@@ -8,6 +8,7 @@ import {
   type DigestGroup,
   type DigestRule,
   groupContributionText,
+  hasTopLevelDescriptions,
   ruleNoteText,
   unattributedNoteText,
 } from "@/lib/description-digest";
@@ -303,7 +304,11 @@ export function DescriptionDigestCard({
       <div className="card-title">
         What this config does
         <span className="desc-digest-count">{descriptionCountText(digest.totals)}</span>
-        {onShowRawOrder ? (
+        {/* Only when there IS a `description` row to land on: a digest built
+            purely from the repo's own `packageRules` prose has no top-level
+            array, so the link would filter the Effective config down to a key
+            that isn't there and land on "No keys match". */}
+        {onShowRawOrder && hasTopLevelDescriptions(digest) ? (
           <button
             type="button"
             className="linklike desc-digest-raw"

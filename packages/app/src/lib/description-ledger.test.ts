@@ -16,6 +16,7 @@ import {
   hiddenCount,
   LEDGER_COLLAPSE_AFTER,
   type LedgerGroup,
+  ledgerMatchesFinalValue,
   ledgerPreviewText,
   ledgerWriterText,
   moreDroppedText,
@@ -138,10 +139,56 @@ describe("buildDescriptionLedger", () => {
     );
 
     expect(ledger.groups).toHaveLength(3);
+    // The runs break on the NODE, but the keys are named after the layer, with
+    // an ordinal for the second run of the same name.
     expect(ledger.groups.map((group) => group.key)).toEqual([
-      "preset:n1@0",
-      "preset:n2@1",
-      "preset:n1@2",
+      "preset:config:best-practices",
+      "preset::dependencyDashboard",
+      "preset:config:best-practices#2",
+    ]);
+  });
+
+  test("run keys survive a re-run, which mints new node ids", () => {
+    // The panel stays mounted while every keystroke produces a new run and
+    // hands out `p1`, `p2`, … afresh — a node-id key would silently move a
+    // run's "show all" state onto whichever preset inherited the id.
+    const spec: EntrySpec[] = [
+      { value: "a", via: preset("p1", "config:best-practices") },
+      { value: "b", via: preset("p2", "group:monorepos") },
+      { value: "c", via: preset("p3", "config:best-practices") },
+    ];
+    const first = ledgerOf(provenance({ entries: entries(spec) }));
+    const rerun = ledgerOf(
+      provenance({
+        entries: entries([
+          { value: "a", via: preset("p7", "config:best-practices") },
+          { value: "b", via: preset("p8", "group:monorepos") },
+          { value: "c", via: preset("p9", "config:best-practices") },
+        ]),
+      }),
+    );
+
+    expect(rerun.groups.map((group) => group.key)).toEqual(first.groups.map((group) => group.key));
+    // …and still three runs: the repeat is the story, and the key only has to
+    // be stable, not unique per node.
+    expect(rerun.groups).toHaveLength(3);
+  });
+
+  test("two adjacent nodes of the same preset stay two runs", () => {
+    // Name-keyed grouping would fold these into one run and erase the fact
+    // that the preset was extended twice.
+    const ledger = ledgerOf(
+      provenance({
+        entries: entries([
+          { value: "a", via: preset("p1", ":dependencyDashboard") },
+          { value: "a", via: preset("p2", ":dependencyDashboard") },
+        ]),
+      }),
+    );
+
+    expect(ledger.groups.map((group) => group.key)).toEqual([
+      "preset::dependencyDashboard",
+      "preset::dependencyDashboard#2",
     ]);
   });
 
@@ -186,6 +233,43 @@ describe("buildDescriptionLedger", () => {
   });
 });
 
+describe("ledgerMatchesFinalValue", () => {
+  const three = provenance({
+    entries: entries([
+      { value: "a", via: REPO, node: "root" },
+      { value: "b", via: BEST_PRACTICES, node: "p1" },
+      { value: "c", via: BEST_PRACTICES, node: "p1" },
+    ]),
+  });
+
+  test("accepts the array the entries were attributed from", () => {
+    expect(ledgerMatchesFinalValue(ledgerOf(three), ["a", "b", "c"])).toBe(true);
+  });
+
+  test("rejects a non-string member the walk never saw", () => {
+    // `{"description": ["keep", 42]}` is merged by Renovate (type: array,
+    // subType: string — a warning, not a refusal), but only the string is
+    // attributed. Rendering the ledger would report "1 entry" over a
+    // two-member array and make the 42 invisible.
+    const ledger = ledgerOf(
+      provenance({ entries: entries([{ value: "keep", via: REPO, node: "root" }]) }),
+    );
+
+    expect(ledgerMatchesFinalValue(ledger, ["keep", 42])).toBe(false);
+    expect(ledgerMatchesFinalValue(ledger, [42, "keep"])).toBe(false);
+  });
+
+  test("rejects a length mismatch, a reordering and a non-array value", () => {
+    const ledger = ledgerOf(three);
+
+    expect(ledgerMatchesFinalValue(ledger, ["a", "b"])).toBe(false);
+    expect(ledgerMatchesFinalValue(ledger, ["a", "b", "c", "d"])).toBe(false);
+    expect(ledgerMatchesFinalValue(ledger, ["c", "b", "a"])).toBe(false);
+    expect(ledgerMatchesFinalValue(ledger, "a b c")).toBe(false);
+    expect(ledgerMatchesFinalValue(ledger, undefined)).toBe(false);
+  });
+});
+
 describe("the collapsed row's cells", () => {
   test("the preview counts the strings and quotes as many as fit", () => {
     const ledger = ledgerOf(
@@ -206,6 +290,23 @@ describe("the collapsed row's cells", () => {
     // to summarise.
     expect(text.endsWith("…")).toBe(true);
     expect(text.length).toBeLessThan(100);
+  });
+
+  test("the truncation cuts on a character, never through one", () => {
+    // A surrogate pair straddling the 80-unit cut would leave half an emoji in
+    // the cell, which renders as U+FFFD.
+    const split = ledgerOf(
+      provenance({ entries: entries([{ value: `${"a".repeat(78)}😀tail`, via: REPO }]) }),
+    );
+    const whole = ledgerOf(
+      provenance({ entries: entries([{ value: `${"a".repeat(77)}😀tail`, via: REPO }]) }),
+    );
+
+    // Dropped rather than halved…
+    expect(ledgerPreviewText(split)).toBe(`1 entry — "${"a".repeat(78)}…`);
+    expect(/[\uD800-\uDFFF]/.test(ledgerPreviewText(split))).toBe(false);
+    // …and kept whole when it fits, so the back-off never eats a full one.
+    expect(ledgerPreviewText(whole)).toBe(`1 entry — "${"a".repeat(77)}😀…`);
   });
 
   test("one string is one entry", () => {

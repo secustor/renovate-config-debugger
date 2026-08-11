@@ -217,6 +217,19 @@ export function buildDescriptionDigest(
   };
 }
 
+/**
+ * Does this digest have anything in the final top-level `description` array?
+ *
+ * A config whose only prose sits on its own `packageRules` still produces a
+ * digest — those rule descriptions have no other home in the app — but it
+ * produces no `description` key, so anything offering "see these in the
+ * Effective config's description row" has to ask first, or promise a row that
+ * does not exist.
+ */
+export function hasTopLevelDescriptions(digest: DescriptionDigest): boolean {
+  return digest.groups.some((group) => group.entries.length > 0);
+}
+
 /** The card title's muted count: `22 behaviors · from 3 extends + your rules`. */
 export function descriptionCountText(totals: DescriptionDigestTotals): string {
   const parts: string[] = [];
