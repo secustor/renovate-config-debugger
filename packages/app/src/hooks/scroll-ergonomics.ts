@@ -62,9 +62,11 @@ export function isTextEditingTarget(target: EventTarget | null): boolean {
     return false;
   }
   const tag = target.tagName;
-  if (tag === "INPUT") {
-    const type = (target as HTMLInputElement).type.toLowerCase();
-    return !NON_TEXT_INPUT_TYPES.has(type);
+  if (
+    tag === "INPUT" &&
+    !NON_TEXT_INPUT_TYPES.has((target as HTMLInputElement).type.toLowerCase())
+  ) {
+    return true;
   }
   // A `<select>` has no free-text cursor either, but its native type-ahead
   // (jumping to an option by the letter typed) must keep winning over the
@@ -72,7 +74,49 @@ export function isTextEditingTarget(target: EventTarget | null): boolean {
   if (tag === "TEXTAREA" || tag === "SELECT") {
     return true;
   }
+  // Roadmap 067 review: a NON-text input still counts when it sits INSIDE the
+  // editor, which is why the branch above falls through here instead of
+  // returning false. `basicSetup` installs `searchKeymap` and the `?` sheet
+  // advertises ⌘F, and `@codemirror/search` renders its match-case, regexp and
+  // by-word toggles as `<input type="checkbox">` within `.cm-editor` — so with
+  // the search panel open and focus on one of them, End scrolled the whole page
+  // (taking the editor off screen) and `1`–`7` switched the results tab and took
+  // focus with it, abandoning the search in progress. The old `tag === "INPUT"`
+  // short-circuit returned before this line, which is what kept it invisible.
   return isEditorTarget(target);
+}
+
+/**
+ * Whether the browser MAY be drawing a popup of its own for this control —
+ * today exactly a `<datalist>` combobox, which in this app is the simulator's
+ * `datasource` and `manager` fields (047).
+ *
+ * "May", not "is": a native suggestion popup has no DOM presence, no CSS and no
+ * events, so nothing in the page can ask whether it is open. It nevertheless
+ * owns two keys while it is up, and they are two keys the app also wants —
+ * Escape dismisses the suggestions, Enter accepts one. Since the state is
+ * unknowable, the honest rule is to hand both keys to the control whenever a
+ * popup COULD be there, and to pay for it in the one place it costs: from these
+ * two fields Escape does not reach the Escape ladder (`use-escape-layer.ts`) and
+ * Enter does not submit the form (`SimulatorForm.tsx`). Tabbing out of the field
+ * restores both, and no other field in the app is affected — which is what
+ * keeps the constraint round three established: Escape from a text field must
+ * still dismiss a layer.
+ *
+ * A `<select>` is deliberately NOT counted, though its popup is just as
+ * invisible. A select's list opens only on a deliberate act (Space, Alt+Down, or
+ * 067's own `showPicker` on Enter) rather than as a side effect of typing, and
+ * selects are everywhere in this app — counting them would recreate round one's
+ * far-too-wide "yield to every form control" rule in order to cover a popup that
+ * is almost never open when a key arrives.
+ */
+export function mayOwnNativePopup(target: EventTarget | null): boolean {
+  // The ATTRIBUTE, not the resolved `list` element. The question is whether
+  // this control is a combobox at all, and resolving the id would answer a
+  // narrower one that buys nothing: `RegistryDatalist` renders its `<datalist>`
+  // empty until the engine chunk arrives with the 81 datasource names, so a
+  // resolved list is no evidence a popup can appear either.
+  return target instanceof HTMLInputElement && target.hasAttribute("list");
 }
 
 export function useHomeEndPageScroll(): void {

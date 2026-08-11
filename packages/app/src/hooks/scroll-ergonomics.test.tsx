@@ -1,7 +1,12 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { claimModalKeyboard } from "@/lib/escape-stack";
-import { isEditorTarget, isTextEditingTarget, useHomeEndPageScroll } from "./scroll-ergonomics";
+import {
+  isEditorTarget,
+  isTextEditingTarget,
+  mayOwnNativePopup,
+  useHomeEndPageScroll,
+} from "./scroll-ergonomics";
 
 /**
  * Roadmap 067 — `isTextEditingTarget` is shared by the 016 Home/End page-scroll
@@ -56,6 +61,22 @@ describe("isTextEditingTarget", () => {
     expect(isTextEditingTarget(document.createElement("select"))).toBe(true);
   });
 
+  it("counts a NON-text input inside the editor — the search panel's toggles", () => {
+    // Roadmap 067 review: `basicSetup` installs `searchKeymap` and the sheet
+    // advertises ⌘F, and `@codemirror/search` renders match-case, regexp and
+    // by-word as checkboxes INSIDE `.cm-editor`. Without falling through to the
+    // editor check, End scrolled the editor off screen and `1`-`7` switched the
+    // results tab while the user was mid-search.
+    const cmRoot = document.createElement("div");
+    cmRoot.className = "cm-editor";
+    const toggle = input("checkbox");
+    cmRoot.appendChild(toggle);
+    expect(isTextEditingTarget(toggle)).toBe(true);
+    // …and the same checkbox outside the editor still isn't typing, which is
+    // the filter-checkbox case above.
+    expect(isTextEditingTarget(input("checkbox"))).toBe(false);
+  });
+
   it("counts a descendant of the CodeMirror editor as typing", () => {
     // `isContentEditable` itself is jsdom's own concern (unsupported in this
     // jsdom version, which is a jsdom limitation, not app behavior) — the
@@ -95,6 +116,30 @@ describe("isEditorTarget", () => {
     expect(isEditorTarget(document.createElement("select"))).toBe(false);
     expect(isEditorTarget(null)).toBe(false);
     expect(isEditorTarget(window)).toBe(false);
+  });
+});
+
+describe("mayOwnNativePopup", () => {
+  it("counts an input wired to a datalist, whose popup the page cannot see", () => {
+    // The simulator's `datasource` / `manager` fields (047). Escape there
+    // dismisses the native suggestions and Enter accepts one, so the Escape
+    // ladder and the form both stand aside rather than guess whether the popup
+    // is up — nothing in the page can find out.
+    const el = input("text");
+    el.setAttribute("list", "datasources");
+    expect(mayOwnNativePopup(el)).toBe(true);
+  });
+
+  it("counts nothing else — a plain field's Escape still reaches the ladder", () => {
+    // The constraint round three established: yielding for "any text input" is
+    // what left the return pill and the session menu undismissable from a form
+    // field. A `<select>` is excluded deliberately too: its popup opens only on
+    // a deliberate act, never as a side effect of typing.
+    expect(mayOwnNativePopup(input("text"))).toBe(false);
+    expect(mayOwnNativePopup(document.createElement("select"))).toBe(false);
+    expect(mayOwnNativePopup(document.createElement("textarea"))).toBe(false);
+    expect(mayOwnNativePopup(null)).toBe(false);
+    expect(mayOwnNativePopup(window)).toBe(false);
   });
 });
 

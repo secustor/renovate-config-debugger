@@ -9,6 +9,8 @@
  * project without jsdom.
  */
 
+import { RESULTS_TAB_IDS } from "@/data/results-tabs";
+
 export interface Shortcut {
   readonly id: string;
   /**
@@ -29,6 +31,25 @@ export interface Shortcut {
   readonly shift?: boolean;
   /** What it does, in the imperative — used in `title` text and the sheet. */
   readonly label: string;
+  /**
+   * Fires even while a popover or menu covers the page — the gate `useShortcut`
+   * otherwise applies to every bare key (`overlayKeyboardOwned()`).
+   *
+   * Roadmap 067 review: that gate is right for the JUMP keys, which MOVE the
+   * page under a layer the reader is looking at — `2` beneath a rule-evidence
+   * card left it explaining a rule no longer on screen. Help is a different kind
+   * of key: it opens a modal that claims the keyboard outright, so nothing
+   * shifts underneath, and "how do I use this" is exactly the question of
+   * someone stuck under an open layer. The session menu's own row advertises
+   * `?`, so suppressing it there made the app break a promise it had printed one
+   * line above the key.
+   *
+   * Declared on the ENTRY, not tested by id in the hook, so the exemption is
+   * visible where the binding is defined. It never exempts anything from
+   * `isTextEditingTarget`: `?` is a character a user can be in the middle of
+   * typing.
+   */
+  readonly firesUnderOverlay?: boolean;
 }
 
 /** The event shape `matchShortcut` needs; `KeyboardEvent` satisfies it. */
@@ -98,6 +119,9 @@ export const HELP_SHORTCUT: Shortcut = {
   id: "help",
   key: "?",
   mod: false,
+  // The one binding that survives an open menu or popover — see
+  // `firesUnderOverlay`. The session menu prints "Press ? any time".
+  firesUnderOverlay: true,
   label: "Show this list",
 };
 
@@ -209,6 +233,13 @@ export interface ShortcutSection {
 export function shortcutSheet(apple = isApplePlatform()): ShortcutSection[] {
   const mod = apple ? "⌘" : "Ctrl";
   const join = apple ? "" : "+";
+  // Roadmap 067 review: DERIVED, never written out. `useTabDigits` is wired to
+  // the live tab count and `roving-tabs.ts` forbids a frozen digit-to-tab map
+  // for the same reason — 062 renames `Simulator` and inserts `Extraction`, and
+  // a hardcoded "1 – 7" would then leave `8` working while the app's only
+  // keyboard documentation said the range stopped at 7. Clamped at 9 because
+  // that is where `digitTabIndex` stops: a tenth tab has no digit to print.
+  const lastTabDigit = Math.min(RESULTS_TAB_IDS.length, 9);
   return [
     {
       title: "Anywhere",
@@ -217,7 +248,7 @@ export function shortcutSheet(apple = isApplePlatform()): ShortcutSection[] {
           keys: formatShortcut(shortcut, apple),
           what: shortcut.label,
         })),
-        { keys: "1 – 7", what: "Jump straight to that results tab" },
+        { keys: `1 – ${lastTabDigit}`, what: "Jump straight to that results tab" },
         // Roadmap 067 review: this is NOT true inside a text field, a
         // <select>, or the results tab strip — `isTextEditingTarget` bails
         // `useHomeEndPageScroll` on the first, and the strip claims the key
@@ -253,6 +284,14 @@ export function shortcutSheet(apple = isApplePlatform()): ShortcutSection[] {
         // defers Enter to that same implicit submission instead — see
         // `select-picker.ts`. This row is only true of a standalone select.
         { keys: "Enter", what: "Open a dropdown, for a select outside a form" },
+        // Roadmap 067 review: the row above is NOT true of the simulator's
+        // `datasource` / `manager` comboboxes, where Enter is how the native
+        // suggestion list is accepted — `SimulatorForm` declines implicit
+        // submission there rather than let one key mean both things.
+        {
+          keys: "Enter",
+          what: "Take the suggestion, in a type-to-search field — it does not submit",
+        },
       ],
     },
   ];

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { claimModalKeyboard } from "@/lib/escape-stack";
+import { FOCUSABLE_SELECTOR } from "@/lib/focusable";
 import { type ShortcutRow, type ShortcutSection, shortcutSheet } from "@/lib/shortcuts";
 
 /**
@@ -22,10 +23,6 @@ import { type ShortcutRow, type ShortcutSection, shortcutSheet } from "@/lib/sho
  * Home/End matter here in particular: these rows overflow the sheet's own
  * `max-height` box, so they are the keys that scroll it.
  */
-
-/** What is worth landing on inside a surviving ancestor — the same shape
- *  `use-session-menu` uses to put focus on a menu's first item. */
-const FOCUSABLE = "a[href], button:not([disabled])";
 
 /**
  * Page landmarks bound how far the ancestor fallback below is allowed to
@@ -61,14 +58,18 @@ function focusChain(from: Element | null): HTMLElement[] {
 
 /**
  * Focuses the opener if it is still there — the normal path, and the only one
- * that can hand focus back to a control this component cannot classify (a
- * checkbox, a tree row). Otherwise the first control inside the nearest
- * ancestor that outlived it, stopping at the first page landmark rather than
- * climbing into it — a landmark's first focusable descendant belongs to
- * whatever section it is, not to wherever the sheet was opened from, so
- * beyond that point there is nothing left worth guessing at. Silent in both
- * gaps — nothing survived below a landmark, or nothing survived at all —
- * because leaving focus alone is honest and the top of the page is not.
+ * that hands focus back to the exact control the sheet was opened from,
+ * whatever kind of element it is. The fallback path below is a selector
+ * (`FOCUSABLE_SELECTOR`), so it can only find *something* focusable in the
+ * nearest surviving ancestor, not necessarily the opener's own kind of
+ * control.
+ *
+ * The climb stops at the first page landmark rather than searching inside
+ * it — a landmark's first focusable descendant belongs to whatever section it
+ * is, not to wherever the sheet was opened from, so beyond that point there
+ * is nothing left worth guessing at. Silent in both gaps — nothing survived
+ * below a landmark, or nothing survived at all — because leaving focus alone
+ * is honest and the top of the page is not.
  */
 function restoreFocus(chain: readonly HTMLElement[]): void {
   const [opener, ...ancestors] = chain;
@@ -80,12 +81,19 @@ function restoreFocus(chain: readonly HTMLElement[]): void {
     if (LANDMARK_TAGS.has(el.tagName)) {
       return;
     }
-    const target = el.isConnected ? el.querySelector<HTMLElement>(FOCUSABLE) : null;
+    const target = el.isConnected ? el.querySelector<HTMLElement>(FOCUSABLE_SELECTOR) : null;
     if (target) {
       target.focus({ preventScroll: true });
       return;
     }
   }
+}
+
+/** Whether a point sits outside `box` — the shared test for both ends of a
+ *  backdrop gesture, so the mousedown and click handlers below read one
+ *  definition of "outside" rather than two that could drift. */
+function isOutside(box: DOMRect, x: number, y: number): boolean {
+  return x < box.left || x > box.right || y < box.top || y > box.bottom;
 }
 
 function SheetRow({ row }: { row: ShortcutRow }) {
@@ -148,23 +156,24 @@ export function ShortcutSheet({ onClose }: { onClose: () => void }) {
       // margin. The rect is the real boundary; it also spares a click on the
       // dialog's own scrollbar.
       //
-      // That test has to run on `mousedown`, not on the `click` that follows
-      // it. A user drag-selecting a shortcut row's text to copy it releases
-      // the mouse wherever the selection ends, which is often past the
-      // sheet's edge — the browser dispatches `click` on the nearest common
-      // ancestor of press and release (the dialog) with the RELEASE
-      // coordinates, so a click-coordinate rect test reads a text selection
-      // as a backdrop dismissal. Where the gesture STARTED is the honest
-      // signal, so the rect test runs there and `click` only reads the
-      // verdict.
+      // The PRESS end of the gesture has to be read on `mousedown`, not on the
+      // `click` that follows it. A user drag-selecting a shortcut row's text to
+      // copy it releases the mouse wherever the selection ends, which is often
+      // past the sheet's edge — the browser dispatches `click` on the nearest
+      // common ancestor of press and release (the dialog) with the RELEASE
+      // coordinates, so reading only the click's own coordinates would read a
+      // text selection released outside as a backdrop dismissal.
+      //
+      // But the press location alone is not the whole story either: the
+      // reverse drag — press a few pixels outside the sheet's rounded border
+      // (easy when reaching for the first row) and drag onto a row before
+      // releasing — starts outside and ends inside, and that is a read, not a
+      // dismissal. A light-dismiss backdrop click has to be outside at BOTH
+      // ends, so `click`'s own coordinates (the release point) get the same
+      // `isOutside` test the mousedown handler already runs.
       onMouseDown={(e) => {
         const box = dialogRef.current?.getBoundingClientRect();
-        pressStartedOutsideRef.current =
-          box !== undefined &&
-          (e.clientX < box.left ||
-            e.clientX > box.right ||
-            e.clientY < box.top ||
-            e.clientY > box.bottom);
+        pressStartedOutsideRef.current = box !== undefined && isOutside(box, e.clientX, e.clientY);
       }}
       // `detail === 0` is a keyboard-synthesized click (Enter/Space on a
       // focused element), which carries no real press to have started
@@ -172,10 +181,11 @@ export function ShortcutSheet({ onClose }: { onClose: () => void }) {
       onClick={(e) => {
         const startedOutside = pressStartedOutsideRef.current;
         pressStartedOutsideRef.current = false;
-        if (e.detail === 0) {
+        if (e.detail === 0 || !startedOutside) {
           return;
         }
-        if (startedOutside) {
+        const box = dialogRef.current?.getBoundingClientRect();
+        if (box !== undefined && isOutside(box, e.clientX, e.clientY)) {
           onClose();
         }
       }}

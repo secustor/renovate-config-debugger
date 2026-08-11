@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { GLOSSARY, type GlossaryEntry, type TermId } from "@/data/glossary-data";
 import { useMoveGatedHover } from "@/hooks/hover-gate";
 import { type AnchorRect, anchoredCardStyle, anchorRectOf } from "@/lib/anchored-card";
+import { overlayKeyboardOwned } from "@/lib/escape-stack";
 
 /**
  * The hover/focus card UI for the glossary. The entries themselves live in
@@ -60,12 +61,26 @@ function useHoverCard(entry: GlossaryEntry) {
   // see from here. With no card up there is nothing to claim, and the key
   // belongs to the ladder.
   //
+  // The other half of the contract, which the review after it found: a card the
+  // user did not open cannot outrank a layer they did. This card opens on
+  // FOCUS, so Tabbing onto a `ProvenanceChip` inside an open rule-evidence
+  // popover ALWAYS has one up — claiming there made the popover undismissable by
+  // keyboard, every press stopping at the tooltip. So the rule is not "act
+  // whenever there is a card" but "act only when this card is the topmost thing
+  // between the reader and the page": `overlayKeyboardOwned()` reports exactly
+  // when it is not (a popover or a menu is over the page), and there the press
+  // goes to the ladder, which dismisses the layer the user chose to open — and
+  // usually the anchor with it. That is the same ranking the ladder itself
+  // applies, asked rather than joined: registering this card as a layer would
+  // make `overlayKeyboardOwned()` true wherever a glossary term happens to hold
+  // focus, and take the bare-key jump layer away with it.
+  //
   // Lives in the shared hook rather than on one anchor: `Term` had it and
   // `Explained` did not, which made Escape on a preset-source badge's card
   // destroy the return pill instead of the card the user was looking at.
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key !== "Escape" || !card) {
+      if (e.key !== "Escape" || !card || overlayKeyboardOwned()) {
         return;
       }
       e.stopPropagation();
@@ -174,10 +189,11 @@ interface ExplainedProps {
     onFocus: (e: React.FocusEvent) => void;
     onBlur: () => void;
     /**
-     * Escape dismisses the card (see `useHoverCard`). An anchor with a keydown
-     * handler of its own must COMPOSE this one rather than let a later spread
-     * decide which survives — `ProvenanceChip` is the clickable case, and it
-     * would otherwise trade its Enter/Space for this or this for it.
+     * Escape dismisses the card while this card is the topmost thing over the
+     * page — see `useHoverCard` for what it stands aside for. An anchor with a
+     * keydown handler of its own must COMPOSE this one rather than let a later
+     * spread decide which survives — `ProvenanceChip` is the clickable case,
+     * and it would otherwise trade its Enter/Space for this or this for it.
      */
     onKeyDown: (e: React.KeyboardEvent) => void;
   }) => ReactNode;

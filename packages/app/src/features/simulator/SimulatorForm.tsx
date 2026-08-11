@@ -1,4 +1,5 @@
 import type { Dispatch, KeyboardEvent, SetStateAction } from "react";
+import { mayOwnNativePopup } from "@/hooks/scroll-ergonomics";
 import { DATASOURCE_LIST_ID, MANAGER_LIST_ID, SIM_FORM_ID } from "./datalist-ids";
 import { Field } from "./Field";
 import { type FormState, QUICK_FILLS } from "./form";
@@ -79,6 +80,27 @@ export function SimulatorForm({
       onSubmit={(e) => {
         e.preventDefault();
         onSubmit();
+      }}
+      // Roadmap 067 review: accepting a suggestion and submitting the form are
+      // two intents on one key. `datasource` and `manager` are native
+      // `<datalist>` comboboxes (047), so arrowing to `npm` and pressing Enter
+      // to TAKE it also fired implicit submission — a whole verdict against a
+      // descriptor the user had filled one field of, and one the 015 empty-form
+      // guard cannot catch, since that field is exactly what makes the form
+      // non-empty. In a combobox Enter belongs to the suggestion list, so the
+      // form declines to be submitted by it; every other field keeps Enter =
+      // Simulate, and so
+      // does the Simulate button (`type="submit"`, associated by `form=`, and
+      // outside this element's subtree — its own Enter never passes here).
+      //
+      // Declined for the whole field rather than only while the popup is up,
+      // because the popup's state is not observable — `mayOwnNativePopup` is
+      // where that is written down. The cost is one Tab: from `datasource`,
+      // Enter no longer simulates.
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && mayOwnNativePopup(e.target)) {
+          e.preventDefault();
+        }
       }}
     >
       <div className="sim-presets">

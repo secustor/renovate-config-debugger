@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { RESULTS_TAB_IDS } from "@/data/results-tabs";
 import {
   FOCUS_EDITOR_SHORTCUT,
   FOCUS_RESULTS_SHORTCUT,
@@ -124,6 +125,25 @@ describe("shortcutSheet", () => {
 
   it("documents the digit jump, which has no registry entry of its own", () => {
     const rows = shortcutSheet(true).flatMap((section) => section.rows);
-    expect(rows.some((row) => row.keys === "1 – 7")).toBe(true);
+    // DERIVED from the tab list, not frozen: 062 renames `Simulator` and
+    // inserts `Extraction`, and the sheet is the app's only keyboard
+    // documentation — a hardcoded "1 – 7" would leave `8` working and
+    // undocumented. 9 is where `digitTabIndex` itself stops.
+    const lastDigit = Math.min(RESULTS_TAB_IDS.length, 9);
+    expect(rows.some((row) => row.keys === `1 – ${lastDigit}`)).toBe(true);
+  });
+});
+
+describe("the overlay exemption", () => {
+  it("is `?` and nothing else", () => {
+    // `useShortcut` reads this flag instead of testing the id, so the exemption
+    // is visible where the binding is defined. It exists because the session
+    // menu prints "Press ? any time" on one of its own rows, and the bare-key
+    // overlay gate made that a promise the app broke; the jump keys, which move
+    // the page under the layer the reader is looking at, keep the gate.
+    expect(HELP_SHORTCUT.firesUnderOverlay).toBe(true);
+    expect(GLOBAL_SHORTCUTS.filter((shortcut) => shortcut.firesUnderOverlay)).toEqual([
+      HELP_SHORTCUT,
+    ]);
   });
 });

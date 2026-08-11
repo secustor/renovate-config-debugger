@@ -411,3 +411,40 @@ test("a bare key is inert under an open menu — Escape comes first", async ({ p
   await page.keyboard.press("e");
   await expect(page.locator(".cm-content")).toBeFocused();
 });
+
+test("? still opens the sheet from inside the menu that advertises it", async ({ page }) => {
+  await page.goto("/");
+  const panel = await openSessionMenu(page);
+  await expect(panel).toContainText("Press ? any time");
+
+  // The overlay gate is right for the jump keys, which would move the page out
+  // from under the menu — but help is what someone stuck under one wants, and
+  // the row above promises it works here.
+  await page.keyboard.press("?");
+  await expect(page.getByRole("dialog", { name: "Keyboard shortcuts" })).toBeVisible();
+});
+
+// ── Fourth-review follow-ups (2026-08-11) ────────────────────────────────────
+
+// NOTE: "a jump only takes focus the jump itself displaced" (the editor preset
+// hover card must not steal the caret) has no e2e here on purpose — the jump
+// lives in a CodeMirror hover tooltip the page hit-tests over, so Playwright
+// cannot click it without a force that defeats what the test would prove. The
+// rule lives in App.tsx's `jumpDisplacedFocus`, which is module-private and has
+// no unit seam either, so this path is currently guarded by review only.
+
+test("⌘⇧⏎ stands down if you go back to typing while the run resolves", async ({ page }) => {
+  await page.goto("/");
+  await setEditorContent(page, SEMANTIC_COMMITS_CONFIG);
+
+  const editor = page.locator(".cm-content");
+  await editor.click();
+  await page.keyboard.press("ControlOrMeta+Shift+Enter");
+  // Typing is the signal that the user went back to editing — the caret never
+  // moves, so no focus comparison could see this.
+  await page.keyboard.type(" ");
+
+  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
+  // The chord's landing was abandoned: focus stayed where the work is.
+  await expect(editor).toBeFocused();
+});

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ESCAPE_PRIORITY } from "@/lib/escape-stack";
+import { FOCUSABLE_SELECTOR } from "@/lib/focusable";
 import { useEscapeLayer } from "@/hooks/use-escape-layer";
 
 /**
@@ -48,7 +49,7 @@ export function useSessionMenu() {
 
     // WAI-ARIA's menu-button behavior: opening moves focus into the panel, so
     // a keyboard user is already on the first action and Tab walks the rest.
-    panelRef.current?.querySelector<HTMLElement>("a[href], button:not([disabled])")?.focus();
+    panelRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)?.focus();
 
     function owns(node: EventTarget | null): boolean {
       return (

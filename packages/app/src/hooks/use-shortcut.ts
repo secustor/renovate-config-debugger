@@ -18,10 +18,11 @@ import { matchShortcut, type Shortcut } from "@/lib/shortcuts";
  *   first. Without the first half, holding ⌘⏎ asks for a pipeline run per
  *   repeat; without the second, the repeats go to the browser's default for a
  *   chord we own.
- * - **Bare-key shortcuts never fire while the user is typing, or while a
- *   popover or menu is up.** Modified ones deliberately still fire in both
- *   cases: ⌘⏎ has to work from inside the editor and the simulator's fields,
- *   which is the whole point of it.
+ * - **Bare-key shortcuts never fire while the user is typing, and not while a
+ *   popover or menu is up unless the entry declares `firesUnderOverlay`.**
+ *   Modified ones deliberately still fire in every case: ⌘⏎ has to work from
+ *   inside the editor and the simulator's fields, which is the whole point of
+ *   it.
  * - **The handler is read through a ref**, so the window listener is installed
  *   once and never churns with a per-render callback identity — the keystroke
  *   render budget (032) pays nothing for this.
@@ -44,12 +45,23 @@ export function useShortcut(
       }
       // A bare key never fires while the user is typing — `isTextEditingTarget`
       // counts a focused `<select>` too, so `e` and `r` cannot eat its
-      // type-ahead — nor while a popover or menu is drawn over the page, which
-      // no predicate about the FOCUSED element can see: the rule-evidence card
-      // is portalled to `<body>` and takes focus itself. Escape first, then the
-      // jump. Modified chords always fire: ⌘⏎ working from inside the editor is
-      // the point of them.
-      if (!shortcut.mod && (isTextEditingTarget(event.target) || overlayKeyboardOwned())) {
+      // type-ahead. No exceptions to this half: every bare key in the registry
+      // is a character someone can be in the middle of typing. Modified chords
+      // always fire: ⌘⏎ working from inside the editor is the point of them.
+      if (!shortcut.mod && isTextEditingTarget(event.target)) {
+        return;
+      }
+      // Nor while a popover or menu is drawn over the page, which no predicate
+      // about the FOCUSED element can see: the rule-evidence card is portalled
+      // to `<body>` and takes focus itself. Escape first, then the jump.
+      //
+      // Unless the binding says otherwise. The gate is about keys that MOVE the
+      // page under a layer the reader is looking at, and `?` moves nothing — it
+      // opens a modal that takes the keyboard outright. Suppressing it made the
+      // session menu's own "Press ? any time" row a promise the app broke; the
+      // exemption is declared on the registry entry (`firesUnderOverlay`), so it
+      // is visible where the binding is, not hidden in an id check here.
+      if (!shortcut.mod && !shortcut.firesUnderOverlay && overlayKeyboardOwned()) {
         return;
       }
       event.preventDefault();

@@ -19,6 +19,29 @@ export interface RuleFocus {
 }
 
 /**
+ * Roadmap 067 review: the fallback landing, for the two exits below that have
+ * no rule row to land on. Both are only reachable from the EXTERNAL
+ * `focusRuleIndex` prop — this component's own `packageRules[N]` links exist
+ * only inside a rendered simulation — and that prop is set by a click in the
+ * Problems panel, which `jumpToTab("simulator")` marks `hidden` in the same
+ * commit. The browser has therefore already blurred the link the user
+ * activated and dropped focus on `<body>`, so a jump that only scrolls leaves
+ * the reader moved and their next Tab restarting at the top of the document.
+ *
+ * The card is a plain `<div>`, so `tabIndex` is set here rather than in the
+ * JSX: `-1` makes it a landing site without making it a tab stop, and setting
+ * it from the one place that focuses it keeps the attribute next to its reason.
+ */
+function landOnCard(card: HTMLDivElement | null): void {
+  if (!card) {
+    return;
+  }
+  card.tabIndex = -1;
+  card.scrollIntoView(motionScrollOptions("start"));
+  card.focus({ preventScroll: true });
+}
+
+/**
  * Roadmap 013/023/047: scroll to and flash the rule row a cross-link named —
  * either the external `focusRuleIndex` prop or a click on this component's own
  * `packageRules[N]`-in-message links. Anything hiding the row (a closed rules
@@ -68,7 +91,10 @@ export function useRuleFocus({
       // No simulation has run yet, so the target row isn't rendered anywhere.
       // Land the user on the simulator and prompt them to run one, rather than
       // leaving the cross-link click looking dead (the "looks broken" finding).
-      cardRef.current?.scrollIntoView(motionScrollOptions("start"));
+      // Focus goes to the card too (067 review): the hint below it is what the
+      // reader is meant to act on, and from the card the next Tab reaches the
+      // form it names.
+      landOnCard(cardRef.current);
       setFocusHint(scrollTarget);
       setScrollTarget(null);
       onRuleFocused?.();
@@ -76,6 +102,12 @@ export function useRuleFocus({
     }
     const rule = sim.rules.find((r) => r.index === scrollTarget);
     if (!rule) {
+      // A merged index this simulation does not contain — its rules describe
+      // the config as it was when it ran. There is no row to flash and (the
+      // hint above renders only before the first simulation) nothing to say, so
+      // the card is the whole landing: without it this exit moved neither the
+      // page nor the focus, which is exactly what a dead link looks like.
+      landOnCard(cardRef.current);
       setScrollTarget(null);
       onRuleFocused?.();
       return;

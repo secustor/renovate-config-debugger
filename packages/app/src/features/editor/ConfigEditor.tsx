@@ -6,7 +6,7 @@ import CodeMirror, {
 import { json } from "@codemirror/lang-json";
 import { forwardRef, type ReactNode, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import type { PresetHoverContext } from "@/lib/preset-hover";
-import { motionScrollOptions } from "@/lib/motion";
+import { flashTarget, motionScrollOptions } from "@/lib/motion";
 import { useEffectiveScheme } from "@/hooks/use-effective-scheme";
 import { oneDarkAccessible } from "./one-dark-accessible";
 import { runKeymap } from "./run-keymap";
@@ -129,8 +129,7 @@ export const ConfigEditor = forwardRef<ConfigEditorHandle, Props>(function Confi
           dom.nodeType === Node.TEXT_NODE ? dom.parentElement : (dom as Element)
         )?.closest(".cm-line");
         if (lineEl) {
-          lineEl.classList.add("rcv-flash");
-          window.setTimeout(() => lineEl.classList.remove("rcv-flash"), 1600);
+          flashTarget(lineEl);
         }
       },
       focus() {

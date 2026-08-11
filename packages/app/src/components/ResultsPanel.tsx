@@ -1,10 +1,6 @@
 import { type FocusEvent, type KeyboardEvent, type ReactNode, useRef, useState } from "react";
-import {
-  isResultsTabId,
-  RESULTS_TAB_IDS,
-  RESULTS_TAB_LABELS,
-  type ResultsTabId,
-} from "@/data/results-tabs";
+import { RESULTS_TAB_IDS, RESULTS_TAB_LABELS, type ResultsTabId } from "@/data/results-tabs";
+import { tabButtonAttrs, tabButtonSelector, tabIdOfElement } from "@/lib/results-tab-dom";
 import { nextTabIndex } from "@/lib/roving-tabs";
 
 const nf = new Intl.NumberFormat();
@@ -99,8 +95,7 @@ export function ResultsPanel({ tabs, active, onSelect, back, onBack, banner, pan
     // is looking around. Falling back to the selected tab covers the first
     // press after the strip is entered by pointer or programmatically.
     const focused = document.activeElement;
-    const from =
-      focused instanceof HTMLElement && bar.contains(focused) ? focused.dataset.tab : undefined;
+    const from = bar.contains(focused) ? tabIdOfElement(focused) : undefined;
     const current = tabs.findIndex((tab) => tab.id === (from ?? active));
     const next = current === -1 ? null : nextTabIndex(event.key, current, tabs.length);
     const target = next === null ? undefined : tabs[next];
@@ -108,7 +103,7 @@ export function ResultsPanel({ tabs, active, onSelect, back, onBack, banner, pan
       return;
     }
     event.preventDefault();
-    bar.querySelector<HTMLElement>(`[data-tab="${target.id}"]`)?.focus();
+    bar.querySelector<HTMLElement>(tabButtonSelector(target.id))?.focus();
   }
 
   // The `.focus()` call above dispatches a real (bubbling, via `focusin`)
@@ -116,9 +111,8 @@ export function ResultsPanel({ tabs, active, onSelect, back, onBack, banner, pan
   // just listens for it, the same as it would for a click or a Shift+Tab
   // into the strip from the panel below.
   function onFocus(event: FocusEvent<HTMLDivElement>) {
-    const target = event.target;
-    const id = target instanceof HTMLElement ? target.dataset.tab : undefined;
-    if (isResultsTabId(id)) {
+    const id = tabIdOfElement(event.target);
+    if (id) {
       setFocusedTab(id);
     }
   }
@@ -151,7 +145,10 @@ export function ResultsPanel({ tabs, active, onSelect, back, onBack, banner, pan
             type="button"
             role="tab"
             id={`tab-${tab.id}`}
-            data-tab={tab.id}
+            // The attribute App's landings find this button by — written
+            // through the same module that spells the selector, so the two
+            // cannot drift (`results-tab-dom.ts`).
+            {...tabButtonAttrs(tab.id)}
             aria-selected={tab.id === active}
             aria-controls={`panel-${tab.id}`}
             // Roving tabindex: only one tab is in the sequential tab order at

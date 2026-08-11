@@ -94,7 +94,7 @@ document generalizes those into rules and fills the holes.
 | Keys               | Scope                       | Action                                                           |
 | ------------------ | --------------------------- | ---------------------------------------------------------------- |
 | **Mod+Enter**      | global, editor included     | Run the pipeline                                                 |
-| **Enter**          | simulator form fields       | Simulate (form submit, matching the repo-load form)              |
+| **Enter**          | simulator form fields       | Simulate — except in a combobox, where it accepts the suggestion |
 | **Enter**          | repo-load form fields       | Load from repo — unchanged, this is the precedent                |
 | **Escape**         | topmost transient layer     | Dismiss it (popover → session menu → return pill)                |
 | **Tab**            | editor                      | Move focus out — it no longer indents (see below)                |
@@ -103,7 +103,7 @@ document generalizes those into rules and fills the holes.
 | **?**              | global, outside text fields | Open the shortcut sheet                                          |
 | **⌘⇧⏎**            | global, editor included     | Run, then jump to the results                                    |
 | **e** / **r**      | global, outside text fields | Jump to the config editor / the results                          |
-| **1** – **7**      | global, outside text fields | Jump to that results tab, by position in the strip               |
+| **1** – **9**      | global, outside text fields | Jump to that results tab, by position (range follows the strip)  |
 
 The repo-load form and glossary terms keep their own element-scoped Escape
 handlers rather than joining the ladder, since they only fire when focus is
@@ -112,7 +112,12 @@ first written, and the correction is the interesting part: an element handler
 that _acts_ on Escape must also `stopPropagation()`, or the ladder's document
 listener pops a layer in the same press. The repo-load form always did; the
 glossary term did not, so Escape on a hover card also destroyed the simulator's
-return pill. It now claims the key, and only when it has a card to dismiss.
+return pill. It claims the key only when it has a card to dismiss AND nothing
+the user deliberately opened is over the page — the rule the fourth review
+forced into words: **a surface that opened ITSELF is not a layer.** Hover cards
+open on focus, so without that second half, Tabbing onto a chip inside a
+rule-evidence popover made Escape dismiss the tooltip and leave the popover
+standing.
 
 `Mod` is ⌘ on Apple platforms and Ctrl elsewhere, rendered accordingly by a
 single `formatShortcut()` helper — never hardcoded in copy.
@@ -171,7 +176,7 @@ a rank:
 2. `menu` — the session menu, anchored to its trigger
 3. `ambient` — the simulator's return pill, which the reader can read past
 
-Two things the ladder does NOT own. A **modal `<dialog>`** (the `?` sheet) takes
+Three things the ladder does NOT own. A **modal `<dialog>`** (the `?` sheet) takes
 the keyboard via `claimModalKeyboard()` while it is up: the browser is already
 the topmost Escape owner, and a ladder that claimed the key with
 `preventDefault` suppressed the dialog's own close request — one press dismissed
@@ -207,13 +212,28 @@ never needed to exist.
 Element-scoped handlers that _can_ claim the key (the repo-load form's, the
 glossary card's) still do so with `stopPropagation()`.
 
+And the ladder yields to **a control the browser may be drawing its own popup
+over**: `mayOwnNativePopup` is an `<input>` with a `list` attribute — the
+simulator's `datasource` and `manager` comboboxes, and nothing else. A native
+`<datalist>` popup has no node, no event and no `defaultPrevented`, so Escape
+aimed at dismissing suggestions was also destroying the return pill. "May", not
+"is", and scoped to two fields, so Escape from every other text field still
+reaches the ladder — the constraint round three established. `<select>` is
+excluded on purpose: its popup only opens on a deliberate act, never as a side
+effect of typing, and counting it would recreate round one's too-wide rule.
+
 **The rank is also the bare-key layer's gate.** `overlayKeyboardOwned()` reads
 the top of the ladder and reports true at `menu` or `popover` — a card portalled
-to `<body>` holds focus and covers the page, so `1`–`7`, `e`, `r` and `?` are
-inert under one, and Escape comes first. `ambient` is deliberately excluded: the
-return pill is readable-past furniture that stays up for a whole navigation
-detour, and gating the jump layer on it would be a worse regression than the bug
-it fixed.
+to `<body>` holds focus and covers the page, so `1`–`7`, `e` and `r` are inert
+under one, and Escape comes first. Two deliberate exceptions. `ambient` does not
+count: the return pill is readable-past furniture that stays up for a whole
+navigation detour, and gating the jump layer on it would be a worse regression
+than the bug it fixed. And `?` carries `firesUnderOverlay`, because help is not
+a jump — it opens a modal that claims the keyboard anyway, and "how does this
+work" is exactly what someone stuck under an open menu wants. That exception is
+a property on the registry entry rather than a name check in the hook, and it
+exists because the session menu's own row promises "Press ? any time" — copy
+this document's author wrote, which the gate had quietly made false.
 
 The DOM query in `use-thread-nav.ts:89-96` is deleted as part of this — it is
 the exact case the stack exists to make unnecessary. Disclosures (`Advanced`,

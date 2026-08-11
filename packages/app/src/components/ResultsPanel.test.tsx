@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RESULTS_TAB_IDS, type ResultsTabId } from "@/data/results-tabs";
+import { tabButtonSelector } from "@/lib/results-tab-dom";
 import { ResultsPanel, type ResultsTabDescriptor } from "./ResultsPanel";
 
 /**
@@ -183,6 +184,26 @@ describe("ResultsPanel keyboard navigation", () => {
     expect(fireEvent.keyDown(strip, { key: "Home", ctrlKey: true })).toBe(true);
     expect(fireEvent.keyDown(strip, { key: "End", ctrlKey: true })).toBe(true);
     expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("renders the button App's landings reach for by selector", () => {
+    // App focuses a NAMED tab from outside this component (the digit jump, the
+    // apply-fix landing) — it can only find one by selector, across the lazy
+    // results boundary. Before the review the selector was spelled once here
+    // and once in App.tsx, so renaming the attribute fixed the arrows above and
+    // silently broke both landings. Now both spellings come from
+    // `results-tab-dom.ts`, and this is the assertion that they still describe
+    // the button this strip actually renders.
+    const view = renderPanel("presets", () => undefined);
+
+    for (const tab of TABS) {
+      expect(document.querySelectorAll(tabButtonSelector(tab.id))).toHaveLength(1);
+      expect(document.querySelector(tabButtonSelector(tab.id))).toHaveProperty(
+        "id",
+        `tab-${tab.id}`,
+      );
+    }
+    expect(view.getAllByRole("tab")).toHaveLength(TABS.length);
   });
 
   it("leaves only the active panel in the tab order", () => {

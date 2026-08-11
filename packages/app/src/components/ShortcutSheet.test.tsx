@@ -167,4 +167,25 @@ describe("ShortcutSheet", () => {
 
     expect(onClose).toHaveBeenCalledOnce();
   });
+
+  it("does not close on a press that starts outside and drags onto a row before releasing", () => {
+    // The reverse of the drag-select case above: press a few pixels outside
+    // the sheet's rounded border (easy when reaching for the first row), drag
+    // onto a row, release. `startedOutside` was latched true on mousedown and
+    // never re-checked, so the click landing on the dialog closed the sheet
+    // mid-read — a press that ends inside is not a dismissal, same as one that
+    // starts inside and ends outside.
+    const onClose = vi.fn();
+    const { container } = render(<ShortcutSheet onClose={onClose} />);
+    const dialog = container.querySelector("dialog");
+    if (!dialog) {
+      throw new Error("dialog did not render");
+    }
+    mockRect(dialog, { left: 100, right: 400, top: 100, bottom: 400 });
+
+    fireEvent.mouseDown(dialog, { clientX: 50, clientY: 50 });
+    fireEvent.click(dialog, { clientX: 200, clientY: 200, detail: 1 });
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { mayOwnNativePopup } from "@/hooks/scroll-ergonomics";
 import { type EscapePriority, handleEscape, pushEscapeLayer } from "@/lib/escape-stack";
 
 /**
@@ -14,7 +15,9 @@ let refs = 0;
 
 function onKeyDown(event: KeyboardEvent): void {
   // `defaultPrevented` is the ENTIRE editor rule, and no target predicate is
-  // needed beside it. Verified in the pinned versions rather than assumed:
+  // needed for it — the one below is about a surface the DOM cannot describe at
+  // all, not about the focused element. Verified in the pinned versions rather
+  // than assumed:
   //
   // - `@codemirror/commands@6.10.4` binds Escape to `simplifySelection`, which
   //   returns FALSE when there is nothing to simplify (`dist/index.js:1147` — a
@@ -36,8 +39,25 @@ function onKeyDown(event: KeyboardEvent): void {
   // Not `isTextEditingTarget` either, for the reason that predicate exists: it
   // counts every text input and `<select>` as typing, and Escape is not a bare
   // key competing with what the user is writing — it dismisses whatever is on
-  // top, from wherever they are standing.
+  // top, from wherever they are standing, including a form field.
   if (event.key !== "Escape" || event.defaultPrevented) {
+    return;
+  }
+  // The one target the ladder does yield to, and the reason is not the element
+  // but what the BROWSER may be drawing over it: a `<datalist>` popup, whose
+  // Escape closes the suggestions. It reports nothing to the page — no node, no
+  // event, not even `defaultPrevented` — so "did that press belong to the
+  // popup?" is unanswerable, and answering it wrong destroyed a layer the user
+  // could not see they were dismissing: in the simulator, type into `datasource`
+  // until the suggestions appear and press Escape, and the return pill went with
+  // them.
+  //
+  // Narrow on purpose. Round one's `isTextEditingTarget` bail took Escape away
+  // from every field and left layers stranded; this covers only a control that
+  // can have a native popup at all (`mayOwnNativePopup` — two fields in this
+  // app), so Escape from a text field still reaches the ladder, which is the
+  // constraint that fix established.
+  if (mayOwnNativePopup(event.target)) {
     return;
   }
   if (handleEscape()) {
