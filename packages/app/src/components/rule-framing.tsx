@@ -62,6 +62,11 @@ function computeRuleFraming(
   };
 }
 
+/** A contributor's name: preset names get `<code>`, layer names stay prose. */
+function ContributorLabel({ top }: { top: TopContributor }) {
+  return top.isPreset ? <code>{top.label}</code> : top.label;
+}
+
 /** Renders the "M from your config, K pulled in by `preset`, and R more from
  *  other presets" clause — the part after the em dash. */
 function FramingBreakdown({ framing }: { framing: RuleFramingData }) {
@@ -74,8 +79,7 @@ function FramingBreakdown({ framing }: { framing: RuleFramingData }) {
       key: "top",
       node: (
         <>
-          {nf.format(framing.top.count)} pulled in by{" "}
-          {framing.top.isPreset ? <code>{framing.top.label}</code> : framing.top.label}
+          {nf.format(framing.top.count)} pulled in by <ContributorLabel top={framing.top} />
         </>
       ),
     });
@@ -96,8 +100,31 @@ function FramingBreakdown({ framing }: { framing: RuleFramingData }) {
 }
 
 /**
+ * The compact variant's parenthetical. It sits immediately after the number,
+ * so it must never repeat it: "713 (713 pulled in by config:recommended)" and
+ * "713 (713 from your config)" both say the count twice and add nothing. When
+ * one source covers every rule, say "all" instead.
+ */
+function CompactBreakdown({ framing, total }: { framing: RuleFramingData; total: number }) {
+  if (framing.own === total && !framing.top) {
+    return "all from your config";
+  }
+  if (framing.own === 0 && framing.top && framing.top.count === total) {
+    return (
+      <>
+        all pulled in by <ContributorLabel top={framing.top} />
+      </>
+    );
+  }
+  return <FramingBreakdown framing={framing} />;
+}
+
+/**
  * `variant: "compact"` — just the number, with a parenthetical breakdown when
  * available: `713 (2 from your config, 711 pulled in by config:recommended)`.
+ * When one contributor covers every rule and none are your own, the
+ * parenthetical drops the count it would otherwise repeat verbatim —
+ * `713 (all pulled in by config:recommended)`, not `713 (713 pulled in by …)`.
  * `variant: "full"` — a standalone clause with the word "rule(s)":
  * `713 rules — 2 from your config, 711 pulled in by config:recommended`.
  */
@@ -120,7 +147,7 @@ export function RuleFramingText({
   if (variant === "compact") {
     return (
       <>
-        {nf.format(total)} (<FramingBreakdown framing={framing} />)
+        {nf.format(total)} (<CompactBreakdown framing={framing} total={total} />)
       </>
     );
   }
