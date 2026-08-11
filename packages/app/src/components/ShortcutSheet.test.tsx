@@ -107,6 +107,35 @@ describe("ShortcutSheet", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
+  it("keeps walking past an ancestor match that cannot actually take focus", () => {
+    // All seven results tab panels stay mounted and six carry `hidden`, so an
+    // ancestor's `FOCUSABLE_SELECTOR` match can be a control inside one of
+    // them — a real browser refuses it focus, which jsdom's own `.focus()`
+    // does not model (see `FOCUSABLE_SELECTOR`'s note), so the no-op below
+    // spells that refusal out directly rather than relying on jsdom to
+    // reproduce it.
+    const landing = document.createElement("div");
+    const landingButton = document.createElement("button");
+    landing.appendChild(landingButton);
+
+    const deadEnd = document.createElement("div");
+    const deadInput = document.createElement("input");
+    deadInput.focus = () => undefined;
+    deadEnd.appendChild(deadInput);
+
+    const opener = document.createElement("button");
+    deadEnd.appendChild(opener);
+    landing.appendChild(deadEnd);
+    document.body.appendChild(landing);
+    opener.focus();
+
+    const { unmount } = render(<ShortcutSheet onClose={() => undefined} />);
+    opener.remove();
+    unmount();
+
+    expect(document.activeElement).toBe(landingButton);
+  });
+
   it("stands down rather than land on a page landmark's first control", () => {
     // The opener AND its immediate wrapper are both gone by the time the
     // sheet closes, so the ancestor walk reaches a `<main>` — whose first

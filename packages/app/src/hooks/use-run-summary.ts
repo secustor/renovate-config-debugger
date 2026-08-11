@@ -18,6 +18,7 @@ import { useMemo } from "react";
 import type { TraceEvent, TraceResult } from "@renovate-config-debugger/engine";
 import type { EffectiveStats } from "@/components/EffectiveConfig";
 import type { ResultsTabDescriptor } from "@/components/ResultsPanel";
+import { RESULTS_TAB_IDS, type ResultsTabId } from "@/data/results-tabs";
 import { buildRunDigest, type DigestClause } from "@/lib/run-digest";
 import { buildDigestInput, deriveRunFacts } from "@/lib/run-facts";
 
@@ -53,21 +54,34 @@ export function useRunSummary(
   // as it was when it lived in App.tsx's body. Memoizing it here would change
   // the identity of ResultsPanel's `tabs` prop across renders that currently
   // hand it a fresh one, which is a behavior change, not a cleanup.
-  const resultsTabs: ResultsTabDescriptor[] = [
-    { id: "overview" },
-    { id: "pipeline" },
-    { id: "rewrites", count: facts.migrateSteps.length },
-    { id: "presets", count: facts.presetCount },
+  //
+  // Roadmap 067 review: MAPPED over `RESULTS_TAB_IDS` (data/results-tabs.ts)
+  // rather than written out as a same-length literal — `useTabDigits` (App.tsx)
+  // is wired to `resultsTabs.length` while the `?` sheet's digit range
+  // (`lib/shortcuts.ts`) reads `RESULTS_TAB_IDS.length` directly, and a
+  // hand-matched literal here only agreed with that by coincidence. Keying
+  // `tabData` by `ResultsTabId` makes the two structurally unable to drift:
+  // adding a tab to `RESULTS_TAB_IDS` (062 adds one) fails this file's
+  // typecheck until `tabData` grows a matching entry, rather than silently
+  // shipping a strip one tab short of what the sheet advertises.
+  const tabData: Record<ResultsTabId, Omit<ResultsTabDescriptor, "id">> = {
+    overview: {},
+    pipeline: {},
+    rewrites: { count: facts.migrateSteps.length },
+    presets: { count: facts.presetCount },
     // Provenance is computed asynchronously by the effective-config view; no
     // badge until it reports, rather than a wrong zero.
-    { id: "effective", count: effectiveStats?.keys },
-    { id: "simulator" },
-    {
-      id: "problems",
+    effective: { count: effectiveStats?.keys },
+    simulator: {},
+    problems: {
       count: facts.errorCount + facts.warningCount,
       tone: facts.errorCount > 0 ? "error" : facts.warningCount > 0 ? "warn" : undefined,
     },
-  ];
+  };
+  const resultsTabs: ResultsTabDescriptor[] = RESULTS_TAB_IDS.map((id) => ({
+    id,
+    ...tabData[id],
+  }));
 
   /**
    * Roadmap 029: the Overview's plain-English digest. Assembled from exactly

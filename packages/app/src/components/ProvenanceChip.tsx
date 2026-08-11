@@ -70,6 +70,16 @@ export function ProvenanceChip({
             // activation, which a `role="button"` span has to implement itself.
             onKeyDown={(e) => {
               handlers.onKeyDown(e);
+              // Bare Enter/Space only — the same four-modifier guard
+              // `openPickerOnEnter` puts on its own Enter, and for the same
+              // reason: 067 made ⌘⏎ a page-wide Run, so a hand-rolled
+              // activation that ignores modifiers turns the app's primary
+              // shortcut into a tab switch and a selected preset node while the
+              // results the reader was looking at are replaced. A dropped key
+              // would be a nuisance; a different action is a wrong one.
+              if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) {
+                return;
+              }
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
                 e.stopPropagation();

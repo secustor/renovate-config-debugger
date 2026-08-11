@@ -70,6 +70,14 @@ function focusChain(from: Element | null): HTMLElement[] {
  * is nothing left worth guessing at. Silent in both gaps — nothing survived
  * below a landmark, or nothing survived at all — because leaving focus alone
  * is honest and the top of the page is not.
+ *
+ * A `FOCUSABLE_SELECTOR` match is not proof it can actually take focus: all
+ * seven results tab panels stay mounted and six of them carry `hidden`, so
+ * their inputs and selects still match the selector while the `hidden`
+ * ancestor makes them unfocusable. `.focus()` on one of those is a no-op —
+ * `document.activeElement` doesn't move — so the candidate is checked after
+ * the call, and the walk continues past a match that didn't land instead of
+ * stopping there and leaving focus on `<body>`.
  */
 function restoreFocus(chain: readonly HTMLElement[]): void {
   const [opener, ...ancestors] = chain;
@@ -84,7 +92,9 @@ function restoreFocus(chain: readonly HTMLElement[]): void {
     const target = el.isConnected ? el.querySelector<HTMLElement>(FOCUSABLE_SELECTOR) : null;
     if (target) {
       target.focus({ preventScroll: true });
-      return;
+      if (document.activeElement === target) {
+        return;
+      }
     }
   }
 }

@@ -153,6 +153,14 @@ hand-authoring ever comes to dominate this box, and if it is adopted then
 Escape-in-editor must keep `simplifySelection` behavior while a non-empty
 multi-range selection exists and release focus otherwise.
 
+**The fifth review raised the cost of this and it stands.** Removing Tab-to-
+indent leaves `Mod+]` / `Mod+[` discoverable only through the `?` sheet, which
+is a real loss for anyone hand-authoring JSON here. It is accepted rather than
+fixed, on three grounds: the trap it removed was a WCAG 2.1.2 failure with no
+keyboard workaround at all, the sheet is a visible home rather than no home
+(principle 3), and this is the deliberate, recorded decision above. Restoring
+Tab-to-indent means taking the trap back, and that trade is not close.
+
 Either way, Escape inside the editor is the editor's own and never reaches the
 page ladder.
 
@@ -392,6 +400,29 @@ editor cannot decline ⌘⏎ without handing it back to `insertBlankLine`, so
 gating the page copy would have made one key mean two things by invisible focus
 context. `disabled={running}` on the button stays as the visible, pointer-side
 half.
+
+## The rule the reviews kept teaching
+
+Five rounds produced one lesson often enough to write down: **a handler that
+claims a key must say WHICH press of it it means.** Every expensive defect in
+this branch was a version of that.
+
+- The editor bail claimed Escape for a whole class of targets when it meant
+  "the presses CodeMirror acts on" — two rounds of narrowing before deletion.
+- The run guard claimed every request when it meant "the extra ones an OS
+  auto-repeat invented" — three callers half-applied before it moved to the
+  source.
+- The simulator form claimed Enter when it meant "the unmodified one", killing
+  ⌘⏎ in the two fields users type in most.
+- `ProvenanceChip` claimed Enter when it meant "Enter with no modifier", so ⌘⏎
+  on a focused chip performed a jump instead of a run — a wrong action, not a
+  dropped one.
+- The landing layer claimed focus when it meant "focus this jump displaced",
+  and later "unless a newer landing wants it".
+
+The corollary is about tests, not code: none of these were visible to the unit
+suites while the policy lived inline in `App.tsx`, which is why the fifth round
+extracted it to `lib/focus-landing.ts` with the three rules as unit tests.
 
 ## Costs, accepted
 

@@ -51,6 +51,8 @@ import {
 } from "@/platform/run";
 import type { ShareSimulator, ShareState, ShareView, UntrustedEndpointGuard } from "@/lib/share";
 import { useBackToTopVisible, useHomeEndPageScroll } from "@/hooks/scroll-ergonomics";
+import type { LandingTicket } from "@/lib/focus-landing";
+import { useFocusLanding } from "@/hooks/use-focus-landing";
 import { useShortcut } from "@/hooks/use-shortcut";
 import { useTabDigits } from "@/hooks/use-tab-digits";
 import { ShortcutSheet } from "@/components/ShortcutSheet";
@@ -160,90 +162,23 @@ function preloadRunChunks(): void {
   void import("@/ResultsColumn").catch(() => {});
 }
 
-/** Roadmap 067: the selected preset row in whichever view the tree is showing
- *  — the tree's node-name button, or the flat table's row button. Both are
- *  real buttons, which is what makes them a landing site (`landOnPresetNode`). */
-const SELECTED_PRESET_ROW = ".preset-name.selected, .preset-table-row.selected";
-
-/** The results tab the strip currently shows as chosen — where "take me to the
- *  results" lands, and the one element there that announces where you are. */
-const SELECTED_RESULTS_TAB = '[role="tab"][aria-selected="true"]';
-
 /**
- * Roadmap 067: the shape all three landings in the results half share. `find`
- * is retried once per animation frame until it returns an element or the budget
- * runs out; `land` then gets that element — or `null`, which is how each caller
- * says what "it never appeared" means instead of spinning forever.
+ * Roadmap 067: the two elements the landings below reach for.
+ * `SELECTED_PRESET_ROW` is the selected preset row in whichever view the tree is
+ * showing — the tree's node-name button, or the flat table's row button, both
+ * real buttons, which is what makes them a landing site (`landOnPresetNode`).
+ * `SELECTED_RESULTS_TAB` is the tab the strip currently shows as chosen: where
+ * "take me to the results" lands, and the one element there that announces where
+ * you are.
  *
- * Polling at all, because the target does not exist yet when the gesture
- * happens. The results half is a lazy chunk (031), so on the FIRST run its
- * column and its tab strip are a download away; a preset row is three commits
- * away (the tab switch, the ancestor expansion the new selection triggers, and
- * the windowed list (011) scrolling the row into its rendered slice).
- *
- * Reaching for them by SELECTOR is the part worth flagging rather than hiding:
- * nothing on this side of the lazy boundary holds a handle to those elements,
- * so a class renamed inside the results feature type-checks clean and breaks
- * focus silently. The fix is an imperative handle on the results column, the
+ * Reaching for them by SELECTOR is worth flagging rather than hiding: nothing on
+ * this side of the lazy boundary holds a handle to those elements, so a class
+ * renamed inside the results feature type-checks clean and breaks focus
+ * silently. The fix is an imperative handle on the results column, the
  * `ConfigEditorHandle` treatment — a change to that file, not to this one.
  */
-function landWhenReady(
-  find: () => HTMLElement | null,
-  land: (target: HTMLElement | null) => void,
-  { frames, thisFrame }: { frames: number; thisFrame: boolean },
-): void {
-  function look(left: number) {
-    const target = find();
-    if (target || left <= 0) {
-      land(target);
-      return;
-    }
-    requestAnimationFrame(() => look(left - 1));
-  }
-  if (thisFrame) {
-    look(frames);
-    return;
-  }
-  requestAnimationFrame(() => look(frames));
-}
-
-/**
- * Roadmap 067: what a deferred landing remembers about the gesture that asked
- * for it — where focus was, and how much typing and clicking the page had seen
- * by then. `landingWanted` (below, inside the component, since the counters are
- * refs) is what reads it back.
- */
-interface LandingTicket {
-  /** `document.activeElement` as the gesture was made. */
-  from: Element | null;
-  inputSeq: number;
-  pointerSeq: number;
-}
-
-/**
- * Roadmap 067 review: whether the jump itself is the reason focus is no longer
- * on the activator — so that taking focus costs the user nothing they still
- * hold. Two ways that happens here: the activator sits inside a subtree the
- * jump marked `hidden` (how `ResultsPanel` switches tabs), or it left the
- * document altogether.
- *
- * The case this exists for is the editor's preset hover card, whose jump button
- * `preventDefault`s `mousedown` precisely so the caret STAYS in `.cm-content`.
- * The editor is in the config column, so no tab switch touches it: focus is
- * still exactly where the user left it, a landing that took it would cost them
- * their caret, and their next keystrokes would drive the bare-key layer instead
- * of the document.
- *
- * Nothing (or `<body>`) holding focus counts as displaced: there is no caret to
- * cost anyone, and Safari leaves activeElement on the body after a click on a
- * button anyway.
- */
-function jumpDisplacedFocus(from: Element | null): boolean {
-  if (from === null || from === document.body) {
-    return true;
-  }
-  return !from.isConnected || from.closest("[hidden]") !== null;
-}
+const SELECTED_PRESET_ROW = ".preset-name.selected, .preset-table-row.selected";
+const SELECTED_RESULTS_TAB = '[role="tab"][aria-selected="true"]';
 
 /** What a caller may ask of a run. None of it can make the run not happen:
  *  every request reaches the queue — see `onRun`. */
@@ -1181,22 +1116,35 @@ export function App() {
   const keysLive = !shortcutSheetOpen;
 
   /**
+   * Roadmap 067: what "the user asked for a run" means, in the one place its
+   * three entry points — ⌘⏎, ⌘⇧⏎ and the Run button — can share it. Both parts
+   * were written out three times, and the preload went missing from one of them
+   * for a whole review round.
+   *
+   * `preloadRunChunks` because the Run button warms the engine and results
+   * chunks on hover and focus (031) and a keypress has no hover: without it the
+   * download serializes behind the run. `preserveScroll` once a result exists,
+   * because a re-run answers an edit and must not throw the reader back to the
+   * top of the page.
+   *
+   * Returns the run's promise — ⌘⇧⏎ is the caller that has to know whether its
+   * run ever produced a result.
+   */
+  function runFromGesture(): Promise<TraceResult | null> {
+    preloadRunChunks();
+    return onRun(undefined, undefined, { preserveScroll: Boolean(result) });
+  }
+
+  /**
    * Roadmap 067: ⌘⏎ (Ctrl+Enter) runs the pipeline from anywhere on the page.
    * Inside the editor the same chord is handled by CodeMirror instead
    * (`run-keymap.ts`) — it has to be, or Renovate's config would gain a blank
    * line every time someone ran it — and that handler marks the event handled,
    * which is what keeps the two from both firing.
-   *
-   * `preloadRunChunks` is called for the same reason the button calls it on
-   * hover and focus: a shortcut has no hover, so without this the engine
-   * download would serialize behind the keypress.
    */
   useShortcut(
     RUN_SHORTCUT,
-    () => {
-      preloadRunChunks();
-      void onRun(undefined, undefined, { preserveScroll: Boolean(result) });
-    },
+    () => void runFromGesture(),
     // Not gated on `running` any more, and that is the point of the fix above:
     // ⌘⏎ has to mean the same thing wherever it is pressed, and inside the
     // editor it cannot decline (declining hands the chord back to
@@ -1209,78 +1157,12 @@ export function App() {
   );
 
   /**
-   * Roadmap 067 review: the two things a deferred landing needs to know about
-   * what the user did while it waited — every `input` event the page has seen,
-   * and every `pointerdown`. Counters rather than flags, so a landing compares
-   * against the moment ITS gesture was made instead of against a shared "has
-   * anything happened" bit.
-   *
-   * Refs bumped by document listeners, never state: `input` fires on every
-   * keystroke, and the panels' render budget while typing (032) is measured on
-   * exactly that path. Both events bubble — including out of CodeMirror's
-   * contenteditable — so the document sees all of them.
+   * Roadmap 067: the landing machinery every jump below goes through — the
+   * ticket a gesture takes, the animation-frame wait for a target that does not
+   * exist yet, and the question each landing has to answer before it moves
+   * anyone (`lib/focus-landing.ts`, where it is unit-tested).
    */
-  const inputSeqRef = useRef(0);
-  const pointerSeqRef = useRef(0);
-  useEffect(() => {
-    function countInput() {
-      inputSeqRef.current += 1;
-    }
-    function countPointer() {
-      pointerSeqRef.current += 1;
-    }
-    document.addEventListener("input", countInput);
-    document.addEventListener("pointerdown", countPointer);
-    return () => {
-      document.removeEventListener("input", countInput);
-      document.removeEventListener("pointerdown", countPointer);
-    };
-  }, []);
-
-  /** The ticket for a landing being armed right now. */
-  function landingTicket(): LandingTicket {
-    return {
-      from: document.activeElement,
-      inputSeq: inputSeqRef.current,
-      pointerSeq: pointerSeqRef.current,
-    };
-  }
-
-  /**
-   * Roadmap 067: whether a landing deferred by `landWhenReady` — or, for ⌘⇧⏎,
-   * by a whole run — may still move the user. A landing that waits has to
-   * assume they kept working, and pulling them out of what they moved to is
-   * worse than not landing at all.
-   *
-   * Three questions, all against the ticket taken when the gesture was made:
-   *
-   * - **Has anything been typed since?** Any `input` event means the user is
-   *   mid-word somewhere — including in the editor they never left, which is
-   *   the case no focus comparison can see: ⌘⇧⏎ is pressed FROM the editor and
-   *   the caret is still there when the run commits, seconds later. An `input`
-   *   event is a USER edit — an applied fix rewrites the document through React
-   *   state and CodeMirror, which dispatches none — so this reads keystrokes
-   *   rather than text changes, and an apply-fix landing does not cancel itself.
-   * - **Is focus somewhere real the gesture did not leave it?** Then the user
-   *   put it there since, and this landing is no longer the newest thing they
-   *   asked for.
-   * - **If focus is on `<body>` (or nowhere): did the user put it there?** Body
-   *   is the NORMAL state for these gestures — switching results tabs marks the
-   *   panel holding the activator `hidden` in the same commit and the browser
-   *   drops focus — so body alone cannot mean "moved on". A `pointerdown` since
-   *   the gesture separates the two: clicking a paragraph of prose to read it
-   *   blurs to body just the same, and that one IS a choice (067 review).
-   */
-  function landingWanted({ from, inputSeq, pointerSeq }: LandingTicket): boolean {
-    if (inputSeqRef.current !== inputSeq) {
-      return false;
-    }
-    const now = document.activeElement;
-    if (now !== null && now !== document.body) {
-      return now === from;
-    }
-    return pointerSeqRef.current === pointerSeq;
-  }
+  const landing = useFocusLanding();
 
   /**
    * Roadmap 067: the app's two jump targets, defined once.
@@ -1313,25 +1195,27 @@ export function App() {
    * where nothing can have happened yet — they carry one only for the first
    * run, when the strip is still a download away.
    */
-  function focusResults(ticket: LandingTicket = landingTicket()) {
+  function focusResults(ticket: LandingTicket = landing.arm()) {
     // The results half is a lazy chunk (031), so on the FIRST run neither the
     // column nor its tab strip exists yet when ⌘⇧⏎ asks for them — hence the
     // wait, and hence the fallback: once the budget is spent, land on the bare
     // column rather than nowhere, because a chunk that never arrives is a
     // failed run, not a focus problem. Looks on THIS frame first, so the
     // ordinary case (a strip that already exists) lands without a flicker.
-    landWhenReady(
-      () => resultsColRef.current?.querySelector<HTMLElement>(SELECTED_RESULTS_TAB) ?? null,
-      (selectedTab) => {
+    landing.whenReady({
+      ticket,
+      find: () => resultsColRef.current?.querySelector<HTMLElement>(SELECTED_RESULTS_TAB) ?? null,
+      land: (selectedTab) => {
         const column = resultsColRef.current;
-        if (!column || !landingWanted(ticket)) {
+        if (!column) {
           return;
         }
         column.scrollIntoView(motionScrollOptions("start"));
         (selectedTab ?? column).focus({ preventScroll: true });
       },
-      { frames: 12, thisFrame: true },
-    );
+      frames: 12,
+      thisFrame: true,
+    });
   }
 
   /**
@@ -1350,11 +1234,13 @@ export function App() {
    * selection it is about to lose. Same lazy-chunk retry budget as
    * `focusResults`, and the same reason to give up rather than spin.
    *
-   * And it stands down if the user has moved on in the meantime
-   * (`landingWanted`): `applyErrorFix` calls this after an AWAITED re-run, so
+   * And it stands down if the user has moved on in the meantime (the ticket —
+   * see `landingWanted`): `applyErrorFix` calls this after an AWAITED re-run, so
    * the poll can start a second after the click, by which time a keyboard user
    * has routinely Tabbed on or clicked into the editor. A landing that arrives
-   * late has no business overruling that.
+   * late has no business overruling that. A newer landing is the exception it
+   * DOES yield to rather than fight: two digit keys inside one frame are one
+   * gesture chain, and the strip must end up selecting the tab that focus is on.
    *
    * It does NOT ask whether the jump displaced the focus it is taking, the way
    * `landOnPresetNode` does: both callers are a request to be taken somewhere
@@ -1362,11 +1248,11 @@ export function App() {
    * not a request to be shown something.
    */
   function focusTab(id: ResultsTabId) {
-    const ticket = landingTicket();
-    landWhenReady(
-      () => resultsColRef.current?.querySelector<HTMLElement>(tabButtonSelector(id)) ?? null,
-      (button) => {
-        if (!button || !landingWanted(ticket)) {
+    landing.whenReady({
+      ticket: landing.arm(),
+      find: () => resultsColRef.current?.querySelector<HTMLElement>(tabButtonSelector(id)) ?? null,
+      land: (button) => {
+        if (!button) {
           return;
         }
         button.focus({ preventScroll: true });
@@ -1375,8 +1261,9 @@ export function App() {
           button.scrollIntoView(motionScrollOptions("nearest"));
         }
       },
-      { frames: 12, thisFrame: false },
-    );
+      frames: 12,
+      thisFrame: false,
+    });
   }
 
   /**
@@ -1405,18 +1292,16 @@ export function App() {
    * Spelled out rather than `landOnTarget`, which bundles all three together.
    */
   function landOnPresetNode() {
-    const ticket = landingTicket();
-    landWhenReady(
-      () => resultsColRef.current?.querySelector<HTMLElement>(SELECTED_PRESET_ROW) ?? null,
-      (row) => {
-        // Thirty frames is long enough for the user to have moved on; if they
-        // have, this jump is no longer the newest thing they asked for — and
-        // not even the scroll is welcome then (067 review: a page that scrolls
-        // and flashes half a second after a click on some unrelated prose).
-        if (!landingWanted(ticket)) {
-          return;
-        }
-        const takeFocus = jumpDisplacedFocus(ticket.from);
+    // Thirty frames is long enough for the user to have moved on; if they have,
+    // `whenReady` never calls this back — and not even the scroll is welcome
+    // then (067 review: a page that scrolls and flashes half a second after a
+    // click on some unrelated prose).
+    const ticket = landing.arm();
+    landing.whenReady({
+      ticket,
+      find: () => resultsColRef.current?.querySelector<HTMLElement>(SELECTED_PRESET_ROW) ?? null,
+      land: (row) => {
+        const takeFocus = landing.displaced(ticket);
         if (!row) {
           if (takeFocus) {
             focusTab("presets");
@@ -1431,8 +1316,9 @@ export function App() {
           row.focus({ preventScroll: true });
         }
       },
-      { frames: 30, thisFrame: false },
-    );
+      frames: 30,
+      thisFrame: false,
+    });
   }
 
   function skipToConfig(event: MouseEvent<HTMLAnchorElement>) {
@@ -1479,10 +1365,16 @@ export function App() {
    * failure can only ever cancel its own.
    */
   const pendingResultLandings = useRef<LandingTicket[]>([]);
+  // The 032 latest-ref idiom, for the reason the dependency list below spells
+  // out: `focusResults` is redeclared every render, and an effect that depended
+  // on it would consume a pending landing on every render instead of on the
+  // commit the run produced.
+  const focusResultsFnRef = useRef(focusResults);
+  focusResultsFnRef.current = focusResults;
   useEffect(() => {
     const ticket = pendingResultLandings.current.shift();
     if (ticket) {
-      focusResults(ticket);
+      focusResultsFnRef.current(ticket);
     }
     // `result` alone IS the run's commit: `executeRun` dispatches `setResult`
     // and the `setTab` beside it from the same continuation, so React commits
@@ -1490,8 +1382,7 @@ export function App() {
     // this list too, which made ANY tab change consume the request — press
     // ⌘⇧⏎, then a digit key or a tab while the engine was still resolving, and
     // the landing fired against the run BEFORE it and was already spent by the
-    // time the one it belonged to committed. `focusResults` is redeclared every
-    // render and deliberately not a dependency.
+    // time the one it belonged to committed.
   }, [result]);
 
   /**
@@ -1514,17 +1405,14 @@ export function App() {
   useShortcut(
     RUN_AND_READ_SHORTCUT,
     () => {
-      preloadRunChunks();
       // Armed for the next result to COMMIT, which — if a run was already in
       // flight when this was pressed — is that run's rather than this one's.
       // Deliberate: both commits land in the same place, this chord's own run
       // arrives there a moment later, and the alternative is the swallowed
       // keypress `onRun` was just cured of.
-      pendingResultLandings.current.push(landingTicket());
+      pendingResultLandings.current.push(landing.arm());
       void (async () => {
-        const traceResult = await onRun(undefined, undefined, {
-          preserveScroll: Boolean(result),
-        });
+        const traceResult = await runFromGesture();
         if (!traceResult) {
           // This run will never commit, so its request has to go — otherwise it
           // fires on whatever run comes next. The OLDEST outstanding one is
@@ -1754,16 +1642,11 @@ export function App() {
             onTrustUntrustedHost={onTrustUntrustedHost}
             running={running}
             // Roadmap 031/067: the Run button AND the editor's ⌘⏎ come through
-            // here, and only the button has hover/focus intent (`onRunIntent`)
-            // to warm the chunks ahead of the click. A keyboard user has no
-            // hover, so without this call the one Run entry point they use left
-            // the lazy results column downloading behind the run — a Suspense
-            // fallback for an extra round trip on a cold load. Both imports are
-            // module-cached, so the button paying for it twice costs nothing.
-            onRun={() => {
-              preloadRunChunks();
-              void onRun(undefined, undefined, { preserveScroll: Boolean(result) });
-            }}
+            // here, so both get the chunk warm-up `runFromGesture` carries.
+            // `onRunIntent` is the button's own half — hover and focus, which a
+            // keypress does not have. Both imports are module-cached, so the
+            // button paying for the warm-up twice costs nothing.
+            onRun={() => void runFromGesture()}
             onRunIntent={preloadRunChunks}
             onCopyLink={onCopyLink}
             advancedZone={advancedZone}

@@ -1,6 +1,11 @@
 import { useEffect, useRef } from "react";
 import { mayOwnNativePopup } from "@/hooks/scroll-ergonomics";
-import { type EscapePriority, handleEscape, pushEscapeLayer } from "@/lib/escape-stack";
+import {
+  type EscapePriority,
+  handleEscape,
+  overlayKeyboardOwned,
+  pushEscapeLayer,
+} from "@/lib/escape-stack";
 
 /**
  * Roadmap 067: the document half of the Escape ladder (`lib/escape-stack.ts`
@@ -52,12 +57,25 @@ function onKeyDown(event: KeyboardEvent): void {
   // until the suggestions appear and press Escape, and the return pill went with
   // them.
   //
-  // Narrow on purpose. Round one's `isTextEditingTarget` bail took Escape away
-  // from every field and left layers stranded; this covers only a control that
-  // can have a native popup at all (`mayOwnNativePopup` — two fields in this
-  // app), so Escape from a text field still reaches the ladder, which is the
-  // constraint that fix established.
-  if (mayOwnNativePopup(event.target)) {
+  // Narrow on purpose, and narrow twice over. Round one's `isTextEditingTarget`
+  // bail took Escape away from every field and left layers stranded; this covers
+  // only a control that can have a native popup at all (`mayOwnNativePopup` —
+  // two fields in this app), so Escape from a text field still reaches the
+  // ladder, which is the constraint that fix established.
+  //
+  // The second half is the rule the glossary card already states in the other
+  // direction: a surface that opened ITSELF cannot outrank one the user opened.
+  // A suggestion popup appears as a side effect of typing; a rule-evidence card
+  // or the session menu is something the reader asked for. Nothing closes that
+  // card on blur and it does not trap focus, so a keyboard user can Tab out of
+  // it and back into `datasource` with the card still standing — and while this
+  // bail was unconditional, Escape there was inert and the card was
+  // undismissable from those two fields, the same stranding rounds one to three
+  // kept re-introducing. So the yield holds only while nothing outranking a
+  // native popup is open: `overlayKeyboardOwned()` is `popover` or `menu`, never
+  // `ambient`, which is what keeps the return pill safe from the very press this
+  // bail was added for.
+  if (mayOwnNativePopup(event.target) && !overlayKeyboardOwned()) {
     return;
   }
   if (handleEscape()) {

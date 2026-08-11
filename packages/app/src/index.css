@@ -4057,7 +4057,13 @@ main:has(.app-split.has-results) {
   }
 }
 
-.skip-link:focus-visible {
+/* `:focus`, not `:focus-visible` — a skip link must not depend on the UA's
+   keyboard heuristic. Browser back/forward focus restoration and a
+   programmatic `.focus()` both leave this the active element without
+   satisfying that heuristic, and a focused control rendered 4rem above the
+   viewport is exactly the invisible-focus outcome this document exists to
+   eliminate. */
+.skip-link:focus {
   top: 0.5rem;
 }
 

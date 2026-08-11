@@ -448,3 +448,40 @@ test("⌘⇧⏎ stands down if you go back to typing while the run resolves", as
   // The chord's landing was abandoned: focus stayed where the work is.
   await expect(editor).toBeFocused();
 });
+
+// ── Fifth-review follow-ups (2026-08-11) ─────────────────────────────────────
+
+test("⌘⏎ still runs from a simulator combobox", async ({ page }) => {
+  await page.goto("/");
+  await setEditorContent(page, PACKAGE_RULES_CONFIG);
+  await runAndAwaitResult(page);
+  await openTab(page, "simulator");
+
+  // These two fields decline PLAIN Enter so accepting a datalist suggestion
+  // does not also simulate — but the guard once preventDefaulted the modified
+  // chord too, and `useShortcut` bails on `defaultPrevented`, so the app's
+  // primary shortcut was silently dead in the fields users type in most.
+  const datasource = page.locator(".sim-field", { hasText: "datasource" }).locator("input");
+  await datasource.click();
+  await datasource.fill("npm");
+  await page.keyboard.press("ControlOrMeta+Enter");
+
+  await expect(page.locator("p.visually-hidden[role='status']")).toContainText("Run finished");
+});
+
+test("⌘⏎ on a focused provenance chip runs, rather than jumping", async ({ page }) => {
+  await page.goto("/");
+  await runAndAwaitResult(page);
+  await openTab(page, "effective");
+
+  const chip = page
+    .locator('#panel-effective .badge.prov-layer.prov-preset[role="button"]')
+    .first();
+  await expect(chip).toBeVisible();
+  await chip.focus();
+
+  // The chip implements its own Enter/Space activation, so without a modifier
+  // guard ⌘⏎ jumped to the Presets tree — a wrong action, not a dropped one.
+  await page.keyboard.press("ControlOrMeta+Enter");
+  await expect(tabButton(page, "effective")).toHaveAttribute("aria-selected", "true");
+});

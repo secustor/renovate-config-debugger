@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ESCAPE_PRIORITY } from "@/lib/escape-stack";
+import { ESCAPE_PRIORITY, type EscapePriority } from "@/lib/escape-stack";
 import { useEscapeLayer } from "./use-escape-layer";
 
 /**
@@ -12,8 +12,14 @@ import { useEscapeLayer } from "./use-escape-layer";
 // vitest runs without `globals`, so RTL's automatic cleanup never registers.
 afterEach(cleanup);
 
-function Pill({ onEscape }: { onEscape: () => void }) {
-  useEscapeLayer(true, onEscape, ESCAPE_PRIORITY.ambient);
+function Pill({
+  onEscape,
+  priority = ESCAPE_PRIORITY.ambient,
+}: {
+  onEscape: () => void;
+  priority?: EscapePriority;
+}) {
+  useEscapeLayer(true, onEscape, priority);
   return (
     <>
       <input aria-label="packageName" />
@@ -47,5 +53,21 @@ describe("useEscapeLayer", () => {
 
     fireEvent.keyDown(getByLabelText("datasource"), { key: "Escape" });
     expect(onEscape).not.toHaveBeenCalled();
+  });
+
+  it("still dismisses a popover from one of those fields", () => {
+    // The yield above is for a popup that opened ITSELF as the user typed; it
+    // cannot outrank a card the user asked for. Nothing closes the rule-evidence
+    // popover on blur and it does not trap focus, so Tabbing out of it and back
+    // into `datasource` is reachable — and while the bail was unconditional the
+    // card was undismissable from there, the stranding this ladder exists to
+    // stop.
+    const onEscape = vi.fn();
+    const { getByLabelText } = render(
+      <Pill onEscape={onEscape} priority={ESCAPE_PRIORITY.popover} />,
+    );
+
+    fireEvent.keyDown(getByLabelText("datasource"), { key: "Escape" });
+    expect(onEscape).toHaveBeenCalledOnce();
   });
 });

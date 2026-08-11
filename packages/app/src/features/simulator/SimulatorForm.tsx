@@ -98,7 +98,18 @@ export function SimulatorForm({
       // where that is written down. The cost is one Tab: from `datasource`,
       // Enter no longer simulates.
       onKeyDown={(e) => {
-        if (e.key === "Enter" && mayOwnNativePopup(e.target)) {
+        // A handler that claims Enter has to say WHICH Enter it means, and the
+        // first cut of this one did not. ⌘/Ctrl+⏎ is the app's Run chord (⌘⇧⏎
+        // runs and jumps), `useShortcut` bails on `defaultPrevented`, and the
+        // page listener sees this event after React's — so preventing the
+        // default of a modified Enter here left the primary shortcut of the app
+        // dead in exactly these two fields and nowhere else. Implicit submission
+        // is a BARE-Enter behavior, so the guard below never needed to see a
+        // modified one: declining what cannot happen only cost us the chord.
+        if (e.key !== "Enter" || e.metaKey || e.ctrlKey) {
+          return;
+        }
+        if (mayOwnNativePopup(e.target)) {
           e.preventDefault();
         }
       }}

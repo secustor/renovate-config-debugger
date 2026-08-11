@@ -113,9 +113,11 @@ export interface ShareLink {
   shareError: string | null;
   /** Roadmap 018: a decoded link's simulator inputs, handed to the
    *  RuleSimulator to pre-fill — and, when `autoSimulate`, to run — as soon as
-   *  there is a result to simulate against. `autoSimulate` survives the decode
-   *  only if the link's OWN run produced that result (see `loadShareToken`); a
-   *  link whose config fails still arrives pre-filled, waiting for the fix. */
+   *  there is a result to simulate against. A link whose config fails to run
+   *  still arrives pre-filled, waiting for the fix; whether `autoSimulate`
+   *  survives that failure to arm the user's next successful run depends on
+   *  whether a stale result could otherwise be misattributed (see
+   *  `loadShareToken`'s `isInitialLoad` parameter). */
   simRequest: SimRequest | null;
   buildShareLinkAndCopy: (sim?: ShareSimulator) => Promise<void>;
   /** Roadmap 009 (auth-failure surfacing): the `#config=…` fragment a sign-in
@@ -184,7 +186,15 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
    * superseded (component unmount, or a second hashchange arriving before
    * the first finishes its awaits).
    */
-  async function loadShareToken(shareToken: string, isCancelled: () => boolean): Promise<void> {
+  async function loadShareToken(
+    shareToken: string,
+    isCancelled: () => boolean,
+    /** Roadmap 067 review: whether this decode is the mount effect (the app's
+     *  very first run of the session) rather than a hashchange over one
+     *  already in progress — see the note at the `autoSimulate` computation
+     *  below, the one place this changes behavior. */
+    isInitialLoad: boolean,
+  ): Promise<void> {
     // Roadmap 031: `getRenovateVersion()` IS the module-cached engine import,
     // and any successful decode ends in a run that needs that chunk — so the
     // (multi-second) download starts here and overlaps the decode instead of
@@ -280,10 +290,25 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
     // theirs to fire once the config is fixed. What must not happen is a
     // simulation attributed to a result this link did not produce (a PREVIOUS
     // link's may well still be on screen), and that is what `ran` guards.
+    //
+    // Roadmap 067 review: `ran !== null` alone over-corrected — the
+    // simRequest nonce is consumed once (`useShareLinkRequest`), so a link
+    // whose OWN run fails disarms `autoSimulate` forever, even once the user
+    // fixes the typo and presses Run again, losing the sender's "look at this
+    // dependency" intent for good. It only needs to stay disarmed while a
+    // STALE result — a previous link's, or an earlier session's — could still
+    // be on screen to misattribute the simulation to; `isInitialLoad` is when
+    // that risk provably does not exist. The mount effect's decode is the
+    // app's first run of the session (`result` starts `null` and nothing else
+    // runs ahead of it), so the very next successful run — this decode's own,
+    // or the one the user gets after fixing the config — can only be THIS
+    // link's, however long that takes. A hashchange decode has no such
+    // guarantee (an earlier run's result may already be showing), so it keeps
+    // the original, immediate-only arming.
     if (!isCancelled() && payload.sim) {
       setSimRequest({
         form: payload.sim.form,
-        autoSimulate: ran !== null && payload.sim.autoSimulate === true,
+        autoSimulate: (ran !== null || isInitialLoad) && payload.sim.autoSimulate === true,
         // Roadmap 054: rides along with the form rather than through `view`
         // (where `simStep` lives) because it is only meaningful for the
         // simulation this descriptor reproduces — see ShareSimulator.
@@ -389,7 +414,7 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
       if (!shareToken) {
         return;
       }
-      await loadShareTokenRef.current(shareToken, isCancelled);
+      await loadShareTokenRef.current(shareToken, isCancelled, true);
     })();
   }, [oauthConfig]);
 
@@ -426,7 +451,10 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
       }
       const generation = ++decodeGenerationRef.current;
       const isCancelled = () => !mountedRef.current || decodeGenerationRef.current !== generation;
-      void loadShareTokenRef.current(decision.token, isCancelled);
+      // Not the initial load — a hashchange fires only once the app is
+      // already running, so an earlier result may already be on screen (see
+      // the `isInitialLoad` note inside `loadShareToken`).
+      void loadShareTokenRef.current(decision.token, isCancelled, false);
     }
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
