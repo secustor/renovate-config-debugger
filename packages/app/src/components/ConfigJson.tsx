@@ -1,5 +1,9 @@
 import { Fragment, type ReactNode, useMemo } from "react";
-import { type DescriptionCard, descriptionCardsFor } from "@/lib/description-attribution";
+import {
+  type DescriptionCard,
+  type DescriptionCards,
+  descriptionCardsFor,
+} from "@/lib/description-attribution";
 import { DescriptionValue } from "./DescriptionAttribution";
 import { OptionKey } from "./option-docs";
 import { useOptionDocs } from "@/hooks/option-docs-hooks";
@@ -23,9 +27,9 @@ export function ConfigJson({
 }: {
   value: unknown;
   /** Roadmap 069: per-string attribution for the TOP-LEVEL `description` array
-   *  of `value`, in that array's order. Ignored unless it matches (see above);
-   *  omit it and this renders exactly as it always did. */
-  descriptions?: readonly DescriptionCard[] | null;
+   *  of `value`. Ignored unless it matches (see above); omit it and this
+   *  renders exactly as it always did. */
+  descriptions?: DescriptionCards | null;
   /** The attribution card's "Show in preset tree →". Without it the card still
    *  renders — it simply names the preset instead of offering the jump. */
   onSelectPreset?: (nodeId: string) => void;
@@ -38,9 +42,11 @@ export function ConfigJson({
     v: unknown,
     indent: number,
     configContext: boolean,
-    /** Attribution for THIS array's elements — set only for the top-level
-     *  `description`, so nothing else can pick it up by accident. */
-    attributed?: readonly DescriptionCard[] | null,
+    /** Attribution for THIS array's elements, indexed the way the array is —
+     *  set only for the top-level `description`, so nothing else can pick it up
+     *  by accident, and holed at every member no preset wrote (a non-string,
+     *  which renders as plain JSON like any other value). */
+    attributed?: readonly (DescriptionCard | undefined)[] | null,
   ): ReactNode {
     if (Array.isArray(v)) {
       if (v.length === 0) {

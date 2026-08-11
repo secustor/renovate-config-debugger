@@ -26,7 +26,14 @@ function attribution(parts: Partial<RuleDescriptionAttribution>): RuleDescriptio
 }
 
 function provenance(ruleDescriptions: RuleDescriptionAttribution[]): DescriptionProvenance {
-  return { entries: [], dropped: [], ruleDescriptions, degraded: false };
+  return {
+    entries: [],
+    unattributed: [],
+    finalLength: 0,
+    dropped: [],
+    ruleDescriptions,
+    degraded: false,
+  };
 }
 
 describe("ruleDescriptionAttribution", () => {

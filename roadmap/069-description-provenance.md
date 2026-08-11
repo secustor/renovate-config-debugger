@@ -269,11 +269,17 @@ already keeps a per-run `parents` map and each node's own rule count.
 
 The scope is what the attribution can honestly carry. Attribution is by INDEX
 into the final `description` array, so `descriptionCardsFor` compares the
-rendered document's array against it value by value and attaches nothing on any
-disagreement — which is exactly what happens in the As-JSON view's default
-keep-internal mode (presets still referenced, so their sentences are absent) and
-in the defaults-hydrated document. Preset-body views (`PresetDetail`) keep plain
-rendering: a preset's own `description` is a different array again.
+rendered document's array against it — each entry at its REAL index, and every
+index the engine reports as unattributed still holding a non-string — and
+attaches nothing on any disagreement, which is exactly what happens in the
+As-JSON view's default keep-internal mode (presets still referenced, so their
+sentences are absent) and in the defaults-hydrated document. Real indices,
+because a `description` array may legally hold non-strings (Renovate only warns
+about `["a", 42]`): those members get no card and render as plain JSON, but they
+occupy positions, so the cards are handed back placed BY index and the facts
+line counts the whole array — `Position 3 of 4`, not `3 of 3`. Preset-body views
+(`PresetDetail`) keep plain rendering: a preset's own `description` is a
+different array again.
 
 The affordance is the glossary's, not a new one. `useHoverCard` and the anchor
 component were hoisted out of `components/glossary.tsx` (`hooks/hover-card.ts` +
@@ -286,6 +292,15 @@ opens a card of its own, and the singleton would close the card it stands in),
 and the _Show in preset tree_ link is pointer-reachable only, since the card is
 portalled to `<body>` and closes on blur — the attribution itself is fully
 keyboard-readable, the jump is the extra.
+
+One thing the hoist had to add for that keyboard reachability: the hide-on-scroll
+ignores scrolls arriving within `SHOW_SCROLL_GRACE_MS` of the show, and
+re-anchors on them instead. Tab onto a string only partly in view and the browser
+scrolls it into view itself; that scroll landed in the capture listener a frame
+after the card opened and closed it again, so every anchor that was not already
+fully visible had no keyboard card at all. Re-anchoring rather than merely
+ignoring, because the anchor really did move — a card left at its opening
+coordinates points at whatever slid under it.
 
 **The simulator's matched rules.** `buildRuleDescriptions` indexes the engine's
 `ruleDescriptions` by merged rule index; a matched row then quotes the author's

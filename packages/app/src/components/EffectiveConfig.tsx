@@ -25,7 +25,7 @@ import { ProvenanceChip } from "./ProvenanceChip";
 import { layerId, layerLabel, type LayerId, layerNodeKey } from "./provenance-layer";
 import { useRuleProvenance } from "@/hooks/rule-provenance";
 import { useDescriptionProvenance } from "@/hooks/description-provenance";
-import { buildDescriptionCards, type DescriptionCard } from "@/lib/description-attribution";
+import { buildDescriptionCards, type DescriptionCards } from "@/lib/description-attribution";
 import {
   buildDescriptionLedger,
   type DescriptionLedger,
@@ -679,7 +679,7 @@ function ResolvedJsonView({
   /** Roadmap 069 (PR 5): per-string `description` attribution, attached to the
    *  document's own strings when this document IS the array it indexes — which
    *  `ConfigJson` decides, since only the emitted document can answer that. */
-  descriptions?: readonly DescriptionCard[] | null;
+  descriptions?: DescriptionCards | null;
   onSelectPreset?: (nodeId: string) => void;
 }) {
   return (

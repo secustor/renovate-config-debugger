@@ -3,7 +3,7 @@ import type {
   PresetNode,
   ProvenanceLayer,
 } from "@renovate-config-debugger/engine";
-import { computeTreeStats } from "@/components/preset-tree-stats";
+import { computeTreeStats, ROOT_NODE_ID } from "@/components/preset-tree-stats";
 
 /**
  * Roadmap 069 (PR 5): attribution at the point of contact — the model behind
@@ -29,18 +29,17 @@ import { computeTreeStats } from "@/components/preset-tree-stats";
  *   render a keep-internal document (presets still referenced, so most sentences
  *   are absent) or a defaults-hydrated one — neither is index-compatible, and a
  *   card that names the wrong preset is worse than no card. The guard compares
- *   the rendered array against the attribution value for value and hands back
- *   `null` on any disagreement.
+ *   the rendered array against the attribution value for value, at each entry's
+ *   REAL index, and hands back `null` on any disagreement. Real, because a
+ *   `description` array may legally hold non-strings (Renovate only warns about
+ *   `["a", 42]`): they occupy indices no preset wrote, so the cards are not a
+ *   1:1 list of the array — they are placed BY index, and the members between
+ *   them render plainly.
  *
  * Pure and DOM-free, so every wording is unit-testable.
  */
 
 const nf = new Intl.NumberFormat();
-
-/** The repo config's own node id (`trace/preset-tree.ts`). It is a config, not
- *  a preset: its sentences wear the `repo config` chip and offer no tree jump,
- *  because the tree never renders a row for the root. */
-const ROOT_NODE_ID = "root";
 
 /**
  * How many path segments a card prints before the middle is elided. The real
@@ -114,17 +113,38 @@ function pathTo(tree: PresetNode, nodeId: string): string[] {
 }
 
 /**
+ * The cards of one run, plus what the positional guard needs to place them: the
+ * length of the real final array and which of its indices hold a non-string.
+ * Both come straight from the engine's provenance — re-deriving them from the
+ * cards would be re-deriving exactly the thing being checked.
+ */
+export interface DescriptionCards {
+  /** One card per ATTRIBUTED string, in array order. Sparser than the array
+   *  itself whenever a non-string sits between two sentences — read `index`,
+   *  never the position in this list. */
+  cards: readonly DescriptionCard[];
+  /** Length of the real final `description` array, non-strings included. */
+  finalLength: number;
+  /** Indices of the members no preset wrote (they are not strings). */
+  unattributedIndices: ReadonlySet<number>;
+}
+
+/**
  * Builds one card per string of the final `description` array, in that array's
- * order — so `cards[i]` describes `description[i]`, which is what makes the
- * positional guard below a single length + value comparison.
+ * order. `cards[i]` is NOT `description[i]` when the array holds a non-string:
+ * each card carries its real `index`, which is what the guard below places it
+ * by.
  */
 export function buildDescriptionCards(
   provenance: DescriptionProvenance,
   tree: PresetNode | null | undefined,
-): DescriptionCard[] {
+): DescriptionCards {
   const stats = tree ? computeTreeStats(tree) : null;
-  const total = provenance.entries.length;
-  return provenance.entries.map((entry): DescriptionCard => {
+  // The REAL array's length, so "position 3 of 4" counts the member Renovate
+  // kept but nobody wrote — counting only the attributed strings would print a
+  // total the reader cannot find in the document in front of them.
+  const total = provenance.finalLength;
+  const cards = provenance.entries.map((entry): DescriptionCard => {
     // The root is the repo config, not a preset: it wears the `repo config`
     // chip, has no path worth printing and offers no tree jump.
     const preset = entry.node?.nodeId === ROOT_NODE_ID ? undefined : entry.node;
@@ -147,27 +167,53 @@ export function buildDescriptionCards(
       ...(preset && stats?.nodesById.has(preset.nodeId) ? { nodeId: preset.nodeId } : {}),
     };
   });
+  return {
+    cards,
+    finalLength: provenance.finalLength,
+    unattributedIndices: new Set(provenance.unattributed.map((u) => u.index)),
+  };
 }
 
 /**
- * The cards for a rendered config document, or `null` when this document's
- * `description` is not the array the attribution indexes — a keep-internal
+ * The cards for a rendered config document, BY INDEX into that document's
+ * `description` array (so a caller printing element `i` asks for `[i]` and gets
+ * `undefined` where nothing is attributed) — or `null` when this document's
+ * `description` is not the array the attribution indexes: a keep-internal
  * document (presets still referenced), a defaults-hydrated one, or anything
  * else that is not the final config. Matched by POSITION and value, never by
  * value alone: two presets legitimately write the same sentence.
+ *
+ * The non-string members are checked too, though they never get a card: they
+ * are the reason the indices are what they are, so a document that has a
+ * SENTENCE where the attribution says a `42` sits is a different array, and
+ * accepting it would attribute every later sentence to the wrong preset.
  */
 export function descriptionCardsFor(
   doc: unknown,
-  cards: readonly DescriptionCard[] | null | undefined,
-): readonly DescriptionCard[] | null {
-  if (!cards || cards.length === 0 || typeof doc !== "object" || doc === null) {
+  attribution: DescriptionCards | null | undefined,
+): readonly (DescriptionCard | undefined)[] | null {
+  if (!attribution || attribution.cards.length === 0 || typeof doc !== "object" || doc === null) {
     return null;
   }
   const values = (doc as Record<string, unknown>).description;
-  if (!Array.isArray(values) || values.length !== cards.length) {
+  if (!Array.isArray(values) || values.length !== attribution.finalLength) {
     return null;
   }
-  return values.every((value, i) => value === cards[i]?.value) ? cards : null;
+  const byIndex: (DescriptionCard | undefined)[] = Array.from({
+    length: attribution.finalLength,
+  });
+  for (const card of attribution.cards) {
+    if (values[card.index] !== card.value) {
+      return null;
+    }
+    byIndex[card.index] = card;
+  }
+  for (const index of attribution.unattributedIndices) {
+    if (typeof values[index] === "string") {
+      return null;
+    }
+  }
+  return byIndex;
 }
 
 /** The card's head, after the preset chip: `docker:pinDigests` — *wrote this
