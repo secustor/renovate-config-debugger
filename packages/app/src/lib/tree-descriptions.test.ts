@@ -5,11 +5,12 @@ import type {
   DroppedDescription,
   ProvenanceLayer,
 } from "@renovate-config-debugger/engine";
+import { approximateTitle } from "@/components/description-approx";
+import { dropReasonText } from "./drop-reasons";
 import {
   APPROXIMATE_NOTE,
   buildTreeDescriptions,
   describeCountText,
-  droppedNoteText,
   muteNoteText,
   type PositionMarker,
   positionMarkerText,
@@ -43,12 +44,16 @@ interface EntrySpec {
   nodeName?: string;
   via?: ProvenanceLayer;
   approximate?: boolean;
+  /** The engine's REAL index, when a non-string member sits earlier in the
+   *  array and the string's position is therefore not its ordinal here. */
+  index?: number;
 }
 
 /** Builds `entries` with the indices and duplicate markers the engine assigns. */
 function entries(specs: EntrySpec[]): DescriptionAttribution[] {
   const firstByValue = new Map<string, number>();
-  return specs.map((spec, index) => {
+  return specs.map((spec, ordinal) => {
+    const index = spec.index ?? ordinal;
     const duplicateOfIndex = firstByValue.get(spec.value);
     if (duplicateOfIndex === undefined) {
       firstByValue.set(spec.value, index);
@@ -71,6 +76,10 @@ function provenance(
     dropped: [],
     ruleDescriptions: [],
     degraded: false,
+    unattributed: [],
+    // What the engine reports: every member of the final array, the ones no
+    // preset can be credited for included.
+    finalLength: parts.entries.length + (parts.unattributed?.length ?? 0),
     ...parts,
   };
 }
@@ -124,6 +133,26 @@ describe("buildTreeDescriptions", () => {
     expect(tree.byNodeId.get("p1")?.markers.map((m) => m.position)).toEqual([1, 2]);
     // Two sentences, ONE contributor — the count in the card title counts nodes.
     expect(tree.contributorCount).toBe(1);
+  });
+
+  test("counts the array's real length, non-strings included", () => {
+    // `{"description": ["A", 42, "B"]}` merges with a warning and the `42` holds
+    // index 1 (069 PR 1's `unattributed`), so "B" really is #3 of 3. Counting
+    // the attributable strings would print "#3 of 2" — a marker that cannot be
+    // found in the array the Effective config shows.
+    const tree = built(
+      provenance({
+        entries: entries([
+          { value: "A.", node: "p1" },
+          { value: "B.", node: "p9", index: 2 },
+        ]),
+        unattributed: [{ index: 1, value: 42 }],
+      }),
+    );
+
+    expect(tree.total).toBe(3);
+    expect(tree.byNodeId.get("p9")?.markers[0]).toMatchObject({ position: 3, total: 3 });
+    expect(positionMarkerText(tree.byNodeId.get("p9")?.markers[0] ?? marker())).toBe("→ #3 of 3");
   });
 
   test("nodes with no description fact are absent from the map", () => {
@@ -230,12 +259,28 @@ describe("buildTreeDescriptions — drops", () => {
         key: "x0",
         kind: "dropped",
         text: "The config that Renovate recommends.",
-        note: droppedNoteText(WRAPPER),
-        title: `The config that Renovate recommends. — ${droppedNoteText(WRAPPER).replaceAll("`", "")}`,
+        // The shared table, so the tree and the ledger footer cannot diverge.
+        note: dropReasonText(WRAPPER),
+        title: `The config that Renovate recommends. — ${dropReasonText(WRAPPER).replaceAll("`", "")}`,
       },
     ]);
     // A drop is not a contribution — the title's count must not claim it.
     expect(tree.contributorCount).toBe(0);
+  });
+
+  test("an approximate drop hedges in the line AND its tooltip", () => {
+    // The drop came out of a subtree the engine had already degraded to its
+    // enclosing node (069 PR 1), so the row it sits on is a guess — and the
+    // tooltip is the only text a truncated row actually shows.
+    const tree = built(
+      provenance({ entries: [], dropped: [{ ...WRAPPER, approximate: true }], degraded: true }),
+    );
+    const line = tree.byNodeId.get("p2")?.lines[0];
+
+    expect(line?.note).toContain("; exact preset unknown");
+    expect(line?.title).toContain("; exact preset unknown");
+    // The rule itself is untouched: what Renovate did is certain.
+    expect(line?.note).toBe(`${dropReasonText(WRAPPER)}; exact preset unknown`);
   });
 
   test("puts the mute note on the node that pressed the button, not the author", () => {
@@ -310,30 +355,10 @@ describe("wording", () => {
     expect(positionMarkerTitle(marker({ approximate: true }), false)).toContain(APPROXIMATE_NOTE);
   });
 
-  test("each drop rule explains itself in the tree's own terms", () => {
-    expect(
-      droppedNoteText({
-        value: "x",
-        node: { nodeId: "p1", name: "config:recommended" },
-        reason: "wrapper-preset",
-      }),
-    ).toBe("Renovate drops it on merge — wrapper preset (body is only `description` + `extends`)");
-    expect(
-      droppedNoteText({
-        value: "x",
-        node: { nodeId: "p1", name: "packages:eslint" },
-        reason: "package-list-preset",
-      }),
-    ).toBe("Renovate drops it on merge — package-name list (body only sets `matchPackageNames`)");
-    expect(
-      droppedNoteText({
-        value: "x",
-        node: { nodeId: "p1", name: "group:jest" },
-        reason: "ignore-deps-quirk",
-      }),
-    ).toBe(
-      "muted by the extending config — its empty `ignoreDeps` deletes every description it extends",
-    );
+  test("the approximate note is the shared hedge, not a fourth phrasing of it", () => {
+    // `description-approx.ts` owns this sentence for every surface; the nameless
+    // form is the tree's, because the line is rendered on the node it would name.
+    expect(APPROXIMATE_NOTE).toBe(approximateTitle());
   });
 
   test("the mute note and the title count agree with English", () => {

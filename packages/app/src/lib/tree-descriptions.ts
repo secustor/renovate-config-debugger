@@ -1,5 +1,7 @@
-import type { DescriptionProvenance, DroppedDescription } from "@renovate-config-debugger/engine";
+import type { DescriptionProvenance } from "@renovate-config-debugger/engine";
+import { approximateTitle } from "@/components/description-approx";
 import { ROOT_NODE_ID } from "@/components/preset-tree-stats";
+import { dropReasonText } from "./drop-reasons";
 
 /**
  * Roadmap 069 (PR 4): the preset tree's `describe` mode, as data.
@@ -30,7 +32,9 @@ export interface PositionMarker {
   key: string;
   /** 1-based position in the final array — every index this app prints is. */
   position: number;
-  /** Strings in the final array. */
+  /** Members of the final array, non-strings included (the engine's
+   *  `finalLength`): the marker names a slot in the array the Effective config
+   *  prints, so its denominator has to be that array's real length. */
   total: number;
   /** 1-based position of the first occurrence, when this entry repeats one. */
   duplicateOfPosition?: number;
@@ -46,7 +50,17 @@ export interface PositionMarker {
  */
 export type DescLineKind = "contribution" | "dropped" | "mute";
 
-/** One quote line beneath a node's name row. */
+/**
+ * One quote line beneath a node's name row.
+ *
+ * Pure text, deliberately: the `≈` the other surfaces render (069 PR 2's
+ * `ApproximateMark`) qualifies a source CHIP, and this row has none — its
+ * placement under the node is the attribution, so a glyph in front of a
+ * struck-through quote would read as part of the quotation. The hedge travels as
+ * words instead, in the `note` and therefore in the `title` derived from it,
+ * which is the only text an ellipsized row can still show. On a contributing
+ * node the node's own marker carries the `approx` suffix as well.
+ */
 export interface DescLine {
   /** Stable React key within the node. */
   key: string;
@@ -80,14 +94,20 @@ export interface TreeDescriptions {
   byNodeId: ReadonlyMap<string, NodeDescriptionFacts>;
   /** Distinct preset nodes appearing in `entries` (the repo config excluded). */
   contributorCount: number;
-  /** Strings in the final `description` array. */
+  /** Members of the final `description` array — the engine's `finalLength`. */
   total: number;
 }
 
-/** The note on an `approximate` entry — the engine's enclosing-node fallback,
- *  said in the tree's own terms. */
-export const APPROXIMATE_NOTE =
-  "written somewhere inside this preset — the exact one could not be determined";
+/**
+ * The note on an `approximate` entry: the shared hedge, not a fourth phrasing of
+ * it (`components/description-approx.ts`, 069 PR 2).
+ *
+ * The nameless form is the right one here even though the enclosing node is
+ * known — the line is rendered ON that node's row, so naming it again would
+ * repeat the row above it. The `≈` the other surfaces put beside a chip has its
+ * counterpart in the marker's own `approx` suffix.
+ */
+export const APPROXIMATE_NOTE = approximateTitle();
 
 /**
  * Inverts a run's description provenance into the per-node index describe mode
@@ -95,7 +115,11 @@ export const APPROXIMATE_NOTE =
  * case the mode toggle has nothing to offer and is not shown).
  */
 export function buildTreeDescriptions(provenance: DescriptionProvenance): TreeDescriptions | null {
-  const total = provenance.entries.length;
+  // The array's REAL length, not `entries.length`: Renovate keeps a non-string
+  // member with a warning, so `{"description": ["a", 42, "b"]}` has "b" at #3 of
+  // 3 while only two members are attributable (069 PR 1's `unattributed` /
+  // `finalLength`). Counting the strings would print "#3 of 2".
+  const total = provenance.finalLength;
   const byNodeId = new Map<string, NodeDescriptionFacts>();
   const contributors = new Set<string>();
   /** Drops each node caused below it, keyed by the muting node. */
@@ -146,8 +170,13 @@ export function buildTreeDescriptions(provenance: DescriptionProvenance): TreeDe
     // Same rule as above, on both halves of the story: nothing is ever filed
     // under the root, which has no row to show it on.
     if (drop.node.nodeId !== ROOT_NODE_ID) {
+      // The reason comes from the shared table (069 PR 3's `drop-reasons.ts`),
+      // which is also what the blame ledger's footer prints — the two surfaces
+      // answer "where did my preset's description go" and must answer it
+      // identically. It hedges itself for an `approximate` drop, so the caveat
+      // reaches the line AND the tooltip `descLine` derives from it.
       factsFor(drop.node.nodeId).lines.push(
-        descLine(`x${index}`, "dropped", drop.value, droppedNoteText(drop)),
+        descLine(`x${index}`, "dropped", drop.value, dropReasonText(drop)),
       );
     }
     // …and the mute button that pressed it, which is a different node and the
@@ -181,41 +210,40 @@ export function positionMarkerText(marker: PositionMarker): string {
   return parts.join(" · ");
 }
 
-/** …and its tooltip. `linked` is whether the marker is the cross-link to the
- *  blame ledger, which only App-level plumbing can offer. */
+/**
+ * …and its tooltip. `linked` is whether the marker is the cross-link to the
+ * blame ledger, which only App-level plumbing can offer.
+ *
+ * Built as independent sentences rather than one template per case: the slot,
+ * the repeat, the hedge and the call to action are four facts a degraded run can
+ * carry in any combination, and the hedge is the shared wording, which is
+ * already a sentence of its own.
+ */
 export function positionMarkerTitle(marker: PositionMarker, linked: boolean): string {
-  const cta = linked ? " Show the full array in the Effective config." : "";
+  let slot = `Sentence #${marker.position} of ${marker.total} in the final description array`;
   if (marker.duplicateOfPosition !== undefined) {
-    const caveat = marker.approximate ? ` It was ${APPROXIMATE_NOTE}.` : "";
-    return `Sentence #${marker.position} of ${marker.total} in the final description array — a repeat of #${marker.duplicateOfPosition}, which Renovate never deduplicates.${caveat}${cta}`;
+    slot += ` — a repeat of #${marker.duplicateOfPosition}, which Renovate never deduplicates`;
   }
+  const sentences = [slot];
   if (marker.approximate) {
-    return `Landed at #${marker.position} of ${marker.total} in the final description array, ${APPROXIMATE_NOTE}.${cta}`;
+    sentences.push(APPROXIMATE_NOTE);
   }
-  return `Sentence #${marker.position} of ${marker.total} in the final description array.${cta}`;
+  if (linked) {
+    sentences.push("Show the full array in the Effective config");
+  }
+  return sentences.map((sentence) => `${sentence}.`).join(" ");
 }
 
-const DROP_NOTES: Record<"wrapper-preset" | "package-list-preset", string> = {
-  // Both are `getPreset` deletions, i.e. facts about the preset's SHAPE — and
-  // worth saying in the tree, because the two headline presets ARE the shape.
-  "wrapper-preset":
-    "Renovate drops it on merge — wrapper preset (body is only `description` + `extends`)",
-  "package-list-preset":
-    "Renovate drops it on merge — package-name list (body only sets `matchPackageNames`)",
-};
-
-/** Why this node's own sentence never reached the config. Backtick-marked (the
- *  `CodeText` convention), so option names stay mono. */
-export function droppedNoteText(drop: DroppedDescription): string {
-  if (drop.reason === "ignore-deps-quirk") {
-    const by = drop.droppedBy ? `\`${drop.droppedBy.name}\`` : "the extending config";
-    return `muted by ${by} — its empty \`ignoreDeps\` deletes every description it extends`;
-  }
-  return DROP_NOTES[drop.reason];
-}
-
-/** The other half of that story, on the node that pressed the mute button —
- *  `group:recommended` alone silences a hundred-plus sentences below it. */
+/**
+ * The other half of a mute's story, on the node that pressed the button —
+ * `group:recommended` alone silences a hundred-plus sentences below it.
+ *
+ * Tree-only, and therefore local: `drop-reasons.ts` words the rule for the node
+ * whose sentence went missing, which is the fact both surfaces state. This is an
+ * AGGREGATE over the drops of a whole subtree, and it exists because the tree is
+ * the only surface with a row for the muting node to say it on — the ledger
+ * lists drops, never their causes, so there is no twin to drift from.
+ */
 export function muteNoteText(count: number): string {
   return `mutes ${nf.format(count)} description${count === 1 ? "" : "s"} below (empty \`ignoreDeps\`)`;
 }
