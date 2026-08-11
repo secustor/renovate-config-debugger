@@ -37,6 +37,7 @@ export {
   type DigestRule,
   groupContributionText,
   ruleNoteText,
+  unattributedNoteText,
 } from "./description-digest";
 export {
   effectiveTally,

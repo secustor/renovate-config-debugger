@@ -3,7 +3,7 @@ import type {
   DescriptionSource,
   ProvenanceLayer,
 } from "@renovate-config-debugger/engine";
-import { layerId, layerNodeKey } from "@/components/provenance-layer";
+import { layerNodeKey, stableLayerKey } from "@/components/provenance-layer";
 import { ruleWrittenKeys, summarizeRuleSelectors } from "./rule-selectors";
 
 /**
@@ -70,8 +70,8 @@ export interface DigestGroup {
    * flag, so the two extends must stay two groups), but node ids are minted per
    * run — and the card stays mounted across runs, so a node-based key would let
    * a group's expansion state reattach to a different preset after an edit.
-   * Hence the name-based `layerId`, plus an ordinal (`…#2`) for the repeated
-   * extend the node grouping deliberately kept separate.
+   * Hence `stableLayerKey`: the name-based `layerId` plus an ordinal for the
+   * repeated extend the node grouping deliberately kept separate.
    */
   key: string;
   layer: ProvenanceLayer;
@@ -98,6 +98,17 @@ export interface DescriptionDigest {
   totals: DescriptionDigestTotals;
   /** At least one string needed the engine's enclosing-node fallback (069 PR 1). */
   degraded: boolean;
+  /**
+   * Members of the final `description` array that are not text. Renovate only
+   * WARNS about `{"description": ["a sentence", 42]}` — the `42` survives into
+   * the array and holds a real index — so no preset can be credited with it and
+   * no group can show it. Counted here so the card can say so rather than let a
+   * summary titled "What this config does" quietly drop a member.
+   */
+  unattributed: number;
+  /** Length of the real final `description` array (069 PR 1's `finalLength`):
+   *  the strings shown across all groups PLUS {@link unattributed}. */
+  finalLength: number;
 }
 
 interface MutableGroup extends Omit<DigestGroup, "behaviors" | "key" | "redundant"> {
@@ -123,7 +134,11 @@ function groupFor(groups: Map<string, MutableGroup>, layer: ProvenanceLayer): Mu
  * descriptions and no user rule descriptions. `null` rather than an empty
  * digest because the card's empty state is *no card*: a config that extends
  * nothing has no author prose to show, and an empty "What this config does"
- * would be a promise the run cannot keep.
+ * would be a promise the run cannot keep. A `description` holding ONLY
+ * non-strings (`{"description": [42]}`) is that same empty state — there is no
+ * prose to summarize, so no card is shown and nothing claims otherwise; the
+ * under-reporting that {@link DescriptionDigest.unattributed} exists to prevent
+ * only arises once a card IS shown.
  *
  * `rules` is the final merged `packageRules` array (`result.finalConfig`), used
  * only to summarize a described rule's matchers.
@@ -180,13 +195,10 @@ export function buildDescriptionDigest(
       extendsCount++;
     }
     hasUserRules ||= group.rules.length > 0;
-    // Name-based key, disambiguated by how many groups of that name came
-    // before it in merge order — stable across runs, unlike the node id.
-    const base = layerId(group.layer);
-    const seen = keyUses.get(base) ?? 0;
-    keyUses.set(base, seen + 1);
     built.push({
-      key: seen === 0 ? base : `${base}#${seen + 1}`,
+      // Name-based key, disambiguated by how many groups of that name came
+      // before it in merge order — stable across runs, unlike the node id.
+      key: stableLayerKey(group.layer, keyUses),
       ...group,
       // A group with rules always has something to show, whatever its strings did.
       redundant: group.entries.length > 0 && group.behaviors === 0 && group.rules.length === 0,
@@ -200,6 +212,8 @@ export function buildDescriptionDigest(
     groups: built,
     totals: { behaviors, extendsCount, hasUserRules },
     degraded: provenance.degraded,
+    unattributed: provenance.unattributed.length,
+    finalLength: provenance.finalLength,
   };
 }
 
@@ -220,6 +234,26 @@ export function descriptionCountText(totals: DescriptionDigestTotals): string {
     parts.push(`from ${sources.join(" + ")}`);
   }
   return parts.join(" · ");
+}
+
+/**
+ * The card's quiet footnote about the members no group can show: `2 members of
+ * the description array are not text, so no preset can be credited with them`.
+ * Empty when there are none — which is every well-formed config.
+ *
+ * Renovate accepts a wrong-typed member with a warning rather than a refusal
+ * (069 PR 1), so this really does happen to real configs; the card summarizes
+ * strings, and a summary that silently omits part of the array it is
+ * summarizing is the thing this line exists to prevent.
+ */
+export function unattributedNoteText(digest: DescriptionDigest): string {
+  const count = digest.unattributed;
+  if (count === 0) {
+    return "";
+  }
+  const members = count === 1 ? "member" : "members";
+  const them = count === 1 ? "it" : "them";
+  return `${nf.format(count)} ${members} of the description array ${count === 1 ? "is" : "are"} not text, so no preset can be credited with ${them}.`;
 }
 
 /** A group header's muted note: what this layer added, in its own right. */

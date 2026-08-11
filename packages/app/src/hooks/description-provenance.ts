@@ -35,18 +35,30 @@ function descriptionProvenanceFor(result: TraceResult): Promise<DescriptionProve
 /**
  * `undefined` = loading / no result yet, `null` = unavailable (the run has no
  * final config, or preset resolution never finished).
+ *
+ * The stale state is discarded DURING RENDER, not in the effect. Effects run
+ * after the commit, so a reset made there paints one frame in which the new
+ * `result` is paired with the PREVIOUS run's provenance — and that pairing is
+ * actively wrong rather than merely stale, because preset node ids (`p1`,
+ * `p2`, …) are minted per run: the old attribution's ids resolve against the
+ * new tree, and a sentence flashes attributed to whichever preset inherited
+ * the id. React's "adjust state when a prop changes" idiom re-renders this
+ * component immediately, before anything is committed, so no such frame exists.
  */
 export function useDescriptionProvenance(
   result: TraceResult | null | undefined,
 ): DescriptionProvenance | null | undefined {
   const [state, setState] = useState<DescriptionProvenance | null | undefined>(undefined);
+  const [stateOwner, setStateOwner] = useState(result);
+  if (stateOwner !== result) {
+    setStateOwner(result);
+    setState(undefined);
+  }
   useEffect(() => {
     if (!result) {
-      setState(undefined);
       return;
     }
     let live = true;
-    setState(undefined);
     void (async () => {
       const provenance = await descriptionProvenanceFor(result);
       if (live) {
@@ -57,5 +69,9 @@ export function useDescriptionProvenance(
       live = false;
     };
   }, [result]);
-  return state;
+  // Guarded rather than returned raw: React discards the output of the render
+  // that called `setState` above, but this component's body still RAN with the
+  // pre-reset `state` in hand, and a consumer that reads the return value into
+  // something other than JSX (a ref, a log, a callback) would see it.
+  return stateOwner === result ? state : undefined;
 }

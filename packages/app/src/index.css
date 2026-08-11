@@ -4313,10 +4313,37 @@ button.desc-digest-leaf:focus-visible {
   font-style: italic;
 }
 
+/* A member of the description array that is not a string: Renovate warns and
+   keeps it, no preset can be credited with it, and no group can show it. A
+   quiet footnote rather than a warning — the config is the way it is, and the
+   card's job here is only to not under-report it. */
+.desc-digest-aside {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin: 0;
+  padding: 0 0.75rem 0.5rem;
+}
+
+/* Roadmap 069: the approximate-attribution family, shared by every surface
+   that renders the engine's per-string attribution — the Overview's digest
+   card here, the Effective config's blame ledger (PR 3), the preset tree's
+   inline descriptions (PR 4). One family, so the `≈` and its caveat cannot
+   drift apart between them; see components/description-approx.tsx. */
+
+/* The standalone mark, for a row with no leaf label to prefix. Same muted
+   weight as the label's own `≈` prefix, so the two read as one mark. */
+.desc-approx-mark {
+  color: var(--muted);
+  cursor: help;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  margin-left: auto;
+}
+
 /* Same warn-notice tint (050 families) and attachment as the resolved
    document's merge-order caveat (051) — a qualification of the thing above it,
    not a problem with the run. */
-.desc-digest-caveat {
+.desc-approx-caveat {
   background: var(--warn-bg);
   border-top: 1px solid var(--warn-border);
   font-size: 0.8rem;

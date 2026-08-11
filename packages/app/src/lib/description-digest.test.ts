@@ -12,7 +12,13 @@ import {
   type DigestRule,
   groupContributionText,
   ruleNoteText,
+  unattributedNoteText,
 } from "./description-digest";
+
+/** The ordinal separator `stableLayerKey` uses (U+241F). Spelled out here
+ *  because a key that silently became `#`-separated again would re-open the
+ *  collision the last test in "grouping" pins down. */
+const SEP = "␟";
 
 /**
  * Roadmap 069 (PR 2): the grouping, the redundancy verdict and the counts, over
@@ -55,7 +61,19 @@ function entries(specs: EntrySpec[]): DescriptionAttribution[] {
 }
 
 function provenance(overrides: Partial<DescriptionProvenance> = {}): DescriptionProvenance {
-  return { entries: [], dropped: [], ruleDescriptions: [], degraded: false, ...overrides };
+  const attributed = overrides.entries ?? [];
+  const nonText = overrides.unattributed ?? [];
+  return {
+    dropped: [],
+    ruleDescriptions: [],
+    degraded: false,
+    // The engine guarantees `entries.length + unattributed.length ===
+    // finalLength`; the fixtures keep that invariant unless a test overrides it.
+    finalLength: attributed.length + nonText.length,
+    ...overrides,
+    entries: attributed,
+    unattributed: nonText,
+  };
 }
 
 // The three lookups below throw rather than assert-and-narrow: that fails the
@@ -134,8 +152,29 @@ describe("grouping", () => {
     expect(digest.groups.map((g) => g.redundant)).toEqual([false, true]);
     expect(digest.groups.map((g) => g.key)).toEqual([
       "preset::dependencyDashboard",
-      "preset::dependencyDashboard#2",
+      `preset::dependencyDashboard${SEP}2`,
     ]);
+  });
+
+  test("a preset named like an ordinal does not collide with a repeated extend", () => {
+    // `foo#2` is a legal preset name, and the ordinal used to be spelled `#2` —
+    // so the SECOND `foo` and the preset literally called `foo#2` both keyed on
+    // `preset:foo#2`, and React would have reconciled one group's expansion
+    // state onto the other. The separator is now a character no preset name can
+    // contain.
+    const digest = digestOf(
+      provenance({
+        entries: entries([
+          { value: "First foo.", via: preset("a", "foo") },
+          { value: "The other preset.", via: preset("b", "foo#2") },
+          { value: "Second foo.", via: preset("c", "foo") },
+        ]),
+      }),
+    );
+
+    const keys = digest.groups.map((g) => g.key);
+    expect(new Set(keys).size).toBe(3);
+    expect(keys).toEqual(["preset:foo", "preset:foo#2", `preset:foo${SEP}2`]);
   });
 
   test("group keys survive a re-run, which mints new node ids", () => {
@@ -360,6 +399,61 @@ describe("totals and empty state", () => {
 
     expect(digest.totals).toEqual({ behaviors: 0, extendsCount: 0, hasUserRules: true });
     expect(descriptionCountText(digest.totals)).toBe("from your rules");
+  });
+
+  test("carries the array members that are not text, and says so", () => {
+    // Renovate WARNS about `{"description": ["Keep this.", 42]}` and keeps the
+    // 42, which occupies index 1 of the final array. No group can show it, so a
+    // card titled "What this config does" has to name it instead of dropping it.
+    const digest = digestOf(
+      provenance({
+        entries: entries([{ value: "Keep this.", via: REPO, node: "root" }]),
+        unattributed: [{ index: 1, value: 42 }],
+      }),
+    );
+
+    expect(digest.unattributed).toBe(1);
+    expect(digest.finalLength).toBe(2);
+    expect(unattributedNoteText(digest)).toBe(
+      "1 member of the description array is not text, so no preset can be credited with it.",
+    );
+    // The behavior count is a count of SENTENCES, and stays one.
+    expect(digest.totals.behaviors).toBe(1);
+    expect(descriptionCountText(digest.totals)).toBe("1 behavior");
+  });
+
+  test("several non-text members read as several", () => {
+    const digest = digestOf(
+      provenance({
+        entries: entries([{ value: "Keep this.", via: REPO, node: "root" }]),
+        unattributed: [
+          { index: 1, value: 42 },
+          { index: 2, value: null },
+        ],
+      }),
+    );
+
+    expect(digest).toMatchObject({ unattributed: 2, finalLength: 3 });
+    expect(unattributedNoteText(digest)).toBe(
+      "2 members of the description array are not text, so no preset can be credited with them.",
+    );
+  });
+
+  test("a well-formed config has no such note", () => {
+    const digest = digestOf(
+      provenance({ entries: entries([{ value: "Only prose.", via: REPO, node: "root" }]) }),
+    );
+
+    expect(digest).toMatchObject({ unattributed: 0, finalLength: 1 });
+    expect(unattributedNoteText(digest)).toBe("");
+  });
+
+  test("a description array of nothing but non-text is still no card", () => {
+    // There is no prose to summarize, so the card that would carry the note
+    // does not exist — and nothing claims completeness in its absence.
+    expect(
+      buildDescriptionDigest(provenance({ unattributed: [{ index: 0, value: 42 }] })),
+    ).toBeNull();
   });
 
   test("degraded rides through from the engine", () => {

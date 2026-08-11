@@ -34,6 +34,40 @@ export function layerNodeKey(layer: ProvenanceLayer): string {
   return layer.kind === "preset" ? `preset:${layer.nodeId}` : layer.kind;
 }
 
+/**
+ * Ordinal separator for {@link stableLayerKey}. U+241F (SYMBOL FOR UNIT
+ * SEPARATOR) cannot occur in a preset name — Renovate's `extends` entries are
+ * ASCII package/preset paths — so `preset:foo␟2` can never be produced by a
+ * preset literally called `foo␟2`. A visible `#` would: `{"extends": ["foo",
+ * "foo#2", "foo"]}` gives the second `foo` the key `preset:foo#2`, which is
+ * also the first key of the preset actually named `foo#2`, and React would
+ * reconcile one group's state onto the other. The character is never rendered;
+ * it exists only inside a React key.
+ */
+const KEY_ORDINAL_SEP = "␟";
+
+/**
+ * A React key for a layer that is stable ACROSS RUNS and unique WITHIN a run.
+ *
+ * Node ids (`p1`, `p2`, …) are minted per run, so a node-based key lets a
+ * component's state reattach to a different preset after an edit — but the
+ * name alone is not unique either, because extending the same preset twice is
+ * a case the description surfaces deliberately keep apart (see
+ * {@link layerNodeKey}). So: {@link layerId} as the base, plus an ordinal for
+ * every repeat after the first, counted in the caller's own `seen` map.
+ *
+ * `seen` is mutated — one map per list being keyed, iterated in the order the
+ * keys must be stable in (merge order, in both current callers). Used by the
+ * Overview's description digest, and by the Effective config's per-string
+ * blame ledger a layer up (069 PR 3), which needs the identical key idiom.
+ */
+export function stableLayerKey(layer: ProvenanceLayer, seen: Map<LayerId, number>): string {
+  const base = layerId(layer);
+  const uses = seen.get(base) ?? 0;
+  seen.set(base, uses + 1);
+  return uses === 0 ? base : `${base}${KEY_ORDINAL_SEP}${uses + 1}`;
+}
+
 export function layerLabel(layer: ProvenanceLayer): string {
   if (layer.kind === "defaults") {
     return "default";

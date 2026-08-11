@@ -1,16 +1,20 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { TraceResult } from "@renovate-config-debugger/engine";
 import {
   buildDescriptionDigest,
+  type DescriptionDigest,
   descriptionCountText,
   type DigestEntry,
   type DigestGroup,
   type DigestRule,
   groupContributionText,
   ruleNoteText,
+  unattributedNoteText,
 } from "@/lib/description-digest";
 import { useDescriptionProvenance } from "@/hooks/description-provenance";
 import { CodeText } from "./CodeText";
+import { approximateTitle } from "./description-approx";
+import { ApproximateMark, DegradedCaveat } from "./DescriptionApprox";
 import { ROOT_NODE_ID } from "./preset-tree-stats";
 import { ProvenanceChip } from "./ProvenanceChip";
 import { layerClass } from "./provenance-layer";
@@ -53,7 +57,7 @@ function LeafLabel({
 }) {
   const label = approximate ? `≈ ${node.name}` : node.name;
   const title = approximate
-    ? `Contributed somewhere inside ${node.name} — the exact preset could not be determined`
+    ? approximateTitle(node.name)
     : `Written by ${node.name} — show it in the preset tree`;
   if (!onSelectPreset) {
     return (
@@ -74,6 +78,37 @@ function LeafLabel({
   );
 }
 
+/**
+ * The right-hand end of a row: who wrote the sentence, and how sure we are.
+ *
+ * The two are separable, and must be. `approximate` is rendered by the leaf
+ * label as a `≈` prefix, but a row can be approximate and still have no leaf to
+ * prefix — the engine's fallback lands on the ROOT node whenever the repo
+ * level's own replay disagrees with Renovate, and the defaults/global/inherited
+ * layers carry no node at all. Marking only the labelled rows would leave those
+ * reading as confidently attributed while the card's caveat promises that every
+ * untraceable sentence is marked, so the mark stands alone where it has to.
+ */
+function EntryAttribution({
+  entry,
+  onSelectPreset,
+}: {
+  entry: DigestEntry;
+  onSelectPreset?: (nodeId: string) => void;
+}) {
+  // The root node is the repo's own config, and the tree has no row for it —
+  // a leaf label there would offer "show it in the preset tree" and select a
+  // node that never renders. The group's own `repo config` chip already says
+  // whose sentence this is, so the row simply carries no label.
+  const leaf = entry.node?.nodeId === ROOT_NODE_ID ? undefined : entry.node;
+  if (leaf) {
+    return (
+      <LeafLabel node={leaf} approximate={entry.approximate} onSelectPreset={onSelectPreset} />
+    );
+  }
+  return entry.approximate ? <ApproximateMark /> : null;
+}
+
 /** One sentence: the layer's dot, the prose, and who wrote it. */
 function DigestEntryRow({
   entry,
@@ -85,20 +120,13 @@ function DigestEntryRow({
   onSelectPreset?: (nodeId: string) => void;
 }) {
   const duplicate = entry.duplicateOfIndex !== undefined;
-  // The root node is the repo's own config, and the tree has no row for it —
-  // a leaf label there would offer "show it in the preset tree" and select a
-  // node that never renders. The group's own `repo config` chip already says
-  // whose sentence this is, so the row simply carries no label.
-  const leaf = entry.node?.nodeId === ROOT_NODE_ID ? undefined : entry.node;
   return (
     <li className={`desc-digest-row${duplicate ? " duplicate" : ""}`}>
       <span className={`prov-dot ${dotClass}`} aria-hidden="true" />
       <span className="desc-digest-text">
         <CodeText text={entry.value} />
       </span>
-      {leaf ? (
-        <LeafLabel node={leaf} approximate={entry.approximate} onSelectPreset={onSelectPreset} />
-      ) : null}
+      <EntryAttribution entry={entry} onSelectPreset={onSelectPreset} />
     </li>
   );
 }
@@ -121,18 +149,17 @@ function DigestRuleRow({ rule, dotClass }: { rule: DigestRule; dotClass: string 
 function DigestEntryList({
   group,
   dotClass,
+  expanded,
+  onExpand,
   onSelectPreset,
 }: {
   group: DigestGroup;
   dotClass: string;
+  /** Owned by the card, not by this list — see {@link DescriptionDigestCard}. */
+  expanded: boolean;
+  onExpand: () => void;
   onSelectPreset?: (nodeId: string) => void;
 }) {
-  // Survives a re-run, and must therefore never end up on a DIFFERENT preset:
-  // the card stays mounted while every keystroke produces a new run, so this
-  // state follows whatever `DigestGroup.key` React reconciles it onto — which
-  // is why that key is name-based rather than node-id-based (the ids are
-  // minted per run).
-  const [expanded, setExpanded] = useState(false);
   const hidden = expanded ? 0 : Math.max(0, group.entries.length - COLLAPSE_AFTER);
   const shown = hidden > 0 ? group.entries.slice(0, COLLAPSE_AFTER) : group.entries;
   return (
@@ -147,7 +174,7 @@ function DigestEntryList({
       ))}
       {hidden > 0 ? (
         <li className="desc-digest-more">
-          <button type="button" className="linklike" onClick={() => setExpanded(true)}>
+          <button type="button" className="linklike" onClick={onExpand}>
             {hidden} more — show all
           </button>
         </li>
@@ -179,9 +206,13 @@ function DigestGroupHead({
 
 function DigestGroupBlock({
   group,
+  expanded,
+  onExpand,
   onSelectPreset,
 }: {
   group: DigestGroup;
+  expanded: boolean;
+  onExpand: (key: string) => void;
   onSelectPreset?: (nodeId: string) => void;
 }) {
   // Same hue the layer wears everywhere else in the app (005/013/054): the dot
@@ -194,7 +225,13 @@ function DigestGroupBlock({
       {/* A redundant group's sentences are all repeats — the chip already said
           so, and printing them again is the noise this card exists to remove. */}
       {group.redundant ? null : (
-        <DigestEntryList group={group} dotClass={dotClass} onSelectPreset={onSelectPreset} />
+        <DigestEntryList
+          group={group}
+          dotClass={dotClass}
+          expanded={expanded}
+          onExpand={() => onExpand(group.key)}
+          onSelectPreset={onSelectPreset}
+        />
       )}
       {group.rules.length > 0 ? (
         <ul className={`desc-digest-list ${dotClass}`}>
@@ -204,6 +241,18 @@ function DigestGroupBlock({
         </ul>
       ) : null}
     </div>
+  );
+}
+
+/** What the groups above could not say: the array members that are not text,
+ *  and the caveat a degraded run carries. */
+function DigestFootnotes({ digest }: { digest: DescriptionDigest }) {
+  const note = unattributedNoteText(digest);
+  return (
+    <>
+      {note ? <p className="desc-digest-aside">{note}</p> : null}
+      {digest.degraded ? <DegradedCaveat /> : null}
+    </>
   );
 }
 
@@ -217,6 +266,18 @@ export function DescriptionDigestCard({
   onSelectPreset?: (nodeId: string) => void;
 }) {
   const provenance = useDescriptionProvenance(result);
+  // "Show all", per group, owned HERE rather than by the list that renders the
+  // button. Provenance for a new run arrives asynchronously, so every re-run
+  // has a frame with no digest at all — the groups (and any state living inside
+  // them) unmount, and an expansion made before an edit would be lost across
+  // every keystroke. This component is the one the parent keeps mounted through
+  // that gap. Keyed by `DigestGroup.key`, which is stable across runs BY
+  // CONSTRUCTION (`stableLayerKey`) precisely so the state cannot reattach to a
+  // different preset when node ids are minted afresh.
+  const [expanded, setExpanded] = useState<ReadonlyMap<string, boolean>>(() => new Map());
+  const expand = useCallback((key: string) => {
+    setExpanded((prev) => new Map(prev).set(key, true));
+  }, []);
   const digest = useMemo(() => {
     if (!provenance) {
       return null;
@@ -240,16 +301,16 @@ export function DescriptionDigestCard({
       </div>
       <div className="desc-digest">
         {digest.groups.map((group) => (
-          <DigestGroupBlock key={group.key} group={group} onSelectPreset={onSelectPreset} />
+          <DigestGroupBlock
+            key={group.key}
+            group={group}
+            expanded={expanded.get(group.key) ?? false}
+            onExpand={expand}
+            onSelectPreset={onSelectPreset}
+          />
         ))}
       </div>
-      {digest.degraded ? (
-        <p className="desc-digest-caveat">
-          Some sentences could not be traced to the exact preset that wrote them — those are marked
-          with the enclosing preset and a <code>≈</code>. The wording and the order are still
-          Renovate’s own.
-        </p>
-      ) : null}
+      <DigestFootnotes digest={digest} />
     </div>
   );
 }
