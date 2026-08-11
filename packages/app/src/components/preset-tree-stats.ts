@@ -1,4 +1,17 @@
+import type * as EngineModule from "@renovate-config-debugger/engine";
 import type { PresetNode } from "@renovate-config-debugger/engine";
+
+/**
+ * The root node's id — the input config itself, the one node the tree has no
+ * row for (`flattenTree` starts at the root's CHILDREN). Anything offering
+ * "show this node in the preset tree" must check for it first, or promise a
+ * jump that lands nowhere.
+ *
+ * An app-local copy typed against the engine's `ROOT_NODE_ID` so drift fails
+ * the build, without a static VALUE import that would pull the renovate chunk
+ * into the initial bundle (the same pattern as 033's `STAGE_IDS`).
+ */
+export const ROOT_NODE_ID: typeof EngineModule.ROOT_NODE_ID = "root";
 
 /**
  * The preset tree's derived facts: per-node/per-subtree contribution stats,

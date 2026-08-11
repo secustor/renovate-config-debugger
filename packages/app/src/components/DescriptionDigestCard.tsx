@@ -11,6 +11,7 @@ import {
 } from "@/lib/description-digest";
 import { useDescriptionProvenance } from "@/hooks/description-provenance";
 import { CodeText } from "./CodeText";
+import { ROOT_NODE_ID } from "./preset-tree-stats";
 import { ProvenanceChip } from "./ProvenanceChip";
 import { layerClass } from "./provenance-layer";
 
@@ -84,18 +85,19 @@ function DigestEntryRow({
   onSelectPreset?: (nodeId: string) => void;
 }) {
   const duplicate = entry.duplicateOfIndex !== undefined;
+  // The root node is the repo's own config, and the tree has no row for it —
+  // a leaf label there would offer "show it in the preset tree" and select a
+  // node that never renders. The group's own `repo config` chip already says
+  // whose sentence this is, so the row simply carries no label.
+  const leaf = entry.node?.nodeId === ROOT_NODE_ID ? undefined : entry.node;
   return (
     <li className={`desc-digest-row${duplicate ? " duplicate" : ""}`}>
       <span className={`prov-dot ${dotClass}`} aria-hidden="true" />
       <span className="desc-digest-text">
         <CodeText text={entry.value} />
       </span>
-      {entry.node ? (
-        <LeafLabel
-          node={entry.node}
-          approximate={entry.approximate}
-          onSelectPreset={onSelectPreset}
-        />
+      {leaf ? (
+        <LeafLabel node={leaf} approximate={entry.approximate} onSelectPreset={onSelectPreset} />
       ) : null}
     </li>
   );
@@ -125,6 +127,11 @@ function DigestEntryList({
   dotClass: string;
   onSelectPreset?: (nodeId: string) => void;
 }) {
+  // Survives a re-run, and must therefore never end up on a DIFFERENT preset:
+  // the card stays mounted while every keystroke produces a new run, so this
+  // state follows whatever `DigestGroup.key` React reconciles it onto — which
+  // is why that key is name-based rather than node-id-based (the ids are
+  // minted per run).
   const [expanded, setExpanded] = useState(false);
   const hidden = expanded ? 0 : Math.max(0, group.entries.length - COLLAPSE_AFTER);
   const shown = hidden > 0 ? group.entries.slice(0, COLLAPSE_AFTER) : group.entries;

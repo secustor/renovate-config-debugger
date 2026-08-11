@@ -104,7 +104,16 @@ export type PresetNodeState =
   /** Skipped because it already appears in its own ancestor chain */
   | "already-seen";
 
+/**
+ * `PresetNode.id` of the tree's root — the repo's own input config, not a
+ * preset. It is the one node the tree view has no row for (the rows start at
+ * the root's children), so a consumer offering "show this in the preset tree"
+ * must check for it rather than hand it to a node-selection callback.
+ */
+export const ROOT_NODE_ID = "root";
+
 export interface PresetNode {
+  /** `ROOT_NODE_ID` for the tree's root; `p<n>` (per-run, not stable) otherwise. */
   id: string;
   /** Raw preset string as written in `extends`; the root node is the input config */
   name: string;

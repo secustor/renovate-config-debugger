@@ -48,10 +48,16 @@ it("renders the descriptions grouped by extend, with the user's rules", async ()
   expect(view.getByText("redundant — already included above")).toBeTruthy();
 
   // The repo's own top-level description and its rule description — the latter
-  // reaching a surface for the first time.
+  // reaching a surface for the first time. The rule is cited by its index in
+  // the USER's config, which is where the reader can act on it.
   expect(view.getByText("My own summary.")).toBeTruthy();
   expect(view.getByText("Slow down risky major updates")).toBeTruthy();
   expect(view.getByText("packageRules[0] — matchUpdateTypes → minimumReleaseAge")).toBeTruthy();
+
+  // The repo's own sentence is written by the root node, which has no row in
+  // the preset tree — so it gets no leaf label offering to jump there.
+  expect(view.queryByText("(input config)")).toBeNull();
+  expect(view.queryByTitle("(input config)", { exact: false })).toBeNull();
 
   // The leaf label is the tree jump, exactly like the effective config's chips.
   fireEvent.click(leaf);

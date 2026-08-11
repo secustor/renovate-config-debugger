@@ -3,6 +3,7 @@ import type {
   DescriptionSource,
   ProvenanceLayer,
 } from "@renovate-config-debugger/engine";
+import { layerId, layerNodeKey } from "@/components/provenance-layer";
 import { ruleWrittenKeys, summarizeRuleSelectors } from "./rule-selectors";
 
 /**
@@ -46,8 +47,14 @@ export interface DigestEntry {
 
 /** A description written on one of the repo config's OWN `packageRules`. */
 export interface DigestRule {
-  /** Index into the final merged `packageRules` array, as Renovate cites it. */
+  /** Index into the final merged `packageRules` array — where the rule BODY is
+   *  read from, and the id Renovate's own validator messages cite. */
   ruleIndex: number;
+  /** Index within the repo config's own `packageRules` array — the only one of
+   *  the two the reader can find in their editor, so the one the card cites.
+   *  (Presets extend ahead of the repo, so the merged index of a user rule is
+   *  routinely in the hundreds.) */
+  sourceIndex: number;
   values: string[];
   /** `matchUpdateTypes + matchManagers`, or the honest "no selectors" note. */
   selectors: string;
@@ -57,9 +64,15 @@ export interface DigestRule {
 
 /** Everything one top-level layer contributed. */
 export interface DigestGroup {
-  /** Stable React key. Preset groups key on the NODE, not the name: extending
-   *  the same preset twice is exactly the case this card exists to flag, and
-   *  the two extends must stay two groups. */
+  /**
+   * React key, stable ACROSS RUNS. The grouping itself keys on the preset NODE
+   * (extending the same preset twice is exactly the case this card exists to
+   * flag, so the two extends must stay two groups), but node ids are minted per
+   * run — and the card stays mounted across runs, so a node-based key would let
+   * a group's expansion state reattach to a different preset after an edit.
+   * Hence the name-based `layerId`, plus an ordinal (`…#2`) for the repeated
+   * extend the node grouping deliberately kept separate.
+   */
   key: string;
   layer: ProvenanceLayer;
   entries: DigestEntry[];
@@ -87,23 +100,20 @@ export interface DescriptionDigest {
   degraded: boolean;
 }
 
-/** Groups a preset layer by node id, every other layer by its kind — the same
- *  identity `EffectiveConfig`'s `stepKey` uses, and for the same reason. */
-function layerKey(layer: ProvenanceLayer): string {
-  return layer.kind === "preset" ? `preset:${layer.nodeId}` : layer.kind;
-}
-
-interface MutableGroup extends Omit<DigestGroup, "behaviors" | "redundant"> {
+interface MutableGroup extends Omit<DigestGroup, "behaviors" | "key" | "redundant"> {
   behaviors: number;
 }
 
+/** The group a layer belongs to, created on first sight. Keyed by
+ *  `layerNodeKey` — the node identity, so the same preset extended twice is
+ *  two groups; the React key is derived separately (see {@link DigestGroup}). */
 function groupFor(groups: Map<string, MutableGroup>, layer: ProvenanceLayer): MutableGroup {
-  const key = layerKey(layer);
+  const key = layerNodeKey(layer);
   const existing = groups.get(key);
   if (existing) {
     return existing;
   }
-  const created: MutableGroup = { key, layer, entries: [], rules: [], behaviors: 0 };
+  const created: MutableGroup = { layer, entries: [], rules: [], behaviors: 0 };
   groups.set(key, created);
   return created;
 }
@@ -152,6 +162,7 @@ export function buildDescriptionDigest(
     const body = rules?.[rule.ruleIndex];
     groupFor(groups, rule.layer).rules.push({
       ruleIndex: rule.ruleIndex,
+      sourceIndex: rule.sourceIndex,
       values: rule.values,
       selectors: summarizeRuleSelectors(body),
       writes: ruleWrittenKeys(body),
@@ -159,6 +170,7 @@ export function buildDescriptionDigest(
   }
 
   const built: DigestGroup[] = [];
+  const keyUses = new Map<string, number>();
   let behaviors = 0;
   let extendsCount = 0;
   let hasUserRules = false;
@@ -168,7 +180,13 @@ export function buildDescriptionDigest(
       extendsCount++;
     }
     hasUserRules ||= group.rules.length > 0;
+    // Name-based key, disambiguated by how many groups of that name came
+    // before it in merge order — stable across runs, unlike the node id.
+    const base = layerId(group.layer);
+    const seen = keyUses.get(base) ?? 0;
+    keyUses.set(base, seen + 1);
     built.push({
+      key: seen === 0 ? base : `${base}#${seen + 1}`,
       ...group,
       // A group with rules always has something to show, whatever its strings did.
       redundant: group.entries.length > 0 && group.behaviors === 0 && group.rules.length === 0,
@@ -220,8 +238,18 @@ export function groupContributionText(group: DigestGroup): string {
   return parts.join(" · ");
 }
 
-/** The muted note under a user rule: `packageRules[0] — matchUpdateTypes → minimumReleaseAge`. */
+/**
+ * The muted note under a user rule: `packageRules[0] — matchUpdateTypes →
+ * minimumReleaseAge`.
+ *
+ * Cited by `sourceIndex`, NOT the merged `ruleIndex`: these are the repo's own
+ * rules, and presets merge ahead of the repo — a config extending
+ * `config:best-practices` puts the user's first rule at merged index ~297, a
+ * number that appears nowhere in their editor. The repo-local index is the one
+ * they can act on, and the one the editor cross-links use (App's
+ * `packageRules[repoIndex]` jump).
+ */
 export function ruleNoteText(rule: DigestRule): string {
-  const note = `packageRules[${rule.ruleIndex}] — ${rule.selectors}`;
+  const note = `packageRules[${rule.sourceIndex}] — ${rule.selectors}`;
   return rule.writes.length > 0 ? `${note} → ${rule.writes.join(", ")}` : note;
 }

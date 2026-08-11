@@ -11,9 +11,27 @@ import type { GlossaryEntry } from "@/data/glossary-data";
 
 export type LayerId = string;
 
-/** Stable id for a layer, used by dropdown filters + winning-badge classes. */
+/** Stable id for a layer, used by dropdown filters + winning-badge classes.
+ *  NAME-based, so two `extends` entries resolving to the same preset are one
+ *  id — deliberate for a filter ("show me what `config:recommended` did"),
+ *  wrong wherever the two occurrences must stay apart: see {@link layerNodeKey}. */
 export function layerId(layer: ProvenanceLayer): LayerId {
   return layer.kind === "preset" ? `preset:${layer.name}` : layer.kind;
+}
+
+/**
+ * Identity of the layer as a NODE rather than a name: two `extends` entries
+ * resolving to the same preset are two keys, because preset node ids are
+ * unique across the tree. Used wherever conflating them would merge two things
+ * the reader must see as two — the effective config's override-chain rows, the
+ * description digest's per-extend grouping.
+ *
+ * Not a React key and not a persistable id: node ids are regenerated on every
+ * run (`p1`, `p2`, …), so the same string means a different preset after the
+ * next keystroke. `layerId` is the stable-across-runs one.
+ */
+export function layerNodeKey(layer: ProvenanceLayer): string {
+  return layer.kind === "preset" ? `preset:${layer.nodeId}` : layer.kind;
 }
 
 export function layerLabel(layer: ProvenanceLayer): string {

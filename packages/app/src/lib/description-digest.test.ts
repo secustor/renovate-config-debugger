@@ -102,7 +102,11 @@ describe("grouping", () => {
       }),
     );
 
-    expect(digest.groups.map((g) => g.key)).toEqual(["preset:n1", "preset:n3", "repo"]);
+    expect(digest.groups.map((g) => g.key)).toEqual([
+      "preset:config:best-practices",
+      "preset:group:monorepos",
+      "repo",
+    ]);
     expect(groupAt(digest, 0).entries.map((e) => e.value)).toEqual([
       "Dashboard.",
       "Pin Docker digests.",
@@ -114,8 +118,9 @@ describe("grouping", () => {
   });
 
   test("the same preset extended twice stays two groups", () => {
-    // The whole point of keying on the NODE: `layerId` would conflate these,
-    // and "you extended it twice" is exactly what the card must be able to say.
+    // The whole point of GROUPING on the node: a name-keyed grouping would
+    // conflate these, and "you extended it twice" is exactly what the card must
+    // be able to say. The React keys stay distinct via the ordinal.
     const digest = digestOf(
       provenance({
         entries: entries([
@@ -127,6 +132,31 @@ describe("grouping", () => {
 
     expect(digest.groups).toHaveLength(2);
     expect(digest.groups.map((g) => g.redundant)).toEqual([false, true]);
+    expect(digest.groups.map((g) => g.key)).toEqual([
+      "preset::dependencyDashboard",
+      "preset::dependencyDashboard#2",
+    ]);
+  });
+
+  test("group keys survive a re-run, which mints new node ids", () => {
+    // The card stays mounted across runs while `p1`, `p2`, … are handed out
+    // afresh — a node-id key would silently move a group's "show all" state
+    // onto whichever preset inherited the id.
+    const spec: EntrySpec[] = [
+      { value: "Dashboard.", via: preset("p1", ":dependencyDashboard") },
+      { value: "Group monorepos.", via: preset("p2", "group:monorepos") },
+    ];
+    const first = digestOf(provenance({ entries: entries(spec) }));
+    const rerun = digestOf(
+      provenance({
+        entries: entries([
+          { value: "Dashboard.", via: preset("p7", ":dependencyDashboard") },
+          { value: "Group monorepos.", via: preset("p9", "group:monorepos") },
+        ]),
+      }),
+    );
+
+    expect(rerun.groups.map((g) => g.key)).toEqual(first.groups.map((g) => g.key));
   });
 
   test("entries keep the index, duplicate marker and approximate flag", () => {
@@ -162,7 +192,11 @@ describe("grouping", () => {
       }),
     );
 
-    expect(digest.groups.map((g) => g.key)).toEqual(["global", "inherited", "preset:n1"]);
+    expect(digest.groups.map((g) => g.key)).toEqual([
+      "global",
+      "inherited",
+      "preset:config:best-practices",
+    ]);
     // Only real `extends` entries count as extends.
     expect(digest.totals.extendsCount).toBe(1);
   });
@@ -180,7 +214,11 @@ describe("redundancy", () => {
       }),
     );
 
-    expect(groupAt(digest, 1)).toMatchObject({ key: "preset:n2", redundant: true, behaviors: 0 });
+    expect(groupAt(digest, 1)).toMatchObject({
+      key: "preset::dependencyDashboard",
+      redundant: true,
+      behaviors: 0,
+    });
     expect(groupAt(digest, 0)).toMatchObject({ redundant: false, behaviors: 2 });
   });
 
@@ -226,10 +264,10 @@ describe("rule descriptions", () => {
     { description: ["From a preset"], matchManagers: ["npm"] },
   ];
 
-  function withRule(layer: ProvenanceLayer): DescriptionProvenance {
+  function withRule(layer: ProvenanceLayer, ruleIndex = 0, sourceIndex = 0): DescriptionProvenance {
     return provenance({
       ruleDescriptions: [
-        { ruleIndex: 0, sourceIndex: 0, layer, values: ["Slow down risky major updates"] },
+        { ruleIndex, sourceIndex, layer, values: ["Slow down risky major updates"] },
       ],
     });
   }
@@ -241,10 +279,24 @@ describe("rule descriptions", () => {
     expect(groupAt(digest, 0)).toMatchObject({ key: "repo" });
     expect(ruleAt(groupAt(digest, 0), 0)).toEqual({
       ruleIndex: 0,
+      sourceIndex: 0,
       values: ["Slow down risky major updates"],
       selectors: "matchUpdateTypes",
       writes: ["minimumReleaseAge"],
     });
+    expect(ruleNoteText(ruleAt(groupAt(digest, 0), 0))).toBe(
+      "packageRules[0] — matchUpdateTypes → minimumReleaseAge",
+    );
+  });
+
+  test("cites the rule where the reader can find it, not the merged index", () => {
+    // Presets merge ahead of the repo, so the user's first rule routinely
+    // lands at merged index 297 — a number their editor has no line for. The
+    // body is still read from the merged array.
+    const merged = [...Array.from({ length: 297 }, () => ({})), RULES[0]];
+    const digest = digestOf(withRule(REPO, 297, 0), merged);
+
+    expect(ruleAt(groupAt(digest, 0), 0)).toMatchObject({ ruleIndex: 297, sourceIndex: 0 });
     expect(ruleNoteText(ruleAt(groupAt(digest, 0), 0))).toBe(
       "packageRules[0] — matchUpdateTypes → minimumReleaseAge",
     );
