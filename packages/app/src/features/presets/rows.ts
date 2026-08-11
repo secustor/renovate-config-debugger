@@ -1,5 +1,6 @@
 import type { PresetNode } from "@renovate-config-debugger/engine";
 import type { NodeStats, TreeStats } from "@/components/preset-tree-stats";
+import type { DescLine, NodeDescriptionFacts } from "@/lib/tree-descriptions";
 
 /** Node ids whose subtree (self or any descendant) matches the query. */
 function computeSubtreeMatch(
@@ -115,6 +116,49 @@ export function flattenTree({
     emit(child, 0, []);
   }
   return rows;
+}
+
+/**
+ * Roadmap 069 (PR 4): what the tree pane actually mounts — a preset node, or
+ * one of its description quote lines.
+ *
+ * A quote line is its own ROW rather than a second line inside the node's row,
+ * and that is load-bearing: the windowing math (`use-window.ts`) is
+ * uniform-height, so `padTop`/`padBottom` and the scroll-into-view arithmetic
+ * only add up while every mounted row is exactly `ROW_HEIGHT` tall. Making
+ * described nodes taller would desynchronise the spacers from the content;
+ * making every node taller would pay two lines of height for the ~1,070 nodes
+ * that have nothing to say. One extra uniform row per FACT costs neither.
+ */
+export type TreeListRow =
+  | { kind: "node"; key: string; row: Row }
+  | { kind: "desc"; key: string; depth: number; line: DescLine };
+
+/**
+ * Interleaves the description lines (069 PR 4) into the visible rows. `facts`
+ * is `null` in compact mode — and then this is a straight wrapping of the rows
+ * with no extra entries, so compact mode mounts exactly what it did before
+ * describe mode existed.
+ */
+export function buildTreeListRows(
+  rows: Row[],
+  facts: ReadonlyMap<string, NodeDescriptionFacts> | null,
+): TreeListRow[] {
+  const list: TreeListRow[] = [];
+  for (const row of rows) {
+    const id = row.node.id;
+    list.push({ kind: "node", key: id, row });
+    // The map holds only nodes WITH a description fact, so this is `undefined`
+    // for the overwhelming majority and describe mode adds no row for them.
+    const lines = facts?.get(id)?.lines;
+    if (!lines) {
+      continue;
+    }
+    for (const line of lines) {
+      list.push({ kind: "desc", key: `${id}:${line.key}`, depth: row.depth, line });
+    }
+  }
+  return list;
 }
 
 export interface TableRow {

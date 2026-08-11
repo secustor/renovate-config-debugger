@@ -1,9 +1,10 @@
 import type { PresetNode } from "@renovate-config-debugger/engine";
 import type { TreeStats } from "@/components/preset-tree-stats";
 import { presetTableRowClass } from "@/lib/preset-row-dom";
-import type { Row, SortColumn, TableRow } from "./rows";
+import type { NodeDescriptionFacts } from "@/lib/tree-descriptions";
+import type { SortColumn, TableRow, TreeListRow } from "./rows";
 import { type InjectionKeyFn, ROW_HEIGHT } from "./tree-shared";
-import { TreeRow } from "./TreeRow";
+import { TreeDescRow, TreeRow } from "./TreeRow";
 import type { useWindow } from "./use-window";
 
 /** Roadmap 011/040: the list half of the tree/detail split — the table header
@@ -26,6 +27,8 @@ export function PresetListPane({
   injectionKey,
   usedInjections,
   stats,
+  descFacts,
+  onShowDescriptionOrder,
 }: {
   view: "tree" | "table";
   columns: { key: SortColumn; label: string }[];
@@ -34,7 +37,7 @@ export function PresetListPane({
   onToggleSort: (column: SortColumn) => void;
   win: ReturnType<typeof useWindow>;
   activeCount: number;
-  treeSlice: Row[];
+  treeSlice: TreeListRow[];
   tableSlice: TableRow[];
   selectedId: string | null;
   onSelectNode: (id: string | null) => void;
@@ -43,6 +46,9 @@ export function PresetListPane({
   injectionKey: InjectionKeyFn | null;
   usedInjections: ReadonlySet<string>;
   stats: TreeStats;
+  /** Roadmap 069 (PR 4): describe mode's per-node index, `null` in compact. */
+  descFacts: ReadonlyMap<string, NodeDescriptionFacts> | null;
+  onShowDescriptionOrder?: () => void;
 }) {
   return (
     <div>
@@ -68,19 +74,25 @@ export function PresetListPane({
           <>
             <div style={{ height: win.padTop }} />
             {view === "tree"
-              ? treeSlice.map((row) => (
-                  <TreeRow
-                    key={row.node.id}
-                    row={row}
-                    selectedId={selectedId}
-                    onToggle={onToggle}
-                    onSelect={onSelectNode}
-                    onCycleDup={onCycleDup}
-                    injectionKey={injectionKey}
-                    usedInjections={usedInjections}
-                    dupCount={stats.occurrencesByName.get(row.node.name)?.length ?? 1}
-                  />
-                ))
+              ? treeSlice.map((item) =>
+                  item.kind === "node" ? (
+                    <TreeRow
+                      key={item.key}
+                      row={item.row}
+                      selectedId={selectedId}
+                      onToggle={onToggle}
+                      onSelect={onSelectNode}
+                      onCycleDup={onCycleDup}
+                      injectionKey={injectionKey}
+                      usedInjections={usedInjections}
+                      dupCount={stats.occurrencesByName.get(item.row.node.name)?.length ?? 1}
+                      markers={descFacts?.get(item.row.node.id)?.markers}
+                      onShowDescriptionOrder={onShowDescriptionOrder}
+                    />
+                  ) : (
+                    <TreeDescRow key={item.key} depth={item.depth} line={item.line} />
+                  ),
+                )
               : tableSlice.map((r) => (
                   <PresetTableRow
                     key={r.node.id}

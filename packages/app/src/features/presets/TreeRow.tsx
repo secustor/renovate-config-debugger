@@ -1,9 +1,16 @@
 import type { CSSProperties } from "react";
 import type { PresetNode } from "@renovate-config-debugger/engine";
 import type { NodeStats } from "@/components/preset-tree-stats";
+import { CodeText } from "@/components/CodeText";
 import { Explained } from "@/components/glossary";
 import { GLOSSARY } from "@/data/glossary-data";
 import { presetTreeNameClass } from "@/lib/preset-row-dom";
+import {
+  type DescLine,
+  type PositionMarker,
+  positionMarkerText,
+  positionMarkerTitle,
+} from "@/lib/tree-descriptions";
 import type { Row } from "./rows";
 import {
   INDENT,
@@ -50,6 +57,91 @@ function ContributionBadges({ stats, collapsed }: { stats: NodeStats; collapsed:
   );
 }
 
+/**
+ * Roadmap 069 (PR 4): where this node's sentences landed in the final
+ * `description` array. A button whenever the App-level jump is available — the
+ * marker's whole point is that it ties the node to a slot in an array the
+ * Effective config prints, so being able to go there completes the link.
+ */
+function PositionMarkers({
+  markers,
+  onShowOrder,
+}: {
+  markers: PositionMarker[];
+  onShowOrder?: () => void;
+}) {
+  return (
+    <>
+      {markers.map((marker) =>
+        onShowOrder ? (
+          <button
+            key={marker.key}
+            type="button"
+            className="preset-desc-pos linklike"
+            title={positionMarkerTitle(marker, true)}
+            onClick={onShowOrder}
+          >
+            {positionMarkerText(marker)}
+          </button>
+        ) : (
+          <span
+            key={marker.key}
+            className="preset-desc-pos"
+            title={positionMarkerTitle(marker, false)}
+          >
+            {positionMarkerText(marker)}
+          </span>
+        ),
+      )}
+    </>
+  );
+}
+
+/**
+ * Roadmap 069 (PR 4): one description fact, as its own uniform-height row
+ * beneath the node that owns it (see `TreeListRow` for why it is a row and not
+ * a taller node). Single-line and ellipsized: the tree's windowing depends on
+ * every row being exactly `ROW_HEIGHT`, and the full text is one click away in
+ * the detail panel and the Effective config's ledger.
+ */
+export function TreeDescRow({ depth, line }: { depth: number; line: DescLine }) {
+  const style: CSSProperties = {
+    height: ROW_HEIGHT,
+    // Past the caret column, so the quote hangs under the preset's name.
+    paddingLeft: depth * INDENT + DESC_INDENT,
+  };
+  return (
+    <div className={`preset-desc-row desc-${line.kind}`} style={style} title={descRowTitle(line)}>
+      {line.kind === "mute" ? null : (
+        <span className="preset-desc-mark" aria-hidden="true">
+          ❝
+        </span>
+      )}
+      {line.text ? (
+        <span className="preset-desc-text">
+          <CodeText text={line.text} />
+        </span>
+      ) : null}
+      {line.note ? (
+        <span className="preset-desc-note">
+          <CodeText text={line.note} />
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/** The row is ellipsized, so the untruncated text is the tooltip — backticks
+ *  stripped, since a `title` cannot render `<code>`. */
+function descRowTitle(line: DescLine): string {
+  const parts = [line.text, line.note].filter((part) => part).join(" — ");
+  return parts.replaceAll("`", "");
+}
+
+/** Where a quote line starts relative to its node's indent: the caret column
+ *  (`1.1rem`) plus the row gap, so the ❝ sits under the preset name. */
+const DESC_INDENT = 22;
+
 export function TreeRow({
   row,
   selectedId,
@@ -59,6 +151,8 @@ export function TreeRow({
   injectionKey,
   usedInjections,
   dupCount,
+  markers,
+  onShowDescriptionOrder,
 }: {
   row: Row;
   selectedId: string | null;
@@ -68,6 +162,10 @@ export function TreeRow({
   injectionKey: InjectionKeyFn | null;
   usedInjections: ReadonlySet<string>;
   dupCount: number;
+  /** Roadmap 069 (PR 4): describe mode only — `null` in compact, and for every
+   *  node that contributed no description. */
+  markers?: PositionMarker[];
+  onShowDescriptionOrder?: () => void;
 }) {
   const { node, stats } = row;
   // Roadmap 009: `failed` for every error except the two a user can act on —
@@ -152,6 +250,9 @@ export function TreeRow({
         </span>
       ) : null}
       <ContributionBadges stats={stats} collapsed={row.hasChildren && !row.expanded} />
+      {markers && markers.length > 0 ? (
+        <PositionMarkers markers={markers} onShowOrder={onShowDescriptionOrder} />
+      ) : null}
       {node.duplicate ? (
         <Explained
           entry={{

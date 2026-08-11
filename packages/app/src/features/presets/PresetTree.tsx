@@ -3,10 +3,18 @@ import type { PresetNode, TraceEvent, TraceResult } from "@renovate-config-debug
 import { Term } from "@/components/glossary";
 import { computeTreeStats } from "@/components/preset-tree-stats";
 import type { AuthState } from "@/components/GithubAuthHint";
+import { useDescriptionProvenance } from "@/hooks/description-provenance";
+import { buildTreeDescriptions, describeCountText } from "@/lib/tree-descriptions";
 import { OriginFraming } from "./OriginFraming";
 import { PresetDetail } from "./PresetDetail";
 import { PresetListPane } from "./PresetListPane";
-import { buildTableRows, flattenTree, type SortColumn, sortTableRows } from "./rows";
+import {
+  buildTableRows,
+  buildTreeListRows,
+  flattenTree,
+  type SortColumn,
+  sortTableRows,
+} from "./rows";
 import { SummaryHeader } from "./SummaryHeader";
 import { nf, ROW_HEIGHT } from "./tree-shared";
 import { useEngineHelpers } from "./use-engine-helpers";
@@ -24,7 +32,53 @@ import { useWindow } from "./use-window";
  * into an instrument for "what did all of that do?" and "where did this come
  * from?". All per-node/per-subtree aggregates are computed once per result in
  * a single walk (`computeTreeStats`), never per render.
+ *
+ * Roadmap 069 (PR 4) adds `describe` mode: every node that wrote a sentence of
+ * the final `description` shows it as a quote line, and every node whose
+ * sentence Renovate silently deleted says so — the only place in the app where
+ * the two invisible drop rules are visible at the node they happened to.
  */
+
+/** Compact is today's tree, and the default: describe mode is an answer to a
+ *  question ("what does all this say?"), not the tree's resting state. Local
+ *  state, exactly like the Effective config's By key / As JSON switch — no
+ *  view toggle in this app is persisted. */
+type DescribeMode = "compact" | "describe";
+
+/** The mode switch, in the `.seg` chrome every other view toggle in the app
+ *  wears (036) — the Effective config's By key / As JSON control is the
+ *  reference, down to the radiogroup semantics. */
+function DescribeToggle({
+  mode,
+  onChange,
+}: {
+  mode: DescribeMode;
+  onChange: (mode: DescribeMode) => void;
+}) {
+  return (
+    <span className="seg" role="radiogroup" aria-label="Preset tree detail">
+      <button
+        type="button"
+        role="radio"
+        aria-checked={mode === "compact"}
+        className={mode === "compact" ? "active" : undefined}
+        onClick={() => onChange("compact")}
+      >
+        compact
+      </button>
+      <button
+        type="button"
+        role="radio"
+        aria-checked={mode === "describe"}
+        className={mode === "describe" ? "active" : undefined}
+        title="Show each preset's own description under its name, with where it landed in the final description array"
+        onClick={() => onChange("describe")}
+      >
+        describe
+      </button>
+    </span>
+  );
+}
 
 export const PresetTree = memo(function PresetTree({
   result,
@@ -34,6 +88,7 @@ export const PresetTree = memo(function PresetTree({
   authState,
   onSignIn,
   installUrl,
+  onShowDescriptionOrder,
 }: {
   result: TraceResult;
   onInject: (key: string, content: Record<string, unknown>) => void;
@@ -44,6 +99,10 @@ export const PresetTree = memo(function PresetTree({
   authState: AuthState;
   onSignIn: () => void;
   installUrl: string;
+  /** Roadmap 069 (PR 4): the position marker's cross-link — jumps to the
+   *  Effective config and opens the `description` row's blame ledger (PR 3),
+   *  where the same sentence sits in the array's own order. */
+  onShowDescriptionOrder?: () => void;
 }) {
   const root = result.presetTree;
   const helpers = useEngineHelpers();
@@ -69,7 +128,18 @@ export const PresetTree = memo(function PresetTree({
 
   const stats = useMemo(() => (root ? computeTreeStats(root) : null), [root]);
 
+  // Roadmap 069: the per-string attribution, through the same WeakMap-cached
+  // hook the Overview digest and the blame ledger use — so however many
+  // consumers ask, the walk runs once per run. Inverting it into the per-node
+  // index is a single pass over a few dozen entries, memoized per result.
+  const descriptionProvenance = useDescriptionProvenance(result);
+  const treeDescriptions = useMemo(
+    () => (descriptionProvenance ? buildTreeDescriptions(descriptionProvenance) : null),
+    [descriptionProvenance],
+  );
+
   const [view, setView] = useState<"tree" | "table">("tree");
+  const [describeMode, setDescribeMode] = useState<DescribeMode>("compact");
   const [hideZero, setHideZero] = useState(false);
   const [rawQuery, setRawQuery] = useState("");
   const [query, setQuery] = useState("");
@@ -111,6 +181,13 @@ export const PresetTree = memo(function PresetTree({
     [root, stats, expanded, hideZero, query],
   );
 
+  // `null` in compact mode (and whenever the run has no descriptions at all),
+  // which is what makes describe mode's cost opt-in: `buildTreeListRows` then
+  // adds no rows and `PresetListPane` renders no markers.
+  const descFacts =
+    describeMode === "describe" && treeDescriptions ? treeDescriptions.byNodeId : null;
+  const listRows = useMemo(() => buildTreeListRows(flatRows, descFacts), [flatRows, descFacts]);
+
   const tableRows = useMemo(() => {
     if (!stats) {
       return [];
@@ -121,7 +198,7 @@ export const PresetTree = memo(function PresetTree({
     return sortTableRows(filtered, sortColumn, sortDir);
   }, [stats, query, sortColumn, sortDir]);
 
-  const activeCount = view === "tree" ? flatRows.length : tableRows.length;
+  const activeCount = view === "tree" ? listRows.length : tableRows.length;
   const win = useWindow(activeCount);
 
   // Reverse lookup (005) + dedup cycling: when selection changes, open every
@@ -161,7 +238,9 @@ export const PresetTree = memo(function PresetTree({
     if (!selectedId || view !== "tree") {
       return;
     }
-    const idx = flatRows.findIndex((r) => r.node.id === selectedId);
+    // Over the LIST rows, not the tree rows: describe mode interleaves quote
+    // rows, so a node's pixel offset is its index in the mounted list.
+    const idx = listRows.findIndex((r) => r.kind === "node" && r.row.node.id === selectedId);
     const el = win.el;
     if (idx < 0 || !el) {
       return;
@@ -173,7 +252,7 @@ export const PresetTree = memo(function PresetTree({
     } else if (bottom > el.scrollTop + el.clientHeight) {
       el.scrollTop = bottom - el.clientHeight;
     }
-  }, [selectedId, flatRows, view, win.el]);
+  }, [selectedId, listRows, view, win.el]);
 
   if (!root || root.children.length === 0 || !stats) {
     return null;
@@ -213,7 +292,7 @@ export const PresetTree = memo(function PresetTree({
     }
   }
 
-  const treeSlice = flatRows.slice(win.start, win.end);
+  const treeSlice = listRows.slice(win.start, win.end);
   const tableSlice = tableRows.slice(win.start, win.end);
 
   const columns: { key: SortColumn; label: string }[] = [
@@ -226,9 +305,18 @@ export const PresetTree = memo(function PresetTree({
 
   return (
     <div className="card">
-      <div className="card-title">
-        <Term id="preset">Preset</Term> resolution tree ({nf.format(stats.summary.resolved)}{" "}
-        resolved)
+      <div className="card-title preset-card-title">
+        <span>
+          <Term id="preset">Preset</Term> resolution tree ({nf.format(stats.summary.resolved)}{" "}
+          resolved
+          {treeDescriptions ? ` · ${describeCountText(treeDescriptions)}` : ""})
+        </span>
+        {/* Describe mode annotates TREE rows, so the toggle belongs to the tree
+            view — the flat table is one row per preset NAME, an aggregate the
+            per-node attribution has no place on. */}
+        {treeDescriptions && view === "tree" ? (
+          <DescribeToggle mode={describeMode} onChange={setDescribeMode} />
+        ) : null}
       </div>
       <OriginFraming root={root} stats={stats} />
       <SummaryHeader summary={stats.summary} />
@@ -293,6 +381,8 @@ export const PresetTree = memo(function PresetTree({
             injectionKey={injectionKey}
             usedInjections={usedInjections}
             stats={stats}
+            descFacts={descFacts}
+            onShowDescriptionOrder={onShowDescriptionOrder}
           />
           {selected ? (
             <PresetDetail
