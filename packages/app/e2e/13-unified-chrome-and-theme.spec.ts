@@ -138,9 +138,9 @@ test.describe("theme switcher (037)", () => {
     await expect
       .poll(() => deleted.evaluate((el) => getComputedStyle(el).backgroundColor))
       .not.toBe(lightBg);
-    // The dark delete row, verbatim from the 035 palette.
+    // The dark delete row, verbatim from the `.diff-wrapper` palette (#301c1e).
     expect(await deleted.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(
-      "rgb(61, 20, 24)",
+      "rgb(48, 28, 30)",
     );
   });
 });

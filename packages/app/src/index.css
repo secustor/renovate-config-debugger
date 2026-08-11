@@ -1683,22 +1683,39 @@ textarea.layer-editor:focus {
    a guard if that ever changes.) */
 .diff-wrapper {
   --diff-background-color: transparent;
-  --diff-code-delete-background-color: light-dark(#fdeff0, #3d1418);
+  /* Dark halves are a quiet WASH, not an alarm color: the light theme gets
+     soft pastels while the dark row fills used to be fully saturated
+     (#3d1418 / #103218, ~51% HSL saturation), which made the fill, not the
+     code, the foreground. Both row fills are now the same hues at ~26%
+     saturation and roughly the surface's own lightness — #151b23 with a tint,
+     the same relationship every other tinted surface in this file has to it.
+     Contrast against --ink (#f0f6fc, relative luminance 0.9146) is unchanged
+     or better: 14.72:1 delete (was 14.71), 13.41:1 insert (was 12.94). */
+  --diff-code-delete-background-color: light-dark(#fdeff0, #301c1e);
   /* The word-level edit highlight was never dark-themed at all: the library
      paints it #f39ea2/#c0dc91, which left light text on a light chip inside
-     an otherwise dark row. Both pass 4.5:1 against --diff-text-color. */
-  --diff-code-delete-edit-background-color: light-dark(#f39ea2, #8e2f36);
+     an otherwise dark row. Both pass 4.5:1 against --diff-text-color. The
+     dark halves stay ~4x and ~3x the luminance of the row fill they sit in,
+     so the word-level emphasis still reads as the stronger mark: 8.65:1
+     delete (L 0.0616 over the row's 0.0155), 8.10:1 insert (0.0690 over
+     0.0220). */
+  --diff-code-delete-edit-background-color: light-dark(#f39ea2, #6e3539);
   --diff-code-delete-edit-text-color: var(--ink);
   --diff-code-delete-text-color: var(--ink);
-  --diff-code-insert-background-color: light-dark(#eaffee, #103218);
-  --diff-code-insert-edit-background-color: light-dark(#c0dc91, #1a5c2e);
+  --diff-code-insert-background-color: light-dark(#eaffee, #1a2d1f);
+  --diff-code-insert-edit-background-color: light-dark(#c0dc91, #285336);
   --diff-code-insert-edit-text-color: var(--ink);
   --diff-code-insert-text-color: var(--ink);
   --diff-code-selected-background-color: var(--highlight);
   --diff-code-selected-text-color: var(--ink);
-  --diff-gutter-delete-background-color: light-dark(#fadde0, #67060c);
+  /* The gutter is chrome; it must never shout louder than the row it labels.
+     The old dark halves did exactly that (#67060c / #033a16 at luminance
+     0.0304 / 0.0310, roughly twice their own row fills). Each is now a shade
+     BELOW its row: 0.0122 vs 0.0155 delete, 0.0172 vs 0.0220 insert.
+     15.51:1 and 14.36:1 against --ink. */
+  --diff-gutter-delete-background-color: light-dark(#fadde0, #2a181a);
   --diff-gutter-delete-text-color: var(--ink);
-  --diff-gutter-insert-background-color: light-dark(#d6fedb, #033a16);
+  --diff-gutter-insert-background-color: light-dark(#d6fedb, #17271c);
   --diff-gutter-insert-text-color: var(--ink);
   --diff-gutter-selected-background-color: var(--highlight);
   --diff-gutter-selected-text-color: var(--ink);
