@@ -4,29 +4,31 @@ import { ROOT_NODE_ID } from "@/components/preset-tree-stats";
 import { dropReasonText } from "./drop-reasons";
 
 /**
- * Roadmap 069 (PR 4): the preset tree's `describe` mode, as data.
+ * Roadmap 069 (PR 4): the preset tree's description surfaces, as data.
  *
  * The Overview digest (PR 2) regroups the sentences by what each `extends`
  * bought, and the Effective config's blame ledger (PR 3) keeps the final
  * array's own order. This is the third reading of the same attribution and the
  * only one that answers the question BY PLACEMENT: what does THIS node say?
- * The text appears where it was written, so the tree stops being 1,088 cryptic
- * preset names and becomes skimmable prose.
+ * The answer rides on the node itself — a hover card on the preset's name in
+ * the tree, and the Description entry of the detail panel — rather than as a
+ * view mode of its own: the tree already has a tree/table switch, and a second
+ * switch beside it would be a mode over a handful of nodes.
  *
  * Everything here is a single pass over `entries` + `dropped` — tens of items,
  * never the thousand nodes — inverted into a per-node index the tree looks up
  * by `nodeId`. A node with no description fact is simply absent from the map,
- * which is what keeps describe mode from adding DOM to the ~1,070 nodes that
+ * which is what keeps the surface from adding DOM to the ~1,070 nodes that
  * have nothing to say.
  *
- * Pure and DOM-free, so every note's wording is unit-testable and the row
+ * Pure and DOM-free, so every note's wording is unit-testable and the
  * components only decide where things sit.
  */
 
 const nf = new Intl.NumberFormat();
 
 /** Where one of a node's sentences landed in the final `description` array.
- *  Rendered in the node's own meta area, next to the contribution badges. */
+ *  Rendered after the sentence it places, on both description surfaces. */
 export interface PositionMarker {
   /** Stable React key within the node (the entry's canonical index). */
   key: string;
@@ -51,15 +53,14 @@ export interface PositionMarker {
 export type DescLineKind = "contribution" | "dropped" | "mute";
 
 /**
- * One quote line beneath a node's name row.
+ * One line of a node's description card / panel entry.
  *
  * Pure text, deliberately: the `≈` the other surfaces render (069 PR 2's
- * `ApproximateMark`) qualifies a source CHIP, and this row has none — its
- * placement under the node is the attribution, so a glyph in front of a
- * struck-through quote would read as part of the quotation. The hedge travels as
- * words instead, in the `note` and therefore in the `title` derived from it,
- * which is the only text an ellipsized row can still show. On a contributing
- * node the node's own marker carries the `approx` suffix as well.
+ * `ApproximateMark`) qualifies a source CHIP, and this line has none — its
+ * placement on the node is the attribution, so a glyph in front of a
+ * struck-through quote would read as part of the quotation. The hedge travels
+ * as words instead, in the `note`. On a contributing node the entry's marker
+ * carries the `approx` suffix as well.
  */
 export interface DescLine {
   /** Stable React key within the node. */
@@ -70,17 +71,10 @@ export interface DescLine {
   text: string;
   /** The muted explanation after the text. */
   note?: string;
-  /** The row is ellipsized, so the untruncated text is its tooltip —
-   *  backticks stripped, since a `title` cannot render `<code>`. */
-  title: string;
 }
 
 function descLine(key: string, kind: DescLineKind, text: string, note?: string): DescLine {
-  const title = [text, note]
-    .filter((part) => part)
-    .join(" — ")
-    .replaceAll("`", "");
-  return { key, kind, text, note, title };
+  return { key, kind, text, note };
 }
 
 export interface NodeDescriptionFacts {
@@ -103,16 +97,16 @@ export interface TreeDescriptions {
  * it (`components/description-approx.ts`, 069 PR 2).
  *
  * The nameless form is the right one here even though the enclosing node is
- * known — the line is rendered ON that node's row, so naming it again would
- * repeat the row above it. The `≈` the other surfaces put beside a chip has its
- * counterpart in the marker's own `approx` suffix.
+ * known — the line is rendered ON that node's card, so naming it again would
+ * repeat the name the card hangs from. The `≈` the other surfaces put beside a
+ * chip has its counterpart in the marker's own `approx` suffix.
  */
 export const APPROXIMATE_NOTE = approximateTitle();
 
 /**
- * Inverts a run's description provenance into the per-node index describe mode
- * renders from, or `null` when no node has a description fact at all (in which
- * case the mode toggle has nothing to offer and is not shown).
+ * Inverts a run's description provenance into the per-node index the hover
+ * cards and the detail panel render from, or `null` when no node has a
+ * description fact at all (in which case no name carries a card).
  */
 export function buildTreeDescriptions(provenance: DescriptionProvenance): TreeDescriptions | null {
   // The array's REAL length, not `entries.length`: Renovate keeps a non-string
@@ -142,7 +136,7 @@ export function buildTreeDescriptions(provenance: DescriptionProvenance): TreeDe
     // merely left out of the count: `flattenTree` starts at the root's
     // CHILDREN, so facts filed under it would never mount — and a run where
     // only the repo config wrote descriptions has to come back `null`, or the
-    // mode toggle appears and describe mode then shows nothing at all.
+    // title advertises descriptions no name in the tree can show.
     if (!node || node.nodeId === ROOT_NODE_ID) {
       continue;
     }
@@ -211,15 +205,16 @@ export function positionMarkerText(marker: PositionMarker): string {
 }
 
 /**
- * …and its tooltip. `linked` is whether the marker is the cross-link to the
- * blame ledger, which only App-level plumbing can offer.
+ * …and its tooltip. The jump to the blame ledger is no longer advertised here —
+ * it is the card's own footer link, a control of its own rather than a promise
+ * a `title` makes about a span.
  *
  * Built as independent sentences rather than one template per case: the slot,
- * the repeat, the hedge and the call to action are four facts a degraded run can
- * carry in any combination, and the hedge is the shared wording, which is
- * already a sentence of its own.
+ * the repeat and the hedge are three facts a degraded run can carry in any
+ * combination, and the hedge is the shared wording, which is already a
+ * sentence of its own.
  */
-export function positionMarkerTitle(marker: PositionMarker, linked: boolean): string {
+export function positionMarkerTitle(marker: PositionMarker): string {
   let slot = `Sentence #${marker.position} of ${marker.total} in the final description array`;
   if (marker.duplicateOfPosition !== undefined) {
     slot += ` — a repeat of #${marker.duplicateOfPosition}, which Renovate never deduplicates`;
@@ -228,10 +223,28 @@ export function positionMarkerTitle(marker: PositionMarker, linked: boolean): st
   if (marker.approximate) {
     sentences.push(APPROXIMATE_NOTE);
   }
-  if (linked) {
-    sentences.push("Show the full array in the Effective config");
-  }
   return sentences.map((sentence) => `${sentence}.`).join(" ");
+}
+
+/** A line paired with the marker that places it — contributions only; a
+ *  dropped sentence has no slot and a mute note is not a sentence at all. */
+export interface DescLineWithMarker {
+  line: DescLine;
+  marker?: PositionMarker;
+}
+
+/**
+ * Zips a node's lines with their position markers for rendering. The pairing
+ * is positional and safe by construction: `buildTreeDescriptions` pushes a
+ * node's contribution lines and its markers from the same loop, in the same
+ * order, and only contributions get either.
+ */
+export function zipDescLines(facts: NodeDescriptionFacts): DescLineWithMarker[] {
+  let contribution = 0;
+  return facts.lines.map((line) => ({
+    line,
+    marker: line.kind === "contribution" ? facts.markers[contribution++] : undefined,
+  }));
 }
 
 /**
@@ -248,7 +261,7 @@ export function muteNoteText(count: number): string {
   return `mutes ${nf.format(count)} description${count === 1 ? "" : "s"} below (empty \`ignoreDeps\`)`;
 }
 
-/** The card title's count — the reason to reach for describe mode at all. */
+/** The card title's count — the cue that the tree has descriptions to show. */
 export function describeCountText(tree: TreeDescriptions): string {
   const count = tree.contributorCount;
   if (count === 0) {

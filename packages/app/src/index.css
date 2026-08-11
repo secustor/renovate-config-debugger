@@ -1035,87 +1035,83 @@ button.badge.dup {
   text-overflow: ellipsis;
 }
 
-/* ---------- describe mode (roadmap 069 PR 4) ----------
-   The tree card's title becomes a row so the mode switch can sit with the
-   count, the way the digest card's "show raw order" link already does. */
-.preset-card-title {
-  align-items: center;
-  display: flex;
-  gap: 0.5rem;
+/* ---------- preset descriptions (roadmap 069 PR 4) ----------
+   A node that wrote (or lost) a sentence of the final `description` says so
+   ON its name: a hover card, so the rows stay exactly one ROW_HEIGHT (which
+   the windowing math depends on), and the detail panel repeats the same facts
+   as a Description entry. Both render the same `.preset-desc-line`s. */
+
+/* The cue on a described name — the `.opt-key.known` dotted-underline grammar,
+   in the preset hue, because the sentence is the preset's own. The name stays
+   a select button, so it keeps its pointer cursor. */
+.preset-name.described {
+  border-bottom: 1px dotted color-mix(in srgb, var(--accent-purple) 65%, transparent);
 }
 
-.preset-card-title .seg {
-  margin-left: auto;
-}
-
-/* A node's own sentence, as its OWN row beneath the name row — the tree's
-   windowing is uniform-height (see `rows.ts`), so this is exactly one
-   `ROW_HEIGHT` and never wraps; the untruncated text is the row's `title`,
-   the detail panel and the effective config's ledger. */
-.preset-desc-row {
-  align-items: center;
-  color: var(--muted);
-  display: flex;
-  font-size: 0.72rem;
+/* The card body and the panel entry share the line rendering. */
+.preset-desc-lines {
+  display: grid;
   gap: 0.35rem;
-  overflow: hidden;
-  padding: 0 0.1rem;
-  white-space: nowrap;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
-.preset-desc-row .preset-desc-mark {
-  color: color-mix(in srgb, var(--accent-purple) 55%, transparent);
-  flex: none;
+/* One fact: the quote behind a left rail in the preset hue, its muted note,
+   and the slot marker. */
+.preset-desc-line {
+  border-left: 2px solid color-mix(in srgb, var(--accent-purple) 45%, transparent);
   font-size: 0.8rem;
+  line-height: 1.45;
+  padding-left: 0.55rem;
 }
 
-/* Both cells shrink and ellipsize: on a dropped line the note ("Renovate drops
-   it on merge — …") is the half that matters, so it must not be pushed off by
-   the sentence it explains, nor push the sentence off itself. */
-.preset-desc-row .preset-desc-text {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* A mute line is a fact about the node, not a quotation — no quote rail. */
+.preset-desc-line.desc-mute {
+  border-left-color: transparent;
+}
+
+.preset-desc-line .preset-desc-note {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.preset-desc-line .preset-desc-text + .preset-desc-note {
+  margin-left: 0.35rem;
 }
 
 /* A dropped sentence is struck through rather than hidden — same grammar the
    blame ledger uses for a duplicate, and the same reason: the fact that it
    EXISTS and did not survive is the whole point of showing it. */
-.preset-desc-row.desc-dropped .preset-desc-text {
+.preset-desc-line.desc-dropped .preset-desc-text {
+  color: var(--muted);
   text-decoration: line-through;
 }
 
-.preset-desc-row .preset-desc-note {
-  flex: 0 1 auto;
-  font-style: italic;
-  min-width: 0;
-  opacity: 0.85;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.preset-desc-row .preset-desc-text code,
-.preset-desc-row .preset-desc-note code {
+.preset-desc-line code {
   font-family: var(--font-mono);
   font-size: 0.95em;
 }
 
-/* The position marker in a node's meta area. Padding/border-free so it reads
-   as an annotation next to the contribution badges, not as another badge. */
+/* Where the sentence landed in the final array (`→ #16 of 24 · approx`). */
 .preset-desc-pos {
   color: var(--muted);
-  flex: none;
   font-size: 0.7rem;
+  margin-left: 0.4rem;
   white-space: nowrap;
 }
 
-button.preset-desc-pos {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-size: 0.7rem;
-  padding: 0;
+/* The hover card's jump to the Effective config's description row. */
+.preset-desc-order {
+  display: block;
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+/* The Description entry's value is prose — the source grid's break-all is for
+   URLs and paths and must not tear words apart here. */
+.preset-source .preset-source-desc dd {
+  word-break: normal;
 }
 
 /* flat table view */

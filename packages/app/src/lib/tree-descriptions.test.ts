@@ -16,16 +16,18 @@ import {
   positionMarkerText,
   positionMarkerTitle,
   type TreeDescriptions,
+  zipDescLines,
 } from "./tree-descriptions";
 
 /**
- * Roadmap 069 (PR 4): the per-node index describe mode renders from, and the
- * wording of every note, over hand-built provenance. The engine's own tests
- * (PR 1) prove the ATTRIBUTION against the real 1,088-preset tree; what needs
- * proving here is the inversion — that a node's facts land on that node, that
- * a drop shows at the preset that authored it while the mute note shows at the
- * one that pressed the button, and that nodes with nothing to say stay absent
- * from the map, which is describe mode's whole performance story.
+ * Roadmap 069 (PR 4): the per-node index the name hover cards and the detail
+ * panel render from, and the wording of every note, over hand-built
+ * provenance. The engine's own tests (PR 1) prove the ATTRIBUTION against the
+ * real 1,088-preset tree; what needs proving here is the inversion — that a
+ * node's facts land on that node, that a drop shows at the preset that
+ * authored it while the mute note shows at the one that pressed the button,
+ * and that nodes with nothing to say stay absent from the map, which is the
+ * surface's whole performance story.
  */
 
 const REPO: ProvenanceLayer = { kind: "repo" };
@@ -111,7 +113,6 @@ describe("buildTreeDescriptions", () => {
         kind: "contribution",
         text: "Enable Renovate Dependency Dashboard creation.",
         note: undefined,
-        title: "Enable Renovate Dependency Dashboard creation.",
       },
     ]);
     expect(tree.byNodeId.get("p9")?.markers).toEqual([
@@ -220,7 +221,7 @@ describe("buildTreeDescriptions", () => {
   });
 
   test("returns null when only the repo config wrote descriptions", () => {
-    // Otherwise the mode toggle appears on a describe mode that shows nothing.
+    // Otherwise the title advertises descriptions no name in the tree shows.
     expect(
       buildTreeDescriptions(
         provenance({
@@ -261,24 +262,21 @@ describe("buildTreeDescriptions — drops", () => {
         text: "The config that Renovate recommends.",
         // The shared table, so the tree and the ledger footer cannot diverge.
         note: dropReasonText(WRAPPER),
-        title: `The config that Renovate recommends. — ${dropReasonText(WRAPPER).replaceAll("`", "")}`,
       },
     ]);
     // A drop is not a contribution — the title's count must not claim it.
     expect(tree.contributorCount).toBe(0);
   });
 
-  test("an approximate drop hedges in the line AND its tooltip", () => {
+  test("an approximate drop hedges in the line's note", () => {
     // The drop came out of a subtree the engine had already degraded to its
-    // enclosing node (069 PR 1), so the row it sits on is a guess — and the
-    // tooltip is the only text a truncated row actually shows.
+    // enclosing node (069 PR 1), so the node it sits on is a guess.
     const tree = built(
       provenance({ entries: [], dropped: [{ ...WRAPPER, approximate: true }], degraded: true }),
     );
     const line = tree.byNodeId.get("p2")?.lines[0];
 
     expect(line?.note).toContain("; exact preset unknown");
-    expect(line?.title).toContain("; exact preset unknown");
     // The rule itself is untouched: what Renovate did is certain.
     expect(line?.note).toBe(`${dropReasonText(WRAPPER)}; exact preset unknown`);
   });
@@ -337,22 +335,45 @@ describe("wording", () => {
       "→ #16 of 24 · duplicate · approx",
     );
 
-    const title = positionMarkerTitle(marker({ duplicateOfPosition: 3, approximate: true }), false);
+    const title = positionMarkerTitle(marker({ duplicateOfPosition: 3, approximate: true }));
     expect(title).toContain("a repeat of #3");
     expect(title).toContain(APPROXIMATE_NOTE);
   });
 
-  test("its tooltip offers the ledger jump only when there is one", () => {
-    expect(positionMarkerTitle(marker(), false)).toBe(
+  test("its tooltip states the slot, the repeat and the hedge", () => {
+    expect(positionMarkerTitle(marker())).toBe(
       "Sentence #16 of 24 in the final description array.",
     );
-    expect(positionMarkerTitle(marker(), true)).toContain(
-      "Show the full array in the Effective config.",
+    expect(positionMarkerTitle(marker({ duplicateOfPosition: 3 }))).toContain("a repeat of #3");
+    expect(positionMarkerTitle(marker({ approximate: true }))).toContain(APPROXIMATE_NOTE);
+  });
+
+  test("zipDescLines pairs each contribution with its marker, in order", () => {
+    // The pairing is positional (`buildTreeDescriptions` fills both arrays
+    // from the same loop) — this pins that a drop between two contributions
+    // does not shift the second one's marker.
+    const tree = built(
+      provenance({
+        entries: entries([
+          { value: "First.", node: "p1" },
+          { value: "Second.", node: "p1" },
+        ]),
+        dropped: [
+          {
+            value: "Gone.",
+            node: { nodeId: "p1", name: ":dependencyDashboard" },
+            reason: "wrapper-preset",
+          },
+        ],
+      }),
     );
-    expect(positionMarkerTitle(marker({ duplicateOfPosition: 3 }), false)).toContain(
-      "a repeat of #3",
-    );
-    expect(positionMarkerTitle(marker({ approximate: true }), false)).toContain(APPROXIMATE_NOTE);
+    const zipped = zipDescLines(tree.byNodeId.get("p1") ?? { markers: [], lines: [] });
+
+    expect(zipped.map(({ line, marker: m }) => [line.kind, m?.position])).toEqual([
+      ["contribution", 1],
+      ["contribution", 2],
+      ["dropped", undefined],
+    ]);
   });
 
   test("the approximate note is the shared hedge, not a fourth phrasing of it", () => {

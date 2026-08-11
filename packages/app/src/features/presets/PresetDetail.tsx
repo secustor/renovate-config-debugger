@@ -6,6 +6,8 @@ import { type AuthState, GithubAuthHint } from "@/components/GithubAuthHint";
 import { JsonDiff } from "@/components/JsonDiff";
 import { MigrationSteps } from "@/components/MigrationSteps";
 import { findPollutedPath } from "@/lib/input-schemas";
+import type { NodeDescriptionFacts } from "@/lib/tree-descriptions";
+import { NodeDescriptionLines } from "./NodeDescriptions";
 import {
   githubAuthFailure,
   type InjectionKeyFn,
@@ -44,31 +46,53 @@ function useContribution(node: PresetNode, parent: PresetNode | undefined) {
   }, [merge, node, parent]);
 }
 
-function SourceDetails({ node }: { node: PresetNode }) {
+/**
+ * Roadmap 069 (PR 4): what this preset says about itself — the same lines the
+ * name's hover card shows (sentences with their slot in the final array, drops
+ * with the rule that deleted them), kept in the panel where a reader inspects
+ * the node. Its own component because the lines nest past the `<dl>`'s depth
+ * budget (`react/jsx-max-depth`).
+ */
+function DescriptionEntry({ facts }: { facts: NodeDescriptionFacts }) {
+  return (
+    <div className="preset-source-desc">
+      <dt>Description</dt>
+      <dd>
+        <NodeDescriptionLines facts={facts} />
+      </dd>
+    </div>
+  );
+}
+
+function SourceDetails({ node, facts }: { node: PresetNode; facts?: NodeDescriptionFacts }) {
   const source = node.source;
-  if (!source?.presetSource) {
+  // Internal presets carry no source block, but can still have a description —
+  // the `<dl>` then holds only the Description entry.
+  const rows: [string, string | undefined][] = source?.presetSource
+    ? [
+        ["Source", source.presetSource],
+        ["Repository", source.repo],
+        ["Path", source.presetPath],
+        ["Preset", source.presetName],
+        ["Tag", source.tag],
+        ["Parameters", source.params?.join(", ")],
+        ["Platform", source.platform],
+        ["Endpoint", source.endpoint],
+      ]
+    : [];
+  const shown = rows.filter(([, v]) => v);
+  if (shown.length === 0 && !facts) {
     return null;
   }
-  const rows: [string, string | undefined][] = [
-    ["Source", source.presetSource],
-    ["Repository", source.repo],
-    ["Path", source.presetPath],
-    ["Preset", source.presetName],
-    ["Tag", source.tag],
-    ["Parameters", source.params?.join(", ")],
-    ["Platform", source.platform],
-    ["Endpoint", source.endpoint],
-  ];
   return (
     <dl className="preset-source">
-      {rows
-        .filter(([, v]) => v)
-        .map(([label, v]) => (
-          <div key={label}>
-            <dt>{label}</dt>
-            <dd>{v}</dd>
-          </div>
-        ))}
+      {shown.map(([label, v]) => (
+        <div key={label}>
+          <dt>{label}</dt>
+          <dd>{v}</dd>
+        </div>
+      ))}
+      {facts ? <DescriptionEntry facts={facts} /> : null}
     </dl>
   );
 }
@@ -149,6 +173,7 @@ function PresetInjector({
 export function PresetDetail({
   node,
   parent,
+  descriptionFacts,
   onClose,
   injectionKey,
   parse,
@@ -161,6 +186,9 @@ export function PresetDetail({
 }: {
   node: PresetNode;
   parent: PresetNode | undefined;
+  /** Roadmap 069 (PR 4): this node's description facts, for the Description
+   *  entry of the source details — `undefined` when it has none. */
+  descriptionFacts?: NodeDescriptionFacts;
   onClose: () => void;
   injectionKey: InjectionKeyFn | null;
   parse: ParseFn | null;
@@ -203,7 +231,7 @@ export function PresetDetail({
           ×
         </button>
       </div>
-      <SourceDetails node={node} />
+      <SourceDetails node={node} facts={descriptionFacts} />
       {userSupplied ? (
         <p className="empty-note">
           Resolved from preset content you supplied manually rather than a fetch.
