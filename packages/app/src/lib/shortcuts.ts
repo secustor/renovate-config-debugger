@@ -52,13 +52,51 @@ export interface Shortcut {
   readonly firesUnderOverlay?: boolean;
 }
 
-/** The event shape `matchShortcut` needs; `KeyboardEvent` satisfies it. */
-export interface KeyChord {
-  readonly key: string;
+/** Just the modifier flags — what the two predicates below read, and all they
+ *  read, so a React `KeyboardEvent` satisfies it as readily as a native one. */
+export interface KeyModifiers {
   readonly metaKey: boolean;
   readonly ctrlKey: boolean;
   readonly shiftKey: boolean;
   readonly altKey: boolean;
+}
+
+/** The event shape `matchShortcut` needs; `KeyboardEvent` satisfies it. */
+export interface KeyChord extends KeyModifiers {
+  readonly key: string;
+}
+
+/**
+ * ⌘, Ctrl or Alt — the modifiers that make a press a COMMAND rather than a
+ * character. Every unmodified-key handler in the app has to decline these,
+ * because each of them means something the app is not: ⌘←/Alt+← is browser
+ * Back, Ctrl+Home/End is the Windows page-scroll convention, ⌘⏎ is this app's
+ * own Run, and Alt is how an OS composes characters.
+ *
+ * Shift is deliberately NOT here — see `anyModifierHeld`, which adds it, and
+ * pick that one unless the key is a character Shift may be needed to type.
+ */
+export function commandModifierHeld(event: KeyModifiers): boolean {
+  return event.metaKey || event.ctrlKey || event.altKey;
+}
+
+/**
+ * The above plus Shift: a plain, unmodified press.
+ *
+ * The right test for a NAMED key, where Shift is a different gesture rather than
+ * part of typing the key — Shift+Arrow and Shift+Home extend a selection, and a
+ * widget that ignored that would hijack a keystroke aimed at the browser.
+ *
+ * The two keyboard layers this branch added take the other predicate on purpose,
+ * and both exceptions are visible where they are made: `?` is Shift+/ on a US
+ * layout (`HELP_SHORTCUT` leaves `shift` undefined, and `matchShortcut` reads
+ * that as "don't care"), and `1`–`7` are shifted keys on AZERTY, where the
+ * unshifted number row types `&é"'(-è` (see `useTabDigits`). A key identified by
+ * the CHARACTER it produced cannot also demand that Shift was not involved in
+ * producing it.
+ */
+export function anyModifierHeld(event: KeyModifiers): boolean {
+  return commandModifierHeld(event) || event.shiftKey;
 }
 
 /** The app's one global verb. Bound twice — a window listener for the page,
@@ -182,6 +220,10 @@ export function formatShortcut(shortcut: Shortcut, apple = isApplePlatform()): s
  * ambiguity to matter. Alt never participates: it is how the OS composes
  * characters, and swallowing it would break typing in a text field.
  *
+ * The flags are read one by one here rather than through `commandModifierHeld`,
+ * and this is not a fifth copy of that predicate: ⌘/Ctrl is what a binding may
+ * REQUIRE, so the entry decides whether it disqualifies.
+ *
  * The key comparison's case sensitivity depends on the key itself. Named keys
  * (`Enter`, `Escape`) never change case, whoever is holding Shift or however
  * Caps Lock is set, so they always compare lowercase-insensitively. A single
@@ -291,6 +333,16 @@ export function shortcutSheet(apple = isApplePlatform()): ShortcutSection[] {
         {
           keys: "Enter",
           what: "Take the suggestion, in a type-to-search field — it does not submit",
+        },
+        // The same field, the same reason: the page cannot see whether the
+        // browser's suggestion list is up, so the first Escape there is assumed
+        // to be the list's and the next one goes to the ladder
+        // (`use-escape-layer.ts`). Printed rather than left as folklore, because
+        // the Results section's Escape row promises a dismissal this is the one
+        // place in the app that takes two presses to deliver.
+        {
+          keys: "Escape",
+          what: "Close the suggestion list — a second press dismisses the page's own layer",
         },
       ],
     },

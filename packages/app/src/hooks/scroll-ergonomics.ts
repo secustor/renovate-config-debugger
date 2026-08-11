@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { modalKeyboardOwned } from "@/lib/escape-stack";
+import { anyModifierHeld } from "@/lib/shortcuts";
 
 /**
  * Roadmap 016: `End` "lands on a blank over-scrolled viewport" (persona study
@@ -40,14 +41,15 @@ const NON_TEXT_INPUT_TYPES = new Set([
  * The narrow half: a rich-text surface — CodeMirror's contenteditable, or any
  * other `contenteditable` region — as opposed to a plain form control.
  *
- * Roadmap 067 needs the two apart. The Escape ladder must yield ONLY here,
- * because CodeMirror's `simplifySelection` runs on every press and neither
- * prevents the default nor stops propagating; a `<select>` or a text `<input>`
- * has no such handler, so the ladder is still free to dismiss a layer from one
- * (see `use-escape-layer.ts`). Home/End and the bare-key layer, meanwhile, need
- * the wide half below.
+ * Module-private, because the consumer it was split out for is gone. 067 wrote
+ * it as the ONE target the Escape ladder would yield to, and round three deleted
+ * that call: the ladder reads `defaultPrevented` instead, which CodeMirror sets
+ * on exactly the Escapes it acts on (`use-escape-layer.ts` records where that
+ * was verified). Its one caller now is `isTextEditingTarget` below, which asks
+ * it twice over — for the contenteditable itself, and for the non-text controls
+ * the search panel renders inside it.
  */
-export function isEditorTarget(target: EventTarget | null): boolean {
+function isEditorTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
     return false;
   }
@@ -125,7 +127,11 @@ export function useHomeEndPageScroll(): void {
       if (e.key !== "Home" && e.key !== "End") {
         return;
       }
-      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) {
+      // Shift+Home/End extends a selection and Ctrl+Home/End is the
+      // Windows/Linux page-scroll convention — the shared predicate the results
+      // tab strip's own arrow/Home/End handler asks too, so the two halves of
+      // "who gets Home/End" cannot come apart.
+      if (anyModifierHeld(e)) {
         return;
       }
       // Roadmap 067: a widget with its own Home/End semantics gets them. The

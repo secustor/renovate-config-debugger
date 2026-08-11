@@ -90,6 +90,18 @@ export function armLanding(activity: LandingActivity, from: Element | null): Lan
  *   that alone cannot mean "moved on". A `pointerdown` since the gesture
  *   separates the two: clicking a paragraph of prose to read it blurs to body
  *   just the same, and that one IS a choice (067 review).
+ *
+ * SCROLLING is deliberately not a fifth question (2026-08-11 review), even
+ * though a wheel during the wait does mean the reader is looking elsewhere and
+ * the landing will scroll the page out from under them. Typing and clicking
+ * REPLACE what the gesture asked for — the results now describe older text, or
+ * the user has chosen another target. Scrolling only looks around, and the
+ * gesture most exposed to it is the one that waits longest and is most explicit
+ * about wanting to be moved: ⌘⇧⏎ means "run and take me there", the run can
+ * take seconds, and reviewing the config on the way is exactly what a reader
+ * does while waiting. Cancelling on that would make the chord's whole
+ * difference from ⌘⏎ evaporate for anyone with a trackpad — a silent no-op,
+ * which is the failure this feature keeps finding in itself.
  */
 export function landingWanted(
   ticket: LandingTicket,

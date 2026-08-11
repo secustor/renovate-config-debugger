@@ -43,16 +43,58 @@ describe("useEscapeLayer", () => {
     expect(onEscape).toHaveBeenCalledOnce();
   });
 
-  it("leaves the layer alone for a press aimed at a native suggestion popup", () => {
+  it("leaves the layer alone for the FIRST press in a combobox", () => {
     // Type into `datasource` until the suggestions appear, press Escape to
     // dismiss them, and the same press destroyed the return pill — a layer the
     // user never asked to lose. The popup reports nothing to the page, so the
-    // ladder stands aside for the whole combobox.
+    // ladder stands aside for a press that could be its.
     const onEscape = vi.fn();
     const { getByLabelText } = render(<Pill onEscape={onEscape} />);
 
     fireEvent.keyDown(getByLabelText("datasource"), { key: "Escape" });
     expect(onEscape).not.toHaveBeenCalled();
+  });
+
+  it("gives the layer the next press, and re-arms the yield when the user types", () => {
+    // What the rank alone could not do: `ambient` sits below the popover/menu
+    // threshold, so the return pill was undismissable from these two fields for
+    // the whole session, though the `?` sheet prints Escape as dismissing it.
+    // One press is the popup's; the one after it is the page's — a wasted
+    // keystroke at worst, instead of a layer destroyed or a key that is inert
+    // forever.
+    const onEscape = vi.fn();
+    const { getByLabelText } = render(<Pill onEscape={onEscape} />);
+    const combobox = getByLabelText("datasource");
+
+    fireEvent.keyDown(combobox, { key: "Escape" });
+    fireEvent.keyDown(combobox, { key: "Escape" });
+    expect(onEscape).toHaveBeenCalledOnce();
+
+    // Typing can put the suggestions back, so the next Escape is the popup's
+    // again — and the one after it is the page's again.
+    fireEvent.keyDown(combobox, { key: "n" });
+    fireEvent.keyDown(combobox, { key: "Escape" });
+    expect(onEscape).toHaveBeenCalledOnce();
+    fireEvent.keyDown(combobox, { key: "Escape" });
+    expect(onEscape).toHaveBeenCalledTimes(2);
+  });
+
+  it("re-arms the yield on a click too, which can also open the popup", () => {
+    // Clicking the control is the other way the suggestions come back, and it
+    // produces no keydown — hence the second listener. Without it, a user who
+    // clicked back into the field and pressed Escape would lose the layer to the
+    // press that closed the popup, which is the regression the yield exists for.
+    const onEscape = vi.fn();
+    const { getByLabelText } = render(<Pill onEscape={onEscape} />);
+    const combobox = getByLabelText("datasource");
+
+    fireEvent.keyDown(combobox, { key: "Escape" });
+    fireEvent.keyDown(combobox, { key: "Escape" });
+    expect(onEscape).toHaveBeenCalledOnce();
+
+    fireEvent.pointerDown(combobox);
+    fireEvent.keyDown(combobox, { key: "Escape" });
+    expect(onEscape).toHaveBeenCalledOnce();
   });
 
   it("still dismisses a popover from one of those fields", () => {

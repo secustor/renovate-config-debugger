@@ -57,42 +57,57 @@ function focusChain(from: Element | null): HTMLElement[] {
 }
 
 /**
- * Focuses the opener if it is still there — the normal path, and the only one
- * that hands focus back to the exact control the sheet was opened from,
- * whatever kind of element it is. The fallback path below is a selector
- * (`FOCUSABLE_SELECTOR`), so it can only find *something* focusable in the
- * nearest surviving ancestor, not necessarily the opener's own kind of
- * control.
+ * Asks `el` for focus and reports whether it took it. Being in the document is
+ * not the same as being focusable: all seven results tab panels stay mounted
+ * and six of them carry `hidden`, so a control inside one still matches
+ * `FOCUSABLE_SELECTOR` (and is still `isConnected`) while the `hidden`
+ * ancestor makes it unfocusable — and a run finishing while the sheet is up
+ * re-selects the tab, so the panel the sheet was opened from can go `hidden`
+ * underneath it. `.focus()` on such an element is a no-op:
+ * `document.activeElement` doesn't move, which is the only reliable way to
+ * tell from here.
+ */
+function tookFocus(el: HTMLElement): boolean {
+  el.focus({ preventScroll: true });
+  return document.activeElement === el;
+}
+
+/**
+ * Focuses the opener if it is still there AND still able to take focus — the
+ * normal path, and the only one that hands focus back to the exact control the
+ * sheet was opened from, whatever kind of element it is. The fallback path
+ * below is a selector (`FOCUSABLE_SELECTOR`), so it can only find *something*
+ * focusable in the nearest surviving ancestor, not necessarily the opener's
+ * own kind of control.
+ *
+ * Every candidate — the opener included — is checked after the call rather
+ * than assumed (see `tookFocus`), so a refusal moves on instead of ending the
+ * restore with focus still on `<body>` and the user's next Tab restarting at
+ * the skip link. That is also why each ancestor is searched exhaustively: the
+ * element that refused is usually the ancestor's FIRST match, and the control
+ * next to it is the closest place left worth landing.
  *
  * The climb stops at the first page landmark rather than searching inside
  * it — a landmark's first focusable descendant belongs to whatever section it
  * is, not to wherever the sheet was opened from, so beyond that point there
- * is nothing left worth guessing at. Silent in both gaps — nothing survived
- * below a landmark, or nothing survived at all — because leaving focus alone
- * is honest and the top of the page is not.
- *
- * A `FOCUSABLE_SELECTOR` match is not proof it can actually take focus: all
- * seven results tab panels stay mounted and six of them carry `hidden`, so
- * their inputs and selects still match the selector while the `hidden`
- * ancestor makes them unfocusable. `.focus()` on one of those is a no-op —
- * `document.activeElement` doesn't move — so the candidate is checked after
- * the call, and the walk continues past a match that didn't land instead of
- * stopping there and leaving focus on `<body>`.
+ * is nothing left worth guessing at. Silent in both gaps — nothing took focus
+ * below a landmark, or nothing took it at all — because leaving focus alone is
+ * honest and the top of the page is not.
  */
 function restoreFocus(chain: readonly HTMLElement[]): void {
   const [opener, ...ancestors] = chain;
-  if (opener?.isConnected === true) {
-    opener.focus({ preventScroll: true });
+  if (opener?.isConnected === true && tookFocus(opener)) {
     return;
   }
   for (const el of ancestors) {
     if (LANDMARK_TAGS.has(el.tagName)) {
       return;
     }
-    const target = el.isConnected ? el.querySelector<HTMLElement>(FOCUSABLE_SELECTOR) : null;
-    if (target) {
-      target.focus({ preventScroll: true });
-      if (document.activeElement === target) {
+    if (!el.isConnected) {
+      continue;
+    }
+    for (const target of el.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)) {
+      if (tookFocus(target)) {
         return;
       }
     }

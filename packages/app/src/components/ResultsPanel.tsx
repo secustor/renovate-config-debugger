@@ -2,6 +2,7 @@ import { type FocusEvent, type KeyboardEvent, type ReactNode, useRef, useState }
 import { RESULTS_TAB_IDS, RESULTS_TAB_LABELS, type ResultsTabId } from "@/data/results-tabs";
 import { tabButtonAttrs, tabButtonSelector, tabIdOfElement } from "@/lib/results-tab-dom";
 import { nextTabIndex } from "@/lib/roving-tabs";
+import { anyModifierHeld } from "@/lib/shortcuts";
 
 const nf = new Intl.NumberFormat();
 
@@ -80,14 +81,17 @@ export function ResultsPanel({ tabs, active, onSelect, back, onBack, banner, pan
    * settles that: `useHomeEndPageScroll` ignores an event another handler
    * already claimed, so the keys scroll the page everywhere except here.
    *
-   * A modified chord is left alone — ⌘←/Alt+← is browser Back, Ctrl+Home/End
-   * is a Windows/Linux page-scroll convention — matching the modifier guard
-   * `useHomeEndPageScroll` and `useTabDigits` already carry (both sibling
-   * bindings added by the same 067 change).
+   * A modified chord is left alone — ⌘←/Alt+← is browser Back, Ctrl+Home/End is
+   * a Windows/Linux page-scroll convention, Shift+Home extends a selection —
+   * through the shared `anyModifierHeld`, which is also what
+   * `useHomeEndPageScroll` asks. These are named keys, so Shift counts: a widget
+   * that took Shift+End would be hijacking a different gesture, whereas the
+   * bare-key layer matches a CHARACTER and has to allow the Shift that types it
+   * (`commandModifierHeld`, and the note on both).
    */
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     const bar = barRef.current;
-    if (!bar || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+    if (!bar || anyModifierHeld(event)) {
       return;
     }
     // Arrows move from wherever FOCUS is, which under manual activation is

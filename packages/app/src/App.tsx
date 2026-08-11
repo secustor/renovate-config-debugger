@@ -291,8 +291,9 @@ export function App() {
   const toastTimer = useRef<number | undefined>(undefined);
   // Roadmap 067: what the polite live region at the bottom of the tree is
   // saying about the last run. Declared up here with the other run state
-  // because `executeRun` announces a FAILURE the moment it catches one, while
-  // the success sentence is composed by an effect far below, once
+  // because the two outcomes that produce no result — a refusal (`onRun`) and a
+  // run that threw (`executeRun`) — announce themselves the moment they happen,
+  // while the success sentence is composed by an effect far below, once
   // `useRunSummary` has counted the result it describes.
   const [runAnnouncement, setRunAnnouncement] = useState("");
   const announcementSeq = useRef(0);
@@ -775,6 +776,17 @@ export function App() {
   ): Promise<TraceResult | null> {
     const injectedPresets = overrideInjected ?? injected;
     if (!overrideInputs && blockedByLayerErrors()) {
+      // Roadmap 067 review: a refusal is an OUTCOME, and it has to be said out
+      // loud for the same reason `executeRun`'s catch says "Run failed." — ⌘⏎
+      // deliberately moves no focus, so the live region is the only feedback a
+      // keyboard user gets. The banner `blockedByLayerErrors` just raised
+      // cannot carry it: an alert speaks only when its text CHANGES, and the
+      // second press against the same unfixed layer sets the same string, so
+      // without this the app's primary shortcut was a dead key — no
+      // announcement, no `Running…`, no result. WHAT is wrong stays the
+      // banner's to say (it did, on the first press); this says only that the
+      // keystroke registered and where the reason is.
+      announceRun("Run blocked — see the error message in the config column.");
       return null;
     }
     // Inputs and the credentials decision are both resolved HERE, before the
@@ -1360,9 +1372,11 @@ export function App() {
    * A QUEUE of tickets, not one flag (067 review). Press ⌘⇧⏎ on a config whose
    * run will fail, fix it, press again while the first is still resolving: with
    * a boolean, the failed run cleared the flag its successor was relying on and
-   * the second press silently degraded to a plain run. One ticket per press,
-   * consumed in order — runs commit in the order `onRun` queued them — so a
-   * failure can only ever cancel its own.
+   * the second press silently degraded to a plain run. One ticket per press;
+   * each result commit consumes the OLDEST, because the runs that commit do so
+   * in the order `onRun` queued them. A run that never commits takes its own
+   * ticket out by identity instead (see the chord below) — position does not
+   * identify it, and reading the two the same way was the 2026-08-11 finding.
    */
   const pendingResultLandings = useRef<LandingTicket[]>([]);
   // The 032 latest-ref idiom, for the reason the dependency list below spells
@@ -1410,15 +1424,23 @@ export function App() {
       // Deliberate: both commits land in the same place, this chord's own run
       // arrives there a moment later, and the alternative is the swallowed
       // keypress `onRun` was just cured of.
-      pendingResultLandings.current.push(landing.arm());
+      const ticket = landing.arm();
+      pendingResultLandings.current.push(ticket);
       void (async () => {
         const traceResult = await runFromGesture();
         if (!traceResult) {
           // This run will never commit, so its request has to go — otherwise it
-          // fires on whatever run comes next. The OLDEST outstanding one is
-          // this failure's own: `onRun` serializes, so requests are answered in
-          // the order they were made.
-          pendingResultLandings.current.shift();
+          // fires on whatever run comes next. THIS press's own ticket, by
+          // identity: not every request reaches the queue, so the oldest
+          // outstanding one need not be this failure's. `onRun` refuses a run
+          // whose layers would not parse (`blockedByLayerErrors`) and returns
+          // null synchronously, ahead of everything already queued — so press
+          // ⌘⇧⏎, break the global-config JSON while it resolves, press it
+          // again, and dropping the oldest would cancel the FIRST press's
+          // landing and then judge it against the second press's snapshot.
+          pendingResultLandings.current = pendingResultLandings.current.filter(
+            (pending) => pending !== ticket,
+          );
         }
       })();
     },

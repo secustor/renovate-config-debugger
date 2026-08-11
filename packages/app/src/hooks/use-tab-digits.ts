@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { isTextEditingTarget } from "@/hooks/scroll-ergonomics";
 import { overlayKeyboardOwned } from "@/lib/escape-stack";
 import { digitTabIndex } from "@/lib/roving-tabs";
+import { commandModifierHeld } from "@/lib/shortcuts";
 
 /**
  * Roadmap 067 tier 1: `1`–`7` jump straight to that results tab.
@@ -10,9 +11,9 @@ import { digitTabIndex } from "@/lib/roving-tabs";
  * ("the Nth tab"), the sheet prints it as one row, and the count follows
  * whatever the strip currently renders. Same guards a bare key gets in
  * `useShortcut`, spelled out because this hook is the other half of that layer:
- * never on an already-handled event, never with a modifier held, never while
- * the user is typing, never under an open popover or menu — and one jump per
- * hold, since a held `3` repeats ~30 times a second and each repeat would
+ * never on an already-handled event, never with a COMMAND modifier held, never
+ * while the user is typing, never under an open popover or menu — and one jump
+ * per hold, since a held `3` repeats ~30 times a second and each repeat would
  * re-select the tab and start another `focusTab` polling chain.
  */
 export function useTabDigits(
@@ -30,7 +31,14 @@ export function useTabDigits(
       return;
     }
     function onKeyDown(event: KeyboardEvent) {
-      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) {
+      // ⌘/Ctrl/Alt only, and Shift deliberately absent — the one bare-key layer
+      // besides `?` that has to allow it. On AZERTY the number row types
+      // `&é"'(-è` unshifted and `1`–`7` WITH Shift, so demanding an unshifted
+      // press would leave this hook dead on a French keyboard. Nothing is lost
+      // by allowing it: what is matched is the character the layout produced,
+      // and Shift+`1` on a US layout produces `!`, which `digitTabIndex`
+      // declines below.
+      if (event.defaultPrevented || commandModifierHeld(event)) {
         return;
       }
       // A popover or menu is drawn over the panels these digits switch between,

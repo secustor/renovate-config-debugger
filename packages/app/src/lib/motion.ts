@@ -60,6 +60,14 @@ export function flashTarget(el: Element): void {
  * focus scroll again would undo `motionScrollOptions`' block alignment. The
  * target must be focusable — the landing sites either are controls already
  * (a thread head is a `<button>`) or carry `tabIndex={-1}` for this.
+ *
+ * This is the ALL-THREE landing, and the callers that spell the steps out
+ * instead are not copies of it (2026-08-11 review): App's preset-node landing
+ * flashes for every activator but takes focus only from the ones the tab switch
+ * displaced, and the simulator's card landing focuses a container it must not
+ * flash and assigns the `tabIndex` in the same breath. Folding them in would
+ * mean a flag per step — the same code with each caller's policy moved into the
+ * argument list, and the reason for it left behind at the call site.
  */
 export function landOnTarget(el: HTMLElement, block: ScrollLogicalPosition): void {
   el.scrollIntoView(motionScrollOptions(block));

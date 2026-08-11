@@ -136,6 +136,30 @@ describe("ShortcutSheet", () => {
     expect(document.activeElement).toBe(landingButton);
   });
 
+  it("keeps walking when the opener is still in the document but refuses focus", () => {
+    // `isConnected` is not proof an element can take focus back. A run
+    // finishing while the sheet is up re-selects the results tab (App's
+    // `executeRun`), so the panel the opener sits in can go `hidden`
+    // underneath it — still mounted, still in the document, and unfocusable,
+    // exactly like the dead-end match the ancestor walk below already steps
+    // past. The no-op `.focus` spells that refusal out, since jsdom models
+    // neither `hidden` nor `disabled` as a focus barrier.
+    const panel = document.createElement("div");
+    const opener = document.createElement("button");
+    const neighbour = document.createElement("button");
+    panel.append(opener, neighbour);
+    document.body.appendChild(panel);
+    opener.focus();
+
+    const { unmount } = render(<ShortcutSheet onClose={() => undefined} />);
+    opener.focus = () => undefined;
+    unmount();
+
+    // Not <body>, and not the refusing opener: the nearest thing in its own
+    // panel that actually took focus.
+    expect(document.activeElement).toBe(neighbour);
+  });
+
   it("stands down rather than land on a page landmark's first control", () => {
     // The opener AND its immediate wrapper are both gone by the time the
     // sheet closes, so the ancestor walk reaches a `<main>` — whose first

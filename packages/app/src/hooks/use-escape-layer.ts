@@ -18,6 +18,23 @@ import {
 
 let refs = 0;
 
+/**
+ * The combobox that has already been handed one Escape since it was last typed
+ * into or clicked — see the bail in `onKeyDown`. Module state for the same
+ * reason `refs` is: there is one listener, so there is one answer.
+ */
+let popupGivenAPress: EventTarget | null = null;
+
+/**
+ * Anything that can put a native suggestion popup back on screen re-arms the
+ * bail: typing (the list re-opens as the query changes), ArrowDown (which opens
+ * it outright), Tab into another field, a click on the control. Keys arrive at
+ * the listener below; clicks need their own, which is why `retain` installs two.
+ */
+function rearmPopupPress(): void {
+  popupGivenAPress = null;
+}
+
 function onKeyDown(event: KeyboardEvent): void {
   // `defaultPrevented` is the ENTIRE editor rule, and no target predicate is
   // needed for it — the one below is about a surface the DOM cannot describe at
@@ -45,37 +62,55 @@ function onKeyDown(event: KeyboardEvent): void {
   // counts every text input and `<select>` as typing, and Escape is not a bare
   // key competing with what the user is writing — it dismisses whatever is on
   // top, from wherever they are standing, including a form field.
-  if (event.key !== "Escape" || event.defaultPrevented) {
+  if (event.key !== "Escape") {
+    rearmPopupPress();
+    return;
+  }
+  if (event.defaultPrevented) {
     return;
   }
   // The one target the ladder does yield to, and the reason is not the element
   // but what the BROWSER may be drawing over it: a `<datalist>` popup, whose
-  // Escape closes the suggestions. It reports nothing to the page — no node, no
-  // event, not even `defaultPrevented` — so "did that press belong to the
-  // popup?" is unanswerable, and answering it wrong destroyed a layer the user
-  // could not see they were dismissing: in the simulator, type into `datasource`
-  // until the suggestions appear and press Escape, and the return pill went with
-  // them.
+  // Escape closes the suggestions. It reports nothing about ITSELF to the page —
+  // no node, no open/close event, and not even a `defaultPrevented` on the press
+  // it just consumed — so "did that press belong to the popup?" is unanswerable,
+  // while the press itself arrives here regardless, which is how answering it
+  // wrong destroyed a layer the user could not see they were dismissing: in the
+  // simulator, type into `datasource` until the suggestions appear and press
+  // Escape, and the return pill went with them.
   //
-  // Narrow on purpose, and narrow twice over. Round one's `isTextEditingTarget`
-  // bail took Escape away from every field and left layers stranded; this covers
-  // only a control that can have a native popup at all (`mayOwnNativePopup` —
-  // two fields in this app), so Escape from a text field still reaches the
-  // ladder, which is the constraint that fix established.
+  // Narrow on purpose, and narrow three times over.
   //
-  // The second half is the rule the glossary card already states in the other
+  // In WHERE: round one's `isTextEditingTarget` bail took Escape away from every
+  // field and left layers stranded; this covers only a control that can have a
+  // native popup at all (`mayOwnNativePopup` — two fields in this app), so
+  // Escape from a text field still reaches the ladder, which is the constraint
+  // that fix established.
+  //
+  // In WHAT IT YIELDS TO — the rule the glossary card states in the other
   // direction: a surface that opened ITSELF cannot outrank one the user opened.
-  // A suggestion popup appears as a side effect of typing; a rule-evidence card
-  // or the session menu is something the reader asked for. Nothing closes that
-  // card on blur and it does not trap focus, so a keyboard user can Tab out of
-  // it and back into `datasource` with the card still standing — and while this
-  // bail was unconditional, Escape there was inert and the card was
-  // undismissable from those two fields, the same stranding rounds one to three
-  // kept re-introducing. So the yield holds only while nothing outranking a
-  // native popup is open: `overlayKeyboardOwned()` is `popover` or `menu`, never
-  // `ambient`, which is what keeps the return pill safe from the very press this
-  // bail was added for.
-  if (mayOwnNativePopup(event.target) && !overlayKeyboardOwned()) {
+  // Nothing closes a rule-evidence card on blur and it does not trap focus, so a
+  // keyboard user can Tab out of it and back into `datasource` with the card
+  // still standing, and an unconditional bail left it undismissable from there.
+  // `overlayKeyboardOwned()` is `popover` or `menu`: those keep the key.
+  //
+  // And in HOW LONG. Ranking alone still cost the `ambient` rank everything —
+  // the return pill was undismissable from these two fields for the whole
+  // session, though the `?` sheet prints Escape as dismissing it, because
+  // `ambient` sits below the threshold above. The fix is to treat the popup as
+  // what it is, the topmost layer of a ladder we cannot see: it gets the FIRST
+  // press after each interaction that could have opened it, and the next press
+  // is the page's. So Escape in a combobox reads "close the suggestions, then
+  // the pill", which is the same one-layer-per-press story the ladder tells
+  // everywhere else — and the cost of guessing wrong is now exactly one wasted
+  // keystroke in a field where no popup was open, never a layer destroyed by a
+  // press the user aimed at the browser's own popup.
+  if (
+    mayOwnNativePopup(event.target) &&
+    !overlayKeyboardOwned() &&
+    popupGivenAPress !== event.target
+  ) {
+    popupGivenAPress = event.target;
     return;
   }
   if (handleEscape()) {
@@ -90,11 +125,16 @@ function retain(): () => void {
   refs += 1;
   if (refs === 1) {
     document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("pointerdown", rearmPopupPress);
   }
   return () => {
     refs -= 1;
     if (refs === 0) {
       document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("pointerdown", rearmPopupPress);
+      // Nothing is listening, so nothing can re-arm — and holding the element
+      // would keep a detached node alive until the next app-wide layer opens.
+      rearmPopupPress();
     }
   };
 }

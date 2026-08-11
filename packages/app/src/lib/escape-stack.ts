@@ -12,11 +12,25 @@
  * wins, and push order breaks ties inside a rank. Push order ALONE is not
  * enough — see `ESCAPE_PRIORITY`. Element-scoped handlers (a glossary anchor's
  * own `onKeyDown`, the repo-load form's) stay where they are, but they owe the
- * ladder one thing: a handler that acts on Escape must `stopPropagation()`, or
- * the document listener below it pops a layer in the same press. The one
- * surface that cannot be asked to stop propagating — the CodeMirror editor —
- * keeps the same contract in the other spelling, preventing the default of
- * exactly the Escapes it acts on, and `use-escape-layer.ts` bails on
+ * ladder one thing: a handler that acts on Escape must claim the key, or the
+ * document listener below it pops a layer in the same press.
+ *
+ * WHICH claim depends on what else may want that press, and the two spellings
+ * are not interchangeable:
+ *
+ * - `stopPropagation()` takes the press from everything above the handler — the
+ *   ladder AND every ancestor element handler. That is right for a surface that
+ *   owns what is inside it, which is the repo-load form: nothing outside the
+ *   panel has any business acting on an Escape aimed at the panel.
+ * - `preventDefault()` takes it from the ladder alone, because the ladder is
+ *   what reads the flag. That is what a surface nested INSIDE another one owes:
+ *   a glossary card can be a child of the repo-load form, and stopping
+ *   propagation there cost the user a second Escape to cancel a panel they had
+ *   asked to cancel once.
+ *
+ * The one surface that cannot be asked to stop propagating — the CodeMirror
+ * editor — already keeps the second spelling on its own, preventing the default
+ * of exactly the Escapes it acts on, and `use-escape-layer.ts` bails on
  * `defaultPrevented` (the mechanics, and where they were verified, are written
  * down there). So every control — the editor, a form field, a `<select>` — lets
  * a press it did nothing with through, and an open layer stays dismissible from

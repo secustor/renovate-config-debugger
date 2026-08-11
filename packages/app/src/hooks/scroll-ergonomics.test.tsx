@@ -1,20 +1,18 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { claimModalKeyboard } from "@/lib/escape-stack";
-import {
-  isEditorTarget,
-  isTextEditingTarget,
-  mayOwnNativePopup,
-  useHomeEndPageScroll,
-} from "./scroll-ergonomics";
+import { isTextEditingTarget, mayOwnNativePopup, useHomeEndPageScroll } from "./scroll-ergonomics";
 
 /**
  * Roadmap 067 — `isTextEditingTarget` is shared by the 016 Home/End page-scroll
  * guard and the bare-key jump layer (`useShortcut`, `useTabDigits`), and
- * `isEditorTarget` is the narrow half of it that the Escape ladder yields to.
- * Both need real DOM elements (`instanceof HTMLElement`, `.tagName`,
- * `.closest`), which the node-environment `unit` project doesn't have — hence
- * `.test.tsx` here, to land in the jsdom `render` project.
+ * `mayOwnNativePopup` is what the Escape ladder yields to. Both need real DOM
+ * elements (`instanceof HTMLElement`, `.tagName`, `.closest`), which the
+ * node-environment `unit` project doesn't have — hence `.test.tsx` here, to land
+ * in the jsdom `render` project.
+ *
+ * The editor half is module-private and is exercised through
+ * `isTextEditingTarget`, its only caller — see the note on it.
  */
 
 // vitest runs without `globals`, so RTL's automatic cleanup never registers.
@@ -77,7 +75,7 @@ describe("isTextEditingTarget", () => {
     expect(isTextEditingTarget(input("checkbox"))).toBe(false);
   });
 
-  it("counts a descendant of the CodeMirror editor as typing", () => {
+  it("counts the CodeMirror editor and its descendants as typing", () => {
     // `isContentEditable` itself is jsdom's own concern (unsupported in this
     // jsdom version, which is a jsdom limitation, not app behavior) — the
     // `.cm-editor` ancestor check below is what this codebase can assert.
@@ -86,36 +84,13 @@ describe("isTextEditingTarget", () => {
     const cmChild = document.createElement("div");
     cmRoot.appendChild(cmChild);
     expect(isTextEditingTarget(cmChild)).toBe(true);
+    expect(isTextEditingTarget(cmRoot)).toBe(true);
   });
 
   it("rejects non-element targets and plain elements", () => {
     expect(isTextEditingTarget(null)).toBe(false);
     expect(isTextEditingTarget(document.createElement("button"))).toBe(false);
     expect(isTextEditingTarget(window)).toBe(false);
-  });
-});
-
-describe("isEditorTarget", () => {
-  it("counts the CodeMirror editor, whose Escape cannot be intercepted", () => {
-    const cmRoot = document.createElement("div");
-    cmRoot.className = "cm-editor";
-    const cmChild = document.createElement("div");
-    cmRoot.appendChild(cmChild);
-    expect(isEditorTarget(cmChild)).toBe(true);
-    expect(isEditorTarget(cmRoot)).toBe(true);
-  });
-
-  it("does NOT count form controls, so a layer stays dismissible from one", () => {
-    // The regression this predicate exists to end: the Escape ladder yielded to
-    // every text input and `<select>`, so the return pill could not be
-    // dismissed while the caret sat in `packageName`, and the session menu
-    // could not be closed from a filter select.
-    expect(isEditorTarget(input())).toBe(false);
-    expect(isEditorTarget(input("search"))).toBe(false);
-    expect(isEditorTarget(document.createElement("textarea"))).toBe(false);
-    expect(isEditorTarget(document.createElement("select"))).toBe(false);
-    expect(isEditorTarget(null)).toBe(false);
-    expect(isEditorTarget(window)).toBe(false);
   });
 });
 

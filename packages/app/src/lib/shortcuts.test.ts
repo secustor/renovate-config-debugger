@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { RESULTS_TAB_IDS } from "@/data/results-tabs";
 import {
+  anyModifierHeld,
+  commandModifierHeld,
   FOCUS_EDITOR_SHORTCUT,
   FOCUS_RESULTS_SHORTCUT,
   formatShortcut,
@@ -55,6 +57,27 @@ describe("matchShortcut", () => {
   it("compares the key case-insensitively", () => {
     const lower = { ...RUN_SHORTCUT, key: "enter" };
     expect(matchShortcut(chord({ metaKey: true }), lower)).toBe(true);
+  });
+});
+
+describe("the modifier predicates", () => {
+  it("agrees on ⌘, Ctrl and Alt", () => {
+    for (const held of [{ metaKey: true }, { ctrlKey: true }, { altKey: true }]) {
+      expect(commandModifierHeld(chord(held))).toBe(true);
+      expect(anyModifierHeld(chord(held))).toBe(true);
+    }
+    expect(commandModifierHeld(chord())).toBe(false);
+    expect(anyModifierHeld(chord())).toBe(false);
+  });
+
+  it("parts company over Shift, which is the point of having two", () => {
+    // A named key (the tab strip's arrows, Home/End) must decline Shift, which
+    // means "extend the selection". A key identified by the CHARACTER it
+    // produced must allow it: `?` is Shift+/ on a US layout, and `1`–`7` are
+    // shifted keys on AZERTY.
+    const shifted = chord({ shiftKey: true });
+    expect(anyModifierHeld(shifted)).toBe(true);
+    expect(commandModifierHeld(shifted)).toBe(false);
   });
 });
 

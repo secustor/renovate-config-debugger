@@ -25,6 +25,28 @@ function openCard(term: HTMLElement) {
   expect(document.querySelector(".glossary-card")).not.toBeNull();
 }
 
+/**
+ * The repo-load panel, in miniature: a `<form>` that closes itself on Escape,
+ * with a `Term` inside it — `RepoLoadForm` renders one on the "also load the
+ * org's inherited config" row.
+ */
+function PanelScene({ onEscape, onCancel }: { onEscape: () => void; onCancel: () => void }) {
+  useEscapeLayer(true, onEscape, ESCAPE_PRIORITY.ambient);
+  return (
+    <form
+      aria-label="Load from repository"
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          onCancel();
+        }
+      }}
+    >
+      <Term id="preset">a preset</Term>
+    </form>
+  );
+}
+
 describe("the glossary card's Escape", () => {
   it("dismisses the card and spares the furniture underneath", () => {
     // The simulator's return pill is `ambient`: the reader cannot even see it
@@ -51,5 +73,25 @@ describe("the glossary card's Escape", () => {
 
     fireEvent.keyDown(term, { key: "Escape" });
     expect(popover).toHaveBeenCalledOnce();
+  });
+
+  it("lets the panel it sits inside cancel on the same press", () => {
+    // The `stopPropagation` this used to claim with was not just the ladder's
+    // press to take: React dispatches from the root container, so it ended the
+    // native event for every ANCESTOR handler too. The repo-load panel closes
+    // itself on Escape and renders a `Term`, and focusing that term always opens
+    // a card — so cancelling a panel the user had asked to cancel took two
+    // presses. `preventDefault` claims only the listener that reads it.
+    const pill = vi.fn();
+    const cancel = vi.fn();
+    const { getByText } = render(<PanelScene onEscape={pill} onCancel={cancel} />);
+    const term = getByText("a preset");
+    openCard(term);
+
+    fireEvent.keyDown(term, { key: "Escape" });
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(document.querySelector(".glossary-card")).toBeNull();
+    // And the layer underneath still survives both of them.
+    expect(pill).not.toHaveBeenCalled();
   });
 });

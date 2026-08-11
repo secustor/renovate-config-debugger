@@ -107,17 +107,30 @@ document generalizes those into rules and fills the holes.
 
 The repo-load form and glossary terms keep their own element-scoped Escape
 handlers rather than joining the ladder, since they only fire when focus is
-already inside them — but "cannot race the ladder" turned out to be wrong as
-first written, and the correction is the interesting part: an element handler
-that _acts_ on Escape must also `stopPropagation()`, or the ladder's document
-listener pops a layer in the same press. The repo-load form always did; the
-glossary term did not, so Escape on a hover card also destroyed the simulator's
-return pill. It claims the key only when it has a card to dismiss AND nothing
-the user deliberately opened is over the page — the rule the fourth review
-forced into words: **a surface that opened ITSELF is not a layer.** Hover cards
-open on focus, so without that second half, Tabbing onto a chip inside a
-rule-evidence popover made Escape dismiss the tooltip and leave the popover
-standing.
+already inside them. Getting that contract right took three rounds, and the
+resolution is worth more than the rule it produced.
+
+Rounds five and six both argued about **whether** the glossary card may claim
+Escape. Round five gave it `stopPropagation()`, which fixed the pill it was
+destroying and broke the repo-load form, whose own Escape-to-close sits on an
+ancestor of a `<Term>` it renders — one press, and the panel the user asked to
+cancel stayed open. Round six found the argument was about the wrong thing: the
+defect was **how** it claimed, not whether.
+
+The ladder reads exactly one signal, `defaultPrevented`. So `preventDefault()`
+claims precisely that listener and nothing else, while `stopPropagation()`
+claims the ladder _plus_ every React ancestor — React dispatches from the root
+container, and the synthetic call forwards to the native event. With
+`preventDefault`, one press hides the card, closes the panel and leaves the pill
+alone, and the contract's two directions become independent: `preventDefault`
+governs what is BELOW the card, `overlayKeyboardOwned()` what is ABOVE it.
+
+The `overlayKeyboardOwned()` half is the fourth review's rule: **a surface that
+opened ITSELF is not a layer.** Hover cards open on focus (and on hover), so
+without it, Tabbing onto a chip inside a rule-evidence popover made Escape
+dismiss the tooltip and leave the popover standing — and registering the card as
+a real ladder layer would be worse, since the pointer merely resting on a badge
+would start arming Escape.
 
 `Mod` is ⌘ on Apple platforms and Ctrl elsewhere, rendered accordingly by a
 single `formatShortcut()` helper — never hardcoded in copy.
@@ -229,6 +242,19 @@ aimed at dismissing suggestions was also destroying the return pill. "May", not
 reaches the ladder — the constraint round three established. `<select>` is
 excluded on purpose: its popup only opens on a deliberate act, never as a side
 effect of typing, and counting it would recreate round one's too-wide rule.
+
+**The yield is bounded**, which took two more rounds to settle. Round four made
+it absolute, and the return pill (`ambient`) became undismissable from those two
+fields for a whole session; round five narrowed it to "unless something outranks
+it", which left `ambient` exactly as stranded, since it is below the threshold.
+There is genuinely no way to ask whether a `<datalist>` popup is open — no node,
+no event, no `defaultPrevented` — so the popup now gets the FIRST Escape after
+any interaction that could have opened one (a keystroke, a pointerdown; both
+re-arm it), and the next press goes to the ladder. The cost of guessing wrong is
+one wasted keystroke in a field where no popup was open; the cost of the two
+previous rules was a destroyed layer, and then a permanently inert key. The `?`
+sheet states it outright rather than leaving it as folklore: "Escape — Close the
+suggestion list — a second press dismisses the page's own layer."
 
 **The rank is also the bare-key layer's gate.** `overlayKeyboardOwned()` reads
 the top of the ladder and reports true at `menu` or `popover` — a card portalled

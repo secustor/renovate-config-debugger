@@ -8,8 +8,9 @@
  * run path, the untrusted-endpoint guard) through {@link ShareLinkHost}.
  *
  * The cluster's invariants — the StrictMode mount latch, decode-generation
- * cancellation, self-write filtering, and run-before-sim-arm ordering — all
- * live here; their comments moved with the statements they annotate.
+ * cancellation, self-write filtering, and the simulator request's attribution
+ * rule — all live here; their comments moved with the statements they
+ * annotate.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { TraceResult } from "@renovate-config-debugger/engine";
@@ -47,6 +48,14 @@ export interface SimRequest {
   /** Roadmap 054: the verdict thread the link asked to open, applied to the
    *  run this request triggers (absent = every thread starts collapsed). */
   simThread?: string;
+  /**
+   * Roadmap 067 review — the result this request may be applied to: the one
+   * the link's OWN run produced, or null when that run failed and the link has
+   * yet to produce one. Naming it is what makes the attribution rule in
+   * `loadShareToken` a matter of identity rather than of timing; see there,
+   * and `useShareLinkRequest`, which is the one consumer that resolves it.
+   */
+  ranResult: TraceResult | null;
   nonce: number;
 }
 
@@ -72,13 +81,14 @@ const SHARE_ERROR_MESSAGES: Record<ShareDecodeError, string> = {
  * read it through `hostRef`, so nothing here goes stale.
  */
 export interface ShareLinkHost {
-  /** The pipeline run path. The hook AWAITS this (never fire-and-forget) —
-   *  the run-before-sim-arm ordering below holds by construction only while
-   *  the promise resolves after the result state commits. A link's run is
-   *  never declined either: `App.onRun` queues a request that arrives during
-   *  another run instead of dropping it, which is what this path needs, having
-   *  already replaced the config, the file name and the platform by the time
-   *  it gets here. */
+  /** The pipeline run path. The hook AWAITS this (never fire-and-forget) and
+   *  keeps what it returns: the resolved value IS the result this link
+   *  produced, which is what the simulator request is then attributed to (see
+   *  `loadShareToken`) — a null means the run failed. A link's run is never
+   *  declined either: `App.onRun` queues a request that arrives during another
+   *  run instead of dropping it, which is what this path needs, having already
+   *  replaced the config, the file name and the platform by the time it gets
+   *  here. */
   onRun: (inputs: RunInputs, opts: { suppressTokens: boolean }) => Promise<TraceResult | null>;
   /** Roadmap 016: the one path every authoritative content load goes through. */
   loadConfigText: (text: string) => void;
@@ -111,13 +121,13 @@ export interface ShareLinkHost {
 export interface ShareLink {
   /** Roadmap 027: a token was present but unreadable — banner text, or null. */
   shareError: string | null;
-  /** Roadmap 018: a decoded link's simulator inputs, handed to the
-   *  RuleSimulator to pre-fill — and, when `autoSimulate`, to run — as soon as
-   *  there is a result to simulate against. A link whose config fails to run
-   *  still arrives pre-filled, waiting for the fix; whether `autoSimulate`
-   *  survives that failure to arm the user's next successful run depends on
-   *  whether a stale result could otherwise be misattributed (see
-   *  `loadShareToken`'s `isInitialLoad` parameter). */
+  /** Roadmap 018: the newest decoded link's simulator inputs, handed to the
+   *  RuleSimulator to pre-fill — and, when `autoSimulate`, to run — against
+   *  the result that link's config produced. Null whenever the link on screen
+   *  asked for no simulation at all. A link whose config fails to run keeps
+   *  both the descriptor and its `autoSimulate`, waiting for the run the user
+   *  gets after fixing the config; what it never does is land on a result some
+   *  other link produced (see `loadShareToken`). */
   simRequest: SimRequest | null;
   buildShareLinkAndCopy: (sim?: ShareSimulator) => Promise<void>;
   /** Roadmap 009 (auth-failure surfacing): the `#config=…` fragment a sign-in
@@ -132,8 +142,8 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
   // never reads as "nothing happened" while a working one shows no residue.
   const [shareError, setShareError] = useState<string | null>(null);
   // A fresh nonce per link lets the RuleSimulator apply each request exactly
-  // once; set AFTER the run so the child applies it against the freshly-run
-  // config, on both mount and hashchange.
+  // once; WHICH run it may be applied to is the descriptor's own `ranResult`
+  // (see the attribution rule in `loadShareToken`).
   const [simRequest, setSimRequest] = useState<SimRequest | null>(null);
   const simNonceRef = useRef(0);
   // Roadmap 017: the last `#config=` token (or null) the app itself wrote
@@ -186,15 +196,7 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
    * superseded (component unmount, or a second hashchange arriving before
    * the first finishes its awaits).
    */
-  async function loadShareToken(
-    shareToken: string,
-    isCancelled: () => boolean,
-    /** Roadmap 067 review: whether this decode is the mount effect (the app's
-     *  very first run of the session) rather than a hashchange over one
-     *  already in progress — see the note at the `autoSimulate` computation
-     *  below, the one place this changes behavior. */
-    isInitialLoad: boolean,
-  ): Promise<void> {
+  async function loadShareToken(shareToken: string, isCancelled: () => boolean): Promise<void> {
     // Roadmap 031: `getRenovateVersion()` IS the module-cached engine import,
     // and any successful decode ends in a run that needs that chunk — so the
     // (multi-second) download starts here and overlaps the decode instead of
@@ -252,6 +254,15 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
       host.setHostSectionOpen(true);
     }
     host.pendingViewRef.current = payload.view ?? null;
+    // Roadmap 067 review — half one of the attribution rule stated below: a
+    // decode that replaces the screen replaces the simulator request with it,
+    // HERE, before its own run. A link that carries no `sim` is not silent
+    // about the simulator — it says the screen it is installing should carry
+    // no request either — so the clear is unconditional within this populate
+    // block (a decode that failed above returned without touching anything,
+    // leaving the previous link's config AND its request in place, which is
+    // the same statement). No request outlives the link that asked for it.
+    setSimRequest(null);
     // Roadmap 031: the version-drift notice is informational — it must not
     // hold the run behind the full engine download, so it fires whenever the
     // version lands (usually mid-run), under the same cancellation rule it
@@ -266,9 +277,8 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
     })();
     let ran: TraceResult | null = null;
     if (!isCancelled()) {
-      // Awaited (not fire-and-forget) so a carried simulator descriptor is
-      // armed AFTER the result commits — the RuleSimulator then applies it
-      // against the freshly-run config, identically on mount and hashchange.
+      // Awaited (not fire-and-forget) for what it RETURNS: the result this
+      // link produced, which the descriptor below names.
       ran = await host.onRun(
         {
           fileName: payload.fileName,
@@ -282,37 +292,44 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
         { suppressTokens: policy.suppressTokens },
       );
     }
-    // The descriptor is always handed over; only the AUTO-RUN waits for a
-    // result. The two are separable and were briefly conflated: a link whose
-    // config fails to run left the recipient with a fatal banner and an empty
-    // simulator form, having silently dropped the very dependency the sender
-    // was asking about — while pre-filling costs nothing, since the form is
-    // theirs to fire once the config is fixed. What must not happen is a
-    // simulation attributed to a result this link did not produce (a PREVIOUS
-    // link's may well still be on screen), and that is what `ran` guards.
+    // Roadmap 018/067 review — THE INVARIANT: a simulation may only ever be
+    // attributed to the config the link that requested it produced. That is a
+    // statement about identity, not about timing or about which entry path
+    // decoded the link, and it is carried by two halves that need no flag
+    // between them:
     //
-    // Roadmap 067 review: `ran !== null` alone over-corrected — the
-    // simRequest nonce is consumed once (`useShareLinkRequest`), so a link
-    // whose OWN run fails disarms `autoSimulate` forever, even once the user
-    // fixes the typo and presses Run again, losing the sender's "look at this
-    // dependency" intent for good. It only needs to stay disarmed while a
-    // STALE result — a previous link's, or an earlier session's — could still
-    // be on screen to misattribute the simulation to; `isInitialLoad` is when
-    // that risk provably does not exist. The mount effect's decode is the
-    // app's first run of the session (`result` starts `null` and nothing else
-    // runs ahead of it), so the very next successful run — this decode's own,
-    // or the one the user gets after fixing the config — can only be THIS
-    // link's, however long that takes. A hashchange decode has no such
-    // guarantee (an earlier run's result may already be showing), so it keeps
-    // the original, immediate-only arming.
+    //  1. a request belongs to exactly one link. The unconditional clear
+    //     above runs at decode time, BEFORE this link's run, so a descriptor
+    //     can never still be sitting there when a later link's result lands.
+    //  2. a request names the result it may be applied to. `ran` IS that
+    //     result when the run succeeded; when it failed this link has yet to
+    //     produce one, and the `null` tells `useShareLinkRequest` to hold the
+    //     request until a result arrives that was not already on screen when
+    //     the request did.
+    //
+    // The descriptor is handed over either way, `autoSimulate` intact. Losing
+    // it on failure was its own bug: the form is the sender's "look at this
+    // dependency", the recipient fixes the config the link shipped and runs,
+    // and that run is still this link's — half 1 guarantees no other link has
+    // been through in the meantime, since one would have cleared this request
+    // on its way in. What half 2 forbids is the descriptor landing on the
+    // verdict that happened to be up when the link arrived (a previous link's,
+    // or an earlier session's) — the pair no sender ever put in a link.
+    //
+    // One thing neither half can undo: a run started by an EARLIER decode is
+    // not cancelled by this one (App queues runs, it does not abandon them),
+    // so its result can still commit under this link. This request is not
+    // handed over until this link's own run has settled behind it, so the
+    // stale commit passes while there is nothing to apply.
     if (!isCancelled() && payload.sim) {
       setSimRequest({
         form: payload.sim.form,
-        autoSimulate: (ran !== null || isInitialLoad) && payload.sim.autoSimulate === true,
+        autoSimulate: payload.sim.autoSimulate === true,
         // Roadmap 054: rides along with the form rather than through `view`
         // (where `simStep` lives) because it is only meaningful for the
         // simulation this descriptor reproduces — see ShareSimulator.
         simThread: payload.sim.simThread,
+        ranResult: ran,
         nonce: ++simNonceRef.current,
       });
     }
@@ -414,7 +431,7 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
       if (!shareToken) {
         return;
       }
-      await loadShareTokenRef.current(shareToken, isCancelled, true);
+      await loadShareTokenRef.current(shareToken, isCancelled);
     })();
   }, [oauthConfig]);
 
@@ -451,10 +468,7 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
       }
       const generation = ++decodeGenerationRef.current;
       const isCancelled = () => !mountedRef.current || decodeGenerationRef.current !== generation;
-      // Not the initial load — a hashchange fires only once the app is
-      // already running, so an earlier result may already be on screen (see
-      // the `isInitialLoad` note inside `loadShareToken`).
-      void loadShareTokenRef.current(decision.token, isCancelled, false);
+      void loadShareTokenRef.current(decision.token, isCancelled);
     }
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);

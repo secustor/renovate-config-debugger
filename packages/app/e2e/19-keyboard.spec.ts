@@ -485,3 +485,49 @@ test("⌘⏎ on a focused provenance chip runs, rather than jumping", async ({ p
   await page.keyboard.press("ControlOrMeta+Enter");
   await expect(tabButton(page, "effective")).toHaveAttribute("aria-selected", "true");
 });
+
+// ── Sixth-review follow-ups (2026-08-11) ─────────────────────────────────────
+
+test("Escape in a combobox reaches the page's own layer on the second press", async ({ page }) => {
+  await page.goto("/");
+  await runAndAwaitResult(page);
+  await openTab(page, "simulator");
+
+  // A native <datalist> popup cannot be detected — no node, no event — so the
+  // field gets the FIRST Escape (which may be dismissing suggestions) and the
+  // page's ladder gets the next. Before this, the two combobox fields made
+  // Escape permanently inert for anything below popover rank.
+  const datasource = page.locator(".sim-field", { hasText: "datasource" }).locator("input");
+  await datasource.click();
+  await datasource.fill("np");
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
+  // Still focused and still usable — the presses went to the field and the
+  // ladder, not into a void.
+  await expect(datasource).toBeFocused();
+});
+
+test("a refused run says so, every time it is refused", async ({ page }) => {
+  await page.goto("/");
+  // Break the global-config layer so the run is refused before it starts.
+  // The layers live behind nested <details> disclosures, not buttons: the
+  // Advanced zone first, then the Global config layer inside it.
+  await page.locator("summary", { hasText: "Advanced options" }).click();
+  await page.locator("summary", { hasText: "Global config" }).click();
+  const globalConfig = page.locator("textarea").first();
+  await globalConfig.fill("{ not json");
+
+  const live = page.locator("p.visually-hidden[role='status']");
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("ControlOrMeta+Enter");
+  await expect(live).toContainText("Run blocked");
+
+  // The second press against the same unfixed error must speak too: the alert
+  // banner only announces when its TEXT changes, and ⌘⏎ deliberately does not
+  // move focus, so this is the only feedback a keyboard user gets.
+  await live.evaluate((el) => {
+    el.textContent = "";
+  });
+  await page.keyboard.press("ControlOrMeta+Enter");
+  await expect(live).toContainText("Run blocked");
+});

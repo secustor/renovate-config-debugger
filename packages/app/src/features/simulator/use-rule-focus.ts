@@ -31,6 +31,12 @@ export interface RuleFocus {
  * The card is a plain `<div>`, so `tabIndex` is set here rather than in the
  * JSX: `-1` makes it a landing site without making it a tab stop, and setting
  * it from the one place that focuses it keeps the attribute next to its reason.
+ *
+ * Scroll and focus but no flash, which is why this is not `landOnTarget`: the
+ * flash says "the thing you named is HERE", and here there is no such thing to
+ * point at — these two exits land on the card precisely because the row the
+ * link named does not exist. A whole card lighting up would be pointing at the
+ * wrong answer.
  */
 function landOnCard(card: HTMLDivElement | null): void {
   if (!card) {
