@@ -1,0 +1,1292 @@
+<title>Description provenance — 4 presentation variants</title>
+<style>
+  /* ── Frame + app token system (mirrors packages/app/src/index.css palette) ── */
+  :root {
+    color-scheme: light dark;
+    /* app tokens, light */
+    --canvas: #ffffff;
+    --surface: #f6f8fa;
+    --surface-raised: #ffffff;
+    --ink: #1f2328;
+    --muted: #59626b;
+    --border: #d1d9e0;
+    --accent: #0969da;
+    --accent-fill: #0757ba;
+    --on-accent: #ffffff;
+    --accent-purple: #8250df;
+    --accent-teal: #136f77;
+    --accent-pink: #bf3989;
+    --ok: #1a7f37;
+    --warn: #9a6700;
+    --error: #d1242f;
+    /* doc-frame tokens (slightly cool-tinted so mockups pop as "the content") */
+    --frame-bg: #eef0f3;
+    --frame-ink: #23282e;
+    --frame-muted: #5d6670;
+    --frame-border: #d6dade;
+    --shadow-popover: 0 8px 24px rgba(31, 35, 40, 0.16);
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --canvas: #0d1117;
+      --surface: #161b22;
+      --surface-raised: #1c2129;
+      --ink: #e6edf3;
+      --muted: #909aa5;
+      --border: #30363d;
+      --accent: #4493f8;
+      --accent-fill: #1f6feb;
+      --accent-purple: #a371f7;
+      --accent-teal: #4ac6d2;
+      --accent-pink: #f778ba;
+      --ok: #3fb950;
+      --warn: #d29922;
+      --error: #f85149;
+      --frame-bg: #090c10;
+      --frame-ink: #dfe6ed;
+      --frame-muted: #8b949e;
+      --frame-border: #21262d;
+      --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.55);
+    }
+  }
+  :root[data-theme="dark"] {
+    --canvas: #0d1117;
+    --surface: #161b22;
+    --surface-raised: #1c2129;
+    --ink: #e6edf3;
+    --muted: #909aa5;
+    --border: #30363d;
+    --accent: #4493f8;
+    --accent-fill: #1f6feb;
+    --accent-purple: #a371f7;
+    --accent-teal: #4ac6d2;
+    --accent-pink: #f778ba;
+    --ok: #3fb950;
+    --warn: #d29922;
+    --error: #f85149;
+    --frame-bg: #090c10;
+    --frame-ink: #dfe6ed;
+    --frame-muted: #8b949e;
+    --frame-border: #21262d;
+    --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.55);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    background: var(--frame-bg);
+    color: var(--frame-ink);
+    font:
+      16px/1.55 system-ui,
+      -apple-system,
+      "Segoe UI",
+      sans-serif;
+  }
+  .wrap {
+    max-width: 1020px;
+    margin: 0 auto;
+    padding: 3rem 1.25rem 5rem;
+  }
+
+  /* ── Doc frame typography ── */
+  header.doc h1 {
+    font-size: 1.6rem;
+    line-height: 1.25;
+    margin: 0 0 0.5rem;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  header.doc .sub {
+    color: var(--frame-muted);
+    max-width: 62ch;
+    margin: 0;
+  }
+  .eyebrow {
+    font-size: 0.7rem;
+    font-weight: 650;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--frame-muted);
+    margin: 0 0 0.35rem;
+  }
+  section.variant {
+    margin-top: 4rem;
+  }
+  section.variant > h2 {
+    font-size: 1.25rem;
+    margin: 0 0 0.4rem;
+    letter-spacing: -0.01em;
+  }
+  section.variant > .concept {
+    color: var(--frame-muted);
+    max-width: 68ch;
+    margin: 0 0 1.25rem;
+  }
+  section.variant > .concept strong {
+    color: var(--frame-ink);
+    font-weight: 600;
+  }
+
+  .facts {
+    margin-top: 3rem;
+    display: grid;
+    gap: 0.75rem;
+  }
+  .fact {
+    border-left: 3px solid var(--frame-border);
+    padding: 0.1rem 0 0.1rem 0.9rem;
+    max-width: 74ch;
+    font-size: 0.95rem;
+  }
+  .fact b {
+    font-weight: 600;
+  }
+  .fact code,
+  .notes code,
+  .concept code {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    background: color-mix(in srgb, var(--frame-ink) 7%, transparent);
+    padding: 0.05em 0.3em;
+    border-radius: 4px;
+  }
+
+  /* ── Mockup shell: an "app window" ── */
+  .shell {
+    background: var(--canvas);
+    color: var(--ink);
+    border: 1px solid var(--frame-border);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(15, 20, 25, 0.08);
+    font-size: 0.85rem;
+  }
+  .shell-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0.45rem 0.8rem;
+    color: var(--muted);
+    font-size: 0.72rem;
+  }
+  .shell-bar .dots {
+    display: flex;
+    gap: 5px;
+  }
+  .shell-bar .dots i {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+  .shell-body {
+    padding: 0;
+  }
+  .overflow {
+    overflow-x: auto;
+  }
+
+  /* app card chrome */
+  .card-title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.55rem 0.8rem;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .card-title .count {
+    color: var(--muted);
+    font-weight: 400;
+  }
+
+  /* segmented control (app .seg) */
+  .seg {
+    display: inline-flex;
+    margin-left: auto;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    font-size: 0.72rem;
+    font-weight: 500;
+  }
+  .seg span {
+    padding: 0.2rem 0.6rem;
+    color: var(--muted);
+    background: var(--canvas);
+  }
+  .seg span.on {
+    background: var(--accent-fill);
+    color: var(--on-accent);
+  }
+
+  /* provenance chips (app .badge / ProvenanceChip) */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3em;
+    font-size: 0.68rem;
+    font-weight: 550;
+    line-height: 1;
+    font-family: var(--font-mono);
+    padding: 0.22em 0.55em;
+    border-radius: 999px;
+    background: color-mix(in srgb, currentColor 10%, transparent);
+    border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+    white-space: nowrap;
+  }
+  .chip.preset {
+    color: var(--accent-purple);
+  }
+  .chip.repo {
+    color: var(--accent);
+  }
+  .chip.meta {
+    color: var(--muted);
+    font-family: inherit;
+  }
+  .chip.clickable {
+    cursor: pointer;
+  }
+  .dotchip {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    flex: none;
+  }
+  .verb {
+    color: var(--muted);
+    font-size: 0.72rem;
+  }
+
+  /* kv ledger row (app .kv-row) */
+  .kv-head {
+    display: grid;
+    grid-template-columns: minmax(150px, 0.9fr) 1.6fr auto;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 0.5rem 0.8rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--canvas);
+  }
+  .kv-key {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .kv-key .caret {
+    color: var(--muted);
+    font-size: 0.65rem;
+  }
+  .kv-prev {
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .kv-origin {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  /* blame list (variant A) */
+  .blame {
+    list-style: none;
+    margin: 0;
+    padding: 0.35rem 0 0.6rem;
+    background: var(--canvas);
+  }
+  .blame li {
+    display: grid;
+    grid-template-columns: 2.4rem minmax(220px, 1fr) minmax(180px, 15rem);
+    gap: 0.75rem;
+    align-items: baseline;
+    padding: 0.28rem 0.8rem;
+  }
+  .blame li:hover {
+    background: color-mix(in srgb, var(--accent) 5%, transparent);
+  }
+  .blame .idx {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--muted);
+    text-align: right;
+  }
+  .blame .txt {
+    font-size: 0.8rem;
+    line-height: 1.45;
+  }
+  .blame .txt code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+    padding: 0 0.25em;
+    border-radius: 3px;
+  }
+  .blame .src {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    justify-self: start;
+  }
+  .blame .via {
+    color: var(--muted);
+    font-size: 0.66rem;
+    white-space: nowrap;
+  }
+  .blame li.groupfirst {
+    border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+    margin-top: 0.15rem;
+    padding-top: 0.4rem;
+  }
+  .blame li.dup .txt {
+    color: var(--muted);
+    text-decoration: line-through;
+    text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent);
+  }
+  .blame .dupnote {
+    font-size: 0.66rem;
+    color: var(--warn);
+    white-space: nowrap;
+    background: color-mix(in srgb, var(--warn) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent);
+    border-radius: 999px;
+    padding: 0.1em 0.5em;
+  }
+  .blame li.ellipsis {
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-style: italic;
+  }
+
+  /* variant B digest */
+  .digest {
+    padding: 0.8rem 1rem 1rem;
+    background: var(--canvas);
+  }
+  .digest-group {
+    margin-bottom: 0.9rem;
+  }
+  .digest-group > .gh {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.3rem;
+  }
+  .digest-group > .gh .n {
+    color: var(--muted);
+    font-size: 0.7rem;
+  }
+  .digest ul {
+    list-style: none;
+    margin: 0;
+    padding: 0 0 0 1rem;
+    border-left: 2px solid color-mix(in srgb, var(--accent-purple) 30%, transparent);
+    display: grid;
+    gap: 0.22rem;
+  }
+  .digest li {
+    font-size: 0.8rem;
+    display: flex;
+    gap: 0.5rem;
+    align-items: baseline;
+  }
+  .digest li .dotchip {
+    position: relative;
+    top: -1px;
+    color: var(--accent-purple);
+  }
+  .digest li .leaf {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .digest li.more {
+    color: var(--muted);
+    font-style: italic;
+    font-size: 0.72rem;
+  }
+  .digest li.userrule .dotchip {
+    color: var(--accent);
+  }
+  .digest .rulenote {
+    color: var(--muted);
+    font-size: 0.68rem;
+  }
+
+  /* variant C tree */
+  .tree {
+    font-size: 0.8rem;
+    padding: 0.6rem 0.9rem 0.9rem;
+    background: var(--canvas);
+    display: grid;
+    gap: 0.05rem;
+  }
+  .tnode {
+    padding: 0.22rem 0.4rem;
+    border-radius: 6px;
+  }
+  .tnode:hover {
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
+  }
+  .tnode.sel {
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    outline: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  }
+  .tnode .row1 {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+  .tnode .name {
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    font-weight: 550;
+  }
+  .tnode .meta {
+    color: var(--muted);
+    font-size: 0.66rem;
+  }
+  .tnode .desc {
+    color: var(--muted);
+    font-size: 0.72rem;
+    line-height: 1.4;
+    margin: 0.1rem 0 0 1.05rem;
+    display: flex;
+    gap: 0.4rem;
+    align-items: baseline;
+  }
+  .tnode .desc::before {
+    content: "❝";
+    color: color-mix(in srgb, var(--accent-purple) 55%, transparent);
+    font-size: 0.8rem;
+    flex: none;
+  }
+  .d1 {
+    margin-left: 1.1rem;
+  }
+  .d2 {
+    margin-left: 2.2rem;
+  }
+  .d3 {
+    margin-left: 3.3rem;
+  }
+
+  /* variant D json + hover card */
+  .jsonpane {
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    line-height: 1.6;
+    padding: 0.8rem 1rem;
+    background: var(--canvas);
+    position: relative;
+  }
+  .jk {
+    color: var(--accent);
+  }
+  .js {
+    color: var(--accent-teal);
+  }
+  .jp {
+    color: var(--muted);
+  }
+  .js.hovered {
+    background: color-mix(in srgb, var(--accent-purple) 14%, transparent);
+    outline: 1px solid color-mix(in srgb, var(--accent-purple) 45%, transparent);
+    border-radius: 3px;
+    position: relative;
+  }
+  .option-card {
+    position: absolute;
+    z-index: 30;
+    max-width: 330px;
+    background: var(--surface-raised);
+    color: var(--ink);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: var(--shadow-popover);
+    padding: 0.65rem 0.8rem;
+    font-family:
+      system-ui,
+      -apple-system,
+      sans-serif;
+    font-size: 0.75rem;
+    line-height: 1.45;
+  }
+  .option-card .oc-head {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 0.35rem;
+  }
+  .option-card .oc-name {
+    font-weight: 600;
+    font-size: 0.8rem;
+  }
+  .option-card .oc-row {
+    color: var(--muted);
+    font-size: 0.7rem;
+    margin-top: 0.3rem;
+  }
+  .option-card .oc-path {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--muted);
+    margin-top: 0.35rem;
+  }
+  .option-card .oc-path b {
+    color: var(--ink);
+    font-weight: 550;
+  }
+  .option-card .oc-link {
+    color: var(--accent);
+    font-size: 0.72rem;
+    margin-top: 0.45rem;
+    display: inline-block;
+  }
+  .callout-tag {
+    position: absolute;
+    z-index: 31;
+    font-size: 0.62rem;
+    font-weight: 650;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--frame-bg);
+    background: var(--accent-pink);
+    padding: 0.15em 0.55em;
+    border-radius: 999px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  }
+
+  /* simulator verdict row (variant D lower half) */
+  .verdict {
+    padding: 0.7rem 0.9rem 0.9rem;
+    background: var(--canvas);
+    display: grid;
+    gap: 0.55rem;
+  }
+  .vrow {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.55rem 0.75rem;
+    display: grid;
+    gap: 0.3rem;
+  }
+  .vrow .vhead {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .vrow .match {
+    font-size: 0.66rem;
+    font-weight: 650;
+    color: var(--ok);
+    background: color-mix(in srgb, var(--ok) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ok) 30%, transparent);
+    padding: 0.14em 0.5em;
+    border-radius: 999px;
+  }
+  .vrow .rname {
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+  }
+  .vrow .why {
+    font-size: 0.78rem;
+    line-height: 1.45;
+    padding-left: 0.7rem;
+    border-left: 3px solid color-mix(in srgb, var(--accent-purple) 45%, transparent);
+    color: var(--ink);
+  }
+  .vrow .why .attr {
+    color: var(--muted);
+    font-size: 0.68rem;
+  }
+  .vrow .setline {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--muted);
+  }
+
+  /* notes under each mockup */
+  .notes {
+    margin-top: 1rem;
+    display: grid;
+    gap: 0.4rem;
+    font-size: 0.88rem;
+    max-width: 76ch;
+  }
+  .notes .n {
+    display: grid;
+    grid-template-columns: 5.2rem 1fr;
+    gap: 0.7rem;
+    align-items: baseline;
+  }
+  .notes .tag {
+    font-size: 0.66rem;
+    font-weight: 650;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    text-align: right;
+  }
+  .notes .tag.pro {
+    color: var(--ok);
+  }
+  .notes .tag.con {
+    color: var(--error);
+  }
+  .notes .tag.data {
+    color: var(--frame-muted);
+  }
+
+  /* comparison table */
+  .cmp-wrap {
+    overflow-x: auto;
+    margin-top: 1.25rem;
+    border: 1px solid var(--frame-border);
+    border-radius: 10px;
+  }
+  table.cmp {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 640px;
+    font-size: 0.82rem;
+    background: var(--canvas);
+    color: var(--ink);
+  }
+  .cmp th,
+  .cmp td {
+    text-align: left;
+    padding: 0.55rem 0.8rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .cmp th {
+    background: var(--surface);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .cmp tr:last-child td {
+    border-bottom: none;
+  }
+  .cmp td:first-child {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .reco {
+    margin-top: 2rem;
+    border-left: 3px solid var(--accent);
+    padding: 0.2rem 0 0.2rem 1rem;
+    max-width: 74ch;
+  }
+  .reco p {
+    margin: 0.4rem 0;
+    font-size: 0.95rem;
+  }
+</style>
+
+<div class="wrap">
+  <header class="doc">
+    <p class="eyebrow">Renovate Config Debugger · design exploration</p>
+    <h1>Where did this description come from? — four presentation variants</h1>
+    <p class="sub">
+      Preset authors write <code>description</code> strings to explain what their rules do. Renovate
+      concatenates them all into one flat array — losing the connection to the preset that wrote
+      each one. The trace already captures enough to restore it. All mockups below use the real
+      output of
+      <code>{"extends": ["config:best-practices", ":dependencyDashboard", "group:monorepos"]}</code
+      >: 24 accumulated strings, including two duplicates.
+    </p>
+
+    <div class="facts">
+      <p class="eyebrow" style="margin-top: 1.5rem">What the investigation established</p>
+      <div class="fact">
+        <b>Mechanics:</b> <code>description</code> is an ordinary <code>mergeable</code> array
+        option. Each preset resolves depth-first, children's strings land first, the node's own
+        string last; strings are never deduplicated. Wrapper presets (<code
+          >{description, extends}</code
+        >) get theirs silently dropped.
+      </div>
+      <div class="fact">
+        <b>Data availability:</b> every preset-tree node already carries its own literal body
+        (<code>input</code>) and its fully-merged result (<code>resolved</code>). Per-string
+        attribution is a recursive positional walk — same technique as the existing
+        <code>computeRuleProvenance</code>. No new trace collection needed.
+      </div>
+      <div class="fact">
+        <b>Today's UI:</b> descriptions are actively filtered out — <code>META_KEYS</code> excludes
+        them from "sets real options", and the provenance view attributes the whole array to
+        top-level extends entries only. <code>packageRules[n].description</code> never surfaces at
+        all.
+      </div>
+      <div class="fact">
+        <b>Prior art:</b> GitHub blame (group consecutive same-source entries), DevTools cascade
+        (show suppressed values struck-through, not hidden), ESLint config-inspector (merged ⇄
+        per-source toggle), Nix (source vs. import-path split). Renovate upstream punted on exactly
+        this feature (discussion #38024).
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════════════════ VARIANT A ═══════════════════ -->
+  <section class="variant">
+    <p class="eyebrow">Variant A · Effective Config tab</p>
+    <h2>The blame ledger</h2>
+    <p class="concept">
+      The existing <code>description</code> row in <strong>Effective config → By key</strong> stops
+      being a truncated wall of text. Expanding it shows every string in final array order,
+      blame-style: each entry carries a preset chip (click → selects the node in the preset tree),
+      consecutive entries from the same top-level extend are grouped under a hairline, and
+      duplicates are struck through with an explanation instead of silently kept.
+    </p>
+
+    <div class="shell">
+      <div class="shell-bar">
+        <span class="dots"><i></i><i></i><i></i></span> Effective config — By key
+      </div>
+      <div class="card-title">
+        Effective config <span class="count">9 keys · 1 overridden</span>
+        <span class="seg"><span class="on">By key</span><span>As JSON</span></span>
+      </div>
+      <div class="overflow">
+        <div class="kv-head">
+          <span class="kv-key"><span class="caret">▾</span> description</span>
+          <span class="kv-prev"
+            >24 entries — "Enable Renovate Dependency Dashboard creation.", "Use semantic commit
+            type…</span
+          >
+          <span class="kv-origin"
+            ><span class="chip meta">appended ×3</span
+            ><span class="chip preset clickable"
+              ><span class="dotchip"></span>18 presets</span
+            ></span
+          >
+        </div>
+        <ul class="blame">
+          <li class="groupfirst">
+            <span class="idx">1</span>
+            <span class="txt">Enable Renovate Dependency Dashboard creation.</span>
+            <span class="src"
+              ><span class="chip preset clickable">:dependencyDashboard</span
+              ><span class="via">via config:best-practices</span></span
+            >
+          </li>
+          <li>
+            <span class="idx">2</span>
+            <span class="txt"
+              >Use semantic commit type <code>fix</code> for dependencies and <code>chore</code> for
+              all others if semantic commits are in use.</span
+            >
+            <span class="src"
+              ><span class="chip preset clickable">:semanticPrefixFixDepsChoreOthers</span></span
+            >
+          </li>
+          <li>
+            <span class="idx">3</span>
+            <span class="txt"
+              >Ignore <code>node_modules</code>, <code>bower_components</code>,
+              <code>vendor</code> and various test/tests directories.</span
+            >
+            <span class="src"
+              ><span class="chip preset clickable">:ignoreModulesAndTests</span></span
+            >
+          </li>
+          <li>
+            <span class="idx">4</span>
+            <span class="txt">Group known monorepo packages together.</span>
+            <span class="src"><span class="chip preset clickable">group:monorepos</span></span>
+          </li>
+          <li class="ellipsis">
+            <span class="idx">…</span><span class="txt">11 more from config:best-practices</span
+            ><span></span>
+          </li>
+          <li>
+            <span class="idx">16</span>
+            <span class="txt">Pin Docker digests.</span>
+            <span class="src"><span class="chip preset clickable">docker:pinDigests</span></span>
+          </li>
+          <li>
+            <span class="idx">21</span>
+            <span class="txt"
+              >Wait until the npm package is three days old before raising the update…</span
+            >
+            <span class="src"
+              ><span class="chip preset clickable">security:minimumReleaseAgeNpm</span></span
+            >
+          </li>
+          <li class="groupfirst dup">
+            <span class="idx">23</span>
+            <span class="txt">Enable Renovate Dependency Dashboard.</span>
+            <span class="src"
+              ><span class="dupnote">duplicate of #1</span
+              ><span class="via">extends[1] resolves it again</span></span
+            >
+          </li>
+          <li class="dup">
+            <span class="idx">24</span>
+            <span class="txt">Group known monorepo packages together.</span>
+            <span class="src"
+              ><span class="dupnote">duplicate of #4</span
+              ><span class="via">extends[2] resolves it again</span></span
+            >
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div class="n">
+        <span class="tag pro">Pro</span
+        ><span
+          >Zero new surface — it deepens the row users already open to ask this question; final
+          array order stays honest (VS Code's hidden-precedence mistake avoided).</span
+        >
+      </div>
+      <div class="n">
+        <span class="tag pro">Pro</span
+        ><span
+          >Duplicates become a teaching moment ("extending <code>:dependencyDashboard</code> twice
+          is redundant") instead of silent noise.</span
+        >
+      </div>
+      <div class="n">
+        <span class="tag con">Con</span
+        ><span
+          >Lives behind the Effective Config tab + one expand; users who'd benefit most may never
+          look there.</span
+        >
+      </div>
+      <div class="n">
+        <span class="tag data">Data</span
+        ><span
+          >Needs the new recursive per-string attribution walk (positional, to handle duplicates),
+          plus duplicate detection.</span
+        >
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════ VARIANT B ═══════════════════ -->
+  <section class="variant">
+    <p class="eyebrow">Variant B · Overview tab</p>
+    <h2>"What this config does" — descriptions as the config's own documentation</h2>
+    <p class="concept">
+      Reframe: the accumulated descriptions
+      <strong>are the author-written summary of the config's behavior</strong> — the same list
+      Renovate itself pastes into onboarding PRs. A new Overview card presents them as a readable
+      digest, grouped by the top-level <code>extends</code> entry that pulled each one in,
+      deduplicated (with a count), each line attributed to its leaf preset via a quiet mono label.
+      User-written <code>packageRules</code>
+      descriptions join at the bottom — surfacing for the first time.
+    </p>
+
+    <div class="shell">
+      <div class="shell-bar">
+        <span class="dots"><i></i><i></i><i></i></span> Overview
+      </div>
+      <div class="card-title">
+        What this config does <span class="count">22 behaviors · from 3 extends + your rules</span>
+      </div>
+      <div class="digest">
+        <div class="digest-group">
+          <div class="gh">
+            <span class="chip preset clickable">config:best-practices</span
+            ><span class="n">contributes 22 behaviors</span>
+          </div>
+          <ul>
+            <li>
+              <span class="dotchip"></span
+              ><span>Enable Renovate Dependency Dashboard creation.</span
+              ><span class="leaf">:dependencyDashboard</span>
+            </li>
+            <li>
+              <span class="dotchip"></span><span>Pin Docker digests.</span
+              ><span class="leaf">docker:pinDigests</span>
+            </li>
+            <li>
+              <span class="dotchip"></span><span>Pin <code>github-action</code> digests.</span
+              ><span class="leaf">helpers:pinGitHubActionDigests</span>
+            </li>
+            <li>
+              <span class="dotchip"></span
+              ><span>Wait until the npm package is three days old before raising the update.</span
+              ><span class="leaf">security:minimumReleaseAgeNpm</span>
+            </li>
+            <li>
+              <span class="dotchip"></span
+              ><span>Run lock file maintenance (updates) early Monday mornings.</span
+              ><span class="leaf">:maintainLockFilesWeekly</span>
+            </li>
+            <li class="more">17 more — show all</li>
+          </ul>
+        </div>
+        <div class="digest-group">
+          <div class="gh">
+            <span class="chip preset clickable">:dependencyDashboard</span>
+            <span class="chip meta">redundant — already included above</span>
+          </div>
+        </div>
+        <div class="digest-group">
+          <div class="gh">
+            <span class="chip preset clickable">group:monorepos</span>
+            <span class="chip meta">redundant — already included above</span>
+          </div>
+        </div>
+        <div class="digest-group">
+          <div class="gh">
+            <span class="chip repo">repo config</span><span class="n">your own rules</span>
+          </div>
+          <ul style="border-left-color: color-mix(in srgb, var(--accent) 30%, transparent)">
+            <li class="userrule">
+              <span class="dotchip"></span><span>Slow down risky major updates</span
+              ><span class="rulenote">packageRules[0] — major → minimumReleaseAge 14 days</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div class="n">
+        <span class="tag pro">Pro</span
+        ><span
+          >Highest user value per pixel: answers "what did I just extend?" — the question preset
+          descriptions were written for. Mirrors what Renovate prints in onboarding PRs, so it feels
+          canonical.</span
+        >
+      </div>
+      <div class="n">
+        <span class="tag pro">Pro</span
+        ><span
+          >The only variant that surfaces <code>packageRules</code> descriptions and flags redundant
+          extends at the top level.</span
+        >
+      </div>
+      <div class="n">
+        <span class="tag con">Con</span
+        ><span
+          >An interpretation, not a raw view — grouping + dedup mean it no longer matches the
+          literal resolved array (needs a "show raw order" escape hatch, e.g. linking to Variant
+          A).</span
+        >
+      </div>
+      <div class="n">
+        <span class="tag data">Data</span
+        ><span
+          >Same attribution walk as A, plus grouping by top-level extend and value-level dedup with
+          provenance kept per copy.</span
+        >
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════ VARIANT C ═══════════════════ -->
+  <section class="variant">
+    <p class="eyebrow">Variant C · Presets tab</p>
+    <h2>Descriptions live in the tree</h2>
+    <p class="concept">
+      Attribution by placement instead of by label: each node in the Preset Resolution Tree shows
+      its
+      <strong>own</strong> description as a quote line beneath its name — the text appears exactly
+      where it was written, so no chips are needed. Nodes whose description was silently dropped by
+      Renovate (wrapper presets, the <code>ignoreDeps</code> quirk) say so, making the two invisible
+      drop rules visible for the first time.
+    </p>
+
+    <div class="shell">
+      <div class="shell-bar">
+        <span class="dots"><i></i><i></i><i></i></span> Presets — Resolution tree
+      </div>
+      <div class="card-title">
+        Preset resolution <span class="count">1,088 presets · 18 contribute descriptions</span>
+        <span class="seg"><span>compact</span><span class="on">describe</span></span>
+      </div>
+      <div class="overflow">
+        <div class="tree">
+          <div class="tnode">
+            <div class="row1">
+              <span class="name">(input config)</span><span class="meta">1 rule</span>
+            </div>
+          </div>
+          <div class="tnode d1">
+            <div class="row1">
+              <span class="name">config:best-practices</span><span class="meta">+1087 below</span>
+            </div>
+            <div class="desc">no own description — wrapper preset (Renovate drops it on merge)</div>
+          </div>
+          <div class="tnode d2">
+            <div class="row1">
+              <span class="name">config:recommended</span><span class="meta">+1077 below</span>
+            </div>
+          </div>
+          <div class="tnode d3 sel">
+            <div class="row1">
+              <span class="name">:dependencyDashboard</span><span class="meta">→ #1 of 24</span>
+            </div>
+            <div class="desc">Enable Renovate Dependency Dashboard creation.</div>
+          </div>
+          <div class="tnode d3">
+            <div class="row1">
+              <span class="name">:semanticPrefixFixDepsChoreOthers</span
+              ><span class="meta">→ #2 of 24</span>
+            </div>
+            <div class="desc">
+              Use semantic commit type <code>fix</code> for dependencies and <code>chore</code> for
+              all others…
+            </div>
+          </div>
+          <div class="tnode d3">
+            <div class="row1">
+              <span class="name">group:monorepos</span
+              ><span class="meta">→ #4 of 24 · +924 below</span>
+            </div>
+            <div class="desc">Group known monorepo packages together.</div>
+          </div>
+          <div class="tnode d2">
+            <div class="row1">
+              <span class="name">docker:pinDigests</span
+              ><span class="meta">→ #16 of 24 · 2 rules</span>
+            </div>
+            <div class="desc">Pin Docker digests.</div>
+          </div>
+          <div class="tnode d2">
+            <div class="row1">
+              <span class="name">security:minimumReleaseAgeNpm</span
+              ><span class="meta">→ #21 of 24 · 5 rules</span>
+            </div>
+            <div class="desc">
+              Wait until the npm package is three days old before raising the update…
+            </div>
+          </div>
+          <div class="tnode d1">
+            <div class="row1">
+              <span class="name">:dependencyDashboard</span
+              ><span class="meta">duplicate · → #23 of 24</span>
+            </div>
+            <div class="desc">Enable Renovate Dependency Dashboard creation.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div class="n">
+        <span class="tag pro">Pro</span
+        ><span
+          >Makes the tree self-documenting — 1,088 cryptic preset names become skimmable prose; the
+          <code>→ #16 of 24</code> marker ties each node to its slot in the final array (and links
+          back to Variant A's row).</span
+        >
+      </div>
+      <div class="n">
+        <span class="tag pro">Pro</span
+        ><span
+          >Only variant that can show the <em>dropped</em> descriptions at the node where the drop
+          happened.</span
+        >
+      </div>
+      <div class="n">
+        <span class="tag con">Con</span
+        ><span
+          >Answers "what does this node say?", not the reverse lookup "who wrote this string?" —
+          needs the array→tree jump from A/B to complete the loop. Adds vertical bulk to an already
+          huge tree (hence the describe/compact toggle).</span
+        >
+      </div>
+      <div class="n">
+        <span class="tag data">Data</span
+        ><span
+          >Cheapest: node's own description is already in <code>input</code>; only the position
+          marker and drop detection need the attribution walk.</span
+        >
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════ VARIANT D ═══════════════════ -->
+  <section class="variant">
+    <p class="eyebrow">Variant D · everywhere descriptions appear</p>
+    <h2>Attribution at point of contact — hover cards &amp; simulator verdicts</h2>
+    <p class="concept">
+      No new panel at all. Wherever a description string is already visible — the resolved JSON
+      document, a preset body, a simulator verdict — it becomes an attributed object: hovering any
+      string pops the app's standard hover card naming the contributing preset, its import path, and
+      its array position. In the simulator, a matched rule's author description is promoted to the
+      verdict itself: <strong>the rule explains why it exists</strong>.
+    </p>
+
+    <div class="shell" style="margin-bottom: 1rem">
+      <div class="shell-bar">
+        <span class="dots"><i></i><i></i><i></i></span> Effective config — As JSON
+      </div>
+      <div class="jsonpane">
+        <span class="jp">{</span><br />
+        &nbsp;&nbsp;<span class="jk">"description"</span><span class="jp">: [</span><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="js"
+          >"Enable Renovate Dependency Dashboard creation."</span
+        ><span class="jp">,</span><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="js hovered">"Pin Docker digests."</span
+        ><span class="jp">,</span><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="js">"Pin `github-action` digests."</span
+        ><span class="jp">,</span><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="jp">…</span><br />
+        &nbsp;&nbsp;<span class="jp">],</span><br />
+        &nbsp;&nbsp;<span class="jk">"dependencyDashboard"</span><span class="jp">: true,</span
+        ><br />
+        <span class="jp">}</span>
+        <div class="option-card" style="right: 1.5rem; top: 2.2rem">
+          <div class="oc-head">
+            <span class="chip preset clickable">docker:pinDigests</span
+            ><span class="oc-name">wrote this description</span>
+          </div>
+          <div class="oc-path">
+            (input) › <b>config:best-practices</b> › <b>docker:pinDigests</b>
+          </div>
+          <div class="oc-row">Position 16 of 24 · also sets 2 packageRules</div>
+          <a class="oc-link">Show in preset tree →</a>
+        </div>
+        <span class="callout-tag" style="right: 0.6rem; top: 0.6rem">hover card</span>
+      </div>
+    </div>
+
+    <div class="shell">
+      <div class="shell-bar">
+        <span class="dots"><i></i><i></i><i></i></span> Simulator — react 17.0.0 → 19.0.0
+      </div>
+      <div class="verdict">
+        <div class="vrow">
+          <div class="vhead">
+            <span class="match">MATCHED</span><span class="rname">packageRules[312]</span
+            ><span class="chip preset clickable">security:minimumReleaseAgeNpm</span>
+          </div>
+          <div class="why">
+            “Wait until the npm package is three days old before raising the update. This introduces
+            a short delay to allow malware researchers and scanners to detect malicious
+            behaviour…”<br /><span class="attr">— author's description of this rule</span>
+          </div>
+          <div class="setline">sets minimumReleaseAge: "3 days"</div>
+        </div>
+        <div class="vrow">
+          <div class="vhead">
+            <span class="match">MATCHED</span><span class="rname">packageRules[726]</span
+            ><span class="chip repo">repo config</span>
+          </div>
+          <div class="why">
+            “Slow down risky major updates”<br /><span class="attr"
+              >— your description, packageRules[0] in renovate.json</span
+            >
+          </div>
+          <div class="setline">
+            sets minimumReleaseAge: "14 days"
+            <span style="color: var(--warn)">(overrides "3 days")</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div class="n">
+        <span class="tag pro">Pro</span
+        ><span
+          >Meets users where they already are; builds on the existing
+          <code>Explained</code>/option-card and chip→tree wiring, so it's mostly composition. The
+          simulator half turns descriptions into <em>answers</em> ("why is my update delayed 14
+          days?").</span
+        >
+      </div>
+      <div class="n">
+        <span class="tag con">Con</span
+        ><span
+          >Hover-only provenance is invisible until discovered, and unavailable on touch; no single
+          place to read all descriptions at once.</span
+        >
+      </div>
+      <div class="n">
+        <span class="tag data">Data</span
+        ><span
+          >Same attribution walk; simulator half additionally joins rule provenance (already exists)
+          with each rule's own description (already in the rule body).</span
+        >
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════ COMPARISON ═══════════════════ -->
+  <section class="variant">
+    <p class="eyebrow">Synthesis</p>
+    <h2>Comparison &amp; recommendation</h2>
+    <div class="cmp-wrap">
+      <table class="cmp">
+        <tr>
+          <th>Variant</th>
+          <th>Question it answers</th>
+          <th>Where</th>
+          <th>Build cost</th>
+          <th>Discoverability</th>
+        </tr>
+        <tr>
+          <td>A · Blame ledger</td>
+          <td>"Who wrote string #N, and why is it duplicated?"</td>
+          <td>Effective config → By key</td>
+          <td>Medium — new attribution walk + one expanded-row renderer</td>
+          <td>Medium (behind expand)</td>
+        </tr>
+        <tr>
+          <td>B · Behavior digest</td>
+          <td>"What does this config actually do?"</td>
+          <td>Overview (new card)</td>
+          <td>Medium — walk + grouping/dedup</td>
+          <td>High (front page)</td>
+        </tr>
+        <tr>
+          <td>C · Tree inline</td>
+          <td>"What does this preset say about itself?"</td>
+          <td>Preset tree (toggle)</td>
+          <td>Low — data already per-node</td>
+          <td>Medium</td>
+        </tr>
+        <tr>
+          <td>D · Point of contact</td>
+          <td>"Why does this string / this rule exist?"</td>
+          <td>JSON views + simulator</td>
+          <td>Low–medium — composes existing hover &amp; chip primitives</td>
+          <td>Low (hover) / High (simulator)</td>
+        </tr>
+      </table>
+    </div>
+    <div class="reco">
+      <p>
+        <b>Recommendation:</b> the variants share one engine primitive — the recursive per-string
+        attribution walk — and are otherwise independent surfaces. Build the walk once, then ship
+        <b>B as the flagship</b> (largest user value: it converts author intent into the config's
+        own documentation and exposes redundant extends), with
+        <b>A as its "show raw order" escape hatch</b> in the Effective Config row. C's quote-lines
+        and D's simulator verdicts are cheap follow-ups on the same data; D's hover card falls out
+        of the chip wiring A introduces.
+      </p>
+      <p style="color: var(--frame-muted); font-size: 0.85rem">
+        Every element above reuses existing app primitives: ProvenanceChip (purple = preset, blue =
+        repo config), the .kv ledger grid, the option-card hover, and the seg control — no new
+        visual vocabulary required.
+      </p>
+    </div>
+  </section>
+</div>

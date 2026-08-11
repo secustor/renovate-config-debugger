@@ -28,6 +28,7 @@ export default defineConfig({
           // renovate's preset data modules — 4-6s on 2-core CI runners
           testTimeout: 30_000,
           include: [
+            "test/description-provenance.shimmed.test.ts",
             "test/global-inherit.shimmed.test.ts",
             "test/pipeline.shimmed.test.ts",
             "test/preset-fetchers.test.ts",
