@@ -27,4 +27,5 @@ playwright-report/
 # npx skills
 .claude/skills/vercel-react-best-practices
 .claude/skills/vercel-react-view-transitions
+.claude/skills/web-design-guidelines
 skills-lock.json
