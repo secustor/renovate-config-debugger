@@ -27,14 +27,13 @@ import { useWindow } from "./use-window";
  * from?". All per-node/per-subtree aggregates are computed once per result in
  * a single walk (`computeTreeStats`), never per render.
  *
- * Roadmap 069 (PR 4) puts each node's descriptions ON the node: a name that
- * wrote a sentence of the final `description` carries a hover card quoting it
- * (with its slot in the final array), a name whose sentence Renovate silently
- * deleted says so the same way — the only place in the app where the two
- * invisible drop rules are visible at the node they happened to — and the
- * detail panel repeats the same facts as a Description entry. A hover surface
- * rather than a view mode: the tree already has a tree/table switch, and the
- * rows stay exactly `ROW_HEIGHT`, which the windowing math depends on.
+ * Roadmap 069 (PR 4) puts each node's descriptions ON the node: a described
+ * name carries a hover card quoting the preset's own sentences (with their
+ * slot in the final array when they reached it — a wrapper preset's sentence,
+ * which Renovate sheds by design, reads the same and simply has no slot), and
+ * the detail panel repeats the same facts as a Description entry. A hover
+ * surface rather than a view mode: the tree already has a tree/table switch,
+ * and the rows stay exactly `ROW_HEIGHT`, which the windowing math depends on.
  */
 
 export const PresetTree = memo(function PresetTree({

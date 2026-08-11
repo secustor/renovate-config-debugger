@@ -210,11 +210,13 @@ offline (internal presets need no network):
    to "where did my description go".
 4. **Preset tree: descriptions on the node** — a node that wrote (or lost) a
    sentence carries a hover card on its name quoting it, with a position marker
-   for where it landed in the final array (and a struck-through line for a
-   dropped one); the detail panel repeats the same facts as a Description entry
-   in its source details. A hover surface rather than a view mode: the tree
-   already has a tree/table switch, and the rows keep their uniform height for
-   the windowing.
+   for where it landed in the final array; the detail panel repeats the same
+   facts as a Description entry in its source details. A sentence Renovate shed
+   on merge (wrapper / package-list / mute) reads the same, minus the marker —
+   shedding is Renovate working as designed, so the node's own card shows the
+   sentence, not the mechanics, which stay on the ledger's dropped footer. A
+   hover surface rather than a view mode: the tree already has a tree/table
+   switch, and the rows keep their uniform height for the windowing.
 5. **Hover attribution + simulator rule descriptions** — hovering a sentence
    anywhere highlights its node in the tree; the simulator's rule ledger picks up
    `ruleDescriptions` so a matched rule can say what it is for.

@@ -6,7 +6,6 @@ import type {
   ProvenanceLayer,
 } from "@renovate-config-debugger/engine";
 import { approximateTitle } from "@/components/description-approx";
-import { dropReasonText } from "./drop-reasons";
 import {
   APPROXIMATE_NOTE,
   buildTreeDescriptions,
@@ -252,7 +251,7 @@ describe("buildTreeDescriptions — drops", () => {
     droppedBy: { nodeId: "p4", name: "group:recommended" },
   };
 
-  test("shows a dropped sentence at the preset that authored it", () => {
+  test("shows a dropped sentence plainly at the preset that authored it", () => {
     const tree = built(provenance({ entries: [], dropped: [WRAPPER] }));
 
     expect(tree.byNodeId.get("p2")?.lines).toEqual([
@@ -260,25 +259,25 @@ describe("buildTreeDescriptions — drops", () => {
         key: "x0",
         kind: "dropped",
         text: "The config that Renovate recommends.",
-        // The shared table, so the tree and the ledger footer cannot diverge.
-        note: dropReasonText(WRAPPER),
+        // No drop-reason note: shedding a wrapper's description is Renovate
+        // working as designed, and on the node's own card the sentence is the
+        // point — the mechanics stay on the blame ledger's footer.
+        note: undefined,
       },
     ]);
     // A drop is not a contribution — the title's count must not claim it.
     expect(tree.contributorCount).toBe(0);
   });
 
-  test("an approximate drop hedges in the line's note", () => {
+  test("an approximate drop keeps the attribution hedge, and only that", () => {
     // The drop came out of a subtree the engine had already degraded to its
-    // enclosing node (069 PR 1), so the node it sits on is a guess.
+    // enclosing node (069 PR 1), so the node it sits on is a guess — the one
+    // annotation a dropped line still carries.
     const tree = built(
       provenance({ entries: [], dropped: [{ ...WRAPPER, approximate: true }], degraded: true }),
     );
-    const line = tree.byNodeId.get("p2")?.lines[0];
 
-    expect(line?.note).toContain("; exact preset unknown");
-    // The rule itself is untouched: what Renovate did is certain.
-    expect(line?.note).toBe(`${dropReasonText(WRAPPER)}; exact preset unknown`);
+    expect(tree.byNodeId.get("p2")?.lines[0]?.note).toBe(APPROXIMATE_NOTE);
   });
 
   test("puts the mute note on the node that pressed the button, not the author", () => {
@@ -307,9 +306,8 @@ describe("buildTreeDescriptions — drops", () => {
     );
 
     expect(tree.byNodeId.has("root")).toBe(false);
-    expect(tree.byNodeId.get("p5")?.lines[0]?.note).toBe(
-      "muted by `(input config)` — its empty `ignoreDeps` deletes every description it extends",
-    );
+    // The author's line still exists — plainly, like every dropped sentence.
+    expect(tree.byNodeId.get("p5")?.lines[0]).toMatchObject({ kind: "dropped", note: undefined });
   });
 });
 

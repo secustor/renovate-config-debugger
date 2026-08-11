@@ -1,7 +1,6 @@
 import type { DescriptionProvenance } from "@renovate-config-debugger/engine";
 import { approximateTitle } from "@/components/description-approx";
 import { ROOT_NODE_ID } from "@/components/preset-tree-stats";
-import { dropReasonText } from "./drop-reasons";
 
 /**
  * Roadmap 069 (PR 4): the preset tree's description surfaces, as data.
@@ -46,8 +45,12 @@ export interface PositionMarker {
 
 /**
  * `contribution` — a sentence this node wrote that reached the final config.
- * `dropped` — one Renovate deleted before it could merge, shown struck through
- * at the node that authored it, which is the only place the drop is visible.
+ * `dropped` — one Renovate deleted before it could merge. On the node itself
+ * that is the EXPECTED case, not a problem: every wrapper and package-list
+ * preset sheds its description by design, and the sentence is still the
+ * preset's best self-description — so it renders plainly (it simply carries no
+ * slot marker), and the drop mechanics stay on the blame ledger's footer,
+ * where "where did my description go in the final array" is the question.
  * `mute` — the note on the node that CAUSED such drops (`ignoreDeps: []`).
  */
 export type DescLineKind = "contribution" | "dropped" | "mute";
@@ -164,13 +167,17 @@ export function buildTreeDescriptions(provenance: DescriptionProvenance): TreeDe
     // Same rule as above, on both halves of the story: nothing is ever filed
     // under the root, which has no row to show it on.
     if (drop.node.nodeId !== ROOT_NODE_ID) {
-      // The reason comes from the shared table (069 PR 3's `drop-reasons.ts`),
-      // which is also what the blame ledger's footer prints — the two surfaces
-      // answer "where did my preset's description go" and must answer it
-      // identically. It hedges itself for an `approximate` drop, so the caveat
-      // reaches the line AND the tooltip `descLine` derives from it.
+      // No drop-reason note here (see `DescLineKind`): on the node's own card
+      // the sentence is what the reader wants, and "Renovate drops it on
+      // merge" is chrome about an array this surface is not showing. Only the
+      // attribution hedge survives — WHO said it can still be a guess.
       factsFor(drop.node.nodeId).lines.push(
-        descLine(`x${index}`, "dropped", drop.value, dropReasonText(drop)),
+        descLine(
+          `x${index}`,
+          "dropped",
+          drop.value,
+          drop.approximate ? APPROXIMATE_NOTE : undefined,
+        ),
       );
     }
     // …and the mute button that pressed it, which is a different node and the

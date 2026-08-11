@@ -95,6 +95,38 @@ it("shows a described node's sentences in a hover card on its name", async () =>
   expect(openCard()).toBeNull();
 });
 
+it("shows a shed wrapper description plainly, without drop mechanics", async () => {
+  // `config:best-practices` is a wrapper preset — body of only `description` +
+  // `extends` — so Renovate sheds its sentence by design and it never reaches
+  // the final array. That is the EXPECTED case, not a problem: the card shows
+  // the sentence as the preset's own words, with no slot marker, no
+  // strikethrough note, no merge mechanics.
+  const result = await runPipeline({
+    fileName: "renovate.json",
+    content: JSON.stringify({ extends: ["config:best-practices"] }),
+  });
+  const view = render(tree(result));
+
+  const name = await waitFor(() => {
+    const button = view.getByRole("button", { name: "config:best-practices" });
+    expect(button.className).toContain("described");
+    return button;
+  });
+  fireEvent.focus(name);
+  const card = openCard();
+  if (!card) {
+    throw new Error("focusing the wrapper's name opened no card");
+  }
+  const dropped = card.querySelector<HTMLElement>(".desc-dropped");
+  if (!dropped) {
+    throw new Error("the wrapper's shed sentence rendered no line");
+  }
+  expect(dropped.textContent).toContain("best practices from the Renovate maintainers");
+  expect(dropped.textContent).not.toContain("Renovate drops");
+  expect(dropped.querySelector(".preset-desc-note")).toBeNull();
+  expect(dropped.querySelector(".preset-desc-pos")).toBeNull();
+});
+
 it("repeats the selected node's description in the detail panel", async () => {
   const result = await runPipeline({
     fileName: "renovate.json",

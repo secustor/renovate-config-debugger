@@ -1080,13 +1080,10 @@ button.badge.dup {
   margin-left: 0.35rem;
 }
 
-/* A dropped sentence is struck through rather than hidden — same grammar the
-   blame ledger uses for a duplicate, and the same reason: the fact that it
-   EXISTS and did not survive is the whole point of showing it. */
-.preset-desc-line.desc-dropped .preset-desc-text {
-  color: var(--muted);
-  text-decoration: line-through;
-}
+/* A dropped sentence renders exactly like a contributed one, minus the slot
+   marker: wrapper and package-list presets shed their description by design,
+   so on the node itself the sentence is simply what the preset says about
+   itself. The drop mechanics live on the blame ledger's footer. */
 
 .preset-desc-line code {
   font-family: var(--font-mono);

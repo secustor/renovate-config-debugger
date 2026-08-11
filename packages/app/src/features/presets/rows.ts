@@ -79,10 +79,10 @@ interface FlattenArgs {
    *
    * Hide-zero shortcuts pure `extends` routers, and a WRAPPER preset is one:
    * `getPreset` deletes its description, leaving a body of only `extends`. Its
-   * row would therefore be elided exactly when it has a drop to report — and
-   * the hover card on its name is the only place in the tree that drop is
-   * visible. So a described node is never elided; hide-zero still applies to
-   * its subtree, which is promoted through it as before.
+   * row would therefore be elided exactly when it has a description to show —
+   * and the hover card on its name is the only place in the tree that shows
+   * it. So a described node is never elided; hide-zero still applies to its
+   * subtree, which is promoted through it as before.
    */
   described?: ReadonlySet<string> | null;
 }

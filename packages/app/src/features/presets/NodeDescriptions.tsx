@@ -10,9 +10,12 @@ import {
 
 /**
  * Roadmap 069 (PR 4): one node's description facts, rendered — the sentences
- * it wrote with where they landed in the final `description` array, the ones
- * Renovate silently deleted (struck through, with the rule that deleted them),
- * and the mute note on a node that causes such drops below it.
+ * it wrote (with where they landed in the final `description` array when they
+ * reached it), and the mute note on a node that silences descriptions below
+ * it. A sentence Renovate dropped on merge reads exactly like the others,
+ * minus the slot marker: wrapper and package-list presets shed their
+ * description by design, so on the node itself it is simply what the preset
+ * says about itself, and the drop mechanics stay on the blame ledger's footer.
  *
  * Two surfaces share this rendering so they cannot drift: the hover card on
  * the preset's name in the tree (`TreeRow`), and the detail panel's

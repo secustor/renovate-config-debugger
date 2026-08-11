@@ -48,9 +48,8 @@ function useContribution(node: PresetNode, parent: PresetNode | undefined) {
 
 /**
  * Roadmap 069 (PR 4): what this preset says about itself — the same lines the
- * name's hover card shows (sentences with their slot in the final array, drops
- * with the rule that deleted them), kept in the panel where a reader inspects
- * the node. Its own component because the lines nest past the `<dl>`'s depth
+ * name's hover card shows, kept in the panel where a reader inspects the
+ * node. Its own component because the lines nest past the `<dl>`'s depth
  * budget (`react/jsx-max-depth`).
  */
 function DescriptionEntry({ facts }: { facts: NodeDescriptionFacts }) {
