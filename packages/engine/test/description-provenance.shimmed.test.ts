@@ -52,6 +52,8 @@ describe("computeDescriptionProvenance (069)", () => {
     expect(final.length).toBeGreaterThan(20);
     expect(prov.entries.map((e) => e.value)).toEqual(final);
     expect(prov.entries.map((e) => e.index)).toEqual(final.map((_, i) => i));
+    expect(prov.finalLength).toBe(final.length);
+    expect(prov.unattributed).toEqual([]);
     // the real tree replays exactly — no enclosing-node fallback needed
     expect(prov.degraded).toBe(false);
     expect(prov.entries.every((e) => e.node !== undefined)).toBe(true);
@@ -178,6 +180,33 @@ describe("computeDescriptionProvenance (069)", () => {
       ["Our house rules.", "repo"],
     ]);
     expect(prov.entries[1]?.node?.nodeId).toBe("root");
+  });
+
+  it("indexes against a final array Renovate let a non-string into", async () => {
+    // `description` is `subType: "string"`, but a wrong-typed member is a
+    // validation WARNING, not a refusal: the number survives into the final
+    // array and holds a real index, which everything after it is offset by.
+    const result = await runResult(
+      JSON.stringify({
+        extends: [":dependencyDashboard"],
+        description: ["Our house rules.", 42, "And another."],
+      }),
+    );
+    const final = result.finalConfig?.description as unknown[];
+    expect(final).toEqual([DEPENDENCY_DASHBOARD, "Our house rules.", 42, "And another."]);
+
+    const prov = must(computeDescriptionProvenance(result), "the description provenance");
+    expect(prov.finalLength).toBe(4);
+    expect(prov.entries.map((e) => [e.index, e.value, via(e)])).toEqual([
+      [0, DEPENDENCY_DASHBOARD, ":dependencyDashboard"],
+      [1, "Our house rules.", "repo"],
+      [3, "And another.", "repo"],
+    ]);
+    expect(prov.unattributed).toEqual([{ index: 2, value: 42 }]);
+    // the string members still replay exactly — a stray non-string is not a
+    // reason to stop trusting the attribution
+    expect(prov.degraded).toBe(false);
+    expect(prov.entries.some((e) => e.approximate)).toBe(false);
   });
 
   it("returns undefined when preset resolution did not complete", async () => {

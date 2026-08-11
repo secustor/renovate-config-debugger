@@ -72,6 +72,27 @@ direct-extend layer it arrived through (the same `ProvenanceLayer` identity the
 expressible too), and `duplicateOfIndex` points a repeated sentence at its first
 occurrence.
 
+### `index` is a position in the real array
+
+`description` is `subType: "string"`, but a wrong-typed member is a validation
+**warning**, not a refusal: `{"description": ["a sentence", 42]}` resolves, and
+the `42` reaches the final array and occupies index 1. So the result reports
+three things about the final array rather than one:
+
+- `entries` — the string members, each `index` being the member's position in
+  the **real** array. Only strings can have an author, so only strings take part
+  in the positional replay; they are paired with it through a cursor of their
+  own, which is what keeps an entry after a non-string from claiming the index
+  the non-string holds.
+- `unattributed` — `{ index, value }` for every non-string member: accepted by
+  Renovate, written by nobody the walk can name.
+- `finalLength` — the real array's length, so a consumer can say "position N of
+  M" without re-deriving it from two lists.
+
+The per-node and whole-run alignment checks still compare string members only,
+so a stray non-string is not by itself a reason to degrade; `entries.length +
+unattributed.length === finalLength` always.
+
 ### Fallback semantics
 
 Correctness is self-checked rather than assumed: at every node the replayed
@@ -92,9 +113,13 @@ desynchronise the indices of everything after it. The UI is expected to render
 ## The drop rules
 
 Three places delete a description before it can merge. All three are reported in
-`dropped` (`{ value, node, reason, droppedBy? }`) rather than left as an
-unexplained absence, because "why isn't my preset's description showing up" is
-one of the questions this feature exists to answer.
+`dropped` (`{ value, node, reason, droppedBy?, approximate? }`) rather than left
+as an unexplained absence, because "why isn't my preset's description showing
+up" is one of the questions this feature exists to answer. `approximate` carries
+the same meaning it has on an entry, and for the same reason: a subtree that had
+already degraded to its enclosing node can then be muted by the quirk below, and
+the guessed author must stay labelled as a guess once it becomes a drop. The two
+`getPreset` drops are read off a pristine body and are never approximate.
 
 - **`wrapper-preset`** — `getPreset` deletes the description of any preset whose
   keys are exactly `{description, extends}`. `config:best-practices` and
@@ -196,12 +221,14 @@ offline (internal presets need no network):
   full-array attribution and ordering, the two known leaf attributions, both
   duplicates with their `viaTopLevel` and `duplicateOfIndex`, the wrapper-preset
   drops, the `ignoreDeps: []` drops with their three `droppedBy` presets, a
-  repo-config's own description landing last on the root node, and — the
-  regression guard for the mutation above — a second run producing byte-identical
-  `entries` and `dropped`.
+  repo-config's own description landing last on the root node, a config whose
+  `description` holds a number (Renovate warns and keeps it) proving the reported
+  indices are positions in the real array, and — the regression guard for the
+  mutation above — a second run producing byte-identical `entries` and `dropped`.
 - `test/description-provenance.node.test.ts` — the walk in isolation over
   hand-built trees: own-body-last ordering at depth, identical strings from two
-  nodes, the raw-string (`allowString`) body, nested/unresolved children
-  excluded, each drop rule, and the enclosing-node fallback proving that a
-  contradicting subtree degrades alone while its siblings keep exact
-  attribution.
+  nodes, the raw-string (`allowString`) body, a mixed-type final array with its
+  `unattributed` member and `finalLength`, nested/unresolved children excluded,
+  each drop rule, the enclosing-node fallback proving that a contradicting
+  subtree degrades alone while its siblings keep exact attribution, and that
+  fallback's `approximate` surviving into a drop when the quirk mutes it.

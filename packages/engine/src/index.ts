@@ -43,6 +43,7 @@ export {
   type DroppedDescription,
   type DroppedDescriptionReason,
   type RuleDescriptionAttribution,
+  type UnattributedDescription,
 } from "./trace/description-provenance";
 export {
   computeProvenance,

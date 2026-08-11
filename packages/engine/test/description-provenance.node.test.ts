@@ -58,13 +58,16 @@ function build(spec: NodeSpec, id: string): PresetNode {
   };
 }
 
-function traceResult(spec: NodeSpec): TraceResult {
+/** `finalDescription` overrides the array the run ended with — the only way to
+ *  state a final array the replay cannot derive, e.g. one holding a non-string
+ *  member (Renovate warns about those but keeps them). */
+function traceResult(spec: NodeSpec, finalDescription?: unknown[]): TraceResult {
   counter = 0;
   const root = build(spec, "root");
   const resolved = root.resolved as Record<string, unknown>;
   return {
     events: [],
-    finalConfig: { description: descriptionsOf(resolved) },
+    finalConfig: { description: finalDescription ?? descriptionsOf(resolved) },
     errors: [],
     warnings: [],
     renovateVersion: "test",
@@ -175,6 +178,29 @@ describe("computeDescriptionProvenance: the positional walk", () => {
     expect(prov.degraded).toBe(true);
     // only the contradicting subtree is degraded; `b` keeps its exact attribution
     expect(prov.entries.map((e) => e.approximate)).toEqual([true, true, undefined]);
+  });
+
+  it("indexes against the REAL final array, listing its non-string members apart", () => {
+    // Renovate only warns about `{"description": ["a", 42]}`, so the 42 reaches
+    // the final array and holds index 1 — everything after it must say 2, not 1.
+    const result = traceResult(
+      {
+        name: "(input config)",
+        input: { description: ["mine", 42] },
+        children: [{ name: "a", input: { description: ["a-own"] } }],
+      },
+      ["a-own", 42, "mine"],
+    );
+    const prov = must(computeDescriptionProvenance(result), "the description provenance");
+    expect(prov.entries.map((e) => [e.index, e.value, e.node?.name])).toEqual([
+      [0, "a-own", "a"],
+      [2, "mine", "(input config)"],
+    ]);
+    expect(prov.unattributed).toEqual([{ index: 1, value: 42 }]);
+    expect(prov.finalLength).toBe(3);
+    // the strings still replay exactly, so nothing is approximate
+    expect(prov.degraded).toBe(false);
+    expect(prov.entries.some((e) => e.approximate)).toBe(false);
   });
 
   it("skips nested and unresolved children, which never merged", () => {
@@ -298,6 +324,40 @@ describe("computeDescriptionProvenance: the drop rules", () => {
     expect(prov.degraded).toBe(false);
   });
 
+  it("keeps a muted subtree's guessed author labelled as a guess", () => {
+    const prov = provenance({
+      name: "(input config)",
+      input: {},
+      children: [
+        {
+          name: "quirky",
+          input: { ignoreDeps: [] },
+          children: [
+            {
+              name: "a",
+              input: { description: ["a-own"] },
+              // contradicts the replay, so `a`'s subtree degrades to `a` …
+              resolved: { description: ["surprise"] },
+              children: [{ name: "a-child", input: { description: ["a-child-own"] } }],
+            },
+          ],
+        },
+      ],
+    });
+    // … and the quirk then diverts that guess into `dropped`, still labelled
+    expect(prov.dropped).toEqual([
+      {
+        value: "surprise",
+        node: { nodeId: "p2", name: "a" },
+        reason: "ignore-deps-quirk",
+        droppedBy: { nodeId: "p1", name: "quirky" },
+        approximate: true,
+      },
+    ]);
+    expect(prov.entries).toEqual([]);
+    expect(prov.degraded).toBe(true);
+  });
+
   it("applies the `ignoreDeps: []` quirk at the repo level too", () => {
     const prov = provenance({
       name: "(input config)",
@@ -318,6 +378,13 @@ describe("computeDescriptionProvenance: availability", () => {
 
   it("returns an empty attribution when nothing describes anything", () => {
     const prov = provenance({ name: "(input config)", input: { automerge: true } });
-    expect(prov).toEqual({ entries: [], dropped: [], ruleDescriptions: [], degraded: false });
+    expect(prov).toEqual({
+      entries: [],
+      unattributed: [],
+      finalLength: 0,
+      dropped: [],
+      ruleDescriptions: [],
+      degraded: false,
+    });
   });
 });

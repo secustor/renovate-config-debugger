@@ -41,6 +41,13 @@ import { computeRuleProvenance, type ProvenanceLayer } from "./provenance";
  * guessing a leaf. An honest "contributed by subtree X" beats a confident wrong
  * leaf, and because the fallback re-seeds from ground truth, one bad subtree
  * cannot desynchronise its parent's indices.
+ *
+ * A `description` array may also hold non-strings: Renovate only WARNS about
+ * `{"description": ["a", 42]}`, so the `42` survives into the final array and
+ * occupies a real index. The replay pairs string members only, but every
+ * `index` reported here is the member's position in the REAL final array, and
+ * the non-strings are listed separately in `unattributed` — no preset wrote
+ * them, and skipping them silently would shift every position after them.
  */
 
 /** The preset-tree node a string (or a drop) is attributed to. */
@@ -83,6 +90,24 @@ export interface DroppedDescription {
   reason: DroppedDescriptionReason;
   /** `ignore-deps-quirk` only: the extending node whose `ignoreDeps: []` deleted it. */
   droppedBy?: DescriptionSource;
+  /**
+   * The authoring node is a guess: the drop came out of a subtree that had
+   * already degraded to its enclosing node (see the fallback semantics above),
+   * so `node` names that subtree rather than the exact writer. Never set on the
+   * two `getPreset` drops, which are read off a pristine body.
+   */
+  approximate?: boolean;
+}
+
+/**
+ * A member of the final top-level `description` array that is not a string.
+ * Renovate warns about these but keeps them, so they hold a real index; no
+ * preset attribution exists for them, hence the separate list.
+ */
+export interface UnattributedDescription {
+  /** 0-based index into the final top-level `description` array. */
+  index: number;
+  value: unknown;
 }
 
 /**
@@ -102,6 +127,13 @@ export interface RuleDescriptionAttribution {
 export interface DescriptionProvenance {
   /** Every string of the final top-level `description`, in order. */
   entries: DescriptionAttribution[];
+  /** Non-string members of that same array, which carry no attribution. */
+  unattributed: UnattributedDescription[];
+  /**
+   * Length of the real final `description` array — `entries.length +
+   * unattributed.length` — so "position N of M" needs no re-derivation.
+   */
+  finalLength: number;
   /** Descriptions Renovate deleted before they could merge. */
   dropped: DroppedDescription[];
   /** Descriptions living on merged `packageRules` entries. */
@@ -117,14 +149,13 @@ function isPlainObject(value: unknown): value is Obj {
 }
 
 /**
- * The description strings of a config body. `input`/`resolved` are already
- * massaged (so `allowString` has coerced `"x"` to `["x"]`), but raw `fetched`
- * bodies are not — and a hand-injected preset may be anything, so the string
- * form and non-string array members are handled defensively. Dropping a
- * non-string member is deliberate: it desynchronises the replay, which the
- * per-node alignment check turns into an honest `approximate` attribution.
+ * A config body's `description` as the array Renovate holds. `input`/`resolved`
+ * are already massaged (so `allowString` has coerced `"x"` to `["x"]`), but raw
+ * `fetched` bodies are not — and a hand-injected preset may be anything — so
+ * the string form is still coerced here. Members are returned untouched,
+ * non-strings included: they are real positions in the array.
  */
-function descriptionsOf(body: unknown): string[] {
+function descriptionMembersOf(body: unknown): unknown[] {
   if (!isPlainObject(body)) {
     return [];
   }
@@ -132,10 +163,17 @@ function descriptionsOf(body: unknown): string[] {
   if (typeof value === "string") {
     return [value];
   }
-  if (Array.isArray(value)) {
-    return value.filter((item): item is string => typeof item === "string");
-  }
-  return [];
+  return Array.isArray(value) ? value : [];
+}
+
+/**
+ * The description STRINGS of a config body — the only members a preset can be
+ * held responsible for, and the sequence the positional replay works in.
+ * Non-strings are excluded here and accounted for separately against the final
+ * array (`unattributed`), so excluding them never shifts a reported index.
+ */
+function descriptionsOf(body: unknown): string[] {
+  return descriptionMembersOf(body).filter((item): item is string => typeof item === "string");
 }
 
 function sourceOf(node: PresetNode): DescriptionSource {
@@ -277,6 +315,37 @@ function valuesMatch(contributions: Contribution[], truth: string[]): boolean {
 }
 
 /**
+ * Everything one merging child of `parent` contributes: its own `getPreset`
+ * drop, its subtree, and — when `quirk` says the parent carries
+ * `ignoreDeps: []` — the diversion of that whole subtree into `dropped`,
+ * leaving nothing to merge. Shared by `walk` and the root level, which differ
+ * only in what they do with the returned contributions.
+ */
+function processChild(
+  parent: PresetNode,
+  child: PresetNode,
+  quirk: boolean,
+  dropped: DroppedDescription[],
+): WalkResult {
+  recordOwnDrop(child, dropped);
+  const sub = walk(child, dropped);
+  if (!quirk) {
+    return sub;
+  }
+  for (const contribution of sub.contributions) {
+    dropped.push({
+      value: contribution.value,
+      node: contribution.node ?? sourceOf(child),
+      reason: "ignore-deps-quirk",
+      droppedBy: sourceOf(parent),
+      // a guessed author stays labelled as a guess once it is a drop
+      ...(contribution.approximate ? { approximate: true } : {}),
+    });
+  }
+  return { contributions: [], degraded: sub.degraded };
+}
+
+/**
  * Replays one `resolveConfigPresets` invocation: every merging child in
  * `extends` order (each already flattened), then the node's own body last —
  * then checks the result against the node's ground-truth `resolved`.
@@ -287,21 +356,9 @@ function walk(node: PresetNode, dropped: DroppedDescription[]): WalkResult {
   const quirk = dropsChildDescriptions(node);
 
   for (const child of mergingChildren(node)) {
-    recordOwnDrop(child, dropped);
-    const sub = walk(child, dropped);
+    const sub = processChild(node, child, quirk, dropped);
     degraded ||= sub.degraded;
-    if (quirk) {
-      for (const contribution of sub.contributions) {
-        dropped.push({
-          value: contribution.value,
-          node: contribution.node ?? sourceOf(child),
-          reason: "ignore-deps-quirk",
-          droppedBy: sourceOf(node),
-        });
-      }
-    } else {
-      contributions.push(...sub.contributions);
-    }
+    contributions.push(...sub.contributions);
   }
 
   for (const value of descriptionsOf(node.input)) {
@@ -320,6 +377,19 @@ function walk(node: PresetNode, dropped: DroppedDescription[]): WalkResult {
     contributions: truth.map((value) => ({ value, node: sourceOf(node), approximate: true })),
     degraded: true,
   };
+}
+
+/**
+ * The `defaults` layer's descriptions (none, in every Renovate to date, but
+ * read rather than assumed). `getDefaultConfig()` rebuilds the whole option
+ * table on every call, so — like `INTERNAL_DROPS` — it is paid for once and
+ * cached at module level; the defaults cannot change within a process.
+ */
+let cachedDefaultDescriptions: string[] | undefined;
+
+function defaultDescriptions(): string[] {
+  cachedDefaultDescriptions ??= descriptionsOf(getDefaultConfig());
+  return cachedDefaultDescriptions;
 }
 
 /** A top-level layer's contribution, before indices are assigned. */
@@ -374,13 +444,12 @@ export function computeDescriptionProvenance(
   // Layers merging ahead of the repo's own resolution (008). Neither has a
   // preset tree of its own here, so their strings carry no node.
   const layered: LayerContribution[] = [];
-  const prefix: [ProvenanceLayer, unknown][] = [
-    [{ kind: "defaults" }, getDefaultConfig()],
-    [{ kind: "global" }, result.layerConfigs?.globalResolved],
-    [{ kind: "inherited" }, result.layerConfigs?.inheritedResolved],
+  const prefix: [ProvenanceLayer, string[]][] = [
+    [{ kind: "defaults" }, defaultDescriptions()],
+    [{ kind: "global" }, descriptionsOf(result.layerConfigs?.globalResolved)],
+    [{ kind: "inherited" }, descriptionsOf(result.layerConfigs?.inheritedResolved)],
   ];
-  for (const [layer, config] of prefix) {
-    const values = descriptionsOf(config);
+  for (const [layer, values] of prefix) {
     if (values.length > 0) {
       layered.push({ layer, contributions: values.map((value) => ({ value })) });
     }
@@ -392,18 +461,9 @@ export function computeDescriptionProvenance(
   const rootQuirk = dropsChildDescriptions(root);
   const rootContributions: Contribution[] = [];
   for (const child of mergingChildren(root)) {
-    recordOwnDrop(child, dropped);
-    const sub = walk(child, dropped);
+    const sub = processChild(root, child, rootQuirk, dropped);
     degraded ||= sub.degraded;
     if (rootQuirk) {
-      for (const contribution of sub.contributions) {
-        dropped.push({
-          value: contribution.value,
-          node: contribution.node ?? sourceOf(child),
-          reason: "ignore-deps-quirk",
-          droppedBy: sourceOf(root),
-        });
-      }
       continue;
     }
     layered.push({
@@ -444,32 +504,49 @@ export function computeDescriptionProvenance(
 
   // Ground truth for the whole run. Post-resolution re-migration (052) and the
   // 008 layers both act between `root.resolved` and `finalConfig`, so the final
-  // array — not the replay — decides how many entries there are.
-  const finalValues = descriptionsOf(finalConfig);
+  // array — not the replay — decides how many members there are. Its non-string
+  // members (Renovate warns, but keeps them) take no part in the replay yet
+  // still hold their index, so the replay is consumed by a separate cursor and
+  // every reported index is the member's REAL position.
+  const finalMembers = descriptionMembersOf(finalConfig);
   const entries: DescriptionAttribution[] = [];
+  const unattributed: UnattributedDescription[] = [];
   const firstIndexByValue = new Map<string, number>();
-  for (const [index, value] of finalValues.entries()) {
-    const aligned = flat[index];
-    const matched = aligned?.contribution.value === value ? aligned : undefined;
+  let replayCursor = 0;
+  for (const [index, member] of finalMembers.entries()) {
+    if (typeof member !== "string") {
+      unattributed.push({ index, value: member });
+      continue;
+    }
+    const aligned = flat[replayCursor];
+    replayCursor += 1;
+    const matched = aligned?.contribution.value === member ? aligned : undefined;
     if (!matched) {
       degraded = true;
     }
     const contribution = matched?.contribution;
     const approximate = contribution?.approximate ?? !matched;
     const node = contribution?.node;
-    const firstIndex = firstIndexByValue.get(value);
+    const firstIndex = firstIndexByValue.get(member);
     entries.push({
       index,
-      value,
+      value: member,
       ...(node ? { node } : {}),
       viaTopLevel: matched?.layer ?? { kind: "repo" },
       ...(approximate ? { approximate: true } : {}),
       ...(firstIndex === undefined ? {} : { duplicateOfIndex: firstIndex }),
     });
     if (firstIndex === undefined) {
-      firstIndexByValue.set(value, index);
+      firstIndexByValue.set(member, index);
     }
   }
 
-  return { entries, dropped, ruleDescriptions: ruleDescriptions(result), degraded };
+  return {
+    entries,
+    unattributed,
+    finalLength: finalMembers.length,
+    dropped,
+    ruleDescriptions: ruleDescriptions(result),
+    degraded,
+  };
 }
