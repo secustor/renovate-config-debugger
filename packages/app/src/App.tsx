@@ -212,6 +212,10 @@ export function App() {
   // fix) — as opposed to whatever the user has typed since. The "revert to
   // loaded config" button restores this; it never changes on a plain edit.
   const [loadedContent, setLoadedContent] = useState(DEFAULT_CONFIG);
+  // The config text the displayed result was actually computed from. Compared
+  // against `content` to tell the reader that what they are looking at no
+  // longer describes what is in the editor — see `resultsStale` below.
+  const [lastRunContent, setLastRunContent] = useState<string | null>(null);
   // Roadmap 016: bumped by `loadConfigText` to force the CodeMirror instance
   // to remount. The editor's own prop→doc sync defers to a ~200ms "typing
   // latch" that can be starved by browser timer throttling (backgrounded
@@ -964,6 +968,9 @@ export function App() {
       // sentence inherits the lead of the run before it.
       outcomeLeadRef.current = opts?.outcomeLead ?? null;
       setResult(traceResult);
+      // Committed WITH the result, never before it: a run that threw or was
+      // abandoned must not mark the previous run's output fresh.
+      setLastRunContent(inputs.content);
       const firstError = (Object.entries(traceResult.stageStatus) as [StageId, string][]).find(
         ([, status]) => status === "error",
       );
@@ -1942,6 +1949,7 @@ export function App() {
               onWalkTab={walkToTab}
               backTab={backTab}
               onBack={() => setTab(backTab ?? "overview")}
+              resultsStale={content !== lastRunContent}
               validateHasErrors={validateHasErrors}
               jumpToTab={jumpToTab}
               migrateSteps={migrateSteps}

@@ -3568,7 +3568,13 @@ pre.config-view.prov-before {
   margin: -0.25rem 0.75rem 0.75rem;
 }
 
-.sim-stale-banner {
+/* One sentence shape for "what you are looking at is behind the inputs above
+   it", at two scopes: the simulator's own form (015) and the whole run
+   (`StaleResultsBanner`, in the tab shell's run-level banner slot). Sharing
+   the rule is the point — the two must not drift into two different warnings
+   for the same idea. */
+.sim-stale-banner,
+.stale-banner {
   background: var(--warn-bg);
   border: 1px solid var(--warn-border);
   border-radius: 6px;
@@ -3576,6 +3582,11 @@ pre.config-view.prov-before {
   font-size: 0.85rem;
   margin: 0 0 0.6rem;
   padding: 0.5rem 0.65rem;
+}
+
+/* The run-level one sits inside `.tab-body`'s padding, above the tab panel. */
+.stale-banner {
+  margin: 0 0 0.75rem;
 }
 
 /* Replay-02 R1: once the hypothetical banner has been shown, its box stays

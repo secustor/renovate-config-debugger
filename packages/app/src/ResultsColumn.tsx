@@ -19,6 +19,7 @@ import { ResultsPanel, type ResultsTabDescriptor } from "@/components/ResultsPan
 import { RuleSimulator } from "@/features/simulator/RuleSimulator";
 import { StageDiff } from "@/components/StageDiff";
 import { StageTimeline } from "@/components/StageTimeline";
+import { StaleResultsBanner } from "@/components/StaleResultsBanner";
 import type { ResultsTabId } from "@/data/results-tabs";
 import { motionScrollOptions } from "@/lib/motion";
 import type { DigestClause } from "@/lib/run-digest";
@@ -52,6 +53,11 @@ export interface ResultsColumnProps {
   onWalkTab: (tab: ResultsTabId) => void;
   backTab: ResultsTabId | null;
   onBack: () => void;
+  /** The editor's text has diverged from the text `result` was computed from.
+   *  The ONE prop here that changes on a keystroke — it feeds the `banner`
+   *  memo and nothing else, deliberately not the `panels` memo below, whose
+   *  032 contract is that typing reconciles none of the seven panels. */
+  resultsStale: boolean;
 
   // —— shared across tabs ——
   /** Consumed by: overview, pipeline, effective, simulator. */
@@ -158,6 +164,7 @@ export function ResultsColumn({
   onWalkTab,
   backTab,
   onBack,
+  resultsStale,
   validateHasErrors,
   jumpToTab,
   migrateSteps,
@@ -233,18 +240,24 @@ export function ResultsColumn({
   // failure is a property of the run, and the tab a run lands on depends on
   // which stage errored — a preset-stage failure lands on Problems, so an
   // Overview-only banner would be exactly invisible in its own main case.
+  // `resultsStale` is the one keystroke-sensitive input in this file, and it
+  // reaches exactly this memo: a divergent keystroke re-renders the banner and
+  // nothing else, because `panels` below does not read it (roadmap 032).
   const banner = useMemo(
     () => (
-      <AuthFailureBanner
-        failures={authFailures.failures}
-        rateLimited={authFailures.rateLimited}
-        authState={authState}
-        onSignIn={onSignIn}
-        installUrl={installUrl}
-        onRunAgain={onRunAgain}
-      />
+      <>
+        {resultsStale ? <StaleResultsBanner /> : null}
+        <AuthFailureBanner
+          failures={authFailures.failures}
+          rateLimited={authFailures.rateLimited}
+          authState={authState}
+          onSignIn={onSignIn}
+          installUrl={installUrl}
+          onRunAgain={onRunAgain}
+        />
+      </>
     ),
-    [authFailures, authState, onSignIn, installUrl, onRunAgain],
+    [resultsStale, authFailures, authState, onSignIn, installUrl, onRunAgain],
   );
 
   // Roadmap 032: the seven tab panels render RUN RESULTS — they change when a
