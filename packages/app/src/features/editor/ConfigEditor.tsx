@@ -67,6 +67,12 @@ export const ConfigEditor = forwardRef<ConfigEditorHandle, Props>(function Confi
     () => [
       runKeymap(onRunRef),
       compartment.of(json()),
+      // Design review: this box receives PASTED configs more than typed ones,
+      // and a minified one arrives as a single line whose start scrolls out of
+      // view the moment the caret moves. Wrapping keeps the whole document
+      // reachable without a horizontal scrollbar; the Format button next to it
+      // (ConfigToolbar) is the other half of that answer.
+      EditorView.lineWrapping,
       // PageSpeed a11y: CodeMirror's contenteditable is a role="textbox" with
       // no accessible name of its own.
       EditorView.contentAttributes.of({ "aria-label": "Renovate config" }),

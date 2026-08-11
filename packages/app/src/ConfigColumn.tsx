@@ -42,6 +42,8 @@ interface ConfigColumnProps {
   onFileNameChange: (value: string) => void;
   canRevert: boolean;
   onRevert: () => void;
+  /** Re-indents the editor's text in place — see ConfigToolbar's prop doc. */
+  onFormat: () => void;
   /** Roadmap 066: the session itself moved to the header — what is left here
    *  is the auth hint's call to action, which belongs beside the failure. */
   onSignIn: () => void;
@@ -100,6 +102,7 @@ export function ConfigColumn({
   onFileNameChange,
   canRevert,
   onRevert,
+  onFormat,
   onSignIn,
   untrustedHost,
   onTrustUntrustedHost,
@@ -155,6 +158,7 @@ export function ConfigColumn({
         onFileNameChange={onFileNameChange}
         canRevert={canRevert}
         onRevert={onRevert}
+        onFormat={onFormat}
         untrustedHost={untrustedHost}
         onTrustUntrustedHost={onTrustUntrustedHost}
         running={running}

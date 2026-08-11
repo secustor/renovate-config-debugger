@@ -206,6 +206,37 @@ test("Revert to loaded config appears only while the config has unsaved edits", 
   await expect(page.locator(".cm-content")).toContainText("config:recommended");
 });
 
+/**
+ * Design review: a pasted config arrives on one line and there was no way to
+ * make it readable. Format re-indents in place — and it is an EDIT, not a
+ * load, so the revert baseline must stay where it was (that distinction is
+ * exactly what "Revert to loaded config" above means).
+ */
+test("Format re-indents in place and leaves the revert baseline alone", async ({ page }) => {
+  await page.goto("/");
+  const editor = page.locator(".cm-content");
+  await expect(editor).toContainText("config:recommended");
+
+  const format = page.getByRole("button", { name: "Format", exact: true });
+  await setEditorContent(page, '{"extends":["config:recommended"],"automerge":true}');
+  expect(await editor.locator(".cm-line").count()).toBe(1);
+
+  await format.click();
+  await expect(editor).toContainText('"automerge": true');
+  expect(await editor.locator(".cm-line").count()).toBeGreaterThan(1);
+
+  // The baseline is still the DEFAULT config the page opened with: one revert
+  // undoes the paste and the formatting together.
+  const revert = page.getByRole("button", { name: "Revert to loaded config" });
+  await revert.click();
+  await expect(editor).not.toContainText("automerge");
+
+  // A document that cannot be parsed says so instead of doing nothing.
+  await setEditorContent(page, "{ nope");
+  await format.click();
+  await expect(page.locator(".app-notice")).toContainText("fix the JSON syntax first");
+});
+
 /** Selects the first preset in the tree and returns its detail panel. */
 async function openFirstPresetDetail(page: Page): Promise<Locator> {
   await openTab(page, "presets");
