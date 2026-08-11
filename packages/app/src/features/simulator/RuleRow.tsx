@@ -6,6 +6,8 @@ import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { GLOSSARY } from "@/data/glossary-data";
 import { isNoInputNoMatch } from "@/lib/rule-verdict";
 import { ClauseGrid } from "./ClauseGrid";
+import type { RuleDescriptionNote } from "./rule-descriptions";
+import { RuleDescriptionQuote } from "./RuleDescriptionQuote";
 import { ruleAppliedMarkdown, ruleLabel, ruleVerdictLabel, writeMark } from "./rule-format";
 import { WriteRow } from "./WriteRow";
 
@@ -65,11 +67,15 @@ function RuleVerdictBadge({ rule }: { rule: RuleEvaluation }) {
 export function RuleRow({
   rule,
   layer,
+  description,
   onSelectPreset,
   defaultExpanded = false,
 }: {
   rule: RuleEvaluation;
   layer?: ProvenanceLayer;
+  /** Roadmap 069 (PR 5): the rule author's own description, when the rule has
+   *  one. Quoted only on a MATCHED row — see `RuleDescriptionQuote`. */
+  description?: RuleDescriptionNote;
   onSelectPreset?: (nodeId: string) => void;
   /** Roadmap 023: the "my rules only" filter pre-expands its rows' clause evidence. */
   defaultExpanded?: boolean;
@@ -77,6 +83,7 @@ export function RuleRow({
   const [expanded, setExpanded] = useState(defaultExpanded);
   // Re-sync when the filter toggles (re-expand my-rules rows, collapse otherwise).
   useEffect(() => setExpanded(defaultExpanded), [defaultExpanded]);
+  const quote = rule.verdict === "matched" ? description : undefined;
   return (
     // Roadmap 068: a cross-link lands ON this row (`landOnTarget`), so it has
     // to be able to hold focus — the flash marks it for the eye, the focus
@@ -111,6 +118,11 @@ export function RuleRow({
           </span>
         ) : null}
       </button>
+      {/* Outside the head button, and always visible: the sentence is the
+          answer to "why does this rule exist", so it must not be behind the
+          same disclosure as the clause evidence — and prose inside a button is
+          neither selectable nor announced as prose. */}
+      {quote ? <RuleDescriptionQuote note={quote} /> : null}
       {expanded ? (
         <div className="sim-rule-detail">
           {rule.clauses.length === 0 ? (

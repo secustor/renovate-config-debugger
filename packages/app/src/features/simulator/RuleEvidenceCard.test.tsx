@@ -105,6 +105,35 @@ describe("RuleEvidenceCard", () => {
   // Layer 7 — the two affordances the popover lost by not being the matched-
   // rules drawer: every written key is an option-docs hook, and the digest is
   // exportable as markdown like the drawer's applied diff always was.
+  // Roadmap 069 (PR 5): the rule says what it is FOR, above the clause
+  // evidence — the mockup's quote plus its muted attribution line.
+  it("quotes the rule author's description when the rule has one", () => {
+    const described: RuleEvidence = {
+      ...EVIDENCE,
+      description: {
+        ruleIndex: 201,
+        values: ["Wait until the npm package is three days old.", "Malware researchers need time."],
+        attribution: "author's description of this rule",
+      },
+    };
+    const view = render(<RuleEvidenceAnchor ruleIndex={201} evidenceFor={() => described} />);
+    act(() => {
+      fireEvent.click(view.getByRole("button", { name: "packageRules[201]" }));
+    });
+
+    const quote = document.querySelector(".sim-rule-why");
+    // Each string is its own line: they are separate sentences, not one split.
+    expect(quote?.querySelectorAll(".sim-rule-why-line")).toHaveLength(2);
+    expect(quote?.textContent).toContain("Wait until the npm package is three days old.");
+    expect(quote?.querySelector(".sim-rule-why-attr")?.textContent).toBe(
+      "— author's description of this rule",
+    );
+    // The undescribed rule of every other test renders no quote chrome at all.
+    cleanup();
+    open();
+    expect(document.querySelector(".sim-rule-why")).toBeNull();
+  });
+
   it("gives every written key the option-docs hook and offers the markdown export", () => {
     const { view } = open();
     const dialog = view.getByRole("dialog", { name: "packageRules[201] — rule evidence" });

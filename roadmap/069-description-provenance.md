@@ -1,6 +1,6 @@
 # 069 — Per-string `description` provenance: who said what about this config
 
-Milestone: M19 · Status: in progress (PR 1 of 5 landed)
+Milestone: M19 · Status: in progress (PRs 1–5 written; the stack is in review)
 
 Mockups: [mockups/069/](mockups/069/)
 
@@ -47,7 +47,8 @@ consequences, all confirmed against the pinned Renovate 44.7.4:
   `extends` order (depth-first), then the node's own sentence.
 
 `packageRules[n].description` is a different thing entirely: nested bodies are
-resolved separately and never hoisted to the top level.
+resolved separately and never hoisted to the top level — which is why the
+simulator (PR 5) is the only place they surface.
 
 ## The attribution algorithm
 
@@ -174,6 +175,17 @@ annotation and no more. Per-node attribution of nested bodies would need the
 nested `resolveConfigPresets` invocations threaded through the tree; if PR 5
 wants it, that is its own piece of work.
 
+**PR 5 did not want it, and the reason generalises.** The quote's attribution
+line has exactly two jobs: say whose voice it is, and — for the reader's own
+rules — say which of their rules it was. The first is already answered beside
+it by the row's provenance chip, which names the layer; the second needs
+`sourceIndex`, which is layer-granular by construction (it is an index into
+that layer's own `packageRules`). A node-granular attribution would let the
+line name `security:minimumReleaseAgeNpm` instead of the extend that carried
+it — a nicer sentence, bought with the nested-resolution threading, in a place
+where the chip already says as much. So the layer granularity shipped as-is and
+the nested machinery stays unbuilt.
+
 ## What the real tree does
 
 Verified against `{"extends": ["config:best-practices", ":dependencyDashboard",
@@ -217,9 +229,11 @@ offline (internal presets need no network):
    sentence, not the mechanics, which stay on the ledger's dropped footer. A
    hover surface rather than a view mode: the tree already has a tree/table
    switch, and the rows keep their uniform height for the windowing.
-5. **Hover attribution + simulator rule descriptions** — hovering a sentence
-   anywhere highlights its node in the tree; the simulator's rule ledger picks up
-   `ruleDescriptions` so a matched rule can say what it is for.
+5. **Hover attribution + simulator rule descriptions** — attribution at the
+   point of contact (mockup variant D): a `description` string in the resolved
+   JSON document carries a hover card naming the preset that wrote it, and a
+   matched simulator rule quotes its author's own sentence. See "What PR 5
+   shipped" below for what that turned into.
 
 ## Verification (PR 1)
 
@@ -238,3 +252,74 @@ offline (internal presets need no network):
   each drop rule, the enclosing-node fallback proving that a contradicting
   subtree degrades alone while its siblings keep exact attribution, and that
   fallback's `approximate` surviving into a drop when the quirk mutes it.
+
+## What PR 5 shipped
+
+Two surfaces, no new panel — the text was already on screen, only anonymous.
+
+**The JSON document's strings.** In the Effective config's "As JSON" view, each
+string of the top-level `description` array is an anchor for the app's standard
+hover card (`components/hover-card.tsx`): the writing preset's chip and _wrote
+this description_, the root-to-writer `extends` path (`(input config) ›
+config:best-practices › docker:pinDigests`, elided in the middle past six
+segments), `Position 16 of 24 · duplicate of #4 · also sets 2 packageRules`, and
+a _Show in preset tree →_ jump on the same `onSelectPreset` plumbing every chip
+in that view uses. The path and the rule count are free: `computeTreeStats`
+already keeps a per-run `parents` map and each node's own rule count.
+
+The scope is what the attribution can honestly carry. Attribution is by INDEX
+into the final `description` array, so `descriptionCardsFor` compares the
+rendered document's array against it value by value and attaches nothing on any
+disagreement — which is exactly what happens in the As-JSON view's default
+keep-internal mode (presets still referenced, so their sentences are absent) and
+in the defaults-hydrated document. Preset-body views (`PresetDetail`) keep plain
+rendering: a preset's own `description` is a different array again.
+
+The affordance is the glossary's, not a new one. `useHoverCard` and the anchor
+component were hoisted out of `components/glossary.tsx` (`hooks/hover-card.ts` +
+`components/hover-card.tsx`), so the attribution card inherits the
+one-card-at-a-time singleton, the pointer grace period, focus reachability and
+the 068 Escape ruling rather than restating them. `Term`/`Explained` are now
+that primitive with a glossary body. Two consequences worth knowing: the chip
+inside the card is a static badge, not a `ProvenanceChip` (a `ProvenanceChip`
+opens a card of its own, and the singleton would close the card it stands in),
+and the _Show in preset tree_ link is pointer-reachable only, since the card is
+portalled to `<body>` and closes on blur — the attribution itself is fully
+keyboard-readable, the jump is the extra.
+
+**The simulator's matched rules.** `buildRuleDescriptions` indexes the engine's
+`ruleDescriptions` by merged rule index; a matched row then quotes the author's
+sentences (one line each — a rule description is commonly two separate
+sentences) with a muted attribution line: _author's description of this rule_
+for a preset rule, _your description, packageRules[0] in your repo config_ for
+the reader's own, using `sourceIndex` so the citation is an index they can find
+in their editor rather than `packageRules[312]`. It renders on both surfaces
+that show a rule — the matched-rules drawer row (`RuleRow`) and the verdict
+card's rule-evidence popover, which carries it on `RuleEvidence` so the popover
+needs no lookup of its own. Never on a no-match row: there the sentence explains
+a rule that did nothing.
+
+`rcd simulate` needs no change — it formats its verdict lines from the engine's
+`RuleEvaluation` directly rather than from an app derivation, and no headless
+export changed.
+
+Deviations from the mockup, both deliberate: the path's root segment is the
+tree's own `(input config)` rather than the mockup's shortened `(input)`, and
+the repo-rule citation says "in your repo config" rather than naming
+`renovate.json` — the simulator is not told the config's file name, and naming
+the wrong file would be worse than naming none.
+
+### Verification (PR 5)
+
+- `src/lib/description-attribution.test.ts` — the card model: the path (and its
+  elision), the facts line with its duplicate and packageRules clauses, the repo
+  config's own sentences not masquerading as a preset, and the positional guard
+  refusing a shorter array, a reordered one and a non-array.
+- `src/features/simulator/rule-descriptions.test.ts` — the three attribution
+  wordings, the merged-index keying, and the empty cases.
+- `src/components/EffectiveConfig.test.tsx` — the wiring end to end on a real
+  run: no cards in keep-internal mode, cards in fully-expanded mode, the card's
+  path and position, and its tree jump.
+- `src/features/simulator/RuleRow.test.tsx`, `RuleEvidenceCard.test.tsx` and
+  `rule-evidence.test.ts` — the quote where it belongs (outside the head button,
+  above the clause evidence), and only on a matched, described rule.

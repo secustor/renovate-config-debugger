@@ -8,6 +8,7 @@ import { ESCAPE_PRIORITY, modalKeyboardOwned } from "@/lib/escape-stack";
 import { tookFocus } from "@/lib/focus-restore";
 import { useEscapeLayer } from "@/hooks/use-escape-layer";
 import { ClauseGrid } from "./ClauseGrid";
+import { RuleDescriptionQuote } from "./RuleDescriptionQuote";
 import { RULE_POP_CLASS, RULE_POP_SELECTOR } from "./rule-pop-dom";
 import { ruleAppliedMarkdown, ruleVerdictLabel, writeMark } from "./rule-format";
 import type { RuleEvidence, RuleWrite } from "./rule-evidence";
@@ -166,6 +167,9 @@ function RuleEvidenceBody({
   return (
     <>
       <RuleEvidenceHead evidence={evidence} onSelectPreset={onSelectPreset} />
+      {/* Roadmap 069 (PR 5): above the clause evidence, because "what this rule
+          is for" is the frame the clauses below are read in. */}
+      {evidence.description ? <RuleDescriptionQuote note={evidence.description} /> : null}
       {evidence.clauses.length > 0 ? <ClauseGrid clauses={evidence.clauses} /> : null}
       <RuleEvidenceSummary evidence={evidence} />
       <div className="kv sim-writes">

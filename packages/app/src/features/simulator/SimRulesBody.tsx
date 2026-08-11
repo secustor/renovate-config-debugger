@@ -12,6 +12,7 @@ import {
   verdictFilterOptions,
 } from "@/lib/rule-filters";
 import { openPickerOnEnter } from "@/lib/select-picker";
+import type { RuleDescriptionNote } from "./rule-descriptions";
 import { RuleRow } from "./RuleRow";
 
 function optionLabel(option: FilterOption): string {
@@ -139,6 +140,7 @@ export function SimRulesBody({
   filters,
   onFiltersChange,
   layerByIndex,
+  descriptionByIndex,
   onSelectPreset,
 }: {
   rules: RuleEvaluation[];
@@ -146,6 +148,8 @@ export function SimRulesBody({
   filters: RuleFilters;
   onFiltersChange: (filters: RuleFilters) => void;
   layerByIndex: Map<number, ProvenanceLayer>;
+  /** Roadmap 069 (PR 5): the author's description of each described rule. */
+  descriptionByIndex?: ReadonlyMap<number, RuleDescriptionNote>;
   onSelectPreset?: (nodeId: string) => void;
 }) {
   return (
@@ -165,6 +169,7 @@ export function SimRulesBody({
               key={rule.index}
               rule={rule}
               layer={layerByIndex.get(rule.index)}
+              description={descriptionByIndex?.get(rule.index)}
               onSelectPreset={onSelectPreset}
               // Roadmap 023: narrowing to the user's OWN rules is the "where is
               // my rule?" move — those few rows open with their clause evidence
