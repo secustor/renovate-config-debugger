@@ -144,7 +144,9 @@ export interface RepoLoad {
   /** When a GitHub load fails with a not-found/auth/rate-limit error, offer
    *  the sign-in / install hint next to the failure (009). null = no hint. */
   repoAuthHint: { rateLimited: boolean } | null;
-  onLoadRepo: () => Promise<void>;
+  /** Loads `reference` when given (a welcome-panel shortcut), else the typed
+   *  `repoInput` (the form's submit). */
+  onLoadRepo: (reference?: string) => Promise<void>;
 }
 
 export function useRepoLoad(host: RepoLoadHost): RepoLoad {
@@ -198,9 +200,11 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
   // Fetches a repo's Renovate config file and runs it. Derives the platform
   // from a known host (and sets the platform context so a later run resolves
   // `local>` correctly); a bare slug uses the current platform context.
-  async function onLoadRepo() {
-    const parsed = parseRepoRef(repoInput);
-    const trimmedRef = repoRef.trim();
+  async function onLoadRepo(reference?: string) {
+    const parsed = parseRepoRef(reference ?? repoInput);
+    // An explicit reference is a shortcut to a repo's default branch — the ref
+    // field belongs to the form gesture it bypassed.
+    const trimmedRef = reference !== undefined ? "" : repoRef.trim();
     // Roadmap 030: the parsed host/repo/ref are bounded and control-character
     // free before they compose a request URL/path — the same "Enter a repo
     // as..." notice covers a reference that parsed but shouldn't be trusted.
@@ -276,8 +280,11 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
       setNotice(`Loaded ${loaded.fileName} from ${parsed.repo}`);
       // Roadmap 039: the panel's job is done — it collapses so the config it
       // just fetched gets the height back. A FAILED load leaves it open: the
-      // reference in it is what the user has to correct.
-      closeRepoForm();
+      // reference in it is what the user has to correct. A shortcut load never
+      // opened it, and closing would steal focus for the toggle button.
+      if (repoFormOpen) {
+        closeRepoForm();
+      }
       // Roadmap 045: the inherited-config probe runs between the repo config
       // arriving and the run that processes it — the order a real run resolves
       // the two in, so the very first result already includes the org layer

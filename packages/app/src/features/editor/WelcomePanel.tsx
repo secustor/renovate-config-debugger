@@ -8,17 +8,23 @@ import { Term } from "@/components/glossary";
 
 interface Props {
   onTryExample: () => void;
+  /** Loads and runs this app's own repository config — a live dogfood demo. */
+  onAnalyzeThisProject: () => void;
 }
 
-export function WelcomePanel({ onTryExample }: Props) {
+export function WelcomePanel({ onTryExample, onAnalyzeThisProject }: Props) {
   return (
     <section className="welcome" aria-label="How it works">
       <ol className="welcome-steps">
         <li>
           <strong>Bring a config.</strong> Paste your <code>renovate.json</code> below, load it
-          straight from a repository, or{" "}
+          straight from a repository,{" "}
           <button type="button" className="linklike" onClick={onTryExample}>
             try an example
+          </button>
+          , or{" "}
+          <button type="button" className="linklike" onClick={onAnalyzeThisProject}>
+            analyze this project&apos;s config
           </button>
           .
         </li>

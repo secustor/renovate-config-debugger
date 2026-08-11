@@ -1,4 +1,5 @@
 import { SessionMenuItem } from "@/components/SessionMenuItem";
+import { REPO_URL } from "@/data/project-repo";
 
 /**
  * Roadmap 055 — the two links out of the app and into its repository: the
@@ -13,12 +14,6 @@ import { SessionMenuItem } from "@/components/SessionMenuItem";
  * `title` the reader has to hover to discover.
  */
 
-// The repository's CURRENT name: GitHub renamed `renovate-config-visualizer`
-// to `renovate-config-debugger` (the app's own title since 016), and the old
-// name lives on as a redirect. Verified against
-// `gh api repos/secustor/renovate-config-debugger`. A link a user reads before
-// clicking should carry the name they will land on.
-const REPO_URL = "https://github.com/secustor/renovate-config-debugger";
 const ISSUES_URL = `${REPO_URL}/issues`;
 
 /** Octicons 16px: `mark-github`, `issue-opened`. */
