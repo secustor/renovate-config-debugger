@@ -21,16 +21,17 @@ export interface LandingTicket {
   /** Who held focus as the gesture was made. `<body>` and "nobody" are the same
    *  answer here and both arrive as null — see `focusHolder` in the hook. */
   readonly from: Element | null;
-  readonly inputSeq: number;
+  readonly configInputSeq: number;
   readonly pointerSeq: number;
   readonly armSeq: number;
 }
 
 /**
  * Everything a landing measures itself against, as one mutable record: the
- * `input` and `pointerdown` events the page has seen, and the landings armed.
- * Counters rather than flags, so a landing compares against the moment ITS
- * gesture was made instead of against a shared "has anything happened" bit.
+ * edits to the config being run, the `pointerdown`s the page has seen, and the
+ * landings armed. Counters rather than flags, so a landing compares against the
+ * moment ITS gesture was made instead of against a shared "has anything
+ * happened" bit.
  *
  * Mutable on purpose. The hook keeps exactly one of these in a ref and bumps it
  * from document listeners: `input` fires on every keystroke, and the panels'
@@ -38,13 +39,15 @@ export interface LandingTicket {
  * this may be React state.
  */
 export interface LandingActivity {
-  inputSeq: number;
+  /** `input` events from the text the run is built from, and only those — the
+   *  hook's listener is what decides which those are. */
+  configInputSeq: number;
   pointerSeq: number;
   armSeq: number;
 }
 
 export function createLandingActivity(): LandingActivity {
-  return { inputSeq: 0, pointerSeq: 0, armSeq: 0 };
+  return { configInputSeq: 0, pointerSeq: 0, armSeq: 0 };
 }
 
 /** Takes the ticket for a landing being armed right now, and records it as the
@@ -53,7 +56,7 @@ export function armLanding(activity: LandingActivity, from: Element | null): Lan
   activity.armSeq += 1;
   return {
     from,
-    inputSeq: activity.inputSeq,
+    configInputSeq: activity.configInputSeq,
     pointerSeq: activity.pointerSeq,
     armSeq: activity.armSeq,
   };
@@ -68,13 +71,26 @@ export function armLanding(activity: LandingActivity, from: Element | null): Lan
  * Four questions, all against the ticket taken when the gesture was made, and
  * `focused` is who holds focus now (null for `<body>` or nobody):
  *
- * - **Has anything been typed since?** Any `input` event means the user is
- *   mid-word somewhere — including in the editor they never left, which is the
- *   case no focus comparison can see: ⌘⇧⏎ is pressed FROM the editor and the
- *   caret is still there when the run commits, seconds later. An `input` event
- *   is a USER edit — an applied fix rewrites the document through React state
- *   and CodeMirror, which dispatches none — so this reads keystrokes rather
- *   than text changes, and an apply-fix landing does not cancel itself.
+ * - **Has the CONFIG BEING RUN been edited since?** Then the results describe
+ *   older text, and the landing would take the user to an answer about a
+ *   config that no longer exists. The case it is really for is the one no focus
+ *   comparison can see: ⌘⇧⏎ is pressed FROM the editor and the caret is still
+ *   there when the run commits seconds later, so nothing about WHERE focus is
+ *   changes while the user types their next character. An `input` event is a
+ *   USER edit — an applied fix rewrites the document through React state and
+ *   CodeMirror, which dispatches none — so this reads keystrokes rather than
+ *   text changes, and an apply-fix landing does not cancel itself.
+ *
+ *   Scoped to that config (2026-08-11 review), because that is the whole
+ *   content of the rule above. Every OTHER field in the app is focus-visible:
+ *   typing into the simulator's `packageName`, the repo-load form's repo box or
+ *   a host field means focus is in it, so the third question below has already
+ *   stood the landing down — while an undifferentiated `input` counter also
+ *   cancelled on text that no run ever read, which is how ⌘⇧⏎ silently
+ *   degraded to a plain ⌘⏎ for anyone who filled in a dep while waiting. The
+ *   one gesture this no longer sees is a ⌘⇧⏎ pressed FROM such a field and
+ *   typed into without leaving, and there the landing is exactly what the
+ *   gesture asked for: nothing typed in those fields is text the run resolved.
  * - **Has a NEWER landing been armed since?** Then this one is the stale half
  *   of one gesture chain and the newer one is what the user last asked for.
  *   Without this, two digit jumps in one animation frame ended with the strip
@@ -93,9 +109,9 @@ export function armLanding(activity: LandingActivity, from: Element | null): Lan
  *
  * SCROLLING is deliberately not a fifth question (2026-08-11 review), even
  * though a wheel during the wait does mean the reader is looking elsewhere and
- * the landing will scroll the page out from under them. Typing and clicking
- * REPLACE what the gesture asked for — the results now describe older text, or
- * the user has chosen another target. Scrolling only looks around, and the
+ * the landing will scroll the page out from under them. Editing the config and
+ * clicking REPLACE what the gesture asked for — the results now describe older
+ * text, or the user has chosen another target. Scrolling only looks around, and the
  * gesture most exposed to it is the one that waits longest and is most explicit
  * about wanting to be moved: ⌘⇧⏎ means "run and take me there", the run can
  * take seconds, and reviewing the config on the way is exactly what a reader
@@ -108,7 +124,7 @@ export function landingWanted(
   activity: LandingActivity,
   focused: Element | null,
 ): boolean {
-  if (activity.inputSeq !== ticket.inputSeq || activity.armSeq !== ticket.armSeq) {
+  if (activity.configInputSeq !== ticket.configInputSeq || activity.armSeq !== ticket.armSeq) {
     return false;
   }
   if (focused !== null) {

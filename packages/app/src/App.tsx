@@ -77,7 +77,7 @@ import { useInheritedConfigLayer } from "@/hooks/use-inherited-config-layer";
 import { useRepoLoad } from "@/hooks/use-repo-load";
 import { useRunSummary } from "@/hooks/use-run-summary";
 import { useShareLink } from "@/hooks/use-share-link";
-import type { RunInputs } from "@/lib/run-inputs";
+import { type RunInputs, runRequestKey } from "@/lib/run-inputs";
 
 const DEFAULT_CONFIG = `{
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
@@ -180,10 +180,13 @@ function preloadRunChunks(): void {
 const SELECTED_PRESET_ROW = ".preset-name.selected, .preset-table-row.selected";
 const SELECTED_RESULTS_TAB = '[role="tab"][aria-selected="true"]';
 
-/** What a caller may ask of a run. None of it can make the run not happen:
- *  every request reaches the queue — see `onRun`. */
+/** What a caller may ask of a run. The only request that does not reach the
+ *  queue is one identical to a run already in flight, which is answered by that
+ *  run rather than declined — see `onRun`. */
 interface RunOptions {
   preserveScroll?: boolean;
+  /** Leave the results tab where the reader put it. For the runs asked for from
+   *  INSIDE the results — see `executeRun`, where 028's landing lives. */
   keepTab?: boolean;
   suppressTokens?: boolean;
 }
@@ -740,6 +743,12 @@ export function App() {
   /** The tail of that queue: each run awaits the one before it, so two runs
    *  never interleave on the engine and results commit in request order. */
   const runQueueRef = useRef<Promise<TraceResult | null>>(Promise.resolve(null));
+  /** Roadmap 067 review: the runs queued or executing right now, by request
+   *  identity (`runRequestKey`) — what lets `onRun` recognize a second request
+   *  for the run it is already doing and hand back that run instead of adding
+   *  another. Entries live exactly as long as the run does. */
+  const inFlightRunsRef = useRef<Map<string, Promise<TraceResult | null>> | null>(null);
+  const inFlightRuns = (inFlightRunsRef.current ??= new Map());
 
   /**
    * Roadmap 067: the ONE place a run is started — and, since the 2026-08-11
@@ -756,18 +765,35 @@ export function App() {
    * the one in flight and then executes, returning its own result to its own
    * caller.
    *
-   * Nor is anything COALESCED any more. Round two kept half the gate as an opt-in
-   * for the entry points that mutate nothing first — the Run button, the two
-   * chords, "Run again" — reasoning that a second "run this config" asks for
-   * what is already happening. Between those two presses the user edits: press
-   * ⌘⏎, fix the typo the first run is about to report, press ⌘⏎ again, and the
-   * second press was swallowed while the editor's handler still claimed the
-   * chord, so nothing queued, nothing said so, and the results that landed
-   * described the pre-edit text. What that opt-in was defending against is one
-   * HELD key asking for thirty runs, and that is a keyboard fact, closed where
-   * it happens: `KeyboardEvent.repeat` in `use-shortcut.ts` and in
-   * `run-keymap.ts`, and `disabled={running}` on the button. A deliberate second
-   * request is a second run, always.
+   * Nor is anything coalesced BY ENTRY POINT any more, which is where round
+   * three went wrong. A `coalesce` opt-out let the callers that mutate nothing
+   * first — the Run button, the two chords, "Run again" — decline a run while
+   * one was in flight, on the reasoning that a second "run this config" asks for
+   * what is already happening. Between two presses the user edits: press ⌘⏎, fix
+   * the typo the first run is about to report, press ⌘⏎ again, and the second
+   * press was swallowed while the editor's handler still claimed the chord, so
+   * nothing queued, nothing said so, and the results that landed described the
+   * pre-edit text. Where a request came FROM never did say whether it was a
+   * duplicate.
+   *
+   * What replaces it asks about the request itself. A request identical to one
+   * already queued or executing — same inputs, same injected presets, same
+   * credentials decision, same banner, same commit options, all of it in
+   * `runRequestKey` — is not a second run: it IS the run in flight, so it is
+   * handed that run's promise and resolves with its result. Everything else
+   * queues, and nothing is ever dropped.
+   *
+   * That rule fits both defects above rather than trading one for the other. The
+   * three callers that mutate state first have already changed the config or the
+   * presets, so their key differs and they can never fold. Round five's second
+   * ⌘⏎ differs for the same reason — it comes after an edit. What folds is the
+   * case neither round could name: three ⌘⏎ on an unchanged config while a slow
+   * preset fetch resolves, which used to be three full serial runs, each one
+   * yanking the results tab back.
+   *
+   * The other duplicate — one HELD key asking for thirty runs — is still closed
+   * where it happens: `KeyboardEvent.repeat` in `use-shortcut.ts` and in
+   * `run-keymap.ts`, and `disabled={running}` on the button.
    */
   async function onRun(
     overrideInjected?: InjectionMap,
@@ -804,6 +830,22 @@ export function App() {
     // waits its turn describes something the user did after asking for it, and
     // survives it.
     const fatalSeq = fatalSeqRef.current;
+    // Everything the run and its commit depend on is now resolved, which is what
+    // makes this the point where a duplicate can be recognized at all.
+    const key = runRequestKey({
+      inputs,
+      injectedPresets,
+      suppressTokens,
+      fatalSeq,
+      preserveScroll: opts?.preserveScroll === true,
+      keepTab: opts?.keepTab === true,
+    });
+    const identical = inFlightRuns.get(key);
+    if (identical) {
+      // Not a refusal: this caller gets the result of the run that is already
+      // producing exactly what it asked for, at the moment it arrives.
+      return await identical;
+    }
     queuedRunsRef.current += 1;
     setRunning(true);
     const previous = runQueueRef.current;
@@ -814,9 +856,11 @@ export function App() {
       return executeRun(inputs, injectedPresets, suppressTokens, fatalSeq, opts);
     })();
     runQueueRef.current = queued;
+    inFlightRuns.set(key, queued);
     try {
       return await queued;
     } finally {
+      inFlightRuns.delete(key);
       queuedRunsRef.current -= 1;
       // Only the last one out turns the light off — otherwise a finished run
       // would announce the app idle while its successor was still resolving.
@@ -854,10 +898,16 @@ export function App() {
       );
       setSelectedStage(firstError?.[0] ?? "preset");
       // Roadmap 028: a run lands on the short Overview — or straight on
-      // Problems when a stage errored, the tabbed equivalent of the old
-      // "select the first errored stage". `keepTab` is for re-runs the user
-      // triggered from inside an instrument (injecting a preset, applying a
-      // fix), which land themselves.
+      // Problems when a stage errored, the tabbed equivalent of the old "select
+      // the first errored stage". That landing belongs to the reader of the
+      // CONFIG column: they edited, they asked for a run, and this is where its
+      // answer starts. `keepTab` is every run that was not asked for from there
+      // — the re-runs triggered inside an instrument (injecting a preset,
+      // applying a fix), which land themselves, and since 067 made ⌘⏎ global,
+      // the presses made while reading a panel (`gestureInsideResults`). A run
+      // that errors under a reader who stayed put still says so: the Problems
+      // badge counts it and the banner above the panels states it, neither of
+      // which moves anyone.
       if (!opts?.keepTab) {
         setTab(firstError ? "problems" : "overview");
       }
@@ -1144,7 +1194,36 @@ export function App() {
    */
   function runFromGesture(): Promise<TraceResult | null> {
     preloadRunChunks();
-    return onRun(undefined, undefined, { preserveScroll: Boolean(result) });
+    return onRun(undefined, undefined, {
+      preserveScroll: Boolean(result),
+      keepTab: gestureInsideResults(),
+    });
+  }
+
+  /**
+   * Roadmap 067 review: whether the gesture asking for this run was made from
+   * inside the results — the question 028's tab reset always depended on and
+   * never had to ask, because before 067 the only way to reach Run was to leave
+   * the results.
+   *
+   * ⌘⏎ is global, so it stopped being safe to assume: pressing it while reading
+   * Effective config, Presets or the simulator replaced that panel with the
+   * Overview a second later, and `setTab` clears `backTab` on its way, so the
+   * cross-link that brought the reader there was gone with it. A gesture made
+   * from inside the results is not a request to be taken to the top of them.
+   *
+   * `document.activeElement` is the signal because it is where the gesture was
+   * made, rather than where the app supposes the user is: every route into a
+   * panel leaves focus inside this column — a tab click, a digit key
+   * (`focusTab`), a cross-link's landing — while the Run button and the editor
+   * are both in the config column, so the pointer path and the editor's own ⌘⏎
+   * keep 028's landing exactly as they had it. Focus genuinely nowhere reads as
+   * "outside", which is the honest answer: a reader who has touched nothing in
+   * the results has no place there to be moved from.
+   */
+  function gestureInsideResults(): boolean {
+    const column = resultsColRef.current;
+    return column !== null && column.contains(document.activeElement);
   }
 
   /**
@@ -1164,7 +1243,11 @@ export function App() {
     // from the page exactly as it does from the editor, and the button's
     // `disabled={running}` stays what it always was — the visible half, for the
     // pointer. Auto-repeat is declined a layer lower, by `useShortcut`'s
-    // `KeyboardEvent.repeat` test.
+    // `KeyboardEvent.repeat` test, and a deliberate second press that changed
+    // nothing is answered by the run already in flight instead of queueing
+    // behind it — the ceiling on an impatient triple press, applied to the
+    // REQUEST so it can never swallow a press that would produce something
+    // different (`onRun`).
     { enabled: keysLive },
   );
 
@@ -1369,16 +1452,27 @@ export function App() {
    * `focusResults`' retry budget is no help there: it is spent only when there
    * is no selected tab at all, and there always is one.
    *
-   * A QUEUE of tickets, not one flag (067 review). Press ⌘⇧⏎ on a config whose
-   * run will fail, fix it, press again while the first is still resolving: with
-   * a boolean, the failed run cleared the flag its successor was relying on and
-   * the second press silently degraded to a plain run. One ticket per press;
-   * each result commit consumes the OLDEST, because the runs that commit do so
-   * in the order `onRun` queued them. A run that never commits takes its own
-   * ticket out by identity instead (see the chord below) — position does not
-   * identify it, and reading the two the same way was the 2026-08-11 finding.
+   * ONE ticket, and it is the NEWEST press's — not a flag, and no longer a queue
+   * consumed one per commit.
+   *
+   * A flag was the first shape, and a review found what breaks it: press ⌘⇧⏎ on
+   * a config whose run will fail, fix it, press again while the first is still
+   * resolving, and the failed run cleared the flag its successor was relying on,
+   * so the second press silently degraded to a plain run. What that needed was
+   * IDENTITY — a run that never commits may withdraw its own request and no
+   * other — and the queue supplied it by carrying one ticket per press.
+   *
+   * The queue's other half, pairing the oldest ticket with the next commit, has
+   * to go now that `onRun` folds a duplicate request into the run already in
+   * flight: presses and commits are no longer one-to-one, so position pairs a
+   * press with someone else's commit, and two identical ⌘⇧⏎ would consume a
+   * ticket on the one commit they get and strand the other. Position was never
+   * load-bearing anyway — `landingWanted` rejects any ticket that is not the
+   * newest landing armed (`armSeq`), so an older one in the queue could only ever
+   * be consumed and thrown away. Keeping only the newest says that outright, and
+   * the identity check that mattered survives as `=== ticket` below.
    */
-  const pendingResultLandings = useRef<LandingTicket[]>([]);
+  const pendingResultLanding = useRef<LandingTicket | null>(null);
   // The 032 latest-ref idiom, for the reason the dependency list below spells
   // out: `focusResults` is redeclared every render, and an effect that depended
   // on it would consume a pending landing on every render instead of on the
@@ -1386,8 +1480,9 @@ export function App() {
   const focusResultsFnRef = useRef(focusResults);
   focusResultsFnRef.current = focusResults;
   useEffect(() => {
-    const ticket = pendingResultLandings.current.shift();
+    const ticket = pendingResultLanding.current;
     if (ticket) {
+      pendingResultLanding.current = null;
       focusResultsFnRef.current(ticket);
     }
     // `result` alone IS the run's commit: `executeRun` dispatches `setResult`
@@ -1425,22 +1520,19 @@ export function App() {
       // arrives there a moment later, and the alternative is the swallowed
       // keypress `onRun` was just cured of.
       const ticket = landing.arm();
-      pendingResultLandings.current.push(ticket);
+      pendingResultLanding.current = ticket;
       void (async () => {
         const traceResult = await runFromGesture();
-        if (!traceResult) {
+        if (!traceResult && pendingResultLanding.current === ticket) {
           // This run will never commit, so its request has to go — otherwise it
-          // fires on whatever run comes next. THIS press's own ticket, by
-          // identity: not every request reaches the queue, so the oldest
-          // outstanding one need not be this failure's. `onRun` refuses a run
-          // whose layers would not parse (`blockedByLayerErrors`) and returns
-          // null synchronously, ahead of everything already queued — so press
-          // ⌘⇧⏎, break the global-config JSON while it resolves, press it
-          // again, and dropping the oldest would cancel the FIRST press's
-          // landing and then judge it against the second press's snapshot.
-          pendingResultLandings.current = pendingResultLandings.current.filter(
-            (pending) => pending !== ticket,
-          );
+          // fires on whatever run comes next. Only if the outstanding request is
+          // still THIS press's: `onRun` refuses a run whose layers would not
+          // parse (`blockedByLayerErrors`) and returns null synchronously, ahead
+          // of everything already queued, so press ⌘⇧⏎, break the global-config
+          // JSON while it resolves, press it again, and clearing unconditionally
+          // would cancel the SECOND press's landing on the first press's
+          // failure.
+          pendingResultLanding.current = null;
         }
       })();
     },

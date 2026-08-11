@@ -78,11 +78,17 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
     setFocusKey(null);
   }, [focusKey]);
 
-  // Where focus came FROM, tracked only while the pill is showing. `focusin`'s
-  // `relatedTarget` is the element that just lost focus, so after the user Tabs
-  // onto the pill this holds the stop before it — which is what the Escape
-  // below hands focus back to.
-  const focusFromRef = useRef<HTMLElement | null>(null);
+  // The last focus MOVE, tracked only while the pill is showing: a `focusin`
+  // describes the transition it is — `relatedTarget` is the element that lost
+  // focus, `target` the one that gained it — and keeping both halves is what
+  // lets the Escape path below use a move only when it is the one that put
+  // focus where focus is standing now. `relatedTarget` alone was recorded as
+  // "the stop before the pill" while meaning "the stop before whatever gained
+  // focus last", and the two part company as soon as focus drops to <body>
+  // (a click on dead space fires no `focusin` to correct the record).
+  const lastFocusMoveRef = useRef<{ to: EventTarget | null; from: HTMLElement | null } | null>(
+    null,
+  );
   // Written by the Escape path alone, and read by the effect that runs once the
   // pill is actually gone.
   const dismissedRef = useRef<{ focused: Element | null; from: HTMLElement | null } | null>(null);
@@ -92,11 +98,18 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
       return;
     }
     function onFocusIn(event: FocusEvent) {
-      focusFromRef.current =
-        event.relatedTarget instanceof HTMLElement ? event.relatedTarget : null;
+      lastFocusMoveRef.current = {
+        to: event.target,
+        from: event.relatedTarget instanceof HTMLElement ? event.relatedTarget : null,
+      };
     }
     document.addEventListener("focusin", onFocusIn);
-    return () => document.removeEventListener("focusin", onFocusIn);
+    return () => {
+      document.removeEventListener("focusin", onFocusIn);
+      // Nothing is listening to keep it current, and the pair would otherwise
+      // hold two detached nodes alive until the next pill appears.
+      lastFocusMoveRef.current = null;
+    };
   }, [returnKey]);
 
   // Escape dismisses the pill — but only when it is not the POPOVER's Escape.
@@ -105,8 +118,23 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
   // when it registers last, which it does whenever a jump starts from a thread
   // body that already has a rule-evidence card open — the case the deleted
   // `document.querySelector(RULE_POP_SELECTOR)` check used to cover.
+  //
+  // The ladder also declines a press something else already acted on, which
+  // the pill's own listener never did: the shared listener bails on
+  // `defaultPrevented` (`hooks/use-escape-layer.ts`), the claim an
+  // element-scoped handler owes it (`lib/escape-stack.ts`). That is the point,
+  // not a loss — a glossary card claims exactly that way, and a check-free
+  // listener hides the card and destroys the pill in one press, which is the
+  // two-layer press the ladder exists to prevent. Nothing strands the pill
+  // either: a handler only claims a press it acted on (the editor included,
+  // verified in `use-escape-layer.ts`), so the press after it is the pill's.
   const dismissPill = useCallback(() => {
-    dismissedRef.current = { focused: document.activeElement, from: focusFromRef.current };
+    const focused = document.activeElement;
+    const move = lastFocusMoveRef.current;
+    // Only the move that landed on the currently focused element says where
+    // that focus came from; any older one describes a stop the user has left.
+    const from = move !== null && move.to === focused ? move.from : null;
+    dismissedRef.current = { focused, from };
     setReturnKey(null);
   }, []);
   useEscapeLayer(returnKey !== null, dismissPill, ESCAPE_PRIORITY.ambient);
@@ -122,6 +150,11 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
   // recognising the pill's markup — the pill is portalled to <body> and nothing
   // here ever holds its element. Escape pressed anywhere else leaves its target
   // connected, so it never moves focus.
+  //
+  // Neither half names the pill, and neither needs to: focus was on something
+  // that arrived there from `from`, that something is gone, so `from` gets the
+  // focus back. Whatever vanished under the ring in this dismissal, that is
+  // the landing — the pill is only the one this hook can make vanish.
   useEffect(() => {
     const dismissed = dismissedRef.current;
     dismissedRef.current = null;

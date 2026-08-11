@@ -98,15 +98,19 @@ export function pushEscapeLayer(handler: EscapeHandler, priority: EscapePriority
  * `?` shortcut sheet holds one while it is open: it is a native `<dialog>`
  * shown with `showModal()`, so the browser is already the topmost key owner and
  * everything behind it is inert — but `inert` does not reach a document- or
- * window-level listener, so the page's own key layers have to be told. Two read
- * this, and both were bugs before they did:
+ * window-level listener, so the page's own layers have to be told. Three read
+ * this, and each was a bug before it did:
  *
  * - the ladder below, which would otherwise dismiss a layer the user cannot see
  *   AND — because it claims the key with `preventDefault` — suppress the
  *   dialog's own close request, leaving the sheet up;
  * - `useHomeEndPageScroll` (016), which would otherwise scroll the inert page
  *   behind the dialog on End, leaving the sheet's own overflowing rows
- *   unreachable by a key the sheet itself advertises.
+ *   unreachable by a key the sheet itself advertises;
+ * - the rule-evidence popover's light-dismiss (`RuleEvidenceCard.tsx`), whose
+ *   document `mousedown` listener sees the press that dismisses the sheet the
+ *   same way — the POINTER half of the same fact about `inert`, which is why
+ *   this is the query for both and not a keyboard-only flag.
  *
  * Refcounted, so a second modal nested inside the first cannot hand the
  * keyboard back to the page on its way out.
@@ -124,10 +128,12 @@ export function claimModalKeyboard(): () => void {
 }
 
 /**
- * Whether a modal surface currently owns the keyboard. The query for page-level
- * key handlers that are NOT the ladder — they must stand aside for the same
- * reason it does, and asking here keeps one answer to "is a modal up?" instead
- * of a second listener-side copy of it.
+ * Whether a modal surface currently owns the keyboard — and, since the same
+ * `inert` gap lets a press through to a document listener, the input it is
+ * drawn over generally. The query for page-level handlers that are NOT the
+ * ladder: they must stand aside for the same reason it does, and asking here
+ * keeps one answer to "is a modal up?" instead of a listener-side copy per
+ * caller.
  */
 export function modalKeyboardOwned(): boolean {
   return modalClaims > 0;
@@ -148,9 +154,10 @@ function topLayer(): EscapeLayer | undefined {
  * Whether a layer drawn OVER the page currently holds the user's attention —
  * `popover` or `menu`, never `ambient` alone.
  *
- * The 067 bare-key layer (`e`, `r`, `1`–`7`) asks this before it acts, for the
- * same reason it asks `isTextEditingTarget`: a bare key must not rearrange a
- * page the user is not looking at. The rule-evidence card is portalled to
+ * The 067 bare-key layer (`e`, `r`, `1`–`7`) asks this before it acts, and so
+ * does the 016 Home/End page scroll, for the same reason they ask
+ * `isTextEditingTarget`: a key must not rearrange a page the user is not
+ * looking at. The rule-evidence card is portalled to
  * `<body>` with `role="dialog"` and takes focus, so nothing in the "is the user
  * typing" predicate can see it — and pressing `2` while it was open switched
  * tabs underneath, leaving the card floating over a panel that no longer

@@ -47,6 +47,38 @@ function focusHolder(): Element | null {
 }
 
 /**
+ * Where the text a pipeline run is built from is typed: the config document
+ * (CodeMirror wraps its contenteditable in `.cm-editor`, and the app mounts
+ * exactly one editor — `features/editor/ConfigEditor.tsx`), and the 008 layer
+ * boxes in the advanced zone (`.layer-editor`), whose parsed JSON App hands to
+ * the same run as `globalConfig` / `inheritedConfig` (`lib/run-inputs.ts`).
+ *
+ * A selector rather than refs because these surfaces are other components'
+ * (the editor card, the advanced zone) while the listener is one document-level
+ * handler — and the editor is CodeMirror's own DOM in any case, which App holds
+ * as a `ConfigEditorHandle`, not as an element.
+ *
+ * The editor's WRAPPER, deliberately, which also covers the fields
+ * `@codemirror/search` renders inside it: a keystroke in the search box is not
+ * an edit, so this stands a landing down that could have run. The precise
+ * alternative — matching the contenteditable host — would rest on `input`
+ * events being targeted at it exactly, and getting THAT wrong loses the one
+ * case the counter exists for. A missed search keystroke costs one landing; a
+ * missed config keystroke costs the rule.
+ */
+const RUN_CONFIG_TEXT_SELECTOR = ".cm-editor, .layer-editor";
+
+/**
+ * Whether this `input` event edited the config the run describes — the question
+ * `landingWanted`'s first test is actually asking (`lib/focus-landing.ts`
+ * states the rule). Everything else the user can type into leaves the run's
+ * text alone, and is visible to the focus test besides.
+ */
+function editsRunConfig(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest(RUN_CONFIG_TEXT_SELECTOR) !== null;
+}
+
+/**
  * Roadmap 067: the machinery behind "every cross-link, skip link and jump key
  * lands the user on what it names" — the counters that say what the page has
  * seen, and the animation-frame wait that gets a landing to an element which
@@ -68,8 +100,16 @@ export function useFocusLanding(): FocusLanding {
   const activity = (activityRef.current ??= createLandingActivity());
 
   useEffect(() => {
-    function countInput() {
-      activity.inputSeq += 1;
+    function countInput(event: Event) {
+      // Listened for on the document, counted only for the run's own text. The
+      // listener has to be here — the keystrokes that matter are the ones typed
+      // into CodeMirror, which never move the caret out of the editor, so no
+      // focus- or React-state-based test can see them — but its REACH is not
+      // the rule it serves: counting every field's keystrokes cancelled
+      // ⌘⇧⏎'s landing for typing the run had never read (2026-08-11 review).
+      if (editsRunConfig(event.target)) {
+        activity.configInputSeq += 1;
+      }
     }
     function countPointer() {
       activity.pointerSeq += 1;

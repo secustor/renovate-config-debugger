@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { RESULTS_TAB_IDS } from "@/data/results-tabs";
 import {
   anyModifierHeld,
@@ -8,6 +8,7 @@ import {
   formatShortcut,
   GLOBAL_SHORTCUTS,
   HELP_SHORTCUT,
+  isApplePlatform,
   type KeyChord,
   matchShortcut,
   RUN_AND_READ_SHORTCUT,
@@ -154,6 +155,34 @@ describe("shortcutSheet", () => {
     // undocumented. 9 is where `digitTabIndex` itself stops.
     const lastDigit = Math.min(RESULTS_TAB_IDS.length, 9);
     expect(rows.some((row) => row.keys === `1 – ${lastDigit}`)).toBe(true);
+  });
+});
+
+describe("isApplePlatform", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("prefers the un-deprecated source when it answers", () => {
+    vi.stubGlobal("navigator", { userAgentData: { platform: "macOS" }, platform: "Win32" });
+    expect(isApplePlatform()).toBe(true);
+  });
+
+  it("falls back to navigator.platform where userAgentData is absent (Safari, Firefox)", () => {
+    vi.stubGlobal("navigator", { platform: "MacIntel" });
+    expect(isApplePlatform()).toBe(true);
+  });
+
+  it("reads an EMPTY platform as no answer, not as an answer", () => {
+    // `??` would take "" as the newer source having spoken and never ask the
+    // older one, which is the only one that knows.
+    vi.stubGlobal("navigator", { userAgentData: { platform: "" }, platform: "MacIntel" });
+    expect(isApplePlatform()).toBe(true);
+  });
+
+  it("says no when nothing reports an Apple platform", () => {
+    vi.stubGlobal("navigator", { userAgentData: { platform: "Linux" }, platform: "Linux x86_64" });
+    expect(isApplePlatform()).toBe(false);
   });
 });
 

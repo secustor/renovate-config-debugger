@@ -1,5 +1,6 @@
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { claimModalKeyboard } from "@/lib/escape-stack";
 import type { RuleEvidence } from "./rule-evidence";
 import { RuleEvidenceAnchor } from "./RuleEvidenceCard";
 
@@ -89,6 +90,26 @@ describe("RuleEvidenceCard", () => {
 
   it("closes on a click outside", () => {
     const { view } = open();
+    act(() => {
+      fireEvent.mouseDown(document.body);
+    });
+    expect(view.queryByRole("dialog")).toBeNull();
+  });
+
+  it("survives a press that belongs to a modal — the ? sheet opened over it", () => {
+    // Roadmap 067 review: `?` is the one binding that fires under an overlay,
+    // so the sheet can be opened with this card standing. Dismissing the sheet
+    // presses its backdrop, and that press reaches this document listener on
+    // its way past — `inert` covers the page, not the listener above it.
+    const { view } = open();
+    const release = claimModalKeyboard();
+    act(() => {
+      fireEvent.mouseDown(document.body);
+    });
+    expect(view.queryByRole("dialog")).not.toBeNull();
+
+    // …and the card is dismissable again the moment the sheet lets go.
+    release();
     act(() => {
       fireEvent.mouseDown(document.body);
     });

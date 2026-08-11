@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { modalKeyboardOwned } from "@/lib/escape-stack";
+import { modalKeyboardOwned, overlayKeyboardOwned } from "@/lib/escape-stack";
 import { anyModifierHeld } from "@/lib/shortcuts";
 
 /**
@@ -153,6 +153,31 @@ export function useHomeEndPageScroll(): void {
       // App's `keysLive`; this hook takes no props, so it asks the ladder's
       // own modal flag instead of growing a second one.
       if (modalKeyboardOwned()) {
+        return;
+      }
+      // Roadmap 067 review: and so does a popover or menu — the gate `e`, `r`
+      // and `1`–`7` already take (`overlayKeyboardOwned`), for the reason they
+      // take it: a key must not move the page under a layer the reader is
+      // looking at. The rule-evidence card pays for it twice, since it
+      // re-anchors on every scroll rather than closing: End scrolled its
+      // `packageRules[N]` reference off the top of the window, and the card
+      // followed it off screen.
+      //
+      // CLAIMED and then dropped, where the modal above stands aside — and the
+      // difference is who would scroll if this declined the key. A modal
+      // `<dialog>` is itself the scroll container the browser reaches for (the
+      // `?` sheet's own overflowing rows), so declining hands End to the right
+      // target. A popover or menu scrolls nothing: the evidence card is
+      // `position: fixed` and the session menu `position: absolute` in the
+      // header, so the browser would fall back to whatever scrollable box
+      // happens to hold focus — the document, or one of the nested boxes this
+      // hook exists to override.
+      //
+      // `ambient` is not an overlay: the simulator's return pill is furniture
+      // to read past, and it stays up for a whole navigation detour (see
+      // `overlayKeyboardOwned`), so page scroll keeps working under it.
+      if (overlayKeyboardOwned()) {
+        e.preventDefault();
         return;
       }
       e.preventDefault();

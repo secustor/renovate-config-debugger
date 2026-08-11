@@ -50,8 +50,9 @@ export interface SimRequest {
   simThread?: string;
   /**
    * Roadmap 067 review — the result this request may be applied to: the one
-   * the link's OWN run produced, or null when that run failed and the link has
-   * yet to produce one. Naming it is what makes the attribution rule in
+   * the link's OWN run produced, or null when that run produced nothing to
+   * simulate against (it failed outright, or it returned a trace with no
+   * effective config). Naming it is what makes the attribution rule in
    * `loadShareToken` a matter of identity rather than of timing; see there,
    * and `useShareLinkRequest`, which is the one consumer that resolves it.
    */
@@ -83,12 +84,12 @@ const SHARE_ERROR_MESSAGES: Record<ShareDecodeError, string> = {
 export interface ShareLinkHost {
   /** The pipeline run path. The hook AWAITS this (never fire-and-forget) and
    *  keeps what it returns: the resolved value IS the result this link
-   *  produced, which is what the simulator request is then attributed to (see
-   *  `loadShareToken`) — a null means the run failed. A link's run is never
-   *  declined either: `App.onRun` queues a request that arrives during another
-   *  run instead of dropping it, which is what this path needs, having already
-   *  replaced the config, the file name and the platform by the time it gets
-   *  here. */
+   *  produced, which is what the simulator request is attributed to when that
+   *  result carries an effective config (see `loadShareToken`) — a null means
+   *  the run failed outright. A link's run is never declined either:
+   *  `App.onRun` queues a request that arrives during another run instead of
+   *  dropping it, which is what this path needs, having already replaced the
+   *  config, the file name and the platform by the time it gets here. */
   onRun: (inputs: RunInputs, opts: { suppressTokens: boolean }) => Promise<TraceResult | null>;
   /** Roadmap 016: the one path every authoritative content load goes through. */
   loadConfigText: (text: string) => void;
@@ -301,11 +302,11 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
     //  1. a request belongs to exactly one link. The unconditional clear
     //     above runs at decode time, BEFORE this link's run, so a descriptor
     //     can never still be sitting there when a later link's result lands.
-    //  2. a request names the result it may be applied to. `ran` IS that
-    //     result when the run succeeded; when it failed this link has yet to
-    //     produce one, and the `null` tells `useShareLinkRequest` to hold the
-    //     request until a result arrives that was not already on screen when
-    //     the request did.
+    //  2. a request names the result it may be applied to — `attributable`
+    //     below. When the run produced one, that IS the result; when it did
+    //     not, this link has yet to produce one, and the `null` tells
+    //     `useShareLinkRequest` to hold the request until a result arrives
+    //     that was not already on screen when the request did.
     //
     // The descriptor is handed over either way, `autoSimulate` intact. Losing
     // it on failure was its own bug: the form is the sender's "look at this
@@ -321,6 +322,15 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
     // so its result can still commit under this link. This request is not
     // handed over until this link's own run has settled behind it, so the
     // stale commit passes while there is nothing to apply.
+    //
+    // "Produced a result" is `finalConfig`, not a non-null `ran`: a run only
+    // throws on a fatal, and the config the link shipped failing to parse is
+    // not one — the pipeline returns the trace it has, effective config
+    // absent, and there is nothing for a simulation to be about. Naming that
+    // trace would have parked the descriptor on an object no later run can
+    // equal, so the request waited for an identity that could never arrive
+    // (the recipient fixed the JSON, ran, and got an empty simulator form).
+    const attributable = ran?.finalConfig ? ran : null;
     if (!isCancelled() && payload.sim) {
       setSimRequest({
         form: payload.sim.form,
@@ -329,7 +339,7 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
         // (where `simStep` lives) because it is only meaningful for the
         // simulation this descriptor reproduces — see ShareSimulator.
         simThread: payload.sim.simThread,
-        ranResult: ran,
+        ranResult: attributable,
         nonce: ++simNonceRef.current,
       });
     }

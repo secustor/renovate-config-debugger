@@ -43,9 +43,13 @@ export function useShareLinkRequest({
   const appliedSimNonce = useRef<number | null>(null);
   // Roadmap 067 review: the result this effect saw last time it looked, which
   // is what "already on screen when the request arrived" means below. Null
-  // until the first look — and this hook only exists while a result does, so
-  // that first look is itself a result that postdates any request already in
-  // hand.
+  // until the first look — and the simulator panel is mounted only for a
+  // result that HAS an effective config (ResultsColumn), so a first look is a
+  // result that postdates any request already in hand, never the verdict such
+  // a request was told to ignore. That mount rule is also what carries a
+  // request whose link produced no config: the panel is not on screen while
+  // that config is the current result, so the run that fixes it is the first
+  // one this hook sees.
   const seenResult = useRef<TraceResult | null>(null);
 
   useEffect(() => {
@@ -56,12 +60,13 @@ export function useShareLinkRequest({
     }
     // The attribution rule (see `use-share-link.ts` for why it is this and not
     // a timing flag): a request goes to the result its own link produced. When
-    // that run succeeded the request names the result, so the test is literal
-    // identity; when it failed the link has produced no result yet, so the
-    // request waits for one it predates — the run the user gets after fixing
-    // the config the link shipped, since a newer link would have replaced this
-    // request rather than let it wait. Neither branch can pick the verdict
-    // that was already on screen when the link arrived.
+    // that run produced one the request names it, so the test is literal
+    // identity; when it produced none — it failed, or the config the link
+    // shipped never parsed, and either way there is nothing here to simulate
+    // against — the request waits for a result it predates, the run the user
+    // gets after fixing the config, since a newer link would have replaced
+    // this request rather than let it wait. Neither branch can pick the
+    // verdict that was already on screen when the link arrived.
     const isOwnResult =
       simRequest.ranResult === null ? result !== previouslySeen : result === simRequest.ranResult;
     if (!isOwnResult) {

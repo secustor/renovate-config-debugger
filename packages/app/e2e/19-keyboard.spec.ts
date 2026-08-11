@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { PACKAGE_RULES_CONFIG, SEMANTIC_COMMITS_CONFIG } from "./fixtures";
 import {
+  expectRunIdle,
   openSessionMenu,
   openTab,
   resultsPanel,
@@ -50,10 +51,24 @@ test("the editor does not trap Tab", async ({ page }) => {
 
   // Focus left the editor entirely — before 067 Tab indented the document and
   // there was no way out with the keyboard at all.
-  const insideEditor = await page.evaluate(
-    () => document.activeElement?.closest(".cm-editor") !== null,
-  );
-  expect(insideEditor).toBe(false);
+  //
+  // Asserted as two separate facts on purpose. The first version of this test
+  // read `activeElement?.closest(".cm-editor") !== null`, which reports TRUE
+  // for a null activeElement (`undefined !== null`) — so "focus went nowhere"
+  // and "focus is still trapped" were the same answer. That direction happened
+  // to fail rather than pass, but a trap test that cannot tell those apart is
+  // not saying what it means, and it never checked that focus landed anywhere.
+  const focus = await page.evaluate(() => {
+    const active = document.activeElement;
+    return {
+      insideEditor: active instanceof Element && active.closest(".cm-editor") !== null,
+      landedSomewhere: active !== null && active !== document.body,
+    };
+  });
+  expect(focus.insideEditor).toBe(false);
+  expect(focus.landedSomewhere).toBe(true);
+  // And it is the next control in the column, not some arbitrary escape.
+  await expect(page.locator(".toolbar select")).toBeFocused();
 });
 
 test("the config skip link is the first tab stop and lands IN the editor", async ({ page }) => {
@@ -484,6 +499,15 @@ test("⌘⏎ on a focused provenance chip runs, rather than jumping", async ({ p
   // guard ⌘⏎ jumped to the Presets tree — a wrong action, not a dropped one.
   await page.keyboard.press("ControlOrMeta+Enter");
   await expect(tabButton(page, "effective")).toHaveAttribute("aria-selected", "true");
+
+  // Re-checked AFTER the run commits. Until the seventh review, `executeRun`
+  // reset the tab for every run without `keepTab`, so this assertion passed
+  // only because it resolved first — it would have flaked on a fast run and
+  // proved nothing on a slow one. A ⌘⏎ pressed from inside the results now
+  // keeps the panel the reader was in, and this is where that is asserted.
+  await expectRunIdle(page);
+  await expect(tabButton(page, "effective")).toHaveAttribute("aria-selected", "true");
+  await expect(tabPanel(page, "effective")).toBeVisible();
 });
 
 // ── Sixth-review follow-ups (2026-08-11) ─────────────────────────────────────

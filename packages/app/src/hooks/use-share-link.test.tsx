@@ -71,6 +71,27 @@ function traceResult(): TraceResult {
   };
 }
 
+/** What the pipeline returns for a config the parser refuses (engine
+ *  `pipeline.ts`): a real, resolved `TraceResult` — `run()` does not throw —
+ *  with every later stage skipped and no effective config. */
+function parseErrorResult(): TraceResult {
+  const ran = traceResult();
+  return {
+    ...ran,
+    finalConfig: undefined,
+    errors: [{ topic: "Config error", message: "Invalid JSON (parsing failed)" }],
+    stageStatus: {
+      ...ran.stageStatus,
+      parse: "error",
+      migrate: "skipped",
+      massage: "skipped",
+      validate: "skipped",
+      preset: "skipped",
+      merge: "skipped",
+    },
+  };
+}
+
 function payload(config: string, sim?: SharePayload["sim"]): SharePayload {
   return { v: 2, renovate: "0.0.0", config, fileName: "renovate.json", sim };
 }
@@ -147,6 +168,25 @@ describe("useShareLink", () => {
     await waitFor(() => expect(seen.current).not.toBeNull());
 
     expect(seen.current?.ranResult).toBe(ran);
+    expect(seen.current?.autoSimulate).toBe(true);
+  });
+
+  it("attributes nothing to a run that produced no effective config", async () => {
+    // The link ships a config with a syntax error: the pipeline stops at parse
+    // and returns the trace it has, so the run neither throws nor produces
+    // anything to simulate against. Naming that trace pinned the descriptor to
+    // an object no later run can equal — the recipient fixed the JSON, ran, and
+    // got an empty simulator form with no auto-simulation and no message. The
+    // request has to still be applicable to the run that fixes it, which is
+    // what a null `ranResult` means (`useShareLinkRequest` holds it).
+    payloads.set("A", payload("{oops", SIM));
+    const onRun = vi.fn<ShareLinkHost["onRun"]>().mockResolvedValue(parseErrorResult());
+    history.replaceState(null, "", "/#config=A");
+
+    const seen = mount(onRun);
+    await waitFor(() => expect(seen.current).not.toBeNull());
+
+    expect(seen.current?.ranResult).toBeNull();
     expect(seen.current?.autoSimulate).toBe(true);
   });
 

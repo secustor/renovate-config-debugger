@@ -23,13 +23,14 @@ describe("landingWanted", () => {
     expect(landingWanted(armLanding(activity, chip), activity, chip)).toBe(true);
   });
 
-  it("abandons the landing once the user has typed", () => {
+  it("abandons the landing once the config being run has been edited", () => {
     const activity = createLandingActivity();
     const editor = elementStub();
     const ticket = armLanding(activity, editor);
     // ⌘⇧⏎ from the editor, then a character while the run resolves: the caret
-    // never moved, so only the `input` count can see it.
-    activity.inputSeq += 1;
+    // never moved, so only the edit count can see it. Which edits reach this
+    // counter is the hook's half — `use-focus-landing.test.tsx`.
+    activity.configInputSeq += 1;
     expect(landingWanted(ticket, activity, editor)).toBe(false);
   });
 

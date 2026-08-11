@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { claimModalKeyboard } from "@/lib/escape-stack";
+import { claimModalKeyboard, ESCAPE_PRIORITY, pushEscapeLayer } from "@/lib/escape-stack";
 import { isTextEditingTarget, mayOwnNativePopup, useHomeEndPageScroll } from "./scroll-ergonomics";
 
 /**
@@ -148,6 +148,40 @@ describe("useHomeEndPageScroll", () => {
     release();
     fireEvent.keyDown(window, { key: "Home" });
     expect(scrollTo).toHaveBeenCalledOnce();
+    scrollTo.mockRestore();
+  });
+
+  it("claims the key and scrolls nothing while a popover or menu is up", () => {
+    // 2026-08-11 review: the same gate `e`, `r` and `1`–`7` take. CLAIMED,
+    // unlike the modal case above — a popover scrolls nothing itself, so
+    // merely declining End would hand the page scroll straight back to the
+    // browser's default.
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+    render(<HomeEndHarness />);
+    const release = pushEscapeLayer(() => undefined, ESCAPE_PRIORITY.popover);
+
+    const claimed = !fireEvent.keyDown(window, { key: "End" });
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(claimed).toBe(true);
+
+    release();
+    fireEvent.keyDown(window, { key: "End" });
+    expect(scrollTo).toHaveBeenCalledOnce();
+    scrollTo.mockRestore();
+  });
+
+  it("keeps scrolling under an ambient layer — the simulator's return pill", () => {
+    // The rank is the whole reason this asks `overlayKeyboardOwned()` rather
+    // than "is any layer open": the pill is furniture to read past and stays up
+    // for a whole navigation detour.
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+    render(<HomeEndHarness />);
+    const release = pushEscapeLayer(() => undefined, ESCAPE_PRIORITY.ambient);
+
+    fireEvent.keyDown(window, { key: "End" });
+    expect(scrollTo).toHaveBeenCalledOnce();
+
+    release();
     scrollTo.mockRestore();
   });
 });

@@ -4,7 +4,7 @@ import type { MergedKey } from "@renovate-config-debugger/engine";
 import { CopyMarkdownButton } from "@/components/CopyMarkdownButton";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { type AnchorRect, anchoredCardStyle, anchorRectOf } from "@/lib/anchored-card";
-import { ESCAPE_PRIORITY } from "@/lib/escape-stack";
+import { ESCAPE_PRIORITY, modalKeyboardOwned } from "@/lib/escape-stack";
 import { useEscapeLayer } from "@/hooks/use-escape-layer";
 import { ClauseGrid } from "./ClauseGrid";
 import { RULE_POP_CLASS, RULE_POP_SELECTOR } from "./rule-pop-dom";
@@ -235,6 +235,19 @@ export function RuleEvidenceAnchor({
       return;
     }
     function onPointerDown(e: MouseEvent) {
+      // Roadmap 067 review: a modal owns the press, the same way it owns the
+      // key. `showModal()` makes the page behind the dialog inert, so nothing
+      // under this card can be clicked while the `?` sheet is up — but `inert`
+      // does not reach a DOCUMENT-level listener any more than it reaches a
+      // key one, and a press aimed at the sheet (a row of it, or the backdrop
+      // that dismisses it) bubbles past here on its way to the document. Both
+      // "inside" tests below then say no and the card the user left open goes
+      // with the sheet. Reachable on purpose: `HELP_SHORTCUT` is the one
+      // binding that fires under an overlay (`firesUnderOverlay`), so `?` over
+      // an open evidence card is a supported gesture, not a corner.
+      if (modalKeyboardOwned()) {
+        return;
+      }
       const target = e.target;
       if (target instanceof Node && wrapRef.current?.contains(target)) {
         return;

@@ -26,12 +26,10 @@
  * control than the native one.
  */
 
-interface PickerKeyEvent {
+import { anyModifierHeld, type KeyModifiers } from "@/lib/shortcuts";
+
+interface PickerKeyEvent extends KeyModifiers {
   readonly key: string;
-  readonly metaKey: boolean;
-  readonly ctrlKey: boolean;
-  readonly altKey: boolean;
-  readonly shiftKey: boolean;
   preventDefault: () => void;
   /** `value` and `form` are here only so this isn't an all-optional "weak"
    *  type, which a real `HTMLSelectElement` could not be assigned to on a TS
@@ -48,8 +46,10 @@ export function openPickerOnEnter(event: PickerKeyEvent): void {
   if (event.key !== "Enter") {
     return;
   }
-  // ⌘⏎ is Run, and it has to keep working from a focused control.
-  if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+  // Bare Enter only. ⌘⏎ is Run and has to keep working from a focused control;
+  // `anyModifierHeld` is the right half of that pair for a NAMED key, where
+  // Shift is a gesture of its own rather than part of typing the key.
+  if (anyModifierHeld(event)) {
     return;
   }
   // A select that belongs to a form lets Enter do its native job — implicit

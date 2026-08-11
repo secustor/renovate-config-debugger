@@ -415,6 +415,20 @@ requests, and that is a keyboard fact, not a pipeline fact.
   call time, before the wait, so a queued run carries the state its caller
   meant.
 
+The seventh review settled it, on the third try, by asking a different
+question. Both earlier swings tried to decide WHICH PRESS to drop from
+information that cannot answer it: round two asked the destination ("is a run
+in flight?") and half-applied three callers; rounds three and five asked the
+caller ("is this a pointer-safe entry point?") and swallowed a deliberate press
+after an edit. The answer is identity on the REQUEST — `runRequestKey` over the
+inputs, the injected presets, the credentials decision and the commit options.
+A request identical to one already queued folds into it and resolves with its
+result; anything that differs queues; nothing is dropped. Apply-fix, inject and
+share-link have all changed something, so they structurally cannot fold, and
+round five's second ⌘⏎ follows an edit, so it differs too. What folds is only
+the case neither round could name: three ⌘⏎ on an unchanged config while a slow
+preset fetch resolves.
+
 The third review then deleted the second half of that fix. A `coalesce` option
 had let the pointer-safe entry points decline a run while one was in flight —
 belt-and-braces next to the repeat suppression — and it swallowed a DELIBERATE

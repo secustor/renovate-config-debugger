@@ -182,10 +182,17 @@ export const GLOBAL_SHORTCUTS: readonly Shortcut[] = [
  * platform` still answers — neither is spoof-proof, and neither has to be: the
  * cost of guessing wrong is a hint that reads `Ctrl+Enter` on a Mac, because
  * `matchShortcut` accepts either modifier regardless of what this returns.
+ *
+ * `||`, not `??`: the chain wants the first source that actually said
+ * something, and an empty string has said nothing. Chromium answers `"Unknown"`
+ * rather than `""` for a platform it does not enumerate, so this is not a bug
+ * report so much as the operator meaning what the fallback is for — with `??`,
+ * a UA-CH override blanking the newer field would suppress the older one that
+ * still knows the answer.
  */
 export function isApplePlatform(): boolean {
   const nav: Navigator & { userAgentData?: { platform?: string } } = navigator;
-  const platform = nav.userAgentData?.platform ?? navigator.platform ?? "";
+  const platform = nav.userAgentData?.platform || navigator.platform;
   return /mac|iphone|ipad|ipod/i.test(platform);
 }
 
@@ -297,7 +304,10 @@ export function shortcutSheet(apple = isApplePlatform()): ShortcutSection[] {
         // for its own first/last-tab behavior (see the Results section
         // below). "Anywhere" here means "everywhere else", the same
         // qualifier the bare `e`/`r`/`?` rows above already carry.
-        { keys: "Home / End", what: "Scroll the page to top / bottom (outside a field)" },
+        {
+          keys: "Home / End",
+          what: "Scroll the page to top / bottom — outside a field, and not under an open popover",
+        },
       ],
     },
     {
