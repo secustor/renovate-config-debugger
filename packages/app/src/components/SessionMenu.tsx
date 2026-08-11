@@ -4,6 +4,7 @@ import { SessionMenuItem } from "@/components/SessionMenuItem";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
 import { useSessionMenu } from "@/hooks/use-session-menu";
 import { REVOKE_URL, type StoredUser } from "@/platform/oauth";
+import { formatShortcut, HELP_SHORTCUT } from "@/lib/shortcuts";
 
 /**
  * Roadmap 066 — the header's session corner, collapsed into one control.
@@ -43,6 +44,8 @@ const ICONS = {
     "M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Zm3.03 4.53 8-8-1.06-1.06-8 8 1.06 1.06Z",
   signOut:
     "M2 2.75C2 1.784 2.784 1 3.75 1h2.5a.75.75 0 0 1 0 1.5h-2.5a.25.25 0 0 0-.25.25v10.5c0 .138.112.25.25.25h2.5a.75.75 0 0 1 0 1.5h-2.5A1.75 1.75 0 0 1 2 13.25Zm10.44 4.5-1.97-1.97a.749.749 0 0 1 .326-1.275.749.749 0 0 1 .734.215l3.25 3.25a.75.75 0 0 1 0 1.06l-3.25 3.25a.749.749 0 0 1-1.275-.326.749.749 0 0 1 .215-.734l1.97-1.97H6.75a.75.75 0 0 1 0-1.5Z",
+  keyboard:
+    "M1.75 4h12.5c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 14.25 13H1.75A1.75 1.75 0 0 1 0 11.25v-5.5C0 4.784.784 4 1.75 4Zm0 1.5a.25.25 0 0 0-.25.25v5.5c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25v-5.5a.25.25 0 0 0-.25-.25ZM4 7h1.5v1.5H4Zm2.75 0h2.5v1.5h-2.5Zm3.75 0H12v1.5h-1.5ZM4 9.5h8V11H4Z",
   chevron:
     "M12.78 5.22a.749.749 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.06 0L3.22 6.28a.749.749 0 1 1 1.06-1.06L8 8.939l3.72-3.719a.749.749 0 0 1 1.06 0Z",
 } as const;
@@ -56,6 +59,9 @@ interface Props {
   installUrl: string;
   onSignIn: () => void;
   onSignOut: () => void;
+  /** Roadmap 068 tier 1: opens the `?` shortcut sheet. The menu is where a
+   *  pointer user finds out the keyboard layer exists at all. */
+  onShowShortcuts: () => void;
 }
 
 /** What the trigger is called, given what is behind it — see the 066 doc's
@@ -169,6 +175,7 @@ function SessionMenuPanel({
   installUrl,
   onSignIn,
   onSignOut,
+  onShowShortcuts,
   panelRef,
   onDismiss,
 }: PanelProps) {
@@ -192,6 +199,17 @@ function SessionMenuPanel({
         <ThemeSwitch />
       </div>
       <hr className="session-menu-sep" />
+      <SessionMenuItem
+        icon={ICONS.keyboard}
+        label="Keyboard shortcuts"
+        shortcut={formatShortcut(HELP_SHORTCUT)}
+        note="Press ? any time — run, jump between panes, reach any results tab."
+        onSelect={() => {
+          onDismiss();
+          onShowShortcuts();
+        }}
+      />
+      <hr className="session-menu-sep" />
       <ProjectLinks onSelect={onDismiss} />
     </div>
   );
@@ -204,6 +222,7 @@ export function SessionMenu({
   installUrl,
   onSignIn,
   onSignOut,
+  onShowShortcuts,
 }: Props) {
   const { open, triggerRef, panelRef, toggle, dismiss } = useSessionMenu();
   // Signed-in state is meaningless without OAuth configured, and reading it as
@@ -251,6 +270,7 @@ export function SessionMenu({
           installUrl={installUrl}
           onSignIn={onSignIn}
           onSignOut={onSignOut}
+          onShowShortcuts={onShowShortcuts}
           panelRef={panelRef}
           onDismiss={dismiss}
         />

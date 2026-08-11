@@ -9,7 +9,7 @@ import {
   RENOVATE_VERSION,
   truncateShareToken,
 } from "./fixtures";
-import { resultsPanel, runButton } from "./helpers";
+import { expectRunIdle, resultsPanel, runButton } from "./helpers";
 
 /**
  * Roadmap 027 — share-link failure diagnostics. A `#config=` token that can't
@@ -253,7 +253,7 @@ test("no token reaches an untrusted endpoint — not on the auto-run, not on a m
   await page.locator(".share-warning-ack").click();
   await runButton(page).click();
   await expect.poll(() => seen.length, { timeout: 30_000 }).toBeGreaterThan(afterAutoRun);
-  await expect(runButton(page)).toHaveText("Run");
+  await expectRunIdle(page);
 
   for (const request of seen) {
     expect(request.authorization).toBeUndefined();
@@ -284,7 +284,7 @@ test("'Use my tokens with <host>' opts in explicitly: header sent, settings pers
 
   await runButton(page).click();
   await expect.poll(() => seen.length, { timeout: 30_000 }).toBeGreaterThan(beforeOptIn);
-  await expect(runButton(page)).toHaveText("Run");
+  await expectRunIdle(page);
   for (const request of seen.slice(beforeOptIn)) {
     expect(request.authorization).toBe(`Bearer ${LEAK_CANARY}`);
   }

@@ -3,6 +3,7 @@ import type { PresetNode } from "@renovate-config-debugger/engine";
 import type { NodeStats } from "@/components/preset-tree-stats";
 import { Explained } from "@/components/glossary";
 import { GLOSSARY } from "@/data/glossary-data";
+import { presetTreeNameClass } from "@/lib/preset-row-dom";
 import type { Row } from "./rows";
 import {
   INDENT,
@@ -120,7 +121,10 @@ export function TreeRow({
       ) : null}
       <button
         type="button"
-        className={`preset-name${node.id === selectedId ? " selected" : ""}`}
+        // The class App's landing finds the selected node by — written through
+        // the same module that spells the selector, so the two cannot drift
+        // (`lib/preset-row-dom.ts`).
+        className={presetTreeNameClass(node.id === selectedId)}
         onClick={() => onSelect(node.id)}
       >
         {node.name}

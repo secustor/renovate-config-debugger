@@ -13,12 +13,14 @@ import type { Simulate } from "./use-simulation-run";
 export type { SimRequest };
 
 /**
- * Roadmap 018: apply a decoded share link's simulator inputs exactly once (by
- * nonce). Depends on `result` too, so — whether the link opened on mount or
- * via hashchange — the form is applied (and optionally auto-run) against the
- * freshly-run config rather than a stale one. Called AFTER `useSimulationRun`
- * so its effect wins for a decoded link (the run's reset clears, then this
- * re-populates).
+ * Roadmap 018: apply a decoded share link's simulator inputs once (by nonce —
+ * `seenResult` below notes the one remount that can repeat it), to the result
+ * the link that carried them produced — the resolving end of the attribution
+ * invariant stated in `hooks/use-share-link.ts`.
+ * Whether the link opened on mount or via hashchange never enters into it:
+ * the request either names its result outright or is held until one arrives
+ * that the request predates. Called AFTER `useSimulationRun` so its effect
+ * wins for a decoded link (the run's reset clears, then this re-populates).
  */
 export function useShareLinkRequest({
   simRequest,
@@ -40,9 +42,50 @@ export function useShareLinkRequest({
 }) {
   // Roadmap 018: applied-once bookkeeping for an incoming share `simRequest`.
   const appliedSimNonce = useRef<number | null>(null);
+  // Roadmap 068 review: the result this effect saw last time it looked, which
+  // is what "already on screen when the request arrived" means below. Null
+  // until the first look.
+  //
+  // A request that names no result is waiting for one it predates, and the two
+  // ways its link can have produced none are both answered by that: the run
+  // threw, so the verdict that was up stays up and is exactly what this ref
+  // holds — the run the user gets after fixing the config is a different object;
+  // or the run returned a trace with no effective config, and the panel is not
+  // mounted for such a result at all (ResultsColumn renders an empty note), so
+  // the run that fixes it mounts this hook fresh and is its first look.
+  //
+  // Ninth review, verified and deliberately not rewritten a fourth time — with
+  // the two edges the identity test does have, neither of which drops a request:
+  //  - the panel's mount can LAG the result, since the results column is a lazy
+  //    chunk. A first look is therefore a result that postdates the request only
+  //    because runs are serial: a request in hand means the link's own run has
+  //    settled, so the mounting result is either that run's or a later one —
+  //    unless the chunk is STILL downloading a whole run later, the one window
+  //    in which a first look could be an older verdict.
+  //  - both refs die with the panel, and the panel unmounts on any run without
+  //    an effective config. A request that names a result survives that intact
+  //    (no later result can equal it); one that names none is applied again on
+  //    the next mount, to a form the unmount had already emptied.
+  const seenResult = useRef<TraceResult | null>(null);
 
   useEffect(() => {
+    const previouslySeen = seenResult.current;
+    seenResult.current = result;
     if (!simRequest || appliedSimNonce.current === simRequest.nonce || !result.finalConfig) {
+      return;
+    }
+    // The attribution rule (see `use-share-link.ts` for why it is this and not
+    // a timing flag): a request goes to the result its own link produced. When
+    // that run produced one the request names it, so the test is literal
+    // identity; when it produced none — it failed, or the config the link
+    // shipped never parsed, and either way there is nothing here to simulate
+    // against — the request waits for a result it predates, the run the user
+    // gets after fixing the config, since a newer link would have replaced
+    // this request rather than let it wait. Neither branch can pick the
+    // verdict that was already on screen when the link arrived.
+    const isOwnResult =
+      simRequest.ranResult === null ? result !== previouslySeen : result === simRequest.ranResult;
+    if (!isOwnResult) {
       return;
     }
     appliedSimNonce.current = simRequest.nonce;

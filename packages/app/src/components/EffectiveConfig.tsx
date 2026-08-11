@@ -1,4 +1,5 @@
 import { memo, type RefObject, useEffect, useMemo, useRef, useState } from "react";
+import { openPickerOnEnter } from "@/lib/select-picker";
 import type {
   KeyProvenance,
   ProvenanceStep,
@@ -448,6 +449,7 @@ function ProvFilters({
       />
       <select
         aria-label="Filter keys by layer"
+        onKeyDown={openPickerOnEnter}
         value={layerFilter}
         onChange={(e) => onLayerFilterChange(e.target.value)}
       >
@@ -539,6 +541,7 @@ function ResolvedOptionsRow({
       </label>
       <select
         id="resolved-expand"
+        onKeyDown={openPickerOnEnter}
         value={expand}
         onChange={(e) => onExpandChange(e.target.value as ResolvedConfigMode)}
       >

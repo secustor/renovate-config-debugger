@@ -1,4 +1,6 @@
 import { CopyButton } from "@/components/CopyButton";
+import { openPickerOnEnter } from "@/lib/select-picker";
+import { formatShortcut, RUN_SHORTCUT } from "@/lib/shortcuts";
 
 /**
  * Roadmap 040 — the config column's action row: file name, revert, the
@@ -40,6 +42,9 @@ export function ConfigToolbar({
   onRunIntent,
   onCopyLink,
 }: Props) {
+  // Read once per render, not memoized: `formatShortcut` is two string
+  // comparisons and a join, and the platform cannot change mid-session.
+  const runHint = formatShortcut(RUN_SHORTCUT);
   return (
     <div className="toolbar">
       {/* Roadmap 039: `.ctl` gives form controls the same metrics as
@@ -49,6 +54,7 @@ export function ConfigToolbar({
         aria-label="Config file name"
         value={fileName}
         onChange={(e) => onFileNameChange(e.target.value)}
+        onKeyDown={openPickerOnEnter}
       >
         <option value="renovate.json">renovate.json</option>
         <option value="renovate.json5">renovate.json5</option>
@@ -84,6 +90,12 @@ export function ConfigToolbar({
           </button>
         </span>
       ) : null}
+      {/* Roadmap 068: the shortcut's visible home. A binding that lives only
+          in a keyboard-shortcut document does not exist — so it is printed on
+          the control it duplicates, in the platform's own spelling, and named
+          in the title for anyone who hovers instead. The `<kbd>` hides itself
+          on narrow viewports (index.css), where the row is tight and the
+          shortcut is least likely to be usable anyway. */}
       <button
         type="button"
         className="btn primary"
@@ -91,9 +103,12 @@ export function ConfigToolbar({
         onPointerEnter={onRunIntent}
         onFocus={onRunIntent}
         disabled={running}
-        title="Process this config with Renovate's own code — it never leaves your browser"
+        title={`Process this config with Renovate's own code — it never leaves your browser (${runHint})`}
       >
         {running ? "Running…" : "Run"}
+        <kbd className="btn-kbd" aria-hidden="true">
+          {runHint}
+        </kbd>
       </button>
       {/* Roadmap 036: the shared copy affordance. `buildShareLinkAndCopy`
           writes the clipboard itself (it also mirrors the URL into the

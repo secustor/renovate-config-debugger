@@ -1,5 +1,6 @@
 import {
   lazy,
+  type MouseEvent,
   Suspense,
   useCallback,
   useDeferredValue,
@@ -27,7 +28,9 @@ import { UntrustedHostBanner } from "@/UntrustedHostBanner";
 import { legacyTabForView, type ResultsTabId } from "@/data/results-tabs";
 import { OptionDocsProvider } from "@/components/option-docs";
 import { buildPresetLookup, type PresetHoverContext } from "@/lib/preset-hover";
-import { motionScrollToOptions } from "@/lib/motion";
+import { flashTarget, motionScrollOptions, motionScrollToOptions } from "@/lib/motion";
+import { SELECTED_PRESET_ROW } from "@/lib/preset-row-dom";
+import { tabButtonSelector } from "@/lib/results-tab-dom";
 import { findPackageRuleOffsets } from "@/lib/rule-locate";
 import { useRuleProvenance } from "@/hooks/rule-provenance";
 import {
@@ -49,6 +52,18 @@ import {
 } from "@/platform/run";
 import type { ShareSimulator, ShareState, ShareView, UntrustedEndpointGuard } from "@/lib/share";
 import { useBackToTopVisible, useHomeEndPageScroll } from "@/hooks/scroll-ergonomics";
+import type { LandingTicket } from "@/lib/focus-landing";
+import { focusHolder, useFocusLanding } from "@/hooks/use-focus-landing";
+import { useShortcut } from "@/hooks/use-shortcut";
+import { useTabDigits } from "@/hooks/use-tab-digits";
+import { ShortcutSheet } from "@/components/ShortcutSheet";
+import {
+  FOCUS_EDITOR_SHORTCUT,
+  FOCUS_RESULTS_SHORTCUT,
+  HELP_SHORTCUT,
+  RUN_AND_READ_SHORTCUT,
+  RUN_SHORTCUT,
+} from "@/lib/shortcuts";
 import { isValidEndpoint, isValidPlatform, parseLayerJson } from "@/lib/input-schemas";
 import { PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
 import {
@@ -64,6 +79,7 @@ import { useRepoLoad } from "@/hooks/use-repo-load";
 import { useRunSummary } from "@/hooks/use-run-summary";
 import { useShareLink } from "@/hooks/use-share-link";
 import type { RunInputs } from "@/lib/run-inputs";
+import { createRunQueue, type RunQueue } from "@/lib/run-queue";
 
 const DEFAULT_CONFIG = `{
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
@@ -115,7 +131,9 @@ const ResultsColumn = lazy(() =>
  */
 function ResultsPane(props: ResultsColumnProps) {
   return (
-    <div className="results-col" ref={props.resultsColRef}>
+    // Roadmap 068: `id`/`tabIndex` are the skip link's target — see the
+    // config column's matching pair.
+    <div className="results-col" id="results-column" tabIndex={-1} ref={props.resultsColRef}>
       {/* Roadmap 031: the results chunk is preloaded at idle and on Run
           intent, so this fallback is a formality — and once the lazy module
           has resolved, re-renders never suspend, so the mounted shell (and all
@@ -144,6 +162,36 @@ function AppBrand() {
 function preloadRunChunks(): void {
   preloadEngine();
   void import("@/ResultsColumn").catch(() => {});
+}
+
+/**
+ * Roadmap 068: the tab the strip currently shows as chosen — where "take me to
+ * the results" lands (`focusResults`), and the one element there that announces
+ * where you are.
+ *
+ * Reaching for it by SELECTOR at all, because nothing on this side of the lazy
+ * results boundary holds a handle to it. Spelled out here, unlike the other two
+ * elements the landings find (`results-tab-dom.ts` for a named tab button,
+ * `preset-row-dom.ts` for the selected preset row), because this one is not a
+ * class or an attribute anyone chose: `aria-selected="true"` on a `role="tab"`
+ * is the ARIA tablist pattern itself, which `ResultsPanel` cannot rename without
+ * ceasing to be one.
+ */
+const SELECTED_RESULTS_TAB = '[role="tab"][aria-selected="true"]';
+
+/** What a caller may ask of a run. Every request reaches the queue except one
+ *  refused before it starts, by layers that would not parse — see `onRun`. */
+interface RunOptions {
+  preserveScroll?: boolean;
+  /** Leave the results tab where the reader put it. For the runs asked for from
+   *  INSIDE the results — see `executeRun`, where 028's landing lives. */
+  keepTab?: boolean;
+  suppressTokens?: boolean;
+  /** Roadmap 068, ninth review: what this run's spoken outcome LEADS with, when
+   *  what asked for the run is a fact of its own — "Fix applied, re-ran" rather
+   *  than the "Run finished" every run defaults to. The counts after the lead
+   *  are the same sentence either way (see the announcement effect). */
+  outcomeLead?: string;
 }
 
 type InjectionMap = Record<string, Record<string, unknown>>;
@@ -217,6 +265,14 @@ export function App() {
   // interruptible instead of blocking the main thread.
   const deferredStage = useDeferredValue(selectedStage);
   const [fatal, setFatal] = useState<string | null>(null);
+  // Roadmap 068: the banner carries two kinds of message and they expire
+  // differently. A RUN's own failure is answered by the next run's outcome. A
+  // message about something that never ran — a config layer that would not
+  // parse, a repo load that failed — is not, because the run it happened to
+  // race is no answer to it. This counter stamps the second kind (see
+  // `applyFatal`), and a run only clears a banner whose stamp it was already
+  // carrying when it was requested.
+  const fatalSeqRef = useRef(0);
   // Non-fatal notices (version drift, load-from-repo results).
   const [notice, setNotice] = useState<string | null>(null);
   // Security 2026-07-25: set while the platform context in force came from a
@@ -239,6 +295,20 @@ export function App() {
   // consequence ("re-ran: 0 errors") without yanking the user's scroll around.
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
+  // Roadmap 068: what the polite live region at the bottom of the tree is
+  // saying about the last run. Declared up here with the other run state
+  // because the two outcomes that produce no result — a refusal (`onRun`) and a
+  // run that threw (`executeRun`) — announce themselves the moment they happen,
+  // while the success sentence is composed by an effect far below, once
+  // `useRunSummary` has counted the result it describes.
+  const [runAnnouncement, setRunAnnouncement] = useState("");
+  const announcementSeq = useRef(0);
+  // Roadmap 068, ninth review: how the NEXT committed result's sentence starts
+  // (`RunOptions.outcomeLead`). Written by `executeRun` immediately before the
+  // commit it describes and read by the effect that commit triggers — never
+  // consumed, because every commit rewrites it, which is what keeps it about the
+  // result on screen rather than about the last run that happened to set one.
+  const outcomeLeadRef = useRef<string | null>(null);
   const [optionIndex, setOptionIndex] = useState<OptionIndex | null>(null);
   // Roadmap 014: curated validator-message translations + suggested fixes,
   // loaded lazily alongside the option index (same engine chunk).
@@ -272,6 +342,9 @@ export function App() {
   // Roadmap 028: the results pane, so a Run on a stacked (narrow) viewport can
   // scroll its consequence into view instead of appearing to do nothing.
   const resultsColRef = useRef<HTMLDivElement>(null);
+  // Roadmap 068, eighth review: the config half, for the one question 028's
+  // landing turns on — see `gestureWantsResultsLanding`.
+  const configColRef = useRef<HTMLDivElement>(null);
   const focusResultsRef = useRef(false);
   // Roadmap 016: End/Home always scroll the page, never a nested card's own
   // scroll box; a back-to-top button appears once the page has scrolled down.
@@ -350,6 +423,24 @@ export function App() {
     setBackTab(null);
   }, []);
 
+  /**
+   * Roadmap 068: the tab strip's arrows, which SELECT (see `ResultsPanel`) —
+   * but a walk along the strip is not the same act as choosing a tab, which is
+   * what `setTab` above is defined by and why it clears the cross-link trail.
+   * Keeping the trail is the whole reason this is not just `setTab`: a reader
+   * sent to Presets by a provenance chip can look at the next instrument along
+   * without the one-step way back disappearing from under them.
+   *
+   * Landing back ON the origin ends the trail, because at that point the trail
+   * has been walked — leaving it would offer "← Back to Overview" to a reader
+   * already on the Overview.
+   */
+  const walkToTab = useCallback((next: ResultsTabId) => {
+    tabRef.current = next;
+    setTabState(next);
+    setBackTab((from) => (from === next ? null : from));
+  }, []);
+
   /** Roadmap 028: a programmatic jump (a cross-instrument link, an Overview
    *  pill) — records where the user was so one click returns them. */
   const jumpToTab = useCallback((next: ResultsTabId) => {
@@ -387,6 +478,14 @@ export function App() {
   selectPresetNodeRef.current = (nodeId: string) => {
     setSelectedNodeId(nodeId);
     jumpToTab("presets");
+    // Roadmap 068: …and land on the node, like every other cross-link. For the
+    // two activators that live in a results panel (a provenance chip, a
+    // simulator rule) that includes the focus: the tab switch marks their panel
+    // `hidden` in the very same commit, the browser blurs them, and without a
+    // landing the user's next Tab restarts at the top of the document. The
+    // editor's preset hover is the third and keeps its caret — see
+    // `jumpDisplacedFocus`.
+    landOnPresetNode();
   };
   const selectPresetNode = useCallback((nodeId: string) => {
     selectPresetNodeRef.current?.(nodeId);
@@ -503,7 +602,9 @@ export function App() {
     loadConfigText,
     setFileName,
     setNotice,
-    setFatal,
+    // A load that failed is a message about something that never ran, so it is
+    // stamped and a run already in flight leaves it alone (see `applyFatal`).
+    setFatal: applyFatal,
     blockedByLayerErrors,
     applyUntrustedGuard,
     untrustedGuardRef,
@@ -594,25 +695,68 @@ export function App() {
     }
   }, [result, setTab]);
 
+  /**
+   * Roadmap 068: the banner for everything that did NOT run — a layer that
+   * would not parse, a repo load that failed. Stamping it (`fatalSeqRef`) is
+   * what keeps it on screen: a run already in flight when the user clicked
+   * Inject is not an answer to "the global config is not valid JSON", and
+   * before this it wiped that message on its way past, leaving the injection
+   * looking like it had silently done nothing.
+   *
+   * A run's own failure goes through `setFatal` directly, unstamped, because
+   * the next run's outcome genuinely does supersede it.
+   *
+   * Roadmap 068, eighth review: and it is raised so that it is HEARD. The banner
+   * is a `role="alert"` (ConfigColumn), which speaks when its text changes — so
+   * raising the identical message twice, which is exactly what a second attempt
+   * at the same unfixed thing does, was silent, and React does not even
+   * re-render for it. The invisible alternating space is the same device the run
+   * announcement uses, for the same reason: it makes every raise a change. The
+   * case that needs it is the repeat that nothing else speaks for — a repo load
+   * that fails the same way twice. (A refused RUN is also announced as an
+   * outcome by `onRun`; the two say different things, WHAT is wrong and what
+   * became of the keystroke, and neither is the other's echo.)
+   */
+  const fatalSpacerRef = useRef(false);
+  function applyFatal(next: string | null) {
+    if (next === null) {
+      setFatal(null);
+      return;
+    }
+    fatalSeqRef.current += 1;
+    fatalSpacerRef.current = !fatalSpacerRef.current;
+    setFatal(fatalSpacerRef.current ? `${next} ` : next);
+  }
+
+  /** Roadmap 068: one sentence into the polite live region — the run's outcome
+   *  for anyone not watching the screen, since a finished run deliberately does
+   *  not move focus. A live region only speaks when its text CHANGES, and two
+   *  runs of the same config produce the same sentence, so an invisible
+   *  non-breaking space alternates to make every run a mutation. */
+  function announceRun(sentence: string) {
+    announcementSeq.current += 1;
+    setRunAnnouncement(announcementSeq.current % 2 === 0 ? `${sentence} ` : sentence);
+  }
+
   // An unparseable 008 layer never silently runs without it — block instead.
   // Roadmap 030: the same gate gets a matching case for the endpoint field
   // (the one point where the manually-typed endpoint is enforced — see
   // `isValidEndpoint`'s doc comment) since it feeds `buildInputs` unchecked.
   function blockedByLayerErrors(): boolean {
     if (globalParse.error) {
-      setFatal(
+      applyFatal(
         `The global config is not valid JSON (${globalParse.error}). Fix it or clear the field to run.`,
       );
       return true;
     }
     if (inheritedParse.error) {
-      setFatal(
+      applyFatal(
         `The inherited config is not valid JSON (${inheritedParse.error}). Fix it or clear the field to run.`,
       );
       return true;
     }
     if (endpoint && !isValidEndpoint(endpoint)) {
-      setFatal(
+      applyFatal(
         `The endpoint "${endpoint}" is not an http(s) URL. Fix it or clear the field to run.`,
       );
       return true;
@@ -635,43 +779,162 @@ export function App() {
     };
   }
 
+  /** Roadmap 068: the queue every run goes through — one run on the engine at a
+   *  time, commits in request order, and `running` true from the first run
+   *  joining to the last one leaving. Its decisions live in `lib/run-queue.ts`,
+   *  where they are unit-tested; what is left here is what a run IS. Built once
+   *  and kept in a ref, since `setRunning` is stable and the queue's own state
+   *  must survive every render. */
+  const runQueueRef = useRef<RunQueue<TraceResult | null> | null>(null);
+  const runQueue = (runQueueRef.current ??= createRunQueue<TraceResult | null>(setRunning));
+
+  /**
+   * Roadmap 068: the ONE place a run is started — and, since the 2026-08-11
+   * review's follow-up, a SERIAL QUEUE rather than a gate.
+   *
+   * The gate came first: a run requested while one was in flight returned null.
+   * That fixed ⌘⏎ auto-repeat and broke every caller that mutates state BEFORE
+   * it runs. Apply fix has already rewritten the editor; a preset injection has
+   * already marked the node injected; a share link has already replaced the
+   * config, the file name, the platform and the layers. For those, "no run" is
+   * not "nothing happened" — it is results, an effective config and a simulator
+   * all describing a config that is no longer the one on screen, with no marker
+   * saying so. So nothing is dropped any more: a run arriving mid-run waits for
+   * the one in flight and then executes, returning its own result to its own
+   * caller.
+   *
+   * Nor is anything coalesced BY ENTRY POINT any more, which is where round
+   * three went wrong. A `coalesce` opt-out let the callers that mutate nothing
+   * first — the Run button, the two chords, "Run again" — decline a run while
+   * one was in flight, on the reasoning that a second "run this config" asks for
+   * what is already happening. Between two presses the user edits: press ⌘⏎, fix
+   * the typo the first run is about to report, press ⌘⏎ again, and the second
+   * press was swallowed while the editor's handler still claimed the chord, so
+   * nothing queued, nothing said so, and the results that landed described the
+   * pre-edit text. Where a request came FROM never did say whether it was a
+   * duplicate.
+   *
+   * Round seven's answer was to ask about the request itself: a request whose
+   * every field matched one already in flight (`runRequestKey`) was handed that
+   * run's promise instead of queueing. The eighth review deleted it, and the two
+   * defects it found are why this comment now ends with a rule that has no
+   * exceptions:
+   *
+   * - the key could only ever fold correctly while it stayed exhaustive over
+   *   every input a run reads, and the host tokens are not inputs — `run()`
+   *   takes them at fetch time. Paste a token into the Advanced zone while a
+   *   run against a private preset host resolves and press ⌘⏎: every field
+   *   matched, so the retry folded into the TOKENLESS run, and its "unauthorized"
+   *   came back looking like a rejected token;
+   * - and folding into "a run with this key" is not the same as folding into the
+   *   LAST one. C1 running, edit to C2 and queue it, undo back to C1 and press
+   *   again: the key matched the C1 run still in flight, so nothing was queued,
+   *   and C2's commit landed last — the editor holding C1 while the results
+   *   described C2, with no marker saying so.
+   *
+   * What the fold bought was three deliberate ⌘⏎ on an unchanged config costing
+   * one run instead of three. That is not a defect worth two of these: the runs
+   * are serial rather than concurrent, they produce the identical screen, and
+   * the two things that made a repeat press GALLING are fixed at their own
+   * sources — the results tab is no longer yanked from a reader inside the
+   * results (`keepTab`, via `gestureWantsResultsLanding`), and one HELD key is
+   * one run, declined by `KeyboardEvent.repeat` in `use-shortcut.ts` and in
+   * `run-keymap.ts` (plus `disabled={running}` on the button). Three deliberate
+   * presses asking for three runs is simply what they asked for.
+   *
+   * So: every request runs, in the order it was made, one at a time. Nothing is
+   * dropped and nothing is folded.
+   */
   async function onRun(
     overrideInjected?: InjectionMap,
     overrideInputs?: RunInputs,
-    opts?: { preserveScroll?: boolean; keepTab?: boolean; suppressTokens?: boolean },
+    opts?: RunOptions,
   ): Promise<TraceResult | null> {
     const injectedPresets = overrideInjected ?? injected;
     if (!overrideInputs && blockedByLayerErrors()) {
+      // Roadmap 068 review: a refusal is an OUTCOME, and it has to be said out
+      // loud for the same reason `executeRun`'s catch says "Run failed." — ⌘⏎
+      // deliberately moves no focus, so without this the app's primary shortcut
+      // was a dead key to anyone not watching the screen: no announcement, no
+      // `Running…`, no result. This region owns run outcomes and says only that
+      // one: the keystroke registered, and nothing ran.
+      //
+      // WHAT is wrong stays the banner's to say, and since the eighth review it
+      // says it on every raise rather than only when the message changes (see
+      // `applyFatal`). The two are not echoes of each other — one names the
+      // broken layer, the other the fate of the keypress — which is why both
+      // still speak.
+      announceRun("Run blocked — see the error message in the config column.");
       return null;
     }
+    // Inputs and the credentials decision are both resolved HERE, before the
+    // wait, not inside the queued closure: a queued run has to carry the state
+    // its caller meant, and the guard that was in force for THOSE inputs.
     const inputs: RunInputs = overrideInputs ?? buildInputs();
-    setRunning(true);
-    setFatal(null);
+    // Security 2026-07-25: EVERY run while the guard stands — a manual Run
+    // click, an injection or apply-fix re-run, the link's own auto-run — leaves
+    // the tokens behind. `opts.suppressTokens` is the explicit channel for
+    // `loadShareToken` (use-share-link.ts), whose own `setUntrustedGuard` has
+    // not committed to state yet when it starts this run.
+    const suppressTokens = opts?.suppressTokens === true || untrustedGuardRef.current !== null;
+    // …and so is the answer to "which banner is this run allowed to clear" —
+    // the one standing NOW. See `applyFatal`: a message raised while this run
+    // waits its turn describes something the user did after asking for it, and
+    // survives it.
+    const fatalSeq = fatalSeqRef.current;
+    // Everything this run and its commit depend on is now resolved, so the
+    // queue only has to hold the run itself: the wait cannot change it.
+    return await runQueue.enqueue(() =>
+      executeRun(inputs, injectedPresets, suppressTokens, fatalSeq, opts),
+    );
+  }
+
+  /** One run, once its turn on the queue comes. Never rejects: a failure is a
+   *  fatal-error banner and a null result, which is what `onRun`'s callers
+   *  already branch on. */
+  async function executeRun(
+    inputs: RunInputs,
+    injectedPresets: InjectionMap,
+    suppressTokens: boolean,
+    fatalSeq: number,
+    opts?: RunOptions,
+  ): Promise<TraceResult | null> {
     try {
-      const traceResult = await run(
-        { ...inputs, injectedPresets },
-        // Security 2026-07-25: EVERY run while the guard stands — a manual Run
-        // click, an injection or apply-fix re-run, the link's own auto-run —
-        // leaves the tokens behind. `opts.suppressTokens` is the explicit
-        // channel for `loadShareToken` (use-share-link.ts), whose own
-        // `setUntrustedGuard` has not committed to state yet when it starts
-        // this run.
-        { suppressTokens: opts?.suppressTokens === true || untrustedGuardRef.current !== null },
-      );
+      // Only the banner this run was requested against — anything stamped
+      // since belongs to something the user did later, which this run did not
+      // do and cannot answer.
+      if (fatalSeqRef.current === fatalSeq) {
+        setFatal(null);
+      }
+      const traceResult = await run({ ...inputs, injectedPresets }, { suppressTokens });
       // Roadmap 023: hold the current scroll so re-running an edited config
       // doesn't jump the user back to the top (captured right before the result
       // state commits, so an abandoned in-flight run can't pin a stale offset).
       preserveScrollRef.current = opts?.preserveScroll ? window.scrollY : null;
+      // Roadmap 068, ninth review: set HERE, one statement before the commit it
+      // belongs to, rather than by the caller before its `await`: runs are
+      // serial, so the run that commits next is always this one, and a lead
+      // armed by a caller could be spoken over by another run that reached its
+      // commit first. Cleared to null by every run that names none, so no
+      // sentence inherits the lead of the run before it.
+      outcomeLeadRef.current = opts?.outcomeLead ?? null;
       setResult(traceResult);
       const firstError = (Object.entries(traceResult.stageStatus) as [StageId, string][]).find(
         ([, status]) => status === "error",
       );
       setSelectedStage(firstError?.[0] ?? "preset");
       // Roadmap 028: a run lands on the short Overview — or straight on
-      // Problems when a stage errored, the tabbed equivalent of the old
-      // "select the first errored stage". `keepTab` is for re-runs the user
-      // triggered from inside an instrument (injecting a preset, applying a
-      // fix), which land themselves.
+      // Problems when a stage errored, the tabbed equivalent of the old "select
+      // the first errored stage". That landing belongs to the reader of the
+      // CONFIG column: they edited, they asked for a run, and this is where its
+      // answer starts. `keepTab` is every run that was not asked for from there
+      // — the re-runs triggered inside an instrument (injecting a preset,
+      // applying a fix), which land themselves, and since 068 made ⌘⏎ global,
+      // every press made outside the config column, which is where that
+      // landing's reader is (`gestureWantsResultsLanding`). A run that errors
+      // under a reader who stayed put still says so: the Problems badge counts
+      // it and the banner above the panels states it, neither of which moves
+      // anyone.
       if (!opts?.keepTab) {
         setTab(firstError ? "problems" : "overview");
       }
@@ -682,10 +945,17 @@ export function App() {
       void loadErrorTranslationLib().then(setErrorLib);
       return traceResult;
     } catch (err) {
+      // Unstamped (see `applyFatal`): the next run's outcome supersedes this one.
       setFatal(err instanceof Error ? `${err.name}: ${err.message}` : String(err));
+      // Roadmap 068: a failed run is still a FINISHED run, and ⌘⏎ deliberately
+      // leaves focus where it was — so without this the user who pressed the
+      // app's primary shortcut got no result, no focus move and a live region
+      // still reciting the run before it, which reads as a keystroke that never
+      // registered. Just the outcome: WHAT went wrong is the banner's to say,
+      // and it now says it as a `role="alert"` (ConfigColumn) rather than being
+      // announced twice here.
+      announceRun("Run failed.");
       return null;
-    } finally {
-      setRunning(false);
     }
   }
 
@@ -700,6 +970,17 @@ export function App() {
    * about it via the existing notice banner.
    */
   async function applyErrorFix(fix: ErrorFixResult) {
+    // Roadmap 068, eighth review: the landing's ticket, taken on the FIRST line
+    // — before the two awaits below, because the gesture it answers is the click
+    // on "Apply fix" and nothing after this point is the user acting. The run it
+    // waits for can take seconds, long enough for them to click into the editor,
+    // which is exactly what `landingWanted` is meant to notice. Armed inside
+    // `focusTab` instead — i.e. after the await — the ticket's `from` was that
+    // editor, so the test found focus precisely where "the gesture" had left it
+    // and took it away onto the Problems tab. Rewriting the document below
+    // dispatches no `input` event (`lib/focus-landing.ts` states this), so this
+    // ticket does not cancel itself.
+    const ticket = landing.arm();
     const lib = errorLib ?? (await loadErrorTranslationLib());
     const applied = lib.applyFixToText(content, fix);
     const nextContent = applied?.text ?? JSON.stringify(fix.fixedConfig, null, 2);
@@ -717,10 +998,21 @@ export function App() {
     const next = await onRun(undefined, buildInputs(nextContent), {
       preserveScroll: true,
       keepTab: true,
+      // Roadmap 068, ninth review: the fix's own outcome, said by the region
+      // that owns run outcomes. The toast below shows it to the reader watching
+      // the screen and is deliberately not a second live region.
+      outcomeLead: "Fix applied, re-ran",
     });
     if (next) {
       setSelectedStage("validate");
       setTab("problems");
+      // Roadmap 068: applying a fix IS a request to go look at something, so
+      // focus goes with the user — onto the Problems tab, the control that
+      // both names where they landed and starts the tab order of the panel
+      // holding the answer. The Apply-fix button they pressed is inside a
+      // panel this switch just marked `hidden`, so leaving focus there means
+      // dropping it on `<body>`.
+      focusTab("problems", ticket);
       const n = next.errors.length;
       showToast(
         `Fix applied — re-ran: ${n === 0 ? "0 errors" : `${n} error${n === 1 ? "" : "s"}`}`,
@@ -914,6 +1206,490 @@ export function App() {
     digest,
   } = useRunSummary(result, effectiveStats);
 
+  /**
+   * Roadmap 068: the `?` sheet is a modal dialog, so every global binding is
+   * inert while it is open — a key that acted on the page behind it would be
+   * acting on something the user cannot see. Declared here, above the first
+   * binding, because a binding registered above `keysLive` is a binding that
+   * silently opts out of that rule: ⌘⏎ was exactly that, and ran the pipeline,
+   * replaced the results and announced itself from behind the dialog.
+   *
+   * Threaded through every `enabled` rather than replaced by
+   * `modalKeyboardOwned()` (eighth review), which answers the same question
+   * globally. The two are not interchangeable and the difference is the point:
+   * `enabled` UNREGISTERS the listener, so the binding cannot fire, cannot claim
+   * the key with `preventDefault`, and cannot hand the browser a chord we own —
+   * whereas a module-state query can only decline inside a handler that has
+   * already run. It also has to be answered at render time to be a prop at all,
+   * which is what puts the rule in one visible place instead of once per
+   * listener. `modalKeyboardOwned()` stays the query for the handlers that have
+   * no props to be gated by (the Escape ladder, the 016 page scroll, the
+   * evidence card's light-dismiss).
+   */
+  const [shortcutSheetOpen, setShortcutSheetOpen] = useState(false);
+  const showShortcuts = useCallback(() => setShortcutSheetOpen(true), []);
+  const hideShortcuts = useCallback(() => setShortcutSheetOpen(false), []);
+  const keysLive = !shortcutSheetOpen;
+
+  /**
+   * Roadmap 068: what "the user asked for a run" means, in the one place its
+   * three entry points — ⌘⏎, ⌘⇧⏎ and the Run button — can share it. Both parts
+   * were written out three times, and the preload went missing from one of them
+   * for a whole review round.
+   *
+   * `preloadRunChunks` because the Run button warms the engine and results
+   * chunks on hover and focus (031) and a keypress has no hover: without it the
+   * download serializes behind the run. `preserveScroll` once a result exists,
+   * because a re-run answers an edit and must not throw the reader back to the
+   * top of the page.
+   *
+   * Returns the run's promise — ⌘⇧⏎ is the caller that has to know whether its
+   * run ever produced a result.
+   */
+  function runFromGesture(): Promise<TraceResult | null> {
+    preloadRunChunks();
+    return onRun(undefined, undefined, {
+      preserveScroll: Boolean(result),
+      keepTab: !gestureWantsResultsLanding(),
+    });
+  }
+
+  /**
+   * Roadmap 068 review: whether 028's landing — reset the results to Overview,
+   * or to Problems when a stage errored — belongs to the gesture asking for this
+   * run. The question the reset always depended on and never had to ask, because
+   * before 068 the only way to reach Run was to leave the results.
+   *
+   * ⌘⏎ is global, so it stopped being safe to assume: pressing it while reading
+   * Effective config, Presets or the simulator replaced that panel with the
+   * Overview a second later, and `setTab` clears `backTab` on its way, so the
+   * cross-link that brought the reader there was gone with it.
+   *
+   * The rule is the one 028 stated: **that landing belongs to the reader of the
+   * CONFIG column** — they edited, they asked for a run, and the Overview is
+   * where its answer starts. So this asks whether the gesture was made there,
+   * and everything else keeps the tab it was on. Focus genuinely nowhere counts
+   * as the config column's: it is the state before anyone has touched anything,
+   * where the first run's landing is the whole point, and it is where a click on
+   * the Run button leaves Safari.
+   *
+   * Asked the other way round — "is focus inside the RESULTS column?" — until
+   * the eighth review, which is the same question only while the results are
+   * entirely inside their column, and they are not: the rule-evidence card
+   * (which takes focus in its own effect) and the simulator's return pill are
+   * both portalled to `<body>` (035). A ⌘⏎ from inside the evidence card
+   * therefore read as "outside the results" and threw the reader to the
+   * Overview, back affordance cleared, card left explaining a rule that was no
+   * longer rendered. Enumerating those overlays here would work exactly until
+   * the next one is added — the failure mode the deleted request-fold key was
+   * retired for — while the config column has no portals and is one containment
+   * test that cannot go stale.
+   *
+   * What changed for gestures made in neither column (the header, a skip link):
+   * they now keep the tab instead of resetting it. That is the honest reading of
+   * the rule — nobody in the header is reading the config — and it is the safe
+   * direction besides: a run that errors under a reader who stayed put still
+   * says so through the Problems badge and the banner above the panels.
+   */
+  function gestureWantsResultsLanding(): boolean {
+    // `focusHolder`, not a second reading of `document.activeElement`: "holds
+    // nothing" is `<body>` as often as it is null (the browser drops focus to
+    // the body when the element holding it is hidden, Safari leaves it there
+    // after a click on a button), and the landings' own `from` is that same
+    // collapse — one spelling, in `hooks/use-focus-landing.ts`.
+    const active = focusHolder();
+    if (active === null) {
+      return true;
+    }
+    const column = configColRef.current;
+    return column !== null && column.contains(active);
+  }
+
+  /**
+   * Roadmap 068: ⌘⏎ (Ctrl+Enter) runs the pipeline from anywhere on the page.
+   * Inside the editor the same chord is handled by CodeMirror instead
+   * (`run-keymap.ts`) — it has to be, or Renovate's config would gain a blank
+   * line every time someone ran it — and that handler marks the event handled,
+   * which is what keeps the two from both firing.
+   */
+  useShortcut(
+    RUN_SHORTCUT,
+    () => void runFromGesture(),
+    // Not gated on `running` any more, and that is the point of the fix above:
+    // ⌘⏎ has to mean the same thing wherever it is pressed, and inside the
+    // editor it cannot decline (declining hands the chord back to
+    // `insertBlankLine`). A second press after an edit therefore queues a run
+    // from the page exactly as it does from the editor, and the button's
+    // `disabled={running}` stays what it always was — the visible half, for the
+    // pointer. Auto-repeat is declined a layer lower, by `useShortcut`'s
+    // `KeyboardEvent.repeat` test; a deliberate second press is a second run,
+    // queued behind the first (`onRun` explains why it is no longer folded into
+    // it).
+    { enabled: keysLive },
+  );
+
+  /**
+   * Roadmap 068: the landing machinery every jump below goes through — the
+   * ticket a gesture takes, the animation-frame wait for a target that does not
+   * exist yet, and the question each landing has to answer before it moves
+   * anyone (`lib/focus-landing.ts`, where it is unit-tested).
+   */
+  const landing = useFocusLanding();
+
+  /**
+   * Roadmap 068: the app's two jump targets, defined once.
+   *
+   * The skip links and the tier-1 `e` / `r` keys both land through these, so a
+   * link and a key can never disagree about where "the editor" or "the results"
+   * is.
+   *
+   * The config target is the EDITOR, not the column: landing on the column
+   * (what the bare fragment jump did) put the reader on the pre-run welcome
+   * blurb with the editor still two tab stops away, which reads as the link
+   * having done nothing. Safe to drop someone into a text box now, because 068
+   * also stopped the editor from trapping Tab.
+   */
+  function focusEditor() {
+    configEditorRef.current?.focus();
+  }
+
+  /**
+   * The results equivalent: the tab strip is the first thing worth acting on
+   * there, and a focused tab announces which one is selected. This is the "take
+   * me to the results" gesture — it scrolls the column to the top of the
+   * window, which is the point of it. `focusTab` below is the half without the
+   * scroll, for the gestures that only meant to change tabs.
+   *
+   * `ticket` is passed in by the one caller whose gesture is older than this
+   * call: ⌘⇧⏎ arms the landing and the run commits it seconds later, so it is
+   * the press that has to be judged, not the commit. The immediate callers (the
+   * skip link, the `r` key) take their ticket here and land on the same frame,
+   * where nothing can have happened yet — they carry one only for the first
+   * run, when the strip is still a download away.
+   */
+  function focusResults(ticket: LandingTicket = landing.arm()) {
+    // The results half is a lazy chunk (031), so on the FIRST run neither the
+    // column nor its tab strip exists yet when ⌘⇧⏎ asks for them — hence the
+    // wait, and hence the fallback: once the budget is spent, land on the bare
+    // column rather than nowhere, because a chunk that never arrives is a
+    // failed run, not a focus problem. Looks on THIS frame first, so the
+    // ordinary case (a strip that already exists) lands without a flicker.
+    landing.whenReady({
+      ticket,
+      find: () => resultsColRef.current?.querySelector<HTMLElement>(SELECTED_RESULTS_TAB) ?? null,
+      land: (selectedTab) => {
+        const column = resultsColRef.current;
+        if (!column) {
+          return;
+        }
+        column.scrollIntoView(motionScrollOptions("start"));
+        (selectedTab ?? column).focus({ preventScroll: true });
+      },
+      frames: 12,
+      thisFrame: true,
+    });
+  }
+
+  /**
+   * Roadmap 068: focus one NAMED tab, without moving the page. The digit jump
+   * and the apply-fix landing both switch tabs and want focus to follow the
+   * switch — but neither asked to be taken anywhere: on a side-by-side viewport
+   * both columns are already fully visible, and `focusResults`' scroll would
+   * push the config the user is reading off the top of the screen for a
+   * keystroke that only meant "show me tab 3". The strip is scrolled only when
+   * it is genuinely off screen, since focus landing somewhere invisible is the
+   * one thing worse than a scroll nobody asked for.
+   *
+   * The button is found by `data-tab`, not by `aria-selected`, so this does not
+   * depend on the selection having committed — but it still starts on the next
+   * frame, because a tab that announces itself before the commit announces the
+   * selection it is about to lose. Same lazy-chunk retry budget as
+   * `focusResults`, and the same reason to give up rather than spin.
+   *
+   * And it stands down if the user has moved on in the meantime (the ticket —
+   * see `landingWanted`): `applyErrorFix` calls this after an AWAITED re-run, so
+   * the poll can start a second after the click, by which time a keyboard user
+   * has routinely Tabbed on or clicked into the editor. A landing that arrives
+   * late has no business overruling that. A newer landing is the exception it
+   * DOES yield to rather than fight: two digit keys inside one frame are one
+   * gesture chain, and the strip must end up selecting the tab that focus is on.
+   *
+   * Which is why the ticket is a PARAMETER (eighth review). Arming it in here
+   * made the gesture "whatever was going on when the poll started", and for the
+   * caller that waits a whole run that is the wrong moment by seconds: click
+   * Apply fix, click into the editor while it resolves, and the ticket's `from`
+   * was the editor the user had just moved to, so `landingWanted` saw nobody
+   * move and yanked focus out onto the Problems tab. Callers that land
+   * immediately keep the default and are unaffected; the one that waits arms
+   * before its `await`, the way ⌘⇧⏎ always did.
+   *
+   * It does NOT ask whether the jump displaced the focus it is taking, the way
+   * `landOnPresetNode` does: both callers are a request to be taken somewhere
+   * (a digit key names a tab; applying a fix asks "did the error go away?"),
+   * not a request to be shown something.
+   */
+  function focusTab(id: ResultsTabId, ticket: LandingTicket = landing.arm()) {
+    landing.whenReady({
+      ticket,
+      find: () => resultsColRef.current?.querySelector<HTMLElement>(tabButtonSelector(id)) ?? null,
+      land: (button) => {
+        if (!button) {
+          // The strip never appeared inside the budget. Rare but reachable: the
+          // results half is a lazy chunk (031), the digit keys go live the
+          // moment a result exists, and on a first run that chunk can still be
+          // downloading. Land on the column (`tabIndex={-1}`), the same fallback
+          // and the same reason as `focusResults`: every caller here has just
+          // switched tabs, and for the two whose activator lived in the panel
+          // that switch marked `hidden` (applying a fix, a preset cross-link)
+          // "no landing" means focus dropped on `<body>`, with the user's next
+          // Tab restarting at the top of the document. No scroll: this landing
+          // moves the page only when its target is off screen, and it has no
+          // target.
+          resultsColRef.current?.focus({ preventScroll: true });
+          return;
+        }
+        button.focus({ preventScroll: true });
+        const box = button.getBoundingClientRect();
+        if (box.top < 0 || box.bottom > window.innerHeight) {
+          button.scrollIntoView(motionScrollOptions("nearest"));
+        }
+      },
+      frames: 12,
+      thisFrame: false,
+    });
+  }
+
+  /**
+   * Roadmap 068: the preset tree's half of "every cross-link focuses its
+   * target" (`selectPresetNode` above is the caller). It waits longer than the
+   * other landings because the row takes three commits to exist: the tab
+   * switch, the ancestor expansion the new selection triggers, and the
+   * windowed list (011) scrolling the row into its rendered slice. Until all
+   * three have happened there is no element to focus at all — which is also
+   * why this asks the DOM for "the selected row" rather than being handed one.
+   *
+   * The row's name IS a button, so nothing needs `tabIndex={-1}` here. When the
+   * node never appears — a filter is applied, the flat list has no matching row
+   * — the budget runs out and a landing that is taking focus (see below) falls
+   * back to the Presets TAB. It
+   * cannot fall back to "where the user left it": the chip they activated was
+   * inside a panel `jumpToTab("presets")` marked `hidden` in the same commit, so
+   * that place stopped existing half a second ago and the focus with it. The tab
+   * is where `applyErrorFix` lands for the same reason — a real control, naming
+   * where you are, at the top of the panel's tab order.
+   *
+   * The 068 review split the landing in two, because its three activators do
+   * not all displace the focus they would be taking (`jumpDisplacedFocus`): the
+   * SHOWING half — scroll and flash — is what every activator asked for, while
+   * the FOCUS half is only for the ones whose own home the tab switch just hid.
+   * Spelled out rather than `landOnTarget`, which bundles all three together.
+   */
+  function landOnPresetNode() {
+    // Thirty frames is long enough for the user to have moved on; if they have,
+    // `whenReady` never calls this back — and not even the scroll is welcome
+    // then (068 review: a page that scrolls and flashes half a second after a
+    // click on some unrelated prose).
+    const ticket = landing.arm();
+    landing.whenReady({
+      ticket,
+      find: () => resultsColRef.current?.querySelector<HTMLElement>(SELECTED_PRESET_ROW) ?? null,
+      land: (row) => {
+        const takeFocus = landing.displaced(ticket);
+        if (!row) {
+          if (takeFocus) {
+            // The SAME ticket: this is still the one gesture the user made, and
+            // arming a second one here would only make this landing outrank
+            // itself (`armSeq`).
+            focusTab("presets", ticket);
+          }
+          return;
+        }
+        // "nearest", not "center": the tree already scrolled its own box to the
+        // row, so this is only about the card being on the page.
+        row.scrollIntoView(motionScrollOptions("nearest"));
+        flashTarget(row);
+        if (takeFocus) {
+          row.focus({ preventScroll: true });
+        }
+      },
+      frames: 30,
+      thisFrame: false,
+    });
+  }
+
+  function skipToConfig(event: MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+    focusEditor();
+  }
+
+  function skipToResults(event: MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+    focusResults();
+  }
+
+  /**
+   * Roadmap 068 tier 1. Bare `e` / `r` because the modified space is a
+   * minefield (⌘⇧E is Firefox's network panel, ⌘⇧C/I/J are devtools) while
+   * single letters are free — and `useShortcut` refuses to fire a bare key
+   * while the user is typing, which includes a focused `<select>`.
+   *
+   * Everything here is inert while the shortcut sheet is open, `keysLive`
+   * being declared above the first binding so it cannot be forgotten.
+   */
+  useShortcut(FOCUS_EDITOR_SHORTCUT, focusEditor, { enabled: keysLive });
+  useShortcut(FOCUS_RESULTS_SHORTCUT, () => focusResults(), {
+    enabled: keysLive && Boolean(result),
+  });
+  useShortcut(HELP_SHORTCUT, showShortcuts, { enabled: keysLive });
+
+  /**
+   * Roadmap 068: `⌘⇧⏎`'s landing, deferred to the commit the run itself
+   * produces. Focusing in the microtask right after `await onRun(…)` looked
+   * right and was not: React has not committed that run's own `setTab` yet, so
+   * on every re-run the "selected" tab the DOM still shows is the one from
+   * BEFORE the run — focus ended up on a button that a moment later was no
+   * longer `aria-selected` (a screen reader announcing a panel that is now
+   * hidden, and the strip's arrows moving from somewhere else entirely).
+   * `focusResults`' retry budget is no help there: it is spent only when there
+   * is no selected tab at all, and there always is one.
+   *
+   * ONE ticket, and it is the NEWEST press's — not a flag, and no longer a queue
+   * consumed one per commit.
+   *
+   * A flag was the first shape, and a review found what breaks it: press ⌘⇧⏎ on
+   * a config whose run will fail, fix it, press again while the first is still
+   * resolving, and the failed run cleared the flag its successor was relying on,
+   * so the second press silently degraded to a plain run. What that needed was
+   * IDENTITY — a run that never commits may withdraw its own request and no
+   * other — and the queue supplied it by carrying one ticket per press.
+   *
+   * The queue's other half — pairing the OLDEST ticket with the next commit —
+   * is gone, and the shape it left behind is the right one on its own terms.
+   * Position was never load-bearing: `landingWanted` rejects any ticket that is
+   * not the newest landing armed (`armSeq`), so an older one in the queue could
+   * only ever be consumed and thrown away, and pairing by position merely
+   * decided WHICH commit threw it away. Keeping only the newest says that
+   * outright; the identity check that mattered survives as `=== ticket` below.
+   */
+  const pendingResultLanding = useRef<LandingTicket | null>(null);
+  // The 032 latest-ref idiom, for the reason the dependency list below spells
+  // out: `focusResults` is redeclared every render, and an effect that depended
+  // on it would consume a pending landing on every render instead of on the
+  // commit the run produced.
+  const focusResultsFnRef = useRef(focusResults);
+  focusResultsFnRef.current = focusResults;
+  useEffect(() => {
+    const ticket = pendingResultLanding.current;
+    if (ticket) {
+      pendingResultLanding.current = null;
+      focusResultsFnRef.current(ticket);
+    }
+    // `result` alone IS the run's commit: `executeRun` dispatches `setResult`
+    // and the `setTab` beside it from the same continuation, so React commits
+    // them together and there is no state in between to wait for. `tab` was in
+    // this list too, which made ANY tab change consume the request — press
+    // ⌘⇧⏎, then a digit key or a tab while the engine was still resolving, and
+    // the landing fired against the run BEFORE it and was already spent by the
+    // time the one it belonged to committed.
+  }, [result]);
+
+  /**
+   * `⌘⇧⏎` — run AND go read it. Plain ⌘⏎ deliberately leaves focus alone, so
+   * this is the explicit "take me there" variant; the focus move waits for the
+   * run to actually produce a result.
+   *
+   * Where the line is (068 review), since this chord is the one gesture that
+   * asks to be taken somewhere it cannot go for seconds: **waiting is not
+   * moving on, typing is.** A user who pressed it and watched the spinner still
+   * wants the results when they arrive, caret in the editor and all — that IS
+   * what they asked for, and standing down would make the chord's whole
+   * difference from ⌘⏎ evaporate on a cold network. A user who has typed a
+   * character since has plainly gone back to editing, and the results now
+   * describe the text as it was before that character. So the ticket taken here
+   * is judged by `landingWanted`, whose typing test reads `input` events rather
+   * than focus — the caret never moved, which is exactly why nothing else can
+   * see it.
+   */
+  useShortcut(
+    RUN_AND_READ_SHORTCUT,
+    () => {
+      // Armed for the next result to COMMIT, which — if a run was already in
+      // flight when this was pressed — is that run's rather than this one's.
+      // Deliberate: both commits land in the same place, this chord's own run
+      // arrives there a moment later, and the alternative is the swallowed
+      // keypress `onRun` was just cured of.
+      const ticket = landing.arm();
+      pendingResultLanding.current = ticket;
+      void (async () => {
+        const traceResult = await runFromGesture();
+        if (!traceResult && pendingResultLanding.current === ticket) {
+          // This run will never commit, so its request has to go — otherwise it
+          // fires on whatever run comes next. Only if the outstanding request is
+          // still THIS press's: `onRun` refuses a run whose layers would not
+          // parse (`blockedByLayerErrors`) and returns null synchronously, ahead
+          // of everything already queued, so press ⌘⇧⏎, break the global-config
+          // JSON while it resolves, press it again, and clearing unconditionally
+          // would cancel the SECOND press's landing on the first press's
+          // failure.
+          pendingResultLanding.current = null;
+        }
+      })();
+    },
+    // Ungated for the same reason as ⌘⏎ above: a chord that silently declines
+    // is the defect, not the fix.
+    { enabled: keysLive },
+  );
+
+  /** `1`–`7` — straight to that results tab, by position in the strip. */
+  useTabDigits(
+    resultsTabs.length,
+    (index) => {
+      const target = resultsTabs[index];
+      if (!target) {
+        return;
+      }
+      setTab(target.id);
+      focusTab(target.id);
+    },
+    { enabled: keysLive && Boolean(result) },
+  );
+
+  /**
+   * Roadmap 068: a finished run does NOT move focus — the user may still be
+   * typing, and a share link can start a run they never asked for. It announces
+   * itself instead, and the skip link is how a keyboard user gets to the
+   * results in one keystroke.
+   *
+   * The counts come from `useRunSummary`, not from a second derivation, so this
+   * sentence can no more disagree with the tab badges than the 029 digest can.
+   *
+   * This half is only the runs that PRODUCED a result — it is keyed on
+   * `result`, which a run that threw never changes. `executeRun` announces that
+   * other half itself, through the same `announceRun`: it has nothing here to
+   * key on, and the silence was being read as a shortcut that never registered.
+   *
+   * Roadmap 068, ninth review: and it owns the whole sentence, lead included.
+   * The apply-fix toast used to be a second polite live region reciting this
+   * same run; making it visual-only left the fact only IT said — that the fix
+   * was applied at all — spoken by nobody, since "Run finished — no problems."
+   * is what any successful run says. So the run that answers a fix says so, in
+   * the one region that owns run outcomes (`RunOptions.outcomeLead`), and the
+   * toast stays the echo for the reader who is watching the screen.
+   */
+  useEffect(() => {
+    if (!result) {
+      return;
+    }
+    const problems = [
+      errorCount === 0 ? null : `${errorCount} error${errorCount === 1 ? "" : "s"}`,
+      warningCount === 0 ? null : `${warningCount} warning${warningCount === 1 ? "" : "s"}`,
+    ].filter((part) => part !== null);
+    const lead = outcomeLeadRef.current ?? "Run finished";
+    announceRun(`${lead} — ${problems.length === 0 ? "no problems" : problems.join(", ")}.`);
+    // `announceRun` is redeclared every render and deliberately not a
+    // dependency — it reads nothing but its own ref and state setter.
+  }, [result, errorCount, warningCount]);
+
   // The encode side of `useShareLink`'s copy-link path: assembles the CURRENT
   // state (config + view, optionally simulator inputs) for the share codec.
   // Tokens are never encoded (see share.ts); `sim` carries only dependency-
@@ -997,6 +1773,25 @@ export function App() {
   return (
     <OptionDocsProvider index={optionIndex}>
       <main>
+        {/* Roadmap 068: the first two tab stops on the page. Off-screen until
+            focused, and the results link exists only once there are results —
+            an offer to skip to nothing is worse than no offer.
+
+            Both handle their own jump instead of letting the browser follow the
+            fragment, for two reasons found by using them: a plain fragment jump
+            lands on the COLUMN — for the config that is the welcome blurb, not
+            the editor the link names — and it writes `#config-column` into the
+            address bar, which in this app is where a `#config=` share link
+            lives. The `href` stays for link semantics; the `id` targets stay as
+            its fallback. */}
+        <a className="skip-link" href="#config-column" onClick={skipToConfig}>
+          Skip to the config editor
+        </a>
+        {result ? (
+          <a className="skip-link" href="#results-column" onClick={skipToResults}>
+            Skip to the results
+          </a>
+        ) : null}
         {shareError ? (
           <div className="share-error-banner" role="alert">
             <strong className="share-error-banner-title">Shared link couldn’t be opened</strong>
@@ -1023,6 +1818,7 @@ export function App() {
             installUrl={INSTALL_URL}
             onSignIn={onSignIn}
             onSignOut={onSignOut}
+            onShowShortcuts={showShortcuts}
           />
         </header>
         <p className="subtitle">
@@ -1036,6 +1832,7 @@ export function App() {
             column simply keeps the full width. */}
         <div className={`app-split${result ? " has-results" : ""}`}>
           <ConfigColumn
+            columnRef={configColRef}
             hasResult={Boolean(result)}
             onTryExample={() => loadConfigText(EXAMPLE_CONFIG)}
             editorKey={editorKey}
@@ -1067,7 +1864,12 @@ export function App() {
             untrustedHost={untrustedGuard ? untrustedGuard.host : null}
             onTrustUntrustedHost={onTrustUntrustedHost}
             running={running}
-            onRun={() => void onRun(undefined, undefined, { preserveScroll: Boolean(result) })}
+            // Roadmap 031/068: the Run button AND the editor's ⌘⏎ come through
+            // here, so both get the chunk warm-up `runFromGesture` carries.
+            // `onRunIntent` is the button's own half — hover and focus, which a
+            // keypress does not have. Both imports are module-cached, so the
+            // button paying for the warm-up twice costs nothing.
+            onRun={() => void runFromGesture()}
             onRunIntent={preloadRunChunks}
             onCopyLink={onCopyLink}
             advancedZone={advancedZone}
@@ -1087,6 +1889,7 @@ export function App() {
               tabs={resultsTabs}
               tab={tab}
               onSelectTab={setTab}
+              onWalkTab={walkToTab}
               backTab={backTab}
               onBack={() => setTab(backTab ?? "overview")}
               validateHasErrors={validateHasErrors}
@@ -1139,11 +1942,31 @@ export function App() {
           ↑ Top
         </button>
       ) : null}
-      {toast ? (
-        <div className="rcv-toast" role="status" aria-live="polite">
-          {toast}
-        </div>
-      ) : null}
+      {/* Roadmap 068, eighth review: NOT a live region. Its only message is an
+          instrument-triggered re-run's outcome ("Fix applied — re-ran: 0
+          errors"), and the run region below announces the outcome of every run
+          including that one, so two polite regions were reciting one event in
+          sequence. It was never a dependable announcement in any case: it mounts
+          WITH its text, and a live region has to exist before its content
+          changes for the change to be announced — the rule the region below is
+          always-mounted for.
+
+          Ninth review: what that left unspoken was the one fact this toast
+          carried and the region below did not — that a FIX was applied, rather
+          than a run having finished, which is what that region said for this
+          re-run and for every other. So the toast did not get its role back; the
+          region got the lead of the sentence ("Fix applied, re-ran — no
+          problems.", via `RunOptions.outcomeLead`). One region owns the outcome,
+          spoken; this one shows it to the reader who is watching the screen
+          rather than listening to it. */}
+      {toast ? <div className="rcv-toast">{toast}</div> : null}
+      {shortcutSheetOpen ? <ShortcutSheet onClose={hideShortcuts} /> : null}
+      {/* Roadmap 068: the run's outcome for anyone not watching the screen.
+          Always mounted — a live region has to exist BEFORE its text changes
+          or the change is not announced. */}
+      <p className="visually-hidden" role="status" aria-live="polite">
+        {runAnnouncement}
+      </p>
     </OptionDocsProvider>
   );
 }

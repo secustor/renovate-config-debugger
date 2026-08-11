@@ -72,6 +72,7 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [065](065-persistent-sign-in.md)                        | Persistent sign-in: HttpOnly refresh-token cookie                 | M14                  | done     |
 | [066](066-header-account-menu.md)                       | Header session menu: account, theme and links in one corner       | M14                  | done     |
 | [067](067-semantic-release.md)                          | semantic-release: one version for every public package            | M16                  | done     |
+| [068](068-keyboard-ux.md)                               | Keyboard UX: ⌘⏎ to run, a bare-key jump layer, one Escape ladder  | M18                  | done     |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live
@@ -213,3 +214,23 @@ ever taken that is not a config), and 064 makes its claims honest — real
 Renovate compiles `matchStrings` with RE2, the browser falls back to
 native `RegExp`, and the two diverge in both directions — while answering
 the discussion's actual question.
+
+M18 — **Keyboard** — is 068, and it starts from an omission the feature
+milestones never noticed: the app is shaped like a keyboard tool — an editor
+and a tight edit → Run → read → edit loop — and Run was reachable only by
+pointer. Auditing for the shortcut turned up five defects underneath it, each
+verified in source rather than assumed: the editor trapped Tab
+(`@uiw/react-codemirror` defaults `indentWithTab` to true, and CodeMirror 6
+ships no way out — WCAG 2.1.2); `Mod-Enter` was already bound to
+`insertBlankLine` by the default keymap, so the obvious shortcut was not a free
+slot; the 028 tab strip announced `role="tablist"` while implementing none of
+the pattern it promises; Escape had three document listeners refereed by one
+DOM query; and Enter submitted the repo-load form but did nothing in the
+simulator's fields. The fix is one registry (`lib/shortcuts.ts`) that the page
+listener, the CodeMirror keymap and the hint printed on the Run button all
+derive from, one Escape stack, and — the rule the milestone is really about —
+cross-links that move FOCUS to what they scrolled to, not just the eye. A
+follow-up pass added the jump layer the two-pane shape asks for — bare `e` /
+`r` / `1`–`7` and `⌘⇧⏎` to run and read — plus the `?` sheet
+that eleven bindings made compulsory, and Enter opening a native `<select>`,
+which nobody noticed was missing until Tab stopped being trapped.

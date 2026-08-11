@@ -1,5 +1,6 @@
 import type { Dispatch, KeyboardEvent, SetStateAction } from "react";
-import { DATASOURCE_LIST_ID, MANAGER_LIST_ID } from "./datalist-ids";
+import { mayOwnNativePopup } from "@/hooks/scroll-ergonomics";
+import { DATASOURCE_LIST_ID, MANAGER_LIST_ID, SIM_FORM_ID } from "./datalist-ids";
 import { Field } from "./Field";
 import { type FormState, QUICK_FILLS } from "./form";
 import { MoreFieldsDrawer } from "./MoreFieldsDrawer";
@@ -54,6 +55,7 @@ export function SimulatorForm({
   moreFieldsOpen,
   onMoreFieldsToggle,
   onQuickFill,
+  onSubmit,
 }: {
   form: FormState;
   setForm: Dispatch<SetStateAction<FormState>>;
@@ -67,9 +69,68 @@ export function SimulatorForm({
   moreFieldsOpen: boolean;
   onMoreFieldsToggle: (open: boolean) => void;
   onQuickFill: (fill: Partial<FormState>) => void;
+  /** Roadmap 068: Enter in any field — the form owns the simulate action now,
+   *  and the Simulate button submits it from the actions row. */
+  onSubmit: () => void;
 }) {
   return (
-    <>
+    <form
+      id={SIM_FORM_ID}
+      aria-label="Dependency update to simulate"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit();
+      }}
+      // Roadmap 068 review: accepting a suggestion and submitting the form are
+      // two intents on one key. `datasource` and `manager` are native
+      // `<datalist>` comboboxes (047), so arrowing to `npm` and pressing Enter
+      // to TAKE it also fired implicit submission — a whole verdict against a
+      // descriptor the user had filled one field of, and one the 015 empty-form
+      // guard cannot catch, since that field is exactly what makes the form
+      // non-empty. In a combobox Enter belongs to the suggestion list, so the
+      // form declines to be submitted by it; every other field keeps Enter =
+      // Simulate, and so
+      // does the Simulate button (`type="submit"`, associated by `form=`, and
+      // outside this element's subtree — its own Enter never passes here).
+      //
+      // Declined for the whole field rather than only while the popup is up,
+      // because the popup's state is not observable — `mayOwnNativePopup` is
+      // where that is written down. The cost is one Tab: from `datasource`,
+      // Enter no longer simulates.
+      //
+      // 2026-08-11 review: does this ALSO cancel the datalist's own "take the
+      // highlighted suggestion" behaviour? Checked, not assumed: in Chrome,
+      // the Enter that accepts a highlighted `<datalist>` suggestion never
+      // dispatches keydown/keypress/keyup to this input at all — the
+      // WHATWG HTML tracking issue for exactly this (whatwg/html#2605) states
+      // Chrome fires none of those events for it, so this handler is never
+      // even invoked for that keystroke there; `preventDefault` on a keydown
+      // that never arrives cancels nothing. Firefox does dispatch the event,
+      // but its equivalent native list-control interaction — documented for
+      // `<select>` in Mozilla bugs 1428992 and 291082 — runs through a
+      // system-group listener that a page script's `preventDefault()`
+      // doesn't reach; datalist's suggestion popup is the same native
+      // list-selection machinery, so the same immunity is the reasonable
+      // expectation there too, though that inference is by architecture, not
+      // a datalist-specific report. Either way, what this handler declines is
+      // the IMPLICIT SUBMIT, not the pick.
+      onKeyDown={(e) => {
+        // A handler that claims Enter has to say WHICH Enter it means, and the
+        // first cut of this one did not. ⌘/Ctrl+⏎ is the app's Run chord (⌘⇧⏎
+        // runs and jumps), `useShortcut` bails on `defaultPrevented`, and the
+        // page listener sees this event after React's — so preventing the
+        // default of a modified Enter here left the primary shortcut of the app
+        // dead in exactly these two fields and nowhere else. Implicit submission
+        // is a BARE-Enter behavior, so the guard below never needed to see a
+        // modified one: declining what cannot happen only cost us the chord.
+        if (e.key !== "Enter" || e.metaKey || e.ctrlKey) {
+          return;
+        }
+        if (mayOwnNativePopup(e.target)) {
+          e.preventDefault();
+        }
+      }}
+    >
       <div className="sim-presets">
         {QUICK_FILLS.map(({ label, fill }) => (
           <button key={label} type="button" onClick={() => onQuickFill(fill)}>
@@ -130,6 +191,6 @@ export function SimulatorForm({
         open={moreFieldsOpen}
         onToggle={onMoreFieldsToggle}
       />
-    </>
+    </form>
   );
 }

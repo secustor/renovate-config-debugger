@@ -70,7 +70,13 @@ vi.mock("./features/editor/ConfigEditor", () => {
     ConfigEditorHandle,
     { fileName: string; value: string; onChange: (value: string) => void }
   >(function ConfigEditorStub({ value, onChange }, ref) {
-    useImperativeHandle(ref, () => ({ highlightOffset: () => undefined }), []);
+    // Roadmap 068 added `focus()` to the handle (the config skip link's
+    // landing); this stub has no CodeMirror view to focus, so it is a no-op.
+    useImperativeHandle(
+      ref,
+      () => ({ highlightOffset: () => undefined, focus: () => undefined }),
+      [],
+    );
     return (
       <textarea
         data-testid="editor-stub"

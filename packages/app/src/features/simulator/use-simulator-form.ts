@@ -1,5 +1,6 @@
 import { type Dispatch, type KeyboardEvent, type SetStateAction, useMemo, useState } from "react";
 import type * as EngineModule from "@renovate-config-debugger/engine";
+import { openPickerOnEnter } from "@/lib/select-picker";
 import { EMPTY_FORM, type FormState, UPDATE_TYPES } from "./form";
 
 export interface SimulatorForm {
@@ -58,6 +59,12 @@ export function useSimulatorForm(engineModule: typeof EngineModule | null): Simu
    * included, where this exactly mirrors what native stepping already did.
    */
   function updateTypeKeyDown(e: KeyboardEvent<HTMLSelectElement>) {
+    // Roadmap 068: `openPickerOnEnter` is a no-op here because this select
+    // lives inside `#simulator-inputs` (`select.form !== null`) — Enter keeps
+    // its native job of submitting the form, matching every other field in
+    // it. Composed here rather than on the element, because this handler
+    // already owns the select's keys.
+    openPickerOnEnter(e);
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") {
       return;
     }

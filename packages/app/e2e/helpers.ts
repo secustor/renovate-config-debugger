@@ -40,6 +40,39 @@ export function runButton(page: Page) {
   return page.locator(".toolbar button.primary");
 }
 
+/**
+ * Waits for a run that has been REQUESTED to finish.
+ *
+ * Roadmap 068 put a `<kbd>` shortcut hint inside the Run button, so its text is
+ * no longer exactly "Run"; what these waits mean is "no longer Running…".
+ *
+ * But the first version asserted only the absence of that text, and the ninth
+ * review round confirmed what two earlier rounds had refuted: an absence is
+ * already true BEFORE the run starts, so every assertion sequenced after this
+ * helper could resolve against the pre-run page. That is not a hypothetical —
+ * `19-keyboard.spec.ts`'s provenance-chip test was passing for exactly that
+ * reason, and the behaviour it was meant to pin (a run from inside the results
+ * keeps the tab) did not exist yet.
+ *
+ * So: wait for the button to enter `Running…` first, then leave it. The enter
+ * wait is short and non-fatal — a run against a warm engine can finish before
+ * Playwright looks, and the `disabled` attribute is the same signal from the
+ * other side — but between them they make "the run happened AND finished" the
+ * thing this asserts, rather than "no run is visible right now".
+ */
+export async function expectRunIdle(page: Page): Promise<void> {
+  await Promise.race([
+    expect(runButton(page))
+      .toContainText("Running", { timeout: 2_000 })
+      .catch(() => undefined),
+    expect(runButton(page))
+      .toBeDisabled({ timeout: 2_000 })
+      .catch(() => undefined),
+  ]);
+  await expect(runButton(page)).not.toContainText("Running", { timeout: 30_000 });
+  await expect(runButton(page)).toBeEnabled({ timeout: 30_000 });
+}
+
 /** Roadmap 028: the tabbed results shell — present only once a run exists. */
 export function resultsPanel(page: Page) {
   return page.locator(".results-panel");

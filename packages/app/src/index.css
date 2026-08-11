@@ -64,6 +64,9 @@
   /* The higher plane: hover/option cards, which float over content the user is
      reading rather than over the page as a whole. */
   --shadow-popover: 0 8px 24px light-dark(rgba(140, 149, 159, 0.3), rgba(0, 0, 0, 0.5));
+  /* Roadmap 068: what a modal dialog dims the page with. Lighter in light mode
+     — dark mode is already dark, so the same alpha would read as near-black. */
+  --backdrop: light-dark(rgba(31, 35, 40, 0.35), rgba(0, 0, 0, 0.6));
 
   /* The stacking ladder, stated in ONE place and in the order the app means:
      a floating pill hovers over the PAGE, a popover hovers over what the
@@ -4021,4 +4024,162 @@ main:has(.app-split.has-results) {
 /* The manual-override select sits where the derived line was. */
 .sim-form-updatetype {
   padding-top: 0.5rem;
+}
+
+/* ── Roadmap 068: keyboard UX ─────────────────────────────────────────────
+   The three pieces of chrome the keyboard needs and the pointer never sees:
+   the skip links, the run-completion live region, and the shortcut printed on
+   the control it duplicates. */
+
+/* The first tab stops on the page. Off-screen rather than `display: none`,
+   which would take them out of the tab order — the one thing they exist for. */
+.skip-link {
+  background: var(--surface-raised);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  color: var(--accent);
+  font-size: 0.8rem;
+  left: 0.5rem;
+  padding: 0.4rem 0.7rem;
+  position: fixed;
+  text-decoration: none;
+  top: -4rem;
+  z-index: var(--z-toast);
+}
+
+/* The slide-in is motion a keyboard user meets on the very first Tab press —
+   guarded the same way `session-menu-pop` is above: no transition property at
+   all outside the no-preference query, so `top` simply jumps under reduced
+   motion instead of animating. */
+@media (prefers-reduced-motion: no-preference) {
+  .skip-link {
+    transition: top 120ms ease;
+  }
+}
+
+/* `:focus`, not `:focus-visible` — a skip link must not depend on the UA's
+   keyboard heuristic. Browser back/forward focus restoration and a
+   programmatic `.focus()` both leave this the active element without
+   satisfying that heuristic, and a focused control rendered 4rem above the
+   viewport is exactly the invisible-focus outcome this document exists to
+   eliminate. */
+.skip-link:focus {
+  top: 0.5rem;
+}
+
+/* Announced, never shown. Not `display: none` / `visibility: hidden`: both
+   remove the text from the accessibility tree, which is where it is going. */
+.visually-hidden {
+  border: 0;
+  clip-path: inset(50%);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+/* The shortcut hint inside the Run button. Dim against the filled primary
+   surface, and gone on narrow viewports, where the row is tight and a physical
+   keyboard is least likely to be there. */
+.btn-kbd {
+  background: color-mix(in srgb, var(--on-accent) 18%, transparent);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.72rem;
+  line-height: 1;
+  padding: 0.15rem 0.3rem;
+}
+
+@media (max-width: 55rem) {
+  .btn-kbd {
+    display: none;
+  }
+}
+
+/* A cross-link now lands focus on its target (`landOnTarget`), so the targets
+   that are containers rather than controls need a ring of their own. */
+.sim-rule:focus-visible,
+.config-col:focus-visible,
+.results-col:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Roadmap 068 tier 1: the `?` shortcut sheet. A native <dialog>, so the
+   backdrop, focus trap and Escape are the browser's. */
+.shortcut-sheet {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-popover);
+  color: var(--ink);
+  max-height: 80vh;
+  max-width: min(34rem, 92vw);
+  padding: 1rem 1.15rem 1.25rem;
+}
+
+.shortcut-sheet::backdrop {
+  background: var(--backdrop);
+}
+
+.shortcut-sheet-head {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.shortcut-sheet-head h2 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.shortcut-section h3 {
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  margin: 0.9rem 0 0.35rem;
+  text-transform: uppercase;
+}
+
+.shortcut-row {
+  align-items: baseline;
+  border-top: 1px solid var(--border);
+  display: grid;
+  font-size: 0.82rem;
+  gap: 0.75rem;
+  grid-template-columns: 7.5rem 1fr;
+  padding: 0.3rem 0;
+}
+
+.shortcut-keys {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  padding: 0.1rem 0.35rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Roadmap 068: the key a menu row duplicates, printed at the row's right edge
+   the way a native menu prints it. Same `margin-left: auto` trick as the
+   out-of-app glyph, and the same optical baseline nudge. */
+.session-menu-item-kbd {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1.2;
+  margin-left: auto;
+  margin-top: 0.1rem;
+  padding: 0.05rem 0.3rem;
 }

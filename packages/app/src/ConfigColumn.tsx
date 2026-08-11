@@ -8,6 +8,10 @@ import { WelcomePanel } from "@/features/editor/WelcomePanel";
 import type { PresetHoverContext } from "@/lib/preset-hover";
 
 interface ConfigColumnProps {
+  /** Roadmap 068: the column element itself. App asks it one question — was the
+   *  gesture that requested a run made in here? — which decides whether the run
+   *  resets the results tab (`gestureWantsResultsLanding`). */
+  columnRef: RefObject<HTMLDivElement | null>;
   hasResult: boolean;
   onTryExample: () => void;
   // ConfigEditorCard
@@ -66,6 +70,7 @@ interface ConfigColumnProps {
  * renders, top to bottom.
  */
 export function ConfigColumn({
+  columnRef,
   hasResult,
   onTryExample,
   editorKey,
@@ -109,7 +114,10 @@ export function ConfigColumn({
   onDismissNotice,
 }: ConfigColumnProps) {
   return (
-    <div className="config-col">
+    // Roadmap 068: the skip link's target. `tabIndex={-1}` because a fragment
+    // jump to a non-focusable container moves the scroll but not the focus,
+    // which is the half that matters to a keyboard user.
+    <div className="config-col" id="config-column" tabIndex={-1} ref={columnRef}>
       {hasResult ? null : <WelcomePanel onTryExample={onTryExample} />}
 
       <ConfigEditorCard
@@ -118,6 +126,7 @@ export function ConfigColumn({
         fileName={fileName}
         value={value}
         onChange={onChange}
+        onRun={onRun}
         presetHover={presetHover}
         repoFormOpen={repoFormOpen}
         repoToggleRef={repoToggleRef}
@@ -152,7 +161,21 @@ export function ConfigColumn({
 
       {advancedZone}
 
-      {fatal ? <p style={{ color: "var(--error)" }}>{fatal}</p> : null}
+      {/* Roadmap 068: the one place a run that threw — or a run that was
+          refused before it started — says so, and ⌘⏎ deliberately leaves focus
+          in the editor, so a colour alone told a screen-reader user nothing at
+          all about the shortcut they had just pressed. The wrapper is always
+          mounted for the reason the run's live region is: a region announces a
+          CHANGE to something the reader is already watching. Empty, it renders
+          nothing and takes no space; the paragraph and its margins still come
+          and go with the message.
+
+          The other half of "a CHANGE" is the sender's: raising the identical
+          message twice — a repo load that fails the same way twice — is one
+          fact to this region and would be silent, so `App.applyFatal` makes
+          every raise a mutation. Nothing here can do that on its own; it never
+          learns the message was re-sent. */}
+      <div role="alert">{fatal ? <p style={{ color: "var(--error)" }}>{fatal}</p> : null}</div>
       {repoAuthHint ? (
         <GithubAuthHint
           authState={authState}
