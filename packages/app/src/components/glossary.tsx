@@ -80,6 +80,16 @@ function useHoverCard(entry: GlossaryEntry) {
   // page": `overlayKeyboardOwned()` reports exactly when it is not (a popover or
   // a menu is over the page), and there the press goes to the ladder, which
   // dismisses the layer the user chose to open — and usually the anchor with it.
+  //
+  // The RANK is the right question here, and the ninth review pushed back on it:
+  // `ambient` is excluded, so with the simulator return pill up a reader walking
+  // a thread — who has a focus-opened tooltip at most stops — needs two presses
+  // to dismiss the pill. That cost is real and it is the lesser one. Widening
+  // this to "any layer at all" was tried and reverted: it means a press aimed at
+  // the tooltip the reader is looking at instead destroys a pill they cannot see
+  // from here, leaving the tooltip up — an invisible destructive action, which is
+  // exactly what the sixth review fixed. A wasted keystroke is recoverable; a
+  // silently destroyed way back is not. The two tests below pin both directions.
   // That is the same ranking the ladder itself applies, asked rather than
   // joined: registering this card as a layer would make it a stack entry that
   // pushes and releases on every hover, and Escape would then dismiss a card the

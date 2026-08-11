@@ -1,5 +1,6 @@
 import type { PresetNode } from "@renovate-config-debugger/engine";
 import type { TreeStats } from "@/components/preset-tree-stats";
+import { presetTableRowClass } from "@/lib/preset-row-dom";
 import type { Row, SortColumn, TableRow } from "./rows";
 import { type InjectionKeyFn, ROW_HEIGHT } from "./tree-shared";
 import { TreeRow } from "./TreeRow";
@@ -111,7 +112,9 @@ function PresetTableRow({
   return (
     <button
       type="button"
-      className={`preset-table-row${selected ? " selected" : ""}`}
+      // Written through the module that also spells the selector App's landing
+      // finds this row by (`lib/preset-row-dom.ts`), same as the tree's rows.
+      className={presetTableRowClass(selected)}
       style={{ height: ROW_HEIGHT }}
       onClick={() => onSelect(row.node.id)}
     >

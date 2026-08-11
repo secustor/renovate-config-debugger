@@ -13,9 +13,10 @@ import type { Simulate } from "./use-simulation-run";
 export type { SimRequest };
 
 /**
- * Roadmap 018: apply a decoded share link's simulator inputs exactly once (by
- * nonce), to the result the link that carried them produced — the resolving
- * end of the attribution invariant stated in `hooks/use-share-link.ts`.
+ * Roadmap 018: apply a decoded share link's simulator inputs once (by nonce —
+ * `seenResult` below notes the one remount that can repeat it), to the result
+ * the link that carried them produced — the resolving end of the attribution
+ * invariant stated in `hooks/use-share-link.ts`.
  * Whether the link opened on mount or via hashchange never enters into it:
  * the request either names its result outright or is held until one arrives
  * that the request predates. Called AFTER `useSimulationRun` so its effect
@@ -43,13 +44,28 @@ export function useShareLinkRequest({
   const appliedSimNonce = useRef<number | null>(null);
   // Roadmap 067 review: the result this effect saw last time it looked, which
   // is what "already on screen when the request arrived" means below. Null
-  // until the first look — and the simulator panel is mounted only for a
-  // result that HAS an effective config (ResultsColumn), so a first look is a
-  // result that postdates any request already in hand, never the verdict such
-  // a request was told to ignore. That mount rule is also what carries a
-  // request whose link produced no config: the panel is not on screen while
-  // that config is the current result, so the run that fixes it is the first
-  // one this hook sees.
+  // until the first look.
+  //
+  // A request that names no result is waiting for one it predates, and the two
+  // ways its link can have produced none are both answered by that: the run
+  // threw, so the verdict that was up stays up and is exactly what this ref
+  // holds — the run the user gets after fixing the config is a different object;
+  // or the run returned a trace with no effective config, and the panel is not
+  // mounted for such a result at all (ResultsColumn renders an empty note), so
+  // the run that fixes it mounts this hook fresh and is its first look.
+  //
+  // Ninth review, verified and deliberately not rewritten a fourth time — with
+  // the two edges the identity test does have, neither of which drops a request:
+  //  - the panel's mount can LAG the result, since the results column is a lazy
+  //    chunk. A first look is therefore a result that postdates the request only
+  //    because runs are serial: a request in hand means the link's own run has
+  //    settled, so the mounting result is either that run's or a later one —
+  //    unless the chunk is STILL downloading a whole run later, the one window
+  //    in which a first look could be an older verdict.
+  //  - both refs die with the panel, and the panel unmounts on any run without
+  //    an effective config. A request that names a result survives that intact
+  //    (no later result can equal it); one that names none is applied again on
+  //    the next mount, to a form the unmount had already emptied.
   const seenResult = useRef<TraceResult | null>(null);
 
   useEffect(() => {

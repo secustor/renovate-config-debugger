@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { claimModalKeyboard } from "@/lib/escape-stack";
 import { FOCUSABLE_SELECTOR } from "@/lib/focusable";
+import { tookFocus } from "@/lib/focus-restore";
 import { type ShortcutRow, type ShortcutSection, shortcutSheet } from "@/lib/shortcuts";
 
 /**
@@ -54,22 +55,6 @@ function focusChain(from: Element | null): HTMLElement[] {
     chain.push(el);
   }
   return chain;
-}
-
-/**
- * Asks `el` for focus and reports whether it took it. Being in the document is
- * not the same as being focusable: all seven results tab panels stay mounted
- * and six of them carry `hidden`, so a control inside one still matches
- * `FOCUSABLE_SELECTOR` (and is still `isConnected`) while the `hidden`
- * ancestor makes it unfocusable — and a run finishing while the sheet is up
- * re-selects the tab, so the panel the sheet was opened from can go `hidden`
- * underneath it. `.focus()` on such an element is a no-op:
- * `document.activeElement` doesn't move, which is the only reliable way to
- * tell from here.
- */
-function tookFocus(el: HTMLElement): boolean {
-  el.focus({ preventScroll: true });
-  return document.activeElement === el;
 }
 
 /**

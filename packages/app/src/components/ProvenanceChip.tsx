@@ -1,4 +1,5 @@
 import type { ProvenanceLayer } from "@renovate-config-debugger/engine";
+import { anyModifierHeld } from "@/lib/shortcuts";
 import { Explained } from "./glossary";
 import { layerClass, layerLabel, provenanceGlossaryEntry } from "./provenance-layer";
 
@@ -77,7 +78,7 @@ export function ProvenanceChip({
               // shortcut into a tab switch and a selected preset node while the
               // results the reader was looking at are replaced. A dropped key
               // would be a nuisance; a different action is a wrong one.
-              if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) {
+              if (anyModifierHeld(e)) {
                 return;
               }
               if (e.key === "Enter" || e.key === " ") {

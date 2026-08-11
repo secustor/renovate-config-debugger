@@ -50,6 +50,23 @@ export interface Shortcut {
    * typing.
    */
   readonly firesUnderOverlay?: boolean;
+  /**
+   * Roadmap 067 review finding 2: whether this binding needs an existing run
+   * result to do anything. App gates `FOCUS_RESULTS_SHORTCUT` on
+   * `keysLive && Boolean(result)` — before any run there is nothing to jump
+   * to — and `shortcutSheet` reads this flag to qualify the printed row
+   * instead of listing it as unconditionally live. The condition lives here,
+   * on the entry, rather than as a sentence typed separately into the sheet:
+   * this is the fourth review round the sheet has claimed something the code
+   * does not do, and a boolean the sheet reads cannot drift the way a second
+   * copy of the English can.
+   *
+   * Not full runtime state-awareness — the sheet does not know whether a
+   * result exists RIGHT NOW, only whether the binding requires one. Reading
+   * live app state would mean the sheet taking a prop App has to supply,
+   * which is a change to `App.tsx` outside this fix's scope.
+   */
+  readonly requiresResult?: boolean;
 }
 
 /** Just the modifier flags — what the two predicates below read, and all they
@@ -151,6 +168,9 @@ export const FOCUS_RESULTS_SHORTCUT: Shortcut = {
   mod: false,
   shift: false,
   label: "Jump to the results",
+  // See `requiresResult` on `Shortcut` — App declines this one until a run
+  // has produced something to jump to.
+  requiresResult: true,
 };
 
 export const HELP_SHORTCUT: Shortcut = {
@@ -271,6 +291,19 @@ export interface ShortcutSection {
 }
 
 /**
+ * Roadmap 067 review finding 2: the one qualifier text for "this key does
+ * nothing before a run", shared by `FOCUS_RESULTS_SHORTCUT`'s row (built from
+ * `requiresResult`) and the digit-jump row below (not a registry entry, so it
+ * cannot carry that flag itself) — one string, not two independently typed
+ * ones that could say the same thing differently, or stop agreeing.
+ */
+const REQUIRES_RESULT_QUALIFIER = " — once a run has produced results";
+
+function shortcutRowLabel(shortcut: Shortcut): string {
+  return shortcut.requiresResult ? `${shortcut.label}${REQUIRES_RESULT_QUALIFIER}` : shortcut.label;
+}
+
+/**
  * The whole keyboard surface, as the `?` sheet prints it.
  *
  * The first section is DERIVED from `GLOBAL_SHORTCUTS`, so a global binding
@@ -295,9 +328,12 @@ export function shortcutSheet(apple = isApplePlatform()): ShortcutSection[] {
       rows: [
         ...GLOBAL_SHORTCUTS.map((shortcut) => ({
           keys: formatShortcut(shortcut, apple),
-          what: shortcut.label,
+          what: shortcutRowLabel(shortcut),
         })),
-        { keys: `1 – ${lastTabDigit}`, what: "Jump straight to that results tab" },
+        {
+          keys: `1 – ${lastTabDigit}`,
+          what: `Jump straight to that results tab${REQUIRES_RESULT_QUALIFIER}`,
+        },
         // Roadmap 067 review: this is NOT true inside a text field, a
         // <select>, or the results tab strip — `isTextEditingTarget` bails
         // `useHomeEndPageScroll` on the first, and the strip claims the key

@@ -101,6 +101,26 @@ describe("useShareLinkRequest", () => {
     expect(simulate).toHaveBeenCalledOnce();
   });
 
+  it("applies a held request on the first look of a fresh mount", () => {
+    // The other half of the same hold, and the reason the wait branch cannot
+    // strand a request: when the link's run returned a trace with NO effective
+    // config, the simulator panel is not mounted for it at all (ResultsColumn
+    // renders an empty note instead), so the run the user gets after fixing the
+    // config mounts this hook — and its first look is that run.
+    const setForm = vi.fn();
+    const simulate = vi.fn(() => Promise.resolve());
+    render(
+      <Harness
+        simRequest={request(null)}
+        result={traceResult()}
+        setForm={setForm}
+        simulate={simulate}
+      />,
+    );
+    expect(setForm).toHaveBeenCalledOnce();
+    expect(simulate).toHaveBeenCalledOnce();
+  });
+
   it("applies a request only to the result its link named", () => {
     const setForm = vi.fn();
     const simulate = vi.fn(() => Promise.resolve());

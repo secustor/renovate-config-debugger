@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { TraceResult } from "@renovate-config-debugger/engine";
 import { Term } from "@/components/glossary";
 import { HypotheticalBanner } from "@/components/HypotheticalBanner";
@@ -177,6 +177,33 @@ export const RuleSimulator = memo(function RuleSimulator({
     setRulesOpen,
     setFocusHint,
   });
+  /**
+   * Roadmap 067 review: the request made while a simulation is in flight — one
+   * slot, holding the NEWEST one.
+   *
+   * A slot rather than App's serial run queue (`lib/run-queue.ts`), which runs
+   * every request in order because each carries inputs of its own and a caller
+   * awaiting its result. A simulation has neither: nothing awaits it, and what
+   * it produces is one verdict card, so two presses during one wait would paint
+   * the second screen over the first with nothing to see in between. The form
+   * they differ in is captured at PRESS time all the same, for the reason
+   * `onRun` resolves its inputs before it queues — a waiting request has to
+   * carry the state its caller meant.
+   */
+  const pendingRunRef = useRef<{ form: FormState; touched: boolean } | null>(null);
+  useEffect(() => {
+    if (running) {
+      return;
+    }
+    const pending = pendingRunRef.current;
+    pendingRunRef.current = null;
+    if (pending !== null) {
+      // The ref, not the `simulate` this render closed over: this effect's deps
+      // are the run's state, and `simulate` is redeclared every render (the
+      // same reason `useShareLinkRequest` takes the ref).
+      void simulateRef.current?.(pending.form, pending.touched);
+    }
+  }, [running, simulateRef]);
   const { pinned, pin, unpin, comparison, currentDescriptor } = useAbComparison({
     engineModule,
     sim,
@@ -319,6 +346,24 @@ export const RuleSimulator = memo(function RuleSimulator({
     jumpToStep(mergeStepIndex ?? 0);
   }
 
+  /** Every simulation the PANEL starts goes through here — run it now, or hold
+   *  the newest request until the one in flight is done (`pendingRunRef`). A
+   *  link's auto-run does not: it is armed against a fresh pipeline result and
+   *  calls the run through `simulateRef` itself (`useShareLinkRequest`). */
+  function runSimulation(next: FormState, touched: boolean) {
+    if (running) {
+      pendingRunRef.current = { form: next, touched };
+      return;
+    }
+    void simulate(next, touched);
+  }
+
+  /** The form's own submission — the Simulate button and Enter in a field are
+   *  both this, since the button submits the form rather than acting beside it. */
+  function submitSimulation() {
+    runSimulation(form, updateTypeTouched);
+  }
+
   function quickFill(fill: Partial<FormState>) {
     const next = { ...EMPTY_FORM, ...fill };
     setForm(next);
@@ -326,7 +371,7 @@ export const RuleSimulator = memo(function RuleSimulator({
     // choice — derivation should keep tracking it if they go on to edit the
     // pre-filled versions.
     setUpdateTypeTouched(false);
-    void simulate(next, false);
+    runSimulation(next, false);
   }
 
   if (packageRules.length === 0) {
@@ -401,13 +446,24 @@ export const RuleSimulator = memo(function RuleSimulator({
         moreFieldsOpen={moreFieldsOpen}
         onMoreFieldsToggle={setMoreFieldsOpen}
         onQuickFill={quickFill}
-        onSubmit={() => void simulate(form, updateTypeTouched)}
+        onSubmit={submitSimulation}
       />
       <div className="sim-actions">
         {/* Roadmap 067: the form s submit button, associated across the DOM
             by the form attribute — so Enter in a field and a click here are the
-            same action, not two code paths that have to be kept in step. */}
-        <button type="submit" form={SIM_FORM_ID} className="primary" disabled={running}>
+            same action, not two code paths that have to be kept in step.
+
+            Not disabled while a run is in flight, which is the price of that
+            sameness (067 review). HTML performs implicit submission by firing a
+            click at the form's DEFAULT BUTTON — the first submit button among
+            its controls, which is this one — and only when that button is not
+            disabled. So `disabled={running}` did not merely grey a control out:
+            it took implicit submission off the form entirely, and Enter in
+            `packageName` during a run produced no click, no `submit` event and
+            no feedback of any kind, in a state the `?` sheet documents Enter as
+            working in. The press is held instead, the way ⌘⏎ holds a run rather
+            than dropping it, and the label is what says one is already going. */}
+        <button type="submit" form={SIM_FORM_ID} className="primary">
           {running ? "Simulating…" : "Simulate"}
         </button>
         {stale ? (
@@ -480,7 +536,11 @@ export const RuleSimulator = memo(function RuleSimulator({
                 Portalled to <body> (see ReturnPill), so where it sits in this
                 tree decides nothing but its lifetime — which is the run's. */}
             {threadNav.returnKey !== null ? (
-              <ReturnPill threadKey={threadNav.returnKey} onReturn={threadNav.returnToThread} />
+              <ReturnPill
+                threadKey={threadNav.returnKey}
+                onReturn={threadNav.returnToThread}
+                onFocusFrom={threadNav.notePillFocus}
+              />
             ) : null}
 
             {pinned ? (

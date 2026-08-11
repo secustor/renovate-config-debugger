@@ -480,6 +480,23 @@ The corollary is about tests, not code: none of these were visible to the unit
 suites while the policy lived inline in `App.tsx`, which is why the fifth round
 extracted it to `lib/focus-landing.ts` with the three rules as unit tests.
 
+## The tension that stays
+
+Two reviews reached opposite conclusions about one press, and the second one
+does not win. Round six found that a glossary hover card claiming Escape
+destroyed the simulator return pill; the fix was for the card to claim only when
+nothing OUTRANKS it (`overlayKeyboardOwned()`, which excludes `ambient`). Round
+nine found the cost of that: a reader walking a verdict thread has a
+focus-opened tooltip at most stops, so dismissing the pill takes two presses.
+
+Widening the card to stand aside for ANY layer was implemented and reverted.
+The rank is not measuring what the card needs — "did the reader ask for this" —
+but widening it means a press aimed at the tooltip in front of the reader
+instead destroys a pill they cannot see from there, and leaves the tooltip up.
+A wasted keystroke is recoverable; a silently destroyed way back is not. Both
+directions are pinned by tests in `glossary.test.tsx`, so whoever revisits this
+has to break one of them on purpose.
+
 ## Costs, accepted
 
 - **A shortcut registry is indirection** for what is, at tier 1, three

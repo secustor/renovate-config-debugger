@@ -1,46 +1,80 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
-import { createPortal } from "react-dom";
-import { afterEach, describe, expect, it } from "vitest";
-import { useThreadNav } from "./use-thread-nav";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { ReturnPill } from "./ReturnPill";
+import { threadHeadId, useThreadNav } from "./use-thread-nav";
 
 /**
- * Roadmap 067 — the return pill's two exits have to land focus alike. Clicking
- * it lands on the thread head (`landOnTarget`); Escape used to unmount a real,
- * Tab-reachable `<button>` out from under the focus ring and leave focus on
- * <body>, so the next Tab restarted at the skip link.
+ * Roadmap 067 — the return pill's exits.
  *
- * The harness is the pill's shape, not its markup: portalled to <body>, and
- * preceded by the control a keyboard user would have Tabbed from.
+ * Escape used to unmount a real, Tab-reachable `<button>` out from under the
+ * focus ring and leave focus on <body>, so the next Tab restarted at the skip
+ * link. The pill's other exit — landing on the thread head — had the same hole
+ * one layer down: the head can sit inside a results panel that is `hidden`, and
+ * a landing nobody can take is not a landing.
+ *
+ * The harness is the pill itself (its `onFocus`/`onBlur` wiring is half of what
+ * is under test since it started reporting its own focus), plus the control a
+ * keyboard user would have Tabbed from and a thread head to land on.
  */
 
 // vitest runs without `globals`, so RTL's automatic cleanup never registers.
 afterEach(cleanup);
 
-function Harness() {
+beforeAll(() => {
+  // jsdom implements neither, and `landOnTarget` calls both.
+  Element.prototype.scrollIntoView = () => undefined;
+  window.matchMedia = (query: string) =>
+    ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }) as unknown as MediaQueryList;
+});
+
+/** The thread head as it really sits: inside a results panel that a tab switch
+ *  hides in place rather than unmounting (`ResultsPanel`). */
+function ThreadPanel({ hidden }: { hidden: boolean }) {
+  return (
+    <div hidden={hidden}>
+      <button type="button" id={threadHeadId("labels")}>
+        labels
+      </button>
+    </div>
+  );
+}
+
+function Harness({ headHidden = false }: { headHidden?: boolean }) {
   const nav = useThreadNav(null);
   return (
     <>
+      <ThreadPanel hidden={headHidden} />
       <button type="button" data-testid="jump" onClick={() => nav.noteJump("labels")}>
         jump
       </button>
-      {nav.returnKey === null
-        ? null
-        : createPortal(
-            <button type="button" data-testid="pill" onClick={nav.returnToThread}>
-              back
-            </button>,
-            document.body,
-          )}
+      {nav.returnKey === null ? null : (
+        <ReturnPill
+          threadKey={nav.returnKey}
+          onReturn={nav.returnToThread}
+          onFocusFrom={nav.notePillFocus}
+        />
+      )}
     </>
   );
 }
 
-function showPill() {
-  const view = render(<Harness />);
+function showPill({ headHidden = false } = {}) {
+  const view = render(<Harness headHidden={headHidden} />);
   const jump = view.getByTestId("jump");
   jump.focus();
   fireEvent.click(jump);
-  return { view, jump, pill: view.getByTestId("pill") };
+  const head = view.container.querySelector<HTMLElement>(`#${threadHeadId("labels")}`);
+  if (head === null) {
+    throw new Error("the harness rendered no thread head");
+  }
+  return { view, jump, head, pill: view.getByRole("button", { name: "Back to labels" }) };
 }
 
 describe("useThreadNav — dismissing the return pill", () => {
@@ -51,7 +85,7 @@ describe("useThreadNav — dismissing the return pill", () => {
 
     fireEvent.keyDown(pill, { key: "Escape" });
 
-    expect(view.queryByTestId("pill")).toBeNull();
+    expect(view.queryByRole("button", { name: "Back to labels" })).toBeNull();
     expect(document.activeElement).toBe(jump);
   });
 
@@ -63,7 +97,39 @@ describe("useThreadNav — dismissing the return pill", () => {
     // and must not yank the user out of whatever they are doing.
     fireEvent.keyDown(jump, { key: "Escape" });
 
-    expect(view.queryByTestId("pill")).toBeNull();
+    expect(view.queryByRole("button", { name: "Back to labels" })).toBeNull();
     expect(document.activeElement).toBe(jump);
+  });
+});
+
+describe("useThreadNav — returning to the thread", () => {
+  it("lands on the thread head and spends the pill", () => {
+    const { view, head, pill } = showPill();
+    pill.focus();
+
+    fireEvent.click(pill);
+
+    expect(document.activeElement).toBe(head);
+    expect(view.queryByRole("button", { name: "Back to labels" })).toBeNull();
+  });
+
+  it("keeps the pill when the head is inside a hidden results panel", () => {
+    // Roadmap 067 review: the pill is `ambient` so the jump layer keeps working
+    // under it — press `4` while it shows and the thread head is in a panel
+    // that is `hidden` but still mounted. The scroll and the flash go nowhere
+    // and `.focus()` is refused, so the return did not happen; clearing the
+    // pill regardless destroyed the only way back in the gesture that failed to
+    // use it, and dropped focus to <body> as the pill unmounted under it.
+    //
+    // jsdom models neither `hidden` nor `disabled` as a focus barrier (see
+    // `ShortcutSheet`'s own tests), so the refusal is spelled out directly.
+    const { view, head, pill } = showPill({ headHidden: true });
+    head.focus = () => undefined;
+    pill.focus();
+
+    fireEvent.click(pill);
+
+    expect(view.queryByRole("button", { name: "Back to labels" })).not.toBeNull();
+    expect(document.activeElement).toBe(pill);
   });
 });

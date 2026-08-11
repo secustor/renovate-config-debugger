@@ -21,12 +21,27 @@ import { createPortal } from "react-dom";
  * it is app-generic: the label IS a thread key, and the plane it borrows is
  * already shared through CSS, which is where that sharing belongs.
  */
-export function ReturnPill({ threadKey, onReturn }: { threadKey: string; onReturn: () => void }) {
+export function ReturnPill({
+  threadKey,
+  onReturn,
+  onFocusFrom,
+}: {
+  threadKey: string;
+  onReturn: () => void;
+  /** Roadmap 067 review: Escape's landing needs to know which stop the user
+   *  reached this pill from, and this is the element that knows — a `focusin`
+   *  names its predecessor, a blur says the answer has expired. Reporting it
+   *  here is what let `useThreadNav` stop watching the whole document's focus
+   *  moves to work it out. */
+  onFocusFrom: (from: EventTarget | null) => void;
+}) {
   return createPortal(
     <button
       type="button"
       className="sim-return-pill"
       onClick={onReturn}
+      onFocus={(e) => onFocusFrom(e.relatedTarget)}
+      onBlur={() => onFocusFrom(null)}
       aria-label={`Back to ${threadKey}`}
     >
       ↩ Back to <code>{threadKey}</code>

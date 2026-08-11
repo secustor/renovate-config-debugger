@@ -40,8 +40,13 @@ export interface FocusLanding {
  * one: `<body>` is where the browser leaves focus when the element that had it
  * is hidden or removed, and it is where Safari leaves it after a click on a
  * button.
+ *
+ * Exported since the ninth 067 review for App's `gestureWantsResultsLanding`,
+ * which asks the same question of the same DOM — it had spelled the collapse
+ * out a second time, and both spellings have to agree for a ticket's `from` and
+ * "who is holding focus now" to be comparable at all.
  */
-function focusHolder(): Element | null {
+export function focusHolder(): Element | null {
   const active = document.activeElement;
   return active === document.body ? null : active;
 }

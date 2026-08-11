@@ -35,8 +35,13 @@ export interface ThreadNav {
   noteJump: (key: string) => void;
   /** The thread a jump left behind, or null when no pill is showing. */
   returnKey: string | null;
-  /** Go back: expand the origin thread, scroll to its head, flash it. */
+  /** Go back: expand the origin thread, land on its head — and dismiss the pill
+   *  once the landing has actually happened. */
   returnToThread: () => void;
+  /** The pill reporting where focus reached IT from (`focusin`'s
+   *  `relatedTarget`), and with `null` that it no longer holds focus. Spread as
+   *  the pill's own `onFocus`/`onBlur`; nothing else calls it. */
+  notePillFocus: (from: EventTarget | null) => void;
   /** A decoded link's `simThread`, applied to the NEXT run's threads. */
   requestThread: (key: string | null) => void;
   /** Exactly one thread open → the key a copied link should carry. */
@@ -64,53 +69,60 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
     setReturnKey(null);
   }, [sim]);
 
-  // The scroll+flash itself. One pass is enough, unlike use-rule-focus: a
-  // thread's HEAD renders whether or not the thread is expanded, so nothing
-  // can be hiding the target by the time this runs.
+  // The landing itself. One pass is enough, unlike use-rule-focus: a thread's
+  // HEAD renders whether or not the thread is expanded, so the element EXISTS by
+  // the time this runs.
+  //
+  // Existing is not the same as being reachable, which is what the sentence
+  // that used to stand here claimed (roadmap 067 review). All seven results
+  // panels stay mounted and six carry `hidden` (`ResultsPanel`), and the pill is
+  // `ambient` precisely so the jump layer keeps working under it — so press `4`
+  // while it shows and the thread head is sitting inside a hidden panel:
+  // `scrollIntoView` scrolls nothing, the flash is invisible, and `.focus()` is
+  // a no-op. `document.activeElement` is the only witness (the same question
+  // `lib/focus-restore.ts` exists for), and it decides the PILL's fate here.
+  //
+  // The pill is the affordance for a return that has not happened yet, so it
+  // goes when the return has happened and stays when it has not — where
+  // clearing it regardless destroyed the only way back in the very gesture that
+  // failed to use it, and dropped focus to `<body>` as it unmounted under the
+  // ring. What this hook cannot do is MAKE the head reachable: the results tab
+  // is App's state and nothing the simulator holds selects it (see
+  // `returnToThread`).
   useEffect(() => {
     if (focusKey === null) {
       return;
     }
-    const el = document.getElementById(threadHeadId(focusKey));
-    if (el) {
-      landOnTarget(el, "center");
-    }
     setFocusKey(null);
-  }, [focusKey]);
-
-  // The last focus MOVE, tracked only while the pill is showing: a `focusin`
-  // describes the transition it is — `relatedTarget` is the element that lost
-  // focus, `target` the one that gained it — and keeping both halves is what
-  // lets the Escape path below use a move only when it is the one that put
-  // focus where focus is standing now. `relatedTarget` alone was recorded as
-  // "the stop before the pill" while meaning "the stop before whatever gained
-  // focus last", and the two part company as soon as focus drops to <body>
-  // (a click on dead space fires no `focusin` to correct the record).
-  const lastFocusMoveRef = useRef<{ to: EventTarget | null; from: HTMLElement | null } | null>(
-    null,
-  );
-  // Written by the Escape path alone, and read by the effect that runs once the
-  // pill is actually gone.
-  const dismissedRef = useRef<{ focused: Element | null; from: HTMLElement | null } | null>(null);
-
-  useEffect(() => {
-    if (returnKey === null) {
+    const el = document.getElementById(threadHeadId(focusKey));
+    if (el === null) {
       return;
     }
-    function onFocusIn(event: FocusEvent) {
-      lastFocusMoveRef.current = {
-        to: event.target,
-        from: event.relatedTarget instanceof HTMLElement ? event.relatedTarget : null,
-      };
+    landOnTarget(el, "center");
+    if (document.activeElement === el) {
+      setReturnKey(null);
     }
-    document.addEventListener("focusin", onFocusIn);
-    return () => {
-      document.removeEventListener("focusin", onFocusIn);
-      // Nothing is listening to keep it current, and the pair would otherwise
-      // hold two detached nodes alive until the next pill appears.
-      lastFocusMoveRef.current = null;
-    };
-  }, [returnKey]);
+  }, [focusKey]);
+
+  // Where focus reached the PILL from, or null whenever the pill does not hold
+  // focus — reported by the pill itself through `notePillFocus`.
+  //
+  // Roadmap 067 review: this was a document-wide `focusin` listener recording
+  // every focus move the page made while the pill was up, plus a reconciliation
+  // (`move.to === document.activeElement`) for the moves that had since been
+  // left behind — all to answer one question about one element. The element can
+  // answer it directly: its own `focusin` names its predecessor in
+  // `relatedTarget`, and its `blur` says the answer no longer applies, which is
+  // what the reconciliation was standing in for (focus dropping to `<body>`
+  // fires a blur ON THE PILL, where it fired no `focusin` to correct a
+  // document-level record).
+  const pillFocusFromRef = useRef<HTMLElement | null>(null);
+  const notePillFocus = useCallback((from: EventTarget | null) => {
+    pillFocusFromRef.current = from instanceof HTMLElement ? from : null;
+  }, []);
+  // Written by the Escape path alone, and read by the effect that runs once the
+  // pill is actually gone.
+  const dismissedFromRef = useRef<HTMLElement | null>(null);
 
   // Escape dismisses the pill — but only when it is not the POPOVER's Escape.
   // Roadmap 067: that precedence is now structural, and it is stated as a RANK
@@ -129,12 +141,9 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
   // either: a handler only claims a press it acted on (the editor included,
   // verified in `use-escape-layer.ts`), so the press after it is the pill's.
   const dismissPill = useCallback(() => {
-    const focused = document.activeElement;
-    const move = lastFocusMoveRef.current;
-    // Only the move that landed on the currently focused element says where
-    // that focus came from; any older one describes a stop the user has left.
-    const from = move !== null && move.to === focused ? move.from : null;
-    dismissedRef.current = { focused, from };
+    // Read BEFORE the unmount: the record is the pill's own, and removing a
+    // focused element is exactly what ends it.
+    dismissedFromRef.current = pillFocusFromRef.current;
     setReturnKey(null);
   }, []);
   useEscapeLayer(returnKey !== null, dismissPill, ESCAPE_PRIORITY.ambient);
@@ -145,33 +154,38 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
   // <body> — the one landing 067 forbids, and the next Tab then restarts at the
   // skip link.
   //
-  // "The element that was focused when Escape arrived is no longer in the
-  // document" is what identifies that case, and identifies it without this hook
-  // recognising the pill's markup — the pill is portalled to <body> and nothing
-  // here ever holds its element. Escape pressed anywhere else leaves its target
-  // connected, so it never moves focus.
-  //
-  // Neither half names the pill, and neither needs to: focus was on something
-  // that arrived there from `from`, that something is gone, so `from` gets the
-  // focus back. Whatever vanished under the ring in this dismissal, that is
-  // the landing — the pill is only the one this hook can make vanish.
+  // A record exists only while the pill HOLDS focus, so its presence is what
+  // identifies that case: focus was on the pill, the pill is gone, and the stop
+  // the user reached it from gets the focus back. Escape pressed anywhere else
+  // leaves the record null and this effect moves nothing — including when focus
+  // entered the pill from outside the document (the address bar, another
+  // window), where the tab order restarts exactly where the user was going to
+  // re-enter it anyway.
   useEffect(() => {
-    const dismissed = dismissedRef.current;
-    dismissedRef.current = null;
-    if (returnKey !== null || dismissed === null) {
+    const from = dismissedFromRef.current;
+    dismissedFromRef.current = null;
+    if (returnKey !== null) {
       return;
     }
-    if (dismissed.focused === null || dismissed.focused.isConnected) {
+    // With no pill there is nothing to hold a record for — and a pill that went
+    // with its run (the reset effect above) never blurred, so this is also what
+    // keeps a detached node from outliving it.
+    pillFocusFromRef.current = null;
+    if (from === null) {
       return;
     }
+    // Removing the focused element leaves focus on <body>; anything else there
+    // was claimed by something in between, which is not this hook's to overrule.
     if (document.activeElement !== null && document.activeElement !== document.body) {
       return;
     }
-    // Nothing to aim at when focus entered the pill from outside the document
-    // (the address bar, another window): the tab order restarts exactly where
-    // the user was going to re-enter it anyway.
-    if (dismissed.from?.isConnected === true) {
-      dismissed.from.focus({ preventScroll: true });
+    // An ASK, not a landing: the stop the user came from can itself be sitting
+    // under a results panel the jump hid, and a `hidden` ancestor refuses focus
+    // silently. Then focus stays where it is and this hook says nothing further
+    // — it holds no other element to aim at, and guessing at one is what
+    // `ShortcutSheet`'s restore stops doing at a landmark.
+    if (from.isConnected) {
+      from.focus({ preventScroll: true });
     }
   }, [returnKey]);
 
@@ -198,12 +212,23 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
   // Reads the current origin through a ref rather than a state updater: a
   // setState updater runs in the render phase, where triggering the other two
   // updates would be a side effect React is free to replay.
+  //
+  // The pill is NOT dismissed here (roadmap 067 review): the landing effect
+  // above dismisses it, and only once the landing has happened.
+  //
+  // What this cannot do is make the thread head visible first. The head lives in
+  // the Simulator results panel, the pill is portalled to <body> and shows on
+  // every tab, and returning from a jump that switched tabs — the card's own
+  // provenance chip is one — should make the Simulator tab current before it
+  // lands. The results tab is App's state; nothing this hook or `RuleSimulator`
+  // holds can select it, so that half needs a prop from App and is not fixed
+  // here. Until it is, the failed return leaves the pill standing rather than
+  // spending it.
   const returnToThread = useCallback(() => {
     const key = returnKeyRef.current;
     if (key === null) {
       return;
     }
-    setReturnKey(null);
     setOpenThreads((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
     setFocusKey(key);
   }, []);
@@ -214,6 +239,7 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
     noteJump,
     returnKey,
     returnToThread,
+    notePillFocus,
     requestThread,
     // Only unambiguous when ONE thread is open: with two expanded, a link
     // carrying either would be the app choosing for the sender.

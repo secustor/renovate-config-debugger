@@ -29,6 +29,7 @@ import { legacyTabForView, type ResultsTabId } from "@/data/results-tabs";
 import { OptionDocsProvider } from "@/components/option-docs";
 import { buildPresetLookup, type PresetHoverContext } from "@/lib/preset-hover";
 import { flashTarget, motionScrollOptions, motionScrollToOptions } from "@/lib/motion";
+import { SELECTED_PRESET_ROW } from "@/lib/preset-row-dom";
 import { tabButtonSelector } from "@/lib/results-tab-dom";
 import { findPackageRuleOffsets } from "@/lib/rule-locate";
 import { useRuleProvenance } from "@/hooks/rule-provenance";
@@ -52,7 +53,7 @@ import {
 import type { ShareSimulator, ShareState, ShareView, UntrustedEndpointGuard } from "@/lib/share";
 import { useBackToTopVisible, useHomeEndPageScroll } from "@/hooks/scroll-ergonomics";
 import type { LandingTicket } from "@/lib/focus-landing";
-import { useFocusLanding } from "@/hooks/use-focus-landing";
+import { focusHolder, useFocusLanding } from "@/hooks/use-focus-landing";
 import { useShortcut } from "@/hooks/use-shortcut";
 import { useTabDigits } from "@/hooks/use-tab-digits";
 import { ShortcutSheet } from "@/components/ShortcutSheet";
@@ -164,21 +165,18 @@ function preloadRunChunks(): void {
 }
 
 /**
- * Roadmap 067: the two elements the landings below reach for.
- * `SELECTED_PRESET_ROW` is the selected preset row in whichever view the tree is
- * showing — the tree's node-name button, or the flat table's row button, both
- * real buttons, which is what makes them a landing site (`landOnPresetNode`).
- * `SELECTED_RESULTS_TAB` is the tab the strip currently shows as chosen: where
- * "take me to the results" lands, and the one element there that announces where
- * you are.
+ * Roadmap 067: the tab the strip currently shows as chosen — where "take me to
+ * the results" lands (`focusResults`), and the one element there that announces
+ * where you are.
  *
- * Reaching for them by SELECTOR is worth flagging rather than hiding: nothing on
- * this side of the lazy boundary holds a handle to those elements, so a class
- * renamed inside the results feature type-checks clean and breaks focus
- * silently. The fix is an imperative handle on the results column, the
- * `ConfigEditorHandle` treatment — a change to that file, not to this one.
+ * Reaching for it by SELECTOR at all, because nothing on this side of the lazy
+ * results boundary holds a handle to it. Spelled out here, unlike the other two
+ * elements the landings find (`results-tab-dom.ts` for a named tab button,
+ * `preset-row-dom.ts` for the selected preset row), because this one is not a
+ * class or an attribute anyone chose: `aria-selected="true"` on a `role="tab"`
+ * is the ARIA tablist pattern itself, which `ResultsPanel` cannot rename without
+ * ceasing to be one.
  */
-const SELECTED_PRESET_ROW = ".preset-name.selected, .preset-table-row.selected";
 const SELECTED_RESULTS_TAB = '[role="tab"][aria-selected="true"]';
 
 /** What a caller may ask of a run. Every request reaches the queue except one
@@ -189,6 +187,11 @@ interface RunOptions {
    *  INSIDE the results — see `executeRun`, where 028's landing lives. */
   keepTab?: boolean;
   suppressTokens?: boolean;
+  /** Roadmap 067, ninth review: what this run's spoken outcome LEADS with, when
+   *  what asked for the run is a fact of its own — "Fix applied, re-ran" rather
+   *  than the "Run finished" every run defaults to. The counts after the lead
+   *  are the same sentence either way (see the announcement effect). */
+  outcomeLead?: string;
 }
 
 type InjectionMap = Record<string, Record<string, unknown>>;
@@ -300,6 +303,12 @@ export function App() {
   // `useRunSummary` has counted the result it describes.
   const [runAnnouncement, setRunAnnouncement] = useState("");
   const announcementSeq = useRef(0);
+  // Roadmap 067, ninth review: how the NEXT committed result's sentence starts
+  // (`RunOptions.outcomeLead`). Written by `executeRun` immediately before the
+  // commit it describes and read by the effect that commit triggers — never
+  // consumed, because every commit rewrites it, which is what keeps it about the
+  // result on screen rather than about the last run that happened to set one.
+  const outcomeLeadRef = useRef<string | null>(null);
   const [optionIndex, setOptionIndex] = useState<OptionIndex | null>(null);
   // Roadmap 014: curated validator-message translations + suggested fixes,
   // loaded lazily alongside the option index (same engine chunk).
@@ -884,6 +893,13 @@ export function App() {
       // doesn't jump the user back to the top (captured right before the result
       // state commits, so an abandoned in-flight run can't pin a stale offset).
       preserveScrollRef.current = opts?.preserveScroll ? window.scrollY : null;
+      // Roadmap 067, ninth review: set HERE, one statement before the commit it
+      // belongs to, rather than by the caller before its `await`: runs are
+      // serial, so the run that commits next is always this one, and a lead
+      // armed by a caller could be spoken over by another run that reached its
+      // commit first. Cleared to null by every run that names none, so no
+      // sentence inherits the lead of the run before it.
+      outcomeLeadRef.current = opts?.outcomeLead ?? null;
       setResult(traceResult);
       const firstError = (Object.entries(traceResult.stageStatus) as [StageId, string][]).find(
         ([, status]) => status === "error",
@@ -964,6 +980,10 @@ export function App() {
     const next = await onRun(undefined, buildInputs(nextContent), {
       preserveScroll: true,
       keepTab: true,
+      // Roadmap 067, ninth review: the fix's own outcome, said by the region
+      // that owns run outcomes. The toast below shows it to the reader watching
+      // the screen and is deliberately not a second live region.
+      outcomeLead: "Fix applied, re-ran",
     });
     if (next) {
       setSelectedStage("validate");
@@ -1254,8 +1274,13 @@ export function App() {
    * says so through the Problems badge and the banner above the panels.
    */
   function gestureWantsResultsLanding(): boolean {
-    const active = document.activeElement;
-    if (active === null || active === document.body) {
+    // `focusHolder`, not a second reading of `document.activeElement`: "holds
+    // nothing" is `<body>` as often as it is null (the browser drops focus to
+    // the body when the element holding it is hidden, Safari leaves it there
+    // after a click on a button), and the landings' own `from` is that same
+    // collapse — one spelling, in `hooks/use-focus-landing.ts`.
+    const active = focusHolder();
+    if (active === null) {
       return true;
     }
     const column = configColRef.current;
@@ -1624,6 +1649,14 @@ export function App() {
    * `result`, which a run that threw never changes. `executeRun` announces that
    * other half itself, through the same `announceRun`: it has nothing here to
    * key on, and the silence was being read as a shortcut that never registered.
+   *
+   * Roadmap 067, ninth review: and it owns the whole sentence, lead included.
+   * The apply-fix toast used to be a second polite live region reciting this
+   * same run; making it visual-only left the fact only IT said — that the fix
+   * was applied at all — spoken by nobody, since "Run finished — no problems."
+   * is what any successful run says. So the run that answers a fix says so, in
+   * the one region that owns run outcomes (`RunOptions.outcomeLead`), and the
+   * toast stays the echo for the reader who is watching the screen.
    */
   useEffect(() => {
     if (!result) {
@@ -1633,7 +1666,8 @@ export function App() {
       errorCount === 0 ? null : `${errorCount} error${errorCount === 1 ? "" : "s"}`,
       warningCount === 0 ? null : `${warningCount} warning${warningCount === 1 ? "" : "s"}`,
     ].filter((part) => part !== null);
-    announceRun(`Run finished — ${problems.length === 0 ? "no problems" : problems.join(", ")}.`);
+    const lead = outcomeLeadRef.current ?? "Run finished";
+    announceRun(`${lead} — ${problems.length === 0 ? "no problems" : problems.join(", ")}.`);
     // `announceRun` is redeclared every render and deliberately not a
     // dependency — it reads nothing but its own ref and state setter.
   }, [result, errorCount, warningCount]);
@@ -1889,18 +1923,23 @@ export function App() {
           ↑ Top
         </button>
       ) : null}
-      {/* Roadmap 067, eighth review: NOT a live region any more. Its only
-          message is an instrument-triggered re-run's outcome ("Fix applied —
-          re-ran: 0 errors"), and the run region below announces the outcome of
-          every run including that one, so two polite regions were reciting one
-          event in sequence. The run region owns run outcomes; this is the
-          visual echo, for the reader who is watching the screen rather than
-          listening to it. It was never a dependable announcement in any case:
-          it mounts WITH its text, and a live region has to exist before its
-          content changes for the change to be announced — the rule the region
-          below is always-mounted for. The screen-reader user gets the same two
-          facts, from the run announcement and from the focus landing on the
-          Problems tab. */}
+      {/* Roadmap 067, eighth review: NOT a live region. Its only message is an
+          instrument-triggered re-run's outcome ("Fix applied — re-ran: 0
+          errors"), and the run region below announces the outcome of every run
+          including that one, so two polite regions were reciting one event in
+          sequence. It was never a dependable announcement in any case: it mounts
+          WITH its text, and a live region has to exist before its content
+          changes for the change to be announced — the rule the region below is
+          always-mounted for.
+
+          Ninth review: what that left unspoken was the one fact this toast
+          carried and the region below did not — that a FIX was applied, rather
+          than a run having finished, which is what that region said for this
+          re-run and for every other. So the toast did not get its role back; the
+          region got the lead of the sentence ("Fix applied, re-ran — no
+          problems.", via `RunOptions.outcomeLead`). One region owns the outcome,
+          spoken; this one shows it to the reader who is watching the screen
+          rather than listening to it. */}
       {toast ? <div className="rcv-toast">{toast}</div> : null}
       {shortcutSheetOpen ? <ShortcutSheet onClose={hideShortcuts} /> : null}
       {/* Roadmap 067: the run's outcome for anyone not watching the screen.

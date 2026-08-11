@@ -16,6 +16,8 @@ import {
   shortcutSheet,
 } from "./shortcuts";
 
+const RESULT_QUALIFIER = "once a run has produced results";
+
 /**
  * Roadmap 067 — the shortcut registry's three pure functions. What is worth
  * pinning here is the deliberate leniency of `matchShortcut` (either modifier,
@@ -136,7 +138,9 @@ describe("shortcutSheet", () => {
   it("prints a row for every global binding — the rule 067 set itself", () => {
     const rows = shortcutSheet(true).flatMap((section) => section.rows);
     for (const shortcut of GLOBAL_SHORTCUTS) {
-      expect(rows.some((row) => row.what === shortcut.label)).toBe(true);
+      // `requiresResult` bindings carry a qualifier suffix (see below), so a
+      // straight equality would miss `FOCUS_RESULTS_SHORTCUT`'s own row.
+      expect(rows.some((row) => row.what.startsWith(shortcut.label))).toBe(true);
     }
   });
 
@@ -155,6 +159,37 @@ describe("shortcutSheet", () => {
     // undocumented. 9 is where `digitTabIndex` itself stops.
     const lastDigit = Math.min(RESULTS_TAB_IDS.length, 9);
     expect(rows.some((row) => row.keys === `1 – ${lastDigit}`)).toBe(true);
+  });
+
+  it("qualifies `r` and the digit jump, which do nothing before a run — review finding 2", () => {
+    // App gates both `FOCUS_RESULTS_SHORTCUT` and `useTabDigits` on
+    // `Boolean(result)`. Pre-fix, both rows read as unconditionally live
+    // ("Jump to the results", "Jump straight to that results tab"), which the
+    // review flagged as the sheet documenting keys that do nothing before any
+    // run.
+    const rows = shortcutSheet(true).flatMap((section) => section.rows);
+    const focusResultsRow = rows.find((row) => row.what.startsWith(FOCUS_RESULTS_SHORTCUT.label));
+    expect(focusResultsRow?.what).toContain(RESULT_QUALIFIER);
+
+    const lastDigit = Math.min(RESULTS_TAB_IDS.length, 9);
+    const digitRow = rows.find((row) => row.keys === `1 – ${lastDigit}`);
+    expect(digitRow?.what).toContain(RESULT_QUALIFIER);
+  });
+
+  it("leaves bindings that work with no run yet unqualified", () => {
+    // Run, Run-and-read, focus-editor and help all fire before any run
+    // exists — Run is how a run gets started at all — so none of them should
+    // carry the "once a run has produced results" qualifier.
+    const rows = shortcutSheet(true).flatMap((section) => section.rows);
+    for (const shortcut of [
+      RUN_SHORTCUT,
+      RUN_AND_READ_SHORTCUT,
+      FOCUS_EDITOR_SHORTCUT,
+      HELP_SHORTCUT,
+    ]) {
+      const row = rows.find((r) => r.what.startsWith(shortcut.label));
+      expect(row?.what).toBe(shortcut.label);
+    }
   });
 });
 
