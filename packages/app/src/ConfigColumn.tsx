@@ -14,6 +14,7 @@ interface ConfigColumnProps {
   columnRef: RefObject<HTMLDivElement | null>;
   hasResult: boolean;
   onTryExample: () => void;
+  onAnalyzeThisProject: () => void;
   // ConfigEditorCard
   editorKey: number;
   editorRef: RefObject<ConfigEditorHandle | null>;
@@ -73,6 +74,7 @@ export function ConfigColumn({
   columnRef,
   hasResult,
   onTryExample,
+  onAnalyzeThisProject,
   editorKey,
   editorRef,
   fileName,
@@ -118,7 +120,9 @@ export function ConfigColumn({
     // jump to a non-focusable container moves the scroll but not the focus,
     // which is the half that matters to a keyboard user.
     <div className="config-col" id="config-column" tabIndex={-1} ref={columnRef}>
-      {hasResult ? null : <WelcomePanel onTryExample={onTryExample} />}
+      {hasResult ? null : (
+        <WelcomePanel onTryExample={onTryExample} onAnalyzeThisProject={onAnalyzeThisProject} />
+      )}
 
       <ConfigEditorCard
         editorKey={editorKey}

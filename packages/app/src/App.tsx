@@ -27,6 +27,7 @@ import type { ResultsColumnProps } from "@/ResultsColumn";
 import { UntrustedHostBanner } from "@/UntrustedHostBanner";
 import { legacyTabForView, type ResultsTabId } from "@/data/results-tabs";
 import { OptionDocsProvider } from "@/components/option-docs";
+import { REPO_URL } from "@/data/project-repo";
 import { buildPresetLookup, type PresetHoverContext } from "@/lib/preset-hover";
 import { flashTarget, motionScrollOptions, motionScrollToOptions } from "@/lib/motion";
 import { SELECTED_PRESET_ROW } from "@/lib/preset-row-dom";
@@ -1832,8 +1833,8 @@ export function App() {
           />
         </header>
         <p className="subtitle">
-          Understand your Renovate config by watching Renovate&apos;s own code process it, step by
-          step, right here in your browser. Nothing you paste leaves the page.
+          Watch Renovate&apos;s own code process your config, step by step — nothing leaves your
+          browser.
         </p>
 
         {/* Roadmap 028: config on the left, one tabbed results panel on the
@@ -1845,6 +1846,10 @@ export function App() {
             columnRef={configColRef}
             hasResult={Boolean(result)}
             onTryExample={() => loadConfigText(EXAMPLE_CONFIG)}
+            // The dogfood shortcut: fetch and run THIS app's own renovate.json,
+            // live from its repository — a full URL, so the load pins the
+            // github context instead of inheriting whatever host is selected.
+            onAnalyzeThisProject={() => void onLoadRepo(REPO_URL)}
             editorKey={editorKey}
             editorRef={configEditorRef}
             fileName={fileName}
