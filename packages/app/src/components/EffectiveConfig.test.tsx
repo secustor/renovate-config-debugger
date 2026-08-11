@@ -282,5 +282,4 @@ it("attributes the description strings of the As-JSON document", async () => {
   expect(repoCard?.textContent).toContain("repo config");
   expect(repoCard?.querySelector(".desc-attr-path")).toBeNull();
   expect(repoCard?.textContent).not.toContain("Show in preset tree");
->>>>>>> 54fe338 (feat(app): description attribution at point of contact)
 });

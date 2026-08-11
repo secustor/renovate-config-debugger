@@ -159,7 +159,7 @@ export function buildDescriptionCards(
 export function descriptionCardsFor(
   doc: unknown,
   cards: readonly DescriptionCard[] | null | undefined,
-): DescriptionCard[] | null {
+): readonly DescriptionCard[] | null {
   if (!cards || cards.length === 0 || typeof doc !== "object" || doc === null) {
     return null;
   }
@@ -167,7 +167,7 @@ export function descriptionCardsFor(
   if (!Array.isArray(values) || values.length !== cards.length) {
     return null;
   }
-  return values.every((value, i) => value === cards[i]?.value) ? [...cards] : null;
+  return values.every((value, i) => value === cards[i]?.value) ? cards : null;
 }
 
 /** The card's head, after the preset chip: `docker:pinDigests` — *wrote this

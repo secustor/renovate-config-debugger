@@ -756,16 +756,6 @@ export const EffectiveConfig = memo(function EffectiveConfig({
     () => (descriptionProvenance ? buildDescriptionLedger(descriptionProvenance) : null),
     [descriptionProvenance],
   );
-  // Roadmap 069 (PR 5): the same walk again, read the other way round — one
-  // card per string for the As-JSON document, where the sentences are already
-  // on screen and the attribution has nowhere else to live.
-  const descriptionCards = useMemo(
-    () =>
-      descriptionProvenance
-        ? buildDescriptionCards(descriptionProvenance, result.presetTree)
-        : null,
-    [descriptionProvenance, result.presetTree],
-  );
   const filterInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [layerFilter, setLayerFilter] = useState<LayerFilterValue>("all");
@@ -776,6 +766,17 @@ export const EffectiveConfig = memo(function EffectiveConfig({
   const [view, setView] = useState<EffectiveView>("keys");
   const [expand, setExpand] = useState<ResolvedConfigMode>("keep-internal");
   const [includeDefaults, setIncludeDefaults] = useState(false);
+  // Roadmap 069 (PR 5): the same walk again, read the other way round — one
+  // card per string for the As-JSON document, where the sentences are already
+  // on screen and the attribution has nowhere else to live. Gated on the view
+  // like `resolvedOutput` below: derived only once the reader opens As-JSON.
+  const descriptionCards = useMemo(
+    () =>
+      descriptionProvenance && view === "json"
+        ? buildDescriptionCards(descriptionProvenance, result.presetTree)
+        : null,
+    [descriptionProvenance, result.presetTree, view],
+  );
   const resolvedOutput = useResolvedConfig(
     result,
     provenance !== undefined && view === "json",

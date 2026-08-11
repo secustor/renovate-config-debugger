@@ -40,7 +40,7 @@ export function ConfigJson({
     configContext: boolean,
     /** Attribution for THIS array's elements — set only for the top-level
      *  `description`, so nothing else can pick it up by accident. */
-    attributed?: DescriptionCard[] | null,
+    attributed?: readonly DescriptionCard[] | null,
   ): ReactNode {
     if (Array.isArray(v)) {
       if (v.length === 0) {
