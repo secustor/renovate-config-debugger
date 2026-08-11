@@ -510,12 +510,12 @@ the sheet, which was exempt for a reason that looked like a virtue: it did not
 handle Escape at all. A modal `<dialog>` closes on Escape by itself, so the
 sheet rode that and wrote the delegation down as a feature.
 
-The catch is *how* a dialog closes: the close request is the keydown's **default
+The catch is _how_ a dialog closes: the close request is the keydown's **default
 action**. It runs after dispatch and leaves `defaultPrevented` false — so the
 sheet closed with the press still unclaimed, and the browser, which treats an
 Escape the page did not take as its own, spent it on leaving fullscreen. The
 delegation was never "the browser handles this for us"; it was "the browser
-handles this *too*".
+handles this _too_".
 
 So the sheet now handles Escape itself and claims it, like every other layer.
 Two consequences worth naming:
@@ -534,7 +534,7 @@ Two consequences worth naming:
 Android's back gesture, a `CloseWatcher` dismissal — where there is nothing to
 claim and the default action is right.
 
-What could not be verified here: whether claiming the key is *sufficient* to
+What could not be verified here: whether claiming the key is _sufficient_ to
 stop every browser's exit-fullscreen. It is the only lever a page has, and
 browsers deliberately make the Fullscreen **API**'s Escape uncancellable — but
 that is the API this app never calls, and window fullscreen is the user's own
