@@ -173,6 +173,14 @@ function topLayer(): EscapeLayer | undefined {
  * Modal surfaces are NOT counted here: they are `modalKeyboardOwned()`, and the
  * bare keys are already switched off while the `?` sheet is up (App's
  * `keysLive`, which is what the sheet's own `enabled` flags read).
+ *
+ * What a layer of these two ranks owes in return, since this is the only thing
+ * that reads the rank and it has no way to check: it must not outlive the
+ * surface it names. A layer left registered over a page the user has moved on
+ * from does not merely answer this query wrong — it switches the whole jump
+ * layer and Home/End off with nothing on screen to explain why, which is how
+ * the rule-evidence card came to close with the results panel its anchor lives
+ * in and not only on Escape or a click (`RuleEvidenceCard.tsx`).
  */
 export function overlayKeyboardOwned(): boolean {
   const top = topLayer();

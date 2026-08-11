@@ -97,6 +97,23 @@ export function SimulatorForm({
       // because the popup's state is not observable — `mayOwnNativePopup` is
       // where that is written down. The cost is one Tab: from `datasource`,
       // Enter no longer simulates.
+      //
+      // 2026-08-11 review: does this ALSO cancel the datalist's own "take the
+      // highlighted suggestion" behaviour? Checked, not assumed: in Chrome,
+      // the Enter that accepts a highlighted `<datalist>` suggestion never
+      // dispatches keydown/keypress/keyup to this input at all — the
+      // WHATWG HTML tracking issue for exactly this (whatwg/html#2605) states
+      // Chrome fires none of those events for it, so this handler is never
+      // even invoked for that keystroke there; `preventDefault` on a keydown
+      // that never arrives cancels nothing. Firefox does dispatch the event,
+      // but its equivalent native list-control interaction — documented for
+      // `<select>` in Mozilla bugs 1428992 and 291082 — runs through a
+      // system-group listener that a page script's `preventDefault()`
+      // doesn't reach; datalist's suggestion popup is the same native
+      // list-selection machinery, so the same immunity is the reasonable
+      // expectation there too, though that inference is by architecture, not
+      // a datalist-specific report. Either way, what this handler declines is
+      // the IMPLICIT SUBMIT, not the pick.
       onKeyDown={(e) => {
         // A handler that claims Enter has to say WHICH Enter it means, and the
         // first cut of this one did not. ⌘/Ctrl+⏎ is the app's Run chord (⌘⇧⏎

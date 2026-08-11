@@ -97,19 +97,25 @@ describe("useEscapeLayer", () => {
     expect(onEscape).toHaveBeenCalledOnce();
   });
 
-  it("still dismisses a popover from one of those fields", () => {
-    // The yield above is for a popup that opened ITSELF as the user typed; it
-    // cannot outrank a card the user asked for. Nothing closes the rule-evidence
-    // popover on blur and it does not trap focus, so Tabbing out of it and back
-    // into `datasource` is reachable — and while the bail was unconditional the
-    // card was undismissable from there, the stranding this ladder exists to
-    // stop.
+  it("yields the first press to the popup whatever the layer's rank is, and dismisses on the next", () => {
+    // The yield does not read the rank, and a round that made it read one
+    // stole the popup's own press: with a rule-evidence card open — reachable
+    // from `datasource`, since nothing closes the card on blur and it traps no
+    // focus — the press the user aimed at the suggestion list dismissed the
+    // card instead, in the field where they are most likely to be typing.
+    // One press per interaction bounds the yield for every rank instead, so the
+    // card is still dismissable from here, one press later, exactly as the `?`
+    // sheet prints it for these two fields.
     const onEscape = vi.fn();
     const { getByLabelText } = render(
       <Pill onEscape={onEscape} priority={ESCAPE_PRIORITY.popover} />,
     );
+    const combobox = getByLabelText("datasource");
 
-    fireEvent.keyDown(getByLabelText("datasource"), { key: "Escape" });
+    fireEvent.keyDown(combobox, { key: "Escape" });
+    expect(onEscape).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(combobox, { key: "Escape" });
     expect(onEscape).toHaveBeenCalledOnce();
   });
 });

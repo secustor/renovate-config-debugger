@@ -555,3 +555,56 @@ test("a refused run says so, every time it is refused", async ({ page }) => {
   await page.keyboard.press("ControlOrMeta+Enter");
   await expect(live).toContainText("Run blocked");
 });
+
+// ── Eighth-review follow-ups (2026-08-11) ────────────────────────────────────
+
+test("a run requested from inside the results keeps the panel being read", async ({ page }) => {
+  await page.goto("/");
+  await runAndAwaitResult(page);
+  await openTab(page, "effective");
+  await page.locator("#panel-effective").getByRole("button").first().focus();
+
+  await page.keyboard.press("ControlOrMeta+Enter");
+  await expectRunIdle(page);
+  // `gestureWantsResultsLanding()` asks whether the gesture came from the
+  // CONFIG COLUMN, so anything else — including the results' own overlays,
+  // which are portalled to <body> and used to read as "outside" — keeps the tab.
+  await expect(tabButton(page, "effective")).toHaveAttribute("aria-selected", "true");
+});
+
+test("a run requested from the config column still lands on the Overview", async ({ page }) => {
+  await page.goto("/");
+  await runAndAwaitResult(page);
+  await openTab(page, "presets");
+
+  // The other half of the same rule — inverting the test must not cost 028's
+  // "a run lands on the short Overview" for the reader who edited and ran.
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("ControlOrMeta+Enter");
+  await expectRunIdle(page);
+  await expect(tabButton(page, "overview")).toHaveAttribute("aria-selected", "true");
+});
+
+test("every deliberate ⌘⏎ runs, and the last one describes the editor", async ({ page }) => {
+  await page.goto("/");
+  await setEditorContent(page, SEMANTIC_COMMITS_CONFIG);
+  await runAndAwaitResult(page);
+
+  // The duplicate-fold (added and deleted across two rounds) could answer a
+  // restored-config request with an in-flight run for the same text while a
+  // DIFFERENT config was queued behind it, leaving the editor and the results
+  // describing different things. Asserted as the invariant rather than the
+  // timing: once the queue drains, the results describe what the editor holds.
+  await setEditorContent(page, PACKAGE_RULES_CONFIG);
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("ControlOrMeta+Enter");
+  await setEditorContent(page, SEMANTIC_COMMITS_CONFIG);
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("ControlOrMeta+Enter");
+
+  await expectRunIdle(page);
+  await openTab(page, "simulator");
+  // SEMANTIC_COMMITS_CONFIG has no packageRules, so the empty state is proof
+  // the last run used the editor's current text.
+  await expect(page.locator("#panel-simulator")).not.toContainText("from your config");
+});

@@ -1,3 +1,15 @@
+/**
+ * Roadmap 067, eighth review: this module briefly also exported `runRequestKey`,
+ * an identity `App.onRun` folded duplicate run requests by. It is gone, and the
+ * reason belongs here because the idea will occur to the next reader too: the
+ * key had to stay exhaustive over every input any run reads, and the host tokens
+ * are not inputs at all — `platform/run.ts` takes them at fetch time — so a
+ * token pasted while a run resolved changed nothing in the key, and the ⌘⏎ that
+ * asked to retry WITH it folded into the tokenless run already in flight. The
+ * fold bought one thing (three impatient presses on an unchanged config costing
+ * one run instead of three) and cost correctness twice. `App.onRun` states the
+ * rest.
+ */
 import type { ShareFileName } from "./share";
 
 /** Everything a pipeline run is built from — assembled by App, consumed by the
@@ -13,66 +25,4 @@ export interface RunInputs {
   inheritedConfig?: Record<string, unknown>;
   /** The user explicitly overrode the global config's platform/endpoint. */
   platformOverride?: boolean;
-}
-
-/**
- * Roadmap 067 review: one whole run request — the inputs plus everything else
- * that decides what the run does and what its commit does to the reader.
- * `App.onRun` assembles one of these per request and asks `runRequestKey`
- * whether it is already running.
- */
-export interface RunRequest {
-  readonly inputs: RunInputs;
-  /** Preset bodies the user injected by hand (roadmap 026). */
-  readonly injectedPresets: Readonly<Record<string, Record<string, unknown>>>;
-  /** Whether this run leaves the host tokens behind (the untrusted-endpoint
-   *  guard, or a share link's explicit request). */
-  readonly suppressTokens: boolean;
-  /** Which fatal banner the run is allowed to clear — see `App.applyFatal`. */
-  readonly fatalSeq: number;
-  readonly preserveScroll: boolean;
-  readonly keepTab: boolean;
-}
-
-/**
- * Roadmap 067 review: what makes two run requests THE SAME request — the
- * question `onRun` asks before queueing a second one behind the first.
- *
- * Every field above is in here, because every one of them changes what the user
- * would end up looking at. Two requests that agree on all of them cannot produce
- * two different screens, so the second is answered by the run already in flight;
- * two that differ anywhere both run. That is the whole rule, and it is about the
- * REQUEST rather than about which entry point made it — the distinction the
- * `coalesce` opt-out could not draw.
- *
- * Written out field by field rather than `JSON.stringify(request)` so the order
- * is this function's and not each call site's object literal's: three modules
- * build a `RunInputs` and they need not agree on key order. The nested layers
- * and the injected presets keep whatever order their own parse produced, which
- * two presses of one key share; where two structurally equal objects did differ
- * in order, they would get two keys and both would run, which is the harmless
- * direction.
- *
- * NOT in the key: the host tokens, which `run()` reads at fetch time instead of
- * taking from `RunInputs`. So two identical requests fold even if a token was
- * added between them — but only while the first is still in flight, which is
- * before its failure is on screen; the retry that answers that failure is made
- * afterwards and always runs.
- */
-export function runRequestKey(request: RunRequest): string {
-  const { inputs } = request;
-  return JSON.stringify([
-    inputs.fileName,
-    inputs.content,
-    inputs.platform,
-    inputs.endpoint,
-    inputs.globalConfig ?? null,
-    inputs.inheritedConfig ?? null,
-    inputs.platformOverride === true,
-    request.injectedPresets,
-    request.suppressTokens,
-    request.fatalSeq,
-    request.preserveScroll,
-    request.keepTab,
-  ]);
 }

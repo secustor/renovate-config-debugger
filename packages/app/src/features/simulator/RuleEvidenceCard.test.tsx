@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { claimModalKeyboard } from "@/lib/escape-stack";
+import { claimModalKeyboard, overlayKeyboardOwned } from "@/lib/escape-stack";
 import type { RuleEvidence } from "./rule-evidence";
 import { RuleEvidenceAnchor } from "./RuleEvidenceCard";
 
@@ -55,6 +55,16 @@ function open(onOpenRule?: (ruleIndex: number) => void) {
     fireEvent.click(anchor);
   });
   return { view, anchor };
+}
+
+/** The card's anchor as it really sits: inside a results panel that a tab
+ *  switch hides in place, rather than unmounting (`ResultsPanel`). */
+function Panel({ hidden }: { hidden: boolean }) {
+  return (
+    <div hidden={hidden}>
+      <RuleEvidenceAnchor ruleIndex={201} evidenceFor={() => EVIDENCE} />
+    </div>
+  );
 }
 
 describe("RuleEvidenceCard", () => {
@@ -122,6 +132,29 @@ describe("RuleEvidenceCard", () => {
       fireEvent.mouseDown(view.getByRole("dialog"));
     });
     expect(view.queryByRole("dialog")).not.toBeNull();
+  });
+
+  it("closes with the results panel its anchor lives in, releasing the keyboard", async () => {
+    // Roadmap 067 review: a tab switch neither unmounts this anchor nor fires a
+    // pointer press, and the card is portalled to `<body>`, so the panel's
+    // `hidden` does not cover it. Left open it floated over an unrelated panel
+    // and kept `overlayKeyboardOwned()` true INDEFINITELY — every bare key
+    // (`e`, `r`, `1`–`7`) and Home/End page scroll dead, with no visible cause.
+    const view = render(<Panel hidden={false} />);
+    act(() => {
+      fireEvent.click(view.getByRole("button", { name: "packageRules[201]" }));
+    });
+    expect(view.queryByRole("dialog")).not.toBeNull();
+    expect(overlayKeyboardOwned()).toBe(true);
+
+    // The tab switch itself, as `ResultsPanel` performs it. `await`, because
+    // the observer behind this delivers on the microtask after the mutation.
+    await act(async () => {
+      view.rerender(<Panel hidden />);
+    });
+
+    expect(view.queryByRole("dialog")).toBeNull();
+    expect(overlayKeyboardOwned()).toBe(false);
   });
 
   it("hands the rule to the matched-rules jump and closes", () => {

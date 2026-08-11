@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ESCAPE_PRIORITY, pushEscapeLayer } from "@/lib/escape-stack";
 import { FOCUS_RESULTS_SHORTCUT, HELP_SHORTCUT, type Shortcut } from "@/lib/shortcuts";
@@ -61,5 +62,43 @@ describe("useShortcut under an overlay", () => {
 
     fireEvent.keyDown(getByLabelText("a field"), { key: "?" });
     expect(onFire).not.toHaveBeenCalled();
+  });
+});
+
+describe("useShortcut with a self-disabling binding", () => {
+  it("keeps a held `?` claimed through auto-repeat even though the handler flips `enabled` off", () => {
+    // Mirrors App.tsx: `showShortcuts` sets `shortcutSheetOpen`, which flips
+    // this hook's own `enabled` to false on the very first press. Gating the
+    // window listener's installation on `enabled` (the pre-fix shape) tore it
+    // down at that point, so the auto-repeat event below reached this test
+    // un-prevented and the assertion on `repeatResult` failed.
+    const onFire = vi.fn();
+    function SelfDisabling() {
+      const [enabled, setEnabled] = useState(true);
+      useShortcut(
+        HELP_SHORTCUT,
+        () => {
+          onFire();
+          setEnabled(false);
+        },
+        { enabled },
+      );
+      return <input aria-label="a field" />;
+    }
+    render(<SelfDisabling />);
+
+    const firstResult = fireEvent.keyDown(window, { key: "?" });
+    expect(onFire).toHaveBeenCalledOnce();
+    // `dispatchEvent` returns false when the event was cancelable and
+    // `preventDefault()` was called.
+    expect(firstResult).toBe(false);
+
+    const repeatResult = fireEvent.keyDown(window, { key: "?", repeat: true });
+    // Not run twice — a repeat is still "one intent, however long it is held".
+    expect(onFire).toHaveBeenCalledOnce();
+    // But still claimed: the repeat must not reach the browser un-prevented,
+    // or a held `?` opens Firefox's quick-find bar behind the sheet it just
+    // opened.
+    expect(repeatResult).toBe(false);
   });
 });

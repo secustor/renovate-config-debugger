@@ -40,6 +40,24 @@ export function useSessionMenu() {
   // Roadmap 067: Escape through the shared ladder, so a hover card opened
   // from inside the panel closes first and the menu survives that press —
   // by rank, which holds whichever of the two mounted first.
+  //
+  // 067 review, on what this menu gave up by no longer listening for Escape
+  // itself: the ladder declines a press in three cases, and none of them can
+  // reach a menu that is open, because the `focusin` close below is what makes
+  // them unreachable. While this panel is up, focus is inside it or on the
+  // trigger — anywhere else closes it in the same event that moved it.
+  //
+  // - `defaultPrevented`: the two surfaces that claim Escape are CodeMirror and
+  //   the repo-load form, and focus reaching either has already closed the menu.
+  //   Nothing the panel itself renders claims the key — its items are buttons
+  //   and `ThemeSwitch`'s radios, with no key handler between them — and no
+  //   registry shortcut binds Escape.
+  // - The combobox yield: `mayOwnNativePopup` is the simulator's two `<input
+  //   list>` fields, which are two panels away from this one.
+  // - `modalKeyboardOwned()`: `?` is exempt from the overlay gate, so the sheet
+  //   CAN be opened over this menu — and `showModal()` moves focus into the
+  //   dialog, which closes the menu on the way in rather than stranding it
+  //   behind a claim it cannot outlast.
   useEscapeLayer(open, dismiss, ESCAPE_PRIORITY.menu);
 
   useEffect(() => {

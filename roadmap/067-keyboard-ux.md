@@ -415,8 +415,24 @@ requests, and that is a keyboard fact, not a pipeline fact.
   call time, before the wait, so a queued run carries the state its caller
   meant.
 
-The seventh review settled it, on the third try, by asking a different
-question. Both earlier swings tried to decide WHICH PRESS to drop from
+The eighth review DELETED it. One round after landing, the fold had produced
+two confirmed correctness bugs, and the second one is the reason it could not
+stay: `runRequestKey` is only sound while it stays exhaustive over every input
+a run reads, and the host tokens are not inputs at all — `run()` takes them at
+fetch time. So pasting a token mid-run and pressing ⌘⏎ folded into the TOKENLESS
+run already executing, and the app told the user their token was wrong. Making
+the fold tail-only would have fixed the other bug and not that one.
+
+What it bought was small: three deliberate ⌘⏎ on an unchanged config cost one
+run instead of three. The runs are serial rather than concurrent, they produce
+an identical screen, and both things that made repeat presses galling are fixed
+at their own sources — `keepTab` for the yanked tab, `event.repeat` for a held
+key. Three deliberate presses asking for three runs is what they asked for. The
+queue itself moved to `lib/run-queue.ts` with the unit tests four of five rounds
+kept proving it needed.
+
+For the record, the reasoning that produced the fold, which was sound and still
+wrong: Both earlier swings tried to decide WHICH PRESS to drop from
 information that cannot answer it: round two asked the destination ("is a run
 in flight?") and half-applied three callers; rounds three and five asked the
 caller ("is this a pointer-safe entry point?") and swallowed a deliberate press

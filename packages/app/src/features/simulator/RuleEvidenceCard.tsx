@@ -23,7 +23,9 @@ import { WriteRow } from "./WriteRow";
  *
  * The card is navigation-free (its footer link is the exception, and that is a
  * jump, not another fold), so it is light-dismiss: Escape or a click outside
- * closes it and focus goes back to the reference that opened it.
+ * closes it and focus goes back to the reference that opened it — and so does
+ * the results panel its anchor lives in going `hidden`, which is the third
+ * light dismiss and the one with no event behind it (see `RuleEvidenceAnchor`).
  */
 
 /** The card's preferred width — the mockup's 36rem, in px, clamped to the
@@ -267,10 +269,53 @@ export function RuleEvidenceAnchor({
         setAnchor(anchorRectOf(buttonRef.current));
       }
     }
+    // Roadmap 067 review: the card must not outlive the panel its anchor lives
+    // in. `ResultsPanel` switches results tabs by toggling `hidden` on panels
+    // that all stay mounted, so a tab switch unmounts nothing here, and the
+    // card — portalled to `<body>` — is not covered by the `hidden` its anchor
+    // now sits under. Left standing it floats over an unrelated panel and, the
+    // damage the eye does not catch, keeps `overlayKeyboardOwned()` true for as
+    // long as it stands: every bare key (`e`, `r`, `1`–`7`) and Home/End page
+    // scroll off, with a card over the wrong panel as the only clue.
+    //
+    // Closing on the ANCHOR going away, rather than on focus leaving the card,
+    // is what settles the whole class in one rule — every way the panel can be
+    // hidden is the same event to it, and they have no keystroke in common: the
+    // tab strip's arrows and Enter, a click on a tab, `1`–`7`. One of them does
+    // not even take focus out of the card, so a focus-out dismiss would have
+    // gone on missing it: this card's own provenance chip jumping to the
+    // Presets tab.
+    //
+    // (⌘⏎ from inside the card was a second such case when this was written.
+    // It no longer is: `gestureWantsResultsLanding()` now asks whether the
+    // gesture came from the CONFIG COLUMN, so a run requested from the card
+    // keeps the tab and never hides this anchor. The observer is still what
+    // covers the rest.)
+    //
+    // An observer because there is no event for it: the panel's box stops
+    // existing, which fires no scroll, no resize and no blur (focus is in the
+    // portal, not in the panel) — and a re-render is not something to fall back
+    // on either, since this sits inside the memoised `RuleSimulator` and a tab
+    // switch changes none of its props. Attributes only, filtered
+    // to `hidden` — a tab switch delivers the two records that matter, and the
+    // callback asks one `closest`. That question is the one `jumpDisplacedFocus`
+    // already asks about a jump's activator (`lib/focus-landing.ts`).
+    function closeIfAnchorHidden() {
+      if (buttonRef.current?.closest("[hidden]")) {
+        close();
+      }
+    }
+    const anchorWatch = new MutationObserver(closeIfAnchorHidden);
+    anchorWatch.observe(document.body, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["hidden"],
+    });
     document.addEventListener("mousedown", onPointerDown);
     window.addEventListener("scroll", reposition, { capture: true, passive: true });
     window.addEventListener("resize", reposition, { passive: true });
     return () => {
+      anchorWatch.disconnect();
       document.removeEventListener("mousedown", onPointerDown);
       window.removeEventListener("scroll", reposition, { capture: true });
       window.removeEventListener("resize", reposition);

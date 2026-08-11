@@ -34,13 +34,47 @@ export function useShortcut(
 ): void {
   const handlerRef = useRef(handler);
   handlerRef.current = handler;
+  // Read through a ref for the same reason as `handlerRef`, plus one more:
+  // the window listener must not be torn down by an `enabled` flip that
+  // happens mid-hold (see `heldRef` below), so `enabled` can no longer be an
+  // effect dependency that gates whether the listener exists at all.
+  const enabledRef = useRef(enabled);
+  enabledRef.current = enabled;
+  // Roadmap 067 review: `?` is the one binding that disables itself the
+  // instant it fires — pressing it sets `shortcutSheetOpen`, which flips this
+  // hook's own `enabled` to false. Gating listener installation on `enabled`
+  // (the previous shape) tore the effect down mid-hold, so every repeat after
+  // the first reached the browser un-prevented — the exact Firefox quick-find
+  // failure the `preventDefault`-before-`repeat` ordering below exists to
+  // avoid. `heldRef` records whether the hold CURRENTLY IN PROGRESS was
+  // claimed, decided once on its first (non-repeat) press and reused for
+  // every repeat of that same hold, so a later `enabled` flip cannot retract
+  // a claim already made. `event.repeat` is false only on a key's first press
+  // per hold (the browser's own guarantee), so a fresh press always resets
+  // this before it is read — no keyup listener needed, and nothing to leak if
+  // a keyup is ever missed (e.g. focus leaving the window mid-hold).
+  const heldRef = useRef(false);
 
   useEffect(() => {
-    if (!enabled) {
-      return;
-    }
     function onKeyDown(event: KeyboardEvent) {
       if (event.defaultPrevented || !matchShortcut(event, shortcut)) {
+        return;
+      }
+      if (event.repeat) {
+        // Continuing a hold: the claim was decided below on this hold's first
+        // press and does not get re-litigated against the CURRENT `enabled`,
+        // target or overlay state — that is what "stays claimed for the whole
+        // hold" means.
+        if (!heldRef.current) {
+          return;
+        }
+        event.preventDefault();
+        return;
+      }
+      // Fresh press: decide the claim once, in order — falls through to
+      // `false` (unclaimed) unless every gate below passes and reaches the end.
+      heldRef.current = false;
+      if (!enabledRef.current) {
         return;
       }
       // A bare key never fires while the user is typing — `isTextEditingTarget`
@@ -71,12 +105,10 @@ export function useShortcut(
       // opens its quick-find bar behind the sheet, which swallows the
       // keystrokes that follow. Not running the action again is the only thing
       // a repeat may change.
-      if (event.repeat) {
-        return;
-      }
+      heldRef.current = true;
       handlerRef.current();
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [shortcut, enabled]);
+  }, [shortcut]);
 }

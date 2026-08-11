@@ -1,11 +1,6 @@
 import { useEffect, useRef } from "react";
 import { mayOwnNativePopup } from "@/hooks/scroll-ergonomics";
-import {
-  type EscapePriority,
-  handleEscape,
-  overlayKeyboardOwned,
-  pushEscapeLayer,
-} from "@/lib/escape-stack";
+import { type EscapePriority, handleEscape, pushEscapeLayer } from "@/lib/escape-stack";
 
 /**
  * Roadmap 067: the document half of the Escape ladder (`lib/escape-stack.ts`
@@ -79,7 +74,7 @@ function onKeyDown(event: KeyboardEvent): void {
   // simulator, type into `datasource` until the suggestions appear and press
   // Escape, and the return pill went with them.
   //
-  // Narrow on purpose, and narrow three times over.
+  // Narrow on purpose, and narrow twice over.
   //
   // In WHERE: round one's `isTextEditingTarget` bail took Escape away from every
   // field and left layers stranded; this covers only a control that can have a
@@ -87,29 +82,29 @@ function onKeyDown(event: KeyboardEvent): void {
   // Escape from a text field still reaches the ladder, which is the constraint
   // that fix established.
   //
-  // In WHAT IT YIELDS TO — the rule the glossary card states in the other
-  // direction: a surface that opened ITSELF cannot outrank one the user opened.
-  // Nothing closes a rule-evidence card on blur and it does not trap focus, so a
-  // keyboard user can Tab out of it and back into `datasource` with the card
-  // still standing, and an unconditional bail left it undismissable from there.
-  // `overlayKeyboardOwned()` is `popover` or `menu`: those keep the key.
+  // And in HOW LONG: the popup is treated as what it is, the topmost layer of a
+  // ladder we cannot see. It gets the FIRST press after each interaction that
+  // could have opened it, and the next press is the page's. So Escape in a
+  // combobox reads "close the suggestions, then the layer underneath", which is
+  // the same one-layer-per-press story the ladder tells everywhere else — and
+  // the cost of guessing wrong is exactly one wasted keystroke in a field where
+  // no popup was open, never a layer destroyed by a press the user aimed at the
+  // browser's own popup.
   //
-  // And in HOW LONG. Ranking alone still cost the `ambient` rank everything —
-  // the return pill was undismissable from these two fields for the whole
-  // session, though the `?` sheet prints Escape as dismissing it, because
-  // `ambient` sits below the threshold above. The fix is to treat the popup as
-  // what it is, the topmost layer of a ladder we cannot see: it gets the FIRST
-  // press after each interaction that could have opened it, and the next press
-  // is the page's. So Escape in a combobox reads "close the suggestions, then
-  // the pill", which is the same one-layer-per-press story the ladder tells
-  // everywhere else — and the cost of guessing wrong is now exactly one wasted
-  // keystroke in a field where no popup was open, never a layer destroyed by a
-  // press the user aimed at the browser's own popup.
-  if (
-    mayOwnNativePopup(event.target) &&
-    !overlayKeyboardOwned() &&
-    popupGivenAPress !== event.target
-  ) {
+  // RANK is deliberately NOT a third condition, though a round that predates
+  // the arming added one and it survived the round that wrote the arming. It
+  // did answer the complaint it was written for — an unconditional bail left a
+  // rule-evidence card undismissable from `datasource`, which a keyboard user
+  // can reach with the card still standing (nothing closes it on blur and it
+  // traps no focus). But it answered it by taking the popup's own press
+  // wherever a popover or menu happened to be open, which is the very theft
+  // this bail exists to stop, in the field where the user is most likely to be
+  // typing. The arming is what makes the rank unnecessary: one press per
+  // interaction bounds the yield for EVERY rank, so no layer is undismissable
+  // from these two fields — it merely costs a second press there, which is
+  // what the `?` sheet prints for them, and prints with no rank exception
+  // (`lib/shortcuts.ts`, the Forms section).
+  if (mayOwnNativePopup(event.target) && popupGivenAPress !== event.target) {
     popupGivenAPress = event.target;
     return;
   }
