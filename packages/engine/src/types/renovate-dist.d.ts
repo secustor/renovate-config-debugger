@@ -107,6 +107,11 @@ declare module "renovate/dist/config/presets/internal/index.js" {
     repo?: string;
     presetName?: string;
   }): RenovateConfig | undefined;
+  /** The table those presets live in, keyed by group then preset name. These
+   *  are the very objects `getPreset` hands out — `config/presets/index.js`
+   *  MUTATES them (see trace/description-provenance.ts), so treat as read-only
+   *  and never assume a body is still what its author wrote. */
+  export const groups: Record<string, Record<string, RenovateConfig>>;
 }
 
 declare module "renovate/dist/config/presets/util.js" {

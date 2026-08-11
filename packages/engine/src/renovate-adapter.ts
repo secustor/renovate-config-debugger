@@ -18,7 +18,12 @@ export { parsePreset } from "renovate/dist/config/presets/parse.js";
 // `presets/index.js` — roadmap 014's `group:`-preset translation reads the
 // flagged group's OWN body rather than restating it, so the suggested rule
 // can't drift from the pinned Renovate.
-export { getPreset as getInternalPreset } from "renovate/dist/config/presets/internal/index.js";
+// `groups` is the raw table those bodies live in — the SAME objects renovate
+// hands out, which `getPreset` mutates (see trace/description-provenance.ts).
+export {
+  getPreset as getInternalPreset,
+  groups as internalPresetGroups,
+} from "renovate/dist/config/presets/internal/index.js";
 export { mergeChildConfig } from "renovate/dist/config/utils.js";
 export { getConfig as getDefaultConfig } from "renovate/dist/config/defaults.js";
 export { GlobalConfig } from "renovate/dist/config/global.js";

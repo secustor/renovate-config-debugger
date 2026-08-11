@@ -36,6 +36,15 @@ export {
 } from "./error-translations";
 export { applyFixToText, type AppliedTextFix } from "./error-fix-text";
 export {
+  computeDescriptionProvenance,
+  type DescriptionAttribution,
+  type DescriptionProvenance,
+  type DescriptionSource,
+  type DroppedDescription,
+  type DroppedDescriptionReason,
+  type RuleDescriptionAttribution,
+} from "./trace/description-provenance";
+export {
   computeProvenance,
   computeRuleProvenance,
   type KeyProvenance,
