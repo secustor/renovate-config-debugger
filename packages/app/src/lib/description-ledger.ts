@@ -122,11 +122,17 @@ const PREVIEW_CHARS = 80;
 export function ledgerPreviewText(ledger: DescriptionLedger): string {
   const count = ledger.entryCount;
   const head = `${nf.format(count)} ${count === 1 ? "entry" : "entries"}`;
-  const quoted = ledger.groups
-    .flatMap((group) => group.entries)
-    .map((entry) => `"${entry.value}"`)
-    .join(", ");
-  return quoted.length > 0 ? `${head} — ${truncate(quoted, PREVIEW_CHARS)}` : head;
+  // Runs per keystroke via KeyRowPreview — stop quoting once the cell is full.
+  let quoted = "";
+  for (const group of ledger.groups) {
+    for (const entry of group.entries) {
+      quoted += quoted.length > 0 ? `, "${entry.value}"` : `"${entry.value}"`;
+      if (quoted.length > PREVIEW_CHARS) {
+        return `${head} — ${truncate(quoted, PREVIEW_CHARS)}`;
+      }
+    }
+  }
+  return quoted.length > 0 ? `${head} — ${quoted}` : head;
 }
 
 /** The origin cell's compact summary of how many presets had a hand in this
