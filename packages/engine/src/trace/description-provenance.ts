@@ -52,7 +52,7 @@ import { computeRuleProvenance, type ProvenanceLayer } from "./provenance";
 
 /** The preset-tree node a string (or a drop) is attributed to. */
 export interface DescriptionSource {
-  /** `PresetNode.id`; `"root"` for the repo config itself. */
+  /** `PresetNode.id`; `ROOT_NODE_ID` for the repo config itself. */
   nodeId: string;
   /** Raw preset string as written in `extends`; `"(input config)"` for the root. */
   name: string;

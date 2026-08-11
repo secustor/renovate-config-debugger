@@ -5,8 +5,10 @@
  * The engine answers "what did Renovate do"; these modules answer the handful
  * of questions the app adds on top — the preset-expansion totals, the plain-
  * English run digest, the effective-config tallies, the pollution-checked
- * parse of the 008 config layers, and (roadmap 062) the simulator's rule
- * filters, which `rcd simulate --verdict/--source` is. The CLI must quote the
+ * parse of the 008 config layers, (roadmap 062) the simulator's rule
+ * filters, which `rcd simulate --verdict/--source` is, and (roadmap 069) the
+ * description digest behind the Overview's "What this config does" card — the
+ * grouping and counts, not the attribution, which is the engine's. The CLI must quote the
  * SAME numbers the web
  * app renders, so it imports them rather than restating them; this barrel is
  * the seam that makes that an import instead of a copy.
@@ -25,6 +27,18 @@ export {
   type TreeStats,
   type TreeSummary,
 } from "@/components/preset-tree-stats";
+export {
+  buildDescriptionDigest,
+  descriptionCountText,
+  type DescriptionDigest,
+  type DescriptionDigestTotals,
+  type DigestEntry,
+  type DigestGroup,
+  type DigestRule,
+  groupContributionText,
+  ruleNoteText,
+  unattributedNoteText,
+} from "./description-digest";
 export {
   effectiveTally,
   type EffectiveTally,

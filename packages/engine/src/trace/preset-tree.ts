@@ -1,10 +1,11 @@
 import { toSerializable } from "./delta";
-import type {
-  PlatformContext,
-  PresetNode,
-  PresetSourceRef,
-  TraceEvent,
-  ValidationMessage,
+import {
+  type PlatformContext,
+  type PresetNode,
+  type PresetSourceRef,
+  ROOT_NODE_ID,
+  type TraceEvent,
+  type ValidationMessage,
 } from "./model";
 
 /**
@@ -154,7 +155,7 @@ export class PresetTreeBuilder {
     const top = this.top();
     if (!top) {
       this.root = {
-        id: "root",
+        id: ROOT_NODE_ID,
         name: "(input config)",
         state: "aborted",
         input: toSerializable(meta.config),

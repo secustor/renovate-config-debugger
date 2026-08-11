@@ -60,7 +60,7 @@ export interface ResultsColumnProps {
   jumpToTab: (tab: ResultsTabId) => void;
   /** Consumed by: pipeline (rewrite-count crosslink), rewrites. */
   migrateSteps: TraceEvent[];
-  /** Consumed by: effective, simulator. */
+  /** Consumed by: overview (069's digest card), effective, simulator. */
   selectPresetNode: (nodeId: string) => void;
   /** Consumed by: simulator, problems. */
   focusEditorRepoIndex: (repoIndex: number) => void;
@@ -250,10 +250,12 @@ export function ResultsColumn({
     return {
       overview: (
         <OverviewTab
+          result={result}
           digest={digest}
           banner={validateHasErrors ? <HypotheticalBanner /> : null}
           onOpen={jumpToTab}
           onWhereFrom={onWhereFrom}
+          onSelectPreset={selectPresetNode}
         />
       ),
       pipeline: (

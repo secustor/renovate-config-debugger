@@ -21,8 +21,11 @@ import { OptionKey } from "./option-docs";
 import { ConfigJson } from "./ConfigJson";
 import { CopyButton } from "./CopyButton";
 import { ProvenanceChip } from "./ProvenanceChip";
-import { layerId, layerLabel, type LayerId } from "./provenance-layer";
+import { layerId, layerLabel, type LayerId, layerNodeKey } from "./provenance-layer";
 import { useRuleProvenance } from "@/hooks/rule-provenance";
+// Roadmap 069 hoisted this out of here: the description digest prints the same
+// one-line matcher summary, and one spelling of it is enough.
+import { summarizeRuleSelectors } from "@/lib/rule-selectors";
 import { RuleFramingText } from "./rule-framing";
 
 /**
@@ -117,14 +120,6 @@ const VERBS: Record<ProvenanceStep["action"], string> = {
  *  produces — a key exists in this view because some layer set it. */
 function winningStep(entry: KeyProvenance): ProvenanceStep | undefined {
   return entry.chain.findLast((s) => !s.noop) ?? entry.chain.at(-1);
-}
-
-/** React key for an override-chain row (roadmap 041). Each layer contributes at
- *  most one step to a key's chain, and preset node ids are unique across the
- *  tree — so this is a genuine identity even when two `extends` entries resolve
- *  to presets with the same NAME (which `layerId` deliberately conflates). */
-function stepKey(step: ProvenanceStep): string {
-  return step.layer.kind === "preset" ? `preset:${step.layer.nodeId}` : step.layer.kind;
 }
 
 /** Non-no-op layers that contributed to a key, for the layer filter. */
@@ -222,19 +217,6 @@ function Step({
       </pre>
     </div>
   );
-}
-
-/** First matcher-clause key list, for a one-line rule summary (mirrors the
- *  simulator's ruleLabel — all clauses, no "which one matters" judgment
- *  since this view has no dependency to evaluate against). */
-function summarizeRuleSelectors(rule: unknown): string {
-  if (typeof rule !== "object" || rule === null) {
-    return "(not an object)";
-  }
-  const keys = Object.keys(rule as Record<string, unknown>).filter(
-    (k) => k.startsWith("match") || k.startsWith("exclude"),
-  );
-  return keys.length > 0 ? keys.join(" + ") : "(no match*/exclude* selectors)";
 }
 
 /** Roadmap 013: per-entry provenance for `packageRules` — which layer (repo /
@@ -400,8 +382,11 @@ function KeyRow({
           <div className="prov-chain-title">
             Override chain ({visibleSteps.length} step{visibleSteps.length === 1 ? "" : "s"})
           </div>
+          {/* Each layer contributes at most one step to a key's chain, so the
+              layer's NODE identity is a genuine key here (roadmap 041) — and
+              the rows are rebuilt per run, so per-run node ids are fine. */}
           {visibleSteps.map((step) => (
-            <Step key={stepKey(step)} step={step} onSelectPreset={onSelectPreset} />
+            <Step key={layerNodeKey(step.layer)} step={step} onSelectPreset={onSelectPreset} />
           ))}
         </div>
       ) : null}
