@@ -4350,3 +4350,148 @@ button.desc-digest-leaf:focus-visible {
   margin: 0;
   padding: 0.5rem 0.75rem;
 }
+
+/* ---------- 069 PR 3: the description row's blame ledger ----------
+
+   The Effective config's `description` row, expanded: every string of the
+   final array in the order Renovate built it, each attributed to the preset
+   that wrote it. A three-column grid (index / prose / source) repeated across
+   every run, so the columns line up down the whole ledger even though each run
+   is its own `<ul>` — the runs are separate lists precisely so a hairline and
+   a collapse toggle can belong to one of them. */
+.desc-ledger {
+  padding-top: 0.2rem;
+}
+
+.desc-ledger-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.15rem 0 0.35rem;
+}
+
+/* The blame grouping: a hairline wherever the top-level extend changes. The
+   first run needs none — the row's own head is its separator. */
+.desc-ledger-list + .desc-ledger-list,
+.desc-ledger-dropped {
+  border-top: 1px solid var(--border);
+  margin-top: 0.3rem;
+  padding-top: 0.45rem;
+}
+
+.desc-ledger-row {
+  align-items: baseline;
+  column-gap: 0.75rem;
+  display: grid;
+  grid-template-columns: 2.2rem minmax(12rem, 1fr) minmax(11rem, 17rem);
+  padding: 0.2rem 0.2rem 0.2rem 0;
+}
+
+.desc-ledger-row:hover {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+.desc-ledger-idx {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-align: right;
+}
+
+.desc-ledger-text {
+  font-size: 0.85rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.desc-ledger-text code {
+  font-size: 0.9em;
+}
+
+/* A sentence the array really does carry twice: kept in place (the order is
+   the point) but demoted — DevTools' struck-through overridden declaration,
+   not VS Code's silently hidden one. */
+.desc-ledger-row.duplicate .desc-ledger-text {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent);
+}
+
+.desc-ledger-src {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+/* Which extend carried the sentence in, when that is not the preset that wrote
+   it — the line to delete, next to the line that wrote it. */
+.desc-ledger-via {
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+/* 069 PR 1's enclosing-node fallback, marked where PR 2 marks it: on the name,
+   so a subtree attribution can never read as a leaf claim. */
+.desc-ledger-approx {
+  color: var(--muted);
+  cursor: help;
+  font-size: 0.75rem;
+}
+
+/* The repeat's pill. Warn-tinted rather than muted: unlike the digest card's
+   "redundant" note this one is per-line and actionable — an extends entry is
+   paying for a sentence twice. */
+.desc-ledger-dup {
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-border);
+  border-radius: 999px;
+  color: var(--warn);
+  font-size: 0.68rem;
+  padding: 0.1em 0.5em;
+  white-space: nowrap;
+}
+
+.desc-ledger-more {
+  font-size: 0.78rem;
+  font-style: italic;
+  padding: 0.2rem 0 0 3rem;
+}
+
+/* The footer answering "where did my preset's description go" — a footnote,
+   and typed like one: quiet, closed, and never competing with the ledger. */
+.desc-ledger-dropped {
+  font-size: 0.78rem;
+}
+
+.desc-ledger-dropped .desc-ledger-text {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.desc-ledger-caveat {
+  background: var(--warn-bg);
+  border-top: 1px solid var(--warn-border);
+  font-size: 0.8rem;
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.75rem;
+}
+
+/* The digest card's way back to the ledger above (069 PR 3) — a card-title
+   action, so it sits with the count rather than inside the prose. The title
+   becomes a row for it, the way the effective config's already is. */
+.desc-digest-card > .card-title {
+  align-items: baseline;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.desc-digest-card > .card-title .desc-digest-count {
+  margin-left: 0;
+}
+
+.desc-digest-raw {
+  font-size: 0.75rem;
+  font-weight: 400;
+  margin-left: auto;
+}

@@ -18,11 +18,19 @@ import {
   multiContribBadgeKind,
 } from "@/lib/effective-tally";
 import { OptionKey } from "./option-docs";
+import { BlameLedger } from "./BlameLedger";
 import { ConfigJson } from "./ConfigJson";
 import { CopyButton } from "./CopyButton";
 import { ProvenanceChip } from "./ProvenanceChip";
 import { layerId, layerLabel, type LayerId, layerNodeKey } from "./provenance-layer";
 import { useRuleProvenance } from "@/hooks/rule-provenance";
+import { useDescriptionProvenance } from "@/hooks/description-provenance";
+import {
+  buildDescriptionLedger,
+  type DescriptionLedger,
+  ledgerPreviewText,
+  ledgerWriterText,
+} from "@/lib/description-ledger";
 // Roadmap 069 hoisted this out of here: the description digest prints the same
 // one-line matcher summary, and one spelling of it is enough.
 import { summarizeRuleSelectors } from "@/lib/rule-selectors";
@@ -38,6 +46,10 @@ import { RuleFramingText } from "./rule-framing";
  */
 
 type Provenance = Map<string, KeyProvenance>;
+
+/** Roadmap 069: the one key whose expanded body is a per-string blame ledger
+ *  rather than an override chain — see `BlameLedger`. */
+const DESCRIPTION_KEY = "description";
 
 // `LayerId` IS `string`, so `| "all"` is formally redundant — it stays as
 // documentation that "all" is the sentinel this filter uses for "no layer
@@ -290,28 +302,35 @@ function KeyRowKey({ name, expanded }: { name: string; expanded: boolean }) {
   );
 }
 
-/** The value cell: what the merged config ends up with — or, for the one row
- *  whose value is a list of rules, how many of them came from where. */
+/** The value cell: what the merged config ends up with — or, for the two rows
+ *  whose value is a list, what that list is made of: how many rules came from
+ *  where, or (069) how many description strings and how they start. */
 function KeyRowPreview({
   entry,
   rules,
   ruleAttribution,
+  ledger,
 }: {
   entry: KeyProvenance;
   rules: unknown[] | null;
   ruleAttribution?: RuleAttribution[] | null;
+  /** Only meaningful for the `description` row. */
+  ledger?: DescriptionLedger | null;
 }) {
-  return (
-    <span className="prov-key-preview">
-      {rules ? (
+  if (rules) {
+    return (
+      <span className="prov-key-preview">
         <RuleFramingText
           total={rules.length}
           attribution={ruleAttribution ?? null}
           variant="full"
         />
-      ) : (
-        preview(entry.finalValue)
-      )}
+      </span>
+    );
+  }
+  return (
+    <span className="prov-key-preview">
+      {ledger ? ledgerPreviewText(ledger) : preview(entry.finalValue)}
     </span>
   );
 }
@@ -323,16 +342,70 @@ function KeyRowOrigin({
   entry,
   winner,
   onSelectPreset,
+  ledger,
 }: {
   entry: KeyProvenance;
   winner?: ProvenanceStep;
   onSelectPreset?: (nodeId: string) => void;
+  /** 069: the `description` row's own count of contributors, which the layer
+   *  chips cannot express — for a concatenated array the "winning" layer is
+   *  just the last of twenty-odd presets that each wrote a line, not the one
+   *  that decided the value. */
+  ledger?: DescriptionLedger | null;
 }) {
+  const writers = ledger ? ledgerWriterText(ledger) : null;
   return (
     <span className="prov-row-origin">
       <MultiContribBadgeChip entry={entry} />
+      {writers ? (
+        <span
+          className="badge prov-layer prov-preset"
+          title="Presets that wrote at least one of these sentences — expand the row for the per-line ledger"
+        >
+          {writers}
+        </span>
+      ) : null}
       {winner ? <ProvenanceChip layer={winner.layer} onSelectPreset={onSelectPreset} /> : null}
     </span>
+  );
+}
+
+/** The expanded row's default body: the final value, the per-rule table on the
+ *  one row that has one, and the override chain. Its own component since 069
+ *  gave the `description` row a different body — and the depth ratchet counts
+ *  the two alternatives inside `KeyRow` as one expression. */
+function KeyRowChain({
+  entry,
+  rules,
+  ruleAttribution,
+  onSelectPreset,
+}: {
+  entry: KeyProvenance;
+  rules: unknown[] | null;
+  ruleAttribution?: RuleAttribution[] | null;
+  onSelectPreset?: (nodeId: string) => void;
+}) {
+  const visibleSteps = entry.chain.filter((s) => !s.noop);
+  return (
+    <>
+      <FinalValueBlock value={entry.finalValue} />
+      {rules && rules.length > 0 && ruleAttribution && ruleAttribution.length === rules.length ? (
+        <PackageRulesProvenance
+          rules={rules}
+          attribution={ruleAttribution}
+          onSelectPreset={onSelectPreset}
+        />
+      ) : null}
+      <div className="prov-chain-title">
+        Override chain ({visibleSteps.length} step{visibleSteps.length === 1 ? "" : "s"})
+      </div>
+      {/* Each layer contributes at most one step to a key's chain, so the
+          layer's NODE identity is a genuine key here (roadmap 041) — and
+          the rows are rebuilt per run, so per-run node ids are fine. */}
+      {visibleSteps.map((step) => (
+        <Step key={layerNodeKey(step.layer)} step={step} onSelectPreset={onSelectPreset} />
+      ))}
+    </>
   );
 }
 
@@ -342,6 +415,7 @@ function KeyRow({
   onToggle,
   onSelectPreset,
   ruleAttribution,
+  ledger,
 }: {
   entry: KeyProvenance;
   expanded: boolean;
@@ -349,9 +423,11 @@ function KeyRow({
   onSelectPreset?: (nodeId: string) => void;
   /** Only meaningful for the `packageRules` row; undefined/unavailable elsewhere. */
   ruleAttribution?: RuleAttribution[] | null;
+  /** Roadmap 069: only for the `description` row — null when the attribution
+   *  is unavailable, in which case the row renders exactly as it always did. */
+  ledger?: DescriptionLedger | null;
 }) {
   const winner = winningStep(entry);
-  const visibleSteps = entry.chain.filter((s) => !s.noop);
   const rules =
     entry.key === "packageRules" && Array.isArray(entry.finalValue) ? entry.finalValue : null;
   return (
@@ -363,31 +439,31 @@ function KeyRow({
         aria-expanded={expanded}
       >
         <KeyRowKey name={entry.key} expanded={expanded} />
-        <KeyRowPreview entry={entry} rules={rules} ruleAttribution={ruleAttribution} />
-        <KeyRowOrigin entry={entry} winner={winner} onSelectPreset={onSelectPreset} />
+        <KeyRowPreview
+          entry={entry}
+          rules={rules}
+          ruleAttribution={ruleAttribution}
+          ledger={ledger}
+        />
+        <KeyRowOrigin
+          entry={entry}
+          winner={winner}
+          onSelectPreset={onSelectPreset}
+          ledger={ledger}
+        />
       </button>
       {expanded ? (
         <div className="prov-detail">
-          <FinalValueBlock value={entry.finalValue} />
-          {rules &&
-          rules.length > 0 &&
-          ruleAttribution &&
-          ruleAttribution.length === rules.length ? (
-            <PackageRulesProvenance
+          {ledger ? (
+            <BlameLedger ledger={ledger} onSelectPreset={onSelectPreset} />
+          ) : (
+            <KeyRowChain
+              entry={entry}
               rules={rules}
-              attribution={ruleAttribution}
+              ruleAttribution={ruleAttribution}
               onSelectPreset={onSelectPreset}
             />
-          ) : null}
-          <div className="prov-chain-title">
-            Override chain ({visibleSteps.length} step{visibleSteps.length === 1 ? "" : "s"})
-          </div>
-          {/* Each layer contributes at most one step to a key's chain, so the
-              layer's NODE identity is a genuine key here (roadmap 041) — and
-              the rows are rebuilt per run, so per-run node ids are fine. */}
-          {visibleSteps.map((step) => (
-            <Step key={layerNodeKey(step.layer)} step={step} onSelectPreset={onSelectPreset} />
-          ))}
+          )}
         </div>
       ) : null}
     </div>
@@ -627,6 +703,7 @@ export const EffectiveConfig = memo(function EffectiveConfig({
   onSelectPreset,
   onStats,
   focusFilterNonce,
+  focusDescriptionNonce,
 }: {
   result: TraceResult;
   onSelectPreset?: (nodeId: string) => void;
@@ -637,9 +714,20 @@ export const EffectiveConfig = memo(function EffectiveConfig({
   /** Roadmap 028: bumped by the Overview's "Where did a setting come from?"
    *  pill to focus the filter input after switching to this tab. */
   focusFilterNonce?: number;
+  /** Roadmap 069: bumped by the Overview digest card's "show raw order" link —
+   *  the same nonce idiom, landing on the `description` row instead of the
+   *  filter box: filter prefilled, row expanded, ledger on screen. */
+  focusDescriptionNonce?: number;
 }) {
   const provenance = useProvenance(result);
   const ruleAttribution = useRuleProvenance(result);
+  // Roadmap 069: the per-string `description` attribution. Cached per result by
+  // the hook, so the Overview's digest card and this row share one walk.
+  const descriptionProvenance = useDescriptionProvenance(result);
+  const ledger = useMemo(
+    () => (descriptionProvenance ? buildDescriptionLedger(descriptionProvenance) : null),
+    [descriptionProvenance],
+  );
   const filterInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [layerFilter, setLayerFilter] = useState<LayerFilterValue>("all");
@@ -732,6 +820,17 @@ export const EffectiveConfig = memo(function EffectiveConfig({
     }
   }, [focusFilterNonce]);
 
+  // Roadmap 069: the digest card's "show raw order" link lands on the blame
+  // ledger — the row is one of ~90, so arriving at the tab is not arriving at
+  // the answer. Filter, expand, no focus steal: the reader is here to read.
+  useEffect(() => {
+    if (focusDescriptionNonce) {
+      setView("keys");
+      setQuery(DESCRIPTION_KEY);
+      setExpanded(new Set([DESCRIPTION_KEY]));
+    }
+  }, [focusDescriptionNonce]);
+
   if (!result.finalConfig) {
     return null;
   }
@@ -808,6 +907,7 @@ export const EffectiveConfig = memo(function EffectiveConfig({
                   key={entry.key}
                   entry={entry}
                   ruleAttribution={entry.key === "packageRules" ? ruleAttribution : undefined}
+                  ledger={entry.key === DESCRIPTION_KEY ? ledger : undefined}
                   expanded={expanded.has(entry.key)}
                   onToggle={() =>
                     setExpanded((prev) => {

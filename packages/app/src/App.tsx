@@ -339,6 +339,9 @@ export function App() {
   // Roadmap 028: bumped to focus the effective config's filter input from the
   // Overview's "Where did a setting come from?" pill.
   const [effectiveFilterNonce, setEffectiveFilterNonce] = useState(0);
+  // Roadmap 069: bumped by the Overview digest card's "show raw order" link to
+  // land on the effective config's `description` row and its blame ledger.
+  const [descriptionLedgerNonce, setDescriptionLedgerNonce] = useState(0);
   // Roadmap 028: the results pane, so a Run on a stacked (narrow) viewport can
   // scroll its consequence into view instead of appearing to do nothing.
   const resultsColRef = useRef<HTMLDivElement>(null);
@@ -468,6 +471,13 @@ export function App() {
   const onWhereFrom = useCallback(() => {
     jumpToTab("effective");
     setEffectiveFilterNonce((n) => n + 1);
+  }, [jumpToTab]);
+
+  /** Roadmap 069: the digest card's "show raw order" link — the same jump, but
+   *  landing on the `description` row rather than on the filter box. */
+  const onShowDescriptionOrder = useCallback(() => {
+    jumpToTab("effective");
+    setDescriptionLedgerNonce((n) => n + 1);
   }, [jumpToTab]);
 
   // Roadmap 028: selecting a preset node from anywhere else (a provenance
@@ -1900,6 +1910,7 @@ export function App() {
               errorLib={errorLib}
               digest={digest}
               onWhereFrom={onWhereFrom}
+              onShowDescriptionOrder={onShowDescriptionOrder}
               selectedStage={selectedStage}
               onSelectStage={setSelectedStage}
               deferredStage={deferredStage}
@@ -1916,6 +1927,7 @@ export function App() {
               onRunAgain={onRunAgain}
               onEffectiveStats={setEffectiveStats}
               effectiveFilterNonce={effectiveFilterNonce}
+              descriptionLedgerNonce={descriptionLedgerNonce}
               pendingRuleFocus={pendingRuleFocus}
               onRuleFocused={onRuleFocused}
               simRequest={simRequest}
