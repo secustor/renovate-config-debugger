@@ -423,6 +423,24 @@ export function App() {
     setBackTab(null);
   }, []);
 
+  /**
+   * Roadmap 067: the tab strip's arrows, which SELECT (see `ResultsPanel`) —
+   * but a walk along the strip is not the same act as choosing a tab, which is
+   * what `setTab` above is defined by and why it clears the cross-link trail.
+   * Keeping the trail is the whole reason this is not just `setTab`: a reader
+   * sent to Presets by a provenance chip can look at the next instrument along
+   * without the one-step way back disappearing from under them.
+   *
+   * Landing back ON the origin ends the trail, because at that point the trail
+   * has been walked — leaving it would offer "← Back to Overview" to a reader
+   * already on the Overview.
+   */
+  const walkToTab = useCallback((next: ResultsTabId) => {
+    tabRef.current = next;
+    setTabState(next);
+    setBackTab((from) => (from === next ? null : from));
+  }, []);
+
   /** Roadmap 028: a programmatic jump (a cross-instrument link, an Overview
    *  pill) — records where the user was so one click returns them. */
   const jumpToTab = useCallback((next: ResultsTabId) => {
@@ -1871,6 +1889,7 @@ export function App() {
               tabs={resultsTabs}
               tab={tab}
               onSelectTab={setTab}
+              onWalkTab={walkToTab}
               backTab={backTab}
               onBack={() => setTab(backTab ?? "overview")}
               validateHasErrors={validateHasErrors}

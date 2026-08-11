@@ -47,6 +47,9 @@ export interface ResultsColumnProps {
   tabs: ResultsTabDescriptor[];
   tab: ResultsTabId;
   onSelectTab: (tab: ResultsTabId) => void;
+  /** Roadmap 067: the strip's arrows, which select without discarding the
+   *  cross-link back trail (App's `walkToTab`). */
+  onWalkTab: (tab: ResultsTabId) => void;
   backTab: ResultsTabId | null;
   onBack: () => void;
 
@@ -144,6 +147,7 @@ export function ResultsColumn({
   tabs,
   tab,
   onSelectTab,
+  onWalkTab,
   backTab,
   onBack,
   validateHasErrors,
@@ -407,6 +411,7 @@ export function ResultsColumn({
       tabs={tabs}
       active={tab}
       onSelect={onSelectTab}
+      onWalk={onWalkTab}
       back={backTab}
       onBack={onBack}
       banner={banner}

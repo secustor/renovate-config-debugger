@@ -133,7 +133,7 @@ test("the results skip link lands on the selected tab", async ({ page }) => {
   expect(await page.evaluate(() => location.hash)).toBe("");
 });
 
-test("the results tab strip is one tab stop, arrows move focus, Enter selects", async ({
+test("the results tab strip is one tab stop, and an arrow opens the tab it lands on", async ({
   page,
 }) => {
   await page.goto("/");
@@ -146,23 +146,25 @@ test("the results tab strip is one tab stop, arrows move focus, Enter selects", 
   await tabButton(page, "overview").focus();
   await page.keyboard.press("ArrowRight");
 
-  // Manual activation (ARIA APG): looking is not choosing. An arrow moves
-  // focus and nothing else — selection-follows-focus made one glance destroy
-  // the "← Back to …" trail a cross-link had just left.
+  // Selection follows focus — the APG's recommended model wherever showing a
+  // panel is cheap, which here it always is: every panel is already mounted
+  // (028), so a switch is an attribute flip. The strip shipped manual
+  // activation first, and it charged a second keypress for every look.
   await expect(tabButton(page, "pipeline")).toBeFocused();
-  await expect(tabButton(page, "overview")).toHaveAttribute("aria-selected", "true");
-  await expect(tabPanel(page, "overview")).toBeVisible();
-
-  // Enter commits — a `<button>`'s own behaviour, so there is no extra binding.
-  await page.keyboard.press("Enter");
   await expect(tabButton(page, "pipeline")).toHaveAttribute("aria-selected", "true");
   await expect(tabPanel(page, "pipeline")).toBeVisible();
+  await expect(tabPanel(page, "overview")).toBeHidden();
 
-  // End moves focus to the last tab rather than scrolling the page (016's
-  // Home/End still owns every other context), and still does not select.
+  // End goes to the last tab rather than scrolling the page (016's Home/End
+  // still owns every other context), and opens it too.
   await page.keyboard.press("End");
   await expect(tabButton(page, "problems")).toBeFocused();
-  await expect(tabButton(page, "pipeline")).toHaveAttribute("aria-selected", "true");
+  await expect(tabButton(page, "problems")).toHaveAttribute("aria-selected", "true");
+
+  // Enter on the tab already open is a no-op, not a second switch.
+  await page.keyboard.press("Enter");
+  await expect(tabButton(page, "problems")).toHaveAttribute("aria-selected", "true");
+  await expect(tabPanel(page, "problems")).toBeVisible();
 });
 
 test("arrowing across the strip keeps the cross-link back affordance", async ({ page }) => {
@@ -185,8 +187,47 @@ test("arrowing across the strip keeps the cross-link back affordance", async ({ 
   await expect(back).toBeVisible();
 
   await page.locator('.tab-bar [role="tab"][aria-selected="true"]').focus();
-  await page.keyboard.press("ArrowRight");
+  // LEFT, and the direction is load-bearing: the chip lands on Presets, whose
+  // right-hand neighbour is Effective config — the origin itself, where the
+  // trail is supposed to end (the test below). Walking AWAY from the origin is
+  // what this one is about.
+  await page.keyboard.press("ArrowLeft");
+  // The arrow now OPENS the neighbour, and the way back has to survive that.
+  // Routing a walk through App's `setTab` is what destroyed it — the defect
+  // manual activation was adopted to dodge. `walkToTab` fixes the cause
+  // instead, so the trail outlives a walk along the strip.
+  await expect(tabButton(page, "rewrites")).toHaveAttribute("aria-selected", "true");
   await expect(back).toBeVisible();
+});
+
+test("walking onto the tab a cross-link came from ends the trail", async ({ page }) => {
+  await page.goto("/");
+  await runAndAwaitResult(page);
+
+  await openTab(page, "effective");
+  const chip = page
+    .locator('#panel-effective .badge.prov-layer.prov-preset[role="button"]')
+    .first();
+  await expect(chip).toBeVisible();
+  await chip.click();
+
+  const back = page.locator(".tab-back");
+  await expect(back).toBeVisible();
+  await expect(back).toContainText("Effective config");
+
+  // Keeping the trail across a walk has exactly one way to look silly: offering
+  // "← Back to Effective config" to a reader standing on that very tab. Walk
+  // the strip until the origin is what is open, and it must have gone.
+  for (let i = 0; i < 8; i += 1) {
+    if ((await tabButton(page, "effective").getAttribute("aria-selected")) === "true") {
+      break;
+    }
+    await page.locator('.tab-bar [role="tab"][aria-selected="true"]').focus();
+    await page.keyboard.press("ArrowRight");
+  }
+
+  await expect(tabButton(page, "effective")).toHaveAttribute("aria-selected", "true");
+  await expect(back).toBeHidden();
 });
 
 test("Enter in a simulator field simulates", async ({ page }) => {

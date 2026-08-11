@@ -32,12 +32,14 @@ function renderPanel(
   active: ResultsTabId,
   onSelect: (tab: ResultsTabId) => void,
   back: ResultsTabId | null = null,
+  onWalk: (tab: ResultsTabId) => void = () => undefined,
 ) {
   return render(
     <ResultsPanel
       tabs={TABS}
       active={active}
       onSelect={onSelect}
+      onWalk={onWalk}
       back={back}
       onBack={() => undefined}
       panels={panels()}
@@ -45,8 +47,8 @@ function renderPanel(
   );
 }
 
-/** The id of whatever currently has focus — the strip's arrows move focus and
- *  nothing else, so this is what every navigation assertion below reads. */
+/** The id of whatever currently has focus — what every navigation assertion
+ *  below reads, alongside the tab the walk opened. */
 function focusedTabId(): string | undefined {
   return document.activeElement?.id;
 }
@@ -139,22 +141,38 @@ describe("ResultsPanel keyboard navigation", () => {
     expect(focusedTabId()).toBe("tab-overview");
   });
 
-  it("selects on activation only, never on an arrow (manual activation)", () => {
-    // The defect this pins: `onSelect` is App's `setTab`, which clears the
-    // "← Back to …" affordance a cross-link left above the panel. With
-    // selection following focus, one glance at the neighbouring tab destroyed
-    // the way back.
+  it("opens the tab an arrow lands on (selection follows focus)", () => {
     const onSelect = vi.fn();
-    const view = renderPanel("presets", onSelect, "overview");
+    const onWalk = vi.fn();
+    const view = renderPanel("overview", onSelect, null, onWalk);
+    const strip = view.getByRole("tablist");
+
+    fireEvent.keyDown(strip, { key: "ArrowRight" });
+    expect(onWalk).toHaveBeenLastCalledWith("pipeline");
+    fireEvent.keyDown(strip, { key: "End" });
+    expect(onWalk).toHaveBeenLastCalledWith("problems");
+    fireEvent.keyDown(strip, { key: "Home" });
+    expect(onWalk).toHaveBeenLastCalledWith("overview");
+  });
+
+  it("walks without spending the cross-link back trail, but a choice spends it", () => {
+    // Why a walk is not routed through `onSelect`: that callback is App's
+    // `setTab`, DEFINED to clear the "← Back to …" control a cross-link left
+    // above the panel. Manual activation was the first answer to this and it
+    // cost every look a second keypress; splitting the two callbacks keeps the
+    // trail without taking the arrows away.
+    const onSelect = vi.fn();
+    const onWalk = vi.fn();
+    const view = renderPanel("presets", onSelect, "overview", onWalk);
     const strip = view.getByRole("tablist");
 
     fireEvent.keyDown(strip, { key: "ArrowRight" });
     fireEvent.keyDown(strip, { key: "End" });
-    fireEvent.keyDown(strip, { key: "Home" });
     expect(onSelect).not.toHaveBeenCalled();
 
     // Enter and Space are the browser's own activation of a focused `<button>`
-    // — they arrive as a click, which is the path asserted here.
+    // — they arrive as a click, which is the path asserted here, and that one
+    // DOES mean "I chose this tab".
     fireEvent.click(view.getByRole("tab", { name: /^Pipeline/ }));
     expect(onSelect).toHaveBeenLastCalledWith("pipeline");
   });

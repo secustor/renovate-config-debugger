@@ -98,7 +98,7 @@ document generalizes those into rules and fills the holes.
 | **Enter**          | repo-load form fields       | Load from repo — unchanged, this is the precedent                |
 | **Escape**         | topmost transient layer     | Dismiss it (popover → session menu → return pill)                |
 | **Tab**            | editor                      | Move focus out — it no longer indents (see below)                |
-| **←/→ · Home/End** | results tab strip           | Move FOCUS between tabs (Enter selects); the strip is one stop   |
+| **←/→ · Home/End** | results tab strip           | Open the next / first / last tab; the strip is one tab stop      |
 | **Mod+] · Mod+[**  | editor                      | Indent / outdent — already bound by `basicSetup`, now documented |
 | **?**              | global, outside text fields | Open the shortcut sheet                                          |
 | **⌘⇧⏎**            | global, editor included     | Run, then jump to the results                                    |
@@ -497,6 +497,47 @@ A wasted keystroke is recoverable; a silently destroyed way back is not. Both
 directions are pinned by tests in `glossary.test.tsx`, so whoever revisits this
 has to break one of them on purpose.
 
+## Both activation models, in order
+
+The results strip has now shipped both of the APG's tab activation models, and
+the round trip is worth recording, because the first reversal fixed the wrong
+half of the problem.
+
+It started as **selection follows focus** (the APG default, and its
+recommendation wherever showing a panel is cheap — here it always is: every
+panel is mounted already, so a switch is an attribute flip). Review two changed
+it to **manual activation** — arrows move focus, Enter or Space commits — on
+this argument: half these tabs are reached by a cross-link, arriving that way
+leaves a "← Back to Overview" control above the panel, `onSelect` is App's
+`setTab`, and `setTab` clears that trail by design. So one exploratory
+ArrowRight destroyed the way back. "Looking is not choosing."
+
+The observation was right and the conclusion did not follow. The arrow was never
+the problem; routing a walk through the callback that means _the user chose this
+tab_ was. Manual activation dodged that by making the arrows do less, and
+charged for it in the currency the widget is built to spend: a second keypress
+on every look, in a strip whose whole purpose is glancing between seven views of
+one run. Reported from use, which is where that cost is visible and a review
+reading the diff could not see it.
+
+So the two acts are now two callbacks. `onWalk` → App's `walkToTab` moves the
+selection and keeps the trail; `onSelect` → `setTab` is a click, Enter or Space,
+and still means "I have gone somewhere else". The arrows get their default
+behaviour back and the trail survives them, which manual activation only ever
+approximated.
+
+One rule earns the split its keep: **landing on the origin ends the trail.**
+Walk from a chip-linked Presets to Effective config, the tab the chip came from,
+and "← Back to Effective config" would be offered to a reader already standing
+there. That is also the only way keeping the trail across a walk can look
+foolish, so it has its own e2e — as does the direction, since the chip lands one
+step to the LEFT of its own origin and an ArrowRight from there ends the trail
+correctly rather than proving anything about walks.
+
+What is genuinely lost: a screen reader now hears every tab in a walk announced
+as a newly selected panel. That is inherent to the model, the APG accepts it for
+cheap panels, and it is the trade the model is chosen for.
+
 ## The one layer that did not claim its key
 
 Reported after the reviews had stopped: pressing Escape on the `?` sheet closed
@@ -561,14 +602,9 @@ was not connected in the session that fixed this, so the live check is unrun.
 - `ResultsPanel.tsx` gets the tablist pattern: roving `tabindex`, arrows and
   Home/End, with the arithmetic in `lib/roving-tabs.ts` (a non-component export
   from a component file breaks fast refresh, and the wrap-around wanted a unit
-  test). The APG allows two activation models and the first cut took the
-  default, selection-follows-focus; the second review showed why the other one
-  is right here. Half these tabs are reached by cross-link, which leaves a
-  "← Back to …" control above the panel, and `setTab` clears it by design — so
-  one exploratory arrow press destroyed the way back, and walking the strip
-  meant six real panel switches, each announced as a new selection. **Manual
-  activation**: arrows move focus, Enter or Space selects, which is a
-  `<button>`'s own behaviour and needs no new binding. Looking is not choosing.
+  test). **Selection follows focus**: an arrow opens the tab it lands on. See
+  "Both activation models, in order" below — this strip shipped the other one
+  first, and the reversal is the more useful half of the story.
 - `lib/escape-stack.ts` (pure ordering) + `hooks/use-escape-layer.ts` (one
   refcounted document listener) replace the three document-level Escape
   listeners. `use-thread-nav`'s `document.querySelector(RULE_POP_SELECTOR)`

@@ -17,10 +17,13 @@ export interface ResultsTabDescriptor {
 interface Props {
   tabs: ResultsTabDescriptor[];
   active: ResultsTabId;
-  /** A tab was ACTIVATED — clicked, or Enter/Space on a focused one. The
-   *  arrows never call this (manual activation, see `onKeyDown`); the shell
-   *  never decides, App owns the state. */
+  /** A tab was CHOSEN — clicked, or Enter/Space on a focused one. Clears the
+   *  cross-link back trail; the shell never decides, App owns the state. */
   onSelect: (tab: ResultsTabId) => void;
+  /** The arrows and Home/End. Selection follows focus, so a walk selects too —
+   *  it is a separate callback only because it must NOT discard the back trail
+   *  (App's `walkToTab`, and `onKeyDown` below for the reasoning). */
+  onWalk: (tab: ResultsTabId) => void;
   /** Roadmap 028: the one-step "back to where I was" target after an
    *  automatic tab switch (a provenance chip, a message jump, an Overview
    *  pill). null = the current tab was reached by an explicit tab click. */
@@ -40,7 +43,16 @@ interface Props {
  * (tree expansion and search, effective-config filters, the stepper index,
  * simulation results, scroll positions) survives switching for free.
  */
-export function ResultsPanel({ tabs, active, onSelect, back, onBack, banner, panels }: Props) {
+export function ResultsPanel({
+  tabs,
+  active,
+  onSelect,
+  onWalk,
+  back,
+  onBack,
+  banner,
+  panels,
+}: Props) {
   const barRef = useRef<HTMLDivElement>(null);
   // The roving tabindex's `0` — the tab a plain Tab key would land on next
   // time the strip is entered, and the one Tab leaves FROM. It has to track
@@ -60,22 +72,30 @@ export function ResultsPanel({ tabs, active, onSelect, back, onBack, banner, pan
    * go to the ends — paired with the roving `tabindex` below, so the whole
    * strip is ONE tab stop instead of eight on the way to the panel.
    *
-   * **Manual activation**, deliberately: the arrows move FOCUS, and Enter or
-   * Space selects. That is a `<button>`'s own behavior, so nothing here handles
-   * either key, and the sheet's "← → move between tabs" stays literally true.
+   * **Selection follows focus**: an arrow moves focus AND opens that tab. The
+   * APG permits either model and recommends this one wherever showing a panel
+   * is cheap, which here it always is — every panel is already mounted (028),
+   * so a switch is an attribute flip.
    *
-   * The APG permits this or "selection follows focus", and this strip shipped
-   * the latter first. It was the wrong one here. Half these tabs are reached by
-   * cross-link — a provenance chip, a message jump, an Overview pill — and
-   * arriving that way puts a "← Back to Overview" control above the panel.
-   * `onSelect` is App's `setTab`, which clears that affordance because an
-   * explicit tab choice is exactly what it means to have gone somewhere else:
-   * so one ArrowRight to glance at the neighbour destroyed the way back, and
-   * walking from the first tab to the last was six real tab switches, each
-   * announced to a screen reader as a newly selected panel the user never
-   * asked for. Panels are all mounted (028), so nothing about switching is
-   * expensive — the cost was never render time, it was that every look was
-   * also a commitment.
+   * This strip has now shipped both, and the reversal is worth writing down
+   * because the first attempt fixed the wrong half of the problem. Manual
+   * activation was adopted to protect the cross-link back trail: half these
+   * tabs are reached by a provenance chip or a message jump, which leaves a
+   * "← Back to Overview" control above the panel, and `onSelect` is App's
+   * `setTab`, DEFINED to clear that trail because choosing a tab is what it
+   * means to have gone somewhere else. So one ArrowRight destroyed the way
+   * back. The conclusion drawn was "arrows must not select" — but the arrow was
+   * never the problem. Routing a walk through the callback that means "the user
+   * chose this" was. Splitting the two (`onWalk`) keeps the trail across a walk
+   * and costs the arrows nothing.
+   *
+   * What manual activation cost, meanwhile, was the pattern users actually
+   * expect from a tab strip: every look required a second key to commit, in a
+   * widget whose whole purpose is glancing between seven views of one run.
+   *
+   * Enter and Space still work — they are a focused `<button>`'s own behavior,
+   * so nothing here handles them — and now mean "choose this tab", ending the
+   * trail the way a click does.
    *
    * Home/End are also the page-scroll keys (016). `preventDefault` is what
    * settles that: `useHomeEndPageScroll` ignores an event another handler
@@ -94,10 +114,11 @@ export function ResultsPanel({ tabs, active, onSelect, back, onBack, banner, pan
     if (!bar || anyModifierHeld(event)) {
       return;
     }
-    // Arrows move from wherever FOCUS is, which under manual activation is
-    // allowed to differ from the selection — and does, for as long as the user
-    // is looking around. Falling back to the selected tab covers the first
-    // press after the strip is entered by pointer or programmatically.
+    // Arrows move from wherever FOCUS is. Selection follows focus, so the two
+    // agree while the user is walking — but only while focus is IN the strip,
+    // and the roving stop deliberately outlives that (`focusedTab`). Falling
+    // back to the selected tab covers the first press after the strip is
+    // entered by pointer or programmatically.
     const focused = document.activeElement;
     const from = bar.contains(focused) ? tabIdOfElement(focused) : undefined;
     const current = tabs.findIndex((tab) => tab.id === (from ?? active));
@@ -108,6 +129,7 @@ export function ResultsPanel({ tabs, active, onSelect, back, onBack, banner, pan
     }
     event.preventDefault();
     bar.querySelector<HTMLElement>(tabButtonSelector(target.id))?.focus();
+    onWalk(target.id);
   }
 
   // The `.focus()` call above dispatches a real (bubbling, via `focusin`)
