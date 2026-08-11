@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { isTextEditingTarget } from "@/hooks/scroll-ergonomics";
+import { isEditorTarget } from "@/hooks/scroll-ergonomics";
 import { type EscapePriority, handleEscape, pushEscapeLayer } from "@/lib/escape-stack";
 
 /**
@@ -24,10 +24,17 @@ function onKeyDown(event: KeyboardEvent): void {
   // nothing to simplify — so a press meant for the editor would also pop the
   // topmost layer. Our own element-scoped handlers claim the key with
   // `stopPropagation()` instead (the repo-load form's, a glossary term's); a
-  // third-party keymap cannot be asked to. Sharing `isTextEditingTarget` with
-  // the bare-key layer keeps one definition of "the user is typing", and makes
-  // this the same rule as principle 2: no page-level key fires mid-sentence.
-  if (isTextEditingTarget(event.target)) {
+  // third-party keymap cannot be asked to.
+  //
+  // The editor ONLY — not `isTextEditingTarget`, which the bare-key layer uses
+  // and which counts every text input and `<select>` as typing. Escape is not a
+  // bare key competing with what the user is writing: it dismisses whatever is
+  // on top, and a layer the user opened has to stay dismissible from the field
+  // they moved to afterwards (the simulator's return pill while the caret sits
+  // in `packageName`, the session menu, a popover reached by Tab from a filter
+  // select). Every one of those was undismissable while this read the wide
+  // predicate.
+  if (isEditorTarget(event.target)) {
     return;
   }
   if (handleEscape()) {

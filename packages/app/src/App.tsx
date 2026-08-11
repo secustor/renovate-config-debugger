@@ -164,6 +164,63 @@ function preloadRunChunks(): void {
  *  real buttons, which is what makes them a landing site (`landOnPresetNode`). */
 const SELECTED_PRESET_ROW = ".preset-name.selected, .preset-table-row.selected";
 
+/** The results tab the strip currently shows as chosen — where "take me to the
+ *  results" lands, and the one element there that announces where you are. */
+const SELECTED_RESULTS_TAB = '[role="tab"][aria-selected="true"]';
+
+/** One NAMED tab in that strip. `data-tab` rather than `aria-selected`, so a
+ *  landing does not have to wait for the selection to commit. */
+function tabButtonSelector(id: ResultsTabId): string {
+  return `[data-tab="${id}"]`;
+}
+
+/**
+ * Roadmap 067: the shape all three landings in the results half share. `find`
+ * is retried once per animation frame until it returns an element or the budget
+ * runs out; `land` then gets that element — or `null`, which is how each caller
+ * says what "it never appeared" means instead of spinning forever.
+ *
+ * Polling at all, because the target does not exist yet when the gesture
+ * happens. The results half is a lazy chunk (031), so on the FIRST run its
+ * column and its tab strip are a download away; a preset row is three commits
+ * away (the tab switch, the ancestor expansion the new selection triggers, and
+ * the windowed list (011) scrolling the row into its rendered slice).
+ *
+ * Reaching for them by SELECTOR is the part worth flagging rather than hiding:
+ * nothing on this side of the lazy boundary holds a handle to those elements,
+ * so a class renamed inside the results feature type-checks clean and breaks
+ * focus silently. The fix is an imperative handle on the results column, the
+ * `ConfigEditorHandle` treatment — a change to that file, not to this one.
+ */
+function landWhenReady(
+  find: () => HTMLElement | null,
+  land: (target: HTMLElement | null) => void,
+  { frames, thisFrame }: { frames: number; thisFrame: boolean },
+): void {
+  function look(left: number) {
+    const target = find();
+    if (target || left <= 0) {
+      land(target);
+      return;
+    }
+    requestAnimationFrame(() => look(left - 1));
+  }
+  if (thisFrame) {
+    look(frames);
+    return;
+  }
+  requestAnimationFrame(() => look(frames));
+}
+
+/** What a caller may ask of a run. `coalesce` is the only one that can make a
+ *  run not happen at all — see `onRun`. */
+interface RunOptions {
+  preserveScroll?: boolean;
+  keepTab?: boolean;
+  suppressTokens?: boolean;
+  coalesce?: boolean;
+}
+
 type InjectionMap = Record<string, Record<string, unknown>>;
 
 // Roadmap 030: parses an optional JSON config layer (008), pollution-checked
@@ -659,51 +716,96 @@ export function App() {
     };
   }
 
-  /** Roadmap 067: true while a run is on the engine's serial queue — see the
-   *  guard at the top of `onRun`, which is the only reader and writer. */
-  const runInFlightRef = useRef(false);
+  /** Roadmap 067: how many runs are queued or executing. The queue itself is a
+   *  promise chain, which cannot be asked "is anything on you?" — this can, and
+   *  synchronously, which is what a keydown handler needs. */
+  const queuedRunsRef = useRef(0);
+  /** The tail of that queue: each run awaits the one before it, so two runs
+   *  never interleave on the engine and results commit in request order. */
+  const runQueueRef = useRef<Promise<TraceResult | null>>(Promise.resolve(null));
 
+  /**
+   * Roadmap 067: the ONE place a run is started — and, since the 2026-08-11
+   * review's follow-up, a SERIAL QUEUE rather than a gate.
+   *
+   * The gate came first: a run requested while one was in flight returned null.
+   * That fixed ⌘⏎ auto-repeat and broke every caller that mutates state BEFORE
+   * it runs. Apply fix has already rewritten the editor; a preset injection has
+   * already marked the node injected; a share link has already replaced the
+   * config, the file name, the platform and the layers. For those, "no run" is
+   * not "nothing happened" — it is results, an effective config and a simulator
+   * all describing a config that is no longer the one on screen, with no marker
+   * saying so. So nothing is dropped any more: a run arriving mid-run waits for
+   * the one in flight and then executes, returning its own result to its own
+   * caller.
+   *
+   * `coalesce` is the opposite bargain, and ONLY the entry points that mutate
+   * nothing first take it: the Run button, the page's ⌘⏎ and ⌘⇧⏎, the editor's
+   * ⌘⏎ and the auth banner's "Run again". A second one of those means "run this
+   * config", which the run already going is doing — and a held key must not
+   * enqueue a run per repeat. `running` cannot make that decision: it commits a
+   * render later, so a held ⌘⏎ queued its second run before the first had
+   * re-rendered anything. A counter read and written in the same tick is the
+   * only thing every caller shares. (The editor's own binding also declines OS
+   * auto-repeat outright — see `run-keymap.ts` — which is the fix this one only
+   * bounds.)
+   */
   async function onRun(
     overrideInjected?: InjectionMap,
     overrideInputs?: RunInputs,
-    opts?: { preserveScroll?: boolean; keepTab?: boolean; suppressTokens?: boolean },
+    opts?: RunOptions,
   ): Promise<TraceResult | null> {
-    // Roadmap 067: the ONE in-flight guard, here rather than at the entry
-    // points, because there are six of them — the button, the page shortcut,
-    // the editor's ⌘⏎ keymap, a share link's auto-run, an apply-fix re-run and
-    // a preset injection — and only three could see `running` at all. `running`
-    // cannot do this job anyway: it commits a render later, so a HELD ⌘⏎
-    // (key auto-repeat) queued a second full run — its own preset fetches
-    // included — before the first had re-rendered anything, and then the first
-    // run's `finally` re-enabled the button while the rest were still on the
-    // engine's serial queue: a UI claiming idle while results kept committing
-    // and the live region kept announcing. A ref read and written in the same
-    // tick is the only thing every caller shares.
-    if (runInFlightRef.current) {
+    if (opts?.coalesce && queuedRunsRef.current > 0) {
       return null;
     }
     const injectedPresets = overrideInjected ?? injected;
     if (!overrideInputs && blockedByLayerErrors()) {
       return null;
     }
+    // Inputs and the credentials decision are both resolved HERE, before the
+    // wait, not inside the queued closure: a queued run has to carry the state
+    // its caller meant, and the guard that was in force for THOSE inputs.
     const inputs: RunInputs = overrideInputs ?? buildInputs();
-    // Latched with nothing awaited between the check above and here, and
-    // released in the `finally` below — which covers everything after it, so no
-    // throw can leave the app permanently unable to run.
-    runInFlightRef.current = true;
+    // Security 2026-07-25: EVERY run while the guard stands — a manual Run
+    // click, an injection or apply-fix re-run, the link's own auto-run — leaves
+    // the tokens behind. `opts.suppressTokens` is the explicit channel for
+    // `loadShareToken` (use-share-link.ts), whose own `setUntrustedGuard` has
+    // not committed to state yet when it starts this run.
+    const suppressTokens = opts?.suppressTokens === true || untrustedGuardRef.current !== null;
+    queuedRunsRef.current += 1;
+    setRunning(true);
+    const previous = runQueueRef.current;
+    const queued = (async () => {
+      // The predecessor's failure is its own caller's business; it must not
+      // cancel this run, so the chain is joined rather than propagated.
+      await previous.catch(() => null);
+      return executeRun(inputs, injectedPresets, suppressTokens, opts);
+    })();
+    runQueueRef.current = queued;
     try {
-      setRunning(true);
+      return await queued;
+    } finally {
+      queuedRunsRef.current -= 1;
+      // Only the last one out turns the light off — otherwise a finished run
+      // would announce the app idle while its successor was still resolving.
+      if (queuedRunsRef.current === 0) {
+        setRunning(false);
+      }
+    }
+  }
+
+  /** One run, once its turn on the queue comes. Never rejects: a failure is a
+   *  fatal-error banner and a null result, which is what `onRun`'s callers
+   *  already branch on. */
+  async function executeRun(
+    inputs: RunInputs,
+    injectedPresets: InjectionMap,
+    suppressTokens: boolean,
+    opts?: RunOptions,
+  ): Promise<TraceResult | null> {
+    try {
       setFatal(null);
-      const traceResult = await run(
-        { ...inputs, injectedPresets },
-        // Security 2026-07-25: EVERY run while the guard stands — a manual Run
-        // click, an injection or apply-fix re-run, the link's own auto-run —
-        // leaves the tokens behind. `opts.suppressTokens` is the explicit
-        // channel for `loadShareToken` (use-share-link.ts), whose own
-        // `setUntrustedGuard` has not committed to state yet when it starts
-        // this run.
-        { suppressTokens: opts?.suppressTokens === true || untrustedGuardRef.current !== null },
-      );
+      const traceResult = await run({ ...inputs, injectedPresets }, { suppressTokens });
       // Roadmap 023: hold the current scroll so re-running an edited config
       // doesn't jump the user back to the top (captured right before the result
       // state commits, so an abandoned in-flight run can't pin a stale offset).
@@ -730,9 +832,6 @@ export function App() {
     } catch (err) {
       setFatal(err instanceof Error ? `${err.name}: ${err.message}` : String(err));
       return null;
-    } finally {
-      runInFlightRef.current = false;
-      setRunning(false);
     }
   }
 
@@ -924,7 +1023,10 @@ export function App() {
    */
   const onRunAgainRef = useRef<(() => void) | undefined>(undefined);
   onRunAgainRef.current = () => {
-    void onRun(undefined, undefined, { preserveScroll: true, keepTab: true });
+    // `coalesce`: this button re-runs the config as it stands and changes
+    // nothing on its way there, so a click while a run is already going asks
+    // for what is already happening.
+    void onRun(undefined, undefined, { preserveScroll: true, keepTab: true, coalesce: true });
   };
   const onRunAgain = useCallback(() => onRunAgainRef.current?.(), []);
 
@@ -996,7 +1098,12 @@ export function App() {
     RUN_SHORTCUT,
     () => {
       preloadRunChunks();
-      void onRun(undefined, undefined, { preserveScroll: Boolean(result) });
+      // `coalesce`: a keypress that only asks for a run can afford to be
+      // declined while one is going — pressing again once the queue drains is
+      // free, which is exactly what the callers that mutate state first cannot
+      // say. It is also what keeps a HELD ⌘⏎ from enqueueing a run per repeat
+      // out here, where `useShortcut` never sees `KeyboardEvent.repeat`.
+      void onRun(undefined, undefined, { preserveScroll: Boolean(result), coalesce: true });
     },
     { enabled: keysLive && !running },
   );
@@ -1023,24 +1130,25 @@ export function App() {
    *  "take me to the results" gesture — it scrolls the column to the top of the
    *  window, which is the point of it. `focusTab` below is the half without the
    *  scroll, for the gestures that only meant to change tabs. */
-  function focusResults(attemptsLeft = 12) {
-    const column = resultsColRef.current;
-    const selectedTab =
-      column?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]') ?? null;
+  function focusResults() {
     // The results half is a lazy chunk (031), so on the FIRST run neither the
-    // column nor its tab strip exists yet when ⌘⇧⏎ asks for them. Wait a few
-    // frames for the real landing rather than dumping focus on the bare column
-    // — and give up rather than spin, because a chunk that never arrives is a
-    // failed run, not a focus problem.
-    if (!selectedTab && attemptsLeft > 0) {
-      requestAnimationFrame(() => focusResults(attemptsLeft - 1));
-      return;
-    }
-    if (!column) {
-      return;
-    }
-    column.scrollIntoView(motionScrollOptions("start"));
-    (selectedTab ?? column).focus({ preventScroll: true });
+    // column nor its tab strip exists yet when ⌘⇧⏎ asks for them — hence the
+    // wait, and hence the fallback: once the budget is spent, land on the bare
+    // column rather than nowhere, because a chunk that never arrives is a
+    // failed run, not a focus problem. Looks on THIS frame first, so the
+    // ordinary case (a strip that already exists) lands without a flicker.
+    landWhenReady(
+      () => resultsColRef.current?.querySelector<HTMLElement>(SELECTED_RESULTS_TAB) ?? null,
+      (selectedTab) => {
+        const column = resultsColRef.current;
+        if (!column) {
+          return;
+        }
+        column.scrollIntoView(motionScrollOptions("start"));
+        (selectedTab ?? column).focus({ preventScroll: true });
+      },
+      { frames: 12, thisFrame: true },
+    );
   }
 
   /**
@@ -1059,21 +1167,21 @@ export function App() {
    * selection it is about to lose. Same lazy-chunk retry budget as
    * `focusResults`, and the same reason to give up rather than spin.
    */
-  function focusTab(id: ResultsTabId, attemptsLeft = 12) {
-    requestAnimationFrame(() => {
-      const button = resultsColRef.current?.querySelector<HTMLElement>(`[data-tab="${id}"]`);
-      if (!button) {
-        if (attemptsLeft > 0) {
-          focusTab(id, attemptsLeft - 1);
+  function focusTab(id: ResultsTabId) {
+    landWhenReady(
+      () => resultsColRef.current?.querySelector<HTMLElement>(tabButtonSelector(id)) ?? null,
+      (button) => {
+        if (!button) {
+          return;
         }
-        return;
-      }
-      button.focus({ preventScroll: true });
-      const box = button.getBoundingClientRect();
-      if (box.top < 0 || box.bottom > window.innerHeight) {
-        button.scrollIntoView(motionScrollOptions("nearest"));
-      }
-    });
+        button.focus({ preventScroll: true });
+        const box = button.getBoundingClientRect();
+        if (box.top < 0 || box.bottom > window.innerHeight) {
+          button.scrollIntoView(motionScrollOptions("nearest"));
+        }
+      },
+      { frames: 12, thisFrame: false },
+    );
   }
 
   /**
@@ -1089,19 +1197,19 @@ export function App() {
    * node is filtered out of the visible tree the budget simply runs out and
    * focus stays where the user left it, which is the honest outcome.
    */
-  function landOnPresetNode(attemptsLeft = 30) {
-    requestAnimationFrame(() => {
-      const row = resultsColRef.current?.querySelector<HTMLElement>(SELECTED_PRESET_ROW);
-      if (!row) {
-        if (attemptsLeft > 0) {
-          landOnPresetNode(attemptsLeft - 1);
+  function landOnPresetNode() {
+    landWhenReady(
+      () => resultsColRef.current?.querySelector<HTMLElement>(SELECTED_PRESET_ROW) ?? null,
+      (row) => {
+        if (!row) {
+          return;
         }
-        return;
-      }
-      // "nearest", not "center": the tree already scrolled its own box to the
-      // row, so this is only about the card being on the page.
-      landOnTarget(row, "nearest");
-    });
+        // "nearest", not "center": the tree already scrolled its own box to the
+        // row, so this is only about the card being on the page.
+        landOnTarget(row, "nearest");
+      },
+      { frames: 30, thisFrame: false },
+    );
   }
 
   function skipToConfig(event: MouseEvent<HTMLAnchorElement>) {
@@ -1147,9 +1255,15 @@ export function App() {
     }
     landOnResultsRef.current = false;
     focusResults();
-    // `result` and `tab` are the run's commit; `focusResults` is redeclared
-    // every render and deliberately not a dependency.
-  }, [result, tab]);
+    // `result` alone IS the run's commit: `executeRun` dispatches `setResult`
+    // and the `setTab` beside it from the same continuation, so React commits
+    // them together and there is no state in between to wait for. `tab` was in
+    // this list too, which made ANY tab change consume the request — press
+    // ⌘⇧⏎, then a digit key or a tab while the engine was still resolving, and
+    // the landing fired against the run BEFORE it and was already spent by the
+    // time the one it belonged to committed. `focusResults` is redeclared every
+    // render and deliberately not a dependency.
+  }, [result]);
 
   /** `⌘⇧⏎` — run AND go read it. Plain ⌘⏎ deliberately leaves focus alone, so
    *  this is the explicit "take me there" variant; the focus move waits for the
@@ -1157,11 +1271,20 @@ export function App() {
   useShortcut(
     RUN_AND_READ_SHORTCUT,
     () => {
+      // Asked before arming rather than left to `coalesce` to decline: the
+      // effect above consumes the request on the next result COMMIT, which for
+      // a run already in flight is a commit this keypress had nothing to do
+      // with. Declining up front is the same outcome the coalesce would have
+      // had, minus a landing spent on someone else's run.
+      if (queuedRunsRef.current > 0) {
+        return;
+      }
       preloadRunChunks();
       landOnResultsRef.current = true;
       void (async () => {
         const traceResult = await onRun(undefined, undefined, {
           preserveScroll: Boolean(result),
+          coalesce: true,
         });
         if (!traceResult) {
           // Nothing will commit, so nothing would ever consume the request —
@@ -1389,7 +1512,20 @@ export function App() {
             untrustedHost={untrustedGuard ? untrustedGuard.host : null}
             onTrustUntrustedHost={onTrustUntrustedHost}
             running={running}
-            onRun={() => void onRun(undefined, undefined, { preserveScroll: Boolean(result) })}
+            // Roadmap 031/067: the Run button AND the editor's ⌘⏎ come through
+            // here, and only the button has hover/focus intent (`onRunIntent`)
+            // to warm the chunks ahead of the click. A keyboard user has no
+            // hover, so without this call the one Run entry point they use left
+            // the lazy results column downloading behind the run — a Suspense
+            // fallback for an extra round trip on a cold load. Both imports are
+            // module-cached, so the button paying for it twice costs nothing.
+            onRun={() => {
+              preloadRunChunks();
+              void onRun(undefined, undefined, {
+                preserveScroll: Boolean(result),
+                coalesce: true,
+              });
+            }}
             onRunIntent={preloadRunChunks}
             onCopyLink={onCopyLink}
             advancedZone={advancedZone}

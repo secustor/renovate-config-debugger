@@ -27,17 +27,27 @@ function panels(): Record<ResultsTabId, string> {
   >;
 }
 
-function renderPanel(active: ResultsTabId, onSelect: (tab: ResultsTabId) => void) {
+function renderPanel(
+  active: ResultsTabId,
+  onSelect: (tab: ResultsTabId) => void,
+  back: ResultsTabId | null = null,
+) {
   return render(
     <ResultsPanel
       tabs={TABS}
       active={active}
       onSelect={onSelect}
-      back={null}
+      back={back}
       onBack={() => undefined}
       panels={panels()}
     />,
   );
+}
+
+/** The id of whatever currently has focus — the strip's arrows move focus and
+ *  nothing else, so this is what every navigation assertion below reads. */
+function focusedTabId(): string | undefined {
+  return document.activeElement?.id;
 }
 
 describe("ResultsPanel keyboard navigation", () => {
@@ -50,16 +60,21 @@ describe("ResultsPanel keyboard navigation", () => {
     expect(tabbable[0]).toHaveProperty("id", "tab-pipeline");
   });
 
-  it("moves with the arrows and wraps around", () => {
+  it("moves focus with the arrows and wraps around", () => {
     const onSelect = vi.fn();
     const view = renderPanel("overview", onSelect);
     const strip = view.getByRole("tablist");
 
     fireEvent.keyDown(strip, { key: "ArrowRight" });
-    expect(onSelect).toHaveBeenLastCalledWith("pipeline");
+    expect(focusedTabId()).toBe("tab-pipeline");
+
+    // …and the NEXT arrow moves from where focus is now, not from the (still
+    // unchanged) selection.
+    fireEvent.keyDown(strip, { key: "ArrowLeft" });
+    expect(focusedTabId()).toBe("tab-overview");
 
     fireEvent.keyDown(strip, { key: "ArrowLeft" });
-    expect(onSelect).toHaveBeenLastCalledWith("problems");
+    expect(focusedTabId()).toBe("tab-problems");
   });
 
   it("sends Home and End to the first and last tab", () => {
@@ -68,10 +83,30 @@ describe("ResultsPanel keyboard navigation", () => {
     const strip = view.getByRole("tablist");
 
     fireEvent.keyDown(strip, { key: "End" });
-    expect(onSelect).toHaveBeenLastCalledWith("problems");
+    expect(focusedTabId()).toBe("tab-problems");
 
     fireEvent.keyDown(strip, { key: "Home" });
-    expect(onSelect).toHaveBeenLastCalledWith("overview");
+    expect(focusedTabId()).toBe("tab-overview");
+  });
+
+  it("selects on activation only, never on an arrow (manual activation)", () => {
+    // The defect this pins: `onSelect` is App's `setTab`, which clears the
+    // "← Back to …" affordance a cross-link left above the panel. With
+    // selection following focus, one glance at the neighbouring tab destroyed
+    // the way back.
+    const onSelect = vi.fn();
+    const view = renderPanel("presets", onSelect, "overview");
+    const strip = view.getByRole("tablist");
+
+    fireEvent.keyDown(strip, { key: "ArrowRight" });
+    fireEvent.keyDown(strip, { key: "End" });
+    fireEvent.keyDown(strip, { key: "Home" });
+    expect(onSelect).not.toHaveBeenCalled();
+
+    // Enter and Space are the browser's own activation of a focused `<button>`
+    // — they arrive as a click, which is the path asserted here.
+    fireEvent.click(view.getByRole("tab", { name: /^Pipeline/ }));
+    expect(onSelect).toHaveBeenLastCalledWith("pipeline");
   });
 
   it("claims Home/End so the page-scroll hook (016) leaves them alone", () => {

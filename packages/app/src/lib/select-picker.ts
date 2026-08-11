@@ -1,5 +1,6 @@
 /**
- * Roadmap 067 tier 1: Enter opens a focused `<select>`.
+ * Roadmap 067 tier 1: Enter opens a focused `<select>` — unless the select
+ * belongs to a form, where Enter keeps its native job of submitting it.
  *
  * Reported against the `renovate.json` / `renovate.json5` picker, and it is
  * native behavior rather than a bug we introduced: a closed `<select>` opens on
@@ -7,6 +8,15 @@
  * visible because 067 untrapped Tab — that select is now the first thing Tab
  * reaches from the editor, so people land on it and press the key the rest of
  * this app just taught them means "activate".
+ *
+ * The form exception exists because the simulator's `updateType` select lives
+ * inside `#simulator-inputs`, where every other field submits on Enter (that
+ * is the whole point of making it a real `<form>`). Opening the picker there
+ * would make that select the one control in the form where Enter does not
+ * submit. `select.form !== null` is the one signal that generalizes across
+ * every call site without each one having to know whether it happens to sit
+ * in a form — standalone selects (file name, results filters) still get the
+ * picker; form-bound ones defer to implicit submission.
  *
  * `showPicker()` is the only way to open a native dropdown programmatically. It
  * needs transient user activation, which a keydown supplies, and it throws
@@ -23,10 +33,15 @@ interface PickerKeyEvent {
   readonly altKey: boolean;
   readonly shiftKey: boolean;
   preventDefault: () => void;
-  /** `value` is here only so this isn't an all-optional "weak" type, which a
-   *  real `HTMLSelectElement` could not be assigned to on a TS lib that does
-   *  not yet declare `showPicker`. It also keeps the unit test's stub honest. */
-  readonly currentTarget: { readonly value: string; showPicker?: () => void };
+  /** `value` and `form` are here only so this isn't an all-optional "weak"
+   *  type, which a real `HTMLSelectElement` could not be assigned to on a TS
+   *  lib that does not yet declare `showPicker`. They also keep the unit
+   *  test's stub honest. */
+  readonly currentTarget: {
+    readonly value: string;
+    readonly form?: unknown;
+    showPicker?: () => void;
+  };
 }
 
 export function openPickerOnEnter(event: PickerKeyEvent): void {
@@ -35,6 +50,11 @@ export function openPickerOnEnter(event: PickerKeyEvent): void {
   }
   // ⌘⏎ is Run, and it has to keep working from a focused control.
   if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+    return;
+  }
+  // A select that belongs to a form lets Enter do its native job — implicit
+  // submission — instead of opening the dropdown. See the module doc.
+  if (event.currentTarget.form) {
     return;
   }
   const showPicker = event.currentTarget.showPicker;

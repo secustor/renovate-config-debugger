@@ -8,7 +8,14 @@ import { openPickerOnEnter } from "./select-picker";
  */
 
 function keyEvent(
-  overrides: { key?: string; meta?: boolean; ctrl?: boolean; alt?: boolean; shift?: boolean } = {},
+  overrides: {
+    key?: string;
+    meta?: boolean;
+    ctrl?: boolean;
+    alt?: boolean;
+    shift?: boolean;
+    form?: unknown;
+  } = {},
   showPicker?: () => void,
 ) {
   const preventDefault = vi.fn();
@@ -20,7 +27,7 @@ function keyEvent(
       altKey: overrides.alt ?? false,
       shiftKey: overrides.shift ?? false,
       preventDefault,
-      currentTarget: { value: "renovate.json", showPicker },
+      currentTarget: { value: "renovate.json", form: overrides.form ?? null, showPicker },
     },
     preventDefault,
   };
@@ -64,5 +71,21 @@ describe("openPickerOnEnter", () => {
     });
     const { event } = keyEvent({}, showPicker);
     expect(() => openPickerOnEnter(event)).not.toThrow();
+  });
+
+  it("defers to implicit submission for a select that belongs to a form", () => {
+    const showPicker = vi.fn();
+    const { event, preventDefault } = keyEvent({ form: {} }, showPicker);
+    openPickerOnEnter(event);
+    expect(showPicker).not.toHaveBeenCalled();
+    expect(preventDefault).not.toHaveBeenCalled();
+  });
+
+  it("still opens the picker for a standalone select (form is null)", () => {
+    const showPicker = vi.fn();
+    const { event, preventDefault } = keyEvent({ form: null }, showPicker);
+    openPickerOnEnter(event);
+    expect(showPicker).toHaveBeenCalledOnce();
+    expect(preventDefault).toHaveBeenCalledOnce();
   });
 });

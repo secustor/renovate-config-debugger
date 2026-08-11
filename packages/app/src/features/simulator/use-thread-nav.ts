@@ -78,13 +78,69 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
     setFocusKey(null);
   }, [focusKey]);
 
+  // Where focus came FROM, tracked only while the pill is showing. `focusin`'s
+  // `relatedTarget` is the element that just lost focus, so after the user Tabs
+  // onto the pill this holds the stop before it — which is what the Escape
+  // below hands focus back to.
+  const focusFromRef = useRef<HTMLElement | null>(null);
+  // Written by the Escape path alone, and read by the effect that runs once the
+  // pill is actually gone.
+  const dismissedRef = useRef<{ focused: Element | null; from: HTMLElement | null } | null>(null);
+
+  useEffect(() => {
+    if (returnKey === null) {
+      return;
+    }
+    function onFocusIn(event: FocusEvent) {
+      focusFromRef.current =
+        event.relatedTarget instanceof HTMLElement ? event.relatedTarget : null;
+    }
+    document.addEventListener("focusin", onFocusIn);
+    return () => document.removeEventListener("focusin", onFocusIn);
+  }, [returnKey]);
+
   // Escape dismisses the pill — but only when it is not the POPOVER's Escape.
   // Roadmap 067: that precedence is now structural, and it is stated as a RANK
   // rather than left to mount order. The pill is the bottom of the ladder even
   // when it registers last, which it does whenever a jump starts from a thread
   // body that already has a rule-evidence card open — the case the deleted
   // `document.querySelector(RULE_POP_SELECTOR)` check used to cover.
-  useEscapeLayer(returnKey !== null, () => setReturnKey(null), ESCAPE_PRIORITY.ambient);
+  const dismissPill = useCallback(() => {
+    dismissedRef.current = { focused: document.activeElement, from: focusFromRef.current };
+    setReturnKey(null);
+  }, []);
+  useEscapeLayer(returnKey !== null, dismissPill, ESCAPE_PRIORITY.ambient);
+
+  // The pill's two exits have to land focus alike. `returnToThread` lands on
+  // the thread head through `landOnTarget`; Escape used to just unmount a real,
+  // Tab-reachable `<button>` out from under the focus ring, dropping focus to
+  // <body> — the one landing 067 forbids, and the next Tab then restarts at the
+  // skip link.
+  //
+  // "The element that was focused when Escape arrived is no longer in the
+  // document" is what identifies that case, and identifies it without this hook
+  // recognising the pill's markup — the pill is portalled to <body> and nothing
+  // here ever holds its element. Escape pressed anywhere else leaves its target
+  // connected, so it never moves focus.
+  useEffect(() => {
+    const dismissed = dismissedRef.current;
+    dismissedRef.current = null;
+    if (returnKey !== null || dismissed === null) {
+      return;
+    }
+    if (dismissed.focused === null || dismissed.focused.isConnected) {
+      return;
+    }
+    if (document.activeElement !== null && document.activeElement !== document.body) {
+      return;
+    }
+    // Nothing to aim at when focus entered the pill from outside the document
+    // (the address bar, another window): the tab order restarts exactly where
+    // the user was going to re-enter it anyway.
+    if (dismissed.from?.isConnected === true) {
+      dismissed.from.focus({ preventScroll: true });
+    }
+  }, [returnKey]);
 
   const toggleThread = useCallback((key: string, open: boolean) => {
     setOpenThreads((prev) => {

@@ -95,7 +95,7 @@ document generalizes those into rules and fills the holes.
 | **Enter**          | repo-load form fields       | Load from repo — unchanged, this is the precedent                |
 | **Escape**         | topmost transient layer     | Dismiss it (popover → session menu → return pill)                |
 | **Tab**            | editor                      | Move focus out — it no longer indents (see below)                |
-| **←/→ · Home/End** | results tab strip           | Move between tabs; the strip is one tab stop                     |
+| **←/→ · Home/End** | results tab strip           | Move FOCUS between tabs (Enter selects); the strip is one stop   |
 | **Mod+] · Mod+[**  | editor                      | Indent / outdent — already bound by `basicSetup`, now documented |
 | **?**              | global, outside text fields | Open the shortcut sheet                                          |
 | **⌘⇧⏎**            | global, editor included     | Run, then jump to the results                                    |
@@ -168,16 +168,28 @@ a rank:
 2. `menu` — the session menu, anchored to its trigger
 3. `ambient` — the simulator's return pill, which the reader can read past
 
-Two things the ladder does NOT own. A **modal `<dialog>`** (the `?` sheet) parks
-the whole ladder via `suspendEscapeLayers()` while it is up: the browser is
-already the topmost Escape owner, and a ladder that claimed the key with
+Two things the ladder does NOT own. A **modal `<dialog>`** (the `?` sheet) takes
+the keyboard via `claimModalKeyboard()` while it is up: the browser is already
+the topmost Escape owner, and a ladder that claimed the key with
 `preventDefault` suppressed the dialog's own close request — one press dismissed
-an invisible layer and left the sheet open. And **Escape raised inside a
-text-editing target never reaches the ladder at all**, because CodeMirror's
-`simplifySelection` fires on every press and neither prevents default nor stops
-propagating when there is nothing to simplify; element-scoped handlers that
-_can_ claim the key (the repo-load form's, a glossary term's) do so with
-`stopPropagation()`, and that contract is now written down at both ends.
+an invisible layer and left the sheet open. That claim turned out to be the
+answer to a second question too, so it is named for what it means rather than
+for the ladder: `modalKeyboardOwned()` is also what stops the 016 Home/End page
+scroll from scrolling the inert page behind an open sheet. It is this app's
+`keysLive`, for the two listeners that cannot reach App's state.
+
+And **Escape raised inside the editor never reaches the ladder**, because
+CodeMirror's `simplifySelection` fires on every press and neither prevents
+default nor stops propagating when there is nothing to simplify. The first
+version of this rule used `isTextEditingTarget` — every input, textarea and
+select — which was far too wide: it meant the return pill, the session menu and
+an open popover could not be dismissed at all while focus sat in a form field,
+a regression on the per-layer listeners this replaced. The predicate is now
+`isEditorTarget` (contenteditable or inside `.cm-editor`), which is what the
+rule was ever about. Escape is unlike a bare key here: it dismisses what is on
+top rather than competing with what the user is typing, so it should reach the
+ladder from a text field. Element-scoped handlers that _can_ claim the key (the
+repo-load form's, a glossary term's) do so with `stopPropagation()`.
 
 The DOM query in `use-thread-nav.ts:89-96` is deleted as part of this — it is
 the exact case the stack exists to make unnecessary. Disclosures (`Advanced`,
@@ -297,11 +309,34 @@ is waiting for tier 2:
 - `e` / `r` omitted `shift`, and `matchShortcut` reads an absent `shift` as
   "don't care" (which `?` genuinely needs), so Caps Lock fired them.
 
-**Accepted cost of the run guard:** a run requested while one is in flight is
-now dropped rather than queued. That is the point for ⌘⏎ auto-repeat, but it
-also means clicking "Apply fix" or "Load from repo" _during_ a run no-ops
-instead of queueing a second run. Both are only reachable mid-run because
-neither is disabled by `running`; disabling them is the honest follow-up.
+**The run guard was wrong, and the second review caught it.** The first fix
+DROPPED a run requested while one was in flight, and this document called that
+an accepted cost affecting two entry points. It was not, and it did not: three
+callers mutate state _before_ calling `onRun` — apply-fix rewrites the editor
+text, inject commits the preset, a share-link `hashchange` replaces the whole
+config — so dropping their run left the editor, the results and the armed
+simulator describing three different configs, with no toast, notice or stale
+marker. "No-ops" understated it: the config was mutated, only the run was lost.
+
+The lesson worth keeping: **a guard belongs at the source of the duplicate, not
+at the shared destination.** The actual defect was one keypress producing N
+requests, and that is a keyboard fact, not a pipeline fact.
+
+- **Auto-repeat is suppressed where it happens.** `KeyboardEvent.repeat` marks
+  every OS repeat after the first, in `use-shortcut.ts` and in the editor. The
+  editor's binding became a `Prec.highest` DOM handler matching through
+  `matchShortcut` rather than a keymap entry, precisely because a keymap command
+  is never handed the event — which also collapsed the two spellings of ⌘⏎ into
+  one, and retired `codeMirrorKey`. A held ⌘⏎ still _claims_ the chord on every
+  repeat: declining mid-hold would hand the keypress straight back to
+  `insertBlankLine`, which is the blank-line bug at its worst.
+- **`onRun` serializes, it never drops.** A run arriving mid-run waits and then
+  executes, returning its own result to its own caller; `running` goes false
+  only when the queue empties, so a finished run cannot claim idle while its
+  successor resolves. Inputs and the untrusted-endpoint decision are resolved at
+  call time, before the wait, so a queued run carries the state its caller
+  meant. Only the entry points that mutate nothing first (the button, the two
+  chords, "Run again") opt into coalescing.
 
 ## Costs, accepted
 
@@ -323,7 +358,14 @@ neither is disabled by `running`; disabling them is the honest follow-up.
 - `ResultsPanel.tsx` gets the tablist pattern: roving `tabindex`, arrows and
   Home/End, with the arithmetic in `lib/roving-tabs.ts` (a non-component export
   from a component file breaks fast refresh, and the wrap-around wanted a unit
-  test).
+  test). The APG allows two activation models and the first cut took the
+  default, selection-follows-focus; the second review showed why the other one
+  is right here. Half these tabs are reached by cross-link, which leaves a
+  "← Back to …" control above the panel, and `setTab` clears it by design — so
+  one exploratory arrow press destroyed the way back, and walking the strip
+  meant six real panel switches, each announced as a new selection. **Manual
+  activation**: arrows move focus, Enter or Space selects, which is a
+  `<button>`'s own behaviour and needs no new binding. Looking is not choosing.
 - `lib/escape-stack.ts` (pure ordering) + `hooks/use-escape-layer.ts` (one
   refcounted document listener) replace the three document-level Escape
   listeners. `use-thread-nav`'s `document.querySelector(RULE_POP_SELECTOR)`

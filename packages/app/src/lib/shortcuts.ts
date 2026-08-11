@@ -11,7 +11,13 @@
 
 export interface Shortcut {
   readonly id: string;
-  /** Compared against `KeyboardEvent.key`, case-insensitively. */
+  /**
+   * Compared against `KeyboardEvent.key`. Lowercase-insensitively for named
+   * keys (`Enter`) and punctuation (`?`), which never change case; case-
+   * SENSITIVELY for a single letter with `shift` pinned to a boolean, because
+   * that is the only way to reject a Caps-Lock-produced uppercase letter —
+   * see `matchShortcut`.
+   */
   readonly key: string;
   /** ⌘ on Apple platforms, Ctrl elsewhere — see `matchShortcut`. */
   readonly mod: boolean;
@@ -35,8 +41,9 @@ export interface KeyChord {
 }
 
 /** The app's one global verb. Bound twice — a window listener for the page,
- *  and a CodeMirror keymap that has to outrank `insertBlankLine` inside the
- *  editor (see `run-keymap.ts`). */
+ *  and a high-precedence DOM handler inside the editor that has to outrank
+ *  `insertBlankLine` (see `run-keymap.ts`). Both match through
+ *  `matchShortcut`, so the two cannot drift apart. */
 export const RUN_SHORTCUT: Shortcut = {
   id: "run",
   key: "Enter",
@@ -69,8 +76,12 @@ export const FOCUS_EDITOR_SHORTCUT: Shortcut = {
   key: "e",
   mod: false,
   // Unlike `?`, `e` has an unshifted meaning on every layout, so Shift+E is
-  // deliberately a different keystroke — a Caps-Lock-on `R` must not yank a
-  // user reading results into the tab strip.
+  // deliberately a different keystroke — and so is a Caps-Lock-on `E`. Both
+  // produce `event.key: "E"`, only one holds Shift, so `shift: false` alone
+  // cannot tell them apart; what does is that `matchShortcut` compares a
+  // single-letter key CASE-SENSITIVELY once `shift` is pinned, so the
+  // uppercase "E" Caps Lock produces fails the key check outright. A
+  // Caps-Lock-on `R` must not yank a user reading results into the tab strip.
   shift: false,
   label: "Jump to the config editor",
 };
@@ -139,24 +150,6 @@ export function formatShortcut(shortcut: Shortcut, apple = isApplePlatform()): s
 }
 
 /**
- * The same binding in CodeMirror's keymap spelling (`Mod-Enter`), so an editor
- * keymap and the page listener are derived from ONE entry instead of written
- * out twice. `Mod` is CodeMirror's own platform-conditional modifier, which is
- * exactly what `matchShortcut` accepts.
- */
-export function codeMirrorKey(shortcut: Shortcut): string {
-  const parts: string[] = [];
-  if (shortcut.mod) {
-    parts.push("Mod");
-  }
-  if (shortcut.shift) {
-    parts.push("Shift");
-  }
-  parts.push(shortcut.key);
-  return parts.join("-");
-}
-
-/**
  * Deliberately accepts EITHER ⌘ or Ctrl for `mod`, on every platform. The
  * alternative — branch on `isApplePlatform()` — makes the primary action of
  * the app fail for anyone whose platform detection guessed wrong (a Mac
@@ -164,9 +157,23 @@ export function codeMirrorKey(shortcut: Shortcut): string {
  * in this app that means one thing with ⌘ and another with Ctrl for the
  * ambiguity to matter. Alt never participates: it is how the OS composes
  * characters, and swallowing it would break typing in a text field.
+ *
+ * The key comparison's case sensitivity depends on the key itself. Named keys
+ * (`Enter`, `Escape`) never change case, whoever is holding Shift or however
+ * Caps Lock is set, so they always compare lowercase-insensitively. A single
+ * letter is the one shape Caps Lock or Shift can re-case, and for one of
+ * those WITH `shift` pinned to a boolean the compare goes case-SENSITIVE —
+ * `event.shiftKey` alone can't reject Caps Lock, because a Caps-Lock-on `R`
+ * arrives as `key: "R", shiftKey: false`, which satisfies `shift: false` on
+ * its own. Comparing the key too catches that: the uppercase glyph fails to
+ * match a lowercase-only binding regardless of which key produced it.
  */
 export function matchShortcut(event: KeyChord, shortcut: Shortcut): boolean {
-  if (event.key.toLowerCase() !== shortcut.key.toLowerCase()) {
+  const caseSensitive = shortcut.shift !== undefined && shortcut.key.length === 1;
+  const keyMatches = caseSensitive
+    ? event.key === shortcut.key
+    : event.key.toLowerCase() === shortcut.key.toLowerCase();
+  if (!keyMatches) {
     return false;
   }
   if (event.altKey) {
@@ -211,6 +218,13 @@ export function shortcutSheet(apple = isApplePlatform()): ShortcutSection[] {
           what: shortcut.label,
         })),
         { keys: "1 – 7", what: "Jump straight to that results tab" },
+        // Roadmap 067 review: this is NOT true inside a text field, a
+        // <select>, or the results tab strip — `isTextEditingTarget` bails
+        // `useHomeEndPageScroll` on the first, and the strip claims the key
+        // for its own first/last-tab behavior (see the Results section
+        // below). "Anywhere" here means "everywhere else", the same
+        // qualifier the bare `e`/`r`/`?` rows above already carry.
+        { keys: "Home / End", what: "Scroll the page to top / bottom (outside a field)" },
       ],
     },
     {
@@ -235,8 +249,10 @@ export function shortcutSheet(apple = isApplePlatform()): ShortcutSection[] {
       title: "Forms",
       rows: [
         { keys: "Enter", what: "Submit — simulate, or load the repo config" },
-        { keys: "Enter", what: "Open a dropdown when one is focused" },
-        { keys: "Home / End", what: "Scroll the page to top / bottom" },
+        // A <select> inside a form (like the simulator's updateType picker)
+        // defers Enter to that same implicit submission instead — see
+        // `select-picker.ts`. This row is only true of a standalone select.
+        { keys: "Enter", what: "Open a dropdown, for a select outside a form" },
       ],
     },
   ];

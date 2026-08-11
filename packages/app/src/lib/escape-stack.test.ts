@@ -2,10 +2,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ESCAPE_PRIORITY,
   type EscapePriority,
+  claimModalKeyboard,
   escapeLayerCount,
   handleEscape,
+  modalKeyboardOwned,
   pushEscapeLayer,
-  suspendEscapeLayers,
 } from "./escape-stack";
 
 /**
@@ -25,8 +26,8 @@ function layer(handler: () => void, priority: EscapePriority = ESCAPE_PRIORITY.a
   return release;
 }
 
-function suspend(): () => void {
-  const release = suspendEscapeLayers();
+function modal(): () => void {
+  const release = claimModalKeyboard();
   releases.push(release);
   return release;
 }
@@ -36,8 +37,10 @@ afterEach(() => {
     releases.pop()?.();
   }
   expect(escapeLayerCount()).toBe(0);
-  // Nothing registered AND nothing suspended — a leaked suspension would make
-  // every later test's `handleEscape()` a silent no-op.
+  // Nothing registered AND no modal still holding the keyboard — a leaked claim
+  // would make every later test's `handleEscape()` a silent no-op, and would
+  // wedge Home/End on the page for good.
+  expect(modalKeyboardOwned()).toBe(false);
   expect(handleEscape()).toBe(false);
 });
 
@@ -140,34 +143,56 @@ describe("escape stack", () => {
     expect(first).not.toHaveBeenCalled();
   });
 
-  it("declines the key while suspended, and reports that it did not consume it", () => {
+  it("declines the key while a modal owns the keyboard, and reports that it did not consume it", () => {
     const pill = vi.fn();
     layer(pill);
-    const resume = suspend();
+    const release = modal();
 
     // The `?` sheet is up: the browser owns Escape, and the ladder must not
     // claim it — a `true` here is what suppressed the dialog's close request.
     expect(handleEscape()).toBe(false);
     expect(pill).not.toHaveBeenCalled();
 
-    resume();
+    release();
     expect(handleEscape()).toBe(true);
     expect(pill).toHaveBeenCalledOnce();
   });
 
-  it("stays suspended until every suspension releases", () => {
+  it("stays claimed until every modal releases", () => {
     const pill = vi.fn();
     layer(pill);
-    const resumeOuter = suspend();
-    const resumeInner = suspend();
+    const releaseOuter = modal();
+    const releaseInner = modal();
 
-    resumeInner();
+    releaseInner();
     // Releasing twice must not credit the count twice, either.
-    resumeInner();
+    releaseInner();
     expect(handleEscape()).toBe(false);
 
-    resumeOuter();
+    releaseOuter();
     expect(handleEscape()).toBe(true);
     expect(pill).toHaveBeenCalledOnce();
+  });
+});
+
+describe("modal keyboard ownership", () => {
+  it("reports whether a modal is up, for the handlers that are not the ladder", () => {
+    // `useHomeEndPageScroll` reads exactly this: with the `?` sheet open, End
+    // must scroll the sheet's own overflowing rows, not the inert page behind
+    // it. No layer is registered here — the query is about the modal alone.
+    expect(modalKeyboardOwned()).toBe(false);
+    const release = modal();
+    expect(modalKeyboardOwned()).toBe(true);
+    release();
+    expect(modalKeyboardOwned()).toBe(false);
+  });
+
+  it("hands the keyboard back only when the last modal releases", () => {
+    const releaseOuter = modal();
+    const releaseInner = modal();
+    releaseInner();
+    expect(modalKeyboardOwned()).toBe(true);
+    releaseOuter();
+    expect(modalKeyboardOwned()).toBe(false);
   });
 });

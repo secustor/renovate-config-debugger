@@ -74,7 +74,11 @@ const SHARE_ERROR_MESSAGES: Record<ShareDecodeError, string> = {
 export interface ShareLinkHost {
   /** The pipeline run path. The hook AWAITS this (never fire-and-forget) —
    *  the run-before-sim-arm ordering below holds by construction only while
-   *  the promise resolves after the result state commits. */
+   *  the promise resolves after the result state commits. A link's run is
+   *  never declined either: `App.onRun` queues a request that arrives during
+   *  another run instead of dropping it, which is what this path needs, having
+   *  already replaced the config, the file name and the platform by the time
+   *  it gets here. */
   onRun: (inputs: RunInputs, opts: { suppressTokens: boolean }) => Promise<TraceResult | null>;
   /** Roadmap 016: the one path every authoritative content load goes through. */
   loadConfigText: (text: string) => void;
@@ -248,11 +252,12 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
         );
       }
     })();
+    let ran: TraceResult | null = null;
     if (!isCancelled()) {
       // Awaited (not fire-and-forget) so a carried simulator descriptor is
       // armed AFTER the result commits — the RuleSimulator then applies it
       // against the freshly-run config, identically on mount and hashchange.
-      await host.onRun(
+      ran = await host.onRun(
         {
           fileName: payload.fileName,
           content: payload.config,
@@ -265,7 +270,11 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
         { suppressTokens: policy.suppressTokens },
       );
     }
-    if (!isCancelled() && payload.sim) {
+    // Armed only when that run produced a result. Without one there is nothing
+    // this link's descriptor could be simulated against — and a PREVIOUS link's
+    // result may well still be on screen, so arming anyway would attribute a
+    // simulation to a config this app never ran.
+    if (ran && !isCancelled() && payload.sim) {
       setSimRequest({
         form: payload.sim.form,
         autoSimulate: payload.sim.autoSimulate === true,

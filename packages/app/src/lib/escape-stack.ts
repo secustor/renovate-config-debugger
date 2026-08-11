@@ -14,10 +14,12 @@
  * own `onKeyDown`, the repo-load form's) stay where they are, but they owe the
  * ladder one thing: a handler that acts on Escape must `stopPropagation()`, or
  * the document listener below it pops a layer in the same press. That contract
- * is enforced from the other end too, for the surfaces that cannot honor it:
- * `use-escape-layer.ts` ignores Escape raised inside a text-editing target,
- * because CodeMirror's `simplifySelection` fires on every press and cannot be
- * asked to stop propagating.
+ * is enforced from the other end for the one surface that cannot honor it:
+ * `use-escape-layer.ts` ignores Escape raised inside the CodeMirror editor,
+ * because `simplifySelection` fires on every press and cannot be asked to stop
+ * propagating. Every other control — a form field, a `<select>` — still lets
+ * the press through, so an open layer can be dismissed from wherever the user
+ * happens to be standing.
  *
  * Pure: no DOM, no React. The single document listener belongs to the hook
  * (`hooks/use-escape-layer.ts`), which is also what keeps this unit-testable in
@@ -53,7 +55,7 @@ interface EscapeLayer {
 }
 
 const stack: EscapeLayer[] = [];
-let suspensions = 0;
+let modalClaims = 0;
 
 /**
  * Registers `handler` at `priority` and returns its release. The release is
@@ -77,24 +79,43 @@ export function pushEscapeLayer(handler: EscapeHandler, priority: EscapePriority
 }
 
 /**
- * Parks the whole ladder and returns its release. The `?` shortcut sheet holds
- * one while it is open: it is a native `<dialog>` shown with `showModal()`, so
- * the browser is already the topmost Escape owner and everything behind it is
- * inert. Without this, one press would dismiss a layer the user cannot see AND
- * — because the ladder claims the key with `preventDefault` — suppress the
- * dialog's own close request, leaving the sheet up. Refcounted, so a second
- * modal nested inside the first cannot un-suspend on the way out.
+ * Declares that a modal surface owns the keyboard, and returns its release. The
+ * `?` shortcut sheet holds one while it is open: it is a native `<dialog>`
+ * shown with `showModal()`, so the browser is already the topmost key owner and
+ * everything behind it is inert — but `inert` does not reach a document- or
+ * window-level listener, so the page's own key layers have to be told. Two read
+ * this, and both were bugs before they did:
+ *
+ * - the ladder below, which would otherwise dismiss a layer the user cannot see
+ *   AND — because it claims the key with `preventDefault` — suppress the
+ *   dialog's own close request, leaving the sheet up;
+ * - `useHomeEndPageScroll` (016), which would otherwise scroll the inert page
+ *   behind the dialog on End, leaving the sheet's own overflowing rows
+ *   unreachable by a key the sheet itself advertises.
+ *
+ * Refcounted, so a second modal nested inside the first cannot hand the
+ * keyboard back to the page on its way out.
  */
-export function suspendEscapeLayers(): () => void {
-  suspensions += 1;
+export function claimModalKeyboard(): () => void {
+  modalClaims += 1;
   let released = false;
   return () => {
     if (released) {
       return;
     }
     released = true;
-    suspensions -= 1;
+    modalClaims -= 1;
   };
+}
+
+/**
+ * Whether a modal surface currently owns the keyboard. The query for page-level
+ * key handlers that are NOT the ladder — they must stand aside for the same
+ * reason it does, and asking here keeps one answer to "is a modal up?" instead
+ * of a second listener-side copy of it.
+ */
+export function modalKeyboardOwned(): boolean {
+  return modalClaims > 0;
 }
 
 /** Highest priority wins; within a rank, the most recently pushed. */
@@ -110,7 +131,7 @@ function topLayer(): EscapeLayer | undefined {
 
 /** Runs the topmost layer, if any. Returns whether one consumed the key. */
 export function handleEscape(): boolean {
-  if (suspensions > 0) {
+  if (modalKeyboardOwned()) {
     return false;
   }
   const top = topLayer();

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  codeMirrorKey,
   FOCUS_EDITOR_SHORTCUT,
   FOCUS_RESULTS_SHORTCUT,
   formatShortcut,
@@ -74,13 +73,6 @@ describe("formatShortcut", () => {
   });
 });
 
-describe("codeMirrorKey", () => {
-  it("derives the editor keymap's spelling from the same entry", () => {
-    expect(codeMirrorKey(RUN_SHORTCUT)).toBe("Mod-Enter");
-    expect(codeMirrorKey({ ...RUN_SHORTCUT, shift: true })).toBe("Mod-Shift-Enter");
-  });
-});
-
 describe("tier 1 bindings", () => {
   it("separates Run from Run-and-read by Shift alone", () => {
     const plain = chord({ metaKey: true });
@@ -96,13 +88,22 @@ describe("tier 1 bindings", () => {
     expect(matchShortcut(chord({ key: "?", shiftKey: true }), HELP_SHORTCUT)).toBe(true);
   });
 
-  it("rejects Shift+E / Shift+R (and Caps Lock), unlike the shift-agnostic `?`", () => {
-    // `event.key` is already the shifted glyph ("E") when Shift or Caps Lock
-    // is down — `shift: false` here is what tells `matchShortcut` to say no.
+  it("rejects a held Shift+E / Shift+R, unlike the shift-agnostic `?`", () => {
+    // A held Shift produces the shifted glyph AND `shiftKey: true` — either
+    // signal alone would reject this, but `shift: false` is what does it.
     expect(matchShortcut(chord({ key: "e" }), FOCUS_EDITOR_SHORTCUT)).toBe(true);
     expect(matchShortcut(chord({ key: "E", shiftKey: true }), FOCUS_EDITOR_SHORTCUT)).toBe(false);
     expect(matchShortcut(chord({ key: "r" }), FOCUS_RESULTS_SHORTCUT)).toBe(true);
     expect(matchShortcut(chord({ key: "R", shiftKey: true }), FOCUS_RESULTS_SHORTCUT)).toBe(false);
+  });
+
+  it("rejects a Caps-Lock-on `E` / `R`, whose event carries shiftKey: false", () => {
+    // The Caps Lock event shape: the glyph is uppercase but `shiftKey` is
+    // false, since no Shift is actually held. `shift: false` alone reads that
+    // as a match (`event.shiftKey === shortcut.shift`) — it is the key
+    // comparison going case-sensitive that has to reject it instead.
+    expect(matchShortcut(chord({ key: "E", shiftKey: false }), FOCUS_EDITOR_SHORTCUT)).toBe(false);
+    expect(matchShortcut(chord({ key: "R", shiftKey: false }), FOCUS_RESULTS_SHORTCUT)).toBe(false);
   });
 });
 

@@ -1,5 +1,5 @@
-import { type Extension, keymap, Prec } from "@uiw/react-codemirror";
-import { codeMirrorKey, RUN_SHORTCUT } from "@/lib/shortcuts";
+import { EditorView, type Extension, Prec } from "@uiw/react-codemirror";
+import { matchShortcut, RUN_SHORTCUT } from "@/lib/shortcuts";
 
 /**
  * Roadmap 067: ⌘⏎ runs the pipeline from inside the editor too — which is not
@@ -7,20 +7,28 @@ import { codeMirrorKey, RUN_SHORTCUT } from "@/lib/shortcuts";
  * and that binds `Mod-Enter` to `insertBlankLine`. Two things follow:
  *
  * - **`Prec.highest`**, or the default binding wins and the user gets a blank
- *   line instead of a run.
+ *   line instead of a run. A DOM handler at `highest` outranks every keymap:
+ *   `keymap`'s own listener is installed at `Prec.default`, and CodeMirror
+ *   stops at the first handler that returns true.
  * - **`return true`**, which makes CodeMirror call `preventDefault()` on the
  *   event. That is what stops the app's own window-level listener
  *   (`use-shortcut.ts`, which bails on `defaultPrevented`) from running the
  *   pipeline a second time for the same keypress.
  *
- * The key string is derived from the registry entry rather than written out,
- * so the editor and the page cannot end up bound to different chords.
+ * A DOM handler rather than a `keymap` entry, for the one thing a keymap
+ * command is not given: **the event**. `KeyboardEvent.repeat` is how OS key
+ * auto-repeat announces itself, and a HELD ⌘⏎ is one intent, not thirty — the
+ * chord is still claimed on a repeat (declining it would hand the keypress
+ * straight back to `insertBlankLine`, mid-hold, which is the blank-line bug in
+ * its worst form), it just does not start a run. Matching through
+ * `matchShortcut` instead of a `Mod-Enter` key string is the other half of the
+ * trade: the editor and the page now agree about what ⌘⏎ IS, down to accepting
+ * either modifier, rather than deriving two spellings from one registry entry
+ * and hoping CodeMirror reads `Mod` the way `matchShortcut` does.
  *
- * Deliberately unguarded against an in-flight run: the binding must consume
- * ⌘⏎ either way — declining it would hand the keypress back to
- * `insertBlankLine` exactly while the user is holding the key down — so the
- * "is a run already going?" question is answered once, inside `App.onRun`,
- * where every other entry point asks it too.
+ * A deliberate second press while a run is going is NOT declined here — that
+ * question belongs to `App.onRun`, which every other entry point asks too, and
+ * which answers it by coalescing rather than by half-applying anything.
  *
  * `run` is read through a ref rather than closed over, so the extension is
  * built once for the editor's lifetime — closing over it would mean a `useMemo`
@@ -29,18 +37,22 @@ import { codeMirrorKey, RUN_SHORTCUT } from "@/lib/shortcuts";
  */
 export function runKeymap(runRef: { readonly current: (() => void) | undefined }): Extension {
   return Prec.highest(
-    keymap.of([
-      {
-        key: codeMirrorKey(RUN_SHORTCUT),
-        run: () => {
-          const onRun = runRef.current;
-          if (!onRun) {
-            return false;
-          }
+    EditorView.domEventHandlers({
+      keydown: (event) => {
+        if (!matchShortcut(event, RUN_SHORTCUT)) {
+          return false;
+        }
+        const onRun = runRef.current;
+        if (!onRun) {
+          // No run to start: leave the chord to whoever else wants it, which
+          // is the behavior an editor rendered without `onRun` had before.
+          return false;
+        }
+        if (!event.repeat) {
           onRun();
-          return true;
-        },
+        }
+        return true;
       },
-    ]),
+    }),
   );
 }

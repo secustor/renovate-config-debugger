@@ -4044,8 +4044,17 @@ main:has(.app-split.has-results) {
   position: fixed;
   text-decoration: none;
   top: -4rem;
-  transition: top 120ms ease;
   z-index: var(--z-toast);
+}
+
+/* The slide-in is motion a keyboard user meets on the very first Tab press —
+   guarded the same way `session-menu-pop` is above: no transition property at
+   all outside the no-preference query, so `top` simply jumps under reduced
+   motion instead of animating. */
+@media (prefers-reduced-motion: no-preference) {
+  .skip-link {
+    transition: top 120ms ease;
+  }
 }
 
 .skip-link:focus-visible {

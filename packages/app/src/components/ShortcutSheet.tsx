@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { suspendEscapeLayers } from "@/lib/escape-stack";
+import { claimModalKeyboard } from "@/lib/escape-stack";
 import { type ShortcutRow, type ShortcutSection, shortcutSheet } from "@/lib/shortcuts";
 
 /**
@@ -14,11 +14,62 @@ import { type ShortcutRow, type ShortcutSection, shortcutSheet } from "@/lib/sho
  * things a hand-rolled overlay gets wrong: a real focus trap, and inertness for
  * everything behind it. Escape is the dialog's own (`cancel`) rather than the
  * 067 Escape ladder — a modal dialog IS the topmost layer, and the browser
- * already knows that. The ladder has to be told, though: `inert` does not reach
- * a document-level listener, so the sheet suspends it for as long as it is up
- * (see `suspendEscapeLayers`), the same way every other page-level key is gated
- * on App's `keysLive`.
+ * already knows that. The page's key layers have to be told, though: `inert`
+ * does not reach a document- or window-level listener, so the sheet declares
+ * that a modal owns the keyboard for as long as it is up (see
+ * `claimModalKeyboard`, which the ladder and the 016 Home/End page scroll both
+ * read), the same way every other page-level key is gated on App's `keysLive`.
+ * Home/End matter here in particular: these rows overflow the sheet's own
+ * `max-height` box, so they are the keys that scroll it.
  */
+
+/** What is worth landing on inside a surviving ancestor — the same shape
+ *  `use-session-menu` uses to put focus on a menu's first item. */
+const FOCUSABLE = "a[href], button:not([disabled])";
+
+/**
+ * The opener, plus every ancestor it had at the moment the sheet opened, up to
+ * (but not including) `<body>`.
+ *
+ * The plain `document.activeElement` is not enough on its own: press `?` with
+ * the session menu open and focus is on a menu ITEM, `showModal()` then moves
+ * focus into the dialog, and that `focusin` is what tells the menu to close —
+ * so by the time the sheet restores, the element it captured has been unmounted
+ * along with the panel around it. Recording the chain while it is still intact
+ * gives the fallback something real to aim at: the nearest ancestor that
+ * outlived the opener (for the menu, the `<span class="session-menu">` holding
+ * its trigger), which is as close to "where the user was" as this component can
+ * know without reaching into a surface that is not its business.
+ */
+function focusChain(from: Element | null): HTMLElement[] {
+  const chain: HTMLElement[] = [];
+  for (let el = from; el instanceof HTMLElement && el !== document.body; el = el.parentElement) {
+    chain.push(el);
+  }
+  return chain;
+}
+
+/**
+ * Focuses the opener if it is still there — the normal path, and the only one
+ * that can hand focus back to a control this component cannot classify (a
+ * checkbox, a tree row). Otherwise the first control inside the nearest
+ * ancestor that outlived it. Silent when nothing survives: there is then
+ * nothing honest to aim at, and the browser's own restore is no worse.
+ */
+function restoreFocus(chain: readonly HTMLElement[]): void {
+  const [opener, ...ancestors] = chain;
+  if (opener?.isConnected === true) {
+    opener.focus({ preventScroll: true });
+    return;
+  }
+  for (const el of ancestors) {
+    const target = el.isConnected ? el.querySelector<HTMLElement>(FOCUSABLE) : null;
+    if (target) {
+      target.focus({ preventScroll: true });
+      return;
+    }
+  }
+}
 
 function SheetRow({ row }: { row: ShortcutRow }) {
   return (
@@ -52,16 +103,16 @@ export function ShortcutSheet({ onClose }: { onClose: () => void }) {
     // backdrop unmount this component first, so React removes the element
     // before the cleanup below can call `close()` and focus lands on <body>:
     // the user's next Tab restarts at the skip link. 067's rule is that a
-    // layer which closes hands focus back, so do it here for all three paths.
-    const opener = document.activeElement;
+    // layer which closes hands focus back, so do it here for all three paths —
+    // and through the ancestor chain, because the opener itself may not be
+    // there any more (see `focusChain`).
+    const chain = focusChain(document.activeElement);
     dialog?.showModal();
-    const resume = suspendEscapeLayers();
+    const release = claimModalKeyboard();
     return () => {
-      resume();
+      release();
       dialog?.close();
-      if (opener instanceof HTMLElement && opener !== document.body && opener.isConnected) {
-        opener.focus({ preventScroll: true });
-      }
+      restoreFocus(chain);
     };
   }, []);
 

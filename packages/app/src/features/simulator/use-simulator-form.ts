@@ -59,9 +59,11 @@ export function useSimulatorForm(engineModule: typeof EngineModule | null): Simu
    * included, where this exactly mirrors what native stepping already did.
    */
   function updateTypeKeyDown(e: KeyboardEvent<HTMLSelectElement>) {
-    // Roadmap 067: Enter opens this dropdown, as it now does for every select
-    // in the app. Composed here rather than on the element, because this
-    // handler already owns the select's keys.
+    // Roadmap 067: `openPickerOnEnter` is a no-op here because this select
+    // lives inside `#simulator-inputs` (`select.form !== null`) — Enter keeps
+    // its native job of submitting the form, matching every other field in
+    // it. Composed here rather than on the element, because this handler
+    // already owns the select's keys.
     openPickerOnEnter(e);
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") {
       return;

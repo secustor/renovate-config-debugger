@@ -1,13 +1,19 @@
-import { describe, expect, it } from "vitest";
-import { isTextEditingTarget } from "./scroll-ergonomics";
+import { cleanup, fireEvent, render } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { claimModalKeyboard } from "@/lib/escape-stack";
+import { isEditorTarget, isTextEditingTarget, useHomeEndPageScroll } from "./scroll-ergonomics";
 
 /**
  * Roadmap 067 — `isTextEditingTarget` is shared by the 016 Home/End page-scroll
- * guard and the bare-key jump layer (`useShortcut`, `useTabDigits`). It needs
- * real DOM elements (`instanceof HTMLElement`, `.tagName`, `.closest`), which
- * the node-environment `unit` project doesn't have — hence `.test.tsx` here,
- * to land in the jsdom `render` project despite testing no component.
+ * guard and the bare-key jump layer (`useShortcut`, `useTabDigits`), and
+ * `isEditorTarget` is the narrow half of it that the Escape ladder yields to.
+ * Both need real DOM elements (`instanceof HTMLElement`, `.tagName`,
+ * `.closest`), which the node-environment `unit` project doesn't have — hence
+ * `.test.tsx` here, to land in the jsdom `render` project.
  */
+
+// vitest runs without `globals`, so RTL's automatic cleanup never registers.
+afterEach(cleanup);
 
 function input(type?: string): HTMLInputElement {
   const el = document.createElement("input");
@@ -65,5 +71,63 @@ describe("isTextEditingTarget", () => {
     expect(isTextEditingTarget(null)).toBe(false);
     expect(isTextEditingTarget(document.createElement("button"))).toBe(false);
     expect(isTextEditingTarget(window)).toBe(false);
+  });
+});
+
+describe("isEditorTarget", () => {
+  it("counts the CodeMirror editor, whose Escape cannot be intercepted", () => {
+    const cmRoot = document.createElement("div");
+    cmRoot.className = "cm-editor";
+    const cmChild = document.createElement("div");
+    cmRoot.appendChild(cmChild);
+    expect(isEditorTarget(cmChild)).toBe(true);
+    expect(isEditorTarget(cmRoot)).toBe(true);
+  });
+
+  it("does NOT count form controls, so a layer stays dismissible from one", () => {
+    // The regression this predicate exists to end: the Escape ladder yielded to
+    // every text input and `<select>`, so the return pill could not be
+    // dismissed while the caret sat in `packageName`, and the session menu
+    // could not be closed from a filter select.
+    expect(isEditorTarget(input())).toBe(false);
+    expect(isEditorTarget(input("search"))).toBe(false);
+    expect(isEditorTarget(document.createElement("textarea"))).toBe(false);
+    expect(isEditorTarget(document.createElement("select"))).toBe(false);
+    expect(isEditorTarget(null)).toBe(false);
+    expect(isEditorTarget(window)).toBe(false);
+  });
+});
+
+function HomeEndHarness() {
+  useHomeEndPageScroll();
+  return null;
+}
+
+describe("useHomeEndPageScroll", () => {
+  it("scrolls the page on End", () => {
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+    render(<HomeEndHarness />);
+
+    fireEvent.keyDown(window, { key: "End" });
+    expect(scrollTo).toHaveBeenCalledOnce();
+    scrollTo.mockRestore();
+  });
+
+  it("stands aside while a modal owns the keyboard", () => {
+    // Roadmap 067: with the `?` sheet open, End belongs to the sheet's own
+    // overflowing row list. Scrolling here would move the INERT page behind the
+    // dialog, and `preventDefault` would stop the dialog scrolling at all.
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+    render(<HomeEndHarness />);
+    const release = claimModalKeyboard();
+
+    const claimed = !fireEvent.keyDown(window, { key: "End" });
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(claimed).toBe(false);
+
+    release();
+    fireEvent.keyDown(window, { key: "Home" });
+    expect(scrollTo).toHaveBeenCalledOnce();
+    scrollTo.mockRestore();
   });
 });

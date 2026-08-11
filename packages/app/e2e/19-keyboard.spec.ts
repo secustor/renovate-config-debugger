@@ -118,7 +118,9 @@ test("the results skip link lands on the selected tab", async ({ page }) => {
   expect(await page.evaluate(() => location.hash)).toBe("");
 });
 
-test("the results tab strip is one tab stop, driven by the arrows", async ({ page }) => {
+test("the results tab strip is one tab stop, arrows move focus, Enter selects", async ({
+  page,
+}) => {
   await page.goto("/");
   await runAndAwaitResult(page);
 
@@ -128,14 +130,48 @@ test("the results tab strip is one tab stop, driven by the arrows", async ({ pag
 
   await tabButton(page, "overview").focus();
   await page.keyboard.press("ArrowRight");
-  await expect(tabButton(page, "pipeline")).toHaveAttribute("aria-selected", "true");
+
+  // Manual activation (ARIA APG): looking is not choosing. An arrow moves
+  // focus and nothing else — selection-follows-focus made one glance destroy
+  // the "← Back to …" trail a cross-link had just left.
   await expect(tabButton(page, "pipeline")).toBeFocused();
+  await expect(tabButton(page, "overview")).toHaveAttribute("aria-selected", "true");
+  await expect(tabPanel(page, "overview")).toBeVisible();
+
+  // Enter commits — a `<button>`'s own behaviour, so there is no extra binding.
+  await page.keyboard.press("Enter");
+  await expect(tabButton(page, "pipeline")).toHaveAttribute("aria-selected", "true");
   await expect(tabPanel(page, "pipeline")).toBeVisible();
 
-  // End goes to the last tab rather than scrolling the page (016's Home/End
-  // still owns every other context).
+  // End moves focus to the last tab rather than scrolling the page (016's
+  // Home/End still owns every other context), and still does not select.
   await page.keyboard.press("End");
-  await expect(tabButton(page, "problems")).toHaveAttribute("aria-selected", "true");
+  await expect(tabButton(page, "problems")).toBeFocused();
+  await expect(tabButton(page, "pipeline")).toHaveAttribute("aria-selected", "true");
+});
+
+test("arrowing across the strip keeps the cross-link back affordance", async ({ page }) => {
+  // Default config, like 11-tabbed-shell's chip test — it resolves presets, so
+  // the Effective config tab has provenance chips to jump from.
+  await page.goto("/");
+  await runAndAwaitResult(page);
+
+  // A cross-link jump records where the user came from and offers one click
+  // back; merely looking at a neighbouring tab must not throw that away. Same
+  // chip 11-tabbed-shell uses to prove the jump itself.
+  await openTab(page, "effective");
+  const chip = page
+    .locator('#panel-effective .badge.prov-layer.prov-preset[role="button"]')
+    .first();
+  await expect(chip).toBeVisible();
+  await chip.click();
+
+  const back = page.locator(".tab-back");
+  await expect(back).toBeVisible();
+
+  await page.locator('.tab-bar [role="tab"][aria-selected="true"]').focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(back).toBeVisible();
 });
 
 test("Enter in a simulator field simulates", async ({ page }) => {
