@@ -4,12 +4,12 @@ import type {
   DescriptionProvenance,
   DroppedDescription,
   ProvenanceLayer,
+  UnattributedDescription,
 } from "@renovate-config-debugger/engine";
 import {
   buildDescriptionLedger,
   type DescriptionLedger,
   DROPPED_COLLAPSE_AFTER,
-  droppedReasonText,
   droppedSummaryText,
   duplicateNoteText,
   duplicatePillText,
@@ -18,9 +18,12 @@ import {
   type LedgerGroup,
   ledgerMatchesFinalValue,
   ledgerPreviewText,
+  type LedgerRow,
   ledgerWriterText,
   moreDroppedText,
   moreEntriesText,
+  unattributedNoteText,
+  unattributedValueText,
   viaNoteText,
 } from "./description-ledger";
 
@@ -51,10 +54,13 @@ interface EntrySpec {
   approximate?: boolean;
 }
 
-/** Builds `entries` with the indices and duplicate markers the engine assigns. */
-function entries(specs: EntrySpec[]): DescriptionAttribution[] {
+/** Builds `entries` with the indices and duplicate markers the engine assigns.
+ *  `startAt` shifts the first index, for the arrays whose earlier positions are
+ *  held by non-string members. */
+function entries(specs: EntrySpec[], startAt = 0): DescriptionAttribution[] {
   const firstByValue = new Map<string, number>();
-  return specs.map((spec, index) => {
+  return specs.map((spec, offset) => {
+    const index = startAt + offset;
     const duplicateOfIndex = firstByValue.get(spec.value);
     if (duplicateOfIndex === undefined) {
       firstByValue.set(spec.value, index);
@@ -71,7 +77,20 @@ function entries(specs: EntrySpec[]): DescriptionAttribution[] {
 }
 
 function provenance(overrides: Partial<DescriptionProvenance> = {}): DescriptionProvenance {
-  return { entries: [], dropped: [], ruleDescriptions: [], degraded: false, ...overrides };
+  const merged: DescriptionProvenance = {
+    entries: [],
+    unattributed: [],
+    finalLength: 0,
+    dropped: [],
+    ruleDescriptions: [],
+    degraded: false,
+    ...overrides,
+  };
+  // The engine's own invariant (069 PR 1), so no test can build a provenance
+  // that could not have come out of a run.
+  return overrides.finalLength === undefined
+    ? { ...merged, finalLength: merged.entries.length + merged.unattributed.length }
+    : merged;
 }
 
 // Throws rather than assert-and-narrow: the failure names what WAS there, and
@@ -100,9 +119,19 @@ function entryAt(list: DescriptionAttribution[], index: number): DescriptionAttr
   return entry;
 }
 
+/** Every row of every run, in the order the ledger renders them. */
+function allRows(ledger: DescriptionLedger): LedgerRow[] {
+  return ledger.groups.flatMap((group) => group.rows);
+}
+
 describe("buildDescriptionLedger", () => {
-  test("is null when the run has no descriptions at all", () => {
+  test("is null when the run has no attributed string at all", () => {
     expect(buildDescriptionLedger(provenance())).toBeNull();
+    // `{"description": [42]}` is that same empty state: there is no prose to
+    // blame anyone for, so the row keeps the generic chain.
+    expect(
+      buildDescriptionLedger(provenance({ unattributed: [{ index: 0, value: 42 }] })),
+    ).toBeNull();
   });
 
   test("keeps the final array's order and groups consecutive runs by top-level layer", () => {
@@ -117,10 +146,11 @@ describe("buildDescriptionLedger", () => {
       }),
     );
 
-    expect(ledger.groups.map((group) => group.entries.length)).toEqual([2, 1, 1]);
+    expect(ledger.groups.map((group) => group.rows.length)).toEqual([2, 1, 1]);
     expect(ledger.entryCount).toBe(4);
+    expect(ledger.finalLength).toBe(4);
     // Indices are the engine's — the canonical position in the final array.
-    expect(groupAt(ledger, 0).entries.map((entry) => entry.index)).toEqual([0, 1]);
+    expect(groupAt(ledger, 0).rows.map((row) => row.index)).toEqual([0, 1]);
     expect(groupAt(ledger, 2).layer).toEqual(REPO);
   });
 
@@ -140,11 +170,12 @@ describe("buildDescriptionLedger", () => {
 
     expect(ledger.groups).toHaveLength(3);
     // The runs break on the NODE, but the keys are named after the layer, with
-    // an ordinal for the second run of the same name.
+    // an ordinal for the second run of the same name (`stableLayerKey`, whose
+    // separator is U+241F — a character no preset name can contain).
     expect(ledger.groups.map((group) => group.key)).toEqual([
       "preset:config:best-practices",
       "preset::dependencyDashboard",
-      "preset:config:best-practices#2",
+      "preset:config:best-practices␟2",
     ]);
   });
 
@@ -188,7 +219,7 @@ describe("buildDescriptionLedger", () => {
 
     expect(ledger.groups.map((group) => group.key)).toEqual([
       "preset::dependencyDashboard",
-      "preset::dependencyDashboard#2",
+      "preset::dependencyDashboard␟2",
     ]);
   });
 
@@ -233,6 +264,83 @@ describe("buildDescriptionLedger", () => {
   });
 });
 
+/**
+ * `description` is `type: array, subType: string`, but a wrong-typed member is
+ * a validation WARNING: `{"description": ["keep", 42]}` merges and the `42`
+ * holds index 1. The ledger claims to be the final array with the authorship
+ * put back, so it has to carry a line for that member too — the alternative is
+ * an array rendered one member shorter than the "Final value" above it.
+ */
+describe("members that are not text", () => {
+  const mixed = provenance({
+    entries: entries(
+      [
+        { value: "Keep this.", via: REPO, node: "root" },
+        { value: "And this.", via: REPO, node: "root" },
+      ],
+      1,
+    ),
+    unattributed: [
+      { index: 0, value: 42 },
+      { index: 3, value: { nested: true } },
+    ],
+    finalLength: 4,
+  });
+
+  test("every index of the final array gets exactly one row, in order", () => {
+    const rows = allRows(ledgerOf(mixed));
+
+    expect(rows.map((row) => row.index)).toEqual([0, 1, 2, 3]);
+    expect(rows.map((row) => row.kind)).toEqual(["unattributed", "entry", "entry", "unattributed"]);
+  });
+
+  test("they sit inline in the surrounding run rather than in a section of their own", () => {
+    // The run is a visual grouping and nothing more — every row carries its own
+    // source cell — so index order is worth more here than a hairline that
+    // would have to mean "no layer", which is not a thing a run can say.
+    const ledger = ledgerOf(mixed);
+
+    expect(ledger.groups).toHaveLength(1);
+    expect(groupAt(ledger, 0).layer).toEqual(REPO);
+  });
+
+  test("the counts keep the two kinds apart instead of summing them", () => {
+    const ledger = ledgerOf(mixed);
+
+    expect(ledger.entryCount).toBe(2);
+    expect(ledger.unattributedCount).toBe(2);
+    expect(ledger.finalLength).toBe(4);
+    // "4 entries" would credit prose the array does not contain.
+    expect(ledgerPreviewText(ledger)).toBe(
+      '2 sentences + 2 other members — "Keep this.", "And this."',
+    );
+  });
+
+  test("one of each is worded in the singular", () => {
+    const ledger = ledgerOf(
+      provenance({
+        entries: entries([{ value: "Keep this.", via: REPO, node: "root" }]),
+        unattributed: [{ index: 1, value: 42 }],
+      }),
+    );
+
+    expect(ledgerPreviewText(ledger)).toBe('1 sentence + 1 other member — "Keep this."');
+  });
+
+  test("the row shows compact JSON and says plainly that nobody wrote it", () => {
+    expect(unattributedValueText(42)).toBe("42");
+    expect(unattributedValueText({ a: 1 })).toBe('{"a":1}');
+    expect(unattributedValueText(null)).toBe("null");
+    // `undefined` has no JSON form at all — printed rather than dropped.
+    expect(unattributedValueText(undefined)).toBe("undefined");
+    // …and truncated, so a 4 KB object cannot become the ledger.
+    expect(unattributedValueText({ long: "x".repeat(200) }).length).toBeLessThan(70);
+    expect(unattributedNoteText()).toBe(
+      "not text — Renovate accepted it, but no preset can be credited",
+    );
+  });
+});
+
 describe("ledgerMatchesFinalValue", () => {
   const three = provenance({
     entries: entries([
@@ -246,17 +354,22 @@ describe("ledgerMatchesFinalValue", () => {
     expect(ledgerMatchesFinalValue(ledgerOf(three), ["a", "b", "c"])).toBe(true);
   });
 
-  test("rejects a non-string member the walk never saw", () => {
-    // `{"description": ["keep", 42]}` is merged by Renovate (type: array,
-    // subType: string — a warning, not a refusal), but only the string is
-    // attributed. Rendering the ledger would report "1 entry" over a
-    // two-member array and make the 42 invisible.
+  test("accepts a mixed array, non-string member included", () => {
+    const member: UnattributedDescription = { index: 1, value: { keep: true } };
     const ledger = ledgerOf(
-      provenance({ entries: entries([{ value: "keep", via: REPO, node: "root" }]) }),
+      provenance({
+        entries: entries([{ value: "keep", via: REPO, node: "root" }]),
+        unattributed: [member],
+      }),
     );
 
-    expect(ledgerMatchesFinalValue(ledger, ["keep", 42])).toBe(false);
-    expect(ledgerMatchesFinalValue(ledger, [42, "keep"])).toBe(false);
+    // The member is compared by identity — it IS the object the engine took out
+    // of this array…
+    expect(ledgerMatchesFinalValue(ledger, ["keep", member.value])).toBe(true);
+    // …so a structurally equal stand-in is not the same array.
+    expect(ledgerMatchesFinalValue(ledger, ["keep", { keep: true }])).toBe(false);
+    // …and a member that moved is a different array too.
+    expect(ledgerMatchesFinalValue(ledger, [member.value, "keep"])).toBe(false);
   });
 
   test("rejects a length mismatch, a reordering and a non-array value", () => {
@@ -267,6 +380,16 @@ describe("ledgerMatchesFinalValue", () => {
     expect(ledgerMatchesFinalValue(ledger, ["c", "b", "a"])).toBe(false);
     expect(ledgerMatchesFinalValue(ledger, "a b c")).toBe(false);
     expect(ledgerMatchesFinalValue(ledger, undefined)).toBe(false);
+  });
+
+  test("rejects a ledger whose rows do not cover the array", () => {
+    // The genuine-mismatch fallback the `description` row still needs: a ledger
+    // claiming a length it has no rows for accounts for the array only in the
+    // header, and the row hands back to the generic chain rather than print it.
+    const ledger = ledgerOf(three);
+    const overclaiming: DescriptionLedger = { ...ledger, finalLength: 4 };
+
+    expect(ledgerMatchesFinalValue(overclaiming, ["a", "b", "c", "d"])).toBe(false);
   });
 });
 
@@ -287,26 +410,20 @@ describe("the collapsed row's cells", () => {
       true,
     );
     // Truncated, so the cell never becomes the wall of text the row is meant
-    // to summarise.
+    // to summarise — and truncated safely (see `truncate.test.ts`).
     expect(text.endsWith("…")).toBe(true);
     expect(text.length).toBeLessThan(100);
-  });
-
-  test("the truncation cuts on a character, never through one", () => {
-    // A surrogate pair straddling the 80-unit cut would leave half an emoji in
-    // the cell, which renders as U+FFFD.
-    const split = ledgerOf(
-      provenance({ entries: entries([{ value: `${"a".repeat(78)}😀tail`, via: REPO }]) }),
-    );
-    const whole = ledgerOf(
-      provenance({ entries: entries([{ value: `${"a".repeat(77)}😀tail`, via: REPO }]) }),
-    );
-
-    // Dropped rather than halved…
-    expect(ledgerPreviewText(split)).toBe(`1 entry — "${"a".repeat(78)}…`);
-    expect(/[\uD800-\uDFFF]/.test(ledgerPreviewText(split))).toBe(false);
-    // …and kept whole when it fits, so the back-off never eats a full one.
-    expect(ledgerPreviewText(whole)).toBe(`1 entry — "${"a".repeat(77)}😀…`);
+    expect(
+      /[\uD800-\uDFFF]/.test(
+        ledgerPreviewText(
+          ledgerOf(
+            provenance({
+              entries: entries([{ value: `${"a".repeat(78)}😀tail`, via: REPO }]),
+            }),
+          ),
+        ),
+      ),
+    ).toBe(false);
   });
 
   test("one string is one entry", () => {
@@ -378,6 +495,23 @@ describe("the per-row notes", () => {
 
     expect(duplicateNoteText(entryAt(repoDuplicates, 1))).toBe("repo config repeats it");
   });
+
+  test("an approximate duplicate hedges instead of accusing a layer", () => {
+    // The engine reached these through its enclosing-node fallback, so the
+    // arrival layer is assigned rather than verified — and for a whole-run
+    // fallback it is the fabricated `repo` layer, which would otherwise have
+    // the reader's own config blamed for a repeat a preset caused.
+    const hedged = entries([
+      { value: "a", via: BEST_PRACTICES, node: "p1" },
+      { value: "a", via: DASHBOARD, node: "p2", approximate: true },
+      { value: "a", via: REPO, node: "root", approximate: true },
+    ]);
+
+    expect(duplicateNoteText(entryAt(hedged, 1))).toBe(
+      "probably resolved again by :dependencyDashboard",
+    );
+    expect(duplicateNoteText(entryAt(hedged, 2))).toBe("probably repeated by repo config");
+  });
 });
 
 describe("collapsing", () => {
@@ -398,43 +532,17 @@ describe("collapsing", () => {
 });
 
 describe("the dropped footer", () => {
-  const wrapper: DroppedDescription = {
-    value: "Use best practices.",
-    node: { nodeId: "n1", name: "config:best-practices" },
-    reason: "wrapper-preset",
-  };
-  const packageList: DroppedDescription = {
-    value: "AWS SDK packages.",
-    node: { nodeId: "n4", name: "packages:awsSdk" },
-    reason: "package-list-preset",
-  };
-  const muted: DroppedDescription = {
-    value: "Group Jest packages.",
-    node: { nodeId: "n5", name: "group:jestPlusTypes" },
-    reason: "ignore-deps-quirk",
-    droppedBy: { nodeId: "n6", name: "group:recommended" },
-  };
-
+  // The wording of each drop rule lives in `lib/drop-reasons.ts` (shared with
+  // the preset tree's own note) and is tested there; this is the ledger's own
+  // summary line.
   test("summarises the count", () => {
-    expect(droppedSummaryText([wrapper, muted])).toBe(
-      "Not included: 2 descriptions Renovate dropped",
-    );
-    expect(droppedSummaryText([wrapper])).toBe("Not included: 1 description Renovate dropped");
-  });
+    const drop: DroppedDescription = {
+      value: "Use best practices.",
+      node: { nodeId: "n1", name: "config:best-practices" },
+      reason: "wrapper-preset",
+    };
 
-  test("gives each drop rule its own human reason", () => {
-    expect(droppedReasonText(wrapper)).toContain("wrapper preset");
-    expect(droppedReasonText(packageList)).toContain("`matchPackageNames`");
-    // The mute names the extending config, because that is the config the
-    // reader can change.
-    expect(droppedReasonText(muted)).toBe(
-      "muted by `group:recommended` — its empty `ignoreDeps` deletes every description it extends",
-    );
-  });
-
-  test("the mute is still explained when the extending node is unknown", () => {
-    expect(droppedReasonText({ ...muted, droppedBy: undefined })).toContain(
-      "muted by the extending config",
-    );
+    expect(droppedSummaryText([drop, drop])).toBe("Not included: 2 descriptions Renovate dropped");
+    expect(droppedSummaryText([drop])).toBe("Not included: 1 description Renovate dropped");
   });
 });

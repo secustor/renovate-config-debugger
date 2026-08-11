@@ -119,10 +119,12 @@ it("expands the description row into a per-string blame ledger", async () => {
 /**
  * Roadmap 069 (PR 3): `description` is `type: array, subType: string` to
  * Renovate — a non-string member is a validation warning, not a refusal, and
- * still merges. The engine's walk only attributes strings, so the ledger would
- * silently omit it; the row has to notice and hand back to the generic chain.
+ * still merges, holding a real index in the final array. The engine reports it
+ * (`unattributed`) and the ledger gives it a line of its own, so the row keeps
+ * the blame rendering instead of falling back: what it must never do is print
+ * a ledger one member shorter than the array it claims to be.
  */
-it("keeps the generic rendering when the ledger cannot account for the whole array", async () => {
+it("gives a non-string member of the description array its own ledger line", async () => {
   const result = await runPipeline({
     fileName: "renovate.json",
     content: JSON.stringify({ description: ["Keep this.", 42] }),
@@ -132,14 +134,54 @@ it("keeps the generic rendering when the ledger cannot account for the whole arr
 
   await waitFor(() => expect(view.container.querySelector(".prov-row")).not.toBeNull());
   const head = descriptionRow(view.container);
-  // The ledger's "2 entries — …" would be a lie: it has one line for a
-  // two-member array.
-  expect(head.textContent).toContain("[ 2 items ]");
-  expect(head.textContent).not.toContain("entries");
+  // Counted apart rather than summed: "2 entries" would credit prose the array
+  // does not contain, and the generic preview said only `[ 2 items ]`.
+  await waitFor(() =>
+    expect(descriptionRow(view.container).textContent).toContain("1 sentence + 1 other member"),
+  );
+  expect(head.textContent).not.toContain("[ 2 items ]");
 
-  fireEvent.click(head);
-  expect(view.container.querySelector(".desc-ledger")).toBeNull();
+  fireEvent.click(descriptionRow(view.container));
+  const ledger = view.container.querySelector<HTMLElement>(".desc-ledger");
+  if (!ledger) {
+    throw new Error("the expanded description row rendered no ledger");
+  }
+  const rows = [...ledger.querySelectorAll<HTMLElement>(".desc-ledger-row")];
+  expect(rows).toHaveLength(2);
+  expect(rows[1]?.className).toContain("unattributed");
+  expect(rows[1]?.textContent).toContain("42");
+  expect(rows[1]?.textContent).toContain("no preset can be credited");
+});
+
+/**
+ * …and the guard behind that is still a guard: a ledger that cannot reproduce
+ * the row's final value hands back to the generic chain. Provoked here through
+ * the row a run cannot produce on demand — `packageRules`, whose value is an
+ * array of objects and which has no ledger at all — so the assertion is that
+ * the blame rendering is confined to `description`.
+ */
+it("keeps the chain on every other key", async () => {
+  const result = await runPipeline({
+    fileName: "renovate.json",
+    content: JSON.stringify({
+      description: "My own summary.",
+      packageRules: [{ matchManagers: ["npm"], automerge: true }],
+    }),
+  });
+
+  const view = render(<EffectiveConfig result={result} />);
+  await waitFor(() => expect(view.container.querySelector(".prov-row")).not.toBeNull());
+
+  const rows = [...view.container.querySelectorAll<HTMLElement>(".prov-row-head")];
+  const rules = rows.find((head) =>
+    head.querySelector(".prov-key-name")?.textContent?.includes("packageRules"),
+  );
+  if (!rules) {
+    throw new Error("no packageRules row");
+  }
+  fireEvent.click(rules);
   expect(view.container.textContent).toContain("Override chain");
+  expect(view.container.querySelector(".desc-ledger")).toBeNull();
 });
 
 /**

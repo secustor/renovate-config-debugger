@@ -35,6 +35,7 @@ import {
 // Roadmap 069 hoisted this out of here: the description digest prints the same
 // one-line matcher summary, and one spelling of it is enough.
 import { summarizeRuleSelectors } from "@/lib/rule-selectors";
+import { truncate } from "@/lib/truncate";
 import { RuleFramingText } from "./rule-framing";
 
 /**
@@ -55,8 +56,9 @@ const DESCRIPTION_KEY = "description";
 /**
  * The ledger a row renders with: only the `description` row has one at all
  * (`undefined` everywhere else), and only when it accounts for that row's final
- * value string for string. A `description` array carrying a non-string member
- * — legal enough for Renovate to merge — has no line in the ledger, so the row
+ * value member for member — including the non-string members Renovate merges
+ * with a warning, which the ledger carries as authorless rows of their own. A
+ * ledger that cannot reproduce the row's final value is not shown: the row
  * keeps the generic preview and chain rather than quietly under-reporting it.
  */
 function ledgerForRow(
@@ -195,10 +197,6 @@ function MultiContribBadgeChip({ entry }: { entry: KeyProvenance }) {
  * rather than a copy of it; the name the shell knows it by stays.
  */
 export type EffectiveStats = EffectiveTally;
-
-function truncate(text: string, max: number): string {
-  return text.length > max ? `${text.slice(0, max)}…` : text;
-}
 
 function preview(value: unknown): string {
   if (value === null) {

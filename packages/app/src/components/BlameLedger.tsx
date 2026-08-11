@@ -7,19 +7,24 @@ import type {
 import {
   type DescriptionLedger,
   DROPPED_COLLAPSE_AFTER,
-  droppedReasonText,
   droppedSummaryText,
   duplicateNoteText,
   duplicatePillText,
   hiddenCount,
   LEDGER_COLLAPSE_AFTER,
+  ledgerCountText,
   type LedgerGroup,
+  type LedgerRow,
   ledgerWriterText,
   moreDroppedText,
   moreEntriesText,
+  unattributedNoteText,
+  unattributedValueText,
   viaNoteText,
 } from "@/lib/description-ledger";
+import { dropReasonText } from "@/lib/drop-reasons";
 import { CodeText } from "./CodeText";
+import { ApproximateMark, DegradedCaveat } from "./DescriptionApprox";
 import { ROOT_NODE_ID } from "./preset-tree-stats";
 import { layerLabel } from "./provenance-layer";
 import { ProvenanceChip } from "./ProvenanceChip";
@@ -37,9 +42,14 @@ import { ProvenanceChip } from "./ProvenanceChip";
  *
  * The order is the final array's, unaltered — nothing sorted, nothing folded,
  * duplicates struck through rather than removed (DevTools' cascade, not VS
- * Code's hidden precedence). The only imposed structure is the hairline
- * between consecutive runs of the same top-level extend, which is what makes
- * "which line do I delete" readable at a glance.
+ * Code's hidden precedence), and a member that is not text still holding its
+ * own line. The only imposed structure is the hairline between consecutive runs
+ * of the same top-level extend, which is what makes "which line do I delete"
+ * readable at a glance.
+ *
+ * Every hedge here is the shared one (`DescriptionApprox`, `drop-reasons`): a
+ * reader who learned what `≈` means on the Overview's digest card must not meet
+ * a differently-worded caveat on this surface.
  */
 
 /**
@@ -59,19 +69,6 @@ function sourceLayer(entry: DescriptionAttribution): ProvenanceLayer {
   return entry.node && entry.node.nodeId !== ROOT_NODE_ID
     ? { kind: "preset", nodeId: entry.node.nodeId, name: entry.node.name }
     : entry.viaTopLevel;
-}
-
-/** 069 PR 1's honest fallback, in PR 2's marking: the attribution is to an
- *  enclosing subtree, not a leaf, so the chip is prefixed rather than trusted. */
-function ApproximateMark({ name }: { name: string }) {
-  return (
-    <span
-      className="desc-ledger-approx"
-      title={`Contributed somewhere inside ${name} — the exact preset could not be determined`}
-    >
-      ≈
-    </span>
-  );
 }
 
 /** The third cell of a normal row: who wrote it, and which extend carried it. */
@@ -94,19 +91,28 @@ function LedgerSource({
   );
 }
 
-/** …and the same cell for a repeat: no chip, because the sentence adds
- *  nothing — what it needs instead is where it was already said, and which
- *  extend said it a second time. */
+/**
+ * …and the same cell for a repeat: no chip, because the sentence adds
+ * nothing — what it needs instead is where it was already said, and which
+ * extend said it a second time.
+ *
+ * Approximate entries are marked here too. The mark is not decoration: an
+ * approximate repeat's arrival layer is the one the engine's fallback assigned,
+ * so an unmarked "repo config repeats it" would be a confident accusation
+ * against a config that may not have repeated anything (`duplicateNoteText`
+ * hedges the wording to match).
+ */
 function DuplicateSource({ entry }: { entry: DescriptionAttribution }) {
   return (
     <span className="desc-ledger-src">
+      {entry.approximate ? <ApproximateMark name={layerLabel(sourceLayer(entry))} /> : null}
       <span className="desc-ledger-dup">{duplicatePillText(entry)}</span>
       <span className="desc-ledger-via">{duplicateNoteText(entry)}</span>
     </span>
   );
 }
 
-function LedgerRow({
+function LedgerEntryLine({
   entry,
   onSelectPreset,
 }: {
@@ -129,7 +135,38 @@ function LedgerRow({
   );
 }
 
-/** One blame run — consecutive strings from the same top-level extend. */
+/**
+ * A member of the array that is not a string. It has a real index and Renovate
+ * really did keep it (`subType: "string"` is a validation WARNING here), so it
+ * keeps its line in the ledger — the alternative is an array that renders one
+ * member shorter than the "Final value" block above it.
+ */
+function UnattributedLine({ index, value }: { index: number; value: unknown }) {
+  return (
+    <li className="desc-ledger-row unattributed">
+      <span className="desc-ledger-idx">{index + 1}</span>
+      <span className="desc-ledger-text">{unattributedValueText(value)}</span>
+      <span className="desc-ledger-src">
+        <span className="desc-ledger-via">{unattributedNoteText()}</span>
+      </span>
+    </li>
+  );
+}
+
+function LedgerLine({
+  row,
+  onSelectPreset,
+}: {
+  row: LedgerRow;
+  onSelectPreset?: (nodeId: string) => void;
+}) {
+  if (row.kind === "unattributed") {
+    return <UnattributedLine index={row.index} value={row.value} />;
+  }
+  return <LedgerEntryLine entry={row.entry} onSelectPreset={onSelectPreset} />;
+}
+
+/** One blame run — consecutive rows from the same top-level extend. */
 function LedgerRun({
   group,
   onSelectPreset,
@@ -138,12 +175,12 @@ function LedgerRun({
   onSelectPreset?: (nodeId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const hidden = hiddenCount(group.entries.length, LEDGER_COLLAPSE_AFTER, expanded);
-  const shown = hidden > 0 ? group.entries.slice(0, LEDGER_COLLAPSE_AFTER) : group.entries;
+  const hidden = hiddenCount(group.rows.length, LEDGER_COLLAPSE_AFTER, expanded);
+  const shown = hidden > 0 ? group.rows.slice(0, LEDGER_COLLAPSE_AFTER) : group.rows;
   return (
     <ul className="desc-ledger-list">
-      {shown.map((entry) => (
-        <LedgerRow key={entry.index} entry={entry} onSelectPreset={onSelectPreset} />
+      {shown.map((row) => (
+        <LedgerLine key={row.index} row={row} onSelectPreset={onSelectPreset} />
       ))}
       {hidden > 0 ? (
         <li className="desc-ledger-more">
@@ -157,7 +194,9 @@ function LedgerRun({
 }
 
 /** A dropped description's cell: the preset that authored it, and the rule
- *  that deleted it — the two halves of "why isn't my description showing up". */
+ *  that deleted it — the two halves of "why isn't my description showing up".
+ *  Marked when that preset is the engine's enclosing-subtree guess, exactly as
+ *  an approximate entry's cell is. */
 function DroppedSource({
   drop,
   onSelectPreset,
@@ -167,12 +206,13 @@ function DroppedSource({
 }) {
   return (
     <span className="desc-ledger-src">
+      {drop.approximate ? <ApproximateMark name={drop.node.name} /> : null}
       <ProvenanceChip
         layer={{ kind: "preset", nodeId: drop.node.nodeId, name: drop.node.name }}
         onSelectPreset={onSelectPreset}
       />
       <span className="desc-ledger-via">
-        <CodeText text={droppedReasonText(drop)} />
+        <CodeText text={dropReasonText(drop)} />
       </span>
     </span>
   );
@@ -272,7 +312,10 @@ export function BlameLedger({
   return (
     <div className="desc-ledger">
       <div className="prov-chain-title">
-        Who wrote each line ({ledger.entryCount}
+        {/* The same count the collapsed row shows, from the same function: a
+            title claiming more lines than the list has is the exact
+            under-reporting the unattributed rows exist to prevent. */}
+        Who wrote each line ({ledgerCountText(ledger)}
         {writers ? ` · ${writers}` : null})
       </div>
       {ledger.groups.map((group) => (
@@ -281,13 +324,7 @@ export function BlameLedger({
       {ledger.dropped.length > 0 ? (
         <DroppedSection dropped={ledger.dropped} onSelectPreset={onSelectPreset} />
       ) : null}
-      {ledger.degraded ? (
-        <p className="desc-ledger-caveat">
-          Some sentences could not be traced to the exact preset that wrote them — those are marked
-          with the enclosing preset and a <code>≈</code>. The wording and the order are still
-          Renovate’s own.
-        </p>
-      ) : null}
+      {ledger.degraded ? <DegradedCaveat /> : null}
     </div>
   );
 }

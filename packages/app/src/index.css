@@ -4331,12 +4331,18 @@ button.desc-digest-leaf:focus-visible {
    drift apart between them; see components/description-approx.tsx. */
 
 /* The standalone mark, for a row with no leaf label to prefix. Same muted
-   weight as the label's own `≈` prefix, so the two read as one mark. */
+   weight as the label's own `≈` prefix, so the two read as one mark.
+   Placement is the caller's: the digest card pushes it to the row's right edge
+   where the leaf label would sit, while the ledger keeps it inline, immediately
+   before the chip it qualifies. */
 .desc-approx-mark {
   color: var(--muted);
   cursor: help;
   font-family: var(--font-mono);
   font-size: 0.7rem;
+}
+
+.desc-digest-row > .desc-approx-mark {
   margin-left: auto;
 }
 
@@ -4416,6 +4422,16 @@ button.desc-digest-leaf:focus-visible {
   text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent);
 }
 
+/* A member of the array that is not text (Renovate warns and keeps it, so it
+   holds a real index). Mono and muted: it is shown to be identified, not read —
+   the point of the row is that it is not prose, and it must not compete with
+   the sentences around it. */
+.desc-ledger-row.unattributed .desc-ledger-text {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
 .desc-ledger-src {
   align-items: baseline;
   display: flex;
@@ -4429,14 +4445,6 @@ button.desc-digest-leaf:focus-visible {
   color: var(--muted);
   font-size: 0.7rem;
   line-height: 1.4;
-}
-
-/* 069 PR 1's enclosing-node fallback, marked where PR 2 marks it: on the name,
-   so a subtree attribution can never read as a leaf claim. */
-.desc-ledger-approx {
-  color: var(--muted);
-  cursor: help;
-  font-size: 0.75rem;
 }
 
 /* The repeat's pill. Warn-tinted rather than muted: unlike the digest card's
@@ -4469,12 +4477,11 @@ button.desc-digest-leaf:focus-visible {
   font-size: 0.8rem;
 }
 
-.desc-ledger-caveat {
-  background: var(--warn-bg);
-  border-top: 1px solid var(--warn-border);
-  font-size: 0.8rem;
-  margin: 0.5rem 0 0;
-  padding: 0.5rem 0.75rem;
+/* The shared degraded caveat (`.desc-approx-caveat`) sits at the end of the
+   ledger rather than at a card edge, so it needs the gap the digest card's copy
+   gets from the card padding — the wording and the tint stay shared. */
+.desc-ledger > .desc-approx-caveat {
+  margin-top: 0.5rem;
 }
 
 /* The digest card's way back to the ledger above (069 PR 3) — a card-title
