@@ -1,4 +1,5 @@
 import type { DescriptionProvenance, DroppedDescription } from "@renovate-config-debugger/engine";
+import { ROOT_NODE_ID } from "@/components/preset-tree-stats";
 
 /**
  * Roadmap 069 (PR 4): the preset tree's `describe` mode, as data.
@@ -21,11 +22,6 @@ import type { DescriptionProvenance, DroppedDescription } from "@renovate-config
  */
 
 const nf = new Intl.NumberFormat();
-
-/** The repo config's own node id (`trace/preset-tree.ts`). It is the tree's
- *  root and never renders as a row, so its sentences — the user's own — are
- *  excluded from the contributor count the card title prints. */
-const ROOT_NODE_ID = "root";
 
 /** Where one of a node's sentences landed in the final `description` array.
  *  Rendered in the node's own meta area, next to the contribution badges. */
@@ -118,13 +114,15 @@ export function buildTreeDescriptions(provenance: DescriptionProvenance): TreeDe
   for (const entry of provenance.entries) {
     const node = entry.node;
     // Strings from a layer with no preset tree (defaults / global / inherited)
-    // have no node to sit on, and the root's own sentences never render a row.
-    if (!node) {
+    // have no node to sit on. The ROOT is skipped for the same reason and not
+    // merely left out of the count: `flattenTree` starts at the root's
+    // CHILDREN, so facts filed under it would never mount — and a run where
+    // only the repo config wrote descriptions has to come back `null`, or the
+    // mode toggle appears and describe mode then shows nothing at all.
+    if (!node || node.nodeId === ROOT_NODE_ID) {
       continue;
     }
-    if (node.nodeId !== ROOT_NODE_ID) {
-      contributors.add(node.nodeId);
-    }
+    contributors.add(node.nodeId);
     const facts = factsFor(node.nodeId);
     facts.markers.push({
       key: `p${entry.index}`,
@@ -145,9 +143,13 @@ export function buildTreeDescriptions(provenance: DescriptionProvenance): TreeDe
   }
 
   for (const [index, drop] of provenance.dropped.entries()) {
-    factsFor(drop.node.nodeId).lines.push(
-      descLine(`x${index}`, "dropped", drop.value, droppedNoteText(drop)),
-    );
+    // Same rule as above, on both halves of the story: nothing is ever filed
+    // under the root, which has no row to show it on.
+    if (drop.node.nodeId !== ROOT_NODE_ID) {
+      factsFor(drop.node.nodeId).lines.push(
+        descLine(`x${index}`, "dropped", drop.value, droppedNoteText(drop)),
+      );
+    }
     // …and the mute button that pressed it, which is a different node and the
     // one a reader would actually remove.
     const by = drop.droppedBy;
@@ -166,11 +168,17 @@ export function buildTreeDescriptions(provenance: DescriptionProvenance): TreeDe
 /** The node's meta marker: `→ #16 of 24`, the tie between a preset and its
  *  slot in the array the Effective config prints. */
 export function positionMarkerText(marker: PositionMarker): string {
-  const base = `→ #${nf.format(marker.position)} of ${nf.format(marker.total)}`;
+  // The two suffixes are independent facts and a degraded run can carry both:
+  // dropping `approx` for a duplicate would assert a node-to-slot tie the
+  // engine only guessed at.
+  const parts = [`→ #${nf.format(marker.position)} of ${nf.format(marker.total)}`];
   if (marker.duplicateOfPosition !== undefined) {
-    return `${base} · duplicate`;
+    parts.push("duplicate");
   }
-  return marker.approximate ? `${base} · approx` : base;
+  if (marker.approximate) {
+    parts.push("approx");
+  }
+  return parts.join(" · ");
 }
 
 /** …and its tooltip. `linked` is whether the marker is the cross-link to the
@@ -178,7 +186,8 @@ export function positionMarkerText(marker: PositionMarker): string {
 export function positionMarkerTitle(marker: PositionMarker, linked: boolean): string {
   const cta = linked ? " Show the full array in the Effective config." : "";
   if (marker.duplicateOfPosition !== undefined) {
-    return `Sentence #${marker.position} of ${marker.total} in the final description array — a repeat of #${marker.duplicateOfPosition}, which Renovate never deduplicates.${cta}`;
+    const caveat = marker.approximate ? ` It was ${APPROXIMATE_NOTE}.` : "";
+    return `Sentence #${marker.position} of ${marker.total} in the final description array — a repeat of #${marker.duplicateOfPosition}, which Renovate never deduplicates.${caveat}${cta}`;
   }
   if (marker.approximate) {
     return `Landed at #${marker.position} of ${marker.total} in the final description array, ${APPROXIMATE_NOTE}.${cta}`;

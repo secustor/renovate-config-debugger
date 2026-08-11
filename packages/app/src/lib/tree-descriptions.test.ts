@@ -170,9 +170,10 @@ describe("buildTreeDescriptions", () => {
     ).toBeNull();
   });
 
-  test("excludes the repo config's own sentences from the contributor count", () => {
-    // The root never renders a row, so counting it would promise a line the
-    // tree cannot show.
+  test("files nothing at all under the repo config, which renders no row", () => {
+    // `flattenTree` starts at the root's CHILDREN, so a fact filed under the
+    // root would never mount — and counting it would promise a line the tree
+    // cannot show.
     const tree = built(
       provenance({
         entries: entries([
@@ -183,7 +184,24 @@ describe("buildTreeDescriptions", () => {
     );
 
     expect(tree.contributorCount).toBe(1);
-    expect(tree.byNodeId.has("root")).toBe(true);
+    expect(tree.byNodeId.has("root")).toBe(false);
+    // The slot numbering still counts the root's sentence: the marker names a
+    // position in the final array, which is where that sentence really is.
+    expect(tree.byNodeId.get("p9")?.markers[0]).toMatchObject({ position: 2, total: 2 });
+  });
+
+  test("returns null when only the repo config wrote descriptions", () => {
+    // Otherwise the mode toggle appears on a describe mode that shows nothing.
+    expect(
+      buildTreeDescriptions(
+        provenance({
+          entries: entries([
+            { value: "Our house rules.", node: "root", nodeName: "(input config)" },
+            { value: "And another.", node: "root", nodeName: "(input config)" },
+          ]),
+        }),
+      ),
+    ).toBeNull();
   });
 
   test("returns null for a run whose description array is empty and lost nothing", () => {
@@ -265,6 +283,18 @@ describe("wording", () => {
     expect(positionMarkerText(marker())).toBe("→ #16 of 24");
     expect(positionMarkerText(marker({ duplicateOfPosition: 1 }))).toBe("→ #16 of 24 · duplicate");
     expect(positionMarkerText(marker({ approximate: true }))).toBe("→ #16 of 24 · approx");
+  });
+
+  test("a duplicate that is also approximate keeps the caveat", () => {
+    // Dropping `approx` here would assert a node-to-slot tie the engine only
+    // guessed at — the one claim a degraded run must not make.
+    expect(positionMarkerText(marker({ duplicateOfPosition: 1, approximate: true }))).toBe(
+      "→ #16 of 24 · duplicate · approx",
+    );
+
+    const title = positionMarkerTitle(marker({ duplicateOfPosition: 3, approximate: true }), false);
+    expect(title).toContain("a repeat of #3");
+    expect(title).toContain(APPROXIMATE_NOTE);
   });
 
   test("its tooltip offers the ledger jump only when there is one", () => {

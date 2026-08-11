@@ -27,6 +27,34 @@ function computeSubtreeMatch(
   return set;
 }
 
+/**
+ * Node ids with a description fact somewhere in their subtree (self included).
+ *
+ * Roadmap 069 (PR 4): hide-zero's caret suppression (`descContrib > 0`) counts
+ * CONTRIBUTING descendants, and a wrapper preset contributes nothing — so
+ * without this a described node could sit behind a caret that never renders.
+ * The same shape as `computeSubtreeMatch`, and computed for the same reason.
+ */
+function computeDescribedSubtree(root: PresetNode, described: ReadonlySet<string>): Set<string> {
+  const set = new Set<string>();
+  const visit = (node: PresetNode): boolean => {
+    let any = described.has(node.id);
+    for (const child of node.children) {
+      if (visit(child)) {
+        any = true;
+      }
+    }
+    if (any) {
+      set.add(node.id);
+    }
+    return any;
+  };
+  for (const child of root.children) {
+    visit(child);
+  }
+  return set;
+}
+
 export interface Row {
   node: PresetNode;
   depth: number;
@@ -45,6 +73,18 @@ interface FlattenArgs {
   expandedIdentities: ReadonlySet<string>;
   hideZero: boolean;
   query: string;
+  /**
+   * Roadmap 069 (PR 4): node ids describe mode has a line for — `null` in
+   * compact mode, where this argument changes nothing at all.
+   *
+   * Hide-zero shortcuts pure `extends` routers, and a WRAPPER preset is one:
+   * `getPreset` deletes its description, leaving a body of only `extends`. Its
+   * row would therefore be elided exactly when describe mode has the drop line
+   * to show on it — the one line the mode exists for. So a described node is
+   * never elided; hide-zero still applies to its subtree, which is promoted
+   * through it as before.
+   */
+  described?: ReadonlySet<string> | null;
 }
 
 /** The tree collapsed to the ordered list of currently-visible rows. */
@@ -54,11 +94,16 @@ export function flattenTree({
   expandedIdentities,
   hideZero,
   query,
+  described = null,
 }: FlattenArgs): Row[] {
   const { statsById, identityById } = stats;
   const q = query.trim().toLowerCase();
   const searching = q.length > 0;
   const subtreeMatch = searching ? computeSubtreeMatch(root, statsById, q) : null;
+  // Only hide-zero elides or suppresses carets, so this is the only mode that
+  // has to know where the described nodes are.
+  const describedSubtree =
+    hideZero && described && described.size > 0 ? computeDescribedSubtree(root, described) : null;
   const rows: Row[] = [];
 
   const emit = (node: PresetNode, depth: number, elided: PresetNode[]): void => {
@@ -72,9 +117,14 @@ export function flattenTree({
     const isResolved = node.state === "resolved";
     const selfMatch = searching ? st.search.includes(q) : false;
 
+    const shortcut = hideZero && isResolved && st.zero && !selfMatch;
+    // …unless describe mode has a line for it (see `described`): then the row
+    // mounts, and the shortcut applies to its subtree only.
+    const describedSelf = described?.has(node.id) ?? false;
+
     // Hide-zero: pure resolved routers are shortcut, promoting their
     // contributing descendants into this level with an elided-path chip.
-    if (hideZero && isResolved && st.zero && !selfMatch) {
+    if (shortcut && !describedSelf) {
       if (node.children.length > 0) {
         for (const child of node.children) {
           emit(child, depth, [...elided, node]);
@@ -84,10 +134,16 @@ export function flattenTree({
     }
 
     let hasChildren: boolean;
-    if (searching) {
+    if (shortcut) {
+      // Kept only for its description: its subtree is shown THROUGH it below,
+      // unconditionally, so there is nothing a caret could collapse.
+      hasChildren = false;
+    } else if (searching) {
       hasChildren = node.children.some((c) => subtreeMatch?.has(c.id));
     } else if (hideZero) {
-      hasChildren = st.descContrib > 0;
+      hasChildren =
+        st.descContrib > 0 ||
+        (describedSubtree !== null && node.children.some((c) => describedSubtree.has(c.id)));
     } else {
       hasChildren = node.children.length > 0;
     }
@@ -105,7 +161,7 @@ export function flattenTree({
       stats: st,
     });
 
-    if (expanded) {
+    if (expanded || shortcut) {
       for (const child of node.children) {
         emit(child, depth + 1, []);
       }

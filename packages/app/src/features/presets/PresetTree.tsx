@@ -173,19 +173,32 @@ export const PresetTree = memo(function PresetTree({
     });
   }, [stats]);
 
-  const flatRows = useMemo(
-    () =>
-      root && stats
-        ? flattenTree({ root, stats, expandedIdentities: expanded, hideZero, query })
-        : [],
-    [root, stats, expanded, hideZero, query],
-  );
-
   // `null` in compact mode (and whenever the run has no descriptions at all),
   // which is what makes describe mode's cost opt-in: `buildTreeListRows` then
   // adds no rows and `PresetListPane` renders no markers.
   const descFacts =
     describeMode === "describe" && treeDescriptions ? treeDescriptions.byNodeId : null;
+  // …and the same nodes as a plain id set, which is all the flattening needs:
+  // hide-zero would otherwise elide the wrapper presets, taking the drop lines
+  // with them (see `FlattenArgs.described`). A few dozen ids, rebuilt only when
+  // the mode or the run changes — never on a keystroke.
+  const describedIds = useMemo(() => (descFacts ? new Set(descFacts.keys()) : null), [descFacts]);
+
+  const flatRows = useMemo(
+    () =>
+      root && stats
+        ? flattenTree({
+            root,
+            stats,
+            expandedIdentities: expanded,
+            hideZero,
+            query,
+            described: describedIds,
+          })
+        : [],
+    [root, stats, expanded, hideZero, query, describedIds],
+  );
+
   const listRows = useMemo(() => buildTreeListRows(flatRows, descFacts), [flatRows, descFacts]);
 
   const tableRows = useMemo(() => {
