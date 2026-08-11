@@ -23,6 +23,9 @@ import { CopyButton } from "./CopyButton";
 import { ProvenanceChip } from "./ProvenanceChip";
 import { layerId, layerLabel, type LayerId } from "./provenance-layer";
 import { useRuleProvenance } from "@/hooks/rule-provenance";
+// Roadmap 069 hoisted this out of here: the description digest prints the same
+// one-line matcher summary, and one spelling of it is enough.
+import { summarizeRuleSelectors } from "@/lib/rule-selectors";
 import { RuleFramingText } from "./rule-framing";
 
 /**
@@ -222,19 +225,6 @@ function Step({
       </pre>
     </div>
   );
-}
-
-/** First matcher-clause key list, for a one-line rule summary (mirrors the
- *  simulator's ruleLabel — all clauses, no "which one matters" judgment
- *  since this view has no dependency to evaluate against). */
-function summarizeRuleSelectors(rule: unknown): string {
-  if (typeof rule !== "object" || rule === null) {
-    return "(not an object)";
-  }
-  const keys = Object.keys(rule as Record<string, unknown>).filter(
-    (k) => k.startsWith("match") || k.startsWith("exclude"),
-  );
-  return keys.length > 0 ? keys.join(" + ") : "(no match*/exclude* selectors)";
 }
 
 /** Roadmap 013: per-entry provenance for `packageRules` — which layer (repo /

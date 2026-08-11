@@ -1,7 +1,9 @@
 import { memo, type ReactNode } from "react";
+import type { TraceResult } from "@renovate-config-debugger/engine";
 import type { ResultsTabId } from "@/data/results-tabs";
 import type { DigestClause } from "@/lib/run-digest";
 import { CodeText } from "./CodeText";
+import { DescriptionDigestCard } from "./DescriptionDigestCard";
 
 /**
  * Roadmap 029: the run digest — the whole run as one paragraph of prose whose
@@ -75,22 +77,31 @@ function QuestionPills({
 // Roadmap 032: memoized — the digest and its pills change only per run, so
 // the landing tab must not re-render per keystroke with them.
 export const OverviewTab = memo(function OverviewTab({
+  result,
   digest,
   banner,
   onOpen,
   onWhereFrom,
+  onSelectPreset,
 }: {
+  /** Roadmap 069: the run the "What this config does" card reads its
+   *  descriptions off. Per-run identity, so the memo still bails on keystrokes. */
+  result: TraceResult;
   digest: DigestClause[];
   /** The 023 hypothetical-run banner, when validation reported errors. */
   banner?: ReactNode;
   onOpen: (tab: ResultsTabId) => void;
   /** Opens Effective config AND focuses its filter input. */
   onWhereFrom: () => void;
+  /** Selects a preset node in the resolution tree — the digest card's chips
+   *  and leaf labels, wired exactly like the effective config's (013). */
+  onSelectPreset?: (nodeId: string) => void;
 }) {
   return (
     <div className="overview-tab">
       {banner}
       <RunDigest clauses={digest} onOpen={onOpen} />
+      <DescriptionDigestCard result={result} onSelectPreset={onSelectPreset} />
       <QuestionPills
         onWhereFrom={onWhereFrom}
         onDependency={() => onOpen("simulator")}

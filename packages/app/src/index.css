@@ -4183,3 +4183,143 @@ main:has(.app-split.has-results) {
   margin-top: 0.1rem;
   padding: 0.05rem 0.3rem;
 }
+
+/* ---------- 069: the "What this config does" digest card ----------
+   Every preset carries a sentence its author wrote; the resolved config
+   concatenates them all into one anonymous array. This card is that array
+   regrouped by the `extends` entry that pulled each sentence in — so the
+   Overview's first answer to "what does this config do" is the config's own
+   documentation, in its authors' words.
+
+   The palette is not new: a group wears the hue its ProvenanceChip wears
+   (purple preset / blue repo / …), and the dots are the same `.prov-dot` the
+   054 evidence rows use. Only the left rail needs per-layer rules, since it is
+   the one element that carries the hue as a BORDER rather than as `color`. */
+.desc-digest {
+  padding: 0.7rem 0.75rem 0.4rem;
+}
+
+.desc-digest-count {
+  color: var(--muted);
+  font-weight: 400;
+  margin-left: 0.5rem;
+}
+
+.desc-digest-group {
+  margin-bottom: 0.85rem;
+}
+
+.desc-digest-group-head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.desc-digest-note {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+/* The "this extend added nothing" chip — a fact about redundancy, not a
+   problem, so it stays muted rather than borrowing the warn tint. */
+.badge.desc-digest-redundant {
+  color: var(--muted);
+  font-family: inherit;
+}
+
+.desc-digest-list {
+  border-left: 2px solid color-mix(in srgb, var(--accent-purple) 30%, transparent);
+  display: grid;
+  gap: 0.25rem;
+  list-style: none;
+  margin: 0 0 0.35rem;
+  padding: 0.1rem 0 0.1rem 0.85rem;
+}
+
+/* The rail follows the group's layer, matching the dots inside it. */
+.desc-digest-list.prov-repo {
+  border-left-color: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.desc-digest-list.prov-global {
+  border-left-color: color-mix(in srgb, var(--accent-teal) 30%, transparent);
+}
+
+.desc-digest-list.prov-inherited {
+  border-left-color: color-mix(in srgb, var(--accent-pink) 30%, transparent);
+}
+
+.desc-digest-list.prov-defaults {
+  border-left-color: color-mix(in srgb, var(--muted) 30%, transparent);
+}
+
+.desc-digest-row {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  gap: 0.5rem;
+  line-height: 1.5;
+}
+
+/* A repeat of a sentence contributed above: kept (the array really does say it
+   twice) but visibly demoted. */
+.desc-digest-row.duplicate .desc-digest-text {
+  color: var(--muted);
+}
+
+.desc-digest-row > .prov-dot {
+  position: relative;
+  top: -0.1rem;
+}
+
+.desc-digest-text code {
+  font-size: 0.9em;
+}
+
+/* Who actually wrote the sentence — a quiet mono label, and a button, because
+   the name is only useful if it takes you to the node (013's chip contract). */
+.desc-digest-leaf {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  margin-left: auto;
+  padding: 0;
+  white-space: nowrap;
+}
+
+button.desc-digest-leaf {
+  cursor: pointer;
+}
+
+button.desc-digest-leaf:hover,
+button.desc-digest-leaf:focus-visible {
+  color: var(--accent);
+}
+
+.desc-digest-rule-note {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  margin-left: auto;
+}
+
+.desc-digest-more {
+  font-size: 0.78rem;
+  font-style: italic;
+}
+
+/* Same warn-notice tint (050 families) and attachment as the resolved
+   document's merge-order caveat (051) — a qualification of the thing above it,
+   not a problem with the run. */
+.desc-digest-caveat {
+  background: var(--warn-bg);
+  border-top: 1px solid var(--warn-border);
+  font-size: 0.8rem;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+}
