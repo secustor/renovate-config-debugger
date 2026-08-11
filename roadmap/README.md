@@ -63,7 +63,7 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [056](056-publish-engine-package.md)                    | Publish the engine as `@renovate-config-debugger/engine`          | M15                  | proposed |
 | [057](057-fork-codemirror-json-schema.md)               | Fork + publish `codemirror-json-schema`                           | M15                  | proposed |
 | [058](058-rcd-debugger-cli.md)                          | `rcd`: the debugger CLI on the shimmed engine (experimental)      | M16                  | done     |
-| [059](059-publish-cli-package.md)                       | Publish the CLI as `@renovate-config-debugger/cli` (experimental) | M16                  | proposed |
+| [059](059-publish-cli-package.md)                       | Publish the CLI as `@renovate-config-debugger/cli` (experimental) | M16                  | done     |
 | [060](060-mcp-server-and-agent-discovery.md)            | `rcd mcp` + pointing agents at the headless interface             | M16                  | proposed |
 | [061](061-claude-plugin-marketplace.md)                 | Claude plugin marketplace for the debugger                        | M16                  | proposed |
 | [062](062-results-tab-taxonomy.md)                      | Results tabs: `Simulator` → `packageRules`, + `Extraction`        | M17                  | proposed |
@@ -71,7 +71,8 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [064](064-extraction-fidelity-and-mismatch.md)          | Extraction fidelity: RE2 gap + unmatched comments                 | M17                  | proposed |
 | [065](065-persistent-sign-in.md)                        | Persistent sign-in: HttpOnly refresh-token cookie                 | M14                  | done     |
 | [066](066-header-account-menu.md)                       | Header session menu: account, theme and links in one corner       | M14                  | done     |
-| [067](067-keyboard-ux.md)                               | Keyboard UX: ⌘⏎ to run, a bare-key jump layer, one Escape ladder  | M18                  | done     |
+| [067](067-semantic-release.md)                          | semantic-release: one version for every public package            | M16                  | done     |
+| [068](068-keyboard-ux.md)                               | Keyboard UX: ⌘⏎ to run, a bare-key jump layer, one Escape ladder  | M18                  | done     |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live
@@ -214,7 +215,7 @@ Renovate compiles `matchStrings` with RE2, the browser falls back to
 native `RegExp`, and the two diverge in both directions — while answering
 the discussion's actual question.
 
-M18 — **Keyboard** — is 067, and it starts from an omission the feature
+M18 — **Keyboard** — is 068, and it starts from an omission the feature
 milestones never noticed: the app is shaped like a keyboard tool — an editor
 and a tight edit → Run → read → edit loop — and Run was reachable only by
 pointer. Auditing for the shortcut turned up five defects underneath it, each

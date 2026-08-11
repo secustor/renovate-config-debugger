@@ -5,7 +5,7 @@ import { type EscapePriority, ESCAPE_PRIORITY } from "@/lib/escape-stack";
 import { Term } from "./glossary";
 
 /**
- * Roadmap 067 review — who owns Escape when a glossary card is up.
+ * Roadmap 068 review — who owns Escape when a glossary card is up.
  *
  * The card opens on FOCUS, so a keyboard user always has one; claiming the key
  * unconditionally therefore made the layer UNDERNEATH undismissable, which is

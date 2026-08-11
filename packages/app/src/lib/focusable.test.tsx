@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { FOCUSABLE_SELECTOR } from "./focusable";
 
 /**
- * Roadmap 067 review finding 1 — `FOCUSABLE_SELECTOR` is a comma-separated
+ * Roadmap 068 review finding 1 — `FOCUSABLE_SELECTOR` is a comma-separated
  * selector LIST, which is an OR: a native `<button tabindex="-1">` (every
  * inactive tab in the results strip) already matches the plain
  * `button:not([disabled])` branch on its own, so the trailing

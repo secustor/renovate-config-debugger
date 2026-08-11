@@ -47,7 +47,7 @@ export interface ResultsColumnProps {
   tabs: ResultsTabDescriptor[];
   tab: ResultsTabId;
   onSelectTab: (tab: ResultsTabId) => void;
-  /** Roadmap 067: the strip's arrows, which select without discarding the
+  /** Roadmap 068: the strip's arrows, which select without discarding the
    *  cross-link back trail (App's `walkToTab`). */
   onWalkTab: (tab: ResultsTabId) => void;
   backTab: ResultsTabId | null;

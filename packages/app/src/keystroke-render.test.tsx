@@ -70,7 +70,7 @@ vi.mock("./features/editor/ConfigEditor", () => {
     ConfigEditorHandle,
     { fileName: string; value: string; onChange: (value: string) => void }
   >(function ConfigEditorStub({ value, onChange }, ref) {
-    // Roadmap 067 added `focus()` to the handle (the config skip link's
+    // Roadmap 068 added `focus()` to the handle (the config skip link's
     // landing); this stub has no CodeMirror view to focus, so it is a no-op.
     useImperativeHandle(
       ref,

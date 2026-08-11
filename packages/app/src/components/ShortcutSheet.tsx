@@ -5,16 +5,16 @@ import { tookFocus } from "@/lib/focus-restore";
 import { type ShortcutRow, type ShortcutSection, shortcutSheet } from "@/lib/shortcuts";
 
 /**
- * Roadmap 067 tier 1: the `?` sheet.
+ * Roadmap 068 tier 1: the `?` sheet.
  *
- * 067 deferred this deliberately — with three bindings, the `<kbd>` on the Run
+ * 068 deferred this deliberately — with three bindings, the `<kbd>` on the Run
  * button and the `title` attributes were the whole visible surface. Tier 1
  * takes the count past ten, which is the threshold that document set for
  * itself, so the sheet ships in the same change as the bindings it lists.
  *
  * A native `<dialog>` opened with `showModal()`, because it brings the two
  * things a hand-rolled overlay gets wrong: a real focus trap, and inertness for
- * everything behind it. Escape stays out of the 067 ladder — a modal dialog IS
+ * everything behind it. Escape stays out of the 068 ladder — a modal dialog IS
  * the topmost layer, and the browser already knows that — but the sheet handles
  * the key itself rather than riding the dialog's `cancel` default, because the
  * default action closes the sheet without ever claiming the press (see the
@@ -142,7 +142,7 @@ export function ShortcutSheet({ onClose }: { onClose: () => void }) {
     // closes the dialog (the Escape path), but the Close button and the
     // backdrop unmount this component first, so React removes the element
     // before the cleanup below can call `close()` and focus lands on <body>:
-    // the user's next Tab restarts at the skip link. 067's rule is that a
+    // the user's next Tab restarts at the skip link. 068's rule is that a
     // layer which closes hands focus back, so do it here for all three paths —
     // and through the ancestor chain, because the opener itself may not be
     // there any more (see `focusChain`).
@@ -170,7 +170,7 @@ export function ShortcutSheet({ onClose }: { onClose: () => void }) {
       // the user has put into fullscreen, that is leaving fullscreen — one
       // press, the sheet and the window both.
       //
-      // Every other 067 layer already claims its press: `use-escape-layer.ts`
+      // Every other 068 layer already claims its press: `use-escape-layer.ts`
       // calls `preventDefault()` the moment a layer consumes the key, and
       // `lib/escape-stack.ts` states the rule as a debt each handler owes — a
       // handler that ACTS on Escape must claim it. The sheet was the one layer

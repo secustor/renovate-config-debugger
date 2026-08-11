@@ -2,7 +2,7 @@ import { EditorView, type Extension, Prec } from "@uiw/react-codemirror";
 import { matchShortcut, RUN_SHORTCUT } from "@/lib/shortcuts";
 
 /**
- * Roadmap 067: ⌘⏎ runs the pipeline from inside the editor too — which is not
+ * Roadmap 068: ⌘⏎ runs the pipeline from inside the editor too — which is not
  * a free slot. `basicSetup` installs `@codemirror/commands`' `defaultKeymap`,
  * and that binds `Mod-Enter` to `insertBlankLine`. Two things follow:
  *

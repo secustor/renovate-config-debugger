@@ -74,7 +74,7 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
   // the time this runs.
   //
   // Existing is not the same as being reachable, which is what the sentence
-  // that used to stand here claimed (roadmap 067 review). All seven results
+  // that used to stand here claimed (roadmap 068 review). All seven results
   // panels stay mounted and six carry `hidden` (`ResultsPanel`), and the pill is
   // `ambient` precisely so the jump layer keeps working under it — so press `4`
   // while it shows and the thread head is sitting inside a hidden panel:
@@ -107,7 +107,7 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
   // Where focus reached the PILL from, or null whenever the pill does not hold
   // focus — reported by the pill itself through `notePillFocus`.
   //
-  // Roadmap 067 review: this was a document-wide `focusin` listener recording
+  // Roadmap 068 review: this was a document-wide `focusin` listener recording
   // every focus move the page made while the pill was up, plus a reconciliation
   // (`move.to === document.activeElement`) for the moves that had since been
   // left behind — all to answer one question about one element. The element can
@@ -125,7 +125,7 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
   const dismissedFromRef = useRef<HTMLElement | null>(null);
 
   // Escape dismisses the pill — but only when it is not the POPOVER's Escape.
-  // Roadmap 067: that precedence is now structural, and it is stated as a RANK
+  // Roadmap 068: that precedence is now structural, and it is stated as a RANK
   // rather than left to mount order. The pill is the bottom of the ladder even
   // when it registers last, which it does whenever a jump starts from a thread
   // body that already has a rule-evidence card open — the case the deleted
@@ -151,7 +151,7 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
   // The pill's two exits have to land focus alike. `returnToThread` lands on
   // the thread head through `landOnTarget`; Escape used to just unmount a real,
   // Tab-reachable `<button>` out from under the focus ring, dropping focus to
-  // <body> — the one landing 067 forbids, and the next Tab then restarts at the
+  // <body> — the one landing 068 forbids, and the next Tab then restarts at the
   // skip link.
   //
   // A record exists only while the pill HOLDS focus, so its presence is what
@@ -213,7 +213,7 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
   // setState updater runs in the render phase, where triggering the other two
   // updates would be a side effect React is free to replay.
   //
-  // The pill is NOT dismissed here (roadmap 067 review): the landing effect
+  // The pill is NOT dismissed here (roadmap 068 review): the landing effect
   // above dismisses it, and only once the landing has happened.
   //
   // What this cannot do is make the thread head visible first. The head lives in

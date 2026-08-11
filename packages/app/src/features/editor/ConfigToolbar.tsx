@@ -90,7 +90,7 @@ export function ConfigToolbar({
           </button>
         </span>
       ) : null}
-      {/* Roadmap 067: the shortcut's visible home. A binding that lives only
+      {/* Roadmap 068: the shortcut's visible home. A binding that lives only
           in a keyboard-shortcut document does not exist — so it is printed on
           the control it duplicates, in the platform's own spelling, and named
           in the title for anyone who hovers instead. The `<kbd>` hides itself

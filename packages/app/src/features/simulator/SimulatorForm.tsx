@@ -69,7 +69,7 @@ export function SimulatorForm({
   moreFieldsOpen: boolean;
   onMoreFieldsToggle: (open: boolean) => void;
   onQuickFill: (fill: Partial<FormState>) => void;
-  /** Roadmap 067: Enter in any field — the form owns the simulate action now,
+  /** Roadmap 068: Enter in any field — the form owns the simulate action now,
    *  and the Simulate button submits it from the actions row. */
   onSubmit: () => void;
 }) {
@@ -81,7 +81,7 @@ export function SimulatorForm({
         e.preventDefault();
         onSubmit();
       }}
-      // Roadmap 067 review: accepting a suggestion and submitting the form are
+      // Roadmap 068 review: accepting a suggestion and submitting the form are
       // two intents on one key. `datasource` and `manager` are native
       // `<datalist>` comboboxes (047), so arrowing to `npm` and pressing Enter
       // to TAKE it also fired implicit submission — a whole verdict against a

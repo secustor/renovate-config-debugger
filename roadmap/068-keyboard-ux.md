@@ -1,4 +1,4 @@
-# 067 — Keyboard UX: the run loop without the mouse
+# 068 — Keyboard UX: the run loop without the mouse
 
 Milestone: M18 · Status: done (phases 1–3)
 
@@ -215,7 +215,7 @@ reasoning that CodeMirror's `simplifySelection` fires on every press. Round one
 implemented that as "ignore any text-editing target" — far too wide: the return
 pill, the session menu and an open popover became undismissable whenever focus
 sat in a form field. Round two narrowed it to `isEditorTarget`, which was still
-wrong in a way only the third review found: 067's own `e` shortcut moves focus
+wrong in a way only the third review found: 068's own `e` shortcut moves focus
 INTO the editor, so opening a rule-evidence popover and pressing `e` left a card
 that no keypress could ever close.
 
@@ -330,7 +330,7 @@ editor's own `focus()` — which scrolls the CARD into view, title bar included,
 and puts the caret in the text — and the results link scrolls the column and
 focuses the selected tab, the first thing there worth acting on. Dropping
 someone into a text editor is only acceptable because this same document
-untrapped Tab; before 067 it would have been a one-way door.
+untrapped Tab; before 068 it would have been a one-way door.
 
 ### Focus and announcements
 

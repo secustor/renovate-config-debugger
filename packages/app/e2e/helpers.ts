@@ -43,7 +43,7 @@ export function runButton(page: Page) {
 /**
  * Waits for a run that has been REQUESTED to finish.
  *
- * Roadmap 067 put a `<kbd>` shortcut hint inside the Run button, so its text is
+ * Roadmap 068 put a `<kbd>` shortcut hint inside the Run button, so its text is
  * no longer exactly "Run"; what these waits mean is "no longer Running…".
  *
  * But the first version asserted only the absence of that text, and the ninth

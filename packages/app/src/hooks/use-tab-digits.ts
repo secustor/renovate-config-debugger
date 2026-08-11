@@ -5,7 +5,7 @@ import { digitTabIndex } from "@/lib/roving-tabs";
 import { commandModifierHeld } from "@/lib/shortcuts";
 
 /**
- * Roadmap 067 tier 1: `1`–`7` jump straight to that results tab.
+ * Roadmap 068 tier 1: `1`–`7` jump straight to that results tab.
  *
  * Its own hook rather than seven registry entries — the binding is one idea
  * ("the Nth tab"), the sheet prints it as one row, and the count follows
@@ -16,7 +16,7 @@ import { commandModifierHeld } from "@/lib/shortcuts";
  * per hold, since a held `3` repeats ~30 times a second and each repeat would
  * re-select the tab and start another `focusTab` polling chain.
  *
- * Roadmap 067 review finding 3: the window listener is installed once, not
+ * Roadmap 068 review finding 3: the window listener is installed once, not
  * re-installed on every `enabled` flip — `use-shortcut.ts` moved off that
  * shape for `?`, whose own handler disables itself the instant it fires, so
  * gating the listener's existence on `enabled` tore it down mid-hold and let

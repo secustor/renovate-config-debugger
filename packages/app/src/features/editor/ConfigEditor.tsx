@@ -15,7 +15,7 @@ interface Props {
   fileName: string;
   value: string;
   onChange: (value: string) => void;
-  /** Roadmap 067: ⌘⏎ from inside the editor. Bound here rather than left to
+  /** Roadmap 068: ⌘⏎ from inside the editor. Bound here rather than left to
    *  the page listener because CodeMirror's own `Mod-Enter` would otherwise
    *  insert a blank line alongside the run — see `run-keymap.ts`. */
   onRun?: () => void;
@@ -40,7 +40,7 @@ interface Props {
 export interface ConfigEditorHandle {
   /** Scrolls the line at `offset` into view, selects it, and flashes it briefly. */
   highlightOffset(offset: number): void;
-  /** Roadmap 067: scrolls the editor into view and puts the caret in it — what
+  /** Roadmap 068: scrolls the editor into view and puts the caret in it — what
    *  the "Skip to the config editor" link means by "the config editor". */
   focus(): void;
 }
@@ -167,7 +167,7 @@ export const ConfigEditor = forwardRef<ConfigEditorHandle, Props>(function Confi
         onChange={onChange}
         extensions={extensions}
         theme={scheme === "dark" ? oneDarkAccessible : scheme}
-        // Roadmap 067: Tab moves focus, it does not indent. `@uiw/react-
+        // Roadmap 068: Tab moves focus, it does not indent. `@uiw/react-
         // codemirror` defaults this to true, which made the editor a keyboard
         // TRAP — CodeMirror 6 ships no way back out, so a keyboard-only user
         // who entered this box could not leave it without a pointer (WCAG

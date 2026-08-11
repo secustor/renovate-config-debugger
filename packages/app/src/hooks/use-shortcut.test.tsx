@@ -6,7 +6,7 @@ import { FOCUS_RESULTS_SHORTCUT, HELP_SHORTCUT, type Shortcut } from "@/lib/shor
 import { useShortcut } from "./use-shortcut";
 
 /**
- * Roadmap 067 review — the bare-key overlay gate, and the one binding that is
+ * Roadmap 068 review — the bare-key overlay gate, and the one binding that is
  * exempt from it. `?` is advertised by the session menu's own "Press ? any
  * time" row, so a gate that suppressed it while that menu was open made the app
  * break a promise printed one line above the key.

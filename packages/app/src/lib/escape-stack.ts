@@ -1,5 +1,5 @@
 /**
- * Roadmap 067: one owner for Escape.
+ * Roadmap 068: one owner for Escape.
  *
  * Before this, the layers that can be open at once listened for Escape
  * independently — the rule-evidence popover, the session menu, the simulator's
@@ -51,7 +51,7 @@ export type EscapeHandler = () => void;
  * return pill registers AFTER the card that is drawn over it. Plain push order
  * would then hand Escape to the pill and leave the popover standing — the exact
  * inversion the deleted `document.querySelector(RULE_POP_SELECTOR)` check
- * existed to prevent. The rank is the 067 ladder, written down once.
+ * existed to prevent. The rank is the 068 ladder, written down once.
  */
 export const ESCAPE_PRIORITY = {
   /** Popovers and hover cards: drawn over everything, so dismissed first. */
@@ -154,7 +154,7 @@ function topLayer(): EscapeLayer | undefined {
  * Whether a layer drawn OVER the page currently holds the user's attention —
  * `popover` or `menu`, never `ambient` alone.
  *
- * The 067 bare-key layer (`e`, `r`, `1`–`7`) asks this before it acts, and so
+ * The 068 bare-key layer (`e`, `r`, `1`–`7`) asks this before it acts, and so
  * does the 016 Home/End page scroll, for the same reason they ask
  * `isTextEditingTarget`: a key must not rearrange a page the user is not
  * looking at. The rule-evidence card is portalled to

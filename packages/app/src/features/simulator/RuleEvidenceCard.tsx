@@ -50,7 +50,7 @@ const SELECTED_TAB_SELECTOR = '[role="tab"][aria-selected="true"]';
 /**
  * The card that is open, as its own `close`. At most one exists, ever.
  *
- * Roadmap 067 review: two could stand at once, and only for a keyboard user.
+ * Roadmap 068 review: two could stand at once, and only for a keyboard user.
  * Light dismiss is a document `mousedown` listener, so opening a second
  * reference with the pointer closes the first on the way past; keyboard
  * activation fires no `mousedown` at all, so Enter on `packageRules[0]`'s
@@ -256,7 +256,7 @@ export function RuleEvidenceAnchor({
   // except when the click that dismissed it already moved focus somewhere the
   // user picked themselves. Never scrolls: focus is being restored, not given.
   //
-  // Roadmap 067 review: "the anchor is still there" is not "the anchor can take
+  // Roadmap 068 review: "the anchor is still there" is not "the anchor can take
   // focus". The third light dismiss is the anchor's own results panel going
   // `hidden` (the observer below), and a `hidden` ancestor makes every control
   // under it unfocusable while leaving it mounted — so on exactly that dismissal
@@ -280,7 +280,7 @@ export function RuleEvidenceAnchor({
     document.querySelector<HTMLElement>(SELECTED_TAB_SELECTOR)?.focus({ preventScroll: true });
   }, []);
 
-  // Roadmap 067: Escape goes through the layer stack — this card is the
+  // Roadmap 068: Escape goes through the layer stack — this card is the
   // topmost thing on screen while it is open, and its RANK is what says so
   // (it used to be the return pill querying the DOM for this card's class).
   // Not mount order: a jump out of the thread under this card registers the
@@ -295,7 +295,7 @@ export function RuleEvidenceAnchor({
     // the slot (see `openCard`, and the eviction in the button's `onClick`).
     openCard = close;
     function onPointerDown(e: MouseEvent) {
-      // Roadmap 067 review: a modal owns the press, the same way it owns the
+      // Roadmap 068 review: a modal owns the press, the same way it owns the
       // key. `showModal()` makes the page behind the dialog inert, so nothing
       // under this card can be clicked while the `?` sheet is up — but `inert`
       // does not reach a DOCUMENT-level listener any more than it reaches a
@@ -327,7 +327,7 @@ export function RuleEvidenceAnchor({
         setAnchor(anchorRectOf(buttonRef.current));
       }
     }
-    // Roadmap 067 review: the card must not outlive the panel its anchor lives
+    // Roadmap 068 review: the card must not outlive the panel its anchor lives
     // in. `ResultsPanel` switches results tabs by toggling `hidden` on panels
     // that all stay mounted, so a tab switch unmounts nothing here, and the
     // card — portalled to `<body>` — is not covered by the `hidden` its anchor

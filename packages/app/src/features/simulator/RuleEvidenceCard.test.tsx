@@ -132,7 +132,7 @@ describe("RuleEvidenceCard", () => {
   });
 
   it("survives a press that belongs to a modal — the ? sheet opened over it", () => {
-    // Roadmap 067 review: `?` is the one binding that fires under an overlay,
+    // Roadmap 068 review: `?` is the one binding that fires under an overlay,
     // so the sheet can be opened with this card standing. Dismissing the sheet
     // presses its backdrop, and that press reaches this document listener on
     // its way past — `inert` covers the page, not the listener above it.
@@ -160,7 +160,7 @@ describe("RuleEvidenceCard", () => {
   });
 
   it("closes with the results panel its anchor lives in, releasing the keyboard", async () => {
-    // Roadmap 067 review: a tab switch neither unmounts this anchor nor fires a
+    // Roadmap 068 review: a tab switch neither unmounts this anchor nor fires a
     // pointer press, and the card is portalled to `<body>`, so the panel's
     // `hidden` does not cover it. Left open it floated over an unrelated panel
     // and kept `overlayKeyboardOwned()` true INDEFINITELY — every bare key
@@ -183,7 +183,7 @@ describe("RuleEvidenceCard", () => {
   });
 
   it("lands on the results tab when the anchor can no longer take focus back", async () => {
-    // Roadmap 067 review: the dismissal above closes the card BECAUSE the
+    // Roadmap 068 review: the dismissal above closes the card BECAUSE the
     // anchor's panel went `hidden` — which is exactly when the anchor cannot
     // take the focus back. The restore was a silent no-op, the card unmounted a
     // beat later, and focus fell to <body>, where the next Tab restarts at the
@@ -205,7 +205,7 @@ describe("RuleEvidenceCard", () => {
   });
 
   it("keeps one card open at a time, so one Escape gives the keyboard back", () => {
-    // Roadmap 067 review: light dismiss is a `mousedown` listener, and keyboard
+    // Roadmap 068 review: light dismiss is a `mousedown` listener, and keyboard
     // activation fires none — which is what `fireEvent.click` reproduces here.
     // So Enter on one reference, Shift+Tab, Enter on the next left TWO cards up,
     // a state the pointer can never produce; the ladder then popped one layer

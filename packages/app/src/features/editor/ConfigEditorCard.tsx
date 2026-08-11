@@ -22,7 +22,7 @@ interface Props {
   fileName: string;
   value: string;
   onChange: (value: string) => void;
-  /** Roadmap 067: ⌘⏎ from inside the editor runs the pipeline. */
+  /** Roadmap 068: ⌘⏎ from inside the editor runs the pipeline. */
   onRun: () => void;
   presetHover: PresetHoverContext | null;
   repoFormOpen: boolean;

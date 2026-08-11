@@ -64,7 +64,7 @@
   /* The higher plane: hover/option cards, which float over content the user is
      reading rather than over the page as a whole. */
   --shadow-popover: 0 8px 24px light-dark(rgba(140, 149, 159, 0.3), rgba(0, 0, 0, 0.5));
-  /* Roadmap 067: what a modal dialog dims the page with. Lighter in light mode
+  /* Roadmap 068: what a modal dialog dims the page with. Lighter in light mode
      — dark mode is already dark, so the same alpha would read as near-black. */
   --backdrop: light-dark(rgba(31, 35, 40, 0.35), rgba(0, 0, 0, 0.6));
 
@@ -4026,7 +4026,7 @@ main:has(.app-split.has-results) {
   padding-top: 0.5rem;
 }
 
-/* ── Roadmap 067: keyboard UX ─────────────────────────────────────────────
+/* ── Roadmap 068: keyboard UX ─────────────────────────────────────────────
    The three pieces of chrome the keyboard needs and the pointer never sees:
    the skip links, the run-completion live region, and the shortcut printed on
    the control it duplicates. */
@@ -4108,7 +4108,7 @@ main:has(.app-split.has-results) {
   outline-offset: 2px;
 }
 
-/* Roadmap 067 tier 1: the `?` shortcut sheet. A native <dialog>, so the
+/* Roadmap 068 tier 1: the `?` shortcut sheet. A native <dialog>, so the
    backdrop, focus trap and Escape are the browser's. */
 .shortcut-sheet {
   background: var(--surface-raised);
@@ -4167,7 +4167,7 @@ main:has(.app-split.has-results) {
   white-space: nowrap;
 }
 
-/* Roadmap 067: the key a menu row duplicates, printed at the row's right edge
+/* Roadmap 068: the key a menu row duplicates, printed at the row's right edge
    the way a native menu prints it. Same `margin-left: auto` trick as the
    out-of-app glyph, and the same optical baseline nudge. */
 .session-menu-item-kbd {

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { type FocusLanding, useFocusLanding } from "./use-focus-landing";
 
 /**
- * Roadmap 067, 2026-08-11 review — the hook's own half of the landing rules:
+ * Roadmap 068, 2026-08-11 review — the hook's own half of the landing rules:
  * WHICH `input` events count as "the config being run has changed since".
  * `lib/focus-landing.test.ts` covers the decisions themselves; this covers the
  * document listener that feeds them, which needs real elements (`instanceof

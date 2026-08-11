@@ -15,7 +15,7 @@ function elementStub({ connected = true, hidden = false } = {}): Element {
   } as unknown as Element;
 }
 
-/** Roadmap 067 — may a landing that waited still move the user? */
+/** Roadmap 068 — may a landing that waited still move the user? */
 describe("landingWanted", () => {
   it("lands when nothing has happened since the gesture", () => {
     const activity = createLandingActivity();
@@ -58,7 +58,7 @@ describe("landingWanted", () => {
   });
 
   it("lets a newer landing supersede the one it was issued after", () => {
-    // Two digit keys inside one animation frame (067 review): both landings are
+    // Two digit keys inside one animation frame (068 review): both landings are
     // armed before either runs, and both read the same focus holder.
     const activity = createLandingActivity();
     const third = armLanding(activity, null);
@@ -70,7 +70,7 @@ describe("landingWanted", () => {
   });
 });
 
-/** Roadmap 067 review — is the focus this jump would take focus the jump itself
+/** Roadmap 068 review — is the focus this jump would take focus the jump itself
  *  displaced, or something the user still holds? */
 describe("jumpDisplacedFocus", () => {
   it("counts holding nothing as displaced", () => {

@@ -7,7 +7,7 @@ import type { DecodeResult, SharePayload } from "@/lib/share";
 import { type ShareLinkHost, type SimRequest, useShareLink } from "./use-share-link";
 
 /**
- * Roadmap 067 review — the attribution invariant the decode path is
+ * Roadmap 068 review — the attribution invariant the decode path is
  * responsible for: a simulation may only ever be attributed to the config the
  * link that requested it produced. Two links, one of which fails to run, is
  * the shape that broke it twice (a failed link's request landing on the NEXT

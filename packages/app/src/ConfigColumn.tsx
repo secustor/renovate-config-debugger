@@ -8,7 +8,7 @@ import { WelcomePanel } from "@/features/editor/WelcomePanel";
 import type { PresetHoverContext } from "@/lib/preset-hover";
 
 interface ConfigColumnProps {
-  /** Roadmap 067: the column element itself. App asks it one question — was the
+  /** Roadmap 068: the column element itself. App asks it one question — was the
    *  gesture that requested a run made in here? — which decides whether the run
    *  resets the results tab (`gestureWantsResultsLanding`). */
   columnRef: RefObject<HTMLDivElement | null>;
@@ -114,7 +114,7 @@ export function ConfigColumn({
   onDismissNotice,
 }: ConfigColumnProps) {
   return (
-    // Roadmap 067: the skip link's target. `tabIndex={-1}` because a fragment
+    // Roadmap 068: the skip link's target. `tabIndex={-1}` because a fragment
     // jump to a non-focusable container moves the scroll but not the focus,
     // which is the half that matters to a keyboard user.
     <div className="config-col" id="config-column" tabIndex={-1} ref={columnRef}>
@@ -161,7 +161,7 @@ export function ConfigColumn({
 
       {advancedZone}
 
-      {/* Roadmap 067: the one place a run that threw — or a run that was
+      {/* Roadmap 068: the one place a run that threw — or a run that was
           refused before it started — says so, and ⌘⏎ deliberately leaves focus
           in the editor, so a colour alone told a screen-reader user nothing at
           all about the shortcut they had just pressed. The wrapper is always

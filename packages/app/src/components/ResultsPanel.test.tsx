@@ -5,7 +5,7 @@ import { tabButtonSelector } from "@/lib/results-tab-dom";
 import { ResultsPanel, type ResultsTabDescriptor } from "./ResultsPanel";
 
 /**
- * Roadmap 067 — the shell has rendered `role="tablist"` since 028, which
+ * Roadmap 068 — the shell has rendered `role="tablist"` since 028, which
  * PROMISES arrow-key navigation and a single tab stop. It implemented neither:
  * every tab was its own stop, and the arrows did nothing. These tests are that
  * promise.

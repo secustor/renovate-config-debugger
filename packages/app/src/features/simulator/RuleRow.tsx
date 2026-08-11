@@ -78,7 +78,7 @@ export function RuleRow({
   // Re-sync when the filter toggles (re-expand my-rules rows, collapse otherwise).
   useEffect(() => setExpanded(defaultExpanded), [defaultExpanded]);
   return (
-    // Roadmap 067: a cross-link lands ON this row (`landOnTarget`), so it has
+    // Roadmap 068: a cross-link lands ON this row (`landOnTarget`), so it has
     // to be able to hold focus — the flash marks it for the eye, the focus
     // marks it for the keyboard and for a screen reader.
     <div

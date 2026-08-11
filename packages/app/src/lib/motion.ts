@@ -40,7 +40,7 @@ export function motionScrollToOptions(top: number): ScrollToOptions {
 }
 
 /**
- * One pending removal per element. Roadmap 067 review: without this, a second
+ * One pending removal per element. Roadmap 068 review: without this, a second
  * `flashTarget` call on the same element within `FLASH_MS` of the first left
  * both calls' `setTimeout`s racing to remove the same class — the first one
  * to fire won, stripping the highlight while the second flash should still
@@ -78,7 +78,7 @@ export function flashTarget(el: Element): void {
 }
 
 /**
- * Roadmap 067: the whole landing, including the half that was missing. Every
+ * Roadmap 068: the whole landing, including the half that was missing. Every
  * cross-link in this app scrolled and flashed its target and left FOCUS where
  * the user clicked from — so a keyboard user was moved visually while their
  * next Tab continued from the link they had just left, which reads as the jump

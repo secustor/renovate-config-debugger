@@ -19,7 +19,7 @@ export interface RuleFocus {
 }
 
 /**
- * Roadmap 067 review: the fallback landing, for the two exits below that have
+ * Roadmap 068 review: the fallback landing, for the two exits below that have
  * no rule row to land on. Both are only reachable from the EXTERNAL
  * `focusRuleIndex` prop — this component's own `packageRules[N]` links exist
  * only inside a rendered simulation — and that prop is set by a click in the
@@ -97,7 +97,7 @@ export function useRuleFocus({
       // No simulation has run yet, so the target row isn't rendered anywhere.
       // Land the user on the simulator and prompt them to run one, rather than
       // leaving the cross-link click looking dead (the "looks broken" finding).
-      // Focus goes to the card too (067 review): the hint below it is what the
+      // Focus goes to the card too (068 review): the hint below it is what the
       // reader is meant to act on, and from the card the next Tab reaches the
       // form it names.
       landOnCard(cardRef.current);

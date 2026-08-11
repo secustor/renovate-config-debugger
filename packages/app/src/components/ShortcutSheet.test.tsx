@@ -3,7 +3,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { ShortcutSheet } from "./ShortcutSheet";
 
 /**
- * Roadmap 067 — the sheet closing has to hand focus back, and the hard case is
+ * Roadmap 068 — the sheet closing has to hand focus back, and the hard case is
  * the one that looks like it already works: `?` pressed with the session menu
  * open captures a MENU ITEM as the opener, and `showModal()`'s own focus move
  * is what makes the menu close, so the captured element is gone before the

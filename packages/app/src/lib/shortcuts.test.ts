@@ -19,7 +19,7 @@ import {
 const RESULT_QUALIFIER = "once a run has produced results";
 
 /**
- * Roadmap 067 — the shortcut registry's three pure functions. What is worth
+ * Roadmap 068 — the shortcut registry's three pure functions. What is worth
  * pinning here is the deliberate leniency of `matchShortcut` (either modifier,
  * on every platform) and the fact that the CodeMirror spelling is DERIVED, not
  * written twice: the editor's keymap and the page listener drifting apart is
@@ -135,7 +135,7 @@ describe("tier 1 bindings", () => {
 });
 
 describe("shortcutSheet", () => {
-  it("prints a row for every global binding — the rule 067 set itself", () => {
+  it("prints a row for every global binding — the rule 068 set itself", () => {
     const rows = shortcutSheet(true).flatMap((section) => section.rows);
     for (const shortcut of GLOBAL_SHORTCUTS) {
       // `requiresResult` bindings carry a qualifier suffix (see below), so a

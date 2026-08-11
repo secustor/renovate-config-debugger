@@ -67,7 +67,7 @@ export function ResultsPanel({
   const [focusedTab, setFocusedTab] = useState<ResultsTabId | null>(null);
 
   /**
-   * Roadmap 067: the ARIA tablist keyboard pattern this shell has claimed since
+   * Roadmap 068: the ARIA tablist keyboard pattern this shell has claimed since
    * 028 by rendering `role="tablist"` — arrows move along the strip, Home/End
    * go to the ends — paired with the roving `tabindex` below, so the whole
    * strip is ONE tab stop instead of eight on the way to the panel.

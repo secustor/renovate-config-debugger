@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createRunQueue } from "./run-queue";
 
 /**
- * Roadmap 067 review: the run queue's two rules, each with the defect it exists
+ * Roadmap 068 review: the run queue's two rules, each with the defect it exists
  * to prevent written beside it. Four of the five review rounds before this one
  * found a bug in this bookkeeping while it was inline in App's body and
  * reachable only through a full pipeline run.

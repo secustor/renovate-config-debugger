@@ -4,8 +4,12 @@
   "postUpdateOptions": ["pnpmDedupe"],
   "packageRules": [
     {
-      "description": "Regnerate shims and snapshots",
+      "description": [
+        "Regnerate shims and snapshots",
+        "The CLI's answers change when Renovate's code does (roadmap 059), so a bump has to cut a release: `fix` is the commit type semantic-release turns into one (roadmap 067)."
+      ],
       "matchPackageNames": ["renovate"],
+      "semanticCommitType": "fix",
       "postUpgradeTasks": {
         "commands": [
           "pnpm install --frozen-lockfile",

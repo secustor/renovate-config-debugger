@@ -3,7 +3,7 @@ import { mayOwnNativePopup } from "@/hooks/scroll-ergonomics";
 import { type EscapePriority, handleEscape, pushEscapeLayer } from "@/lib/escape-stack";
 
 /**
- * Roadmap 067: the document half of the Escape ladder (`lib/escape-stack.ts`
+ * Roadmap 068: the document half of the Escape ladder (`lib/escape-stack.ts`
  * holds the ordering, and holds it purely).
  *
  * ONE listener for the whole app, refcounted here rather than installed per
@@ -49,7 +49,7 @@ function onKeyDown(event: KeyboardEvent): void {
   // already stands aside for that — while a press the editor did nothing with
   // reaches the ladder, which is what a user pressing Escape with a popover
   // open meant. An `isEditorTarget` bail on top of it stranded layers instead:
-  // 067's own `e` shortcut jumps focus INTO the editor, so a rule-evidence
+  // 068's own `e` shortcut jumps focus INTO the editor, so a rule-evidence
   // card, the session menu or the return pill opened beforehand became
   // undismissable by keyboard until the user tabbed back out.
   //

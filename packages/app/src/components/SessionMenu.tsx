@@ -59,7 +59,7 @@ interface Props {
   installUrl: string;
   onSignIn: () => void;
   onSignOut: () => void;
-  /** Roadmap 067 tier 1: opens the `?` shortcut sheet. The menu is where a
+  /** Roadmap 068 tier 1: opens the `?` shortcut sheet. The menu is where a
    *  pointer user finds out the keyboard layer exists at all. */
   onShowShortcuts: () => void;
 }

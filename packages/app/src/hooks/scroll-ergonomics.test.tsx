@@ -4,7 +4,7 @@ import { claimModalKeyboard, ESCAPE_PRIORITY, pushEscapeLayer } from "@/lib/esca
 import { isTextEditingTarget, mayOwnNativePopup, useHomeEndPageScroll } from "./scroll-ergonomics";
 
 /**
- * Roadmap 067 — `isTextEditingTarget` is shared by the 016 Home/End page-scroll
+ * Roadmap 068 — `isTextEditingTarget` is shared by the 016 Home/End page-scroll
  * guard and the bare-key jump layer (`useShortcut`, `useTabDigits`), and
  * `mayOwnNativePopup` is what the Escape ladder yields to. Both need real DOM
  * elements (`instanceof HTMLElement`, `.tagName`, `.closest`), which the
@@ -36,7 +36,7 @@ describe("isTextEditingTarget", () => {
   });
 
   it("does NOT count a checkbox, radio or other non-text input as typing", () => {
-    // Roadmap 067 regression: a focused filter checkbox (EffectiveConfig.tsx,
+    // Roadmap 068 regression: a focused filter checkbox (EffectiveConfig.tsx,
     // PresetTree.tsx) must not silently swallow `?`, `1`-`7` or `e`/`r`.
     expect(isTextEditingTarget(input("checkbox"))).toBe(false);
     expect(isTextEditingTarget(input("radio"))).toBe(false);
@@ -60,7 +60,7 @@ describe("isTextEditingTarget", () => {
   });
 
   it("counts a NON-text input inside the editor — the search panel's toggles", () => {
-    // Roadmap 067 review: `basicSetup` installs `searchKeymap` and the sheet
+    // Roadmap 068 review: `basicSetup` installs `searchKeymap` and the sheet
     // advertises ⌘F, and `@codemirror/search` renders match-case, regexp and
     // by-word as checkboxes INSIDE `.cm-editor`. Without falling through to the
     // editor check, End scrolled the editor off screen and `1`-`7` switched the
@@ -134,7 +134,7 @@ describe("useHomeEndPageScroll", () => {
   });
 
   it("stands aside while a modal owns the keyboard", () => {
-    // Roadmap 067: with the `?` sheet open, End belongs to the sheet's own
+    // Roadmap 068: with the `?` sheet open, End belongs to the sheet's own
     // overflowing row list. Scrolling here would move the INERT page behind the
     // dialog, and `preventDefault` would stop the dialog scrolling at all.
     const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);

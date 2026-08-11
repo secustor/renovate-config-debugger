@@ -7,7 +7,7 @@ import { type SimRequest, useShareLinkRequest } from "./use-share-link-request";
 import type { Simulate } from "./use-simulation-run";
 
 /**
- * Roadmap 067 review — the consuming half of the attribution invariant stated
+ * Roadmap 068 review — the consuming half of the attribution invariant stated
  * in `hooks/use-share-link.ts`: a share link's simulator request goes to the
  * result its OWN link produced, never to whatever verdict happened to be on
  * screen when the link arrived. Both branches of that rule are here; which

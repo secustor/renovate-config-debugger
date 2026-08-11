@@ -12,7 +12,7 @@ import {
 } from "./helpers";
 
 /**
- * Roadmap 067 — the run loop without the mouse.
+ * Roadmap 068 — the run loop without the mouse.
  *
  * `ControlOrMeta` throughout: these run on macOS locally and on Linux in CI,
  * and the binding deliberately accepts either modifier on both.
@@ -49,7 +49,7 @@ test("the editor does not trap Tab", async ({ page }) => {
   await page.locator(".cm-content").click();
   await page.keyboard.press("Tab");
 
-  // Focus left the editor entirely — before 067 Tab indented the document and
+  // Focus left the editor entirely — before 068 Tab indented the document and
   // there was no way out with the keyboard at all.
   //
   // Asserted as two separate facts on purpose. The first version of this test
@@ -260,7 +260,7 @@ test("a finished run is announced instead of stealing focus", async ({ page }) =
   await expect(page.locator("p.visually-hidden[role='status']")).toContainText("Run finished");
 });
 
-// ── Roadmap 067 tier 1 ───────────────────────────────────────────────────────
+// ── Roadmap 068 tier 1 ───────────────────────────────────────────────────────
 
 test("e and r jump between the panes, and never fire while typing", async ({ page }) => {
   await page.goto("/");

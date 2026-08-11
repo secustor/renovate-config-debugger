@@ -42,7 +42,7 @@ export function useShareLinkRequest({
 }) {
   // Roadmap 018: applied-once bookkeeping for an incoming share `simRequest`.
   const appliedSimNonce = useRef<number | null>(null);
-  // Roadmap 067 review: the result this effect saw last time it looked, which
+  // Roadmap 068 review: the result this effect saw last time it looked, which
   // is what "already on screen when the request arrived" means below. Null
   // until the first look.
   //

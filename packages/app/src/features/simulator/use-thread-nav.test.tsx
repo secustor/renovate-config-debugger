@@ -4,7 +4,7 @@ import { ReturnPill } from "./ReturnPill";
 import { threadHeadId, useThreadNav } from "./use-thread-nav";
 
 /**
- * Roadmap 067 — the return pill's exits.
+ * Roadmap 068 — the return pill's exits.
  *
  * Escape used to unmount a real, Tab-reachable `<button>` out from under the
  * focus ring and leave focus on <body>, so the next Tab restarted at the skip
@@ -114,7 +114,7 @@ describe("useThreadNav — returning to the thread", () => {
   });
 
   it("keeps the pill when the head is inside a hidden results panel", () => {
-    // Roadmap 067 review: the pill is `ambient` so the jump layer keeps working
+    // Roadmap 068 review: the pill is `ambient` so the jump layer keeps working
     // under it — press `4` while it shows and the thread head is in a panel
     // that is `hidden` but still mounted. The scroll and the flash go nowhere
     // and `.focus()` is refused, so the return did not happen; clearing the

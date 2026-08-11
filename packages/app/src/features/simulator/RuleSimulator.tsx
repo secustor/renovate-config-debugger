@@ -178,7 +178,7 @@ export const RuleSimulator = memo(function RuleSimulator({
     setFocusHint,
   });
   /**
-   * Roadmap 067 review: the request made while a simulation is in flight — one
+   * Roadmap 068 review: the request made while a simulation is in flight — one
    * slot, holding the NEWEST one.
    *
    * A slot rather than App's serial run queue (`lib/run-queue.ts`), which runs
@@ -449,12 +449,12 @@ export const RuleSimulator = memo(function RuleSimulator({
         onSubmit={submitSimulation}
       />
       <div className="sim-actions">
-        {/* Roadmap 067: the form s submit button, associated across the DOM
+        {/* Roadmap 068: the form s submit button, associated across the DOM
             by the form attribute — so Enter in a field and a click here are the
             same action, not two code paths that have to be kept in step.
 
             Not disabled while a run is in flight, which is the price of that
-            sameness (067 review). HTML performs implicit submission by firing a
+            sameness (068 review). HTML performs implicit submission by firing a
             click at the form's DEFAULT BUTTON — the first submit button among
             its controls, which is this one — and only when that button is not
             disabled. So `disabled={running}` did not merely grey a control out:

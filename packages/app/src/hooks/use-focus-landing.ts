@@ -41,7 +41,7 @@ export interface FocusLanding {
  * is hidden or removed, and it is where Safari leaves it after a click on a
  * button.
  *
- * Exported since the ninth 067 review for App's `gestureWantsResultsLanding`,
+ * Exported since the ninth 068 review for App's `gestureWantsResultsLanding`,
  * which asks the same question of the same DOM — it had spelled the collapse
  * out a second time, and both spellings have to agree for a ticket's `from` and
  * "who is holding focus now" to be comparable at all.
@@ -84,7 +84,7 @@ function editsRunConfig(target: EventTarget | null): boolean {
 }
 
 /**
- * Roadmap 067: the machinery behind "every cross-link, skip link and jump key
+ * Roadmap 068: the machinery behind "every cross-link, skip link and jump key
  * lands the user on what it names" — the counters that say what the page has
  * seen, and the animation-frame wait that gets a landing to an element which
  * does not exist yet.

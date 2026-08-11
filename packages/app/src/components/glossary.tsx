@@ -53,7 +53,7 @@ function useHoverCard(entry: GlossaryEntry) {
     window.clearTimeout(hideTimer.current);
   }, []);
 
-  // Roadmap 067: an element-scoped Escape that ACTS must claim the key from the
+  // Roadmap 068: an element-scoped Escape that ACTS must claim the key from the
   // ladder, or one press hides this card AND pops the topmost ladder layer —
   // typically the simulator's return pill, which the reader cannot even see from
   // here. With no card up there is nothing to claim, and the key belongs to the

@@ -1,6 +1,6 @@
 {
   "name": "renovate-config-debugger",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,13 +11,18 @@
     "format:check": "oxfmt --check",
     "typecheck": "pnpm -r typecheck && tsc --noEmit -p tools/tsconfig.json",
     "test": "pnpm -r test",
-    "build": "pnpm -r build"
+    "build": "pnpm -r build",
+    "release": "semantic-release"
   },
   "devDependencies": {
-    "@types/node": "26.1.2",
+    "@semantic-release/changelog": "7.0.0",
+    "@semantic-release/exec": "7.1.0",
+    "@semantic-release/git": "11.0.1",
+    "@types/node": "26.2.0",
     "oxfmt": "0.62.0",
     "oxlint": "1.77.0",
     "oxlint-tsgolint": "7.0.2001",
+    "semantic-release": "25.0.9",
     "stylelint": "17.14.1",
     "stylelint-declaration-strict-value": "1.11.1",
     "stylelint-value-no-unknown-custom-properties": "6.1.1",

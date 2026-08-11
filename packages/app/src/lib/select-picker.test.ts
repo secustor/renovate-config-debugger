@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { openPickerOnEnter } from "./select-picker";
 
 /**
- * Roadmap 067 tier 1 — Enter opens a focused `<select>`. The guards matter more
+ * Roadmap 068 tier 1 — Enter opens a focused `<select>`. The guards matter more
  * than the happy path: ⌘⏎ is Run and must survive a focused control, and a
  * browser without `showPicker` must be left alone rather than half-handled.
  */

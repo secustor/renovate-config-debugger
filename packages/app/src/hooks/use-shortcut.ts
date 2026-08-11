@@ -4,7 +4,7 @@ import { overlayKeyboardOwned } from "@/lib/escape-stack";
 import { matchShortcut, type Shortcut } from "@/lib/shortcuts";
 
 /**
- * Roadmap 067: binds one registry entry (`lib/shortcuts.ts`) to a handler for
+ * Roadmap 068: binds one registry entry (`lib/shortcuts.ts`) to a handler for
  * as long as the component is mounted.
  *
  * Four rules are enforced here rather than at each call site:
@@ -40,7 +40,7 @@ export function useShortcut(
   // effect dependency that gates whether the listener exists at all.
   const enabledRef = useRef(enabled);
   enabledRef.current = enabled;
-  // Roadmap 067 review: `?` is the one binding that disables itself the
+  // Roadmap 068 review: `?` is the one binding that disables itself the
   // instant it fires — pressing it sets `shortcutSheetOpen`, which flips this
   // hook's own `enabled` to false. Gating listener installation on `enabled`
   // (the previous shape) tore the effect down mid-hold, so every repeat after

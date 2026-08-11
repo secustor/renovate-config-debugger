@@ -66,14 +66,14 @@ export function ProvenanceChip({
             {...handlers}
             // The only anchor in the app that wants BOTH keydown handlers, so
             // it composes them rather than letting the spread pick a winner:
-            // the glossary's Escape (067 — it claims the key only when it has a
+            // the glossary's Escape (068 — it claims the key only when it has a
             // card to dismiss, and never touches these two) and this chip's own
             // activation, which a `role="button"` span has to implement itself.
             onKeyDown={(e) => {
               handlers.onKeyDown(e);
               // Bare Enter/Space only — the same four-modifier guard
               // `openPickerOnEnter` puts on its own Enter, and for the same
-              // reason: 067 made ⌘⏎ a page-wide Run, so a hand-rolled
+              // reason: 068 made ⌘⏎ a page-wide Run, so a hand-rolled
               // activation that ignores modifiers turns the app's primary
               // shortcut into a tab switch and a selected preset node while the
               // results the reader was looking at are replaced. A dropped key

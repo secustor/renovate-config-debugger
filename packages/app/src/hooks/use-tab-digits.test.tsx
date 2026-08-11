@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { useTabDigits } from "./use-tab-digits";
 
 /**
- * Roadmap 067 review finding 3 — `useTabDigits` used to gate the window
+ * Roadmap 068 review finding 3 — `useTabDigits` used to gate the window
  * listener's INSTALLATION on `enabled` (`useEffect(…, [enabled])`), the exact
  * shape `use-shortcut.ts` moved away from: App can flip this hook's `enabled`
  * (`keysLive && Boolean(result)`) out from under a held digit — pressing `?`

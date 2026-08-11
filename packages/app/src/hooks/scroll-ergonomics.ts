@@ -20,7 +20,7 @@ import { anyModifierHeld } from "@/lib/shortcuts";
  */
 // `<input>` types that do NOT accept free text — a checkbox, radio or button
 // input has no cursor and no type-ahead, so it must not count as "typing".
-// Roadmap 067 reuses this predicate as the bare-key guard for `useShortcut`
+// Roadmap 068 reuses this predicate as the bare-key guard for `useShortcut`
 // and `useTabDigits`: without this list, a focused filter checkbox
 // (EffectiveConfig.tsx, PresetTree.tsx) silently swallowed `?`, `1`-`7` and
 // `e`/`r` with no visible cause.
@@ -41,7 +41,7 @@ const NON_TEXT_INPUT_TYPES = new Set([
  * The narrow half: a rich-text surface — CodeMirror's contenteditable, or any
  * other `contenteditable` region — as opposed to a plain form control.
  *
- * Module-private, because the consumer it was split out for is gone. 067 wrote
+ * Module-private, because the consumer it was split out for is gone. 068 wrote
  * it as the ONE target the Escape ladder would yield to, and round three deleted
  * that call: the ladder reads `defaultPrevented` instead, which CodeMirror sets
  * on exactly the Escapes it acts on (`use-escape-layer.ts` records where that
@@ -72,11 +72,11 @@ export function isTextEditingTarget(target: EventTarget | null): boolean {
   }
   // A `<select>` has no free-text cursor either, but its native type-ahead
   // (jumping to an option by the letter typed) must keep winning over the
-  // jump-layer bare keys — 067 documents this as deliberate.
+  // jump-layer bare keys — 068 documents this as deliberate.
   if (tag === "TEXTAREA" || tag === "SELECT") {
     return true;
   }
-  // Roadmap 067 review: a NON-text input still counts when it sits INSIDE the
+  // Roadmap 068 review: a NON-text input still counts when it sits INSIDE the
   // editor, which is why the branch above falls through here instead of
   // returning false. `basicSetup` installs `searchKeymap` and the `?` sheet
   // advertises ⌘F, and `@codemirror/search` renders its match-case, regexp and
@@ -107,7 +107,7 @@ export function isTextEditingTarget(target: EventTarget | null): boolean {
  *
  * A `<select>` is deliberately NOT counted, though its popup is just as
  * invisible. A select's list opens only on a deliberate act (Space, Alt+Down, or
- * 067's own `showPicker` on Enter) rather than as a side effect of typing, and
+ * 068's own `showPicker` on Enter) rather than as a side effect of typing, and
  * selects are everywhere in this app — counting them would recreate round one's
  * far-too-wide "yield to every form control" rule in order to cover a popup that
  * is almost never open when a key arrives.
@@ -134,7 +134,7 @@ export function useHomeEndPageScroll(): void {
       if (anyModifierHeld(e)) {
         return;
       }
-      // Roadmap 067: a widget with its own Home/End semantics gets them. The
+      // Roadmap 068: a widget with its own Home/End semantics gets them. The
       // results tab strip is the first (ARIA tablist: Home/End = first/last
       // tab) and claims the key by calling `preventDefault`; anything that
       // doesn't claim it still scrolls the page, exactly as before.
@@ -144,7 +144,7 @@ export function useHomeEndPageScroll(): void {
       if (isTextEditingTarget(e.target)) {
         return;
       }
-      // Roadmap 067: and a modal owns the keyboard outright. The `?` sheet's
+      // Roadmap 068: and a modal owns the keyboard outright. The `?` sheet's
       // rows overflow its `max-height` box, which `dialog:modal` makes
       // scrollable — so without this, End scrolled the INERT page behind the
       // dialog, the sheet's remaining rows stayed unreachable by a key the
@@ -155,7 +155,7 @@ export function useHomeEndPageScroll(): void {
       if (modalKeyboardOwned()) {
         return;
       }
-      // Roadmap 067 review: and so does a popover or menu — the gate `e`, `r`
+      // Roadmap 068 review: and so does a popover or menu — the gate `e`, `r`
       // and `1`–`7` already take (`overlayKeyboardOwned`), for the reason they
       // take it: a key must not move the page under a layer the reader is
       // looking at. The rule-evidence card pays for it twice, since it

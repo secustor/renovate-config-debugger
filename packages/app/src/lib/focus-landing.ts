@@ -1,5 +1,5 @@
 /**
- * Roadmap 067: the policy behind "a programmatic jump the user asked for moves
+ * Roadmap 068: the policy behind "a programmatic jump the user asked for moves
  * focus to its target" — the part that decides, with no DOM and no React in it.
  * `hooks/use-focus-landing.ts` is the other half: the counters, the
  * `document.activeElement` reads and the animation-frame polling that feed
@@ -63,7 +63,7 @@ export function armLanding(activity: LandingActivity, from: Element | null): Lan
 }
 
 /**
- * Roadmap 067: whether a landing deferred by a few animation frames — or, for
+ * Roadmap 068: whether a landing deferred by a few animation frames — or, for
  * ⌘⇧⏎, by a whole run — may still move the user. A landing that waits has to
  * assume they kept working, and pulling them out of what they moved to is worse
  * than not landing at all.
@@ -96,7 +96,7 @@ export function armLanding(activity: LandingActivity, from: Element | null): Lan
  *   Without this, two digit jumps in one animation frame ended with the strip
  *   selecting one tab and focus sitting on the other: the first landing focused
  *   its tab, and the second read that focus move — its own predecessor's — as
- *   the user moving on, and stood down (067 review).
+ *   the user moving on, and stood down (068 review).
  * - **Is focus somewhere real the gesture did not leave it?** Then the user put
  *   it there since, and this landing is no longer the newest thing they asked
  *   for.
@@ -105,7 +105,7 @@ export function armLanding(activity: LandingActivity, from: Element | null): Lan
  *   the activator `hidden` in the same commit and the browser drops focus — so
  *   that alone cannot mean "moved on". A `pointerdown` since the gesture
  *   separates the two: clicking a paragraph of prose to read it blurs to body
- *   just the same, and that one IS a choice (067 review).
+ *   just the same, and that one IS a choice (068 review).
  *
  * SCROLLING is deliberately not a fifth question (2026-08-11 review), even
  * though a wheel during the wait does mean the reader is looking elsewhere and
@@ -134,7 +134,7 @@ export function landingWanted(
 }
 
 /**
- * Roadmap 067 review: whether the jump itself is the reason focus is no longer
+ * Roadmap 068 review: whether the jump itself is the reason focus is no longer
  * on the activator — so that taking focus costs the user nothing they still
  * hold. Two ways that happens here: the activator sits inside a subtree the
  * jump marked `hidden` (how `ResultsPanel` switches tabs), or it left the

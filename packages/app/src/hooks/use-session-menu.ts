@@ -37,11 +37,11 @@ export function useSessionMenu() {
     triggerRef.current?.focus();
   }, []);
 
-  // Roadmap 067: Escape through the shared ladder, so a hover card opened
+  // Roadmap 068: Escape through the shared ladder, so a hover card opened
   // from inside the panel closes first and the menu survives that press —
   // by rank, which holds whichever of the two mounted first.
   //
-  // 067 review, on what this menu gave up by no longer listening for Escape
+  // 068 review, on what this menu gave up by no longer listening for Escape
   // itself: the ladder declines a press in three cases, and none of them can
   // reach a menu that is open, because the `focusin` close below is what makes
   // them unreachable. While this panel is up, focus is inside it or on the

@@ -49,7 +49,7 @@ export interface SimRequest {
    *  run this request triggers (absent = every thread starts collapsed). */
   simThread?: string;
   /**
-   * Roadmap 067 review — the result this request may be applied to: the one
+   * Roadmap 068 review — the result this request may be applied to: the one
    * the link's OWN run produced, or null when that run produced nothing to
    * simulate against (it failed outright, or it returned a trace with no
    * effective config). Naming it is what makes the attribution rule in
@@ -255,7 +255,7 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
       host.setHostSectionOpen(true);
     }
     host.pendingViewRef.current = payload.view ?? null;
-    // Roadmap 067 review — half one of the attribution rule stated below: a
+    // Roadmap 068 review — half one of the attribution rule stated below: a
     // decode that replaces the screen replaces the simulator request with it,
     // HERE, before its own run. A link that carries no `sim` is not silent
     // about the simulator — it says the screen it is installing should carry
@@ -293,7 +293,7 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
         { suppressTokens: policy.suppressTokens },
       );
     }
-    // Roadmap 018/067 review — THE INVARIANT: a simulation may only ever be
+    // Roadmap 018/068 review — THE INVARIANT: a simulation may only ever be
     // attributed to the config the link that requested it produced. That is a
     // statement about identity, not about timing or about which entry path
     // decoded the link, and it is carried by two halves that need no flag

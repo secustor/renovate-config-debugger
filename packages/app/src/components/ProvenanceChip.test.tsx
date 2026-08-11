@@ -4,7 +4,7 @@ import type { ProvenanceLayer } from "@renovate-config-debugger/engine";
 import { ProvenanceChip } from "./ProvenanceChip";
 
 /**
- * Roadmap 067 review — the chip is a `role="button"` span, so it implements its
+ * Roadmap 068 review — the chip is a `role="button"` span, so it implements its
  * own activation, and an activation written before ⌘⏎ was a page-wide binding
  * fired on any Enter at all. A keyboard user who Tabs onto a chip and presses
  * ⌘⏎ to re-run then got a tab switch and a selected preset node instead: a

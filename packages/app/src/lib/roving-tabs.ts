@@ -1,5 +1,5 @@
 /**
- * Roadmap 067: the arithmetic behind the results tab strip's arrow keys.
+ * Roadmap 068: the arithmetic behind the results tab strip's arrow keys.
  *
  * Its own module rather than a helper inside `ResultsPanel.tsx` for two
  * reasons: exporting a non-component from a component file breaks fast refresh
@@ -9,7 +9,7 @@
  */
 
 /**
- * Roadmap 067 tier 1: the tab a digit key selects, by POSITION in the rendered
+ * Roadmap 068 tier 1: the tab a digit key selects, by POSITION in the rendered
  * strip — never by a hardcoded id-to-digit map. Roadmap 062 renames `Simulator`
  * and inserts an `Extraction` tab, and a frozen map would then quietly point
  * every digit at the wrong panel.

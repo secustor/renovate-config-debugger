@@ -55,7 +55,7 @@ export function useRunSummary(
   // the identity of ResultsPanel's `tabs` prop across renders that currently
   // hand it a fresh one, which is a behavior change, not a cleanup.
   //
-  // Roadmap 067 review: MAPPED over `RESULTS_TAB_IDS` (data/results-tabs.ts)
+  // Roadmap 068 review: MAPPED over `RESULTS_TAB_IDS` (data/results-tabs.ts)
   // rather than written out as a same-length literal — `useTabDigits` (App.tsx)
   // is wired to `resultsTabs.length` while the `?` sheet's digit range
   // (`lib/shortcuts.ts`) reads `RESULTS_TAB_IDS.length` directly, and a

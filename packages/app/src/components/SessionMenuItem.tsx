@@ -26,7 +26,7 @@ interface Props {
   href?: string;
   title?: string;
   /**
-   * Roadmap 067: the key that does the same thing, printed at the end of the
+   * Roadmap 068: the key that does the same thing, printed at the end of the
    * row the way a native menu prints it — already spelled for this platform by
    * `formatShortcut`. `aria-hidden`, because the accessible name should stay
    * the label; the row's `note` is where the key is stated in words.

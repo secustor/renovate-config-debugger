@@ -11,7 +11,7 @@ import {
 } from "./escape-stack";
 
 /**
- * Roadmap 067 — the Escape ladder's ordering. This replaced the return pill
+ * Roadmap 068 — the Escape ladder's ordering. This replaced the return pill
  * asking the DOM whether a rule-evidence card happened to be mounted, so the
  * cases that matter are the ones that hack got right by accident and the ones
  * it could not have survived: three layers deep, teardown out of order, and a

@@ -1,5 +1,5 @@
 /**
- * Roadmap 067: the keyboard shortcut registry — one source of truth for what a
+ * Roadmap 068: the keyboard shortcut registry — one source of truth for what a
  * binding IS (so a handler and the hint printed on the control it duplicates
  * can never drift), and the two pure functions around it: does this event match
  * it, and how is it spelled on this platform.
@@ -35,7 +35,7 @@ export interface Shortcut {
    * Fires even while a popover or menu covers the page — the gate `useShortcut`
    * otherwise applies to every bare key (`overlayKeyboardOwned()`).
    *
-   * Roadmap 067 review: that gate is right for the JUMP keys, which MOVE the
+   * Roadmap 068 review: that gate is right for the JUMP keys, which MOVE the
    * page under a layer the reader is looking at — `2` beneath a rule-evidence
    * card left it explaining a rule no longer on screen. Help is a different kind
    * of key: it opens a modal that claims the keyboard outright, so nothing
@@ -51,7 +51,7 @@ export interface Shortcut {
    */
   readonly firesUnderOverlay?: boolean;
   /**
-   * Roadmap 067 review finding 2: whether this binding needs an existing run
+   * Roadmap 068 review finding 2: whether this binding needs an existing run
    * result to do anything. App gates `FOCUS_RESULTS_SHORTCUT` on
    * `keysLive && Boolean(result)` — before any run there is nothing to jump
    * to — and `shortcutSheet` reads this flag to qualify the printed row
@@ -186,7 +186,7 @@ export const HELP_SHORTCUT: Shortcut = {
 /**
  * Every GLOBAL binding, in the order the shortcut sheet lists them. The sheet
  * is built from this array, so a binding cannot be added without appearing
- * there — the rule 067 set for itself when it deferred the sheet.
+ * there — the rule 068 set for itself when it deferred the sheet.
  */
 export const GLOBAL_SHORTCUTS: readonly Shortcut[] = [
   RUN_SHORTCUT,
@@ -291,7 +291,7 @@ export interface ShortcutSection {
 }
 
 /**
- * Roadmap 067 review finding 2: the one qualifier text for "this key does
+ * Roadmap 068 review finding 2: the one qualifier text for "this key does
  * nothing before a run", shared by `FOCUS_RESULTS_SHORTCUT`'s row (built from
  * `requiresResult`) and the digit-jump row below (not a registry entry, so it
  * cannot carry that flag itself) — one string, not two independently typed
@@ -315,7 +315,7 @@ function shortcutRowLabel(shortcut: Shortcut): string {
 export function shortcutSheet(apple = isApplePlatform()): ShortcutSection[] {
   const mod = apple ? "⌘" : "Ctrl";
   const join = apple ? "" : "+";
-  // Roadmap 067 review: DERIVED, never written out. `useTabDigits` is wired to
+  // Roadmap 068 review: DERIVED, never written out. `useTabDigits` is wired to
   // the live tab count and `roving-tabs.ts` forbids a frozen digit-to-tab map
   // for the same reason — 062 renames `Simulator` and inserts `Extraction`, and
   // a hardcoded "1 – 7" would then leave `8` working while the app's only
@@ -334,7 +334,7 @@ export function shortcutSheet(apple = isApplePlatform()): ShortcutSection[] {
           keys: `1 – ${lastTabDigit}`,
           what: `Jump straight to that results tab${REQUIRES_RESULT_QUALIFIER}`,
         },
-        // Roadmap 067 review: this is NOT true inside a text field, a
+        // Roadmap 068 review: this is NOT true inside a text field, a
         // <select>, or the results tab strip — `isTextEditingTarget` bails
         // `useHomeEndPageScroll` on the first, and the strip claims the key
         // for its own first/last-tab behavior (see the Results section
@@ -372,7 +372,7 @@ export function shortcutSheet(apple = isApplePlatform()): ShortcutSection[] {
         // defers Enter to that same implicit submission instead — see
         // `select-picker.ts`. This row is only true of a standalone select.
         { keys: "Enter", what: "Open a dropdown, for a select outside a form" },
-        // Roadmap 067 review: the row above is NOT true of the simulator's
+        // Roadmap 068 review: the row above is NOT true of the simulator's
         // `datasource` / `manager` comboboxes, where Enter is how the native
         // suggestion list is accepted — `SimulatorForm` declines implicit
         // submission there rather than let one key mean both things.
