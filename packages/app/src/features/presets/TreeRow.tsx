@@ -25,7 +25,7 @@ function ContributionBadges({ stats, collapsed }: { stats: NodeStats; collapsed:
         <Explained entry={GLOSSARY.presetContribOpts}>
           {(handlers) => (
             <span className="badge contrib opts explained" tabIndex={0} {...handlers}>
-              {stats.ownOptions} opt{stats.ownOptions === 1 ? "" : "s"}
+              · {stats.ownOptions} opt{stats.ownOptions === 1 ? "" : "s"}
             </span>
           )}
         </Explained>
@@ -34,7 +34,7 @@ function ContributionBadges({ stats, collapsed }: { stats: NodeStats; collapsed:
         <Explained entry={GLOSSARY.presetContribRules}>
           {(handlers) => (
             <span className="badge contrib rules explained" tabIndex={0} {...handlers}>
-              {stats.ownRules} rule{stats.ownRules === 1 ? "" : "s"}
+              · {stats.ownRules} rule{stats.ownRules === 1 ? "" : "s"}
             </span>
           )}
         </Explained>
@@ -160,7 +160,14 @@ export function TreeRow({
       ) : (
         nameButton()
       )}
-      {presetSource ? (
+      {presetSource && presetSource !== "internal" ? (
+        // Only the UNUSUAL source earns a pill. `internal` is the default and
+        // the overwhelming majority — twenty identical `internal` chips down
+        // one tree told the reader nothing except where the names ended. A
+        // `github`/`npm`/`local` node is the one worth spotting, so the chip
+        // now means "this one didn't come from Renovate itself". The table
+        // view keeps the badge on every row (PresetListPane): a column of
+        // values is a comparison, not repetition.
         <Explained entry={sourceKindEntry(presetSource)}>
           {(handlers) => (
             <span className={`badge src src-${presetSource} explained`} tabIndex={0} {...handlers}>

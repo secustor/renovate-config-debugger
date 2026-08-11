@@ -249,6 +249,18 @@ export const EXTENDS_RECOMMENDED_CONFIG = `{
 }
 `;
 
+/** Two internal presets at tree depth 1 — always on screen, never windowed
+ *  away — one resolved with options of its own (so its row carries the
+ *  contribution counts) and one ignored (so its row carries a state pill).
+ *  036's "badges are filled" assertion needs both kinds visible at once, and
+ *  needs them without a fetch. */
+export const IGNORED_PRESET_CONFIG = `{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [":dependencyDashboard", ":semanticCommits"],
+  "ignorePresets": [":semanticCommits"]
+}
+`;
+
 /** The structural identity (`>`-joined name-path from the tree root) of the
  *  single `config:recommended` node the config above resolves — what a
  *  pre-028 link's `view.node` stored. */

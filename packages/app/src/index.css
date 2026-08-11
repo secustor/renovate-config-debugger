@@ -992,16 +992,16 @@ pre.config-view {
   font-weight: 600;
 }
 
-/* contribution + roll-up badges */
-.badge.contrib.opts {
-  color: var(--accent);
-}
-
-.badge.contrib.rules {
-  color: var(--accent-purple);
-}
-
-/* Deliberate 036 exception: the roll-up is a bare count, not a chip. */
+/* contribution + roll-up counts.
+   Deliberate 036 exception: these are bare counts, not chips. The roll-up
+   always was; the per-node "N opts" / "N rules" joined it, because a chip on
+   every visible row is a fill the eye has to skip past on the way to the
+   name, and the two read as one family of counts anyway ("· 2 opts · 6 rules"
+   next to "· 924 presets · 462 rules"). They keep their `.badge` classes —
+   the glossary hover cards and the e2e selectors hang off those — and keep
+   `.explained`'s accent-on-hover, which is now their only color state. One
+   rule, so no per-variant hue has to be overridden back out. */
+.badge.contrib,
 .badge.rollup {
   background: transparent;
   border: none;
