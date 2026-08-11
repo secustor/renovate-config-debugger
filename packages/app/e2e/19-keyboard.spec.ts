@@ -282,9 +282,41 @@ test("? opens the shortcut sheet, listing every global binding", async ({ page }
   await expect(sheet).toContainText("Jump to the config editor");
   await expect(sheet).toContainText("1 – 7");
 
-  // Escape is the dialog's own — the browser closes it, no ladder involved.
+  // Escape stays out of the ladder — but the sheet claims it rather than
+  // letting the dialog's default action close it (see the test below).
   await page.keyboard.press("Escape");
   await expect(sheet).toBeHidden();
+});
+
+test("Escape closing the sheet is claimed, not passed on to the browser", async ({ page }) => {
+  await page.goto("/");
+
+  // The witness has to be a listener the page installs, because the thing that
+  // went wrong is invisible from the DOM: the sheet closed either way. What
+  // differed is whether the press was still up for grabs afterwards — and the
+  // browser is what grabbed it, leaving fullscreen on the very Escape the user
+  // aimed at the sheet. React attaches its handlers at the root container, so
+  // this document-level listener sees the press after the sheet has had it.
+  await page.evaluate(() => {
+    (window as unknown as { escClaimed?: boolean | null }).escClaimed = null;
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        (window as unknown as { escClaimed?: boolean | null }).escClaimed = e.defaultPrevented;
+      }
+    });
+  });
+
+  await page.keyboard.press("?");
+  const sheet = page.getByRole("dialog", { name: "Keyboard shortcuts" });
+  await expect(sheet).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(sheet).toBeHidden();
+
+  const claimed = await page.evaluate(
+    () => (window as unknown as { escClaimed?: boolean | null }).escClaimed,
+  );
+  expect(claimed).toBe(true);
 });
 
 test("the session menu names the key that opens the sheet, and opens it", async ({ page }) => {
@@ -358,8 +390,27 @@ test("closing the sheet with the button hands focus back to where it came from",
   await expect(sheet).toBeVisible();
   await sheet.getByRole("button", { name: "Close" }).click();
 
-  // The Escape path gets this from the browser; the Close button unmounts the
-  // dialog first, so the component has to restore focus itself.
+  // All three exits unmount the dialog before it can close itself — Escape
+  // included, now that the sheet claims that key instead of letting the
+  // browser's default action close it — so the component restores focus itself.
+  await expect(tabButton(page, "overview")).toBeFocused();
+});
+
+test("closing the sheet with Escape hands focus back the same way", async ({ page }) => {
+  await page.goto("/");
+  await runAndAwaitResult(page);
+  await tabButton(page, "overview").focus();
+
+  await page.keyboard.press("?");
+  const sheet = page.getByRole("dialog", { name: "Keyboard shortcuts" });
+  await expect(sheet).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(sheet).toBeHidden();
+
+  // This used to be the BROWSER's doing: closing a modal `<dialog>` restores
+  // focus to its opener, and Escape was the one exit that got that for free.
+  // Claiming the key took the free restore away with it, so the component's own
+  // restore is now load-bearing on all three paths, not two.
   await expect(tabButton(page, "overview")).toBeFocused();
 });
 

@@ -14,9 +14,11 @@ import { type ShortcutRow, type ShortcutSection, shortcutSheet } from "@/lib/sho
  *
  * A native `<dialog>` opened with `showModal()`, because it brings the two
  * things a hand-rolled overlay gets wrong: a real focus trap, and inertness for
- * everything behind it. Escape is the dialog's own (`cancel`) rather than the
- * 067 Escape ladder — a modal dialog IS the topmost layer, and the browser
- * already knows that. The page's key layers have to be told, though: `inert`
+ * everything behind it. Escape stays out of the 067 ladder — a modal dialog IS
+ * the topmost layer, and the browser already knows that — but the sheet handles
+ * the key itself rather than riding the dialog's `cancel` default, because the
+ * default action closes the sheet without ever claiming the press (see the
+ * `onKeyDown` below). The page's key layers have to be told too: `inert`
  * does not reach a document- or window-level listener, so the sheet declares
  * that a modal owns the keyboard for as long as it is up (see
  * `claimModalKeyboard`, which the ladder and the 016 Home/End page scroll both
@@ -159,6 +161,41 @@ export function ShortcutSheet({ onClose }: { onClose: () => void }) {
       className="shortcut-sheet"
       ref={dialogRef}
       aria-label="Keyboard shortcuts"
+      // Escape is the sheet's to consume, and until this handler existed it was
+      // the BROWSER's. The dialog's own close request does close it — that is
+      // what `onCancel` is for, below — but it does the closing as the keydown's
+      // DEFAULT ACTION, which is precisely what leaves the press unclaimed:
+      // `defaultPrevented` stays false, and whatever the browser does with an
+      // Escape the page did not take, it now does on the same press. In a window
+      // the user has put into fullscreen, that is leaving fullscreen — one
+      // press, the sheet and the window both.
+      //
+      // Every other 067 layer already claims its press: `use-escape-layer.ts`
+      // calls `preventDefault()` the moment a layer consumes the key, and
+      // `lib/escape-stack.ts` states the rule as a debt each handler owes — a
+      // handler that ACTS on Escape must claim it. The sheet was the one layer
+      // exempt from its own doctrine, and only because it had subcontracted the
+      // acting. Doing the close here puts it back under the rule and collapses
+      // the sheet's three exits onto one path: this, the Close button and the
+      // backdrop all now leave through `onClose`, so the focus restore in the
+      // effect's cleanup is what hands focus back in every case rather than in
+      // two of the three, with the browser covering the third.
+      //
+      // Only Escape. A blanket claim here would take Home and End — the keys
+      // this sheet's own rows advertise for scrolling the sheet, which overflows
+      // its `max-height` box (see `claimModalKeyboard`).
+      onKeyDown={(e) => {
+        if (e.key !== "Escape") {
+          return;
+        }
+        e.preventDefault();
+        onClose();
+      }}
+      // The backstop for a close request that arrives as something other than
+      // the key above: Android's back gesture, or a `CloseWatcher` dismissal.
+      // There is no press to claim in those, so the default action closing the
+      // dialog is exactly right — and the handler above has already claimed the
+      // keyboard ones, so this no longer fires for them.
       onCancel={onClose}
       // A click on the backdrop lands on the dialog element itself — but so
       // does one on its padding band, which is part of the element's own box,

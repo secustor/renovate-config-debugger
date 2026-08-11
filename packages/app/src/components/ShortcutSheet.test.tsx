@@ -185,6 +185,42 @@ describe("ShortcutSheet", () => {
     expect(document.activeElement).not.toBe(skipLink);
   });
 
+  it("claims the Escape it closes on rather than leaving it to the browser", () => {
+    // The sheet used to close through the dialog's `cancel` default action,
+    // which closes it without marking the press handled — so the browser acted
+    // on the SAME Escape, and a window the user had put into fullscreen left
+    // fullscreen as the sheet went away. `defaultPrevented` is the whole fix,
+    // and it is invisible to any assertion that only checks the sheet closed.
+    const onClose = vi.fn();
+    const { container } = render(<ShortcutSheet onClose={onClose} />);
+    const dialog = container.querySelector("dialog");
+    if (!dialog) {
+      throw new Error("dialog did not render");
+    }
+
+    // `fireEvent` returns false when a handler called `preventDefault()`.
+    const unclaimed = fireEvent.keyDown(dialog, { key: "Escape" });
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(unclaimed).toBe(false);
+  });
+
+  it("leaves the keys it does not act on unclaimed", () => {
+    // The claim above has to stay exactly one key wide. These rows overflow the
+    // sheet's own `max-height` box, and the sheet advertises Home/End for
+    // scrolling it — a blanket `preventDefault` would take the keys it prints.
+    const onClose = vi.fn();
+    const { container } = render(<ShortcutSheet onClose={onClose} />);
+    const dialog = container.querySelector("dialog");
+    if (!dialog) {
+      throw new Error("dialog did not render");
+    }
+
+    expect(fireEvent.keyDown(dialog, { key: "End" })).toBe(true);
+    expect(fireEvent.keyDown(dialog, { key: "Home" })).toBe(true);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it("does not close on a drag-select that starts inside and releases past the edge", () => {
     // A user drag-selecting a shortcut row's text (to copy `Ctrl+Shift+Enter`)
     // releases wherever the selection ends, often past the sheet's edge. The

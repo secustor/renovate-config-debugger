@@ -497,6 +497,50 @@ A wasted keystroke is recoverable; a silently destroyed way back is not. Both
 directions are pinned by tests in `glossary.test.tsx`, so whoever revisits this
 has to break one of them on purpose.
 
+## The one layer that did not claim its key
+
+Reported after the reviews had stopped: pressing Escape on the `?` sheet closed
+the sheet **and** took the browser window out of fullscreen. One press, two
+things, and the second one was not the app's to do.
+
+The ladder's rule was written down early — a handler that acts on Escape must
+claim the key (`lib/escape-stack.ts`), and `use-escape-layer.ts` calls
+`preventDefault()` the moment a layer consumes one. Every layer obeyed it except
+the sheet, which was exempt for a reason that looked like a virtue: it did not
+handle Escape at all. A modal `<dialog>` closes on Escape by itself, so the
+sheet rode that and wrote the delegation down as a feature.
+
+The catch is *how* a dialog closes: the close request is the keydown's **default
+action**. It runs after dispatch and leaves `defaultPrevented` false — so the
+sheet closed with the press still unclaimed, and the browser, which treats an
+Escape the page did not take as its own, spent it on leaving fullscreen. The
+delegation was never "the browser handles this for us"; it was "the browser
+handles this *too*".
+
+So the sheet now handles Escape itself and claims it, like every other layer.
+Two consequences worth naming:
+
+- **The claim is exactly one key wide.** These rows overflow the sheet's
+  `max-height` box and the sheet itself advertises Home/End for scrolling them;
+  a blanket `preventDefault` would eat the keys it prints.
+- **The free focus restore is gone.** Closing a modal dialog natively returns
+  focus to its opener, and Escape was the one exit that got that for free — the
+  Close button and the backdrop already unmounted the dialog first and needed
+  `restoreFocus`. All three paths now go through it, which is a simplification
+  and a new dependency at once, so the Escape path has its own e2e rather than
+  inheriting the button's.
+
+`onCancel` stays as the backstop for a close request that is not a keypress —
+Android's back gesture, a `CloseWatcher` dismissal — where there is nothing to
+claim and the default action is right.
+
+What could not be verified here: whether claiming the key is *sufficient* to
+stop every browser's exit-fullscreen. It is the only lever a page has, and
+browsers deliberately make the Fullscreen **API**'s Escape uncancellable — but
+that is the API this app never calls, and window fullscreen is the user's own
+mode, where the unclaimed-key path is what Chrome consults. The Chrome extension
+was not connected in the session that fixed this, so the live check is unrun.
+
 ## Costs, accepted
 
 - **A shortcut registry is indirection** for what is, at tier 1, three
