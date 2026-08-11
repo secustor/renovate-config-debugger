@@ -153,6 +153,15 @@ async function withRunAuth<T>(input: PipelineInput, task: () => Promise<T>): Pro
   }
 }
 
+/**
+ * "1 preset" / "2 presets" for the stage titles. The app's `plural()` helper
+ * lives in the app package and the engine must not depend on it, so the two
+ * regular nouns this file needs are pluralized here.
+ */
+function countNoun(n: number, noun: string): string {
+  return `${n} ${noun}${n === 1 ? "" : "s"}`;
+}
+
 function execute(input: PipelineInput): Promise<TraceResult> {
   return withRunAuth(input, () => executeRun(input));
 }
@@ -392,7 +401,7 @@ async function executeRun(input: PipelineInput): Promise<TraceResult> {
     stageStatus.validate = validation.errors.length > 0 ? "error" : "ok";
     collector.emit({
       kind: "stage-complete",
-      title: `Validation finished: ${validation.errors.length} error(s), ${validation.warnings.length} warning(s)`,
+      title: `Validation finished: ${countNoun(validation.errors.length, "error")}, ${countNoun(validation.warnings.length, "warning")}`,
     });
 
     // presets
@@ -419,7 +428,7 @@ async function executeRun(input: PipelineInput): Promise<TraceResult> {
       collector.emit({
         kind: "stage-complete",
         title:
-          `Resolved ${resolved.visitedPresets.merged.length} preset(s)` +
+          `Resolved ${countNoun(resolved.visitedPresets.merged.length, "preset")}` +
           (remigrated.isMigrated ? ", then re-migrated the resolved config" : ""),
         before: preResolve,
         after: snapshot(config),
