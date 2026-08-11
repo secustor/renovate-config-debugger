@@ -4578,3 +4578,74 @@ button.desc-digest-leaf:focus-visible {
   font-weight: 400;
   margin-left: auto;
 }
+
+/* ---------- 069 PR 5: attribution at the point of contact ----------
+
+   Two surfaces, one fact each. A `description` string in the resolved-config
+   document carries the hover card naming the preset that wrote it; a matched
+   simulator rule quotes its author's own sentence. Neither adds a panel — the
+   text was already on screen, only anonymous. */
+
+/* The anchor: a string in the JSON document that has an attribution. Marked
+   the way every other card-bearing element in the app is (016's `explained`
+   grammar — cursor:help, accent on hover/focus), plus the purple wash of the
+   preset hue, because "a preset wrote this" is what the mark announces. */
+.json-desc {
+  border-radius: 3px;
+  cursor: help;
+  padding: 0 0.1em;
+}
+
+.json-desc:hover,
+.json-desc:focus-visible {
+  background: color-mix(in srgb, var(--accent-purple) 14%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--accent-purple) 45%, transparent);
+}
+
+/* The card's own head line, after the preset chip. */
+.desc-attr-head {
+  font-weight: 600;
+}
+
+/* The import path — mono, and muted, because it is a route rather than a
+   name: `(input config) › config:best-practices › docker:pinDigests`. */
+.desc-attr-path {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+
+.desc-attr-card {
+  line-height: 1.45;
+}
+
+/* The matched rule's own words, in the mockup's quote form: a left rule in the
+   preset hue rather than quotation marks, so a multi-sentence description
+   still reads as one quoted block. Sits between the row's head and its clause
+   evidence, on both surfaces that show a rule (the drawer row and the verdict
+   card's rule popover). */
+.sim-rule-why {
+  border-left: 3px solid color-mix(in srgb, var(--accent-purple) 45%, transparent);
+  margin: 0.1rem 0.6rem 0.4rem 1.9rem;
+  padding-left: 0.7rem;
+}
+
+.sim-rule-why-line {
+  font-size: 0.8rem;
+  line-height: 1.45;
+  margin: 0.15rem 0;
+}
+
+.sim-rule-why-attr {
+  color: var(--muted);
+  font-size: 0.7rem;
+  margin: 0.15rem 0 0;
+}
+
+/* Inside the rule-evidence popover the row's indent does not apply — the card
+   is already a box of its own. */
+.sim-rule-pop .sim-rule-why {
+  margin-left: 0;
+  margin-right: 0;
+}

@@ -25,6 +25,7 @@ import { ProvenanceChip } from "./ProvenanceChip";
 import { layerId, layerLabel, type LayerId, layerNodeKey } from "./provenance-layer";
 import { useRuleProvenance } from "@/hooks/rule-provenance";
 import { useDescriptionProvenance } from "@/hooks/description-provenance";
+import { buildDescriptionCards, type DescriptionCards } from "@/lib/description-attribution";
 import {
   buildDescriptionLedger,
   type DescriptionLedger,
@@ -666,6 +667,8 @@ function ResolvedJsonView({
   includeDefaults,
   onIncludeDefaultsChange,
   defaultsCount,
+  descriptions,
+  onSelectPreset,
 }: {
   output: ResolvedConfigOutput | null | undefined;
   expand: ResolvedConfigMode;
@@ -673,6 +676,11 @@ function ResolvedJsonView({
   includeDefaults: boolean;
   onIncludeDefaultsChange: (checked: boolean) => void;
   defaultsCount: number;
+  /** Roadmap 069 (PR 5): per-string `description` attribution, attached to the
+   *  document's own strings when this document IS the array it indexes — which
+   *  `ConfigJson` decides, since only the emitted document can answer that. */
+  descriptions?: DescriptionCards | null;
+  onSelectPreset?: (nodeId: string) => void;
 }) {
   return (
     <>
@@ -692,7 +700,11 @@ function ResolvedJsonView({
       ) : null}
       {output ? (
         <pre className="config-view">
-          <ConfigJson value={output.config} />
+          <ConfigJson
+            value={output.config}
+            descriptions={descriptions}
+            onSelectPreset={onSelectPreset}
+          />
         </pre>
       ) : null}
       {output && output.divergingKeys.length > 0 ? (
@@ -754,6 +766,17 @@ export const EffectiveConfig = memo(function EffectiveConfig({
   const [view, setView] = useState<EffectiveView>("keys");
   const [expand, setExpand] = useState<ResolvedConfigMode>("keep-internal");
   const [includeDefaults, setIncludeDefaults] = useState(false);
+  // Roadmap 069 (PR 5): the same walk again, read the other way round — one
+  // card per string for the As-JSON document, where the sentences are already
+  // on screen and the attribution has nowhere else to live. Gated on the view
+  // like `resolvedOutput` below: derived only once the reader opens As-JSON.
+  const descriptionCards = useMemo(
+    () =>
+      descriptionProvenance && view === "json"
+        ? buildDescriptionCards(descriptionProvenance, result.presetTree)
+        : null,
+    [descriptionProvenance, result.presetTree, view],
+  );
   const resolvedOutput = useResolvedConfig(
     result,
     provenance !== undefined && view === "json",
@@ -900,6 +923,8 @@ export const EffectiveConfig = memo(function EffectiveConfig({
           includeDefaults={includeDefaults}
           onIncludeDefaultsChange={setIncludeDefaults}
           defaultsCount={hiddenDefaults}
+          descriptions={descriptionCards}
+          onSelectPreset={onSelectPreset}
         />
       ) : null}
       {provenance !== undefined && view === "keys" ? (

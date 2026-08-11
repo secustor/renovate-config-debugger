@@ -5,6 +5,7 @@ import type {
   SimulationResult,
 } from "@renovate-config-debugger/engine";
 import type { MergeStop } from "./merge-stops";
+import type { RuleDescriptionNote } from "./rule-descriptions";
 import { stopLabels } from "./verdict-threads";
 
 /**
@@ -52,6 +53,9 @@ export interface RuleEvidence {
   ruleIndex: number;
   verdict?: RuleEvaluation["verdict"];
   layer?: ProvenanceLayer;
+  /** Roadmap 069 (PR 5): the rule author's own description, on a rule that
+   *  matched and has one — the card's answer to "why does this rule exist". */
+  description?: RuleDescriptionNote;
   clauses: ClauseEvaluation[];
   stopIndex?: number;
   stopOrdinal?: number;
@@ -78,14 +82,21 @@ export function buildRuleEvidence(
   mergeStops: MergeStop[],
   layerByIndex: Map<number, ProvenanceLayer>,
   sim: SimulationResult | null,
+  /** Roadmap 069 (PR 5): the run's rule descriptions, by merged rule index. */
+  descriptionByIndex?: ReadonlyMap<number, RuleDescriptionNote>,
 ): RuleEvidence {
   const labels = stopLabels(mergeStops);
   const stopIndex = mergeStops.findIndex((s) => s.kind === "rule" && s.ruleIndex === ruleIndex);
   const rule = sim?.rules.find((r) => r.index === ruleIndex);
+  // Only a matched rule quotes its author: this card is reachable for a rule
+  // that merged, but the wording ("why this rule exists") is a claim about a
+  // rule that DID something.
+  const description = rule?.verdict === "matched" ? descriptionByIndex?.get(ruleIndex) : undefined;
   const base: RuleEvidence = {
     ruleIndex,
     verdict: rule?.verdict,
     layer: layerByIndex.get(ruleIndex),
+    ...(description ? { description } : {}),
     clauses: rule?.clauses ?? [],
     writes: [],
     survivedCount: 0,

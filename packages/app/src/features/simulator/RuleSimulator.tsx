@@ -3,6 +3,7 @@ import type { TraceResult } from "@renovate-config-debugger/engine";
 import { Term } from "@/components/glossary";
 import { HypotheticalBanner } from "@/components/HypotheticalBanner";
 import { RuleFramingText } from "@/components/rule-framing";
+import { useDescriptionProvenance } from "@/hooks/description-provenance";
 import { useRuleProvenance } from "@/hooks/rule-provenance";
 import { ruleLayerIndex } from "@/lib/rule-filters";
 import type { ShareSimulator } from "@/lib/share";
@@ -13,6 +14,7 @@ import { SIM_FORM_ID } from "./datalist-ids";
 import { EMPTY_FORM, type FormState, hasMeaningfulInput } from "./form";
 import { buildMergeStops } from "./merge-stops";
 import { ReturnPill } from "./ReturnPill";
+import { buildRuleDescriptions } from "./rule-descriptions";
 import { buildRuleEvidence } from "./rule-evidence";
 import { SimMergeDrawer } from "./SimMergeDrawer";
 import { SimMessages } from "./SimMessages";
@@ -108,6 +110,14 @@ export const RuleSimulator = memo(function RuleSimulator({
   onMergeStepChange?: (index: number) => void;
 }) {
   const ruleAttribution = useRuleProvenance(result);
+  // Roadmap 069 (PR 5): the author's description of every described rule, from
+  // the same per-run walk the Overview digest and the blame ledger read (the
+  // hook caches it per result, so this is a third consumer, not a third walk).
+  const descriptionProvenance = useDescriptionProvenance(result);
+  const ruleDescriptions = useMemo(
+    () => buildRuleDescriptions(descriptionProvenance),
+    [descriptionProvenance],
+  );
   const engineModule = useEngineModule();
   const {
     form,
@@ -299,8 +309,9 @@ export const RuleSimulator = memo(function RuleSimulator({
   // a run can have hundreds of rules, so deriving every rule's evidence up
   // front would be work for a card nobody opens.
   const evidenceFor = useCallback(
-    (ruleIndex: number) => buildRuleEvidence(ruleIndex, mergeStops, layerByIndex, sim),
-    [mergeStops, layerByIndex, sim],
+    (ruleIndex: number) =>
+      buildRuleEvidence(ruleIndex, mergeStops, layerByIndex, sim, ruleDescriptions),
+    [mergeStops, layerByIndex, sim, ruleDescriptions],
   );
 
   if (!finalConfig) {
@@ -575,6 +586,7 @@ export const RuleSimulator = memo(function RuleSimulator({
               filters={ruleFilters}
               onFiltersChange={setRuleFilters}
               layerByIndex={layerByIndex}
+              descriptionByIndex={ruleDescriptions}
               onSelectPreset={onSelectPreset}
               open={rulesOpen}
               onToggle={setRulesOpen}

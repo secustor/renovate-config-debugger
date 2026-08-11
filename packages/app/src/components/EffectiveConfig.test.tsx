@@ -218,3 +218,68 @@ it("clears the other filters when the digest card lands on the description row",
   expect((layerSelect as HTMLSelectElement).value).toBe("all");
   expect((onlyOverridden as HTMLInputElement).checked).toBe(false);
 });
+
+/**
+ * Roadmap 069 (PR 5): the same attribution at the point of contact — the
+ * As-JSON document's `description` strings. The model and its wording are unit
+ * tested (lib/description-attribution.test.ts); what this covers is the wiring
+ * plus the one thing no unit test can: that the POSITIONAL GUARD is really what
+ * decides, so the keep-internal document (whose array is not the attributed
+ * one) stays plain while the fully expanded one gains the cards.
+ */
+it("attributes the description strings of the As-JSON document", async () => {
+  const result = await runPipeline({
+    fileName: "renovate.json",
+    content: JSON.stringify({
+      extends: [":dependencyDashboard"],
+      description: "My own summary.",
+    }),
+  });
+
+  const onSelectPreset = vi.fn();
+  const view = render(<EffectiveConfig result={result} onSelectPreset={onSelectPreset} />);
+  await waitFor(() => expect(view.getByRole("radio", { name: "As JSON" })).toBeTruthy());
+  fireEvent.click(view.getByRole("radio", { name: "As JSON" }));
+  await waitFor(() => expect(view.container.querySelector(".config-view")).toBeTruthy());
+
+  // Default mode keeps `:dependencyDashboard` as an `extends` reference, so the
+  // document's `description` is NOT the array the attribution indexes — no
+  // cards at all rather than cards naming the wrong preset.
+  expect(view.container.querySelectorAll(".json-desc")).toHaveLength(0);
+
+  fireEvent.change(view.getByLabelText("Expand presets:"), { target: { value: "full" } });
+  await waitFor(() => expect(view.container.querySelectorAll(".json-desc")).toHaveLength(2));
+
+  // The preset's sentence comes first (own body merges last), and its card
+  // names the preset, the path it arrived by and its slot in the array.
+  const strings = [...view.container.querySelectorAll<HTMLElement>(".json-desc")];
+  const preset = strings[0];
+  if (!preset) {
+    throw new Error("expected the preset's own sentence to be attributed");
+  }
+  fireEvent.focus(preset);
+  const card = document.querySelector<HTMLElement>(".desc-attr-card");
+  if (!card) {
+    throw new Error("focusing an attributed string opened no card");
+  }
+  expect(card.textContent).toContain("wrote this description");
+  expect(card.querySelector(".desc-attr-path")?.textContent).toBe(
+    "(input config) › :dependencyDashboard",
+  );
+  expect(card.textContent).toContain("Position 1 of 2");
+
+  // …and its jump is the same tree selection every other chip in this view offers.
+  fireEvent.click(within(card).getByText("Show in preset tree →"));
+  expect(onSelectPreset).toHaveBeenCalledTimes(1);
+
+  // The reader's own sentence is not a preset: repo chip, no path, no jump.
+  const own = strings[1];
+  if (!own) {
+    throw new Error("expected the repo's own sentence to be attributed");
+  }
+  fireEvent.focus(own);
+  const repoCard = document.querySelector<HTMLElement>(".desc-attr-card");
+  expect(repoCard?.textContent).toContain("repo config");
+  expect(repoCard?.querySelector(".desc-attr-path")).toBeNull();
+  expect(repoCard?.textContent).not.toContain("Show in preset tree");
+});

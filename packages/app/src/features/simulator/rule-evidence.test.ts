@@ -160,6 +160,27 @@ describe("buildRuleEvidence", () => {
     expect(evidence.clauses).toEqual([MATCHED_CLAUSE]);
   });
 
+  // Roadmap 069 (PR 5): the author's own words ride along on the evidence, so
+  // the popover quotes them without a second lookup of its own.
+  test("carries the rule author's description — but only for a rule that matched", () => {
+    const note = {
+      ruleIndex: 201,
+      values: ["Pin Docker digests."],
+      attribution: "author's description of this rule",
+    };
+    const descriptions = new Map([
+      [201, note],
+      [12, { ...note, ruleIndex: 12 }],
+    ]);
+
+    expect(buildRuleEvidence(201, STOPS, LAYERS, SIM, descriptions).description).toEqual(note);
+    // A no-match rule's description explains a rule that did nothing here.
+    const noMatch = simFixture([{ index: 12, verdict: "no-match", clauses: [], notes: [] }]);
+    expect(buildRuleEvidence(12, STOPS, LAYERS, noMatch, descriptions).description).toBeUndefined();
+    // …and an undescribed rule adds no empty quote chrome.
+    expect(buildRuleEvidence(458, STOPS, LAYERS, SIM, descriptions).description).toBeUndefined();
+  });
+
   test("without a simulation there is no verdict and no clause evidence", () => {
     const evidence = buildRuleEvidence(201, STOPS, LAYERS, null);
     expect(evidence.verdict).toBeUndefined();

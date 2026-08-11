@@ -5,6 +5,7 @@ import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { SummaryDrawer } from "./SummaryDrawer";
 import { type LayerMatchCount, matchedLayerCounts } from "./layer-counts";
 import { filterRules, type RuleFilters } from "@/lib/rule-filters";
+import type { RuleDescriptionNote } from "./rule-descriptions";
 import { SimRulesBody } from "./SimRulesBody";
 
 /** How many distinct provenance layers the rules drawer names before it
@@ -63,6 +64,7 @@ export const SimRulesDrawer = memo(function SimRulesDrawer({
   filters,
   onFiltersChange,
   layerByIndex,
+  descriptionByIndex,
   onSelectPreset,
   open,
   onToggle,
@@ -73,6 +75,8 @@ export const SimRulesDrawer = memo(function SimRulesDrawer({
   filters: RuleFilters;
   onFiltersChange: (filters: RuleFilters) => void;
   layerByIndex: Map<number, ProvenanceLayer>;
+  /** Roadmap 069 (PR 5): the author's description of each described rule. */
+  descriptionByIndex?: ReadonlyMap<number, RuleDescriptionNote>;
   onSelectPreset?: (nodeId: string) => void;
   open: boolean;
   onToggle: (open: boolean) => void;
@@ -100,6 +104,7 @@ export const SimRulesDrawer = memo(function SimRulesDrawer({
         filters={filters}
         onFiltersChange={onFiltersChange}
         layerByIndex={layerByIndex}
+        descriptionByIndex={descriptionByIndex}
         onSelectPreset={onSelectPreset}
       />
     </SummaryDrawer>
