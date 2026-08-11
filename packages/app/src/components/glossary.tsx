@@ -52,6 +52,28 @@ function useHoverCard(entry: GlossaryEntry) {
     window.clearTimeout(hideTimer.current);
   }, []);
 
+  // Roadmap 067: an element-scoped Escape that ACTS must also claim the key,
+  // the way the repo-load form's does. React's listener sits on the root
+  // container, below the ladder's document listener, so without the
+  // `stopPropagation` one press would hide this card AND pop the topmost ladder
+  // layer — typically the simulator's return pill, which the reader cannot even
+  // see from here. With no card up there is nothing to claim, and the key
+  // belongs to the ladder.
+  //
+  // Lives in the shared hook rather than on one anchor: `Term` had it and
+  // `Explained` did not, which made Escape on a preset-source badge's card
+  // destroy the return pill instead of the card the user was looking at.
+  const onKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key !== "Escape" || !card) {
+        return;
+      }
+      e.stopPropagation();
+      hideNow();
+    },
+    [card, hideNow],
+  );
+
   // Scrolling moves the anchor out from under the fixed-position card; hide
   // rather than float a card pointing at nothing.
   useEffect(() => {
@@ -62,7 +84,7 @@ function useHoverCard(entry: GlossaryEntry) {
     return () => window.removeEventListener("scroll", hideNow);
   }, [card, hideNow]);
 
-  return { card, show, hide, hideNow, cancelHide };
+  return { card, show, hide, hideNow, cancelHide, onKeyDown };
 }
 
 function GlossaryCard({
@@ -118,7 +140,7 @@ interface TermProps {
  */
 export function Term({ id, children }: TermProps) {
   const entry = GLOSSARY[id];
-  const { card, show, hide, hideNow, cancelHide } = useHoverCard(entry);
+  const { card, show, hide, cancelHide, onKeyDown } = useHoverCard(entry);
   const moveGate = useMoveGatedHover<HTMLSpanElement>(show);
   return (
     <>
@@ -133,19 +155,7 @@ export function Term({ id, children }: TermProps) {
         }}
         onFocus={(e) => show(e.currentTarget)}
         onBlur={hide}
-        onKeyDown={(e) => {
-          // Roadmap 067: an element-scoped Escape that ACTS must also claim the
-          // key, the way the repo-load form's does. React's listener sits on
-          // the root container, below the ladder's document listener, so
-          // without this one press would hide this card and pop the topmost
-          // ladder layer too — typically the simulator's return pill, which the
-          // reader cannot even see from here. With no card up there is nothing
-          // to claim, and the key belongs to the ladder.
-          if (e.key === "Escape" && card) {
-            e.stopPropagation();
-            hideNow();
-          }
-        }}
+        onKeyDown={onKeyDown}
       >
         {children ?? entry.name}
       </span>
@@ -163,6 +173,13 @@ interface ExplainedProps {
     onMouseLeave: () => void;
     onFocus: (e: React.FocusEvent) => void;
     onBlur: () => void;
+    /**
+     * Escape dismisses the card (see `useHoverCard`). An anchor with a keydown
+     * handler of its own must COMPOSE this one rather than let a later spread
+     * decide which survives — `ProvenanceChip` is the clickable case, and it
+     * would otherwise trade its Enter/Space for this or this for it.
+     */
+    onKeyDown: (e: React.KeyboardEvent) => void;
   }) => ReactNode;
 }
 
@@ -171,7 +188,7 @@ interface ExplainedProps {
  * already a button). The child render-prop spreads the handlers on its anchor.
  */
 export function Explained({ entry, children }: ExplainedProps) {
-  const { card, show, hide, cancelHide } = useHoverCard(entry);
+  const { card, show, hide, cancelHide, onKeyDown } = useHoverCard(entry);
   const moveGate = useMoveGatedHover(show);
   return (
     <>
@@ -184,6 +201,7 @@ export function Explained({ entry, children }: ExplainedProps) {
         },
         onFocus: (e) => show(e.currentTarget),
         onBlur: hide,
+        onKeyDown,
       })}
       {card ? <GlossaryCard card={card} onEnter={cancelHide} onLeave={hide} /> : null}
     </>

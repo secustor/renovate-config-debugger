@@ -156,7 +156,15 @@ export function ConfigColumn({
 
       {advancedZone}
 
-      {fatal ? <p style={{ color: "var(--error)" }}>{fatal}</p> : null}
+      {/* Roadmap 067: the one place a run that threw — or a run that was
+          refused before it started — says so, and ⌘⏎ deliberately leaves focus
+          in the editor, so a colour alone told a screen-reader user nothing at
+          all about the shortcut they had just pressed. The wrapper is always
+          mounted for the reason the run's live region is: a region announces a
+          CHANGE to something the reader is already watching. Empty, it renders
+          nothing and takes no space; the paragraph and its margins still come
+          and go with the message. */}
+      <div role="alert">{fatal ? <p style={{ color: "var(--error)" }}>{fatal}</p> : null}</div>
       {repoAuthHint ? (
         <GithubAuthHint
           authState={authState}

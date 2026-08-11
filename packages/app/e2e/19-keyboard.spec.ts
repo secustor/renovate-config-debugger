@@ -371,3 +371,43 @@ test("Shift+R does not fire the results jump", async ({ page }) => {
   await page.keyboard.press("r");
   await expect(tabButton(page, "overview")).toBeFocused();
 });
+
+// ── Third-review follow-ups (2026-08-11) ─────────────────────────────────────
+
+test("a second ⌘⏎ after an edit runs against the edited text", async ({ page }) => {
+  await page.goto("/");
+  await setEditorContent(page, SEMANTIC_COMMITS_CONFIG);
+  await runAndAwaitResult(page);
+
+  // Edit, then ask again. The first fix for ⌘⏎ auto-repeat dropped this second
+  // request outright, so the results kept describing the pre-edit text.
+  await setEditorContent(page, PACKAGE_RULES_CONFIG);
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("ControlOrMeta+Enter");
+
+  await openTab(page, "simulator");
+  // The edited config is the only one of the two with packageRules, so the
+  // simulator counting one "from your config" is proof the second run happened
+  // AND used the new text; the pre-edit config renders the empty state instead.
+  await expect(page.locator("#panel-simulator")).toContainText("from your config");
+});
+
+test("a bare key is inert under an open menu — Escape comes first", async ({ page }) => {
+  await page.goto("/");
+  const panel = await openSessionMenu(page);
+
+  // The jump layer is gated on the ladder's top rank: a menu (like a popover)
+  // covers the page and holds focus, so `e` must not fly out from under it.
+  // Without this, the same press under a portalled rule-evidence card moved the
+  // page behind it and left the card explaining a rule no longer on screen.
+  await page.keyboard.press("e");
+  await expect(panel).toBeVisible();
+  await expect(page.locator(".cm-content")).not.toBeFocused();
+
+  // Escape dismisses the menu and hands focus back — and once it has, the jump
+  // layer is live again.
+  await page.keyboard.press("Escape");
+  await expect(panel).toHaveCount(0);
+  await page.keyboard.press("e");
+  await expect(page.locator(".cm-content")).toBeFocused();
+});

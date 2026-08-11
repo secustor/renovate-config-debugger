@@ -73,8 +73,11 @@ document generalizes those into rules and fills the holes.
 2. **A bare key never fires while the user is typing.** Anything that must work
    from inside the editor carries a modifier. Everything else — the
    `e` / `r` / digit jump layer and `?` — is a bare key, because the modified
-   space is a browser minefield and the bare space is not; `isTextEditingTarget`
-   is what keeps that safe, and it counts a focused `<select>` as typing.
+   space is a browser minefield and the bare space is not. Two predicates keep
+   that safe: `isTextEditingTarget` (which counts a focused `<select>`, so the
+   jump keys never eat its type-ahead) and `overlayKeyboardOwned()`, because a
+   popover or menu drawn over the page is something no test of the FOCUSED
+   element can see.
 3. **Every binding has a visible home.** A shortcut that exists only in this
    document does not exist. It renders in the `title` of the control it
    duplicates, and — for Run — as a dim `<kbd>` inside the button itself.
@@ -178,18 +181,39 @@ for the ladder: `modalKeyboardOwned()` is also what stops the 016 Home/End page
 scroll from scrolling the inert page behind an open sheet. It is this app's
 `keysLive`, for the two listeners that cannot reach App's state.
 
-And **Escape raised inside the editor never reaches the ladder**, because
-CodeMirror's `simplifySelection` fires on every press and neither prevents
-default nor stops propagating when there is nothing to simplify. The first
-version of this rule used `isTextEditingTarget` — every input, textarea and
-select — which was far too wide: it meant the return pill, the session menu and
-an open popover could not be dismissed at all while focus sat in a form field,
-a regression on the per-layer listeners this replaced. The predicate is now
-`isEditorTarget` (contenteditable or inside `.cm-editor`), which is what the
-rule was ever about. Escape is unlike a bare key here: it dismisses what is on
-top rather than competing with what the user is typing, so it should reach the
-ladder from a text field. Element-scoped handlers that _can_ claim the key (the
-repo-load form's, a glossary term's) do so with `stopPropagation()`.
+The second thing is **a special case that was written twice and then deleted**,
+which is the most useful entry in this document.
+
+The ladder needed Escape raised inside the editor not to pop a layer, on the
+reasoning that CodeMirror's `simplifySelection` fires on every press. Round one
+implemented that as "ignore any text-editing target" — far too wide: the return
+pill, the session menu and an open popover became undismissable whenever focus
+sat in a form field. Round two narrowed it to `isEditorTarget`, which was still
+wrong in a way only the third review found: 067's own `e` shortcut moves focus
+INTO the editor, so opening a rule-evidence popover and pressing `e` left a card
+that no keypress could ever close.
+
+The third answer was to delete the rule. Verified in the pinned sources rather
+than assumed: `simplifySelection` returns false unless there is a selection to
+simplify (`@codemirror/commands@6.10.4` `dist/index.js:1147`), its binding
+declares no `preventDefault` (`:1788`), the only other Escape bindings
+`basicSetup` installs (`closeCompletion`, `closeSearchPanel`) behave the same,
+and `InputState.runHandlers` (`@codemirror/view@6.43.8` `:4562`) calls
+`preventDefault()` only for a handler that returned true. So CodeMirror claims
+Escape exactly when it acts on it, and the ladder's existing `defaultPrevented`
+check was the whole rule all along. Two rounds of narrowing a special case that
+never needed to exist.
+
+Element-scoped handlers that _can_ claim the key (the repo-load form's, the
+glossary card's) still do so with `stopPropagation()`.
+
+**The rank is also the bare-key layer's gate.** `overlayKeyboardOwned()` reads
+the top of the ladder and reports true at `menu` or `popover` — a card portalled
+to `<body>` holds focus and covers the page, so `1`–`7`, `e`, `r` and `?` are
+inert under one, and Escape comes first. `ambient` is deliberately excluded: the
+return pill is readable-past furniture that stays up for a whole navigation
+detour, and gating the jump layer on it would be a worse regression than the bug
+it fixed.
 
 The DOM query in `use-thread-nav.ts:89-96` is deleted as part of this — it is
 the exact case the stack exists to make unnecessary. Disclosures (`Advanced`,
@@ -335,8 +359,19 @@ requests, and that is a keyboard fact, not a pipeline fact.
   only when the queue empties, so a finished run cannot claim idle while its
   successor resolves. Inputs and the untrusted-endpoint decision are resolved at
   call time, before the wait, so a queued run carries the state its caller
-  meant. Only the entry points that mutate nothing first (the button, the two
-  chords, "Run again") opt into coalescing.
+  meant.
+
+The third review then deleted the second half of that fix. A `coalesce` option
+had let the pointer-safe entry points decline a run while one was in flight —
+belt-and-braces next to the repeat suppression — and it swallowed a DELIBERATE
+second ⌘⏎: press it, fix a typo mid-run, press it again, and the results
+described the pre-edit text. With auto-repeat already stopped at the source,
+coalescing was a redundant mechanism whose only remaining effect was its own
+defect. It is gone, along with `enabled: !running` on the two chords — the
+editor cannot decline ⌘⏎ without handing it back to `insertBlankLine`, so
+gating the page copy would have made one key mean two things by invisible focus
+context. `disabled={running}` on the button stays as the visible, pointer-side
+half.
 
 ## Costs, accepted
 

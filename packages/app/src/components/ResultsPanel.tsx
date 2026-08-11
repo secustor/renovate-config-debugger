@@ -1,5 +1,10 @@
-import { type KeyboardEvent, type ReactNode, useRef } from "react";
-import { RESULTS_TAB_IDS, RESULTS_TAB_LABELS, type ResultsTabId } from "@/data/results-tabs";
+import { type FocusEvent, type KeyboardEvent, type ReactNode, useRef, useState } from "react";
+import {
+  isResultsTabId,
+  RESULTS_TAB_IDS,
+  RESULTS_TAB_LABELS,
+  type ResultsTabId,
+} from "@/data/results-tabs";
 import { nextTabIndex } from "@/lib/roving-tabs";
 
 const nf = new Intl.NumberFormat();
@@ -40,6 +45,17 @@ interface Props {
  */
 export function ResultsPanel({ tabs, active, onSelect, back, onBack, banner, panels }: Props) {
   const barRef = useRef<HTMLDivElement>(null);
+  // The roving tabindex's `0` — the tab a plain Tab key would land on next
+  // time the strip is entered, and the one Tab leaves FROM. It has to track
+  // wherever DOM focus actually is inside the strip, not the selection: under
+  // manual activation the two differ for as long as the user is looking
+  // around with the arrows, and pinning the stop to the selected tab left an
+  // unselected tab at the end of a walk with no tabbable neighbour ahead of
+  // it in the strip — so a forward Tab had nowhere further to land on except
+  // jump BACK to the selected tab, instead of leaving the widget. `null`
+  // means focus isn't (currently known to be) inside the strip, which is the
+  // fallback case: pin the stop back to the selected tab.
+  const [focusedTab, setFocusedTab] = useState<ResultsTabId | null>(null);
 
   /**
    * Roadmap 067: the ARIA tablist keyboard pattern this shell has claimed since
@@ -95,6 +111,29 @@ export function ResultsPanel({ tabs, active, onSelect, back, onBack, banner, pan
     bar.querySelector<HTMLElement>(`[data-tab="${target.id}"]`)?.focus();
   }
 
+  // The `.focus()` call above dispatches a real (bubbling, via `focusin`)
+  // focus event, which is what actually moves `focusedTab` — this handler
+  // just listens for it, the same as it would for a click or a Shift+Tab
+  // into the strip from the panel below.
+  function onFocus(event: FocusEvent<HTMLDivElement>) {
+    const target = event.target;
+    const id = target instanceof HTMLElement ? target.dataset.tab : undefined;
+    if (isResultsTabId(id)) {
+      setFocusedTab(id);
+    }
+  }
+
+  // Focus leaving the strip entirely (not just moving between its own tabs)
+  // is what resets the roving stop back to the selected tab, so re-entering
+  // by Tab returns to the panel on screen rather than to wherever a
+  // look-around was abandoned.
+  function onBlur(event: FocusEvent<HTMLDivElement>) {
+    const next = event.relatedTarget;
+    if (!(next instanceof HTMLElement) || !barRef.current?.contains(next)) {
+      setFocusedTab(null);
+    }
+  }
+
   return (
     <div className="results-panel">
       <div
@@ -103,6 +142,8 @@ export function ResultsPanel({ tabs, active, onSelect, back, onBack, banner, pan
         aria-label="Results"
         ref={barRef}
         onKeyDown={onKeyDown}
+        onFocus={onFocus}
+        onBlur={onBlur}
       >
         {tabs.map((tab) => (
           <button
@@ -113,11 +154,11 @@ export function ResultsPanel({ tabs, active, onSelect, back, onBack, banner, pan
             data-tab={tab.id}
             aria-selected={tab.id === active}
             aria-controls={`panel-${tab.id}`}
-            // Roving tabindex: only the selected tab is in the tab order, and
-            // it stays the selected one even while focus is off looking around
-            // — so Tab back into the strip returns to the panel on screen
-            // rather than to wherever a look-around was abandoned.
-            tabIndex={tab.id === active ? 0 : -1}
+            // Roving tabindex: only one tab is in the sequential tab order at
+            // a time — the FOCUSED one, so a plain Tab press has somewhere to
+            // go that isn't back into the strip, falling back to the selected
+            // tab whenever focus isn't (yet, or any longer) inside the strip.
+            tabIndex={tab.id === (focusedTab ?? active) ? 0 : -1}
             // A zero-count tab is dimmed but never hidden or disabled: tabs
             // keep their position across runs, and each one still explains
             // that it has nothing to show.

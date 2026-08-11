@@ -28,6 +28,16 @@ import { type ShortcutRow, type ShortcutSection, shortcutSheet } from "@/lib/sho
 const FOCUSABLE = "a[href], button:not([disabled])";
 
 /**
+ * Page landmarks bound how far the ancestor fallback below is allowed to
+ * climb. Past one of these, "the nearest surviving ancestor" stops meaning
+ * "near where the sheet was opened from" — `<main>` is the worst case:
+ * its first focusable descendant is the "Skip to the config editor" link,
+ * the page's very first tab stop, which is exactly the top-of-the-page
+ * landing this fallback exists to avoid.
+ */
+const LANDMARK_TAGS = new Set(["MAIN", "HEADER", "NAV", "FOOTER", "ASIDE"]);
+
+/**
  * The opener, plus every ancestor it had at the moment the sheet opened, up to
  * (but not including) `<body>`.
  *
@@ -53,8 +63,12 @@ function focusChain(from: Element | null): HTMLElement[] {
  * Focuses the opener if it is still there — the normal path, and the only one
  * that can hand focus back to a control this component cannot classify (a
  * checkbox, a tree row). Otherwise the first control inside the nearest
- * ancestor that outlived it. Silent when nothing survives: there is then
- * nothing honest to aim at, and the browser's own restore is no worse.
+ * ancestor that outlived it, stopping at the first page landmark rather than
+ * climbing into it — a landmark's first focusable descendant belongs to
+ * whatever section it is, not to wherever the sheet was opened from, so
+ * beyond that point there is nothing left worth guessing at. Silent in both
+ * gaps — nothing survived below a landmark, or nothing survived at all —
+ * because leaving focus alone is honest and the top of the page is not.
  */
 function restoreFocus(chain: readonly HTMLElement[]): void {
   const [opener, ...ancestors] = chain;
@@ -63,6 +77,9 @@ function restoreFocus(chain: readonly HTMLElement[]): void {
     return;
   }
   for (const el of ancestors) {
+    if (LANDMARK_TAGS.has(el.tagName)) {
+      return;
+    }
     const target = el.isConnected ? el.querySelector<HTMLElement>(FOCUSABLE) : null;
     if (target) {
       target.focus({ preventScroll: true });
@@ -94,6 +111,9 @@ function SheetSection({ section }: { section: ShortcutSection }) {
 export function ShortcutSheet({ onClose }: { onClose: () => void }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const sections = useMemo(() => shortcutSheet(), []);
+  // Set on `mousedown`, read on `click` — see the click handler below for why
+  // the click's own coordinates are the wrong signal.
+  const pressStartedOutsideRef = useRef(false);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -125,21 +145,37 @@ export function ShortcutSheet({ onClose }: { onClose: () => void }) {
       // A click on the backdrop lands on the dialog element itself — but so
       // does one on its padding band, which is part of the element's own box,
       // so `e.target === dialog` would close the sheet on a click in the inner
-      // margin or on a drag-select released there. The rect is the real
-      // boundary; it also spares a click on the dialog's own scrollbar.
-      // `detail === 0` is a keyboard-synthesized click, whose 0,0 coordinates
-      // would read as "outside" everywhere but the top-left corner.
-      onClick={(e) => {
+      // margin. The rect is the real boundary; it also spares a click on the
+      // dialog's own scrollbar.
+      //
+      // That test has to run on `mousedown`, not on the `click` that follows
+      // it. A user drag-selecting a shortcut row's text to copy it releases
+      // the mouse wherever the selection ends, which is often past the
+      // sheet's edge — the browser dispatches `click` on the nearest common
+      // ancestor of press and release (the dialog) with the RELEASE
+      // coordinates, so a click-coordinate rect test reads a text selection
+      // as a backdrop dismissal. Where the gesture STARTED is the honest
+      // signal, so the rect test runs there and `click` only reads the
+      // verdict.
+      onMouseDown={(e) => {
         const box = dialogRef.current?.getBoundingClientRect();
-        if (!box || e.detail === 0) {
+        pressStartedOutsideRef.current =
+          box !== undefined &&
+          (e.clientX < box.left ||
+            e.clientX > box.right ||
+            e.clientY < box.top ||
+            e.clientY > box.bottom);
+      }}
+      // `detail === 0` is a keyboard-synthesized click (Enter/Space on a
+      // focused element), which carries no real press to have started
+      // anywhere and must not be read as one.
+      onClick={(e) => {
+        const startedOutside = pressStartedOutsideRef.current;
+        pressStartedOutsideRef.current = false;
+        if (e.detail === 0) {
           return;
         }
-        const inside =
-          e.clientX >= box.left &&
-          e.clientX <= box.right &&
-          e.clientY >= box.top &&
-          e.clientY <= box.bottom;
-        if (!inside) {
+        if (startedOutside) {
           onClose();
         }
       }}

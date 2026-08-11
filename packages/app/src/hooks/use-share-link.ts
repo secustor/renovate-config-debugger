@@ -112,8 +112,10 @@ export interface ShareLink {
   /** Roadmap 027: a token was present but unreadable — banner text, or null. */
   shareError: string | null;
   /** Roadmap 018: a decoded link's simulator inputs, handed to the
-   *  RuleSimulator to pre-fill (and, when `autoSimulate`, run) once the
-   *  pipeline run this link triggered has produced its result. */
+   *  RuleSimulator to pre-fill — and, when `autoSimulate`, to run — as soon as
+   *  there is a result to simulate against. `autoSimulate` survives the decode
+   *  only if the link's OWN run produced that result (see `loadShareToken`); a
+   *  link whose config fails still arrives pre-filled, waiting for the fix. */
   simRequest: SimRequest | null;
   buildShareLinkAndCopy: (sim?: ShareSimulator) => Promise<void>;
   /** Roadmap 009 (auth-failure surfacing): the `#config=…` fragment a sign-in
@@ -270,14 +272,18 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
         { suppressTokens: policy.suppressTokens },
       );
     }
-    // Armed only when that run produced a result. Without one there is nothing
-    // this link's descriptor could be simulated against — and a PREVIOUS link's
-    // result may well still be on screen, so arming anyway would attribute a
-    // simulation to a config this app never ran.
-    if (ran && !isCancelled() && payload.sim) {
+    // The descriptor is always handed over; only the AUTO-RUN waits for a
+    // result. The two are separable and were briefly conflated: a link whose
+    // config fails to run left the recipient with a fatal banner and an empty
+    // simulator form, having silently dropped the very dependency the sender
+    // was asking about — while pre-filling costs nothing, since the form is
+    // theirs to fire once the config is fixed. What must not happen is a
+    // simulation attributed to a result this link did not produce (a PREVIOUS
+    // link's may well still be on screen), and that is what `ran` guards.
+    if (!isCancelled() && payload.sim) {
       setSimRequest({
         form: payload.sim.form,
-        autoSimulate: payload.sim.autoSimulate === true,
+        autoSimulate: ran !== null && payload.sim.autoSimulate === true,
         // Roadmap 054: rides along with the form rather than through `view`
         // (where `simStep` lives) because it is only meaningful for the
         // simulation this descriptor reproduces — see ShareSimulator.

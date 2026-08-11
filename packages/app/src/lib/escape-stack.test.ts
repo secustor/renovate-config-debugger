@@ -6,6 +6,7 @@ import {
   escapeLayerCount,
   handleEscape,
   modalKeyboardOwned,
+  overlayKeyboardOwned,
   pushEscapeLayer,
 } from "./escape-stack";
 
@@ -172,6 +173,59 @@ describe("escape stack", () => {
     releaseOuter();
     expect(handleEscape()).toBe(true);
     expect(pill).toHaveBeenCalledOnce();
+  });
+});
+
+/**
+ * The second question the stack answers, for the bare-key jump layer (`e`, `r`,
+ * `1`–`7`): is something drawn OVER the page right now? The rank is what makes
+ * the answer possible — `escapeLayerCount() > 0` would take the jump keys away
+ * for the whole time the simulator's return pill is up.
+ */
+describe("overlay keyboard ownership", () => {
+  it("reports nothing over the page when no layer is registered", () => {
+    expect(overlayKeyboardOwned()).toBe(false);
+  });
+
+  it("counts a popover and a menu, but not an ambient layer on its own", () => {
+    const releasePill = layer(vi.fn(), ESCAPE_PRIORITY.ambient);
+    // The return pill is furniture the reader reads past: `2` must still switch
+    // tabs while it is up, or a thread-navigation detour turns the jump layer
+    // off for its whole duration.
+    expect(overlayKeyboardOwned()).toBe(false);
+
+    const releaseMenu = layer(vi.fn(), ESCAPE_PRIORITY.menu);
+    expect(overlayKeyboardOwned()).toBe(true);
+    releaseMenu();
+
+    const releasePopover = layer(vi.fn(), ESCAPE_PRIORITY.popover);
+    expect(overlayKeyboardOwned()).toBe(true);
+
+    releasePopover();
+    expect(overlayKeyboardOwned()).toBe(false);
+    releasePill();
+  });
+
+  it("asks the top of the ladder, not the bottom", () => {
+    // The registration order a jump out of a thread with a card open produces:
+    // the popover is pushed first and the pill after it, so reading the LAST
+    // entry would report the page as uncovered while the card is still there.
+    const releasePopover = layer(vi.fn(), ESCAPE_PRIORITY.popover);
+    const releasePill = layer(vi.fn(), ESCAPE_PRIORITY.ambient);
+    expect(overlayKeyboardOwned()).toBe(true);
+
+    releasePopover();
+    expect(overlayKeyboardOwned()).toBe(false);
+    releasePill();
+  });
+
+  it("is not the modal question", () => {
+    // A modal takes the keyboard through `claimModalKeyboard`, and the bare
+    // keys are switched off by App's `keysLive` while the sheet is up. Nothing
+    // is layered over the page here, and this query must not pretend otherwise.
+    const release = modal();
+    expect(overlayKeyboardOwned()).toBe(false);
+    release();
   });
 });
 

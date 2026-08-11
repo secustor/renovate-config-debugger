@@ -77,6 +77,55 @@ describe("ResultsPanel keyboard navigation", () => {
     expect(focusedTabId()).toBe("tab-problems");
   });
 
+  it("keeps the roving tabindex on the FOCUSED tab, not the selected one", () => {
+    // The defect: with the stop pinned to the selection, tabbing forward out
+    // of a strip whose selection sits at the end (e.g. Problems, the last of
+    // seven) after an arrow had moved focus elsewhere landed BACK on the
+    // selected tab instead of leaving the widget — the roving-tabindex
+    // contract (there is exactly one tabbable descendant, and it is the one
+    // focus last landed on) is what makes a plain Tab actually exit the strip.
+    const view = renderPanel("problems", () => undefined);
+    const strip = view.getByRole("tablist");
+    const tabbableIds = () =>
+      view
+        .getAllByRole("tab")
+        .filter((tab) => tab.getAttribute("tabindex") === "0")
+        .map((tab) => tab.id);
+
+    expect(tabbableIds()).toEqual(["tab-problems"]);
+
+    // Tab into the strip (focus starts on the selected tab, same as a real
+    // Tab keypress would land), then move away from it.
+    view.getByRole("tab", { name: /^Problems/ }).focus();
+    fireEvent.keyDown(strip, { key: "Home" });
+    expect(focusedTabId()).toBe("tab-overview");
+
+    // The stop must have followed focus to Overview — Problems (still
+    // selected) is no longer tabbable, or a forward Tab would jump back into
+    // the strip instead of into the panel.
+    expect(tabbableIds()).toEqual(["tab-overview"]);
+  });
+
+  it("falls the roving tabindex back to the selected tab once focus leaves the strip", () => {
+    const view = renderPanel("problems", () => undefined);
+    const strip = view.getByRole("tablist");
+    const outside = document.createElement("button");
+    document.body.appendChild(outside);
+
+    view.getByRole("tab", { name: /^Problems/ }).focus();
+    fireEvent.keyDown(strip, { key: "Home" });
+    expect(view.getAllByRole("tab").find((tab) => tab.getAttribute("tabindex") === "0")?.id).toBe(
+      "tab-overview",
+    );
+
+    fireEvent.blur(view.getByRole("tab", { name: /^Overview/ }), { relatedTarget: outside });
+    expect(view.getAllByRole("tab").find((tab) => tab.getAttribute("tabindex") === "0")?.id).toBe(
+      "tab-problems",
+    );
+
+    outside.remove();
+  });
+
   it("sends Home and End to the first and last tab", () => {
     const onSelect = vi.fn();
     const view = renderPanel("pipeline", onSelect);

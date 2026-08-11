@@ -62,14 +62,20 @@ export function ProvenanceChip({
               e.stopPropagation();
               onSelectPreset(layer.nodeId);
             }}
+            {...handlers}
+            // The only anchor in the app that wants BOTH keydown handlers, so
+            // it composes them rather than letting the spread pick a winner:
+            // the glossary's Escape (067 — it claims the key only when it has a
+            // card to dismiss, and never touches these two) and this chip's own
+            // activation, which a `role="button"` span has to implement itself.
             onKeyDown={(e) => {
+              handlers.onKeyDown(e);
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
                 e.stopPropagation();
                 onSelectPreset(layer.nodeId);
               }
             }}
-            {...handlers}
           >
             {dot ? null : label}
           </span>

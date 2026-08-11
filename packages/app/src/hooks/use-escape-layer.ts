@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { isEditorTarget } from "@/hooks/scroll-ergonomics";
 import { type EscapePriority, handleEscape, pushEscapeLayer } from "@/lib/escape-stack";
 
 /**
@@ -14,27 +13,31 @@ import { type EscapePriority, handleEscape, pushEscapeLayer } from "@/lib/escape
 let refs = 0;
 
 function onKeyDown(event: KeyboardEvent): void {
-  if (event.key !== "Escape" || event.defaultPrevented) {
-    return;
-  }
-  // 067: "Escape inside the editor is the editor's own and never reaches the
-  // page ladder". It has to be enforced HERE, not asked for politely: the
-  // editor's Escape is CodeMirror's `simplifySelection`, which runs on every
-  // press and neither prevents the default nor stops propagating when there is
-  // nothing to simplify — so a press meant for the editor would also pop the
-  // topmost layer. Our own element-scoped handlers claim the key with
-  // `stopPropagation()` instead (the repo-load form's, a glossary term's); a
-  // third-party keymap cannot be asked to.
+  // `defaultPrevented` is the ENTIRE editor rule, and no target predicate is
+  // needed beside it. Verified in the pinned versions rather than assumed:
   //
-  // The editor ONLY — not `isTextEditingTarget`, which the bare-key layer uses
-  // and which counts every text input and `<select>` as typing. Escape is not a
-  // bare key competing with what the user is writing: it dismisses whatever is
-  // on top, and a layer the user opened has to stay dismissible from the field
-  // they moved to afterwards (the simulator's return pill while the caret sits
-  // in `packageName`, the session menu, a popover reached by Tab from a filter
-  // select). Every one of those was undismissable while this read the wide
-  // predicate.
-  if (isEditorTarget(event.target)) {
+  // - `@codemirror/commands@6.10.4` binds Escape to `simplifySelection`, which
+  //   returns FALSE when there is nothing to simplify (`dist/index.js:1147` — a
+  //   single empty range). So do the other two Escape bindings `basicSetup`
+  //   installs, `closeCompletion` (no open completion) and `closeSearchPanel`
+  //   (no panel), and none of the three carries `preventDefault: true`.
+  // - `@codemirror/view@6.43.8` calls `preventDefault()` on the event only for
+  //   a handler that returned true (`dist/index.js:4562`), and its keymap
+  //   handler returns whether a command ran (`runHandlers`, :9161).
+  //
+  // So CodeMirror claims Escape exactly when it acts on it, and the check below
+  // already stands aside for that — while a press the editor did nothing with
+  // reaches the ladder, which is what a user pressing Escape with a popover
+  // open meant. An `isEditorTarget` bail on top of it stranded layers instead:
+  // 067's own `e` shortcut jumps focus INTO the editor, so a rule-evidence
+  // card, the session menu or the return pill opened beforehand became
+  // undismissable by keyboard until the user tabbed back out.
+  //
+  // Not `isTextEditingTarget` either, for the reason that predicate exists: it
+  // counts every text input and `<select>` as typing, and Escape is not a bare
+  // key competing with what the user is writing — it dismisses whatever is on
+  // top, from wherever they are standing.
+  if (event.key !== "Escape" || event.defaultPrevented) {
     return;
   }
   if (handleEscape()) {

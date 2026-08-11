@@ -26,9 +26,12 @@ import { matchShortcut, RUN_SHORTCUT } from "@/lib/shortcuts";
  * either modifier, rather than deriving two spellings from one registry entry
  * and hoping CodeMirror reads `Mod` the way `matchShortcut` does.
  *
- * A deliberate second press while a run is going is NOT declined here — that
- * question belongs to `App.onRun`, which every other entry point asks too, and
- * which answers it by coalescing rather than by half-applying anything.
+ * A deliberate second press while a run is going is NOT declined — not here and
+ * not by `App.onRun`, which queues it. This is the binding that makes that
+ * matter: press ⌘⏎, fix the typo the first run is about to report, press ⌘⏎
+ * again, and a decline would be invisible, because the handler claims the chord
+ * either way. `event.repeat` is the whole of the distinction — one HELD key,
+ * one run; two presses, two runs.
  *
  * `run` is read through a ref rather than closed over, so the extension is
  * built once for the editor's lifetime — closing over it would mean a `useMemo`

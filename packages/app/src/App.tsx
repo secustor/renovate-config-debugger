@@ -212,13 +212,30 @@ function landWhenReady(
   requestAnimationFrame(() => look(frames));
 }
 
-/** What a caller may ask of a run. `coalesce` is the only one that can make a
- *  run not happen at all — see `onRun`. */
+/**
+ * Roadmap 067: whether a landing that was deferred by `landWhenReady` may still
+ * take the focus. `from` is `document.activeElement` as the gesture was made;
+ * a landing that polls for up to half a second has to assume the user kept
+ * working in that time, and pulling them out of the editor they just Tabbed
+ * into is worse than not landing at all.
+ *
+ * `<body>` (and nothing at all) deliberately does NOT count as having moved:
+ * these gestures switch results tabs, which marks the panel holding the
+ * activator `hidden` in the same commit, so the browser has already dropped
+ * focus to the body before the poll starts. That is the state the landing
+ * exists to repair, not a place the user chose.
+ */
+function focusStillFree(from: Element | null): boolean {
+  const now = document.activeElement;
+  return now === null || now === document.body || now === from;
+}
+
+/** What a caller may ask of a run. None of it can make the run not happen:
+ *  every request reaches the queue — see `onRun`. */
 interface RunOptions {
   preserveScroll?: boolean;
   keepTab?: boolean;
   suppressTokens?: boolean;
-  coalesce?: boolean;
 }
 
 type InjectionMap = Record<string, Record<string, unknown>>;
@@ -292,6 +309,14 @@ export function App() {
   // interruptible instead of blocking the main thread.
   const deferredStage = useDeferredValue(selectedStage);
   const [fatal, setFatal] = useState<string | null>(null);
+  // Roadmap 067: the banner carries two kinds of message and they expire
+  // differently. A RUN's own failure is answered by the next run's outcome. A
+  // message about something that never ran — a config layer that would not
+  // parse, a repo load that failed — is not, because the run it happened to
+  // race is no answer to it. This counter stamps the second kind (see
+  // `applyFatal`), and a run only clears a banner whose stamp it was already
+  // carrying when it was requested.
+  const fatalSeqRef = useRef(0);
   // Non-fatal notices (version drift, load-from-repo results).
   const [notice, setNotice] = useState<string | null>(null);
   // Security 2026-07-25: set while the platform context in force came from a
@@ -314,6 +339,13 @@ export function App() {
   // consequence ("re-ran: 0 errors") without yanking the user's scroll around.
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
+  // Roadmap 067: what the polite live region at the bottom of the tree is
+  // saying about the last run. Declared up here with the other run state
+  // because `executeRun` announces a FAILURE the moment it catches one, while
+  // the success sentence is composed by an effect far below, once
+  // `useRunSummary` has counted the result it describes.
+  const [runAnnouncement, setRunAnnouncement] = useState("");
+  const announcementSeq = useRef(0);
   const [optionIndex, setOptionIndex] = useState<OptionIndex | null>(null);
   // Roadmap 014: curated validator-message translations + suggested fixes,
   // loaded lazily alongside the option index (same engine chunk).
@@ -584,7 +616,9 @@ export function App() {
     loadConfigText,
     setFileName,
     setNotice,
-    setFatal,
+    // A load that failed is a message about something that never ran, so it is
+    // stamped and a run already in flight leaves it alone (see `applyFatal`).
+    setFatal: applyFatal,
     blockedByLayerErrors,
     applyUntrustedGuard,
     untrustedGuardRef,
@@ -675,25 +709,53 @@ export function App() {
     }
   }, [result, setTab]);
 
+  /**
+   * Roadmap 067: the banner for everything that did NOT run — a layer that
+   * would not parse, a repo load that failed. Stamping it (`fatalSeqRef`) is
+   * what keeps it on screen: a run already in flight when the user clicked
+   * Inject is not an answer to "the global config is not valid JSON", and
+   * before this it wiped that message on its way past, leaving the injection
+   * looking like it had silently done nothing.
+   *
+   * A run's own failure goes through `setFatal` directly, unstamped, because
+   * the next run's outcome genuinely does supersede it.
+   */
+  function applyFatal(next: string | null) {
+    if (next !== null) {
+      fatalSeqRef.current += 1;
+    }
+    setFatal(next);
+  }
+
+  /** Roadmap 067: one sentence into the polite live region — the run's outcome
+   *  for anyone not watching the screen, since a finished run deliberately does
+   *  not move focus. A live region only speaks when its text CHANGES, and two
+   *  runs of the same config produce the same sentence, so an invisible
+   *  non-breaking space alternates to make every run a mutation. */
+  function announceRun(sentence: string) {
+    announcementSeq.current += 1;
+    setRunAnnouncement(announcementSeq.current % 2 === 0 ? `${sentence} ` : sentence);
+  }
+
   // An unparseable 008 layer never silently runs without it — block instead.
   // Roadmap 030: the same gate gets a matching case for the endpoint field
   // (the one point where the manually-typed endpoint is enforced — see
   // `isValidEndpoint`'s doc comment) since it feeds `buildInputs` unchecked.
   function blockedByLayerErrors(): boolean {
     if (globalParse.error) {
-      setFatal(
+      applyFatal(
         `The global config is not valid JSON (${globalParse.error}). Fix it or clear the field to run.`,
       );
       return true;
     }
     if (inheritedParse.error) {
-      setFatal(
+      applyFatal(
         `The inherited config is not valid JSON (${inheritedParse.error}). Fix it or clear the field to run.`,
       );
       return true;
     }
     if (endpoint && !isValidEndpoint(endpoint)) {
-      setFatal(
+      applyFatal(
         `The endpoint "${endpoint}" is not an http(s) URL. Fix it or clear the field to run.`,
       );
       return true;
@@ -716,9 +778,11 @@ export function App() {
     };
   }
 
-  /** Roadmap 067: how many runs are queued or executing. The queue itself is a
-   *  promise chain, which cannot be asked "is anything on you?" — this can, and
-   *  synchronously, which is what a keydown handler needs. */
+  /** Roadmap 067: how many runs are queued or executing — the one thing the
+   *  queue itself cannot report, being a promise chain. It exists so `running`
+   *  goes false when the LAST run leaves rather than the first (a finished run
+   *  must not claim the app idle while its successor resolves); nothing decides
+   *  whether to run by reading it any more. */
   const queuedRunsRef = useRef(0);
   /** The tail of that queue: each run awaits the one before it, so two runs
    *  never interleave on the engine and results commit in request order. */
@@ -739,25 +803,24 @@ export function App() {
    * the one in flight and then executes, returning its own result to its own
    * caller.
    *
-   * `coalesce` is the opposite bargain, and ONLY the entry points that mutate
-   * nothing first take it: the Run button, the page's ⌘⏎ and ⌘⇧⏎, the editor's
-   * ⌘⏎ and the auth banner's "Run again". A second one of those means "run this
-   * config", which the run already going is doing — and a held key must not
-   * enqueue a run per repeat. `running` cannot make that decision: it commits a
-   * render later, so a held ⌘⏎ queued its second run before the first had
-   * re-rendered anything. A counter read and written in the same tick is the
-   * only thing every caller shares. (The editor's own binding also declines OS
-   * auto-repeat outright — see `run-keymap.ts` — which is the fix this one only
-   * bounds.)
+   * Nor is anything COALESCED any more. Round two kept half the gate as an opt-in
+   * for the entry points that mutate nothing first — the Run button, the two
+   * chords, "Run again" — reasoning that a second "run this config" asks for
+   * what is already happening. Between those two presses the user edits: press
+   * ⌘⏎, fix the typo the first run is about to report, press ⌘⏎ again, and the
+   * second press was swallowed while the editor's handler still claimed the
+   * chord, so nothing queued, nothing said so, and the results that landed
+   * described the pre-edit text. What that opt-in was defending against is one
+   * HELD key asking for thirty runs, and that is a keyboard fact, closed where
+   * it happens: `KeyboardEvent.repeat` in `use-shortcut.ts` and in
+   * `run-keymap.ts`, and `disabled={running}` on the button. A deliberate second
+   * request is a second run, always.
    */
   async function onRun(
     overrideInjected?: InjectionMap,
     overrideInputs?: RunInputs,
     opts?: RunOptions,
   ): Promise<TraceResult | null> {
-    if (opts?.coalesce && queuedRunsRef.current > 0) {
-      return null;
-    }
     const injectedPresets = overrideInjected ?? injected;
     if (!overrideInputs && blockedByLayerErrors()) {
       return null;
@@ -772,6 +835,11 @@ export function App() {
     // `loadShareToken` (use-share-link.ts), whose own `setUntrustedGuard` has
     // not committed to state yet when it starts this run.
     const suppressTokens = opts?.suppressTokens === true || untrustedGuardRef.current !== null;
+    // …and so is the answer to "which banner is this run allowed to clear" —
+    // the one standing NOW. See `applyFatal`: a message raised while this run
+    // waits its turn describes something the user did after asking for it, and
+    // survives it.
+    const fatalSeq = fatalSeqRef.current;
     queuedRunsRef.current += 1;
     setRunning(true);
     const previous = runQueueRef.current;
@@ -779,7 +847,7 @@ export function App() {
       // The predecessor's failure is its own caller's business; it must not
       // cancel this run, so the chain is joined rather than propagated.
       await previous.catch(() => null);
-      return executeRun(inputs, injectedPresets, suppressTokens, opts);
+      return executeRun(inputs, injectedPresets, suppressTokens, fatalSeq, opts);
     })();
     runQueueRef.current = queued;
     try {
@@ -801,10 +869,16 @@ export function App() {
     inputs: RunInputs,
     injectedPresets: InjectionMap,
     suppressTokens: boolean,
+    fatalSeq: number,
     opts?: RunOptions,
   ): Promise<TraceResult | null> {
     try {
-      setFatal(null);
+      // Only the banner this run was requested against — anything stamped
+      // since belongs to something the user did later, which this run did not
+      // do and cannot answer.
+      if (fatalSeqRef.current === fatalSeq) {
+        setFatal(null);
+      }
       const traceResult = await run({ ...inputs, injectedPresets }, { suppressTokens });
       // Roadmap 023: hold the current scroll so re-running an edited config
       // doesn't jump the user back to the top (captured right before the result
@@ -830,7 +904,16 @@ export function App() {
       void loadErrorTranslationLib().then(setErrorLib);
       return traceResult;
     } catch (err) {
+      // Unstamped (see `applyFatal`): the next run's outcome supersedes this one.
       setFatal(err instanceof Error ? `${err.name}: ${err.message}` : String(err));
+      // Roadmap 067: a failed run is still a FINISHED run, and ⌘⏎ deliberately
+      // leaves focus where it was — so without this the user who pressed the
+      // app's primary shortcut got no result, no focus move and a live region
+      // still reciting the run before it, which reads as a keystroke that never
+      // registered. Just the outcome: WHAT went wrong is the banner's to say,
+      // and it now says it as a `role="alert"` (ConfigColumn) rather than being
+      // announced twice here.
+      announceRun("Run failed.");
       return null;
     }
   }
@@ -1023,10 +1106,7 @@ export function App() {
    */
   const onRunAgainRef = useRef<(() => void) | undefined>(undefined);
   onRunAgainRef.current = () => {
-    // `coalesce`: this button re-runs the config as it stands and changes
-    // nothing on its way there, so a click while a run is already going asks
-    // for what is already happening.
-    void onRun(undefined, undefined, { preserveScroll: true, keepTab: true, coalesce: true });
+    void onRun(undefined, undefined, { preserveScroll: true, keepTab: true });
   };
   const onRunAgain = useCallback(() => onRunAgainRef.current?.(), []);
 
@@ -1098,14 +1178,17 @@ export function App() {
     RUN_SHORTCUT,
     () => {
       preloadRunChunks();
-      // `coalesce`: a keypress that only asks for a run can afford to be
-      // declined while one is going — pressing again once the queue drains is
-      // free, which is exactly what the callers that mutate state first cannot
-      // say. It is also what keeps a HELD ⌘⏎ from enqueueing a run per repeat
-      // out here, where `useShortcut` never sees `KeyboardEvent.repeat`.
-      void onRun(undefined, undefined, { preserveScroll: Boolean(result), coalesce: true });
+      void onRun(undefined, undefined, { preserveScroll: Boolean(result) });
     },
-    { enabled: keysLive && !running },
+    // Not gated on `running` any more, and that is the point of the fix above:
+    // ⌘⏎ has to mean the same thing wherever it is pressed, and inside the
+    // editor it cannot decline (declining hands the chord back to
+    // `insertBlankLine`). A second press after an edit therefore queues a run
+    // from the page exactly as it does from the editor, and the button's
+    // `disabled={running}` stays what it always was — the visible half, for the
+    // pointer. Auto-repeat is declined a layer lower, by `useShortcut`'s
+    // `KeyboardEvent.repeat` test.
+    { enabled: keysLive },
   );
 
   /**
@@ -1166,12 +1249,19 @@ export function App() {
    * frame, because a tab that announces itself before the commit announces the
    * selection it is about to lose. Same lazy-chunk retry budget as
    * `focusResults`, and the same reason to give up rather than spin.
+   *
+   * And it stands down if the user has taken the focus somewhere real in the
+   * meantime (`focusStillFree`): `applyErrorFix` calls this after an AWAITED
+   * re-run, so the poll can start a second after the click, by which time a
+   * keyboard user has routinely Tabbed on or clicked into the editor. A
+   * landing that arrives late has no business overruling that.
    */
   function focusTab(id: ResultsTabId) {
+    const from = document.activeElement;
     landWhenReady(
       () => resultsColRef.current?.querySelector<HTMLElement>(tabButtonSelector(id)) ?? null,
       (button) => {
-        if (!button) {
+        if (!button || !focusStillFree(from)) {
           return;
         }
         button.focus({ preventScroll: true });
@@ -1193,15 +1283,27 @@ export function App() {
    * three have happened there is no element to focus at all — which is also
    * why this asks the DOM for "the selected row" rather than being handed one.
    *
-   * The row's name IS a button, so nothing needs `tabIndex={-1}` here; if the
-   * node is filtered out of the visible tree the budget simply runs out and
-   * focus stays where the user left it, which is the honest outcome.
+   * The row's name IS a button, so nothing needs `tabIndex={-1}` here. When the
+   * node never appears — a filter is applied, the flat list has no matching row
+   * — the budget runs out and the landing falls back to the Presets TAB. It
+   * cannot fall back to "where the user left it": the chip they activated was
+   * inside a panel `jumpToTab("presets")` marked `hidden` in the same commit, so
+   * that place stopped existing half a second ago and the focus with it. The tab
+   * is where `applyErrorFix` lands for the same reason — a real control, naming
+   * where you are, at the top of the panel's tab order.
    */
   function landOnPresetNode() {
+    const from = document.activeElement;
     landWhenReady(
       () => resultsColRef.current?.querySelector<HTMLElement>(SELECTED_PRESET_ROW) ?? null,
       (row) => {
+        // Thirty frames is long enough for the user to have moved on; if they
+        // have, this jump is no longer the newest thing they asked for.
+        if (!focusStillFree(from)) {
+          return;
+        }
         if (!row) {
+          focusTab("presets");
           return;
         }
         // "nearest", not "center": the tree already scrolled its own box to the
@@ -1271,29 +1373,27 @@ export function App() {
   useShortcut(
     RUN_AND_READ_SHORTCUT,
     () => {
-      // Asked before arming rather than left to `coalesce` to decline: the
-      // effect above consumes the request on the next result COMMIT, which for
-      // a run already in flight is a commit this keypress had nothing to do
-      // with. Declining up front is the same outcome the coalesce would have
-      // had, minus a landing spent on someone else's run.
-      if (queuedRunsRef.current > 0) {
-        return;
-      }
       preloadRunChunks();
+      // Armed for the next result to COMMIT, which — if a run was already in
+      // flight when this was pressed — is that run's rather than this one's.
+      // Deliberate: both commits land in the same place, this chord's own run
+      // arrives there a moment later, and the alternative is the swallowed
+      // keypress `onRun` was just cured of.
       landOnResultsRef.current = true;
       void (async () => {
         const traceResult = await onRun(undefined, undefined, {
           preserveScroll: Boolean(result),
-          coalesce: true,
         });
         if (!traceResult) {
-          // Nothing will commit, so nothing would ever consume the request —
-          // and an armed one would fire on whatever run came next.
+          // This run will never commit, so a still-armed request would fire on
+          // whatever run came next instead.
           landOnResultsRef.current = false;
         }
       })();
     },
-    { enabled: keysLive && !running },
+    // Ungated for the same reason as ⌘⏎ above: a chord that silently declines
+    // is the defect, not the fix.
+    { enabled: keysLive },
   );
 
   /** `1`–`7` — straight to that results tab, by position in the strip. */
@@ -1318,9 +1418,12 @@ export function App() {
    *
    * The counts come from `useRunSummary`, not from a second derivation, so this
    * sentence can no more disagree with the tab badges than the 029 digest can.
+   *
+   * This half is only the runs that PRODUCED a result — it is keyed on
+   * `result`, which a run that threw never changes. `executeRun` announces that
+   * other half itself, through the same `announceRun`: it has nothing here to
+   * key on, and the silence was being read as a shortcut that never registered.
    */
-  const [runAnnouncement, setRunAnnouncement] = useState("");
-  const announcementSeq = useRef(0);
   useEffect(() => {
     if (!result) {
       return;
@@ -1329,14 +1432,9 @@ export function App() {
       errorCount === 0 ? null : `${errorCount} error${errorCount === 1 ? "" : "s"}`,
       warningCount === 0 ? null : `${warningCount} warning${warningCount === 1 ? "" : "s"}`,
     ].filter((part) => part !== null);
-    announcementSeq.current += 1;
-    // A live region only speaks when its text CHANGES, and two runs of the
-    // same config produce the same sentence — so alternate an invisible
-    // non-breaking space to make every run a mutation.
-    const pad = announcementSeq.current % 2 === 0 ? " " : "";
-    setRunAnnouncement(
-      `Run finished — ${problems.length === 0 ? "no problems" : problems.join(", ")}.${pad}`,
-    );
+    announceRun(`Run finished — ${problems.length === 0 ? "no problems" : problems.join(", ")}.`);
+    // `announceRun` is redeclared every render and deliberately not a
+    // dependency — it reads nothing but its own ref and state setter.
   }, [result, errorCount, warningCount]);
 
   // The encode side of `useShareLink`'s copy-link path: assembles the CURRENT
@@ -1521,10 +1619,7 @@ export function App() {
             // module-cached, so the button paying for it twice costs nothing.
             onRun={() => {
               preloadRunChunks();
-              void onRun(undefined, undefined, {
-                preserveScroll: Boolean(result),
-                coalesce: true,
-              });
+              void onRun(undefined, undefined, { preserveScroll: Boolean(result) });
             }}
             onRunIntent={preloadRunChunks}
             onCopyLink={onCopyLink}

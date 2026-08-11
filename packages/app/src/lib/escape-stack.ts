@@ -10,16 +10,17 @@
  *
  * A ranked stack settles it structurally instead: the highest-priority layer
  * wins, and push order breaks ties inside a rank. Push order ALONE is not
- * enough — see `ESCAPE_PRIORITY`. Element-scoped handlers (a glossary term's
+ * enough — see `ESCAPE_PRIORITY`. Element-scoped handlers (a glossary anchor's
  * own `onKeyDown`, the repo-load form's) stay where they are, but they owe the
  * ladder one thing: a handler that acts on Escape must `stopPropagation()`, or
- * the document listener below it pops a layer in the same press. That contract
- * is enforced from the other end for the one surface that cannot honor it:
- * `use-escape-layer.ts` ignores Escape raised inside the CodeMirror editor,
- * because `simplifySelection` fires on every press and cannot be asked to stop
- * propagating. Every other control — a form field, a `<select>` — still lets
- * the press through, so an open layer can be dismissed from wherever the user
- * happens to be standing.
+ * the document listener below it pops a layer in the same press. The one
+ * surface that cannot be asked to stop propagating — the CodeMirror editor —
+ * keeps the same contract in the other spelling, preventing the default of
+ * exactly the Escapes it acts on, and `use-escape-layer.ts` bails on
+ * `defaultPrevented` (the mechanics, and where they were verified, are written
+ * down there). So every control — the editor, a form field, a `<select>` — lets
+ * a press it did nothing with through, and an open layer stays dismissible from
+ * wherever the user happens to be standing.
  *
  * Pure: no DOM, no React. The single document listener belongs to the hook
  * (`hooks/use-escape-layer.ts`), which is also what keeps this unit-testable in
@@ -127,6 +128,34 @@ function topLayer(): EscapeLayer | undefined {
     }
   }
   return top;
+}
+
+/**
+ * Whether a layer drawn OVER the page currently holds the user's attention —
+ * `popover` or `menu`, never `ambient` alone.
+ *
+ * The 067 bare-key layer (`e`, `r`, `1`–`7`) asks this before it acts, for the
+ * same reason it asks `isTextEditingTarget`: a bare key must not rearrange a
+ * page the user is not looking at. The rule-evidence card is portalled to
+ * `<body>` with `role="dialog"` and takes focus, so nothing in the "is the user
+ * typing" predicate can see it — and pressing `2` while it was open switched
+ * tabs underneath, leaving the card floating over a panel that no longer
+ * contains the rule it explains.
+ *
+ * `ambient` is excluded, which is the whole reason this reads the rank instead
+ * of `escapeLayerCount() > 0`. A popover and a menu cover the page and hold
+ * focus; the simulator's return pill does neither — it is furniture the reader
+ * is meant to read past, it stays up for a whole thread-navigation detour, and
+ * disabling the jump layer for that entire stretch would cost the user more
+ * than the confusion it prevents.
+ *
+ * Modal surfaces are NOT counted here: they are `modalKeyboardOwned()`, and the
+ * bare keys are already switched off while the `?` sheet is up (App's
+ * `keysLive`, which is what the sheet's own `enabled` flags read).
+ */
+export function overlayKeyboardOwned(): boolean {
+  const top = topLayer();
+  return top !== undefined && top.priority >= ESCAPE_PRIORITY.menu;
 }
 
 /** Runs the topmost layer, if any. Returns whether one consumed the key. */
