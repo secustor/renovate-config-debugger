@@ -319,3 +319,35 @@ test("a narrow viewport stacks the panes and a run scrolls the results into view
   );
   expect(box.y).toBeLessThan(720);
 });
+
+/**
+ * Design review: the two columns sit side by side, so a reader has every
+ * reason to assume they describe each other — but after an edit (or a Revert)
+ * the results kept showing the previous run with nothing to say so. The shell's
+ * run-level banner slot says it, on whichever tab the reader is on.
+ */
+test("the results say so once the config has changed since the run", async ({ page }) => {
+  await page.goto("/");
+  await runAndAwaitResult(page);
+
+  const stale = page.locator(".stale-banner");
+  await expect(stale).toHaveCount(0);
+
+  await setEditorContent(page, PACKAGE_RULES_CONFIG);
+  await expect(stale).toBeVisible();
+  await expect(stale).toContainText("changed since this run");
+
+  // Still there on another tab — the run is stale, not one instrument.
+  await openTab(page, "effective");
+  await expect(stale).toBeVisible();
+
+  // Running against the edited text is what clears it.
+  await runAndAwaitResult(page);
+  await expect(stale).toHaveCount(0);
+
+  // …and so does going back: Revert is an edit like any other.
+  await setEditorContent(page, SEMANTIC_COMMITS_CONFIG);
+  await expect(stale).toBeVisible();
+  await page.getByRole("button", { name: "Revert to loaded config" }).click();
+  await expect(stale).toBeVisible();
+});
