@@ -3805,6 +3805,28 @@ main:has(.app-split.has-results) {
   top: 0.75rem;
 }
 
+/* Design review: the config column is ~5 rows tall while the results beside
+   it can run to thousands of diff lines, so scrolling the results scrolled
+   the editor — the thing being explained — off the top of the page, leaving
+   dead space bottom-left. It sticks too, at the same offset, so the config
+   and its consequence stay side by side.
+
+   The cap is what makes sticky safe: a column TALLER than the viewport (the
+   Advanced zone open on a short screen) would otherwise pin its top and put
+   its own bottom permanently out of reach, since the page scroll no longer
+   moves it. It scrolls itself instead, and `auto` means no scrollbar appears
+   until that actually happens. Every hover card in the app portals to
+   `document.body` (`components/hover-card.tsx`), so the new scroll container
+   cannot clip one; CodeMirror's own tooltips already live inside the
+   editor's `maxHeight` scroller. Scoped to `.app-split.has-results` — the
+   pre-run page is one column with nothing to stick to. */
+.app-split.has-results > .config-col {
+  max-height: calc(100dvh - 1.5rem);
+  overflow-y: auto;
+  position: sticky;
+  top: 0.75rem;
+}
+
 /* Below this width the panes stack — config on top, results below, full
    width. Keep in sync with STACKED_VIEWPORT_QUERY in App.tsx. */
 @media (max-width: 60rem) {
@@ -3813,6 +3835,15 @@ main:has(.app-split.has-results) {
   }
 
   .results-col {
+    position: static;
+  }
+
+  /* Stacked, the config is simply the first thing on the page — sticking it
+     would park it over the results it sits above, and the cap would make a
+     nested scroller out of a column that now has the whole width. */
+  .app-split.has-results > .config-col {
+    max-height: none;
+    overflow-y: visible;
     position: static;
   }
 }

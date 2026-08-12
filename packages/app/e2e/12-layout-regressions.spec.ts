@@ -244,6 +244,43 @@ test("Format re-indents in place and leaves the revert baseline alone", async ({
   await expect(page.locator(".app-notice")).toContainText("fix the JSON syntax first");
 });
 
+/**
+ * Design review: the config column is a handful of rows while the results
+ * beside it run to thousands of lines, so scrolling the results scrolled the
+ * editor — the thing being explained — off the top of the page. Both columns
+ * stick now, at the same offset.
+ */
+test("the config column stays in view while long results scroll", async ({ page }) => {
+  // Wide enough for the split, short enough that the results outrun the page:
+  // every long panel caps itself against the viewport, so a tall window has
+  // nothing to scroll at all.
+  await page.setViewportSize({ width: 1400, height: 620 });
+  await page.goto("/");
+  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+  await runAndAwaitResult(page);
+  await openTab(page, "pipeline");
+
+  const column = page.locator(".config-col");
+  await expect(column).toHaveCSS("position", "sticky");
+
+  const editor = page.locator(".config-col .cm-editor");
+  const before = must(await editor.boundingBox(), "the editor's box before scrolling");
+  const scrolled = await page.evaluate(() => {
+    window.scrollTo(0, document.documentElement.scrollHeight);
+    return window.scrollY;
+  });
+  // The whole point is a page long enough to scroll the editor away.
+  expect(scrolled, "the results panel was not tall enough to scroll").toBeGreaterThan(200);
+
+  // Still on screen at the bottom of the page — the whole point.
+  await expect(editor).toBeInViewport();
+  const after = must(await editor.boundingBox(), "the editor's box after scrolling");
+  expect(after.y).toBeGreaterThanOrEqual(0);
+  // It rose only as far as the sticky offset and then stopped, rather than
+  // travelling the page's whole scroll distance the way it used to.
+  expect(before.y - after.y).toBeLessThan(scrolled / 2);
+});
+
 /** Selects the first preset in the tree and returns its detail panel. */
 async function openFirstPresetDetail(page: Page): Promise<Locator> {
   await openTab(page, "presets");
