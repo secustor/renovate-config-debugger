@@ -218,8 +218,16 @@ test("Format re-indents in place and leaves the revert baseline alone", async ({
   await expect(editor).toContainText("config:recommended");
 
   const format = page.getByRole("button", { name: "Format", exact: true });
+  const revert = page.getByRole("button", { name: "Revert to loaded config" });
   await setEditorContent(page, '{"extends":["config:recommended"],"automerge":true}');
   expect(await editor.locator(".cm-line").count()).toBe(1);
+
+  // Position stability: the conditional Revert sits AFTER Format in the row.
+  // Formatting is an edit that summons Revert — were it the other way around,
+  // the button under the cursor would jump sideways the moment it was clicked.
+  const formatBox = await format.boundingBox();
+  const revertBox = await revert.boundingBox();
+  expect(formatBox !== null && revertBox !== null && formatBox.x < revertBox.x).toBe(true);
 
   await format.click();
   await expect(editor).toContainText('"automerge": true');
@@ -227,7 +235,6 @@ test("Format re-indents in place and leaves the revert baseline alone", async ({
 
   // The baseline is still the DEFAULT config the page opened with: one revert
   // undoes the paste and the formatting together.
-  const revert = page.getByRole("button", { name: "Revert to loaded config" });
   await revert.click();
   await expect(editor).not.toContainText("automerge");
 

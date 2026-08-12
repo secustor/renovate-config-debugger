@@ -65,6 +65,20 @@ export function ConfigToolbar({
         <option value="renovate.json">renovate.json</option>
         <option value="renovate.json5">renovate.json5</option>
       </select>
+      {/* Design review: a pasted config is one long line, and the app offered
+          no way to make it readable. Two-space indentation, in place — the
+          editor's own text, not a copy shown somewhere else. Ordered BEFORE
+          the conditional Revert: formatting is itself an edit that summons
+          Revert, and a control must not displace the button under the cursor
+          that just clicked it. */}
+      <button
+        type="button"
+        className="btn"
+        onClick={onFormat}
+        title="Re-indent this config with two-space indentation"
+      >
+        Format
+      </button>
       {/* Roadmap 035: rendered only when there is something to revert.
           It used to be permanently present and merely `disabled`, which
           looked identical to the enabled state — an offer of an action
@@ -79,17 +93,6 @@ export function ConfigToolbar({
           Revert to loaded config
         </button>
       ) : null}
-      {/* Design review: a pasted config is one long line, and the app offered
-          no way to make it readable. Two-space indentation, in place — the
-          editor's own text, not a copy shown somewhere else. */}
-      <button
-        type="button"
-        className="btn"
-        onClick={onFormat}
-        title="Re-indent this config with two-space indentation"
-      >
-        Format
-      </button>
       <span className="toolbar-spacer" />
       {/* Security 2026-07-25: the standing reminder. Small, but right
           where the risk materializes — the Run button — and it never
