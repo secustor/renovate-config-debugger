@@ -62,6 +62,11 @@ function computeRuleFraming(
   };
 }
 
+/** A contributor's name: preset names get `<code>`, layer names stay prose. */
+function ContributorLabel({ top }: { top: TopContributor }) {
+  return top.isPreset ? <code>{top.label}</code> : top.label;
+}
+
 /** Renders the "M from your config, K pulled in by `preset`, and R more from
  *  other presets" clause — the part after the em dash. */
 function FramingBreakdown({ framing }: { framing: RuleFramingData }) {
@@ -74,8 +79,7 @@ function FramingBreakdown({ framing }: { framing: RuleFramingData }) {
       key: "top",
       node: (
         <>
-          {nf.format(framing.top.count)} pulled in by{" "}
-          {framing.top.isPreset ? <code>{framing.top.label}</code> : framing.top.label}
+          {nf.format(framing.top.count)} pulled in by <ContributorLabel top={framing.top} />
         </>
       ),
     });
@@ -96,33 +100,69 @@ function FramingBreakdown({ framing }: { framing: RuleFramingData }) {
 }
 
 /**
- * `variant: "compact"` — just the number, with a parenthetical breakdown when
- * available: `713 (2 from your config, 711 pulled in by config:recommended)`.
- * `variant: "full"` — a standalone clause with the word "rule(s)":
+ * The aside's inner clause. The count it frames has already been said, so it
+ * must never repeat it: "713 (713 pulled in by config:recommended)" and
+ * "713 (713 from your config)" both say the count twice and add nothing. When
+ * one source covers every rule, say "all" instead.
+ */
+function CompactBreakdown({ framing, total }: { framing: RuleFramingData; total: number }) {
+  if (framing.own === total && !framing.top) {
+    return "all from your config";
+  }
+  if (framing.own === 0 && framing.top && framing.top.count === total) {
+    return (
+      <>
+        all pulled in by <ContributorLabel top={framing.top} />
+      </>
+    );
+  }
+  return <FramingBreakdown framing={framing} />;
+}
+
+/**
+ * A trailing parenthetical aside for a sentence that already stated the count
+ * and its noun: ` (2 from your config and 711 pulled in by config:recommended)`,
+ * leading space included. It follows the completed clause — never interrupts
+ * it: "see which of the 734 (1 from your config and 733 pulled in by …) rules
+ * would apply" buried what the number counted under its own attribution.
+ * Renders nothing when attribution is unavailable — the sentence stands alone.
+ */
+export function RuleFramingAside({
+  total,
+  attribution,
+}: {
+  total: number;
+  attribution: RuleAttribution[] | null | undefined;
+}) {
+  const framing = computeRuleFraming(total, attribution);
+  if (!framing || (framing.own === 0 && !framing.top)) {
+    return null;
+  }
+  return (
+    <>
+      {" "}
+      (<CompactBreakdown framing={framing} total={total} />)
+    </>
+  );
+}
+
+/**
+ * A standalone clause with the word "rule(s)":
  * `713 rules — 2 from your config, 711 pulled in by config:recommended`.
+ * Falls back to the bare count when attribution is unavailable.
  */
 export function RuleFramingText({
   total,
   attribution,
-  variant,
 }: {
   total: number;
   attribution: RuleAttribution[] | null | undefined;
-  variant: "compact" | "full";
 }) {
   const framing = computeRuleFraming(total, attribution);
-  const bare =
-    variant === "full" ? `${nf.format(total)} rule${total === 1 ? "" : "s"}` : nf.format(total);
+  const bare = `${nf.format(total)} rule${total === 1 ? "" : "s"}`;
   if (!framing || (framing.own === 0 && !framing.top)) {
     // Nothing to attribute — just the count, as plain text.
     return bare;
-  }
-  if (variant === "compact") {
-    return (
-      <>
-        {nf.format(total)} (<FramingBreakdown framing={framing} />)
-      </>
-    );
   }
   return (
     <>
