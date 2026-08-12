@@ -1,5 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
-import { SEMANTIC_COMMITS_CONFIG } from "./fixtures";
+import { expect, test, type Locator, type Page } from "@playwright/test";
+import { IGNORED_PRESET_CONFIG, SEMANTIC_COMMITS_CONFIG } from "./fixtures";
 import {
   must,
   openSessionMenu,
@@ -201,27 +201,62 @@ test("the diff chrome names the active view and offers Copy result (036)", async
   expect(chromeBg).not.toBe("rgba(0, 0, 0, 0)");
 });
 
+/** A badge's painted fill and border, as the browser resolves them. Width, not
+ *  just color: `border: none` leaves `border-top-color` resolving to the
+ *  element's own `color`, so only the width says whether a border is drawn. */
+function paintOf(badge: Locator) {
+  return badge.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return {
+      background: style.backgroundColor,
+      borderColor: style.borderTopColor,
+      borderWidth: style.borderTopWidth,
+    };
+  });
+}
+
+/** Transparent is either the keyword or a zero alpha channel. */
+function isTransparent(value: string): boolean {
+  return value === "transparent" || /,\s*0\s*\)$/.test(value);
+}
+
 /**
  * Badges used to be outline-only, which the design review read as "inactive".
  * One `color-mix(… currentColor 13% …)` rule tints every variant from its own
- * hue — so any badge in the tree must now paint a background.
+ * hue — so any badge in the tree that is still a CHIP must paint a background.
+ *
+ * A later design review pulled the other way for the counts: "N opts" /
+ * "N rules" ride every row, and a pill on every row is a fill the eye has to
+ * skip past, so they joined `.rollup` as plain muted text. Both halves are
+ * asserted here, because "filled" and "deliberately not filled" only mean
+ * something together.
  */
-test("preset-tree badges are filled, not outlines (036)", async ({ page }) => {
+test("preset-tree chips are filled, contribution counts are plain text (036)", async ({ page }) => {
   await page.goto("/");
+  await setEditorContent(page, IGNORED_PRESET_CONFIG);
   await runAndAwaitResult(page);
   await openTab(page, "presets");
 
-  const badge = page.locator("#panel-presets .preset-row .badge:not(.rollup)").first();
-  await expect(badge).toBeVisible();
-  const { background, border } = await badge.evaluate((el) => {
-    const style = getComputedStyle(el);
-    return { background: style.backgroundColor, border: style.borderTopColor };
-  });
-  // Transparent is either the keyword or a zero alpha channel.
-  for (const [name, value] of Object.entries({ background, border })) {
-    expect(value, `badge ${name} is ${value}`).not.toBe("transparent");
-    expect(/,\s*0\s*\)$/.test(value), `badge ${name} is fully transparent (${value})`).toBe(false);
-  }
+  const chip = page.locator("#panel-presets .preset-row .badge.state").first();
+  await expect(chip).toBeVisible();
+  const chipPaint = await paintOf(chip);
+  expect(isTransparent(chipPaint.background), `state badge fill ${chipPaint.background}`).toBe(
+    false,
+  );
+  expect(isTransparent(chipPaint.borderColor), `state badge border ${chipPaint.borderColor}`).toBe(
+    false,
+  );
+  expect(chipPaint.borderWidth).not.toBe("0px");
+
+  const count = page.locator("#panel-presets .preset-row .badge.contrib.opts").first();
+  await expect(count).toBeVisible();
+  const countPaint = await paintOf(count);
+  expect(isTransparent(countPaint.background), `count fill ${countPaint.background}`).toBe(true);
+  expect(countPaint.borderWidth).toBe("0px");
+
+  // The tree's rows are all internal presets, and an `internal` pill on all of
+  // them said nothing — only a fetched source still earns one.
+  await expect(page.locator("#panel-presets .preset-row .badge.src")).toHaveCount(0);
 });
 
 test("the header links out to the source and to the issue tracker (055)", async ({ page }) => {

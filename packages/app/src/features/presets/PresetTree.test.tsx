@@ -162,6 +162,33 @@ it("repeats the selected node's description in the detail panel", async () => {
   expect(within(panel).getByText("→ #1 of 2")).toBeTruthy();
 });
 
+it("draws a source pill only for a preset that isn't Renovate's own", async () => {
+  const internal = await runPipeline({
+    fileName: "renovate.json",
+    content: JSON.stringify(CONFIG),
+  });
+  const internalView = render(tree(internal));
+  await waitFor(() => expect(internalView.container.querySelector(".preset-row")).not.toBeNull());
+  // Every node here is `internal` — the default, and the overwhelming
+  // majority. A column of identical `internal` pills says nothing, so none
+  // are drawn. The contribution count stays, keeping its glossary affordance.
+  expect(internalView.container.querySelector(".badge.src")).toBeNull();
+  const opts = internalView.container.querySelector<HTMLElement>(".badge.contrib.opts.explained");
+  if (!opts) {
+    throw new Error("a node with options of its own rendered no contribution count");
+  }
+  expect(opts.tabIndex).toBe(0);
+  expect(opts.textContent).toContain("2 opts");
+
+  const fetched = await runPipeline({
+    fileName: "renovate.json",
+    content: JSON.stringify({ extends: ["github>test-org/nope"] }),
+  });
+  const fetchedView = render(tree(fetched));
+  await waitFor(() => expect(fetchedView.container.querySelector(".preset-row")).not.toBeNull());
+  expect(fetchedView.container.querySelector(".badge.src")?.textContent).toBe("github");
+});
+
 it("offers no description affordance when nothing in the run has one", async () => {
   const result = await runPipeline({
     fileName: "renovate.json",
