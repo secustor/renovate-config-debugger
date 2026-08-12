@@ -3658,6 +3658,50 @@ pre.config-view.prov-before {
   cursor: help;
 }
 
+/* ---------- editor hover tooltips ----------
+   CodeMirror positions tooltips `fixed`, so they escape the editor card and
+   the sticky column's scroll container by design — which is fine for a
+   popover, except nothing dressed the schema hover as one: `packageRules`
+   carries a full docs URL on one unbreakable line, so the tooltip ran edge
+   to edge across the results column, width-sized by its longest word and
+   wearing only the syntax theme's flat background. The `.cm-tooltip` box
+   itself must stay chromeless: for preset strings it is a tiny anchor whose
+   `.option-card` child paints its own popover — dressing the container puts
+   an empty pill behind that card. So the container goes transparent, and
+   only a tooltip actually holding the schema hover's markup (`:has`) gets
+   the popover plane, the option-card width cap, and URL breaking. Three
+   classes to out-spec the theme's injected `.ͼ* .cm-tooltip` rules, which
+   land later in the cascade. */
+.card .cm-editor .cm-tooltip {
+  background: transparent;
+  border: none;
+  z-index: var(--z-popover);
+}
+
+.card .cm-editor .cm-tooltip:has(.cm6-json-schema-hover) {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: var(--shadow-popover);
+  color: var(--ink);
+  font-size: 0.8rem;
+  max-width: min(26rem, calc(100vw - 2rem));
+  overflow-wrap: anywhere;
+  padding: 0.45rem 0.65rem;
+}
+
+/* The library's hover markup brings document-flow <p> margins with it;
+   inside a tooltip they read as stray whitespace. */
+.cm-tooltip .cm6-json-schema-hover p {
+  margin: 0;
+}
+
+.cm-tooltip .cm6-json-schema-hover--code-wrapper {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  margin-top: 0.35rem;
+}
+
 /* The hover shifts `color`, which (036) carries the badge's fill and border
    with it — the whole chip lights up, not just its outline. */
 .badge.explained:hover,
