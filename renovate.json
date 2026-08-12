@@ -4,9 +4,7 @@
   "postUpdateOptions": ["pnpmDedupe"],
   "packageRules": [
     {
-      "description": [
-        "Regnerate shims and snapshots"
-      ],
+      "description": ["Regnerate shims and snapshots"],
       "matchPackageNames": ["renovate"],
       "semanticCommitType": "fix",
       "postUpgradeTasks": {
