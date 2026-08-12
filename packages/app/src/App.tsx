@@ -561,6 +561,40 @@ export function App() {
     setEditorKey((k) => k + 1);
   }
 
+  /**
+   * Design review: a pasted config arrives as one long line and the app had no
+   * way to make it readable. Two-space indentation, in place.
+   *
+   * The parse happens HERE, on the click — never per keystroke, which roadmap
+   * 032 measures and this must not make more expensive. Deliberately NOT
+   * `loadConfigText`: formatting is an edit, not a load, and moving the revert
+   * baseline would quietly retire "Revert to loaded config". Strict JSON only —
+   * a `.json5` document that is also valid JSON reformats, and one using
+   * JSON5's own syntax says so rather than being silently rewritten into JSON
+   * with its comments discarded.
+   */
+  function formatConfig() {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(content);
+    } catch {
+      setNotice(
+        fileName.endsWith(".json5")
+          ? "Can't format: this reformats strict JSON, and this document is either invalid or uses JSON5 syntax (comments, unquoted keys, trailing commas) that reformatting would discard."
+          : "Can't format: fix the JSON syntax first — the editor's markers show where.",
+      );
+      return;
+    }
+    const formatted = `${JSON.stringify(parsed, null, 2)}\n`;
+    if (formatted === content) {
+      showToast("Already formatted");
+      return;
+    }
+    setNotice(null);
+    setContent(formatted);
+    setEditorKey((k) => k + 1);
+  }
+
   useEffect(() => {
     setSelectedNodeId(null);
     setMigrationStepIndex(0);
@@ -1875,6 +1909,7 @@ export function App() {
             onFileNameChange={(value) => setFileName(value as typeof fileName)}
             canRevert={content !== loadedContent}
             onRevert={() => loadConfigText(loadedContent)}
+            onFormat={formatConfig}
             onSignIn={onSignIn}
             untrustedHost={untrustedGuard ? untrustedGuard.host : null}
             onTrustUntrustedHost={onTrustUntrustedHost}

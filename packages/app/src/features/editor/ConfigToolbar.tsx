@@ -20,6 +20,11 @@ interface Props {
   /** Roadmap 035: there is something to revert TO — see the button's comment. */
   canRevert: boolean;
   onRevert: () => void;
+  /** Re-indents the config. Always offered — the parse happens on the click,
+   *  never per keystroke, so there is no cheap validity signal to gate it on
+   *  and a disabled-looking button would be the 035 mistake again. App reports
+   *  a document it cannot format through the notice bar. */
+  onFormat: () => void;
   /** Security 2026-07-25: the host a share link chose, while its guard stands. */
   untrustedHost: string | null;
   onTrustUntrustedHost: () => void;
@@ -35,6 +40,7 @@ export function ConfigToolbar({
   onFileNameChange,
   canRevert,
   onRevert,
+  onFormat,
   untrustedHost,
   onTrustUntrustedHost,
   running,
@@ -59,6 +65,20 @@ export function ConfigToolbar({
         <option value="renovate.json">renovate.json</option>
         <option value="renovate.json5">renovate.json5</option>
       </select>
+      {/* Design review: a pasted config is one long line, and the app offered
+          no way to make it readable. Two-space indentation, in place — the
+          editor's own text, not a copy shown somewhere else. Ordered BEFORE
+          the conditional Revert: formatting is itself an edit that summons
+          Revert, and a control must not displace the button under the cursor
+          that just clicked it. */}
+      <button
+        type="button"
+        className="btn"
+        onClick={onFormat}
+        title="Re-indent this config with two-space indentation"
+      >
+        Format
+      </button>
       {/* Roadmap 035: rendered only when there is something to revert.
           It used to be permanently present and merely `disabled`, which
           looked identical to the enabled state — an offer of an action
