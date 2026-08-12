@@ -337,11 +337,7 @@ function KeyRowPreview({
   if (rules) {
     return (
       <span className="prov-key-preview">
-        <RuleFramingText
-          total={rules.length}
-          attribution={ruleAttribution ?? null}
-          variant="full"
-        />
+        <RuleFramingText total={rules.length} attribution={ruleAttribution ?? null} />
       </span>
     );
   }

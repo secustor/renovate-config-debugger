@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { TraceResult } from "@renovate-config-debugger/engine";
 import { Term } from "@/components/glossary";
 import { HypotheticalBanner } from "@/components/HypotheticalBanner";
-import { RuleFramingText } from "@/components/rule-framing";
+import { RuleFramingAside } from "@/components/rule-framing";
 import { useDescriptionProvenance } from "@/hooks/description-provenance";
 import { useRuleProvenance } from "@/hooks/rule-provenance";
 import { ruleLayerIndex } from "@/lib/rule-filters";
@@ -32,6 +32,8 @@ import { useSimulatorForm } from "./use-simulator-form";
 import { useThreadNav } from "./use-thread-nav";
 import { buildNoInputCaveat, buildVerdictSegments } from "./verdict-sentence";
 import { buildVerdictThreads } from "./verdict-threads";
+
+const nf = new Intl.NumberFormat();
 
 /**
  * Roadmap 006: the packageRules simulator. Describe a hypothetical dependency
@@ -425,12 +427,9 @@ export const RuleSimulator = memo(function RuleSimulator({
         <span className="sim-title-hint">
           {" "}
           — describe a hypothetical dependency update and see which of the{" "}
-          <RuleFramingText
-            total={packageRules.length}
-            attribution={ruleAttribution ?? null}
-            variant="compact"
-          />{" "}
+          {nf.format(packageRules.length)}{" "}
           <Term id="packageRules">{packageRules.length === 1 ? "rule" : "rules"}</Term> would apply
+          <RuleFramingAside total={packageRules.length} attribution={ruleAttribution ?? null} />
         </span>
       </div>
       {configInvalid || invalidSeen ? (
