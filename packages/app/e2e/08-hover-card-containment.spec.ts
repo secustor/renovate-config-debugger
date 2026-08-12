@@ -44,3 +44,42 @@ test("the preset-tree 'own options' hover card wraps its text and stays on-scree
   expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 1);
   expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + 1);
 });
+
+/**
+ * Design review follow-up — the editor's JSON-schema hover is `position:
+ * fixed`, and nothing bounded it: a docs URL on one unbreakable line sized
+ * the tooltip to ~800px, running it across the results column with no
+ * border or shadow to mark it as a popover. Guard the fix: the tooltip is
+ * width-capped, opaque, and framed.
+ */
+test("the editor's schema hover is a bounded popover, not a page-wide strip", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+
+  // The schema layer loads lazily, so the first hover may land before the
+  // hover extension exists — retry until the tooltip materializes. Hover by
+  // coordinates a few characters into the line, squarely on the `"extends"`
+  // KEY: the string value beside it opens the preset card instead.
+  const line = page.locator(".cm-line", { hasText: '"extends"' }).first();
+  const lineBox = must(await line.boundingBox(), "the extends line's bounding box");
+  const tooltip = page.locator(".cm-tooltip");
+  for (let attempt = 0; attempt < 5 && !(await tooltip.isVisible()); attempt++) {
+    await page.mouse.move(10, 10);
+    await page.mouse.move(lineBox.x + 30, lineBox.y + lineBox.height / 2);
+    await page.waitForTimeout(1_500);
+  }
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip.locator(".cm6-json-schema-hover")).toBeVisible();
+
+  const box = must(await tooltip.boundingBox(), "the schema tooltip's bounding box");
+  // 26rem cap (416px) plus padding and border, with room to spare.
+  expect(box.width).toBeLessThanOrEqual(450);
+
+  const chrome = await tooltip.evaluate((el) => {
+    const s = getComputedStyle(el);
+    return { background: s.backgroundColor, borderWidth: s.borderTopWidth };
+  });
+  // Opaque popover surface with a frame — not the syntax theme's bare strip.
+  expect(chrome.background).not.toBe("rgba(0, 0, 0, 0)");
+  expect(chrome.borderWidth).toBe("1px");
+});
