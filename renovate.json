@@ -5,8 +5,7 @@
   "packageRules": [
     {
       "description": [
-        "Regnerate shims and snapshots",
-        "The CLI's answers change when Renovate's code does (roadmap 059), so a bump has to cut a release: `fix` is the commit type semantic-release turns into one (roadmap 067)."
+        "Regnerate shims and snapshots"
       ],
       "matchPackageNames": ["renovate"],
       "semanticCommitType": "fix",
