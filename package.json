@@ -19,7 +19,7 @@
     "@semantic-release/exec": "7.1.0",
     "@semantic-release/git": "11.0.1",
     "@types/node": "26.2.0",
-    "oxfmt": "0.62.0",
+    "oxfmt": "0.63.0",
     "oxlint": "1.77.0",
     "oxlint-tsgolint": "7.0.2001",
     "semantic-release": "25.0.9",
