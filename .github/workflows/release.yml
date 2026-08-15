@@ -99,10 +99,6 @@ jobs:
         if: ${{ vars.RELEASE_APP_ID != '' }}
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
-          # `app-id` is deprecated in favour of `client-id`; the value is passed
-          # through verbatim as the JWT issuer, and GitHub still accepts the
-          # numeric App ID there — so `vars.RELEASE_APP_ID` keeps working and the
-          # repository variable does not have to be re-provisioned.
           client-id: ${{ vars.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
 
