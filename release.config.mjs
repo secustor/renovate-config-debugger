@@ -12,6 +12,55 @@
  * export the tool requires.
  */
 
+const GROUP_ORDER = ["Features", "Bug Fixes", "Performance Improvements", "Reverts"];
+
+const rankGroup = (group) => {
+  const index = GROUP_ORDER.indexOf(group.title);
+  return index === -1 ? GROUP_ORDER.length : index;
+};
+
+/**
+ * Angular's own main template with the footer's `noteGroups` block hoisted
+ * above the commit groups. `{{> footer}}` is deliberately not referenced any
+ * more: it holds nothing but those notes, and rendering it too would print
+ * every breaking change twice.
+ */
+const mainTemplate = `{{> header}}
+{{#each noteGroups}}
+
+### {{title}}
+
+{{#each notes}}
+* {{#if commit.scope}}**{{commit.scope}}:** {{/if}}{{text}}
+{{/each}}
+{{/each}}
+{{#each commitGroups}}
+
+{{#if title}}
+### {{title}}
+
+{{/if}}
+{{#each commits}}
+{{> commit root=@root}}
+{{/each}}
+
+{{/each}}
+`;
+
+/**
+ * The angular preset's header pattern predates `feat!:` and its note keywords
+ * only cover the singular `BREAKING CHANGE:`. Left alone, `feat(cli)!: …`
+ * parses as a typeless commit: no breaking note for the analyzer to bump on,
+ * and an untitled group at the bottom of the notes instead of an entry under
+ * the section this file exists to put first. Both plugins parse the commits
+ * separately, so both get this.
+ */
+const parserOpts = {
+  headerPattern: /^(\w*)(?:\((.*)\))?!?: (.*)$/,
+  breakingHeaderPattern: /^(\w*)(?:\((.*)\))?!: (.*)$/,
+  noteKeywords: ["BREAKING CHANGE", "BREAKING CHANGES"],
+};
+
 export default {
   // Releases are cut from main only. The workflow is `workflow_dispatch`, so
   // this is a guard against dispatching from a feature branch, not a trigger.
@@ -21,6 +70,7 @@ export default {
     [
       "@semantic-release/commit-analyzer",
       {
+        parserOpts,
         releaseRules: [
           // 059's version scheme: 0.x, breaking changes in the MINOR. Without
           // this, the first `feat!:` would jump straight to 1.0.0 and imply a
@@ -30,7 +80,16 @@ export default {
         ],
       },
     ],
-    "@semantic-release/release-notes-generator",
+    [
+      "@semantic-release/release-notes-generator",
+      {
+        parserOpts,
+        writerOpts: {
+          mainTemplate,
+          commitGroupsSort: (a, b) => rankGroup(a) - rankGroup(b) || a.title.localeCompare(b.title),
+        },
+      },
+    ],
     ["@semantic-release/changelog", { changelogFile: "CHANGELOG.md" }],
     [
       "@semantic-release/exec",
