@@ -195,7 +195,10 @@ does not exist.
       what a release ships).
    2. Install the app on `renovate-config-debugger` only.
    3. Store the App ID as a repository **variable** `RELEASE_APP_ID` and a
-      generated private key as the **secret** `RELEASE_APP_PRIVATE_KEY`.
+      generated private key as the **secret** `RELEASE_APP_PRIVATE_KEY`. The
+      workflow feeds that variable to `create-github-app-token`'s `client-id`
+      input (its `app-id` input is deprecated); both the numeric App ID and the
+      app's Client ID are accepted as the JWT issuer, so either value works.
    4. Add the app to main's protection bypass list (branch protection: allow
       the app to push; ruleset: add it under "bypass list") — the token is
       only as strong as the app, and without the bypass the push still 403s.
