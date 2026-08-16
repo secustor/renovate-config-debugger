@@ -9,6 +9,12 @@ import type { ResultsTabId } from "@/data/results-tabs";
  * Roadmap 029: every number the digest quotes arrives in `DigestInput` and is
  * never recomputed here — the app derives each one exactly once and feeds both
  * the tab badges and this generator, so the two can never disagree.
+ *
+ * Granularity ceiling: the paragraph is built from run-level aggregates and
+ * from provenance keyed per TOP-LEVEL config key, so two configs that differ
+ * only inside a `packageRules` entry produce the same paragraph. That is by
+ * design — the digest orients, it does not detect change. Rule-level
+ * differences are visible in the simulator and in `rcd compare`.
  */
 
 const nf = new Intl.NumberFormat();
@@ -22,6 +28,10 @@ const HUGE_EXPANSION = 50;
 
 /** How much of a validator message the digest quotes before eliding it. */
 const PROBLEM_SUMMARY_MAX = 120;
+
+/** The shortest quote an elision will settle for — below this a boundary cut
+ *  amputates the message to a stub, so a word-boundary cut reads better. */
+const PROBLEM_SUMMARY_MIN = PROBLEM_SUMMARY_MAX / 2;
 
 export type DigestTone = "ok" | "warn" | "error" | "plain";
 
@@ -130,16 +140,48 @@ function unpunctuated(text: string): string {
   return text.trim().replace(/(?<![.\s])[.\s]+$/, "");
 }
 
-/** The first problem, short enough to sit inside a sentence. Elides on a word
- *  boundary so a truncated validator message never ends mid-token. */
+/** End of the last complete sentence/clause in `text` (exclusive of its
+ *  terminator), or -1 when there is none. Two word characters have to precede
+ *  the mark, so "e.g." and "packageRules[0]." are not boundaries. */
+function lastClauseBreak(text: string): number {
+  let last = -1;
+  for (const match of text.matchAll(/\w\w[.;!?](?=\s)/g)) {
+    if (match.index !== undefined) {
+      last = match.index + 2;
+    }
+  }
+  return last;
+}
+
+/**
+ * The first problem, short enough to sit inside a sentence. Prefers to end the
+ * quote at the last sentence/clause boundary that fits the budget — validator
+ * messages are typically a diagnosis followed by a remedy, and the digest only
+ * needs the diagnosis (the clause it sits in already links to the Problems tab,
+ * where the remedy and the curated translation live). Falls back to a word
+ * boundary when there is no usable break, so a truncated message never ends
+ * mid-token.
+ *
+ * Deliberately quotes the RAW validator message, not the engine's translated
+ * explanation: `ErrorTranslation.explain()` returns multi-sentence paragraphs
+ * (hundreds to ~1,300 characters) meant to render as a block beside the
+ * message, and it covers only a curated handful of message families — sourcing
+ * it here would make the paragraph read inconsistently by curation.
+ */
 function summarizeProblem(problem: DigestProblem): string {
   const raw = unpunctuated(problem.message) || unpunctuated(problem.topic);
   if (raw.length <= PROBLEM_SUMMARY_MAX) {
     return raw;
   }
+  // `+ 1` so a terminator sitting exactly on the budget edge still counts —
+  // the lookahead needs the whitespace that follows it.
+  const clauseBreak = lastClauseBreak(raw.slice(0, PROBLEM_SUMMARY_MAX + 1));
+  if (clauseBreak > PROBLEM_SUMMARY_MIN) {
+    return `${raw.slice(0, clauseBreak).trimEnd()}…`;
+  }
   const cut = raw.slice(0, PROBLEM_SUMMARY_MAX);
   const lastSpace = cut.lastIndexOf(" ");
-  return `${(lastSpace > PROBLEM_SUMMARY_MAX / 2 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
+  return `${(lastSpace > PROBLEM_SUMMARY_MIN ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
 }
 
 /** "2 errors and 1 warning" — only the halves that are non-zero. */
@@ -173,6 +215,18 @@ function verdictClause(input: DigestInput): DigestClause {
       id: "verdict",
       tone: "warn",
       text: "Renovate accepted every option in this config, but the run did not complete cleanly.",
+    };
+  }
+  if (input.warnings > 0) {
+    // Roadmap 029's scope names three verdicts — errors vs. warnings vs. clean.
+    // A warning run is not clean, so it must not open with the checkmark; the
+    // phrase "Renovate accepted this config" is kept verbatim on purpose (the
+    // CLI, MCP and e2e suites substring-match it across both variants). No
+    // count here: `problemClause` owns the count and the link to it.
+    return {
+      id: "verdict",
+      tone: "warn",
+      text: "Renovate accepted this config, but flagged something worth reviewing.",
     };
   }
   return { id: "verdict", tone: "ok", text: "✓ Renovate accepted this config." };
