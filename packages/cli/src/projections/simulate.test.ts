@@ -42,16 +42,42 @@ const SIM: SimulationResult = {
 };
 
 describe("simulationPayload", () => {
-  test('detail "full" is the escape hatch — the result itself, not a rebuild', () => {
-    expect(simulationPayload(SIM, { detail: "full", scope: "package-rules" })).toBe(SIM);
-    expect(simulationPayload(SIM, { detail: "full", scope: "full", keys: ["automerge"] })).toBe(
-      SIM,
-    );
+  /**
+   * Roadmap 048 moved this assertion one notch: `full` is still the result
+   * itself — every member, verbatim, nothing projected — but it is no longer
+   * the identity, because `verdict` and the flattening legend ride along. That
+   * is deliberate: `full` must not be the detail level that loses the sentence.
+   */
+  test('detail "full" is the escape hatch — the whole result, plus the verdict', () => {
+    for (const options of [
+      { detail: "full", scope: "package-rules" },
+      { detail: "full", scope: "full", keys: ["automerge"] },
+    ] as const) {
+      const payload = simulationPayload(SIM, options) as Record<string, unknown>;
+      // Identity, member by member and by REFERENCE — including the two the
+      // default projection drops. `flattened` is the one wrapper, checked next.
+      for (const [key, value] of Object.entries(SIM)) {
+        if (key !== "flattened") {
+          expect(payload[key], key).toBe(value);
+        }
+      }
+      // …plus the two additions, and `verdict` first.
+      expect(Object.keys(payload)[0]).toBe("verdict");
+      const verdict = payload.verdict as { text: string };
+      expect(verdict.text).toContain("WOULD");
+      // The flattening legend is additive: same fields, same array objects.
+      const flattened = payload.flattened as { merged: unknown; blocks: unknown; note: string };
+      expect(flattened.merged).toBe(SIM.flattened.merged);
+      expect(flattened.blocks).toBe(SIM.flattened.blocks);
+      expect(flattened.note).toBeDefined();
+    }
   });
 
   test("the default answer is exactly the listed members", () => {
     const payload = simulationPayload(SIM, { detail: "verdict", scope: "package-rules" });
     expect(Object.keys(payload)).toEqual([
+      // The answer, before the evidence — and the last key an elision takes.
+      "verdict",
       "rules",
       "missingInputs",
       "flattened",
