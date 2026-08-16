@@ -272,7 +272,7 @@ exactly this Renovate and nothing resolves at install time.
 
 | `cli` | embedded `engine` | `renovate` |
 | ----- | ----------------- | ---------- |
-| 0.1.0 | 0.1.0             | 44.7.4     |
+| 0.1.0 | 0.1.0             | 44.29.1    |
 
 A new row is not a promise that the previous row's flags still work. Releases
 write the rows (`scripts/stamp-compat.ts`), and `scripts/check-compat.ts` fails
