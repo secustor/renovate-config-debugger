@@ -18,7 +18,12 @@ import {
   ruleFilterSelection,
 } from "../rule-view";
 import { collapseDiffs, mergedLine, parseConfigScope, parseKeys } from "../projections/config-view";
-import { collapseRuleMerges, parseDetail, simulationPayload } from "../projections/simulate";
+import {
+  collapseRuleMerges,
+  parseDetail,
+  simulationPayload,
+  withRuleOrigins,
+} from "../projections/simulate";
 
 /**
  * "Would this PR be grouped/labeled/blocked here?" — every packageRule
@@ -36,11 +41,23 @@ export async function simulateAgainst(
   return simulatePackageRules({ config: result.finalConfig, dep });
 }
 
-export function verdictLines(rules: readonly RuleEvaluation[]): string[] {
+/**
+ * The rule list, one line each. A MATCHED line names the layer that wrote the
+ * rule and its index there (`[repo packageRules[0]]`) — the answer to "which
+ * of my rules is this", which the merged index alone never gave. Only the
+ * matched ones: the suffix on all ~727 rows would bury the handful that fired,
+ * and `--format json` carries `ruleSources` for the rest.
+ */
+export function verdictLines(
+  rules: readonly RuleEvaluation[],
+  originOf?: (index: number) => { layer: string; sourceIndex: number } | undefined,
+): string[] {
   const lines: string[] = [];
   for (const rule of rules) {
     const clauses = rule.clauses.map((c) => `${c.key}=${c.state}`).join(", ");
-    lines.push(`  #${rule.index + 1} ${rule.verdict}${clauses ? ` (${clauses})` : ""}`);
+    const origin = rule.verdict === "matched" ? originOf?.(rule.index) : undefined;
+    const from = origin ? ` [${origin.layer} packageRules[${origin.sourceIndex}]]` : "";
+    lines.push(`  #${rule.index + 1} ${rule.verdict}${clauses ? ` (${clauses})` : ""}${from}`);
     for (const merged of collapseDiffs(rule.merged ?? [])) {
       lines.push(`      sets ${mergedLine(merged)}`);
     }
@@ -114,9 +131,13 @@ export const simulateCommand: Command = {
           detail,
           scope: scope ?? "package-rules",
           transport: selection.transport,
+          attribution: view.attribution,
           ...(keys ? { keys } : {}),
         }),
-        rules: detail === "full" ? view.rules : collapseRuleMerges(view.rules),
+        rules:
+          detail === "full"
+            ? view.rules
+            : withRuleOrigins(collapseRuleMerges(view.rules), view.attribution),
         ...(selection.explicit ? ruleFilterPayload(view) : {}),
         wouldRefuse: refused,
         ...(refusal ? { exitNote: refusal } : {}),
@@ -144,7 +165,7 @@ export const simulateCommand: Command = {
       emitLines(io, [
         `${matched.length} of ${sim.rules.length} packageRules matched.`,
         "",
-        ...verdictLines(view.rules),
+        ...verdictLines(view.rules, view.originOf),
         ...(hiddenNote ? [hiddenNote] : []),
         ...(missingNote ? [missingNote] : []),
         "",

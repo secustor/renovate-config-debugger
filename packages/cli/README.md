@@ -79,27 +79,29 @@ is a positional file path unless one of these replaces it.
 
 The rest belong to one command each.
 
-| command    | flag                         | effect                                                                     |
-| ---------- | ---------------------------- | -------------------------------------------------------------------------- |
-| `tree`     | `--node <name>`              | one preset node, by name or identity                                       |
-|            | `--body <which>`             | `fetched\|afterParams\|input\|resolved` (needs `--node`)                   |
-|            | `--depth <n\|all>`           | tree depth to print (default `2`)                                          |
-| `resolved` | `--mode <m>`                 | `full\|keep-internal` (default `keep-internal`)                            |
-|            | `--include-defaults`         | write out Renovate's defaults too (`--mode full` only)                     |
-| `simulate` | `--dep <json>`, `--dep-file` | the dependency update to simulate                                          |
-|            | `--verdict <which>`          | `notable\|all\|matched\|no-input\|no-match` (pretty `notable`, JSON `all`) |
-|            | `--source <which>`           | which config level contributed the rule: `repo\|presets\|all`              |
-|            | `--detail <which>`           | `verdict` (default) \| `full` — `full` adds the merge trace                |
-|            | `--keys <a,b,…>`             | only these options of `finalDependencyConfig`                              |
-|            | `--config-scope <which>`     | `package-rules` (default) \| `full`                                        |
-| `compare`  | `--dep`/`--dep-file`         | the A-side dependency                                                      |
-|            | `--dep-b`/`--dep-b-file`     | the B-side dependency                                                      |
-|            | `--keys <a,b,…>`             | only these options of the config delta                                     |
-|            | `--config-scope <which>`     | `package-rules` (default) \| `full`                                        |
-| `run`      | `--select <a,b,…>`           | `status\|errors\|warnings\|final\|events\|tree\|layers\|platform\|all`     |
-|            | `--keys <a,b,…>`             | only these options of `--select final`                                     |
-|            | `--config-scope <which>`     | `full` (default) \| `package-rules`                                        |
-| `docs`     | `--search`                   | list options whose name matches                                            |
+| command      | flag                         | effect                                                                     |
+| ------------ | ---------------------------- | -------------------------------------------------------------------------- |
+| `provenance` | `--rule <n>`                 | one merged `packageRule`: its body, its layer, its index in that layer     |
+|              | `--source <which>`           | scope the `packageRules` ranges: `repo\|presets\|all`                      |
+| `tree`       | `--node <name>`              | one preset node, by name or identity                                       |
+|              | `--body <which>`             | `fetched\|afterParams\|input\|resolved` (needs `--node`)                   |
+|              | `--depth <n\|all>`           | tree depth to print (default `2`)                                          |
+| `resolved`   | `--mode <m>`                 | `full\|keep-internal` (default `keep-internal`)                            |
+|              | `--include-defaults`         | write out Renovate's defaults too (`--mode full` only)                     |
+| `simulate`   | `--dep <json>`, `--dep-file` | the dependency update to simulate                                          |
+|              | `--verdict <which>`          | `notable\|all\|matched\|no-input\|no-match` (pretty `notable`, JSON `all`) |
+|              | `--source <which>`           | which config level contributed the rule: `repo\|presets\|all`              |
+|              | `--detail <which>`           | `verdict` (default) \| `full` — `full` adds the merge trace                |
+|              | `--keys <a,b,…>`             | only these options of `finalDependencyConfig`                              |
+|              | `--config-scope <which>`     | `package-rules` (default) \| `full`                                        |
+| `compare`    | `--dep`/`--dep-file`         | the A-side dependency                                                      |
+|              | `--dep-b`/`--dep-b-file`     | the B-side dependency                                                      |
+|              | `--keys <a,b,…>`             | only these options of the config delta                                     |
+|              | `--config-scope <which>`     | `package-rules` (default) \| `full`                                        |
+| `run`        | `--select <a,b,…>`           | `status\|errors\|warnings\|final\|events\|tree\|layers\|platform\|all`     |
+|              | `--keys <a,b,…>`             | only these options of `--select final`                                     |
+|              | `--config-scope <which>`     | `full` (default) \| `package-rules`                                        |
+| `docs`       | `--search`                   | list options whose name matches                                            |
 
 ### Narrowing a config answer
 
@@ -136,6 +138,41 @@ $ rcd simulate renovate.json --dep '{"depName":"react"}' --format json --keys gr
 
 On the fixture measured for this feature that call is 2.9 kB, against 24.5 kB
 for the default answer and 106 kB for `--detail full`.
+
+### Which layer wrote which rule
+
+`packageRules` is the one key Renovate CONCATENATES: every layer appends its own
+rules and none overrides another, so "who won" is the wrong question for it.
+`rcd provenance <file> packageRules` answers with one contiguous merged-index
+range per contributing layer, plus a one-line digest of each rule:
+
+```console
+$ rcd provenance renovate.json packageRules
+packageRules [appended] — 714 merged rules, concatenated: every layer appends, none overrides
+
+  preset config:recommended — merged packageRules[0]–[712] (its own packageRules[0]–[712])
+    0 matchPackageNames: ["*"] → semanticCommitType
+    …
+  repo — merged packageRules[713]–[713] (your packageRules[0]–[0])
+    713 matchPackageNames: ["react"] → groupName
+```
+
+That is the arithmetic the other commands' indexes need: a rule's index inside
+its own layer is `index - from`, and for the `repo` range that is the
+`packageRules[N]` you wrote. `--source repo` keeps just your own ranges (the
+indexes do not move), and `--rule <n>` prints one merged rule's body with the
+layer that wrote it.
+
+The same numbers travel with the answers that quote an index:
+
+- `rcd simulate --format json` carries `ruleSources` (the same ranges) and, on
+  every rule that MATCHED, an inline `origin: {layer, sourceIndex}`; pretty
+  output appends ` [repo packageRules[0]]` to the matched lines.
+- `rcd validate` adds a line under any message whose `packageRules[N]` it can
+  cross-link — the validator cites the config as WRITTEN, the simulator the
+  merged array, and for a config with presets those are different numbers.
+  Nothing is annotated when the run cannot be attributed, or when the message
+  came from a global/inherited layer's own validation.
 
 ## A debugging session
 

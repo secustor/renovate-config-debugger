@@ -1,9 +1,11 @@
 import type {
   ConfigKeyDelta,
   MergedKey,
+  RuleAttribution,
   RuleEvaluation,
   SimulationComparison,
   SimulationResult,
+  ValidationMessage,
 } from "@renovate-config-debugger/engine";
 import { CliError } from "../io";
 import { missingInputsNote } from "../rule-view";
@@ -16,6 +18,13 @@ import {
   projectConfig,
   projectKeySet,
 } from "./config-view";
+import { type RuleCrossLink, ruleCrossLink } from "./messages";
+import {
+  type RuleOrigin,
+  ruleOrigin,
+  type RuleSourceRange,
+  ruleSourceRanges,
+} from "./rule-provenance";
 
 /**
  * Roadmap 070: the simulate/compare payload shape, shared by `rcd simulate` /
@@ -65,6 +74,51 @@ export interface SimulateProjection {
    * point at can omit it; both transports pass it.
    */
   transport?: RunTransport;
+  /**
+   * Per-rule attribution for the run this simulation came from (roadmap 071) —
+   * `buildRuleView`'s `attribution`. Omitted, or `undefined` because the run
+   * could not be attributed, means no `ruleSources`, no `origin` and no
+   * message cross-links: a wrong layer is worse than none.
+   */
+  attribution?: readonly RuleAttribution[] | undefined;
+}
+
+export const RULE_SOURCES_NOTE =
+  "`ruleSources` is the whole rule list's legend: each entry is the CONTIGUOUS range of merged " +
+  "indexes one layer contributed. A rule's index inside its own layer is `index - from` — for " +
+  "the `repo` entry that is the `packageRules[N]` you wrote. Matched rules carry it inline as " +
+  "`origin`.";
+
+/** Matched rules, with the layer that contributed them. Only the matched ones:
+ *  annotating all ~727 rows costs 15 % of the payload to answer a question
+ *  about the handful that fired, and `ruleSources` already covers the rest. */
+export function withRuleOrigins<T extends { index: number; verdict: RuleEvaluation["verdict"] }>(
+  rules: readonly T[],
+  attribution: readonly RuleAttribution[] | undefined,
+): (T | (T & { origin: RuleOrigin }))[] {
+  if (!attribution || attribution.length === 0) {
+    return [...rules];
+  }
+  return rules.map((rule) => {
+    if (rule.verdict !== "matched") {
+      return rule;
+    }
+    const origin = ruleOrigin(rule.index, attribution);
+    return origin ? { ...rule, origin } : rule;
+  });
+}
+
+/** A message with `rule` — its merged index cross-linked to the one the reader
+ *  wrote. These come from validating the MERGED array, so the link runs the
+ *  other way round from the repo-stage messages `run_config` reports. */
+export function withRuleLinks(
+  messages: readonly ValidationMessage[],
+  attribution: readonly RuleAttribution[] | undefined,
+): (ValidationMessage | (ValidationMessage & { rule: RuleCrossLink }))[] {
+  return messages.map((message) => {
+    const rule = ruleCrossLink(message, "merged", attribution);
+    return rule ? { ...message, rule } : message;
+  });
 }
 
 /** A rule with its merge diffs collapsed. Exported because the rule list is
@@ -96,8 +150,13 @@ export function simulationPayload(sim: SimulationResult, options: SimulateProjec
   const missingNote = options.transport
     ? missingInputsNote(sim.missingInputs, options.transport)
     : undefined;
+  const sources: RuleSourceRange[] = ruleSourceRanges(options.attribution);
   return {
-    rules: collapseRuleMerges(sim.rules),
+    rules: withRuleOrigins(collapseRuleMerges(sim.rules), options.attribution),
+    // ~200 bytes for the whole attribution, and immune to the elision (the
+    // largest-array pass never picks it) — so "which layer wrote this rule"
+    // survives an answer whose rule list did not.
+    ...(sources.length > 0 ? { ruleSources: sources, ruleSourcesNote: RULE_SOURCES_NOTE } : {}),
     // Admitted on purpose, and NOT next to the rows it describes: `rules` is
     // replaced downstream by a `verdict`/`source` view and is the first array
     // the MCP elision shrinks, and the rules this counts are exactly the ones
@@ -108,8 +167,11 @@ export function simulationPayload(sim: SimulationResult, options: SimulateProjec
     flattened: { ...sim.flattened, merged: collapseDiffs(sim.flattened.merged) },
     finalDependencyConfig: projected.config,
     configView: projected.view,
-    errors: sim.errors,
-    warnings: sim.warnings,
+    // The simulator validates the MERGED array (`validateConfig("repo", {
+    // packageRules })`), so a `packageRules[N]` here is a merged index — the
+    // link says which rule of the reader's own config that is.
+    errors: withRuleLinks(sim.errors, options.attribution),
+    warnings: withRuleLinks(sim.warnings, options.attribution),
     notes: sim.notes,
     detailNote: VERDICT_DETAIL_NOTE,
   };

@@ -35,6 +35,24 @@ const GROUPED =
   '{"labels":["deps"],"packageRules":[{"matchPackageNames":["react"],"groupName":"react"}]}';
 /** The big one — every size assertion in this file is measured against it. */
 const RECOMMENDED = '{"extends":["config:recommended"],"labels":["deps"]}';
+/** The same at scale, plus ONE rule of the caller's own — the shape the
+ *  packageRules provenance answer is about: 713 preset rules, then yours. */
+const RECOMMENDED_PLUS_RULE = JSON.stringify({
+  extends: ["config:recommended"],
+  packageRules: [{ matchPackageNames: ["react"], groupName: "react" }],
+});
+/**
+ * A rule-scoped validator ERROR, with a preset ahead of it so the two index
+ * schemes differ: `:disablePeerDependencies` contributes merged rule 0, so the
+ * `packageRules[1]` the validator names is merged rule 2.
+ */
+const BAD_SECOND_RULE = JSON.stringify({
+  extends: [":disablePeerDependencies"],
+  packageRules: [
+    { matchPackageNames: ["react"], groupName: "react" },
+    { matchPackageNames: ["*", "lodash"], groupName: "everything" },
+  ],
+});
 /** One rule of each kind against `react`: a preset rule that fails on an unset
  *  depType, a matching one, one that fails on an unset sourceUrl, and a genuine
  *  mismatch — the CLI's `mixed-rules.json` fixture, inline. */
@@ -405,6 +423,69 @@ describe("drill-down", () => {
     expect(labels.note).toBeUndefined();
   });
 
+  /**
+   * Roadmap 071: the two narrowings the ranges point at. The ranges answer
+   * "which layer", `rule` answers "what does rule N say" without shipping 714
+   * bodies, and `source` answers "just mine".
+   */
+  test("`rule` returns one merged rule's body, its layer and its index there", async () => {
+    const runId = await runConfig(RECOMMENDED_PLUS_RULE);
+    const mid = (await call("get_provenance", { runId, key: "packageRules", rule: 300 })) as {
+      index: number;
+      layer: string;
+      sourceIndex: number;
+      citation: string;
+      rule: Record<string, unknown>;
+    };
+    expect(mid.index).toBe(300);
+    expect(mid.layer).toContain("preset config:recommended");
+    expect(mid.sourceIndex).toBe(300);
+    expect(mid.rule).toBeTypeOf("object");
+
+    // The caller's own rule, cited in the index scheme they wrote it in.
+    const total = (
+      (await call("get_provenance", { runId, key: "packageRules" })) as { total: number }
+    ).total;
+    const own = (await call("get_provenance", {
+      runId,
+      key: "packageRules",
+      rule: total - 1,
+    })) as { layer: string; sourceIndex: number; citation: string; rule: unknown };
+    expect(own).toMatchObject({ layer: "repo", sourceIndex: 0 });
+    expect(own.citation).toContain("packageRules[0]");
+    expect(own.rule).toEqual({ matchPackageNames: ["react"], groupName: "react" });
+  });
+
+  test("`rule` on a key that is not the rule array names the parameter", async () => {
+    const runId = await runConfig(GROUPED);
+    await expect(call("get_provenance", { runId, key: "labels", rule: 0 })).rejects.toThrow(
+      /`rule`/,
+    );
+    await expect(call("get_provenance", { runId, key: "labels", source: "repo" })).rejects.toThrow(
+      /`source`/,
+    );
+  });
+
+  test("`source` scopes the ranges to one class of layer, indexes unchanged", async () => {
+    const runId = await runConfig(RECOMMENDED_PLUS_RULE);
+    const scoped = (await call("get_provenance", {
+      runId,
+      key: "packageRules",
+      source: "repo",
+    })) as {
+      total: number;
+      source: string;
+      contributions: { layer: string; from: number; rules?: string[] }[];
+    };
+    expect(scoped.source).toBe("repo");
+    expect(scoped.contributions).toHaveLength(1);
+    expect(scoped.contributions[0]?.layer).toBe("repo");
+    // The merged index is still the merged index — scoping the view never
+    // renumbers the array.
+    expect(scoped.contributions[0]?.from).toBe(scoped.total - 1);
+    expect(scoped.contributions[0]?.rules?.[0]).toContain(`${scoped.total - 1} matchPackageNames`);
+  });
+
   test("the resolved document keeps internal presets by default", async () => {
     const runId = await runConfig(CONFIG);
     const output = (await call("get_resolved_config", { runId })) as {
@@ -516,14 +597,80 @@ describe("size budget", () => {
     expect(JSON.stringify(tree?.inputSchema)).toContain("max 6");
   });
 
-  test("an answer over the budget is elided structurally, and says how to narrow", async () => {
-    const runId = await runConfig(RECOMMENDED);
+  /**
+   * Roadmap 071. This assertion used to be `truncated: true` plus the hint —
+   * which passed on an answer holding 2 of 714 rules, because a chain over a
+   * CONCATENATED key restates the whole merged array once per layer (733 kB)
+   * and the elider could only collapse it to first-and-last.
+   *
+   * The projection now measures itself and degrades semantically instead, so
+   * what is worth pinning is that the answer is COMPLETE: contiguous ranges
+   * covering every merged index, and a mid-array rule that is findable by
+   * reading rather than by counting.
+   */
+  test("provenance answers the packageRules question, whole", async () => {
+    const runId = await runConfig(RECOMMENDED_PLUS_RULE);
     const text = await callText("get_provenance", { runId, key: "packageRules" });
     expect(text.length).toBeLessThanOrEqual(RESULT_BUDGET_BYTES);
-    // Never cut mid-JSON.
-    const payload = JSON.parse(text) as { truncated?: boolean; hint?: string };
-    expect(payload.truncated).toBe(true);
-    expect(payload.hint).toContain("get_preset_node");
+    const payload = JSON.parse(text) as {
+      truncated?: boolean;
+      total: number;
+      mergeSemantics: string;
+      note: string;
+      contributions: { layer: string; from: number; to: number; count: number; rules?: string[] }[];
+    };
+    // Not elided at all: the answer fits because of its shape, not its luck.
+    expect(payload.truncated).toBeUndefined();
+    expect(payload.mergeSemantics).toBe("concat");
+    expect(payload.total).toBeGreaterThan(700);
+
+    // Contiguous, from 0, and every merged rule accounted for.
+    let next = 0;
+    for (const contribution of payload.contributions) {
+      expect(contribution.from).toBe(next);
+      expect(contribution.count).toBe(contribution.to - contribution.from + 1);
+      next = contribution.to + 1;
+    }
+    expect(next).toBe(payload.total);
+    expect(payload.contributions.reduce((sum, c) => sum + c.count, 0)).toBe(payload.total);
+
+    // The rule the caller WROTE is the last one, and it is named as theirs.
+    const last = payload.contributions.at(-1);
+    expect(last?.layer).toBe("repo");
+    expect(last?.from).toBe(payload.total - 1);
+
+    // A mid-array rule is findable by its merged index — no positional
+    // counting, which is what the old `{index, layer}` list demanded.
+    const lines = payload.contributions.flatMap((c) => c.rules ?? []);
+    expect(lines.some((line) => line.startsWith("300 "))).toBe(true);
+    expect(lines).toHaveLength(payload.total);
+
+    // The bodies are omitted, and the note names both ways back to them.
+    expect(text).not.toContain("semanticCommitType:");
+    expect(payload.note).toContain("rule:");
+    expect(payload.note).toContain("get_final_config");
+  });
+
+  /**
+   * The other half of roadmap 071's guard. A key whose FINAL VALUE alone blows
+   * the budget is not a `packageRules` case — there is no attribution to
+   * compress — but losing the CHAIN to `dropLargestKeys` would drop this
+   * tool's actual answer. So the value is previewed and named, and the chain
+   * survives.
+   */
+  test("a key with an enormous value keeps its chain and previews the value", async () => {
+    const runId = await runConfig(
+      JSON.stringify({ labels: Array.from({ length: 8_000 }, (_, i) => `label-${i}`) }),
+    );
+    const payload = (await call("get_provenance", { runId, key: "labels" })) as {
+      finalValue: string;
+      finalValueNote?: string;
+      chain?: unknown[];
+    };
+    expect(typeof payload.finalValue).toBe("string");
+    expect(payload.finalValue).toContain("chars)");
+    expect(payload.finalValueNote).toContain("get_final_config");
+    expect(payload.chain).toBeDefined();
   });
 
   test("the elision marks what it dropped, in place", async () => {
@@ -899,6 +1046,109 @@ describe("simulate and compare", () => {
     expect(comparison.missingInputsNote).toContain("A — 2 of 4 rules could not match");
     expect(comparison.missingInputsNote).toContain("B — 2 of 4 rules could not match");
     expect(comparison.missingInputsNote).toContain('`verdict: "no-input"` lists them.');
+  });
+});
+
+/**
+ * Roadmap 071. Every tool that quotes a rule INDEX has to say which array the
+ * index is in: `simulate` and `get_provenance` cite the merged array,
+ * Renovate's validator cites the config as written, and for a config with a
+ * preset ahead of its own rules those are different numbers for the same rule.
+ * Two personas reported the wrong rule because nothing said so.
+ */
+describe("rule indexes are cross-linked", () => {
+  interface SimRules {
+    ruleSources: { layer: string; kind: string; from: number; to: number; count: number }[];
+    ruleSourcesNote: string;
+    rules: { index: number; verdict: string; origin?: { layer: string; sourceIndex: number } }[];
+  }
+
+  test("simulate carries the legend, and the layer inline on matched rows only", async () => {
+    const runId = await runConfig(MIXED_RULES);
+    const sim = (await call("simulate", {
+      runId,
+      dep: { depName: "react", packageName: "react" },
+    })) as SimRules;
+    // The legend covers every rule index, contiguously.
+    expect(sim.ruleSources.map((s) => [s.layer, s.from, s.to])).toEqual([
+      ["preset :disablePeerDependencies", 0, 0],
+      ["repo", 1, 3],
+    ]);
+    expect(sim.ruleSourcesNote).toContain("index - from");
+
+    const matched = sim.rules.filter((rule) => rule.verdict === "matched");
+    expect(matched.length).toBeGreaterThan(0);
+    for (const rule of matched) {
+      expect(rule.origin).toBeDefined();
+    }
+    // Not on the other ~700: the legend covers them, and annotating every row
+    // costs 15 % of a payload the rule list already dominates.
+    for (const rule of sim.rules.filter((r) => r.verdict !== "matched")) {
+      expect(rule.origin).toBeUndefined();
+    }
+    // The one that matched is the reader's own first rule.
+    expect(matched[0]?.origin).toEqual({ layer: "repo", sourceIndex: 0 });
+  });
+
+  test("a scoped rule list keeps the origin the unscoped one had", async () => {
+    const runId = await runConfig(MIXED_RULES);
+    const sim = (await call("simulate", {
+      runId,
+      dep: { depName: "react", packageName: "react" },
+      verdict: "matched",
+    })) as SimRules;
+    expect(sim.rules[0]?.origin).toEqual({ layer: "repo", sourceIndex: 0 });
+    expect(sim.ruleSources).toHaveLength(2);
+  });
+
+  test("run_config links a validator message to the merged rule it names", async () => {
+    const summary = (await call("run_config", {
+      fileName: "renovate.json",
+      content: BAD_SECOND_RULE,
+    })) as {
+      errors: {
+        message: string;
+        rule?: { repoIndex: number; mergedIndex: number; note: string };
+      }[];
+    };
+    const error = summary.errors.find((e) => e.message.includes("packageRules[1]"));
+    // The preset ahead of it contributes merged rule 0, so the reader's
+    // `packageRules[1]` is merged rule 2 — the index simulate would report.
+    expect(error?.rule).toMatchObject({ repoIndex: 1, mergedIndex: 2 });
+    expect(error?.rule?.note).toContain("merged rule `packageRules[2]`");
+  });
+
+  test("a config with no presets still links — 0 to 0 is an answer, not a guess", async () => {
+    const summary = (await call("run_config", {
+      fileName: "renovate.json",
+      content: JSON.stringify({
+        packageRules: [{ matchPackageNames: ["*", "lodash"], groupName: "everything" }],
+      }),
+    })) as { errors: { rule?: { repoIndex: number; mergedIndex: number } }[] };
+    expect(summary.errors[0]?.rule).toMatchObject({ repoIndex: 0, mergedIndex: 0 });
+  });
+
+  test("explain_message carries the same link, by position", async () => {
+    const runId = await runConfig(BAD_SECOND_RULE);
+    const explained = (await call("explain_message", { runId, errorIndex: 0 })) as {
+      rule?: { repoIndex: number; mergedIndex: number };
+    };
+    expect(explained.rule).toMatchObject({ repoIndex: 1, mergedIndex: 2 });
+  });
+
+  test("a run that cannot be attributed carries no link at all", async () => {
+    // The preset never resolves, so no layer's rule count is known — and a
+    // wrong cross-link is worse than none.
+    const summary = (await call("run_config", {
+      fileName: "renovate.json",
+      content: JSON.stringify({
+        extends: [":thisPresetDoesNotExist"],
+        packageRules: [{ matchPackageNames: ["*", "lodash"], groupName: "everything" }],
+      }),
+    })) as { errors: { message: string; rule?: unknown }[] };
+    const error = summary.errors.find((e) => e.message.includes("packageRules[0]"));
+    expect(error).toBeDefined();
+    expect(error?.rule).toBeUndefined();
   });
 });
 

@@ -99,6 +99,12 @@ export const OPTIONS = {
     flags: "--source <which>",
     description: "which config level contributed the rule: repo|presets|all (default: all)",
   },
+  rule: {
+    flags: "--rule <n>",
+    description:
+      "one merged packageRule by index: its body, its layer and its index inside " +
+      "that layer (`provenance <file> packageRules` only)",
+  },
   detail: {
     flags: "--detail <which>",
     description:

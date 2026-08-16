@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { RESULT_BUDGET_BYTES, serializeResult } from "./result";
+import { fitsBudget, RESULT_BUDGET_BYTES, serializeResult } from "./result";
 
 /** The size budget, on its own — the tool-level assertions live in
  *  `server.test.ts`, where a real `config:recommended` run supplies the
@@ -158,5 +158,37 @@ describe("serializeResult", () => {
     expect(trunk).toBeDefined();
     expect(trunk?.body?.truncated).toBe(true);
     expect(parsed.children).toHaveLength(13);
+  });
+});
+
+/**
+ * Roadmap 071: the measurement a projection takes BEFORE it answers, so it can
+ * degrade semantically (shorter digest lines, complete attribution) instead of
+ * being collapsed to first-and-last by the pass above.
+ */
+describe("fitsBudget", () => {
+  /** `{"pad":"…"}` — the payload's bytes, minus the padding itself. */
+  const WRAPPER = '{"pad":""}'.length;
+  const padded = (bytes: number) => ({ pad: "x".repeat(bytes - WRAPPER) });
+
+  test("true exactly up to the elision target, false past it", () => {
+    // The target is the budget minus the room the elision wrapper needs, so
+    // "fits" has to be strictly stricter than "under the hard cap".
+    const target = RESULT_BUDGET_BYTES - 2_000;
+    expect(fitsBudget(padded(target))).toBe(true);
+    expect(fitsBudget(padded(target + 1))).toBe(false);
+    expect(fitsBudget(padded(RESULT_BUDGET_BYTES))).toBe(false);
+  });
+
+  test("what fits comes back whole — same predicate, same threshold", () => {
+    const payload = { rules: Array.from({ length: 200 }, (_, i) => ({ i, pad: "y".repeat(60) })) };
+    expect(fitsBudget(payload)).toBe(true);
+    expect(JSON.parse(serializeResult(payload))).toEqual(payload);
+  });
+
+  test("multi-byte characters count as bytes, not as characters", () => {
+    const text = { pad: "é".repeat(RESULT_BUDGET_BYTES - 2_000) };
+    expect(text.pad.length).toBeLessThan(RESULT_BUDGET_BYTES);
+    expect(fitsBudget(text)).toBe(false);
   });
 });

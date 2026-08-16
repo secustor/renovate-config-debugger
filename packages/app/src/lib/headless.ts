@@ -8,7 +8,9 @@
  * parse of the 008 config layers, (roadmap 062) the simulator's rule
  * filters, which `rcd simulate --verdict/--source` is, and (roadmap 069) the
  * description digest behind the Overview's "What this config does" card — the
- * grouping and counts, not the attribution, which is the engine's. The CLI must quote the
+ * grouping and counts, not the attribution, which is the engine's; and
+ * (roadmap 071) the one-line rule summaries and the `packageRules[N]`
+ * cross-index behind `RuleMessage`. The CLI must quote the
  * SAME numbers the web
  * app renders, so it imports them rather than restating them; this barrel is
  * the seam that makes that an import instead of a copy.
@@ -48,6 +50,12 @@ export {
 } from "./effective-tally";
 export { type LayerParseResult, parseLayerJson } from "./input-schemas";
 export {
+  crossRuleIndex,
+  type RuleIndexReference,
+  ruleIndexInMessage,
+  type RuleMessageIndexKind,
+} from "./rule-cross-index";
+export {
   ALL_PRESETS,
   DEFAULT_RULE_FILTERS,
   type FilterOption,
@@ -68,6 +76,7 @@ export {
   type VerdictFilter,
   verdictFilterOptions,
 } from "./rule-filters";
+export { ruleWrittenKeys, summarizeRuleSelectors } from "./rule-selectors";
 export { isNoInputNoMatch } from "./rule-verdict";
 export {
   buildRunDigest,

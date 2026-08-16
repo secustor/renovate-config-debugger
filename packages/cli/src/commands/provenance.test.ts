@@ -29,3 +29,95 @@ describe("provenance", () => {
     expect(await main(["provenance", fixture("clean.json"), "notAnOption"], io)).toBe(1);
   });
 });
+
+/**
+ * Roadmap 071: `packageRules` is the key Renovate CONCATENATES, so "who
+ * overrode whom" is the wrong question for it. It answers with one contiguous
+ * merged-index range per contributing layer — the `#N layer` list it replaced
+ * carried one line per rule and no way to tell which of YOUR rules that was.
+ */
+describe("provenance packageRules", () => {
+  interface RuleReport {
+    total: number;
+    mergeSemantics: string;
+    note: string;
+    source?: string;
+    contributions: { layer: string; kind: string; from: number; to: number; rules?: string[] }[];
+  }
+
+  async function report(args: string[]): Promise<RuleReport> {
+    const io = recordingIo();
+    expect(
+      await main(
+        ["provenance", fixture("mixed-rules.json"), "packageRules", "--format", "json", ...args],
+        io,
+      ),
+    ).toBe(0);
+    return io.json() as RuleReport;
+  }
+
+  test("ranges per layer, digest lines carrying the merged index", async () => {
+    const answer = await report([]);
+    expect(answer.mergeSemantics).toBe("concat");
+    expect(answer.total).toBe(4);
+    expect(answer.contributions.map((c) => [c.layer, c.from, c.to])).toEqual([
+      ["preset :disablePeerDependencies", 0, 0],
+      ["repo", 1, 3],
+    ]);
+    const repo = answer.contributions[1];
+    expect(repo?.rules?.[0]).toBe('1 matchPackageNames: ["react"] → groupName');
+    expect(answer.note).toContain("index - from");
+  });
+
+  test("--source repo answers with just the rules you wrote", async () => {
+    const answer = await report(["--source", "repo"]);
+    expect(answer.source).toBe("repo");
+    expect(answer.contributions).toHaveLength(1);
+    expect(answer.contributions[0]?.kind).toBe("repo");
+    // Still the merged indexes — the scope narrows the view, not the array.
+    expect(answer.contributions[0]?.from).toBe(1);
+  });
+
+  test("--rule prints one merged rule's body, cited in both index schemes", async () => {
+    const io = recordingIo();
+    expect(
+      await main(
+        [
+          "provenance",
+          fixture("mixed-rules.json"),
+          "packageRules",
+          "--rule",
+          "1",
+          "--format",
+          "json",
+        ],
+        io,
+      ),
+    ).toBe(0);
+    const one = io.json() as {
+      layer: string;
+      sourceIndex: number;
+      citation: string;
+      rule: unknown;
+    };
+    expect(one).toMatchObject({ layer: "repo", sourceIndex: 0 });
+    expect(one.citation).toContain("merged packageRules[1]");
+    expect(one.rule).toEqual({ matchPackageNames: ["react"], groupName: "react monorepo" });
+  });
+
+  test("--rule and --source belong to the rule array, and say so elsewhere", async () => {
+    const io = recordingIo();
+    expect(
+      await main(["provenance", fixture("mixed-rules.json"), "labels", "--rule", "0"], io),
+    ).toBe(1);
+    expect(io.stderr).toContain("--rule/--source");
+  });
+
+  test("pretty output is one header per layer, not one line per rule", async () => {
+    const io = recordingIo();
+    expect(await main(["provenance", fixture("mixed-rules.json"), "packageRules"], io)).toBe(0);
+    expect(io.stdout).toContain("4 merged rules, concatenated");
+    expect(io.stdout).toContain("repo — merged packageRules[1]–[3] (your packageRules[0]–[2])");
+    expect(io.stdout).toContain('1 matchPackageNames: ["react"] → groupName');
+  });
+});
