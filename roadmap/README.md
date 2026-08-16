@@ -74,6 +74,7 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [067](067-semantic-release.md)                          | semantic-release: one version for every public package               | M16                  | done        |
 | [068](068-keyboard-ux.md)                               | Keyboard UX: ⌘⏎ to run, a bare-key jump layer, one Escape ladder     | M18                  | done        |
 | [069](069-description-provenance.md)                    | Per-string `description` provenance: who said what about this config | M19                  | in progress |
+| [070](070-agent-payload-projection.md)                  | Agent payload projection: `keys`, config scope, collapsed diffs      | M19                  | in progress |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live

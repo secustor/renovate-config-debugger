@@ -98,6 +98,22 @@ export const OPTIONS = {
     flags: "--source <which>",
     description: "which config level contributed the rule: repo|presets|all (default: all)",
   },
+  detail: {
+    flags: "--detail <which>",
+    description:
+      "verdict|full — `full` adds the merge trace (mergeSteps, rawFinalConfig) " +
+      "(default: verdict)",
+  },
+  keys: {
+    flags: "--keys <a,b,…>",
+    description: "only these top-level config options (narrows, never widens)",
+  },
+  "config-scope": {
+    flags: "--config-scope <which>",
+    description:
+      "which config keys to report: package-rules (drop the globalOnly options a rule " +
+      "cannot reach) | full",
+  },
 } as const satisfies Record<string, OptionSpec>;
 
 export type OptionName = keyof typeof OPTIONS;

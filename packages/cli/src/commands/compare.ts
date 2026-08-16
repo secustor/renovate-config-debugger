@@ -2,9 +2,11 @@ import { compareSimulations, type SimulationComparison } from "@renovate-config-
 import { outputFormat, stringOption } from "../args";
 import type { Command } from "../command";
 import { EXIT_OK, EXIT_REFUSED } from "../io";
-import { emitJson, emitLines, preview, writeNotes } from "../output";
+import { emitJson, emitLines, writeNotes } from "../output";
 import { INPUT_OPTIONS, refusalNote, runOne, takeInputFile, wouldRefuse } from "../run-input";
 import { readDependency } from "../dep";
+import { diffLine, parseConfigScope, parseKeys } from "../projections/config-view";
+import { comparisonPayload } from "../projections/simulate";
 import { simulateAgainst } from "./simulate";
 
 /**
@@ -26,11 +28,15 @@ import { simulateAgainst } from "./simulate";
  */
 /** The comparison's own one-liner without its `identical:`/`differs:` prefix —
  *  the headline states the verdict in its own words. */
-function netEffect(comparison: SimulationComparison): string {
+function netEffect(comparison: ComparisonVerdict): string {
   return comparison.summary.slice(comparison.summary.indexOf(": ") + 2);
 }
 
-export function comparisonHeadline(comparison: SimulationComparison): string {
+/** The headline reads the VERDICT fields only — which is what lets it take a
+ *  projected comparison (whose delta may be narrowed) unchanged. */
+type ComparisonVerdict = Pick<SimulationComparison, "summary" | "noChange" | "rulesChanged">;
+
+export function comparisonHeadline(comparison: ComparisonVerdict): string {
   if (!comparison.noChange) {
     return `Behavior differs between A and B — ${netEffect(comparison)}.`;
   }
@@ -56,10 +62,26 @@ export const compareCommand: Command = {
     "doing something. IDENTITY (`rulesChanged`, `signatureChanges`) only says a",
     "selector's text moved — unavoidable when the edit is to the matched array",
     "itself, and not a behavior change on its own.",
+    "",
+    "The key delta is reported at `--config-scope package-rules` (the globalOnly",
+    "options no rule can reach are dropped) and `--keys a,b` narrows it further.",
+    "Neither touches the verdict: `summary` states what the comparison found",
+    "over the WHOLE delta, and `configView` says what the view withheld.",
   ],
-  options: [...INPUT_OPTIONS, "dep", "dep-file", "dep-b", "dep-b-file", "format"],
+  options: [
+    ...INPUT_OPTIONS,
+    "dep",
+    "dep-file",
+    "dep-b",
+    "dep-b-file",
+    "keys",
+    "config-scope",
+    "format",
+  ],
   async run(args, io) {
     const format = outputFormat(args);
+    const keys = parseKeys(stringOption(args, "keys"));
+    const scope = parseConfigScope(stringOption(args, "config-scope"), "--config-scope");
     const { file, rest } = takeInputFile(args);
     const fileB = rest[0];
     const depA = await readDependency(args, "dep", "dep-file");
@@ -75,7 +97,10 @@ export const compareCommand: Command = {
 
     const simA = await simulateAgainst(a.result, depA);
     const simB = await simulateAgainst(b.result, depB);
-    const comparison = compareSimulations(simA, simB);
+    const comparison = comparisonPayload(compareSimulations(simA, simB), {
+      scope: scope ?? "package-rules",
+      ...(keys ? { keys } : {}),
+    });
 
     const refusedA = wouldRefuse(a.result);
     const refusedB = wouldRefuse(b.result);
@@ -101,13 +126,7 @@ export const compareCommand: Command = {
           ? ["", "Matched only in B:", ...comparison.behaviorOnlyInB.map((r) => `  ${r.label}`)]
           : []),
         ...(comparison.configDelta.length > 0
-          ? [
-              "",
-              "Config delta:",
-              ...comparison.configDelta.map(
-                (d) => `  ${d.key}: ${preview(d.before)} → ${preview(d.after)}`,
-              ),
-            ]
+          ? ["", "Config delta:", ...comparison.configDelta.map((d) => `  ${diffLine(d)}`)]
           : []),
         ...(comparison.signatureChanges.length > 0
           ? [

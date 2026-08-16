@@ -44,8 +44,7 @@ describe("simulate", () => {
       ),
     ).toBe(0);
     const sim = io.json() as {
-      rules: { verdict: string; clauses: { key: string; state: string }[] }[];
-      mergeSteps: unknown[];
+      rules: { verdict: string; clauses: { key: string; state: string }[]; merged?: unknown }[];
     };
     expect(sim.rules[0]?.verdict).toBe("no-match");
     expect(sim.rules[0]?.clauses[0]).toMatchObject({
@@ -53,9 +52,142 @@ describe("simulate", () => {
       state: "no-match",
     });
     // Nothing matched, so nothing was merged for this dependency.
-    expect(sim.mergeSteps).toEqual([]);
+    expect(sim.rules[0]?.merged).toBeUndefined();
   });
 
+  test("a dependency is required", async () => {
+    const io = recordingIo();
+    expect(await main(["simulate", fixture("grouped.json")], io)).toBe(1);
+    expect(io.stderr).toContain("--dep");
+  });
+});
+
+/**
+ * Roadmap 070: `--format json` used to spread the whole `SimulationResult` —
+ * 106 kB for this fixture, 74% of it the merge trace nobody asked for, and a
+ * `finalDependencyConfig` carrying 107 globalOnly options no packageRule can
+ * read. It now answers at the same `detail` the MCP `simulate` tool does,
+ * through the same projection.
+ */
+async function simulateJson(...flags: string[]) {
+  const io = recordingIo();
+  const code = await main(
+    [
+      "simulate",
+      fixture("described.json"),
+      "--dep",
+      '{"depName":"react"}',
+      "--format",
+      "json",
+      ...flags,
+    ],
+    io,
+  );
+  return { io, code, payload: io.json() as Record<string, unknown> };
+}
+
+describe("simulate --detail / --keys / --config-scope", () => {
+  test("the default json answer is the verdict, not the merge trace", async () => {
+    const { payload, code } = await simulateJson();
+    expect(code).toBe(0);
+    expect(payload).not.toHaveProperty("mergeSteps");
+    expect(payload).not.toHaveProperty("rawFinalConfig");
+    // The omission is stated, with the flag that undoes it.
+    expect(payload.detailNote).toContain('detail: "full"');
+    expect(payload.rules).toBeDefined();
+    expect(payload.flattened).toBeDefined();
+  });
+
+  test("--detail full restores the whole result, byte for byte", async () => {
+    const { payload } = await simulateJson("--detail", "full");
+    expect(payload.mergeSteps).toBeDefined();
+    expect(payload.rawFinalConfig).toBeDefined();
+    expect(payload.detailNote).toBeUndefined();
+    expect(payload.configView).toBeUndefined();
+    // Nothing collapsed, nothing pruned — the escape hatch is the raw shape.
+    const rules = payload.rules as { merged?: { key: string }[] }[];
+    expect(rules[0]?.merged?.[0]).toHaveProperty("before");
+  });
+
+  test("the per-dependency config drops the options no rule can reach", async () => {
+    const { payload } = await simulateJson();
+    const config = payload.finalDependencyConfig as Record<string, unknown>;
+    expect(payload.configView).toMatchObject({
+      scope: "package-rules",
+      droppedGlobalOnly: 107,
+    });
+    expect(config).not.toHaveProperty("onboardingConfig");
+    expect(config).toHaveProperty("groupName", "react monorepo");
+  });
+
+  test("--config-scope full puts the 107 back", async () => {
+    const { payload } = await simulateJson("--config-scope", "full");
+    const config = payload.finalDependencyConfig as Record<string, unknown>;
+    expect(payload.configView).toMatchObject({ scope: "full" });
+    expect(config).toHaveProperty("onboardingConfig");
+  });
+
+  test("--keys narrows the config and leaves the rules alone", async () => {
+    const { payload } = await simulateJson("--keys", "groupName,onboardingConfig");
+    expect(payload.finalDependencyConfig).toEqual({ groupName: "react monorepo" });
+    // `keys` never widens: a key the scope removed comes back as a REASON.
+    expect(payload.configView).toMatchObject({
+      withheld: [{ key: "onboardingConfig", reason: "global-only" }],
+    });
+    expect(payload.rules).toHaveLength(1);
+  });
+
+  test("an unknown value names the ones that exist", async () => {
+    const io = recordingIo();
+    const code = await main(
+      [
+        "simulate",
+        fixture("described.json"),
+        "--dep",
+        '{"depName":"react"}',
+        "--config-scope",
+        "global",
+      ],
+      io,
+    );
+    expect(code).toBe(1);
+    expect(io.stderr).toContain("package-rules|full");
+  });
+
+  /** The measured defect: `mergeChildConfig` concatenates `description` on
+   *  nearly every merge, so the array was re-embedded in full on BOTH sides of
+   *  every diff that touched it. */
+  test("a description append is collapsed into what it appended", async () => {
+    const { payload } = await simulateJson();
+    const rules = payload.rules as { merged: Record<string, unknown>[] }[];
+    const description = rules[0]?.merged.find((m) => m.key === "description");
+    expect(description).toEqual({
+      key: "description",
+      collapsed: "append",
+      beforeLength: 2,
+      afterLength: 3,
+      added: ["Group the react packages into one PR."],
+    });
+    const full = await simulateJson("--detail", "full");
+    const verbatim = (
+      full.payload.rules as { merged: Record<string, unknown>[] }[]
+    )[0]?.merged.find((m) => m.key === "description");
+    expect(JSON.stringify(description).length).toBeLessThan(JSON.stringify(verbatim).length);
+  });
+
+  test("pretty output says what the rule appended, not the whole array", async () => {
+    const io = recordingIo();
+    expect(
+      await main(["simulate", fixture("described.json"), "--dep", '{"depName":"react"}'], io),
+    ).toBe(0);
+    expect(io.stdout).toContain(
+      'sets description += 1 of 3 entries: ["Group the react packages into one PR."]',
+    );
+    expect(io.stdout).not.toContain("The base config for this repository.");
+  });
+});
+
+describe("simulate errors", () => {
   test("a dependency is required", async () => {
     const io = recordingIo();
     expect(await main(["simulate", fixture("grouped.json")], io)).toBe(1);

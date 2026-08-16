@@ -89,10 +89,53 @@ The rest belong to one command each.
 | `simulate` | `--dep <json>`, `--dep-file` | the dependency update to simulate                                          |
 |            | `--verdict <which>`          | `notable\|all\|matched\|no-input\|no-match` (pretty `notable`, JSON `all`) |
 |            | `--source <which>`           | which config level contributed the rule: `repo\|presets\|all`              |
+|            | `--detail <which>`           | `verdict` (default) \| `full` — `full` adds the merge trace                |
+|            | `--keys <a,b,…>`             | only these options of `finalDependencyConfig`                              |
+|            | `--config-scope <which>`     | `package-rules` (default) \| `full`                                        |
 | `compare`  | `--dep`/`--dep-file`         | the A-side dependency                                                      |
 |            | `--dep-b`/`--dep-b-file`     | the B-side dependency                                                      |
+|            | `--keys <a,b,…>`             | only these options of the config delta                                     |
+|            | `--config-scope <which>`     | `package-rules` (default) \| `full`                                        |
 | `run`      | `--select <a,b,…>`           | `status\|errors\|warnings\|final\|events\|tree\|layers\|platform\|all`     |
+|            | `--keys <a,b,…>`             | only these options of `--select final`                                     |
+|            | `--config-scope <which>`     | `full` (default) \| `package-rules`                                        |
 | `docs`     | `--search`                   | list options whose name matches                                            |
+
+### Narrowing a config answer
+
+Three commands answer with a config document, and two flags project it. Both
+only ever narrow, so any answer is a subset of the one you would have got
+without them, and every projected payload carries a `configView` saying which
+view produced it.
+
+`--config-scope package-rules` drops the ~107 `globalOnly` options — the ones
+read from a self-hosted global config, which no `packageRule` can read or
+write. That is the default where the document is a PER-DEPENDENCY config
+(`simulate`, `compare`), because the class is provably inert there. It is not
+the default for `rcd run --select final`, which is the run's whole effective
+config: when you are debugging a global or inherited layer, those options are
+the answer.
+
+`--keys a,b` selects top-level options by name, out of what the scope left. A
+name the scope removed is not resurrected — it comes back in
+`configView.withheld` with the reason, and `--config-scope full` is the way to
+it:
+
+```console
+$ rcd simulate renovate.json --dep '{"depName":"react"}' --format json --keys groupName,onboardingConfig
+{
+  "finalDependencyConfig": { "groupName": "react monorepo" },
+  "configView": {
+    "scope": "package-rules",
+    "keys": 1,
+    "droppedGlobalOnly": 107,
+    "withheld": [{ "key": "onboardingConfig", "reason": "global-only" }]
+  }
+}
+```
+
+On the fixture measured for this feature that call is 2.9 kB, against 24.5 kB
+for the default answer and 106 kB for `--detail full`.
 
 ## A debugging session
 
@@ -187,6 +230,20 @@ what `--verdict` and `--source` are for. A filtered list always ends by saying
 how many rules it hid. `--format json` keeps the full `rules` array unless you
 pass one of those two flags, and adds a `ruleFilter` object with
 `total`/`shown`/`hidden` when you do.
+
+`simulate --format json` answers at `--detail verdict`: `mergeSteps` and
+`rawFinalConfig` describe how the merge proceeded — ~1 MB on a
+`config:recommended` run — and are opt-in through `--detail full`, which returns
+the whole simulation result unprojected, exactly as it comes out of the engine.
+The same flag exists as `detail` on the MCP `simulate` tool; the two transports
+are one implementation.
+
+One more shape both commands share: `description` is a mergeable array, so
+Renovate concatenates it on nearly every merge, and a merged diff used to
+re-embed all of it on both sides. An append is now stated as what it appended
+(`{"collapsed": "append", "beforeLength": 22, "afterLength": 24, "added": […]}`)
+— a replacement still shows both sides, and the full array is one
+`rcd provenance renovate.json description` away.
 
 </details>
 
