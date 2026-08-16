@@ -9,7 +9,10 @@
  * recognizes standard double-quoted JSON/JSON5 object keys and `//`/`/* *\/`
  * comments, which covers the overwhelming convention (including generated
  * `.json5` files, which mainly use JSON5 for comments/trailing commas, not
- * unquoted or single-quoted keys). When a path segment can't be located —
+ * unquoted or single-quoted keys). A path may end on an ARRAY INDEX — the
+ * `group:`-preset rule rewrite does — and that element is patched in place
+ * like any other value; only a `renameTo` is impossible there, an index having
+ * no key. When a path segment can't be located —
  * most commonly because the config uses that rare unquoted/single-quoted key
  * style, or the path doesn't exist in this exact text — `applyFixToText`
  * falls back to re-serializing the ENTIRE document from `fix.fixedConfig`
@@ -30,27 +33,40 @@ export interface AppliedTextFix {
 /** Applies `fix` to `text` (the editor's raw config content). */
 export function applyFixToText(text: string, fix: ErrorFixResult): AppliedTextFix | null {
   const located = locateEntry(text, fix.path);
-  if (located) {
-    if (fix.remove) {
-      return { text: spliceRemove(text, located), surgical: true };
-    }
-    if (fix.renameTo) {
-      return {
-        text:
-          text.slice(0, located.keyStart) +
-          JSON.stringify(fix.renameTo) +
-          text.slice(located.keyEnd),
-        surgical: true,
-      };
+  if (!located) {
+    return rewriteDocument(fix);
+  }
+  if (fix.remove) {
+    return { text: spliceRemove(text, located), surgical: true };
+  }
+  if (fix.renameTo) {
+    // An ARRAY ELEMENT has no key to rename. Splicing anything here would
+    // corrupt the document, so this is the one surgical path that declines:
+    // losing the formatting beats emitting invalid JSON. No curated fix is
+    // shaped this way today, but the function is engine-public.
+    if (!located.key) {
+      return rewriteDocument(fix);
     }
     return {
       text:
-        text.slice(0, located.valueStart) +
-        JSON.stringify(fix.value) +
-        text.slice(located.valueEnd),
+        text.slice(0, located.key.start) +
+        JSON.stringify(fix.renameTo) +
+        text.slice(located.key.end),
       surgical: true,
     };
   }
+  return {
+    text:
+      text.slice(0, located.valueStart) +
+      serializeValue(text, located, fix.value) +
+      text.slice(located.valueEnd),
+    surgical: true,
+  };
+}
+
+/** The last resort: the whole document from `fixedConfig`. Always correct,
+ *  always at the cost of every comment and every formatting choice. */
+function rewriteDocument(fix: ErrorFixResult): AppliedTextFix | null {
   try {
     return { text: JSON.stringify(fix.fixedConfig, null, 2), surgical: false };
   } catch {
@@ -59,10 +75,42 @@ export function applyFixToText(text: string, fix: ErrorFixResult): AppliedTextFi
 }
 
 interface EntryLocation {
-  keyStart: number;
-  keyEnd: number;
+  /** The `"key"` span. Absent when the entry is an ARRAY ELEMENT: an index has
+   *  no key to rename, and none to eat when removing. */
+  key?: { start: number; end: number };
   valueStart: number;
   valueEnd: number;
+}
+
+/** The line indentation the value at `valueStart` hangs off — the whitespace
+ *  before it when nothing else shares its line, otherwise none. */
+function columnIndentAt(text: string, valueStart: number): string {
+  let i = valueStart;
+  while (i > 0 && isIndentAt(text, i - 1)) {
+    i--;
+  }
+  return i === 0 || text[i - 1] === "\n" ? text.slice(i, valueStart) : "";
+}
+
+/**
+ * The replacement text for a value.
+ *
+ * Compact `JSON.stringify` is right for what the curated fixes mostly replace
+ * — `["!gradle"]` belongs on one line, and every span that was one line to
+ * begin with keeps its shape byte for byte. A span that spans LINES in the
+ * source is a formatted block (a whole `packageRules` entry, say), and
+ * collapsing it into one long line would be a worse diff than the one the
+ * caller asked for; that case is pretty-printed and re-indented to the value's
+ * own column.
+ */
+function serializeValue(text: string, loc: EntryLocation, value: unknown): string {
+  const compact = JSON.stringify(value);
+  if (!text.slice(loc.valueStart, loc.valueEnd).includes("\n")) {
+    return compact;
+  }
+  const pretty = JSON.stringify(value, null, 2);
+  const indent = columnIndentAt(text, loc.valueStart);
+  return indent === "" ? pretty : pretty.split("\n").join(`\n${indent}`);
 }
 
 /** Skips a double-quoted JSON string starting at `start`; returns the index just past it. */
@@ -223,7 +271,7 @@ function findKeyInObject(text: string, objStart: number, key: string): EntryLoca
       return null;
     }
     if (keyText === key) {
-      return { keyStart, keyEnd, valueStart, valueEnd };
+      return { key: { start: keyStart, end: keyEnd }, valueStart, valueEnd };
     }
     i = skipTrivia(text, valueEnd);
     if (text[i] === ",") {
@@ -298,12 +346,14 @@ function locateEntry(text: string, path: ConfigPathSegment[]): EntryLocation | n
       containerStart = found.valueStart;
     } else {
       const found = findArrayElement(text, containerStart, seg);
-      if (!found || isLast) {
-        // A path ending on an array index has no surgical patch here — the
-        // one curated fix shaped that way (the `group:`-preset rule rewrite)
-        // deliberately falls back to re-serializing the document, and says so
-        // via `fixedTextRewritesDocument`.
+      if (!found) {
         return null;
+      }
+      if (isLast) {
+        // An array element is a located entry with no key span — the whole
+        // element is the value, which is exactly what a replace or a remove
+        // needs. (The `group:`-preset rule rewrite is shaped this way.)
+        return { valueStart: found.valueStart, valueEnd: found.valueEnd };
       }
       containerStart = found.valueStart;
     }
@@ -311,15 +361,21 @@ function locateEntry(text: string, path: ConfigPathSegment[]): EntryLocation | n
   return null;
 }
 
-/** Removes a `"key": value` member, cleaning up the adjacent comma so the result stays valid JSON. */
+/**
+ * Removes a `"key": value` member — or, when the entry has no key span, an
+ * array ELEMENT — cleaning up the adjacent comma so the result stays valid
+ * JSON. The two cases differ only in where the removal starts: the key, or the
+ * value itself.
+ */
 function spliceRemove(text: string, loc: EntryLocation): string {
-  // Eat back to the start of the line if only indentation precedes the key,
+  const start = loc.key?.start ?? loc.valueStart;
+  // Eat back to the start of the line if only indentation precedes the entry,
   // so removal doesn't leave a blank indented line behind.
-  let lineStart = loc.keyStart;
+  let lineStart = start;
   while (lineStart > 0 && text[lineStart - 1] !== "\n" && isIndentAt(text, lineStart - 1)) {
     lineStart--;
   }
-  const cutStart = /^[ \t]*$/.test(text.slice(lineStart, loc.keyStart)) ? lineStart : loc.keyStart;
+  const cutStart = /^[ \t]*$/.test(text.slice(lineStart, start)) ? lineStart : start;
 
   let before = lineStart;
   while (before > 0 && isSpaceAt(text, before - 1)) {
