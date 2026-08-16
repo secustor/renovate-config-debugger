@@ -76,6 +76,7 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [069](069-description-provenance.md)                    | Per-string `description` provenance: who said what about this config | M19                  | in progress |
 | [070](070-agent-payload-projection.md)                  | Agent payload projection: `keys`, config scope, collapsed diffs      | M19                  | in progress |
 | [071](071-rule-index-provenance.md)                     | Rule indexes: per-layer ranges, and one number per rule              | M19                  | in progress |
+| [072](072-option-docs-depth.md)                         | Option docs: where an option may go, and what the table cannot know  | M19                  | in progress |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live

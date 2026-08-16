@@ -22,7 +22,7 @@
 import { getInternalPreset, parsePreset } from "./renovate-adapter";
 import { snapshot } from "./trace/delta";
 import type { ValidationMessage } from "./trace/model";
-import { getOptionIndex, type OptionDoc } from "./option-docs";
+import { getOptionIndex, type OptionDoc, STRING_PATTERN_MATCHING_DOCS_URL } from "./option-docs";
 
 /** One step of a JSON path: an object key, or an array index. */
 export type ConfigPathSegment = string | number;
@@ -197,8 +197,7 @@ function backtickedTokens(text: string): string[] {
 const REDUNDANT_GLOB_RE =
   /^(.+?): Your input contains \* or \*\* along with other patterns\. Please remove them, as \* or \*\* matches all patterns\.$/;
 
-const REDUNDANT_GLOB_STAR_DOCS_URL =
-  "https://docs.renovatebot.com/string-pattern-matching/#negative-matching";
+const REDUNDANT_GLOB_STAR_DOCS_URL = `${STRING_PATTERN_MATCHING_DOCS_URL}#negative-matching`;
 
 const redundantGlobStar: ErrorTranslation = {
   id: "redundant-glob-star",

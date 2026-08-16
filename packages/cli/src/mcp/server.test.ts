@@ -1374,10 +1374,45 @@ describe("explain_message and get_option_docs", () => {
     const doc = (await call("get_option_docs", { name: "packageRules" })) as {
       name: string;
       renovateVersion: string;
+      optionsSourceUrl: string;
+      isContainer: boolean;
+      childOptions: string[];
+      placement: { kind: string };
     };
     expect(doc.name).toBe("packageRules");
     expect(doc.renovateVersion).toMatch(/^\d+\./);
+    expect(doc.optionsSourceUrl).toContain(`renovate/v/${doc.renovateVersion}`);
+    // Carried by the doc itself (roadmap 072) — the call site no longer
+    // derives it, so the CLI and MCP cannot disagree about it.
+    expect(doc.isContainer).toBe(true);
+    expect(doc.childOptions).toContain("matchPackageNames");
+    expect(doc.placement.kind).toBe("unrestricted");
     await expect(call("get_option_docs", { name: "nopeNotAnOption" })).rejects.toThrow(/search/);
+  });
+
+  test("an option with no upstream parents says so instead of staying silent", async () => {
+    const doc = (await call("get_option_docs", { name: "minimumReleaseAge" })) as {
+      placement: { kind: string };
+      isContainer?: boolean;
+    };
+    expect(doc.placement.kind).toBe("unrestricted");
+    expect(doc.isContainer).toBeUndefined();
+  });
+
+  /** `enabled` declares 129 parents and `managerFilePatterns` 117 — the two
+   *  payloads most able to blow the result budget. */
+  test("the 100+-parent options stay inside the result budget", async () => {
+    for (const name of ["enabled", "managerFilePatterns"]) {
+      const text = await callText("get_option_docs", { name });
+      const doc = JSON.parse(text) as {
+        placement: { kind: string; parents: string[]; topLevel: boolean };
+        truncated?: boolean;
+      };
+      expect(doc.placement.kind, name).toBe("restricted");
+      expect(doc.placement.parents.length, name).toBeGreaterThan(100);
+      expect(doc.truncated, name).toBeUndefined();
+      expect(text.length, name).toBeLessThan(50_000);
+    }
   });
 });
 

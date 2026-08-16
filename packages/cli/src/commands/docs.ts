@@ -1,8 +1,13 @@
-import { getOptionIndex, renovateVersion } from "@renovate-config-debugger/engine";
+import {
+  getOptionIndex,
+  optionsSourceUrl,
+  renovateVersion,
+} from "@renovate-config-debugger/engine";
 import { boolOption, outputFormat } from "../args";
 import type { Command } from "../command";
 import { CliError, EXIT_OK } from "../io";
 import { emitJson, emitLines } from "../output";
+import { optionDocLines } from "../projections/option-doc";
 
 /**
  * Renovate's own option metadata, for the exact pinned version — so an agent
@@ -12,6 +17,15 @@ export const docsCommand: Command = {
   name: "docs",
   summary: "what does this Renovate option mean? (for the pinned version)",
   usage: ["docs <option>", "docs <substring> --search"],
+  details: [
+    `Every answer is Renovate ${renovateVersion}'s own option table: type, default, allowed`,
+    'values, where the option may appear (including "anywhere"), glob/regex and templating',
+    "support, and, for a container, the options restricted to it.",
+    `Source, pinned: ${optionsSourceUrl}`,
+    "",
+    "Renovate ships no per-option version history, so this cannot tell you when an option was",
+    "added, changed or last worked differently — only what it means in the pinned version.",
+  ],
   options: ["search", "format"],
   run(args, io) {
     const format = outputFormat(args);
@@ -27,10 +41,10 @@ export const docsCommand: Command = {
         .filter((doc) => doc.name.toLowerCase().includes(needle))
         .map((doc) => ({ name: doc.name, type: doc.type, description: doc.description }));
       if (format === "json") {
-        emitJson(io, { renovateVersion, query, matches });
+        emitJson(io, { renovateVersion, optionsSourceUrl, query, matches });
       } else {
         emitLines(io, [
-          `${matches.length} option(s) matching "${query}":`,
+          `${matches.length} of ${index.options.size} options in Renovate ${renovateVersion} match "${query}":`,
           ...matches.map((doc) => `  ${doc.name.padEnd(32)} ${doc.type}`),
         ]);
       }
@@ -44,21 +58,9 @@ export const docsCommand: Command = {
       );
     }
     if (format === "json") {
-      emitJson(io, { renovateVersion, ...doc, isContainer: index.containers.has(doc.name) });
+      emitJson(io, { renovateVersion, optionsSourceUrl, ...doc });
     } else {
-      emitLines(io, [
-        `${doc.name} (${doc.type}${doc.subType ? ` of ${doc.subType}` : ""})`,
-        "",
-        doc.description,
-        ...(doc.default === undefined ? [] : [`default: ${JSON.stringify(doc.default)}`]),
-        ...(doc.allowedValues ? [`allowed: ${doc.allowedValues.join(", ")}`] : []),
-        ...(doc.parents ? [`valid under: ${doc.parents.join(", ")}`] : []),
-        ...(doc.globalOnly ? ["self-hosted (global) config only"] : []),
-        ...(doc.experimental ? [`experimental: ${doc.experimentalDescription ?? "yes"}`] : []),
-        ...(doc.deprecationMsg ? [`deprecated: ${doc.deprecationMsg}`] : []),
-        "",
-        doc.url,
-      ]);
+      emitLines(io, optionDocLines(doc, renovateVersion));
     }
     return Promise.resolve(EXIT_OK);
   },

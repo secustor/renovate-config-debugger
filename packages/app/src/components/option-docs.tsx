@@ -1,5 +1,5 @@
 import { type ReactNode, useCallback, useMemo, useRef, useState } from "react";
-import type { OptionDoc, OptionIndex } from "@renovate-config-debugger/engine";
+import type { OptionDoc, OptionIndex, OptionPlacement } from "@renovate-config-debugger/engine";
 import { useMoveGatedHover } from "@/hooks/hover-gate";
 import { OptionDocsContext, useOptionDocs } from "@/hooks/option-docs-hooks";
 import { type AnchorRect, anchoredCardStyle } from "@/lib/anchored-card";
@@ -79,6 +79,37 @@ function md(text: string): ReactNode {
   );
 }
 
+/**
+ * Roadmap 072 — where the option may appear, always stated. Absence of a
+ * `parents` declaration upstream is a statement ("usable anywhere"), not
+ * missing data, so the unrestricted case gets a row of its own; the switch is
+ * exhaustive so a new placement kind cannot be silently dropped here.
+ */
+function PlacementRow({ placement }: { placement: OptionPlacement }) {
+  switch (placement.kind) {
+    case "unrestricted":
+      return (
+        <p className="option-card-row">
+          <strong>Usable anywhere:</strong> at the top level, and inside any container object.
+        </p>
+      );
+    case "restricted":
+      return (
+        <p className="option-card-row">
+          <strong>Only valid:</strong> {placementScope(placement)}
+        </p>
+      );
+  }
+}
+
+function placementScope(placement: { parents: readonly string[]; topLevel: boolean }): string {
+  const inside = placement.parents.length ? `inside ${placement.parents.join(", ")}` : "";
+  if (placement.topLevel) {
+    return inside ? `at the top level, or ${inside}` : "at the top level";
+  }
+  return inside || "nowhere Renovate names";
+}
+
 function OptionCard({
   card,
   onEnter,
@@ -131,9 +162,22 @@ function OptionCard({
               <strong>Platforms:</strong> {doc.supportedPlatforms.join(", ")}
             </p>
           ) : null}
-          {doc.parents?.length && !doc.parents.includes(".") ? (
+          <PlacementRow placement={doc.placement} />
+          {doc.childOptions?.length ? (
             <p className="option-card-row">
-              <strong>Only valid inside:</strong> {doc.parents.join(", ")}
+              <strong>Contains:</strong> {truncate(doc.childOptions.join(", "), 120)} — plus any
+              option with no placement restriction.
+            </p>
+          ) : null}
+          {doc.patternMatch ? (
+            <p className="option-card-row">
+              <strong>Patterns:</strong> globs, or regexes written <code>/…/</code>; a leading{" "}
+              <code>!</code> negates an entry.
+            </p>
+          ) : null}
+          {doc.supportsTemplating ? (
+            <p className="option-card-row">
+              <strong>Templating:</strong> supported (<code>{"{{depName}}"}</code> and friends).
             </p>
           ) : null}
           <p className="option-card-row">
