@@ -47,6 +47,7 @@ import {
 import { resolveRunAuth } from "../run-input";
 import { textResult } from "./result";
 import { type HeldRun, RunStore } from "./run-store";
+import { installZodLocale } from "./zod-locale";
 
 /**
  * Roadmap 060: the same answers as the subcommands, over MCP.
@@ -228,13 +229,14 @@ const DEP = z
   })
   .describe(
     "The hypothetical update. Every field is optional; a matcher whose fields you left unset " +
-      "reports `no-input` rather than silently passing. updateType is derived from " +
-      "currentValue/newValue when you omit it. Unknown fields are rejected — the field names are " +
-      "Renovate's own (depName, packageName, datasource, manager, depType, packageFile, " +
-      "currentValue, currentVersion, newValue, updateType, versioning, sourceUrl, registryUrls, " +
-      "categories, baseBranch, currentVersionTimestamp, and lockedVersion/lockFiles/isBump/" +
-      "repository/mergeConfidenceLevel for the matchers that read them).",
-  );
+      "reports `no-input` instead of passing. updateType is derived from currentValue/newValue " +
+      "when you omit it. Unknown fields are rejected.",
+  )
+  // One `$defs.dependency` entry plus `$ref`s instead of the schema inlined
+  // per property: `extractDefs` lifts any schema carrying `id` metadata, which
+  // is the only dedup the SDK's conversion leaves reachable. Serialization
+  // only — validation, and the strictness above, are untouched.
+  .meta({ id: "dependency" });
 
 type DepInput = z.infer<typeof DEP>;
 
@@ -394,6 +396,11 @@ export interface McpServerOptions {
 }
 
 export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServer {
+  // First, and before any argument is validated: the published bundle loses
+  // zod's locale to tree-shaking, and without it every rejection reads
+  // `Invalid input`. Global config is read when an issue is finalized, so
+  // calling it here — after the module-level schema constants — is correct.
+  installZodLocale();
   const store = options?.store ?? new RunStore();
   const server = new McpServer(
     {
