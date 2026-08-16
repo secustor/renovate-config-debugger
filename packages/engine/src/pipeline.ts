@@ -1,6 +1,5 @@
 import {
   getDefaultConfig,
-  getOptions,
   GlobalConfig,
   InheritConfig,
   massageConfig,
@@ -13,6 +12,7 @@ import {
   validateConfig,
 } from "./renovate-adapter";
 import { getPresetAuth, setPresetAuth } from "./auth";
+import { removeGlobalConfig } from "./config-scope";
 import {
   getUsedInjectionKeys,
   resetInjectedPresets,
@@ -63,28 +63,6 @@ function resolvePlatformContext(input: PipelineInput): PlatformContext {
     ENDPOINT_DEFAULTS[platform] ??
     "";
   return overridden ? { platform, endpoint, overridden } : { platform, endpoint };
-}
-
-/**
- * Renovate's `removeGlobalConfig` (dist/config/index.js) reimplemented — the
- * upstream module also drags the full modules/manager graph (100+ Node-only
- * manager modules) into any bundle that imports it, so the visualizer keeps
- * this pure 7-line getOptions() loop local instead of deep-importing it.
- */
-function removeGlobalConfig(
-  config: Record<string, unknown>,
-  keepInherited: boolean,
-): Record<string, unknown> {
-  const outputConfig = { ...config };
-  for (const option of getOptions()) {
-    if (keepInherited && option.inheritConfigSupport) {
-      continue;
-    }
-    if (option.globalOnly) {
-      delete outputConfig[option.name];
-    }
-  }
-  return outputConfig;
 }
 
 // Renovate's config modules hold module-level state (GlobalConfig, memCache,

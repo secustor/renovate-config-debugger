@@ -1,4 +1,5 @@
 export { runPipeline } from "./pipeline";
+export { globalOnlyOptionNames, removeGlobalConfig } from "./config-scope";
 export {
   type ClauseEvaluation,
   type ClauseState,
