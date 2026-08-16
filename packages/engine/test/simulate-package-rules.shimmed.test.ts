@@ -256,6 +256,27 @@ describe("simulatePackageRules", () => {
     );
     expect(missing.rules[0]?.verdict).toBe("no-match");
 
+    // Both rules end at the same rule-level verdict, so the fail-closed half is
+    // summarized on the RESULT — outside the array every scoped view filters.
+    // Asserted identically in the golden twin: the shims must not move a byte
+    // of it.
+    expect(mismatch.missingInputs).toEqual({ rules: 0, groups: [] });
+    expect(missing.missingInputs.rules).toBe(1);
+    expect(missing.missingInputs.groups).toEqual([
+      {
+        fields: ["sourceUrl"],
+        fieldList: "sourceUrl",
+        selectors: ["matchSourceUrls"],
+        rules: 1,
+        sampleRuleIndexes: [0],
+      },
+    ]);
+    expect(missing.missingInputs.note).toBe(
+      "1 of 1 rule could not match because the simulated dependency has no sourceUrl — " +
+        "Renovate treats a missing value as a non-match. Set sourceUrl on the dependency if " +
+        "you expected these rules to fire.",
+    );
+
     // oracle parity is unaffected by the finer reporting.
     for (const [dep, sim] of [
       [{ ...npmDep, sourceUrl: "https://github.com/react/react" }, mismatch],

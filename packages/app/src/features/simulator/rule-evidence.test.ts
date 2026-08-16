@@ -52,6 +52,7 @@ function simFixture(rules: RuleEvaluation[]): SimulationResult {
     rawFinalConfig: {},
     finalDependencyConfig: {},
     flattened: { merged: [], blocks: {}, authoredBlocks: [] },
+    missingInputs: { rules: 0, groups: [] },
     mergeSteps: [],
     errors: [],
     warnings: [],
