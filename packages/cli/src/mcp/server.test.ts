@@ -35,6 +35,17 @@ const GROUPED =
   '{"labels":["deps"],"packageRules":[{"matchPackageNames":["react"],"groupName":"react"}]}';
 /** The big one — every size assertion in this file is measured against it. */
 const RECOMMENDED = '{"extends":["config:recommended"],"labels":["deps"]}';
+/** One rule of each kind against `react`: a preset rule that fails on an unset
+ *  depType, a matching one, one that fails on an unset sourceUrl, and a genuine
+ *  mismatch — the CLI's `mixed-rules.json` fixture, inline. */
+const MIXED_RULES = JSON.stringify({
+  extends: [":disablePeerDependencies"],
+  packageRules: [
+    { matchPackageNames: ["react"], groupName: "react monorepo" },
+    { matchSourceUrls: ["https://github.com/facebook/react"], labels: ["upstream"] },
+    { matchPackageNames: ["lodash"], labels: ["utils"] },
+  ],
+});
 
 /** The revision the modern era negotiates. */
 const MODERN_PROTOCOL_VERSION = "2026-07-28";
@@ -685,6 +696,7 @@ describe("simulate and compare", () => {
       finalDependencyConfig: Record<string, unknown>;
       configView: { scope: string; keys: number; droppedGlobalOnly?: number };
       flattened: unknown;
+      missingInputs: { rules: number; groups: unknown[] };
       rules: { truncated: boolean; shown: number; omitted: number } | unknown[];
     };
     expect(parsed).not.toHaveProperty("mergeSteps");
@@ -708,6 +720,11 @@ describe("simulate and compare", () => {
     expect(parsed.finalDependencyConfig).not.toHaveProperty("onboardingConfig");
     expect(parsed.finalDependencyConfig).not.toHaveProperty("dryRun");
     expect(parsed.configView.keys).toBe(Object.keys(parsed.finalDependencyConfig).length);
+    // The elision shrinks `rules` first — it is the largest array in the
+    // payload — so the missing-input aggregate has to outlive it, and be
+    // reported by NAME rather than dropped as a key.
+    expect(parsed.missingInputs).toBeDefined();
+    expect(parsed.missingInputs.rules).toBeGreaterThan(0);
     // And the rule list is a real sample of 713, not a token two.
     const rules = parsed.rules as { shown: number; omitted: number };
     expect(rules.shown + rules.omitted).toBeGreaterThan(700);
@@ -801,6 +818,35 @@ describe("simulate and compare", () => {
     expect(scoped.ruleFilter.hidden).toBeGreaterThan(0);
   });
 
+  /**
+   * The agent-shaped version of the bug: `verdict: "matched"` is the natural
+   * ask, and it hides every rule that lost to an unset `dep` field — which
+   * report a plain `no-match`. The summary is a sibling of the rule array, so
+   * no filter can take it away, and it names the parameter that lists them.
+   */
+  test('verdict: "matched" still reports the rules an unset field cost', async () => {
+    const runId = await runConfig(MIXED_RULES);
+    const dep = { depName: "react" };
+    const scoped = (await call("simulate", { runId, dep, verdict: "matched" })) as {
+      rules: unknown[];
+      missingInputs: { rules: number; groups: { fieldList: string; selectors: string[] }[] };
+      missingInputsNote: string;
+    };
+    expect(scoped.rules).toHaveLength(1);
+    expect(scoped.missingInputs.rules).toBe(2);
+    expect(scoped.missingInputs.groups.map((group) => group.fieldList)).toEqual([
+      "depType or depTypes",
+      "sourceUrl",
+    ]);
+    expect(scoped.missingInputsNote).toContain('`verdict: "no-input"` lists them.');
+    expect(scoped.missingInputsNote).not.toContain("--verdict");
+    // …and it is there without asking, too.
+    const unfiltered = (await call("simulate", { runId, dep })) as {
+      missingInputs: { rules: number };
+    };
+    expect(unfiltered.missingInputs.rules).toBe(2);
+  });
+
   test("two runs, one dependency: the edit oracle", async () => {
     const before = await runConfig(CONFIG);
     const after = await runConfig(GROUPED);
@@ -828,6 +874,31 @@ describe("simulate and compare", () => {
     expect(comparison.summary).toBe(
       "identical: the same rules matched and the same effective config results",
     );
+  });
+
+  /** `identical:` over two sides that both went blind on the same rule is not
+   *  an answer about the edit — so each side reports its own input gap. */
+  test("each side reports the rules its dependency could not decide", async () => {
+    const runId = await runConfig(MIXED_RULES);
+    const comparison = (await call("compare_simulations", {
+      runId,
+      dep: { depName: "react" },
+    })) as {
+      a: { missingInputs: { rules: number; groups: { fieldList: string }[] } };
+      b: { missingInputs: { rules: number } };
+      missingInputsNote: string;
+      noChange: boolean;
+    };
+    expect(comparison.noChange).toBe(true);
+    expect(comparison.a.missingInputs.rules).toBe(2);
+    expect(comparison.b.missingInputs.rules).toBe(2);
+    expect(comparison.a.missingInputs.groups.map((group) => group.fieldList)).toEqual([
+      "depType or depTypes",
+      "sourceUrl",
+    ]);
+    expect(comparison.missingInputsNote).toContain("A — 2 of 4 rules could not match");
+    expect(comparison.missingInputsNote).toContain("B — 2 of 4 rules could not match");
+    expect(comparison.missingInputsNote).toContain('`verdict: "no-input"` lists them.');
   });
 });
 

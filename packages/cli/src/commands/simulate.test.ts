@@ -258,6 +258,49 @@ describe("simulate --verdict / --source", () => {
     expect(sim.ruleFilter).toBeUndefined();
   });
 
+  /**
+   * The regression: two of these four rules lose to an unset field, both report
+   * a plain `no-match`, and every scoped view hides them — so the default
+   * output said "1 of 4 matched" and left the reader to conclude the config
+   * does not do what it plainly does.
+   */
+  test("the rules an unset field cost are named even when their rows are hidden", async () => {
+    const { io } = await run();
+    expect(shown(io)).toEqual([2]);
+    expect(io.stdout).toContain("2 of 4 rules could not match");
+    expect(io.stdout).toContain("sourceUrl");
+    expect(io.stdout).toContain("`--verdict no-input` lists them.");
+  });
+
+  test("the same line survives --verdict matched, and --verdict all where nothing is hidden", async () => {
+    const matched = await run("--verdict", "matched");
+    expect(shown(matched.io)).toEqual([2]);
+    expect(matched.io.stdout).toContain("2 of 4 rules could not match");
+
+    const all = await run("--verdict", "all");
+    expect(all.io.stdout).not.toContain("hidden by");
+    expect(all.io.stdout).toContain("2 of 4 rules could not match");
+  });
+
+  test("json carries the summary whatever the filter, and it counts the no-input rows", async () => {
+    const { io } = await run("--format", "json", "--verdict", "matched");
+    const sim = io.json() as {
+      rules: unknown[];
+      missingInputs: { rules: number; groups: { fieldList: string; rules: number }[] };
+      missingInputsNote: string;
+    };
+    expect(sim.rules).toHaveLength(1);
+    // The parity property: the number in the summary is the number of rows
+    // `--verdict no-input` prints.
+    expect(sim.missingInputs.rules).toBe(shown((await run("--verdict", "no-input")).io).length);
+    expect(sim.missingInputs.rules).toBe(2);
+    expect(sim.missingInputs.groups.map((group) => group.fieldList)).toEqual([
+      "depType or depTypes",
+      "sourceUrl",
+    ]);
+    expect(sim.missingInputsNote).toContain("`--verdict no-input` lists them.");
+  });
+
   test("a filtered json payload states what it left out", async () => {
     const { io } = await run("--format", "json", "--verdict", "matched");
     const sim = io.json() as { rules: unknown[]; ruleFilter: Record<string, unknown> };

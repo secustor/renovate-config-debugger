@@ -1,5 +1,6 @@
 import {
   computeRuleProvenance,
+  type MissingInputSummary,
   type RuleEvaluation,
   type SimulationResult,
   type TraceResult,
@@ -161,6 +162,26 @@ export function hiddenRulesNote(view: RuleView): string | undefined {
     `${view.hidden} of ${view.total} ${noun} hidden by ${flagsOf(view)} — ` +
     "`--verdict all --source all` shows every rule."
   );
+}
+
+/**
+ * The engine's transport-neutral missing-input line, with the pointer that
+ * only this layer can spell: `--verdict no-input` for a person at a terminal,
+ * `verdict: "no-input"` for an agent that cannot pass a flag.
+ *
+ * A SIBLING of `hiddenRulesNote`, never folded into it. That note answers
+ * "what did the filter cost" and disappears when nothing was filtered — which
+ * is precisely the view (`--verdict all`, an unfiltered MCP call) where the
+ * no-input fact is still the whole answer.
+ */
+export function missingInputsNote(
+  summary: MissingInputSummary,
+  transport: RunTransport,
+): string | undefined {
+  if (!summary.note) {
+    return undefined;
+  }
+  return `${summary.note} \`${facetText(transport, "verdict", "no-input")}\` lists them.`;
 }
 
 /** The JSON counterpart: present only when filters were actually applied, so

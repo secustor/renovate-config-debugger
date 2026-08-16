@@ -7,6 +7,7 @@ import { INPUT_OPTIONS, refusalNote, runOne, takeInputFile, wouldRefuse } from "
 import { readDependency } from "../dep";
 import { diffLine, parseConfigScope, parseKeys } from "../projections/config-view";
 import { comparisonPayload } from "../projections/simulate";
+import { missingInputsNote } from "../rule-view";
 import { simulateAgainst } from "./simulate";
 
 /**
@@ -109,16 +110,35 @@ export const compareCommand: Command = {
       ...(refusedB && b.result !== a.result ? ["config B"] : []),
     ]);
 
+    // Per SIDE, and reported even when the verdict is `identical:`. Two sides
+    // that both failed to evaluate the same rule for lack of input agree
+    // perfectly — and "the edit does nothing" is the wrong lesson to draw from
+    // two blind runs.
+    const missingA = missingInputsNote(simA.missingInputs, "cli");
+    const missingB = missingInputsNote(simB.missingInputs, "cli");
+
     if (format === "json") {
       emitJson(io, {
-        a: { config: file ?? "(stdin/repo)", dep: depA, wouldRefuse: refusedA },
-        b: { config: fileB ?? file ?? "(stdin/repo)", dep: depB, wouldRefuse: refusedB },
+        a: {
+          config: file ?? "(stdin/repo)",
+          dep: depA,
+          wouldRefuse: refusedA,
+          missingInputs: simA.missingInputs,
+        },
+        b: {
+          config: fileB ?? file ?? "(stdin/repo)",
+          dep: depB,
+          wouldRefuse: refusedB,
+          missingInputs: simB.missingInputs,
+        },
         ...comparison,
         ...(refusal ? { exitNote: refusal } : {}),
       });
     } else {
       emitLines(io, [
         comparisonHeadline(comparison),
+        ...(missingA ? ["", `A — ${missingA}`] : []),
+        ...(missingB ? ["", `B — ${missingB}`] : []),
         ...(comparison.behaviorOnlyInA.length > 0
           ? ["", "Matched only in A:", ...comparison.behaviorOnlyInA.map((r) => `  ${r.label}`)]
           : []),

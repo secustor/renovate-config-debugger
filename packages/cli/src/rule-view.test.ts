@@ -4,7 +4,7 @@ import type {
   SimulationResult,
   TraceResult,
 } from "@renovate-config-debugger/engine";
-import { buildRuleView } from "./rule-view";
+import { buildRuleView, missingInputsNote } from "./rule-view";
 
 /**
  * The facets themselves are the app's shared predicates, covered where they
@@ -24,6 +24,7 @@ function sim(rules: RuleEvaluation[]): SimulationResult {
     rawFinalConfig: {},
     finalDependencyConfig: {},
     flattened: { merged: [], blocks: {}, authoredBlocks: [] },
+    missingInputs: { rules: 0, groups: [] },
     mergeSteps: [],
     errors: [],
     warnings: [],
@@ -78,5 +79,39 @@ describe("buildRuleView", () => {
     expect(view.total).toBe(2);
     expect(view.hidden).toBe(1);
     expect(view.notes).toEqual([]);
+  });
+});
+
+/** The engine owns the sentence; this layer owns the pointer at its end — and
+ *  the pointer is the half that differs per surface. */
+describe("missingInputsNote", () => {
+  const SUMMARY = {
+    rules: 2,
+    groups: [
+      {
+        fields: ["sourceUrl"],
+        fieldList: "sourceUrl",
+        selectors: ["matchSourceUrls"],
+        rules: 2,
+        sampleRuleIndexes: [0, 2],
+      },
+    ],
+    note: "2 of 4 rules could not match because the simulated dependency has no sourceUrl.",
+  };
+
+  test("the CLI is told the flag it can type", () => {
+    expect(missingInputsNote(SUMMARY, "cli")).toBe(
+      `${SUMMARY.note} \`--verdict no-input\` lists them.`,
+    );
+  });
+
+  test("an agent is told the parameter instead — it cannot pass a flag", () => {
+    const note = missingInputsNote(SUMMARY, "mcp");
+    expect(note).toBe(`${SUMMARY.note} \`verdict: "no-input"\` lists them.`);
+    expect(note).not.toContain("--verdict");
+  });
+
+  test("nothing to say means no line at all", () => {
+    expect(missingInputsNote({ rules: 0, groups: [] }, "cli")).toBeUndefined();
   });
 });

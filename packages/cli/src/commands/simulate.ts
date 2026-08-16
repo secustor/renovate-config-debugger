@@ -13,6 +13,7 @@ import { readDependency } from "../dep";
 import {
   buildRuleView,
   hiddenRulesNote,
+  missingInputsNote,
   ruleFilterPayload,
   ruleFilterSelection,
 } from "../rule-view";
@@ -64,6 +65,11 @@ export const simulateCommand: Command = {
     "hid. `--verdict`/`--source` scope it; `--format json` keeps the full array",
     "unless you pass one of them.",
     "",
+    "Rules that failed only because your `--dep` left a field unset are counted",
+    "in `missingInputs` and stated in one line whatever `--verdict` you asked",
+    "for — those rules report a plain `no-match`, so every scoped view would",
+    "otherwise hide them.",
+    "",
     "`--format json` answers at `--detail verdict`: the merge trace",
     "(`mergeSteps`, `rawFinalConfig`) is ~1 MB on a `config:recommended` run and",
     "is opt-in through `--detail full`, which returns the whole simulation",
@@ -101,9 +107,13 @@ export const simulateCommand: Command = {
     if (format === "json") {
       emitJson(io, {
         dep,
+        // `missingInputs` (and its note) come from the projection, so they are
+        // carried whatever `--verdict`/`--source` did to the `rules` array
+        // below — the rules it counts are the ones a filter removes.
         ...simulationPayload(sim, {
           detail,
           scope: scope ?? "package-rules",
+          transport: selection.transport,
           ...(keys ? { keys } : {}),
         }),
         rules: detail === "full" ? view.rules : collapseRuleMerges(view.rules),
@@ -126,11 +136,17 @@ export const simulateCommand: Command = {
         ),
       );
       const hiddenNote = hiddenRulesNote(view);
+      // A sibling of the hidden-rules note, not part of it: this one is printed
+      // even when the view hid nothing, because the rules it counts are
+      // reported as a plain `no-match` and read as "your config just doesn't
+      // do that".
+      const missingNote = missingInputsNote(sim.missingInputs, selection.transport);
       emitLines(io, [
         `${matched.length} of ${sim.rules.length} packageRules matched.`,
         "",
         ...verdictLines(view.rules),
         ...(hiddenNote ? [hiddenNote] : []),
+        ...(missingNote ? [missingNote] : []),
         "",
         ...(changes.length > 0
           ? ["The rules changed these options for this dependency:", ...changes]

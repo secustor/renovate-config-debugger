@@ -182,7 +182,30 @@ $ rcd simulate renovate.json --dep '{"depName":"@types/react","updateType":"majo
   #1 no-match (matchPackageNames=no-match)
 ```
 
-So `matchPackageNames` is the culprit, not the update type. Add `@types/react`
+So `matchPackageNames` is the culprit, not the update type.
+
+Now suppose rule #1 had selected on something your `--dep` never mentioned —
+`"matchSourceUrls": ["https://github.com/facebook/react"]` instead of
+`matchPackageNames`. From the outside the run looks the same: a rule that reads
+a field you left unset fails CLOSED, which Renovate reports as an ordinary
+`no-match`, and every scoped view hides it. The missing-input line is what says
+so, and it is printed whatever `--verdict` you asked for:
+
+```console
+$ rcd simulate sourceurl.json --dep '{"depName":"@types/react","updateType":"major"}'
+1 of 2 packageRules matched.
+
+  #2 matched (matchUpdateTypes=matched)
+      sets dependencyDashboardApproval = true
+1 of 2 rule hidden by --verdict notable — `--verdict all --source all` shows every rule.
+1 of 2 rules could not match because the simulated dependency has no sourceUrl — Renovate treats a missing value as a non-match. Set sourceUrl on the dependency if you expected these rules to fire. `--verdict no-input` lists them.
+```
+
+`--format json` carries the same fact as `missingInputs` (`rules`, and one group
+per unset field set with its `selectors`, its rule count and up to five
+`sampleRuleIndexes`) plus the sentence as `missingInputsNote`. Both survive
+`--verdict`/`--source` and the MCP answer's size elision, because the rules they
+count are exactly the rows a filter removes. Add `@types/react`
 to that list, keep the original as `before.json`, and use `compare` as the oracle
 for the edit. On the dependency you were fixing it should report exactly the
 change you wanted:
@@ -220,7 +243,12 @@ fields are cross-defaulted the way Renovate's fetch worker does before
 `--dep '{"depName":"react"}'` matches a `matchPackageNames` rule instead of
 falling through, and the run's notes say when a field was defaulted. A clause
 reads `no-input` when the field it matches on was absent from your `--dep`, which
-is a different failure from `no-match`. And if either input config would be
+is a different failure from `no-match` — and a rule that lost only to unset
+input is counted in `missingInputs` on both commands, per side on `compare`
+(`a.missingInputs`/`b.missingInputs`, and an `A — …` / `B — …` line in pretty
+output). Two sides that both went blind on the same rule agree perfectly, so
+`identical:` over them says nothing about your edit. And if either input config
+would be
 refused by Renovate, both commands exit `2`, which says nothing about the
 simulation itself, so they also say so on their own output (`exitNote` in JSON, a
 trailing `note:` line in pretty).

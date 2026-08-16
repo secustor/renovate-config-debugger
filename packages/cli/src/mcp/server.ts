@@ -24,7 +24,7 @@ import {
 } from "@renovate-config-debugger/app/headless";
 import pkg from "../../package.json";
 import { errorMessage, type CliIo } from "../io";
-import { buildRuleView, ruleFilterPayload } from "../rule-view";
+import { buildRuleView, missingInputsNote, ruleFilterPayload } from "../rule-view";
 import { digestPayload } from "../projections/digest";
 import { CONFIG_SCOPES, projectConfig } from "../projections/config-view";
 import { describeMessage, type MessageSeverity } from "../projections/messages";
@@ -729,7 +729,10 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         "(`finalDependencyConfig`) and how they got there (`flattened`). " +
         "A `config:recommended` run has ~700 rules — `verdict` and `source` scope the list " +
         '(`source: "repo"` is "just my own config\'s rules"), and `keys` narrows ' +
-        "`finalDependencyConfig` to the options you asked about. The step-by-step merge trace is " +
+        "`finalDependencyConfig` to the options you asked about. Rules that failed ONLY because " +
+        "your `dep` left a field they read unset are summarized in `missingInputs`, whatever " +
+        "`verdict` you asked for: they report a plain `no-match`, so every scoped view hides them " +
+        'and the answer reads as "nothing matched". The step-by-step merge trace is ' +
         'NOT included unless you ask for detail: "full"; it is the bulk of the payload.',
       annotations: HELD_RUN_ANNOTATIONS,
       inputSchema: z.strictObject({
@@ -761,6 +764,7 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       const payload = simulationPayload(sim, {
         detail: resolvedDetail,
         scope: configScope ?? "package-rules",
+        transport: "mcp",
         ...(keys ? { keys } : {}),
       });
       if (verdict === undefined && source === undefined) {
@@ -793,7 +797,10 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         "the key-level delta of the resulting config underneath it. Pass runIdB to compare two " +
         "configs, or depB to compare two dependencies against the same config. `keys` narrows " +
         "the delta to the options you care about; `summary` and the verdict booleans always " +
-        "describe the WHOLE delta, so narrowing the view never moves the verdict.",
+        "describe the WHOLE delta, so narrowing the view never moves the verdict. A side that " +
+        "could not evaluate a rule for lack of dependency input reports it in its own " +
+        "`missingInputs`: two blind sides agree perfectly, and `identical:` over them is not an " +
+        "answer about your edit.",
       annotations: HELD_RUN_ANNOTATIONS,
       inputSchema: z.strictObject({
         runId: RUN_ID,
@@ -811,9 +818,19 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         simulateRun(a, dep, ctx),
         simulateRun(b, depB ?? dep, ctx),
       ]);
+      // Per side, and outside `comparisonPayload`: the pure diff module states
+      // what the two runs did, and a side that never got to evaluate a rule is
+      // a fact about that side's INPUT, not about the difference.
+      const noteA = missingInputsNote(simA.missingInputs, "mcp");
+      const noteB = missingInputsNote(simB.missingInputs, "mcp");
+      const combined = [
+        ...(noteA ? [`A — ${noteA}`] : []),
+        ...(noteB ? [`B — ${noteB}`] : []),
+      ].join(" ");
       return {
-        a: { runId: a.runId, dep: toDependency(dep) },
-        b: { runId: b.runId, dep: toDependency(depB ?? dep) },
+        a: { runId: a.runId, dep: toDependency(dep), missingInputs: simA.missingInputs },
+        b: { runId: b.runId, dep: toDependency(depB ?? dep), missingInputs: simB.missingInputs },
+        ...(combined ? { missingInputsNote: combined } : {}),
         ...comparisonPayload(compareSimulations(simA, simB), {
           scope: configScope ?? "package-rules",
           ...(keys ? { keys } : {}),
