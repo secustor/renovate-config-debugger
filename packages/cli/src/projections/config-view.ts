@@ -149,15 +149,35 @@ export function projectConfig(
 }
 
 /**
- * A before/after pair for one key. `MergedKey` (a rule's merge) and
- * `ConfigKeyDelta` (a comparison's delta) are structurally the same thing, so
- * the collapsing below is written once and generically — a delta's own extra
- * fields (`inA`, `beforeInherited`, …) ride through untouched.
+ * A before/after pair for one key — `MergedKey`, a rule's merge, which IS
+ * chronological.
  */
 export interface KeyDiff {
   key: string;
   before?: unknown;
   after?: unknown;
+}
+
+/**
+ * The comparison's spelling of the same pair. `ConfigKeyDelta` names its two
+ * sides `a`/`b` because a comparison has no chronology (in `mode:
+ * "dependency"` neither side is "before"), so the collapsing below is written
+ * for both shapes over one predicate — a delta's own extra fields (`kind`,
+ * `inA`, `aInherited`, …) ride through untouched.
+ */
+export interface KeyDelta {
+  key: string;
+  a?: unknown;
+  b?: unknown;
+}
+
+/** The presence and inheritance flags a comparison delta carries alongside its
+ *  values. Optional here so the renderer takes a collapsed delta too. */
+export interface DeltaSides {
+  inA?: boolean;
+  inB?: boolean;
+  aInherited?: boolean;
+  bInherited?: boolean;
 }
 
 /** An `append`-shaped diff, stated instead of re-embedded. */
@@ -175,18 +195,21 @@ export type MaybeCollapsed<T extends KeyDiff> =
   | T
   | (Omit<T, "before" | "after"> & CollapsedKeyDiff);
 
+export type MaybeCollapsedDelta<T extends KeyDelta> = T | (Omit<T, "a" | "b"> & CollapsedKeyDiff);
+
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((entry) => typeof entry === "string");
 }
 
 /**
- * Collapses a `description` append into what it appended.
+ * The collapsed form of a `description` append, or `undefined` when the pair
+ * is not one.
  *
  * The conditions are deliberately narrow: the key is `description`, both sides
- * are string arrays, the before side is non-empty, and `after` starts with
- * `before` — which is precisely what `mergeChildConfig`'s array concatenation
+ * are string arrays, the earlier side is non-empty, and the later one starts
+ * with it — which is precisely what `mergeChildConfig`'s array concatenation
  * guarantees. Anything else stays verbatim: a rule that REPLACED the
- * description must still show both sides, and collapsing an empty `before`
+ * description must still show both sides, and collapsing an empty first side
  * saves nothing.
  *
  * `description` alone, on purpose. It is prose, it is never a matcher input,
@@ -197,20 +220,22 @@ function isStringArray(value: unknown): value is string[] {
  * never drop the key): the full array is one `get_provenance description`
  * away.
  */
-export function collapseDescriptionDiff<T extends KeyDiff>(diff: T): MaybeCollapsed<T> {
-  const { before, after, ...rest } = diff;
+function appendCollapse(
+  key: string,
+  before: unknown,
+  after: unknown,
+): Omit<CollapsedKeyDiff, "key"> | undefined {
   if (
-    diff.key !== "description" ||
+    key !== "description" ||
     !isStringArray(before) ||
     !isStringArray(after) ||
     before.length === 0 ||
     after.length <= before.length ||
     JSON.stringify(after.slice(0, before.length)) !== JSON.stringify(before)
   ) {
-    return diff;
+    return undefined;
   }
   return {
-    ...rest,
     collapsed: "append",
     beforeLength: before.length,
     afterLength: after.length,
@@ -218,23 +243,53 @@ export function collapseDescriptionDiff<T extends KeyDiff>(diff: T): MaybeCollap
   };
 }
 
+/** {@link appendCollapse} over a chronological diff (a rule's merge). */
+export function collapseDescriptionDiff<T extends KeyDiff>(diff: T): MaybeCollapsed<T> {
+  const { before, after, ...rest } = diff;
+  const collapsed = appendCollapse(diff.key, before, after);
+  return collapsed ? { ...rest, ...collapsed } : diff;
+}
+
+/** {@link appendCollapse} over a comparison delta (`a`/`b`). */
+export function collapseDescriptionDelta<T extends KeyDelta>(delta: T): MaybeCollapsedDelta<T> {
+  const { a, b, ...rest } = delta;
+  const collapsed = appendCollapse(delta.key, a, b);
+  return collapsed ? { ...rest, ...collapsed } : delta;
+}
+
 export function collapseDiffs<T extends KeyDiff>(diffs: readonly T[]): MaybeCollapsed<T>[] {
   return diffs.map((diff) => collapseDescriptionDiff(diff));
 }
 
-function isCollapsed(diff: KeyDiff | CollapsedKeyDiff): diff is CollapsedKeyDiff {
+export function collapseDeltas<T extends KeyDelta>(deltas: readonly T[]): MaybeCollapsedDelta<T>[] {
+  return deltas.map((delta) => collapseDescriptionDelta(delta));
+}
+
+function isCollapsed(diff: object): diff is CollapsedKeyDiff {
   return "collapsed" in diff;
 }
 
-/** `key: before → after`, or the collapsed form. The comparison's delta line. */
-export function diffLine(diff: KeyDiff | CollapsedKeyDiff): string {
-  if (isCollapsed(diff)) {
-    return (
-      `${diff.key}: ${diff.beforeLength} entries + ${diff.added.length} appended ` +
-      `(now ${diff.afterLength}) — ${preview(diff.added)}`
-    );
+function collapsedLine(diff: CollapsedKeyDiff): string {
+  return (
+    `${diff.key}: ${diff.beforeLength} entries + ${diff.added.length} appended ` +
+    `(now ${diff.afterLength}) — ${preview(diff.added)}`
+  );
+}
+
+/** Replay-02 N8: a value present in a run's final config that NO merge step
+ *  wrote is a Renovate default, not something the config set. Printing it bare
+ *  asserts an explicit `automerge: false` the config never contained. */
+function deltaSide(value: unknown, inherited: boolean | undefined, run: "A" | "B"): string {
+  return `${preview(value)}${inherited ? ` (default in ${run})` : ""}`;
+}
+
+/** `key: a → b`, or the collapsed form. The comparison's delta line. */
+export function deltaLine(delta: (KeyDelta & DeltaSides) | CollapsedKeyDiff): string {
+  if (isCollapsed(delta)) {
+    return collapsedLine(delta);
   }
-  return `${diff.key}: ${preview(diff.before)} → ${preview(diff.after)}`;
+  const a = deltaSide(delta.a, delta.aInherited, "A");
+  return `${delta.key}: ${a} → ${deltaSide(delta.b, delta.bInherited, "B")}`;
 }
 
 /** `key = value`, or the collapsed form — what one merge step DID, without a

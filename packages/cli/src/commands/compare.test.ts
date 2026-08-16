@@ -34,13 +34,13 @@ describe("compare", () => {
       ),
     ).toBe(0);
     const comparison = io.json() as {
-      noChange: boolean;
-      matchedOnlyInB: { label: string }[];
+      verdict: string;
+      startedMatching: { label: string }[];
       configDelta: { key: string }[];
       configView: { scope: string };
     };
-    expect(comparison.noChange).toBe(false);
-    expect(comparison.matchedOnlyInB[0]?.label).toBe("matchPackageNames");
+    expect(comparison.verdict).toBe("differs");
+    expect(comparison.startedMatching[0]?.label).toBe("matchPackageNames");
     expect(comparison.configDelta.map((d) => d.key)).toContain("groupName");
     // Roadmap 070: the delta is a VIEW now, and it says which one it is.
     expect(comparison.configView.scope).toBe("package-rules");
@@ -62,7 +62,7 @@ describe("compare", () => {
         io,
       ),
     ).toBe(0);
-    expect(io.json()).toMatchObject({ noChange: true });
+    expect(io.json()).toMatchObject({ verdict: "identical" });
   });
 
   test("pretty output leads with the verdict, then the evidence", async () => {
@@ -81,11 +81,34 @@ describe("compare", () => {
     ).toBe(0);
     // The headline is the comparison's own one-liner: the verdict AND what it
     // was about, so a reader never has to assemble it from the arrays below.
+    // `description` is prose, so it is filed behind the behavioral keys rather
+    // than headlining them by alphabetical accident.
     expect(io.stdout.split("\n")[0]).toBe(
-      "Behavior differs between A and B — dependencyDashboard, description, groupName.",
+      "Behavior differs between A and B — dependencyDashboard (A=true by default, B=false by " +
+        'default), groupName (A=null by default, B="react monorepo"); description also changed ' +
+        "(documentation); 1 rule started matching.",
     );
     expect(io.stdout).toContain("Matched only in B:");
     expect(io.stdout).toContain("groupName");
+  });
+
+  /** Replay-02 N8, on the CLI side: a value NO merge step wrote is a Renovate
+   *  default, and printing it bare asserts a setting the config never carried. */
+  test("the delta marks a side the config never set as a default", async () => {
+    const io = recordingIo();
+    expect(
+      await main(
+        [
+          "compare",
+          fixture("clean.json"),
+          fixture("grouped.json"),
+          "--dep",
+          '{"depName":"react","packageName":"react"}',
+        ],
+        io,
+      ),
+    ).toBe(0);
+    expect(io.stdout).toContain('groupName: null (default in A) → "react monorepo"');
   });
 
   test("the JSON carries the same one-liner, so no consumer re-derives it", async () => {
@@ -108,14 +131,20 @@ describe("compare", () => {
       summary: string;
       configDelta: { key: string }[];
     };
-    expect(summary).toBe("differs: dependencyDashboard, description, groupName");
+    expect(summary).toBe(
+      "differs: dependencyDashboard (A=true by default, B=false by default), groupName " +
+        '(A=null by default, B="react monorepo"); description also changed (documentation); ' +
+        "1 rule started matching",
+    );
     expect(io.stdout).toContain("summary");
     // Roadmap 070: the summary is built from the delta's KEYS, and collapsing
-    // a value is only safe because it never moves one. Pinned explicitly.
+    // a value is only safe because it never moves one. Pinned explicitly —
+    // behavioral keys first, alphabetical within group, so the array reads in
+    // the order the summary names it.
     expect(configDelta.map((d) => d.key)).toEqual([
       "dependencyDashboard",
-      "description",
       "groupName",
+      "description",
     ]);
   });
 
@@ -168,9 +197,9 @@ describe("compare", () => {
     const comparison = json.json() as {
       a: { missingInputs: { rules: number; groups: { fieldList: string }[] } };
       b: { missingInputs: { rules: number } };
-      noChange: boolean;
+      verdict: string;
     };
-    expect(comparison.noChange).toBe(true);
+    expect(comparison.verdict).toBe("identical");
     expect(comparison.a.missingInputs.rules).toBe(2);
     expect(comparison.b.missingInputs.rules).toBe(2);
     expect(comparison.a.missingInputs.groups.map((group) => group.fieldList)).toEqual([
@@ -204,7 +233,11 @@ describe("compare", () => {
     };
     expect(comparison.configDelta.map((d) => d.key)).toEqual(["groupName"]);
     // The verdict describes the whole comparison, not the view of it.
-    expect(comparison.summary).toBe("differs: dependencyDashboard, description, groupName");
+    expect(comparison.summary).toBe(
+      "differs: dependencyDashboard (A=true by default, B=false by default), groupName " +
+        '(A=null by default, B="react monorepo"); description also changed (documentation); ' +
+        "1 rule started matching",
+    );
     // The reason a caller can act on: `--config-scope full` is what would
     // make a globalOnly name answerable, whether or not the delta held it.
     expect(comparison.configView.withheld).toEqual([
@@ -231,38 +264,70 @@ function narrowingArgs(...extra: string[]): string[] {
   ];
 }
 
+interface Comparison {
+  verdict: string;
+  configDelta: unknown[];
+  stoppedMatching: unknown[];
+  startedMatching: unknown[];
+  identity: {
+    changed: boolean;
+    onlyInA: unknown[];
+    signatureChanges: { a: { label: string }; kind: string; keys: string[] }[];
+  };
+}
+
 describe("compare separates behavior from rule identity", () => {
   const args = narrowingArgs;
 
   test("narrowing the matched array around the dependency is no behavioral change", async () => {
     const io = recordingIo();
     expect(await main(args("--format", "json"), io)).toBe(0);
-    const comparison = io.json() as {
-      noChange: boolean;
-      rulesChanged: boolean;
-      configDelta: unknown[];
-      signatureChanges: { a: { label: string }; b: { label: string } }[];
-      behaviorOnlyInA: unknown[];
-      behaviorOnlyInB: unknown[];
-      matchedOnlyInA: unknown[];
-    };
-    expect(comparison.noChange).toBe(true);
+    const comparison = io.json() as Comparison;
+    expect(comparison.verdict).toBe("identical");
     expect(comparison.configDelta).toEqual([]);
-    expect(comparison.behaviorOnlyInA).toEqual([]);
-    expect(comparison.behaviorOnlyInB).toEqual([]);
-    // The identity axis still reports the churn, on its own fields.
-    expect(comparison.rulesChanged).toBe(true);
-    expect(comparison.matchedOnlyInA).toHaveLength(1);
-    expect(comparison.signatureChanges).toHaveLength(1);
-    expect(comparison.signatureChanges[0]?.a.label).toBe("matchPackageNames");
+    expect(comparison.stoppedMatching).toEqual([]);
+    expect(comparison.startedMatching).toEqual([]);
+    // The identity axis still reports the churn, on its own fields — nested,
+    // so `identity.onlyInA` cannot be misread as "stopped matching".
+    expect(comparison.identity.changed).toBe(true);
+    expect(comparison.identity.onlyInA).toHaveLength(1);
+    expect(comparison.identity.signatureChanges).toHaveLength(1);
+    expect(comparison.identity.signatureChanges[0]?.a.label).toBe("matchPackageNames");
+    expect(comparison.identity.signatureChanges[0]?.kind).toBe("clause-values-changed");
   });
 
   test("pretty output headlines on behavior and files the churn underneath", async () => {
     const io = recordingIo();
     expect(await main(args(), io)).toBe(0);
     expect(io.stdout.split("\n")[0]).toContain("✓ No behavioral change");
-    expect(io.stdout).toContain("a rule's pattern text changed");
+    expect(io.stdout).toContain("a rule's matchPackageNames list changed");
     expect(io.stdout).toContain("Selector text changed, same effect (rule identity, not behavior)");
+  });
+
+  /**
+   * The parenthetical used to be one hardcoded sentence, "a rule's pattern
+   * text changed", fired for every behavior-preserving edit — factually wrong
+   * for the ones that ADD a clause, and untested until now.
+   */
+  test("an added clause is named as an addition, not as a pattern rewrite", async () => {
+    const added = [
+      "compare",
+      fixture("narrow-before.json"),
+      fixture("clause-added-after.json"),
+      "--dep",
+      '{"depName":"react","updateType":"minor"}',
+    ];
+    const io = recordingIo();
+    expect(await main(added, io)).toBe(0);
+    expect(io.stdout).toContain("a rule gained a matchUpdateTypes clause");
+    expect(io.stdout).not.toContain("pattern text changed");
+
+    const json = recordingIo();
+    expect(await main([...added, "--format", "json"], json)).toBe(0);
+    const comparison = json.json() as Comparison;
+    expect(comparison.verdict).toBe("identical");
+    expect(comparison.identity.signatureChanges[0]?.kind).toBe("clause-added");
+    expect(comparison.identity.signatureChanges[0]?.keys).toEqual(["matchUpdateTypes"]);
   });
 });
 

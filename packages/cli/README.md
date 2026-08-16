@@ -253,30 +253,52 @@ change you wanted:
 
 ```console
 $ rcd compare before.json after.json --dep '{"depName":"@types/react","updateType":"major"}'
-Behavior differs between A and B — minimumReleaseAge.
+Behavior differs between A and B — minimumReleaseAge (A=null by default, B="7 days"); 1 rule started matching.
 
 Matched only in B:
   matchPackageNames
 
 Config delta:
-  minimumReleaseAge: null → "7 days"
+  minimumReleaseAge: null (default in A) → "7 days"
 ```
 
 And on a dependency that already worked, nothing:
 
 ```console
 $ rcd compare before.json after.json --dep '{"depName":"react","updateType":"major"}'
-✓ No behavioral change — the same effective config results (a rule's pattern text changed), which is expected when you edit the array the rule matches on.
+✓ No behavioral change — the same effective config results (a rule's matchPackageNames list changed), which is expected when the edit touched the very selectors that rule matches on.
 
 Selector text changed, same effect (rule identity, not behavior):
-  matchPackageNames  #1 → #1
+  matchPackageNames  #1 → #1  (clause-values-changed)
 ```
 
-That second run is the point of the two axes. Behavior is the citable claim, the
+That second run is the point of the two axes. Behavior is the citable claim: the
 per-dependency config is identical and no rule started or stopped doing
 something. Rule identity goes true on edits that provably change nothing, because
 adding an entry to the array a rule matches on rewrites that rule's selector
-text.
+text — and the parenthetical says WHICH kind of rewrite it was, so
+`clause-added` never reads as a pattern replacement.
+
+### Reading the comparison JSON
+
+`--format json` and the MCP `compare_simulations` answer carry the same object.
+It is ordered so the answer comes first:
+
+| field                                     | what it says                                                                                                                                 |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `summary`                                 | the whole verdict in one line — `${verdict}: ${netEffect}`                                                                                   |
+| `verdict`                                 | `identical`, `documentation-only` (only prose such as `description` moved), or `differs`                                                     |
+| `netEffect`                               | the words after the colon, so no consumer slices the string                                                                                  |
+| `mode`                                    | which axis the caller varied: `config`, `dependency`, or `unspecified`                                                                       |
+| `stoppedMatching` / `startedMatching`     | BEHAVIOR: effects one side produced and the other did not                                                                                    |
+| `matchedInBoth`                           | rules paired by selector signature                                                                                                           |
+| `configDelta[]`                           | changed keys, behavioral first; `kind` is `behavioral` or `documentation`, `a`/`b` are the two sides, `inA`/`inB` say which side has the key |
+| `configDelta[].aInherited` / `bInherited` | that side's value reached the final config with NO merge step writing it — a Renovate default, not a setting the config carries              |
+| `identity.*`                              | bookkeeping about selector TEXT, **not** a behavior claim: `changed`, `signatureChanges[]` (each with `kind` and `keys`), `onlyInA/onlyInB`  |
+
+`summary`, `verdict` and `netEffect` always describe the WHOLE delta, so
+`--keys`/`--config-scope` narrow the view without ever moving the verdict; what
+the view withheld is in `configView`.
 
 A few things to know when you write your own `--dep`. The two name
 fields are cross-defaulted the way Renovate's fetch worker does before

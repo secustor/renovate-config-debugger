@@ -6,44 +6,8 @@ import type {
 } from "@renovate-config-debugger/engine";
 import { toDescriptor } from "./form";
 import { previewValue, writeMark } from "./rule-format";
-import type { PinnedRun } from "./use-ab-comparison";
+import { descriptorDiffKeys, type PinnedRun } from "./use-ab-comparison";
 import { WriteRow, type WriteValue } from "./WriteRow";
-
-/**
- * Roadmap 021: the fields two descriptors disagree on, sorted for a stable
- * warning message. Compared via JSON so array-valued fields (lockFiles,
- * registryUrls, categories) and the `isBump` flag (only present when
- * updateType is "bump") are handled the same as everywhere else in this file.
- */
-function descriptorDiffKeys(a: DependencyDescriptor, b: DependencyDescriptor): string[] {
-  const keys = new Set<string>([...Object.keys(a), ...Object.keys(b)]);
-  const diffs: string[] = [];
-  for (const key of keys) {
-    const av = (a as Record<string, unknown>)[key];
-    const bv = (b as Record<string, unknown>)[key];
-    if (JSON.stringify(av) !== JSON.stringify(bv)) {
-      diffs.push(key);
-    }
-  }
-  return diffs.toSorted();
-}
-
-/**
- * Roadmap 062: the no-change verdict is about BEHAVIOR — the resulting config
- * and what every rule did. When a selector's text moved too (the unavoidable
- * side effect of editing the array a rule matches on), the sentence says so,
- * so the reader is not left wondering whether the panel noticed their edit.
- */
-function noChangeText(comparison: SimulationComparison): string {
-  if (comparison.rulesChanged) {
-    return (
-      "No behavioral change — the final per-dependency config is identical in A and B, and every " +
-      "rule still does what it did. A rule's pattern text changed, which is expected when the " +
-      "edit is to the array that rule matches on."
-    );
-  }
-  return "No behavioral change — the matched rules and the final per-dependency config are identical in A and B.";
-}
 
 /** Roadmap 021: one column ("A (pinned)" / "B (current)") of the A/B input
  *  descriptor comparison — every field the simulator actually sent the
@@ -143,8 +107,12 @@ function ConfigDeltaSection({ configDelta }: { configDelta: ConfigKeyDelta[] }) 
               key={d.key}
               name={d.key}
               mark={writeMark(d.inA, d.inB)}
-              before={deltaSide(d.before, d.inA, d.beforeInherited, "(unset)", "A")}
-              after={deltaSide(d.after, d.inB, d.afterInherited, "(removed)", "B")}
+              before={deltaSide(d.a, d.inA, d.aInherited, "(unset)", "A")}
+              after={deltaSide(d.b, d.inB, d.bInherited, "(removed)", "B")}
+              // Prose Renovate accumulates from every matched rule: it moves
+              // whenever the matched-rule set does, and on its own it is not a
+              // behavioral difference.
+              note={d.kind === "documentation" ? "documentation text" : undefined}
             />
           ))}
         </div>
@@ -154,6 +122,45 @@ function ConfigDeltaSection({ configDelta }: { configDelta: ConfigKeyDelta[] }) 
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * The verdict, in the comparison's OWN words (`netEffect`) rather than a
+ * sentence this panel invents — the app used to assert "a rule's pattern text
+ * changed" for every behavior-preserving edit, including ones that added a
+ * clause. Three states: identical, documentation-only (prose moved, behavior
+ * did not — the delta is still shown, so the reader can see what), and differs.
+ */
+function ComparisonBody({ comparison }: { comparison: SimulationComparison }) {
+  if (comparison.verdict === "identical") {
+    return <p className="sim-compare-nochange">No behavioral change — {comparison.netEffect}.</p>;
+  }
+  if (comparison.verdict === "documentation-only") {
+    return (
+      <>
+        <p className="sim-compare-nochange">No behavioral change — {comparison.netEffect}.</p>
+        <ConfigDeltaSection configDelta={comparison.configDelta} />
+      </>
+    );
+  }
+  return (
+    <>
+      <div className="sim-compare-rules">
+        <RuleDeltaList
+          title="Only in A (stopped matching)"
+          refs={comparison.stoppedMatching}
+          kind="only-a"
+        />
+        <RuleDeltaList
+          title="Only in B (now matching)"
+          refs={comparison.startedMatching}
+          kind="only-b"
+        />
+        <RuleDeltaList title="Matched in both" refs={comparison.matchedInBoth} kind="both" />
+      </div>
+      <ConfigDeltaSection configDelta={comparison.configDelta} />
+    </>
   );
 }
 
@@ -223,25 +230,8 @@ export function ComparisonPanel({
           Pinned this result as <strong>A</strong>. Edit the config and run the pipeline again, then
           simulate to compare it against <strong>B</strong>.
         </p>
-      ) : comparison.noChange ? (
-        <p className="sim-compare-nochange">{noChangeText(comparison)}</p>
       ) : (
-        <>
-          <div className="sim-compare-rules">
-            <RuleDeltaList
-              title="Only in A (stopped matching)"
-              refs={comparison.behaviorOnlyInA}
-              kind="only-a"
-            />
-            <RuleDeltaList
-              title="Only in B (now matching)"
-              refs={comparison.behaviorOnlyInB}
-              kind="only-b"
-            />
-            <RuleDeltaList title="Matched in both" refs={comparison.matchedInBoth} kind="both" />
-          </div>
-          <ConfigDeltaSection configDelta={comparison.configDelta} />
-        </>
+        <ComparisonBody comparison={comparison} />
       )}
       <details className="sim-compare-inputs" open={diffKeys.size > 0}>
         <summary>Inputs compared</summary>

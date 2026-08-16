@@ -1078,9 +1078,9 @@ describe("simulate and compare", () => {
       runId: before,
       runIdB: after,
       dep,
-    })) as { noChange: boolean; summary: string; matchedOnlyInB: { label: string }[] };
-    expect(comparison.noChange).toBe(false);
-    expect(comparison.matchedOnlyInB[0]?.label).toBe("matchPackageNames");
+    })) as { verdict: string; summary: string; startedMatching: { label: string }[] };
+    expect(comparison.verdict).toBe("differs");
+    expect(comparison.startedMatching[0]?.label).toBe("matchPackageNames");
     // Roadmap 068 (4 of 9 persona sessions): the net effect, before anyone has
     // to assemble it out of six arrays.
     expect(comparison.summary).toContain("differs: ");
@@ -1092,11 +1092,14 @@ describe("simulate and compare", () => {
     const comparison = (await call("compare_simulations", {
       runId,
       dep: { depName: "react", packageName: "react" },
-    })) as { noChange: boolean; summary: string };
-    expect(comparison.noChange).toBe(true);
+    })) as { verdict: string; summary: string; mode: string };
+    expect(comparison.verdict).toBe("identical");
     expect(comparison.summary).toBe(
       "identical: the same rules matched and the same effective config results",
     );
+    // One run, one dependency: the caller varied the config (of which there is
+    // one), never the dependency — the engine cannot see which and is told.
+    expect(comparison.mode).toBe("config");
   });
 
   /** `identical:` over two sides that both went blind on the same rule is not
@@ -1110,9 +1113,9 @@ describe("simulate and compare", () => {
       a: { missingInputs: { rules: number; groups: { fieldList: string }[] } };
       b: { missingInputs: { rules: number } };
       missingInputsNote: string;
-      noChange: boolean;
+      verdict: string;
     };
-    expect(comparison.noChange).toBe(true);
+    expect(comparison.verdict).toBe("identical");
     expect(comparison.a.missingInputs.rules).toBe(2);
     expect(comparison.b.missingInputs.rules).toBe(2);
     expect(comparison.a.missingInputs.groups.map((group) => group.fieldList)).toEqual([

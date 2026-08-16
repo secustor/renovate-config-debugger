@@ -21,9 +21,15 @@ export {
   summarizeMissingInputs,
 } from "./simulate-missing-inputs";
 export {
+  type CompareOptions,
   compareSimulations,
+  type ComparisonMode,
+  type ComparisonVerdict,
   type ConfigKeyDelta,
+  type DeltaKind,
+  type RuleIdentityChurn,
   type RuleRef,
+  type SelectorChangeKind,
   type SignatureChange,
   type SimulationComparison,
 } from "./simulate-compare";

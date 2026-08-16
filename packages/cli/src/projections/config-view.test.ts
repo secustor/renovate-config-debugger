@@ -1,10 +1,12 @@
 import { describe, expect, test } from "vitest";
 import { globalOnlyOptionNames } from "@renovate-config-debugger/engine";
 import {
+  collapseDeltas,
+  collapseDescriptionDelta,
   collapseDescriptionDiff,
   collapseDiffs,
   type ConfigScope,
-  diffLine,
+  deltaLine,
   mergedLine,
   parseConfigScope,
   parseKeys,
@@ -137,11 +139,34 @@ describe("collapseDescriptionDiff", () => {
     expect(collapseDescriptionDiff(diff)).toBe(diff);
   });
 
-  test("a delta's own extra fields ride through the collapse", () => {
+  test("a rule's own extra fields ride through the collapse", () => {
     const collapsed = collapseDiffs([
-      { key: "description", before, after: [...before, "And this."], inA: true, inB: true },
+      { key: "description", before, after: [...before, "And this."], ruleIndex: 3 },
     ]);
-    expect(collapsed[0]).toMatchObject({ inA: true, inB: true, collapsed: "append" });
+    expect(collapsed[0]).toMatchObject({ ruleIndex: 3, collapsed: "append" });
+  });
+
+  /** The comparison names its two sides `a`/`b` — it has no chronology — so
+   *  the same append has to collapse under that spelling too, with the delta's
+   *  own fields (`kind`, `inA`, `aInherited`) riding through untouched. */
+  test("a comparison delta collapses on a/b, keeping its own fields", () => {
+    const collapsed = collapseDeltas([
+      {
+        key: "description",
+        kind: "documentation",
+        a: before,
+        b: [...before, "And this."],
+        inA: true,
+        inB: true,
+      },
+    ]);
+    expect(collapsed[0]).toMatchObject({
+      kind: "documentation",
+      inA: true,
+      inB: true,
+      collapsed: "append",
+      added: ["And this."],
+    });
   });
 
   test("collapsing an append is an order of magnitude smaller than the diff", () => {
@@ -157,21 +182,39 @@ describe("collapseDescriptionDiff", () => {
 });
 
 describe("rendering", () => {
-  const collapsed = collapseDescriptionDiff({
+  const collapsedMerge = collapseDescriptionDiff({
     key: "description",
     before: ["One.", "Two."],
     after: ["One.", "Two.", "Three."],
   });
-
-  test("a collapsed diff renders what it added, not both arrays", () => {
-    expect(diffLine(collapsed)).toBe('description: 2 entries + 1 appended (now 3) — ["Three."]');
-    expect(mergedLine(collapsed)).toBe('description += 1 of 3 entries: ["Three."]');
+  const collapsedDelta = collapseDescriptionDelta({
+    key: "description",
+    a: ["One.", "Two."],
+    b: ["One.", "Two.", "Three."],
   });
 
-  test("an ordinary diff renders before → after", () => {
-    const diff = { key: "groupName", before: undefined, after: "react monorepo" };
-    expect(diffLine(diff)).toBe('groupName: (unset) → "react monorepo"');
-    expect(mergedLine(diff)).toBe('groupName = "react monorepo"');
+  test("a collapsed diff renders what it added, not both arrays", () => {
+    expect(deltaLine(collapsedDelta)).toBe(
+      'description: 2 entries + 1 appended (now 3) — ["Three."]',
+    );
+    expect(mergedLine(collapsedMerge)).toBe('description += 1 of 3 entries: ["Three."]');
+  });
+
+  test("an ordinary delta renders a → b", () => {
+    expect(deltaLine({ key: "groupName", a: undefined, b: "react monorepo" })).toBe(
+      'groupName: (unset) → "react monorepo"',
+    );
+    expect(mergedLine({ key: "groupName", before: undefined, after: "react monorepo" })).toBe(
+      'groupName = "react monorepo"',
+    );
+  });
+
+  /** Replay-02 N8: a value NO merge step wrote is a Renovate default. Rendered
+   *  bare it asserts a setting the config never carried. */
+  test("an inherited side says so instead of asserting a value", () => {
+    expect(
+      deltaLine({ key: "automerge", a: false, b: true, inA: true, inB: true, aInherited: true }),
+    ).toBe("automerge: false (default in A) → true");
   });
 });
 
