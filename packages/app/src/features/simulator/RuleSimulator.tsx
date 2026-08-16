@@ -5,11 +5,13 @@ import { HypotheticalBanner } from "@/components/HypotheticalBanner";
 import { RuleFramingAside } from "@/components/rule-framing";
 import { useDescriptionProvenance } from "@/hooks/description-provenance";
 import { useRuleProvenance } from "@/hooks/rule-provenance";
+import { consumedAuthoredBlocks } from "@/lib/consumed-blocks";
 import { ruleLayerIndex } from "@/lib/rule-filters";
 import type { ShareSimulator } from "@/lib/share";
+import { changedDependencyKeys } from "@/lib/simulation-changes";
+import { buildNoInputCaveat, buildVerdictSegments } from "@/lib/verdict-sentence";
 import type { ErrorTranslationLib } from "@/platform/run";
 import { ComparisonPanel } from "./ComparisonPanel";
-import { consumedAuthoredBlocks } from "./consumed-blocks";
 import { SIM_FORM_ID } from "./datalist-ids";
 import { EMPTY_FORM, type FormState, hasMeaningfulInput } from "./form";
 import { buildMergeStops } from "./merge-stops";
@@ -21,7 +23,6 @@ import { SimMessages } from "./SimMessages";
 import { SimRulesDrawer } from "./SimRulesDrawer";
 import { SimulatorForm } from "./SimulatorForm";
 import { SimVerdictBlock } from "./SimVerdictBlock";
-import { UPDATE_TYPE_KEYS } from "./update-type-keys";
 import { useAbComparison } from "./use-ab-comparison";
 import { useEngineModule } from "./use-engine-module";
 import { useRuleFocus } from "./use-rule-focus";
@@ -30,7 +31,6 @@ import { useSimulationRun } from "./use-simulation-run";
 import { useSimulatorDrawers } from "./use-simulator-drawers";
 import { useSimulatorForm } from "./use-simulator-form";
 import { useThreadNav } from "./use-thread-nav";
-import { buildNoInputCaveat, buildVerdictSegments } from "./verdict-sentence";
 import { buildVerdictThreads } from "./verdict-threads";
 
 const nf = new Intl.NumberFormat();
@@ -231,26 +231,14 @@ export const RuleSimulator = memo(function RuleSimulator({
     [finalConfig],
   );
   // Keys the rules changed vs. the pre-rules effective config, for the verdict
-  // ledger and the final section's summary. Roadmap 046: the base is flattened
-  // the same way the engine flattens `finalDependencyConfig` — the update-type
-  // blocks Renovate ALWAYS deletes are not "removed by the rules", and listing
-  // them as such buried the one real change under seven `removed` rows. A key
-  // an update-type block genuinely merged UP still surfaces: it lands
-  // top-level on the final config, where the base never had it.
-  const changedKeys = useMemo(() => {
-    if (!sim || !finalConfig) {
-      return [];
-    }
-    const base: Record<string, unknown> = { ...finalConfig };
-    delete base.packageRules;
-    for (const key of UPDATE_TYPE_KEYS) {
-      delete base[key];
-    }
-    const keys = new Set([...Object.keys(base), ...Object.keys(sim.finalDependencyConfig)]);
-    return [...keys]
-      .filter((key) => JSON.stringify(base[key]) !== JSON.stringify(sim.finalDependencyConfig[key]))
-      .toSorted();
-  }, [sim, finalConfig]);
+  // ledger and the final section's summary — the shared derivation, so the CLI
+  // quotes the same list (roadmap 048). The memo stays: it walks the whole
+  // effective config, and re-deriving it per keystroke is what roadmap 032
+  // measured away.
+  const changedKeys = useMemo(
+    () => (sim ? changedDependencyKeys(sim, finalConfig) : []),
+    [sim, finalConfig],
+  );
 
   // Roadmap 046: the merge timeline's stops — shared between the timeline
   // itself and the verdict ledger's "step N of M →" jump links.

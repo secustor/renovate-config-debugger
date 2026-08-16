@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import { Term } from "@/components/glossary";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
-import type { ConsumedBlock } from "./consumed-blocks";
+import type { ConsumedBlock } from "@/lib/consumed-blocks";
 
 /** Roadmap 047: the aside itself — one line per authored block that didn't
  *  apply, naming its own keys, its source preset when that is unambiguous,

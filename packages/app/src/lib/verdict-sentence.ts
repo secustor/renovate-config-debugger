@@ -158,6 +158,15 @@ export function buildVerdictSegments(
 }
 
 /**
+ * The segments as the card renders them — modals upper-cased, which is the
+ * emphasis the sentence was written around. The one text for the transcript,
+ * aria and the CLI, so a screenshot and `rcd simulate` never disagree.
+ */
+export function verdictText(segments: VerdictSegment[]): string {
+  return segments.map((s) => (typeof s === "string" ? s : s.modal.toUpperCase())).join("");
+}
+
+/**
  * Replay-02 R3: the verdict card's honesty caveat. A rule from the user's own
  * config that reached "no match" SOLELY through fail-closed `no-input` clauses
  * lost to an empty simulator field, not to the user's data — without saying

@@ -11,8 +11,8 @@ import { OptionKey } from "@/components/option-docs";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
 import type { SequenceDotLevel } from "@/components/SequenceTimeline";
 import type { StepThroughStep } from "@/components/StepThrough";
+import { UPDATE_TYPE_KEYS } from "@/lib/update-type-keys";
 import { ruleLabel } from "./rule-format";
-import { UPDATE_TYPE_KEYS } from "./update-type-keys";
 
 /** Roadmap 044: the changed keys of one merge step, as inline `<code>` chips
  *  inside the stepper's explanation row. */
