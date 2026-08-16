@@ -740,6 +740,116 @@ describe("explain_message and get_option_docs", () => {
     expect(explained.severity).toBe("warning");
   });
 
+  /**
+   * The severity used to be "error unless the run's warnings hold this exact
+   * text" — so every near miss, and every call without a run, came back a
+   * confident `error`. The realistic near miss is not a typo: it is the digest,
+   * which quotes the first problem shortened and with the trailing period
+   * stripped. An agent pasting that back was told the wrong list with no hint
+   * that anything had failed to match.
+   */
+  test("a message the run does not hold gets severity null, not a guess", async () => {
+    const summary = (await call("run_config", {
+      fileName: "renovate.json",
+      content: '{"labels":5}',
+    })) as { runId: string; errors: { message: string }[] };
+    const full = summary.errors[0]?.message ?? "";
+    const nearMiss = `${full.slice(0, Math.floor(full.length / 2))}…`;
+    const explained = (await call("explain_message", {
+      runId: summary.runId,
+      message: nearMiss,
+    })) as { severity: string | null; severityNote?: string };
+    expect(explained.severity).toBeNull();
+    expect(explained.severityNote).toContain("errors");
+  });
+
+  test("without a runId nothing decides the severity either", async () => {
+    const explained = (await call("explain_message", {
+      message: "Configuration option `labels` should be a list (Array)",
+    })) as { severity: string | null; severityNote?: string };
+    expect(explained.severity).toBeNull();
+    expect(explained.severityNote).toMatch(/nothing decided/);
+  });
+
+  /**
+   * Renovate files WARNINGS under the topic "Configuration Error" too, so an
+   * agent that reasons the topic out from the severity it observed gets an
+   * exact-match miss. The text alone is the retry tier.
+   */
+  test("a wrong topic falls back to the text and still finds the warning", async () => {
+    const summary = (await call("run_config", {
+      fileName: "renovate.json",
+      content: '{"dryRun":"full"}',
+    })) as { runId: string; warnings: { topic: string; message: string }[] };
+    expect(summary.warnings[0]?.topic).toBe("Configuration Error");
+    const explained = (await call("explain_message", {
+      runId: summary.runId,
+      topic: "Configuration Warning",
+      message: summary.warnings[0]?.message,
+    })) as { severity: string | null };
+    expect(explained.severity).toBe("warning");
+  });
+
+  test("run_config numbers every message, and points at the parameter that takes it", async () => {
+    const summary = (await call("run_config", {
+      fileName: "renovate.json",
+      content: '{"labels":5,"dryRun":"full"}',
+    })) as {
+      errors: { index: number }[];
+      warnings: { index: number }[];
+      messagesNote?: string;
+    };
+    expect(summary.errors[0]?.index).toBe(0);
+    expect(summary.warnings[0]?.index).toBe(0);
+    expect(summary.messagesNote).toContain("errorIndex");
+  });
+
+  test("a clean run carries no messagesNote", async () => {
+    const summary = (await call("run_config", {
+      fileName: "renovate.json",
+      content: CONFIG,
+    })) as Record<string, unknown>;
+    expect(summary).not.toHaveProperty("messagesNote");
+  });
+
+  test("a message addressed by index needs no text at all", async () => {
+    const summary = (await call("run_config", {
+      fileName: "renovate.json",
+      content: '{"labels":5,"dryRun":"full"}',
+    })) as { runId: string; errors: { message: string }[] };
+    const explained = (await call("explain_message", {
+      runId: summary.runId,
+      errorIndex: 0,
+    })) as { severity: string; message: string };
+    expect(explained.severity).toBe("error");
+    expect(explained.message).toBe(summary.errors[0]?.message);
+  });
+
+  test("an indexed warning reaches the fix path", async () => {
+    const runId = await runConfig('{"dryRun":"full"}');
+    const explained = (await call("explain_message", { runId, warningIndex: 0 })) as {
+      severity: string;
+      translationKnown: boolean;
+      fix?: { summary: string };
+    };
+    expect(explained.severity).toBe("warning");
+    expect(explained.translationKnown).toBe(true);
+    expect(explained.fix?.summary).toBeTruthy();
+  });
+
+  test("an index that names nothing, or names it twice, is rejected with the reason", async () => {
+    const runId = await runConfig('{"labels":5}');
+    await expect(call("explain_message", { runId, errorIndex: 4 })).rejects.toThrow(/has 1 errors/);
+    await expect(call("explain_message", { errorIndex: 0 })).rejects.toThrow(/runId/);
+    await expect(
+      call("explain_message", { runId, errorIndex: 0, message: "anything" }),
+    ).rejects.toThrow(/exactly once/);
+    await expect(call("explain_message", { runId })).rejects.toThrow(/exactly once/);
+    await expect(
+      call("explain_message", { runId, errorIndex: 0, topic: "Configuration Error" }),
+    ).rejects.toThrow(/carries the run's own topic/);
+  });
+
   test("option docs are for the pinned Renovate, and misses point at search", async () => {
     const doc = (await call("get_option_docs", { name: "packageRules" })) as {
       name: string;
@@ -796,8 +906,11 @@ describe("held runs carry only what the tools read", () => {
     const explained = (await call("explain_message", {
       runId,
       message: "Configuration option `labels` should be a list (Array)",
-    })) as { severity: string };
-    expect(explained.severity).toBe("error");
+    })) as { severity: string | null; message: string };
+    // CONFIG is a clean run, so it holds no message with this text and nothing
+    // decides its severity — the explanation is still the library's.
+    expect(explained.severity).toBeNull();
+    expect(explained.message).toContain("labels");
     const sim = (await call("simulate", { runId, dep: { depName: "react" } })) as {
       rules: unknown[];
     };

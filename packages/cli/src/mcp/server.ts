@@ -26,7 +26,7 @@ import pkg from "../../package.json";
 import { errorMessage, type CliIo } from "../io";
 import { buildRuleView, ruleFilterPayload } from "../rule-view";
 import { digestPayload } from "../projections/digest";
-import { describeMessage } from "../projections/messages";
+import { describeMessage, type MessageSeverity } from "../projections/messages";
 import {
   entryView,
   indexView,
@@ -337,6 +337,18 @@ function simulationPayload(sim: SimulationResult, detail: SimulateDetail) {
   };
 }
 
+/** Each validator message with the position `explain_message` addresses it by.
+ *  The array's own index is NOT that position: a large answer is elided
+ *  structurally (see ./result), which drops elements out of the middle. */
+function withIndex(messages: readonly ValidationMessage[]) {
+  return messages.map((message, index) => ({ index, ...message }));
+}
+
+const MESSAGES_NOTE =
+  "explain_message takes these by POSITION — pass this runId with errorIndex/warningIndex (the " +
+  "`index` on each message) rather than re-typing the text; a re-typed message that does not " +
+  "match the run exactly comes back with severity null.";
+
 function runSummary(run: HeldRun, notes: string[]) {
   const { result, facts } = run;
   const payload = digestPayload(result, facts);
@@ -347,8 +359,9 @@ function runSummary(run: HeldRun, notes: string[]) {
     accepted: payload.accepted,
     digest: payload.digest,
     stageStatus: result.stageStatus,
-    errors: result.errors,
-    warnings: result.warnings,
+    errors: withIndex(result.errors),
+    warnings: withIndex(result.warnings),
+    ...(result.errors.length + result.warnings.length > 0 ? { messagesNote: MESSAGES_NOTE } : {}),
     presetErrors: facts.presetErrors.map((event) => event.title),
     treeSummary: stats?.summary ?? null,
     ...(notes.length > 0 ? { notes } : {}),
@@ -360,17 +373,54 @@ const sameMessage = (candidate: ValidationMessage, message: string, topic?: stri
 
 /**
  * Which list the message came from. A warning explained as an error is a
- * misreport an agent then acts on, so the run — when one is given — decides.
+ * misreport an agent then acts on, so the RUN decides — and when the run does
+ * not decide it, the answer is `null` rather than a plausible guess. Nothing
+ * outside the run's own lists can stand in: Renovate files warnings under the
+ * topic "Configuration Error" too, so the topic carries no severity.
  */
 function severityOf(
   run: HeldRun | null,
   message: string,
   topic: string | undefined,
-): "error" | "warning" {
-  if (run?.result.warnings.some((w) => sameMessage(w, message, topic))) {
-    return "warning";
+): MessageSeverity | null {
+  if (!run) {
+    return null;
   }
-  return "error";
+  const inErrors = run.result.errors.some((m) => sameMessage(m, message, topic));
+  const inWarnings = run.result.warnings.some((m) => sameMessage(m, message, topic));
+  if (inErrors !== inWarnings) {
+    return inErrors ? "error" : "warning";
+  }
+  if (inErrors && inWarnings) {
+    // The same text in both lists — the run does not disambiguate it.
+    return null;
+  }
+  // A topic that did not match is the likelier miss than the text: a caller
+  // who reasoned the topic out from the severity gets no hit at all. Retry on
+  // the text alone; the recursion cannot loop, the second call passes none.
+  return topic === undefined ? null : severityOf(run, message, undefined);
+}
+
+/** One of a held run's own messages, addressed by position — so its severity
+ *  and its topic are the run's by construction and no text has to match. */
+function pickMessage(
+  run: HeldRun | null,
+  list: "errors" | "warnings",
+  param: string,
+  index: number,
+): ValidationMessage {
+  if (!run) {
+    throw new Error(`${param} indexes into a run's ${list} — pass the runId those came from.`);
+  }
+  const held = run.result[list];
+  const found = held[index];
+  if (!found) {
+    throw new Error(
+      `${run.runId} has ${held.length} ${list}; there is no ${list}[${index}]. ` +
+        "run_config lists them, each with the `index` this parameter takes.",
+    );
+  }
+  return found;
 }
 
 /** The body a node holds, or an explicit null saying it holds none — a key
@@ -764,24 +814,79 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         "Translates one of Renovate's validator messages into what it actually means, with a " +
         "docs link and — when the library knows one — a concrete fix. It always says which you " +
         "got: `translationKnown` is false, with a `note` explaining why, when the curated " +
-        "library has no entry for the message, so a bare echo is never ambiguous. Pass the " +
-        "runId the message came from and the fix is computed against that exact config " +
-        "snapshot, including the edited file text, and the reported severity is the list the " +
-        "run itself put it in.",
+        "library has no entry for the message, so a bare echo is never ambiguous. Address the " +
+        "message BY POSITION — this runId plus errorIndex/warningIndex, the `index` run_config " +
+        "reported — and the fix is computed against that exact config snapshot, including the " +
+        "edited file text, with the run's own severity and topic. Quoting the text instead " +
+        "works, but `severity` is then only as good as the quote: it is the list the run itself " +
+        "put the message in, and `null` with a `severityNote` when the run holds no message " +
+        "with this text at all.",
       annotations: HELD_RUN_ANNOTATIONS,
       inputSchema: z.strictObject({
-        message: z.string().describe("The message text, verbatim."),
-        topic: z.string().optional().describe("The message's topic, e.g. `Configuration Error`."),
+        message: z
+          .string()
+          .optional()
+          .describe(
+            "The message text, VERBATIM as run_config returned it. Prefer errorIndex/" +
+              "warningIndex when you have a runId — a quote that differs by a character cannot " +
+              "be matched to the run.",
+          ),
+        topic: z
+          .string()
+          .optional()
+          .describe(
+            "The message's topic, e.g. `Configuration Error`. Only meaningful with `message`.",
+          ),
         runId: z.string().optional().describe("The run the message came from."),
+        errorIndex: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe(
+            "Position in this runId's `errors` — the `index` run_config reported. Needs runId.",
+          ),
+        warningIndex: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe("Position in this runId's `warnings`. Needs runId."),
       }),
     },
-    answer(({ message, topic, runId }) => {
+    answer(({ message, topic, runId, errorIndex, warningIndex }) => {
       const run = runId ? store.get(runId) : null;
+      const config = run ? validatedConfigOf(run.result) : null;
+      const text = run?.input.content ?? null;
+      const selectors = [message, errorIndex, warningIndex].filter((v) => v !== undefined).length;
+      if (selectors !== 1) {
+        throw new Error(
+          "name the message exactly once: `message` with its verbatim text, or `errorIndex` / " +
+            "`warningIndex` from run_config's lists for this runId.",
+        );
+      }
+      if (topic !== undefined && (errorIndex !== undefined || warningIndex !== undefined)) {
+        throw new Error(
+          "`topic` describes a `message`; an indexed message carries the run's own topic.",
+        );
+      }
+      if (errorIndex !== undefined) {
+        const picked = pickMessage(run, "errors", "errorIndex", errorIndex);
+        return describeMessage(picked, "error", config, text);
+      }
+      if (warningIndex !== undefined) {
+        const picked = pickMessage(run, "warnings", "warningIndex", warningIndex);
+        return describeMessage(picked, "warning", config, text);
+      }
+      if (message === undefined) {
+        // Unreachable after the count check; keeps `message` narrowed to string.
+        throw new Error("`message` is required when no index selects one.");
+      }
       return describeMessage(
         { topic: topic ?? "Configuration Error", message },
         severityOf(run, message, topic),
-        run ? validatedConfigOf(run.result) : null,
-        run?.input.content ?? null,
+        config,
+        text,
       );
     }),
   );
