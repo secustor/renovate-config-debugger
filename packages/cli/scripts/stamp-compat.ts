@@ -1,29 +1,39 @@
 #!/usr/bin/env node
 /**
- * Roadmap 067: write the compat row for the version being released, and
- * render the table into the README that ships.
+ * Roadmap 067: state the release's compatibility where it publishes.
  *
  * Runs in semantic-release's `prepare`, after `tools/release/prepare.ts` has
  * stamped the version and before `build` runs `check-compat.ts` against it.
- * The row's three cells are all facts about the tree — the CLI version, the
- * engine version, the exact `renovate` pin — so there is nothing here for a
- * human to get wrong, and nothing that has to be remembered at release time.
+ * Two writes, both to the working tree only — a release commits nothing back:
  *
- * Two writes: the row goes into `compat.json` (the history, which the release
- * commit carries back to main), and the whole history is rendered between the
- * README's markers (which ships in the npm tarball and deliberately does NOT
- * go back to main — the repository copy stays a template).
+ * - `renovateCompatibility` goes into the CLI manifest, embedded versions
+ *   keyed by full package name, so the registry accumulates the release
+ *   history as a side effect of publishing (readable with
+ *   `pnpm view @renovate-config-debugger/cli renovateCompatibility`).
+ * - The compat table is rendered between the README's markers from the
+ *   registry's published rows plus this release's, so the README that ships
+ *   to npm carries the full table while the repository copy stays a template.
  *
- * Idempotent: re-running it after a failed release step replaces that
- * version's row instead of adding a second one.
+ * Every cell is a fact about the tree or the registry — nothing here for a
+ * human to get wrong. Idempotent: re-running after a failed release step
+ * replaces this version's row instead of stacking a second one.
  */
-import { currentBuild, readHistory, stampReadme, writeHistory } from "./compat-table.ts";
+import {
+  currentBuild,
+  publishedRows,
+  readCliManifest,
+  stampManifest,
+  stampReadme,
+} from "./compat-table.ts";
 
-const row = currentBuild();
-const historyChanged = writeHistory(row);
-const readmeChanged = stampReadme(readHistory());
+const build = currentBuild();
+const cliName = readCliManifest().name;
+const manifestChanged = stampManifest(build);
+const published = await publishedRows(cliName);
+const rows = [build, ...published.filter((row) => row.cli !== build.cli)];
+const readmeChanged = stampReadme(cliName, rows);
 
 process.stdout.write(
-  `${historyChanged || readmeChanged ? "stamped" : "compat row already current"}: ` +
-    `| ${row.cli} | ${row.engine} | ${row.renovate} |\n`,
+  `${manifestChanged || readmeChanged ? "stamped" : "already current"}: ` +
+    `${build.cli} → ${JSON.stringify(build.compat)} (${rows.length}-row table)\n`,
 );

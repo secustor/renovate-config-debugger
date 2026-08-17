@@ -207,34 +207,45 @@ does not exist.
    falls back to the job's `GITHUB_TOKEN`, which works only while main is
    unprotected. This is the GitHub side and has nothing to do with publishing.
 
-## Amendment (2026-08-17): the table is templated, not committed
+## Amendment (2026-08-17): releases commit nothing, the registry is the history
 
-The fixed table this document put in `packages/cli/README.md` broke on the
-first Renovate bump after it landed (#151): `check-compat.ts` compared the
-committed top row against the current tree on every build, and between
-releases the `renovate` pin legitimately drifts ahead of the last released
-row — so every bot PR failed CI against a table nobody is allowed to
-hand-edit.
+Two failures a week apart broke both halves of the original design:
 
-The rows now live in `packages/cli/compat.json` (newest first), and the README
-carries a `<!-- compat-table -->` … `<!-- /compat-table -->` marker pair with
-a placeholder note instead of rendered rows. `stamp-compat.ts` upserts the
-release's row into the JSON and renders the whole history between the markers,
-so the table exists in the README that ships to npm; the release commit
-carries only `compat.json` back to main, and the repository README stays a
-template. `check-compat.ts` still runs inside `build`, with the assertion
-depending on the tree: ordinarily the README must contain no rendered table
-(a hand edit, or a merge resurrecting the old fixed one), and under
-`RCD_RELEASE=1` (set by `release.config.mjs` after the stamp) the history's
-top row must describe the exact build and the README must be that history
-rendered.
+- The fixed compat table in `packages/cli/README.md` failed every Renovate
+  bump PR (#151): `check-compat.ts` compared its committed top row against the
+  current tree on every build, and between releases the `renovate` pin
+  legitimately drifts ahead of the last released row.
+- The `chore(release):` commit-back died on main's ruleset ("changes must be
+  made through a pull request", required `ci-result` check; run 32025694433) —
+  even the release App's push is a rule violation without a standing bypass.
 
-Considered and rejected:
+Both had the same root cause: release state living in the repository. It no
+longer does. `@semantic-release/git` and `@semantic-release/changelog` are
+gone; a release changes no tracked file. Versions are derived from tags, the
+GitHub release notes are the changelog, and compatibility is stated where it
+publishes:
 
-- Committing the rendered table back and checking it against the JSON — keeps
-  the table visible on GitHub, but keeps a generated file in the tree for
-  merges to mangle, and two copies of one fact.
-- Gating the old check to release runs only — smallest diff, but leaves the
-  fixed table in the repository claiming a release that may not match npm.
-- Dropping the table for `rcd --version` plus release notes — loses the
-  at-a-glance history the npm page shows.
+- `stamp-compat.ts` writes a `renovateCompatibility` field into the CLI
+  manifest — embedded versions keyed by full package name
+  (`@renovate-config-debugger/engine`, `renovate`) — so the npm registry
+  accumulates the release history as a side effect of publishing
+  (`pnpm view @renovate-config-debugger/cli renovateCompatibility`).
+- The compat table is rendered between the README's `<!-- compat-table -->` …
+  `<!-- /compat-table -->` markers from the registry packument plus the
+  release being cut, so the README that ships to npm carries the full table,
+  it cannot disagree with what npm actually has, and the repository copy
+  stays a placeholder. Versions published before the field existed (0.0.1)
+  have no row.
+- `check-compat.ts` still runs inside `build`, network-free: ordinarily the
+  README must carry no rendered table and the manifest no compatibility field
+  (a hand edit, or a merge resurrecting the fixed table); under
+  `RCD_RELEASE=1` (set by `release.config.mjs` after the stamp) both must
+  describe the exact build.
+
+Considered and rejected: `peerDependencies` on `renovate` as the marker (npm
+auto-installs non-optional peers, and an optional peer warns whenever the
+inspected repo carries its own renovate at another version — the package
+inlines renovate precisely so consumers never provide it); committing a
+`compat.json` history back through a PR-with-automerge (machinery, and the
+ruleset race stays); a ruleset bypass for the release App (a standing hole in
+branch protection for one cosmetic commit).

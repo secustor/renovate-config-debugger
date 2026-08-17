@@ -43,8 +43,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      # The tag, the GitHub release, and the `chore(release):` commit that
-      # brings the versions and the compat row back to main.
+      # The `v*` tag and the GitHub release. Nothing is committed back to
+      # main — a release changes no tracked file (see release.config.mjs).
       contents: write
       # @semantic-release/github comments on the issues and PRs a release ships.
       issues: write
@@ -71,8 +71,8 @@ jobs:
       - run: pnpm --filter @renovate-config-debugger/cli test
 
       # `build` runs scripts/check-compat.ts — outside a release it asserts
-      # the README carries only the compat-table markers; the rendered table
-      # is a release artefact, stamped from compat.json during `prepare`.
+      # the README carries only the compat-table markers and the manifest no
+      # renovateCompatibility field; both are stamped while publishing.
       - name: Build the SSR bundle
         run: pnpm --filter @renovate-config-debugger/cli build
 
@@ -87,14 +87,12 @@ jobs:
       - name: Smoke-test the published bin
         run: node packages/cli/bin/rcd.mjs validate packages/cli/test/fixtures/clean.json
 
-      # @semantic-release/git pushes the release commit straight to main, which
-      # is protected against the job's own token. The credential for that push
-      # is an installation token minted here from the release GitHub App (see
-      # roadmap/067 step 5): short-lived, scoped to this repository, and no PAT
-      # in the secrets. Skipped when the app is not configured — semantic-release
-      # then falls back to the job token, which works only while main is
-      # unprotected. This is the GitHub side; it has nothing to do with
-      # publishing.
+      # Nothing is pushed to main any more; the only git write left is the
+      # `v*` tag semantic-release itself creates, and the job's own token can
+      # do that unless a tag ruleset restricts it. The release GitHub App (see
+      # roadmap/067 step 5) is minted when configured and covers that case;
+      # skipped otherwise, falling back to the job token. This is the GitHub
+      # side; it has nothing to do with publishing.
       - name: Mint the release app token
         id: app-token
         if: ${{ vars.RELEASE_APP_ID != '' }}

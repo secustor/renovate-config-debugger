@@ -90,43 +90,22 @@ export default {
         },
       },
     ],
-    ["@semantic-release/changelog", { changelogFile: "CHANGELOG.md" }],
     [
       "@semantic-release/exec",
       {
         verifyConditionsCmd: "node tools/release/verify.ts",
         // Order matters and is the whole reason this is a chain rather than
         // three plugins: the version has to land in package.json before the
-        // compat row is stamped from it, and both have to land before the
-        // build, because `check-compat.ts` runs inside the build and — under
-        // RCD_RELEASE=1 — asserts the stamped history and README describe
-        // this exact build.
+        // compatibility facts are stamped from it, and both have to land
+        // before the build, because `check-compat.ts` runs inside the build
+        // and — under RCD_RELEASE=1 — asserts the stamped manifest and README
+        // describe this exact build.
         prepareCmd: [
           "node tools/release/prepare.ts ${nextRelease.version}",
           "node packages/cli/scripts/stamp-compat.ts",
           "RCD_RELEASE=1 pnpm --filter @renovate-config-debugger/cli build",
         ].join(" && "),
         publishCmd: "node tools/release/publish.ts",
-      },
-    ],
-    [
-      "@semantic-release/git",
-      {
-        // The compat history is release data, so it has to accumulate: if the
-        // stamped row never came back to main, the next release would prepend
-        // onto a stale history and the previous row would be lost. The stamped
-        // README deliberately does NOT come back — the repository copy carries
-        // only the compat-table markers, so nothing in the tree can go stale
-        // between releases; the rendered table ships in the npm tarball.
-        assets: [
-          "CHANGELOG.md",
-          "package.json",
-          "packages/*/package.json",
-          "packages/cli/compat.json",
-        ],
-        // `[skip ci]`: this commit is the release that CI already passed a few
-        // steps ago, re-running the full matrix on it proves nothing.
-        message: "chore(release): v${nextRelease.version} [skip ci]",
       },
     ],
     "@semantic-release/github",
