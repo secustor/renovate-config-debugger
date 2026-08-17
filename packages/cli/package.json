@@ -13,12 +13,12 @@
     "renovatebot"
   ],
   "homepage": "https://renovate.secustor.dev",
-  "bugs": "https://github.com/secustor/renovate-config-visualizer/issues",
+  "bugs": "https://github.com/secustor/renovate-config-debugger/issues",
   "license": "AGPL-3.0-only",
   "author": "secustor",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/secustor/renovate-config-visualizer.git",
+    "url": "git+https://github.com/secustor/renovate-config-debugger.git",
     "directory": "packages/cli"
   },
   "bin": {

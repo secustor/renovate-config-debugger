@@ -290,5 +290,5 @@ it — no hand writes either, and nothing is committed, so nothing can go stale.
 
 ## License
 
-[AGPL-3.0-only](https://github.com/secustor/renovate-config-visualizer/blob/main/LICENSE),
+[AGPL-3.0-only](https://github.com/secustor/renovate-config-debugger/blob/main/LICENSE),
 like the rest of this project.
