@@ -1,6 +1,6 @@
 # Roadmap
 
-Planned features for the Renovate Config Visualizer, in intended build order.
+Planned features for the Renovate Config Debugger, in intended build order.
 Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 
 | #                                                       | Feature                                                              | Milestone            | Status      |
