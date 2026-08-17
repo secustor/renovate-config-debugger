@@ -1,6 +1,6 @@
 ---
 name: persona-test
-description: Replays the 2026-07 persona usability study (all scenarios, or a scenario/persona subset) against the live app — spawns entry/advanced/expert subagents that drive a real Chrome browser through the Renovate Config Visualizer, ground-truth withheld, and synthesizes their structured reports. Use when asked to run a persona test, replay the persona study, or evaluate a UX change against the benchmark scenarios.
+description: Replays the 2026-07 persona usability study (all scenarios, or a scenario/persona subset) against the live app — spawns entry/advanced/expert subagents that drive a real Chrome browser through the Renovate Config Debugger, ground-truth withheld, and synthesizes their structured reports. Use when asked to run a persona test, replay the persona study, or evaluate a UX change against the benchmark scenarios.
 ---
 
 # Persona-test replay

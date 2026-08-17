@@ -1,6 +1,6 @@
 {
   // Cloudflare Worker: GitHub OAuth token-exchange proxy for the Renovate
-  // Config Visualizer SPA. It does nothing but turn an OAuth `code` (or a
+  // Config Debugger SPA. It does nothing but turn an OAuth `code` (or a
   // `refresh_token`) into a GitHub user token — it never sees a config, a
   // preset, or an API request. Stateless, no persistence, no body logging.
   //

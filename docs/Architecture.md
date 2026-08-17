@@ -1,6 +1,6 @@
 # Architecture
 
-How the visualizer runs Renovate's own code in the browser.
+How the app runs Renovate's own code in the browser.
 
 - `packages/engine` deep-imports the `renovate` package
   (`renovate/dist/config/**`, all in one adapter module) and records the trace;

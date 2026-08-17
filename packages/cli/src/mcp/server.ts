@@ -411,7 +411,7 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
     {
       title: "Run a Renovate config",
       description:
-        "Resolves a Renovate config exactly as the visualizer does — parse, migrate, massage, " +
+        "Resolves a Renovate config exactly as the web app does — parse, migrate, massage, " +
         "validate, resolve presets, merge — and HOLDS the trace. Returns a small summary plus a " +
         "runId; every other tool takes that runId, so a whole debugging session describes ONE " +
         "run instead of re-resolving (and re-fetching remote presets) per question. Start here.",
