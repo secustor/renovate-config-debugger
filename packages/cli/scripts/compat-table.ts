@@ -109,7 +109,7 @@ function compareDesc(a: string, b: string): number {
  * simply have no row.
  */
 export async function publishedRows(cliName: string): Promise<CompatRow[]> {
-  const response = await fetch(`https://registry.npmjs.org/${cliName.replace("/", "%2F")}`, {
+  const response = await fetch(`https://registry.npmjs.org/${encodeURIComponent(cliName)}`, {
     headers: { accept: "application/json" },
   });
 

@@ -276,10 +276,10 @@ $ pnpm view @renovate-config-debugger/cli renovateCompatibility
 
 <!-- compat-table -->
 
-_The table is rendered into this spot when a release is published — the README
+<!-- _The table is rendered into this spot when a release is published — the README
 on [npm](https://www.npmjs.com/package/@renovate-config-debugger/cli) carries
 it. Its rows are read back from the registry's own record of published
-versions, so it cannot disagree with what npm actually has._
+versions, so it cannot disagree with what npm actually has._ -->
 
 <!-- /compat-table -->
 

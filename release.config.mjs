@@ -108,14 +108,6 @@ export default {
         publishCmd: "node tools/release/publish.ts",
       },
     ],
-    // Deliberately NO @semantic-release/git and NO @semantic-release/changelog:
-    // a release commits nothing back to main — the release-commit push was
-    // exactly what main's ruleset rejects, and every committed release claim
-    // eventually went stale (roadmap 067's amendment). Versions are derived
-    // from tags, the GitHub release notes are the changelog, and the compat
-    // history accumulates on the npm registry itself: every published version
-    // carries a `renovateCompatibility` manifest field, and the next release
-    // renders its table from the registry's record of them.
     "@semantic-release/github",
   ],
 };
