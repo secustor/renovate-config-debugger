@@ -12,18 +12,13 @@ import { INPUT_OPTIONS, refusalNote, runFromArgs, wouldRefuse } from "../run-inp
 import { readDependency } from "../dep";
 import {
   buildRuleView,
+  evaluationErrorsNote,
   hiddenRulesNote,
   missingInputsNote,
-  ruleFilterPayload,
   ruleFilterSelection,
 } from "../rule-view";
 import { collapseDiffs, mergedLine, parseConfigScope, parseKeys } from "../projections/config-view";
-import {
-  collapseRuleMerges,
-  parseDetail,
-  simulationPayload,
-  withRuleOrigins,
-} from "../projections/simulate";
+import { parseDetail, simulationPayload } from "../projections/simulate";
 import { flattenedView, verdictPayload } from "../projections/verdict";
 
 /**
@@ -83,15 +78,20 @@ export const simulateCommand: Command = {
     "it, exactly as a real lookup would before the rules run — and `packageName`",
     "defaults to `depName`, the way Renovate's fetch worker fills it in.",
     "",
-    "A `config:best-practices` config resolves to hundreds of rules, so pretty",
-    "output prints the notable ones (matched + unresolved) and says how many it",
-    "hid. `--verdict`/`--source` scope it; `--format json` keeps the full array",
-    "unless you pass one of them.",
+    "A `config:best-practices` config resolves to hundreds of rules, so BOTH",
+    "output formats answer with the notable ones — matched, not-simulated, and",
+    "the rows the tool could not evaluate — and state how many that withheld.",
+    "`--verdict all` returns every row, `--verdict matched|no-input|no-match|",
+    "error` one class, `--source repo|presets` scopes by the layer that wrote",
+    "the rule, and `--rule <n>` returns ONE merged rule by index whatever the",
+    "facets hide (`ruleSources` is the legend for those indexes). `--format",
+    "json` always carries `ruleFilter` with `total`/`shown`/`hidden`.",
     "",
     "Rules that failed only because your `--dep` left a field unset are counted",
-    "in `missingInputs` and stated in one line whatever `--verdict` you asked",
-    "for — those rules report a plain `no-match`, so every scoped view would",
-    "otherwise hide them.",
+    "in `missingInputs`, and rules whose matcher THREW in `evaluationErrors`.",
+    "Both are stated in one line whatever `--verdict` you asked for — those",
+    "rules report a plain `no-match`, so every scoped view would otherwise hide",
+    "them, and an un-evaluated rule is not a verdict about your config.",
     "",
     "`--format json` answers at `--detail verdict`: the merge trace",
     "(`mergeSteps`, `rawFinalConfig`) is ~1 MB on a `config:recommended` run and",
@@ -106,6 +106,7 @@ export const simulateCommand: Command = {
     "dep-file",
     "verdict",
     "source",
+    "rule",
     "detail",
     "keys",
     "config-scope",
@@ -113,7 +114,7 @@ export const simulateCommand: Command = {
   ],
   async run(args, io) {
     const format = outputFormat(args);
-    const selection = ruleFilterSelection(args, format);
+    const selection = ruleFilterSelection(args);
     const detail = parseDetail(stringOption(args, "detail")) ?? "verdict";
     const keys = parseKeys(stringOption(args, "keys"));
     const scope = parseConfigScope(stringOption(args, "config-scope"), "--config-scope");
@@ -130,22 +131,19 @@ export const simulateCommand: Command = {
     if (format === "json") {
       emitJson(io, {
         dep,
-        // `missingInputs` (and its note) come from the projection, so they are
-        // carried whatever `--verdict`/`--source` did to the `rules` array
-        // below — the rules it counts are the ones a filter removes.
+        // The aggregates and the rule-list view both come from the projection,
+        // so `missingInputs`, `evaluationErrors`, `ruleFilter` and the notes are
+        // carried whatever `--verdict`/`--source`/`--rule` did to the rows — the
+        // rules they count are exactly the ones a filter removes.
         ...simulationPayload(sim, {
           detail,
           scope: scope ?? "package-rules",
           transport: selection.transport,
           attribution: view.attribution,
           finalConfig: result.finalConfig,
+          ruleView: view,
           ...(keys ? { keys } : {}),
         }),
-        rules:
-          detail === "full"
-            ? view.rules
-            : withRuleOrigins(collapseRuleMerges(view.rules), view.attribution),
-        ...(selection.explicit ? ruleFilterPayload(view) : {}),
         wouldRefuse: refused,
         ...(refusal ? { exitNote: refusal } : {}),
       });
@@ -164,11 +162,13 @@ export const simulateCommand: Command = {
         ),
       );
       const hiddenNote = hiddenRulesNote(view);
-      // A sibling of the hidden-rules note, not part of it: this one is printed
-      // even when the view hid nothing, because the rules it counts are
+      // Siblings of the hidden-rules note, not part of it: these are printed
+      // even when the view hid nothing, because the rules they count are
       // reported as a plain `no-match` and read as "your config just doesn't
-      // do that".
+      // do that" — or, for the error one, as a verdict about a rule the tool
+      // never managed to evaluate.
       const missingNote = missingInputsNote(sim.missingInputs, selection.transport);
+      const errorsNote = evaluationErrorsNote(sim.evaluationErrors, selection.transport);
       // Roadmap 048: the outcome in one sentence, ABOVE the counts — the same
       // string the web app's verdict card renders, so a terminal and a
       // screenshot answer the question the same way.
@@ -182,6 +182,7 @@ export const simulateCommand: Command = {
         "",
         ...verdictLines(view.rules, view.originOf),
         ...(hiddenNote ? [hiddenNote] : []),
+        ...(errorsNote ? [errorsNote] : []),
         ...(missingNote ? [missingNote] : []),
         "",
         ...(changes.length > 0

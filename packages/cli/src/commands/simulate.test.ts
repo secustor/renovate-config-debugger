@@ -39,6 +39,10 @@ describe("simulate", () => {
           '{"depName":"lodash","packageName":"lodash","currentValue":"4.17.20","newValue":"4.17.21"}',
           "--format",
           "json",
+          // Roadmap 073: the default answer is the rules that ACTED, so a
+          // genuine mismatch is one facet away.
+          "--verdict",
+          "all",
         ],
         io,
       ),
@@ -93,7 +97,7 @@ describe("simulate --detail / --keys / --config-scope", () => {
     expect(payload).not.toHaveProperty("mergeSteps");
     expect(payload).not.toHaveProperty("rawFinalConfig");
     // The omission is stated, with the flag that undoes it.
-    expect(payload.detailNote).toContain('detail: "full"');
+    expect((payload.notes as string[]).join(" ")).toContain('detail: "full"');
     expect(payload.rules).toBeDefined();
     expect(payload.flattened).toBeDefined();
   });
@@ -102,7 +106,7 @@ describe("simulate --detail / --keys / --config-scope", () => {
     const { payload } = await simulateJson("--detail", "full");
     expect(payload.mergeSteps).toBeDefined();
     expect(payload.rawFinalConfig).toBeDefined();
-    expect(payload.detailNote).toBeUndefined();
+    expect((payload.notes as string[]).join(" ")).not.toContain('detail: "full"');
     expect(payload.configView).toBeUndefined();
     // Nothing collapsed, nothing pruned — the escape hatch is the raw shape.
     const rules = payload.rules as { merged?: { key: string }[] }[];
@@ -250,12 +254,69 @@ describe("simulate --verdict / --source", () => {
     expect(io.stderr).toContain("notable|all|matched|no-input|no-match");
   });
 
-  test("--format json keeps the full array until a filter is asked for", async () => {
+  /**
+   * Roadmap 073, the flip. `--format json` used to answer with the whole array
+   * "for scripts", which on a `config:recommended` run is 340 kB the MCP
+   * transport then cut to a byte-arithmetic window anyway. Both formats now
+   * answer with the rules that acted, and `matched ⊂ notable` keeps the common
+   * `jq '.rules[] | select(.verdict=="matched")'` pipeline returning the same
+   * rows. What is new is that the payload SAYS what it withheld.
+   */
+  test("--format json answers with the notable rules and states what it withheld", async () => {
     const { io } = await run("--format", "json");
-    const sim = io.json() as { rules: unknown[]; ruleFilter?: unknown };
+    const sim = io.json() as {
+      rules: { verdict: string }[];
+      ruleFilter: Record<string, unknown>;
+      notes: string[];
+    };
+    expect(sim.rules.map((rule) => rule.verdict)).toEqual(["matched"]);
+    expect(sim.ruleFilter).toEqual({
+      verdict: "notable",
+      source: "all",
+      total: 4,
+      shown: 1,
+      hidden: 3,
+    });
+    const note = sim.notes.join(" ");
+    expect(note).toContain("1 of 4 rules");
+    expect(note).toContain("`--verdict all` returns every row");
+    expect(note).toContain("`--rule N`");
+  });
+
+  test("--verdict all is the way back, and it says nothing was withheld", async () => {
+    const { io } = await run("--format", "json", "--verdict", "all");
+    const sim = io.json() as { rules: unknown[]; ruleFilter: { hidden: number } };
     expect(sim.rules).toHaveLength(4);
-    // Scripts already index into this array — an unflagged run must not shrink it.
-    expect(sim.ruleFilter).toBeUndefined();
+    expect(sim.ruleFilter.hidden).toBe(0);
+  });
+
+  /**
+   * Roadmap 073's drill-down, and the round-trip that pins it: `--rule N`
+   * returns the row `--verdict all` shows at index N — including the rows every
+   * facet hides, which is the only reason to ask.
+   */
+  test("--rule returns one row by index, the same row --verdict all holds there", async () => {
+    const all = (await run("--format", "json", "--verdict", "all")).io.json() as {
+      rules: Record<string, unknown>[];
+    };
+    for (const index of [0, 2, 3]) {
+      const one = (await run("--format", "json", "--rule", String(index))).io.json() as {
+        rules: Record<string, unknown>[];
+        ruleFilter: Record<string, unknown>;
+      };
+      expect(one.rules).toHaveLength(1);
+      // The origin rides along on a row that did NOT match, too: the list omits
+      // it to save 15 % of the payload, one row cannot afford to.
+      const { origin: _origin, ...row } = one.rules[0] ?? {};
+      expect(row).toEqual(all.rules[index]);
+      expect(one.ruleFilter).toMatchObject({ rule: index, shown: 1, hidden: 3 });
+    }
+  });
+
+  test("--rule out of range names the total", async () => {
+    const { io, code } = await run("--rule", "9");
+    expect(code).toBe(1);
+    expect(io.stderr).toContain("evaluated 4 merged packageRules; there is no rule 9");
   });
 
   /**
@@ -287,7 +348,7 @@ describe("simulate --verdict / --source", () => {
     const sim = io.json() as {
       rules: unknown[];
       missingInputs: { rules: number; groups: { fieldList: string; rules: number }[] };
-      missingInputsNote: string;
+      notes: string[];
     };
     expect(sim.rules).toHaveLength(1);
     // The parity property: the number in the summary is the number of rows
@@ -298,7 +359,7 @@ describe("simulate --verdict / --source", () => {
       "depType or depTypes",
       "sourceUrl",
     ]);
-    expect(sim.missingInputsNote).toContain("`--verdict no-input` lists them.");
+    expect(sim.notes.join(" ")).toContain("`--verdict no-input` lists them.");
   });
 
   test("a filtered json payload states what it left out", async () => {
@@ -349,6 +410,8 @@ describe("simulate --dep defaulting", () => {
         '{"depName":"react","packageName":"lodash"}',
         "--format",
         "json",
+        "--verdict",
+        "all",
       ],
       io,
     );
@@ -469,5 +532,85 @@ describe("simulate answers in one sentence", () => {
     expect(payload.mergeSteps.length).toBeGreaterThan(0);
     expect(payload.verdict.text).toContain("WOULD automerge");
     expect(payload.flattened.note).toContain("merged up and set");
+  });
+});
+
+/**
+ * Roadmap 073's blocker, end to end. `conda` versioning is the documented
+ * honest-error case: its parser is a ~3 MB WASM module the browser build
+ * excludes, so `matchCurrentVersion` THROWS and the simulator records a clause
+ * error — while upstream treats a throwing matcher as a non-match, which put
+ * the rule in the one bucket the old `notable` filter dropped. "The tool could
+ * not evaluate this rule" is the last thing that may go missing, so the
+ * conclusion-preserving gate is asserted on the default answer.
+ */
+async function simulateConda(...flags: string[]) {
+  const io = recordingIo();
+  const code = await main(
+    [
+      "simulate",
+      fixture("conda-version.json"),
+      "--dep",
+      '{"depName":"react","versioning":"conda","currentValue":"1.2.3"}',
+      ...flags,
+    ],
+    io,
+  );
+  return { io, code };
+}
+
+describe("simulate on a rule the tool cannot evaluate", () => {
+  test("the default answer keeps the error row AND counts it", async () => {
+    const { io, code } = await simulateConda("--format", "json");
+    expect(code).toBe(0);
+    const sim = io.json() as {
+      rules: { index: number; verdict: string; clauses: { state: string; note?: string }[] }[];
+      evaluationErrors: {
+        rules: number;
+        selectors: string[];
+        messages: string[];
+        sampleRuleIndexes: number[];
+        note: string;
+      };
+      ruleFilter: { verdict: string; hidden: number };
+      notes: string[];
+    };
+    // The default is `notable`, and the error row is in it — its verdict is a
+    // plain `no-match`, so only the clause predicate can keep it.
+    expect(sim.ruleFilter.verdict).toBe("notable");
+    const errored = sim.rules.find((rule) => rule.index === 0);
+    expect(errored?.verdict).toBe("no-match");
+    expect(errored?.clauses[0]?.state).toBe("error");
+    expect(errored?.clauses[0]?.note).toContain("conda versioning is not supported");
+    // …and the aggregate says it whatever the filter, in the array that cannot
+    // be filtered away.
+    expect(sim.evaluationErrors).toMatchObject({
+      rules: 1,
+      selectors: ["matchCurrentVersion"],
+      sampleRuleIndexes: [0],
+    });
+    expect(sim.notes.join(" ")).toContain("could not be EVALUATED");
+    expect(sim.notes.join(" ")).toContain("`--verdict error` lists them.");
+  });
+
+  test("--verdict error is the facet that names them, --verdict no-match is not", async () => {
+    const onlyErrors = (
+      await simulateConda("--format", "json", "--verdict", "error")
+    ).io.json() as {
+      rules: { index: number }[];
+    };
+    expect(onlyErrors.rules.map((rule) => rule.index)).toEqual([0]);
+    // A GENUINE mismatch is a different question, and now a different facet:
+    // rule 1 matched, rule 0 could not be evaluated, so neither is one.
+    const mismatches = (
+      await simulateConda("--format", "json", "--verdict", "no-match")
+    ).io.json() as { rules: unknown[] };
+    expect(mismatches.rules).toEqual([]);
+  });
+
+  test("pretty output states it too, whatever the view hid", async () => {
+    const { io } = await simulateConda();
+    expect(io.stdout).toContain("could not be EVALUATED");
+    expect(io.stdout).toContain("may not reflect a real Renovate run");
   });
 });

@@ -35,6 +35,7 @@ const SIM: SimulationResult = {
     authoredBlocks: [],
   },
   missingInputs: { rules: 0, groups: [] },
+  evaluationErrors: { rules: 0, selectors: [], messages: [], sampleRuleIndexes: [] },
   mergeSteps: [],
   errors: [],
   warnings: [],
@@ -80,17 +81,21 @@ describe("simulationPayload", () => {
       "verdict",
       "rules",
       "missingInputs",
+      "evaluationErrors",
       "flattened",
       "finalDependencyConfig",
       "configView",
       "errors",
       "warnings",
+      // Roadmap 073: ONE notes array. `detailNote`, `missingInputsNote` and
+      // `ruleSourcesNote` were four field names an agent had to learn to find
+      // the same kind of sentence.
       "notes",
-      "detailNote",
     ]);
     expect(payload).not.toHaveProperty("mergeSteps");
     expect(payload).not.toHaveProperty("rawFinalConfig");
-    expect(payload).toHaveProperty("detailNote", VERDICT_DETAIL_NOTE);
+    expect(payload).not.toHaveProperty("detailNote");
+    expect(payload.notes).toContain(VERDICT_DETAIL_NOTE);
   });
 
   test("the per-dependency config is scoped, keyed, and says so", () => {
@@ -135,14 +140,44 @@ describe("simulationPayload", () => {
       scope: "package-rules",
       transport: "mcp",
     });
-    expect(payload).toMatchObject({
-      missingInputs: sim.missingInputs,
-      missingInputsNote: `${sim.missingInputs.note} \`verdict: "no-input"\` lists them.`,
+    expect(payload.missingInputs).toBe(sim.missingInputs);
+    expect(payload.notes).toContain(
+      `${sim.missingInputs.note} \`verdict: "no-input"\` lists them.`,
+    );
+    // Nothing to point at, no sentence: the array never carries an empty one.
+    const clean = simulationPayload(SIM, {
+      detail: "verdict",
+      scope: "package-rules",
+      transport: "cli",
     });
-    // Nothing to point at, no key: the shape never carries an empty sentence.
-    expect(
-      simulationPayload(SIM, { detail: "verdict", scope: "package-rules", transport: "cli" }),
-    ).not.toHaveProperty("missingInputsNote");
+    expect(clean.notes.some((note) => note.includes("could not match"))).toBe(false);
+  });
+
+  /**
+   * Roadmap 073's second aggregate. A matcher that threw fails its rule to a
+   * plain `no-match`, so this is the fact a scoped list would drop — and the
+   * one that says the answer is incomplete rather than negative.
+   */
+  test("the evaluation-error summary rides along too, with its own pointer", () => {
+    const sim: SimulationResult = {
+      ...SIM,
+      evaluationErrors: {
+        rules: 1,
+        selectors: ["matchCurrentVersion"],
+        messages: ["matcher threw: conda versioning is not supported"],
+        sampleRuleIndexes: [0],
+        note: "1 of 1 rule could not be EVALUATED: `matchCurrentVersion` threw.",
+      },
+    };
+    const payload = simulationPayload(sim, {
+      detail: "verdict",
+      scope: "package-rules",
+      transport: "mcp",
+    });
+    expect(payload.evaluationErrors).toBe(sim.evaluationErrors);
+    // Ahead of the missing-input pointer: "the tool could not evaluate this"
+    // outranks "your dep left a field unset".
+    expect(payload.notes[0]).toBe(`${sim.evaluationErrors.note} \`verdict: "error"\` lists them.`);
   });
 
   test("the merged description appends are collapsed, in the rules and in flattened", () => {
@@ -165,14 +200,20 @@ const NET_EFFECT =
   'automerge (A=false, B=true), groupName (unset in A, B="react monorepo"); ' +
   "description also changed (documentation)";
 
+const REF = (index: number, label: string) => ({
+  index,
+  label,
+  signature: JSON.stringify([[label, ["react", "react-dom", "@types/react"]]]),
+});
+
 const COMPARISON: SimulationComparison = {
   summary: `differs: ${NET_EFFECT}`,
   verdict: "differs",
   netEffect: NET_EFFECT,
   mode: "config",
-  stoppedMatching: [],
+  stoppedMatching: [REF(1, "matchPackageNames")],
   startedMatching: [],
-  matchedInBoth: [],
+  matchedInBoth: [REF(2, "matchDepTypes")],
   configDelta: [
     { key: "automerge", kind: "behavioral", a: false, b: true, inA: true, inB: true },
     { key: "groupName", kind: "behavioral", b: "react monorepo", inA: false, inB: true },
@@ -185,12 +226,24 @@ const COMPARISON: SimulationComparison = {
       inB: true,
     },
   ],
-  identity: { changed: false, signatureChanges: [], onlyInA: [], onlyInB: [] },
+  identity: {
+    changed: true,
+    signatureChanges: [
+      {
+        a: REF(3, "matchPackageNames"),
+        b: REF(3, "matchPackageNames"),
+        kind: "clause-values-changed",
+        keys: ["matchPackageNames"],
+      },
+    ],
+    onlyInA: [REF(3, "matchPackageNames")],
+    onlyInB: [REF(3, "matchPackageNames")],
+  },
 };
 
 describe("comparisonPayload", () => {
   test("collapsing never moves a key: same keys, same order, smaller values", () => {
-    const payload = comparisonPayload(COMPARISON, { scope: "package-rules" });
+    const payload = comparisonPayload(COMPARISON, { scope: "package-rules", detail: "full" });
     expect(payload.configDelta.map((delta) => delta.key)).toEqual([
       "automerge",
       "groupName",
@@ -212,6 +265,7 @@ describe("comparisonPayload", () => {
   test("keys narrows the delta, and the verdict is left alone", () => {
     const payload = comparisonPayload(COMPARISON, {
       scope: "package-rules",
+      detail: "full",
       keys: ["groupName", "labels"],
     });
     expect(payload.configDelta.map((delta) => delta.key)).toEqual(["groupName"]);
@@ -221,5 +275,74 @@ describe("comparisonPayload", () => {
     expect(payload.summary).toBe(COMPARISON.summary);
     expect(payload.verdict).toBe("differs");
     expect(payload.netEffect).toBe(COMPARISON.netEffect);
+  });
+});
+
+/**
+ * Roadmap 073: the comparison's own detail axis. The two things the default
+ * drops are the two that cost — `matchedInBoth` (every rule that behaved the
+ * same, in a diff) and the `signature` strings, each a whole selector array
+ * re-serialized next to the `label` that already names the rule — and it names
+ * the level that puts them back.
+ */
+describe("comparisonPayload detail levels", () => {
+  const at = (detail: "verdict" | "rules" | "full") =>
+    comparisonPayload(COMPARISON, { scope: "package-rules", detail, transport: "mcp" });
+
+  test("the default states identity as counts and drops matchedInBoth", () => {
+    const payload = at("verdict");
+    expect(payload).not.toHaveProperty("matchedInBoth");
+    expect(payload.identity).toEqual({
+      changed: true,
+      counts: { onlyInA: 1, onlyInB: 1, signatureChanges: 1 },
+    });
+    // The behavior arrays stay — they are the evidence for the verdict — but a
+    // rule is identified by `label` + `index`, not by a re-serialized selector.
+    expect(payload.stoppedMatching).toEqual([{ index: 1, label: "matchPackageNames" }]);
+    // …and the omission names its own reversal.
+    expect(payload.notes?.join(" ")).toContain('`detail: "rules"`');
+    expect(payload.notes?.join(" ")).toContain("`matchedInBoth`");
+  });
+
+  test('detail "rules" puts the arrays back, still without the signatures', () => {
+    const payload = at("rules");
+    expect(payload.matchedInBoth).toEqual([{ index: 2, label: "matchDepTypes" }]);
+    expect(payload.identity.counts).toBeUndefined();
+    expect(payload.identity.onlyInA).toEqual([{ index: 3, label: "matchPackageNames" }]);
+    expect(payload.identity.signatureChanges?.[0]).toMatchObject({
+      kind: "clause-values-changed",
+      a: { index: 3, label: "matchPackageNames" },
+    });
+    expect(JSON.stringify(payload)).not.toContain("@types/react");
+    expect(payload.notes?.join(" ")).toContain('`detail: "full"`');
+  });
+
+  test('detail "full" is the engine\'s comparison, signatures and all', () => {
+    const payload = at("full");
+    expect(payload.matchedInBoth).toEqual(COMPARISON.matchedInBoth);
+    expect(payload.identity).toBe(COMPARISON.identity);
+    expect(JSON.stringify(payload)).toContain("@types/react");
+    // Nothing withheld, so there is nothing to point at.
+    expect(payload.notes).toBeUndefined();
+  });
+
+  test("the note speaks the caller's own spelling", () => {
+    const cli = comparisonPayload(COMPARISON, {
+      scope: "package-rules",
+      detail: "verdict",
+      transport: "cli",
+    });
+    expect(cli.notes?.join(" ")).toContain("`--detail rules`");
+    expect(cli.notes?.join(" ")).not.toContain('detail: "rules"');
+  });
+
+  test("the verdict is never projected, at any level", () => {
+    for (const detail of ["verdict", "rules", "full"] as const) {
+      const payload = at(detail);
+      expect(payload.summary).toBe(COMPARISON.summary);
+      expect(payload.verdict).toBe("differs");
+      expect(payload.netEffect).toBe(COMPARISON.netEffect);
+      expect(payload.identity.changed).toBe(true);
+    }
   });
 });

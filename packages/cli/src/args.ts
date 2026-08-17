@@ -91,9 +91,10 @@ export const OPTIONS = {
   verdict: {
     flags: "--verdict <which>",
     description:
-      "which rule verdicts to print: notable|all|matched|no-input|no-match " +
-      "(pretty default: notable; --format json defaults to all). The " +
-      "missing-input summary is reported whatever you pass",
+      "which rule verdicts to answer with: notable|all|matched|no-input|no-match|error " +
+      "(default: notable — matched, not-simulated and the rules the tool could not " +
+      "evaluate). The missing-input and evaluation-error summaries are reported " +
+      "whatever you pass",
   },
   source: {
     flags: "--source <which>",
@@ -102,14 +103,16 @@ export const OPTIONS = {
   rule: {
     flags: "--rule <n>",
     description:
-      "one merged packageRule by index: its body, its layer and its index inside " +
-      "that layer (`provenance <file> packageRules` only)",
+      "one merged packageRule by index, whatever the other facets hide: its row " +
+      "(`simulate`) or its body (`provenance <file> packageRules`), with the layer " +
+      "that wrote it and its index inside that layer",
   },
   detail: {
     flags: "--detail <which>",
     description:
-      "verdict|full — `full` adds the merge trace (mergeSteps, rawFinalConfig) " +
-      "(default: verdict)",
+      "how much to answer with: `simulate` verdict|full (`full` adds the merge trace — " +
+      "mergeSteps, rawFinalConfig); `compare` verdict|rules|full (`rules` restores the " +
+      "rule and identity arrays) (default: verdict)",
   },
   keys: {
     flags: "--keys <a,b,…>",

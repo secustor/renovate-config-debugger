@@ -1,5 +1,6 @@
 import {
   computeRuleProvenance,
+  type EvaluationErrorSummary,
   type MissingInputSummary,
   type RuleAttribution,
   type RuleEvaluation,
@@ -15,7 +16,7 @@ import {
   VERDICT_FILTERS,
   type VerdictFilter,
 } from "@renovate-config-debugger/app/headless";
-import { type OutputFormat, type ParsedArgs, stringOption } from "./args";
+import { type ParsedArgs, stringOption } from "./args";
 import { CliError } from "./io";
 import {
   type RuleOrigin,
@@ -33,21 +34,29 @@ import type { RunTransport } from "./run-input";
  * BOTH surfaces filter with one implementation, reached here through
  * `@renovate-config-debugger/app/headless`.
  *
- * The two defaults are deliberately different, because the two consumers are:
- * - pretty output defaults to `notable` (matched + unresolved — the drawer's
- *   own default view), and always states how many rows that hid, so nothing is
- *   silently truncated;
- * - `--format json` defaults to the FULL array, because scripts and the MCP
- *   drill-down already index into it; filters apply only when asked for, and
- *   then the payload carries the counts they hid.
+ * Roadmap 073 made the default ONE default: `notable` on pretty output, on
+ * `--format json` and on the MCP tool. The old json default was the full array,
+ * for scripts that index into it — but on a `config:recommended` run that array
+ * is 340 kB against a 65 kB transport budget, so the "complete" answer was
+ * already being cut to a byte-arithmetic window with no relation to the
+ * question. `matched ⊂ notable`, so the common pipeline (`jq '.rules[] |
+ * select(.verdict=="matched")'`) returns exactly what it did; what changed is
+ * that the payload now STATES what it withheld and names the parameter that
+ * returns it. That statement is the invariant — a narrowing nobody can reverse
+ * is indistinguishable from a bug.
  */
 
-/** What the flags selected, plus whether the user actually typed them. */
+/** What the flags (or the tool parameters) selected. */
 export interface RuleFilterSelection {
   verdict: VerdictFilter;
   source: SourceFilter;
-  /** Either flag was passed explicitly — the JSON payload filters only then. */
-  explicit: boolean;
+  /**
+   * One merged rule by index — the drill-down that makes
+   * `missingInputs.sampleRuleIndexes` actionable. It answers "why did rule N
+   * not fire", so it is deliberately INDEPENDENT of the facets: a row the
+   * verdict filter hides is the commonest reason to ask for it.
+   */
+  rule?: number;
   /**
    * How the caller asked. The facets are one implementation with two
    * spellings — `--source repo` on the CLI, `source: "repo"` over MCP — and a
@@ -58,8 +67,13 @@ export interface RuleFilterSelection {
 }
 
 /** The facet as the caller would have to spell it on THEIR surface. */
-function facetText(transport: RunTransport, facet: string, value: string): string {
+export function facetText(transport: RunTransport, facet: string, value: string): string {
   return transport === "mcp" ? `${facet}: "${value}"` : `--${facet} ${value}`;
+}
+
+/** `rule: 42` / `--rule 42` — the drill-down, spelled for this surface. */
+function ruleText(transport: RunTransport, index: number | "N"): string {
+  return transport === "mcp" ? `rule: ${index}` : `--rule ${index}`;
 }
 
 function parseChoice<T extends string>(
@@ -78,18 +92,25 @@ function parseChoice<T extends string>(
   return found;
 }
 
-export function ruleFilterSelection(args: ParsedArgs, format: OutputFormat): RuleFilterSelection {
-  const rawVerdict = stringOption(args, "verdict");
-  const rawSource = stringOption(args, "source");
+/** `--rule <n>`: a non-negative integer, or nothing. */
+function parseRuleIndex(raw: string | undefined): number | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  const index = Number(raw);
+  if (!Number.isInteger(index) || index < 0) {
+    throw new CliError(`--rule must be a non-negative integer (got "${raw}")`);
+  }
+  return index;
+}
+
+/** The facets, at one default for every output format (roadmap 073). */
+export function ruleFilterSelection(args: ParsedArgs): RuleFilterSelection {
+  const rule = parseRuleIndex(stringOption(args, "rule"));
   return {
-    verdict: parseChoice(
-      rawVerdict,
-      VERDICT_FILTERS,
-      "verdict",
-      format === "json" ? "all" : "notable",
-    ),
-    source: parseChoice(rawSource, SOURCE_FILTERS, "source", "all"),
-    explicit: rawVerdict !== undefined || rawSource !== undefined,
+    verdict: parseChoice(stringOption(args, "verdict"), VERDICT_FILTERS, "verdict", "notable"),
+    source: parseChoice(stringOption(args, "source"), SOURCE_FILTERS, "source", "all"),
+    ...(rule !== undefined ? { rule } : {}),
     transport: "cli",
   };
 }
@@ -103,6 +124,11 @@ export interface RuleView {
   hidden: number;
   verdict: VerdictFilter;
   source: SourceFilter;
+  /** The single rule this view was asked for, if any — the facets above then
+   *  read `all`, because none of them decided the list. */
+  rule?: number;
+  /** Which surface's spelling the notes speak. */
+  transport: RunTransport;
   /** Diagnostics for stderr — e.g. `--source` asked for with no provenance. */
   notes: string[];
   /**
@@ -120,6 +146,27 @@ export interface RuleView {
 }
 
 /**
+ * The row the drill-down asked for, or an error naming the total — an index
+ * out of range is a question about a rule that does not exist, and answering
+ * it with an empty list would read as "that rule did nothing".
+ */
+function oneRule(
+  rules: readonly RuleEvaluation[],
+  index: number,
+  transport: RunTransport,
+): RuleEvaluation {
+  const found = rules[index];
+  if (!found) {
+    throw new CliError(
+      `this simulation evaluated ${rules.length} merged packageRules; there is no rule ${index}. ` +
+        `\`${facetText(transport, "verdict", "all")}\` lists them all, and \`ruleSources\` is the ` +
+        "legend for the indexes.",
+    );
+  }
+  return found;
+}
+
+/**
  * Applies the selection to a simulation. `--source` needs per-rule provenance
  * (`computeRuleProvenance`), which a run can legitimately fail to produce (a
  * preset that would not resolve, replayed layer lengths that don't add up).
@@ -133,12 +180,30 @@ export function buildRuleView(
   selection: RuleFilterSelection,
 ): RuleView {
   const notes: string[] = [];
-  let rules = sim.rules.filter((rule) => matchesVerdictFilter(rule, selection.verdict));
-  let source = selection.source;
   // Unconditionally, not just for `--source`: the attribution is also what
   // says which layer a matched rule came from, which every caller wants and
   // no filter asks for.
   const attribution = computeRuleProvenance(result);
+  if (selection.rule !== undefined) {
+    // The drill-down answers about ONE row, so it reports the facets as `all`:
+    // saying `verdict: "notable"` about a list no facet produced would be a
+    // claim the view cannot back.
+    return {
+      rules: [oneRule(sim.rules, selection.rule, selection.transport)],
+      total: sim.rules.length,
+      hidden: Math.max(0, sim.rules.length - 1),
+      verdict: "all",
+      source: "all",
+      rule: selection.rule,
+      transport: selection.transport,
+      notes,
+      attribution,
+      sources: ruleSourceRanges(attribution),
+      originOf: (index) => ruleOrigin(index, attribution),
+    };
+  }
+  let rules = sim.rules.filter((rule) => matchesVerdictFilter(rule, selection.verdict));
+  let source = selection.source;
   if (source !== "all") {
     const layerByIndex = ruleLayerIndex(attribution);
     if (layerByIndex.size === 0) {
@@ -158,6 +223,7 @@ export function buildRuleView(
     hidden: sim.rules.length - rules.length,
     verdict: selection.verdict,
     source,
+    transport: selection.transport,
     notes,
     attribution,
     sources: ruleSourceRanges(attribution),
@@ -167,6 +233,9 @@ export function buildRuleView(
 
 /** The flags as the user would have to type them to reproduce this view. */
 function flagsOf(view: RuleView): string {
+  if (view.rule !== undefined) {
+    return `--rule ${view.rule}`;
+  }
   const flags = [`--verdict ${view.verdict}`];
   if (view.source !== "all") {
     flags.push(`--source ${view.source}`);
@@ -190,6 +259,51 @@ export function hiddenRulesNote(view: RuleView): string | undefined {
   );
 }
 
+/** What `notable` keeps, in the words the badge uses — an agent that reads
+ *  "notable" without this cannot tell whether an error row is in or out. */
+const NOTABLE_MEANS =
+  "the rows that acted or could not be decided: matched, not-simulated, and the ones the tool " +
+  "could not evaluate";
+
+/**
+ * The payload's own statement of what it withheld and how to get it back — the
+ * reversibility invariant of roadmap 073, and the reason flipping the default
+ * to `notable` is not a silent narrowing.
+ *
+ * Present whenever ANY narrowing is in effect, including the one nobody asked
+ * for (the default), and including a view that happened to hide nothing: a
+ * reader cannot tell a short list from a shortened one, and the count is what
+ * settles it.
+ */
+export function ruleFilterNote(view: RuleView): string | undefined {
+  const { transport, total } = view;
+  const allRows = `\`${facetText(transport, "verdict", "all")}\` returns every row`;
+  const oneRow = `\`${ruleText(transport, "N")}\` returns one row by index, whatever the facets hide`;
+  if (view.rule !== undefined) {
+    return (
+      `\`rules\` holds ONLY merged rule ${view.rule}, of ${total} — the drill-down ignores the ` +
+      `verdict and source facets by design. ${allRows}.`
+    );
+  }
+  if (view.verdict === "all" && view.source === "all") {
+    return undefined;
+  }
+  const facets = [
+    `\`${facetText(transport, "verdict", view.verdict)}\``,
+    ...(view.source === "all" ? [] : [`\`${facetText(transport, "source", view.source)}\``]),
+  ].join(" + ");
+  const kept = view.verdict === "notable" ? ` — ${NOTABLE_MEANS}` : "";
+  const withheld =
+    view.hidden === 0
+      ? "no row was withheld"
+      : `${view.hidden} withheld (their counts are in \`verdict\`, \`missingInputs\` and ` +
+        "`evaluationErrors`)";
+  return (
+    `\`rules\` holds the ${view.rules.length} of ${total} rules ${facets} keeps${kept}; ` +
+    `${withheld}. ${allRows}, and ${oneRow}.`
+  );
+}
+
 /**
  * The engine's transport-neutral missing-input line, with the pointer that
  * only this layer can spell: `--verdict no-input` for a person at a terminal,
@@ -210,13 +324,33 @@ export function missingInputsNote(
   return `${summary.note} \`${facetText(transport, "verdict", "no-input")}\` lists them.`;
 }
 
-/** The JSON counterpart: present only when filters were actually applied, so
- *  an unflagged `--format json` keeps the exact payload scripts already parse. */
+/**
+ * The same shape for the aggregate that must survive even harder (roadmap 073):
+ * a rule whose matcher threw is reported `no-match` by upstream, so nothing in
+ * the row's verdict says the tool failed rather than the config.
+ */
+export function evaluationErrorsNote(
+  summary: EvaluationErrorSummary,
+  transport: RunTransport,
+): string | undefined {
+  if (!summary.note) {
+    return undefined;
+  }
+  return `${summary.note} \`${facetText(transport, "verdict", "error")}\` lists them.`;
+}
+
+/**
+ * The JSON counterpart, on EVERY payload (roadmap 073) — `total`/`shown`/
+ * `hidden` are what make the flipped default auditable, and a key that appears
+ * only when a filter was passed cannot be relied on to say "nothing was
+ * withheld".
+ */
 export function ruleFilterPayload(view: RuleView): { ruleFilter: Record<string, unknown> } {
   return {
     ruleFilter: {
       verdict: view.verdict,
       source: view.source,
+      ...(view.rule !== undefined ? { rule: view.rule } : {}),
       total: view.total,
       shown: view.rules.length,
       hidden: view.hidden,

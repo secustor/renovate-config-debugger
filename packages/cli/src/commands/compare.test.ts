@@ -266,11 +266,14 @@ function narrowingArgs(...extra: string[]): string[] {
 
 interface Comparison {
   verdict: string;
+  matchedInBoth?: unknown[];
+  notes?: string[];
   configDelta: unknown[];
   stoppedMatching: unknown[];
   startedMatching: unknown[];
   identity: {
     changed: boolean;
+    counts?: { onlyInA: number; onlyInB: number; signatureChanges: number };
     onlyInA: unknown[];
     signatureChanges: { a: { label: string }; kind: string; keys: string[] }[];
   };
@@ -281,7 +284,9 @@ describe("compare separates behavior from rule identity", () => {
 
   test("narrowing the matched array around the dependency is no behavioral change", async () => {
     const io = recordingIo();
-    expect(await main(args("--format", "json"), io)).toBe(0);
+    // Roadmap 073: the identity ARRAYS are one detail level down — the default
+    // answer states the churn as counts (asserted below).
+    expect(await main(args("--format", "json", "--detail", "rules"), io)).toBe(0);
     const comparison = io.json() as Comparison;
     expect(comparison.verdict).toBe("identical");
     expect(comparison.configDelta).toEqual([]);
@@ -301,7 +306,18 @@ describe("compare separates behavior from rule identity", () => {
     expect(await main(args(), io)).toBe(0);
     expect(io.stdout.split("\n")[0]).toContain("✓ No behavioral change");
     expect(io.stdout).toContain("a rule's matchPackageNames list changed");
-    expect(io.stdout).toContain("Selector text changed, same effect (rule identity, not behavior)");
+    // Roadmap 073: at the default detail the churn is a count plus the flag
+    // that lists it; the list itself is `--detail rules`.
+    expect(io.stdout).toContain(
+      "Selector text changed on 1 rule, same effect (rule identity, not behavior) — " +
+        "`--detail rules` lists them.",
+    );
+
+    const listed = recordingIo();
+    expect(await main(args("--detail", "rules"), listed)).toBe(0);
+    expect(listed.stdout).toContain(
+      "Selector text changed, same effect (rule identity, not behavior)",
+    );
   });
 
   /**
@@ -323,7 +339,7 @@ describe("compare separates behavior from rule identity", () => {
     expect(io.stdout).not.toContain("pattern text changed");
 
     const json = recordingIo();
-    expect(await main([...added, "--format", "json"], json)).toBe(0);
+    expect(await main([...added, "--format", "json", "--detail", "rules"], json)).toBe(0);
     const comparison = json.json() as Comparison;
     expect(comparison.verdict).toBe("identical");
     expect(comparison.identity.signatureChanges[0]?.kind).toBe("clause-added");
@@ -350,5 +366,48 @@ describe("compare on a config Renovate would refuse", () => {
     ).toBe(2);
     expect(io.stdout).toContain("note: config A would be refused by Renovate");
     expect(io.stdout).toContain("not this command's answer");
+  });
+});
+
+/**
+ * Roadmap 073: `--detail` on the comparison, same vocabulary as the MCP tool's.
+ * The default is the claim plus its evidence; what it withholds is the
+ * bookkeeping — and it says which level returns it.
+ */
+describe("compare --detail", () => {
+  async function comparisonAt(...extra: string[]): Promise<Comparison> {
+    const io = recordingIo();
+    expect(await main(narrowingArgs("--format", "json", ...extra), io)).toBe(0);
+    return io.json() as Comparison;
+  }
+
+  test("the default answers with counts, and names the level that lists them", async () => {
+    const payload = await comparisonAt();
+    expect(payload.matchedInBoth).toBeUndefined();
+    expect(payload.identity).toEqual({
+      changed: true,
+      counts: { onlyInA: 1, onlyInB: 1, signatureChanges: 1 },
+    });
+    expect(payload.notes?.join(" ")).toContain("`--detail rules`");
+    // No selector signature at this level — it is a whole matched array,
+    // restated as a string next to the `label` that already names the rule.
+    expect(JSON.stringify(payload)).not.toContain('"signature":');
+  });
+
+  test("--detail rules restores the arrays, --detail full the signatures", async () => {
+    const rules = await comparisonAt("--detail", "rules");
+    expect(rules.matchedInBoth).toBeDefined();
+    expect(rules.identity.signatureChanges).toHaveLength(1);
+    expect(JSON.stringify(rules)).not.toContain('"signature":');
+
+    const full = await comparisonAt("--detail", "full");
+    expect(JSON.stringify(full)).toContain('"signature":');
+    expect(full.notes?.join(" ") ?? "").not.toContain("--detail");
+  });
+
+  test("an unknown value names the ones that exist", async () => {
+    const io = recordingIo();
+    expect(await main(narrowingArgs("--detail", "nope"), io)).toBe(1);
+    expect(io.stderr).toContain("verdict|rules|full");
   });
 });

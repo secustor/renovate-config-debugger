@@ -148,6 +148,32 @@ export function projectConfig(
   return { config: projected, view };
 }
 
+/** One entry of a {@link configKeyIndex}. */
+export interface ConfigKeySize {
+  key: string;
+  /** Bytes the key's VALUE costs as compact JSON — what makes the document
+   *  unanswerable, and what tells a caller which `keys` to ask for. */
+  bytes: number;
+}
+
+/**
+ * The document as a key index, biggest first (roadmap 073).
+ *
+ * The answer for a config that does not fit the transport's budget: the generic
+ * elision shrinks the largest ARRAY in place, which on an effective config means
+ * a `packageRules` cut to first-and-last inside a document that still looks
+ * whole. An index is honest at any size — it names every key the document has
+ * and states what asking for one would cost.
+ */
+export function configKeyIndex(config: Record<string, unknown>): ConfigKeySize[] {
+  return Object.entries(config)
+    .map(([key, value]) => ({
+      key,
+      bytes: new TextEncoder().encode(JSON.stringify(value) ?? "null").length,
+    }))
+    .toSorted((a, b) => b.bytes - a.bytes || a.key.localeCompare(b.key));
+}
+
 /**
  * A before/after pair for one key — `MergedKey`, a rule's merge, which IS
  * chronological.
