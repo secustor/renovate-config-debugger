@@ -349,11 +349,13 @@ is a different failure from `no-match` — and a rule that lost only to unset
 input is counted in `missingInputs` on both commands, per side on `compare`
 (`a.missingInputs`/`b.missingInputs`, and an `A — …` / `B — …` line in pretty
 output). Two sides that both went blind on the same rule agree perfectly, so
-`identical:` over them says nothing about your edit. And if either input config
-would be
-refused by Renovate, both commands exit `2`, which says nothing about the
-simulation itself, so they also say so on their own output (`exitNote` in JSON, a
-trailing `note:` line in pretty).
+`identical:` over them says nothing about your edit. If the input config would
+be refused by Renovate, `simulate` exits `2` and says so on its own output
+(`exitNote` in JSON, a trailing `note:` line in pretty). `compare` exits `0`
+whenever the comparison ran — its exit code reflects the comparison, not the
+inputs' validity, so a proven "no behavioral change" over a config that
+`validate` rejects is still a `0`; the refusal stays a named fact on the output
+(`wouldRefuse` per side, the same `note:`/`exitNote`).
 
 ### Group-level answers: `rcd group`
 
@@ -468,6 +470,11 @@ re-embed all of it on both sides. An append is now stated as what it appended
 `2` is deliberate. Claude Code hooks read exit 2 as the blocking "feed stderr
 back to the model and fix it" signal, so `rcd validate` drops into a
 Stop/PreToolUse hook with no wrapper around it.
+
+One exception: `compare` exits `0` whenever the comparison itself ran, even
+over an input config Renovate would refuse — its verdict is the answer, and a
+`2` there read as "the comparison failed" (replay-04). The refusal is still
+reported on the output.
 
 ## Credentials
 

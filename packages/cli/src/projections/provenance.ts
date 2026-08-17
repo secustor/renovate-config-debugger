@@ -3,6 +3,7 @@ import {
   type KeyProvenance,
   type ProvenanceLayer,
   type TraceResult,
+  UPDATE_TYPE_KEYS,
 } from "@renovate-config-debugger/engine";
 import { isOverridden, multiContribBadgeKind } from "@renovate-config-debugger/app/headless";
 import { CliError } from "../io";
@@ -154,7 +155,20 @@ export function indexView(entry: KeyProvenance): ProvenanceIndexEntry {
  * `packageRules`, so the count is this config's, not Renovate's option
  * metadata. The clauses of those rules are the simulator's business, which is
  * what the note points at.
+ *
+ * A rule can also set the key INSIDE an update-type block (`minor:
+ * {automerge: true}` is how `:automergeMinor` works) — replay-04's expert
+ * read the note's absence on `automerge` as "no rule touches this", exactly
+ * the misread the note exists to prevent, so nested writers count too and are
+ * named as conditional.
  */
+function setsNested(rule: Record<string, unknown>, key: string): boolean {
+  return UPDATE_TYPE_KEYS.some((block) => {
+    const nested = rule[block];
+    return nested !== null && typeof nested === "object" && key in nested;
+  });
+}
+
 export function perDependencyNote(
   key: string,
   finalConfig: Record<string, unknown> | undefined,
@@ -162,14 +176,25 @@ export function perDependencyNote(
   if (key === "packageRules" || !Array.isArray(finalConfig?.packageRules)) {
     return undefined;
   }
-  const setters = finalConfig.packageRules.filter(
-    (rule) => rule !== null && typeof rule === "object" && key in rule,
-  ).length;
+  const rules = finalConfig.packageRules.filter(
+    (rule): rule is Record<string, unknown> => rule !== null && typeof rule === "object",
+  );
+  const direct = rules.filter((rule) => key in rule).length;
+  const nested = rules.filter((rule) => !(key in rule) && setsNested(rule, key)).length;
+  const setters = direct + nested;
   if (setters === 0) {
     return undefined;
   }
+  const which =
+    nested === setters ? (setters === 1 ? "only" : "all of them only") : `${nested} of them only`;
+  const nestedClause =
+    nested === 0
+      ? ""
+      : ` (${which} inside an update-type block ` +
+        "such as `minor: {…}`, which applies only when the update's type matches)";
   return (
-    `${setters} packageRule${setters === 1 ? "" : "s"} can set \`${key}\` per-dependency — this ` +
+    `${setters} packageRule${setters === 1 ? "" : "s"} can set \`${key}\` per-dependency` +
+    `${nestedClause} — this ` +
     "chain is the repository-wide value. Simulate a dependency to see the value an actual " +
     "update would get."
   );

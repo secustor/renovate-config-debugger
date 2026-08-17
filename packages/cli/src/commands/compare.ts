@@ -1,9 +1,9 @@
 import { compareSimulations, type SimulationComparison } from "@renovate-config-debugger/engine";
 import { outputFormat, stringOption } from "../args";
 import type { Command } from "../command";
-import { EXIT_OK, EXIT_REFUSED } from "../io";
+import { EXIT_OK } from "../io";
 import { emitJson, emitLines, writeNotes } from "../output";
-import { INPUT_OPTIONS, refusalNote, runOne, takeInputFile, wouldRefuse } from "../run-input";
+import { INPUT_OPTIONS, runOne, takeInputFile, wouldRefuse } from "../run-input";
 import { readDependency } from "../dep";
 import { deltaLine, parseConfigScope, parseKeys } from "../projections/config-view";
 import {
@@ -53,6 +53,29 @@ export function comparisonHeadline(comparison: HeadlineFields): string {
             "touched the very selectors that rule matches on."
         : `✓ No behavioral change: ${comparison.netEffect}.`;
   }
+}
+
+/**
+ * Replay-04 (three sessions, one calling it "the sharpest citability problem"):
+ * compare used to exit 2 whenever an INPUT config would be refused, so a
+ * proven "No behavioral change" arrived with the exit code of a failure — the
+ * one command whose exit code a script gates an edit on was the one whose exit
+ * code did not state its own verdict. The comparison IS the answer here, so a
+ * comparison that ran exits 0, and the refusal stays a named fact on the
+ * output (`wouldRefuse` per side, this note in pretty and `exitNote` in JSON).
+ * `validate` is the command whose exit code carries refusal.
+ */
+function compareRefusalNote(refused: readonly string[]): string | undefined {
+  if (refused.length === 0) {
+    return undefined;
+  }
+  const subject = refused.length === 1 ? refused[0] : refused.join(" and ");
+  const verb = refused.length === 1 ? "would be" : "would both be";
+  return (
+    `note: ${subject} ${verb} refused by Renovate (the parse or validate stage failed) — the ` +
+    "comparison above still ran on its resolved output and the exit code reflects the " +
+    "comparison, not the refusal. `rcd validate` lists the messages and exits 2 on them."
+  );
 }
 
 /**
@@ -117,6 +140,10 @@ export const compareCommand: Command = {
     "and states the identity axis as counts; `--detail rules` restores the rule",
     "and identity arrays (`matchedInBoth` included), `--detail full` the",
     "comparison exactly as the engine computes it, selector signatures and all.",
+    "",
+    "Exit code 0 means the comparison ran — even when an input config would be",
+    "refused by Renovate (a note names the side; `wouldRefuse` in JSON).",
+    "`rcd validate` is the command whose exit code reports refusal.",
   ],
   options: [
     ...INPUT_OPTIONS,
@@ -168,7 +195,7 @@ export const compareCommand: Command = {
 
     const refusedA = wouldRefuse(a.result);
     const refusedB = wouldRefuse(b.result);
-    const refusal = refusalNote([
+    const refusal = compareRefusalNote([
       ...(refusedA ? ["config A"] : []),
       ...(refusedB && b.result !== a.result ? ["config B"] : []),
     ]);
@@ -231,6 +258,6 @@ export const compareCommand: Command = {
         ...(refusal ? ["", refusal] : []),
       ]);
     }
-    return refusedA || refusedB ? EXIT_REFUSED : EXIT_OK;
+    return EXIT_OK;
   },
 };

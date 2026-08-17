@@ -1,4 +1,5 @@
 import type { DependencyDescriptor, SimulationResult } from "@renovate-config-debugger/engine";
+import type { RunTransport } from "../run-input";
 
 /**
  * Roadmap 074: the group-level answer over SEVERAL simulated updates.
@@ -146,13 +147,65 @@ function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
 
-/** The tally as pretty output prints it. */
-export function groupTallyLines(tally: GroupTally): string[] {
+/** The slice of a simulation the gap notes read — structural, like
+ *  {@link SimulatedUpdate}, so both transports hand in what they hold. */
+export interface GapInput {
+  dep: DependencyDescriptor;
+  sim: Pick<SimulationResult, "missingInputs">;
+}
+
+/**
+ * A member's input gap, per update, with the unset FIELDS named (replay-04:
+ * "a field they read unset" sent the entry persona through a trial-and-error
+ * loop that naming `sourceUrl` up front would have skipped). One shared
+ * function — the CLI's and the MCP tool's wording used to be two near-copies.
+ */
+export function inputGaps(simulated: readonly GapInput[], transport: RunTransport): string[] {
+  const spell = transport === "cli" ? "`rcd simulate`" : "simulate";
+  return simulated.flatMap(({ dep, sim }, index) => {
+    const count = sim.missingInputs.rules;
+    if (count === 0) {
+      return [];
+    }
+    const name = dep.depName ?? `update ${index + 1}`;
+    const fields = [...new Set(sim.missingInputs.groups.map((group) => group.fieldList))];
+    const named =
+      fields.length > 0 ? `leaves ${fields.slice(0, 3).join(" / ")} unset` : "leaves fields unset";
+    return [
+      `${name}: ${count} rule${count === 1 ? "" : "s"} could not match because this update ` +
+        `${named} — ${spell} that update to see which rules.`,
+    ];
+  });
+}
+
+/**
+ * The headline correction for a blind tally: "0 groups" over updates whose
+ * descriptors starved the matchers reads as "these updates just don't group",
+ * when the honest reading is "the tally could not see". Returned for BOTH
+ * transports to put first — the JSON notes array and the pretty headline must
+ * make the same claim.
+ */
+export function blindTallyNote(tally: GroupTally, gapCount: number): string | undefined {
+  if (tally.groups.length > 0 || gapCount === 0) {
+    return undefined;
+  }
+  return (
+    `No groups formed, but ${plural(gapCount, "update")} left fields unset that rules match ` +
+    "on — this tally may be blind, not empty. Fill the named fields and re-run before " +
+    "concluding these updates don't group."
+  );
+}
+
+/** The tally as pretty output prints it; `gaps` is {@link inputGaps}'s answer,
+ *  so a blind tally can correct itself right under the headline instead of in
+ *  a footnote nobody reads before concluding "these updates don't group". */
+export function groupTallyLines(tally: GroupTally, gaps: readonly string[] = []): string[] {
+  const blind = blindTallyNote(tally, gaps.length);
   const headline =
     `${plural(tally.groups.length, "group")} over ${plural(tally.updates, "simulated update")}` +
     (tally.ungrouped.length > 0 ? ` (${plural(tally.ungrouped.length, "update")} ungrouped)` : "") +
     ".";
-  const lines = [headline];
+  const lines = [headline, ...(blind ? ["", `⚠ ${blind}`] : [])];
   for (const group of tally.groups) {
     lines.push("", `  ${group.verdict}`);
     for (const member of group.members) {

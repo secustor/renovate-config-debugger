@@ -248,6 +248,30 @@ describe("run_config", () => {
     expect(summary).not.toHaveProperty("finalConfig");
   });
 
+  /** Replay-04 (both MCP experts): a runId silently evicted mid-session cost a
+   *  call each — the retention policy must be visible BEFORE the eviction. */
+  test("the answer states the retention policy, and warns at capacity", async () => {
+    await close();
+    await connect({ store: new RunStore(2) });
+    const first = (await call("run_config", { fileName: "renovate.json", content: CONFIG })) as {
+      runId: string;
+      held: { runIds: string[]; limit: number; note?: string };
+    };
+    expect(first.held.limit).toBe(2);
+    expect(first.held.runIds).toEqual([first.runId]);
+    expect(first.held.note).toBeUndefined();
+
+    const second = (await call("run_config", { fileName: "renovate.json", content: CONFIG })) as {
+      runId: string;
+      held: { runIds: string[]; note?: string };
+    };
+    // At capacity: the oldest-first list names what the next run_config
+    // evicts, and the note says so in words.
+    expect(second.held.runIds).toEqual([first.runId, second.runId]);
+    expect(second.held.note).toContain(`the next run_config evicts ${first.runId}`);
+    expect(second.held.note).toContain("fresh");
+  });
+
   test("a config Renovate would refuse says so instead of failing", async () => {
     const summary = (await call("run_config", {
       fileName: "renovate.json",
@@ -1674,6 +1698,21 @@ describe("RunStore", () => {
     expect(() => store.get(b.runId)).toThrow(/no run/);
     expect(store.get(a.runId).runId).toBe(a.runId);
     expect(store.get(c.runId).runId).toBe(c.runId);
+  });
+
+  test("states its own policy: the limit, and the held ids oldest first", () => {
+    const store = new RunStore(2);
+    const fake = { events: [], errors: [], warnings: [] } as unknown as Parameters<
+      RunStore["put"]
+    >[0];
+    const input = { fileName: "renovate.json", content: "{}" };
+    expect(store.limit).toBe(2);
+    const a = store.put(fake, input);
+    const b = store.put(fake, input);
+    expect(store.heldIds()).toEqual([a.runId, b.runId]);
+    // A get refreshes recency, so the drilled-into run leaves eviction order.
+    store.get(a.runId);
+    expect(store.heldIds()).toEqual([b.runId, a.runId]);
   });
 });
 

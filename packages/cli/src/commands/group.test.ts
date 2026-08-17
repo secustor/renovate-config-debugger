@@ -113,8 +113,55 @@ describe("group", () => {
       ),
     ).toBe(0);
     const tally = io.json() as { notes: string[] };
-    // mixed-rules has a matchSourceUrls rule neither bare descriptor can feed.
-    expect(tally.notes.join(" ")).toContain("could not match because this update leaves a field");
+    // mixed-rules has a matchSourceUrls rule neither bare descriptor can feed —
+    // and the note names the field (replay-04: "a field" sent the entry
+    // persona into trial and error that naming `sourceUrl` would have skipped).
+    expect(tally.notes.join(" ")).toContain("could not match because this update leaves");
+    expect(tally.notes.join(" ")).toContain("sourceUrl");
+    expect(tally.notes.join(" ")).toContain("`rcd simulate`");
+  });
+
+  /** Replay-04: "0 groups" over starved descriptors read as "these updates
+   *  just don't group" — the headline now says the tally may be blind. */
+  test("a tally with no groups over gap-ridden updates corrects its headline", async () => {
+    const io = recordingIo();
+    expect(
+      await main(
+        [
+          "group",
+          fixture("mixed-rules.json"),
+          "--dep",
+          '{"depName":"left-pad"}',
+          "--dep",
+          '{"depName":"is-odd"}',
+        ],
+        io,
+      ),
+    ).toBe(0);
+    // Neither dep matches a grouping rule, and both starve the matchSourceUrls
+    // rule — the pretty headline carries the correction, not just a footnote.
+    expect(io.stdout).toContain("0 groups over 2 simulated updates");
+    expect(io.stdout).toContain("this tally may be blind, not empty");
+
+    const json = recordingIo();
+    expect(
+      await main(
+        [
+          "group",
+          fixture("mixed-rules.json"),
+          "--dep",
+          '{"depName":"left-pad"}',
+          "--dep",
+          '{"depName":"is-odd"}',
+          "--format",
+          "json",
+        ],
+        json,
+      ),
+    ).toBe(0);
+    // Same claim first in the JSON notes — the transports must agree.
+    const tally = json.json() as { notes: string[] };
+    expect(tally.notes[0]).toContain("this tally may be blind, not empty");
   });
 });
 
