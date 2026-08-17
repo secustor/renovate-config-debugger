@@ -1,7 +1,9 @@
 import type { ClauseEvaluation, RuleEvaluation } from "./simulate-package-rules";
 
 /**
- * The fail-closed no-input predicate, and the aggregate built on it.
+ * The per-clause predicates a scoped rule list would hide, and the AGGREGATES
+ * built on them — the facts that must survive every filter, every projection
+ * and the MCP transport's elision.
  *
  * The failure this exists for: a rule that read a field the simulated
  * dependency never set fails CLOSED (upstream's `if (!sourceUrl) return
@@ -12,6 +14,13 @@ import type { ClauseEvaluation, RuleEvaluation } from "./simulate-package-rules"
  * A per-row fact cannot fix that, because the rows are exactly what the filter
  * removed: the signal has to be an AGGREGATE that travels with the result,
  * outside the array anyone may filter or elide.
+ *
+ * Roadmap 073 added the second aggregate for the same reason, one step worse:
+ * a clause whose matcher THREW is recorded `state: "error"` and also pushes the
+ * rule to `verdict: "no-match"`, so a focused default would have hidden "the
+ * tool could not evaluate this rule" — the one thing that may never go missing.
+ * Every narrowing on top of this module is gated on its aggregates being
+ * unconditional, so the two live side by side.
  *
  * Type-only imports, so this module is Renovate-free and unit-testable in the
  * engine's `golden` (plain node) project.
@@ -166,4 +175,89 @@ export function summarizeMissingInputs(rules: readonly RuleEvaluation[]): Missin
     groups,
     note: buildNote(rules.length, affected.size, groups),
   };
+}
+
+/**
+ * A clause of this rule could not be evaluated at all: the matcher threw, and
+ * the simulator recorded `state: "error"` with the reason.
+ *
+ * Upstream treats a throwing matcher as a non-match, so the rule's verdict is
+ * an ordinary `no-match` — which makes this predicate, not the verdict, the
+ * only thing standing between an evaluation failure and a scoped view that
+ * drops it. `matchesVerdictFilter`'s `notable` facet reads it for exactly that
+ * reason (roadmap 073); the documented case is `matchCurrentVersion` on a
+ * `conda` dependency, whose versioning module the browser build excludes.
+ */
+export function hasEvaluationError(rule: Pick<RuleEvaluation, "clauses">): boolean {
+  return rule.clauses.some((clause) => clause.state === "error");
+}
+
+export interface EvaluationErrorSummary {
+  /** Distinct rules with at least one clause the simulator could not evaluate. */
+  rules: number;
+  /** The `match*` selectors that threw, deduped, sorted. */
+  selectors: string[];
+  /** Up to five distinct reasons, sorted — a signal, not a log. The rows
+   *  themselves carry every clause's own `note`. */
+  messages: string[];
+  /** The first five affected `RuleEvaluation.index` values, ascending — a
+   *  drill-down handle, the way {@link MissingInputGroup.sampleRuleIndexes} is. */
+  sampleRuleIndexes: number[];
+  /** The whole thing in one transport-neutral line, with the honest caveat that
+   *  a result containing one of these is not a claim about a real Renovate run.
+   *  Absent when `rules === 0`. */
+  note?: string;
+}
+
+/** Distinct clause messages kept, at most. */
+const MESSAGE_LIMIT = 5;
+
+function buildErrorNote(total: number, ruleCount: number, selectors: string[]): string {
+  const scope =
+    `${ruleCount} of ${total} ${total === 1 ? "rule" : "rules"} could not be EVALUATED: ` +
+    `${selectors.map((selector) => `\`${selector}\``).join(", ")} threw`;
+  return (
+    `${scope}. The tool could not evaluate ${ruleCount === 1 ? "this rule" : "these rules"}, so ` +
+    "this result may not reflect a real Renovate run — treat the verdict as incomplete rather " +
+    "than as a non-match."
+  );
+}
+
+/**
+ * The rules whose evaluation failed, as one aggregate. Reads the finished
+ * verdicts only — it decides nothing and changes nothing about the simulation
+ * it describes.
+ */
+export function summarizeEvaluationErrors(
+  rules: readonly RuleEvaluation[],
+): EvaluationErrorSummary {
+  const selectors = new Set<string>();
+  const messages = new Set<string>();
+  const affected: number[] = [];
+  for (const rule of rules) {
+    if (!hasEvaluationError(rule)) {
+      continue;
+    }
+    affected.push(rule.index);
+    for (const clause of rule.clauses) {
+      if (clause.state !== "error") {
+        continue;
+      }
+      selectors.add(clause.key);
+      if (clause.note) {
+        messages.add(clause.note);
+      }
+    }
+  }
+  const sortedSelectors = [...selectors].toSorted();
+  const summary: EvaluationErrorSummary = {
+    rules: affected.length,
+    selectors: sortedSelectors,
+    messages: [...messages].toSorted().slice(0, MESSAGE_LIMIT),
+    sampleRuleIndexes: affected.toSorted((a, b) => a - b).slice(0, SAMPLE_LIMIT),
+  };
+  if (summary.rules === 0) {
+    return summary;
+  }
+  return { ...summary, note: buildErrorNote(rules.length, summary.rules, sortedSelectors) };
 }

@@ -30,6 +30,7 @@ function simFixture(
     finalDependencyConfig,
     flattened: { merged: [], blocks: {}, authoredBlocks: [] },
     missingInputs: { rules: 0, groups: [] },
+    evaluationErrors: { rules: 0, selectors: [], messages: [], sampleRuleIndexes: [] },
     mergeSteps: [],
     errors: [],
     warnings: [],

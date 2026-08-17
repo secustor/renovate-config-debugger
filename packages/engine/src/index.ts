@@ -15,9 +15,12 @@ export {
   UPDATE_TYPE_KEYS,
 } from "./simulate-package-rules";
 export {
+  type EvaluationErrorSummary,
+  hasEvaluationError,
   isNoInputNoMatch,
   type MissingInputGroup,
   type MissingInputSummary,
+  summarizeEvaluationErrors,
   summarizeMissingInputs,
 } from "./simulate-missing-inputs";
 export {

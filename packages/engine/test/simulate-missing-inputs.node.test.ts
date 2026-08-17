@@ -1,12 +1,20 @@
 /**
- * Unit tests for the pure missing-input reduction. Builds `RuleEvaluation`
+ * Unit tests for the pure aggregates a scoped rule list must not be able to
+ * hide — the missing-input reduction and (roadmap 073) the evaluation-error
+ * one. Builds `RuleEvaluation`
  * fixtures by hand (the module reads verdicts and clauses only), so this needs
  * no Renovate machinery and runs as a plain node test — the golden↔shimmed
  * integration case in simulate-package-rules.*.test.ts owns the question of
  * whether a real run produces these shapes.
  */
 import { describe, expect, it } from "vitest";
-import { isNoInputNoMatch, type RuleEvaluation, summarizeMissingInputs } from "../src/index";
+import {
+  hasEvaluationError,
+  isNoInputNoMatch,
+  type RuleEvaluation,
+  summarizeEvaluationErrors,
+  summarizeMissingInputs,
+} from "../src/index";
 
 type ClauseSpec = [
   key: string,
@@ -36,6 +44,13 @@ function rule(
 /** The commonest shape: one clause that fail-closed on an unset field. */
 function noInput(index: number, key: string, ...fields: string[]): RuleEvaluation {
   return rule(index, "no-match", [[key, "no-input", ...fields]]);
+}
+
+/** A rule whose matcher threw, with the note the simulator's `catch` records. */
+function errored(index: number, key: string, message: string): RuleEvaluation {
+  const base = rule(index, "no-match", [[key, "error", "currentValue"]]);
+  const clause = base.clauses[0];
+  return clause ? { ...base, clauses: [{ ...clause, note: message }] } : base;
 }
 
 describe("summarizeMissingInputs", () => {
@@ -187,5 +202,76 @@ describe("summarizeMissingInputs", () => {
     expect(summary.rules).toBe(1);
     expect(summary.groups.map((group) => group.fieldList)).toEqual(["categories", "sourceUrl"]);
     expect(summary.note).toContain("1 of 1 rule could not match");
+  });
+});
+
+/**
+ * Roadmap 073's blocker, from the other side: a throwing matcher fails its rule
+ * to a plain `no-match`, so "the tool could not evaluate this rule" needs an
+ * aggregate of its own before any view is allowed to hide the row.
+ */
+describe("summarizeEvaluationErrors", () => {
+  const CONDA = "matcher threw: conda versioning is not supported in the browser build";
+
+  it("counts the rules, names the selectors and samples the indexes", () => {
+    const summary = summarizeEvaluationErrors([
+      rule(0, "matched", [["matchPackageNames", "matched", "packageName"]]),
+      errored(1, "matchCurrentVersion", CONDA),
+      errored(2, "matchCurrentVersion", CONDA),
+    ]);
+    expect(summary).toEqual({
+      rules: 2,
+      selectors: ["matchCurrentVersion"],
+      messages: [CONDA],
+      sampleRuleIndexes: [1, 2],
+      note: expect.stringContaining("2 of 3 rules could not be EVALUATED"),
+    });
+  });
+
+  /** The honest caveat: a result holding one of these is not a claim about a
+   *  real Renovate run, and the note has to say so wherever it travels. */
+  it("says the result may not reflect a real run", () => {
+    const summary = summarizeEvaluationErrors([errored(0, "matchCurrentVersion", CONDA)]);
+    expect(summary.note).toBe(
+      "1 of 1 rule could not be EVALUATED: `matchCurrentVersion` threw. The tool could not " +
+        "evaluate this rule, so this result may not reflect a real Renovate run — treat the " +
+        "verdict as incomplete rather than as a non-match.",
+    );
+  });
+
+  it("dedupes and sorts the selectors, and keeps at most five distinct messages", () => {
+    const summary = summarizeEvaluationErrors([
+      errored(0, "matchJsonata", "matcher threw: e"),
+      errored(1, "matchCurrentVersion", "matcher threw: d"),
+      errored(2, "matchCurrentVersion", "matcher threw: c"),
+      errored(3, "matchCurrentVersion", "matcher threw: b"),
+      errored(4, "matchCurrentVersion", "matcher threw: a"),
+      errored(5, "matchCurrentVersion", "matcher threw: a"),
+      errored(6, "matchCurrentVersion", "matcher threw: f"),
+    ]);
+    expect(summary.selectors).toEqual(["matchCurrentVersion", "matchJsonata"]);
+    expect(summary.messages).toEqual([
+      "matcher threw: a",
+      "matcher threw: b",
+      "matcher threw: c",
+      "matcher threw: d",
+      "matcher threw: e",
+    ]);
+    expect(summary.sampleRuleIndexes).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  it("says nothing at all when every clause was evaluated", () => {
+    const summary = summarizeEvaluationErrors([
+      rule(0, "matched", [["matchPackageNames", "matched", "packageName"]]),
+      noInput(1, "matchSourceUrls", "sourceUrl"),
+    ]);
+    expect(summary).toEqual({ rules: 0, selectors: [], messages: [], sampleRuleIndexes: [] });
+    expect(summary.note).toBeUndefined();
+  });
+
+  it("hasEvaluationError reads the clauses, not the verdict", () => {
+    expect(hasEvaluationError(errored(0, "matchCurrentVersion", CONDA))).toBe(true);
+    expect(hasEvaluationError(noInput(1, "matchSourceUrls", "sourceUrl"))).toBe(false);
+    expect(hasEvaluationError(rule(2, "no-match", []))).toBe(false);
   });
 });

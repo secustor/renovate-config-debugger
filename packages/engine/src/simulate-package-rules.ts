@@ -1,7 +1,9 @@
 import { enqueueEngineTask } from "./pipeline";
 import {
+  type EvaluationErrorSummary,
   humanFieldList,
   type MissingInputSummary,
+  summarizeEvaluationErrors,
   summarizeMissingInputs,
 } from "./simulate-missing-inputs";
 import {
@@ -232,6 +234,15 @@ export interface SimulationResult {
    * Always present — `{ rules: 0, groups: [] }` when there is nothing to say.
    */
   missingInputs: MissingInputSummary;
+  /**
+   * The rules a matcher THREW on (roadmap 073) — same reasoning as
+   * `missingInputs`, one step more serious: upstream treats a throwing matcher
+   * as a non-match, so these rules wear an ordinary `no-match` and a scoped
+   * view would drop "the tool could not evaluate this rule" without a trace.
+   * Always present — `{ rules: 0, selectors: [], messages: [],
+   * sampleRuleIndexes: [] }` when every clause was evaluated.
+   */
+  evaluationErrors: EvaluationErrorSummary;
   /** Exactly what `applyPackageRules` would return (dep fields included). */
   rawFinalConfig: Record<string, unknown>;
   /**
@@ -788,6 +799,7 @@ async function execute(input: SimulationInput): Promise<SimulationResult> {
       // Descriptive, and deliberately computed here rather than per row: the
       // views that would show it are the views that filter those rows away.
       missingInputs: summarizeMissingInputs(rules),
+      evaluationErrors: summarizeEvaluationErrors(rules),
       rawFinalConfig: config,
       finalDependencyConfig,
       flattened: { updateType, merged: flattenMerged, blocks, authoredBlocks },

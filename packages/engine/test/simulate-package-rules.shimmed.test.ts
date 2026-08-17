@@ -151,6 +151,34 @@ describe("simulatePackageRules", () => {
     const clause = result.rules[0]?.clauses[0];
     expect(clause?.state).toBe("error");
     expect(clause?.note).toMatch(/conda versioning is not supported in the browser/);
+    // Roadmap 073: the rule wears an ordinary `no-match`, so the fact that it
+    // could not be EVALUATED has to leave the row — every scoped view drops
+    // the rows and none may drop this.
+    expect(result.evaluationErrors).toMatchObject({
+      rules: 1,
+      selectors: ["matchCurrentVersion"],
+      sampleRuleIndexes: [0],
+    });
+    expect(result.evaluationErrors.note).toContain("could not be EVALUATED");
+    expect(result.evaluationErrors.note).toContain("may not reflect a real Renovate run");
+    // …and it is NOT counted as a rule an unset dependency field cost: setting
+    // a field would not decide a matcher that throws.
+    expect(result.missingInputs.rules).toBe(0);
+  });
+
+  /** The other side of the aggregate: a run whose every clause was evaluated
+   *  says so with an empty summary rather than by omitting the key. */
+  it("reports no evaluation errors when every matcher answered", async () => {
+    const result = await simulatePackageRules({
+      config: { packageRules: [{ matchPackageNames: ["react"], labels: ["ui"] }] },
+      dep: npmDep,
+    });
+    expect(result.evaluationErrors).toEqual({
+      rules: 0,
+      selectors: [],
+      messages: [],
+      sampleRuleIndexes: [],
+    });
   });
 
   it("matches bump updates via matchUpdateTypes + isBump", async () => {

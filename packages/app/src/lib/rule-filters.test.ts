@@ -1,9 +1,11 @@
 /**
  * The rules drawer's two filter facets. The verdict facet has to split a
  * fail-closed "no match — input not set" from a genuine mismatch exactly the
- * way the badge does (Replay-02 R3/R4 — one predicate, `isNoInputNoMatch`),
- * and `ruleVisible` has to be the SAME predicate the cross-link focus uses to
- * decide whether a row is hidden. Both are locked here.
+ * way the badge does (Replay-02 R3/R4 — one predicate, `isNoInputNoMatch`) and
+ * keep a rule the tool could not evaluate at all out of that bucket (roadmap
+ * 073 — `hasEvaluationError`), and `ruleVisible` has to be the SAME predicate
+ * the cross-link focus uses to decide whether a row is hidden. All are locked
+ * here.
  */
 import type {
   ClauseEvaluation,
@@ -45,34 +47,47 @@ function rule(
 const REPO_LAYER: ProvenanceLayer = { kind: "repo" };
 const PRESET_LAYER: ProvenanceLayer = { kind: "preset", name: "config:recommended", nodeId: "n1" };
 
-// 0 matched (repo) · 1 no-input (preset) · 2 no-match (preset) · 3 not-simulated (preset)
+// 0 matched (repo) · 1 no-input (preset) · 2 no-match (preset) · 3 not-simulated
+// (preset) · 4 error (repo — a matcher threw, so the rule wears `no-match` too)
 const RULES = [
   rule(0, "matched", [clause("matched")]),
   rule(1, "no-match", [clause("no-input")]),
   rule(2, "no-match", [clause("no-match")]),
   rule(3, "not-simulated"),
+  rule(4, "no-match", [clause("error")]),
 ];
 const LAYERS = new Map<number, ProvenanceLayer>([
   [0, REPO_LAYER],
   [1, PRESET_LAYER],
   [2, PRESET_LAYER],
   [3, PRESET_LAYER],
+  [4, REPO_LAYER],
 ]);
 
 const indices = (rules: RuleEvaluation[]) => rules.map((r) => r.index);
 
 describe("the verdict facet", () => {
+  /**
+   * Roadmap 073's blocker: a clause whose matcher threw fails its rule to a
+   * plain `no-match`, so the old `notable` (`verdict !== "no-match"`) hid "the
+   * tool could not evaluate this rule" — and a focused default built on it
+   * would have hidden it silently. Rule 4 is that row, and it is in the default
+   * view.
+   */
   test("the default view keeps everything that is not a plain no-match", () => {
-    expect(indices(filterRules(RULES, DEFAULT_RULE_FILTERS, LAYERS))).toEqual([0, 3]);
+    expect(indices(filterRules(RULES, DEFAULT_RULE_FILTERS, LAYERS))).toEqual([0, 3, 4]);
   });
 
-  test("no-input and no-match are separate facets, split like the badge", () => {
-    const at = (verdict: "all" | "matched" | "no-input" | "no-match") =>
+  test("no-input, no-match and error are separate facets, split like the badge", () => {
+    const at = (verdict: "all" | "matched" | "no-input" | "no-match" | "error") =>
       indices(filterRules(RULES, { verdict, preset: ALL_PRESETS }, LAYERS));
-    expect(at("all")).toEqual([0, 1, 2, 3]);
+    expect(at("all")).toEqual([0, 1, 2, 3, 4]);
     expect(at("matched")).toEqual([0]);
     expect(at("no-input")).toEqual([1]);
+    // A GENUINE mismatch: the facet excludes the no-input row and, now that
+    // `error` names them, the un-evaluated one too.
     expect(at("no-match")).toEqual([2]);
+    expect(at("error")).toEqual([4]);
   });
 });
 
@@ -80,7 +95,7 @@ describe("the provenance facet", () => {
   test("narrowing to the repo layer is the old 'my rules only'", () => {
     // Note the verdict facet stays at its default: the two facets compose.
     expect(indices(filterRules(RULES, { verdict: "all", preset: REPO_RULES }, LAYERS))).toEqual([
-      0,
+      0, 4,
     ]);
   });
 
@@ -93,7 +108,7 @@ describe("the provenance facet", () => {
   test("options carry their counts, most-contributing first", () => {
     expect(presetFilterOptions(RULES, LAYERS, ALL_PRESETS)).toEqual([
       { value: "preset:config:recommended", label: "config:recommended", count: 3 },
-      { value: "repo", label: "repo config", count: 1 },
+      { value: "repo", label: "repo config", count: 2 },
     ]);
   });
 
@@ -109,8 +124,8 @@ describe("the provenance facet", () => {
 
 describe("the source facet (rcd --source)", () => {
   test("repo and presets are the two halves a CLI flag can name", () => {
-    expect(indices(filterRulesBySource(RULES, "all", LAYERS))).toEqual([0, 1, 2, 3]);
-    expect(indices(filterRulesBySource(RULES, "repo", LAYERS))).toEqual([0]);
+    expect(indices(filterRulesBySource(RULES, "all", LAYERS))).toEqual([0, 1, 2, 3, 4]);
+    expect(indices(filterRulesBySource(RULES, "repo", LAYERS))).toEqual([0, 4]);
     expect(indices(filterRulesBySource(RULES, "presets", LAYERS))).toEqual([1, 2, 3]);
   });
 
@@ -136,10 +151,11 @@ test("ruleLayerIndex turns the engine's attribution into the map the filters tak
 
 test("the verdict options state what each would leave", () => {
   expect(verdictFilterOptions(RULES).map((o) => [o.value, o.count])).toEqual([
-    ["notable", 2],
-    ["all", 4],
+    ["notable", 3],
+    ["all", 5],
     ["matched", 1],
     ["no-input", 1],
     ["no-match", 1],
+    ["error", 1],
   ]);
 });

@@ -85,7 +85,7 @@ export {
   verdictFilterOptions,
 } from "./rule-filters";
 export { ruleWrittenKeys, summarizeRuleSelectors } from "./rule-selectors";
-export { isNoInputNoMatch } from "./rule-verdict";
+export { hasEvaluationError, isNoInputNoMatch } from "./rule-verdict";
 export { changedDependencyKeys } from "./simulation-changes";
 export {
   buildRunDigest,
