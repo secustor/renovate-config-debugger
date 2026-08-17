@@ -70,8 +70,9 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm --filter @renovate-config-debugger/cli test
 
-      # `build` runs scripts/check-compat.ts, which fails when the README's
-      # compat table does not describe this build.
+      # `build` runs scripts/check-compat.ts — outside a release it asserts
+      # the README carries only the compat-table markers; the rendered table
+      # is a release artefact, stamped from compat.json during `prepare`.
       - name: Build the SSR bundle
         run: pnpm --filter @renovate-config-debugger/cli build
 

@@ -1,33 +1,45 @@
 /**
- * The README's compat table, as data — shared by the two scripts that care.
+ * The CLI's compat history, as data — shared by the two scripts that care.
  *
- * `check-compat.ts` (roadmap 059) asserts the top row describes this build and
- * runs as part of `build`; `stamp-compat.ts` (roadmap 067) writes that row
- * during a release, once semantic-release has decided the version. They have
- * to agree on the marker, the column order and the row format, so that
- * agreement lives here rather than in two parsers that drift.
+ * The rows live in `compat.json`, newest first; the README in the repository
+ * carries only a marker pair. `stamp-compat.ts` (roadmap 067) upserts the row
+ * for the version being released and renders the table between the markers,
+ * so the rendered table exists only in the README that ships to npm.
+ * `check-compat.ts` (roadmap 059) runs inside `build` and asserts whichever
+ * state the tree should be in. No human ever writes a row, which is the
+ * point: a Renovate bump on main has no committed table to go stale against.
  *
  * Plain Node, no dependencies: `check-compat.ts` runs before anything is built.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-/** The comment that marks where the table starts, so prose above it can move. */
-export const MARKER = "<!-- compat-table -->";
+/** The pair that brackets the table's spot in the README. */
+export const MARKER_START = "<!-- compat-table -->";
+export const MARKER_END = "<!-- /compat-table -->";
 
 /** One row: the CLI version, the engine build it embeds, the Renovate pin. */
-export type CompatRow = [cli: string, engine: string, renovate: string];
+export interface CompatRow {
+  cli: string;
+  engine: string;
+  renovate: string;
+}
 
-const HEADER: CompatRow = ["`cli`", "embedded `engine`", "`renovate`"];
+export const COLUMNS = ["cli", "engine", "renovate"] as const;
+
+const HEADER = ["`cli`", "embedded `engine`", "`renovate`"];
+
+const VERSION = /^\d+\.\d+\.\d+(?:-[\w.]+)?$/;
+
+const resolve = (relative: string): string => fileURLToPath(new URL(relative, import.meta.url));
+
+export const readmePath = resolve("../README.md");
+export const historyPath = resolve("../compat.json");
 
 interface PackageJson {
   version: string;
   dependencies?: Record<string, string>;
 }
-
-const resolve = (relative: string): string => fileURLToPath(new URL(relative, import.meta.url));
-
-export const readmePath = resolve("../README.md");
 
 const readJson = (relative: string): PackageJson =>
   JSON.parse(readFileSync(resolve(relative), "utf8")) as PackageJson;
@@ -44,92 +56,111 @@ export function currentBuild(): CompatRow {
     );
   }
 
-  return [cli.version, engine.version, renovate];
+  return { cli: cli.version, engine: engine.version, renovate };
 }
 
-interface Table {
-  /** Data rows, newest first — the header and separator are regenerated. */
-  rows: CompatRow[];
-  /** Line indices of the table block within the README, for splicing back. */
-  start: number;
-  end: number;
-  lines: string[];
+function isRow(value: unknown): value is CompatRow {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  return COLUMNS.every((column) => {
+    const cell = (value as Record<string, unknown>)[column];
+    return typeof cell === "string" && VERSION.test(cell);
+  });
 }
 
-function cells(line: string): string[] {
-  return line
-    .split("|")
-    .slice(1, -1)
-    .map((cell) => cell.trim());
-}
+/** The release history, newest first, shape-checked. */
+export function readHistory(): CompatRow[] {
+  const parsed: unknown = JSON.parse(readFileSync(historyPath, "utf8"));
 
-/** Locates the table under the marker and returns its rows, header stripped. */
-export function readTable(readme = readFileSync(readmePath, "utf8")): Table {
-  const lines = readme.split("\n");
-  const marker = lines.findIndex((line) => line.trim() === MARKER);
-
-  if (marker === -1) {
-    throw new Error(`packages/cli/README.md must carry a ${MARKER} marker above the compat table`);
+  if (!Array.isArray(parsed) || !parsed.every(isRow)) {
+    throw new Error(
+      "packages/cli/compat.json must be an array of {cli, engine, renovate} version rows, newest first",
+    );
   }
 
-  let start = marker + 1;
-  while (start < lines.length && lines[start]?.trim() === "") {
-    start += 1;
-  }
-
-  let end = start;
-  while (end < lines.length && lines[end]?.startsWith("|")) {
-    end += 1;
-  }
-
-  // The header and its separator are the first two lines; everything after is
-  // release history, oldest at the bottom.
-  const rows = lines.slice(start + 2, end).map((line) => cells(line) as CompatRow);
-
-  return { rows, start, end, lines };
-}
-
-/** The top data row, or an empty row when the table has no releases yet. */
-export function topRow(table = readTable()): CompatRow {
-  return table.rows[0] ?? (["", "", ""] as CompatRow);
+  return parsed;
 }
 
 /**
- * Re-renders the whole table with the columns padded to their widest cell —
- * a two-digit minor would otherwise leave the table ragged, and the diff of a
+ * Puts `row` at the top of the history, replacing a row for the same CLI
+ * version rather than stacking a duplicate — re-running a release after a
+ * failed step has to be a no-op, not a second row.
+ *
+ * Returns whether the file changed.
+ */
+export function writeHistory(row: CompatRow): boolean {
+  const rest = readHistory().filter((existing) => existing.cli !== row.cli);
+  const before = readFileSync(historyPath, "utf8");
+  const after = `${JSON.stringify([row, ...rest], null, 2)}\n`;
+
+  if (after === before) {
+    return false;
+  }
+
+  writeFileSync(historyPath, after);
+  return true;
+}
+
+/**
+ * The rows as a markdown table, columns padded to their widest cell — a
+ * two-digit minor would otherwise leave the table ragged, and the diff of a
  * release should be the new row, not a re-alignment of every old one.
  */
-function render(rows: CompatRow[]): string[] {
-  const all = [HEADER, ...rows];
+export function render(rows: CompatRow[]): string[] {
+  const cells = rows.map((row) => COLUMNS.map((column) => row[column]));
+  const all = [HEADER, ...cells];
   const widths = HEADER.map((_, column) =>
     Math.max(...all.map((row) => (row[column] ?? "").length)),
   );
-  const line = (row: CompatRow): string =>
+  const line = (row: string[]): string =>
     `| ${row.map((cell, i) => cell.padEnd(widths[i] ?? 0)).join(" | ")} |`;
 
   return [
     line(HEADER),
     `| ${widths.map((width) => "-".repeat(width)).join(" | ")} |`,
-    ...rows.map(line),
+    ...cells.map(line),
   ];
 }
 
+interface Region {
+  /** Every line of the README, for splicing back. */
+  lines: string[];
+  /** Index of the first line after the start marker. */
+  start: number;
+  /** Index of the end-marker line. */
+  end: number;
+}
+
+/** Locates the marker pair and the lines between them. */
+export function readRegion(readme = readFileSync(readmePath, "utf8")): Region {
+  const lines = readme.split("\n");
+  const start = lines.findIndex((line) => line.trim() === MARKER_START);
+  const end = lines.findIndex((line) => line.trim() === MARKER_END);
+
+  if (start === -1 || end === -1 || end < start) {
+    throw new Error(
+      `packages/cli/README.md must bracket the compat table's spot with ${MARKER_START} … ${MARKER_END}`,
+    );
+  }
+
+  return { lines, start: start + 1, end };
+}
+
 /**
- * Puts `row` at the top of the table, replacing a row for the same CLI version
- * rather than stacking a duplicate — re-running a release after a failed step
- * has to be a no-op, not a second row.
- *
- * Returns whether the file changed.
+ * Renders `rows` between the markers, replacing whatever sits there (the
+ * repository copy's placeholder note included). Returns whether the file
+ * changed.
  */
-export function writeRow(row: CompatRow): boolean {
-  const table = readTable();
-  const rest = table.rows.filter((existing) => existing[0] !== row[0]);
-  const rendered = render([row, ...rest]);
-  const before = table.lines.join("\n");
+export function stampReadme(rows: CompatRow[]): boolean {
+  const region = readRegion();
+  const before = region.lines.join("\n");
   const after = [
-    ...table.lines.slice(0, table.start),
-    ...rendered,
-    ...table.lines.slice(table.end),
+    ...region.lines.slice(0, region.start),
+    "",
+    ...render(rows),
+    "",
+    ...region.lines.slice(region.end),
   ].join("\n");
 
   if (after === before) {

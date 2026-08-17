@@ -266,17 +266,21 @@ Everywhere else it is a config file. Most of them take the same JSON:
 
 Every release states the Renovate it carries. The engine and its `renovate`
 graph are inlined at build time, so a given CLI version always answers with
-exactly this Renovate and nothing resolves at install time.
+exactly this Renovate and nothing resolves at install time — `rcd --version`
+prints both.
 
 <!-- compat-table -->
 
-| `cli` | embedded `engine` | `renovate` |
-| ----- | ----------------- | ---------- |
-| 0.1.0 | 0.1.0             | 44.7.4     |
+_The release history lives in [`compat.json`](./compat.json), and the table is
+rendered into this spot when a release is published — the README on
+[npm](https://www.npmjs.com/package/@renovate-config-debugger/cli) carries it._
+
+<!-- /compat-table -->
 
 A new row is not a promise that the previous row's flags still work. Releases
-write the rows (`scripts/stamp-compat.ts`), and `scripts/check-compat.ts` fails
-the build once the top one stops describing it, so the table cannot go stale.
+write the rows (`scripts/stamp-compat.ts`) from facts about the tree, and
+`scripts/check-compat.ts` fails the build when the README and `compat.json`
+disagree, so the table cannot go stale — no hand ever writes it.
 
 ## License
 
