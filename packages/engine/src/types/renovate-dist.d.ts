@@ -99,6 +99,20 @@ declare module "renovate/dist/config/presets/parse.js" {
   export function parsePreset(input: string): ParsedPreset;
 }
 
+declare module "renovate/dist/config/presets/relative.js" {
+  /** Rewrites every relative reference (`./x`, `../x`, `/x`) found in any
+   *  `extends`/`ignorePresets` array of `value` into an absolute preset string
+   *  inheriting `parent`'s source, repo and tag. MUTATES `value` in place and
+   *  returns nothing — `presets/index.js` calls it for its side effect. An
+   *  entry it cannot resolve is warned about and left exactly as authored.
+   *  Only the golden/shimmed tests import this; the engine gets the rewrite
+   *  for free via `resolveConfigPresets`. */
+  export function canonicalizeRelativePresets(
+    value: unknown,
+    parent: { presetSource: string; repo?: string; presetPath?: string; tag?: string },
+  ): void;
+}
+
 declare module "renovate/dist/config/presets/internal/index.js" {
   /** Renovate's own bundled presets, keyed by `repo` (the part before the `:`)
    *  and `presetName`. Synchronous — internal presets are data in `dist`, not

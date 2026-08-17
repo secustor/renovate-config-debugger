@@ -90,7 +90,8 @@ export function renovateShims(): Plugin {
         },
         resolve: {
           alias: [
-            // upath (config/parse.js) wraps node:path; pathe is the pure-JS
+            // upath (config/parse.js, and config/presets/relative.js for the
+            // relative-preset rewrite) wraps node:path; pathe is the pure-JS
             // drop-in that works in the browser.
             { find: /^(node:)?path$/, replacement: "pathe" },
           ],

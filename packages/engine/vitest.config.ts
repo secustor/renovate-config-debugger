@@ -33,6 +33,7 @@ export default defineConfig({
             "test/pipeline.shimmed.test.ts",
             "test/preset-fetchers.test.ts",
             "test/provenance.shimmed.test.ts",
+            "test/relative-presets.shimmed.test.ts",
             "test/repo-config.test.ts",
             "test/resolved-config.shimmed.test.ts",
             "test/simulate-package-rules.shimmed.test.ts",
