@@ -219,7 +219,7 @@ describe("compare", () => {
           "--dep",
           '{"depName":"react","packageName":"react"}',
           "--keys",
-          "groupName,onboardingConfig",
+          "groupName,onboardingConfig,labels",
           "--format",
           "json",
         ],
@@ -239,9 +239,13 @@ describe("compare", () => {
         "1 rule started matching",
     );
     // The reason a caller can act on: `--config-scope full` is what would
-    // make a globalOnly name answerable, whether or not the delta held it.
+    // make a globalOnly name answerable, whether or not the delta held it —
+    // and `labels`, identical on both sides, is `identical`, not `absent`
+    // (replay-03: "absent" read as "not in the config" about a key both
+    // configs hold).
     expect(comparison.configView.withheld).toEqual([
       { key: "onboardingConfig", reason: "global-only" },
+      { key: "labels", reason: "identical" },
     ]);
   });
 });

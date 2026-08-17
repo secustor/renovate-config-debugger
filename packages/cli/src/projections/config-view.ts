@@ -39,9 +39,15 @@ export interface ConfigViewRequest {
 
 /**
  * Why a requested key is not in the answer. `absent` ("this document does not
- * carry that option") and `global-only` ("this VIEW cannot carry it") are
- * different answers, and a silently empty result is indistinguishable from a
- * bug, so the view names which one happened.
+ * carry that option"), `identical` ("both sides carry it, nothing differs")
+ * and `global-only` ("this VIEW cannot carry it") are different answers, and a
+ * silently empty result is indistinguishable from a bug, so the view names
+ * which one happened.
+ *
+ * `identical` exists for the comparison delta (replay-03, 2 MCP sessions): a
+ * delta only lists keys that DIFFER, so a requested key that is the same on
+ * both sides is not in it — and reporting that as `absent` reads as "not in
+ * the config" about an option both configs hold.
  *
  * A globalOnly name under `package-rules` always reads `global-only`, whether
  * or not the document held it: that is the reason the caller can act on —
@@ -49,7 +55,7 @@ export interface ConfigViewRequest {
  */
 export interface WithheldKey {
   key: string;
-  reason: "absent" | "global-only";
+  reason: "absent" | "identical" | "global-only";
 }
 
 /** What produced the document next to it. ~60 bytes, so a reader never has to
@@ -75,6 +81,10 @@ export interface ProjectedConfig {
 export function projectKeySet(
   present: readonly string[],
   request: ConfigViewRequest,
+  /** Keys the underlying document(s) DO carry that `present` legitimately
+   *  lacks — for a comparison delta, the keys identical on both sides. A
+   *  requested key found here is withheld as `identical`, not `absent`. */
+  unchanged?: ReadonlySet<string>,
 ): { kept: Set<string>; view: ConfigView } {
   const globalOnly = globalOnlyOptionNames();
   const pruned =
@@ -101,10 +111,13 @@ export function projectKeySet(
     } else {
       // The scope, not the document, is why a globalOnly key is gone — and
       // `keys` must never resurrect it. `scope: "full"` is the way back.
-      withheld.push({
-        key,
-        reason: request.scope === "package-rules" && globalOnly.has(key) ? "global-only" : "absent",
-      });
+      const reason =
+        request.scope === "package-rules" && globalOnly.has(key)
+          ? "global-only"
+          : unchanged?.has(key)
+            ? "identical"
+            : "absent";
+      withheld.push({ key, reason });
     }
   }
   return {

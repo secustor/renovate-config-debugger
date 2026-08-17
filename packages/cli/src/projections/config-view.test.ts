@@ -11,6 +11,7 @@ import {
   parseConfigScope,
   parseKeys,
   projectConfig,
+  projectKeySet,
 } from "./config-view";
 
 /**
@@ -98,6 +99,36 @@ describe("projectConfig", () => {
         expect(view.keys).toBeLessThanOrEqual(wide.view.keys);
       }
     }
+  });
+});
+
+/**
+ * Replay-03 (2 MCP sessions): a comparison delta only lists keys that DIFFER,
+ * so a requested key that is the same on both sides is not in it — and
+ * `absent` for it read as "not in the config" about an option both configs
+ * hold. `unchanged` is how the comparison names that case `identical`.
+ */
+describe("projectKeySet withheld reasons", () => {
+  test("a key the documents carry but the delta does not is `identical`, not `absent`", () => {
+    const { view } = projectKeySet(
+      ["groupName"],
+      { scope: "package-rules", keys: ["groupName", "labels", "minimumReleaseAge", GLOBAL_ONLY] },
+      new Set(["labels"]),
+    );
+    expect(view.withheld).toEqual([
+      { key: "labels", reason: "identical" },
+      { key: "minimumReleaseAge", reason: "absent" },
+      { key: GLOBAL_ONLY, reason: "global-only" },
+    ]);
+  });
+
+  test("`global-only` still wins over `identical` — the scope is why it is gone", () => {
+    const { view } = projectKeySet(
+      [],
+      { scope: "package-rules", keys: [GLOBAL_ONLY] },
+      new Set([GLOBAL_ONLY]),
+    );
+    expect(view.withheld).toEqual([{ key: GLOBAL_ONLY, reason: "global-only" }]);
   });
 });
 

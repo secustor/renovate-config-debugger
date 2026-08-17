@@ -287,6 +287,15 @@ export interface ComparisonProjection {
   detail: CompareDetail;
   /** Which surface the note's `detail` spelling is for. Defaults to `mcp`'s. */
   transport?: RunTransport;
+  /**
+   * Top-level keys present in EITHER side's `finalDependencyConfig` — what
+   * tells a withheld key `identical` (both sides carry it, nothing differs)
+   * apart from `absent` (neither side's per-dependency config has it). Both
+   * call sites hold the two simulations, so both pass it; without it every
+   * unchanged key reads `absent`, which replay-03 showed being read as "not
+   * in the config" about an option both configs hold.
+   */
+  sideKeys?: readonly string[];
 }
 
 /** A {@link RuleRef} without the re-serialized selector array. */
@@ -385,9 +394,14 @@ export function comparisonPayload(
   comparison: SimulationComparison,
   options: ComparisonProjection,
 ): ProjectedComparison {
+  const deltaKeys = new Set(comparison.configDelta.map((delta) => delta.key));
+  // A key both sides carry that is not in the delta did not differ — the
+  // `identical` withheld reason, as opposed to a key neither side has.
+  const unchanged = new Set((options.sideKeys ?? []).filter((key) => !deltaKeys.has(key)));
   const { kept, view } = projectKeySet(
-    comparison.configDelta.map((delta) => delta.key),
+    [...deltaKeys],
     { scope: options.scope, ...(options.keys ? { keys: options.keys } : {}) },
+    unchanged,
   );
   const { detail } = options;
   const spell = (value: CompareDetail) =>

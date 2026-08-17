@@ -69,9 +69,9 @@ function identityLines(comparison: ProjectedComparison): string[] {
       : [
           "",
           "Selector text changed, same effect (rule identity, not behavior):",
-          ...changes.map(
-            (c) => `  ${c.a.label}  #${c.a.index + 1} → #${c.b.index + 1}  (${c.kind})`,
-          ),
+          // Zero-based, like `--rule`, `index` in JSON and the provenance
+          // citations — one index scheme on the whole surface (replay-03).
+          ...changes.map((c) => `  ${c.a.label}  #${c.a.index} → #${c.b.index}  (${c.kind})`),
         ];
   }
   const counts = comparison.identity.counts;
@@ -108,7 +108,10 @@ export const compareCommand: Command = {
     "The key delta is reported at `--config-scope package-rules` (the globalOnly",
     "options no rule can reach are dropped) and `--keys a,b` narrows it further.",
     "Neither touches the verdict: `summary` states what the comparison found",
-    "over the WHOLE delta, and `configView` says what the view withheld.",
+    "over the WHOLE delta, and `configView.withheld` names every requested key",
+    "the answer does not carry, with why — `identical` (both sides carry it,",
+    "nothing differs), `absent` (neither side's per-dependency config has it; a",
+    "rule that did not match contributes nothing), or `global-only`.",
     "",
     "`--detail verdict` (the default) answers with the claim and its evidence,",
     "and states the identity axis as counts; `--detail rules` restores the rule",
@@ -154,6 +157,12 @@ export const compareCommand: Command = {
       scope: scope ?? "package-rules",
       detail,
       transport: "cli",
+      sideKeys: [
+        ...new Set([
+          ...Object.keys(simA.finalDependencyConfig),
+          ...Object.keys(simB.finalDependencyConfig),
+        ]),
+      ],
       ...(keys ? { keys } : {}),
     });
 

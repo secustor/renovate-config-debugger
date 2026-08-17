@@ -269,12 +269,27 @@ describe("comparisonPayload", () => {
       keys: ["groupName", "labels"],
     });
     expect(payload.configDelta.map((delta) => delta.key)).toEqual(["groupName"]);
+    // Without `sideKeys` the projection cannot tell "unchanged" from "not
+    // there" — `absent` is the honest fallback.
     expect(payload.configView.withheld).toEqual([{ key: "labels", reason: "absent" }]);
     // The comparison FOUND three changed keys; a narrowed view does not get to
     // restate what it found.
     expect(payload.summary).toBe(COMPARISON.summary);
     expect(payload.verdict).toBe("differs");
     expect(payload.netEffect).toBe(COMPARISON.netEffect);
+  });
+
+  /** Replay-03: both call sites pass `sideKeys`, so a requested key the
+   *  documents carry but the delta does not reads `identical`. */
+  test("with sideKeys, an unchanged requested key is `identical`, not `absent`", () => {
+    const payload = comparisonPayload(COMPARISON, {
+      scope: "package-rules",
+      detail: "full",
+      keys: ["groupName", "labels"],
+      sideKeys: ["groupName", "labels"],
+    });
+    expect(payload.configDelta.map((delta) => delta.key)).toEqual(["groupName"]);
+    expect(payload.configView.withheld).toEqual([{ key: "labels", reason: "identical" }]);
   });
 });
 
