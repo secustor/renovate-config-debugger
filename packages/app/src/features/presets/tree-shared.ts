@@ -196,6 +196,12 @@ export function sourceKindEntry(kind: string): GlossaryEntry {
     npm: "Fetched from the npm registry package's config.",
     http: "Fetched from a raw HTTP(S) URL.",
     local: "Resolved as a `local>` preset against the configured platform and repository.",
+    // Never fetched: a relative reference is rewritten against its parent
+    // preset before resolution, so it only stays `relative` when it could not
+    // be resolved at all.
+    relative:
+      "A relative reference (`./…`, `../…`, `/…`) that could not be resolved — " +
+      "relative presets only work inside a preset, and cannot leave its repository.",
   };
   return {
     name: `${kind} preset`,

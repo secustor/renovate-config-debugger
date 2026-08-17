@@ -74,7 +74,14 @@ export type PresetSource =
   | "forgejo"
   | "local"
   | "npm"
-  | "http";
+  | "http"
+  /**
+   * A relative reference (`./x`, `../x`, `/x`) that never became absolute.
+   * Renovate rewrites these against their parent preset before resolution, so
+   * this only survives on a node that could not be resolved — one written
+   * outside any preset, or one that tried to climb out of its repository.
+   */
+  | "relative";
 
 export interface PresetSourceRef {
   /** The raw preset string as written in `extends`, e.g. `github>org/repo:preset` */
