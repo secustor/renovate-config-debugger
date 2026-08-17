@@ -40,6 +40,7 @@ the way.
 | `resolved`   | the merged config Renovate would run with            |
 | `simulate`   | which `packageRules` match a hypothetical dependency |
 | `compare`    | did an edit change behavior                          |
+| `group`      | which groups form from several updates               |
 | `run`        | the whole trace                                      |
 | `docs`       | what an option means, and where it may go            |
 | `mcp`        | all of the above over MCP stdio                      |
@@ -51,6 +52,7 @@ $ rcd provenance renovate.json labels
 $ rcd resolved renovate.json --mode full
 $ rcd simulate renovate.json --dep '{"depName":"react","currentValue":"17.0.0","newValue":"18.0.0"}'
 $ rcd compare before.json after.json --dep '{"depName":"react"}'
+$ rcd group renovate.json --dep '{"depName":"react","updateType":"minor"}' --dep '{"depName":"react-dom","updateType":"minor"}'
 $ rcd docs minimumReleaseAge
 $ echo '{"extends":["config:recommended"]}' | rcd run --stdin --format json --select status
 ```
@@ -100,6 +102,8 @@ The rest belong to one command each.
 |              | `--detail <which>`           | `verdict` (default) \| `rules` \| `full`                                |
 |              | `--keys <a,b,…>`             | only these options of the config delta                                  |
 |              | `--config-scope <which>`     | `package-rules` (default) \| `full`                                     |
+| `group`      | `--dep <json>` (repeatable)  | one pending update per occurrence, at least two                         |
+|              | `--deps-file <file>`         | a JSON array of the same objects                                        |
 | `run`        | `--select <a,b,…>`           | `status\|errors\|warnings\|final\|events\|tree\|layers\|platform\|all`  |
 |              | `--keys <a,b,…>`             | only these options of `--select final`                                  |
 |              | `--config-scope <which>`     | `full` (default) \| `package-rules`                                     |
@@ -350,6 +354,37 @@ would be
 refused by Renovate, both commands exit `2`, which says nothing about the
 simulation itself, so they also say so on their own output (`exitNote` in JSON, a
 trailing `note:` line in pretty).
+
+### Group-level answers: `rcd group`
+
+`simulate` is one dependency at a time by construction, so "would this group
+actually reach its `minimumGroupSize`" is not a question it can answer. `group`
+takes SEVERAL updates — `--dep` repeatedly, or `--deps-file` with a JSON array
+of the same objects — runs the same evaluation for each, and tallies them by
+the `groupName` their matching rules produced:
+
+```console
+$ rcd group renovate.json \
+    --dep '{"depName":"react","updateType":"minor"}' \
+    --dep '{"depName":"react-dom","updateType":"minor"}' \
+    --dep '{"depName":"lodash","updateType":"patch"}'
+1 group over 3 simulated updates (1 update ungrouped).
+
+  "react monorepo" would WAIT: 2 updates of the 3 its minimumGroupSize requires.
+      react (minor)
+      react-dom (minor)
+
+  Ungrouped — each update gets its own PR:
+      lodash (patch)
+```
+
+Two honesty caveats travel on every answer. The tally is over the updates YOU
+supplied — Renovate evaluates `minimumGroupSize` against the repository's real
+pending updates at run time, so "would wait" here means "these updates alone
+don't reach it", never "this group can never form". And membership is by
+`groupName` as the rules resolved it: branch splitting (`separateMajorMinor`,
+custom `branchName` templates) is not modeled. The MCP `simulate_group` tool is
+the same answer over a held run.
 
 On a `config:best-practices` run the rule list runs to several hundred, so BOTH
 output formats answer with the rules that ACTED — `--verdict notable`: matched,

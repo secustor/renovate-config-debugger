@@ -80,11 +80,17 @@ export const OPTIONS = {
   },
   dep: {
     flags: "--dep <json>",
+    multiple: true,
     description:
       'the dependency update to simulate, e.g. \'{"depName":"react","currentValue":"17.0.0",' +
-      '"newValue":"18.0.0"}\' — packageName defaults to depName, as in a real run',
+      '"newValue":"18.0.0"}\' — packageName defaults to depName, as in a real run. ' +
+      "`group` takes it repeatedly, one per pending update",
   },
   "dep-file": { flags: "--dep-file <file>", description: "--dep, read from a file" },
+  "deps-file": {
+    flags: "--deps-file <file>",
+    description: "a JSON array of `--dep` objects — `group`'s batch input",
+  },
   "dep-b": { flags: "--dep-b <json>", description: "the B-side dependency to compare" },
   "dep-b-file": { flags: "--dep-b-file <file>", description: "--dep-b, read from a file" },
   search: { flags: "--search", description: "list options whose name matches" },

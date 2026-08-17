@@ -167,6 +167,7 @@ describe("tool surface", () => {
       "get_resolved_config",
       "run_config",
       "simulate",
+      "simulate_group",
     ]);
     const node = tools.find((t) => t.name === "get_preset_node");
     expect(node?.description).toContain("one node at a time");
@@ -220,6 +221,7 @@ describe("tool surface", () => {
       "get_resolved_config",
       "run_config",
       "simulate",
+      "simulate_group",
     ]);
 
     // A whole drill-down, not just a handshake: the held run survives the era.
@@ -1244,6 +1246,66 @@ describe("simulate and compare", () => {
     expect(notes).toContain("A — 2 of 4 rules could not match");
     expect(notes).toContain("B — 2 of 4 rules could not match");
     expect(notes).toContain('`verdict: "no-input"` lists them.');
+  });
+});
+
+/**
+ * Roadmap 074: the batch-level question `simulate` cannot answer one
+ * dependency at a time — both replay-03 entry sessions on the 44529 scenario
+ * could only hedge "would this group actually reach its minimumGroupSize".
+ */
+describe("simulate_group", () => {
+  const MINIMUM_GROUP = JSON.stringify({
+    labels: ["deps"],
+    packageRules: [
+      {
+        matchPackageNames: ["react", "react-dom"],
+        groupName: "react monorepo",
+        minimumGroupSize: 3,
+      },
+    ],
+  });
+
+  test("tallies the groups and answers the minimumGroupSize gate", async () => {
+    const runId = await runConfig(MINIMUM_GROUP);
+    const tally = (await call("simulate_group", {
+      runId,
+      deps: [
+        { depName: "react", packageName: "react", updateType: "minor" },
+        { depName: "react-dom", packageName: "react-dom", updateType: "minor" },
+        { depName: "lodash", packageName: "lodash", updateType: "patch" },
+      ],
+    })) as {
+      updates: number;
+      groups: {
+        groupName: string;
+        size: number;
+        minimumGroupSize: number;
+        wouldForm: boolean;
+        verdict: string;
+      }[];
+      ungrouped: { depName?: string }[];
+      notes: string[];
+    };
+    expect(tally.updates).toBe(3);
+    expect(tally.groups[0]).toMatchObject({
+      groupName: "react monorepo",
+      size: 2,
+      minimumGroupSize: 3,
+      wouldForm: false,
+    });
+    expect(tally.groups[0]?.verdict).toContain("would WAIT: 2 updates of the 3");
+    expect(tally.ungrouped.map((member) => member.depName)).toEqual(["lodash"]);
+    // The scope caveat is part of the answer: this tally is over the supplied
+    // deps, never the repository's real pending updates.
+    expect(tally.notes.join(" ")).toContain("updates YOU supplied");
+  });
+
+  test("one dep is refused by the schema — simulate is that question", async () => {
+    const runId = await runConfig(MINIMUM_GROUP);
+    await expect(call("simulate_group", { runId, deps: [{ depName: "react" }] })).rejects.toThrow(
+      /deps/,
+    );
   });
 });
 

@@ -195,6 +195,7 @@ describe("bin/rcd-dev.mjs mcp", () => {
       "get_provenance",
       "get_resolved_config",
       "simulate",
+      "simulate_group",
       "compare_simulations",
       "explain_message",
       "get_option_docs",

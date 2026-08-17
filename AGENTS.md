@@ -45,6 +45,7 @@ rcd tree renovate.json --node "config:best-practices" --body resolved
 rcd provenance renovate.json labels
 rcd simulate renovate.json --dep '{"depName":"react","currentValue":"17.0.0"}'
 rcd compare before.json after.json --dep '{"depName":"react"}'   # the edit oracle
+rcd group renovate.json --dep '{"depName":"a"}' --dep '{"depName":"b"}'  # would these updates group, and does the group form?
 rcd docs minimumReleaseAge        # option semantics for the pinned Renovate
 ```
 
