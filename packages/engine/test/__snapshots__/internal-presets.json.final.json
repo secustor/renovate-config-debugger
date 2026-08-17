@@ -103,7 +103,7 @@
   "customDatasources": {},
   "dockerChildPrefix": "renovate_",
   "dockerCliOptions": null,
-  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.79.0",
+  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.86.4",
   "dockerUser": "12021",
   "composerIgnorePlatformReqs": [],
   "goGetDirs": [
@@ -1751,6 +1751,7 @@
         "Group packages from datatables-net monorepo together."
       ],
       "matchSourceUrls": [
+        "https://github.com/DataTables/DataTablesSrc",
         "https://github.com/DataTables/Dist-DataTables",
         "https://github.com/DataTables/Dist-DataTables-Bootstrap",
         "https://github.com/DataTables/Dist-DataTables-Bootstrap4",
@@ -1775,6 +1776,7 @@
         "Group packages from datatables-net-autofill monorepo together."
       ],
       "matchSourceUrls": [
+        "https://github.com/DataTables/AutoFill",
         "https://github.com/DataTables/Dist-DataTables-AutoFill",
         "https://github.com/DataTables/Dist-DataTables-AutoFill-Bootstrap",
         "https://github.com/DataTables/Dist-DataTables-AutoFill-Bootstrap4",
@@ -1799,6 +1801,7 @@
         "Group packages from datatables-net-buttons monorepo together."
       ],
       "matchSourceUrls": [
+        "https://github.com/DataTables/Buttons",
         "https://github.com/DataTables/Dist-DataTables-Buttons",
         "https://github.com/DataTables/Dist-DataTables-Buttons-Bootstrap",
         "https://github.com/DataTables/Dist-DataTables-Buttons-Bootstrap4",
@@ -1823,6 +1826,7 @@
         "Group packages from datatables-net-colreorder monorepo together."
       ],
       "matchSourceUrls": [
+        "https://github.com/DataTables/ColReorder",
         "https://github.com/DataTables/Dist-DataTables-ColReorder",
         "https://github.com/DataTables/Dist-DataTables-ColReorder-Bootstrap",
         "https://github.com/DataTables/Dist-DataTables-ColReorder-Bootstrap4",
@@ -1847,6 +1851,7 @@
         "Group packages from datatables-net-fixedcolumns monorepo together."
       ],
       "matchSourceUrls": [
+        "https://github.com/DataTables/FixedColumns",
         "https://github.com/DataTables/Dist-DataTables-FixedColumns",
         "https://github.com/DataTables/Dist-DataTables-FixedColumns-Bootstrap",
         "https://github.com/DataTables/Dist-DataTables-FixedColumns-Bootstrap4",
@@ -1871,6 +1876,7 @@
         "Group packages from datatables-net-fixedheader monorepo together."
       ],
       "matchSourceUrls": [
+        "https://github.com/DataTables/FixedHeader",
         "https://github.com/DataTables/Dist-DataTables-FixedHeader",
         "https://github.com/DataTables/Dist-DataTables-FixedHeader-Bootstrap",
         "https://github.com/DataTables/Dist-DataTables-FixedHeader-Bootstrap4",
@@ -1895,6 +1901,7 @@
         "Group packages from datatables-net-keytable monorepo together."
       ],
       "matchSourceUrls": [
+        "https://github.com/DataTables/KeyTable",
         "https://github.com/DataTables/Dist-DataTables-KeyTable",
         "https://github.com/DataTables/Dist-DataTables-KeyTable-Bootstrap",
         "https://github.com/DataTables/Dist-DataTables-KeyTable-Bootstrap4",
@@ -1919,6 +1926,7 @@
         "Group packages from datatables-net-responsive monorepo together."
       ],
       "matchSourceUrls": [
+        "https://github.com/DataTables/Responsive",
         "https://github.com/DataTables/Dist-DataTables-Responsive",
         "https://github.com/DataTables/Dist-DataTables-Responsive-Bootstrap",
         "https://github.com/DataTables/Dist-DataTables-Responsive-Bootstrap4",
@@ -1943,6 +1951,7 @@
         "Group packages from datatables-net-rowgroup monorepo together."
       ],
       "matchSourceUrls": [
+        "https://github.com/DataTables/RowGroup",
         "https://github.com/DataTables/Dist-DataTables-RowGroup",
         "https://github.com/DataTables/Dist-DataTables-RowGroup-Bootstrap",
         "https://github.com/DataTables/Dist-DataTables-RowGroup-Bootstrap4",
@@ -1967,6 +1976,7 @@
         "Group packages from datatables-net-rowreorder monorepo together."
       ],
       "matchSourceUrls": [
+        "https://github.com/DataTables/RowReorder",
         "https://github.com/DataTables/Dist-DataTables-RowReorder",
         "https://github.com/DataTables/Dist-DataTables-RowReorder-Bootstrap",
         "https://github.com/DataTables/Dist-DataTables-RowReorder-Bootstrap4",
@@ -1991,6 +2001,7 @@
         "Group packages from datatables-net-scroller monorepo together."
       ],
       "matchSourceUrls": [
+        "https://github.com/DataTables/Scroller",
         "https://github.com/DataTables/Dist-DataTables-Scroller",
         "https://github.com/DataTables/Dist-DataTables-Scroller-Bootstrap",
         "https://github.com/DataTables/Dist-DataTables-Scroller-Bootstrap4",
@@ -2015,6 +2026,7 @@
         "Group packages from datatables-net-searchbuilder monorepo together."
       ],
       "matchSourceUrls": [
+        "https://github.com/DataTables/SearchBuilder",
         "https://github.com/DataTables/Dist-DataTables-SearchBuilder",
         "https://github.com/DataTables/Dist-DataTables-SearchBuilder-Bootstrap",
         "https://github.com/DataTables/Dist-DataTables-SearchBuilder-Bootstrap4",
@@ -2039,6 +2051,7 @@
         "Group packages from datatables-net-searchpanes monorepo together."
       ],
       "matchSourceUrls": [
+        "https://github.com/DataTables/SearchPanes",
         "https://github.com/DataTables/Dist-DataTables-SearchPanes",
         "https://github.com/DataTables/Dist-DataTables-SearchPanes-Bootstrap",
         "https://github.com/DataTables/Dist-DataTables-SearchPanes-Bootstrap4",
@@ -2063,6 +2076,7 @@
         "Group packages from datatables-net-select monorepo together."
       ],
       "matchSourceUrls": [
+        "https://github.com/DataTables/Select",
         "https://github.com/DataTables/Dist-DataTables-Select",
         "https://github.com/DataTables/Dist-DataTables-Select-Bootstrap",
         "https://github.com/DataTables/Dist-DataTables-Select-Bootstrap4",
@@ -2087,6 +2101,7 @@
         "Group packages from datatables-net-staterestore monorepo together."
       ],
       "matchSourceUrls": [
+        "https://github.com/DataTables/StateRestore",
         "https://github.com/DataTables/Dist-DataTables-StateRestore",
         "https://github.com/DataTables/Dist-DataTables-StateRestore-Bootstrap",
         "https://github.com/DataTables/Dist-DataTables-StateRestore-Bootstrap4",
@@ -2771,6 +2786,22 @@
         "https://github.com/tdeekens/flopflip"
       ],
       "groupName": "flopflip monorepo",
+      "matchUpdateTypes": [
+        "digest",
+        "patch",
+        "minor",
+        "major"
+      ]
+    },
+    {
+      "description": [
+        "flue monorepo",
+        "Group packages from flue monorepo together."
+      ],
+      "matchSourceUrls": [
+        "https://github.com/withastro/flue"
+      ],
+      "groupName": "flue monorepo",
       "matchUpdateTypes": [
         "digest",
         "patch",
@@ -3627,6 +3658,22 @@
         "https://github.com/netplex/json-smart-v2"
       ],
       "groupName": "json-smart-v2 monorepo",
+      "matchUpdateTypes": [
+        "digest",
+        "patch",
+        "minor",
+        "major"
+      ]
+    },
+    {
+      "description": [
+        "jsonforms monorepo",
+        "Group packages from jsonforms monorepo together."
+      ],
+      "matchSourceUrls": [
+        "https://github.com/eclipsesource/jsonforms"
+      ],
+      "groupName": "jsonforms monorepo",
       "matchUpdateTypes": [
         "digest",
         "patch",
@@ -8568,6 +8615,28 @@
       "replacementVersion": "7.0.0"
     },
     {
+      "matchCurrentVersion": ">=1.0.0",
+      "matchDatasources": [
+        "npm"
+      ],
+      "matchPackageNames": [
+        "@comet/dev-oidc-provider"
+      ],
+      "replacementName": "dev-oidc-provider",
+      "replacementVersion": "2.0.0"
+    },
+    {
+      "matchCurrentVersion": ">=3.0.0",
+      "matchDatasources": [
+        "npm"
+      ],
+      "matchPackageNames": [
+        "@comet/dev-process-manager"
+      ],
+      "replacementName": "dev-process-manager",
+      "replacementVersion": "4.0.0"
+    },
+    {
       "matchDatasources": [
         "docker"
       ],
@@ -9650,6 +9719,19 @@
       "replacementVersion": "4.0.4"
     },
     {
+      "matchCurrentVersion": "1.35.0",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "/^(?:docker\\.io/)?pglombardo/pwpush-(?:ephemeral|mysql|postgres)$/"
+      ],
+      "prBodyNotes": [
+        "⚠️ Follow Password Pusher's [universal-container migration guide](https://docs.pwpush.com/docs/how-to-universal/) before merging. Back up the database and validate existing data after migration."
+      ],
+      "replacementName": "pglombardo/pwpush"
+    },
+    {
       "matchCurrentVersion": ">=2.0.0 <4.0.0",
       "matchDatasources": [
         "npm"
@@ -10621,7 +10703,9 @@
   "reviewersSampleSize": null,
   "additionalReviewers": [],
   "postUpdateOptions": [],
-  "constraints": {},
+  "constraints": {
+    "ghActionsLock": "v0.1.6"
+  },
   "hostRules": [],
   "cacheHardTtlMinutes": 10080,
   "cacheTtlOverride": {},
