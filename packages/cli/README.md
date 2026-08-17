@@ -266,21 +266,27 @@ Everywhere else it is a config file. Most of them take the same JSON:
 
 Every release states the Renovate it carries. The engine and its `renovate`
 graph are inlined at build time, so a given CLI version always answers with
-exactly this Renovate and nothing resolves at install time — `rcd --version`
-prints both.
+exactly this Renovate and nothing resolves at install time. `rcd --version`
+prints both, and every published version states the same facts in a
+`renovateCompatibility` manifest field, keyed by full package name:
+
+```console
+$ pnpm view @renovate-config-debugger/cli renovateCompatibility
+```
 
 <!-- compat-table -->
 
-_The release history lives in [`compat.json`](./compat.json), and the table is
-rendered into this spot when a release is published — the README on
-[npm](https://www.npmjs.com/package/@renovate-config-debugger/cli) carries it._
+_The table is rendered into this spot when a release is published — the README
+on [npm](https://www.npmjs.com/package/@renovate-config-debugger/cli) carries
+it. Its rows are read back from the registry's own record of published
+versions, so it cannot disagree with what npm actually has._
 
 <!-- /compat-table -->
 
-A new row is not a promise that the previous row's flags still work. Releases
-write the rows (`scripts/stamp-compat.ts`) from facts about the tree, and
-`scripts/check-compat.ts` fails the build when the README and `compat.json`
-disagree, so the table cannot go stale — no hand ever writes it.
+A new row is not a promise that the previous row's flags still work.
+`scripts/stamp-compat.ts` writes the field and the table while publishing, and
+`scripts/check-compat.ts` fails the build when a stamped claim stops describing
+it — no hand writes either, and nothing is committed, so nothing can go stale.
 
 ## License
 

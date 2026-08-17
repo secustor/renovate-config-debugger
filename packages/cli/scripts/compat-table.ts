@@ -1,13 +1,13 @@
 /**
- * The CLI's compat history, as data — shared by the two scripts that care.
+ * The CLI's compatibility facts — shared by the two scripts that care.
  *
- * The rows live in `compat.json`, newest first; the README in the repository
- * carries only a marker pair. `stamp-compat.ts` (roadmap 067) upserts the row
- * for the version being released and renders the table between the markers,
- * so the rendered table exists only in the README that ships to npm.
- * `check-compat.ts` (roadmap 059) runs inside `build` and asserts whichever
- * state the tree should be in. No human ever writes a row, which is the
- * point: a Renovate bump on main has no committed table to go stale against.
+ * Every published version states its embedded stack in a
+ * `renovateCompatibility` manifest field, keyed by full package name. The npm
+ * registry therefore accumulates the release history as a side effect of
+ * publishing, and the compat table is rendered FROM the registry while
+ * publishing — nothing is committed back to the repository, so nothing in the
+ * tree can go stale between releases (the fixed table this replaces failed
+ * every Renovate bump PR; see roadmap 067's amendment).
  *
  * Plain Node, no dependencies: `check-compat.ts` runs before anything is built.
  */
@@ -18,36 +18,33 @@ import { fileURLToPath } from "node:url";
 export const MARKER_START = "<!-- compat-table -->";
 export const MARKER_END = "<!-- /compat-table -->";
 
-/** One row: the CLI version, the engine build it embeds, the Renovate pin. */
+/** One row: the published CLI version and what that build embedded. */
 export interface CompatRow {
   cli: string;
-  engine: string;
-  renovate: string;
+  /** Embedded versions, keyed by full package name (`renovate`, the engine). */
+  compat: Record<string, string>;
 }
-
-export const COLUMNS = ["cli", "engine", "renovate"] as const;
-
-const HEADER = ["`cli`", "embedded `engine`", "`renovate`"];
-
-const VERSION = /^\d+\.\d+\.\d+(?:-[\w.]+)?$/;
 
 const resolve = (relative: string): string => fileURLToPath(new URL(relative, import.meta.url));
 
 export const readmePath = resolve("../README.md");
-export const historyPath = resolve("../compat.json");
+export const cliManifestPath = resolve("../package.json");
 
-interface PackageJson {
+interface Manifest {
+  name: string;
   version: string;
   dependencies?: Record<string, string>;
+  renovateCompatibility?: Record<string, string>;
 }
 
-const readJson = (relative: string): PackageJson =>
-  JSON.parse(readFileSync(resolve(relative), "utf8")) as PackageJson;
+const readJson = (path: string): Manifest => JSON.parse(readFileSync(path, "utf8")) as Manifest;
 
-/** What the tree currently is — the row a release of it must carry. */
+export const readCliManifest = (): Manifest => readJson(cliManifestPath);
+
+/** What the tree currently is — the facts a release of it must state. */
 export function currentBuild(): CompatRow {
-  const cli = readJson("../package.json");
-  const engine = readJson("../../engine/package.json");
+  const cli = readCliManifest();
+  const engine = readJson(resolve("../../engine/package.json"));
   const renovate = engine.dependencies?.renovate;
 
   if (!renovate || !/^\d+\.\d+\.\d+$/.test(renovate)) {
@@ -56,70 +53,125 @@ export function currentBuild(): CompatRow {
     );
   }
 
-  return { cli: cli.version, engine: engine.version, renovate };
-}
-
-function isRow(value: unknown): value is CompatRow {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-  return COLUMNS.every((column) => {
-    const cell = (value as Record<string, unknown>)[column];
-    return typeof cell === "string" && VERSION.test(cell);
-  });
-}
-
-/** The release history, newest first, shape-checked. */
-export function readHistory(): CompatRow[] {
-  const parsed: unknown = JSON.parse(readFileSync(historyPath, "utf8"));
-
-  if (!Array.isArray(parsed) || !parsed.every(isRow)) {
-    throw new Error(
-      "packages/cli/compat.json must be an array of {cli, engine, renovate} version rows, newest first",
-    );
-  }
-
-  return parsed;
+  return { cli: cli.version, compat: { [engine.name]: engine.version, renovate } };
 }
 
 /**
- * Puts `row` at the top of the history, replacing a row for the same CLI
- * version rather than stacking a duplicate — re-running a release after a
- * failed step has to be a no-op, not a second row.
- *
- * Returns whether the file changed.
+ * Writes the build's `renovateCompatibility` into the CLI manifest — the copy
+ * that publishes, never one that is committed. Returns whether the file
+ * changed.
  */
-export function writeHistory(row: CompatRow): boolean {
-  const rest = readHistory().filter((existing) => existing.cli !== row.cli);
-  const before = readFileSync(historyPath, "utf8");
-  const after = `${JSON.stringify([row, ...rest], null, 2)}\n`;
+export function stampManifest(build: CompatRow): boolean {
+  const before = readFileSync(cliManifestPath, "utf8");
+  const manifest = JSON.parse(before) as Record<string, unknown>;
+  manifest["renovateCompatibility"] = build.compat;
+  const after = `${JSON.stringify(manifest, null, 2)}\n`;
 
   if (after === before) {
     return false;
   }
 
-  writeFileSync(historyPath, after);
+  writeFileSync(cliManifestPath, after);
   return true;
+}
+
+function isCompat(value: unknown): value is Record<string, string> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.keys(value).length > 0 &&
+    Object.values(value).every((version) => typeof version === "string")
+  );
+}
+
+const core = (version: string): number[] => (version.split("-")[0] ?? "").split(".").map(Number);
+
+/** Newest-first; numeric on the x.y.z core, plain string on any prerelease. */
+function compareDesc(a: string, b: string): number {
+  const coreA = core(a);
+  const coreB = core(b);
+
+  for (let i = 0; i < 3; i += 1) {
+    const diff = (coreB[i] ?? 0) - (coreA[i] ?? 0);
+    if (diff !== 0) {
+      return diff;
+    }
+  }
+
+  return b.localeCompare(a);
+}
+
+/**
+ * The rows already published, newest first — read from the npm packument, so
+ * the registry itself is the release history. A 404 means the package has
+ * never been published, and versions published before the field existed
+ * simply have no row.
+ */
+export async function publishedRows(cliName: string): Promise<CompatRow[]> {
+  const response = await fetch(`https://registry.npmjs.org/${cliName.replace("/", "%2F")}`, {
+    headers: { accept: "application/json" },
+  });
+
+  if (response.status === 404) {
+    return [];
+  }
+  if (!response.ok) {
+    throw new Error(`the npm registry answered ${response.status} for ${cliName}`);
+  }
+
+  const packument = (await response.json()) as {
+    versions?: Record<string, { renovateCompatibility?: unknown }>;
+  };
+
+  return Object.entries(packument.versions ?? {})
+    .flatMap(([version, manifest]) => {
+      const compat = manifest.renovateCompatibility;
+      return isCompat(compat) ? [{ cli: version, compat }] : [];
+    })
+    .toSorted((a, b) => compareDesc(a.cli, b.cli));
+}
+
+/** Column order: every compat key, in order of first appearance, newest row first. */
+function columnsOf(rows: CompatRow[]): string[] {
+  const seen: string[] = [];
+  for (const row of rows) {
+    for (const name of Object.keys(row.compat)) {
+      if (!seen.includes(name)) {
+        seen.push(name);
+      }
+    }
+  }
+  return seen;
+}
+
+/** The trimmed cells of a markdown table line. */
+export function cells(line: string): string[] {
+  return line
+    .split("|")
+    .slice(1, -1)
+    .map((cell) => cell.trim());
 }
 
 /**
  * The rows as a markdown table, columns padded to their widest cell — a
- * two-digit minor would otherwise leave the table ragged, and the diff of a
- * release should be the new row, not a re-alignment of every old one.
+ * two-digit minor would otherwise leave the table ragged. Headers are the
+ * full package names; a version published without a value gets an em dash.
  */
-export function render(rows: CompatRow[]): string[] {
-  const cells = rows.map((row) => COLUMNS.map((column) => row[column]));
-  const all = [HEADER, ...cells];
-  const widths = HEADER.map((_, column) =>
-    Math.max(...all.map((row) => (row[column] ?? "").length)),
+export function render(cliName: string, rows: CompatRow[]): string[] {
+  const columns = columnsOf(rows);
+  const header = [cliName, ...columns].map((name) => `\`${name}\``);
+  const body = rows.map((row) => [row.cli, ...columns.map((name) => row.compat[name] ?? "—")]);
+  const widths = header.map((cell, column) =>
+    Math.max(cell.length, ...body.map((row) => (row[column] ?? "").length)),
   );
   const line = (row: string[]): string =>
     `| ${row.map((cell, i) => cell.padEnd(widths[i] ?? 0)).join(" | ")} |`;
 
   return [
-    line(HEADER),
+    line(header),
     `| ${widths.map((width) => "-".repeat(width)).join(" | ")} |`,
-    ...cells.map(line),
+    ...body.map(line),
   ];
 }
 
@@ -152,13 +204,13 @@ export function readRegion(readme = readFileSync(readmePath, "utf8")): Region {
  * repository copy's placeholder note included). Returns whether the file
  * changed.
  */
-export function stampReadme(rows: CompatRow[]): boolean {
+export function stampReadme(cliName: string, rows: CompatRow[]): boolean {
   const region = readRegion();
   const before = region.lines.join("\n");
   const after = [
     ...region.lines.slice(0, region.start),
     "",
-    ...render(rows),
+    ...render(cliName, rows),
     "",
     ...region.lines.slice(region.end),
   ].join("\n");
