@@ -1,37 +1,65 @@
 #!/usr/bin/env node
 /**
- * Roadmap 059: the compat table's top row must describe THIS build.
+ * Roadmap 059/067: the compat table is templated — this asserts the tree is
+ * in the state it should be, as part of `build`.
  *
- * The CLI's answers change when Renovate's code does, so the version has to
- * say which Renovate a release carries — and a hand-maintained table is
- * exactly the kind of thing that goes stale three releases in. This runs as
- * part of `build`, so a Renovate bump that forgets the table fails the build
- * (and the release workflow) instead of shipping a lie.
+ * On an ordinary build the README must carry only the marker pair: the rows
+ * are data (`compat.json`) and the rendered table is a release artefact, so
+ * rendered rows sitting in the repository copy are a hand edit or a merge
+ * resurrecting the fixed table 067 originally committed — the thing that made
+ * every Renovate bump PR fail against a row nobody is allowed to write.
  *
- * Roadmap 067 made the row a release artefact rather than a hand edit:
- * `stamp-compat.ts` writes it from the same data this reads. That does not
- * make the check redundant — the release stamps one row, and this is what
- * catches every other way the table can stop being true (a Renovate bump on
- * main, a manual edit, a botched merge).
+ * During a release (`RCD_RELEASE=1`, set by release.config.mjs after
+ * `stamp-compat.ts` has run) the assertion flips: the history's top row must
+ * describe this exact build, and the README between the markers must be that
+ * history rendered — a release cannot publish without stating its Renovate.
  *
  * Plain Node, no dependencies: it runs before anything is built.
  */
-import { currentBuild, topRow } from "./compat-table.ts";
+import { COLUMNS, currentBuild, readHistory, readRegion, render } from "./compat-table.ts";
 
-const expected = currentBuild();
-const found = topRow();
-const matches = expected.every((value, i) => found[i]?.replaceAll("`", "") === value);
+const build = currentBuild();
+const history = readHistory();
+const region = readRegion();
+const between = region.lines.slice(region.start, region.end);
 
-if (!matches) {
-  throw new Error(
-    "packages/cli/README.md: the compat table's top row is stale.\n" +
-      `  expected: | ${expected.join(" | ")} |\n` +
-      `  found:    | ${found.join(" | ")} |\n` +
-      "Add a row for this release (cli version | embedded engine version | renovate pin),\n" +
-      "or run `node packages/cli/scripts/stamp-compat.ts` to write it.",
+if (process.env["RCD_RELEASE"] === "1") {
+  const top = history[0];
+
+  if (!top || COLUMNS.some((column) => top[column] !== build[column])) {
+    throw new Error(
+      "packages/cli/compat.json: the top row does not describe this build.\n" +
+        `  expected: ${JSON.stringify(build)}\n` +
+        `  found:    ${JSON.stringify(top ?? null)}\n` +
+        "Run `node packages/cli/scripts/stamp-compat.ts` (release.config.mjs chains it before this build).",
+    );
+  }
+
+  const expected = render(history);
+  const found = between.filter((line) => line.trim() !== "");
+
+  if (found.length !== expected.length || expected.some((line, i) => found[i] !== line)) {
+    throw new Error(
+      "packages/cli/README.md: the stamped compat table does not match compat.json.\n" +
+        "Run `node packages/cli/scripts/stamp-compat.ts` to re-render it.",
+    );
+  }
+
+  process.stdout.write(
+    `compat ok (release): cli ${build.cli} · engine ${build.engine} · renovate ${build.renovate}\n`,
+  );
+} else {
+  const stray = between.filter((line) => line.trimStart().startsWith("|"));
+
+  if (stray.length > 0) {
+    throw new Error(
+      "packages/cli/README.md: a rendered compat table is sitting in the repository copy.\n" +
+        "The rows live in packages/cli/compat.json; the table is rendered between the\n" +
+        "markers at release time (scripts/stamp-compat.ts). Remove the rendered rows.",
+    );
+  }
+
+  process.stdout.write(
+    `compat ok: renovate pinned at ${build.renovate}, ${history.length} released row(s) in compat.json\n`,
   );
 }
-
-process.stdout.write(
-  `compat ok: cli ${expected[0]} · engine ${expected[1]} · renovate ${expected[2]}\n`,
-);
