@@ -107,6 +107,19 @@ describe("fatal parse error", () => {
   });
 });
 
+describe("trailing-punctuation trim", () => {
+  // Regression for a polynomial-backtracking regex (CodeQL js/polynomial-redos):
+  // a long interior whitespace run must not blow up the trim.
+  test("stays linear on pathological messages", () => {
+    const clauses = buildRunDigest(
+      input({ fatalParse: `Invalid${"\t".repeat(100_000)}JSON. `, errors: 1 }),
+    );
+    expect(digestText(clauses)).toBe(
+      `Renovate could not read this config: Invalid${"\t".repeat(100_000)}JSON. See the parse error.`,
+    );
+  }, 2000);
+});
+
 describe("migrations", () => {
   test("0 rewrites omit the clause entirely", () => {
     expect(ids(buildRunDigest(input()))).not.toContain("rewrites");

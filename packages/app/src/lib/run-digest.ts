@@ -127,7 +127,7 @@ function code(text: string): string {
 
 /** Trims a trailing full stop so the clause can supply its own punctuation. */
 function unpunctuated(text: string): string {
-  return text.trim().replace(/[.\s]+$/, "");
+  return text.trim().replace(/(?<![.\s])[.\s]+$/, "");
 }
 
 /** The first problem, short enough to sit inside a sentence. Elides on a word
