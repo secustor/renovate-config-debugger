@@ -161,27 +161,31 @@ describe("simulationPayload", () => {
   });
 });
 
+const NET_EFFECT =
+  'automerge (A=false, B=true), groupName (unset in A, B="react monorepo"); ' +
+  "description also changed (documentation)";
+
 const COMPARISON: SimulationComparison = {
-  matchedOnlyInA: [],
-  matchedOnlyInB: [],
+  summary: `differs: ${NET_EFFECT}`,
+  verdict: "differs",
+  netEffect: NET_EFFECT,
+  mode: "config",
+  stoppedMatching: [],
+  startedMatching: [],
   matchedInBoth: [],
-  behaviorOnlyInA: [],
-  behaviorOnlyInB: [],
-  signatureChanges: [],
-  rulesChanged: false,
   configDelta: [
-    { key: "automerge", before: false, after: true, inA: true, inB: true },
+    { key: "automerge", kind: "behavioral", a: false, b: true, inA: true, inB: true },
+    { key: "groupName", kind: "behavioral", b: "react monorepo", inA: false, inB: true },
     {
       key: "description",
-      before: DESCRIPTION,
-      after: [...DESCRIPTION, "And this one."],
+      kind: "documentation",
+      a: DESCRIPTION,
+      b: [...DESCRIPTION, "And this one."],
       inA: true,
       inB: true,
     },
-    { key: "groupName", after: "react monorepo", inA: false, inB: true },
   ],
-  noChange: false,
-  summary: "differs: automerge, description, groupName",
+  identity: { changed: false, signatureChanges: [], onlyInA: [], onlyInB: [] },
 };
 
 describe("comparisonPayload", () => {
@@ -189,12 +193,13 @@ describe("comparisonPayload", () => {
     const payload = comparisonPayload(COMPARISON, { scope: "package-rules" });
     expect(payload.configDelta.map((delta) => delta.key)).toEqual([
       "automerge",
-      "description",
       "groupName",
+      "description",
     ]);
-    expect(payload.configDelta[1]).toMatchObject({
+    expect(payload.configDelta[2]).toMatchObject({
       collapsed: "append",
       added: ["And this one."],
+      kind: "documentation",
       inA: true,
       inB: true,
     });
@@ -214,6 +219,7 @@ describe("comparisonPayload", () => {
     // The comparison FOUND three changed keys; a narrowed view does not get to
     // restate what it found.
     expect(payload.summary).toBe(COMPARISON.summary);
-    expect(payload.noChange).toBe(false);
+    expect(payload.verdict).toBe("differs");
+    expect(payload.netEffect).toBe(COMPARISON.netEffect);
   });
 });

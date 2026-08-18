@@ -11,10 +11,12 @@ import { CliError } from "../io";
 import { missingInputsNote } from "../rule-view";
 import type { RunTransport } from "../run-input";
 import {
+  collapseDeltas,
   collapseDiffs,
   type ConfigScope,
   type ConfigView,
   type MaybeCollapsed,
+  type MaybeCollapsedDelta,
   projectConfig,
   projectKeySet,
 } from "./config-view";
@@ -198,7 +200,7 @@ export interface ComparisonProjection {
 }
 
 export interface ProjectedComparison extends Omit<SimulationComparison, "configDelta"> {
-  configDelta: MaybeCollapsed<ConfigKeyDelta>[];
+  configDelta: MaybeCollapsedDelta<ConfigKeyDelta>[];
   configView: ConfigView;
 }
 
@@ -206,7 +208,7 @@ export interface ProjectedComparison extends Omit<SimulationComparison, "configD
  * The comparison, with its key delta scoped, key-selected and
  * description-collapsed.
  *
- * `summary` and the verdict booleans are deliberately NOT projected: they
+ * `summary`, `verdict` and `netEffect` are deliberately NOT projected: they
  * state what the comparison found, over the whole delta, and a verdict that
  * changed with the view a caller asked for would be uncitable. So `summary`
  * may name a key this view withheld — which is exactly what `configView`
@@ -225,7 +227,7 @@ export function comparisonPayload(
   );
   return {
     ...comparison,
-    configDelta: collapseDiffs(comparison.configDelta.filter((delta) => kept.has(delta.key))),
+    configDelta: collapseDeltas(comparison.configDelta.filter((delta) => kept.has(delta.key))),
     configView: view,
   };
 }

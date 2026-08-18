@@ -1,0 +1,9 @@
+{
+  "packageRules": [
+    {
+      "matchPackageNames": ["react", "vue"],
+      "matchUpdateTypes": ["minor", "major"],
+      "groupName": "frontend"
+    }
+  ]
+}

@@ -55,7 +55,9 @@ the `tree.ts` / `messages.ts` pattern — pure functions, no io, used by the CLI
 implementation:
 
 - **`config-view.ts`** — `projectConfig(config, {keys, scope})`, plus the
-  `description` collapse (`collapseDiffs`, `diffLine`, `mergedLine`).
+  `description` collapse (`collapseDiffs`/`collapseDeltas`, `deltaLine`,
+  `mergedLine` — the comparison delta names its sides `a`/`b`, a merge names
+  them `before`/`after`, and one predicate serves both).
 - **`simulate.ts`** — `SIMULATE_DETAIL`, `VERDICT_DETAIL_NOTE`,
   `simulationPayload` (moved out of `mcp/server.ts`) and `comparisonPayload`.
 

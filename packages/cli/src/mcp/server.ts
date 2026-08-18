@@ -888,14 +888,20 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       title: "Did my edit change anything?",
       description:
         "The edit oracle. Run the config before your edit and the config after it, then compare " +
-        "the two runs against the same dependency — `summary` is the whole verdict in one line " +
-        "(`identical: …` / `differs: …`), with the rules that started or stopped matching and " +
-        "the key-level delta of the resulting config underneath it. Pass runIdB to compare two " +
-        "configs, or depB to compare two dependencies against the same config. `keys` narrows " +
-        "the delta to the options you care about; `summary` and the verdict booleans always " +
-        "describe the WHOLE delta, so narrowing the view never moves the verdict. A side that " +
-        "could not evaluate a rule for lack of dependency input reports it in its own " +
-        "`missingInputs`: two blind sides agree perfectly, and `identical:` over them is not an " +
+        "the two runs against the same dependency. `summary` is the whole verdict in one line " +
+        "and `verdict` is it structured: `identical`, `differs`, or `documentation-only` — only " +
+        "prose such as `description` moved, which is not a behavioral difference. " +
+        "`stoppedMatching`/`startedMatching` are the rules behind the verdict; `configDelta` is " +
+        "the key-level delta, behavioral keys first, each entry tagged `kind`. Everything under " +
+        "`identity` is bookkeeping about selector TEXT and is NOT a behavior claim — it goes " +
+        "true whenever you edit the very array a rule matches on. A delta side flagged " +
+        "`aInherited`/`bInherited` is a Renovate default that reached that run's final config " +
+        "without any merge step writing it, not a value the config set. Pass runIdB to compare " +
+        "two configs, or depB to compare two dependencies against the same config. `keys` " +
+        "narrows the delta to the options you care about; `summary`, `verdict` and `netEffect` " +
+        "always describe the WHOLE delta, so narrowing the view never moves the verdict. A side " +
+        "that could not evaluate a rule for lack of dependency input reports it in its own " +
+        "`missingInputs`: two blind sides agree perfectly, and `identical` over them is not an " +
         "answer about your edit.",
       annotations: HELD_RUN_ANNOTATIONS,
       inputSchema: z.strictObject({
@@ -927,10 +933,18 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         a: { runId: a.runId, dep: toDependency(dep), missingInputs: simA.missingInputs },
         b: { runId: b.runId, dep: toDependency(depB ?? dep), missingInputs: simB.missingInputs },
         ...(combined ? { missingInputsNote: combined } : {}),
-        ...comparisonPayload(compareSimulations(simA, simB), {
-          scope: configScope ?? "package-rules",
-          ...(keys ? { keys } : {}),
-        }),
+        // What the CALLER varied — the engine cannot see it, and guessing is
+        // how the comparison came to claim a selector rewrite about one
+        // unchanged config read through two dependencies.
+        ...comparisonPayload(
+          compareSimulations(simA, simB, {
+            mode: runIdB ? "config" : depB ? "dependency" : "config",
+          }),
+          {
+            scope: configScope ?? "package-rules",
+            ...(keys ? { keys } : {}),
+          },
+        ),
       };
     }, HINTS.compare),
   );

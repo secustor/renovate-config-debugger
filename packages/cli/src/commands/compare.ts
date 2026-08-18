@@ -5,7 +5,7 @@ import { EXIT_OK, EXIT_REFUSED } from "../io";
 import { emitJson, emitLines, writeNotes } from "../output";
 import { INPUT_OPTIONS, refusalNote, runOne, takeInputFile, wouldRefuse } from "../run-input";
 import { readDependency } from "../dep";
-import { diffLine, parseConfigScope, parseKeys } from "../projections/config-view";
+import { deltaLine, parseConfigScope, parseKeys } from "../projections/config-view";
 import { comparisonPayload } from "../projections/simulate";
 import { missingInputsNote } from "../rule-view";
 import { simulateAgainst } from "./simulate";
@@ -21,33 +21,31 @@ import { simulateAgainst } from "./simulate";
  */
 
 /**
- * Roadmap 062: the headline states the BEHAVIOR verdict, and says so in the
- * words a reader can cite. The identity fact (a rule's pattern text moved) is
- * reported underneath, because for the commonest behavior-preserving edit —
- * dropping an entry from the very array a rule matches on — it is guaranteed
- * to be true and means nothing on its own.
+ * The headline states the BEHAVIOR verdict, in the words a reader can cite —
+ * `netEffect` is the comparison's own phrasing, so the CLI, the MCP answer and
+ * the app all headline with one sentence instead of three re-derivations of
+ * it. The identity fact (a selector's text moved) is reported underneath,
+ * because for the commonest behavior-preserving edit — dropping an entry from
+ * the very array a rule matches on — it is guaranteed true and means nothing
+ * on its own.
+ *
+ * The headline reads the VERDICT fields only, which is what lets it take a
+ * projected comparison (whose delta may be narrowed) unchanged.
  */
-/** The comparison's own one-liner without its `identical:`/`differs:` prefix —
- *  the headline states the verdict in its own words. */
-function netEffect(comparison: ComparisonVerdict): string {
-  return comparison.summary.slice(comparison.summary.indexOf(": ") + 2);
-}
+type HeadlineFields = Pick<SimulationComparison, "verdict" | "netEffect" | "identity">;
 
-/** The headline reads the VERDICT fields only — which is what lets it take a
- *  projected comparison (whose delta may be narrowed) unchanged. */
-type ComparisonVerdict = Pick<SimulationComparison, "summary" | "noChange" | "rulesChanged">;
-
-export function comparisonHeadline(comparison: ComparisonVerdict): string {
-  if (!comparison.noChange) {
-    return `Behavior differs between A and B — ${netEffect(comparison)}.`;
+export function comparisonHeadline(comparison: HeadlineFields): string {
+  switch (comparison.verdict) {
+    case "differs":
+      return `Behavior differs between A and B — ${comparison.netEffect}.`;
+    case "documentation-only":
+      return `✓ No behavioral change — ${comparison.netEffect}.`;
+    default:
+      return comparison.identity.changed
+        ? `✓ No behavioral change — ${comparison.netEffect}, which is expected when the edit ` +
+            "touched the very selectors that rule matches on."
+        : `✓ No behavioral change: ${comparison.netEffect}.`;
   }
-  if (comparison.rulesChanged) {
-    return (
-      `✓ No behavioral change — ${netEffect(comparison)}, which is expected when you edit the ` +
-      "array the rule matches on."
-    );
-  }
-  return `✓ No behavioral change: ${netEffect(comparison)}.`;
 }
 
 export const compareCommand: Command = {
@@ -58,11 +56,16 @@ export const compareCommand: Command = {
     `compare <file> --dep '{…}' --dep-b '{…}'`,
   ],
   details: [
-    "The verdict has two axes. BEHAVIOR (`noChange`) is the citable claim: the",
-    "resulting per-dependency config is identical and no rule started or stopped",
-    "doing something. IDENTITY (`rulesChanged`, `signatureChanges`) only says a",
-    "selector's text moved — unavoidable when the edit is to the matched array",
-    "itself, and not a behavior change on its own.",
+    "The verdict has two axes. BEHAVIOR (`verdict`, one of `identical`,",
+    "`documentation-only` — only prose such as `description` moved — and",
+    "`differs`) is the citable claim, with `netEffect` stating it in words and",
+    "`stoppedMatching`/`startedMatching` naming the rules behind it. IDENTITY",
+    "(`identity.*`) is NOT a behavior claim: it only says a selector's text",
+    "moved, which is unavoidable when the edit is to the matched array itself.",
+    "",
+    "A delta side flagged `aInherited`/`bInherited` is a value that reached that",
+    "run's final config without any merge step writing it — a Renovate default,",
+    "not something the config set. Pretty output marks it `(default in A)`.",
     "",
     "The key delta is reported at `--config-scope package-rules` (the globalOnly",
     "options no rule can reach are dropped) and `--keys a,b` narrows it further.",
@@ -98,7 +101,11 @@ export const compareCommand: Command = {
 
     const simA = await simulateAgainst(a.result, depA);
     const simB = await simulateAgainst(b.result, depB);
-    const comparison = comparisonPayload(compareSimulations(simA, simB), {
+    // What this invocation varied. Two files AND two dependencies is neither
+    // axis alone, and a wrong guess is how the comparison came to claim a
+    // pattern rewrite about one unchanged config file.
+    const mode = fileB && twoDeps ? "unspecified" : twoDeps ? "dependency" : "config";
+    const comparison = comparisonPayload(compareSimulations(simA, simB, { mode }), {
       scope: scope ?? "package-rules",
       ...(keys ? { keys } : {}),
     });
@@ -139,21 +146,21 @@ export const compareCommand: Command = {
         comparisonHeadline(comparison),
         ...(missingA ? ["", `A — ${missingA}`] : []),
         ...(missingB ? ["", `B — ${missingB}`] : []),
-        ...(comparison.behaviorOnlyInA.length > 0
-          ? ["", "Matched only in A:", ...comparison.behaviorOnlyInA.map((r) => `  ${r.label}`)]
+        ...(comparison.stoppedMatching.length > 0
+          ? ["", "Matched only in A:", ...comparison.stoppedMatching.map((r) => `  ${r.label}`)]
           : []),
-        ...(comparison.behaviorOnlyInB.length > 0
-          ? ["", "Matched only in B:", ...comparison.behaviorOnlyInB.map((r) => `  ${r.label}`)]
+        ...(comparison.startedMatching.length > 0
+          ? ["", "Matched only in B:", ...comparison.startedMatching.map((r) => `  ${r.label}`)]
           : []),
         ...(comparison.configDelta.length > 0
-          ? ["", "Config delta:", ...comparison.configDelta.map((d) => `  ${diffLine(d)}`)]
+          ? ["", "Config delta:", ...comparison.configDelta.map((d) => `  ${deltaLine(d)}`)]
           : []),
-        ...(comparison.signatureChanges.length > 0
+        ...(comparison.identity.signatureChanges.length > 0
           ? [
               "",
               "Selector text changed, same effect (rule identity, not behavior):",
-              ...comparison.signatureChanges.map(
-                (c) => `  ${c.a.label}  #${c.a.index + 1} → #${c.b.index + 1}`,
+              ...comparison.identity.signatureChanges.map(
+                (c) => `  ${c.a.label}  #${c.a.index + 1} → #${c.b.index + 1}  (${c.kind})`,
               ),
             ]
           : []),
