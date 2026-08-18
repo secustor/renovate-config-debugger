@@ -29,7 +29,7 @@ export const mcpCommand: Command = {
   usage: ["mcp"],
   details: [
     "Register it once and every later session has the tools:",
-    "  claude mcp add rcd -- pnpm dlx @renovate-config-debugger/cli mcp",
+    "  claude mcp add rcd -- npx -y @renovate-config-debugger/cli mcp",
     "",
     "Same answers as the subcommands, better economics for a session: the",
     "engine boots once, and `run_config` HOLDS the trace so the drill-down",

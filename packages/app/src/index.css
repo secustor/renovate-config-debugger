@@ -3876,10 +3876,20 @@ main:has(.app-split.has-results) {
    editor's `maxHeight` scroller. Scoped to `.app-split.has-results` — the
    pre-run page is one column with nothing to stick to. */
 .app-split.has-results > .config-col {
+  grid-row: 1 / span 2;
   max-height: calc(100dvh - 1.5rem);
   overflow-y: auto;
   position: sticky;
   top: 0.75rem;
+}
+
+/* The headless note (roadmap 060) is the grid's second row, under the
+   results column. The config column spans both rows, so its sticky area
+   reaches the bottom of the page and the editor stays in view while the
+   note scrolls in — a footer AFTER the grid would drag the sticky column
+   off the top by its own height. */
+.app-split.has-results > .headless-note {
+  grid-column: 2;
 }
 
 /* Below this width the panes stack — config on top, results below, full
@@ -3895,11 +3905,17 @@ main:has(.app-split.has-results) {
 
   /* Stacked, the config is simply the first thing on the page — sticking it
      would park it over the results it sits above, and the cap would make a
-     nested scroller out of a column that now has the whole width. */
+     nested scroller out of a column that now has the whole width. The row
+     span goes with it: nothing sticks, so the note is just the last row. */
   .app-split.has-results > .config-col {
+    grid-row: auto;
     max-height: none;
     overflow-y: visible;
     position: static;
+  }
+
+  .app-split.has-results > .headless-note {
+    grid-column: auto;
   }
 }
 
@@ -4751,4 +4767,77 @@ button.desc-digest-leaf:focus-visible {
 .sim-rule-pop .sim-rule-why {
   margin-left: 0;
   margin-right: 0;
+}
+
+/* Roadmap 060 — the visible "this is available headlessly" note at the foot of
+   the page. Deliberately plain and in flow: the discovery mechanism is text a
+   human can read, not a hidden hint aimed at agents. */
+.headless-note {
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 2rem 0 0;
+  padding: 1rem 0 0;
+}
+
+/* Collapsed by default behind the question (review on #134): a native
+   disclosure whose summary is the note's one visible line. The marker is the
+   ::before chevron in both engines — the UA marker is suppressed so the
+   affordance renders identically everywhere. */
+.headless-note-summary {
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  list-style: none;
+}
+
+.headless-note-summary::-webkit-details-marker {
+  display: none;
+}
+
+.headless-note-summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 0.45rem;
+}
+
+/* Guarded like every other transition in this file: no transition property at
+   all outside the no-preference query, so the chevron simply flips under
+   reduced motion instead of animating. */
+@media (prefers-reduced-motion: no-preference) {
+  .headless-note-summary::before {
+    transition: transform 120ms ease;
+  }
+}
+
+.headless-note-summary:hover {
+  color: var(--ink);
+}
+
+.headless-note-details[open] > .headless-note-summary {
+  margin-bottom: 0.7rem;
+}
+
+.headless-note-details[open] > .headless-note-summary::before {
+  transform: rotate(90deg);
+}
+
+.headless-note-lead {
+  margin: 0 0 0.7rem;
+  max-width: 60rem;
+}
+
+.headless-note-code {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  margin: 0;
+  overflow-x: auto;
+  padding: 0.7rem 0.9rem;
+}
+
+.headless-note-foot {
+  margin: 0.6rem 0 0;
 }

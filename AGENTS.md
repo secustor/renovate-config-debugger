@@ -53,6 +53,15 @@ rcd docs minimumReleaseAge        # option semantics for the pinned Renovate
 bodies are large — query one node at a time. `packages/cli/README.md` has the
 full surface, the credentials table and the endpoint guard.
 
+For an interactive session, `rcd mcp` is the same answers as typed MCP tools
+with a warm engine (roadmap 060) — `run_config` returns a `runId` and the
+drill-down tools query that held run, so the whole session describes one
+resolution instead of re-resolving per question:
+
+```bash
+claude mcp add rcd -- npx -y @renovate-config-debugger/cli mcp
+```
+
 A plain Node import of the engine is NOT equivalent: the preset tree and
 provenance are reconstructed by the logger shim, so they exist only in the
 shimmed graph — which the CLI, the browser bundle and the `shimmed` test

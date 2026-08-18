@@ -498,8 +498,9 @@ inspection chooses the endpoint, the CLI withholds tokens and says so on stderr.
 
 ## MCP server
 
-`rcd mcp` speaks MCP over stdio. It takes no arguments and writes nothing but
-the protocol to stdout, so point any MCP-capable client at it as a stdio server.
+`rcd mcp` speaks MCP over stdio — the same answers as the subcommands, better
+economics for a session. It takes no arguments and writes nothing but the
+protocol to stdout, so point any MCP-capable client at it as a stdio server.
 It speaks the 2026-07-28 protocol and the legacy 2025-era `initialize`
 handshake, chosen per connection.
 

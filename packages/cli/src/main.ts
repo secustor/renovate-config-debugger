@@ -59,6 +59,9 @@ const TOP_LEVEL_NOTES = [
   "They are withheld when the config under inspection chooses the endpoint.",
   "",
   "`rcd <command> --help` for a command's own flags.",
+  "",
+  "In an MCP-capable client, register the server once and skip the flags entirely:",
+  "  claude mcp add rcd -- npx -y @renovate-config-debugger/cli mcp",
 ];
 
 /**

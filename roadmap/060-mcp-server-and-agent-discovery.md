@@ -1,6 +1,6 @@
 # 060 — `rcd mcp` + pointing agents at the headless interface
 
-Milestone: M16 · Status: MCP server done (2026-08-05), discovery pending
+Milestone: M16 · Status: done (2026-08-05)
 
 ## Summary
 
@@ -79,14 +79,29 @@ provenance,messages}.ts` now hold the shapes, and the subcommands and the
   two runs.
 - Tested through a real MCP client over the SDK's in-memory transport pair
   (`test/mcp.test.ts`), so schemas, handlers and result shapes are exercised
-  the way a client exercises them.
+  the way a client exercises them; `rcv mcp` was additionally smoke-tested
+  over stdio against the built bundle.
 - **Nothing is written to stdout by `rcv mcp`** — on a stdio transport stdout
   IS the protocol. Diagnostics go to stderr, which is also what keeps them out
   of a `--format json` document.
 
-Still open here: the discovery half — the app footer, the READMEs, llms.txt
-and the Claude Code hint marker — which lands once 059 has published the
-package every one-liner names.
+## As built — discovery (2026-08-05)
+
+- Discovery, as shipped: `packages/app/src/components/HeadlessNote.tsx` (a
+  visible `<footer>` at the end of the page, in flow, with the copy-pasteable
+  one-liners), a "For agents and scripts" section in the root README, an MCP
+  section in the CLI README, the AGENTS.md pointer, and
+  `packages/app/public/llms.txt`.
+- **The `claude-code-hint` marker was dropped, not shipped** — reversing the
+  "emitted from day one" decision above. Claude Code only acts on hints for
+  plugins listed in the official Anthropic marketplace, and a listing there
+  is not realistic for this plugin, so the marker could never fire. The
+  visible surfaces above are the whole discovery story; 061's plugin installs
+  from its self-hosted marketplace explicitly.
+
+Left open: nothing here can be _verified_ end to end until 059's package is
+actually published — every one-liner names the published
+`@renovate-config-debugger/cli`.
 
 ## Validation messages, and the listing budget (2026-08-16)
 

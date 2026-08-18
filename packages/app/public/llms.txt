@@ -1,0 +1,47 @@
+# Renovate config debugger
+
+> A "compiler explorer" for Renovate configuration: it runs Renovate's own
+> config code — parsing, migration, massaging, validation, preset resolution,
+> merging, and a packageRules simulator — and shows the trace. Everything runs
+> in the browser; configs and tokens never leave the page.
+
+The same answers are available headlessly, which is almost certainly what you
+want if you are reading this file. Same engine, same pinned Renovate version,
+structured output, no browser:
+
+```
+# the whole run in one paragraph
+npx -y @renovate-config-debugger/cli digest renovate.json
+
+# would Renovate accept it? exit 2 = no (a blocking signal for hooks)
+npx -y @renovate-config-debugger/cli validate renovate.json
+
+# what did `extends` expand into / who set this option / would this PR match
+npx -y @renovate-config-debugger/cli tree renovate.json
+npx -y @renovate-config-debugger/cli provenance renovate.json labels
+npx -y @renovate-config-debugger/cli simulate renovate.json --dep '{"depName":"react"}'
+
+# prove an edit changed (or did not change) behavior
+npx -y @renovate-config-debugger/cli compare before.json after.json --dep '{"depName":"react"}'
+```
+
+`--format json` on any subcommand. `--help` lists them all.
+
+In an MCP-capable client, register the server once and get typed tools instead
+of flags:
+
+```
+claude mcp add rcd -- npx -y @renovate-config-debugger/cli mcp
+```
+
+The CLI is experimental: subcommands, flags and output shapes may change in
+any 0.x release.
+
+## Docs
+
+- [CLI documentation](https://github.com/secustor/renovate-config-debugger/tree/main/packages/cli):
+  subcommands, flags, exit codes, credentials.
+- [Repository](https://github.com/secustor/renovate-config-debugger): source,
+  architecture notes and the per-feature design docs under `roadmap/`.
+- [Renovate documentation](https://docs.renovatebot.com/): the upstream
+  configuration reference this tool explains.
