@@ -1,0 +1,6 @@
+{
+  "packageRules": [
+    { "matchCurrentVersion": ">=1.0", "labels": ["conda"] },
+    { "matchPackageNames": ["react"], "groupName": "react monorepo" }
+  ]
+}

@@ -25,9 +25,14 @@ import {
 } from "@renovate-config-debugger/app/headless";
 import pkg from "../../package.json";
 import { errorMessage, type CliIo } from "../io";
-import { buildRuleView, missingInputsNote, ruleFilterPayload } from "../rule-view";
+import { buildRuleView, evaluationErrorsNote, missingInputsNote } from "../rule-view";
 import { digestPayload } from "../projections/digest";
-import { CONFIG_SCOPES, projectConfig } from "../projections/config-view";
+import {
+  CONFIG_SCOPES,
+  configKeyIndex,
+  type ConfigScope,
+  projectConfig,
+} from "../projections/config-view";
 import {
   describeMessage,
   type MessageSeverity,
@@ -36,11 +41,10 @@ import {
   repoStageMessage,
 } from "../projections/messages";
 import {
-  collapseRuleMerges,
+  COMPARE_DETAIL,
   comparisonPayload,
   SIMULATE_DETAIL,
   simulationPayload,
-  withRuleOrigins,
 } from "../projections/simulate";
 import {
   entryView,
@@ -122,7 +126,7 @@ const HINTS = {
   resolved:
     'the resolved document is too large to return whole — try mode "keep-internal" without includeDefaults, or read one preset\'s contribution with get_preset_node.',
   simulate:
-    "this config has too many packageRules to report whole — the omission is marked; scope the list with `verdict`/`source`, pass `keys: [...]` for the options you care about, or narrow the dependency (a datasource, a depType) so fewer rules report `no-input`.",
+    'this config has too many packageRules to report whole — the omission is marked; drop back to the default `verdict: "notable"` (or `rule: N` for one row), pass `keys: [...]` for the options you care about, or narrow the dependency (a datasource, a depType) so fewer rules report `no-input`.',
   compare:
     "the comparison is too large to return whole — pass `keys: [...]` for the options you care about, narrow the dependency, or ask simulate for one side at a time.",
   optionDocs: "too many options matched — search for a longer substring.",
@@ -139,7 +143,9 @@ const INSTRUCTIONS =
   "at a time: get_provenance with a key for 'who set this value', get_preset_tree and " +
   "get_preset_node for what `extends` expanded into (preset bodies are large — one node per " +
   "call), get_option_docs instead of recalling option semantics, which change between Renovate " +
-  "releases. simulate answers in one sentence (`verdict.text`) before the evidence. " +
+  "releases. simulate answers in one sentence (`verdict.text`) before the evidence, scoped to the " +
+  "rules that acted; every answer states what its view withheld and the parameter that returns " +
+  "it, so read `notes` before you conclude anything is absent. " +
   "Before you propose an edit, prove it: run_config the edited text and " +
   "compare_simulations the two runs against the same dependency. Everything here is read-only.";
 
@@ -264,11 +270,22 @@ type DepInput = z.infer<typeof DEP>;
  * of the app's `VerdictFilter`/`SourceFilter` unions.
  */
 const RULE_VERDICT = z
-  .enum(["notable", "all", "matched", "no-input", "no-match"] satisfies readonly VerdictFilter[])
+  .enum([
+    "notable",
+    "all",
+    "matched",
+    "no-input",
+    "no-match",
+    "error",
+  ] satisfies readonly VerdictFilter[])
   .optional()
   .describe(
-    "Scope the returned rules by verdict: `notable` (matched + unresolved — the app's default " +
-      "view), `matched`, `no-input`, `no-match`, or `all`. Omit for the full list.",
+    "Scope the returned rules by verdict. `notable` is the DEFAULT: the rows that acted or " +
+      "could not be decided — matched, not-simulated, and the ones the tool could not evaluate. " +
+      "`all` returns every row (~700 on a `config:recommended` run, which the transport then " +
+      "elides), `matched` only what fired, `no-input` the ones your `dep` left undecidable, " +
+      "`no-match` a genuine mismatch, `error` the ones a matcher threw on. Every answer states " +
+      "what its view withheld in `ruleFilter`.",
   );
 const RULE_SOURCE = z
   .enum(["all", "repo", "presets"] satisfies readonly SourceFilter[])
@@ -592,11 +609,33 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       inputSchema: z.strictObject({ runId: RUN_ID, keys: CONFIG_KEYS, configScope: CONFIG_SCOPE }),
     },
     answer(({ runId, keys, configScope }) => {
+      const scope: ConfigScope = configScope ?? "full";
       const projected = projectConfig(finalConfigOf(store.get(runId)), {
-        scope: configScope ?? "full",
+        scope,
         ...(keys ? { keys } : {}),
       });
-      return { finalConfig: projected.config, configView: projected.view };
+      const view = { finalConfig: projected.config, configView: projected.view };
+      if (fitsBudget(view)) {
+        return view;
+      }
+      // Roadmap 073. A `config:recommended` effective config is ~200 kB, so the
+      // generic elider used to cut `packageRules` in place and hand back a
+      // document that is neither the config nor a description of it. An INDEX
+      // is an answer: every top-level option, the bytes its value costs, and
+      // the two parameters that turn a name into its value.
+      const index = configKeyIndex(projected.config);
+      return {
+        configIndex: index,
+        keys: index.length,
+        configView: projected.view,
+        note:
+          `this run's effective config is ${index.reduce((sum, entry) => sum + entry.bytes, 0)} ` +
+          "bytes at this scope — too large to return whole, so this is its key INDEX (each " +
+          "option with the bytes its value costs), not the document. Ask again with " +
+          '`keys: ["a", "b"]` for the options you care about — `configScope: "package-rules"` ' +
+          "additionally drops the ~107 globalOnly options no packageRule can read — or " +
+          "get_provenance with one `key` for who set it.",
+      };
     }, HINTS.finalConfig),
   );
 
@@ -819,17 +858,34 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         "`finalDependencyConfig` to the options you asked about. " +
         "`ruleSources` is the legend for the rule indexes — one merged-index range per " +
         "contributing layer — and every MATCHED rule carries its own `origin` inline. " +
-        "Rules that failed ONLY because " +
-        "your `dep` left a field they read unset are summarized in `missingInputs`, whatever " +
-        "`verdict` you asked for: they report a plain `no-match`, so every scoped view hides them " +
-        'and the answer reads as "nothing matched". The step-by-step merge trace is ' +
-        'NOT included unless you ask for detail: "full"; it is the bulk of the payload.',
+        'By DEFAULT the answer holds the rules that acted (`verdict: "notable"`), because the ' +
+        "whole array is ~340 kB on such a run and the transport would elide it into a window " +
+        "chosen by byte arithmetic; `ruleFilter` states `total`/`shown`/`hidden` on every answer, " +
+        '`verdict: "all"` returns every row, and `rule: N` returns ONE row by index whatever the ' +
+        "facets hide. Rules that failed ONLY because " +
+        "your `dep` left a field they read unset are summarized in `missingInputs`, and rules a " +
+        "matcher THREW on in `evaluationErrors` — both whatever `verdict` you asked for, because " +
+        'they report a plain `no-match` and would otherwise read as "nothing matched". An ' +
+        "`evaluationErrors.rules` above zero means the tool could not evaluate part of the " +
+        "config, so the verdict is incomplete rather than negative. The step-by-step merge trace " +
+        'is NOT included unless you ask for detail: "full"; it is the bulk of the payload.',
       annotations: HELD_RUN_ANNOTATIONS,
       inputSchema: z.strictObject({
         runId: RUN_ID,
         dep: DEP,
         verdict: RULE_VERDICT,
         source: RULE_SOURCE,
+        rule: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe(
+            "One merged rule by index: its whole row — every clause, what it merged, its " +
+              '`origin` — whatever `verdict`/`source` would hide. This is how you ask "why did ' +
+              'rule N not fire", and what `missingInputs.sampleRuleIndexes` and `ruleSources` ' +
+              "hand you indexes for. Out of range names the total.",
+          ),
         keys: CONFIG_KEYS,
         configScope: CONFIG_SCOPE,
         detail: z
@@ -839,18 +895,21 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
             '`verdict` (the default) answers "what matched and what does this dependency end up ' +
               'with"; `full` adds `mergeSteps` and `rawFinalConfig` — ~1 MB on a ' +
               "`config:recommended` run, so ask for it only when you are stepping through the " +
-              "merge itself.",
+              "merge itself. It does not widen the rule list: `verdict` does that.",
           ),
       }),
     },
-    answer(async ({ runId, dep, verdict, source, keys, configScope, detail }, ctx) => {
+    answer(async ({ runId, dep, verdict, source, rule, keys, configScope, detail }, ctx) => {
       const run = store.get(runId);
       const sim = await simulateRun(run, dep, ctx);
-      const resolvedDetail = detail ?? "verdict";
+      // Roadmap 073: `notable`, not the whole array. The unfiltered answer did
+      // not fit the transport budget, so it was already incomplete — by byte
+      // arithmetic instead of on purpose. Every narrowing here is reversible by
+      // name, and `ruleFilter` says which one applied.
       const view = buildRuleView(sim, run.result, {
-        verdict: verdict ?? "all",
+        verdict: verdict ?? "notable",
         source: source ?? "all",
-        explicit: true,
+        ...(rule !== undefined ? { rule } : {}),
         transport: "mcp",
       });
       // `finalDependencyConfig` is by construction "what applyPackageRules
@@ -858,27 +917,18 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       // inert here and goes by default — the opposite of get_final_config's
       // document, and stated as such in `configView`.
       const payload = simulationPayload(sim, {
-        detail: resolvedDetail,
+        detail: detail ?? "verdict",
         scope: configScope ?? "package-rules",
         transport: "mcp",
         attribution: view.attribution,
         finalConfig: run.result.finalConfig,
+        ruleView: view,
         ...(keys ? { keys } : {}),
       });
-      if (verdict === undefined && source === undefined) {
-        return { dep: toDependency(dep), ...payload };
-      }
       return {
         dep: toDependency(dep),
         ...payload,
-        // The scoped list REPLACES the payload's, so it has to carry the same
-        // per-rule `origin` — the legend stays either way.
-        rules:
-          resolvedDetail === "full"
-            ? view.rules
-            : withRuleOrigins(collapseRuleMerges(view.rules), view.attribution),
         ...(view.notes.length > 0 ? { filterNotes: view.notes } : {}),
-        ...ruleFilterPayload(view),
       };
     }, HINTS.simulate),
   );
@@ -902,8 +952,10 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         "narrows the delta to the options you care about; `summary`, `verdict` and `netEffect` " +
         "always describe the WHOLE delta, so narrowing the view never moves the verdict. A side " +
         "that could not evaluate a rule for lack of dependency input reports it in its own " +
-        "`missingInputs`: two blind sides agree perfectly, and `identical` over them is not an " +
-        "answer about your edit.",
+        "`missingInputs`, and one whose matcher threw in its own `evaluationErrors`: two blind " +
+        "sides agree perfectly, and `identical` over them is not an answer about your edit. " +
+        "By default `identity` is stated as counts and `matchedInBoth` is omitted — `detail: " +
+        '"rules"` restores the arrays.',
       annotations: HELD_RUN_ANNOTATIONS,
       inputSchema: z.strictObject({
         runId: RUN_ID,
@@ -912,9 +964,20 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         depB: DEP.optional().describe("The B-side dependency. Defaults to dep."),
         keys: CONFIG_KEYS,
         configScope: CONFIG_SCOPE,
+        detail: z
+          .enum(COMPARE_DETAIL)
+          .optional()
+          .describe(
+            "`verdict` (the default) is the claim plus its evidence: the verdict, `netEffect`, " +
+              "the rules that started/stopped mattering, the key delta, and the identity axis as " +
+              "COUNTS. `rules` restores `matchedInBoth` and the identity arrays; `full` is the " +
+              "comparison exactly as the engine computes it, selector `signature` strings " +
+              "included (they are whole selector arrays re-serialized, next to the `label` that " +
+              "already names each rule).",
+          ),
       }),
     },
-    answer(async ({ runId, dep, runIdB, depB, keys, configScope }, ctx) => {
+    answer(async ({ runId, dep, runIdB, depB, keys, configScope, detail }, ctx) => {
       const a = store.get(runId);
       const b = runIdB ? store.get(runIdB) : a;
       const [simA, simB] = await Promise.all([
@@ -924,28 +987,48 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       // Per side, and outside `comparisonPayload`: the pure diff module states
       // what the two runs did, and a side that never got to evaluate a rule is
       // a fact about that side's INPUT, not about the difference.
-      const noteA = missingInputsNote(simA.missingInputs, "mcp");
-      const noteB = missingInputsNote(simB.missingInputs, "mcp");
-      const combined = [
-        ...(noteA ? [`A — ${noteA}`] : []),
-        ...(noteB ? [`B — ${noteB}`] : []),
-      ].join(" ");
+      const sideNotes = [
+        ...[simA, simB].flatMap((sim, index) => {
+          const note = evaluationErrorsNote(sim.evaluationErrors, "mcp");
+          return note ? [`${index === 0 ? "A" : "B"} — ${note}`] : [];
+        }),
+        ...[simA, simB].flatMap((sim, index) => {
+          const note = missingInputsNote(sim.missingInputs, "mcp");
+          return note ? [`${index === 0 ? "A" : "B"} — ${note}`] : [];
+        }),
+      ];
+      // What the CALLER varied — the engine cannot see it, and guessing is
+      // how the comparison came to claim a selector rewrite about one
+      // unchanged config read through two dependencies.
+      const comparison = comparisonPayload(
+        compareSimulations(simA, simB, {
+          mode: runIdB ? "config" : depB ? "dependency" : "config",
+        }),
+        {
+          scope: configScope ?? "package-rules",
+          detail: detail ?? "verdict",
+          transport: "mcp",
+          ...(keys ? { keys } : {}),
+        },
+      );
+      const notes = [...sideNotes, ...(comparison.notes ?? [])];
       return {
-        a: { runId: a.runId, dep: toDependency(dep), missingInputs: simA.missingInputs },
-        b: { runId: b.runId, dep: toDependency(depB ?? dep), missingInputs: simB.missingInputs },
-        ...(combined ? { missingInputsNote: combined } : {}),
-        // What the CALLER varied — the engine cannot see it, and guessing is
-        // how the comparison came to claim a selector rewrite about one
-        // unchanged config read through two dependencies.
-        ...comparisonPayload(
-          compareSimulations(simA, simB, {
-            mode: runIdB ? "config" : depB ? "dependency" : "config",
-          }),
-          {
-            scope: configScope ?? "package-rules",
-            ...(keys ? { keys } : {}),
-          },
-        ),
+        a: {
+          runId: a.runId,
+          dep: toDependency(dep),
+          missingInputs: simA.missingInputs,
+          evaluationErrors: simA.evaluationErrors,
+        },
+        b: {
+          runId: b.runId,
+          dep: toDependency(depB ?? dep),
+          missingInputs: simB.missingInputs,
+          evaluationErrors: simB.evaluationErrors,
+        },
+        ...comparison,
+        // ONE notes array (roadmap 073) — five note-shaped field names was four
+        // too many for an agent looking for the map.
+        ...(notes.length > 0 ? { notes } : {}),
       };
     }, HINTS.compare),
   );

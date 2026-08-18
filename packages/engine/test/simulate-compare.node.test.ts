@@ -34,6 +34,7 @@ function sim(
   return {
     rules,
     missingInputs: { rules: 0, groups: [] },
+    evaluationErrors: { rules: 0, selectors: [], messages: [], sampleRuleIndexes: [] },
     rawFinalConfig: {},
     finalDependencyConfig,
     flattened: { merged: [], blocks: {}, authoredBlocks: [] },

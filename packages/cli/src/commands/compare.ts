@@ -6,8 +6,12 @@ import { emitJson, emitLines, writeNotes } from "../output";
 import { INPUT_OPTIONS, refusalNote, runOne, takeInputFile, wouldRefuse } from "../run-input";
 import { readDependency } from "../dep";
 import { deltaLine, parseConfigScope, parseKeys } from "../projections/config-view";
-import { comparisonPayload } from "../projections/simulate";
-import { missingInputsNote } from "../rule-view";
+import {
+  comparisonPayload,
+  parseCompareDetail,
+  type ProjectedComparison,
+} from "../projections/simulate";
+import { evaluationErrorsNote, missingInputsNote } from "../rule-view";
 import { simulateAgainst } from "./simulate";
 
 /**
@@ -32,7 +36,10 @@ import { simulateAgainst } from "./simulate";
  * The headline reads the VERDICT fields only, which is what lets it take a
  * projected comparison (whose delta may be narrowed) unchanged.
  */
-type HeadlineFields = Pick<SimulationComparison, "verdict" | "netEffect" | "identity">;
+type HeadlineFields = Pick<SimulationComparison, "verdict" | "netEffect"> & {
+  /** `changed` alone — the one identity field every detail level carries. */
+  identity: { changed: boolean };
+};
 
 export function comparisonHeadline(comparison: HeadlineFields): string {
   switch (comparison.verdict) {
@@ -46,6 +53,37 @@ export function comparisonHeadline(comparison: HeadlineFields): string {
             "touched the very selectors that rule matches on."
         : `✓ No behavioral change: ${comparison.netEffect}.`;
   }
+}
+
+/**
+ * The identity axis, as the requested detail level carries it: the list of
+ * selector rewrites at `--detail rules`/`full`, and at the default a single
+ * line with the count and the flag that lists them. Never nothing when the
+ * churn is non-zero — a fact that vanishes with a detail level reads as a bug.
+ */
+function identityLines(comparison: ProjectedComparison): string[] {
+  const changes = comparison.identity.signatureChanges;
+  if (changes) {
+    return changes.length === 0
+      ? []
+      : [
+          "",
+          "Selector text changed, same effect (rule identity, not behavior):",
+          ...changes.map(
+            (c) => `  ${c.a.label}  #${c.a.index + 1} → #${c.b.index + 1}  (${c.kind})`,
+          ),
+        ];
+  }
+  const counts = comparison.identity.counts;
+  if (!counts || counts.signatureChanges === 0) {
+    return [];
+  }
+  const noun = counts.signatureChanges === 1 ? "rule" : "rules";
+  return [
+    "",
+    `Selector text changed on ${counts.signatureChanges} ${noun}, same effect (rule identity, ` +
+      "not behavior) — `--detail rules` lists them.",
+  ];
 }
 
 export const compareCommand: Command = {
@@ -71,6 +109,11 @@ export const compareCommand: Command = {
     "options no rule can reach are dropped) and `--keys a,b` narrows it further.",
     "Neither touches the verdict: `summary` states what the comparison found",
     "over the WHOLE delta, and `configView` says what the view withheld.",
+    "",
+    "`--detail verdict` (the default) answers with the claim and its evidence,",
+    "and states the identity axis as counts; `--detail rules` restores the rule",
+    "and identity arrays (`matchedInBoth` included), `--detail full` the",
+    "comparison exactly as the engine computes it, selector signatures and all.",
   ],
   options: [
     ...INPUT_OPTIONS,
@@ -78,12 +121,14 @@ export const compareCommand: Command = {
     "dep-file",
     "dep-b",
     "dep-b-file",
+    "detail",
     "keys",
     "config-scope",
     "format",
   ],
   async run(args, io) {
     const format = outputFormat(args);
+    const detail = parseCompareDetail(stringOption(args, "detail")) ?? "verdict";
     const keys = parseKeys(stringOption(args, "keys"));
     const scope = parseConfigScope(stringOption(args, "config-scope"), "--config-scope");
     const { file, rest } = takeInputFile(args);
@@ -107,6 +152,8 @@ export const compareCommand: Command = {
     const mode = fileB && twoDeps ? "unspecified" : twoDeps ? "dependency" : "config";
     const comparison = comparisonPayload(compareSimulations(simA, simB, { mode }), {
       scope: scope ?? "package-rules",
+      detail,
+      transport: "cli",
       ...(keys ? { keys } : {}),
     });
 
@@ -123,6 +170,16 @@ export const compareCommand: Command = {
     // two blind runs.
     const missingA = missingInputsNote(simA.missingInputs, "cli");
     const missingB = missingInputsNote(simB.missingInputs, "cli");
+    // Same reasoning, one step more serious: a side that could not EVALUATE a
+    // rule is not a side that disagreed with the other one.
+    const erroredA = evaluationErrorsNote(simA.evaluationErrors, "cli");
+    const erroredB = evaluationErrorsNote(simB.evaluationErrors, "cli");
+    const sideNotes = [
+      ...(erroredA ? [`A — ${erroredA}`] : []),
+      ...(erroredB ? [`B — ${erroredB}`] : []),
+      ...(missingA ? [`A — ${missingA}`] : []),
+      ...(missingB ? [`B — ${missingB}`] : []),
+    ];
 
     if (format === "json") {
       emitJson(io, {
@@ -131,21 +188,27 @@ export const compareCommand: Command = {
           dep: depA,
           wouldRefuse: refusedA,
           missingInputs: simA.missingInputs,
+          evaluationErrors: simA.evaluationErrors,
         },
         b: {
           config: fileB ?? file ?? "(stdin/repo)",
           dep: depB,
           wouldRefuse: refusedB,
           missingInputs: simB.missingInputs,
+          evaluationErrors: simB.evaluationErrors,
         },
         ...comparison,
+        // ONE notes array (roadmap 073): the per-side pointers and the
+        // detail-level pointer read the same way, so they live in one place.
+        ...(sideNotes.length + (comparison.notes?.length ?? 0) > 0
+          ? { notes: [...sideNotes, ...(comparison.notes ?? [])] }
+          : {}),
         ...(refusal ? { exitNote: refusal } : {}),
       });
     } else {
       emitLines(io, [
         comparisonHeadline(comparison),
-        ...(missingA ? ["", `A — ${missingA}`] : []),
-        ...(missingB ? ["", `B — ${missingB}`] : []),
+        ...sideNotes.flatMap((note) => ["", note]),
         ...(comparison.stoppedMatching.length > 0
           ? ["", "Matched only in A:", ...comparison.stoppedMatching.map((r) => `  ${r.label}`)]
           : []),
@@ -155,15 +218,7 @@ export const compareCommand: Command = {
         ...(comparison.configDelta.length > 0
           ? ["", "Config delta:", ...comparison.configDelta.map((d) => `  ${deltaLine(d)}`)]
           : []),
-        ...(comparison.identity.signatureChanges.length > 0
-          ? [
-              "",
-              "Selector text changed, same effect (rule identity, not behavior):",
-              ...comparison.identity.signatureChanges.map(
-                (c) => `  ${c.a.label}  #${c.a.index + 1} → #${c.b.index + 1}  (${c.kind})`,
-              ),
-            ]
-          : []),
+        ...identityLines(comparison),
         ...(refusal ? ["", refusal] : []),
       ]);
     }

@@ -4,7 +4,7 @@ import type {
   RuleEvaluation,
 } from "@renovate-config-debugger/engine";
 import { type LayerId, layerId, layerLabel } from "@/components/provenance-layer";
-import { isNoInputNoMatch } from "./rule-verdict";
+import { hasEvaluationError, isNoInputNoMatch } from "./rule-verdict";
 
 /**
  * The rules drawer's filter facets — verdict and provenance — as one value,
@@ -31,12 +31,12 @@ import { isNoInputNoMatch } from "./rule-verdict";
  * counts rather than a second implementation that drifts.
  */
 
-/** The verdict facet. `notable` is the default view (matched + unresolved,
- *  i.e. everything except a plain no-match) — roadmap 012/047's finding that a
+/** The verdict facet. `notable` is the default view (matched + unresolved +
+ *  the rows the tool could not evaluate) — roadmap 012/047's finding that a
  *  first screen of 700 "no match" rows buries the handful that did something.
- *  The other three are the verdicts a rule row can wear, split the way the
- *  badge splits them (see {@link isNoInputNoMatch}). */
-export type VerdictFilter = "notable" | "all" | "matched" | "no-input" | "no-match";
+ *  The others are the verdicts a rule row can wear, split the way the badge
+ *  splits them (see {@link isNoInputNoMatch}, {@link hasEvaluationError}). */
+export type VerdictFilter = "notable" | "all" | "matched" | "no-input" | "no-match" | "error";
 
 /** Every {@link VerdictFilter}, for a CLI flag's parse + help text. */
 export const VERDICT_FILTERS: readonly VerdictFilter[] = [
@@ -45,6 +45,7 @@ export const VERDICT_FILTERS: readonly VerdictFilter[] = [
   "matched",
   "no-input",
   "no-match",
+  "error",
 ];
 
 /** The provenance facet: a layer id present in the run, or {@link ALL_PRESETS}.
@@ -75,12 +76,25 @@ export function isDefaultView(filters: RuleFilters): boolean {
   );
 }
 
+/**
+ * Roadmap 073, the blocker found while auditing the focused default: a clause
+ * whose matcher threw is recorded `state: "error"` and pushes its rule to
+ * `verdict: "no-match"`, so the old `notable` (`verdict !== "no-match"`) hid
+ * "the tool could not evaluate this rule" — the documented `conda`
+ * `matchCurrentVersion` case. `notable` therefore reads the error predicate
+ * too, and `no-match` keeps meaning a GENUINE mismatch: it now excludes the
+ * error rows the way it already excluded the no-input ones, because `error`
+ * names them.
+ *
+ * A filter change, not a verdict change — `execute()` still reports exactly
+ * what upstream's `applyPackageRules` would.
+ */
 export function matchesVerdictFilter(rule: RuleEvaluation, filter: VerdictFilter): boolean {
   if (filter === "all") {
     return true;
   }
   if (filter === "notable") {
-    return rule.verdict !== "no-match";
+    return rule.verdict !== "no-match" || hasEvaluationError(rule);
   }
   if (filter === "matched") {
     return rule.verdict === "matched";
@@ -88,7 +102,10 @@ export function matchesVerdictFilter(rule: RuleEvaluation, filter: VerdictFilter
   if (filter === "no-input") {
     return isNoInputNoMatch(rule);
   }
-  return rule.verdict === "no-match" && !isNoInputNoMatch(rule);
+  if (filter === "error") {
+    return hasEvaluationError(rule);
+  }
+  return rule.verdict === "no-match" && !isNoInputNoMatch(rule) && !hasEvaluationError(rule);
 }
 
 function matchesPresetFilter(
@@ -199,6 +216,7 @@ export function verdictFilterOptions(rules: RuleEvaluation[]): FilterOption[] {
     { value: "matched", label: "only matched", count: count("matched") },
     { value: "no-input", label: "only no input", count: count("no-input") },
     { value: "no-match", label: "only no match", count: count("no-match") },
+    { value: "error", label: "only not evaluated", count: count("error") },
   ];
 }
 

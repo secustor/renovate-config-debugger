@@ -16,6 +16,7 @@ function simFixture(flattened: Partial<SimulationResult["flattened"]> = {}): Sim
     finalDependencyConfig: {},
     flattened: { merged: [], blocks: {}, authoredBlocks: [], ...flattened },
     missingInputs: { rules: 0, groups: [] },
+    evaluationErrors: { rules: 0, selectors: [], messages: [], sampleRuleIndexes: [] },
     mergeSteps: [],
     errors: [],
     warnings: [],

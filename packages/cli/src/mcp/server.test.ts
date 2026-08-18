@@ -43,6 +43,18 @@ const AUTOMERGE_MINOR = JSON.stringify({
 });
 /** The big one — every size assertion in this file is measured against it. */
 const RECOMMENDED = '{"extends":["config:recommended"],"labels":["deps"]}';
+/** Bigger still: `config:best-practices` extends `config:recommended` and adds
+ *  its own rules — the run roadmap 073's acceptance criteria are stated over. */
+const BEST_PRACTICES = '{"extends":["config:best-practices"],"labels":["deps"]}';
+/** The documented honest-error case: `conda`'s parser is a ~3 MB WASM module
+ *  the browser build excludes, so `matchCurrentVersion` THROWS — a clause error
+ *  on a rule whose verdict is a plain `no-match`. */
+const CONDA_RULES = JSON.stringify({
+  packageRules: [
+    { matchCurrentVersion: ">=1.0", labels: ["conda"] },
+    { matchPackageNames: ["react"], groupName: "react monorepo" },
+  ],
+});
 /** The same at scale, plus ONE rule of the caller's own — the shape the
  *  packageRules provenance answer is about: 713 preset rules, then yours. */
 const RECOMMENDED_PLUS_RULE = JSON.stringify({
@@ -681,17 +693,65 @@ describe("size budget", () => {
     expect(payload.chain).toBeDefined();
   });
 
-  test("the elision marks what it dropped, in place", async () => {
+  /**
+   * Roadmap 073. This document is ~200 kB on a `config:recommended` run, and
+   * the generic elision's answer was a `packageRules` cut to first-and-last
+   * inside a document that still looked whole — neither the config nor a
+   * description of it. A key INDEX is honest at any size: every option the
+   * document has, the bytes its value costs, and the parameter that turns a
+   * name into a value.
+   */
+  test("an effective config over the budget answers with its key index", async () => {
     const runId = await runConfig(RECOMMENDED);
     const payload = (await call("get_final_config", { runId })) as {
+      truncated?: boolean;
+      configIndex: { key: string; bytes: number }[];
+      keys: number;
+      configView: { scope: string };
+      note: string;
+    };
+    // Not elided: the answer was chosen at construction, so it fits.
+    expect(payload.truncated).toBeUndefined();
+    expect(payload.keys).toBe(payload.configIndex.length);
+    expect(payload.keys).toBeGreaterThan(100);
+    // Biggest first — the reason the document does not fit is the first line of
+    // the answer.
+    expect(payload.configIndex[0]?.key).toBe("packageRules");
+    const bytes = payload.configIndex.map((entry) => entry.bytes);
+    expect(bytes).toEqual([...bytes].toSorted((a, b) => b - a));
+    // Every key is NAMED, including the ones the elision used to drop whole.
+    expect(payload.configIndex.map((entry) => entry.key)).toContain("labels");
+    expect(payload.note).toContain('`keys: ["a", "b"]`');
+    expect(payload.note).toContain("configScope");
+  });
+
+  /** …and a document that fits is still the document. */
+  test("a config that fits comes back whole, index or no index", async () => {
+    const runId = await runConfig(CONFIG);
+    const payload = (await call("get_final_config", { runId })) as {
+      finalConfig?: { labels: string[] };
+      configIndex?: unknown;
+    };
+    expect(payload.configIndex).toBeUndefined();
+    expect(payload.finalConfig?.labels).toEqual(["deps"]);
+  });
+
+  /** The elision itself is untouched — it is the transport's safety net, and
+   *  `verdict: "all"` on a 714-rule simulation is where it still fires. */
+  test("the elision marks what it dropped, in place", async () => {
+    const runId = await runConfig(RECOMMENDED);
+    const payload = (await call("simulate", {
+      runId,
+      dep: { depName: "react", packageName: "react" },
+      verdict: "all",
+    })) as {
       truncated: boolean;
-      finalConfig: { packageRules: { truncated: boolean; shown: number; omitted: number } };
+      rules: { truncated: boolean; shown: number; omitted: number };
     };
     expect(payload.truncated).toBe(true);
-    const rules = payload.finalConfig.packageRules;
-    expect(rules.truncated).toBe(true);
-    expect(rules.omitted).toBeGreaterThan(0);
-    expect(rules.shown).toBeGreaterThan(0);
+    expect(payload.rules.truncated).toBe(true);
+    expect(payload.rules.omitted).toBeGreaterThan(0);
+    expect(payload.rules.shown).toBeGreaterThan(0);
   });
 
   /**
@@ -847,18 +907,22 @@ describe("simulate and compare", () => {
     const parsed = JSON.parse(text) as {
       truncated?: boolean;
       omittedKeys?: string[];
-      detailNote: string;
+      notes: string[];
       finalDependencyConfig: Record<string, unknown>;
       configView: { scope: string; keys: number; droppedGlobalOnly?: number };
       flattened: unknown;
       missingInputs: { rules: number; groups: unknown[] };
+      ruleFilter: { verdict: string; total: number; shown: number; hidden: number };
       rules: { truncated: boolean; shown: number; omitted: number } | unknown[];
     };
     expect(parsed).not.toHaveProperty("mergeSteps");
     expect(parsed).not.toHaveProperty("rawFinalConfig");
     // The omission is stated, with the parameter that undoes it.
-    expect(parsed.detailNote).toContain('detail: "full"');
-    // The answer itself survives WHOLE — no key was dropped to make room.
+    expect(parsed.notes.join(" ")).toContain('detail: "full"');
+    // Roadmap 073, invariant 1: the DEFAULT answer comes back whole. Nothing
+    // was elided, nothing dropped by name — the narrowing happened at
+    // construction, where it can be described, instead of in the transport.
+    expect(parsed.truncated).toBeUndefined();
     expect(parsed.omittedKeys).toBeUndefined();
     expect(parsed.flattened).toBeDefined();
     expect(Object.keys(parsed.finalDependencyConfig).length).toBeGreaterThan(10);
@@ -875,15 +939,43 @@ describe("simulate and compare", () => {
     expect(parsed.finalDependencyConfig).not.toHaveProperty("onboardingConfig");
     expect(parsed.finalDependencyConfig).not.toHaveProperty("dryRun");
     expect(parsed.configView.keys).toBe(Object.keys(parsed.finalDependencyConfig).length);
-    // The elision shrinks `rules` first — it is the largest array in the
-    // payload — so the missing-input aggregate has to outlive it, and be
-    // reported by NAME rather than dropped as a key.
+    // The aggregate outlives every view of the rows it counts.
     expect(parsed.missingInputs).toBeDefined();
     expect(parsed.missingInputs.rules).toBeGreaterThan(0);
-    // And the rule list is a real sample of 713, not a token two.
-    const rules = parsed.rules as { shown: number; omitted: number };
-    expect(rules.shown + rules.omitted).toBeGreaterThan(700);
-    expect(rules.shown).toBeGreaterThan(20);
+    // The rule list is the handful that acted, out of ~714 — stated, with the
+    // parameter that returns the rest.
+    const rules = parsed.rules as unknown[];
+    expect(Array.isArray(rules)).toBe(true);
+    expect(rules.length).toBeLessThan(20);
+    expect(parsed.ruleFilter).toMatchObject({ verdict: "notable", shown: rules.length });
+    expect(parsed.ruleFilter.total).toBeGreaterThan(700);
+    expect(parsed.ruleFilter.hidden).toBe(parsed.ruleFilter.total - rules.length);
+    expect(parsed.notes.join(" ")).toContain('`verdict: "all"` returns every row');
+    // …and the whole answer sits well inside the budget it used to blow by 5×.
+    // What is left is mostly `finalDependencyConfig` — 289 effective options,
+    // which `keys` narrows and the test below measures.
+    expect(text.length).toBeLessThan(RESULT_BUDGET_BYTES / 2);
+  });
+
+  /**
+   * The other half of the flip: asking for every row is exactly what the
+   * transport cannot deliver whole, which is why it is not the default any
+   * more. Same run, same question, `verdict: "all"` — and the elision that
+   * used to happen unasked now happens where the caller asked for it.
+   */
+  test('verdict: "all" is the way back, and pays the transport for it', async () => {
+    const runId = await runConfig(RECOMMENDED);
+    const dep = { depName: "react", packageName: "react", currentValue: "17", newValue: "18" };
+    const parsed = JSON.parse(await callText("simulate", { runId, dep, verdict: "all" })) as {
+      truncated?: boolean;
+      ruleFilter: { verdict: string; hidden: number; total: number };
+      rules: { truncated: boolean; shown: number; omitted: number };
+    };
+    expect(parsed.ruleFilter).toMatchObject({ verdict: "all", hidden: 0 });
+    expect(parsed.truncated).toBe(true);
+    // The elided array is the rule list, and it says so in place.
+    expect(parsed.rules.truncated).toBe(true);
+    expect(parsed.rules.shown + parsed.rules.omitted).toBeGreaterThan(700);
   });
 
   /**
@@ -899,9 +991,9 @@ describe("simulate and compare", () => {
     const full = (await call("simulate", { runId, dep, detail: "full" })) as {
       truncated?: boolean;
       omittedKeys?: string[];
-      detailNote?: string;
+      notes?: string[];
     };
-    expect(full.detailNote).toBeUndefined();
+    expect(full.notes?.join(" ") ?? "").not.toContain('detail: "full"');
     expect(full.truncated).toBe(true);
     expect(full.omittedKeys).toContain("mergeSteps");
     // The default answer for the same question never got that big.
@@ -953,7 +1045,9 @@ describe("simulate and compare", () => {
   test("the sentence survives the elision that takes the rules", async () => {
     const runId = await runConfig(RECOMMENDED);
     const dep = { depName: "react", packageName: "react", currentValue: "17", newValue: "18" };
-    const parsed = JSON.parse(await callText("simulate", { runId, dep })) as {
+    // At `verdict: "all"` — the view that still cannot fit, which is the whole
+    // reason it is no longer the default (roadmap 073).
+    const parsed = JSON.parse(await callText("simulate", { runId, dep, verdict: "all" })) as {
       verdict: { text: string };
       flattened: { note: string };
       rules: { shown: number; omitted: number } | unknown[];
@@ -1022,22 +1116,24 @@ describe("simulate and compare", () => {
   });
 
   test("verdict/source scope the rule list and say what they hid", async () => {
-    const runId = await runConfig(GROUPED);
-    const dep = { depName: "react", currentValue: "17.0.0", newValue: "18.0.0" };
-    const full = (await call("simulate", { runId, dep })) as { rules: unknown[] };
-    // GROUPED's rules all match this dep, so `no-match` is the facet that
-    // provably hides something.
+    const runId = await runConfig(MIXED_RULES);
+    const dep = { depName: "react", packageName: "react" };
+    const all = (await call("simulate", { runId, dep, verdict: "all" })) as {
+      rules: unknown[];
+      ruleFilter: { verdict: string; hidden: number };
+    };
     const scoped = (await call("simulate", { runId, dep, verdict: "no-match" })) as {
       rules: { verdict: string }[];
       ruleFilter: { verdict: string; total: number; shown: number; hidden: number };
     };
-    // An unflagged call keeps the exact payload scripts already parse.
-    expect(full).not.toHaveProperty("ruleFilter");
-    expect(full.rules.length).toBeGreaterThan(0);
+    // Roadmap 073: `ruleFilter` is on EVERY answer, so "nothing was withheld"
+    // is a fact in the payload rather than the absence of one.
+    expect(all.ruleFilter).toMatchObject({ verdict: "all", hidden: 0 });
+    expect(all.rules.length).toBeGreaterThan(0);
     expect(scoped.rules.every((rule) => rule.verdict === "no-match")).toBe(true);
-    expect(scoped.ruleFilter.total).toBe(full.rules.length);
+    expect(scoped.ruleFilter.total).toBe(all.rules.length);
     expect(scoped.ruleFilter.shown).toBe(scoped.rules.length);
-    expect(scoped.ruleFilter.hidden).toBe(full.rules.length - scoped.rules.length);
+    expect(scoped.ruleFilter.hidden).toBe(all.rules.length - scoped.rules.length);
     expect(scoped.ruleFilter.hidden).toBeGreaterThan(0);
   });
 
@@ -1053,7 +1149,7 @@ describe("simulate and compare", () => {
     const scoped = (await call("simulate", { runId, dep, verdict: "matched" })) as {
       rules: unknown[];
       missingInputs: { rules: number; groups: { fieldList: string; selectors: string[] }[] };
-      missingInputsNote: string;
+      notes: string[];
     };
     expect(scoped.rules).toHaveLength(1);
     expect(scoped.missingInputs.rules).toBe(2);
@@ -1061,8 +1157,8 @@ describe("simulate and compare", () => {
       "depType or depTypes",
       "sourceUrl",
     ]);
-    expect(scoped.missingInputsNote).toContain('`verdict: "no-input"` lists them.');
-    expect(scoped.missingInputsNote).not.toContain("--verdict");
+    expect(scoped.notes.join(" ")).toContain('`verdict: "no-input"` lists them.');
+    expect(scoped.notes.join(" ")).not.toContain("--verdict");
     // …and it is there without asking, too.
     const unfiltered = (await call("simulate", { runId, dep })) as {
       missingInputs: { rules: number };
@@ -1112,7 +1208,7 @@ describe("simulate and compare", () => {
     })) as {
       a: { missingInputs: { rules: number; groups: { fieldList: string }[] } };
       b: { missingInputs: { rules: number } };
-      missingInputsNote: string;
+      notes: string[];
       verdict: string;
     };
     expect(comparison.verdict).toBe("identical");
@@ -1122,9 +1218,10 @@ describe("simulate and compare", () => {
       "depType or depTypes",
       "sourceUrl",
     ]);
-    expect(comparison.missingInputsNote).toContain("A — 2 of 4 rules could not match");
-    expect(comparison.missingInputsNote).toContain("B — 2 of 4 rules could not match");
-    expect(comparison.missingInputsNote).toContain('`verdict: "no-input"` lists them.');
+    const notes = comparison.notes.join(" ");
+    expect(notes).toContain("A — 2 of 4 rules could not match");
+    expect(notes).toContain("B — 2 of 4 rules could not match");
+    expect(notes).toContain('`verdict: "no-input"` lists them.');
   });
 });
 
@@ -1138,7 +1235,7 @@ describe("simulate and compare", () => {
 describe("rule indexes are cross-linked", () => {
   interface SimRules {
     ruleSources: { layer: string; kind: string; from: number; to: number; count: number }[];
-    ruleSourcesNote: string;
+    notes: string[];
     rules: { index: number; verdict: string; origin?: { layer: string; sourceIndex: number } }[];
   }
 
@@ -1147,13 +1244,16 @@ describe("rule indexes are cross-linked", () => {
     const sim = (await call("simulate", {
       runId,
       dep: { depName: "react", packageName: "react" },
+      // The origin-per-row rule is about a LIST, so it is asserted on the whole
+      // one; `rule: N` is the single-row case, below.
+      verdict: "all",
     })) as SimRules;
     // The legend covers every rule index, contiguously.
     expect(sim.ruleSources.map((s) => [s.layer, s.from, s.to])).toEqual([
       ["preset :disablePeerDependencies", 0, 0],
       ["repo", 1, 3],
     ]);
-    expect(sim.ruleSourcesNote).toContain("index - from");
+    expect(sim.notes.join(" ")).toContain("index - from");
 
     const matched = sim.rules.filter((rule) => rule.verdict === "matched");
     expect(matched.length).toBeGreaterThan(0);
@@ -1490,5 +1590,211 @@ describe("RunStore", () => {
     expect(() => store.get(b.runId)).toThrow(/no run/);
     expect(store.get(a.runId).runId).toBe(a.runId);
     expect(store.get(c.runId).runId).toBe(c.runId);
+  });
+});
+
+/**
+ * Roadmap 073's acceptance criteria, as invariants over the tool surface rather
+ * than as examples — they are what stops the payload from silently regrowing.
+ *
+ * The thesis they encode: the old default answer did not fit the transport
+ * budget, so it was ALREADY incomplete — elided into a first/last window chosen
+ * by byte arithmetic, with no relation to what was asked. The choice was never
+ * between a complete answer and a narrowed one; it was between arbitrary
+ * incompleteness and deliberate incompleteness that hands back a map.
+ */
+describe("focused by default", () => {
+  const DEP = { depName: "react", packageName: "react", currentValue: "17", newValue: "18" };
+
+  /**
+   * Invariant 1. Every tool's DEFAULT answer comes back whole on the biggest
+   * run there is. Only the named bulk surfaces may truncate — asserted below,
+   * so this test cannot pass by the elision having quietly stopped working.
+   */
+  test("no default answer is elided, on a config:best-practices run", async () => {
+    const runId = await runConfig(BEST_PRACTICES);
+    const calls: [string, Record<string, unknown>][] = [
+      ["get_final_config", { runId }],
+      ["get_preset_tree", { runId }],
+      ["get_preset_node", { runId, node: "config:best-practices" }],
+      ["get_provenance", { runId }],
+      ["get_provenance", { runId, key: "packageRules" }],
+      ["get_provenance", { runId, key: "labels" }],
+      ["simulate", { runId, dep: DEP }],
+      ["compare_simulations", { runId, dep: DEP }],
+      ["get_option_docs", { name: "minimumReleaseAge" }],
+    ];
+    for (const [name, args] of calls) {
+      const payload = (await call(name, args)) as { truncated?: boolean; hint?: string };
+      expect(payload.truncated, `${name} ${JSON.stringify(args)}`).toBeUndefined();
+    }
+  });
+
+  test("the named bulk surfaces still truncate — the test above has teeth", async () => {
+    const runId = await runConfig(BEST_PRACTICES);
+    const full = (await call("simulate", { runId, dep: DEP, detail: "full" })) as {
+      truncated?: boolean;
+    };
+    expect(full.truncated).toBe(true);
+    const body = (await call("get_preset_node", {
+      runId,
+      node: "config:best-practices",
+      body: "resolved",
+    })) as { truncated?: boolean };
+    expect(body.truncated).toBe(true);
+  });
+
+  /**
+   * Invariant 2. For every narrowing, the default payload carries both a COUNT
+   * of what was withheld and the literal parameter that returns it. A key that
+   * simply vanishes is indistinguishable from a bug.
+   */
+  test("every narrowing states its count and its own reversal", async () => {
+    const runId = await runConfig(BEST_PRACTICES);
+    const sim = (await call("simulate", { runId, dep: DEP })) as {
+      ruleFilter: { total: number; shown: number; hidden: number };
+      configView: { scope: string; droppedGlobalOnly?: number };
+      notes: string[];
+    };
+    // The rule list: counts, and the two parameters that widen it.
+    expect(sim.ruleFilter.hidden).toBe(sim.ruleFilter.total - sim.ruleFilter.shown);
+    expect(sim.ruleFilter.hidden).toBeGreaterThan(0);
+    const notes = sim.notes.join(" ");
+    expect(notes).toContain('`verdict: "all"`');
+    expect(notes).toContain("`rule: N`");
+    // The per-dependency config: the class it dropped, counted, and the scope
+    // that keeps it.
+    expect(sim.configView.droppedGlobalOnly).toBe(107);
+    expect(notes).toContain('detail: "full"');
+
+    const comparison = (await call("compare_simulations", { runId, dep: DEP })) as {
+      identity: { counts: { signatureChanges: number } };
+      notes: string[];
+    };
+    expect(comparison.identity.counts).toBeDefined();
+    expect(comparison.notes.join(" ")).toContain('`detail: "rules"`');
+
+    const config = (await call("get_final_config", { runId })) as {
+      configIndex: unknown[];
+      note: string;
+    };
+    expect(config.configIndex.length).toBeGreaterThan(0);
+    expect(config.note).toContain("keys");
+  });
+
+  /**
+   * Invariant 3, first half: a dependency without `sourceUrl` against a config
+   * whose preset rules read it. The rules lose to an unset field, report a plain
+   * `no-match`, and the DEFAULT answer still says so.
+   */
+  test("the default answer still reports the rules an unset field cost", async () => {
+    const runId = await runConfig(MIXED_RULES);
+    const sim = (await call("simulate", { runId, dep: { depName: "react" } })) as {
+      missingInputs: { rules: number; groups: { fieldList: string }[] };
+      notes: string[];
+      ruleFilter: { verdict: string; hidden: number };
+    };
+    expect(sim.ruleFilter.verdict).toBe("notable");
+    expect(sim.ruleFilter.hidden).toBeGreaterThan(0);
+    expect(sim.missingInputs.rules).toBe(2);
+    expect(sim.missingInputs.groups.map((group) => group.fieldList)).toContain("sourceUrl");
+    expect(sim.notes.join(" ")).toContain('`verdict: "no-input"` lists them.');
+  });
+
+  /**
+   * Invariant 3, second half — the BLOCKER this layer had to fix first. A clause
+   * whose matcher throws is `state: "error"` and pushes its rule to
+   * `verdict: "no-match"`, which the old `notable` predicate dropped. "The tool
+   * could not evaluate this rule" is the last thing that may go missing.
+   */
+  test("the default answer keeps a rule the tool could not evaluate, and counts it", async () => {
+    const runId = await runConfig(CONDA_RULES);
+    const sim = (await call("simulate", {
+      runId,
+      dep: { depName: "react", versioning: "conda", currentValue: "1.2.3" },
+    })) as {
+      rules: { index: number; verdict: string; clauses: { state: string }[] }[];
+      evaluationErrors: { rules: number; selectors: string[]; sampleRuleIndexes: number[] };
+      ruleFilter: { verdict: string };
+      notes: string[];
+    };
+    expect(sim.ruleFilter.verdict).toBe("notable");
+    const errored = sim.rules.find((rule) => rule.index === 0);
+    expect(errored?.verdict).toBe("no-match");
+    expect(errored?.clauses[0]?.state).toBe("error");
+    expect(sim.evaluationErrors).toMatchObject({
+      rules: 1,
+      selectors: ["matchCurrentVersion"],
+      sampleRuleIndexes: [0],
+    });
+    expect(sim.notes.join(" ")).toContain('`verdict: "error"` lists them.');
+    // And the facet that lists them is in the schema an agent reads.
+    const onlyErrors = (await call("simulate", {
+      runId,
+      dep: { depName: "react", versioning: "conda", currentValue: "1.2.3" },
+      verdict: "error",
+    })) as { rules: { index: number }[] };
+    expect(onlyErrors.rules.map((rule) => rule.index)).toEqual([0]);
+  });
+
+  /**
+   * Invariant 4: `rule: N` returns the row `verdict: "all"` shows at index N —
+   * which is what makes `missingInputs.sampleRuleIndexes` actionable, since the
+   * rows it points at are exactly the ones the default view hides.
+   */
+  test("rule: N round-trips against the row verdict: all holds there", async () => {
+    const runId = await runConfig(MIXED_RULES);
+    const dep = { depName: "react" };
+    const all = (await call("simulate", { runId, dep, verdict: "all" })) as {
+      rules: Record<string, unknown>[];
+      missingInputs: { groups: { sampleRuleIndexes: number[] }[] };
+    };
+    const sampled = all.missingInputs.groups.flatMap((group) => group.sampleRuleIndexes);
+    expect(sampled.length).toBeGreaterThan(0);
+    for (const index of sampled) {
+      const one = (await call("simulate", { runId, dep, rule: index })) as {
+        rules: Record<string, unknown>[];
+        ruleFilter: Record<string, unknown>;
+      };
+      expect(one.rules).toHaveLength(1);
+      // The single row additionally carries its `origin` — the list omits it on
+      // rows that did not match, one row can afford it.
+      const { origin: _origin, ...row } = one.rules[0] ?? {};
+      expect(row).toEqual(all.rules[index]);
+      expect(one.ruleFilter).toMatchObject({ rule: index, shown: 1 });
+    }
+  });
+
+  test("rule: N wins over the facets, and out of range names the total", async () => {
+    const runId = await runConfig(MIXED_RULES);
+    const dep = { depName: "react" };
+    // Rule 3 is a genuine mismatch — hidden by `notable` and by `matched`.
+    const one = (await call("simulate", { runId, dep, rule: 3, verdict: "matched" })) as {
+      rules: { index: number; verdict: string; origin?: unknown }[];
+      ruleFilter: { verdict: string; rule: number };
+      notes: string[];
+    };
+    expect(one.rules.map((rule) => rule.index)).toEqual([3]);
+    expect(one.rules[0]?.origin).toBeDefined();
+    // The facets report `all`: none of them produced this list, and saying
+    // `verdict: "matched"` about a row it hides would be a claim, not a fact.
+    expect(one.ruleFilter).toMatchObject({ verdict: "all", source: "all", rule: 3 });
+    expect(one.notes.join(" ")).toContain("ONLY merged rule 3");
+
+    await expect(call("simulate", { runId, dep, rule: 99 })).rejects.toThrow(
+      /evaluated 4 merged packageRules; there is no rule 99/,
+    );
+  });
+
+  test("the tool descriptions name the default and its reversals", async () => {
+    const { tools } = await client.listTools();
+    const simulate = tools.find((tool) => tool.name === "simulate");
+    expect(simulate?.description).toContain('verdict: "notable"');
+    expect(simulate?.description).toContain('`verdict: "all"`');
+    expect(simulate?.description).toContain("`rule: N`");
+    expect(simulate?.description).toContain("`evaluationErrors`");
+    const compare = tools.find((tool) => tool.name === "compare_simulations");
+    expect(compare?.description).toContain("detail: ");
+    expect(compare?.description).toContain("matchedInBoth");
   });
 });

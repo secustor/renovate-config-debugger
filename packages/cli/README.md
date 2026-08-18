@@ -79,29 +79,31 @@ is a positional file path unless one of these replaces it.
 
 The rest belong to one command each.
 
-| command      | flag                         | effect                                                                     |
-| ------------ | ---------------------------- | -------------------------------------------------------------------------- |
-| `provenance` | `--rule <n>`                 | one merged `packageRule`: its body, its layer, its index in that layer     |
-|              | `--source <which>`           | scope the `packageRules` ranges: `repo\|presets\|all`                      |
-| `tree`       | `--node <name>`              | one preset node, by name or identity                                       |
-|              | `--body <which>`             | `fetched\|afterParams\|input\|resolved` (needs `--node`)                   |
-|              | `--depth <n\|all>`           | tree depth to print (default `2`)                                          |
-| `resolved`   | `--mode <m>`                 | `full\|keep-internal` (default `keep-internal`)                            |
-|              | `--include-defaults`         | write out Renovate's defaults too (`--mode full` only)                     |
-| `simulate`   | `--dep <json>`, `--dep-file` | the dependency update to simulate                                          |
-|              | `--verdict <which>`          | `notable\|all\|matched\|no-input\|no-match` (pretty `notable`, JSON `all`) |
-|              | `--source <which>`           | which config level contributed the rule: `repo\|presets\|all`              |
-|              | `--detail <which>`           | `verdict` (default) \| `full` — `full` adds the merge trace                |
-|              | `--keys <a,b,…>`             | only these options of `finalDependencyConfig`                              |
-|              | `--config-scope <which>`     | `package-rules` (default) \| `full`                                        |
-| `compare`    | `--dep`/`--dep-file`         | the A-side dependency                                                      |
-|              | `--dep-b`/`--dep-b-file`     | the B-side dependency                                                      |
-|              | `--keys <a,b,…>`             | only these options of the config delta                                     |
-|              | `--config-scope <which>`     | `package-rules` (default) \| `full`                                        |
-| `run`        | `--select <a,b,…>`           | `status\|errors\|warnings\|final\|events\|tree\|layers\|platform\|all`     |
-|              | `--keys <a,b,…>`             | only these options of `--select final`                                     |
-|              | `--config-scope <which>`     | `full` (default) \| `package-rules`                                        |
-| `docs`       | `--search`                   | list options whose name matches                                            |
+| command      | flag                         | effect                                                                  |
+| ------------ | ---------------------------- | ----------------------------------------------------------------------- |
+| `provenance` | `--rule <n>`                 | one merged `packageRule`: its body, its layer, its index in that layer  |
+|              | `--source <which>`           | scope the `packageRules` ranges: `repo\|presets\|all`                   |
+| `tree`       | `--node <name>`              | one preset node, by name or identity                                    |
+|              | `--body <which>`             | `fetched\|afterParams\|input\|resolved` (needs `--node`)                |
+|              | `--depth <n\|all>`           | tree depth to print (default `2`)                                       |
+| `resolved`   | `--mode <m>`                 | `full\|keep-internal` (default `keep-internal`)                         |
+|              | `--include-defaults`         | write out Renovate's defaults too (`--mode full` only)                  |
+| `simulate`   | `--dep <json>`, `--dep-file` | the dependency update to simulate                                       |
+|              | `--verdict <which>`          | `notable` (default) \|`all`\|`matched`\|`no-input`\|`no-match`\|`error` |
+|              | `--source <which>`           | which config level contributed the rule: `repo\|presets\|all`           |
+|              | `--rule <n>`                 | one merged rule's whole row, whatever the facets hide                   |
+|              | `--detail <which>`           | `verdict` (default) \| `full` — `full` adds the merge trace             |
+|              | `--keys <a,b,…>`             | only these options of `finalDependencyConfig`                           |
+|              | `--config-scope <which>`     | `package-rules` (default) \| `full`                                     |
+| `compare`    | `--dep`/`--dep-file`         | the A-side dependency                                                   |
+|              | `--dep-b`/`--dep-b-file`     | the B-side dependency                                                   |
+|              | `--detail <which>`           | `verdict` (default) \| `rules` \| `full`                                |
+|              | `--keys <a,b,…>`             | only these options of the config delta                                  |
+|              | `--config-scope <which>`     | `package-rules` (default) \| `full`                                     |
+| `run`        | `--select <a,b,…>`           | `status\|errors\|warnings\|final\|events\|tree\|layers\|platform\|all`  |
+|              | `--keys <a,b,…>`             | only these options of `--select final`                                  |
+|              | `--config-scope <which>`     | `full` (default) \| `package-rules`                                     |
+| `docs`       | `--search`                   | list options whose name matches                                         |
 
 ### What `docs` answers
 
@@ -238,7 +240,7 @@ This major update gets no special handling from your matched rules — the defau
 ```
 
 Rule #1 is the missing one. `--verdict no-match` prints the clause that rejected
-it:
+it, and `--rule 0` returns that one row whatever the facets hide:
 
 ```console
 $ rcd simulate renovate.json --dep '{"depName":"@types/react","updateType":"major"}' --verdict no-match
@@ -268,9 +270,15 @@ This major update gets no special handling from your matched rules — the defau
 
 `--format json` carries the same fact as `missingInputs` (`rules`, and one group
 per unset field set with its `selectors`, its rule count and up to five
-`sampleRuleIndexes`) plus the sentence as `missingInputsNote`. Both survive
-`--verdict`/`--source` and the MCP answer's size elision, because the rules they
-count are exactly the rows a filter removes. Add `@types/react`
+`sampleRuleIndexes`) plus the sentence in `notes`. It survives
+`--verdict`/`--source` and the MCP answer's size elision, because the rules it
+counts are exactly the rows a filter removes — and `--rule <n>` takes one of
+those `sampleRuleIndexes` and returns that row. Its sibling `evaluationErrors`
+counts the rules whose matcher THREW (the `conda` versioning scheme is the
+documented case: its ~3 MB WASM parser is excluded from the browser build, so
+`matchCurrentVersion` cannot be evaluated). Those rules also report a plain
+`no-match`, so they are kept in the default view on purpose — an answer the tool
+could not compute is not a verdict about your config. Add `@types/react`
 to that list, keep the original as `before.json`, and use `compare` as the oracle
 for the edit. On the dependency you were fixing it should report exactly the
 change you wanted:
@@ -308,17 +316,18 @@ text — and the parenthetical says WHICH kind of rewrite it was, so
 `--format json` and the MCP `compare_simulations` answer carry the same object.
 It is ordered so the answer comes first:
 
-| field                                     | what it says                                                                                                                                 |
-| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `summary`                                 | the whole verdict in one line — `${verdict}: ${netEffect}`                                                                                   |
-| `verdict`                                 | `identical`, `documentation-only` (only prose such as `description` moved), or `differs`                                                     |
-| `netEffect`                               | the words after the colon, so no consumer slices the string                                                                                  |
-| `mode`                                    | which axis the caller varied: `config`, `dependency`, or `unspecified`                                                                       |
-| `stoppedMatching` / `startedMatching`     | BEHAVIOR: effects one side produced and the other did not                                                                                    |
-| `matchedInBoth`                           | rules paired by selector signature                                                                                                           |
-| `configDelta[]`                           | changed keys, behavioral first; `kind` is `behavioral` or `documentation`, `a`/`b` are the two sides, `inA`/`inB` say which side has the key |
-| `configDelta[].aInherited` / `bInherited` | that side's value reached the final config with NO merge step writing it — a Renovate default, not a setting the config carries              |
-| `identity.*`                              | bookkeeping about selector TEXT, **not** a behavior claim: `changed`, `signatureChanges[]` (each with `kind` and `keys`), `onlyInA/onlyInB`  |
+| field                                     | what it says                                                                                                                                                                                                 |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `summary`                                 | the whole verdict in one line — `${verdict}: ${netEffect}`                                                                                                                                                   |
+| `verdict`                                 | `identical`, `documentation-only` (only prose such as `description` moved), or `differs`                                                                                                                     |
+| `netEffect`                               | the words after the colon, so no consumer slices the string                                                                                                                                                  |
+| `mode`                                    | which axis the caller varied: `config`, `dependency`, or `unspecified`                                                                                                                                       |
+| `stoppedMatching` / `startedMatching`     | BEHAVIOR: effects one side produced and the other did not                                                                                                                                                    |
+| `matchedInBoth`                           | rules paired by selector signature — `--detail rules` and up only                                                                                                                                            |
+| `configDelta[]`                           | changed keys, behavioral first; `kind` is `behavioral` or `documentation`, `a`/`b` are the two sides, `inA`/`inB` say which side has the key                                                                 |
+| `configDelta[].aInherited` / `bInherited` | that side's value reached the final config with NO merge step writing it — a Renovate default, not a setting the config carries                                                                              |
+| `identity.*`                              | bookkeeping about selector TEXT, **not** a behavior claim: `changed` always, `counts` at `--detail verdict`, `signatureChanges[]` (each with `kind` and `keys`) plus `onlyInA/onlyInB` from `--detail rules` |
+| `notes[]`                                 | every pointer about the answer: what the detail level withheld, and each side's own missing-input / evaluation-error line                                                                                    |
 
 `summary`, `verdict` and `netEffect` always describe the WHOLE delta, so
 `--keys`/`--config-scope` narrow the view without ever moving the verdict; what
@@ -340,11 +349,26 @@ refused by Renovate, both commands exit `2`, which says nothing about the
 simulation itself, so they also say so on their own output (`exitNote` in JSON, a
 trailing `note:` line in pretty).
 
-On a `config:best-practices` run the rule list runs to several hundred, which is
-what `--verdict` and `--source` are for. A filtered list always ends by saying
-how many rules it hid. `--format json` keeps the full `rules` array unless you
-pass one of those two flags, and adds a `ruleFilter` object with
-`total`/`shown`/`hidden` when you do.
+On a `config:best-practices` run the rule list runs to several hundred, so BOTH
+output formats answer with the rules that ACTED — `--verdict notable`: matched,
+not-simulated, and the rows the tool could not evaluate. Measured on a
+`config:recommended` config plus a react major, that is 2,550 bytes of rule rows
+against 340,843 for the whole array, which no MCP answer can carry anyway (the
+transport would elide it into a first/last window chosen by byte arithmetic).
+Nothing is withheld silently:
+
+- `--format json` and the MCP answer always carry `ruleFilter` with
+  `verdict`/`source`/`total`/`shown`/`hidden`, and a `notes` entry naming the
+  parameters that widen the view;
+- pretty output ends a narrowed list with how many rules it hid;
+- `--verdict all` returns every row, `--verdict matched|no-input|no-match|error`
+  one class, and `--rule <n>` one merged rule's whole row (its clauses, what it
+  merged, and the `origin` the list carries only on matched rows) whatever the
+  facets hide. `ruleSources` is the legend for those indexes.
+
+`matched` is a subset of `notable`, so
+`rcd simulate --format json | jq '.rules[] | select(.verdict=="matched")'`
+returns exactly what it always did.
 
 Both output formats lead with the outcome in one sentence — `verdict.text` in
 JSON, the first line of pretty output. It is the same string the web app's
@@ -367,8 +391,25 @@ which of those four happened, in one sentence.
 `rawFinalConfig` describe how the merge proceeded — ~1 MB on a
 `config:recommended` run — and are opt-in through `--detail full`, which returns
 the whole simulation result unprojected, exactly as it comes out of the engine.
-The same flag exists as `detail` on the MCP `simulate` tool; the two transports
-are one implementation.
+The one thing `--detail full` does not widen is the rule LIST: which rows you
+asked for is `--verdict`'s question, at every detail level. The same flag exists
+as `detail` on the MCP `simulate` tool; the two transports are one
+implementation.
+
+`compare` has its own `--detail`, same vocabulary on both transports. At the
+default `verdict` it answers with the claim and its evidence and states the
+identity axis as counts (`identity.counts.onlyInA/onlyInB/signatureChanges`); it
+omits `matchedInBoth` — every rule that behaved the same on both sides, in a diff
+— and the per-rule `signature` strings, each a whole selector array
+re-serialized next to the `label` that already names the rule. `--detail rules`
+restores the arrays, `--detail full` the comparison exactly as the engine
+computes it. Every level carries the same `summary`/`verdict`/`netEffect`.
+
+One note-shaped field, not five: each aggregate keeps its own `note` inside its
+object (`missingInputs.note`, `evaluationErrors.note`, `flattened.note`), and
+every pointer about the answer itself — the detail level, the rule filter, the
+`ruleSources` legend, the per-side input gaps on `compare` — is an entry in the
+single top-level `notes` array.
 
 One more shape both commands share: `description` is a mergeable array, so
 Renovate concatenates it on nearly every merge, and a merged diff used to
