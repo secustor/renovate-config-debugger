@@ -113,6 +113,20 @@ export async function openTab(page: Page, id: TabId): Promise<void> {
 }
 
 /**
+ * Roadmap 075 (v2, iteration 3): the Rewrites tab folded into Pipeline's
+ * migrate stage, so reaching the rewrite stepper (and the migrate diff) is now
+ * "open Pipeline, select Migrate". One helper, so every spec that used to say
+ * `openTab(page, "rewrites")` still says one thing.
+ */
+export async function openMigrateStage(page: Page): Promise<void> {
+  await openTab(page, "pipeline");
+  await page.locator('.stage-chip[data-stage="migrate"]').click();
+  // `.first()`: since 075 the migrate stage's panel holds TWO cards — the stage
+  // itself, and the rewrite stepper folded in from the retired tab.
+  await expect(page.locator("#panel-pipeline .card-title").first()).toContainText("Stage: Migrate");
+}
+
+/**
  * Roadmap 047: the results are staged into summary drawers — a `<details>`
  * whose summary row abstracts the body. Addressed by their visible title, the
  * way a user finds them.

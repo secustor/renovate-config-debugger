@@ -1,7 +1,6 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import type { TraceResult } from "@renovate-config-debugger/engine";
 import { Term } from "@/components/glossary";
-import { HypotheticalBanner } from "@/components/HypotheticalBanner";
 import { RuleFramingAside } from "@/components/rule-framing";
 import { useDescriptionProvenance } from "@/hooks/description-provenance";
 import { useRuleProvenance } from "@/hooks/rule-provenance";
@@ -76,7 +75,6 @@ export const RuleSimulator = memo(function RuleSimulator({
   errorLib,
   simRequest,
   onCopySimLink,
-  configInvalid,
   mergeStepIndex,
   onMergeStepChange,
 }: {
@@ -103,9 +101,6 @@ export const RuleSimulator = memo(function RuleSimulator({
   /** Roadmap 018: encode the current config + view + these simulator inputs into
    *  a share link and copy it (App owns the full share state). */
   onCopySimLink?: (sim: ShareSimulator) => Promise<void>;
-  /** Roadmap 023: validation reported errors — a real Renovate run would refuse
-   *  this config, so these simulation results are hypothetical. */
-  configInvalid?: boolean;
   /** Roadmap 044: the merge stepper's index, owned by App so a share link can
    *  restore it (mirrors `migrationStepIndex`). Absent = uncontrolled. */
   mergeStepIndex?: number;
@@ -273,15 +268,11 @@ export const RuleSimulator = memo(function RuleSimulator({
     () => (sim ? buildNoInputCaveat(sim, ruleAttribution) : undefined),
     [sim, ruleAttribution],
   );
-  // Replay-02 R1: once the hypothetical banner has been shown, its box stays
-  // reserved (visibility, not unmount) — the banner vanishing after an
-  // applied fix used to move the Simulate button out from under the pointer.
-  const [invalidSeen, setInvalidSeen] = useState(false);
-  useEffect(() => {
-    if (configInvalid) {
-      setInvalidSeen(true);
-    }
-  }, [configInvalid]);
+  // Roadmap 075 (iteration 3): the hypothetical-run banner (and Replay-02 R1's
+  // reserved box that keeps this card's controls from moving when it clears)
+  // moved up to the results shell's run-level banner slot — see
+  // `ResultsColumn`. It says the same thing about the same run, once, on
+  // whichever tab the reader is on.
   // Roadmap 047: the authored update-type blocks flattening consumed without
   // applying — the only thing that still earns the verdict card's aside.
   const consumedBlocks = useMemo(
@@ -420,11 +411,6 @@ export const RuleSimulator = memo(function RuleSimulator({
           <RuleFramingAside total={packageRules.length} attribution={ruleAttribution ?? null} />
         </span>
       </div>
-      {configInvalid || invalidSeen ? (
-        <div className={`sim-banner-slot${configInvalid ? "" : " ghost"}`}>
-          <HypotheticalBanner />
-        </div>
-      ) : null}
       {focusHint !== null && !sim ? (
         <p className="sim-focus-hint">
           <code>packageRules[{focusHint}]</code> is evaluated here once you run a simulation —

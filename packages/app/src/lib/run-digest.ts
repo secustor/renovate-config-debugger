@@ -3,8 +3,15 @@ import type { ResultsTabId } from "@/data/results-tabs";
 /**
  * Roadmap 029: the run digest — the whole run narrated as a short paragraph
  * whose numbers each link into the tab that explains them. Pure and DOM-free
- * (no JSX, no React): this module decides what the paragraph says, the Overview
- * tab only renders it.
+ * (no JSX, no React): this module decides what the paragraph says, its consumer
+ * only renders it.
+ *
+ * Roadmap 075 (v2, iteration 3): the app stopped being one of those consumers —
+ * the Overview tab that rendered the paragraph retired, and the header's
+ * jump-links carry its numbers. The clause model stays: `rcd digest` (and the
+ * `run_config` MCP tool) is built from it through `lib/headless.ts`, so the
+ * WORDING here is a published surface even though nothing in the SPA renders it
+ * today. `link.tab` is kept pointing at a live tab for the same reason.
  *
  * Roadmap 029: every number the digest quotes arrives in `DigestInput` and is
  * never recomputed here — the app derives each one exactly once and feeds both
@@ -65,7 +72,7 @@ export interface DigestProblem {
 }
 
 export interface DigestMigrations {
-  /** Rewrites applied — the Rewrites tab badge. */
+  /** Rewrites applied — the header's `N rewrites` link. */
   count: number;
   /** The rewritten options, e.g. `packageNames → matchPackageNames`. Supplied
    *  only when the digest should name them (`count` ≤ 2); a longer list is
@@ -242,7 +249,10 @@ function rewriteClause(migrations: DigestMigrations): DigestClause | null {
     tone: "plain",
     text: "It",
     link: {
-      tab: "rewrites",
+      // Roadmap 075: the Rewrites tab retired into Pipeline's migrate stage,
+      // which is where the stepper this clause offers now lives. The clause's
+      // WORDING is unchanged — the CLI renders the same paragraph.
+      tab: "pipeline",
       label: named
         ? `rewrote ${list(migrations.labels.map(code))}`
         : `rewrote ${count(migrations.count, "deprecated option")}`,

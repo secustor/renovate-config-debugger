@@ -1,6 +1,13 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { INVALID_RULES_CONFIG, PACKAGE_RULES_CONFIG, SEMANTIC_COMMITS_CONFIG } from "./fixtures";
-import { must, openTab, runAndAwaitResult, runButton, setEditorContent } from "./helpers";
+import {
+  must,
+  openMigrateStage,
+  openTab,
+  runAndAwaitResult,
+  runButton,
+  setEditorContent,
+} from "./helpers";
 
 /**
  * Roadmap 035 — the layout regressions a 2026-07-25 user review found in the
@@ -77,10 +84,10 @@ test.describe("dark mode", () => {
     // renders (crib from 07-stage-chip-outcomes).
     await setEditorContent(page, SEMANTIC_COMMITS_CONFIG);
     await runAndAwaitResult(page);
-    await openTab(page, "rewrites");
+    await openMigrateStage(page);
 
     for (const kind of ["delete", "insert"] as const) {
-      const cell = page.locator(`#panel-rewrites .diff-code-${kind}`).first();
+      const cell = page.locator(`#panel-pipeline .diff-code-${kind}`).first();
       await expect(cell).toBeVisible();
       const { color, background } = await resolvedColors(cell);
       const ratio = contrastRatio(color, background);
@@ -399,17 +406,20 @@ test("the simulate button holds its position when the validation banner clears",
   await setEditorContent(page, INVALID_RULES_CONFIG);
   await runAndAwaitResult(page);
 
-  await openTab(page, "simulator");
-  const panel = page.locator("#panel-simulator");
-  await expect(panel.locator(".hypothetical-banner")).toBeVisible();
+  await openTab(page, "tests");
+  const panel = page.locator("#panel-tests");
+  // Roadmap 075: the banner is the shell's run-level one now — same guarantee,
+  // one level up, and the reserved box moved with it.
+  const banner = page.locator(".results-panel .hypothetical-banner");
+  await expect(banner).toBeVisible();
   const simulate = panel.getByRole("button", { name: "Simulate", exact: true });
   const before = must(await simulate.boundingBox(), "the simulate button's bounding box");
 
   await setEditorContent(page, PACKAGE_RULES_CONFIG);
   await runAndAwaitResult(page);
-  await openTab(page, "simulator");
+  await openTab(page, "tests");
   // The banner is gone from view but its box is reserved (visibility, not unmount)…
-  await expect(panel.locator(".hypothetical-banner")).toBeHidden();
+  await expect(banner).toBeHidden();
   // …so the button sits exactly where the pointer left it.
   const after = must(await simulate.boundingBox(), "the simulate button's bounding box");
   expect(Math.abs(after.y - before.y)).toBeLessThan(1);

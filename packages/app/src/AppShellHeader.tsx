@@ -13,8 +13,10 @@ import type { StoredUser } from "@/platform/oauth";
  * them. The subtitle moved to the landing, where a first-time reader is.
  *
  * Every number here is handed in from `useRunSummary` — the same derivation the
- * tab badges and the 029 digest paragraph read, so the header can no more
- * disagree with a badge than the paragraph can.
+ * tab badges read, so the header can no more disagree with a badge than 029's
+ * paragraph could. Iteration 3 retired that paragraph outright: these links ARE
+ * the digest in the app now, and the clause model behind the prose stays what
+ * `rcd digest` renders.
  */
 
 const nf = new Intl.NumberFormat();
@@ -27,54 +29,63 @@ interface DigestLinksProps {
   effectiveKeys: number | null;
   problems: number;
   onJump: (tab: ResultsTabId) => void;
+  /** Roadmap 075 (iteration 3): the rewrites clause is the one link whose
+   *  target is not just a tab — the Rewrites tab folded into Pipeline's migrate
+   *  stage, so getting there means selecting that stage too, and only App owns
+   *  the stage. */
+  onShowRewrites: () => void;
 }
 
 /** One digest clause: a count and the instrument it belongs to. */
 function DigestLink({
   count,
   label,
-  tab,
-  onJump,
+  onOpen,
 }: {
   count: number;
   label: string;
-  tab: ResultsTabId;
-  onJump: (tab: ResultsTabId) => void;
+  onOpen: () => void;
 }) {
   return (
-    <button type="button" className="digest-link" onClick={() => onJump(tab)}>
+    <button type="button" className="digest-link" onClick={onOpen}>
       {nf.format(count)} {label}
     </button>
   );
 }
 
 /**
- * The digest as a muted cluster of jump-links separated by `·` — the Overview's
- * paragraph, reduced to the four numbers a reader steers by and wired to the
- * tabs that explain them (`jumpToTab`, so the one-step way back is recorded).
+ * The digest as a muted cluster of jump-links separated by `·` — the retired
+ * Overview paragraph, reduced to the four numbers a reader steers by and wired
+ * to the instruments that explain them (through `jumpToTab`, so the one-step
+ * way back is recorded).
  */
-function DigestLinks({ rewrites, presets, effectiveKeys, problems, onJump }: DigestLinksProps) {
+function DigestLinks({
+  rewrites,
+  presets,
+  effectiveKeys,
+  problems,
+  onJump,
+  onShowRewrites,
+}: DigestLinksProps) {
   return (
     <div className="app-header-digest">
       <DigestLink
         count={rewrites}
         label={rewrites === 1 ? "rewrite" : "rewrites"}
-        tab="rewrites"
-        onJump={onJump}
+        onOpen={onShowRewrites}
       />
       <span aria-hidden="true">·</span>
-      <DigestLink count={presets} label="presets" tab="presets" onJump={onJump} />
+      <DigestLink count={presets} label="presets" onOpen={() => onJump("presets")} />
       {effectiveKeys === null ? null : <span aria-hidden="true">·</span>}
       {effectiveKeys === null ? null : (
         <DigestLink
           count={effectiveKeys}
           label="effective options"
-          tab="effective"
-          onJump={onJump}
+          onOpen={() => onJump("effective")}
         />
       )}
       <span aria-hidden="true">·</span>
-      <DigestLink count={problems} label="problems" tab="problems" onJump={onJump} />
+      <DigestLink count={problems} label="problems" onOpen={() => onJump("problems")} />
     </div>
   );
 }
@@ -125,6 +136,8 @@ interface Props {
   presets: number;
   effectiveKeys: number | null;
   onJumpToTab: (tab: ResultsTabId) => void;
+  /** Pipeline, on its migrate stage — see `DigestLinksProps`. */
+  onShowRewrites: () => void;
   renovateVersion: string | undefined;
   oauthConfigured: boolean;
   signedIn: boolean;
@@ -144,6 +157,7 @@ export function AppShellHeader({
   presets,
   effectiveKeys,
   onJumpToTab,
+  onShowRewrites,
   renovateVersion,
   oauthConfigured,
   signedIn,
@@ -164,6 +178,7 @@ export function AppShellHeader({
           effectiveKeys={effectiveKeys}
           problems={errorCount + warningCount}
           onJump={onJumpToTab}
+          onShowRewrites={onShowRewrites}
         />
       ) : null}
       {/* Roadmap 066: the GitHub session lives in the corner every user looks

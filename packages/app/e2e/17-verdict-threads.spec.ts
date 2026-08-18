@@ -19,7 +19,7 @@ const NPM_QUICK_FILL: Record<string, string> = {
  *  verdict card the threads live on. */
 async function runContestedSimulation(page: Page): Promise<void> {
   await page.goto(await encodeShareFragment({ config: CONTESTED_KEY_CONFIG }));
-  await openTab(page, "simulator");
+  await openTab(page, "tests");
   const simulator = page.locator(".card", { hasText: "Update simulator" });
   await expect(simulator).toBeVisible();
   await simulator.getByRole("button", { name: "npm dependency" }).click();
@@ -234,12 +234,12 @@ test("a thread's step jump leaves a return pill that re-expands and flashes the 
 test("a share link carrying a thread and a replay stop restores both", async ({ page }) => {
   const fragment = await encodeShareFragment({
     config: CONTESTED_KEY_CONFIG,
-    view: { tab: "simulator", simStep: 2 },
+    view: { tab: "tests", simStep: 2 },
     sim: { form: NPM_QUICK_FILL, autoSimulate: true, simThread: "groupName" },
   });
   await page.goto(fragment);
 
-  await openTab(page, "simulator");
+  await openTab(page, "tests");
   const verdict = page.locator(".sim-verdict-block");
   await expect(verdict).toBeVisible({ timeout: 30_000 });
 

@@ -392,11 +392,11 @@ describe("sanitizeShareView", () => {
   });
   // Roadmap 044: the simulator's merge-step index, validated by the same rule.
   test("a valid simStep passes through; a malformed one is dropped alone", () => {
-    expect(sanitizeShareView({ tab: "simulator", simStep: 0 })).toEqual({
-      tab: "simulator",
+    expect(sanitizeShareView({ tab: "tests", simStep: 0 })).toEqual({
+      tab: "tests",
       simStep: 0,
     });
-    expect(sanitizeShareView({ tab: "simulator", simStep: "2" })).toEqual({ tab: "simulator" });
+    expect(sanitizeShareView({ tab: "tests", simStep: "2" })).toEqual({ tab: "tests" });
     expect(sanitizeShareView({ simStep: -1 })).toBeUndefined();
   });
   test("a string step is dropped, not the whole view", () => {
@@ -539,17 +539,21 @@ describe("stageIdSchema / resultsTabIdSchema", () => {
     expect(stageIdSchema.safeParse("bogus").success).toBe(false);
   });
   test("accepts every real tab id", () => {
-    for (const tab of [
-      "overview",
-      "pipeline",
-      "rewrites",
-      "presets",
-      "effective",
-      "simulator",
-      "problems",
-    ]) {
+    for (const tab of ["tests", "pipeline", "presets", "effective", "problems"]) {
       expect(resultsTabIdSchema.safeParse(tab).success).toBe(true);
     }
+  });
+  // Roadmap 075: the three ids v2 retired are still ACCEPTED off the wire — the
+  // opener maps each onto the tab that replaced it (`resultsTabForShareTab`),
+  // and dropping the field here would land an old link on the default tab
+  // instead. Nothing encodes them any more.
+  test("still accepts the retired v1 tab ids, so old links keep their tab", () => {
+    for (const tab of ["overview", "rewrites", "simulator"]) {
+      expect(resultsTabIdSchema.safeParse(tab).success).toBe(true);
+    }
+  });
+  test("rejects a tab id from neither era", () => {
+    expect(resultsTabIdSchema.safeParse("extraction").success).toBe(false);
   });
 });
 

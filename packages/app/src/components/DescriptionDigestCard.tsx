@@ -21,8 +21,10 @@ import { ProvenanceChip } from "./ProvenanceChip";
 import { layerClass } from "./provenance-layer";
 
 /**
- * Roadmap 069 (PR 2): "What this config does" — the Overview's second card, and
- * the flagship surface of the description feature.
+ * Roadmap 069 (PR 2): "What this config does" — the flagship surface of the
+ * description feature. It was the Overview's second card; since 075 retired
+ * that tab it leads the Effective config, whose `description` row is what its
+ * "show raw order" link lands on.
  *
  * Every preset carries a sentence its author wrote about what it does, and the
  * resolved config carries all of them concatenated into one anonymous array.

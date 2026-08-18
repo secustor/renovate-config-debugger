@@ -726,7 +726,6 @@ export const EffectiveConfig = memo(function EffectiveConfig({
   result,
   onSelectPreset,
   onStats,
-  focusFilterNonce,
   focusDescriptionNonce,
 }: {
   result: TraceResult;
@@ -735,18 +734,16 @@ export const EffectiveConfig = memo(function EffectiveConfig({
    *  whenever they change, so the shell never has to recompute provenance
    *  itself — the tab badge and the digest quote what these rows show. */
   onStats?: (stats: EffectiveStats) => void;
-  /** Roadmap 028: bumped by the Overview's "Where did a setting come from?"
-   *  pill to focus the filter input after switching to this tab. */
-  focusFilterNonce?: number;
-  /** Roadmap 069: bumped by the Overview digest card's "show raw order" link —
-   *  the same nonce idiom, landing on the `description` row instead of the
-   *  filter box: filter prefilled, row expanded, ledger on screen. */
+  /** Roadmap 069: bumped by the description digest card's "show raw order"
+   *  link (and by the preset tree's position markers, which are the same jump
+   *  from the other end) — landing on the `description` row: filter prefilled,
+   *  row expanded, ledger on screen. */
   focusDescriptionNonce?: number;
 }) {
   const provenance = useProvenance(result);
   const ruleAttribution = useRuleProvenance(result);
   // Roadmap 069: the per-string `description` attribution. Cached per result by
-  // the hook, so the Overview's digest card and this row share one walk.
+  // the hook, so this tab's digest card and this row share one walk.
   const descriptionProvenance = useDescriptionProvenance(result);
   const ledger = useMemo(
     () => (descriptionProvenance ? buildDescriptionLedger(descriptionProvenance) : null),
@@ -853,17 +850,7 @@ export const EffectiveConfig = memo(function EffectiveConfig({
     onStats?.(tallies);
   }, [tallies, onStats, provenance]);
 
-  // Focus (and select) the filter box when the Overview's "Where did a setting
-  // come from?" pill routed the user here — the tab is already visible by the
-  // time this effect runs, so the input is focusable.
-  useEffect(() => {
-    if (focusFilterNonce) {
-      filterInputRef.current?.focus();
-      filterInputRef.current?.select();
-    }
-  }, [focusFilterNonce]);
-
-  // Roadmap 069: the digest card's "show raw order" link lands on the blame
+  // Roadmap 069: the description card's "show raw order" link lands on the blame
   // ledger — the row is one of ~90, so arriving at the tab is not arriving at
   // the answer. Filter, expand, no focus steal: the reader is here to read.
   // …which means clearing every OTHER filter too, not just setting the query:

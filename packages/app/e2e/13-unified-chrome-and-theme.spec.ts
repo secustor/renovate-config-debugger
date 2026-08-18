@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { IGNORED_PRESET_CONFIG, SEMANTIC_COMMITS_CONFIG } from "./fixtures";
 import {
   must,
+  openMigrateStage,
   openSessionMenu,
   openTab,
   runAndAwaitResult,
@@ -127,9 +128,9 @@ test.describe("theme switcher (037)", () => {
     await expect(page.locator(".cm-content")).toContainText("config:recommended");
     await setEditorContent(page, SEMANTIC_COMMITS_CONFIG);
     await runAndAwaitResult(page);
-    await openTab(page, "rewrites");
+    await openMigrateStage(page);
 
-    const deleted = page.locator("#panel-rewrites .diff-code-delete").first();
+    const deleted = page.locator("#panel-pipeline .diff-code-delete").first();
     await expect(deleted).toBeVisible();
     const lightBg = await deleted.evaluate((el) => getComputedStyle(el).backgroundColor);
 
@@ -162,7 +163,12 @@ test("the diff chrome names the active view and offers Copy result (036)", async
   await page.mouse.move(0, 0);
   await expect(page.locator(".glossary-card")).toHaveCount(0);
 
-  const chrome = page.locator("#panel-pipeline .diff-chrome");
+  // Roadmap 075: the migrate stage's panel holds two cards — the STAGE card
+  // (this test's subject) and the rewrite stepper folded in from the retired
+  // Rewrites tab, which renders a diff of its own. Scoped to the stage card so
+  // the assertions still describe the stage diff's chrome.
+  const stageCard = page.locator("#panel-pipeline .card").first();
+  const chrome = stageCard.locator(".diff-chrome");
   await expect(chrome).toBeVisible();
 
   // Both modes are named, exactly one is active, and the active one is the
@@ -171,7 +177,7 @@ test("the diff chrome names the active view and offers Copy result (036)", async
   await expect(segments).toHaveText(["Unified", "Side-by-side"]);
   await expect(chrome.locator(".seg button.active")).toHaveCount(1);
   await expect(chrome.locator(".seg button.active")).toHaveText("Unified");
-  await expect(page.locator("#panel-pipeline .diff-unified")).toHaveCount(1);
+  await expect(stageCard.locator(".diff-unified")).toHaveCount(1);
 
   // The `+N −N` stat: the migration rewrites one line.
   await expect(chrome.locator(".diff-stat .plus")).toHaveText("+1");
@@ -179,8 +185,8 @@ test("the diff chrome names the active view and offers Copy result (036)", async
 
   await segments.nth(1).click();
   await expect(chrome.locator(".seg button.active")).toHaveText("Side-by-side");
-  await expect(page.locator("#panel-pipeline .diff-split")).toHaveCount(1);
-  await expect(page.locator("#panel-pipeline .diff-unified")).toHaveCount(0);
+  await expect(stageCard.locator(".diff-split")).toHaveCount(1);
+  await expect(stageCard.locator(".diff-unified")).toHaveCount(0);
 
   // Roadmap 036: every stage diff can now hand you its resulting config —
   // before, the Pipeline tab offered no way to copy a stage's output at all.
@@ -192,7 +198,7 @@ test("the diff chrome names the active view and offers Copy result (036)", async
   // diff body, not floating over it.
   const [chromeBoxRaw, diffBoxRaw] = await Promise.all([
     chrome.boundingBox(),
-    page.locator("#panel-pipeline .diff-wrapper").boundingBox(),
+    stageCard.locator(".diff-wrapper").boundingBox(),
   ]);
   const chromeBox = must(chromeBoxRaw, "the diff chrome bar's bounding box");
   const diffBox = must(diffBoxRaw, "the diff wrapper's bounding box");

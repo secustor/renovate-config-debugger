@@ -25,14 +25,14 @@ interface Props {
    *  (App's `walkToTab`, and `onKeyDown` below for the reasoning). */
   onWalk: (tab: ResultsTabId) => void;
   /** Roadmap 028: the one-step "back to where I was" target after an
-   *  automatic tab switch (a provenance chip, a message jump, an Overview
-   *  pill). null = the current tab was reached by an explicit tab click. */
+   *  automatic tab switch (a provenance chip, a message jump, a header digest
+   *  link). null = the current tab was reached by an explicit tab click. */
   back: ResultsTabId | null;
   onBack: () => void;
-  /** Roadmap 009: a run-level banner shown above the panels, on every tab —
-   *  the auth-failure notice describes the RUN, not one instrument, and a run
-   *  that failed on a preset lands the user on Problems rather than on the
-   *  Overview whose own `banner` slot the 023 hypothetical notice occupies. */
+  /** Roadmap 009/075: the run-level banners, shown above the panels on every
+   *  tab — the auth-failure notice, the stale-results notice and (since 075)
+   *  the 023 hypothetical-run notice all describe the RUN rather than one
+   *  instrument, and the tab a run lands on depends on which stage errored. */
   banner?: ReactNode;
   panels: Record<ResultsTabId, ReactNode>;
 }
@@ -81,7 +81,7 @@ export function ResultsPanel({
    * because the first attempt fixed the wrong half of the problem. Manual
    * activation was adopted to protect the cross-link back trail: half these
    * tabs are reached by a provenance chip or a message jump, which leaves a
-   * "← Back to Overview" control above the panel, and `onSelect` is App's
+   * "← Back to …" control above the panel, and `onSelect` is App's
    * `setTab`, DEFINED to clear that trail because choosing a tab is what it
    * means to have gone somewhere else. So one ArrowRight destroyed the way
    * back. The conclusion drawn was "arrows must not select" — but the arrow was
@@ -91,7 +91,7 @@ export function ResultsPanel({
    *
    * What manual activation cost, meanwhile, was the pattern users actually
    * expect from a tab strip: every look required a second key to commit, in a
-   * widget whose whole purpose is glancing between seven views of one run.
+   * widget whose whole purpose is glancing between five views of one run.
    *
    * Enter and Space still work — they are a focused `<button>`'s own behavior,
    * so nothing here handles them — and now mean "choose this tab", ending the

@@ -211,7 +211,7 @@ header.app-header {
   min-width: 0;
 }
 
-/* Deliberately the SAME `.digest-link` the Overview's paragraph uses (its
+/* Deliberately the SAME `.digest-link` the run digest defines (its
    declaration is with the digest, further down): a number that opens the
    instrument behind it is one role with one spelling, and 075 iteration 3
    retires the paragraph, leaving this its only caller. What the header
@@ -3985,7 +3985,10 @@ pre.config-view.prov-before {
 /* Replay-02 R1: once the hypothetical banner has been shown, its box stays
    reserved for the session — the banner vanishing after an applied fix used
    to move the Simulate button out from under the pointer. */
-.sim-banner-slot.ghost {
+/* Roadmap 075: the run-level hypothetical banner's reserved box (Replay-02 R1)
+   — once shown, the slot keeps its height for the session so a cleared banner
+   never moves the control under the reader's pointer. */
+.run-banner-slot.ghost {
   visibility: hidden;
 }
 
@@ -4436,20 +4439,12 @@ pre.config-view.prov-before {
   color: var(--accent);
 }
 
-/* --- roadmap 029: the run digest ------------------------------------------
-   The Overview's whole content: one paragraph of prose whose numbers are
-   buttons into the tab that explains them. Reads as text first — links are
-   marked by a dashed underline, never by button chrome. */
-.run-digest {
-  font-size: 0.98rem;
-  line-height: 1.75;
-  margin: 0 0 1rem;
-}
-
-.run-digest code {
-  font-size: 0.9em;
-}
-
+/* --- roadmap 029/075: the run digest --------------------------------------
+   The numbers the run is steered by, each a button into the tab that explains
+   it. They were a paragraph of prose on the Overview tab until v2 retired it;
+   what is left is the link itself, worn by the header's digest cluster (whose
+   own sizing overrides sit up with `.app-header-digest`). Reads as text first
+   — marked by a dashed underline, never by button chrome. */
 .digest-link {
   background: none;
   border: none;
@@ -4463,68 +4458,6 @@ pre.config-view.prov-before {
 
 .digest-link:hover {
   border-bottom-style: solid;
-}
-
-/* Tone colours the whole clause — its text and its link — so the eye finds
-   "what needs attention" without reading the sentence. The clean verdict is
-   deliberately NOT coloured: nothing to attend to, nothing to look at. */
-.digest-clause.warn,
-.digest-clause.warn .digest-link {
-  color: var(--warn);
-}
-
-.digest-clause.error,
-.digest-clause.error .digest-link {
-  color: var(--error);
-}
-
-.digest-clause.warn .digest-link {
-  border-bottom-color: var(--warn);
-}
-
-.digest-clause.error .digest-link {
-  border-bottom-color: var(--error);
-}
-
-.q-row {
-  border-top: 1px solid var(--border);
-  padding-top: 0.8rem;
-}
-
-.q-label {
-  color: var(--muted);
-  font-size: 0.8rem;
-  margin: 0 0 0.5rem;
-}
-
-.q-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.q-link {
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: inherit;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 0.82rem;
-  padding: 0.3rem 0.75rem;
-}
-
-.q-link:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-/* Pipeline → Rewrites cross-link under the migrate stage's diff. */
-.stage-crosslink {
-  color: var(--muted);
-  font-size: 0.85rem;
-  margin: 0;
-  padding: 0.5rem 0.75rem 0;
 }
 
 /* ---------- 047: simulator progressive disclosure ---------- */

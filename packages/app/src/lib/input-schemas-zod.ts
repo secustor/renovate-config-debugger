@@ -16,7 +16,11 @@
  */
 import * as z from "zod/mini";
 import type { StageId } from "@renovate-config-debugger/engine";
-import { RESULTS_TAB_IDS, type ResultsTabId } from "@/data/results-tabs";
+import {
+  LEGACY_RESULTS_TAB_IDS,
+  RESULTS_TAB_IDS,
+  type ShareResultsTabId,
+} from "@/data/results-tabs";
 import {
   isHttpUrl,
   isPlainObject,
@@ -76,7 +80,16 @@ export const platformSchema = z.string().check(
 );
 
 export const stageIdSchema = z.enum(STAGE_IDS);
-export const resultsTabIdSchema = z.enum(RESULTS_TAB_IDS);
+/**
+ * Roadmap 075 (v2, iteration 3): DECODE accepts the retired tab ids too. Links
+ * only ever encode a current `ResultsTabId` (App's own state), but every link
+ * shared before v2 names `overview` / `rewrites` / `simulator`, and dropping
+ * the field would land those readers on the default tab instead of the one the
+ * sender meant. The mapping itself is `resultsTabForShareTab`, applied where
+ * the view is APPLIED (App) rather than here, because one of the retired ids
+ * also implies a stage selection.
+ */
+export const resultsTabIdSchema = z.enum([...RESULTS_TAB_IDS, ...LEGACY_RESULTS_TAB_IDS]);
 const stepIndexSchema = z.int().check(z.nonnegative());
 
 /** The subset of `ShareView` this module validates; kept structurally
@@ -88,7 +101,8 @@ export interface SanitizedShareView {
   step?: number;
   /** Roadmap 044: the simulator's merge-step index. */
   simStep?: number;
-  tab?: ResultsTabId;
+  /** Roadmap 075: possibly a retired id — see `resultsTabIdSchema`. */
+  tab?: ShareResultsTabId;
 }
 
 /**

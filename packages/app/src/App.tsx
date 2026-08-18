@@ -25,7 +25,12 @@ import type { AuthState } from "@/components/GithubAuthHint";
 import { identityForNodeId, nodeIdForIdentity } from "@/components/preset-tree-stats";
 import type { ResultsColumnProps } from "@/ResultsColumn";
 import { UntrustedHostBanner } from "@/UntrustedHostBanner";
-import { legacyTabForView, type ResultsTabId } from "@/data/results-tabs";
+import {
+  legacyTabForView,
+  type ResultsTabId,
+  resultsTabForShareTab,
+  shareTabWantsMigrateStage,
+} from "@/data/results-tabs";
 import { OptionDocsProvider } from "@/components/option-docs";
 import { REPO_URL } from "@/data/project-repo";
 import { buildPresetLookup, type PresetHoverContext } from "@/lib/preset-hover";
@@ -361,9 +366,11 @@ export function App() {
   const [mergeStepIndex, setMergeStepIndex] = useState(0);
   // Roadmap 028: the active results tab, and the one-step "back to where I
   // was" target recorded whenever something OTHER than a tab click moved the
-  // user (a provenance chip, a message jump, an Overview pill). The ref
+  // user (a provenance chip, a message jump, a header digest link). The ref
   // mirrors the tab for handlers that need the pre-switch value synchronously.
-  const [tab, setTabState] = useState<ResultsTabId>("overview");
+  //
+  // Roadmap 075 (iteration 3): Tests is the first tab and where a run lands.
+  const [tab, setTabState] = useState<ResultsTabId>("tests");
   const [backTab, setBackTab] = useState<ResultsTabId | null>(null);
   const tabRef = useRef(tab);
   tabRef.current = tab;
@@ -371,11 +378,8 @@ export function App() {
   // reported by the view itself (it owns the async provenance computation)
   // rather than recomputed here. null = not known yet.
   const [effectiveStats, setEffectiveStats] = useState<EffectiveStats | null>(null);
-  // Roadmap 028: bumped to focus the effective config's filter input from the
-  // Overview's "Where did a setting come from?" pill.
-  const [effectiveFilterNonce, setEffectiveFilterNonce] = useState(0);
-  // Roadmap 069: bumped by the Overview digest card's "show raw order" link to
-  // land on the effective config's `description` row and its blame ledger.
+  // Roadmap 069: bumped by the description digest card's "show raw order" link
+  // to land on the effective config's `description` row and its blame ledger.
   const [descriptionLedgerNonce, setDescriptionLedgerNonce] = useState(0);
   // Roadmap 028: the results pane, so a Run on a stacked (narrow) viewport can
   // scroll its consequence into view instead of appearing to do nothing.
@@ -474,8 +478,8 @@ export function App() {
    * without the one-step way back disappearing from under them.
    *
    * Landing back ON the origin ends the trail, because at that point the trail
-   * has been walked — leaving it would offer "← Back to Overview" to a reader
-   * already on the Overview.
+   * has been walked — leaving it would offer "← Back to Tests" to a reader
+   * already on Tests.
    */
   const walkToTab = useCallback((next: ResultsTabId) => {
     tabRef.current = next;
@@ -483,8 +487,8 @@ export function App() {
     setBackTab((from) => (from === next ? null : from));
   }, []);
 
-  /** Roadmap 028: a programmatic jump (a cross-instrument link, an Overview
-   *  pill) — records where the user was so one click returns them. */
+  /** Roadmap 028: a programmatic jump (a cross-instrument link, a header
+   *  digest link) — records where the user was so one click returns them. */
   const jumpToTab = useCallback((next: ResultsTabId) => {
     const from = tabRef.current;
     if (from === next) {
@@ -501,19 +505,27 @@ export function App() {
   const onJumpToSimRule = useCallback(
     (index: number) => {
       setPendingRuleFocus(index);
-      jumpToTab("simulator");
+      jumpToTab("tests");
     },
     [jumpToTab],
   );
-  /** The Overview's "Where did a setting come from?" pill: open Effective
-   *  config AND focus its filter input. */
-  const onWhereFrom = useCallback(() => {
-    jumpToTab("effective");
-    setEffectiveFilterNonce((n) => n + 1);
+
+  /**
+   * Roadmap 075 (iteration 3): the header's `N rewrites` link. The Rewrites tab
+   * retired into Pipeline's migrate stage, so "show me the rewrites" is two
+   * pieces of state, not one — the tab AND the stage whose card holds the
+   * stepper. App owns both, which is why the header takes a callback here
+   * rather than a tab id.
+   */
+  const onShowRewrites = useCallback(() => {
+    setSelectedStage("migrate");
+    jumpToTab("pipeline");
   }, [jumpToTab]);
 
-  /** Roadmap 069: the digest card's "show raw order" link — the same jump, but
-   *  landing on the `description` row rather than on the filter box. */
+  /** Roadmap 069: the description card's "show raw order" link — lands on the
+   *  `description` row's blame ledger. From the card's own home at the top of
+   *  the Effective config tab this is an in-tab landing (`jumpToTab` declines a
+   *  jump to the tab already on screen); from the preset tree it crosses. */
   const onShowDescriptionOrder = useCallback(() => {
     jumpToTab("effective");
     setDescriptionLedgerNonce((n) => n + 1);
@@ -770,6 +782,19 @@ export function App() {
     if (typeof pending.step === "number") {
       setMigrationStepIndex(pending.step);
     }
+    // Roadmap 075 (iteration 3): a link that named the Rewrites tab — or a
+    // pre-028 one that carried a migration step, which is the same intent
+    // spelled differently — is asking for the stepper, and the stepper is the
+    // migrate stage's now. Applied AFTER `pending.stage` on purpose: the stage
+    // such a link carries is whatever the sender's pipeline rail happened to be
+    // on, and it is not what they were pointing at.
+    const wantsMigrateStage =
+      pending.tab === undefined
+        ? typeof pending.step === "number"
+        : shareTabWantsMigrateStage(pending.tab);
+    if (wantsMigrateStage) {
+      setSelectedStage("migrate");
+    }
     // Roadmap 044: applied BEFORE the simulator's auto-run (a `sim` link's
     // simulation starts from the simulator's own effect, which deliberately
     // keeps this index instead of resetting to step 0).
@@ -783,8 +808,11 @@ export function App() {
       }
     }
     // Roadmap 028: an explicit tab wins; a pre-028 link infers one from the
-    // view state it does carry.
-    const linkTab = pending.tab ?? legacyTabForView(pending);
+    // view state it does carry. Roadmap 075: and a v1 tab id is mapped onto the
+    // tab that replaced it — links naming `overview` / `simulator` / `rewrites`
+    // are already out there.
+    const linkTab =
+      pending.tab === undefined ? legacyTabForView(pending) : resultsTabForShareTab(pending.tab);
     if (linkTab) {
       setTab(linkTab);
     }
@@ -1023,9 +1051,10 @@ export function App() {
         ([, status]) => status === "error",
       );
       setSelectedStage(firstError?.[0] ?? "preset");
-      // Roadmap 028: a run lands on the short Overview — or straight on
-      // Problems when a stage errored, the tabbed equivalent of the old "select
-      // the first errored stage". That landing belongs to the reader of the
+      // Roadmap 028/075: a run lands on Tests — the dependency descriptors this
+      // config is checked against — or straight on Problems when a stage
+      // errored, the tabbed equivalent of the old "select the first errored
+      // stage". That landing belongs to the reader of the
       // CONFIG column: they edited, they asked for a run, and this is where its
       // answer starts. `keepTab` is every run that was not asked for from there
       // — the re-runs triggered inside an instrument (injecting a preset,
@@ -1036,7 +1065,7 @@ export function App() {
       // it and the banner above the panels states it, neither of which moves
       // anyone.
       if (!opts?.keepTab) {
-        setTab(firstError ? "problems" : "overview");
+        setTab(firstError ? "problems" : "tests");
       }
       focusResultsRef.current = true;
       // the engine chunk is loaded now — hydrate the hover docs and the 014
@@ -1092,7 +1121,7 @@ export function App() {
     }
     // Roadmap 023: land on the consequence. The question the user actually has
     // is "did the error go away?" — answered by the Problems tab (028; it was
-    // the Validate stage before the shell existed), not the Overview a plain
+    // the Validate stage before the shell existed), not the Tests tab a plain
     // run lands on. Re-run preserving scroll (Apply fix lives in that same
     // panel), then land there and toast the fresh error count.
     const next = await onRun(undefined, buildInputs(nextContent), {
@@ -1258,7 +1287,7 @@ export function App() {
    * itself (signed in already, access granted on GitHub in another tab). It
    * keeps the tab and the scroll position because the banner sits above every
    * panel: the user is looking at the thing they just acted on, and a run that
-   * bounced them to the Overview would hide its own answer.
+   * bounced them to another tab would hide its own answer.
    */
   const onRunAgainRef = useRef<(() => void) | undefined>(undefined);
   onRunAgainRef.current = () => {
@@ -1282,7 +1311,7 @@ export function App() {
     const next = { ...injected, [key]: contentObj };
     setInjected(next);
     // Injecting preset content is done FROM the preset tree — keep the user
-    // there rather than bouncing them to the Overview (028).
+    // there rather than bouncing them to the landing tab (028).
     void onRun(next, undefined, { preserveScroll: true, keepTab: true });
   };
   const onInject = useCallback(
@@ -1293,7 +1322,7 @@ export function App() {
   const usesLocal = displayPlatform !== "github";
 
   // Roadmap 048: every number derived from a finished run — the tab-strip
-  // counts, the migration-stepper inputs and the Overview digest they must
+  // counts, the migration-stepper inputs and the header digest links they must
   // agree with — as one pure derivation over the result and the effective
   // config's reported stats.
   const {
@@ -1304,7 +1333,6 @@ export function App() {
     errorCount,
     warningCount,
     resultsTabs,
-    digest,
   } = useRunSummary(result, effectiveStats);
 
   /**
@@ -1356,18 +1384,18 @@ export function App() {
   }
 
   /**
-   * Roadmap 068 review: whether 028's landing — reset the results to Overview,
-   * or to Problems when a stage errored — belongs to the gesture asking for this
+   * Roadmap 068 review: whether 028's landing — reset the results to the first
+   * tab, or to Problems when a stage errored — belongs to the gesture asking for this
    * run. The question the reset always depended on and never had to ask, because
    * before 068 the only way to reach Run was to leave the results.
    *
    * ⌘⏎ is global, so it stopped being safe to assume: pressing it while reading
-   * Effective config, Presets or the simulator replaced that panel with the
-   * Overview a second later, and `setTab` clears `backTab` on its way, so the
+   * Effective config, Presets or Problems replaced that panel with the landing
+   * tab a second later, and `setTab` clears `backTab` on its way, so the
    * cross-link that brought the reader there was gone with it.
    *
    * The rule is the one 028 stated: **that landing belongs to the reader of the
-   * CONFIG column** — they edited, they asked for a run, and the Overview is
+   * CONFIG column** — they edited, they asked for a run, and the landing tab is
    * where its answer starts. So this asks whether the gesture was made there,
    * and everything else keeps the tab it was on. Focus genuinely nowhere counts
    * as the config column's: it is the state before anyone has touched anything,
@@ -1379,8 +1407,8 @@ export function App() {
    * entirely inside their column, and they are not: the rule-evidence card
    * (which takes focus in its own effect) and the simulator's return pill are
    * both portalled to `<body>` (035). A ⌘⏎ from inside the evidence card
-   * therefore read as "outside the results" and threw the reader to the
-   * Overview, back affordance cleared, card left explaining a rule that was no
+   * therefore read as "outside the results" and threw the reader to the landing
+   * tab, back affordance cleared, card left explaining a rule that was no
    * longer rendered. Enumerating those overlays here would work exactly until
    * the next one is added — the failure mode the deleted request-fold key was
    * retired for — while the config column has no portals and is one containment
@@ -1741,7 +1769,7 @@ export function App() {
     { enabled: keysLive },
   );
 
-  /** `1`–`7` — straight to that results tab, by position in the strip. */
+  /** `1`–`5` — straight to that results tab, by position in the strip. */
   useTabDigits(
     resultsTabs.length,
     (index) => {
@@ -1911,6 +1939,7 @@ export function App() {
           presets={presetCount}
           effectiveKeys={effectiveStats?.keys ?? null}
           onJumpToTab={jumpToTab}
+          onShowRewrites={onShowRewrites}
           renovateVersion={result?.renovateVersion}
           oauthConfigured={Boolean(oauthConfig)}
           signedIn={signedIn}
@@ -1999,20 +2028,16 @@ export function App() {
               onSelectTab={setTab}
               onWalkTab={walkToTab}
               backTab={backTab}
-              onBack={() => setTab(backTab ?? "overview")}
+              onBack={() => setTab(backTab ?? "tests")}
               resultsStale={content !== lastRunContent}
               validateHasErrors={validateHasErrors}
-              jumpToTab={jumpToTab}
-              migrateSteps={migrateSteps}
               selectPresetNode={selectPresetNode}
               focusEditorRepoIndex={focusEditorRepoIndex}
               errorLib={errorLib}
-              digest={digest}
-              onWhereFrom={onWhereFrom}
-              onShowDescriptionOrder={onShowDescriptionOrder}
               selectedStage={selectedStage}
               onSelectStage={setSelectedStage}
               deferredStage={deferredStage}
+              migrateSteps={migrateSteps}
               migrateStepperMounted={migrateStepperMounted}
               finalMigrated={finalMigrated}
               migrationStepIndex={migrationStepIndex}
@@ -2025,7 +2050,7 @@ export function App() {
               installUrl={INSTALL_URL}
               onRunAgain={onRunAgain}
               onEffectiveStats={setEffectiveStats}
-              effectiveFilterNonce={effectiveFilterNonce}
+              onShowDescriptionOrder={onShowDescriptionOrder}
               descriptionLedgerNonce={descriptionLedgerNonce}
               pendingRuleFocus={pendingRuleFocus}
               onRuleFocused={onRuleFocused}

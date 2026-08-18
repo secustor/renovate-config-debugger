@@ -1,5 +1,11 @@
 import { describe, expect, test } from "vitest";
 import {
+  legacyTabForView,
+  RESULTS_TAB_IDS,
+  resultsTabForShareTab,
+  shareTabWantsMigrateStage,
+} from "@/data/results-tabs";
+import {
   configChecksum,
   decideShareRunPolicy,
   decodeShareResult,
@@ -139,12 +145,12 @@ describe("encodeShare / decodeShareResult round trip", () => {
 describe("033: one sanitizer — encode∘decode fixpoints", () => {
   test("step: 0 (the first rewrite step) round-trips", async () => {
     const token = await encodeShare(
-      minimalState({ view: { stage: "migrate", step: 0, tab: "rewrites" } }),
+      minimalState({ view: { stage: "migrate", step: 0, tab: "pipeline" } }),
     );
     const result = await decodeShareResult(token);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.payload.view).toEqual({ stage: "migrate", step: 0, tab: "rewrites" });
+      expect(result.payload.view).toEqual({ stage: "migrate", step: 0, tab: "pipeline" });
     }
   });
 
@@ -174,7 +180,7 @@ describe("033: one sanitizer — encode∘decode fixpoints", () => {
   test("simStep (044) round-trips alongside the migrate step and the sim inputs", async () => {
     const token = await encodeShare(
       minimalState({
-        view: { stage: "merge", step: 0, simStep: 2, tab: "simulator" },
+        view: { stage: "merge", step: 0, simStep: 2, tab: "tests" },
         sim: { form: { packageName: "lodash" }, autoSimulate: true },
       }),
     );
@@ -185,7 +191,7 @@ describe("033: one sanitizer — encode∘decode fixpoints", () => {
         stage: "merge",
         step: 0,
         simStep: 2,
-        tab: "simulator",
+        tab: "tests",
       });
       expect(result.payload.sim).toEqual({
         form: { packageName: "lodash" },
@@ -652,7 +658,7 @@ describe("054: sim.simThread round-trips and stays additive", () => {
   test("a simulation link carrying an expanded thread round-trips", async () => {
     const token = await encodeShare(
       minimalState({
-        view: { stage: "merge", simStep: 2, tab: "simulator" },
+        view: { stage: "merge", simStep: 2, tab: "tests" },
         sim: { form: { packageName: "oxlint" }, autoSimulate: true, simThread: "groupName" },
       }),
     );
@@ -666,7 +672,7 @@ describe("054: sim.simThread round-trips and stays additive", () => {
       });
       // The thread rides with the SIM descriptor, not the view: it is only
       // meaningful for the simulation the form reproduces.
-      expect(result.payload.view).toEqual({ stage: "merge", simStep: 2, tab: "simulator" });
+      expect(result.payload.view).toEqual({ stage: "merge", simStep: 2, tab: "tests" });
     }
   });
 
@@ -723,6 +729,78 @@ describe("054: sim.simThread round-trips and stays additive", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.payload.sim).toBeUndefined();
+    }
+  });
+});
+
+/**
+ * Roadmap 075 (v2, iteration 3) — the five-tab model retired three tab ids that
+ * links already in the wild still carry. The compatibility contract has two
+ * halves and both are asserted here: links ENCODE only current ids, and the
+ * DECODER accepts the retired ones and says which tab each opens.
+ */
+describe("075: retired tab ids still open the tab that replaced them", () => {
+  test("the strip is the v2 five, and none of them is a retired id", () => {
+    expect(RESULTS_TAB_IDS).toEqual(["tests", "pipeline", "presets", "effective", "problems"]);
+  });
+
+  test("each retired id maps to its successor", () => {
+    // The digest the Overview opened on is the header's now, and a run lands on
+    // Tests — so that is where an `overview` link goes.
+    expect(resultsTabForShareTab("overview")).toBe("tests");
+    // The same instrument, renamed.
+    expect(resultsTabForShareTab("simulator")).toBe("tests");
+    // Folded into Pipeline's migrate stage.
+    expect(resultsTabForShareTab("rewrites")).toBe("pipeline");
+    // A current id is its own answer — the mapping is not a rename table with a
+    // default, it is total over what a link may say.
+    for (const id of RESULTS_TAB_IDS) {
+      expect(resultsTabForShareTab(id)).toBe(id);
+    }
+  });
+
+  test("only `rewrites` also asks for the migrate stage", () => {
+    // Pipeline on its default stage would put an old link's reader in front of
+    // something its sender was not looking at; the stepper lives on migrate.
+    expect(shareTabWantsMigrateStage("rewrites")).toBe(true);
+    expect(shareTabWantsMigrateStage("overview")).toBe(false);
+    expect(shareTabWantsMigrateStage("simulator")).toBe(false);
+    for (const id of RESULTS_TAB_IDS) {
+      expect(shareTabWantsMigrateStage(id)).toBe(false);
+    }
+  });
+
+  test("a pre-028 link's inferred tab follows the same reshuffle", () => {
+    // `step` used to infer Rewrites; the stepper moved, so the inference does.
+    expect(legacyTabForView({ stage: "migrate", step: 0 })).toBe("pipeline");
+    expect(legacyTabForView({ stage: "validate" })).toBe("pipeline");
+    // Unchanged: a selected node is still the most specific thing a link
+    // carries, and it still beats a step.
+    expect(legacyTabForView({ stage: "migrate", step: 0, node: "abc" })).toBe("presets");
+    expect(legacyTabForView({})).toBeNull();
+  });
+
+  test("a retired id survives the decoder verbatim, for the opener to map", async () => {
+    // Sanitizing it away would land the reader on the default tab instead of
+    // the one the sender meant — worse than the id being unknown.
+    for (const legacy of ["overview", "simulator", "rewrites"] as const) {
+      const token = await rawEncodeToken(taggedPayload({ view: { stage: "preset", tab: legacy } }));
+      const result = await decodeShareResult(token);
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.payload.view?.tab).toBe(legacy);
+      }
+    }
+  });
+
+  test("a tab id from neither era is still dropped on its own", async () => {
+    const token = await rawEncodeToken(
+      taggedPayload({ view: { stage: "preset", tab: "extraction" } }),
+    );
+    const result = await decodeShareResult(token);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.view).toEqual({ stage: "preset" });
     }
   });
 });

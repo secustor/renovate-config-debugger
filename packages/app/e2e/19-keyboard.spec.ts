@@ -133,7 +133,7 @@ test("the results skip link lands on the selected tab", async ({ page }) => {
   await expect(resultsSkip).toBeFocused();
   await page.keyboard.press("Enter");
 
-  await expect(tabButton(page, "overview")).toBeFocused();
+  await expect(tabButton(page, "tests")).toBeFocused();
   expect(await page.evaluate(() => location.hash)).toBe("");
 });
 
@@ -144,10 +144,10 @@ test("the results tab strip is one tab stop, and an arrow opens the tab it lands
   await runAndAwaitResult(page);
 
   // Only the selected tab is reachable by Tab.
-  await expect(tabButton(page, "overview")).toHaveAttribute("tabindex", "0");
+  await expect(tabButton(page, "tests")).toHaveAttribute("tabindex", "0");
   await expect(tabButton(page, "pipeline")).toHaveAttribute("tabindex", "-1");
 
-  await tabButton(page, "overview").focus();
+  await tabButton(page, "tests").focus();
   await page.keyboard.press("ArrowRight");
 
   // Selection follows focus — the APG's recommended model wherever showing a
@@ -157,7 +157,7 @@ test("the results tab strip is one tab stop, and an arrow opens the tab it lands
   await expect(tabButton(page, "pipeline")).toBeFocused();
   await expect(tabButton(page, "pipeline")).toHaveAttribute("aria-selected", "true");
   await expect(tabPanel(page, "pipeline")).toBeVisible();
-  await expect(tabPanel(page, "overview")).toBeHidden();
+  await expect(tabPanel(page, "tests")).toBeHidden();
 
   // End goes to the last tab rather than scrolling the page (016's Home/End
   // still owns every other context), and opens it too.
@@ -200,7 +200,7 @@ test("arrowing across the strip keeps the cross-link back affordance", async ({ 
   // Routing a walk through App's `setTab` is what destroyed it — the defect
   // manual activation was adopted to dodge. `walkToTab` fixes the cause
   // instead, so the trail outlives a walk along the strip.
-  await expect(tabButton(page, "rewrites")).toHaveAttribute("aria-selected", "true");
+  await expect(tabButton(page, "pipeline")).toHaveAttribute("aria-selected", "true");
   await expect(back).toBeVisible();
 });
 
@@ -238,7 +238,7 @@ test("Enter in a simulator field simulates", async ({ page }) => {
   await page.goto("/");
   await setEditorContent(page, PACKAGE_RULES_CONFIG);
   await runAndAwaitResult(page);
-  await openTab(page, "simulator");
+  await openTab(page, "tests");
 
   const packageName = page.locator(".sim-field", { hasText: "packageName" }).locator("input");
   await packageName.fill("react");
@@ -271,7 +271,7 @@ test("e and r jump between the panes, and never fire while typing", async ({ pag
   await runAndAwaitResult(page);
 
   // From anywhere that is not a text field.
-  await tabButton(page, "overview").focus();
+  await tabButton(page, "tests").focus();
   await page.keyboard.press("e");
   await expect(page.locator(".cm-content")).toBeFocused();
 
@@ -294,19 +294,19 @@ test("e and r jump between the panes, and never fire while typing", async ({ pag
   // …but from anywhere that is not a form control, `r` goes to the results.
   await page.locator("h1").click();
   await page.keyboard.press("r");
-  await expect(tabButton(page, "overview")).toBeFocused();
+  await expect(tabButton(page, "tests")).toBeFocused();
 });
 
 test("digits jump straight to a results tab, by strip position", async ({ page }) => {
   await page.goto("/");
   await runAndAwaitResult(page);
-  await tabButton(page, "overview").focus();
+  await tabButton(page, "tests").focus();
 
   await page.keyboard.press("2");
   await expect(tabButton(page, "pipeline")).toHaveAttribute("aria-selected", "true");
   await expect(tabPanel(page, "pipeline")).toBeVisible();
 
-  await page.keyboard.press("4");
+  await page.keyboard.press("3");
   await expect(tabButton(page, "presets")).toHaveAttribute("aria-selected", "true");
 });
 
@@ -317,7 +317,7 @@ test("⌘⇧⏎ runs and takes you to the results", async ({ page }) => {
 
   await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
   // Unlike plain ⌘⏎, this one moves focus — that is the whole difference.
-  await expect(tabButton(page, "overview")).toBeFocused();
+  await expect(tabButton(page, "tests")).toBeFocused();
 });
 
 test("? opens the shortcut sheet, listing every global binding", async ({ page }) => {
@@ -328,7 +328,7 @@ test("? opens the shortcut sheet, listing every global binding", async ({ page }
   await expect(sheet).toBeVisible();
   await expect(sheet).toContainText("Run the pipeline");
   await expect(sheet).toContainText("Jump to the config editor");
-  await expect(sheet).toContainText("1 – 7");
+  await expect(sheet).toContainText("1 – 5");
 
   // Escape stays out of the ladder — but the sheet claims it rather than
   // letting the dialog's default action close it (see the test below).
@@ -431,7 +431,7 @@ test("closing the sheet with the button hands focus back to where it came from",
 }) => {
   await page.goto("/");
   await runAndAwaitResult(page);
-  await tabButton(page, "overview").focus();
+  await tabButton(page, "tests").focus();
 
   await page.keyboard.press("?");
   const sheet = page.getByRole("dialog", { name: "Keyboard shortcuts" });
@@ -441,13 +441,13 @@ test("closing the sheet with the button hands focus back to where it came from",
   // All three exits unmount the dialog before it can close itself — Escape
   // included, now that the sheet claims that key instead of letting the
   // browser's default action close it — so the component restores focus itself.
-  await expect(tabButton(page, "overview")).toBeFocused();
+  await expect(tabButton(page, "tests")).toBeFocused();
 });
 
 test("closing the sheet with Escape hands focus back the same way", async ({ page }) => {
   await page.goto("/");
   await runAndAwaitResult(page);
-  await tabButton(page, "overview").focus();
+  await tabButton(page, "tests").focus();
 
   await page.keyboard.press("?");
   const sheet = page.getByRole("dialog", { name: "Keyboard shortcuts" });
@@ -459,7 +459,7 @@ test("closing the sheet with Escape hands focus back the same way", async ({ pag
   // focus to its opener, and Escape was the one exit that got that for free.
   // Claiming the key took the free restore away with it, so the component's own
   // restore is now load-bearing on all three paths, not two.
-  await expect(tabButton(page, "overview")).toBeFocused();
+  await expect(tabButton(page, "tests")).toBeFocused();
 });
 
 test("a bare key still works with a filter checkbox focused", async ({ page }) => {
@@ -481,9 +481,9 @@ test("Shift+R does not fire the results jump", async ({ page }) => {
   await page.locator("h1").click();
 
   await page.keyboard.press("Shift+r");
-  await expect(tabButton(page, "overview")).not.toBeFocused();
+  await expect(tabButton(page, "tests")).not.toBeFocused();
   await page.keyboard.press("r");
-  await expect(tabButton(page, "overview")).toBeFocused();
+  await expect(tabButton(page, "tests")).toBeFocused();
 });
 
 // ── Third-review follow-ups (2026-08-11) ─────────────────────────────────────
@@ -499,11 +499,11 @@ test("a second ⌘⏎ after an edit runs against the edited text", async ({ page
   await page.locator(".cm-content").click();
   await page.keyboard.press("ControlOrMeta+Enter");
 
-  await openTab(page, "simulator");
+  await openTab(page, "tests");
   // The edited config is the only one of the two with packageRules, so the
   // simulator counting one "from your config" is proof the second run happened
   // AND used the new text; the pre-edit config renders the empty state instead.
-  await expect(page.locator("#panel-simulator")).toContainText("from your config");
+  await expect(page.locator("#panel-tests")).toContainText("from your config");
 });
 
 test("a bare key is inert under an open menu — Escape comes first", async ({ page }) => {
@@ -569,7 +569,7 @@ test("⌘⏎ still runs from a simulator combobox", async ({ page }) => {
   await page.goto("/");
   await setEditorContent(page, PACKAGE_RULES_CONFIG);
   await runAndAwaitResult(page);
-  await openTab(page, "simulator");
+  await openTab(page, "tests");
 
   // These two fields decline PLAIN Enter so accepting a datalist suggestion
   // does not also simulate — but the guard once preventDefaulted the modified
@@ -614,7 +614,7 @@ test("⌘⏎ on a focused provenance chip runs, rather than jumping", async ({ p
 test("Escape in a combobox reaches the page's own layer on the second press", async ({ page }) => {
   await page.goto("/");
   await runAndAwaitResult(page);
-  await openTab(page, "simulator");
+  await openTab(page, "tests");
 
   // A native <datalist> popup cannot be detected — no node, no event — so the
   // field gets the FIRST Escape (which may be dismissing suggestions) and the
@@ -671,17 +671,17 @@ test("a run requested from inside the results keeps the panel being read", async
   await expect(tabButton(page, "effective")).toHaveAttribute("aria-selected", "true");
 });
 
-test("a run requested from the config column still lands on the Overview", async ({ page }) => {
+test("a run requested from the config column still lands on the first tab", async ({ page }) => {
   await page.goto("/");
   await runAndAwaitResult(page);
   await openTab(page, "presets");
 
   // The other half of the same rule — inverting the test must not cost 028's
-  // "a run lands on the short Overview" for the reader who edited and ran.
+  // landing (075: Tests) for the reader who edited and ran.
   await page.locator(".cm-content").click();
   await page.keyboard.press("ControlOrMeta+Enter");
   await expectRunIdle(page);
-  await expect(tabButton(page, "overview")).toHaveAttribute("aria-selected", "true");
+  await expect(tabButton(page, "tests")).toHaveAttribute("aria-selected", "true");
 });
 
 test("every deliberate ⌘⏎ runs, and the last one describes the editor", async ({ page }) => {
@@ -702,8 +702,8 @@ test("every deliberate ⌘⏎ runs, and the last one describes the editor", asyn
   await page.keyboard.press("ControlOrMeta+Enter");
 
   await expectRunIdle(page);
-  await openTab(page, "simulator");
+  await openTab(page, "tests");
   // SEMANTIC_COMMITS_CONFIG has no packageRules, so the empty state is proof
   // the last run used the editor's current text.
-  await expect(page.locator("#panel-simulator")).not.toContainText("from your config");
+  await expect(page.locator("#panel-tests")).not.toContainText("from your config");
 });

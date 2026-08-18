@@ -9,6 +9,7 @@ import {
 } from "./fixtures";
 import {
   must,
+  openMigrateStage,
   openTab,
   resultsPanel,
   runAndAwaitResult,
@@ -19,28 +20,41 @@ import {
 
 /**
  * Roadmap 028 — the tabbed results shell. Everything the pipeline produces
- * now lives in one panel of mutually-exclusive tabs: a run lands on a short
- * Overview, every instrument is one click away with its size advertised by a
- * count badge, and panels stay mounted so per-tab state survives switching.
+ * lives in one panel of mutually-exclusive tabs: every instrument is one click
+ * away with its size advertised by a count badge, and panels stay mounted so
+ * per-tab state survives switching.
+ *
+ * Roadmap 075 (v2, iteration 3) reshaped the strip itself:
+ * `Tests · Pipeline · Presets · Effective config · Problems`. Tests is the
+ * simulator, first and where a run lands; Rewrites folded into Pipeline's
+ * migrate stage; Overview retired into the header's digest links.
  */
 
-test("a run lands on the Overview tab, not on an expanded instrument", async ({ page }) => {
+test("a run lands on the Tests tab, not on an expanded instrument", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(".cm-content")).toContainText("config:recommended");
   await runAndAwaitResult(page);
 
-  await expect(tabButton(page, "overview")).toHaveAttribute("aria-selected", "true");
-  await expect(tabPanel(page, "overview")).toBeVisible();
+  await expect(tabButton(page, "tests")).toHaveAttribute("aria-selected", "true");
+  await expect(tabPanel(page, "tests")).toBeVisible();
+  // …and Tests IS the simulator, renamed and re-anchored.
+  await expect(tabPanel(page, "tests")).toContainText("Update simulator");
   // The heavy instruments are mounted but hidden — nothing is expanded on
   // arrival.
   await expect(tabPanel(page, "presets")).toBeHidden();
   await expect(tabPanel(page, "effective")).toBeHidden();
-  await expect(tabPanel(page, "simulator")).toBeHidden();
-  // The Overview's question pills are the only navigation besides the tabs.
-  await expect(page.getByRole("button", { name: "What did each stage change?" })).toBeVisible();
+  await expect(tabPanel(page, "pipeline")).toBeHidden();
+  // Five tabs, in the v2 order.
+  await expect(page.locator(".tab-bar .tab")).toHaveText([
+    /^Tests/,
+    /^Pipeline/,
+    /^Presets/,
+    /^Effective config/,
+    /^Problems/,
+  ]);
 });
 
-test("tab badges report the run's counts and match the Overview digest", async ({ page }) => {
+test("tab badges report the run's counts and match the header digest", async ({ page }) => {
   await page.goto("/");
   await runAndAwaitResult(page);
 
@@ -56,8 +70,9 @@ test("tab badges report the run's counts and match the Overview digest", async (
   const effective = Number((await effectiveCount.innerText()).replace(/\D/g, ""));
   expect(effective).toBeGreaterThan(0);
 
-  // Roadmap 029: the digest paragraph quotes exactly the same numbers.
-  const digest = page.locator(".run-digest");
+  // Roadmap 029/075: the header's digest links quote exactly the same numbers —
+  // the guarantee the Overview paragraph used to carry, moved to the header.
+  const digest = page.locator(".app-header-digest");
   await expect(digest).toContainText(`${presets.toLocaleString("en-US")} presets`);
   await expect(digest).toContainText(`${effective} effective options`);
 });
@@ -88,7 +103,7 @@ test("the header states the verdict and its digest links open the instruments", 
   await expect(tabPanel(page, "presets")).toBeVisible();
   await expect(tabButton(page, "presets")).toHaveAttribute("aria-selected", "true");
   // A jump, not a tab click: the one-step way back is recorded (028).
-  await expect(page.locator(".tab-back")).toHaveText(/Back to Overview/);
+  await expect(page.locator(".tab-back")).toHaveText(/Back to Tests/);
 
   // And the problems clause lands on Problems from wherever the reader is.
   await header.getByRole("button", { name: "0 problems" }).click();
@@ -111,53 +126,62 @@ test("the header's status pill reports validation errors instead of accepted", a
 });
 
 /**
- * Roadmap 029 — the Overview is a paragraph of prose, not a dashboard: it
- * opens with the verdict, and every number in it is a way into the tab that
- * explains it.
+ * Roadmap 075 (v2, iteration 3) — the Rewrites tab folded into Pipeline. Its
+ * stepper is the migrate stage's now, and the header's `N rewrites` link is
+ * what takes a reader there: one click has to select BOTH the tab and the
+ * stage, or it lands on a pipeline showing something else entirely.
  */
-test("the Overview digest narrates the run and its links switch tabs", async ({ page }) => {
+test("the header's rewrites link opens Pipeline on the migrate stage's stepper", async ({
+  page,
+}) => {
   await page.goto("/");
+  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+  await setEditorContent(page, SEMANTIC_COMMITS_CONFIG);
   await runAndAwaitResult(page);
 
-  const digest = page.locator(".run-digest");
-  await expect(digest).toBeVisible();
-  // The verdict comes first, in plain English.
-  await expect(digest).toContainText(/Renovate accepted this config/);
-  // …then what the extends actually cost.
-  await expect(digest.locator('[data-clause="presets"]')).toContainText(/expanded into/);
+  const header = page.locator(".app-header");
+  await header.getByRole("button", { name: "1 rewrite" }).click();
 
-  // A digest link is a way into the instrument behind the number.
-  await digest.locator('[data-clause="presets"] .digest-link').click();
-  await expect(tabPanel(page, "presets")).toBeVisible();
-  await expect(tabButton(page, "presets")).toHaveAttribute("aria-selected", "true");
+  await expect(tabButton(page, "pipeline")).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#panel-pipeline .card-title").first()).toContainText("Stage: Migrate");
+  // The retired tab's card, in place: the stepper and its own title.
+  await expect(tabPanel(page, "pipeline")).toContainText("Rewrites");
+  await expect(tabPanel(page, "pipeline")).toContainText("Step 1 of 1");
   // It is a jump, not a tab click, so one step goes back (028).
-  await expect(page.locator(".tab-back")).toHaveText(/Back to Overview/);
+  await expect(page.locator(".tab-back")).toHaveText(/Back to Tests/);
+
+  // A run with nothing to rewrite says so on the same stage, rather than
+  // leaving the reader wondering where the stepper went.
+  await setEditorContent(page, EXTENDS_RECOMMENDED_CONFIG);
+  await runAndAwaitResult(page);
+  await openMigrateStage(page);
+  await expect(tabPanel(page, "pipeline")).toContainText("No rewrites");
 });
 
 test("a zero-count tab stays visible, dimmed and clickable, showing its empty state", async ({
   page,
 }) => {
   await page.goto("/");
-  // The default config uses only current option names — nothing to rewrite.
+  // The default config is one Renovate accepts outright — nothing to report.
   await runAndAwaitResult(page);
 
-  const rewrites = tabButton(page, "rewrites");
-  await expect(rewrites).toBeVisible();
-  await expect(rewrites.locator(".tab-count")).toHaveText("0");
-  await expect(rewrites).toHaveClass(/\bempty\b/);
+  const problems = tabButton(page, "problems");
+  await expect(problems).toBeVisible();
+  await expect(problems.locator(".tab-count")).toHaveText("0");
+  await expect(problems).toHaveClass(/\bempty\b/);
   // Dimmed, never hidden or disabled.
-  const opacity = await rewrites.evaluate((el) => getComputedStyle(el).opacity);
+  const opacity = await problems.evaluate((el) => getComputedStyle(el).opacity);
   expect(Number(opacity)).toBeLessThan(1);
 
-  await openTab(page, "rewrites");
-  await expect(tabPanel(page, "rewrites")).toContainText("No rewrites");
+  await openTab(page, "problems");
+  await expect(tabPanel(page, "problems")).toContainText("No errors or warnings");
 
-  // The same tab carries a count and the stepper once a run does rewrite.
-  await setEditorContent(page, SEMANTIC_COMMITS_CONFIG);
+  // The same tab carries a count and the list once a run does report something.
+  await setEditorContent(page, INVALID_RULES_CONFIG);
   await runAndAwaitResult(page);
-  await expect(tabButton(page, "rewrites").locator(".tab-count")).toHaveText("1");
-  await openTab(page, "rewrites");
-  await expect(tabPanel(page, "rewrites")).toContainText("Step 1 of 1");
+  await expect(problems.locator(".tab-count")).not.toHaveText("0");
+  await openTab(page, "problems");
+  await expect(tabPanel(page, "problems")).toContainText("Errors & warnings");
 });
 
 /**
@@ -251,24 +275,35 @@ test("a provenance chip switches to Presets and offers a one-step way back", asy
   await expect(page.locator(".tab-back")).toHaveCount(0);
 });
 
-test("the Overview's 'where did a setting come from' pill opens and focuses the filter", async ({
+/**
+ * Roadmap 069/075 — "What this config does" was the Overview's second card and
+ * leads the Effective config tab now: it describes the merged config's own
+ * `description` field, and its "show raw order" link lands on that field's row,
+ * which since the move is a landing inside the tab the reader is already on.
+ */
+test("the description digest card leads the Effective config tab and lands on its row", async ({
   page,
 }) => {
   await page.goto("/");
   await runAndAwaitResult(page);
 
-  await page.getByRole("button", { name: "Where did a setting come from?" }).click();
+  await openTab(page, "effective");
+  const card = page.locator("#panel-effective .desc-digest-card");
+  await expect(card).toBeVisible();
+  await expect(card).toContainText("What this config does");
 
-  await expect(tabPanel(page, "effective")).toBeVisible();
-  const filter = page.locator("#panel-effective .prov-filter-input");
-  await expect(filter).toBeFocused();
-  await expect(page.locator(".tab-back")).toHaveText(/Back to Overview/);
+  await card.getByRole("button", { name: "show raw order" }).click();
+  // Same tab, so no cross-tab trail is recorded — just the row, filtered to and
+  // expanded.
+  await expect(tabButton(page, "effective")).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#panel-effective .prov-filter-input")).toHaveValue("description");
+  await expect(page.locator(".tab-back")).toHaveCount(0);
 });
 
 test("a copied share link reopens on the tab that was active", async ({ page }) => {
   await page.goto("/");
   await runAndAwaitResult(page);
-  await openTab(page, "simulator");
+  await openTab(page, "effective");
 
   await page.getByRole("button", { name: "Copy link" }).click();
   // Copy link mirrors the token into the address bar even when the clipboard
@@ -281,7 +316,7 @@ test("a copied share link reopens on the tab that was active", async ({ page }) 
   await page.goto("about:blank");
   await page.goto(url);
   await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
-  await expect(tabButton(page, "simulator")).toHaveAttribute("aria-selected", "true");
+  await expect(tabButton(page, "effective")).toHaveAttribute("aria-selected", "true");
 });
 
 test("pre-028 links without a tab field map stage/step/node to the right tab", async ({ page }) => {
@@ -293,16 +328,19 @@ test("pre-028 links without a tab field map stage/step/node to the right tab", a
   await expect(tabButton(page, "pipeline")).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#panel-pipeline .card-title")).toContainText("Stage: Validate");
 
-  // `step` — the sender was stepping through rewrites → Rewrites.
+  // `step` — the sender was stepping through rewrites → Pipeline, on the
+  // migrate stage the stepper lives on since 075.
   await page.goto("about:blank");
   await page.goto(
     await encodeShareFragment({
       config: SEMANTIC_COMMITS_CONFIG,
-      view: { stage: "migrate", step: 0 },
+      view: { stage: "preset", step: 0 },
     }),
   );
   await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
-  await expect(tabButton(page, "rewrites")).toHaveAttribute("aria-selected", "true");
+  await expect(tabButton(page, "pipeline")).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#panel-pipeline .card-title").first()).toContainText("Stage: Migrate");
+  await expect(tabPanel(page, "pipeline")).toContainText("Step 1 of 1");
 
   // `node` — the sender had a preset selected → Presets.
   await page.goto("about:blank");
@@ -315,6 +353,45 @@ test("pre-028 links without a tab field map stage/step/node to the right tab", a
   await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
   await expect(tabButton(page, "presets")).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#panel-presets .preset-name.selected")).toBeVisible();
+});
+
+/**
+ * Roadmap 075 (v2, iteration 3) — the tab ids `overview`, `simulator` and
+ * `rewrites` are gone from the strip, but every link shared while they existed
+ * still names one. Nothing encodes them any more; the DECODER maps each onto
+ * the tab that replaced it, so an old link opens on what its sender meant.
+ */
+test("a share link naming a retired tab lands on the tab that replaced it", async ({ page }) => {
+  // `overview` — the digest it opened on is the header's now, so the link lands
+  // where a run lands.
+  await page.goto(
+    await encodeShareFragment({ config: PACKAGE_RULES_CONFIG, view: { tab: "overview" } }),
+  );
+  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
+  await expect(tabButton(page, "tests")).toHaveAttribute("aria-selected", "true");
+
+  // `simulator` — the same instrument, renamed.
+  await page.goto("about:blank");
+  await page.goto(
+    await encodeShareFragment({ config: PACKAGE_RULES_CONFIG, view: { tab: "simulator" } }),
+  );
+  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
+  await expect(tabButton(page, "tests")).toHaveAttribute("aria-selected", "true");
+  await expect(tabPanel(page, "tests")).toContainText("Update simulator");
+
+  // `rewrites` — Pipeline, AND the migrate stage, or the stepper the sender was
+  // pointing at is not on screen.
+  await page.goto("about:blank");
+  await page.goto(
+    await encodeShareFragment({
+      config: SEMANTIC_COMMITS_CONFIG,
+      view: { stage: "preset", tab: "rewrites", step: 0 },
+    }),
+  );
+  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
+  await expect(tabButton(page, "pipeline")).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#panel-pipeline .card-title").first()).toContainText("Stage: Migrate");
+  await expect(tabPanel(page, "pipeline")).toContainText("Step 1 of 1");
 });
 
 test("a narrow viewport stacks the panes and a run scrolls the results into view", async ({

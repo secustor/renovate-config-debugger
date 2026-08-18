@@ -26,8 +26,8 @@ test("cold share link decodes, auto-runs, and shows the results shell + version 
   await expect(badge).toBeVisible({ timeout: 30_000 });
   await expect(badge).toContainText(/Renovate v\d+\.\d+/);
 
-  // The simulator (which only mounts on a result with a merged config)
+  // The Tests tab's simulator (which only mounts on a result with a merged config)
   // confirms the run produced a real, rules-bearing result.
-  await openTab(page, "simulator");
+  await openTab(page, "tests");
   await expect(page.getByText("Update simulator")).toBeVisible();
 });

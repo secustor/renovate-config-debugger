@@ -11,7 +11,7 @@
  * current at encode time rides along so the opener can warn on version drift.
  */
 import type { StageId } from "@renovate-config-debugger/engine";
-import type { ResultsTabId } from "@/data/results-tabs";
+import type { ShareResultsTabId } from "@/data/results-tabs";
 import { isTrustedEndpoint, PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
 
 // Roadmap 031: the payload schemas (and with them zod) load with the first
@@ -45,8 +45,13 @@ export interface ShareView {
    * Roadmap 028: the active results tab. Additive within v2 — a pre-028 link
    * simply lacks it and the opener infers a tab from stage/node/step
    * (`legacyTabForView`), and a pre-028 reader ignores the unknown key.
+   *
+   * Roadmap 075 (v2, iteration 3): ENCODING only ever writes a current
+   * `ResultsTabId`; the wider type is the decode side, which still accepts the
+   * three retired ids so links made before v2 land on the tab that replaced the
+   * one they name (`resultsTabForShareTab`).
    */
-  tab?: ResultsTabId;
+  tab?: ShareResultsTabId;
 }
 
 /**

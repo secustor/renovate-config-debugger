@@ -30,7 +30,7 @@ import type * as PresetTreeModule from "@/features/presets/PresetTree";
 import type * as EffectiveConfigModule from "@/components/EffectiveConfig";
 import type * as RuleSimulatorModule from "@/features/simulator/RuleSimulator";
 import type * as MessagesPanelModule from "@/components/MessagesPanel";
-import type * as OverviewTabModule from "@/components/OverviewTab";
+import type * as DescriptionDigestCardModule from "@/components/DescriptionDigestCard";
 
 /** Render-function invocations per wrapped panel (memo bailouts excluded). */
 const renderCounts: Record<string, number> = {};
@@ -110,13 +110,18 @@ vi.mock("./components/MessagesPanel", async (importOriginal) => {
   const mod = await importOriginal<typeof MessagesPanelModule>();
   return { ...mod, MessagesPanel: wrapCounting("MessagesPanel", mod.MessagesPanel) };
 });
-vi.mock("./components/OverviewTab", async (importOriginal) => {
-  const mod = await importOriginal<typeof OverviewTabModule>();
-  return { ...mod, OverviewTab: wrapCounting("OverviewTab", mod.OverviewTab) };
+// Roadmap 075 (iteration 3): the Overview retired; its one surviving card
+// leads the Effective config tab, and it is the panel content this counts.
+vi.mock("./components/DescriptionDigestCard", async (importOriginal) => {
+  const mod = await importOriginal<typeof DescriptionDigestCardModule>();
+  return {
+    ...mod,
+    DescriptionDigestCard: wrapCounting("DescriptionDigestCard", mod.DescriptionDigestCard),
+  };
 });
 
 const PANELS = [
-  "OverviewTab",
+  "DescriptionDigestCard",
   "PresetTree",
   "EffectiveConfig",
   "RuleSimulator",
@@ -191,7 +196,12 @@ describe("keystroke render performance (roadmap 032)", () => {
     await waitForQuiescence();
 
     // Sanity: the run really mounted and rendered the heavy panels.
-    for (const name of ["OverviewTab", "PresetTree", "EffectiveConfig", "RuleSimulator"]) {
+    for (const name of [
+      "DescriptionDigestCard",
+      "PresetTree",
+      "EffectiveConfig",
+      "RuleSimulator",
+    ]) {
       expect(renderCounts[name] ?? 0, `${name} should have rendered after the run`).toBeGreaterThan(
         0,
       );
