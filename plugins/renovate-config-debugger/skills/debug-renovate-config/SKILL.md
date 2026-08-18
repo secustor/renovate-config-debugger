@@ -117,12 +117,12 @@ The same answers, same engine, from a shell — every subcommand takes
 `--format json`:
 
 ```bash
-pnpm dlx @renovate-config-debugger/cli digest renovate.json
-pnpm dlx @renovate-config-debugger/cli validate renovate.json --format json
-pnpm dlx @renovate-config-debugger/cli tree renovate.json --node "config:best-practices" --body resolved
-pnpm dlx @renovate-config-debugger/cli provenance renovate.json minimumReleaseAge --format json
-pnpm dlx @renovate-config-debugger/cli simulate renovate.json --dep '{"depName":"react","currentValue":"17.0.0","newValue":"18.0.0"}' --format json
-pnpm dlx @renovate-config-debugger/cli compare before.json after.json --dep '{"depName":"react"}'
+npx -y @renovate-config-debugger/cli digest renovate.json
+npx -y @renovate-config-debugger/cli validate renovate.json --format json
+npx -y @renovate-config-debugger/cli tree renovate.json --node "config:best-practices" --body resolved
+npx -y @renovate-config-debugger/cli provenance renovate.json minimumReleaseAge --format json
+npx -y @renovate-config-debugger/cli simulate renovate.json --dep '{"depName":"react","currentValue":"17.0.0","newValue":"18.0.0"}' --format json
+npx -y @renovate-config-debugger/cli compare before.json after.json --dep '{"depName":"react"}'
 ```
 
 `validate` exits **2** when Renovate would refuse the config and **1** on an

@@ -35,7 +35,7 @@ Renovate configs across many repositories.
 
 | part                           | what it does                                                              |
 | ------------------------------ | ------------------------------------------------------------------------- |
-| `.mcp.json`                    | launches `pnpm dlx @renovate-config-debugger/cli mcp`                     |
+| `.mcp.json`                    | launches `npx -y @renovate-config-debugger/cli mcp`                       |
 | `skills/debug-renovate-config` | the workflow: validate → digest → drill down → compare as the edit oracle |
 
 The plugin contains **no engine code**. It shells out to the published CLI, so
