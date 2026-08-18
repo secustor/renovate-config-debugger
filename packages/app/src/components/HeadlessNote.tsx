@@ -12,6 +12,13 @@
  *
  * In flow, at the end of the page, in a `<footer>`: an agent that scraped the
  * page has it, and so does a developer scrolling to the bottom.
+ *
+ * Collapsed by default behind a native `<details>` (review on #134): the
+ * question is the one visible line, and the platform provides the keyboard
+ * and screen-reader behavior. Folding costs discovery nothing — the content
+ * stays in the DOM (and the accessibility tree) either way, so only human
+ * screen space is spent on demand. The curl/no-JS audience is served by the
+ * `<noscript>` block in index.html, not by this component.
  */
 
 const PACKAGE = "@renovate-config-debugger/cli";
@@ -26,10 +33,9 @@ const ONE_LINERS = [
   `claude mcp add rcd -- npx -y ${PACKAGE} mcp`,
 ].join("\n");
 
-export function HeadlessNote() {
+function HeadlessNoteBody() {
   return (
-    <footer className="headless-note">
-      <h2 className="headless-note-title">For agents and scripts</h2>
+    <>
       <p className="headless-note-lead">
         Everything this page shows — the preset tree, per-key provenance, the packageRules
         simulator, the validation errors — is available headlessly from the same engine and the same
@@ -42,6 +48,19 @@ export function HeadlessNote() {
           CLI documentation ↗
         </a>
       </p>
+    </>
+  );
+}
+
+export function HeadlessNote() {
+  return (
+    <footer className="headless-note">
+      <details className="headless-note-details">
+        <summary className="headless-note-summary">
+          Looking for a solution for Agents and scripts?
+        </summary>
+        <HeadlessNoteBody />
+      </details>
     </footer>
   );
 }

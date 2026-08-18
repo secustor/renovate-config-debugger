@@ -4780,10 +4780,46 @@ button.desc-digest-leaf:focus-visible {
   padding: 1rem 0 0;
 }
 
-.headless-note-title {
-  color: var(--ink);
+/* Collapsed by default behind the question (review on #134): a native
+   disclosure whose summary is the note's one visible line. The marker is the
+   ::before chevron in both engines — the UA marker is suppressed so the
+   affordance renders identically everywhere. */
+.headless-note-summary {
+  color: var(--muted);
+  cursor: pointer;
   font-size: 0.9rem;
-  margin: 0 0 0.4rem;
+  list-style: none;
+}
+
+.headless-note-summary::-webkit-details-marker {
+  display: none;
+}
+
+.headless-note-summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 0.45rem;
+}
+
+/* Guarded like every other transition in this file: no transition property at
+   all outside the no-preference query, so the chevron simply flips under
+   reduced motion instead of animating. */
+@media (prefers-reduced-motion: no-preference) {
+  .headless-note-summary::before {
+    transition: transform 120ms ease;
+  }
+}
+
+.headless-note-summary:hover {
+  color: var(--ink);
+}
+
+.headless-note-details[open] > .headless-note-summary {
+  margin-bottom: 0.7rem;
+}
+
+.headless-note-details[open] > .headless-note-summary::before {
+  transform: rotate(90deg);
 }
 
 .headless-note-lead {
