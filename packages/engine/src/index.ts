@@ -36,7 +36,19 @@ export {
 export { getPresetAuth, setPresetAuth, type PresetAuth } from "./auth";
 export { deriveUpdateType, renovateVersion } from "./version";
 export { getOptions, mergeChildConfig } from "./renovate-adapter";
-export { getOptionIndex, type OptionDoc, type OptionIndex } from "./option-docs";
+export {
+  getOptionIndex,
+  type OptionDoc,
+  type OptionIndex,
+  type OptionPlacement,
+  type OptionRequiredIf,
+  type OptionStage,
+  optionsSourceUrl,
+  PATTERN_MATCHING_NOTE,
+  REQUIRED_IF_NOTE,
+  STRING_PATTERN_MATCHING_DOCS_URL,
+  TEMPLATING_NOTE,
+} from "./option-docs";
 export { listDatasourceNames, listManagerNames } from "./registries";
 export {
   type ConfigPathSegment,

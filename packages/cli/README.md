@@ -31,18 +31,18 @@ rules. Everything merged into 34 effective options, 6 of them overridden along
 the way.
 ```
 
-| command      | question it answers                                   |
-| ------------ | ----------------------------------------------------- |
-| `digest`     | what happened in this run, in one paragraph           |
-| `validate`   | would Renovate refuse this config? (exit `2` if so)   |
-| `tree`       | which presets did the config pull in                  |
-| `provenance` | which preset set this option                          |
-| `resolved`   | the merged config Renovate would run with             |
-| `simulate`   | which `packageRules` match a hypothetical dependency  |
-| `compare`    | did an edit change behavior                           |
-| `run`        | the whole trace                                       |
-| `docs`       | what an option means, for the Renovate version pinned |
-| `mcp`        | all of the above over MCP stdio                       |
+| command      | question it answers                                  |
+| ------------ | ---------------------------------------------------- |
+| `digest`     | what happened in this run, in one paragraph          |
+| `validate`   | would Renovate refuse this config? (exit `2` if so)  |
+| `tree`       | which presets did the config pull in                 |
+| `provenance` | which preset set this option                         |
+| `resolved`   | the merged config Renovate would run with            |
+| `simulate`   | which `packageRules` match a hypothetical dependency |
+| `compare`    | did an edit change behavior                          |
+| `run`        | the whole trace                                      |
+| `docs`       | what an option means, and where it may go            |
+| `mcp`        | all of the above over MCP stdio                      |
 
 ```console
 $ rcd validate renovate.json
@@ -102,6 +102,30 @@ The rest belong to one command each.
 |              | `--keys <a,b,…>`             | only these options of `--select final`                                     |
 |              | `--config-scope <which>`     | `full` (default) \| `package-rules`                                        |
 | `docs`       | `--search`                   | list options whose name matches                                            |
+
+### What `docs` answers
+
+Renovate's own option table for the pinned version, projected — nothing here is
+restated prose. Besides type, default, allowed values and deprecation:
+
+| line          | says                                                                           |
+| ------------- | ------------------------------------------------------------------------------ |
+| `placement`   | where the option may appear — including `no restriction`, which is a statement |
+| `container`   | the options RESTRICTED to it; any unrestricted option may appear there too     |
+| `patterns`    | values are matched as globs, or regexes when written `/…/`; `!` negates        |
+| `templating`  | the value may carry `{{…}}` template expressions                               |
+| `stage`       | Renovate drops the option once the run passes this stage                       |
+| `mergeable`   | preset and repo values merge rather than replace                               |
+| `inheritable` | may be set in the inherited config layer                                       |
+
+`placement: no restriction` comes from upstream's own code, not a guess:
+Renovate's validator enforces nesting only for options that declare `parents`,
+so an option without them is legal at the top level and inside any container.
+
+Renovate ships no per-option version history — no `since`, no changelog in the
+package — so neither `rcd docs` nor `get_option_docs` can tell you when an
+option appeared or last changed. They answer only for the version pinned, which
+every header names.
 
 ### Narrowing a config answer
 

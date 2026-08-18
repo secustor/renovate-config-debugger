@@ -7,6 +7,7 @@ import {
   type DependencyDescriptor,
   deriveUpdateType,
   getOptionIndex,
+  optionsSourceUrl,
   type PipelineInput,
   type PresetNode,
   type ResolvedConfigMode,
@@ -1039,8 +1040,16 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       title: "What does this option mean?",
       description:
         `Renovate's own metadata for an option, for the exact pinned version (${renovateVersion}) ` +
-        "— type, default, allowed values, where it may appear, deprecation. Use this instead of " +
-        "recalling option semantics: they change between Renovate releases.",
+        "— type, default, allowed values, deprecation, and `placement`, which states where the " +
+        'option may appear INCLUDING "anywhere": `kind: "unrestricted"` means Renovate\'s ' +
+        "validator enforces no nesting for it, so it is legal at the top level and inside any " +
+        "container object. Also: whether values are matched as globs/regexes (`patternMatch`), " +
+        "whether they support templating (`supportsTemplating`), whether presets merge or " +
+        "replace (`mergeable`), the config `stage` after which Renovate drops the option, and " +
+        "for a container the `childOptions` restricted to it (any unrestricted option may " +
+        "appear there too). Use this instead of recalling option semantics: they change between " +
+        "Renovate releases. Renovate ships no per-option version history, so this cannot say " +
+        "when an option was added or changed — only what it means in the pinned version.",
       // No held run involved — the answer depends only on the pinned Renovate.
       annotations: {
         readOnlyHint: true,
@@ -1059,6 +1068,7 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         const needle = name.toLowerCase();
         return {
           renovateVersion,
+          optionsSourceUrl,
           matches: [...index.options.values()]
             .filter((doc) => doc.name.toLowerCase().includes(needle))
             .map((doc) => ({ name: doc.name, type: doc.type, description: doc.description })),
@@ -1070,7 +1080,8 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
           `Renovate ${renovateVersion} has no option "${name}" — retry with search: true`,
         );
       }
-      return { renovateVersion, ...doc, isContainer: index.containers.has(doc.name) };
+      // `isContainer` rides on the doc (roadmap 072) — no call site derives it.
+      return { renovateVersion, optionsSourceUrl, ...doc };
     }, HINTS.optionDocs),
   );
 
