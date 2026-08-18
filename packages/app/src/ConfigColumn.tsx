@@ -3,9 +3,20 @@ import type { ConfigEditorHandle } from "@/features/editor/ConfigEditor";
 import { ConfigEditorCard } from "@/features/editor/ConfigEditorCard";
 import { ConfigToolbar } from "@/features/editor/ConfigToolbar";
 import { type AuthState, GithubAuthHint } from "@/components/GithubAuthHint";
+import { HeadlessNote } from "@/components/HeadlessNote";
+import {
+  LandingIntro,
+  LandingLaunch,
+  LandingSteps,
+  StageRailPreview,
+} from "@/features/editor/Landing";
 import { NoticeBar } from "@/features/editor/NoticeBar";
-import { WelcomePanel } from "@/features/editor/WelcomePanel";
+import { RepoLoadOverlay } from "@/features/editor/RepoLoadOverlay";
 import type { PresetHoverContext } from "@/lib/preset-hover";
+
+/** Roadmap 075: what Run refuses while the repo-load overlay is up — the
+ *  design's disabled-primary rule, spelled once for both Run buttons. */
+const RUN_BLOCKED_BY_REPO_FORM = "Finish or cancel Load from repo first";
 
 interface ConfigColumnProps {
   /** Roadmap 068: the column element itself. App asks it one question — was the
@@ -67,10 +78,22 @@ interface ConfigColumnProps {
 }
 
 /**
- * The config half of the split: the pre-run welcome panel, the editor card,
- * its action toolbar, the Advanced options zone, and whatever fatal error,
- * GitHub-auth hint or notice follows a run — everything the config column
- * renders, top to bottom.
+ * Everything a run is asked FOR: the editor and its toolbar, whatever failure
+ * or notice the last gesture produced, and the advanced zone.
+ *
+ * Roadmap 075 (v2, iteration 2) gave it two shapes rather than one column with
+ * a welcome panel on top:
+ *
+ * - **Landing** (no result yet) — a centered reading column: the page's
+ *   question, the editor, the two example shortcuts, one large Run, and a
+ *   preview of the stages the run walks.
+ * - **Shell** (a result exists) — the left pane of the two-pane frame: the
+ *   editor filling the pane, and a footer restating the one promise the
+ *   landing's subtitle made, for a reader who never saw it.
+ *
+ * The parts that do not change between them — the editor card, its toolbar, the
+ * repo-load overlay, the advanced zone, the banners — are rendered once, by
+ * this component, in both.
  */
 export function ConfigColumn({
   columnRef,
@@ -118,15 +141,50 @@ export function ConfigColumn({
   notice,
   onDismissNotice,
 }: ConfigColumnProps) {
-  return (
-    // Roadmap 068: the skip link's target. `tabIndex={-1}` because a fragment
-    // jump to a non-focusable container moves the scroll but not the focus,
-    // which is the half that matters to a keyboard user.
-    <div className="config-col" id="config-column" tabIndex={-1} ref={columnRef}>
-      {hasResult ? null : (
-        <WelcomePanel onTryExample={onTryExample} onAnalyzeThisProject={onAnalyzeThisProject} />
-      )}
-
+  // Roadmap 075: the repo-load overlay covers the document Run acts on, so Run
+  // says why it is refusing rather than acting on a config the user is halfway
+  // through replacing.
+  const runBlockedReason = repoFormOpen ? RUN_BLOCKED_BY_REPO_FORM : null;
+  const toolbar = (
+    <ConfigToolbar
+      fileName={fileName}
+      onFileNameChange={onFileNameChange}
+      repoFormOpen={repoFormOpen}
+      repoToggleRef={repoToggleRef}
+      onToggleRepoForm={onToggleRepoForm}
+      canRevert={canRevert}
+      onRevert={onRevert}
+      onFormat={onFormat}
+      untrustedHost={untrustedHost}
+      onTrustUntrustedHost={onTrustUntrustedHost}
+      // The landing has its own, larger Run — one primary action per screen.
+      showRun={hasResult}
+      running={running}
+      onRun={onRun}
+      onRunIntent={onRunIntent}
+      blockedReason={runBlockedReason}
+      onCopyLink={onCopyLink}
+    />
+  );
+  const repoOverlay = repoFormOpen ? (
+    <RepoLoadOverlay
+      repo={repo}
+      onRepoChange={onRepoChange}
+      gitRef={gitRef}
+      onRefChange={onRefChange}
+      loading={repoLoading}
+      onSubmit={onLoadRepo}
+      onClose={onCloseRepoForm}
+      inheritAuto={inheritAuto}
+      onInheritAutoChange={onInheritAutoChange}
+      inheritRepo={inheritRepo}
+      onInheritRepoChange={onInheritRepoChange}
+      inheritFile={inheritFile}
+      onInheritFileChange={onInheritFileChange}
+    />
+  ) : null;
+  const editor = (
+    <div className="editor-shell">
       <ConfigEditorCard
         editorKey={editorKey}
         editorRef={editorRef}
@@ -135,39 +193,25 @@ export function ConfigColumn({
         onChange={onChange}
         onRun={onRun}
         presetHover={presetHover}
-        repoFormOpen={repoFormOpen}
-        repoToggleRef={repoToggleRef}
-        onToggleRepoForm={onToggleRepoForm}
-        repo={repo}
-        onRepoChange={onRepoChange}
-        gitRef={gitRef}
-        onRefChange={onRefChange}
-        repoLoading={repoLoading}
-        onLoadRepo={onLoadRepo}
-        onCloseRepoForm={onCloseRepoForm}
-        inheritAuto={inheritAuto}
-        onInheritAutoChange={onInheritAutoChange}
-        inheritRepo={inheritRepo}
-        onInheritRepoChange={onInheritRepoChange}
-        inheritFile={inheritFile}
-        onInheritFileChange={onInheritFileChange}
+        toolbar={toolbar}
+        overlay={repoOverlay}
       />
+    </div>
+  );
 
-      <ConfigToolbar
-        fileName={fileName}
-        onFileNameChange={onFileNameChange}
-        canRevert={canRevert}
-        onRevert={onRevert}
-        onFormat={onFormat}
-        untrustedHost={untrustedHost}
-        onTrustUntrustedHost={onTrustUntrustedHost}
-        running={running}
-        onRun={onRun}
-        onRunIntent={onRunIntent}
-        onCopyLink={onCopyLink}
-      />
+  return (
+    // Roadmap 068: the skip link's target. `tabIndex={-1}` because a fragment
+    // jump to a non-focusable container moves the scroll but not the focus,
+    // which is the half that matters to a keyboard user.
+    <div
+      className={`config-col${hasResult ? "" : " landing"}`}
+      id="config-column"
+      tabIndex={-1}
+      ref={columnRef}
+    >
+      {hasResult ? null : <LandingIntro />}
 
-      {advancedZone}
+      {editor}
 
       {/* Roadmap 068: the one place a run that threw — or a run that was
           refused before it started — says so, and ⌘⏎ deliberately leaves focus
@@ -183,7 +227,7 @@ export function ConfigColumn({
           fact to this region and would be silent, so `App.applyFatal` makes
           every raise a mutation. Nothing here can do that on its own; it never
           learns the message was re-sent. */}
-      <div role="alert">{fatal ? <p style={{ color: "var(--error)" }}>{fatal}</p> : null}</div>
+      <div role="alert">{fatal ? <p className="fatal-error">{fatal}</p> : null}</div>
       {repoAuthHint ? (
         <GithubAuthHint
           authState={authState}
@@ -193,6 +237,32 @@ export function ConfigColumn({
         />
       ) : null}
       {notice ? <NoticeBar message={notice} onDismiss={onDismissNotice} /> : null}
+
+      {hasResult ? null : (
+        <LandingLaunch
+          onTryExample={onTryExample}
+          onAnalyzeThisProject={onAnalyzeThisProject}
+          running={running}
+          onRun={onRun}
+          onRunIntent={onRunIntent}
+          blockedReason={runBlockedReason}
+        />
+      )}
+      {hasResult ? null : <StageRailPreview />}
+
+      {advancedZone}
+
+      {/* Roadmap 060: the headless interface, announced in visible copy — the
+          whole discovery mechanism, and deliberately not a hidden hint. It
+          moved into this pane with 075's shell: the split has no rows left to
+          hang a full-width footer on, and the note is about driving the app
+          from outside the browser, which is a fact about the config half. */}
+      <HeadlessNote />
+      {hasResult ? (
+        <p className="pane-foot">Everything runs in your browser — nothing leaves it.</p>
+      ) : (
+        <LandingSteps />
+      )}
     </div>
   );
 }

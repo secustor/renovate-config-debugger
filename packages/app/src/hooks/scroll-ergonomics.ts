@@ -121,6 +121,35 @@ export function mayOwnNativePopup(target: EventTarget | null): boolean {
   return target instanceof HTMLInputElement && target.hasAttribute("list");
 }
 
+/**
+ * Roadmap 075: the surface Home/End belongs to.
+ *
+ * The rule 016 wrote down is unchanged — Home/End move the surface the reader
+ * is reading, never whichever small `overflow: auto` box happens to hold focus.
+ * What changed is that in the v2 shell that surface is not always the document:
+ * the two panes scroll themselves and the page does not scroll at all. So the
+ * key goes to the PANE the gesture was made in, and to the document everywhere
+ * else — the landing, the stacked layout below ~60rem, and any gesture made
+ * outside a pane, all of which still scroll the page exactly as before.
+ *
+ * A pane that has nothing to scroll is not a target: on a short config the left
+ * pane fits its content, and End inside it would otherwise do nothing at all
+ * rather than fall through to the document, which is the "nothing happened"
+ * outcome this hook exists to eliminate.
+ */
+const PANE_SELECTOR = ".config-col, .results-col";
+
+function scrollablePaneFor(target: EventTarget | null): HTMLElement | null {
+  if (!(target instanceof HTMLElement)) {
+    return null;
+  }
+  const pane = target.closest<HTMLElement>(PANE_SELECTOR);
+  if (!pane || pane.scrollHeight <= pane.clientHeight) {
+    return null;
+  }
+  return pane;
+}
+
 export function useHomeEndPageScroll(): void {
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -181,6 +210,11 @@ export function useHomeEndPageScroll(): void {
         return;
       }
       e.preventDefault();
+      const pane = scrollablePaneFor(e.target);
+      if (pane) {
+        pane.scrollTop = e.key === "End" ? pane.scrollHeight : 0;
+        return;
+      }
       window.scrollTo({
         top: e.key === "End" ? document.documentElement.scrollHeight : 0,
         behavior: "auto",

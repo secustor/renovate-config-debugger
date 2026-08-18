@@ -26,6 +26,11 @@ export interface RunSummary {
   migrateSteps: TraceEvent[];
   finalMigrated: unknown;
   migrateStepperMounted: boolean;
+  /** Roadmap 075: the presets the run resolved — the Presets tab's badge, and
+   *  (iteration 2) the header digest link that opens it. Exposed rather than
+   *  re-derived in the header, for the reason the digest itself is assembled
+   *  here: one count, quoted everywhere it appears. */
+  presetCount: number;
   errorCount: number;
   warningCount: number;
   /** Rebuilt every render on purpose — see the note at its declaration. */
@@ -99,6 +104,7 @@ export function useRunSummary(
     migrateSteps: facts.migrateSteps,
     finalMigrated: facts.finalMigrated,
     migrateStepperMounted,
+    presetCount: facts.presetCount,
     errorCount: facts.errorCount,
     warningCount: facts.warningCount,
     resultsTabs,

@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import {
   encodeShareFragment,
   EXTENDS_RECOMMENDED_CONFIG,
+  INVALID_RULES_CONFIG,
   PACKAGE_RULES_CONFIG,
   RECOMMENDED_NODE_IDENTITY,
   SEMANTIC_COMMITS_CONFIG,
@@ -59,6 +60,54 @@ test("tab badges report the run's counts and match the Overview digest", async (
   const digest = page.locator(".run-digest");
   await expect(digest).toContainText(`${presets.toLocaleString("en-US")} presets`);
   await expect(digest).toContainText(`${effective} effective options`);
+});
+
+/**
+ * Roadmap 075 (v2, iteration 2) — the header carries the run: its verdict as a
+ * status pill, and the digest as jump-links into the instrument each number
+ * describes. The numbers come from the same derivation the tab badges do, so
+ * this pins both halves — they agree, and each link lands.
+ */
+test("the header states the verdict and its digest links open the instruments", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await runAndAwaitResult(page);
+
+  const header = page.locator(".app-header");
+  await expect(header.locator(".app-header-status")).toHaveText(/accepted/);
+
+  // The presets clause quotes the Presets badge, to the digit.
+  const presetsCount = tabButton(page, "presets").locator(".tab-count");
+  await expect(presetsCount).toBeVisible();
+  const presets = (await presetsCount.innerText()).trim();
+  const presetsLink = header.getByRole("button", { name: `${presets} presets` });
+  await expect(presetsLink).toBeVisible();
+
+  await presetsLink.click();
+  await expect(tabPanel(page, "presets")).toBeVisible();
+  await expect(tabButton(page, "presets")).toHaveAttribute("aria-selected", "true");
+  // A jump, not a tab click: the one-step way back is recorded (028).
+  await expect(page.locator(".tab-back")).toHaveText(/Back to Overview/);
+
+  // And the problems clause lands on Problems from wherever the reader is.
+  await header.getByRole("button", { name: "0 problems" }).click();
+  await expect(tabButton(page, "problems")).toHaveAttribute("aria-selected", "true");
+});
+
+/**
+ * The other half of the verdict: a config Renovate would refuse says so in the
+ * header, in the error tone, with the count it will find in Problems.
+ */
+test("the header's status pill reports validation errors instead of accepted", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+  await setEditorContent(page, INVALID_RULES_CONFIG);
+  await runAndAwaitResult(page);
+
+  const pill = page.locator(".app-header .app-header-status");
+  await expect(pill).toHaveClass(/pill-error/);
+  await expect(pill).toHaveText(/\d+ errors?/);
 });
 
 /**

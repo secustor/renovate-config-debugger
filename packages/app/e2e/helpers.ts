@@ -35,9 +35,16 @@ export function must<T>(value: T | null | undefined, what: string): T {
   return value;
 }
 
-/** The primary Run button in the toolbar (label toggles Run ↔ Running…). */
+/**
+ * The Run button, wherever the shell puts it (label toggles Run ↔ Running…).
+ *
+ * Roadmap 075: there is exactly one on screen at a time, and it is a different
+ * element before and after the first run — the landing's large centered
+ * "Run the pipeline", then the editor toolbar's "Run". Both carry `.run-button`
+ * for this reason, so a helper does not have to know which screen it is on.
+ */
 export function runButton(page: Page) {
-  return page.locator(".toolbar button.primary");
+  return page.locator("button.run-button");
 }
 
 /**

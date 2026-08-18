@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { INVALID_RULES_CONFIG, PACKAGE_RULES_CONFIG, SEMANTIC_COMMITS_CONFIG } from "./fixtures";
-import { must, openTab, runAndAwaitResult, setEditorContent } from "./helpers";
+import { must, openTab, runAndAwaitResult, runButton, setEditorContent } from "./helpers";
 
 /**
  * Roadmap 035 — the layout regressions a 2026-07-25 user review found in the
@@ -96,8 +96,10 @@ test.describe("dark mode", () => {
  * The repo-load form was one wrapping flex row whose natural width exceeded
  * the post-run left column, so the Load button always wrapped onto a line of
  * its own. Roadmap 039 moved the form inside the editor card, behind a
- * disclosure in its title bar — the 035 no-orphan-row rule still holds inside
- * the panel, and the panel is a chrome row of the card, not a floating layer.
+ * disclosure in its title bar; roadmap 075 made it an OVERLAY over the editor's
+ * document — a chrome row would push the document it is about to replace out of
+ * a pane that no longer grows. The 035 no-orphan-row rule is unchanged, and so
+ * is what the panel is about: it covers the document, and nothing else.
  */
 test("the repo-load panel keeps Load on its inputs' row inside the editor card", async ({
   page,
@@ -132,7 +134,9 @@ test("the repo-load panel keeps Load on its inputs' row inside the editor card",
   const panelBox = must(await panel.boundingBox(), "the repo panel's bounding box");
   expect(button.x + button.width).toBeLessThanOrEqual(panelBox.x + panelBox.width + 1);
 
-  // It is a row OF the card: it sits under the title bar and above the editor.
+  // It is a layer OVER the document: below the toolbar strip (which stays
+  // usable — its Run says why it is refusing rather than disappearing) and
+  // inside the editor's own box.
   const title = must(
     await page.locator(".config-col .editor-card-title").boundingBox(),
     "the editor card title's bounding box",
@@ -142,7 +146,17 @@ test("the repo-load panel keeps Load on its inputs' row inside the editor card",
     "the CodeMirror editor's bounding box",
   );
   expect(panelBox.y).toBeGreaterThanOrEqual(title.y + title.height - 1);
-  expect(panelBox.y + panelBox.height).toBeLessThanOrEqual(editor.y + 1);
+  expect(panelBox.y).toBeGreaterThanOrEqual(editor.y - 1);
+  expect(panelBox.y + panelBox.height).toBeLessThanOrEqual(editor.y + editor.height + 1);
+  await expect(page.locator(".repo-overlay-scrim")).toBeVisible();
+  // Roadmap 075's disabled-primary rule: a run would act on a document the
+  // user is halfway through replacing.
+  await expect(runButton(page)).toBeDisabled();
+
+  // The scrim is the third way out, beside Cancel and Escape.
+  await page.locator(".repo-overlay-scrim").click();
+  await expect(page.locator(".repo-panel")).toHaveCount(0);
+  await expect(runButton(page)).toBeEnabled();
 });
 
 /**
@@ -247,11 +261,16 @@ test("Format re-indents in place and leaves the revert baseline alone", async ({
 /**
  * Design review: the config column is a handful of rows while the results
  * beside it run to thousands of lines, so scrolling the results scrolled the
- * editor — the thing being explained — off the top of the page. Both columns
- * stick now, at the same offset.
+ * editor — the thing being explained — off the top of the page.
+ *
+ * Roadmap 075 answers it with the frame rather than with `position: sticky`:
+ * the page does not scroll at all, and each pane scrolls itself. The contract
+ * this test pins is the same one — scrolling the results never moves the editor
+ * — restated for panes: the results pane really does scroll, the document does
+ * not, and the editor's box is exactly where it was.
  */
 test("the config column stays in view while long results scroll", async ({ page }) => {
-  // Wide enough for the split, short enough that the results outrun the page:
+  // Wide enough for the split, short enough that the results outrun their pane:
   // every long panel caps itself against the viewport, so a tall window has
   // nothing to scroll at all.
   await page.setViewportSize({ width: 1400, height: 620 });
@@ -260,25 +279,28 @@ test("the config column stays in view while long results scroll", async ({ page 
   await runAndAwaitResult(page);
   await openTab(page, "pipeline");
 
-  const column = page.locator(".config-col");
-  await expect(column).toHaveCSS("position", "sticky");
-
   const editor = page.locator(".config-col .cm-editor");
   const before = must(await editor.boundingBox(), "the editor's box before scrolling");
   const scrolled = await page.evaluate(() => {
-    window.scrollTo(0, document.documentElement.scrollHeight);
-    return window.scrollY;
+    const pane = document.querySelector(".results-col");
+    if (!pane) {
+      throw new Error("expected .results-col to be present");
+    }
+    pane.scrollTop = pane.scrollHeight;
+    return { pane: pane.scrollTop, page: window.scrollY };
   });
-  // The whole point is a page long enough to scroll the editor away.
-  expect(scrolled, "the results panel was not tall enough to scroll").toBeGreaterThan(200);
+  // The whole point is a pane long enough to have scrolled the editor away
+  // back when the two shared the page's scroll.
+  expect(scrolled.pane, "the results pane was not tall enough to scroll").toBeGreaterThan(200);
+  // …and the document itself never moved, because it cannot.
+  expect(scrolled.page).toBe(0);
 
-  // Still on screen at the bottom of the page — the whole point.
+  // Still on screen at the bottom of the results — the whole point.
   await expect(editor).toBeInViewport();
   const after = must(await editor.boundingBox(), "the editor's box after scrolling");
   expect(after.y).toBeGreaterThanOrEqual(0);
-  // It rose only as far as the sticky offset and then stopped, rather than
-  // travelling the page's whole scroll distance the way it used to.
-  expect(before.y - after.y).toBeLessThan(scrolled / 2);
+  // It did not move at all: the pane it lives in is not the pane that scrolled.
+  expect(Math.abs(before.y - after.y)).toBeLessThan(1);
 });
 
 /** Selects the first preset in the tree and returns its detail panel. */

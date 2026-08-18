@@ -67,8 +67,12 @@ test("the editor does not trap Tab", async ({ page }) => {
   });
   expect(focus.insideEditor).toBe(false);
   expect(focus.landedSomewhere).toBe(true);
-  // And it is the next control in the column, not some arbitrary escape.
-  await expect(page.locator(".toolbar select")).toBeFocused();
+  // And it is the next control in the pane, not some arbitrary escape.
+  // Roadmap 075: the toolbar moved ABOVE the editor (it is the card's title bar
+  // now), so forwards out of the editor is the landing's first example
+  // shortcut; the toolbar is one Shift+Tab backwards, which the `e`/`r` test
+  // below still walks.
+  await expect(page.getByRole("button", { name: "Try an example" })).toBeFocused();
 });
 
 test("the config skip link is the first tab stop and lands IN the editor", async ({ page }) => {
@@ -277,9 +281,12 @@ test("e and r jump between the panes, and never fire while typing", async ({ pag
   await page.keyboard.press("e");
   expect(await page.locator(".cm-content").textContent()).not.toBe(before);
 
-  // Tab lands on the file-name `<select>`, where a bare key is deliberately
-  // suppressed so it cannot eat the select's own type-ahead…
-  await page.keyboard.press("Tab");
+  // On the file-name `<select>`, a bare key is deliberately suppressed so it
+  // cannot eat the select's own type-ahead. Reached directly rather than by
+  // Tab since roadmap 075: the toolbar is the editor card's TITLE bar now, so
+  // it is no longer the tab stop after the document — and which control is is
+  // beside this test's point, which is the suppression itself.
+  await page.locator(".toolbar select").focus();
   await expect(page.locator(".toolbar select")).toBeFocused();
   await page.keyboard.press("r");
   await expect(page.locator(".toolbar select")).toBeFocused();

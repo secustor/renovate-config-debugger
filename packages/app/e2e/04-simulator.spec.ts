@@ -390,9 +390,15 @@ test("the flatten cross-link brings the merge drawer into view from the bottom o
   await simulator.getByRole("button", { name: "npm dependency" }).click();
   await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
 
-  // Stand where the links live: the bottom of the page, where the clamped
-  // same-tick scroll used to have zero slack.
+  // Stand where the links live: the bottom of the results, where the clamped
+  // same-tick scroll used to have zero slack. Roadmap 075: that is the results
+  // PANE's own scroll now — the document does not scroll in the shell — so the
+  // test scrolls what the reader would scroll.
   await page.evaluate(() => {
+    const pane = document.querySelector(".results-col");
+    if (pane) {
+      pane.scrollTop = pane.scrollHeight;
+    }
     window.scrollTo(0, document.documentElement.scrollHeight);
   });
   await page

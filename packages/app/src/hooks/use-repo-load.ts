@@ -15,6 +15,8 @@
  * path itself — and hands it in through {@link RepoLoadHost}.
  */
 import { type RefObject, useRef, useState } from "react";
+import { ESCAPE_PRIORITY } from "@/lib/escape-stack";
+import { useEscapeLayer } from "@/hooks/use-escape-layer";
 import type { RepoPlatform, TraceResult } from "@renovate-config-debugger/engine";
 import { PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
 import { isValidRepoHost, isValidRepoRefPart } from "@/lib/input-schemas";
@@ -196,6 +198,16 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
       setRepoFormOpen(true);
     }
   }
+
+  // Roadmap 075: the form became an OVERLAY over the editor (039's chrome row
+  // would push the document it is about to replace out of a fixed-height pane),
+  // so it is a layer on the 068 ladder like every other thing that covers the
+  // page — Escape from anywhere dismisses it, and the bare-key jump layer
+  // stands aside while it is up. Its own `onKeyDown` still handles the press
+  // that arrives with focus INSIDE the form (it stops propagation, so it never
+  // reaches the ladder's document listener); this is the half that used to be
+  // missing — an Escape pressed after focus had moved on left it standing.
+  useEscapeLayer(repoFormOpen, closeRepoForm, ESCAPE_PRIORITY.popover);
 
   // Fetches a repo's Renovate config file and runs it. Derives the platform
   // from a known host (and sets the platform context so a later run resolves

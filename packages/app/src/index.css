@@ -129,29 +129,175 @@ body {
   color: var(--ink);
 }
 
-main {
+/* ---------- the shell (roadmap 075, v2 iteration 2) ----------
+   The app is a full-viewport frame: a header row that never scrolls, and a
+   content area that does — as one centered reading column before the first run
+   (the landing) and as two independently scrolling panes after it. The PAGE
+   itself does not scroll at all on a desktop viewport; below the ~60rem
+   breakpoint the frame gives up and the document scrolls exactly as it did
+   before v2 (see the media query at the end of the shell section). */
+main.app-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
   margin: 0 auto;
-  max-width: 75rem;
-  padding: 1.5rem 1rem 4rem;
+  max-width: 92rem;
+  min-height: 100dvh;
+  padding: 0.75rem 1rem 4rem;
+  width: 100%;
 }
 
+/* The header is the run's status line since 075: identity, the verdict as a
+   pill, the digest as jump-links, and the session corner. It never scrolls and
+   never grows — everything in it is one line tall. */
 header.app-header {
   align-items: center;
+  border-bottom: 1px solid var(--border);
   display: flex;
+  flex: none;
   flex-wrap: wrap;
-  gap: 0.75rem;
-  justify-content: space-between;
+  gap: 0.5rem 0.65rem;
+  padding-bottom: 0.5rem;
 }
 
 .app-brand {
   align-items: center;
   display: flex;
-  gap: 0.65rem;
+  gap: 0.5rem;
   min-width: 0;
 }
 
 .app-brand img {
   flex: none;
+}
+
+/* The h1 stays the h1 — the document's title is still the product's name — but
+   at the weight and size of a chrome label rather than a page heading: on the
+   shell the reader's attention belongs to the run beside it, and on the landing
+   the question the page asks is the visual headline. */
+.app-brand h1 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* The verdict. A solid dot in the tone's own hue, so the pill reads as a status
+   light at a glance and not only as a word. */
+.app-header-status {
+  align-items: center;
+  display: inline-flex;
+  flex: none;
+  gap: 0.35rem;
+}
+
+.app-header-status-dot {
+  background: currentColor;
+  border-radius: 50%;
+  flex: none;
+  height: 0.4rem;
+  width: 0.4rem;
+}
+
+/* The digest: the numbers the reader steers by, each a link to the instrument
+   that explains it. Muted and dashed — cross-navigation, not the row's action. */
+.app-header-digest {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  gap: 0.3rem 0.4rem;
+  min-width: 0;
+}
+
+/* Deliberately the SAME `.digest-link` the Overview's paragraph uses (its
+   declaration is with the digest, further down): a number that opens the
+   instrument behind it is one role with one spelling, and 075 iteration 3
+   retires the paragraph, leaving this its only caller. What the header
+   overrides is the tone — a status line is read past, not read. */
+.app-header-digest .digest-link {
+  border-bottom-color: color-mix(in srgb, var(--muted) 55%, transparent);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.app-header-digest .digest-link:hover,
+.app-header-digest .digest-link:focus-visible {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Roadmap 075: the page-level banners (a broken share link, an untrusted
+   endpoint) as a row between the header and the content. They used to be the
+   first things on a scrolling page; in the frame there is no such place, and a
+   banner inside a pane would scroll away from the thing it is warning about. */
+.app-banners {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.app-banners > * {
+  margin: 0;
+}
+
+/* The content area. On a desktop viewport it becomes the frame's own scroller
+   (one column before the first run, two panes after it) — see the shell's
+   media query further down. Narrower than that, it is plain flow on a page
+   that scrolls, which is what this app was before v2 and what a phone
+   expects. */
+
+/* ---------- docking in (roadmap 075) ----------
+   The one transition the shell has: landing → shell, the first time a run
+   produces a result. The header's verdict and digest pop in (they mount with
+   the result), the editor docks up into its pane (the `.has-results` class
+   arriving is what starts it — the element itself is never remounted), and the
+   results pane slides in from the right, a beat later, because it is the thing
+   the reader is waiting for.
+
+   Declared ONLY inside the no-preference query — the convention `skip-link`
+   and `session-menu-pop` above follow — so under `prefers-reduced-motion:
+   reduce` there is no `animation` property at all and every element simply
+   appears where it belongs. */
+@media (prefers-reduced-motion: no-preference) {
+  .app-header-status {
+    animation: chip-pop 200ms ease-out;
+  }
+
+  .app-header-digest {
+    animation: chip-pop 200ms ease-out 80ms backwards;
+  }
+
+  .app-split.has-results > .config-col {
+    animation: dock-in 300ms ease-out;
+  }
+
+  .app-split.has-results > .results-col {
+    animation: pane-in 320ms ease-out 120ms backwards;
+  }
+
+  @keyframes chip-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.85);
+    }
+  }
+
+  @keyframes dock-in {
+    from {
+      opacity: 0.4;
+      transform: translateY(-8px);
+    }
+  }
+
+  @keyframes pane-in {
+    from {
+      opacity: 0;
+      transform: translateX(16px);
+    }
+  }
 }
 
 /* Roadmap 037/066: the header's session corner — the version badge and the
@@ -162,6 +308,10 @@ header.app-header {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
+  /* Roadmap 075: the row grew a verdict and a digest between the brand and
+     this, so the session corner pins itself right instead of relying on the
+     old two-item `space-between`. */
+  margin-left: auto;
 }
 
 /* The theme switcher is a `.seg` with icons; only the icon layout is its own. */
@@ -406,11 +556,6 @@ h1 {
   margin: 0;
 }
 
-.subtitle {
-  color: var(--muted);
-  margin: 0.25rem 0 1rem;
-}
-
 .card {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -572,12 +717,15 @@ h1 {
   padding: 0.25rem 0.7rem;
 }
 
+/* Roadmap 075: the toolbar IS the editor card's title bar now (see
+   `.editor-card-title`), so it carries no margin of its own — the card's
+   chrome-row padding is its padding. */
 .toolbar {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 0.75rem 0;
+  gap: 0.4rem;
+  margin: 0;
 }
 
 /* ---------- summary strip (roadmap 075) ----------
@@ -2284,6 +2432,71 @@ pre.config-view.prov-before {
   gap: 0.5rem;
 }
 
+/* Roadmap 075: the editor card's title bar holds the whole config toolbar —
+   the file name (as its select), where to fetch one from, how to format it and
+   how to run it. It is a control row rather than a heading, so it drops the
+   card title's heading weight and takes the tighter chrome padding. */
+.editor-card-title {
+  font-weight: 400;
+  padding: 0.35rem 0.5rem;
+}
+
+.editor-card-title > .toolbar {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Roadmap 075: the editor card and whatever sits under it. */
+.editor-shell {
+  margin-bottom: 1rem;
+}
+
+.editor-shell > .card {
+  margin-bottom: 0;
+}
+
+/* The document itself, and the positioning context for a layer over it. */
+.editor-body {
+  position: relative;
+}
+
+/* Roadmap 075: loading a config from a repository REPLACES the document under
+   it, so the form covers that document instead of pushing it out of the pane
+   (039's chrome row, which had a page that could grow). The scrim is a real
+   button: click-to-dismiss must be reachable and announced. */
+.repo-overlay {
+  inset: 0;
+  position: absolute;
+  z-index: var(--z-float);
+}
+
+.repo-overlay-scrim {
+  background: var(--backdrop);
+  border: none;
+  cursor: pointer;
+  inset: 0;
+  padding: 0;
+  position: absolute;
+}
+
+.repo-overlay > form {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-popover);
+  left: 0.6rem;
+  overflow: hidden;
+  position: absolute;
+  right: 0.6rem;
+  top: 0.6rem;
+}
+
+/* The rows' bottom borders separated the form from the editor under it when it
+   was a chrome row; inside a card of its own the last one is a stray line. */
+.repo-overlay .repo-panel-row2 {
+  border-bottom: none;
+}
+
 .effective-card-title .card-title-hint {
   min-width: 0;
   overflow: hidden;
@@ -3364,63 +3577,133 @@ pre.config-view.prov-before {
   font-size: inherit;
 }
 
-/* ---------- first-load guidance & glossary (UX pass) ---------- */
+/* ---------- the landing (roadmap 075, v2 iteration 2) ----------
+   What the app is before a run. It replaced 040's three-step welcome card,
+   which explained the app above an editor the reader had not used yet; the
+   landing asks the page's question instead and puts everything that can be
+   done about it in one centered column. */
 
-.welcome {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  margin: 0 0 1rem;
-  padding: 0.9rem 1.1rem;
+.landing-intro {
+  margin: 1.25rem 0 1.25rem;
+  text-align: center;
 }
 
-.welcome-steps {
-  counter-reset: step;
-  display: grid;
-  gap: 0.75rem 1.5rem;
-  grid-template-columns: repeat(3, 1fr);
+/* Visually the headline; semantically an h2 — the document's h1 is the product
+   name in the header (see `.app-brand h1`). */
+.landing-title {
+  font-size: 1.65rem;
+  line-height: 1.25;
+  margin: 0 0 0.5rem;
+}
+
+.landing-subtitle {
+  color: var(--muted);
+  margin: 0;
+}
+
+.landing-launch {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin: 1.1rem 0 1.4rem;
+}
+
+.landing-examples {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  gap: 0.5rem;
+  justify-content: center;
+  margin: 0;
+}
+
+/* The landing's one primary action, and the only control on the screen that is
+   allowed to be bigger than the standard button metrics. */
+.landing-run {
+  font-size: 0.95rem;
+  padding: 0.45rem 1.4rem;
+}
+
+/* The stage rail, previewed: eight dots on a line, dimmed, with the four that
+   name a Renovate concept carrying its glossary card. Static on purpose —
+   roadmap 075 iteration 4 owns the rail's live run states. */
+.stage-rail-preview {
+  margin: 0.5rem 0 0;
+}
+
+.stage-rail {
+  display: flex;
   list-style: none;
   margin: 0;
   padding: 0;
-}
-
-@media (max-width: 55rem) {
-  .welcome-steps {
-    grid-template-columns: 1fr;
-  }
-}
-
-.welcome-steps li {
-  counter-increment: step;
-  font-size: 0.9rem;
-  line-height: 1.45;
-  padding-left: 2rem;
   position: relative;
 }
 
-.welcome-steps li::before {
-  align-items: center;
-  background: var(--accent-fill);
-  border-radius: 50%;
-  color: var(--on-accent);
-  content: counter(step);
-  display: inline-flex;
-  font-size: 0.8rem;
-  font-weight: 600;
-  height: 1.4rem;
-  justify-content: center;
-  left: 0;
+.stage-rail::before {
+  background: var(--border);
+  content: "";
+  height: 1px;
+  left: 6%;
   position: absolute;
-  top: 0.05rem;
-  width: 1.4rem;
+  right: 6%;
+  top: 0.3rem;
 }
 
-.welcome-footnote {
+.stage-rail-node {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  font-size: 0.7rem;
+  gap: 0.4rem;
+  position: relative;
+  text-align: center;
+}
+
+.stage-rail-dot {
+  background: var(--canvas);
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  flex: none;
+  height: 0.6rem;
+  width: 0.6rem;
+}
+
+.stage-rail-caption {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin: 0.7rem 0 0;
+  text-align: center;
+}
+
+/* The bottom strip: the session in three steps. */
+.landing-steps {
   border-top: 1px solid var(--border);
   color: var(--muted);
-  font-size: 0.82rem;
-  margin: 0.85rem 0 0;
-  padding-top: 0.6rem;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  gap: 0.4rem;
+  justify-content: center;
+  margin: 1.25rem 0 0;
+  padding-top: 0.75rem;
+}
+
+/* The shell's counterpart to the landing's subtitle: the same promise, for a
+   reader who arrived through a share link and never saw the landing. */
+.pane-foot {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin: 0;
+}
+
+/* Roadmap 068's fatal-error paragraph, off the inline style it carried. */
+.fatal-error {
+  color: var(--error);
 }
 
 /* A term explained by a glossary hover card: quiet until noticed. */
@@ -3951,81 +4234,112 @@ pre.config-view.prov-before {
 /* ---------- tabbed results shell (028) ---------- */
 
 /* Two panes once a run exists: config left, one tabbed results panel right.
-   `align-items: start` is what lets the results column stick. */
-.app-split.has-results {
-  align-items: start;
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: minmax(22rem, 2fr) minmax(28rem, 3fr);
-}
 
-/* The split needs more room than the single-column reading width the pre-run
-   page is tuned for. */
-main:has(.app-split.has-results) {
-  max-width: 92rem;
-}
+   Roadmap 075 replaced the sticky-columns arrangement with the frame the two
+   panes were always trying to be. Sticking was the page-scrolling answer to a
+   real problem — scrolling thousands of diff lines dragged the editor, the
+   thing being explained, off the top — and it cost a viewport-height cap, a
+   row span for the headless note and a static fallback per breakpoint. Now the
+   grid IS the viewport's remaining height, and each pane scrolls itself: the
+   editor cannot leave, because nothing it sits in moves.
 
-.results-col {
-  position: sticky;
-  top: 0.75rem;
-}
+   Stated as what the WIDE viewport adds, rather than as a narrow viewport
+   undoing it: the fallback is the plain document this app was before v2, and a
+   frame written the other way round had to unset a height, an overflow and
+   three flex declarations per box to get back to it — including CodeMirror's
+   own min-height, which the fill deliberately overrides.
 
-/* Design review: the config column is ~5 rows tall while the results beside
-   it can run to thousands of diff lines, so scrolling the results scrolled
-   the editor — the thing being explained — off the top of the page, leaving
-   dead space bottom-left. It sticks too, at the same offset, so the config
-   and its consequence stay side by side.
+   61rem, not 60rem, is the exact complement of the stacked query below it
+   (960px + 1px at a 16px root). Both must stay in sync with
+   STACKED_VIEWPORT_QUERY in ResultsColumn.tsx: that file's post-run
+   scroll-into-view exists for the stacked layout, where the page scrolls. */
+@media (min-width: 60.0625rem) {
+  /* The frame: the header keeps its height, the content area takes the rest,
+     and nothing outside a pane scrolls. */
+  main.app-shell {
+    height: 100dvh;
+    min-height: 0;
+    padding-bottom: 0.75rem;
+  }
 
-   The cap is what makes sticky safe: a column TALLER than the viewport (the
-   Advanced zone open on a short screen) would otherwise pin its top and put
-   its own bottom permanently out of reach, since the page scroll no longer
-   moves it. It scrolls itself instead, and `auto` means no scrollbar appears
-   until that actually happens. Every hover card in the app portals to
-   `document.body` (`components/hover-card.tsx`), so the new scroll container
-   cannot clip one; CodeMirror's own tooltips already live inside the
-   editor's `maxHeight` scroller. Scoped to `.app-split.has-results` — the
-   pre-run page is one column with nothing to stick to. */
-.app-split.has-results > .config-col {
-  grid-row: 1 / span 2;
-  max-height: calc(100dvh - 1.5rem);
-  overflow-y: auto;
-  position: sticky;
-  top: 0.75rem;
-}
+  .app-content {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
 
-/* The headless note (roadmap 060) is the grid's second row, under the
-   results column. The config column spans both rows, so its sticky area
-   reaches the bottom of the page and the editor stays in view while the
-   note scrolls in — a footer AFTER the grid would drag the sticky column
-   off the top by its own height. */
-.app-split.has-results > .headless-note {
-  grid-column: 2;
-}
-
-/* Below this width the panes stack — config on top, results below, full
-   width. Keep in sync with STACKED_VIEWPORT_QUERY in App.tsx. */
-@media (max-width: 60rem) {
   .app-split.has-results {
-    grid-template-columns: 1fr;
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: minmax(24rem, 5fr) minmax(28rem, 6fr);
+    /* The panes own the scrolling; the grid clips instead of growing. */
+    overflow: hidden;
   }
 
-  .results-col {
-    position: static;
+  /* `min-width: 0` is what lets a pane's wide content (a diff, a long preset
+     path) scroll INSIDE it rather than widening its track — a grid item's
+     automatic minimum is its content's, which would push the other pane out.
+     Every hover card in the app portals to `document.body`
+     (`components/hover-card.tsx`), so these scroll containers cannot clip one. */
+  .app-split.has-results > .config-col,
+  .app-split.has-results > .results-col {
+    min-width: 0;
+    overflow-y: auto;
   }
 
-  /* Stacked, the config is simply the first thing on the page — sticking it
-     would park it over the results it sits above, and the cap would make a
-     nested scroller out of a column that now has the whole width. The row
-     span goes with it: nothing sticks, so the note is just the last row. */
+  /* The editor fills its pane: the toolbar strip stays at the top of the card,
+     the document grows into whatever is left, and the zones below it (advanced
+     options, notices, the headless note, the footer line) follow underneath. */
   .app-split.has-results > .config-col {
-    grid-row: auto;
-    max-height: none;
-    overflow-y: visible;
-    position: static;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
   }
 
-  .app-split.has-results > .headless-note {
-    grid-column: auto;
+  .app-split.has-results .editor-shell {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    margin-bottom: 0;
+    min-height: 16rem;
+  }
+
+  /* Three boxes deep, because `@uiw/react-codemirror` wraps the editor in a
+     theme div of its own (`.cm-theme-light` / `.cm-theme-dark`) — a height that
+     stops at either of them leaves the document short of the card it is in. The
+     `:not()` keeps the repo-load overlay, the editor body's other child, out of
+     the column: it is a layer, not a row. */
+  .app-split.has-results .editor-shell > .card,
+  .app-split.has-results .editor-body,
+  .app-split.has-results .editor-body > div:not(.repo-overlay) {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  /* Beats CodeMirror's own `maxHeight` theme rule (one class), so the document
+     scrolls inside the card instead of the card growing past the pane. */
+  .app-split.has-results .editor-body .cm-editor {
+    flex: 1 1 auto;
+    max-height: none;
+    min-height: 0;
+  }
+}
+
+/* The landing is a reading column, centered in the content area. */
+.config-col.landing {
+  margin: 0 auto;
+  max-width: 46rem;
+  padding-bottom: 2rem;
+  width: 100%;
+}
+
+/* Stacked (the fallback above's complement): config on top, results below,
+   full width, on a page that scrolls. */
+@media (max-width: 60rem) {
+  .app-split.has-results > .config-col {
+    margin-bottom: 1rem;
   }
 }
 

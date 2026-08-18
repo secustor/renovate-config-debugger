@@ -176,7 +176,9 @@ describe("keystroke render performance (roadmap 032)", () => {
     );
 
     // Run the default config (config:recommended) through the real engine.
-    fireEvent.click(view.getByRole("button", { name: "Run" }));
+    // Roadmap 075: before the first run the Run button is the landing's own
+    // ("Run the pipeline"); the toolbar's "Run" appears with the shell.
+    fireEvent.click(view.getByRole("button", { name: "Run the pipeline" }));
 
     // The run is done when the tab strip exists AND the Effective badge has
     // its (async, provenance-derived) count.

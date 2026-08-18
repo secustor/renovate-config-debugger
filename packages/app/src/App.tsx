@@ -17,12 +17,11 @@ import type {
   TraceResult,
 } from "@renovate-config-debugger/engine";
 import { AdvancedZone } from "@/features/editor/AdvancedZone";
-import { AppHeaderTools } from "@/AppHeaderTools";
+import { AppShellHeader } from "@/AppShellHeader";
 import type { ConfigEditorHandle } from "@/features/editor/ConfigEditor";
 import { ConfigColumn } from "@/ConfigColumn";
 import type { EffectiveStats } from "@/components/EffectiveConfig";
 import type { AuthState } from "@/components/GithubAuthHint";
-import { HeadlessNote } from "@/components/HeadlessNote";
 import { identityForNodeId, nodeIdForIdentity } from "@/components/preset-tree-stats";
 import type { ResultsColumnProps } from "@/ResultsColumn";
 import { UntrustedHostBanner } from "@/UntrustedHostBanner";
@@ -147,13 +146,43 @@ function ResultsPane(props: ResultsColumnProps) {
   );
 }
 
-/** The header's identity corner: logo + title. Its own component for the same
- *  reason as ResultsPane — the header sits at the depth ratchet's limit. */
-function AppBrand() {
+/**
+ * Roadmap 075 (v2, iteration 2): the two page-level banners, as one row between
+ * the header and the panes. They used to be the first things in `<main>`, above
+ * a page that scrolled; in the shell nothing above the content scrolls, so they
+ * need a home of their own — the row simply is not there when neither has
+ * anything to say. Their markup, roles and semantics are unchanged.
+ */
+function AppBanners({
+  shareError,
+  untrustedGuard,
+  onAcknowledgeUntrusted,
+  onTrustUntrustedHost,
+}: {
+  shareError: string | null;
+  untrustedGuard: UntrustedEndpointGuard | null;
+  onAcknowledgeUntrusted: () => void;
+  onTrustUntrustedHost: () => void;
+}) {
+  const showUntrusted = untrustedGuard !== null && !untrustedGuard.acknowledged;
+  if (shareError === null && !showUntrusted) {
+    return null;
+  }
   return (
-    <div className="app-brand">
-      <img src="/logo-192.png" alt="" width={36} height={36} />
-      <h1>Renovate Config Debugger</h1>
+    <div className="app-banners">
+      {shareError ? (
+        <div className="share-error-banner" role="alert">
+          <strong className="share-error-banner-title">Shared link couldn’t be opened</strong>
+          <span>{shareError}</span>
+        </div>
+      ) : null}
+      {showUntrusted && untrustedGuard ? (
+        <UntrustedHostBanner
+          untrustedGuard={untrustedGuard}
+          onAcknowledge={onAcknowledgeUntrusted}
+          onTrust={onTrustUntrustedHost}
+        />
+      ) : null}
     </div>
   );
 }
@@ -355,8 +384,12 @@ export function App() {
   // landing turns on — see `gestureWantsResultsLanding`.
   const configColRef = useRef<HTMLDivElement>(null);
   const focusResultsRef = useRef(false);
-  // Roadmap 016: End/Home always scroll the page, never a nested card's own
-  // scroll box; a back-to-top button appears once the page has scrolled down.
+  // Roadmap 016: End/Home always scroll the reader's own surface, never a
+  // nested card's scroll box; a back-to-top button appears once the PAGE has
+  // scrolled down — which since 075 only happens on the stacked (narrow)
+  // layout and on the landing, the two places the document still scrolls. In
+  // the shell `window.scrollY` stays 0 by construction, so the button simply
+  // never appears there; nothing gates it but the fact itself.
   useHomeEndPageScroll();
   const showBackToTop = useBackToTopVisible();
   // Roadmap 031: start downloading the ~437 kB gz engine chunk (and the small
@@ -520,16 +553,28 @@ export function App() {
   // hypothetical — a real Renovate run would refuse the config outright.
   const validateHasErrors = result?.stageStatus.validate === "error";
 
-  // Roadmap 023: window.scrollY captured just before a scroll-preserving
-  // re-run's result commits, restored once the new DOM has painted (016 did
-  // this for re-simulations; full pipeline re-runs still reset scroll). null =
-  // this run should NOT preserve scroll (a fresh config, share link, or first run).
-  const preserveScrollRef = useRef<number | null>(null);
+  // Roadmap 023: the reader's scroll position captured just before a
+  // scroll-preserving re-run's result commits, restored once the new DOM has
+  // painted (016 did this for re-simulations; full pipeline re-runs still reset
+  // scroll). null = this run should NOT preserve it (a fresh config, a share
+  // link, or the first run).
+  //
+  // Roadmap 075: BOTH positions, because which one is "the reader's" now
+  // depends on the viewport. In the shell the page does not scroll at all and
+  // the results pane is its own scroller; stacked (below ~60rem) the pane is
+  // `overflow: visible` and the page scrolls exactly as it used to. Capturing
+  // and restoring both costs two property reads and makes the answer
+  // independent of the breakpoint — the inapplicable half is 0 either way, and
+  // restoring 0 to a container that cannot scroll is a no-op.
+  const preserveScrollRef = useRef<{ page: number; results: number } | null>(null);
   useLayoutEffect(() => {
-    const y = preserveScrollRef.current;
-    if (y !== null) {
+    const saved = preserveScrollRef.current;
+    if (saved !== null) {
       preserveScrollRef.current = null;
-      window.scrollTo({ top: y, behavior: "auto" });
+      window.scrollTo({ top: saved.page, behavior: "auto" });
+      if (resultsColRef.current) {
+        resultsColRef.current.scrollTop = saved.results;
+      }
     }
   }, [result]);
 
@@ -960,7 +1005,9 @@ export function App() {
       // Roadmap 023: hold the current scroll so re-running an edited config
       // doesn't jump the user back to the top (captured right before the result
       // state commits, so an abandoned in-flight run can't pin a stale offset).
-      preserveScrollRef.current = opts?.preserveScroll ? window.scrollY : null;
+      preserveScrollRef.current = opts?.preserveScroll
+        ? { page: window.scrollY, results: resultsColRef.current?.scrollTop ?? 0 }
+        : null;
       // Roadmap 068, ninth review: set HERE, one statement before the commit it
       // belongs to, rather than by the caller before its `await`: runs are
       // serial, so the run that commits next is always this one, and a lead
@@ -1253,6 +1300,7 @@ export function App() {
     migrateSteps,
     finalMigrated,
     migrateStepperMounted,
+    presetCount,
     errorCount,
     warningCount,
     resultsTabs,
@@ -1825,7 +1873,12 @@ export function App() {
 
   return (
     <OptionDocsProvider index={optionIndex}>
-      <main>
+      {/* Roadmap 075: the app is a full-viewport frame — header row on top,
+          content below — and the PAGE stops scrolling once a result exists.
+          `has-results` is what switches the content area from the landing's
+          centered reading column to the two-pane grid; both states are in
+          index.css next to each other. */}
+      <main className={`app-shell${result ? " has-results" : ""}`}>
         {/* Roadmap 068: the first two tab stops on the page. Off-screen until
             focused, and the results link exists only once there are results —
             an offer to skip to nothing is worse than no offer.
@@ -1845,45 +1898,42 @@ export function App() {
             Skip to the results
           </a>
         ) : null}
-        {shareError ? (
-          <div className="share-error-banner" role="alert">
-            <strong className="share-error-banner-title">Shared link couldn’t be opened</strong>
-            <span>{shareError}</span>
-          </div>
-        ) : null}
-        {untrustedGuard && !untrustedGuard.acknowledged ? (
-          <UntrustedHostBanner
-            untrustedGuard={untrustedGuard}
-            onAcknowledge={onAcknowledgeUntrusted}
-            onTrust={onTrustUntrustedHost}
-          />
-        ) : null}
-        <header className="app-header">
-          <AppBrand />
-          {/* Roadmap 066: the GitHub session moved here from the config
-              toolbar — the corner every user looks in for an account control,
-              and the corner 037 already called "about this session". */}
-          <AppHeaderTools
-            renovateVersion={result?.renovateVersion}
-            oauthConfigured={Boolean(oauthConfig)}
-            signedIn={signedIn}
-            authUser={authUser}
-            installUrl={INSTALL_URL}
-            onSignIn={onSignIn}
-            onSignOut={onSignOut}
-            onShowShortcuts={showShortcuts}
-          />
-        </header>
-        <p className="subtitle">
-          Watch Renovate&apos;s own code process your config, step by step — nothing leaves your
-          browser.
-        </p>
+        {/* Roadmap 075: the header carries the run's verdict and its digest —
+            the numbers that used to be an Overview tab, each wired to the
+            instrument that explains it. Before a run it is identity + session
+            only; the subtitle that used to sit under it is the landing's. */}
+        <AppShellHeader
+          hasResult={Boolean(result)}
+          validateHasErrors={validateHasErrors}
+          errorCount={errorCount}
+          warningCount={warningCount}
+          rewrites={migrateSteps.length}
+          presets={presetCount}
+          effectiveKeys={effectiveStats?.keys ?? null}
+          onJumpToTab={jumpToTab}
+          renovateVersion={result?.renovateVersion}
+          oauthConfigured={Boolean(oauthConfig)}
+          signedIn={signedIn}
+          authUser={authUser}
+          installUrl={INSTALL_URL}
+          onSignIn={onSignIn}
+          onSignOut={onSignOut}
+          onShowShortcuts={showShortcuts}
+        />
+        <AppBanners
+          shareError={shareError}
+          untrustedGuard={untrustedGuard}
+          onAcknowledgeUntrusted={onAcknowledgeUntrusted}
+          onTrustUntrustedHost={onTrustUntrustedHost}
+        />
 
-        {/* Roadmap 028: config on the left, one tabbed results panel on the
-            right; below ~60rem the two panes stack (config on top). Before the
-            first run there is nothing to put beside the editor, so the config
-            column simply keeps the full width. */}
-        <div className={`app-split${result ? " has-results" : ""}`}>
+        {/* Roadmap 028/075: config on the left, one tabbed results panel on the
+            right — two panes of one full-viewport frame, each scrolling itself.
+            Below ~60rem they stack (config on top) and the PAGE scrolls again,
+            which is the layout this app had before v2. Before the first run
+            there is nothing to put beside the editor, so the config column is
+            the whole (centered) content area. */}
+        <div className={`app-content app-split${result ? " has-results" : ""}`}>
           <ConfigColumn
             columnRef={configColRef}
             hasResult={Boolean(result)}
@@ -1990,13 +2040,6 @@ export function App() {
               onApplyFix={onApplyFix}
             />
           ) : null}
-          {/* Roadmap 060: the headless interface, announced in visible copy —
-              the whole discovery mechanism, and deliberately not a hidden
-              hint. Inside the split, not after it: as a grid row under the
-              results column, the sticky config column's area spans it, so
-              scrolling the note into view cannot push the editor off the top
-              (e2e 12, "the config column stays in view"). */}
-          <HeadlessNote />
         </div>
       </main>
       {showBackToTop ? (

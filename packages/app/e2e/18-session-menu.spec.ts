@@ -59,7 +59,9 @@ test.describe("session menu (066)", () => {
     await expect(page.locator(".cm-content")).toContainText("config:recommended");
 
     await openSessionMenu(page);
-    await page.locator(".subtitle").click();
+    // Roadmap 075: the subtitle this used to click moved into the landing's
+    // headline block — any point outside the menu answers the same question.
+    await page.locator(".landing-subtitle").click();
     await expect(page.locator(".session-menu-panel")).toHaveCount(0);
   });
 });
