@@ -414,10 +414,14 @@ function netEffectOf(
   if (behavioral.length > 0) {
     return [keyList(behavioral), ...documentationTail, ...ruleChanges].join("; ");
   }
-  if (documentationTail.length === 0) {
-    return `${ruleChanges.join(" and ")}, with no change to the effective config`;
-  }
-  return [ruleChanges.join(" and "), ...documentationTail].join("; ");
+  // Stated even when documentation text moved (replay-04): "1 rule started
+  // matching; description also changed" read as a behavioral claim, and the
+  // one fact that scopes it — the effective config came out the same — was
+  // the clause this branch used to drop.
+  return [
+    `${ruleChanges.join(" and ")}, with no change to the effective config`,
+    ...documentationTail,
+  ].join("; ");
 }
 
 /**

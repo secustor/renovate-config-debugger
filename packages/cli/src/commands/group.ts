@@ -5,33 +5,15 @@ import { EXIT_OK, EXIT_REFUSED } from "../io";
 import { emitJson, emitLines, writeNotes } from "../output";
 import { INPUT_OPTIONS, refusalNote, runFromArgs, wouldRefuse } from "../run-input";
 import { readDependencies } from "../dep";
-import { groupTally, groupTallyLines } from "../projections/group";
+import { blindTallyNote, groupTally, groupTallyLines, inputGaps } from "../projections/group";
 import { simulateAgainst } from "./simulate";
 
 /**
  * Roadmap 074: "given these pending updates, which groups form, and would each
  * meet its `minimumGroupSize`?" — the batch-level question `simulate` cannot
- * answer one dependency at a time.
+ * answer one dependency at a time. The per-member gap notes and the
+ * blind-tally correction live in the projection, shared with `simulate_group`.
  */
-
-/** A side's input gap, stated per update: a rule that could not be evaluated
- *  for one member is a fact about that member's descriptor, and a group tally
- *  over blind simulations reads as "these updates just don't group". */
-function inputGapNotes(
-  simulated: readonly { dep: DependencyDescriptor; sim: SimulationResult }[],
-): string[] {
-  return simulated.flatMap(({ dep, sim }, index) => {
-    const count = sim.missingInputs.rules;
-    if (count === 0) {
-      return [];
-    }
-    const name = dep.depName ?? `update ${index + 1}`;
-    return [
-      `${name}: ${count} rule${count === 1 ? "" : "s"} could not match because this update ` +
-        "leaves a field they read unset — `rcd simulate` that update to see which.",
-    ];
-  });
-}
 
 export const groupCommand: Command = {
   name: "group",
@@ -64,19 +46,20 @@ export const groupCommand: Command = {
       simulated.push({ dep, sim: await simulateAgainst(result, dep) });
     }
     const tally = groupTally(simulated);
-    const gaps = inputGapNotes(simulated);
+    const gaps = inputGaps(simulated, "cli");
+    const blind = blindTallyNote(tally, gaps.length);
     const refused = wouldRefuse(result);
     const refusal = refusalNote(refused ? ["the config"] : []);
     if (format === "json") {
       emitJson(io, {
         ...tally,
-        notes: [...tally.notes, ...gaps],
+        notes: [...(blind ? [blind] : []), ...tally.notes, ...gaps],
         wouldRefuse: refused,
         ...(refusal ? { exitNote: refusal } : {}),
       });
     } else {
       emitLines(io, [
-        ...groupTallyLines(tally),
+        ...groupTallyLines(tally, gaps),
         ...gaps.map((gap) => `note: ${gap}`),
         ...(refusal ? ["", refusal] : []),
       ]);

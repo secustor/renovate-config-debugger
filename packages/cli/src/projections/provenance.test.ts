@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { KeyProvenance } from "@renovate-config-debugger/engine";
-import { chainStepText, entryView } from "./provenance";
+import { chainStepText, entryView, perDependencyNote } from "./provenance";
 
 /**
  * Roadmap 071: what a step of the override chain reports for a key Renovate
@@ -87,5 +87,54 @@ describe("chainStepText", () => {
       ),
     );
     expect(view.chain.map((step) => chainStepText(step))).toEqual(['["a"]', '+1 → 2 total ["b"]']);
+  });
+});
+
+/**
+ * Replay-04 (CLI expert on 44006): `provenance automerge` carried no
+ * per-dependency note while `labels`/`autoApprove` did — `automerge` was set
+ * only INSIDE `:automergeMinor`'s update-type blocks, which the direct `key in
+ * rule` scan missed, and the absence read as "no rule touches this".
+ */
+describe("perDependencyNote", () => {
+  test("a direct rule-level setter counts as before", () => {
+    const note = perDependencyNote("labels", { packageRules: [{ labels: ["deps"] }] });
+    expect(note).toContain("1 packageRule can set `labels` per-dependency");
+    expect(note).not.toContain("update-type block");
+  });
+
+  test("a key set only inside an update-type block counts, named as conditional", () => {
+    const note = perDependencyNote("automerge", {
+      packageRules: [{ matchPackageNames: ["react"], minor: { automerge: true } }],
+    });
+    expect(note).toContain("1 packageRule can set `automerge` per-dependency");
+    expect(note).toContain("only inside an update-type block");
+    expect(note).toContain("applies only when the update's type matches");
+  });
+
+  test("mixed direct and nested setters state how many are conditional", () => {
+    const note = perDependencyNote("automerge", {
+      packageRules: [
+        { matchPackageNames: ["a"], automerge: true },
+        { matchPackageNames: ["b"], minor: { automerge: true } },
+        { matchPackageNames: ["c"], patch: { automerge: true } },
+      ],
+    });
+    expect(note).toContain("3 packageRules can set `automerge` per-dependency");
+    expect(note).toContain("2 of them only inside an update-type block");
+  });
+
+  test("a rule that sets the key both ways is counted once, as direct", () => {
+    const note = perDependencyNote("automerge", {
+      packageRules: [{ automerge: false, minor: { automerge: true } }],
+    });
+    expect(note).toContain("1 packageRule can set `automerge` per-dependency");
+    expect(note).not.toContain("update-type block");
+  });
+
+  test("no setter anywhere stays silent, and packageRules itself is exempt", () => {
+    const rules = { packageRules: [{ minor: { automerge: true } }] };
+    expect(perDependencyNote("labels", rules)).toBeUndefined();
+    expect(perDependencyNote("packageRules", rules)).toBeUndefined();
   });
 });

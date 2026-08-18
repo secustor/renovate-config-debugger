@@ -53,7 +53,7 @@ import {
   previewValue,
   provenanceOf,
 } from "../projections/provenance";
-import { groupTally } from "../projections/group";
+import { blindTallyNote, groupTally, inputGaps } from "../projections/group";
 import { oneRuleView, RULE_DIGEST_PLANS, ruleProvenanceView } from "../projections/rule-provenance";
 import {
   BODIES,
@@ -384,7 +384,30 @@ const MESSAGES_NOTE =
   "`index` on each message) rather than re-typing the text; a re-typed message that does not " +
   "match the run exactly comes back with severity null.";
 
-function runSummary(run: HeldRun, notes: string[]) {
+/**
+ * The retention facts, stated on every `run_config` answer (replay-04): the
+ * store is a small LRU, and both expert sessions lost their baseline runId to
+ * it mid-comparison — the policy must be visible BEFORE the eviction, not only
+ * in the error after it. `runIds` is oldest-first, so the first listed is the
+ * next to go.
+ */
+function heldView(store: RunStore) {
+  const runIds = store.heldIds();
+  return {
+    runIds,
+    limit: store.limit,
+    ...(runIds.length >= store.limit
+      ? {
+          note:
+            `at capacity — the server holds the ${store.limit} most recently used runs, and ` +
+            `the next run_config evicts ${runIds[0]}. An evicted runId just needs a fresh ` +
+            "run_config of the same content.",
+        }
+      : {}),
+  };
+}
+
+function runSummary(run: HeldRun, notes: string[], store: RunStore) {
   const { result, facts } = run;
   const payload = digestPayload(result, facts);
   const stats = result.presetTree ? treeStatsOf(result).stats : null;
@@ -399,6 +422,7 @@ function runSummary(run: HeldRun, notes: string[]) {
     ...(result.errors.length + result.warnings.length > 0 ? { messagesNote: MESSAGES_NOTE } : {}),
     presetErrors: facts.presetErrors.map((event) => event.title),
     treeSummary: stats?.summary ?? null,
+    held: heldView(store),
     ...(notes.length > 0 ? { notes } : {}),
   };
 }
@@ -506,7 +530,10 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         "Resolves a Renovate config exactly as the web app does — parse, migrate, massage, " +
         "validate, resolve presets, merge — and HOLDS the trace. Returns a small summary plus a " +
         "runId; every other tool takes that runId, so a whole debugging session describes ONE " +
-        "run instead of re-resolving (and re-fetching remote presets) per question. Start here.",
+        "run instead of re-resolving (and re-fetching remote presets) per question. Start here. " +
+        "Only the few most recently used runs stay held (`held` in the answer states the limit " +
+        "and what is next to be evicted) — an evicted runId is recoverable by re-running the " +
+        "same content.",
       // The one tool that reaches the network: `extends` can name a preset on
       // GitHub, GitLab, Gitea or Forgejo. Not idempotent for the same reason —
       // a remote preset can change between two runs, which is exactly why the
@@ -592,7 +619,7 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       };
       throwIfCancelled(ctx);
       const result: TraceResult = await runPipeline(input, ctx.mcpReq.signal);
-      return runSummary(store.put(result, input), notes);
+      return runSummary(store.put(result, input), notes, store);
     }),
   );
 
@@ -974,19 +1001,12 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       const tally = groupTally(simulated);
       // A member whose descriptor left rule inputs unset can be mis-tallied —
       // a rule that would put it in a group reported a plain `no-match`. Named
-      // per member, same reasoning as compare's per-side notes.
-      const gaps = simulated.flatMap(({ dep, sim }, index) => {
-        const count = sim.missingInputs.rules;
-        if (count === 0) {
-          return [];
-        }
-        const name = dep.depName ?? `deps[${index}]`;
-        return [
-          `${name}: ${count} rule${count === 1 ? "" : "s"} could not match because this ` +
-            "update leaves a field they read unset — simulate that update to see which.",
-        ];
-      });
-      return { ...tally, notes: [...tally.notes, ...gaps] };
+      // per member (fields included), and when the whole tally came out empty
+      // over blind members, the correction leads the notes — same text the CLI
+      // headline carries.
+      const gaps = inputGaps(simulated, "mcp");
+      const blind = blindTallyNote(tally, gaps.length);
+      return { ...tally, notes: [...(blind ? [blind] : []), ...tally.notes, ...gaps] };
     }, HINTS.simulate),
   );
 

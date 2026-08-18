@@ -402,6 +402,23 @@ describe("compareSimulations", () => {
       );
     });
 
+    /** Replay-04 (CLI expert on 44529): "1 rule started matching; description
+     *  also changed" read as a behavioral claim — the clause that scopes it,
+     *  the effective config coming out the same, was dropped exactly when a
+     *  documentation key moved alongside the rule churn. */
+    it("keeps the no-config-change clause when only documentation moved with the rules", () => {
+      const a = simWritten([matched(0, [["matchPackageNames", ["lodash"]]])], {
+        description: ["Old."],
+      });
+      const b = simWritten([matched(1, [["matchSourceUrls", ["https://x"]]])], {
+        description: ["Old.", "New."],
+      });
+      expect(compareSimulations(a, b).summary).toBe(
+        "differs: 1 rule started matching and 1 rule stopped matching, " +
+          "with no change to the effective config; description also changed (documentation)",
+      );
+    });
+
     it("says identical for a behavior-preserving pattern edit, and why", () => {
       const a = sim([{ ...wide, merged: effect }], { groupName: "frontend" });
       const b = sim([{ ...narrow, merged: effect }], { groupName: "frontend" });

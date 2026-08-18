@@ -351,10 +351,14 @@ describe("compare separates behavior from rule identity", () => {
   });
 });
 
-/** Roadmap 062 (2 of 9 sessions): exit 2 came from an INPUT config failing
- *  validation and said nothing about the comparison it accompanied. */
+/** Roadmap 062 flagged the missing explanation; replay-04 (three sessions)
+ *  showed the exit code itself was the problem: a proven "no behavioral
+ *  change" arrived as a 2 because an INPUT config failed validation, and a
+ *  script gating an edit on compare's exit code would read a safe refactor as
+ *  a failure. The comparison is the answer, so a comparison that ran is a 0
+ *  and the refusal stays a named fact on the output. */
 describe("compare on a config Renovate would refuse", () => {
-  test("names which side caused the 2", async () => {
+  test("exits 0 — the comparison ran — and names the refused side on the output", async () => {
     const io = recordingIo();
     expect(
       await main(
@@ -367,9 +371,35 @@ describe("compare on a config Renovate would refuse", () => {
         ],
         io,
       ),
-    ).toBe(2);
+    ).toBe(0);
     expect(io.stdout).toContain("note: config A would be refused by Renovate");
-    expect(io.stdout).toContain("not this command's answer");
+    expect(io.stdout).toContain("the exit code reflects the comparison, not the refusal");
+  });
+
+  test("JSON still carries the per-side refusal facts", async () => {
+    const io = recordingIo();
+    expect(
+      await main(
+        [
+          "compare",
+          fixture("invalid.json"),
+          fixture("grouped.json"),
+          "--dep",
+          '{"depName":"react"}',
+          "--format",
+          "json",
+        ],
+        io,
+      ),
+    ).toBe(0);
+    const payload = io.json() as {
+      a: { wouldRefuse: boolean };
+      b: { wouldRefuse: boolean };
+      exitNote: string;
+    };
+    expect(payload.a.wouldRefuse).toBe(true);
+    expect(payload.b.wouldRefuse).toBe(false);
+    expect(payload.exitNote).toContain("config A would be refused");
   });
 });
 

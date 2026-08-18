@@ -102,4 +102,16 @@ export class RunStore {
   get size(): number {
     return this.#runs.size;
   }
+
+  /** The eviction bound, so `run_config`'s answer can state it up front —
+   *  replay-04's experts each lost a runId to it and burned a call
+   *  rediscovering the policy from the `get` error. */
+  get limit(): number {
+    return this.#limit;
+  }
+
+  /** Ids currently held, oldest first — the first is the next to be evicted. */
+  heldIds(): string[] {
+    return [...this.#runs.keys()];
+  }
 }

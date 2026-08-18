@@ -417,15 +417,17 @@ export function wouldRefuse(result: TraceResult): boolean {
 }
 
 /**
- * Roadmap 062 (2026-07 persona study): `simulate`/`compare` exit 2 whenever an
- * INPUT config would be refused — which says nothing about the simulation or
- * the comparison those commands just answered. Two personas hit the bare `2`
- * with no hint in the output; one ran a control experiment to work out where it
- * came from. So every command whose exit code can be 2 for a reason other than
- * its own answer says which input caused it, in words, on the same output.
+ * Roadmap 062 (2026-07 persona study): `simulate` (and, then, `compare`) exit
+ * 2 whenever an INPUT config would be refused — which says nothing about the
+ * answer those commands just gave. Two personas hit the bare `2` with no hint
+ * in the output; one ran a control experiment to work out where it came from.
+ * So every command whose exit code can be 2 for a reason other than its own
+ * answer says which input caused it, in words, on the same output.
  *
- * The exit-code contract itself is untouched (0/1/2 is documented and
- * hook-relied-upon) — this is the missing explanation, not a new behavior.
+ * `simulate`/`group` keep the `2` (their subject is one config, and the
+ * contract is documented and hook-relied-upon). `compare` no longer uses this
+ * note: replay-04 showed its `2` overruling its own "no behavioral change"
+ * verdict, so it exits on the comparison and carries its own wording.
  */
 export function refusalNote(refused: readonly string[]): string | undefined {
   if (refused.length === 0) {
