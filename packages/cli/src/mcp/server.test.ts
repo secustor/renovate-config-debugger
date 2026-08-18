@@ -402,6 +402,41 @@ describe("drill-down", () => {
     expect(output.config.extends).toEqual([":dependencyDashboard"]);
   });
 
+  /**
+   * Roadmap 070: the same two parameters on every config-shaped answer, with
+   * a DIFFERENT default per tool — because the documents are different.
+   * `get_final_config` is the run's whole effective config, the surface
+   * someone debugs a self-hosted globalConfig layer on, so the globalOnly
+   * options are the answer there and stay by default. `simulate`'s
+   * per-dependency config prunes them (asserted in "simulate and compare").
+   */
+  test("the effective config keeps the globalOnly options — they are its answer", async () => {
+    const runId = await runConfig('{"labels":["deps"]}');
+    const payload = (await call("get_final_config", { runId })) as {
+      finalConfig: Record<string, unknown>;
+      configView: { scope: string; keys: number; droppedGlobalOnly?: number };
+    };
+    expect(payload.configView.scope).toBe("full");
+    expect(payload.configView.droppedGlobalOnly).toBeUndefined();
+    expect(payload.finalConfig).toHaveProperty("onboardingConfig");
+
+    // A globalOnly key IS returnable here — the per-tool asymmetry, pinned.
+    const keyed = (await call("get_final_config", {
+      runId,
+      keys: ["labels", "onboardingConfig"],
+    })) as { finalConfig: Record<string, unknown>; configView: { keys: number } };
+    expect(Object.keys(keyed.finalConfig).toSorted()).toEqual(["labels", "onboardingConfig"]);
+    expect(keyed.configView.keys).toBe(2);
+
+    // …and asking for this document at the other scope drops the class.
+    const scoped = (await call("get_final_config", {
+      runId,
+      configScope: "package-rules",
+    })) as { finalConfig: Record<string, unknown>; configView: { droppedGlobalOnly?: number } };
+    expect(scoped.configView.droppedGlobalOnly).toBe(107);
+    expect(scoped.finalConfig).not.toHaveProperty("onboardingConfig");
+  });
+
   test("an expired or invented runId says which runs are held", async () => {
     await expect(call("get_final_config", { runId: "run-404" })).rejects.toThrow(
       /no run "run-404"/,
@@ -491,6 +526,33 @@ describe("size budget", () => {
     expect(rules.truncated).toBe(true);
     expect(rules.omitted).toBeGreaterThan(0);
     expect(rules.shown).toBeGreaterThan(0);
+  });
+
+  /**
+   * Roadmap 070: the elision is a transport safety net, not a filter — it
+   * shrinks arrays and, at the last resort, deletes whole keys by name. The
+   * reduction that answers the question has to happen at CONSTRUCTION, which
+   * is what `keys` does: the same run, the same tool, asked precisely, comes
+   * back whole.
+   */
+  test("a keys-projected answer comes back un-elided", async () => {
+    const runId = await runConfig(RECOMMENDED);
+    const text = await callText("get_final_config", {
+      runId,
+      keys: ["labels", "dependencyDashboard", "minimumReleaseAge"],
+    });
+    const payload = JSON.parse(text) as {
+      truncated?: boolean;
+      omittedKeys?: string[];
+      finalConfig: { labels: string[] };
+      configView: { withheld?: { key: string }[] };
+    };
+    // The test above asked the SAME run for the same document unprojected and
+    // got it truncated, with `packageRules` cut in place.
+    expect(payload.truncated).toBeUndefined();
+    expect(payload.omittedKeys).toBeUndefined();
+    expect(payload.finalConfig.labels).toEqual(["deps"]);
+    expect(text.length).toBeLessThan(1_000);
   });
 });
 
@@ -621,6 +683,7 @@ describe("simulate and compare", () => {
       omittedKeys?: string[];
       detailNote: string;
       finalDependencyConfig: Record<string, unknown>;
+      configView: { scope: string; keys: number; droppedGlobalOnly?: number };
       flattened: unknown;
       rules: { truncated: boolean; shown: number; omitted: number } | unknown[];
     };
@@ -632,6 +695,19 @@ describe("simulate and compare", () => {
     expect(parsed.omittedKeys).toBeUndefined();
     expect(parsed.flattened).toBeDefined();
     expect(Object.keys(parsed.finalDependencyConfig).length).toBeGreaterThan(10);
+    /**
+     * Roadmap 070: this document is "what applyPackageRules produced for ONE
+     * dependency", so the globalOnly class — 107 options a matcher cannot
+     * read and a rule cannot write — is provably inert in it and goes by
+     * default. The answer states which view produced it.
+     */
+    expect(parsed.configView).toMatchObject({
+      scope: "package-rules",
+      droppedGlobalOnly: 107,
+    });
+    expect(parsed.finalDependencyConfig).not.toHaveProperty("onboardingConfig");
+    expect(parsed.finalDependencyConfig).not.toHaveProperty("dryRun");
+    expect(parsed.configView.keys).toBe(Object.keys(parsed.finalDependencyConfig).length);
     // And the rule list is a real sample of 713, not a token two.
     const rules = parsed.rules as { shown: number; omitted: number };
     expect(rules.shown + rules.omitted).toBeGreaterThan(700);
@@ -659,6 +735,50 @@ describe("simulate and compare", () => {
     // The default answer for the same question never got that big.
     const verdict = (await call("simulate", { runId, dep })) as { truncated?: boolean };
     expect(verdict.truncated).toBeUndefined();
+  });
+
+  /**
+   * Roadmap 070. The `keys` axis composes with the others and only ever
+   * narrows: what it names, of what `configScope` left, and a REASON for
+   * everything it did not answer with.
+   */
+  test("keys narrows the per-dependency config, and names what it withheld", async () => {
+    const runId = await runConfig(RECOMMENDED);
+    const dep = { depName: "react", packageName: "react", currentValue: "17", newValue: "18" };
+    const text = await callText("simulate", {
+      runId,
+      dep,
+      keys: ["labels", "automerge", "onboardingConfig"],
+    });
+    const parsed = JSON.parse(text) as {
+      truncated?: boolean;
+      finalDependencyConfig: Record<string, unknown>;
+      configView: { withheld?: { key: string; reason: string }[] };
+      rules: unknown;
+    };
+    expect(Object.keys(parsed.finalDependencyConfig).toSorted()).toEqual(["automerge", "labels"]);
+    // A globalOnly name is not resurrected — it is explained. `absent` and
+    // `global-only` are different answers, and a silently empty result is
+    // indistinguishable from a bug.
+    expect(parsed.configView.withheld).toEqual([
+      { key: "onboardingConfig", reason: "global-only" },
+    ]);
+    // …and `keys` never touches the rule list.
+    expect(parsed.rules).toBeDefined();
+  });
+
+  test("configScope full is the way back to the whole document", async () => {
+    const runId = await runConfig(GROUPED);
+    const dep = { depName: "react", packageName: "react" };
+    const scoped = (await call("simulate", { runId, dep, configScope: "full" })) as {
+      finalDependencyConfig: Record<string, unknown>;
+      configView: { scope: string; droppedGlobalOnly?: number };
+    };
+    expect(scoped.configView).toEqual({
+      scope: "full",
+      keys: Object.keys(scoped.finalDependencyConfig).length,
+    });
+    expect(scoped.finalDependencyConfig).toHaveProperty("onboardingConfig");
   });
 
   test("verdict/source scope the rule list and say what they hid", async () => {

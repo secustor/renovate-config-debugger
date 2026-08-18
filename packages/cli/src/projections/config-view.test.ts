@@ -1,0 +1,190 @@
+import { describe, expect, test } from "vitest";
+import { globalOnlyOptionNames } from "@renovate-config-debugger/engine";
+import {
+  collapseDescriptionDiff,
+  collapseDiffs,
+  type ConfigScope,
+  diffLine,
+  mergedLine,
+  parseConfigScope,
+  parseKeys,
+  projectConfig,
+} from "./config-view";
+
+/**
+ * Roadmap 070. Pure — no pipeline run: the whole point of the module is that
+ * the projection is decidable from the document plus Renovate's option
+ * metadata.
+ */
+
+/** A globalOnly option: no packageRule can read or write it, and Renovate
+ *  itself strips the class from a repo config. */
+const GLOBAL_ONLY = "onboardingConfig";
+
+const CONFIG = {
+  automerge: true,
+  groupName: "react monorepo",
+  labels: ["deps"],
+  [GLOBAL_ONLY]: { extends: ["config:recommended"] },
+};
+
+describe("projectConfig", () => {
+  test("the globalOnly class goes by default, and the view says how many", () => {
+    expect(globalOnlyOptionNames().has(GLOBAL_ONLY)).toBe(true);
+    const { config, view } = projectConfig(CONFIG, { scope: "package-rules" });
+    expect(Object.keys(config)).toEqual(["automerge", "groupName", "labels"]);
+    expect(view).toEqual({ scope: "package-rules", keys: 3, droppedGlobalOnly: 1 });
+  });
+
+  test("`full` keeps everything and reports nothing dropped", () => {
+    const { config, view } = projectConfig(CONFIG, { scope: "full" });
+    expect(Object.keys(config)).toEqual(Object.keys(CONFIG));
+    expect(view).toEqual({ scope: "full", keys: 4 });
+  });
+
+  test("keys selects, and names what the document does not have", () => {
+    const { config, view } = projectConfig(CONFIG, {
+      scope: "package-rules",
+      keys: ["automerge", "minimumReleaseAge"],
+    });
+    expect(config).toEqual({ automerge: true });
+    expect(view.withheld).toEqual([{ key: "minimumReleaseAge", reason: "absent" }]);
+    expect(view.keys).toBe(1);
+  });
+
+  /** The additive-only decision, pinned: `keys` may only ever narrow what
+   *  `scope` left, so one parameter never both narrows and widens. */
+  test("keys cannot resurrect a key the scope removed — it says why it is gone", () => {
+    const { config, view } = projectConfig(CONFIG, {
+      scope: "package-rules",
+      keys: [GLOBAL_ONLY],
+    });
+    expect(config).toEqual({});
+    expect(view.withheld).toEqual([{ key: GLOBAL_ONLY, reason: "global-only" }]);
+  });
+
+  test("widening is configScope's job, and it works", () => {
+    const { config, view } = projectConfig(CONFIG, { scope: "full", keys: [GLOBAL_ONLY] });
+    expect(Object.keys(config)).toEqual([GLOBAL_ONLY]);
+    expect(view.withheld).toBeUndefined();
+  });
+
+  /** The invariant every axis is composable under: whatever you ask for, you
+   *  get a SUBSET of what you would have got by asking for nothing. */
+  test("every projection is a subset of its input, and of the default answer", () => {
+    const scopes: ConfigScope[] = ["package-rules", "full"];
+    const keySets = [
+      undefined,
+      [],
+      ["automerge"],
+      [GLOBAL_ONLY],
+      ["automerge", GLOBAL_ONLY, "nope"],
+      Object.keys(CONFIG),
+    ];
+    for (const scope of scopes) {
+      const wide = projectConfig(CONFIG, { scope });
+      for (const keys of keySets) {
+        const { config, view } = projectConfig(CONFIG, {
+          scope,
+          ...(keys ? { keys } : {}),
+        });
+        for (const [key, value] of Object.entries(config)) {
+          expect(CONFIG).toHaveProperty(key, value);
+          expect(wide.config).toHaveProperty(key, value);
+        }
+        expect(view.keys).toBe(Object.keys(config).length);
+        expect(view.keys).toBeLessThanOrEqual(wide.view.keys);
+      }
+    }
+  });
+});
+
+describe("collapseDescriptionDiff", () => {
+  const before = ["Pin Docker digests.", "Separate major releases."];
+
+  test("collapses an append into exactly what it appended", () => {
+    const collapsed = collapseDescriptionDiff({
+      key: "description",
+      before,
+      after: [...before, "Group react packages."],
+    });
+    expect(collapsed).toEqual({
+      key: "description",
+      collapsed: "append",
+      beforeLength: 2,
+      afterLength: 3,
+      added: ["Group react packages."],
+    });
+  });
+
+  test("a replacement stays verbatim — both sides are the answer there", () => {
+    const diff = { key: "description", before, after: ["Something else entirely."] };
+    expect(collapseDescriptionDiff(diff)).toBe(diff);
+  });
+
+  test("a non-array value stays verbatim", () => {
+    const diff = { key: "description", before: "a string", after: "another string" };
+    expect(collapseDescriptionDiff(diff)).toBe(diff);
+  });
+
+  test("an empty before stays verbatim — collapsing would save nothing", () => {
+    const diff = { key: "description", before: [], after: ["The first sentence."] };
+    expect(collapseDescriptionDiff(diff)).toBe(diff);
+  });
+
+  test("only description collapses — a labels reader wants the list", () => {
+    const diff = { key: "labels", before: ["deps"], after: ["deps", "upstream"] };
+    expect(collapseDescriptionDiff(diff)).toBe(diff);
+  });
+
+  test("a delta's own extra fields ride through the collapse", () => {
+    const collapsed = collapseDiffs([
+      { key: "description", before, after: [...before, "And this."], inA: true, inB: true },
+    ]);
+    expect(collapsed[0]).toMatchObject({ inA: true, inB: true, collapsed: "append" });
+  });
+
+  test("collapsing an append is an order of magnitude smaller than the diff", () => {
+    // The measured shape: `mergeChildConfig` concatenates `description` on
+    // nearly every merge, so a best-practices rule re-embeds ~24 sentences
+    // twice. One sentence is what the step actually did.
+    const long = Array.from({ length: 24 }, (_, i) => `Sentence number ${i} of a preset body.`);
+    const diff = { key: "description", before: long, after: [...long, "The one this rule added."] };
+    const verbatim = JSON.stringify(diff).length;
+    const collapsed = JSON.stringify(collapseDescriptionDiff(diff)).length;
+    expect(collapsed * 10).toBeLessThan(verbatim);
+  });
+});
+
+describe("rendering", () => {
+  const collapsed = collapseDescriptionDiff({
+    key: "description",
+    before: ["One.", "Two."],
+    after: ["One.", "Two.", "Three."],
+  });
+
+  test("a collapsed diff renders what it added, not both arrays", () => {
+    expect(diffLine(collapsed)).toBe('description: 2 entries + 1 appended (now 3) — ["Three."]');
+    expect(mergedLine(collapsed)).toBe('description += 1 of 3 entries: ["Three."]');
+  });
+
+  test("an ordinary diff renders before → after", () => {
+    const diff = { key: "groupName", before: undefined, after: "react monorepo" };
+    expect(diffLine(diff)).toBe('groupName: (unset) → "react monorepo"');
+    expect(mergedLine(diff)).toBe('groupName = "react monorepo"');
+  });
+});
+
+describe("flag parsing", () => {
+  test("--keys takes --select's comma grammar", () => {
+    expect(parseKeys("automerge, labels ,")).toEqual(["automerge", "labels"]);
+    expect(parseKeys(undefined)).toBeUndefined();
+    // "no keys" is never what someone typing a flag meant.
+    expect(parseKeys(" , ")).toBeUndefined();
+  });
+
+  test("--config-scope names the values that exist", () => {
+    expect(parseConfigScope("full", "--config-scope")).toBe("full");
+    expect(() => parseConfigScope("global", "--config-scope")).toThrow(/package-rules\|full/);
+  });
+});

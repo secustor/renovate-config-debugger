@@ -2,6 +2,20 @@ import { describe, expect, test } from "vitest";
 import { main } from "../main";
 import { fixture, recordingIo } from "../test-harness";
 
+/** One config, two dependencies: only `react` picks up the rule's own
+ *  description, so B's array is A's plus one sentence. */
+function describedArgs(...extra: string[]): string[] {
+  return [
+    "compare",
+    fixture("described.json"),
+    "--dep",
+    '{"depName":"lodash"}',
+    "--dep-b",
+    '{"depName":"react"}',
+    ...extra,
+  ];
+}
+
 describe("compare", () => {
   test("two configs, one dependency: the edit oracle", async () => {
     const io = recordingIo();
@@ -23,10 +37,13 @@ describe("compare", () => {
       noChange: boolean;
       matchedOnlyInB: { label: string }[];
       configDelta: { key: string }[];
+      configView: { scope: string };
     };
     expect(comparison.noChange).toBe(false);
     expect(comparison.matchedOnlyInB[0]?.label).toBe("matchPackageNames");
     expect(comparison.configDelta.map((d) => d.key)).toContain("groupName");
+    // Roadmap 070: the delta is a VIEW now, and it says which one it is.
+    expect(comparison.configView.scope).toBe("package-rules");
   });
 
   test("the same config twice changes nothing", async () => {
@@ -87,9 +104,76 @@ describe("compare", () => {
         io,
       ),
     ).toBe(0);
-    const { summary } = io.json() as { summary: string };
+    const { summary, configDelta } = io.json() as {
+      summary: string;
+      configDelta: { key: string }[];
+    };
     expect(summary).toBe("differs: dependencyDashboard, description, groupName");
     expect(io.stdout).toContain("summary");
+    // Roadmap 070: the summary is built from the delta's KEYS, and collapsing
+    // a value is only safe because it never moves one. Pinned explicitly.
+    expect(configDelta.map((d) => d.key)).toEqual([
+      "dependencyDashboard",
+      "description",
+      "groupName",
+    ]);
+  });
+
+  /** Roadmap 070: `description` is the array `mergeChildConfig` concatenates on
+   *  nearly every merge, and the delta used to re-embed it whole on both
+   *  sides. An append is now stated as what it appended. */
+  test("a description append renders as what it appended", async () => {
+    const args = describedArgs;
+    const io = recordingIo();
+    expect(await main(args("--format", "json"), io)).toBe(0);
+    const { configDelta } = io.json() as { configDelta: Record<string, unknown>[] };
+    const description = configDelta.find((d) => d.key === "description");
+    expect(description).toMatchObject({
+      collapsed: "append",
+      beforeLength: 2,
+      afterLength: 3,
+      added: ["Group the react packages into one PR."],
+    });
+
+    const pretty = recordingIo();
+    expect(await main(args(), pretty)).toBe(0);
+    expect(pretty.stdout).toContain(
+      'description: 2 entries + 1 appended (now 3) — ["Group the react packages into one PR."]',
+    );
+    expect(pretty.stdout).not.toContain("Reviewed every quarter.");
+  });
+
+  test("--keys narrows the delta without moving the verdict", async () => {
+    const io = recordingIo();
+    expect(
+      await main(
+        [
+          "compare",
+          fixture("clean.json"),
+          fixture("grouped.json"),
+          "--dep",
+          '{"depName":"react","packageName":"react"}',
+          "--keys",
+          "groupName,onboardingConfig",
+          "--format",
+          "json",
+        ],
+        io,
+      ),
+    ).toBe(0);
+    const comparison = io.json() as {
+      summary: string;
+      configDelta: { key: string }[];
+      configView: { withheld?: { key: string; reason: string }[] };
+    };
+    expect(comparison.configDelta.map((d) => d.key)).toEqual(["groupName"]);
+    // The verdict describes the whole comparison, not the view of it.
+    expect(comparison.summary).toBe("differs: dependencyDashboard, description, groupName");
+    // The reason a caller can act on: `--config-scope full` is what would
+    // make a globalOnly name answerable, whether or not the delta held it.
+    expect(comparison.configView.withheld).toEqual([
+      { key: "onboardingConfig", reason: "global-only" },
+    ]);
   });
 });
 

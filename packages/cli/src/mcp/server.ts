@@ -26,7 +26,14 @@ import pkg from "../../package.json";
 import { errorMessage, type CliIo } from "../io";
 import { buildRuleView, ruleFilterPayload } from "../rule-view";
 import { digestPayload } from "../projections/digest";
+import { CONFIG_SCOPES, projectConfig } from "../projections/config-view";
 import { describeMessage, type MessageSeverity } from "../projections/messages";
+import {
+  collapseRuleMerges,
+  comparisonPayload,
+  SIMULATE_DETAIL,
+  simulationPayload,
+} from "../projections/simulate";
 import {
   entryView,
   indexView,
@@ -98,7 +105,7 @@ const HELD_RUN_ANNOTATIONS = {
  */
 const HINTS = {
   finalConfig:
-    "the effective config is too large to return whole — ask get_provenance for one `key`, or get_resolved_config for the document without the defaults.",
+    "the effective config is too large to return whole — pass `keys: [...]` for the options you care about, ask get_provenance for one `key`, or get_resolved_config for the document without the defaults.",
   tree: "the tree is too large at this depth — lower `depth`, pass a `query`, or query one node with get_preset_node.",
   node: "this node's body is too large to return whole — ask for a deeper child instead, or omit `body` and read the contribution stats.",
   provenance:
@@ -106,9 +113,9 @@ const HINTS = {
   resolved:
     'the resolved document is too large to return whole — try mode "keep-internal" without includeDefaults, or read one preset\'s contribution with get_preset_node.',
   simulate:
-    "this config has too many packageRules to report whole — the omission is marked; narrow the dependency (a datasource, a depType) so fewer rules report `no-input`.",
+    "this config has too many packageRules to report whole — the omission is marked; scope the list with `verdict`/`source`, pass `keys: [...]` for the options you care about, or narrow the dependency (a datasource, a depType) so fewer rules report `no-input`.",
   compare:
-    "the comparison is too large to return whole — narrow the dependency, or ask simulate for one side at a time.",
+    "the comparison is too large to return whole — pass `keys: [...]` for the options you care about, narrow the dependency, or ask simulate for one side at a time.",
   optionDocs: "too many options matched — search for a longer substring.",
 } as const;
 
@@ -296,46 +303,27 @@ function simulateRun(run: HeldRun, dep: DepInput, ctx: ToolContext): Promise<Sim
 }
 
 /**
- * H1 (roadmap 068, 6 of 9 persona sessions): what a simulate answer carries by
- * default.
- *
- * Measured on `config:recommended` + a react update, the whole
- * `SimulationResult` is 1.36 MB — of which `mergeSteps` is 797 kB (two
- * elements, each a full config snapshot) and `rawFinalConfig` 199 kB. Those
- * two answer "how did the merge proceed", a question nobody asked, and they
- * drowned the one that was: the elision spent its budget on them and returned
- * 2 of 713 rules, with the merge trace dropped whole anyway. Personas at every
- * level asked for the same shape by hand — the matched rules, `flattened` and
- * `finalDependencyConfig`.
- *
- * So the merge trace is opt-in. `full` is the old payload, unchanged, for the
- * caller who is actually stepping through the merge.
+ * Roadmap 070: the two config-projection parameters, spelled the same on every
+ * tool that answers with a config document. The DEFAULT differs per tool, and
+ * deliberately — see `get_final_config` and `simulate` below.
  */
-const SIMULATE_DETAIL = ["verdict", "full"] as const;
-type SimulateDetail = (typeof SIMULATE_DETAIL)[number];
+const CONFIG_KEYS = z
+  .array(z.string())
+  .optional()
+  .describe(
+    'Only these TOP-LEVEL config options, e.g. ["automerge", "labels"] (no dot paths — the ' +
+      "same `key` get_provenance takes). It only ever narrows: a key `configScope` removed is " +
+      'not resurrected, it comes back in `configView.withheld` with reason "global-only".',
+  );
 
-const VERDICT_DETAIL_NOTE =
-  "`mergeSteps` and `rawFinalConfig` are omitted at this detail level — on a `config:recommended` " +
-  'run they are ~1 MB of the payload and describe how the merge proceeded. Pass detail: "full" ' +
-  "for them.";
-
-/** The simulation, at the requested detail. Listed key by key rather than
- *  subtracted from the result, so the default shape is legible here and a
- *  future field has to be admitted on purpose. */
-function simulationPayload(sim: SimulationResult, detail: SimulateDetail) {
-  if (detail === "full") {
-    return sim;
-  }
-  return {
-    rules: sim.rules,
-    flattened: sim.flattened,
-    finalDependencyConfig: sim.finalDependencyConfig,
-    errors: sim.errors,
-    warnings: sim.warnings,
-    notes: sim.notes,
-    detailNote: VERDICT_DETAIL_NOTE,
-  };
-}
+const CONFIG_SCOPE = z
+  .enum(CONFIG_SCOPES)
+  .optional()
+  .describe(
+    "Which CLASS of config key to report: `package-rules` drops the ~107 globalOnly options no " +
+      "packageRule can read or write, `full` keeps everything. The answer always states which " +
+      "one produced it, in `configView`.",
+  );
 
 /** Each validator message with the position `explain_message` addresses it by.
  *  The array's own index is NOT that position: a large answer is elided
@@ -567,12 +555,21 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       title: "Effective config",
       description:
         "The effective config the run produced — everything merged, Renovate's defaults " +
-        "included. Large. If the question is 'who set this option', get_provenance answers it " +
-        "better; if it is 'what would I write instead of these presets', use get_resolved_config.",
+        "included. Large: pass `keys` for the options you care about. If the question is 'who " +
+        "set this option', get_provenance answers it better; if it is 'what would I write " +
+        "instead of these presets', use get_resolved_config. This is the RUN's whole config, so " +
+        'it reports `configScope: "full"` by default — the globalOnly options are the answer ' +
+        "when you are debugging a self-hosted global or inherited layer.",
       annotations: HELD_RUN_ANNOTATIONS,
-      inputSchema: z.strictObject({ runId: RUN_ID }),
+      inputSchema: z.strictObject({ runId: RUN_ID, keys: CONFIG_KEYS, configScope: CONFIG_SCOPE }),
     },
-    answer(({ runId }) => ({ finalConfig: finalConfigOf(store.get(runId)) }), HINTS.finalConfig),
+    answer(({ runId, keys, configScope }) => {
+      const projected = projectConfig(finalConfigOf(store.get(runId)), {
+        scope: configScope ?? "full",
+        ...(keys ? { keys } : {}),
+      });
+      return { finalConfig: projected.config, configView: projected.view };
+    }, HINTS.finalConfig),
   );
 
   server.registerTool(
@@ -731,7 +728,8 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         "what it read), the options the matching rules set for that dependency " +
         "(`finalDependencyConfig`) and how they got there (`flattened`). " +
         "A `config:recommended` run has ~700 rules — `verdict` and `source` scope the list " +
-        '(`source: "repo"` is "just my own config\'s rules"). The step-by-step merge trace is ' +
+        '(`source: "repo"` is "just my own config\'s rules"), and `keys` narrows ' +
+        "`finalDependencyConfig` to the options you asked about. The step-by-step merge trace is " +
         'NOT included unless you ask for detail: "full"; it is the bulk of the payload.',
       annotations: HELD_RUN_ANNOTATIONS,
       inputSchema: z.strictObject({
@@ -739,6 +737,8 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         dep: DEP,
         verdict: RULE_VERDICT,
         source: RULE_SOURCE,
+        keys: CONFIG_KEYS,
+        configScope: CONFIG_SCOPE,
         detail: z
           .enum(SIMULATE_DETAIL)
           .optional()
@@ -750,10 +750,19 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
           ),
       }),
     },
-    answer(async ({ runId, dep, verdict, source, detail }, ctx) => {
+    answer(async ({ runId, dep, verdict, source, keys, configScope, detail }, ctx) => {
       const run = store.get(runId);
       const sim = await simulateRun(run, dep, ctx);
-      const payload = simulationPayload(sim, detail ?? "verdict");
+      const resolvedDetail = detail ?? "verdict";
+      // `finalDependencyConfig` is by construction "what applyPackageRules
+      // produced for ONE dependency", so the globalOnly class is provably
+      // inert here and goes by default — the opposite of get_final_config's
+      // document, and stated as such in `configView`.
+      const payload = simulationPayload(sim, {
+        detail: resolvedDetail,
+        scope: configScope ?? "package-rules",
+        ...(keys ? { keys } : {}),
+      });
       if (verdict === undefined && source === undefined) {
         return { dep: toDependency(dep), ...payload };
       }
@@ -766,7 +775,7 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       return {
         dep: toDependency(dep),
         ...payload,
-        rules: view.rules,
+        rules: resolvedDetail === "full" ? view.rules : collapseRuleMerges(view.rules),
         ...(view.notes.length > 0 ? { filterNotes: view.notes } : {}),
         ...ruleFilterPayload(view),
       };
@@ -782,16 +791,20 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         "the two runs against the same dependency — `summary` is the whole verdict in one line " +
         "(`identical: …` / `differs: …`), with the rules that started or stopped matching and " +
         "the key-level delta of the resulting config underneath it. Pass runIdB to compare two " +
-        "configs, or depB to compare two dependencies against the same config.",
+        "configs, or depB to compare two dependencies against the same config. `keys` narrows " +
+        "the delta to the options you care about; `summary` and the verdict booleans always " +
+        "describe the WHOLE delta, so narrowing the view never moves the verdict.",
       annotations: HELD_RUN_ANNOTATIONS,
       inputSchema: z.strictObject({
         runId: RUN_ID,
         dep: DEP,
         runIdB: z.string().optional().describe("The B-side run. Defaults to runId."),
         depB: DEP.optional().describe("The B-side dependency. Defaults to dep."),
+        keys: CONFIG_KEYS,
+        configScope: CONFIG_SCOPE,
       }),
     },
-    answer(async ({ runId, dep, runIdB, depB }, ctx) => {
+    answer(async ({ runId, dep, runIdB, depB, keys, configScope }, ctx) => {
       const a = store.get(runId);
       const b = runIdB ? store.get(runIdB) : a;
       const [simA, simB] = await Promise.all([
@@ -801,7 +814,10 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       return {
         a: { runId: a.runId, dep: toDependency(dep) },
         b: { runId: b.runId, dep: toDependency(depB ?? dep) },
-        ...compareSimulations(simA, simB),
+        ...comparisonPayload(compareSimulations(simA, simB), {
+          scope: configScope ?? "package-rules",
+          ...(keys ? { keys } : {}),
+        }),
       };
     }, HINTS.compare),
   );

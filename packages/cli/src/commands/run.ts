@@ -2,6 +2,7 @@ import { outputFormat, stringOption } from "../args";
 import type { Command } from "../command";
 import { CliError, EXIT_OK, EXIT_REFUSED } from "../io";
 import { emitJson, emitLines, json, messageLines, stageLines, writeNotes } from "../output";
+import { parseConfigScope, parseKeys, projectConfig } from "../projections/config-view";
 import { INPUT_OPTIONS, runFromArgs, wouldRefuse } from "../run-input";
 
 /**
@@ -51,13 +52,25 @@ export const runCommand: Command = {
     "`--select tree` are the firehose: a `config:recommended` run carries",
     "over a thousand tree nodes with four config bodies each — prefer",
     "`rcd tree` / `rcd provenance`, which project them.",
+    "",
+    "`--keys` and `--config-scope` project `--select final` ONLY — this is the",
+    "run's whole effective config, so it is reported at `--config-scope full`:",
+    "the globalOnly options are the answer when you are debugging a self-hosted",
+    "global or inherited layer. `--config-scope package-rules` drops them.",
   ],
-  options: [...INPUT_OPTIONS, "select", "format"],
+  options: [...INPUT_OPTIONS, "select", "keys", "config-scope", "format"],
   async run(args, io) {
     const format = outputFormat(args);
     const selection = parseSelection(stringOption(args, "select"));
+    const keys = parseKeys(stringOption(args, "keys"));
+    const scope = parseConfigScope(stringOption(args, "config-scope"), "--config-scope");
     const { result, notes } = await runFromArgs(args, io);
     writeNotes(io, notes);
+
+    const projected =
+      result.finalConfig && (keys || scope)
+        ? projectConfig(result.finalConfig, { scope: scope ?? "full", ...(keys ? { keys } : {}) })
+        : undefined;
 
     const slices: Record<string, unknown> = {};
     for (const key of selection) {
@@ -72,7 +85,10 @@ export const runCommand: Command = {
           slices.warnings = result.warnings;
           break;
         case "final":
-          slices.finalConfig = result.finalConfig;
+          slices.finalConfig = projected ? projected.config : result.finalConfig;
+          if (projected) {
+            slices.configView = projected.view;
+          }
           break;
         case "events":
           slices.events = result.events;
@@ -109,7 +125,14 @@ export const runCommand: Command = {
         );
       }
       if (selection.includes("final")) {
-        lines.push("", "Effective config:", json(result.finalConfig));
+        lines.push(
+          "",
+          "Effective config:",
+          json(projected ? projected.config : result.finalConfig),
+        );
+        if (projected) {
+          lines.push(`(${json(projected.view)})`);
+        }
       }
       if (selection.includes("layers")) {
         lines.push("", "Layers:", json(result.layerConfigs));

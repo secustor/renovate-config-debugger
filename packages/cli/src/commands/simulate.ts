@@ -4,10 +4,10 @@ import {
   type SimulationResult,
   type TraceResult,
 } from "@renovate-config-debugger/engine";
-import { outputFormat } from "../args";
+import { outputFormat, stringOption } from "../args";
 import type { Command } from "../command";
 import { CliError, EXIT_OK, EXIT_REFUSED } from "../io";
-import { emitJson, emitLines, preview, writeNotes } from "../output";
+import { emitJson, emitLines, writeNotes } from "../output";
 import { INPUT_OPTIONS, refusalNote, runFromArgs, wouldRefuse } from "../run-input";
 import { readDependency } from "../dep";
 import {
@@ -16,6 +16,8 @@ import {
   ruleFilterPayload,
   ruleFilterSelection,
 } from "../rule-view";
+import { collapseDiffs, mergedLine, parseConfigScope, parseKeys } from "../projections/config-view";
+import { collapseRuleMerges, parseDetail, simulationPayload } from "../projections/simulate";
 
 /**
  * "Would this PR be grouped/labeled/blocked here?" — every packageRule
@@ -38,8 +40,8 @@ export function verdictLines(rules: readonly RuleEvaluation[]): string[] {
   for (const rule of rules) {
     const clauses = rule.clauses.map((c) => `${c.key}=${c.state}`).join(", ");
     lines.push(`  #${rule.index + 1} ${rule.verdict}${clauses ? ` (${clauses})` : ""}`);
-    for (const merged of rule.merged ?? []) {
-      lines.push(`      sets ${merged.key} = ${preview(merged.after)}`);
+    for (const merged of collapseDiffs(rule.merged ?? [])) {
+      lines.push(`      sets ${mergedLine(merged)}`);
     }
     for (const note of rule.notes) {
       lines.push(`      note: ${note}`);
@@ -61,11 +63,31 @@ export const simulateCommand: Command = {
     "output prints the notable ones (matched + unresolved) and says how many it",
     "hid. `--verdict`/`--source` scope it; `--format json` keeps the full array",
     "unless you pass one of them.",
+    "",
+    "`--format json` answers at `--detail verdict`: the merge trace",
+    "(`mergeSteps`, `rawFinalConfig`) is ~1 MB on a `config:recommended` run and",
+    "is opt-in through `--detail full`, which returns the whole simulation",
+    "result unprojected. `finalDependencyConfig` is reported at",
+    "`--config-scope package-rules` — the globalOnly options no rule can read",
+    "are dropped — and `--keys a,b` narrows it to the options you asked about.",
   ],
-  options: [...INPUT_OPTIONS, "dep", "dep-file", "verdict", "source", "format"],
+  options: [
+    ...INPUT_OPTIONS,
+    "dep",
+    "dep-file",
+    "verdict",
+    "source",
+    "detail",
+    "keys",
+    "config-scope",
+    "format",
+  ],
   async run(args, io) {
     const format = outputFormat(args);
     const selection = ruleFilterSelection(args, format);
+    const detail = parseDetail(stringOption(args, "detail")) ?? "verdict";
+    const keys = parseKeys(stringOption(args, "keys"));
+    const scope = parseConfigScope(stringOption(args, "config-scope"), "--config-scope");
     const dep = await readDependency(args, "dep", "dep-file");
     const { result, notes } = await runFromArgs(args, io);
     writeNotes(io, notes);
@@ -79,8 +101,12 @@ export const simulateCommand: Command = {
     if (format === "json") {
       emitJson(io, {
         dep,
-        ...sim,
-        rules: view.rules,
+        ...simulationPayload(sim, {
+          detail,
+          scope: scope ?? "package-rules",
+          ...(keys ? { keys } : {}),
+        }),
+        rules: detail === "full" ? view.rules : collapseRuleMerges(view.rules),
         ...(selection.explicit ? ruleFilterPayload(view) : {}),
         wouldRefuse: refused,
         ...(refusal ? { exitNote: refusal } : {}),
@@ -91,9 +117,9 @@ export const simulateCommand: Command = {
       // answer. What the rules DID is the delta they merged; `--format json`
       // carries the full document for anyone who wants it.
       const changes = sim.mergeSteps.flatMap((step) =>
-        step.merged.map(
+        collapseDiffs(step.merged).map(
           (m) =>
-            `  ${m.key} = ${preview(m.after)}` +
+            `  ${mergedLine(m)}` +
             (step.kind === "flatten"
               ? `  (${step.updateType} block)`
               : `  (rule #${(step.ruleIndex ?? 0) + 1})`),

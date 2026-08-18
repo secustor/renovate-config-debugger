@@ -1,0 +1,10 @@
+{
+  "description": ["The base config for this repository.", "Reviewed every quarter."],
+  "packageRules": [
+    {
+      "description": ["Group the react packages into one PR."],
+      "matchPackageNames": ["react"],
+      "groupName": "react monorepo"
+    }
+  ]
+}
