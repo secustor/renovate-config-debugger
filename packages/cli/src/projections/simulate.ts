@@ -6,6 +6,8 @@ import type {
   SimulationResult,
 } from "@renovate-config-debugger/engine";
 import { CliError } from "../io";
+import { missingInputsNote } from "../rule-view";
+import type { RunTransport } from "../run-input";
 import {
   collapseDiffs,
   type ConfigScope,
@@ -57,6 +59,12 @@ export interface SimulateProjection {
   detail: SimulateDetail;
   keys?: readonly string[];
   scope: ConfigScope;
+  /**
+   * The transport's spelling of the missing-input pointer
+   * (`missingInputsNote`). Optional only so a caller that has no rule list to
+   * point at can omit it; both transports pass it.
+   */
+  transport?: RunTransport;
 }
 
 /** A rule with its merge diffs collapsed. Exported because the rule list is
@@ -77,14 +85,26 @@ export function collapseRuleMerges(
  */
 export function simulationPayload(sim: SimulationResult, options: SimulateProjection) {
   if (options.detail === "full") {
+    // The escape hatch stays byte-exact — `missingInputs` is already a member
+    // of the result, so only the surface-specific pointer sentence is absent.
     return sim;
   }
   const projected = projectConfig(sim.finalDependencyConfig, {
     scope: options.scope,
     ...(options.keys ? { keys: options.keys } : {}),
   });
+  const missingNote = options.transport
+    ? missingInputsNote(sim.missingInputs, options.transport)
+    : undefined;
   return {
     rules: collapseRuleMerges(sim.rules),
+    // Admitted on purpose, and NOT next to the rows it describes: `rules` is
+    // replaced downstream by a `verdict`/`source` view and is the first array
+    // the MCP elision shrinks, and the rules this counts are exactly the ones
+    // a `notable`/`matched` filter removes. A few hundred bytes that survive
+    // both, against an answer that reads as "nothing matched".
+    missingInputs: sim.missingInputs,
+    ...(missingNote ? { missingInputsNote: missingNote } : {}),
     flattened: { ...sim.flattened, merged: collapseDiffs(sim.flattened.merged) },
     finalDependencyConfig: projected.config,
     configView: projected.view,

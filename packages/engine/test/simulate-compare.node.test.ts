@@ -33,6 +33,7 @@ function sim(
 ): SimulationResult {
   return {
     rules,
+    missingInputs: { rules: 0, groups: [] },
     rawFinalConfig: {},
     finalDependencyConfig,
     flattened: { merged: [], blocks: {}, authoredBlocks: [] },

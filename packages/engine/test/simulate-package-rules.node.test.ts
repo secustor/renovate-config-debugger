@@ -79,6 +79,63 @@ describe("simulatePackageRules (golden)", () => {
     expect(oracle.addLabels).toEqual(["all-but-react", "via-jsonata"]);
   });
 
+  /**
+   * The golden twin of the shimmed suite's "distinguishes a real mismatch from
+   * a fail-closed missing input" case, with the same assertions on
+   * `missingInputs`: a summary computed in the browser module graph and a
+   * summary computed off untouched Renovate modules have to be the same
+   * document, or it is describing the shims rather than Renovate.
+   */
+  it("summarizes the fail-closed missing input, and only it (oracle parity)", async () => {
+    const config = {
+      packageRules: [{ matchSourceUrls: ["https://github.com/facebook/react"], labels: ["fb"] }],
+    };
+
+    // sourceUrl set but different → a genuine no-match against a named input.
+    const mismatch = await simulatePackageRules({
+      config,
+      dep: { ...npmDep, sourceUrl: "https://github.com/react/react" },
+    });
+    expect(mismatch.rules[0]?.verdict).toBe("no-match");
+    expect(mismatch.rules[0]?.clauses[0]?.state).toBe("no-match");
+    expect(mismatch.missingInputs).toEqual({ rules: 0, groups: [] });
+
+    // sourceUrl absent → upstream's `if (!sourceUrl) return false` fail-closed
+    // branch: the same rule-level verdict, summarized on the result.
+    const missing = await simulatePackageRules({ config, dep: npmDep });
+    expect(missing.rules[0]?.verdict).toBe("no-match");
+    expect(missing.rules[0]?.clauses[0]?.state).toBe("no-input");
+    expect(missing.missingInputs.rules).toBe(1);
+    expect(missing.missingInputs.groups).toEqual([
+      {
+        fields: ["sourceUrl"],
+        fieldList: "sourceUrl",
+        selectors: ["matchSourceUrls"],
+        rules: 1,
+        sampleRuleIndexes: [0],
+      },
+    ]);
+    expect(missing.missingInputs.note).toBe(
+      "1 of 1 rule could not match because the simulated dependency has no sourceUrl — " +
+        "Renovate treats a missing value as a non-match. Set sourceUrl on the dependency if " +
+        "you expected these rules to fire.",
+    );
+
+    // …and the descriptive field changed no verdict: both sides still equal
+    // what real applyPackageRules returns.
+    for (const [dep, sim] of [
+      [{ ...npmDep, sourceUrl: "https://github.com/react/react" }, mismatch],
+      [npmDep, missing],
+    ] as const) {
+      const oracle = await applyPackageRules({
+        ...config,
+        ...dep,
+        depName: dep.depName ?? dep.packageName,
+      });
+      expect(sim.rawFinalConfig).toEqual(oracle);
+    }
+  });
+
   it("flattens config[updateType] up, matching upstream (oracle parity)", async () => {
     const config = {
       packageRules: [

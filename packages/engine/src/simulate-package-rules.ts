@@ -1,5 +1,10 @@
 import { enqueueEngineTask } from "./pipeline";
 import {
+  humanFieldList,
+  type MissingInputSummary,
+  summarizeMissingInputs,
+} from "./simulate-missing-inputs";
+import {
   GlobalConfig,
   getDefaultConfig,
   memCache,
@@ -216,6 +221,17 @@ export interface MergeStep {
 
 export interface SimulationResult {
   rules: RuleEvaluation[];
+  /**
+   * The rules that failed SOLELY because the simulated dependency left a field
+   * they read unset, grouped by that field — descriptive only, computed after
+   * the loop from the finished verdicts, read by nothing in the merge tail.
+   *
+   * It rides on the RESULT rather than on the rows because every surface that
+   * scopes the rule list (`notable`, `matched`, MCP's elision) drops exactly
+   * those rows: a fact carried inside the array is a fact the filter can hide.
+   * Always present — `{ rules: 0, groups: [] }` when there is nothing to say.
+   */
+  missingInputs: MissingInputSummary;
   /** Exactly what `applyPackageRules` would return (dep fields included). */
   rawFinalConfig: Record<string, unknown>;
   /**
@@ -397,15 +413,6 @@ function applyTemplate(value: string, field: string, notes: string[]): string {
     );
   }
   return value;
-}
-
-/** "sourceUrl" / "packageFile or lockFiles" — the fields a matcher reads,
- *  for the fail-closed "no X set on the simulated dependency" explanation. */
-function humanFieldList(fields: readonly string[]): string {
-  if (fields.length <= 1) {
-    return fields[0] ?? "matching input";
-  }
-  return `${fields.slice(0, -1).join(", ")} or ${fields.at(-1)}`;
 }
 
 async function evaluateRule(
@@ -778,6 +785,9 @@ async function execute(input: SimulationInput): Promise<SimulationResult> {
 
     return {
       rules,
+      // Descriptive, and deliberately computed here rather than per row: the
+      // views that would show it are the views that filter those rows away.
+      missingInputs: summarizeMissingInputs(rules),
       rawFinalConfig: config,
       finalDependencyConfig,
       flattened: { updateType, merged: flattenMerged, blocks, authoredBlocks },

@@ -143,6 +143,42 @@ describe("compare", () => {
     expect(pretty.stdout).not.toContain("Reviewed every quarter.");
   });
 
+  /**
+   * The trap this closes: two sides that BOTH failed to evaluate the same rule
+   * for lack of dependency input agree perfectly, and `identical:` over two
+   * blind runs reads as "the edit does nothing".
+   */
+  test("a side that could not evaluate a rule says so, on both sides", async () => {
+    const args = [
+      "compare",
+      fixture("mixed-rules.json"),
+      fixture("mixed-rules.json"),
+      "--dep",
+      '{"depName":"react"}',
+    ];
+    const io = recordingIo();
+    expect(await main(args, io)).toBe(0);
+    expect(io.stdout).toContain("✓ No behavioral change");
+    expect(io.stdout).toContain("A — 2 of 4 rules could not match");
+    expect(io.stdout).toContain("B — 2 of 4 rules could not match");
+    expect(io.stdout).toContain("`--verdict no-input` lists them.");
+
+    const json = recordingIo();
+    expect(await main([...args, "--format", "json"], json)).toBe(0);
+    const comparison = json.json() as {
+      a: { missingInputs: { rules: number; groups: { fieldList: string }[] } };
+      b: { missingInputs: { rules: number } };
+      noChange: boolean;
+    };
+    expect(comparison.noChange).toBe(true);
+    expect(comparison.a.missingInputs.rules).toBe(2);
+    expect(comparison.b.missingInputs.rules).toBe(2);
+    expect(comparison.a.missingInputs.groups.map((group) => group.fieldList)).toEqual([
+      "depType or depTypes",
+      "sourceUrl",
+    ]);
+  });
+
   test("--keys narrows the delta without moving the verdict", async () => {
     const io = recordingIo();
     expect(

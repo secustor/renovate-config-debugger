@@ -34,6 +34,7 @@ const SIM: SimulationResult = {
     blocks: {},
     authoredBlocks: [],
   },
+  missingInputs: { rules: 0, groups: [] },
   mergeSteps: [],
   errors: [],
   warnings: [],
@@ -52,6 +53,7 @@ describe("simulationPayload", () => {
     const payload = simulationPayload(SIM, { detail: "verdict", scope: "package-rules" });
     expect(Object.keys(payload)).toEqual([
       "rules",
+      "missingInputs",
       "flattened",
       "finalDependencyConfig",
       "configView",
@@ -80,6 +82,41 @@ describe("simulationPayload", () => {
       finalDependencyConfig: { automerge: true },
       configView: { withheld: [{ key: "onboardingConfig", reason: "global-only" }] },
     });
+  });
+
+  /** The summary is a sibling of `rules`, not a member of it, so it is carried
+   *  by every default answer — including the ones whose rule list a filter or
+   *  the elision is about to replace. */
+  test("the missing-input summary rides along, with the transport's own pointer", () => {
+    const sim: SimulationResult = {
+      ...SIM,
+      missingInputs: {
+        rules: 1,
+        groups: [
+          {
+            fields: ["sourceUrl"],
+            fieldList: "sourceUrl",
+            selectors: ["matchSourceUrls"],
+            rules: 1,
+            sampleRuleIndexes: [3],
+          },
+        ],
+        note: "1 of 4 rules could not match because the simulated dependency has no sourceUrl.",
+      },
+    };
+    const payload = simulationPayload(sim, {
+      detail: "verdict",
+      scope: "package-rules",
+      transport: "mcp",
+    });
+    expect(payload).toMatchObject({
+      missingInputs: sim.missingInputs,
+      missingInputsNote: `${sim.missingInputs.note} \`verdict: "no-input"\` lists them.`,
+    });
+    // Nothing to point at, no key: the shape never carries an empty sentence.
+    expect(
+      simulationPayload(SIM, { detail: "verdict", scope: "package-rules", transport: "cli" }),
+    ).not.toHaveProperty("missingInputsNote");
   });
 
   test("the merged description appends are collapsed, in the rules and in flattened", () => {

@@ -92,7 +92,8 @@ export const OPTIONS = {
     flags: "--verdict <which>",
     description:
       "which rule verdicts to print: notable|all|matched|no-input|no-match " +
-      "(pretty default: notable; --format json defaults to all)",
+      "(pretty default: notable; --format json defaults to all). The " +
+      "missing-input summary is reported whatever you pass",
   },
   source: {
     flags: "--source <which>",
