@@ -28,6 +28,33 @@
     <title>Renovate Config Debugger</title>
   </head>
   <body>
+    <!--
+      Roadmap 060: the app is client-rendered, so without JavaScript the page
+      is blank — and a headless agent fetching this URL (curl, no JS engine)
+      sees only this static document. The noscript block serves both readers:
+      a human without JS learns why the page is empty, and an agent reading
+      the raw HTML finds the headless one-liners it should be using instead.
+      Visible whenever it renders, so it stays inside the "no hidden
+      agent-directed text" rule (see HeadlessNote.tsx).
+    -->
+    <noscript>
+      <h1>Renovate Config Debugger</h1>
+      <p>
+        This app runs Renovate's own config code in your browser and needs JavaScript. There is
+        nothing to render without it &mdash; but every answer it gives is also available headlessly,
+        from the same engine and the same pinned Renovate:
+      </p>
+      <pre>
+npx -y @renovate-config-debugger/cli digest renovate.json
+npx -y @renovate-config-debugger/cli validate renovate.json    # exit 2 = Renovate would refuse it
+claude mcp add rcd -- npx -y @renovate-config-debugger/cli mcp # or register the MCP server once</pre>
+      <p>
+        Machine-readable overview: <a href="/llms.txt">/llms.txt</a> &middot;
+        <a href="https://github.com/secustor/renovate-config-debugger/tree/main/packages/cli"
+          >CLI documentation</a
+        >
+      </p>
+    </noscript>
     <div id="root"></div>
     <!--
       Roadmap 043: deployment-time config, served verbatim from public/ so it
