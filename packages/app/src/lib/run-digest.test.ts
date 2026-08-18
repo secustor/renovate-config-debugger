@@ -75,6 +75,42 @@ describe("verdict", () => {
     expect(ids(clauses)).toEqual(["verdict", "presets", "effective", "problems"]);
   });
 
+  test("a run with only warnings is accepted, but not with a checkmark", () => {
+    const clauses = buildRunDigest(
+      input({
+        warnings: 1,
+        firstProblem: {
+          severity: "warning",
+          topic: "Configuration Warning",
+          message: "Invalid schedule: `before 6am on monday` may never match.",
+        },
+      }),
+    );
+    const verdict = clause(clauses, "verdict");
+    expect(verdict.tone).toBe("warn");
+    expect(verdict.text).not.toContain("✓");
+    // The phrase the CLI, MCP and e2e suites substring-match — it has to
+    // survive both acceptance variants, or those assertions go vacuous.
+    expect(verdict.text).toContain("Renovate accepted this config");
+    // The two clauses stay independently composed: the verdict says there is
+    // something to look at, the tail still counts it and links to it.
+    expect(ids(clauses)).toContain("problems");
+  });
+
+  test("the warnings verdict carries no count — the problems tail owns that", () => {
+    const text = (warnings: number): string =>
+      clause(
+        buildRunDigest(
+          input({
+            warnings,
+            firstProblem: { severity: "warning", topic: "Configuration Warning", message: "M" },
+          }),
+        ),
+        "verdict",
+      ).text;
+    expect(text(3)).toBe(text(1));
+  });
+
   test("errors that are not validation errors do not claim the config was refused", () => {
     const clauses = buildRunDigest(
       input({
@@ -327,7 +363,30 @@ describe("problems tail", () => {
     expect(problems.link?.label).toBe("fix them");
   });
 
-  test("a long message is elided on a word boundary", () => {
+  test("a two-sentence message is cut at its clause boundary, keeping the diagnosis", () => {
+    const problems = clause(
+      buildRunDigest(
+        input({
+          warnings: 1,
+          firstProblem: {
+            severity: "warning",
+            topic: "Configuration Warning",
+            // Upstream's real wording, per the message shape documented in
+            // packages/engine/src/error-translations.ts (redundant-glob-star).
+            message:
+              "packageRules[0].matchPackageNames: Your input contains * or ** along with other patterns. Please remove them, as * or ** matches all patterns.",
+          },
+        }),
+      ),
+      "problems",
+    );
+    expect(problems.text).toContain("other patterns… —");
+    // The remedy half is what the Problems tab is for; quoting a slice of it
+    // is what produced the old mid-clause cut.
+    expect(problems.text).not.toContain("as * or…");
+  });
+
+  test("a long message with no clause break falls back to a word boundary", () => {
     const problems = clause(
       buildRunDigest(
         input({
@@ -348,8 +407,9 @@ describe("problems tail", () => {
 });
 
 describe("assembled paragraphs", () => {
-  /** The canonical shape: a clean run of the app's own default config. */
-  test("clean run with a huge expansion", () => {
+  /** The canonical shape: a run Renovate accepted with one warning, over the
+   *  app's own default config. */
+  test("accepted run with one warning and a huge expansion", () => {
     const clauses = buildRunDigest(
       input({
         warnings: 1,
@@ -371,7 +431,26 @@ describe("assembled paragraphs", () => {
       }),
     );
     expect(digestText(clauses)).toMatchInlineSnapshot(
-      `"✓ Renovate accepted this config. It rewrote \`packageNames → matchPackageNames\` and \`stabilityDays\` in your file. Your \`config:recommended\` and \`:dependencyDashboard\` entries expanded into 1,076 presets — only 14 of which set options, the rest are package-grouping rules. Everything merged into 23 effective options, 6 of them overridden along the way. 1 warning: Invalid schedule: \`before 6am on monday\` may never match — review it."`,
+      `"Renovate accepted this config, but flagged something worth reviewing. It rewrote \`packageNames → matchPackageNames\` and \`stabilityDays\` in your file. Your \`config:recommended\` and \`:dependencyDashboard\` entries expanded into 1,076 presets — only 14 of which set options, the rest are package-grouping rules. Everything merged into 23 effective options, 6 of them overridden along the way. 1 warning: Invalid schedule: \`before 6am on monday\` may never match — review it."`,
+    );
+  });
+
+  /** Both of this fix's edges in one paragraph: the warnings verdict, and a
+   *  two-sentence validator message cut at its clause boundary. */
+  test("an accepted run whose one warning is a two-sentence validator message", () => {
+    const clauses = buildRunDigest(
+      input({
+        warnings: 1,
+        firstProblem: {
+          severity: "warning",
+          topic: "Configuration Warning",
+          message:
+            "packageRules[0].matchPackageNames: Your input contains * or ** along with other patterns. Please remove them, as * or ** matches all patterns.",
+        },
+      }),
+    );
+    expect(digestText(clauses)).toMatchInlineSnapshot(
+      `"Renovate accepted this config, but flagged something worth reviewing. Your \`config:recommended\` entry expanded into 4 presets. Everything merged into 12 effective options. 1 warning: packageRules[0].matchPackageNames: Your input contains * or ** along with other patterns… — review it."`,
     );
   });
 

@@ -114,6 +114,12 @@ function migrationLabel(step: TraceEvent): string {
  * exactly the derivations that feed the tab badges. `effective` is null while
  * provenance is still being computed (the browser computes it asynchronously);
  * the digest then says so rather than quoting a number it does not have.
+ *
+ * Every signal below is a run-level aggregate or provenance keyed per
+ * TOP-LEVEL config key, so an edit confined to one `packageRules` entry moves
+ * none of them and the paragraph comes out unchanged. That ceiling is
+ * deliberate: rule-level differences belong to the simulator and to
+ * `rcd compare`, not to the orientation paragraph.
  */
 export function buildDigestInput(
   result: TraceResult,

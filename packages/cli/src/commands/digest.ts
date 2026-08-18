@@ -7,7 +7,9 @@ import { INPUT_OPTIONS, runFromArgs, wouldRefuse } from "../run-input";
 
 /**
  * The Overview tab's paragraph, in a terminal — the cheapest orientation
- * before deciding what to drill into.
+ * before deciding what to drill into. Not a diff oracle: it narrates run-level
+ * aggregates, so two runs differing only inside a `packageRules` entry read
+ * the same — use `compare` for that.
  */
 export const digestCommand: Command = {
   name: "digest",
