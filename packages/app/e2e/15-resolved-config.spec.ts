@@ -18,8 +18,12 @@ test("the As JSON view keeps internal presets referenced, expands fully on deman
   await openTab(page, "effective");
   const panel = tabPanel(page, "effective");
 
-  // The provenance rows are the default rendering.
+  // The provenance rows are the default rendering — since 075 (iteration 5)
+  // cut into one section per layer that DECIDED a key, the reader's own config
+  // first.
   await expect(panel.locator(".prov-row").first()).toBeVisible({ timeout: 30_000 });
+  await expect(panel.locator(".prov-section-repo")).toBeVisible();
+  await expect(panel.locator(".prov-section-preset")).toBeVisible();
 
   await panel.getByRole("radio", { name: "As JSON" }).click();
   // The row filters are a per-rendering affordance — replaced by the output
@@ -49,5 +53,6 @@ test("the As JSON view keeps internal presets referenced, expands fully on deman
   // Switching back restores the provenance rows and their filters.
   await panel.getByRole("radio", { name: "By key" }).click();
   await expect(panel.locator(".prov-row").first()).toBeVisible();
+  await expect(panel.locator(".prov-section-repo")).toBeVisible();
   await expect(panel.locator(".prov-filter-input")).toBeVisible();
 });

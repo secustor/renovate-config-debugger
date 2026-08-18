@@ -174,14 +174,20 @@ test("a zero-count tab stays visible, dimmed and clickable, showing its empty st
   expect(Number(opacity)).toBeLessThan(1);
 
   await openTab(page, "problems");
-  await expect(tabPanel(page, "problems")).toContainText("No errors or warnings");
+  // Roadmap 075 (iteration 5): the tab's empty state is its summary strip —
+  // the same sentence slot that carries the counts once there are any.
+  await expect(tabPanel(page, "problems").locator(".summary-strip")).toContainText(
+    "No problems — this config is accepted.",
+  );
+  await expect(tabPanel(page, "problems").locator(".problem-card")).toHaveCount(0);
 
-  // The same tab carries a count and the list once a run does report something.
+  // The same tab carries a count and the cards once a run does report something.
   await setEditorContent(page, INVALID_RULES_CONFIG);
   await runAndAwaitResult(page);
   await expect(problems.locator(".tab-count")).not.toHaveText("0");
   await openTab(page, "problems");
-  await expect(tabPanel(page, "problems")).toContainText("Errors & warnings");
+  await expect(tabPanel(page, "problems").locator(".summary-strip")).toContainText("1 error");
+  await expect(tabPanel(page, "problems").locator(".problem-card").first()).toBeVisible();
 });
 
 /**

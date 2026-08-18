@@ -1,23 +1,29 @@
-import type { ErrorFixResult, ValidationMessage } from "@renovate-config-debugger/engine";
+import type { ValidationMessage } from "@renovate-config-debugger/engine";
 import type { ErrorTranslationLib } from "@/platform/run";
 
 /**
  * Roadmap 014: renders ALONGSIDE Renovate's original validator message (never
- * instead of it — see `MessagesPanel.tsx` / `RuleSimulator.tsx`) whatever the
- * curated translation library (`errorLib`) has to say about it: a
- * plain-language explanation, an optional before/after snippet of a suggested
- * edit, an "Apply fix" button, and a docs link. When nothing matches, falls
- * back to a bare docs link if the message names a known option (003).
+ * instead of it — see `RuleSimulator.tsx`) whatever the curated translation
+ * library (`errorLib`) has to say about it: a plain-language explanation, an
+ * optional before/after snippet of a suggested edit, and a docs link. When
+ * nothing matches, falls back to a bare docs link if the message names a known
+ * option (003).
  *
  * `errorLib` is `null` until the engine chunk has loaded (same lazy-load
  * story as the option-docs hover cards) — nothing renders until then, same
  * as those cards degrade gracefully pre-load.
+ *
+ * Roadmap 075 (iteration 5): this is the SIMULATOR's rendering only. The
+ * Problems tab, the one caller that ever passed a config snapshot and an
+ * "Apply fix" handler, now renders the same library as fix-it cards
+ * (`ProblemCard.tsx`) — so the apply button (and its bespoke ok-tinted style)
+ * left this component with it; the standard `.btn-primary` is what applies a
+ * fix now.
  */
 export function ErrorTranslationView({
   message,
   errorLib,
   config,
-  onApplyFix,
 }: {
   message: ValidationMessage;
   errorLib: ErrorTranslationLib | null;
@@ -25,8 +31,6 @@ export function ErrorTranslationView({
    *  fix paths); `null`/`undefined` when unavailable (skips fix computation) or
    *  when this context doesn't support applying fixes (e.g. the simulator echo). */
   config: Record<string, unknown> | null | undefined;
-  /** Omit to render explanations without an "Apply fix" button (see above). */
-  onApplyFix?: (fix: ErrorFixResult) => void;
 }) {
   if (!errorLib) {
     return null;
@@ -65,16 +69,6 @@ export function ErrorTranslationView({
           ) : (
             <p className="error-translation-summary">{fix.summary}</p>
           )}
-          {onApplyFix ? (
-            <button
-              type="button"
-              className="error-translation-apply"
-              title={fix.summary}
-              onClick={() => onApplyFix(fix)}
-            >
-              Apply fix
-            </button>
-          ) : null}
         </div>
       ) : null}
       {docsUrl ? (

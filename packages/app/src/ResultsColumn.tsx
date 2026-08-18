@@ -464,21 +464,21 @@ export function ResultsColumn({
           No effective config — the pipeline did not get far enough to merge one.
         </EmptyNote>
       ),
-      problems:
-        errorCount + warningCount > 0 ? (
-          <MessagesPanel
-            result={result}
-            ruleAttribution={ruleProvenance}
-            onJumpToEditor={focusEditorRepoIndex}
-            onJumpToSimRule={onJumpToSimRule}
-            errorLib={errorLib}
-            onApplyFix={onApplyFix}
-          />
-        ) : (
-          <EmptyNote>
-            No errors or warnings — Renovate accepted every option in this config.
-          </EmptyNote>
-        ),
+      // Roadmap 075 (iteration 5): the panel owns BOTH states now — its summary
+      // strip is the tab's lead sentence whether or not there is anything to
+      // list, so the clean run no longer needs an empty note of its own.
+      problems: (
+        <MessagesPanel
+          result={result}
+          errorCount={errorCount}
+          warningCount={warningCount}
+          ruleAttribution={ruleProvenance}
+          onJumpToEditor={focusEditorRepoIndex}
+          onJumpToSimRule={onJumpToSimRule}
+          errorLib={errorLib}
+          onApplyFix={onApplyFix}
+        />
+      ),
     };
   }, [
     result,

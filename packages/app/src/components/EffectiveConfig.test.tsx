@@ -220,6 +220,91 @@ it("clears the other filters when the digest card lands on the description row",
 });
 
 /**
+ * Roadmap 075 (iteration 5): the rows are cut by WHO DECIDED each key's final
+ * value. The rule itself is unit tested (lib/decider-groups.test.ts) against
+ * hand-built chains; what this covers is the wiring against a REAL run — that
+ * a key the repo config wrote, a key a preset wrote and a key only Renovate's
+ * defaults set each land in their own section, that the defaults section is
+ * folded shut until asked for, and that the filter narrows a section while its
+ * header keeps reporting the group's honest size.
+ */
+function sectionOf(container: HTMLElement, id: string): HTMLElement {
+  const section = container.querySelector<HTMLElement>(`.prov-section-${id}`);
+  if (!section) {
+    throw new Error(
+      `no ${id} section among: ${[...container.querySelectorAll(".prov-section")]
+        .map((s) => s.className)
+        .join(", ")}`,
+    );
+  }
+  return section;
+}
+
+function keysIn(section: HTMLElement): string[] {
+  return [...section.querySelectorAll(".prov-row-head .prov-key-name")].map((el) =>
+    (el.textContent ?? "").replace(/[▾▸]/g, "").trim(),
+  );
+}
+
+it("groups the rows by the layer that decided each key", async () => {
+  // `:dependencyDashboard` is an internal preset (no network) that sets
+  // `dependencyDashboard`; `labels` is the repo's own; `rangeStrategy` has a
+  // Renovate default nothing here touches.
+  const result = await runPipeline({
+    fileName: "renovate.json",
+    content: JSON.stringify({
+      extends: [":dependencyDashboard"],
+      labels: ["dependencies"],
+    }),
+  });
+
+  const view = render(<EffectiveConfig result={result} />);
+  await waitFor(() => expect(view.container.querySelector(".prov-row")).not.toBeNull());
+
+  expect(keysIn(sectionOf(view.container, "repo"))).toContain("labels");
+  expect(keysIn(sectionOf(view.container, "preset"))).toContain("dependencyDashboard");
+  // Each key is in exactly one section — the sections partition the rows.
+  expect(keysIn(sectionOf(view.container, "preset"))).not.toContain("labels");
+
+  // The defaults are not on screen at all yet: they are behind the existing
+  // "show default-only" gate, and the section that would hold them opens with
+  // it rather than leaving the checkbox looking inert.
+  expect(view.container.querySelector(".prov-section-defaults")).toBeNull();
+  fireEvent.click(view.getByLabelText(/show default-only/));
+  await waitFor(() =>
+    expect(view.container.querySelector(".prov-section-defaults")).not.toBeNull(),
+  );
+  const defaults = sectionOf(view.container, "defaults");
+  expect(defaults.getAttribute("open")).not.toBeNull();
+  expect(keysIn(defaults)).toContain("rangeStrategy");
+  expect(defaults.textContent).toContain("nothing in your run touched them");
+});
+
+it("keeps a section's count honest while a filter narrows it", async () => {
+  const result = await runPipeline({
+    fileName: "renovate.json",
+    content: JSON.stringify({ labels: ["dependencies"], automerge: true, rebaseWhen: "auto" }),
+  });
+
+  const view = render(<EffectiveConfig result={result} />);
+  await waitFor(() => expect(view.container.querySelector(".prov-row")).not.toBeNull());
+
+  const repo = sectionOf(view.container, "repo");
+  const total = keysIn(repo).length;
+  expect(total).toBeGreaterThan(1);
+  // Unfiltered, the header states the group's size and nothing else.
+  expect(repo.querySelector(".prov-section-shown")).toBeNull();
+
+  fireEvent.change(view.getByPlaceholderText("Filter keys…"), { target: { value: "labels" } });
+  await waitFor(() => expect(keysIn(sectionOf(view.container, "repo"))).toEqual(["labels"]));
+  expect(sectionOf(view.container, "repo").textContent).toContain(`1 of ${total} shown`);
+  // …and the headline still describes the whole group, not the filtered view.
+  expect(sectionOf(view.container, "repo").textContent).toContain(
+    `Your repo config decided ${total} options`,
+  );
+});
+
+/**
  * Roadmap 069 (PR 5): the same attribution at the point of contact — the
  * As-JSON document's `description` strings. The model and its wording are unit
  * tested (lib/description-attribution.test.ts); what this covers is the wiring

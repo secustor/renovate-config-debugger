@@ -105,6 +105,18 @@
   --error-bg: color-mix(in srgb, var(--error) 10%, var(--surface));
   --error-border: color-mix(in srgb, var(--error) 40%, var(--border));
   --error-wash: light-dark(#fff1f0, #2b1614);
+  /* ---------- diff row tints ----------
+     The two row fills the app reads every diff in. They are react-diff-view's
+     own palette values, hoisted out of `.diff-wrapper` (which is where they
+     were the library's `--diff-code-*-background-color` and still is — that
+     block now points here) by roadmap 075, so the fix-it cards' unified −/+
+     strip in the Problems tab wears the SAME added/removed tints as the
+     stage diffs rather than a second opinion about what "removed" looks like.
+     See the `.diff-wrapper` block for the contrast rationale behind the dark
+     halves. */
+  --diff-added-bg: light-dark(#eaffee, #1a2d1f);
+  --diff-removed-bg: light-dark(#fdeff0, #301c1e);
+
   --accent-bg: color-mix(in srgb, var(--accent) 10%, var(--surface));
   --accent-border: color-mix(in srgb, var(--accent) 40%, var(--border));
   --accent-wash: light-dark(#ddf4ff, #121d2f);
@@ -1163,6 +1175,21 @@ pre.config-view {
   font-weight: 600;
 }
 
+/* The two 008 layer hues as tones (075 iteration 5, for the effective config's
+   decided-by section headers). They exist only because a run that HAS a global
+   or inherited config gets a section for it; the common run never renders one.
+   Same hues as `.badge.prov-global` / `.badge.prov-inherited`, so a section
+   header and the layer chips on its rows can never disagree. */
+.pill-global {
+  color: var(--accent-teal);
+  font-weight: 600;
+}
+
+.pill-inherited {
+  color: var(--accent-pink);
+  font-weight: 600;
+}
+
 .pill-count {
   background: transparent;
   border-color: var(--border);
@@ -2004,7 +2031,7 @@ textarea.layer-editor:focus {
      the same relationship every other tinted surface in this file has to it.
      Contrast against --ink (#f0f6fc, relative luminance 0.9146) is unchanged
      or better: 14.72:1 delete (was 14.71), 13.41:1 insert (was 12.94). */
-  --diff-code-delete-background-color: light-dark(#fdeff0, #301c1e);
+  --diff-code-delete-background-color: var(--diff-removed-bg);
   /* The word-level edit highlight was never dark-themed at all: the library
      paints it #f39ea2/#c0dc91, which left light text on a light chip inside
      an otherwise dark row. Both pass 4.5:1 against --diff-text-color. The
@@ -2015,7 +2042,7 @@ textarea.layer-editor:focus {
   --diff-code-delete-edit-background-color: light-dark(#f39ea2, #6e3539);
   --diff-code-delete-edit-text-color: var(--ink);
   --diff-code-delete-text-color: var(--ink);
-  --diff-code-insert-background-color: light-dark(#eaffee, #1a2d1f);
+  --diff-code-insert-background-color: var(--diff-added-bg);
   --diff-code-insert-edit-background-color: light-dark(#c0dc91, #285336);
   --diff-code-insert-edit-text-color: var(--ink);
   --diff-code-insert-text-color: var(--ink);
@@ -2156,6 +2183,87 @@ textarea.layer-editor:focus {
 
   max-height: 40rem;
   overflow: auto;
+}
+
+/* ---------- decided-by sections (075, iteration 5) ----------
+   The key list is cut into one section per layer that DECIDED a key's final
+   value (see `lib/decider-groups.ts`). A section is a card in its group's own
+   tone: the hue says which layer without the reader having to read the pill,
+   and the tint is deliberately faint (6%) because the rows inside already
+   carry the same hue on their origin chips — the section must frame them, not
+   compete with them. Each group's edge/tint pair is set once, below; the
+   shared shape reads them through `--prov-section-*`. */
+.prov-section {
+  border: 1px solid var(--prov-section-edge, var(--border));
+  border-radius: 8px;
+  margin: 0.6rem 0.75rem;
+  overflow: hidden;
+}
+
+.prov-section-head {
+  align-items: center;
+  background: var(--prov-section-tint, var(--surface));
+  cursor: pointer;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  list-style: none;
+  padding: 0.4rem 0.6rem;
+}
+
+/* The disclosure triangle is drawn by the summary's own caret span (the same
+   one the rows use), so the UA marker would be a second one. */
+.prov-section-head::marker {
+  content: "";
+}
+
+.prov-section-head::-webkit-details-marker {
+  display: none;
+}
+
+.prov-section-headline {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+/* Pinned right: how much of the group the current filters are showing — a
+   count, so the `.pill-count` tone rather than a semantic one. */
+.prov-section-shown {
+  margin-left: auto;
+}
+
+.prov-section-repo {
+  --prov-section-edge: color-mix(in srgb, var(--accent) 40%, var(--border));
+  --prov-section-tint: color-mix(in srgb, var(--accent) 6%, var(--surface));
+}
+
+.prov-section-preset {
+  --prov-section-edge: color-mix(in srgb, var(--accent-purple) 40%, var(--border));
+  --prov-section-tint: color-mix(in srgb, var(--accent-purple) 6%, var(--surface));
+}
+
+.prov-section-global {
+  --prov-section-edge: color-mix(in srgb, var(--accent-teal) 40%, var(--border));
+  --prov-section-tint: color-mix(in srgb, var(--accent-teal) 6%, var(--surface));
+}
+
+.prov-section-inherited {
+  --prov-section-edge: color-mix(in srgb, var(--accent-pink) 40%, var(--border));
+  --prov-section-tint: color-mix(in srgb, var(--accent-pink) 6%, var(--surface));
+}
+
+/* The defaults group is the neutral one on purpose: it is the pile nothing in
+   the run touched, and a tint would make it look like a finding. */
+.prov-section-defaults {
+  --prov-section-edge: var(--border);
+  --prov-section-tint: var(--surface);
+}
+
+/* One list per section now, so the scroll budget is per group: the flat list's
+   40rem cap applied to a repo group of four rows would have been a 40rem
+   scroller holding four rows. */
+.prov-section .prov-list {
+  max-height: 32rem;
 }
 
 /* The row wrapper carries the separator and passes the ledger's tracks down to
@@ -2311,15 +2419,36 @@ textarea.layer-editor:focus {
   text-transform: uppercase;
 }
 
+/* 075 (iteration 5): a step is a BOX, not a margin note. The chain is the
+   answer to "why is this value what it is", and a stack of bordered boxes is
+   what makes it read as a sequence of hand-offs — the old 2px rule left every
+   step floating in the detail block's whitespace, where the reader had to
+   count blank lines to see where one layer's contribution ended. */
 .prov-step {
-  border-left: 2px solid var(--border);
+  border: 1px solid var(--border);
+  border-left-width: 2px;
+  border-radius: 6px;
   margin: 0.4rem 0;
-  padding-left: 0.6rem;
+  padding: 0.4rem 0.55rem;
+}
+
+/* The step whose value survives. Tinted, so the end of the chain is findable
+   without reading it top to bottom — the `✓ final` pill in its head says the
+   same thing in words. Declared BEFORE the action edge below, which must keep
+   its warn colour even on the winning step: "this replaced something" and
+   "this is what you got" are two different facts. */
+.prov-step.winning {
+  background: var(--ok-bg);
+  border-color: var(--ok-border);
 }
 
 .prov-step.action-overwrite,
 .prov-step.action-forced {
   border-left-color: var(--warn);
+}
+
+.prov-step-final {
+  margin-left: auto;
 }
 
 .prov-step-head {
@@ -2345,7 +2474,13 @@ pre.config-view.prov-value {
   max-height: 16rem;
 }
 
+/* The superseded value. 075 (iteration 5) states the `--muted` ink directly
+   rather than leaning on the opacity wash alone: the wash dimmed the option
+   keys inside (which paint their own colour) but left the plain values at full
+   ink, so the block read as "quiet" without reading as "not what you got".
+   The opacity stays for the keys, which no `color` here can reach. */
 pre.config-view.prov-before {
+  color: var(--muted);
   opacity: 0.65;
   text-decoration: line-through;
   text-decoration-color: var(--error);
@@ -4033,27 +4168,151 @@ pre.config-view.prov-before {
   margin: 0;
 }
 
-.error-translation-apply {
-  background: var(--ok-bg);
-  border: 1px solid var(--ok-border);
-  border-radius: 6px;
-  color: var(--ok);
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.8rem;
-  font-weight: 600;
-  padding: 0.25rem 0.6rem;
-}
-
-.error-translation-apply:hover {
-  background: var(--ok-bg-strong);
-}
+/* `.error-translation-apply` lived here until 075 (iteration 5): an ok-tinted
+   button that was the app's only copy of "the main action of this block". The
+   Problems tab, its one caller, now renders fix-it cards whose Apply button is
+   the standard `.btn-primary` — one primary, one spelling. */
 
 .error-translation-docs {
   color: var(--accent);
   display: inline-block;
   font-size: 0.78rem;
   margin-top: 0.35rem;
+}
+
+/* ---------- problems as fix-it cards (075, iteration 5) ----------
+   One problem, one card. The list stays a `<ul class="messages">` — the list
+   semantics are what say how many findings there are, and the two severity
+   classes are the ones the e2e suites already key off — but each item becomes
+   a framed card: head strip (severity · option · docs), then Renovate's own
+   message, then the explanation and the fix. */
+.problem-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  list-style: none;
+  /* The panel supplies the outer padding (`.tab-body`); the top margin is the
+     gap under the tab's summary strip. */
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+
+/* The old rendering painted the whole item in its severity hue, which is a lot
+   of red for a paragraph the reader has to actually read. The hue moves to the
+   card's edge and its pill; the text goes back to ink. Written at the same
+   specificity as `.messages li.error` and after it, deliberately: the two
+   severity classes stay on the item for everything else that reads them. */
+.messages li.problem-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--ink);
+  overflow: hidden;
+}
+
+.messages li.problem-card.error {
+  border-color: var(--error-border);
+}
+
+.messages li.problem-card.warn {
+  border-color: var(--warn-border);
+}
+
+.problem-head {
+  align-items: center;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.35rem 0.6rem;
+}
+
+/* The option the message is about — mono and bold, because it is the one token
+   in the card the reader will go looking for in the editor. */
+.problem-key {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.problem-docs {
+  color: var(--accent);
+  font-size: 0.75rem;
+  margin-left: auto;
+}
+
+/* Renovate's own words, unedited (014's standing rule) — first thing in the
+   body, above anything this app has to say about them. */
+.problem-message {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin: 0;
+  padding: 0.5rem 0.6rem 0;
+}
+
+.problem-body {
+  padding: 0.5rem 0.6rem 0.6rem;
+}
+
+.problem-explain {
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin: 0 0 0.45rem;
+}
+
+.problem-fix {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.problem-fix-summary {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+.problem-nofix {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+/* The suggested edit as a unified diff, in the SAME row tints every other diff
+   in the app uses (`--diff-added-bg` / `--diff-removed-bg`, hoisted out of
+   `.diff-wrapper` for exactly this). Two lines, not an arrow between two
+   values: the arrow stopped being legible the moment either side was an
+   object. */
+.problem-diff {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  min-width: 12rem;
+  overflow: hidden;
+}
+
+.problem-diff-line {
+  display: flex;
+  gap: 0.45rem;
+  overflow-wrap: anywhere;
+  padding: 0.15rem 0.45rem;
+}
+
+.problem-diff-line.removed {
+  background: var(--diff-removed-bg);
+}
+
+.problem-diff-line.added {
+  background: var(--diff-added-bg);
+}
+
+.problem-diff-sign {
+  color: var(--muted);
+  flex: none;
 }
 
 /* Roadmap 015: simulator input ergonomics — the empty-form guard and an

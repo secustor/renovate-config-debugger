@@ -17,10 +17,13 @@ test("a validation error appears, then clears after the config is fixed", async 
   await runAndAwaitResult(page);
 
   // A run with an errored stage lands straight on the Problems tab (028),
-  // where the Errors & warnings entry is already visible.
+  // where the problem's card is already visible. Roadmap 075 (iteration 5):
+  // one card per finding, headed by the option it is about.
   const errorMessages = page.locator(".messages li.error");
   await expect(errorMessages.first()).toBeVisible();
   await expect(errorMessages.first()).toContainText(/automerge/i);
+  await expect(errorMessages.first().locator(".problem-key")).toHaveText("automerge");
+  await expect(errorMessages.first().locator(".problem-docs")).toBeVisible();
 
   // The validate stage reports the same error as a red glyph on its rail node.
   await openTab(page, "pipeline");
@@ -31,8 +34,7 @@ test("a validation error appears, then clears after the config is fixed", async 
   await setEditorContent(page, FIXED_AUTOMERGE_CONFIG);
   await runAndAwaitResult(page);
 
-  // The error is gone: no error dot, and the Errors & warnings panel (which
-  // renders nothing when there are no messages) is absent.
+  // The error is gone: no error dot, and no problem card left to show.
   await expect(page.locator(".stage-rail .stage-rail-glyph.error")).toHaveCount(0);
   await expect(page.locator(".messages li.error")).toHaveCount(0);
 });
