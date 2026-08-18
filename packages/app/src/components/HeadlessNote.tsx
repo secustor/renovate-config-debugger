@@ -37,9 +37,7 @@ function HeadlessNoteBody() {
   return (
     <>
       <p className="headless-note-lead">
-        Everything this page shows — the preset tree, per-key provenance, the packageRules
-        simulator, the validation errors — is available headlessly from the same engine and the same
-        pinned Renovate, with no browser involved.
+        If you looking for an equivalent of this running in your terminal or for agent, take a look at the other distributions of this project.
       </p>
       <pre className="headless-note-code">{ONE_LINERS}</pre>
       <p className="headless-note-foot">
