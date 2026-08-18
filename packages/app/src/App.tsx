@@ -1990,10 +1990,14 @@ export function App() {
               onApplyFix={onApplyFix}
             />
           ) : null}
+          {/* Roadmap 060: the headless interface, announced in visible copy —
+              the whole discovery mechanism, and deliberately not a hidden
+              hint. Inside the split, not after it: as a grid row under the
+              results column, the sticky config column's area spans it, so
+              scrolling the note into view cannot push the editor off the top
+              (e2e 12, "the config column stays in view"). */}
+          <HeadlessNote />
         </div>
-        {/* Roadmap 060: the headless interface, announced in visible copy —
-            the whole discovery mechanism, and deliberately not a hidden hint. */}
-        <HeadlessNote />
       </main>
       {showBackToTop ? (
         <button
