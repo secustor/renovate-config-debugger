@@ -199,12 +199,11 @@ re-running the shimmed snapshots against it). 060 adds `rcd mcp` — warm
 engine, `runId` handles instead of firehose payloads — and the discovery
 surface: visible docs plus Claude Code's plugin-hint marker, with hidden
 agent messaging explicitly ruled out. 061 closes the loop with a Claude
-plugin marketplace: a thin `secustor/claude-plugins` catalog repo whose
-entry points back at a plugin maintained here (git-subdir source), the
-plugin bundling the MCP server registration with a skill that carries the
-debugging workflow itself — so an installed session starts with the tools
-and the sequencing knowledge together, and consumers never clone the
-monorepo for a kilobyte of catalog.
+plugin marketplace: a thin `secustor/claude-marketplace` catalog repo
+(marketplace name `secustor`) whose entry points back at the plugin hosted
+at this repository's root, the plugin bundling the MCP server registration
+with a skill that carries the debugging workflow itself — so an installed
+session starts with the tools and the sequencing knowledge together.
 
 M17 — **Extraction** — is deferred until the current feature set (054's
 remaining variants in particular) has stabilized. It originates in

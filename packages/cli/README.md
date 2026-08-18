@@ -537,20 +537,21 @@ Everywhere else it is a config file. Most of them take the same JSON:
 | VS Code with Copilot | `.vscode/mcp.json`                                   | `servers`     |
 | Codex                | `.codex/config.toml` or `~/.codex/config.toml`       | `mcp_servers` |
 
-In Claude Code, the [plugin](../../plugins/renovate-config-debugger) registers
-this server and adds the skill that knows the call sequence. Not published
-yet — until the `secustor/claude-plugins` catalog exists, run it from a
-checkout of this repository instead:
+In Claude Code, the plugin — hosted at the root of this repository
+(`.claude-plugin/plugin.json` plus `skills/debug-renovate-config`) — registers
+this server and adds the skill that knows the call sequence. Until the
+[`secustor/claude-marketplace`](https://github.com/secustor/claude-marketplace)
+catalog lists it, run it from a checkout of this repository instead:
 
 ```console
-$ claude --plugin-dir ./plugins/renovate-config-debugger
+$ claude --plugin-dir .
 ```
 
-Once published:
+Once listed:
 
 ```console
-$ /plugin marketplace add secustor/claude-plugins
-$ /plugin install renovate-config-debugger@claude-plugins
+$ /plugin marketplace add secustor/claude-marketplace
+$ /plugin install renovate-config-debugger@secustor
 ```
 
 The server holds a small number of recent runs (an LRU), so an agent can
