@@ -75,7 +75,7 @@ overriding them is explicit and visibly warned.
 
 ## For agents and scripts (headless)
 
-> [!NOTE]
+> [!WARNING]
 > The CLI and the MCP server are **experimental**: subcommands, flags and
 > output shapes may change in any `0.x` release.
 
