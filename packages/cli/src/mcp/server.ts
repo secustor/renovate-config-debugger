@@ -53,6 +53,7 @@ import {
   previewValue,
   provenanceOf,
 } from "../projections/provenance";
+import { groupTally } from "../projections/group";
 import { oneRuleView, RULE_DIGEST_PLANS, ruleProvenanceView } from "../projections/rule-provenance";
 import {
   BODIES,
@@ -144,8 +145,9 @@ const INSTRUCTIONS =
   "get_preset_node for what `extends` expanded into (preset bodies are large — one node per " +
   "call), get_option_docs instead of recalling option semantics, which change between Renovate " +
   "releases. simulate answers in one sentence (`verdict.text`) before the evidence, scoped to the " +
-  "rules that acted; every answer states what its view withheld and the parameter that returns " +
-  "it, so read `notes` before you conclude anything is absent. " +
+  "rules that acted; simulate_group tallies SEVERAL updates into the groups they would form; " +
+  "every answer states what its view withheld and the " +
+  "parameter that returns it, so read `notes` before you conclude anything is absent. " +
   "Before you propose an edit, prove it: run_config the edited text and " +
   "compare_simulations the two runs against the same dependency. Everything here is read-only.";
 
@@ -930,6 +932,61 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         ...payload,
         ...(view.notes.length > 0 ? { filterNotes: view.notes } : {}),
       };
+    }, HINTS.simulate),
+  );
+
+  server.registerTool(
+    "simulate_group",
+    {
+      title: "Which groups form from several updates",
+      description:
+        "The batch-level question `simulate` cannot answer one dependency at a time: given " +
+        "SEVERAL pending updates, which groups form, and does each reach its " +
+        "`minimumGroupSize`? Every update in `deps` is simulated exactly as `simulate` would, " +
+        "then tallied by the `groupName` its matching rules produced; each group reports its " +
+        "members, `size`, the `minimumGroupSize` gate its members carry and `wouldForm` — " +
+        "`verdict` states the claim in one sentence. Updates no rule groups are listed in " +
+        "`ungrouped`, one PR each. The tally is over the `deps` YOU supplied — Renovate " +
+        "evaluates minimumGroupSize against the repository's real pending updates, so " +
+        '`wouldForm: false` means "these updates alone don\'t reach it", never "this group ' +
+        'can never form". Branch splitting (separateMajorMinor, custom branchName templates) ' +
+        "is not modeled; per-update rule evidence is simulate's answer, one dep at a time.",
+      annotations: HELD_RUN_ANNOTATIONS,
+      inputSchema: z.strictObject({
+        runId: RUN_ID,
+        deps: z
+          .array(DEP)
+          .min(2)
+          .describe(
+            "The pending updates to tally, at least two — for a single update, `simulate` is " +
+              "the question.",
+          ),
+      }),
+    },
+    answer(async ({ runId, deps }, ctx) => {
+      const run = store.get(runId);
+      const simulated: { dep: DependencyDescriptor; sim: SimulationResult }[] = [];
+      // Sequential on purpose: the engine serializes its queue anyway, and a
+      // cancelled call must stop enqueuing (see throwIfCancelled).
+      for (const dep of deps) {
+        simulated.push({ dep: toDependency(dep), sim: await simulateRun(run, dep, ctx) });
+      }
+      const tally = groupTally(simulated);
+      // A member whose descriptor left rule inputs unset can be mis-tallied —
+      // a rule that would put it in a group reported a plain `no-match`. Named
+      // per member, same reasoning as compare's per-side notes.
+      const gaps = simulated.flatMap(({ dep, sim }, index) => {
+        const count = sim.missingInputs.rules;
+        if (count === 0) {
+          return [];
+        }
+        const name = dep.depName ?? `deps[${index}]`;
+        return [
+          `${name}: ${count} rule${count === 1 ? "" : "s"} could not match because this ` +
+            "update leaves a field they read unset — simulate that update to see which.",
+        ];
+      });
+      return { ...tally, notes: [...tally.notes, ...gaps] };
     }, HINTS.simulate),
   );
 

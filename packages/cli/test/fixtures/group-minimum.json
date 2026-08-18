@@ -1,0 +1,11 @@
+{
+  "labels": ["deps"],
+  "packageRules": [
+    {
+      "matchPackageNames": ["react", "react-dom"],
+      "groupName": "react monorepo",
+      "minimumGroupSize": 3
+    },
+    { "matchPackageNames": ["chalk"], "groupName": "cosmetics" }
+  ]
+}
