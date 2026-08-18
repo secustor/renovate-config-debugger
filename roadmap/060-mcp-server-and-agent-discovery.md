@@ -87,3 +87,39 @@ provenance,messages}.ts` now hold the shapes, and the subcommands and the
 Still open here: the discovery half — the app footer, the READMEs, llms.txt
 and the Claude Code hint marker — which lands once 059 has published the
 package every one-liner names.
+
+## Validation messages, and the listing budget (2026-08-16)
+
+The persona study reported rejections reading `Invalid input, Invalid input`,
+naming no field; the in-process suite said otherwise, and both were right —
+they were measuring different module regimes. zod installs its English locale
+as a top-level side effect while its `package.json` declares
+`"sideEffects": false`, so rolldown drops the call when 059's
+`ssr.noExternal: true` build inlines it. Under `src/` the locale is intact and
+every message names its key; in the published `dist/main.js` the same rejection
+degrades to a bare `Invalid input` — no typo'd key, no enum members, no
+expected type — which voids exactly the self-correction the tool descriptions
+promise. `src/mcp/zod-locale.ts` re-installs it as the first statement of
+`createMcpServer`. The lesson generalizes past zod: the bundle regime can
+silently degrade behavior that lives in a dependency's side effects, and no
+in-process test can see it, so `test/bundle/` now holds suites that spawn the
+built bin — the `bundle` vitest project runs them right after `pnpm build`,
+same as 059's parity proof. (Sibling, untouched: the app's `zod/mini` schemas
+in `src/lib/input-schemas-zod.ts` get the same treatment in the browser bundle.)
+
+Measured against the same probe, `tools/list` was 15 289 B compact / 652 pretty
+lines — descriptions 4 024 B, schemas 9 512 B. The dependency object alone was
+1 528 B inlined three times (`simulate.dep`, `compare_simulations.dep`/`depB`):
+48 % of schema bytes. Two changes, no capability lost: trimming its
+object-level describe from 573 to ~210 chars (it ended in a parenthetical
+re-listing the property keys immediately below it), and `.meta({ id:
+"dependency" })` on the one shared schema instance, which makes zod's
+`extractDefs` lift it into `$defs` with `$ref`s — the only dedup the SDK's
+conversion leaves reachable, since it never passes `reused`. Result: 13 784 B /
+574 lines, −10 % bytes and −12 % lines. `$ref` support is uneven in
+non-Anthropic clients, so that half is the revertable one. The levers left on
+the table, if the listing ever has to halve: dropping `depB` (−1 528 B) or
+replacing `compare_simulations`'s two dependency objects with simulation ids
+(−3 056 B) — both remove capability the study saw personas use. Not available
+at all: the SDK has no brief mode, and its `tools/list` ignores the pagination
+cursor.

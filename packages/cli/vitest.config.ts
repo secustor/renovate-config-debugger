@@ -24,6 +24,9 @@ const bundledEngine = fileURLToPath(new URL("./dist/engine-surface.js", import.m
  *   tested against the thing that ships rather than inferred from both having
  *   been built with the same plugin. Needs `pnpm build` first; CI runs it
  *   right after, and it is NOT part of `pnpm test` for exactly that reason.
+ *   `test/bundle/` holds the suites that drive the built artifact directly —
+ *   the subdirectory is what keeps them out of the "cli" project's
+ *   `test/*.test.ts` glob, so `pnpm test` never fails for a missing `dist/`.
  */
 export default defineConfig({
   test: {
@@ -59,7 +62,7 @@ export default defineConfig({
         plugins: [renovateShims()],
         test: {
           name: "bundle",
-          include: ["../engine/test/*.shimmed.test.ts"],
+          include: ["../engine/test/*.shimmed.test.ts", "test/bundle/*.test.ts"],
           environment: "node",
           testTimeout: 60_000,
           server: { deps: { inline: [/renovate/] } },

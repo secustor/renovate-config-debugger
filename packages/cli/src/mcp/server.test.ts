@@ -515,12 +515,41 @@ describe("strict input schemas", () => {
   });
 
   /**
+   * The dependency schema is the single biggest thing in `tools/list`, and
+   * `compare_simulations` used to carry two verbatim copies of it. One shared
+   * zod instance carrying `.meta({ id })` makes the SDK's conversion emit one
+   * `$defs` entry and two `$ref`s — a size win only as long as the def itself
+   * stays strict, which is what the last assertion is for.
+   */
+  test("the repeated dependency schema is one $defs entry, still strict", async () => {
+    const { tools } = await client.listTools();
+    const schema = tools.find((t) => t.name === "compare_simulations")?.inputSchema as
+      | {
+          properties?: Record<string, { $ref?: string }>;
+          $defs?: Record<string, { additionalProperties?: boolean }>;
+        }
+      | undefined;
+    const ref = schema?.properties?.dep?.$ref;
+    expect(ref).toBe("#/$defs/dependency");
+    expect(schema?.properties?.depB?.$ref).toBe(ref);
+    expect(schema?.$defs?.dependency?.additionalProperties).toBe(false);
+  });
+
+  /**
    * Roadmap 068, from the persona study: two sessions burned actions on an
    * "Invalid input, Invalid input" rejection that named no field. This pins
    * what the SDK actually reports for the shapes those sessions produced —
    * the zod issue PATH, joined and prefixed — so a schema change that loses
    * the field name is a failing test rather than a lost session. The commonest
    * mistake by far is the first one: `content` is the file's TEXT.
+   *
+   * This pins the SCHEMA side only: in-process, zod's English locale is
+   * installed by its own module-level side effect, so these messages are free
+   * here and stay green even when the shipped artifact says `Invalid input`
+   * and nothing else. The LOCALE side — that the published bundle still has
+   * one — is `test/bundle/mcp-messages.test.ts`, and only that regime can
+   * fail for it. Do not read a green run here as proof users see these
+   * strings.
    */
   test("a rejected argument names the field, and its type", async () => {
     const errorFor = async (name: string, args: Record<string, unknown>): Promise<string> => {
@@ -539,6 +568,9 @@ describe("strict input schemas", () => {
     );
     expect(await errorFor("simulate", { runId: "run-1", dep: {}, verdict: "sometimes" })).toContain(
       'verdict: Invalid option: expected one of "notable"',
+    );
+    expect(await errorFor("simulate", { runId: "run-1", dep: {}, source: "bogus" })).toContain(
+      'source: Invalid option: expected one of "all"',
     );
   });
 
