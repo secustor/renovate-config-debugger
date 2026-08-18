@@ -37,7 +37,8 @@ function HeadlessNoteBody() {
   return (
     <>
       <p className="headless-note-lead">
-        If you looking for an equivalent of this running in your terminal or for agent, take a look at the other distributions of this project.
+        If you looking for an equivalent of this running in your terminal or for agent, take a look
+        at the other distributions of this project.
       </p>
       <pre className="headless-note-code">{ONE_LINERS}</pre>
       <p className="headless-note-foot">
