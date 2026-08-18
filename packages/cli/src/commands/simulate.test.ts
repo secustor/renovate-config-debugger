@@ -205,7 +205,10 @@ describe("simulate errors", () => {
  * each kind against `react` — a preset rule that fails on an unset depType, a
  * matching one, one that fails on an unset sourceUrl, and a genuine mismatch.
  */
-/** The rule numbers a pretty verdict list actually printed. */
+/** The rule numbers a pretty verdict list actually printed. Zero-based merged
+ *  indexes since replay-03 — the same numbers `--rule` and JSON's `index`
+ *  take, where the old one-based `#N+1` cost two expert sessions a wasted
+ *  `--rule` call each. */
 function shown(io: { stdout: string }): number[] {
   return [...io.stdout.matchAll(/^ {2}#(\d+) /gm)].map((m) => Number(m[1]));
 }
@@ -225,7 +228,7 @@ describe("simulate --verdict / --source", () => {
   test("pretty output defaults to the notable rules and says what it hid", async () => {
     const { io, code } = await run();
     expect(code).toBe(0);
-    expect(shown(io)).toEqual([2]);
+    expect(shown(io)).toEqual([1]);
     expect(io.stdout).toContain(
       "3 of 4 rules hidden by --verdict notable — `--verdict all --source all` shows every rule.",
     );
@@ -233,19 +236,32 @@ describe("simulate --verdict / --source", () => {
 
   test("--verdict all prints every rule and hides nothing", async () => {
     const { io } = await run("--verdict", "all");
-    expect(shown(io)).toEqual([1, 2, 3, 4]);
+    expect(shown(io)).toEqual([0, 1, 2, 3]);
     expect(io.stdout).not.toContain("hidden by");
   });
 
   test("the verdict facets split no-input from a genuine mismatch", async () => {
-    expect(shown((await run("--verdict", "matched")).io)).toEqual([2]);
-    expect(shown((await run("--verdict", "no-input")).io)).toEqual([1, 3]);
-    expect(shown((await run("--verdict", "no-match")).io)).toEqual([4]);
+    expect(shown((await run("--verdict", "matched")).io)).toEqual([1]);
+    expect(shown((await run("--verdict", "no-input")).io)).toEqual([0, 2]);
+    expect(shown((await run("--verdict", "no-match")).io)).toEqual([3]);
   });
 
   test("--source separates the repo's own rules from what a preset brought in", async () => {
-    expect(shown((await run("--verdict", "all", "--source", "repo")).io)).toEqual([2, 3, 4]);
-    expect(shown((await run("--verdict", "all", "--source", "presets")).io)).toEqual([1]);
+    expect(shown((await run("--verdict", "all", "--source", "repo")).io)).toEqual([1, 2, 3]);
+    expect(shown((await run("--verdict", "all", "--source", "presets")).io)).toEqual([0]);
+  });
+
+  /** The printed number and the flag agree: `#N` in the prose is the row
+   *  `--rule N` returns. */
+  test("the pretty rule number is the index --rule takes", async () => {
+    const notable = await run();
+    const [printed] = shown(notable.io);
+    expect(printed).toBe(1);
+    expect(notable.io.stdout).toContain("`--rule <n>` takes them verbatim");
+    const one = await run("--rule", String(printed), "--format", "json");
+    const report = one.io.json() as { rules: { index: number; verdict: string }[] };
+    expect(report.rules).toHaveLength(1);
+    expect(report.rules[0]).toMatchObject({ index: printed, verdict: "matched" });
   });
 
   test("an unknown value names the ones that exist", async () => {
@@ -327,7 +343,7 @@ describe("simulate --verdict / --source", () => {
    */
   test("the rules an unset field cost are named even when their rows are hidden", async () => {
     const { io } = await run();
-    expect(shown(io)).toEqual([2]);
+    expect(shown(io)).toEqual([1]);
     expect(io.stdout).toContain("2 of 4 rules could not match");
     expect(io.stdout).toContain("sourceUrl");
     expect(io.stdout).toContain("`--verdict no-input` lists them.");
@@ -335,7 +351,7 @@ describe("simulate --verdict / --source", () => {
 
   test("the same line survives --verdict matched, and --verdict all where nothing is hidden", async () => {
     const matched = await run("--verdict", "matched");
-    expect(shown(matched.io)).toEqual([2]);
+    expect(shown(matched.io)).toEqual([1]);
     expect(matched.io.stdout).toContain("2 of 4 rules could not match");
 
     const all = await run("--verdict", "all");

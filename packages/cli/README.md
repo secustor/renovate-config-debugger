@@ -146,8 +146,10 @@ the answer.
 
 `--keys a,b` selects top-level options by name, out of what the scope left. A
 name the scope removed is not resurrected — it comes back in
-`configView.withheld` with the reason, and `--config-scope full` is the way to
-it:
+`configView.withheld` with the reason: `global-only` (the scope, and
+`--config-scope full` is the way to it), `absent` (the document does not carry
+that option), or — on `compare`, whose delta only lists keys that differ —
+`identical` (both sides carry it and nothing changed):
 
 ```console
 $ rcd simulate renovate.json --dep '{"depName":"react"}' --format json --keys groupName,onboardingConfig
@@ -232,24 +234,24 @@ actually do for the dependency in question:
 $ rcd simulate renovate.json --dep '{"depName":"@types/react","updateType":"major"}'
 This major update gets no special handling from your matched rules — the defaults apply.
 
-1 of 2 packageRules matched.
+1 of 2 packageRules matched — rule numbers are merged packageRules[N] indexes, and `--rule <n>` takes them verbatim.
 
-  #2 matched (matchUpdateTypes=matched)
+  #1 matched (matchUpdateTypes=matched)
       sets dependencyDashboardApproval = true
 1 of 2 rule hidden by --verdict notable — `--verdict all --source all` shows every rule.
 ```
 
-Rule #1 is the missing one. `--verdict no-match` prints the clause that rejected
+Rule #0 is the missing one. `--verdict no-match` prints the clause that rejected
 it, and `--rule 0` returns that one row whatever the facets hide:
 
 ```console
 $ rcd simulate renovate.json --dep '{"depName":"@types/react","updateType":"major"}' --verdict no-match
-  #1 no-match (matchPackageNames=no-match)
+  #0 no-match (matchPackageNames=no-match)
 ```
 
 So `matchPackageNames` is the culprit, not the update type.
 
-Now suppose rule #1 had selected on something your `--dep` never mentioned —
+Now suppose rule #0 had selected on something your `--dep` never mentioned —
 `"matchSourceUrls": ["https://github.com/facebook/react"]` instead of
 `matchPackageNames`. From the outside the run looks the same: a rule that reads
 a field you left unset fails CLOSED, which Renovate reports as an ordinary
@@ -260,9 +262,9 @@ so, and it is printed whatever `--verdict` you asked for:
 $ rcd simulate sourceurl.json --dep '{"depName":"@types/react","updateType":"major"}'
 This major update gets no special handling from your matched rules — the defaults apply.
 
-1 of 2 packageRules matched.
+1 of 2 packageRules matched — rule numbers are merged packageRules[N] indexes, and `--rule <n>` takes them verbatim.
 
-  #2 matched (matchUpdateTypes=matched)
+  #1 matched (matchUpdateTypes=matched)
       sets dependencyDashboardApproval = true
 1 of 2 rule hidden by --verdict notable — `--verdict all --source all` shows every rule.
 1 of 2 rules could not match because the simulated dependency has no sourceUrl — Renovate treats a missing value as a non-match. Set sourceUrl on the dependency if you expected these rules to fire. `--verdict no-input` lists them.
@@ -301,7 +303,7 @@ $ rcd compare before.json after.json --dep '{"depName":"react","updateType":"maj
 ✓ No behavioral change — the same effective config results (a rule's matchPackageNames list changed), which is expected when the edit touched the very selectors that rule matches on.
 
 Selector text changed, same effect (rule identity, not behavior):
-  matchPackageNames  #1 → #1  (clause-values-changed)
+  matchPackageNames  #0 → #0  (clause-values-changed)
 ```
 
 That second run is the point of the two axes. Behavior is the citable claim: the

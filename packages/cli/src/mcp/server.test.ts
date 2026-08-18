@@ -1183,6 +1183,28 @@ describe("simulate and compare", () => {
     expect(comparison.summary).toContain("groupName");
   });
 
+  /** Replay-03 (2 sessions): the delta only lists keys that DIFFER, and
+   *  `absent` for an unchanged key read as "not in the config" about an option
+   *  both configs hold. */
+  test("a requested key identical on both sides is withheld as `identical`, not `absent`", async () => {
+    const before = await runConfig(CONFIG);
+    const after = await runConfig(GROUPED);
+    const comparison = (await call("compare_simulations", {
+      runId: before,
+      runIdB: after,
+      dep: { depName: "react", packageName: "react" },
+      keys: ["groupName", "labels", "notAnOption"],
+    })) as {
+      configDelta: { key: string }[];
+      configView: { withheld?: { key: string; reason: string }[] };
+    };
+    expect(comparison.configDelta.map((d) => d.key)).toContain("groupName");
+    expect(comparison.configView.withheld).toEqual([
+      { key: "labels", reason: "identical" },
+      { key: "notAnOption", reason: "absent" },
+    ]);
+  });
+
   test("the same run twice changes nothing", async () => {
     const runId = await runConfig(GROUPED);
     const comparison = (await call("compare_simulations", {

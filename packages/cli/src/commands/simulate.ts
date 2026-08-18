@@ -43,6 +43,11 @@ export async function simulateAgainst(
  * of my rules is this", which the merged index alone never gave. Only the
  * matched ones: the suffix on all ~727 rows would bury the handful that fired,
  * and `--format json` carries `ruleSources` for the rest.
+ *
+ * `#N` is the merged `packageRules[N]` index — the same number `--rule`,
+ * `--format json`'s `index` and the provenance citations use. Replay-03: the
+ * old one-based `#N+1` cost two expert sessions a wasted `--rule` call each,
+ * because every OTHER spelling of a rule index here is zero-based.
  */
 export function verdictLines(
   rules: readonly RuleEvaluation[],
@@ -53,7 +58,7 @@ export function verdictLines(
     const clauses = rule.clauses.map((c) => `${c.key}=${c.state}`).join(", ");
     const origin = rule.verdict === "matched" ? originOf?.(rule.index) : undefined;
     const from = origin ? ` [${origin.layer} packageRules[${origin.sourceIndex}]]` : "";
-    lines.push(`  #${rule.index + 1} ${rule.verdict}${clauses ? ` (${clauses})` : ""}${from}`);
+    lines.push(`  #${rule.index} ${rule.verdict}${clauses ? ` (${clauses})` : ""}${from}`);
     for (const merged of collapseDiffs(rule.merged ?? [])) {
       lines.push(`      sets ${mergedLine(merged)}`);
     }
@@ -158,7 +163,7 @@ export const simulateCommand: Command = {
             `  ${mergedLine(m)}` +
             (step.kind === "flatten"
               ? `  (${step.updateType} block)`
-              : `  (rule #${(step.ruleIndex ?? 0) + 1})`),
+              : `  (rule #${step.ruleIndex ?? 0})`),
         ),
       );
       const hiddenNote = hiddenRulesNote(view);
@@ -178,7 +183,8 @@ export const simulateCommand: Command = {
         verdict.text,
         ...(verdict.caveat ? [verdict.caveat] : []),
         "",
-        `${matched.length} of ${sim.rules.length} packageRules matched.`,
+        `${matched.length} of ${sim.rules.length} packageRules matched — rule numbers are ` +
+          "merged packageRules[N] indexes, and `--rule <n>` takes them verbatim.",
         "",
         ...verdictLines(view.rules, view.originOf),
         ...(hiddenNote ? [hiddenNote] : []),

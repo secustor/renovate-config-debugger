@@ -28,6 +28,39 @@ describe("provenance", () => {
     const io = recordingIo();
     expect(await main(["provenance", fixture("clean.json"), "notAnOption"], io)).toBe(1);
   });
+
+  /** Replay-03 (3 CLI sessions): "winner: defaults" on a key a packageRule
+   *  sets read as the effective value for an update the rule covers. The MCP's
+   *  get_provenance carried the pointer; the CLI did not. */
+  test("a key packageRules can also set carries the per-dependency note", async () => {
+    const io = recordingIo();
+    expect(
+      await main(["provenance", fixture("grouped.json"), "groupName", "--format", "json"], io),
+    ).toBe(0);
+    const entry = io.json() as { note?: string };
+    expect(entry.note).toContain("1 packageRule can set `groupName` per-dependency");
+    expect(entry.note).toContain("Simulate a dependency");
+
+    // Pretty output prints the same pointer…
+    const pretty = recordingIo();
+    expect(await main(["provenance", fixture("grouped.json"), "groupName"], pretty)).toBe(0);
+    expect(pretty.stdout).toContain("Simulate a dependency");
+
+    // …and a key no rule touches carries no such caveat.
+    const untouched = recordingIo();
+    expect(
+      await main(["provenance", fixture("grouped.json"), "labels", "--format", "json"], untouched),
+    ).toBe(0);
+    expect((untouched.json() as { note?: string }).note).toBeUndefined();
+  });
+
+  /** Replay-03: a second positional key used to be silently dropped, which
+   *  read as "the first key's chain is the whole answer". */
+  test("two positional keys are an error, not a silently answered first one", async () => {
+    const io = recordingIo();
+    expect(await main(["provenance", fixture("clean.json"), "labels", "automerge"], io)).toBe(1);
+    expect(io.stderr).toContain("one key per call");
+  });
 });
 
 /**

@@ -950,7 +950,11 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         "without any merge step writing it, not a value the config set. Pass runIdB to compare " +
         "two configs, or depB to compare two dependencies against the same config. `keys` " +
         "narrows the delta to the options you care about; `summary`, `verdict` and `netEffect` " +
-        "always describe the WHOLE delta, so narrowing the view never moves the verdict. A side " +
+        "always describe the WHOLE delta, so narrowing the view never moves the verdict. A " +
+        "requested key not in the answer is named in `configView.withheld` with why: " +
+        "`identical` (both sides carry it and nothing differs), `absent` (neither side's " +
+        "per-dependency config carries it — a rule that did not match this dependency " +
+        "contributes nothing), or `global-only`. A side " +
         "that could not evaluate a rule for lack of dependency input reports it in its own " +
         "`missingInputs`, and one whose matcher threw in its own `evaluationErrors`: two blind " +
         "sides agree perfectly, and `identical` over them is not an answer about your edit. " +
@@ -1008,6 +1012,12 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
           scope: configScope ?? "package-rules",
           detail: detail ?? "verdict",
           transport: "mcp",
+          sideKeys: [
+            ...new Set([
+              ...Object.keys(simA.finalDependencyConfig),
+              ...Object.keys(simB.finalDependencyConfig),
+            ]),
+          ],
           ...(keys ? { keys } : {}),
         },
       );

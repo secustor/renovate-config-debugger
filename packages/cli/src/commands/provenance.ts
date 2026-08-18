@@ -8,7 +8,12 @@ import { outputFormat, type ParsedArgs, stringOption } from "../args";
 import type { Command } from "../command";
 import { CliError, EXIT_OK, EXIT_REFUSED } from "../io";
 import { emitJson, emitLines, preview, writeNotes } from "../output";
-import { chainStepText, entryView, provenanceOf } from "../projections/provenance";
+import {
+  chainStepText,
+  entryView,
+  perDependencyNote,
+  provenanceOf,
+} from "../projections/provenance";
 import {
   oneRuleView,
   type RuleContribution,
@@ -104,6 +109,14 @@ export const provenanceCommand: Command = {
     const source = parseSource(args);
     const { result, rest, notes } = await runFromArgs(args, io);
     writeNotes(io, notes);
+    // One key per call, stated — a second positional used to be silently
+    // dropped, which read as "the first key's chain is the whole answer".
+    if (rest.length > 1) {
+      throw new CliError(
+        `provenance answers one key per call (got ${rest.map((k) => `"${k}"`).join(", ")}) — ` +
+          "run it once per key",
+      );
+    }
     const key = rest[0];
 
     const provenance = provenanceOf(result);
@@ -150,9 +163,14 @@ export const provenanceCommand: Command = {
         }
         return wouldRefuse(result) ? EXIT_REFUSED : EXIT_OK;
       }
+      // Same note the MCP's get_provenance carries (roadmap 068): for a key a
+      // packageRule can also set, this chain is the repository-wide value, not
+      // the one an actual update would get. Replay-03: three CLI sessions read
+      // "winner: defaults" as the effective value for a rule-covered update.
+      const perDependency = perDependencyNote(key, result.finalConfig);
       const view = entryView(entry);
       if (format === "json") {
-        emitJson(io, view);
+        emitJson(io, { ...view, ...(perDependency ? { note: perDependency } : {}) });
       } else {
         emitLines(io, [
           `${view.key}${view.badge ? ` [${view.badge}]` : ""} — winner: ${view.winner ?? "?"}`,
@@ -160,6 +178,7 @@ export const provenanceCommand: Command = {
           "",
           "Override chain:",
           ...view.chain.map((step) => `  ${step.layer} ${step.action} ${chainStepText(step)}`),
+          ...(perDependency ? ["", perDependency] : []),
         ]);
       }
       return wouldRefuse(result) ? EXIT_REFUSED : EXIT_OK;

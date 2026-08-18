@@ -103,9 +103,10 @@ export const OPTIONS = {
   rule: {
     flags: "--rule <n>",
     description:
-      "one merged packageRule by index, whatever the other facets hide: its row " +
-      "(`simulate`) or its body (`provenance <file> packageRules`), with the layer " +
-      "that wrote it and its index inside that layer",
+      "one merged packageRule by zero-based index — the `#N` the output prints — " +
+      "whatever the other facets hide: its row (`simulate`) or its body " +
+      "(`provenance <file> packageRules`), with the layer that wrote it and its " +
+      "index inside that layer",
   },
   detail: {
     flags: "--detail <which>",
