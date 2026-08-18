@@ -1,0 +1,13 @@
+{
+  "name": "renovate-config-debugger",
+  "description": "Debug Renovate configs the way the visualizer does: preset expansion, per-key provenance, the packageRules simulator and validation with hook-grade exit codes — as MCP tools, plus the workflow that uses them well. Experimental.",
+  "author": {
+    "name": "secustor",
+    "url": "https://github.com/secustor"
+  },
+  "homepage": "https://renovate.secustor.dev",
+  "repository": "https://github.com/secustor/renovate-config-debugger",
+  "license": "AGPL-3.0-only",
+  "keywords": ["renovate", "renovatebot"],
+  "mcpServers": "./.mcp.json"
+}

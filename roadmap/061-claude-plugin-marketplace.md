@@ -1,6 +1,8 @@
 # 061 — Claude plugin marketplace for the debugger
 
-Milestone: M16 · Status: proposed
+Milestone: M16 · Status: done (2026-08-05, revised 2026-08-18) — plugin moved
+to the repository root; the catalog is `secustor/claude-marketplace` (see
+"As built")
 
 ## Summary
 
@@ -82,3 +84,49 @@ add` clones the marketplace repository and re-fetches it on update; an
   for users who prefer explicit installs. Internal dev skills (019's
   persona replay) stay in-repo and out of the marketplace — they drive this
   project's own dev loop, not a consumer's.
+
+## As built (2026-08-05)
+
+Shipped here, at the **repository root** (revised 2026-08-18, see below):
+`.claude-plugin/plugin.json` (name `renovate-config-debugger`), `.mcp.json`
+launching `npx -y @renovate-config-debugger/cli mcp`, and the
+`skills/debug-renovate-config` skill. The install-scope guidance (project
+scope for a repository whose config people debug; user scope for someone who
+debugs Renovate configs everywhere) lives in the root README together with the
+marketplace one-liners in 060's agent-facing section, mirrored in the CLI
+README; AGENTS.md points repo-internal agents at the same skill file, so this
+project debugs its own configs the way it tells consumers to — and the root
+`.mcp.json` doubles as project-scope MCP config, registering `rcd` for agent
+sessions in this checkout.
+
+The skill encodes the sequence the research settled — `run_config` first and
+reuse its `runId`, check `accepted` before believing anything downstream, read
+the digest before pulling anything large, preset-node bodies one node at a
+time, `compare_simulations` as the oracle that PROVES an edit changed behavior
+— plus the two things a session otherwise relearns painfully: a matcher
+reporting `no-input` means the simulated dependency was underspecified, not
+that the rule is wrong; and a preset that failed to fetch silently removes
+everything under it from the effective config. The CLI (`--format json`) is
+documented as the fallback for sessions without the MCP server.
+
+**Revised 2026-08-18 — plugin at the repository root, catalog is
+`secustor/claude-marketplace`.** There is exactly one plugin, and it is
+specific to this toolset, so the `plugins/renovate-config-debugger/`
+collection directory was dropped: `.claude-plugin/plugin.json`, `.mcp.json`
+and `skills/debug-renovate-config` now sit at the repository root, and a local
+checkout installs with `claude --plugin-dir .`. The catalog repository
+materialized as **`secustor/claude-marketplace`** (marketplace name
+`secustor`, so installs read `renovate-config-debugger@secustor`), and its
+entry is a plain `github` source pointing at this repository — the plugin
+root _is_ the repo root, so the planned `git-subdir` sparse clone has nothing
+to select. That retires the "consumers never clone this monorepo" property:
+an install clones the repository. Accepted — the catalog stays a kilobyte,
+the clone happens once per install, and one layout serves the checkout, the
+marketplace and `--plugin-dir` alike. The install path still depends on 059
+having published the CLI, since the plugin's MCP command is
+`npx -y @renovate-config-debugger/cli mcp`.
+
+One decision above did not survive: 060's `claude-code-hint` marker was
+dropped entirely rather than kept inert — an official-marketplace listing is
+not realistic for this plugin, so the marker could never fire (see 060's
+as-built notes). This marketplace is the install channel, full stop.

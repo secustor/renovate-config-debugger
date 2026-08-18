@@ -65,7 +65,7 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [058](058-rcd-debugger-cli.md)                          | `rcd`: the debugger CLI on the shimmed engine (experimental)         | M16                  | done        |
 | [059](059-publish-cli-package.md)                       | Publish the CLI as `@renovate-config-debugger/cli` (experimental)    | M16                  | done        |
 | [060](060-mcp-server-and-agent-discovery.md)            | `rcd mcp` + pointing agents at the headless interface                | M16                  | done        |
-| [061](061-claude-plugin-marketplace.md)                 | Claude plugin marketplace for the debugger                           | M16                  | proposed    |
+| [061](061-claude-plugin-marketplace.md)                 | Claude plugin marketplace for the debugger                           | M16                  | done        |
 | [062](062-results-tab-taxonomy.md)                      | Results tabs: `Simulator` → `packageRules`, + `Extraction`           | M17                  | proposed    |
 | [063](063-custom-manager-extraction.md)                 | Custom-manager extraction simulator                                  | M17                  | proposed    |
 | [064](064-extraction-fidelity-and-mismatch.md)          | Extraction fidelity: RE2 gap + unmatched comments                    | M17                  | proposed    |
@@ -199,12 +199,11 @@ re-running the shimmed snapshots against it). 060 adds `rcd mcp` — warm
 engine, `runId` handles instead of firehose payloads — and the discovery
 surface: visible docs plus Claude Code's plugin-hint marker, with hidden
 agent messaging explicitly ruled out. 061 closes the loop with a Claude
-plugin marketplace: a thin `secustor/claude-plugins` catalog repo whose
-entry points back at a plugin maintained here (git-subdir source), the
-plugin bundling the MCP server registration with a skill that carries the
-debugging workflow itself — so an installed session starts with the tools
-and the sequencing knowledge together, and consumers never clone the
-monorepo for a kilobyte of catalog.
+plugin marketplace: a thin `secustor/claude-marketplace` catalog repo
+(marketplace name `secustor`) whose entry points back at the plugin hosted
+at this repository's root, the plugin bundling the MCP server registration
+with a skill that carries the debugging workflow itself — so an installed
+session starts with the tools and the sequencing knowledge together.
 
 M17 — **Extraction** — is deferred until the current feature set (054's
 remaining variants in particular) has stabilized. It originates in
