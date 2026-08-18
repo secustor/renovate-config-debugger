@@ -89,7 +89,7 @@ add` clones the marketplace repository and re-fetches it on update; an
 
 Shipped here, at the **repository root** (revised 2026-08-18, see below):
 `.claude-plugin/plugin.json` (name `renovate-config-debugger`), `.mcp.json`
-launching `npx -y @renovate-config-debugger/cli@0 mcp`, and the
+launching `npx -y @renovate-config-debugger/cli mcp`, and the
 `skills/debug-renovate-config` skill. The install-scope guidance (project
 scope for a repository whose config people debug; user scope for someone who
 debugs Renovate configs everywhere) lives in the root README together with the
@@ -124,7 +124,7 @@ an install clones the repository. Accepted — the catalog stays a kilobyte,
 the clone happens once per install, and one layout serves the checkout, the
 marketplace and `--plugin-dir` alike. The install path still depends on 059
 having published the CLI, since the plugin's MCP command is
-`npx -y @renovate-config-debugger/cli@0 mcp`.
+`npx -y @renovate-config-debugger/cli mcp`.
 
 One decision above did not survive: 060's `claude-code-hint` marker was
 dropped entirely rather than kept inert — an official-marketplace listing is

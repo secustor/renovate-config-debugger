@@ -2,7 +2,7 @@
   "mcpServers": {
     "rcd": {
       "command": "npx",
-      "args": ["-y", "@renovate-config-debugger/cli@0", "mcp"]
+      "args": ["-y", "@renovate-config-debugger/cli", "mcp"]
     }
   }
 }
