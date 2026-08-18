@@ -278,6 +278,19 @@ function elideToBudget(compact: string, hint: string | undefined): Record<string
 }
 
 /**
+ * Whether a payload survives {@link serializeResult} whole.
+ *
+ * For projections that would rather degrade SEMANTICALLY than be collapsed to
+ * first-and-last: `get_provenance` on `packageRules` measures its own answer
+ * and drops to shorter digest lines, keeping the attribution complete, instead
+ * of handing the elider an array of 727 large objects it can only cut to two.
+ * Purely additive — the elision itself is untouched.
+ */
+export function fitsBudget(payload: unknown): boolean {
+  return byteLength(stringify(payload)) <= ELISION_TARGET_BYTES;
+}
+
+/**
  * `hint` is the narrowing a caller should apply if this particular tool's
  * answer had to be elided — naming the parameter beats "output truncated".
  */

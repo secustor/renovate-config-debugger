@@ -42,6 +42,24 @@ const UNATTRIBUTABLE = {
   presetTree: undefined,
 } as unknown as TraceResult;
 
+/** A run whose repo layer wrote both rules — enough for the replay in
+ *  `computeRuleProvenance` to attribute them. */
+const REPO_RULES = [{ groupName: "a" }, { groupName: "b" }];
+const ATTRIBUTED = {
+  events: [],
+  errors: [],
+  warnings: [],
+  finalConfig: { packageRules: REPO_RULES },
+  presetTree: {
+    id: "root",
+    name: "renovate.json",
+    state: "resolved",
+    children: [],
+    input: { packageRules: REPO_RULES },
+    resolved: { packageRules: REPO_RULES },
+  },
+} as unknown as TraceResult;
+
 describe("buildRuleView", () => {
   test("`--source` with no provenance is dropped, and the CLI note says so in flags", () => {
     const view = buildRuleView(sim([rule(0, "matched")]), UNATTRIBUTABLE, {
@@ -66,6 +84,37 @@ describe("buildRuleView", () => {
     });
     expect(view.notes[0]).toContain('source: "presets" ignored');
     expect(view.notes[0]).not.toContain("--source");
+  });
+
+  /**
+   * Roadmap 071: the attribution is computed whatever `--source` says, because
+   * it also answers "which layer wrote this MATCHED rule" — a question the
+   * filter never asks and every caller has.
+   */
+  test("the sources legend and the per-rule origin come back unasked", () => {
+    const view = buildRuleView(sim([rule(0, "matched"), rule(1, "no-match")]), ATTRIBUTED, {
+      verdict: "all",
+      // No `--source`: the attribution is not the filter's private business.
+      source: "all",
+      explicit: false,
+      transport: "cli",
+    });
+    expect(view.sources).toEqual([{ layer: "repo", kind: "repo", from: 0, to: 1, count: 2 }]);
+    expect(view.originOf(1)).toEqual({ layer: "repo", sourceIndex: 1 });
+  });
+
+  test("an unattributable run has no sources, and links nothing", () => {
+    const view = buildRuleView(sim([rule(0, "matched")]), UNATTRIBUTABLE, {
+      verdict: "all",
+      source: "all",
+      explicit: false,
+      transport: "cli",
+    });
+    expect(view.sources).toEqual([]);
+    expect(view.originOf(0)).toBeUndefined();
+    // …and the existing behavior is untouched: nothing was filtered, so
+    // nothing is reported.
+    expect(view.notes).toEqual([]);
   });
 
   test("the verdict facet counts what it hid", () => {

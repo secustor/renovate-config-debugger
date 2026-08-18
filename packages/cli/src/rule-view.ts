@@ -1,6 +1,7 @@
 import {
   computeRuleProvenance,
   type MissingInputSummary,
+  type RuleAttribution,
   type RuleEvaluation,
   type SimulationResult,
   type TraceResult,
@@ -16,6 +17,12 @@ import {
 } from "@renovate-config-debugger/app/headless";
 import { type OutputFormat, type ParsedArgs, stringOption } from "./args";
 import { CliError } from "./io";
+import {
+  type RuleOrigin,
+  ruleOrigin,
+  type RuleSourceRange,
+  ruleSourceRanges,
+} from "./projections/rule-provenance";
 import type { RunTransport } from "./run-input";
 
 /**
@@ -98,6 +105,18 @@ export interface RuleView {
   source: SourceFilter;
   /** Diagnostics for stderr — e.g. `--source` asked for with no provenance. */
   notes: string[];
+  /**
+   * Per-rule attribution for the run behind this simulation (roadmap 071), or
+   * undefined when it is not determinable. Carried whatever `--source` did,
+   * because it is also what tells a caller which layer a MATCHED rule came
+   * from — a question the filter does not ask.
+   */
+  attribution: readonly RuleAttribution[] | undefined;
+  /** {@link attribution} as one range per contributing layer — the legend a
+   *  payload can afford next to a 727-row rule list. */
+  sources: RuleSourceRange[];
+  /** Which layer contributed one merged rule, by its `RuleEvaluation.index`. */
+  originOf: (index: number) => RuleOrigin | undefined;
 }
 
 /**
@@ -116,8 +135,12 @@ export function buildRuleView(
   const notes: string[] = [];
   let rules = sim.rules.filter((rule) => matchesVerdictFilter(rule, selection.verdict));
   let source = selection.source;
+  // Unconditionally, not just for `--source`: the attribution is also what
+  // says which layer a matched rule came from, which every caller wants and
+  // no filter asks for.
+  const attribution = computeRuleProvenance(result);
   if (source !== "all") {
-    const layerByIndex = ruleLayerIndex(computeRuleProvenance(result));
+    const layerByIndex = ruleLayerIndex(attribution);
     if (layerByIndex.size === 0) {
       notes.push(
         `${facetText(selection.transport, "source", source)} ignored: this run has no per-rule ` +
@@ -136,6 +159,9 @@ export function buildRuleView(
     verdict: selection.verdict,
     source,
     notes,
+    attribution,
+    sources: ruleSourceRanges(attribution),
+    originOf: (index) => ruleOrigin(index, attribution),
   };
 }
 

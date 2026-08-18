@@ -1,9 +1,16 @@
+import { computeRuleProvenance, type ValidationMessage } from "@renovate-config-debugger/engine";
 import { validatedConfigOf } from "@renovate-config-debugger/app/headless";
 import { outputFormat } from "../args";
 import type { Command } from "../command";
 import { EXIT_OK, EXIT_REFUSED } from "../io";
 import { emitJson, emitLines, writeNotes } from "../output";
-import { describeMessage, type ReportedMessage } from "../projections/messages";
+import {
+  describeMessage,
+  type MessageSeverity,
+  type ReportedMessage,
+  repoStageMessage,
+  ruleCrossLink,
+} from "../projections/messages";
 import { INPUT_OPTIONS, runFromArgs, wouldRefuse } from "../run-input";
 
 /**
@@ -35,9 +42,22 @@ export const validateCommand: Command = {
     // The snapshot the validator's messages were produced from, so a fix's
     // path resolves against the same document (`packageRules[N]` included).
     const validated = validatedConfigOf(result);
+    // The `packageRules[N]` in a validator message is the index in the config
+    // as WRITTEN; `simulate` and `provenance` cite the merged one. Only for
+    // messages the validate stage produced — the global and inherited layers
+    // file theirs in the same arrays, against a different document.
+    const attribution = computeRuleProvenance(result);
+    const describe = (m: ValidationMessage, severity: MessageSeverity): ReportedMessage =>
+      describeMessage(
+        m,
+        severity,
+        validated,
+        input.content,
+        repoStageMessage(result, m) ? ruleCrossLink(m, "repo", attribution) : undefined,
+      );
     const messages: ReportedMessage[] = [
-      ...result.errors.map((m) => describeMessage(m, "error", validated, input.content)),
-      ...result.warnings.map((m) => describeMessage(m, "warning", validated, input.content)),
+      ...result.errors.map((m) => describe(m, "error")),
+      ...result.warnings.map((m) => describe(m, "warning")),
     ];
     const presetErrors = result.events.filter((e) => e.kind === "preset-error").map((e) => e.title);
     const refused = wouldRefuse(result);
@@ -60,6 +80,9 @@ export const validateCommand: Command = {
       ];
       for (const m of messages) {
         lines.push("", `${m.severity === "error" ? "✗" : "!"} ${m.topic}: ${m.message}`);
+        if (m.rule) {
+          lines.push(`    ${m.rule.note}`);
+        }
         if (m.explanation) {
           lines.push(`    ${m.explanation}`);
         }

@@ -1,9 +1,16 @@
 import {
   applyFixToText,
   findMentionedOption,
+  type RuleAttribution,
+  type TraceResult,
   translateMessage,
   type ValidationMessage,
 } from "@renovate-config-debugger/engine";
+import {
+  crossRuleIndex,
+  type RuleMessageIndexKind,
+  ruleIndexInMessage,
+} from "@renovate-config-debugger/app/headless";
 
 /**
  * A validator message with everything roadmap 014 knows about it — shared by
@@ -21,6 +28,76 @@ import {
  */
 export type MessageSeverity = "error" | "warning";
 
+/**
+ * Roadmap 071: the merged index a validator message's `packageRules[N]` refers
+ * to, and the repo-config index it was written as.
+ *
+ * The two are different arrays and the personas conflated them: Renovate's
+ * validator cites the index in the config you WROTE, while `simulate` and
+ * `get_provenance` cite the index in the merged array — for a config extending
+ * `config:best-practices` those are 1 and 714 for the same rule. The app has
+ * cross-linked them since roadmap 013; this quotes the app's arithmetic
+ * (`crossRuleIndex`) rather than restating it.
+ */
+export interface RuleCrossLink {
+  repoIndex: number;
+  mergedIndex: number;
+  note: string;
+}
+
+function crossLinkNote(kind: RuleMessageIndexKind, repo: number, merged: number): string {
+  return kind === "repo"
+    ? `\`packageRules[${repo}]\` in your config is merged rule \`packageRules[${merged}]\` — ` +
+        "the index `simulate` and `get_provenance` cite."
+    : `merged rule \`packageRules[${merged}]\` is \`packageRules[${repo}]\` in your config — ` +
+        "the index Renovate's validator and your editor use.";
+}
+
+/**
+ * The other index for the `packageRules[N]` a message names, or `undefined`
+ * when there is none to give: no reference in the text, no attribution for
+ * this run, or a rule no repo-authored config wrote (a preset's rule has no
+ * repo-config index to annotate with).
+ */
+export function ruleCrossLink(
+  message: ValidationMessage,
+  kind: RuleMessageIndexKind,
+  attribution: readonly RuleAttribution[] | null | undefined,
+): RuleCrossLink | undefined {
+  const reference = ruleIndexInMessage(message.message);
+  if (!reference) {
+    return undefined;
+  }
+  const cross = crossRuleIndex(kind, reference.index, attribution);
+  if (cross === undefined) {
+    return undefined;
+  }
+  const repoIndex = kind === "repo" ? reference.index : cross;
+  const mergedIndex = kind === "repo" ? cross : reference.index;
+  return { repoIndex, mergedIndex, note: crossLinkNote(kind, repoIndex, mergedIndex) };
+}
+
+/**
+ * Whether this message came from validating the REPO's own config — the only
+ * stage whose `packageRules[N]` is the index in the file the user wrote.
+ *
+ * `result.errors`/`warnings` mix stages: the global and inherited layers
+ * validate their own documents into the same two arrays, and their indexes are
+ * a different array's. So the events decide, and only unanimously: a message
+ * whose exact text also appears in a `global`/`inherit` event is left
+ * unannotated rather than annotated with a plausible index.
+ */
+export function repoStageMessage(result: TraceResult, message: ValidationMessage): boolean {
+  const emitted = result.events.filter(
+    (event) =>
+      event.kind === "validation-message" &&
+      (event.messages ?? []).some(
+        (m) => m.message === message.message && m.topic === message.topic,
+      ),
+  );
+  return emitted.length > 0 && emitted.every((event) => event.stage === "validate");
+}
+
 export interface ReportedMessage {
   /** The list the RUN put this message in — `null` when nothing decided that:
    *  no run was given, or the run holds no message with this exact text. */
@@ -37,6 +114,9 @@ export interface ReportedMessage {
   note?: string;
   /** Present exactly when `severity` is null — why it could not be decided. */
   severityNote?: string;
+  /** The merged index of the `packageRules[N]` this message names, when the run
+   *  can attribute it. Absent means "not determinable", never "index 0". */
+  rule?: RuleCrossLink;
   fix?: {
     summary: string;
     path: (string | number)[];
@@ -79,13 +159,15 @@ const NO_SAFE_FIX_NOTE =
  * (`validatedConfigOf`) so a fix's path resolves against the same document;
  * `text` is the original file, for the formatting-preserving text fix. Pass
  * `null`/`undefined` for either when they are not available — the translation
- * and the docs link still work.
+ * and the docs link still work. `rule` is the cross-link {@link ruleCrossLink}
+ * computed for this message, when the caller holds the run it came from.
  */
 export function describeMessage(
   message: ValidationMessage,
   severity: MessageSeverity | null,
   config: Record<string, unknown> | null,
   text: string | null,
+  rule?: RuleCrossLink,
 ): ReportedMessage {
   const translated = translateMessage(message, config);
   const mentioned = translated ? undefined : findMentionedOption(message);
@@ -95,6 +177,7 @@ export function describeMessage(
     ...(severity === null ? { severityNote: UNKNOWN_SEVERITY_NOTE } : {}),
     topic: message.topic,
     message: message.message,
+    ...(rule ? { rule } : {}),
     translationKnown: translated !== null,
     ...(translated ? { explanation: translated.explanation } : {}),
     ...(translated?.docsUrl

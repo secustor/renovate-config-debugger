@@ -1,29 +1,107 @@
 import { computeRuleProvenance } from "@renovate-config-debugger/engine";
-import { effectiveTally } from "@renovate-config-debugger/app/headless";
-import { outputFormat } from "../args";
+import {
+  effectiveTally,
+  SOURCE_FILTERS,
+  type SourceFilter,
+} from "@renovate-config-debugger/app/headless";
+import { outputFormat, type ParsedArgs, stringOption } from "../args";
 import type { Command } from "../command";
 import { CliError, EXIT_OK, EXIT_REFUSED } from "../io";
 import { emitJson, emitLines, preview, writeNotes } from "../output";
-import { entryView, layerLabel, provenanceOf } from "../projections/provenance";
+import { chainStepText, entryView, provenanceOf } from "../projections/provenance";
+import {
+  oneRuleView,
+  type RuleContribution,
+  RULE_DIGEST_PLANS,
+  type RuleProvenanceView,
+  ruleProvenanceView,
+} from "../projections/rule-provenance";
 import { INPUT_OPTIONS, runFromArgs, wouldRefuse } from "../run-input";
 
 /**
  * "Who set this key, and who overrode whom?" — the question behind most real
  * debugging sessions, and the one the web app answers with its effective-config
  * ledger.
+ *
+ * `packageRules` is answered by its own projection (roadmap 071): Renovate
+ * concatenates that key, so "who overrode whom" is the wrong question for it
+ * and the honest answer is which contiguous slice of the merged array each
+ * layer contributed.
  */
+
+function parseRuleIndex(args: ParsedArgs): number | undefined {
+  const raw = stringOption(args, "rule");
+  if (raw === undefined) {
+    return undefined;
+  }
+  const index = Number(raw);
+  if (!Number.isInteger(index) || index < 0) {
+    throw new CliError(`--rule takes a merged rule index, 0 or greater (got "${raw}")`);
+  }
+  return index;
+}
+
+function parseSource(args: ParsedArgs): SourceFilter | undefined {
+  const raw = stringOption(args, "source");
+  if (raw === undefined) {
+    return undefined;
+  }
+  const found = SOURCE_FILTERS.find((value) => value === raw);
+  if (!found) {
+    throw new CliError(`--source must be one of ${SOURCE_FILTERS.join("|")} (got "${raw}")`);
+  }
+  return found;
+}
+
+/** `repo — merged packageRules[1]–[3] (its own packageRules[0]–[2])`. */
+function contributionHeader(contribution: RuleContribution): string {
+  const own = `${contribution.layer === "repo" ? "your" : "its own"} packageRules[0]–[${
+    contribution.count - 1
+  }]`;
+  return (
+    `  ${contribution.layer} — merged packageRules[${contribution.from}]–` +
+    `[${contribution.to}] (${own})`
+  );
+}
+
+function rulePrettyLines(view: RuleProvenanceView): string[] {
+  const lines = [
+    `packageRules${view.badge ? ` [${view.badge}]` : ""} — ${view.total} merged rules, ` +
+      "concatenated: every layer appends, none overrides",
+    "",
+  ];
+  for (const contribution of view.contributions ?? []) {
+    lines.push(contributionHeader(contribution));
+    for (const rule of contribution.rules ?? []) {
+      lines.push(`    ${rule}`);
+    }
+  }
+  if (view.attributionNote) {
+    lines.push(`  ${view.attributionNote}`);
+  }
+  lines.push("", view.note);
+  return lines;
+}
+
 export const provenanceCommand: Command = {
   name: "provenance",
   summary: "per-key provenance: which layer set each option, and who overrode whom",
   usage: ["provenance [file] [key]"],
   details: [
     "Without a key: every option some layer beyond the defaults set.",
-    "With a key: that option's full override chain, plus — for",
-    "`packageRules` — which layer contributed each merged rule.",
+    "With a key: that option's full override chain.",
+    "",
+    "`packageRules` answers with one merged-index RANGE per contributing",
+    "layer plus a one-line digest of each rule — Renovate concatenates that",
+    "key, so no layer overrides another. `--source repo|presets` scopes the",
+    "ranges and `--rule <n>` prints one merged rule's body, its layer and its",
+    "index inside that layer.",
   ],
-  options: [...INPUT_OPTIONS, "format"],
+  options: [...INPUT_OPTIONS, "rule", "source", "format"],
   async run(args, io) {
     const format = outputFormat(args);
+    const ruleIndex = parseRuleIndex(args);
+    const source = parseSource(args);
     const { result, rest, notes } = await runFromArgs(args, io);
     writeNotes(io, notes);
     const key = rest[0];
@@ -37,32 +115,52 @@ export const provenanceCommand: Command = {
       if (!entry) {
         throw new CliError(`no key "${key}" in the effective config`);
       }
-      const rules =
-        key === "packageRules"
-          ? (computeRuleProvenance(result) ?? []).map((attr) => ({
-              index: attr.index,
-              layer: layerLabel(attr.layer),
-            }))
+      if (key !== "packageRules" && (ruleIndex !== undefined || source !== undefined)) {
+        throw new CliError(
+          `--rule/--source scope the merged packageRules; "${key}" is not an array of rules`,
+        );
+      }
+      if (key === "packageRules") {
+        const attribution = computeRuleProvenance(result);
+        const rules = Array.isArray(result.finalConfig?.packageRules)
+          ? result.finalConfig.packageRules
           : [];
+        if (ruleIndex !== undefined) {
+          const one = oneRuleView(ruleIndex, attribution, rules);
+          if (format === "json") {
+            emitJson(io, one);
+          } else {
+            emitLines(io, [one.citation, "", preview(one.rule, 2_000)]);
+          }
+          return wouldRefuse(result) ? EXIT_REFUSED : EXIT_OK;
+        }
+        // Always the richest digest here: a terminal scrolls and a script
+        // indexes, and neither pays the MCP transport's byte budget.
+        const view = ruleProvenanceView(
+          entry,
+          attribution,
+          rules,
+          RULE_DIGEST_PLANS[0],
+          source ? { source } : {},
+        );
+        if (format === "json") {
+          emitJson(io, view);
+        } else {
+          emitLines(io, rulePrettyLines(view));
+        }
+        return wouldRefuse(result) ? EXIT_REFUSED : EXIT_OK;
+      }
+      const view = entryView(entry);
       if (format === "json") {
-        emitJson(io, { ...entryView(entry), ...(rules.length > 0 ? { rules } : {}) });
+        emitJson(io, view);
       } else {
-        const view = entryView(entry);
-        const lines = [
+        emitLines(io, [
           `${view.key}${view.badge ? ` [${view.badge}]` : ""} — winner: ${view.winner ?? "?"}`,
           `  final: ${preview(view.finalValue, 400)}`,
           "",
           "Override chain:",
-          ...view.chain.map((step) => `  ${step.layer} ${step.action} ${preview(step.after)}`),
-        ];
-        if (rules.length > 0) {
-          lines.push(
-            "",
-            "packageRules by layer:",
-            ...rules.map((r) => `  #${r.index + 1} ${r.layer}`),
-          );
-        }
-        emitLines(io, lines);
+          ...view.chain.map((step) => `  ${step.layer} ${step.action} ${chainStepText(step)}`),
+        ]);
       }
       return wouldRefuse(result) ? EXIT_REFUSED : EXIT_OK;
     }

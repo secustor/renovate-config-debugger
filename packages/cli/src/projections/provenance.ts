@@ -21,19 +21,69 @@ export function layerLabel(layer: ProvenanceLayer): string {
   return layer.kind === "preset" ? `preset ${layer.name}` : layer.kind;
 }
 
+interface ChainStepBase {
+  layer: string;
+  action: string;
+  expandedNested?: true;
+}
+
+/** A layer that replaced, merged into, or established the value: both sides. */
+export interface SnapshotStep extends ChainStepBase {
+  before: unknown;
+  after: unknown;
+}
+
+/**
+ * A layer that APPENDED to an array: what it added, not another copy of the
+ * whole array.
+ *
+ * Roadmap 071. For a concatenating key every step's `before`/`after` is a
+ * cumulative snapshot, so a chain over `packageRules` restated the merged array
+ * once per layer — 733 kB on a `config:best-practices` run, of which the
+ * transport's elider kept the first rule and the last. The slice is the
+ * contribution; the totals say where it sits.
+ */
+export interface ConcatStep extends ChainStepBase {
+  addedCount: number;
+  added: unknown[];
+  /** Length of the array after this step — the slice starts at
+   *  `totalCount - addedCount`. */
+  totalCount: number;
+}
+
+export type ProvenanceChainStep = SnapshotStep | ConcatStep;
+
 export interface ProvenanceView {
   key: string;
   finalValue: unknown;
   isDefaultOnly: boolean;
   winner: string | null;
   badge: string | null;
-  chain: {
-    layer: string;
-    action: string;
-    before: unknown;
-    after: unknown;
-    expandedNested?: true;
-  }[];
+  chain: ProvenanceChainStep[];
+}
+
+/** Whether `after` is `before` with elements appended — the property a concat
+ *  step normally has, and the one an `expandedNested` rewrite can break. */
+function appendsTo(before: unknown, after: unknown): before is unknown[] {
+  if (!Array.isArray(before) || !Array.isArray(after) || after.length < before.length) {
+    return false;
+  }
+  return JSON.stringify(after.slice(0, before.length)) === JSON.stringify(before);
+}
+
+function stepView(step: KeyProvenance["chain"][number]): ProvenanceChainStep {
+  const base: ChainStepBase = {
+    layer: layerLabel(step.layer),
+    action: step.action,
+    ...(step.expandedNested ? { expandedNested: true as const } : {}),
+  };
+  if (step.action === "concat" && appendsTo(step.before, step.after) && Array.isArray(step.after)) {
+    const added = step.after.slice(step.before.length);
+    return { ...base, addedCount: added.length, added, totalCount: step.after.length };
+  }
+  // The prefix property failed (a nested-`extends` pass can rewrite `after`
+  // wholesale) — the snapshots are then the only honest report.
+  return { ...base, before: step.before, after: step.after };
 }
 
 export function entryView(entry: KeyProvenance): ProvenanceView {
@@ -44,16 +94,16 @@ export function entryView(entry: KeyProvenance): ProvenanceView {
     isDefaultOnly: entry.isDefaultOnly,
     winner: winner ? layerLabel(winner.layer) : null,
     badge: isOverridden(entry) ? multiContribBadgeKind(entry) : null,
-    chain: entry.chain
-      .filter((step) => !step.noop)
-      .map((step) => ({
-        layer: layerLabel(step.layer),
-        action: step.action,
-        before: step.before,
-        after: step.after,
-        ...(step.expandedNested ? { expandedNested: true as const } : {}),
-      })),
+    chain: entry.chain.filter((step) => !step.noop).map(stepView),
   };
+}
+
+/** One chain step, as pretty output prints it — an appending layer states what
+ *  it appended, everything else the value it left behind. */
+export function chainStepText(step: ProvenanceChainStep, max = 80): string {
+  return "added" in step
+    ? `+${step.addedCount} → ${step.totalCount} total ${previewValue(step.added, max)}`
+    : previewValue(step.after, max);
 }
 
 export interface ProvenanceIndexEntry {

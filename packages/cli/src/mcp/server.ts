@@ -27,20 +27,28 @@ import { errorMessage, type CliIo } from "../io";
 import { buildRuleView, missingInputsNote, ruleFilterPayload } from "../rule-view";
 import { digestPayload } from "../projections/digest";
 import { CONFIG_SCOPES, projectConfig } from "../projections/config-view";
-import { describeMessage, type MessageSeverity } from "../projections/messages";
+import {
+  describeMessage,
+  type MessageSeverity,
+  type RuleCrossLink,
+  ruleCrossLink,
+  repoStageMessage,
+} from "../projections/messages";
 import {
   collapseRuleMerges,
   comparisonPayload,
   SIMULATE_DETAIL,
   simulationPayload,
+  withRuleOrigins,
 } from "../projections/simulate";
 import {
   entryView,
   indexView,
-  layerLabel,
   perDependencyNote,
+  previewValue,
   provenanceOf,
 } from "../projections/provenance";
+import { oneRuleView, RULE_DIGEST_PLANS, ruleProvenanceView } from "../projections/rule-provenance";
 import {
   BODIES,
   type BodyKind,
@@ -52,7 +60,7 @@ import {
   viewOf,
 } from "../projections/tree";
 import { resolveRunAuth } from "../run-input";
-import { textResult } from "./result";
+import { fitsBudget, textResult } from "./result";
 import { type HeldRun, RunStore } from "./run-store";
 import { installZodLocale } from "./zod-locale";
 
@@ -325,11 +333,29 @@ const CONFIG_SCOPE = z
       "one produced it, in `configView`.",
   );
 
+/**
+ * The `packageRules[N]` cross-link for one of a run's own messages, or nothing.
+ *
+ * Two guards, both roadmap 071: the message must come from the `validate`
+ * stage — the global and inherited layers validate their own documents into
+ * the same `errors`/`warnings` arrays, and their indexes address a different
+ * array — and the run must be attributable at all.
+ */
+function ruleLinkOf(run: HeldRun, message: ValidationMessage): RuleCrossLink | undefined {
+  if (!repoStageMessage(run.result, message)) {
+    return undefined;
+  }
+  return ruleCrossLink(message, "repo", computeRuleProvenance(run.result));
+}
+
 /** Each validator message with the position `explain_message` addresses it by.
  *  The array's own index is NOT that position: a large answer is elided
  *  structurally (see ./result), which drops elements out of the middle. */
-function withIndex(messages: readonly ValidationMessage[]) {
-  return messages.map((message, index) => ({ index, ...message }));
+function withIndex(run: HeldRun, messages: readonly ValidationMessage[]) {
+  return messages.map((message, index) => {
+    const rule = ruleLinkOf(run, message);
+    return { index, ...message, ...(rule ? { rule } : {}) };
+  });
 }
 
 const MESSAGES_NOTE =
@@ -347,8 +373,8 @@ function runSummary(run: HeldRun, notes: string[]) {
     accepted: payload.accepted,
     digest: payload.digest,
     stageStatus: result.stageStatus,
-    errors: withIndex(result.errors),
-    warnings: withIndex(result.warnings),
+    errors: withIndex(run, result.errors),
+    warnings: withIndex(run, result.warnings),
     ...(result.errors.length + result.warnings.length > 0 ? { messagesNote: MESSAGES_NOTE } : {}),
     presetErrors: facts.presetErrors.map((event) => event.title),
     treeSummary: stats?.summary ?? null,
@@ -646,9 +672,12 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         "Per-key provenance: which layer (defaults / global / inherited / each preset / the repo " +
         "config) set each option, and who overrode whom. Without a key: a compact INDEX — every " +
         "option some layer beyond the defaults set, with its winning layer and a short value " +
-        "preview. With a key: the full override chain, every layer's before/after — and for " +
-        "`packageRules`, which layer contributed each merged rule. This is the tool for 'why is " +
-        "this value what it is': read the index, then ask for the one key.",
+        "preview. With a key: the full override chain, every layer's before/after. " +
+        '`key: "packageRules"` answers differently, because Renovate CONCATENATES that key: you ' +
+        "get one contiguous merged-index RANGE per contributing layer plus a one-line digest of " +
+        "each rule, never the bodies — `rule: <index>` returns one body, `source` scopes the " +
+        "ranges to `repo` or `presets`. This is the tool for 'why is this value what it is': " +
+        "read the index, then ask for the one key.",
       annotations: HELD_RUN_ANNOTATIONS,
       inputSchema: z.strictObject({
         runId: RUN_ID,
@@ -656,9 +685,18 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
           .string()
           .optional()
           .describe("A top-level config option, e.g. `labels`. Omit for the index."),
+        rule: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe(
+            'One merged rule by index: its body, its layer and its index inside that layer. `key: "packageRules"` only.',
+          ),
+        source: RULE_SOURCE,
       }),
     },
-    answer(({ runId, key }) => {
+    answer(({ runId, key, rule, source }) => {
       const { result } = store.get(runId);
       const provenance = provenanceOf(result);
       if (!key) {
@@ -671,19 +709,56 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       if (!entry) {
         throw new Error(`no key "${key}" in the effective config`);
       }
-      const rules =
-        key === "packageRules"
-          ? (computeRuleProvenance(result) ?? []).map((attr) => ({
-              index: attr.index,
-              layer: layerLabel(attr.layer),
-            }))
-          : [];
-      const perDependency = perDependencyNote(key, result.finalConfig);
-      return {
-        ...entryView(entry),
-        ...(perDependency ? { note: perDependency } : {}),
-        ...(rules.length > 0 ? { rules } : {}),
-      };
+      if (key !== "packageRules") {
+        for (const [name, value] of [
+          ["rule", rule],
+          ["source", source],
+        ] as const) {
+          if (value !== undefined) {
+            throw new Error(
+              `\`${name}\` scopes the merged packageRules; key "${key}" is not an array of rules. ` +
+                'Drop it, or ask for key: "packageRules".',
+            );
+          }
+        }
+        const perDependency = perDependencyNote(key, result.finalConfig);
+        const view = {
+          ...entryView(entry),
+          ...(perDependency ? { note: perDependency } : {}),
+        };
+        // Last resort before the generic elider gets it: an override chain
+        // whose FINAL value alone blows the budget keeps the chain — which is
+        // this tool's answer — and previews the value.
+        return fitsBudget(view)
+          ? view
+          : {
+              ...view,
+              finalValue: previewValue(entry.finalValue, 200),
+              finalValueNote:
+                "`finalValue` is a preview — the whole value did not fit this answer's budget. " +
+                `get_final_config with \`keys: ["${key}"]\` returns it in full.`,
+            };
+      }
+      const attribution = computeRuleProvenance(result);
+      const rules = Array.isArray(result.finalConfig?.packageRules)
+        ? result.finalConfig.packageRules
+        : [];
+      if (rule !== undefined) {
+        return oneRuleView(rule, attribution, rules);
+      }
+      // The richest digest that survives the budget WHOLE. Degrading here is
+      // semantic (shorter lines, complete ranges); leaving it to the generic
+      // elider is structural (2 rules of 727), which is no answer at all.
+      const scoped = source ? { source } : {};
+      const [richest, ...leaner] = RULE_DIGEST_PLANS;
+      let view = ruleProvenanceView(entry, attribution, rules, richest, scoped);
+      for (const plan of leaner) {
+        if (fitsBudget(view)) {
+          break;
+        }
+        view = ruleProvenanceView(entry, attribution, rules, plan, scoped);
+      }
+      return view;
     }, HINTS.provenance),
   );
 
@@ -729,7 +804,10 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         "(`finalDependencyConfig`) and how they got there (`flattened`). " +
         "A `config:recommended` run has ~700 rules — `verdict` and `source` scope the list " +
         '(`source: "repo"` is "just my own config\'s rules"), and `keys` narrows ' +
-        "`finalDependencyConfig` to the options you asked about. Rules that failed ONLY because " +
+        "`finalDependencyConfig` to the options you asked about. " +
+        "`ruleSources` is the legend for the rule indexes — one merged-index range per " +
+        "contributing layer — and every MATCHED rule carries its own `origin` inline. " +
+        "Rules that failed ONLY because " +
         "your `dep` left a field they read unset are summarized in `missingInputs`, whatever " +
         "`verdict` you asked for: they report a plain `no-match`, so every scoped view hides them " +
         'and the answer reads as "nothing matched". The step-by-step merge trace is ' +
@@ -757,6 +835,12 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       const run = store.get(runId);
       const sim = await simulateRun(run, dep, ctx);
       const resolvedDetail = detail ?? "verdict";
+      const view = buildRuleView(sim, run.result, {
+        verdict: verdict ?? "all",
+        source: source ?? "all",
+        explicit: true,
+        transport: "mcp",
+      });
       // `finalDependencyConfig` is by construction "what applyPackageRules
       // produced for ONE dependency", so the globalOnly class is provably
       // inert here and goes by default — the opposite of get_final_config's
@@ -765,21 +849,21 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         detail: resolvedDetail,
         scope: configScope ?? "package-rules",
         transport: "mcp",
+        attribution: view.attribution,
         ...(keys ? { keys } : {}),
       });
       if (verdict === undefined && source === undefined) {
         return { dep: toDependency(dep), ...payload };
       }
-      const view = buildRuleView(sim, run.result, {
-        verdict: verdict ?? "all",
-        source: source ?? "all",
-        explicit: true,
-        transport: "mcp",
-      });
       return {
         dep: toDependency(dep),
         ...payload,
-        rules: resolvedDetail === "full" ? view.rules : collapseRuleMerges(view.rules),
+        // The scoped list REPLACES the payload's, so it has to carry the same
+        // per-rule `origin` — the legend stays either way.
+        rules:
+          resolvedDetail === "full"
+            ? view.rules
+            : withRuleOrigins(collapseRuleMerges(view.rules), view.attribution),
         ...(view.notes.length > 0 ? { filterNotes: view.notes } : {}),
         ...ruleFilterPayload(view),
       };
@@ -903,24 +987,23 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
           "`topic` describes a `message`; an indexed message carries the run's own topic.",
         );
       }
+      // The cross-link needs the run the message came from — a re-typed
+      // message with no runId is exactly the case that cannot have one.
+      const linkOf = (picked: ValidationMessage) => (run ? ruleLinkOf(run, picked) : undefined);
       if (errorIndex !== undefined) {
         const picked = pickMessage(run, "errors", "errorIndex", errorIndex);
-        return describeMessage(picked, "error", config, text);
+        return describeMessage(picked, "error", config, text, linkOf(picked));
       }
       if (warningIndex !== undefined) {
         const picked = pickMessage(run, "warnings", "warningIndex", warningIndex);
-        return describeMessage(picked, "warning", config, text);
+        return describeMessage(picked, "warning", config, text, linkOf(picked));
       }
       if (message === undefined) {
         // Unreachable after the count check; keeps `message` narrowed to string.
         throw new Error("`message` is required when no index selects one.");
       }
-      return describeMessage(
-        { topic: topic ?? "Configuration Error", message },
-        severityOf(run, message, topic),
-        config,
-        text,
-      );
+      const quoted: ValidationMessage = { topic: topic ?? "Configuration Error", message };
+      return describeMessage(quoted, severityOf(run, message, topic), config, text, linkOf(quoted));
     }),
   );
 
