@@ -138,7 +138,8 @@ const INSTRUCTIONS =
   "at a time: get_provenance with a key for 'who set this value', get_preset_tree and " +
   "get_preset_node for what `extends` expanded into (preset bodies are large — one node per " +
   "call), get_option_docs instead of recalling option semantics, which change between Renovate " +
-  "releases. Before you propose an edit, prove it: run_config the edited text and " +
+  "releases. simulate answers in one sentence (`verdict.text`) before the evidence. " +
+  "Before you propose an edit, prove it: run_config the edited text and " +
   "compare_simulations the two runs against the same dependency. Everything here is read-only.";
 
 function errorResult(err: unknown) {
@@ -801,7 +802,17 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         "Evaluates every packageRule of the run's effective config against one hypothetical " +
         "dependency update: a verdict per rule with clause-level evidence (which matcher fired, " +
         "what it read), the options the matching rules set for that dependency " +
-        "(`finalDependencyConfig`) and how they got there (`flattened`). " +
+        "(`finalDependencyConfig`) and `verdict.text`, the whole outcome in one sentence. " +
+        "`flattened` is the update-type flattening: `updateType` is this update's type; " +
+        "`blocks` are the `major`/`minor`/`patch`/`pin`/`digest`/`lockFileMaintenance`/" +
+        "`replacement` blocks the config carried before flattening (Renovate's defaults declare " +
+        "all seven, so presence alone means nothing); `authoredBlocks` are the ones a human " +
+        "actually wrote; `merged` are the keys the matching block set on the final config; " +
+        "`appliedBlock` says whether a block was flattened at all and what it changed — `null` " +
+        "means there was no block for this update type, and an empty `changed` means the block " +
+        "existed and contributed nothing; `consumedBlocks` are the authored blocks that were " +
+        "dropped WITHOUT applying, which is why an option you set may not be in the result. " +
+        "`note` states which of those happened. " +
         "A `config:recommended` run has ~700 rules — `verdict` and `source` scope the list " +
         '(`source: "repo"` is "just my own config\'s rules"), and `keys` narrows ' +
         "`finalDependencyConfig` to the options you asked about. " +
@@ -850,6 +861,7 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         scope: configScope ?? "package-rules",
         transport: "mcp",
         attribution: view.attribution,
+        finalConfig: run.result.finalConfig,
         ...(keys ? { keys } : {}),
       });
       if (verdict === undefined && source === undefined) {

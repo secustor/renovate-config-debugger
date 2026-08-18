@@ -204,6 +204,8 @@ actually do for the dependency in question:
 
 ```console
 $ rcd simulate renovate.json --dep '{"depName":"@types/react","updateType":"major"}'
+This major update gets no special handling from your matched rules — the defaults apply.
+
 1 of 2 packageRules matched.
 
   #2 matched (matchUpdateTypes=matched)
@@ -230,6 +232,8 @@ so, and it is printed whatever `--verdict` you asked for:
 
 ```console
 $ rcd simulate sourceurl.json --dep '{"depName":"@types/react","updateType":"major"}'
+This major update gets no special handling from your matched rules — the defaults apply.
+
 1 of 2 packageRules matched.
 
   #2 matched (matchUpdateTypes=matched)
@@ -295,6 +299,23 @@ what `--verdict` and `--source` are for. A filtered list always ends by saying
 how many rules it hid. `--format json` keeps the full `rules` array unless you
 pass one of those two flags, and adds a `ruleFilter` object with
 `total`/`shown`/`hidden` when you do.
+
+Both output formats lead with the outcome in one sentence — `verdict.text` in
+JSON, the first line of pretty output. It is the same string the web app's
+verdict card renders, so a terminal and a screenshot cannot disagree about what
+a config does; `verdict.changedKeys` are the options the rules changed, and
+`verdict.caveat` appears when one of YOUR rules failed only because `--dep` left
+a field unset.
+
+`flattened` says what the update-type flattening did. `blocks` are the
+`major`/`minor`/`patch`/`pin`/`digest`/`lockFileMaintenance`/`replacement`
+blocks the config carried before flattening — Renovate's defaults declare all
+seven, so presence alone means nothing — and `authoredBlocks` are the ones a
+human wrote. `appliedBlock` is `null` when there was no block for this update
+type at all, and carries `changed: []` when the block was there and contributed
+nothing; `consumedBlocks` are the authored blocks dropped WITHOUT applying,
+which is why an option you set may be missing from the result. `note` states
+which of those four happened, in one sentence.
 
 `simulate --format json` answers at `--detail verdict`: `mergeSteps` and
 `rawFinalConfig` describe how the merge proceeded — ~1 MB on a

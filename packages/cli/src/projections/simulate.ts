@@ -25,6 +25,7 @@ import {
   type RuleSourceRange,
   ruleSourceRanges,
 } from "./rule-provenance";
+import { flattenedView, verdictPayload } from "./verdict";
 
 /**
  * Roadmap 070: the simulate/compare payload shape, shared by `rcd simulate` /
@@ -81,6 +82,13 @@ export interface SimulateProjection {
    * message cross-links: a wrong layer is worse than none.
    */
   attribution?: readonly RuleAttribution[] | undefined;
+  /**
+   * The run's effective config (roadmap 048) — the pre-rules baseline
+   * `verdict.changedKeys` is measured against. Omitted only costs the
+   * sentence its negative clauses ("would NOT automerge" needs to know a rule
+   * turned it off); the verdict itself is answered either way.
+   */
+  finalConfig?: Record<string, unknown> | undefined;
 }
 
 export const RULE_SOURCES_NOTE =
@@ -138,10 +146,16 @@ export function collapseRuleMerges(
  * future field has to be admitted on purpose.
  */
 export function simulationPayload(sim: SimulationResult, options: SimulateProjection) {
+  // Roadmap 048: FIRST, on every detail level. It is the answer the other keys
+  // are evidence for, it is the last thing the MCP elision would take (it drops
+  // the largest keys), and `full` must not be the level that loses it.
+  const verdict = verdictPayload(sim, options.finalConfig, options.attribution);
+  const flattened = flattenedView(sim, options.attribution);
   if (options.detail === "full") {
-    // The escape hatch stays byte-exact — `missingInputs` is already a member
-    // of the result, so only the surface-specific pointer sentence is absent.
-    return sim;
+    // The escape hatch stays the result itself — every member verbatim,
+    // `mergeSteps` and `rawFinalConfig` included — plus the verdict and the
+    // flattening legend, which are additive and cost a few hundred bytes.
+    return { verdict, ...sim, flattened };
   }
   const projected = projectConfig(sim.finalDependencyConfig, {
     scope: options.scope,
@@ -152,6 +166,7 @@ export function simulationPayload(sim: SimulationResult, options: SimulateProjec
     : undefined;
   const sources: RuleSourceRange[] = ruleSourceRanges(options.attribution);
   return {
+    verdict,
     rules: withRuleOrigins(collapseRuleMerges(sim.rules), options.attribution),
     // ~200 bytes for the whole attribution, and immune to the elision (the
     // largest-array pass never picks it) — so "which layer wrote this rule"
@@ -164,7 +179,7 @@ export function simulationPayload(sim: SimulationResult, options: SimulateProjec
     // both, against an answer that reads as "nothing matched".
     missingInputs: sim.missingInputs,
     ...(missingNote ? { missingInputsNote: missingNote } : {}),
-    flattened: { ...sim.flattened, merged: collapseDiffs(sim.flattened.merged) },
+    flattened: { ...flattened, merged: collapseDiffs(sim.flattened.merged) },
     finalDependencyConfig: projected.config,
     configView: projected.view,
     // The simulator validates the MERGED array (`validateConfig("repo", {

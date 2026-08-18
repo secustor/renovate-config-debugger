@@ -24,6 +24,7 @@ import {
   simulationPayload,
   withRuleOrigins,
 } from "../projections/simulate";
+import { flattenedView, verdictPayload } from "../projections/verdict";
 
 /**
  * "Would this PR be grouped/labeled/blocked here?" — every packageRule
@@ -73,6 +74,11 @@ export const simulateCommand: Command = {
   summary: "evaluate the packageRules against one hypothetical update",
   usage: [`simulate [file] --dep '{"depName":"react","currentValue":"17.0.0"}'`],
   details: [
+    "The outcome comes first, in one sentence — the first line of pretty output,",
+    "`verdict.text` in JSON — and `flattened.note` says what the update-type",
+    "flattening did: whether a block for this update type existed at all, and",
+    "whether it changed anything when it was merged up.",
+    "",
     "`updateType` is derived from currentValue/newValue when you don't set",
     "it, exactly as a real lookup would before the rules run — and `packageName`",
     "defaults to `depName`, the way Renovate's fetch worker fills it in.",
@@ -132,6 +138,7 @@ export const simulateCommand: Command = {
           scope: scope ?? "package-rules",
           transport: selection.transport,
           attribution: view.attribution,
+          finalConfig: result.finalConfig,
           ...(keys ? { keys } : {}),
         }),
         rules:
@@ -162,7 +169,15 @@ export const simulateCommand: Command = {
       // reported as a plain `no-match` and read as "your config just doesn't
       // do that".
       const missingNote = missingInputsNote(sim.missingInputs, selection.transport);
+      // Roadmap 048: the outcome in one sentence, ABOVE the counts — the same
+      // string the web app's verdict card renders, so a terminal and a
+      // screenshot answer the question the same way.
+      const verdict = verdictPayload(sim, result.finalConfig, view.attribution);
+      const flattened = flattenedView(sim, view.attribution);
       emitLines(io, [
+        verdict.text,
+        ...(verdict.caveat ? [verdict.caveat] : []),
+        "",
         `${matched.length} of ${sim.rules.length} packageRules matched.`,
         "",
         ...verdictLines(view.rules, view.originOf),
@@ -172,6 +187,10 @@ export const simulateCommand: Command = {
         ...(changes.length > 0
           ? ["The rules changed these options for this dependency:", ...changes]
           : ["No rule changed anything for this dependency."]),
+        // Which of the four flattening outcomes produced the lines above (or
+        // their absence) — an empty `merged` used to be silent about whether
+        // there was a block at all.
+        `Update-type flattening: ${flattened.note}.`,
         "",
         "`--format json` adds the clause-level evidence and the full per-dependency config.",
         ...(sim.notes.length > 0 ? ["", "Notes:", ...sim.notes.map((n) => `  ${n}`)] : []),

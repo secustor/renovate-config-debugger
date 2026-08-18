@@ -380,3 +380,94 @@ describe("simulate on a config Renovate would refuse", () => {
     expect(sim.exitNote).toContain("would be refused by Renovate");
   });
 });
+
+/**
+ * Roadmap 048. The answer used to be assemble-it-yourself: rule rows, a
+ * per-dependency config, and a `flattened` object whose empty `merged` meant
+ * either "no block for this update type" or "the block was there and changed
+ * nothing". `automerge-minor.json` puts one authored `minor` block in front of
+ * both readings.
+ */
+async function simulateAutomerge(newValue: string, ...flags: string[]) {
+  const io = recordingIo();
+  const code = await main(
+    [
+      "simulate",
+      fixture("automerge-minor.json"),
+      "--dep",
+      `{"depName":"react","currentValue":"17.0.0","newValue":"${newValue}"}`,
+      ...flags,
+    ],
+    io,
+  );
+  return { io, code };
+}
+
+interface VerdictJson {
+  verdict: { text: string; changedKeys: string[]; caveat?: string };
+  flattened: {
+    appliedBlock: { key: string; keys: string[]; authored: boolean; changed: string[] } | null;
+    consumedBlocks: { key: string; keys: string[]; layer: string | null }[];
+    note: string;
+  };
+}
+
+describe("simulate answers in one sentence", () => {
+  test("the block that merged up is named, and so is what it set", async () => {
+    const { io, code } = await simulateAutomerge("17.1.0", "--format", "json");
+    expect(code).toBe(0);
+    const payload = io.json() as VerdictJson;
+    expect(payload.verdict.text).toBe(
+      'This minor update WOULD automerge, get labels [deps], and be grouped as "react monorepo".',
+    );
+    expect(payload.verdict.changedKeys).toContain("automerge");
+    expect(payload.flattened.appliedBlock).toEqual({
+      key: "minor",
+      keys: ["automerge"],
+      authored: true,
+      changed: ["automerge"],
+    });
+    expect(payload.flattened.note).toBe("the `minor` block merged up and set: `automerge`");
+  });
+
+  /** The disambiguation: `merged` is empty for a major update, and used to be
+   *  the whole story. The block exists — it is Renovate's own — and the
+   *  authored `minor` block is the one that was dropped without applying. */
+  test("an empty merge says WHICH empty it was", async () => {
+    const { io } = await simulateAutomerge("18.0.0", "--format", "json");
+    const payload = io.json() as VerdictJson;
+    expect(payload.verdict.text).toContain("WOULD NOT automerge");
+    expect(payload.verdict.text).toContain("only for minor updates");
+    expect(payload.flattened.appliedBlock).toMatchObject({
+      key: "major",
+      authored: false,
+      changed: [],
+    });
+    expect(payload.flattened.note).toContain("changed nothing");
+    expect(payload.flattened.note).toContain("Renovate's own default block");
+    expect(payload.flattened.consumedBlocks).toEqual([
+      { key: "minor", keys: ["automerge"], layer: null },
+    ]);
+  });
+
+  test("pretty output leads with the sentence, and states the flattening", async () => {
+    const { io } = await simulateAutomerge("18.0.0");
+    expect(io.stdout.split("\n")[0]).toBe(
+      'This major update WOULD get labels [deps] and be grouped as "react monorepo", ' +
+        "but WOULD NOT automerge (your config enables automerge only for minor updates).",
+    );
+    expect(io.stdout).toContain(
+      "Update-type flattening: the `major` block was flattened and changed nothing",
+    );
+  });
+
+  /** `full` is the level a caller reaches for when the projection got in the
+   *  way — it must not be the level that loses the answer. */
+  test("--detail full keeps the sentence", async () => {
+    const { io } = await simulateAutomerge("17.1.0", "--format", "json", "--detail", "full");
+    const payload = io.json() as VerdictJson & { mergeSteps: unknown[] };
+    expect(payload.mergeSteps.length).toBeGreaterThan(0);
+    expect(payload.verdict.text).toContain("WOULD automerge");
+    expect(payload.flattened.note).toContain("merged up and set");
+  });
+});

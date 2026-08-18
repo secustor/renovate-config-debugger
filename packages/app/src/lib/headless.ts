@@ -6,7 +6,9 @@
  * of questions the app adds on top — the preset-expansion totals, the plain-
  * English run digest, the effective-config tallies, the pollution-checked
  * parse of the 008 config layers, (roadmap 062) the simulator's rule
- * filters, which `rcd simulate --verdict/--source` is, and (roadmap 069) the
+ * filters, which `rcd simulate --verdict/--source` is, and the verdict
+ * sentence the card renders, with the update-type blocks flattening applied or
+ * consumed; and (roadmap 069) the
  * description digest behind the Overview's "What this config does" card — the
  * grouping and counts, not the attribution, which is the engine's; and
  * (roadmap 071) the one-line rule summaries and the `packageRules[N]`
@@ -29,6 +31,12 @@ export {
   type TreeStats,
   type TreeSummary,
 } from "@/components/preset-tree-stats";
+export {
+  type AppliedBlock,
+  appliedUpdateTypeBlock,
+  type ConsumedBlock,
+  consumedAuthoredBlocks,
+} from "./consumed-blocks";
 export {
   buildDescriptionDigest,
   descriptionCountText,
@@ -78,6 +86,7 @@ export {
 } from "./rule-filters";
 export { ruleWrittenKeys, summarizeRuleSelectors } from "./rule-selectors";
 export { isNoInputNoMatch } from "./rule-verdict";
+export { changedDependencyKeys } from "./simulation-changes";
 export {
   buildRunDigest,
   clauseText,
@@ -88,3 +97,9 @@ export {
   digestText,
 } from "./run-digest";
 export { buildDigestInput, deriveRunFacts, type RunFacts, validatedConfigOf } from "./run-facts";
+export {
+  buildNoInputCaveat,
+  buildVerdictSegments,
+  type VerdictSegment,
+  verdictText,
+} from "./verdict-sentence";

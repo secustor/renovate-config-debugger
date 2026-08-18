@@ -57,3 +57,44 @@ export function consumedAuthoredBlocks(
       layer: blockSourceLayer(sim, key, ruleAttribution),
     }));
 }
+
+/**
+ * The update-type block that flattening actually merged up, if any — the other
+ * half of the consumed-blocks story, and the one an empty `flattened.merged`
+ * cannot tell on its own.
+ */
+export interface AppliedBlock {
+  /** The update-type block flattening merged up, e.g. `minor`. */
+  key: string;
+  /** The block's own option keys — `[]` when the config carries an empty block. */
+  keys: string[];
+  /** A human put it there (vs. Renovate's own default block for that key). */
+  authored: boolean;
+  /** Keys it actually changed on the final config — empty means it contributed
+   *  nothing. */
+  changed: string[];
+}
+
+/**
+ * Roadmap 048. `null` = the update has no `updateType`, or the config had no
+ * block by that name; non-null with `changed: []` = the block existed and
+ * changed nothing (it was empty, or every key already had that value). That
+ * distinction is what an empty `flattened.merged` cannot make, and the reason
+ * `flattened` read as "nothing happened" when something had.
+ */
+export function appliedUpdateTypeBlock(sim: SimulationResult): AppliedBlock | null {
+  const key = sim.flattened.updateType;
+  if (!key) {
+    return null;
+  }
+  const block = sim.flattened.blocks[key];
+  if (!block) {
+    return null;
+  }
+  return {
+    key,
+    keys: Object.keys(block),
+    authored: sim.flattened.authoredBlocks.includes(key),
+    changed: sim.flattened.merged.map((m) => m.key),
+  };
+}

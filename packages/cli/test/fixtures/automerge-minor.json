@@ -1,0 +1,5 @@
+{
+  "labels": ["deps"],
+  "minor": { "automerge": true },
+  "packageRules": [{ "matchPackageNames": ["react"], "groupName": "react monorepo" }]
+}

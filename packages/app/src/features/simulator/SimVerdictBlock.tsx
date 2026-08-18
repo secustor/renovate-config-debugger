@@ -1,11 +1,11 @@
 import { Fragment } from "react";
 import type { SimulationResult } from "@renovate-config-debugger/engine";
 import { CopyButton } from "@/components/CopyButton";
-import type { ConsumedBlock } from "./consumed-blocks";
+import type { ConsumedBlock } from "@/lib/consumed-blocks";
+import type { VerdictSegment } from "@/lib/verdict-sentence";
 import type { RuleEvidence } from "./rule-evidence";
 import { SimConsumedBlock } from "./SimConsumedBlock";
 import type { ThreadModel } from "./verdict-threads";
-import type { VerdictSegment } from "./verdict-sentence";
 import { type ThreadNavigation, VerdictThreads } from "./VerdictThreads";
 
 /**

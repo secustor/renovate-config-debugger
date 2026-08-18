@@ -33,6 +33,14 @@ import { recordingIo } from "../test-harness";
 const CONFIG = '{"extends":[":dependencyDashboard"],"labels":["deps"]}';
 const GROUPED =
   '{"labels":["deps"],"packageRules":[{"matchPackageNames":["react"],"groupName":"react"}]}';
+/** One AUTHORED update-type block (roadmap 048): a minor update flattens it
+ *  up, a major one drops it without applying — the two readings an empty
+ *  `flattened.merged` could not tell apart. */
+const AUTOMERGE_MINOR = JSON.stringify({
+  labels: ["deps"],
+  minor: { automerge: true },
+  packageRules: [{ matchPackageNames: ["react"], groupName: "react monorepo" }],
+});
 /** The big one — every size assertion in this file is measured against it. */
 const RECOMMENDED = '{"extends":["config:recommended"],"labels":["deps"]}';
 /** The same at scale, plus ONE rule of the caller's own — the shape the
@@ -899,6 +907,74 @@ describe("simulate and compare", () => {
     // The default answer for the same question never got that big.
     const verdict = (await call("simulate", { runId, dep })) as { truncated?: boolean };
     expect(verdict.truncated).toBeUndefined();
+  });
+
+  /**
+   * Roadmap 048. The outcome was derivable from the payload and stated
+   * nowhere in it; the web app had been rendering it as one sentence since
+   * roadmap 012. It is now the FIRST key of both detail levels — `full` is
+   * what a caller reaches for when the projection got in the way, so it must
+   * not be the level that loses the answer.
+   */
+  test("the outcome is one sentence, at every detail level", async () => {
+    const runId = await runConfig(AUTOMERGE_MINOR);
+    const dep = { depName: "react", currentValue: "17.0.0", newValue: "17.1.0" };
+    const sim = (await call("simulate", { runId, dep })) as {
+      verdict: { text: string; changedKeys: string[] };
+      flattened: {
+        appliedBlock: { key: string; authored: boolean; changed: string[] } | null;
+        consumedBlocks: unknown[];
+        note: string;
+      };
+    };
+    expect(sim.verdict.text).toBe(
+      'This minor update WOULD automerge, get labels [deps], and be grouped as "react monorepo".',
+    );
+    expect(sim.verdict.changedKeys).toContain("automerge");
+    expect(sim.flattened.appliedBlock).toMatchObject({ key: "minor", authored: true });
+    expect(sim.flattened.note).toBe("the `minor` block merged up and set: `automerge`");
+
+    // `full` asks for the merge trace and a merge step is a whole config
+    // snapshot, so this answer is elided — and the sentence is exactly what
+    // has to outlive that.
+    const full = (await call("simulate", { runId, dep, detail: "full" })) as {
+      verdict: { text: string };
+      omittedKeys?: string[];
+    };
+    expect(full.omittedKeys).toContain("mergeSteps");
+    expect(full.verdict.text).toBe(sim.verdict.text);
+  });
+
+  /**
+   * The whole point of putting the answer in a small key: the elider drops the
+   * LARGEST top-level keys first, so a ~200-byte sentence outlives the 713-row
+   * rule list it is a summary of.
+   */
+  test("the sentence survives the elision that takes the rules", async () => {
+    const runId = await runConfig(RECOMMENDED);
+    const dep = { depName: "react", packageName: "react", currentValue: "17", newValue: "18" };
+    const parsed = JSON.parse(await callText("simulate", { runId, dep })) as {
+      verdict: { text: string };
+      flattened: { note: string };
+      rules: { shown: number; omitted: number } | unknown[];
+    };
+    expect(parsed.verdict.text).toContain("This major update");
+    expect(parsed.flattened.note).toBeDefined();
+    const rules = parsed.rules as { shown: number; omitted: number };
+    expect(rules.omitted).toBeGreaterThan(0);
+  });
+
+  /** An agent cannot read a field it was never told the shape of: `flattened`
+   *  was named once, unexplained, and read as "nothing happened" whenever a
+   *  block contributed nothing. */
+  test("the tool description explains the flattening fields it answers with", async () => {
+    const { tools } = await client.listTools();
+    const description = tools.find((t) => t.name === "simulate")?.description ?? "";
+    expect(description).toContain("`verdict.text`");
+    expect(description).toContain("`appliedBlock`");
+    expect(description).toContain("`authoredBlocks`");
+    expect(description).toContain("`consumedBlocks`");
+    expect(client.getInstructions() ?? "").toContain("`verdict.text`");
   });
 
   /**

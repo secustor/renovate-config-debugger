@@ -6,6 +6,10 @@
  * automerge parenthetical) and the fail-closed no-input caveat, on
  * hand-written fixtures in the engine's real shapes (same discipline as
  * verdict-threads.test.ts).
+ *
+ * Roadmap 048: the assertions render through `verdictText`, the same function
+ * `rcd simulate` and the MCP `simulate` tool answer with — so these strings
+ * are the CLI's strings, not a second spelling of them.
  */
 import type {
   ClauseEvaluation,
@@ -14,7 +18,7 @@ import type {
   SimulationResult,
 } from "@renovate-config-debugger/engine";
 import { describe, expect, test } from "vitest";
-import { buildNoInputCaveat, buildVerdictSegments, type VerdictSegment } from "./verdict-sentence";
+import { buildNoInputCaveat, buildVerdictSegments, verdictText } from "./verdict-sentence";
 
 function simFixture(
   finalDependencyConfig: Record<string, unknown>,
@@ -32,12 +36,6 @@ function simFixture(
     notes: [],
     ...overrides,
   };
-}
-
-/** The plain sentence, with the modal badges upper-cased the way the card
- *  renders them — the exact text a screenshot carries. */
-function joined(segments: VerdictSegment[]): string {
-  return segments.map((s) => (typeof s === "string" ? s : s.modal.toUpperCase())).join("");
 }
 
 function noInputClause(key: string, readFields: string[]): ClauseEvaluation {
@@ -67,7 +65,7 @@ describe("buildVerdictSegments", () => {
     // "would automerge, get labels […], and auto-approval" — a bare noun under
     // a verb-phrase modal.
     const sim = simFixture({ automerge: true, labels: ["deploy_pr"], autoApprove: true });
-    expect(joined(buildVerdictSegments(sim, "minor", [], null))).toBe(
+    expect(verdictText(buildVerdictSegments(sim, "minor", [], null))).toBe(
       "This minor update WOULD automerge, get labels [deploy_pr], and get auto-approval.",
     );
   });
@@ -102,7 +100,7 @@ describe("buildVerdictSegments", () => {
         layer: { kind: "preset", nodeId: "n1", name: ":automergeMinor" },
       },
     ];
-    expect(joined(buildVerdictSegments(sim, "major", [], attribution))).toBe(
+    expect(verdictText(buildVerdictSegments(sim, "major", [], attribution))).toBe(
       "This major update WOULD get labels [deploy_pr] and get auto-approval, " +
         "but WOULD NOT automerge (your config enables automerge only for minor/patch updates — from `:automergeMinor`).",
     );
@@ -115,13 +113,13 @@ describe("buildVerdictSegments", () => {
         flattened: { merged: [], blocks: { minor: { automerge: true } }, authoredBlocks: [] },
       },
     );
-    expect(joined(buildVerdictSegments(sim, "major", [], null))).toBe(
+    expect(verdictText(buildVerdictSegments(sim, "major", [], null))).toBe(
       "This major update WOULD NOT automerge (your config enables automerge only for minor updates).",
     );
   });
 
   test("nothing special renders the defaults sentence", () => {
-    expect(joined(buildVerdictSegments(simFixture({}), "patch", [], null))).toBe(
+    expect(verdictText(buildVerdictSegments(simFixture({}), "patch", [], null))).toBe(
       "This patch update gets no special handling from your matched rules — the defaults apply.",
     );
   });
