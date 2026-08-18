@@ -780,8 +780,16 @@ export const EffectiveConfig = memo(function EffectiveConfig({
     expand === "full" && includeDefaults,
   );
 
-  // node ids and keys are per-run, so drop any stale expansion/filter state
-  useEffect(() => {
+  // node ids and keys are per-run, so drop any stale expansion/filter state.
+  // DURING RENDER, not in an effect (the `useDescriptionProvenance` idiom):
+  // effects flush after the commit, so a click landing in the gap between the
+  // commit that delivered this provenance and its passive flush would enqueue
+  // its expansion first and then be wiped by the reset — a user's first click
+  // silently undone, and the flake CI caught as "the expanded description row
+  // rendered no ledger".
+  const [resetOwner, setResetOwner] = useState(provenance);
+  if (resetOwner !== provenance) {
+    setResetOwner(provenance);
     setExpanded(new Set());
     setQuery("");
     setLayerFilter("all");
@@ -790,7 +798,7 @@ export const EffectiveConfig = memo(function EffectiveConfig({
     setView("keys");
     setExpand("keep-internal");
     setIncludeDefaults(false);
-  }, [provenance]);
+  }
 
   const entries = useMemo(() => (provenance ? [...provenance.values()] : []), [provenance]);
 
