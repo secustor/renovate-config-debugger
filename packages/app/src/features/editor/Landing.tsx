@@ -1,5 +1,3 @@
-import type { TermId } from "@/data/glossary-data";
-import { Term } from "@/components/glossary";
 import { formatShortcut, RUN_SHORTCUT } from "@/lib/shortcuts";
 
 /**
@@ -10,8 +8,9 @@ import { formatShortcut, RUN_SHORTCUT } from "@/lib/shortcuts";
  * pinned above the editor and left the page's own question unasked. The design
  * asks it in the headline, keeps the promise that answers the objection right
  * under it, and puts everything else the reader can DO in one centered column:
- * the editor, the two example shortcuts, one Run button, and a preview of the
- * eight stages the run will walk.
+ * the editor, the two example shortcuts, one Run button, and (iteration 4:
+ * `StageRailPreview`, now the Pipeline rail itself in preview mode) a preview
+ * of the eight stages the run will walk.
  *
  * Copy-and-affordances only — no state of its own; App owns every handler.
  */
@@ -83,52 +82,6 @@ export function LandingLaunch({
         {running ? "Running…" : "Run the pipeline"}
         <kbd aria-hidden="true">{runHint}</kbd>
       </button>
-    </div>
-  );
-}
-
-/** The eight stages of the pipeline, in the order the run walks them. The four
- *  that name a Renovate concept carry its glossary card — on this screen the
- *  rail is the only place the vocabulary appears at all. */
-const STAGES: { label: string; term?: TermId }[] = [
-  { label: "Global", term: "globalConfig" },
-  { label: "Inherited", term: "inheritedConfig" },
-  { label: "Parse" },
-  { label: "Migrate", term: "migration" },
-  { label: "Massage", term: "massage" },
-  { label: "Validate", term: "validation" },
-  { label: "Presets", term: "preset" },
-  { label: "Merge" },
-];
-
-/** One dot on the rail. Its own component for the depth ratchet: a glossary
- *  term inside a list item inside the rail is one level past the limit. */
-function RailNode({ label, term }: { label: string; term?: TermId }) {
-  return (
-    <li className="stage-rail-node">
-      <span className="stage-rail-dot" aria-hidden="true" />
-      {term ? <Term id={term}>{label}</Term> : <span>{label}</span>}
-    </li>
-  );
-}
-
-/**
- * A static, dimmed preview of the stage rail the results pane will show. It is
- * deliberately not a live progress indicator (roadmap 075 iteration 4 owns the
- * rail's run states): what it has to do here is tell a first-time reader that
- * the run is a sequence of named steps they will be able to walk.
- */
-export function StageRailPreview() {
-  return (
-    <div className="stage-rail-preview">
-      <ol className="stage-rail">
-        {STAGES.map((stage) => (
-          <RailNode key={stage.label} label={stage.label} term={stage.term} />
-        ))}
-      </ol>
-      <p className="stage-rail-caption">
-        The run lights these up in order — the same stages you&apos;ll navigate afterwards.
-      </p>
     </div>
   );
 }

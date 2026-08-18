@@ -2050,6 +2050,7 @@ export function App() {
               installUrl={INSTALL_URL}
               onRunAgain={onRunAgain}
               onEffectiveStats={setEffectiveStats}
+              effectiveKeys={effectiveStats?.keys ?? null}
               onShowDescriptionOrder={onShowDescriptionOrder}
               descriptionLedgerNonce={descriptionLedgerNonce}
               pendingRuleFocus={pendingRuleFocus}

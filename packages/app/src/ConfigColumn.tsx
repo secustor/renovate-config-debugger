@@ -4,14 +4,10 @@ import { ConfigEditorCard } from "@/features/editor/ConfigEditorCard";
 import { ConfigToolbar } from "@/features/editor/ConfigToolbar";
 import { type AuthState, GithubAuthHint } from "@/components/GithubAuthHint";
 import { HeadlessNote } from "@/components/HeadlessNote";
-import {
-  LandingIntro,
-  LandingLaunch,
-  LandingSteps,
-  StageRailPreview,
-} from "@/features/editor/Landing";
+import { LandingIntro, LandingLaunch, LandingSteps } from "@/features/editor/Landing";
 import { NoticeBar } from "@/features/editor/NoticeBar";
 import { RepoLoadOverlay } from "@/features/editor/RepoLoadOverlay";
+import { StageRailPreview } from "@/components/StageRail";
 import type { PresetHoverContext } from "@/lib/preset-hover";
 
 /** Roadmap 075: what Run refuses while the repo-load overlay is up — the

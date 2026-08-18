@@ -19,9 +19,9 @@ test("a validation error adds a hypothetical-run banner to post-Validate results
   // The run landed on Problems with an Errors & warnings entry…
   await expect(page.locator(".messages li.error").first()).toBeVisible();
 
-  // …the validate stage carries a red dot…
+  // …the validate stage carries a red glyph on the pipeline rail…
   await openTab(page, "pipeline");
-  await expect(page.locator(".stage-timeline .dot.error").first()).toBeVisible();
+  await expect(page.locator(".stage-rail .stage-rail-glyph.error").first()).toBeVisible();
 
   // …and the honesty banner is present on the post-Validate results. Roadmap
   // 075: it is stated ONCE, in the shell's run-level banner slot, because it is

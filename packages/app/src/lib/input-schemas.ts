@@ -205,7 +205,7 @@ export function isValidOAuthParam(value: string): boolean {
 // here and `satisfies typeof` pins it to the engine's exact tuple type
 // instead: adding, removing or reordering a stage in
 // packages/engine/src/trace/model.ts makes this line fail to compile until it
-// matches again. StageTimeline's stage order imports this constant, so the
+// matches again. StageRail's stage order imports this constant, so the
 // app has exactly one copy to keep in sync.
 // ---------------------------------------------------------------------------
 

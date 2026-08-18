@@ -3627,50 +3627,167 @@ pre.config-view.prov-before {
   padding: 0.45rem 1.4rem;
 }
 
-/* The stage rail, previewed: eight dots on a line, dimmed, with the four that
-   name a Renovate concept carrying its glossary card. Static on purpose —
-   roadmap 075 iteration 4 owns the rail's live run states. */
-.stage-rail-preview {
-  margin: 0.5rem 0 0;
-}
-
+/* Roadmap 075 (iteration 4) — THE STAGE RAIL. One implementation, two modes:
+   the Pipeline tab's stage selector (live glyphs, deltas, clickable) and the
+   landing's `.preview` teaser of it (hollow, dimmed, inert). Geometry and
+   glyph shapes are defined once here, so the preview cannot drift from the
+   rail it previews. */
 .stage-rail {
   display: flex;
   list-style: none;
-  margin: 0;
+  margin: 0 0 0.9rem;
   padding: 0;
   position: relative;
 }
 
+/* The line the nodes sit ON. It stops short of the outer columns' centers so
+   it never runs off past the first and last node. */
 .stage-rail::before {
   background: var(--border);
   content: "";
-  height: 1px;
+  height: 2px;
   left: 6%;
   position: absolute;
   right: 6%;
-  top: 0.3rem;
+  /* The glyph is 0.6rem tall, so its center is 0.3rem down; half the line's
+     own 2px puts the line's top here. */
+  top: 0.24rem;
 }
 
 .stage-rail-node {
   align-items: center;
-  color: var(--muted);
   display: flex;
   flex: 1;
   flex-direction: column;
-  font-size: 0.7rem;
-  gap: 0.4rem;
+  min-width: 0;
   position: relative;
   text-align: center;
 }
 
-.stage-rail-dot {
-  background: var(--canvas);
-  border: 2px solid var(--border);
+.stage-rail-btn {
+  align-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  gap: 0.3rem;
+  padding: 0 0.1rem;
+  width: 100%;
+}
+
+/* Roadmap 024's dot vocabulary, on the rail: clean/changed/error/skipped each
+   keep a distinct SHAPE as well as a color, so the signal survives grayscale
+   and color-blind viewing. The canvas halo punches the line out from under the
+   glyph, so the line reads as passing BEHIND the nodes (and shows through no
+   hollow one). */
+.stage-rail-glyph {
   border-radius: 50%;
+  box-shadow: 0 0 0 3px var(--canvas);
   flex: none;
   height: 0.6rem;
   width: 0.6rem;
+}
+
+.stage-rail-glyph.clean {
+  background: var(--ok);
+}
+
+.stage-rail-glyph.error {
+  background: var(--error);
+}
+
+.stage-rail-glyph.changed {
+  background: var(--warn);
+  border-radius: 2px;
+  transform: rotate(45deg);
+}
+
+.stage-rail-glyph.skipped,
+.stage-rail-glyph.preview {
+  background: var(--canvas);
+  border: 1.5px solid var(--muted);
+}
+
+.stage-rail-glyph.preview {
+  opacity: 0.6;
+}
+
+.stage-rail-label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+/* The delta line: glyph shorthand for what the stage did (`stage-delta.ts`),
+   mono and tabular so eight columns of numbers line up. Always rendered, empty
+   or not, so selecting a stage never shifts the rail's height. */
+.stage-rail-delta {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  min-height: 0.85rem;
+}
+
+.stage-rail-delta.dim {
+  color: var(--muted);
+  opacity: 0.55;
+}
+
+.stage-rail-delta.neutral {
+  color: var(--muted);
+}
+
+.stage-rail-delta.ok {
+  color: var(--ok);
+}
+
+.stage-rail-delta.warn {
+  color: var(--warn);
+}
+
+.stage-rail-delta.error {
+  color: var(--error);
+}
+
+.stage-rail-btn:hover .stage-rail-label {
+  color: var(--ink);
+}
+
+/* Selected: the accent ring sits OUTSIDE the canvas halo, so the node keeps
+   hiding the line while wearing it. */
+.stage-rail-btn.selected .stage-rail-glyph {
+  box-shadow:
+    0 0 0 3px var(--canvas),
+    0 0 0 6px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.stage-rail-btn.selected .stage-rail-label {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.stage-rail-btn:focus-visible {
+  border-radius: 6px;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The landing's mode: the same rail, with nothing to report yet. */
+.stage-rail-preview {
+  margin: 0.5rem 0 0;
+}
+
+.stage-rail.preview {
+  margin-bottom: 0;
+}
+
+/* No button to carry the column's gap in this mode, so the node carries it. */
+.stage-rail.preview .stage-rail-node {
+  gap: 0.35rem;
 }
 
 .stage-rail-caption {
@@ -4415,10 +4532,6 @@ pre.config-view.prov-before {
 .tab-panel > .card:last-child,
 .tab-panel > .empty-note:last-child {
   margin-bottom: 0;
-}
-
-.tab-panel > .stage-timeline:first-child {
-  margin-top: 0;
 }
 
 /* One-step "back to where I was" after an automatic tab switch. Quiet by

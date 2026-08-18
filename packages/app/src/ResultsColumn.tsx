@@ -18,13 +18,16 @@ import { PresetTree } from "@/features/presets/PresetTree";
 import { ResultsPanel, type ResultsTabDescriptor } from "@/components/ResultsPanel";
 import { RuleSimulator } from "@/features/simulator/RuleSimulator";
 import { StageDiff } from "@/components/StageDiff";
-import { StageTimeline } from "@/components/StageTimeline";
+import { StageRail } from "@/components/StageRail";
 import { StaleResultsBanner } from "@/components/StaleResultsBanner";
 import type { ResultsTabId } from "@/data/results-tabs";
 import { motionScrollOptions } from "@/lib/motion";
 import type { ErrorTranslationLib } from "@/platform/run";
 import type { ShareSimulator } from "@/lib/share";
-import { STAGE_EXPLAINERS, STAGE_LABELS } from "@/data/stage-copy";
+import { STAGE_LABELS } from "@/data/stage-copy";
+import { getStageActivity } from "@/lib/stage-activity";
+import { stageHint } from "@/lib/stage-delta";
+import { presetTreeSummary } from "@/components/preset-tree-stats";
 import type { SimRequest } from "@/hooks/use-share-link";
 
 /**
@@ -95,6 +98,11 @@ export interface ResultsColumnProps {
 
   // —— effective ——
   onEffectiveStats: (stats: EffectiveStats) => void;
+  /** Roadmap 075 (iteration 4): keys in the effective config, or null until
+   *  the browser has finished computing provenance — the merge node's delta on
+   *  the pipeline rail, and the merge stage card's hint. Owned by App (which
+   *  already holds it for the header digest) so both quote one number. */
+  effectiveKeys: number | null;
   /** Roadmap 069: the digest card's "show raw order" link — lands on the
    *  `description` row's blame ledger. Since 075 the card sits at the top of
    *  THIS tab, so from there it is an in-tab landing; the preset tree (PR 4),
@@ -186,6 +194,34 @@ function RewriteSteps({
   );
 }
 
+/**
+ * Roadmap 075 (iteration 4): the stage card's header strip — the stage's name
+ * and, muted beside it, what it DID this run (`stageHint`, the same derivation
+ * the rail's delta renders as a number). What the stage IS stays in
+ * `STAGE_EXPLAINERS`, one hover away on the rail node above.
+ */
+function StageCardHeader({
+  result,
+  stage,
+  effectiveKeys,
+  rendering,
+}: {
+  result: TraceResult;
+  stage: StageId;
+  effectiveKeys: number | null;
+  rendering: boolean;
+}) {
+  const presetCount = presetTreeSummary(result.presetTree)?.resolved ?? 0;
+  const hint = stageHint(stage, getStageActivity(result, stage), { presetCount, effectiveKeys });
+  return (
+    <div className="card-title">
+      Stage: {STAGE_LABELS[stage]}
+      <span className="card-title-hint"> — {hint}</span>
+      {rendering ? <span className="rendering-note"> rendering…</span> : null}
+    </div>
+  );
+}
+
 export function ResultsColumn({
   result,
   resultsColRef,
@@ -217,6 +253,7 @@ export function ResultsColumn({
   installUrl,
   onRunAgain,
   onEffectiveStats,
+  effectiveKeys,
   onShowDescriptionOrder,
   descriptionLedgerNonce,
   pendingRuleFocus,
@@ -355,15 +392,19 @@ export function ResultsColumn({
       ),
       pipeline: (
         <>
-          <StageTimeline result={result} selected={selectedStage} onSelect={onSelectStage} />
+          <StageRail
+            result={result}
+            selected={selectedStage}
+            onSelect={onSelectStage}
+            effectiveKeys={effectiveKeys}
+          />
           <div className="card">
-            <div className="card-title">
-              Stage: {STAGE_LABELS[selectedStage]}
-              <span className="card-title-hint"> — {STAGE_EXPLAINERS[selectedStage].plain}</span>
-              {deferredStage !== selectedStage ? (
-                <span className="rendering-note"> rendering…</span>
-              ) : null}
-            </div>
+            <StageCardHeader
+              result={result}
+              stage={selectedStage}
+              effectiveKeys={effectiveKeys}
+              rendering={deferredStage !== selectedStage}
+            />
             <StageDiff result={result} stage={deferredStage} />
           </div>
           {/* Roadmap 075 (iteration 3): the Rewrites tab, folded in. The
@@ -459,6 +500,7 @@ export function ResultsColumn({
     onSignIn,
     installUrl,
     onEffectiveStats,
+    effectiveKeys,
     onShowDescriptionOrder,
     descriptionLedgerNonce,
     pendingRuleFocus,

@@ -3,7 +3,7 @@ import type { GlossaryEntry } from "./glossary-data";
 
 /**
  * Stage names + plain-language explainers. Data, not markup — kept out of
- * `StageTimeline.tsx` because a component module that also exports constants
+ * `StageRail.tsx` because a component module that also exports constants
  * breaks Fast Refresh (react/only-export-components), and App.tsx reads both
  * of these for the selected-stage detail panel.
  */
@@ -11,6 +11,23 @@ import type { GlossaryEntry } from "./glossary-data";
 export const STAGE_LABELS: Record<StageId, string> = {
   global: "Global config",
   inherit: "Inherited config",
+  parse: "Parse",
+  migrate: "Migrate",
+  massage: "Massage",
+  validate: "Validate",
+  preset: "Presets",
+  merge: "Merge",
+};
+
+/**
+ * Roadmap 075 (iteration 4): the rail gives every stage the same narrow
+ * column, so its nodes wear the short form of the same names — the full label
+ * stays the accessible name and the stage card's heading, so nothing a screen
+ * reader hears gets shorter.
+ */
+export const STAGE_SHORT_LABELS: Record<StageId, string> = {
+  global: "Global",
+  inherit: "Inherited",
   parse: "Parse",
   migrate: "Migrate",
   massage: "Massage",

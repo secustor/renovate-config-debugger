@@ -8,7 +8,7 @@ import type { StageId, TraceEvent, TraceResult } from "@renovate-config-debugger
  * identical to a stage that passed it through untouched.
  *
  * The per-stage rule (documented again in each stage's STAGE_EXPLAINERS
- * card in StageTimeline.tsx):
+ * card, hovered from the rail node in StageRail.tsx):
  *  - migrate/massage/validate can meaningfully do nothing, so "clean" (green)
  *    vs "changed" (amber) is worth showing: migrate steps > 0, massage
  *    actually changed the config, validate has warnings.

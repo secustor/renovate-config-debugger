@@ -120,7 +120,7 @@ export async function openTab(page: Page, id: TabId): Promise<void> {
  */
 export async function openMigrateStage(page: Page): Promise<void> {
   await openTab(page, "pipeline");
-  await page.locator('.stage-chip[data-stage="migrate"]').click();
+  await page.locator('.stage-rail-btn[data-stage="migrate"]').click();
   // `.first()`: since 075 the migrate stage's panel holds TWO cards — the stage
   // itself, and the rewrite stepper folded in from the retired tab.
   await expect(page.locator("#panel-pipeline .card-title").first()).toContainText("Stage: Migrate");

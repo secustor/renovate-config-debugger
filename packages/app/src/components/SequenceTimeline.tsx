@@ -6,8 +6,10 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
  * continuation lines (042). Extracted from roadmap 024/042's stage timeline so
  * the simulator's merge sequence is the SAME vocabulary (`.stage-timeline` /
  * `.stage-chip` / `.stage-sep` CSS, the 024 dot signals), not a second dialect
- * of it. `StageTimeline` (the Pipeline tab) and the simulator's merge timeline
- * are both thin adapters over these three pieces.
+ * of it. Roadmap 075 (iteration 4) moved the Pipeline tab to its own rail
+ * (`StageRail`), so the simulator's merge timeline — a variable-length path
+ * through `packageRules`, not a fixed row of stages — is now this grammar's
+ * one adapter.
  *
  * The dot levels keep their 024 meanings everywhere: `clean` = ran and changed
  * nothing (green circle), `changed` = changed things (amber diamond), `error`

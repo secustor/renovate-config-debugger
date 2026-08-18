@@ -157,7 +157,7 @@ test("the diff chrome names the active view and offers Copy result (036)", async
   await setEditorContent(page, SEMANTIC_COMMITS_CONFIG);
   await runAndAwaitResult(page);
   await openTab(page, "pipeline");
-  await page.locator('.stage-chip[data-stage="migrate"]').click();
+  await page.locator('.stage-rail-btn[data-stage="migrate"]').click();
   // Selecting the chip leaves its glossary hover card open under the cursor
   // (roadmap 024/025); park the pointer so it can't swallow the clicks below.
   await page.mouse.move(0, 0);
