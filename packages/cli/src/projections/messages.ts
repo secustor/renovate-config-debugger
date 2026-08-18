@@ -19,8 +19,12 @@ import {
  * half its answer". Three replay sessions read the silent shape as a broken
  * promise.
  */
+export type MessageSeverity = "error" | "warning";
+
 export interface ReportedMessage {
-  severity: "error" | "warning";
+  /** The list the RUN put this message in — `null` when nothing decided that:
+   *  no run was given, or the run holds no message with this exact text. */
+  severity: MessageSeverity | null;
   topic: string;
   message: string;
   /** Whether roadmap 014's curated library has an entry for this message.
@@ -31,6 +35,8 @@ export interface ReportedMessage {
   docsUrl?: string;
   /** Present exactly when there is no `fix` — why there isn't one. */
   note?: string;
+  /** Present exactly when `severity` is null — why it could not be decided. */
+  severityNote?: string;
   fix?: {
     summary: string;
     path: (string | number)[];
@@ -40,10 +46,20 @@ export interface ReportedMessage {
     fixedText?: string;
     /** True when `fixedText` is the whole document re-serialized from
      *  `fixedConfig` because the edit couldn't be located in the original
-     *  text — still correct, but comments and formatting are lost. */
+     *  text — still correct, but comments and formatting are lost. Rare: it
+     *  takes a config written in a key style the locator doesn't read
+     *  (unquoted or single-quoted keys), or a path that isn't in this exact
+     *  text. Absent means the edit was a minimal in-place patch. */
     fixedTextRewritesDocument?: true;
   };
 }
+
+const UNKNOWN_SEVERITY_NOTE =
+  "Severity is null: nothing decided which list this message is in. Either no runId was given, " +
+  "or that run's `errors`/`warnings` hold no message with this exact text — a paraphrase, a " +
+  "quote shortened by the digest, or another Renovate version's wording all land here. The " +
+  "explanation below is still the library's; the severity is not the run's. Address the message " +
+  "by position instead: run_config lists each message with its `index`.";
 
 const NO_TRANSLATION_NOTE =
   "No translation for this message — the message text and severity are Renovate's own, " +
@@ -67,7 +83,7 @@ const NO_SAFE_FIX_NOTE =
  */
 export function describeMessage(
   message: ValidationMessage,
-  severity: "error" | "warning",
+  severity: MessageSeverity | null,
   config: Record<string, unknown> | null,
   text: string | null,
 ): ReportedMessage {
@@ -76,6 +92,7 @@ export function describeMessage(
   const applied = translated?.fix && text ? applyFixToText(text, translated.fix) : null;
   return {
     severity,
+    ...(severity === null ? { severityNote: UNKNOWN_SEVERITY_NOTE } : {}),
     topic: message.topic,
     message: message.message,
     translationKnown: translated !== null,

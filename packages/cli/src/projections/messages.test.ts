@@ -37,10 +37,52 @@ describe("describeMessage — a known warning", () => {
         },
       ],
     });
-    // The edit replaces a whole array element, which the surgical text patcher
-    // does not address — the document is re-serialized, and says so.
-    expect(reported.fix?.fixedTextRewritesDocument).toBe(true);
+    // The edit replaces a whole array element, and that is a MINIMAL patch:
+    // the document is not re-serialized, so nothing else in it moves.
+    expect(reported.fix?.fixedTextRewritesDocument).toBeUndefined();
+    expect(reported.fix?.fixedText).toContain('{\n  "packageRules": [');
     expect(JSON.parse(reported.fix?.fixedText ?? "null")).toEqual(reported.fix?.fixedConfig);
+  });
+
+  /**
+   * What the persona sessions actually meant by "minimal patch": a config with
+   * comments comes back with its comments. A whole-document rewrite loses
+   * them silently — the fix is still correct, and the file is still ruined.
+   */
+  test("a comment-bearing config keeps its comments and its untouched siblings", () => {
+    const commented = [
+      "{",
+      "  // renovate config",
+      '  "extends": ["config:recommended"],',
+      '  "packageRules": [',
+      '    { "matchDepTypes": ["devDependencies"], "automerge": true },',
+      '    { "extends": ["group:jestMonorepo"] }',
+      "  ]",
+      "}",
+      "",
+    ].join("\n");
+    const reported = describeMessage(
+      {
+        topic: "Configuration Warning",
+        message: 'packageRules[1].extends: you should not extend "group:" presets',
+      },
+      "warning",
+      {
+        extends: ["config:recommended"],
+        packageRules: [
+          { matchDepTypes: ["devDependencies"], automerge: true },
+          { extends: ["group:jestMonorepo"] },
+        ],
+      },
+      commented,
+    );
+    const fixedText = reported.fix?.fixedText ?? "";
+    expect(reported.fix?.fixedTextRewritesDocument).toBeUndefined();
+    expect(fixedText).toContain("  // renovate config");
+    expect(fixedText).toContain('  "extends": ["config:recommended"],');
+    expect(fixedText).toContain('    { "matchDepTypes": ["devDependencies"], "automerge": true },');
+    expect(fixedText).toContain("monorepo:jest");
+    expect(fixedText).not.toContain("group:jestMonorepo");
   });
 
   test("without a config snapshot it explains, and says why there is no fix", () => {
@@ -72,6 +114,17 @@ describe("describeMessage — no translation known", () => {
       note: expect.stringContaining("No translation for this message"),
     });
     expect(reported.note).toMatch(/Renovate's own/);
+  });
+
+  test("a severity nothing decided is null, and says so", () => {
+    const reported = describeMessage(
+      { topic: "Configuration Error", message: "Something else entirely" },
+      null,
+      {},
+      null,
+    );
+    expect(reported.severity).toBeNull();
+    expect(reported.severityNote).toMatch(/nothing decided/);
   });
 
   test("still offers the option's docs link when the message names one", () => {
