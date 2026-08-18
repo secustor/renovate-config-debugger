@@ -90,7 +90,10 @@
        rather than on a card. Stated as literal light-dark() pairs, NOT as a
        mix into --surface: mixing would wash them out in the dark theme, and
        these are exactly the "must be unmissable" surfaces (027's share-link
-       banner, the advanced-zone chips). */
+       banner and its warning twin). 075 moved the advanced-zone chips off the
+       washes and onto `.pill`, so --accent-wash currently has no caller; it
+       stays because the three washes are one family and a hue that loses its
+       wash is a hole the next unmissable surface would re-open by hand. */
   --ok-bg: color-mix(in srgb, var(--ok) 10%, var(--surface));
   --ok-bg-strong: color-mix(in srgb, var(--ok) 20%, var(--surface));
   --ok-border: color-mix(in srgb, var(--ok) 40%, var(--border));
@@ -187,7 +190,7 @@ header.app-header {
 }
 
 /* Quiet until it matters: the trigger carries no border at rest so the corner
-   reads as one avatar, and gains the `.btn` outline on hover and while open. */
+   reads as one avatar, and gains the button outline on hover and while open. */
 .session-menu-trigger {
   align-items: center;
   background: transparent;
@@ -423,19 +426,30 @@ h1 {
   padding: 0.5rem 0.75rem;
 }
 
-/* ---------- the one button (roadmap 039) ---------- */
+/* ---------- the one button (roadmap 039, restated as a standard by 075) ----
 
-/* Roadmap 039: THE button. 036 unified the chrome rows but left five button
+   Roadmap 039: THE button. 036 unified the chrome rows but left five button
    dialects behind — 0.9rem toolbar buttons towering over 0.8rem copy/segment
    buttons and a 0.78rem diff-foot button, three heights in a single row. Every
-   button now derives from this base at the 036 control metrics (0.8rem,
-   0.25rem × 0.6rem), with exactly three variants: `primary` (accent fill —
-   Run and the repo-load submit), the bare default (bordered, "secondary" in
-   the 039 vocabulary) and `quiet` (muted text — the repo-load disclosure,
-   Cancel). `.seg button` is listed here instead of carrying the class: its
-   buttons are unclassed children of a segmented control, and sharing this ONE
-   declaration block is exactly what "re-based onto `.btn`" means. */
-.btn,
+   button derives from this base at the 036 control metrics.
+
+   Roadmap 075 (v2 "Standard Components"): the variants stop being adjectives
+   on a `.btn` base (`btn primary` / `btn quiet` / bare `btn`) and become the
+   three named roles the design sheet lists, so a role has ONE spelling and a
+   reader of the markup can see which one is meant:
+
+     `.btn-primary`   — accent fill, 600, optional inner <kbd> shortcut pill.
+                        Run, the repo-load submit, Simulate, preset-inject.
+     `.btn-secondary` — the outline button; every other textual control,
+                        including Cancel (075: a textual Cancel is never quiet).
+     `.btn-quiet`     — borderless link-style, for cross-navigation inside
+                        prose. This absorbed `.linklike` and `.sim-toggle`.
+
+   `.seg button` is listed here instead of carrying a class: its buttons are
+   unclassed children of a segmented control, and sharing this ONE declaration
+   block is exactly what "re-based onto the button" means. */
+.btn-primary,
+.btn-secondary,
 .seg button {
   align-items: center;
   background: transparent;
@@ -447,49 +461,101 @@ h1 {
   font: inherit;
   font-size: 0.8rem;
   gap: 0.35rem;
-  padding: 0.25rem 0.6rem;
+  padding: 0.25rem 0.7rem;
   white-space: nowrap;
 }
 
-.btn:hover {
-  border-color: var(--accent);
+/* Secondary is quiet at rest and gains ink on hover — the same resting weight
+   `.seg button` always had, which is why the two now agree. */
+.btn-secondary {
+  color: var(--muted);
 }
 
-.btn.primary {
+.btn-secondary:hover {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+/* The selected/active state of an outline button, shared verbatim by the
+   segmented control below: an accent outline over the page's own ground, so a
+   pressed control reads as raised rather than merely tinted. */
+.btn-secondary.active,
+.btn-secondary[aria-pressed="true"] {
+  background: var(--canvas);
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.btn-primary {
   background: var(--accent-fill);
   border-color: var(--accent-fill);
   color: var(--on-accent);
   font-weight: 600;
 }
 
-.btn.primary:hover {
+.btn-primary:hover:not(:disabled) {
   background: color-mix(in srgb, var(--accent-fill) 88%, #000);
 }
 
-.btn.quiet {
-  color: var(--muted);
+/* The shortcut hint inside a primary button (the Run button's ⌘⏎). Dim against
+   the filled surface, and gone on narrow viewports, where the row is tight and
+   a physical keyboard is least likely to be there. */
+.btn-primary kbd {
+  background: color-mix(in srgb, var(--on-accent) 18%, transparent);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.72rem;
+  line-height: 1;
+  padding: 0.15rem 0.3rem;
 }
 
-.btn.quiet:hover {
-  color: inherit;
+@media (max-width: 55rem) {
+  .btn-primary kbd {
+    display: none;
+  }
+}
+
+/* Borderless, link-blue, underlined: a jump inside a sentence, not a control
+   in a chrome row — so it deliberately does NOT take the base metrics. */
+.btn-quiet {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
 }
 
 /* Not a fourth variant: a secondary button whose LABEL is the accent — the
    copy affordances and the diff footer's "show all", which are offers rather
    than the row's main action. */
-.btn.accent-text {
+.btn-secondary.accent-text {
   color: var(--accent);
 }
 
 /* Roadmap 035: a disabled button must never be pixel-identical to an enabled
-   one — that reads as broken when clicking it does nothing. On the base, so no
-   future button can silently repeat it. */
-.btn:disabled {
-  cursor: default;
+   one — that reads as broken when clicking it does nothing. 075 makes the
+   cursor say so too; the primary keeps its identity but in a washed-out
+   accent, rather than a translucent copy of itself. */
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-quiet:disabled {
+  cursor: not-allowed;
+}
+
+.btn-secondary:disabled,
+.btn-quiet:disabled {
   opacity: 0.55;
 }
 
-.btn svg {
+.btn-primary:disabled {
+  background: color-mix(in srgb, var(--accent-fill) 45%, var(--surface));
+  border-color: transparent;
+}
+
+.btn-primary svg,
+.btn-secondary svg {
   fill: currentColor;
   flex: none;
 }
@@ -503,7 +569,7 @@ h1 {
   color: inherit;
   font: inherit;
   font-size: 0.8rem;
-  padding: 0.25rem 0.6rem;
+  padding: 0.25rem 0.7rem;
 }
 
 .toolbar {
@@ -512,6 +578,58 @@ h1 {
   flex-wrap: wrap;
   gap: 0.5rem;
   margin: 0.75rem 0;
+}
+
+/* ---------- summary strip (roadmap 075) ----------
+   The first element of an instrument: the whole tab's story in one sentence,
+   with the numbers that carry it in ink. A strip, not a card — it sits ON the
+   panel rather than boxing content, which is why it keeps the card's radius
+   and border but never a title row. An optional quiet action pins right. */
+.summary-strip {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  gap: 0.35rem 0.6rem;
+  padding: 0.45rem 0.7rem;
+}
+
+.summary-strip strong {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.summary-strip > .btn-quiet:last-child {
+  margin-left: auto;
+}
+
+/* ---------- preset token (roadmap 075) ----------
+   Every preset reference wears this: mono, purple-tinted, whether it is static
+   text naming a preset or a control that jumps to that preset's node. The hue
+   is the app's existing preset hue (`.badge.src-github`, `.prov-preset`), so a
+   token and the chips that point at the same thing agree. */
+.preset-token {
+  background: color-mix(in srgb, var(--accent-purple) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-purple) 24%, transparent);
+  border-radius: 4px;
+  color: var(--accent-purple);
+  font-family: var(--font-mono);
+  padding: 0.02rem 0.35rem;
+}
+
+button.preset-token {
+  cursor: pointer;
+  font-size: inherit;
+  text-align: left;
+}
+
+button.preset-token:hover {
+  border-color: color-mix(in srgb, var(--accent-purple) 55%, transparent);
 }
 
 .stage-timeline {
@@ -842,7 +960,16 @@ pre.config-view {
    deliberate exceptions keep their meaning and opt out below: `.elided`
    (dashed = a collapsed chain) and `.rollup` (borderless). The fill itself
    lives on --chip-fill/--chip-border so the 046 verdict verb — the other
-   currentColor-tinted chip in the app — can wear the same one. */
+   currentColor-tinted chip in the app — can wear the same one.
+
+   Roadmap 075 names this shape `.pill` and makes it the standard: the design
+   sheet's pill IS the 036 badge (999px, 0.7rem, `0 / 0.45rem`, the 13%/32%
+   currentColor tint), so the two are ONE declaration block rather than a
+   second implementation. `.badge` stays the spelling of the preset tree's and
+   the provenance ledger's ~15 domain variants (their hues, their glossary
+   cards and the e2e selectors all hang off it); `.pill` plus a tone below is
+   what everything else — and all v2 work — says. */
+.pill,
 .badge {
   background: var(--chip-fill);
   border: 1px solid var(--chip-border);
@@ -851,6 +978,49 @@ pre.config-view {
   line-height: 1.4;
   padding: 0 0.45rem;
   white-space: nowrap;
+}
+
+/* The tones. A semantic tone declares its hue and nothing else — the fill and
+   the border derive from it — and is weight 600, because it is saying
+   something. `.pill-count` is the exception the sheet spells out: a bare
+   number is not a claim, so it drops the tint for a plain border and stays at
+   the surrounding text's weight. */
+.pill-accent {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.pill-preset {
+  color: var(--accent-purple);
+  font-weight: 600;
+}
+
+.pill-ok {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.pill-warn {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.pill-error {
+  color: var(--error);
+  font-weight: 600;
+}
+
+.pill-muted {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.pill-count {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
 }
 
 .badge.count {
@@ -958,10 +1128,10 @@ pre.config-view {
 /* Roadmap 036: THE segmented control. Born here as `.preset-view-toggle`, it is
    now the one shape shared by the preset tree/table switch, the diff chrome
    row's Unified/Side-by-side control and the header theme switcher — its
-   font-size + padding are those of the shared `.btn` base, so every control in
+   font-size + padding are those of the shared button base, so every control in
    a chrome row measures the same height. Written for N segments
    (`:first-child`/`:last-child` round the ends; the theme switcher has three).
-   Roadmap 039: the metrics themselves now come from the `.btn` base (which
+   Roadmap 039: the metrics themselves now come from the button base (which
    lists `.seg button`); only what makes a segment a segment lives here. */
 .seg {
   display: inline-flex;
@@ -986,10 +1156,20 @@ pre.config-view {
   border-radius: 0 6px 6px 0;
 }
 
+/* Roadmap 075: the selected segment wears `.btn-secondary`'s active state —
+   accent outline over the page's ground — so "this control is on" looks the
+   same whether it is a segment or a standalone toggle. A middle segment's LEFT
+   edge is drawn by its predecessor's right border (segments collapse their
+   shared border), so that one edge has to be coloured from the sibling. */
 .seg button.active {
-  background: var(--surface);
-  color: inherit;
+  background: var(--canvas);
+  border-color: var(--accent);
+  color: var(--ink);
   font-weight: 600;
+}
+
+.seg button:has(+ .active) {
+  border-right-color: var(--accent);
 }
 
 /* contribution + roll-up counts.
@@ -1331,21 +1511,6 @@ textarea.layer-editor:focus {
   width: 100%;
 }
 
-.preset-inject-button {
-  background: var(--accent-fill);
-  border: 1px solid var(--accent-fill);
-  border-radius: 6px;
-  color: var(--on-accent);
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 600;
-  padding: 0.35rem 0.7rem;
-}
-
-.preset-inject-button:disabled {
-  opacity: 0.6;
-}
-
 .preset-node-error {
   color: var(--error);
   font-size: 0.8rem;
@@ -1378,7 +1543,7 @@ textarea.layer-editor:focus {
   margin-bottom: 0.5rem;
 }
 
-.preset-panel-head code {
+.preset-panel-head .preset-token {
   font-size: 0.95rem;
   font-weight: 600;
   word-break: break-all;
@@ -1626,7 +1791,7 @@ textarea.layer-editor:focus {
 
 /* The one deliberate departure from the shared metrics: the stepper embedded
    in a preset row is a compact echo of the real one. */
-.migration-steps.compact .migration-nav .btn {
+.migration-steps.compact .migration-nav .btn-secondary {
   font-size: 0.78rem;
   padding: 0.2rem 0.5rem;
 }
@@ -2070,7 +2235,8 @@ pre.config-view.prov-before {
   min-width: 5rem;
 }
 
-.repo-panel .btn {
+.repo-panel .btn-primary,
+.repo-panel .btn-secondary {
   flex: none;
 }
 
@@ -2193,16 +2359,13 @@ pre.config-view.prov-before {
 }
 
 /* The standing reminder beside Run — present for as long as the suppression
-   is, which is why it carries the opt-in too rather than being a dead end. */
+   is, which is why it carries the opt-in too rather than being a dead end.
+   Roadmap 075: a warn `.pill`; what is left here is that it holds a control. */
 .untrusted-endpoint-chip {
   align-items: center;
-  border: 1px solid var(--warn);
-  border-radius: 999px;
-  color: var(--warn);
   display: inline-flex;
-  font-size: 0.75rem;
   gap: 0.4rem;
-  padding: 0.15rem 0.6rem;
+  padding: 0.1rem 0.5rem;
 }
 
 .untrusted-endpoint-allow {
@@ -2298,19 +2461,10 @@ pre.config-view.prov-before {
   margin: 0.2rem 0 0;
 }
 
+/* Roadmap 075: a `.btn-secondary`; only its detachment from the line above is
+   its own. */
 .auth-failure-rerun {
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  color: inherit;
-  cursor: pointer;
-  font-size: 0.8rem;
   margin-top: 0.35rem;
-  padding: 0.25rem 0.7rem;
-}
-
-.auth-failure-rerun:hover {
-  border-color: var(--accent);
 }
 
 /* ---------- packageRules simulator (006) ---------- */
@@ -2371,21 +2525,6 @@ pre.config-view.prov-before {
   display: flex;
   gap: 0.75rem;
   padding: 0.75rem;
-}
-
-.sim-actions button.primary {
-  background: var(--accent-fill);
-  border: 1px solid var(--accent-fill);
-  border-radius: 6px;
-  color: var(--on-accent);
-  cursor: pointer;
-  font-size: 0.9rem;
-  padding: 0.3rem 1rem;
-}
-
-.sim-actions button.primary:disabled {
-  cursor: wait;
-  opacity: 0.6;
 }
 
 .sim-stale {
@@ -3046,7 +3185,7 @@ pre.config-view.prov-before {
 
 /* Roadmap 036: ONE copy affordance (components/CopyButton.tsx), at ONE size —
    the four it replaced ran 0.72rem/0.8rem/0.9rem and read as unrelated
-   controls. Roadmap 039: the metrics (and the icon rule) come from the `.btn`
+   controls. Roadmap 039: the metrics (and the icon rule) come from the button
    base it now carries; what is left here is what makes a copy button a copy
    button — the accent label, its tinted hover, and `.copied`, the transient
    success state whose icon swaps to a check in the same beat. */
@@ -3214,19 +3353,11 @@ pre.config-view.prov-before {
   white-space: nowrap;
 }
 
+/* Roadmap 075: the "show all / hide" toggles are `.btn-quiet` — what is left
+   here is only their size and their refusal to wrap. */
 .sim-toggle {
-  background: transparent;
-  border: none;
-  color: var(--accent);
-  cursor: pointer;
-  font: inherit;
   font-size: 0.82rem;
-  padding: 0;
   white-space: nowrap;
-}
-
-.sim-toggle:hover {
-  text-decoration: underline;
 }
 
 .sim-toggle.inline {
@@ -3292,16 +3423,6 @@ pre.config-view.prov-before {
   padding-top: 0.6rem;
 }
 
-.linklike {
-  background: none;
-  border: none;
-  color: var(--accent);
-  cursor: pointer;
-  font: inherit;
-  padding: 0;
-  text-decoration: underline;
-}
-
 /* A term explained by a glossary hover card: quiet until noticed. */
 .term {
   border-bottom: 1px dotted var(--muted);
@@ -3347,22 +3468,11 @@ pre.config-view.prov-before {
   margin: 0.6rem 0 0.2rem;
 }
 
+/* Roadmap 075: an accent (or, when the layer will not parse, an error) `.pill`
+   — only its placement on the summary line is its own. */
 .advanced-active-chip {
-  background: var(--accent-wash);
-  border: 1px solid var(--accent);
-  border-radius: 999px;
-  color: var(--accent);
-  font-size: 0.72rem;
-  font-weight: 600;
   margin-left: 0.5rem;
-  padding: 0.05rem 0.5rem;
   vertical-align: 0.1rem;
-}
-
-.advanced-active-chip.invalid {
-  background: var(--error-wash);
-  border-color: var(--error);
-  color: var(--error);
 }
 
 /* ---------- rule identity & provenance (013) ---------- */
@@ -3925,35 +4035,47 @@ main:has(.app-split.has-results) {
   overflow: hidden;
 }
 
-/* Wraps rather than overflowing: the strip must never push the page sideways. */
+/* Wraps rather than overflowing: the strip must never push the page sideways.
+   Roadmap 075: a rail, so the active tab has something to be attached TO — its
+   top padding is the gap the raised card needs above it. */
 .tab-bar {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   display: flex;
   flex-wrap: wrap;
+  gap: 0.15rem;
+  padding: 0.3rem 0.3rem 0;
 }
 
 .tab {
   align-items: center;
   background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
+  border: 1px solid transparent;
+  border-radius: 6px 6px 0 0;
   color: var(--muted);
   cursor: pointer;
   display: inline-flex;
   font-family: inherit;
   font-size: 0.85rem;
   gap: 0.4rem;
-  padding: 0.55rem 0.8rem;
+  /* Overlaps the rail's own bottom border, which is what lets the active tab
+     paint over it and read as one surface with the body below. */
+  margin-bottom: -1px;
+  padding: 0.45rem 0.8rem;
 }
 
 .tab:hover {
-  color: inherit;
+  color: var(--ink);
 }
 
+/* Roadmap 075, the attached tab: the selected tab is a card of the BODY's
+   ground, bordered on three sides, with its fourth side painted out in that
+   same ground so the seam between tab and panel disappears. */
 .tab.active {
-  border-bottom-color: var(--accent);
-  color: inherit;
+  background: var(--canvas);
+  border-color: var(--border);
+  border-bottom-color: var(--canvas);
+  color: var(--ink);
   font-weight: 600;
 }
 
@@ -3963,23 +4085,10 @@ main:has(.app-split.has-results) {
   opacity: 0.55;
 }
 
+/* The count is a `.pill` (see the pill standard); `.tab-count` is kept as the
+   stable hook the e2e specs and the keystroke render test address it by. */
 .tab-count {
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--muted);
-  font-size: 0.7rem;
-  font-weight: 400;
-  padding: 0 0.4rem;
-}
-
-.tab-count.warn {
-  border-color: var(--warn);
-  color: var(--warn);
-}
-
-.tab-count.error {
-  border-color: var(--error);
-  color: var(--error);
+  flex: none;
 }
 
 .tab-body {
@@ -4274,24 +4383,6 @@ main:has(.app-split.has-results) {
   position: absolute;
   white-space: nowrap;
   width: 1px;
-}
-
-/* The shortcut hint inside the Run button. Dim against the filled primary
-   surface, and gone on narrow viewports, where the row is tight and a physical
-   keyboard is least likely to be there. */
-.btn-kbd {
-  background: color-mix(in srgb, var(--on-accent) 18%, transparent);
-  border-radius: 4px;
-  font-family: inherit;
-  font-size: 0.72rem;
-  line-height: 1;
-  padding: 0.15rem 0.3rem;
-}
-
-@media (max-width: 55rem) {
-  .btn-kbd {
-    display: none;
-  }
 }
 
 /* A cross-link now lands focus on its target (`landOnTarget`), so the targets
@@ -4642,18 +4733,9 @@ button.desc-digest-leaf:focus-visible {
   line-height: 1.4;
 }
 
-/* The repeat's pill. Warn-tinted rather than muted: unlike the digest card's
-   "redundant" note this one is per-line and actionable — an extends entry is
-   paying for a sentence twice. */
-.desc-ledger-dup {
-  background: var(--warn-bg);
-  border: 1px solid var(--warn-border);
-  border-radius: 999px;
-  color: var(--warn);
-  font-size: 0.68rem;
-  padding: 0.1em 0.5em;
-  white-space: nowrap;
-}
+/* The repeat's pill is the standard warn `.pill` (075) — warn-tinted rather
+   than muted because, unlike the digest card's "redundant" note, this one is
+   per-line and actionable: an extends entry is paying for a sentence twice. */
 
 .desc-ledger-more {
   font-size: 0.78rem;

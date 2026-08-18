@@ -4,7 +4,7 @@ import { useState } from "react";
  * Roadmap 036 — THE copy affordance. Before it, four unrelated implementations
  * (CopyMarkdownButton, MigrationSteps' inline handler, two plain toolbar
  * buttons) each hand-rolled their own "Copied!" timeout at three different
- * sizes. One component, one size (roadmap 039: the shared `.btn` base, with
+ * sizes. One component, one size (roadmap 039: the shared button base, with
  * `.copy-btn` in index.css left holding only the accent look), one copied
  * state: clipboard icon + label, flipping to a check + "Copied" for 1.5 s.
  */
@@ -57,7 +57,7 @@ export function CopyButton({ getText, onCopy, label, title, className, inSummary
   return (
     <button
       type="button"
-      className={`btn copy-btn${copied ? " copied" : ""}${className ? ` ${className}` : ""}`}
+      className={`btn-secondary copy-btn${copied ? " copied" : ""}${className ? ` ${className}` : ""}`}
       title={title}
       onClick={(e) => {
         if (inSummary) {

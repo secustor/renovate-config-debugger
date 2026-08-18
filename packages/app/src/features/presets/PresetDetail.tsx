@@ -159,7 +159,7 @@ function PresetInjector({
       {error ? <p className="preset-node-error">{error}</p> : null}
       <button
         type="button"
-        className="preset-inject-button"
+        className="btn-primary"
         onClick={submit}
         disabled={text.trim().length === 0}
       >
@@ -225,7 +225,7 @@ export function PresetDetail({
   return (
     <div className="preset-panel">
       <div className="preset-panel-head">
-        <code>{node.name}</code>
+        <code className="preset-token">{node.name}</code>
         <button type="button" className="close" onClick={onClose} aria-label="Close panel">
           ×
         </button>

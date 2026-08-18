@@ -106,7 +106,7 @@ function DuplicateSource({ entry }: { entry: DescriptionAttribution }) {
   return (
     <span className="desc-ledger-src">
       {entry.approximate ? <ApproximateMark name={layerLabel(sourceLayer(entry))} /> : null}
-      <span className="desc-ledger-dup">{duplicatePillText(entry)}</span>
+      <span className="pill pill-warn">{duplicatePillText(entry)}</span>
       <span className="desc-ledger-via">{duplicateNoteText(entry)}</span>
     </span>
   );
@@ -184,7 +184,7 @@ function LedgerRun({
       ))}
       {hidden > 0 ? (
         <li className="desc-ledger-more">
-          <button type="button" className="linklike" onClick={() => setExpanded(true)}>
+          <button type="button" className="btn-quiet" onClick={() => setExpanded(true)}>
             {moreEntriesText(hidden, group.layer)}
           </button>
         </li>
@@ -260,7 +260,7 @@ function DroppedList({
       ))}
       {hidden > 0 ? (
         <li className="desc-ledger-more">
-          <button type="button" className="linklike" onClick={() => setExpanded(true)}>
+          <button type="button" className="btn-quiet" onClick={() => setExpanded(true)}>
             {moreDroppedText(hidden)}
           </button>
         </li>
@@ -288,7 +288,7 @@ function DroppedSection({
     <div className="desc-ledger-dropped">
       <button
         type="button"
-        className="linklike"
+        className="btn-quiet"
         aria-expanded={open}
         onClick={() => setOpen((prev) => !prev)}
       >

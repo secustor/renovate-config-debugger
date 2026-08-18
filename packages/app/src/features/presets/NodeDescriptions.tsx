@@ -77,7 +77,7 @@ export function NodeDescriptionCard({
       {onShowOrder ? (
         <button
           type="button"
-          className="preset-desc-order linklike"
+          className="btn-quiet preset-desc-order"
           onClick={() => {
             close();
             onShowOrder();

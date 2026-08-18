@@ -106,7 +106,7 @@ function SimRulesEmpty({
         No rule matches these filters.{" "}
         <button
           type="button"
-          className="sim-toggle inline"
+          className="btn-quiet sim-toggle inline"
           onClick={() => onFiltersChange(DEFAULT_RULE_FILTERS)}
         >
           Clear them.
@@ -120,7 +120,7 @@ function SimRulesEmpty({
       {hiddenCount > 0 ? (
         <button
           type="button"
-          className="sim-toggle inline"
+          className="btn-quiet sim-toggle inline"
           onClick={() => onFiltersChange({ ...filters, verdict: "all" })}
         >
           Show all {totalRules} anyway.

@@ -19,11 +19,11 @@ export function WelcomePanel({ onTryExample, onAnalyzeThisProject }: Props) {
         <li>
           <strong>Bring a config.</strong> Paste your <code>renovate.json</code> below, load it
           straight from a repository,{" "}
-          <button type="button" className="linklike" onClick={onTryExample}>
+          <button type="button" className="btn-quiet" onClick={onTryExample}>
             try an example
           </button>
           , or{" "}
-          <button type="button" className="linklike" onClick={onAnalyzeThisProject}>
+          <button type="button" className="btn-quiet" onClick={onAnalyzeThisProject}>
             analyze this project&apos;s config
           </button>
           .

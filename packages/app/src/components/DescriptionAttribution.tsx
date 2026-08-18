@@ -57,7 +57,7 @@ function AttributionCard({
         <p className="option-card-row">
           <button
             type="button"
-            className="linklike"
+            className="btn-quiet"
             onClick={() => {
               closeCard();
               onSelectPreset(nodeId);

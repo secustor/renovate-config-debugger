@@ -54,7 +54,7 @@ export function ConfigToolbar({
   return (
     <div className="toolbar">
       {/* Roadmap 039: `.ctl` gives form controls the same metrics as
-          `.btn`, so this row is ONE height end to end. */}
+          `.btn-*`, so this row is ONE height end to end. */}
       <select
         className="ctl"
         aria-label="Config file name"
@@ -73,7 +73,7 @@ export function ConfigToolbar({
           that just clicked it. */}
       <button
         type="button"
-        className="btn"
+        className="btn-secondary"
         onClick={onFormat}
         title="Re-indent this config with two-space indentation"
       >
@@ -86,7 +86,7 @@ export function ConfigToolbar({
       {canRevert ? (
         <button
           type="button"
-          className="btn"
+          className="btn-secondary"
           onClick={onRevert}
           title="Restore the config text as it was last loaded — the default, an example, a share link, a repo fetch, or an applied fix — discarding edits made since"
         >
@@ -101,7 +101,7 @@ export function ConfigToolbar({
           user who acknowledged the banner is not stuck. */}
       {untrustedHost !== null ? (
         <span
-          className="untrusted-endpoint-chip"
+          className="pill pill-warn untrusted-endpoint-chip"
           title="A shared link chose this host. Runs leave your sign-in and tokens behind until you allow it."
         >
           runs against {untrustedHost} without tokens
@@ -118,7 +118,7 @@ export function ConfigToolbar({
           shortcut is least likely to be usable anyway. */}
       <button
         type="button"
-        className="btn primary"
+        className="btn-primary"
         onClick={onRun}
         onPointerEnter={onRunIntent}
         onFocus={onRunIntent}
@@ -126,9 +126,7 @@ export function ConfigToolbar({
         title={`Process this config with Renovate's own code — it never leaves your browser (${runHint})`}
       >
         {running ? "Running…" : "Run"}
-        <kbd className="btn-kbd" aria-hidden="true">
-          {runHint}
-        </kbd>
+        <kbd aria-hidden="true">{runHint}</kbd>
       </button>
       {/* Roadmap 036: the shared copy affordance. `buildShareLinkAndCopy`
           writes the clipboard itself (it also mirrors the URL into the

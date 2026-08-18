@@ -486,10 +486,10 @@ export function AdvancedZone({
           — repository host, access tokens, self-hosted bot config
         </span>
         {globalParse.config || inheritedParse.config ? (
-          <span className="advanced-active-chip">self-hosted config active</span>
+          <span className="pill pill-accent advanced-active-chip">self-hosted config active</span>
         ) : null}
         {globalParse.error || inheritedParse.error ? (
-          <span className="advanced-active-chip invalid">invalid JSON</span>
+          <span className="pill pill-error advanced-active-chip">invalid JSON</span>
         ) : null}
       </summary>
 

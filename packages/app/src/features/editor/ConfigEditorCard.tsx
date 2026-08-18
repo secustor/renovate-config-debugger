@@ -83,7 +83,7 @@ export function ConfigEditorCard({
         <button
           ref={repoToggleRef}
           type="button"
-          className="btn quiet repo-toggle"
+          className="btn-secondary repo-toggle"
           aria-expanded={repoFormOpen}
           onClick={onToggleRepoForm}
           title="Fetch a Renovate config from a repository into this editor"

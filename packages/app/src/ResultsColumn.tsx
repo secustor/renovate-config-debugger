@@ -303,7 +303,7 @@ export function ResultsColumn({
             {deferredStage === "migrate" && migrateSteps.length > 0 ? (
               <p className="stage-crosslink">
                 {migrateSteps.length} rewrite{migrateSteps.length === 1 ? "" : "s"} applied ·{" "}
-                <button type="button" className="linklike" onClick={() => jumpToTab("rewrites")}>
+                <button type="button" className="btn-quiet" onClick={() => jumpToTab("rewrites")}>
                   step through them one by one →
                 </button>
               </p>

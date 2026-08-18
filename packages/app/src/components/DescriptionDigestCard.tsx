@@ -175,7 +175,7 @@ function DigestEntryList({
       ))}
       {hidden > 0 ? (
         <li className="desc-digest-more">
-          <button type="button" className="linklike" onClick={onExpand}>
+          <button type="button" className="btn-quiet" onClick={onExpand}>
             {hidden} more — show all
           </button>
         </li>
@@ -311,7 +311,7 @@ export function DescriptionDigestCard({
         {onShowRawOrder && hasTopLevelDescriptions(digest) ? (
           <button
             type="button"
-            className="linklike desc-digest-raw"
+            className="btn-quiet desc-digest-raw"
             title="Open the description row in the Effective config — every sentence in Renovate's own array order, with the preset that wrote it"
             onClick={onShowRawOrder}
           >

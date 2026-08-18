@@ -100,10 +100,10 @@ export function RepoLoadForm({
           value={gitRef}
           onChange={(e) => onRefChange(e.target.value)}
         />
-        <button type="submit" className="btn primary" disabled={loading || repo.trim() === ""}>
+        <button type="submit" className="btn-primary" disabled={loading || repo.trim() === ""}>
           {loading ? "Loading…" : "Load"}
         </button>
-        <button type="button" className="btn quiet" onClick={onClose}>
+        <button type="button" className="btn-secondary" onClick={onClose}>
           Cancel
         </button>
       </div>

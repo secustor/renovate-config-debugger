@@ -266,7 +266,7 @@ export function JsonDiff({ before, after, names, title, benignRemovals }: Props)
           Showing the first {MAX_RENDERED_LINES} of {stat.total} diff lines
           <button
             type="button"
-            className="btn accent-text"
+            className="btn-secondary accent-text"
             onClick={() => startTransition(() => setShowAllRequested(true))}
           >
             Show all {stat.total} lines

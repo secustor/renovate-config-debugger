@@ -461,7 +461,7 @@ export const RuleSimulator = memo(function RuleSimulator({
             no feedback of any kind, in a state the `?` sheet documents Enter as
             working in. The press is held instead, the way ⌘⏎ holds a run rather
             than dropping it, and the label is what says one is already going. */}
-        <button type="submit" form={SIM_FORM_ID} className="primary">
+        <button type="submit" form={SIM_FORM_ID} className="btn-primary">
           {running ? "Simulating…" : "Simulate"}
         </button>
         {stale ? (

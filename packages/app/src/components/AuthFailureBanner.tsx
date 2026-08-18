@@ -79,7 +79,7 @@ export function AuthFailureBanner({
       {/* The signed-in path sends the user to GitHub to install the app on the
           repo — they come back to a page whose result predates that grant, so
           the loop only closes if re-running is one click away and right here. */}
-      <button type="button" className="auth-failure-rerun" onClick={onRunAgain}>
+      <button type="button" className="btn-secondary auth-failure-rerun" onClick={onRunAgain}>
         Run again
       </button>
     </div>

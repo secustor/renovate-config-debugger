@@ -190,7 +190,10 @@ export function ResultsPanel({
           >
             {RESULTS_TAB_LABELS[tab.id]}
             {tab.count === undefined ? null : (
-              <span className={`tab-count${tab.tone ? ` ${tab.tone}` : ""}`}>
+              // Roadmap 075: a tab's count is the standard `.pill` — toned
+              // when the tab is reporting something, the neutral `.pill-count`
+              // when it is only reporting how many.
+              <span className={`pill ${tab.tone ? `pill-${tab.tone}` : "pill-count"} tab-count`}>
                 {nf.format(tab.count)}
               </span>
             )}
