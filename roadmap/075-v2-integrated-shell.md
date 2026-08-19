@@ -1,6 +1,6 @@
 # 075 — v2: the Integrated Shell
 
-Milestone: M20 · Status: in progress
+Milestone: M20 · Status: done (feat/v2; all six iterations shipped)
 
 ## Summary
 
@@ -98,3 +98,20 @@ commit on `feat/v2`:
   the replay-02 caveat that one of the reader's own rules lost to an unset
   field). "This pin should automerge, tell me when it stops" is a later idea
   that this model leaves room for.
+
+## Deferred design surfaces (future room, not part of v2)
+
+The design project sketches three surfaces that need data the app does not
+hold today; each is a candidate follow-up roadmap item, none blocks v2:
+
+- **The repository browser** ("Load From Repo Options", combined/browser
+  variants): a signed-in "Your repositories" list with per-repo config
+  detection. Needs the platform's repo-listing API; the shipped overlay is
+  the design's inline variant.
+- **Pin from repository** ("Pin Options", repo variant): listing the
+  dependencies detected in the loaded repo's package files as one-click pin
+  sources. Needs manager-level file extraction the browser bundle does not
+  do.
+- **Live run progress on the landing rail** ("Landing Transition"): the
+  stage dots lighting up while the engine runs. The rail ships as a static
+  preview; the engine reports stages per run, not incrementally.

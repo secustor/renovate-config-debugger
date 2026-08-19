@@ -2762,6 +2762,16 @@ pre.config-view.prov-before {
   flex: 1;
 }
 
+/* Roadmap 075 review: on narrow panes the toolbar wraps and Run lands on a
+   row of its own — WITHOUT the spacer, which stayed on the first line. The
+   auto margin only resolves when that happens (on one line the spacer's
+   flex-grow has already absorbed the free space), so Run stays the rightmost
+   thing on whichever row it occupies. Scoped to the toolbar: the landing's
+   primary Run is centered by its own container. */
+.toolbar .run-button {
+  margin-left: auto;
+}
+
 .gh-auth-hint {
   color: var(--muted);
   font-size: 0.82rem;
