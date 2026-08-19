@@ -3860,6 +3860,17 @@ pre.config-view.prov-before {
   opacity: 0.6;
 }
 
+/* Roadmap 075 (the landing transition): a stage the in-flight run has reached.
+   ACCENT, not `--ok` — a lit dot is activity, never a verdict: mid-run the app
+   knows which stage Renovate's code is walking and nothing at all about how it
+   came out. (Declared after `.preview`, whose background it overrides at equal
+   specificity.) */
+.stage-rail-glyph.lit {
+  background: var(--accent);
+  border-color: var(--accent);
+  opacity: 1;
+}
+
 .stage-rail-label {
   color: var(--muted);
   font-size: 0.72rem;
@@ -3921,9 +3932,20 @@ pre.config-view.prov-before {
   outline-offset: 2px;
 }
 
-/* The landing's mode: the same rail, with nothing to report yet. */
+/* The landing's mode: the same rail, with nothing to report yet.
+
+   Roadmap 075 (the landing transition): idle, it sits back — it is a promise
+   about a screen the reader has not asked for yet, and at full strength it
+   competed with the Run button above it. While a run is in flight the block
+   comes forward, because for those seconds it IS the screen's content. */
 .stage-rail-preview {
   margin: 0.5rem 0 0;
+  opacity: 0.55;
+  transition: opacity 220ms ease;
+}
+
+.stage-rail-preview.running {
+  opacity: 1;
 }
 
 .stage-rail.preview {
@@ -3933,6 +3955,35 @@ pre.config-view.prov-before {
 /* No button to carry the column's gap in this mode, so the node carries it. */
 .stage-rail.preview .stage-rail-node {
   gap: 0.35rem;
+}
+
+/* The stage the narration is on. Same ring as the live rail's selected node
+   (and outside the canvas halo for the same reason), so "where the run is" and
+   "where you are" read as one vocabulary. */
+.stage-rail.preview .stage-rail-node.current .stage-rail-glyph {
+  box-shadow:
+    0 0 0 3px var(--canvas),
+    0 0 0 6px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.stage-rail.preview .stage-rail-node.current .stage-rail-label {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* The only thing on the landing that MOVES, so it is the first thing the
+   preference switches off — the ring above already marks the stage without
+   it. */
+@media (prefers-reduced-motion: no-preference) {
+  .stage-rail.preview .stage-rail-node.current .stage-rail-glyph {
+    animation: stage-rail-pulse 1.1s ease-in-out infinite;
+  }
+
+  @keyframes stage-rail-pulse {
+    50% {
+      opacity: 0.45;
+    }
+  }
 }
 
 .stage-rail-caption {
@@ -4005,6 +4056,29 @@ pre.config-view.prov-before {
 
 .advanced-zone > .advanced-settings {
   background: var(--surface);
+}
+
+/* Roadmap 075 (the landing transition): the same zone, on the screen that is
+   not about it. It has to stay fully usable there — a run against a
+   self-hosted preset needs its host token BEFORE the first run — but a bordered
+   card under the stage rail read as a step, so on the landing it loses the card
+   and drops a size: present for whoever came looking, silent for everyone
+   else. Behavior, ids and `<details>` semantics are untouched. */
+.landing-advanced {
+  margin-top: 0.9rem;
+}
+
+.landing-advanced .advanced-zone {
+  border: none;
+  font-size: 0.9rem;
+  margin: 0;
+  padding: 0;
+}
+
+.landing-advanced .advanced-zone > summary {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 500;
 }
 
 .advanced-intro {

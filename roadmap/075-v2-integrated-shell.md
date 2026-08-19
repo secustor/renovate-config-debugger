@@ -112,6 +112,14 @@ hold today; each is a candidate follow-up roadmap item, none blocks v2:
   dependencies detected in the loaded repo's package files as one-click pin
   sources. Needs manager-level file extraction the browser bundle does not
   do.
-- **Live run progress on the landing rail** ("Landing Transition"): the
-  stage dots lighting up while the engine runs. The rail ships as a static
-  preview; the engine reports stages per run, not incrementally.
+- **True engine progress on the landing rail** ("Landing Transition"): the
+  engine reports stages per run, not incrementally, so real progress needs an
+  engine change. A follow-up pass shipped the mock's *transition* as paced
+  narration instead — while a run is in flight the preview rail lights its
+  stages on a timer (accent, not a verdict color), captions carry stage names
+  only (never invented findings, unlike the mock's "rewriting masterIssue…"),
+  and the walk holds one stage short of the finish until the real result
+  docks in. The same pass de-cluttered the landing to the mock's shape:
+  Format/Copy link became shell-only, the headless note left the landing, and
+  the advanced zone moved below the steps strip in a muted wrapper (still
+  fully functional pre-run — host tokens are needed before a first run).

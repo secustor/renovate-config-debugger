@@ -234,23 +234,32 @@ test("Revert to loaded config appears only while the config has unsaved edits", 
  * make it readable. Format re-indents in place — and it is an EDIT, not a
  * load, so the revert baseline must stay where it was (that distinction is
  * exactly what "Revert to loaded config" above means).
+ *
+ * Roadmap 075 (the landing transition) moved Format into the SHELL's title bar
+ * — before the first run there is nothing to reformat that the reader has
+ * looked at — so the whole exercise now happens after a run.
  */
 test("Format re-indents in place and leaves the revert baseline alone", async ({ page }) => {
   await page.goto("/");
   const editor = page.locator(".cm-content");
   await expect(editor).toContainText("config:recommended");
+  await runAndAwaitResult(page);
 
   const format = page.getByRole("button", { name: "Format", exact: true });
   const revert = page.getByRole("button", { name: "Revert to loaded config" });
   await setEditorContent(page, '{"extends":["config:recommended"],"automerge":true}');
   expect(await editor.locator(".cm-line").count()).toBe(1);
 
-  // Position stability: the conditional Revert sits AFTER Format in the row.
-  // Formatting is an edit that summons Revert — were it the other way around,
-  // the button under the cursor would jump sideways the moment it was clicked.
-  const formatBox = await format.boundingBox();
-  const revertBox = await revert.boundingBox();
-  expect(formatBox !== null && revertBox !== null && formatBox.x < revertBox.x).toBe(true);
+  // Position stability: the conditional Revert sits AFTER Format in the shell's
+  // title bar. Formatting is an edit that summons Revert — were it the other
+  // way around, the button under the cursor would jump sideways the moment it
+  // was clicked. "After" is read as reading order, since the bar is free to
+  // wrap in a narrow config pane.
+  const formatBox = must(await format.boundingBox(), "Format button box");
+  const revertBox = must(await revert.boundingBox(), "Revert button box");
+  const revertFollows =
+    revertBox.y > formatBox.y + formatBox.height / 2 || revertBox.x > formatBox.x;
+  expect(revertFollows).toBe(true);
 
   await format.click();
   await expect(editor).toContainText('"automerge": true');
@@ -265,6 +274,33 @@ test("Format re-indents in place and leaves the revert baseline alone", async ({
   await setEditorContent(page, "{ nope");
   await format.click();
   await expect(page.locator(".app-notice")).toContainText("fix the JSON syntax first");
+});
+
+/**
+ * Roadmap 075 (the landing transition): the editor's title bar has two shapes.
+ * Before the first run it names the DOCUMENT and nothing else — Format
+ * re-indents a config nobody has read yet, Copy link shares a view that does
+ * not exist yet, and Run is already the landing's one large primary. All three
+ * arrive with the result.
+ */
+test("the title bar carries only the document on the landing, the actions in the shell", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const bar = page.locator(".toolbar");
+  const format = bar.getByRole("button", { name: "Format", exact: true });
+  const copyLink = bar.getByRole("button", { name: "Copy link" });
+
+  await expect(bar.getByRole("button", { name: "Load from repo…" })).toBeVisible();
+  await expect(format).toHaveCount(0);
+  await expect(copyLink).toHaveCount(0);
+  await expect(bar.locator("button.run-button")).toHaveCount(0);
+
+  await runAndAwaitResult(page);
+
+  await expect(format).toBeVisible();
+  await expect(copyLink).toBeVisible();
+  await expect(bar.locator("button.run-button")).toBeVisible();
 });
 
 /**

@@ -21,6 +21,13 @@ import { formatShortcut, RUN_SHORTCUT } from "@/lib/shortcuts";
  * and a separate toolbar acting on it. "Load from repo…" came up from the title
  * bar with the same move (its form is now an overlay over the editor, so it no
  * longer has a row to open into).
+ *
+ * Roadmap 075 (the landing transition) split it in two by `inShell`. Before the
+ * first run the bar carries only the DOCUMENT — which file this is, and where
+ * to fetch one from — because Format re-indents a config the reader has not
+ * looked at yet, Copy link shares a view that does not exist yet, and Run is
+ * already on the landing as its one large primary. They all arrive together
+ * with the result, in the shell.
  */
 
 interface Props {
@@ -34,17 +41,20 @@ interface Props {
   /** Roadmap 035: there is something to revert TO — see the button's comment. */
   canRevert: boolean;
   onRevert: () => void;
-  /** Re-indents the config. Always offered — the parse happens on the click,
-   *  never per keystroke, so there is no cheap validity signal to gate it on
-   *  and a disabled-looking button would be the 035 mistake again. App reports
-   *  a document it cannot format through the notice bar. */
+  /** Re-indents the config. Never disabled where it is offered — the parse
+   *  happens on the click, never per keystroke, so there is no cheap validity
+   *  signal to gate it on and a disabled-looking button would be the 035
+   *  mistake again. App reports a document it cannot format through the notice
+   *  bar. */
   onFormat: () => void;
   /** Security 2026-07-25: the host a share link chose, while its guard stands. */
   untrustedHost: string | null;
   onTrustUntrustedHost: () => void;
-  /** Roadmap 075: the landing owns the Run button before the first run (one
-   *  large, centered primary), so the strip renders it only in the shell. */
-  showRun: boolean;
+  /** Roadmap 075: a result exists, so this is the shell's title bar and not the
+   *  landing's. It gates the three controls that only make sense once there is
+   *  a run to act on — Format, Copy link, and Run (which the landing owns as
+   *  one large, centered primary). */
+  inShell: boolean;
   running: boolean;
   onRun: () => void;
   /** Roadmap 031: hover/focus signal Run intent — start the engine download. */
@@ -66,7 +76,7 @@ export function ConfigToolbar({
   onFormat,
   untrustedHost,
   onTrustUntrustedHost,
-  showRun,
+  inShell,
   running,
   onRun,
   onRunIntent,
@@ -125,14 +135,16 @@ export function ConfigToolbar({
           the conditional Revert: formatting is itself an edit that summons
           Revert, and a control must not displace the button under the cursor
           that just clicked it. */}
-      <button
-        type="button"
-        className="btn-secondary"
-        onClick={onFormat}
-        title="Re-indent this config with two-space indentation"
-      >
-        Format
-      </button>
+      {inShell ? (
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={onFormat}
+          title="Re-indent this config with two-space indentation"
+        >
+          Format
+        </button>
+      ) : null}
       {/* Roadmap 035: rendered only when there is something to revert.
           It used to be permanently present and merely `disabled`, which
           looked identical to the enabled state — an offer of an action
@@ -150,18 +162,20 @@ export function ConfigToolbar({
       {/* Roadmap 036: the shared copy affordance. `buildShareLinkAndCopy`
           writes the clipboard itself (it also mirrors the URL into the
           address bar), so this passes `onCopy`, not `getText`. */}
-      <CopyButton
-        onCopy={onCopyLink}
-        label="Copy link"
-        title="Copy a link that reopens this config and view — never includes your tokens"
-      />
+      {inShell ? (
+        <CopyButton
+          onCopy={onCopyLink}
+          label="Copy link"
+          title="Copy a link that reopens this config and view — never includes your tokens"
+        />
+      ) : null}
       {/* Roadmap 068: the shortcut's visible home. A binding that lives only
           in a keyboard-shortcut document does not exist — so it is printed on
           the control it duplicates, in the platform's own spelling, and named
           in the title for anyone who hovers instead. The `<kbd>` hides itself
           on narrow viewports (index.css), where the row is tight and the
           shortcut is least likely to be usable anyway. */}
-      {showRun ? (
+      {inShell ? (
         <button
           type="button"
           className="btn-primary run-button"

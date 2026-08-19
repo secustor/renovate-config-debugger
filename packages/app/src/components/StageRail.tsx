@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { StageId, TraceResult } from "@renovate-config-debugger/engine";
 import { Explained, Term } from "./glossary";
 import type { HoverCardHandlers } from "./hover-card";
 import { presetTreeSummary } from "./preset-tree-stats";
 import { STAGE_EXPLAINERS, STAGE_LABELS, STAGE_SHORT_LABELS } from "@/data/stage-copy";
 import { STAGE_IDS } from "@/lib/input-schemas";
+import { prefersReducedMotion } from "@/lib/motion";
 import { describeStageActivity, getStageActivity, type StageActivity } from "@/lib/stage-activity";
 import { stageDelta, type StageDelta, type StageDeltaFacts } from "@/lib/stage-delta";
 import type { TermId } from "@/data/glossary-data";
@@ -148,12 +149,13 @@ export function StageRail({ result, selected, onSelect, effectiveKeys }: Props) 
 }
 
 /** One preview node: the same column and the same glyph geometry, hollow and
- *  dimmed, with no delta to report and nothing to click. */
-function PreviewNode({ stage }: { stage: StageId }) {
+ *  dimmed, with no delta to report and nothing to click. `lit`/`current` are
+ *  the landing transition's only additions (see `StageRailPreview`). */
+function PreviewNode({ stage, lit, current }: { stage: StageId; lit: boolean; current: boolean }) {
   const term = PREVIEW_TERMS[stage];
   return (
-    <li className="stage-rail-node">
-      <span className="stage-rail-glyph preview" aria-hidden="true" />
+    <li className={`stage-rail-node${current ? " current" : ""}`}>
+      <span className={`stage-rail-glyph preview${lit ? " lit" : ""}`} aria-hidden="true" />
       <span className="stage-rail-label">
         {term ? <Term id={term}>{STAGE_SHORT_LABELS[stage]}</Term> : STAGE_SHORT_LABELS[stage]}
       </span>
@@ -161,22 +163,94 @@ function PreviewNode({ stage }: { stage: StageId }) {
   );
 }
 
+/** Roadmap 075 (the landing transition): how fast the preview walks its own
+ *  list while a run is in flight. Paced narration, not measurement — the
+ *  engine reports nothing until it is finished. */
+const RUNNING_STEP_MS = 450;
+
+/** The last column. The run's own completion is what lights it, and by then
+ *  the landing has unmounted — so the narration never claims it. */
+const LAST_STAGE_INDEX = STAGE_ORDER.length - 1;
+
+/** Stage NAMES only. Nothing here may claim a FINDING: mid-run the app knows
+ *  which stage Renovate's code is walking and nothing whatever about what it
+ *  is turning up there. */
+const RUNNING_NOTES: Record<StageId, string> = {
+  global: "starting Renovate's own code…",
+  inherit: "applying inherited defaults…",
+  parse: "parsing your file…",
+  migrate: "migrating deprecated options…",
+  massage: "normalizing shorthand…",
+  validate: "validating options…",
+  preset: "resolving presets…",
+  merge: "merging the effective config…",
+};
+
+const IDLE_CAPTION =
+  "The run lights these up in order — the same stages you'll navigate afterwards.";
+
+/** What a reader who asked for less motion gets instead of the stepping: the
+ *  same fact, said once. */
+const REDUCED_MOTION_CAPTION = "Running Renovate's own code…";
+
+function previewCaption(running: boolean, reducedMotion: boolean, step: number): string {
+  if (!running) {
+    return IDLE_CAPTION;
+  }
+  const stage = STAGE_ORDER[step];
+  if (reducedMotion || stage === undefined) {
+    return REDUCED_MOTION_CAPTION;
+  }
+  return RUNNING_NOTES[stage];
+}
+
 /**
- * A static, dimmed preview of the rail above — the landing's promise that the
- * run is a sequence of named steps the reader will be able to walk. Not a
- * progress indicator: nothing here lights up until there is a run to light it.
+ * The landing's rail. Idle it is a dimmed, inert preview — the promise that
+ * the run is a sequence of named steps the reader will be able to walk.
+ *
+ * Roadmap 075 (the landing transition) gave it the other half: while a run is
+ * in flight it walks its own stage list on an interval, so the wait is spent
+ * looking at the thing the result will replace rather than at a spinner. It is
+ * a NARRATION, not a progress bar — the engine is a single async call that
+ * reports once, at the end — so it holds one stage short of the finish and
+ * lets the real result light the merge node (by which point this component is
+ * unmounted and the shell's dock-in has taken over).
+ *
+ * The stepping state is internal on purpose: the parent re-renders on every
+ * keystroke, and the interval must belong to the rail rather than to App.
+ * The caption deliberately carries no live region — a new sentence every
+ * 450 ms would be screen-reader noise, and the Run button's "Running…" already
+ * announces the state.
  */
-export function StageRailPreview() {
+export function StageRailPreview({ running }: { running: boolean }) {
+  const [step, setStep] = useState(0);
+  // Read once, at mount: the landing lives for exactly one screen, and this is
+  // an OS preference, not something worth subscribing to for that long.
+  const [reducedMotion] = useState(prefersReducedMotion);
+  useEffect(() => {
+    if (!running || reducedMotion) {
+      setStep(0);
+      return;
+    }
+    const id = window.setInterval(() => {
+      setStep((prev) => Math.min(prev + 1, LAST_STAGE_INDEX));
+    }, RUNNING_STEP_MS);
+    return () => window.clearInterval(id);
+  }, [running, reducedMotion]);
+  const stepping = running && !reducedMotion;
   return (
-    <div className="stage-rail-preview">
+    <div className={`stage-rail-preview${running ? " running" : ""}`}>
       <ol className="stage-rail preview" aria-label="The stages this run will walk">
-        {STAGE_ORDER.map((stage) => (
-          <PreviewNode key={stage} stage={stage} />
+        {STAGE_ORDER.map((stage, index) => (
+          <PreviewNode
+            key={stage}
+            stage={stage}
+            lit={stepping && index <= step && index < LAST_STAGE_INDEX}
+            current={stepping && index === step}
+          />
         ))}
       </ol>
-      <p className="stage-rail-caption">
-        The run lights these up in order — the same stages you&apos;ll navigate afterwards.
-      </p>
+      <p className="stage-rail-caption">{previewCaption(running, reducedMotion, step)}</p>
     </div>
   );
 }

@@ -82,7 +82,10 @@ interface ConfigColumnProps {
  *
  * - **Landing** (no result yet) — a centered reading column: the page's
  *   question, the editor, the two example shortcuts, one large Run, and a
- *   preview of the stages the run walks.
+ *   preview of the stages the run walks (which narrates itself while the run
+ *   is in flight). Everything a first-time reader does not need is either
+ *   absent here (the headless note) or muted (the advanced zone), so the
+ *   screen has one question and one answer to it.
  * - **Shell** (a result exists) — the left pane of the two-pane frame: the
  *   editor filling the pane, and a footer restating the one promise the
  *   landing's subtitle made, for a reader who never saw it.
@@ -153,8 +156,10 @@ export function ConfigColumn({
       onFormat={onFormat}
       untrustedHost={untrustedHost}
       onTrustUntrustedHost={onTrustUntrustedHost}
-      // The landing has its own, larger Run — one primary action per screen.
-      showRun={hasResult}
+      // The landing's title bar carries the DOCUMENT only; Format, Copy link
+      // and Run arrive with the result (the landing has its own, larger Run —
+      // one primary action per screen).
+      inShell={hasResult}
       running={running}
       onRun={onRun}
       onRunIntent={onRunIntent}
@@ -244,16 +249,26 @@ export function ConfigColumn({
           blockedReason={runBlockedReason}
         />
       )}
-      {hasResult ? null : <StageRailPreview />}
+      {/* Roadmap 075 (the landing transition): the preview walks its own stage
+          list while the run it is previewing is in flight — see StageRail. */}
+      {hasResult ? null : <StageRailPreview running={running} />}
+      {hasResult ? null : <LandingSteps />}
 
-      {advancedZone}
+      {/* Roadmap 075 (the landing transition): the advanced zone stays FULLY
+          functional before the first run — a self-hosted preset needs its host
+          token BEFORE there is anything to resolve — but it is not what the
+          landing is about, so on that screen it wears a wrapper that mutes it
+          (index.css). Same element, same ids, same `<details>` either way. */}
+      {hasResult ? advancedZone : <div className="landing-advanced">{advancedZone}</div>}
 
       {/* Roadmap 060: the headless interface, announced in visible copy — the
           whole discovery mechanism, and deliberately not a hidden hint. It
           moved into this pane with 075's shell: the split has no rows left to
           hang a full-width footer on, and the note is about driving the app
-          from outside the browser, which is a fact about the config half. */}
-      <HeadlessNote />
+          from outside the browser, which is a fact about the config half. The
+          landing does not carry it: a reader who has not run anything yet is
+          being offered a second interface to a thing they have not seen. */}
+      {hasResult ? <HeadlessNote /> : null}
       {hasResult ? (
         // Roadmap 075 (iteration 6): the second half is now a true statement
         // about what an edit DOES — the Tests tab re-checks every pinned
@@ -261,9 +276,7 @@ export function ConfigColumn({
         <p className="pane-foot">
           Everything runs in your browser · edits re-check your pinned tests on Run.
         </p>
-      ) : (
-        <LandingSteps />
-      )}
+      ) : null}
     </div>
   );
 }
