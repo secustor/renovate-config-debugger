@@ -26,7 +26,7 @@ import {
 import { act, fireEvent, render, waitFor } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { ConfigEditorHandle } from "@/features/editor/ConfigEditor";
-import type * as PresetTreeModule from "@/features/presets/PresetTree";
+import type * as PresetsPanelModule from "@/features/presets/PresetsPanel";
 import type * as EffectiveConfigModule from "@/components/EffectiveConfig";
 import type * as RuleSimulatorModule from "@/features/simulator/RuleSimulator";
 import type * as MessagesPanelModule from "@/components/MessagesPanel";
@@ -94,9 +94,12 @@ vi.mock("./features/editor/ConfigEditor", () => {
 // `import()` — and that editor is stubbed above. preset-hover.ts itself is
 // now just the pure lookup App builds per run.
 
-vi.mock("./features/presets/PresetTree", async (importOriginal) => {
-  const mod = await importOriginal<typeof PresetTreeModule>();
-  return { ...mod, PresetTree: wrapCounting("PresetTree", mod.PresetTree) };
+// Roadmap 075 (iteration 5b): the Presets tab's panel is the ledger/tree
+// switch, and it is what the tab mounts — counting the tree alone would stop
+// measuring anything the moment the tab opens on the ledger.
+vi.mock("./features/presets/PresetsPanel", async (importOriginal) => {
+  const mod = await importOriginal<typeof PresetsPanelModule>();
+  return { ...mod, PresetsPanel: wrapCounting("PresetsPanel", mod.PresetsPanel) };
 });
 vi.mock("./components/EffectiveConfig", async (importOriginal) => {
   const mod = await importOriginal<typeof EffectiveConfigModule>();
@@ -122,7 +125,7 @@ vi.mock("./components/DescriptionDigestCard", async (importOriginal) => {
 
 const PANELS = [
   "DescriptionDigestCard",
-  "PresetTree",
+  "PresetsPanel",
   "EffectiveConfig",
   "RuleSimulator",
   "MessagesPanel",
@@ -198,7 +201,7 @@ describe("keystroke render performance (roadmap 032)", () => {
     // Sanity: the run really mounted and rendered the heavy panels.
     for (const name of [
       "DescriptionDigestCard",
-      "PresetTree",
+      "PresetsPanel",
       "EffectiveConfig",
       "RuleSimulator",
     ]) {

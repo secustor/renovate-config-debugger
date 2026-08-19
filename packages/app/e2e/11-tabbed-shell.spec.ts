@@ -10,6 +10,7 @@ import {
 import {
   must,
   openMigrateStage,
+  openPresetTree,
   openTab,
   resultsPanel,
   runAndAwaitResult,
@@ -203,7 +204,8 @@ test("the windowed preset table renders a full screenful when revealed from a hi
   await page.goto("/");
   await runAndAwaitResult(page);
 
-  await openTab(page, "presets");
+  // 075 (iteration 5b): the tab opens on the ledger; the tree is one click in.
+  await openPresetTree(page);
   // The tree itself is collapsed on arrival — one row per extends entry.
   await expect(page.locator("#panel-presets .preset-row").first()).toBeVisible();
 
@@ -220,7 +222,7 @@ test("switching tabs preserves the preset tree's search and expansion state", as
   await page.goto("/");
   await runAndAwaitResult(page);
 
-  await openTab(page, "presets");
+  await openPresetTree(page);
   const search = page.locator("#panel-presets .preset-search");
   await search.fill("group");
   const rows = page.locator("#panel-presets .preset-row");

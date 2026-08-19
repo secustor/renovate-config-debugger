@@ -14,7 +14,7 @@ import type { AuthState } from "@/components/GithubAuthHint";
 import { HypotheticalBanner } from "@/components/HypotheticalBanner";
 import { MessagesPanel } from "@/components/MessagesPanel";
 import { MigrationSteps } from "@/components/MigrationSteps";
-import { PresetTree } from "@/features/presets/PresetTree";
+import { PresetsPanel } from "@/features/presets/PresetsPanel";
 import { ResultsPanel, type ResultsTabDescriptor } from "@/components/ResultsPanel";
 import { RuleSimulator } from "@/features/simulator/RuleSimulator";
 import { StageDiff } from "@/components/StageDiff";
@@ -426,7 +426,7 @@ export function ResultsColumn({
         </>
       ),
       presets: result.presetTree?.children.length ? (
-        <PresetTree
+        <PresetsPanel
           result={result}
           onInject={onInject}
           selectedId={selectedNodeId}

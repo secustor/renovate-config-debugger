@@ -37,7 +37,7 @@ import {
 // Roadmap 069 hoisted this out of here: the description digest prints the same
 // one-line matcher summary, and one spelling of it is enough.
 import { summarizeRuleSelectors } from "@/lib/rule-selectors";
-import { truncate } from "@/lib/truncate";
+import { valuePreview } from "@/lib/value-preview";
 import { RuleFramingText } from "./rule-framing";
 
 /**
@@ -201,20 +201,6 @@ function MultiContribBadgeChip({ entry }: { entry: KeyProvenance }) {
  */
 export type EffectiveStats = EffectiveTally;
 
-function preview(value: unknown): string {
-  if (value === null) {
-    return "null";
-  }
-  if (Array.isArray(value)) {
-    return value.length ? `[ ${value.length} item${value.length === 1 ? "" : "s"} ]` : "[]";
-  }
-  if (typeof value === "object") {
-    const n = Object.keys(value).length;
-    return n ? `{ ${n} key${n === 1 ? "" : "s"} }` : "{}";
-  }
-  return truncate(JSON.stringify(value) ?? String(value), 80);
-}
-
 function Step({
   step,
   winning,
@@ -351,7 +337,7 @@ function KeyRowPreview({
   }
   return (
     <span className="prov-key-preview">
-      {ledger ? ledgerPreviewText(ledger) : preview(entry.finalValue)}
+      {ledger ? ledgerPreviewText(ledger) : valuePreview(entry.finalValue)}
     </span>
   );
 }

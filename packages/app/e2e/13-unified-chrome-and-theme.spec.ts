@@ -4,6 +4,7 @@ import {
   must,
   openMigrateStage,
   openSessionMenu,
+  openPresetTree,
   openTab,
   runAndAwaitResult,
   setEditorContent,
@@ -241,7 +242,7 @@ test("preset-tree chips are filled, contribution counts are plain text (036)", a
   await page.goto("/");
   await setEditorContent(page, IGNORED_PRESET_CONFIG);
   await runAndAwaitResult(page);
-  await openTab(page, "presets");
+  await openPresetTree(page);
 
   const chip = page.locator("#panel-presets .preset-row .badge.state").first();
   await expect(chip).toBeVisible();

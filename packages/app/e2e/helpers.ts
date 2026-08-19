@@ -127,6 +127,23 @@ export async function openMigrateStage(page: Page): Promise<void> {
 }
 
 /**
+ * Roadmap 075 (v2, iteration 5b): the Presets tab opens on the LEDGER — what
+ * `extends` brought in, per source — and the full resolution tree is one click
+ * away. Every spec that drives the tree itself goes through here, so "where the
+ * tree lives" is spelled once. Cross-links (a provenance chip, a share link's
+ * `node`) do NOT need it: naming a node switches the tab to the tree by itself.
+ */
+export async function openPresetTree(page: Page): Promise<void> {
+  await openTab(page, "presets");
+  await page
+    .locator("#panel-presets")
+    .getByRole("button", { name: /open the full tree/ })
+    .first()
+    .click();
+  await expect(page.locator("#panel-presets .preset-row").first()).toBeVisible();
+}
+
+/**
  * Roadmap 047: the results are staged into summary drawers — a `<details>`
  * whose summary row abstracts the body. Addressed by their visible title, the
  * way a user finds them.

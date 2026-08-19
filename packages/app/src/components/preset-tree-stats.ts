@@ -45,14 +45,24 @@ const RULE_MATCH_KEYS = [
 const META_KEYS = new Set(["description", "$schema"]);
 const GROUPING_KEYS = new Set(["groupName", "groupSlug"]);
 
-function setsRealOption(optionKeys: string[]): boolean {
-  return optionKeys.some(
-    (k) =>
-      !META_KEYS.has(k) &&
-      !GROUPING_KEYS.has(k) &&
-      !k.startsWith("match") &&
-      !k.startsWith("exclude"),
+/**
+ * One key, under the same test: does setting it CHANGE how Renovate behaves?
+ * Exported since 075 (iteration 5b) because the Presets ledger lists exactly
+ * these keys per source — and a ledger that counted `description` among the
+ * options a preset "set" would disagree with the digest's own count of
+ * option-setting presets, which is this predicate applied to a whole node.
+ */
+export function isRealOptionKey(key: string): boolean {
+  return (
+    !META_KEYS.has(key) &&
+    !GROUPING_KEYS.has(key) &&
+    !key.startsWith("match") &&
+    !key.startsWith("exclude")
   );
+}
+
+function setsRealOption(optionKeys: string[]): boolean {
+  return optionKeys.some(isRealOptionKey);
 }
 
 /** Per-node contribution + search facts, all derived from the node's `input`. */

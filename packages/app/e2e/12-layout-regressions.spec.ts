@@ -3,6 +3,7 @@ import { INVALID_RULES_CONFIG, PACKAGE_RULES_CONFIG, SEMANTIC_COMMITS_CONFIG } f
 import {
   must,
   openMigrateStage,
+  openPresetTree,
   openTab,
   runAndAwaitResult,
   runButton,
@@ -312,7 +313,7 @@ test("the config column stays in view while long results scroll", async ({ page 
 
 /** Selects the first preset in the tree and returns its detail panel. */
 async function openFirstPresetDetail(page: Page): Promise<Locator> {
-  await openTab(page, "presets");
+  await openPresetTree(page);
   await page.locator("#panel-presets .preset-row .preset-name").first().click();
   const panel = page.locator("#panel-presets .preset-panel");
   await expect(panel).toBeVisible();
