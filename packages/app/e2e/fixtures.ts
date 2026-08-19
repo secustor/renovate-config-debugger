@@ -49,6 +49,9 @@ export interface SharePayloadInput {
   platform?: string;
   endpoint?: string;
   sim?: ShareSimulator;
+  /** Roadmap 075 (iteration 6): the pinned tests a link carries — descriptor
+   *  field bags, the same shape `sim.form` has. */
+  pins?: Record<string, string>[];
 }
 
 /**
@@ -130,6 +133,9 @@ export async function encodeShareToken(
     if (input.sim) {
       payload.sim = input.sim;
     }
+    if (input.pins) {
+      payload.pins = input.pins;
+    }
     if (input.view) {
       payload.view = input.view;
     }
@@ -146,6 +152,7 @@ export async function encodeShareToken(
     // which is exactly what the app would do to such a link.
     view: input.view as ShareView | undefined,
     sim: input.sim,
+    pins: input.pins,
   });
 }
 

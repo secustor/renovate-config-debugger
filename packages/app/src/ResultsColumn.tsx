@@ -16,7 +16,9 @@ import { MessagesPanel } from "@/components/MessagesPanel";
 import { MigrationSteps } from "@/components/MigrationSteps";
 import { PresetsPanel } from "@/features/presets/PresetsPanel";
 import { ResultsPanel, type ResultsTabDescriptor } from "@/components/ResultsPanel";
-import { RuleSimulator } from "@/features/simulator/RuleSimulator";
+import type { FormState } from "@/features/simulator/form";
+import type { PinnedTest } from "@/features/simulator/pins";
+import { TestsPanel } from "@/features/simulator/TestsPanel";
 import { StageDiff } from "@/components/StageDiff";
 import { StageRail } from "@/components/StageRail";
 import { StaleResultsBanner } from "@/components/StaleResultsBanner";
@@ -114,6 +116,11 @@ export interface ResultsColumnProps {
   descriptionLedgerNonce: number;
 
   // —— tests ——
+  /** Roadmap 075 (iteration 6): the pinned dependency tests, owned by App (a
+   *  share link carries them) and re-simulated by the panel on every run. */
+  pins: PinnedTest[];
+  onAddPin: (form: FormState) => void;
+  onRemovePin: (id: string) => void;
   pendingRuleFocus: number | null;
   onRuleFocused: () => void;
   simRequest: SimRequest | null;
@@ -256,6 +263,9 @@ export function ResultsColumn({
   effectiveKeys,
   onShowDescriptionOrder,
   descriptionLedgerNonce,
+  pins,
+  onAddPin,
+  onRemovePin,
   pendingRuleFocus,
   onRuleFocused,
   simRequest,
@@ -375,8 +385,11 @@ export function ResultsColumn({
   const panels = useMemo<Record<ResultsTabId, ReactNode>>(() => {
     return {
       tests: result.finalConfig ? (
-        <RuleSimulator
+        <TestsPanel
           result={result}
+          pins={pins}
+          onAddPin={onAddPin}
+          onRemovePin={onRemovePin}
           onSelectPreset={selectPresetNode}
           onJumpToEditor={focusEditorRepoIndex}
           focusRuleIndex={pendingRuleFocus}
@@ -503,6 +516,9 @@ export function ResultsColumn({
     effectiveKeys,
     onShowDescriptionOrder,
     descriptionLedgerNonce,
+    pins,
+    onAddPin,
+    onRemovePin,
     pendingRuleFocus,
     onRuleFocused,
     simRequest,

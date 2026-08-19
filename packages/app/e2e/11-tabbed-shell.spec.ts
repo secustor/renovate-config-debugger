@@ -38,8 +38,10 @@ test("a run lands on the Tests tab, not on an expanded instrument", async ({ pag
 
   await expect(tabButton(page, "tests")).toHaveAttribute("aria-selected", "true");
   await expect(tabPanel(page, "tests")).toBeVisible();
-  // …and Tests IS the simulator, renamed and re-anchored.
-  await expect(tabPanel(page, "tests")).toContainText("Update simulator");
+  // …and Tests is the pinned dependency tests (075 iteration 6): the list a run
+  // re-checks, with the full simulator one quiet link away.
+  await expect(tabPanel(page, "tests")).toContainText("re-checked on every run");
+  await expect(tabPanel(page, "tests")).toContainText("+ Pin a dependency…");
   // The heavy instruments are mounted but hidden — nothing is expanded on
   // arrival.
   await expect(tabPanel(page, "presets")).toBeHidden();
@@ -378,14 +380,15 @@ test("a share link naming a retired tab lands on the tab that replaced it", asyn
   await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
   await expect(tabButton(page, "tests")).toHaveAttribute("aria-selected", "true");
 
-  // `simulator` — the same instrument, renamed.
+  // `simulator` — the same instrument, renamed (and, since iteration 6, the
+  // Tests tab's second view: the link lands on the tab, the pins list leads).
   await page.goto("about:blank");
   await page.goto(
     await encodeShareFragment({ config: PACKAGE_RULES_CONFIG, view: { tab: "simulator" } }),
   );
   await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
   await expect(tabButton(page, "tests")).toHaveAttribute("aria-selected", "true");
-  await expect(tabPanel(page, "tests")).toContainText("Update simulator");
+  await expect(tabPanel(page, "tests")).toContainText("re-checked on every run");
 
   // `rewrites` — Pipeline, AND the migrate stage, or the stepper the sender was
   // pointing at is not on screen.

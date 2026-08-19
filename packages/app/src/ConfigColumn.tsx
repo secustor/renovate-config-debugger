@@ -255,7 +255,12 @@ export function ConfigColumn({
           from outside the browser, which is a fact about the config half. */}
       <HeadlessNote />
       {hasResult ? (
-        <p className="pane-foot">Everything runs in your browser — nothing leaves it.</p>
+        // Roadmap 075 (iteration 6): the second half is now a true statement
+        // about what an edit DOES — the Tests tab re-checks every pinned
+        // descriptor against each run — rather than only where it happens.
+        <p className="pane-foot">
+          Everything runs in your browser · edits re-check your pinned tests on Run.
+        </p>
       ) : (
         <LandingSteps />
       )}

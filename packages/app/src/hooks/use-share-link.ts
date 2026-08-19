@@ -106,6 +106,13 @@ export interface ShareLinkHost {
   setAuthUser: (user: StoredUser | null) => void;
   /** The one way the untrusted-endpoint guard changes (see App.tsx). */
   applyUntrustedGuard: (guard: UntrustedEndpointGuard | null) => void;
+  /** Roadmap 075 (iteration 6): the link's pinned tests, as descriptor field
+   *  bags — App turns them into pins (minting its own ids) and the Tests tab
+   *  re-checks them against the run this link is about to start. Called with
+   *  `[]` when the link carries none, for the reason `setSimRequest(null)` is
+   *  unconditional: a link installs the screen it describes, and pins from a
+   *  previous one are not part of it. */
+  setPins: (pins: Record<string, string>[]) => void;
   /** View state pending from a decoded link, applied by App once the run
    *  produces a result (identities → node ids need the resolved tree). */
   pendingViewRef: { current: ShareView | null };
@@ -255,6 +262,10 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
       host.setHostSectionOpen(true);
     }
     host.pendingViewRef.current = payload.view ?? null;
+    // Roadmap 075 (iteration 6): the pins ride in BEFORE the run below, so the
+    // result that run commits is the first thing they are checked against —
+    // which is the whole promise of the tab that lists them.
+    host.setPins(payload.pins ?? []);
     // Roadmap 068 review — half one of the attribution rule stated below: a
     // decode that replaces the screen replaces the simulator request with it,
     // HERE, before its own run. A link that carries no `sim` is not silent

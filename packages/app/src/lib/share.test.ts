@@ -5,6 +5,7 @@ import {
   resultsTabForShareTab,
   shareTabWantsMigrateStage,
 } from "@/data/results-tabs";
+import { MAX_PINNED_TESTS } from "./input-schemas";
 import {
   configChecksum,
   decideShareRunPolicy,
@@ -801,6 +802,101 @@ describe("075: retired tab ids still open the tab that replaced them", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.payload.view).toEqual({ stage: "preset" });
+    }
+  });
+});
+
+/**
+ * Roadmap 075 (iteration 6): `pins` — the pinned dependency tests a link
+ * carries. Additive within v2 exactly like `sim` before it, sanitized per entry
+ * rather than per payload, and capped on the way in.
+ */
+describe("075: pins round-trip and stay additive", () => {
+  const PINS: Record<string, string>[] = [
+    { packageName: "react", currentValue: "17.0.0", newValue: "18.0.0" },
+    { manager: "dockerfile", packageName: "node" },
+  ];
+
+  test("a link carrying pinned tests round-trips them in order", async () => {
+    const token = await encodeShare(
+      minimalState({ view: { tab: "tests" }, pins: PINS.map((pin) => ({ ...pin })) }),
+    );
+    const result = await decodeShareResult(token);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.pins).toEqual(PINS);
+      expect(result.payload.view).toEqual({ tab: "tests" });
+    }
+  });
+
+  test("re-encoding a decoded set of pins is a fixpoint", async () => {
+    const first = await decodeShareResult(
+      await encodeShare(minimalState({ pins: [{ packageName: "react", empty: "" }] })),
+    );
+    expect(first.ok).toBe(true);
+    if (!first.ok) {
+      return;
+    }
+    expect(first.payload.pins).toEqual([{ packageName: "react" }]);
+    const second = await decodeShareResult(
+      await encodeShare(minimalState({ pins: first.payload.pins })),
+    );
+    expect(second.ok).toBe(true);
+    if (second.ok) {
+      expect(second.payload.pins).toEqual(first.payload.pins);
+    }
+  });
+
+  test("a link from before this iteration decodes exactly as it did", async () => {
+    const token = await rawEncodeToken(
+      taggedPayload({ view: { tab: "tests" }, sim: { form: { depName: "react" } } }),
+    );
+    const result = await decodeShareResult(token);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.pins).toBeUndefined();
+      expect(result.payload.sim).toEqual({ form: { depName: "react" } });
+      expect(result.payload.config).toBe('{"extends":["config:recommended"]}');
+    }
+  });
+
+  test("an empty pin list is omitted rather than encoded", async () => {
+    const result = await decodeShareResult(await encodeShare(minimalState({ pins: [] })));
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.pins).toBeUndefined();
+    }
+  });
+
+  test("a malformed pins field never fails the link, and bad entries are dropped alone", async () => {
+    const notAnArray = await decodeShareResult(
+      await rawEncodeToken(taggedPayload({ pins: { packageName: "react" } })),
+    );
+    expect(notAnArray.ok).toBe(true);
+    if (notAnArray.ok) {
+      expect(notAnArray.payload.pins).toBeUndefined();
+      expect(notAnArray.payload.config).toBe('{"extends":["config:recommended"]}');
+    }
+    const mixed = await decodeShareResult(
+      await rawEncodeToken(
+        taggedPayload({ pins: [{ packageName: "react", depType: 5 }, "nope", { a: "" }] }),
+      ),
+    );
+    expect(mixed.ok).toBe(true);
+    if (mixed.ok) {
+      expect(mixed.payload.pins).toEqual([{ packageName: "react" }]);
+    }
+  });
+
+  test("a hand-edited link cannot install more pins than the cap", async () => {
+    const many = Array.from({ length: MAX_PINNED_TESTS + 7 }, (_, i) => ({
+      packageName: `pkg-${i}`,
+    }));
+    const result = await decodeShareResult(await rawEncodeToken(taggedPayload({ pins: many })));
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.pins).toHaveLength(MAX_PINNED_TESTS);
+      expect(result.payload.pins?.at(-1)).toEqual({ packageName: `pkg-${MAX_PINNED_TESTS - 1}` });
     }
   });
 });

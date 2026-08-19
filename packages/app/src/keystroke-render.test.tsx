@@ -28,7 +28,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { ConfigEditorHandle } from "@/features/editor/ConfigEditor";
 import type * as PresetsPanelModule from "@/features/presets/PresetsPanel";
 import type * as EffectiveConfigModule from "@/components/EffectiveConfig";
-import type * as RuleSimulatorModule from "@/features/simulator/RuleSimulator";
+import type * as TestsPanelModule from "@/features/simulator/TestsPanel";
 import type * as MessagesPanelModule from "@/components/MessagesPanel";
 import type * as DescriptionDigestCardModule from "@/components/DescriptionDigestCard";
 
@@ -105,9 +105,13 @@ vi.mock("./components/EffectiveConfig", async (importOriginal) => {
   const mod = await importOriginal<typeof EffectiveConfigModule>();
   return { ...mod, EffectiveConfig: wrapCounting("EffectiveConfig", mod.EffectiveConfig) };
 });
-vi.mock("./features/simulator/RuleSimulator", async (importOriginal) => {
-  const mod = await importOriginal<typeof RuleSimulatorModule>();
-  return { ...mod, RuleSimulator: wrapCounting("RuleSimulator", mod.RuleSimulator) };
+// Roadmap 075 (iteration 6): the Tests tab's panel is the pins/simulator
+// switch, and it is what the tab mounts — counting the simulator alone would
+// stop measuring anything the moment the tab opens on the pins list (the same
+// reason the Presets tab counts its panel rather than its tree).
+vi.mock("./features/simulator/TestsPanel", async (importOriginal) => {
+  const mod = await importOriginal<typeof TestsPanelModule>();
+  return { ...mod, TestsPanel: wrapCounting("TestsPanel", mod.TestsPanel) };
 });
 vi.mock("./components/MessagesPanel", async (importOriginal) => {
   const mod = await importOriginal<typeof MessagesPanelModule>();
@@ -127,7 +131,7 @@ const PANELS = [
   "DescriptionDigestCard",
   "PresetsPanel",
   "EffectiveConfig",
-  "RuleSimulator",
+  "TestsPanel",
   "MessagesPanel",
 ] as const;
 const KEYSTROKES = 20;
@@ -199,12 +203,7 @@ describe("keystroke render performance (roadmap 032)", () => {
     await waitForQuiescence();
 
     // Sanity: the run really mounted and rendered the heavy panels.
-    for (const name of [
-      "DescriptionDigestCard",
-      "PresetsPanel",
-      "EffectiveConfig",
-      "RuleSimulator",
-    ]) {
+    for (const name of ["DescriptionDigestCard", "PresetsPanel", "EffectiveConfig", "TestsPanel"]) {
       expect(renderCounts[name] ?? 0, `${name} should have rendered after the run`).toBeGreaterThan(
         0,
       );

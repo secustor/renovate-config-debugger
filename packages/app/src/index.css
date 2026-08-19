@@ -5878,3 +5878,238 @@ button.ledger-tile {
     display: none;
   }
 }
+
+/* ---------- pinned tests (roadmap 075, iteration 6) ----------
+
+   The Tests tab's own view: one card per pinned dependency descriptor, a
+   dashed row that opens the simulator's form to make another, and a summary
+   strip that leads both. Nothing here is a new shape — the cards are `.card`,
+   the outcome chips are `.pill`, the cross-links are `.btn-quiet`, and the new-
+   pin card holds the simulator's own `.sim-form`. What the block adds is the
+   list's rhythm and the one glyph the design introduces: the status dot. */
+
+.pins-view,
+.tests-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+/* The cards carry the list's gap, not the shared card margin (the ledger's
+   rule, for the same reason). */
+.pin-card,
+.pin-new {
+  margin-bottom: 0;
+}
+
+.pin-head {
+  align-items: center;
+  background: var(--surface);
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.4rem 0.7rem;
+}
+
+/* The toggle takes the whole left side so the header is one target; the chips
+   and the remove × sit outside it, because controls cannot nest in a button. */
+.pin-head-toggle {
+  align-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  font: inherit;
+  gap: 0.4rem;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+/* The status dot. Green is "this verdict is what the run says"; amber is
+   reserved for a verdict that may not be the truth (a failed simulation, or a
+   rule of the reader's own that lost to an unset field). There is no
+   expectation model yet, so a confident verdict is green whatever it says. */
+.pin-dot {
+  border-radius: 999px;
+  flex: none;
+  height: 0.55rem;
+  width: 0.55rem;
+}
+
+.pin-dot.ok {
+  background: var(--ok);
+}
+
+.pin-dot.warn {
+  background: var(--warn);
+}
+
+.pin-dot.pending {
+  background: var(--border);
+}
+
+.pin-name {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pin-meta,
+.pin-pending {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.pin-chips {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.pin-remove {
+  flex: none;
+  font-size: 1rem;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.pin-body {
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem 0.7rem;
+}
+
+.pin-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.pin-rules-title {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.pin-rule {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  gap: 0.4rem;
+}
+
+.pin-rule-index {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+code.pin-rule-index {
+  color: var(--muted);
+}
+
+.pin-rule-label {
+  color: var(--muted);
+  min-width: 0;
+}
+
+/* A bucket is a count first — the number is the whole point of collapsing the
+   rules into it — and opens to a few references a reader can take across to
+   the simulator. */
+.pin-bucket {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.pin-bucket-head {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 0.78rem;
+  gap: 0.35rem;
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  width: 100%;
+}
+
+.pin-bucket-head strong {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.pin-bucket-head .caret {
+  font-size: 0.75rem;
+  width: 0.9rem;
+}
+
+.pin-bucket-samples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0 0.5rem 0.4rem 1.4rem;
+}
+
+.pin-bucket-samples code,
+.pin-bucket-more {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.pin-open-sim {
+  align-self: flex-start;
+}
+
+/* The ghost row: dashed, because it is an offer rather than a thing — the one
+   place in the app where a dashed border means "this is where the next one
+   goes" (the ledger's router tile is the other, and means the same). */
+.pin-ghost {
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--accent);
+  cursor: pointer;
+  display: flex;
+  flex-wrap: wrap;
+  font: inherit;
+  font-size: 0.85rem;
+  gap: 0.35rem;
+  padding: 0.5rem 0.7rem;
+  text-align: left;
+  width: 100%;
+}
+
+.pin-ghost:hover {
+  border-color: var(--accent);
+}
+
+.pin-ghost-hint {
+  color: var(--muted);
+}
+
+.pin-new-actions {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem 0.75rem;
+}
+
+.pin-limit-note {
+  color: var(--warn);
+  font-size: 0.8rem;
+  margin: 0;
+}

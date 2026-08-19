@@ -3,6 +3,7 @@ import { PACKAGE_RULES_CONFIG, SEMANTIC_COMMITS_CONFIG } from "./fixtures";
 import {
   expectRunIdle,
   openSessionMenu,
+  openSimulator,
   openTab,
   resultsPanel,
   runAndAwaitResult,
@@ -238,7 +239,7 @@ test("Enter in a simulator field simulates", async ({ page }) => {
   await page.goto("/");
   await setEditorContent(page, PACKAGE_RULES_CONFIG);
   await runAndAwaitResult(page);
-  await openTab(page, "tests");
+  await openSimulator(page);
 
   const packageName = page.locator(".sim-field", { hasText: "packageName" }).locator("input");
   await packageName.fill("react");
@@ -499,7 +500,7 @@ test("a second ⌘⏎ after an edit runs against the edited text", async ({ page
   await page.locator(".cm-content").click();
   await page.keyboard.press("ControlOrMeta+Enter");
 
-  await openTab(page, "tests");
+  await openSimulator(page);
   // The edited config is the only one of the two with packageRules, so the
   // simulator counting one "from your config" is proof the second run happened
   // AND used the new text; the pre-edit config renders the empty state instead.
@@ -569,7 +570,7 @@ test("⌘⏎ still runs from a simulator combobox", async ({ page }) => {
   await page.goto("/");
   await setEditorContent(page, PACKAGE_RULES_CONFIG);
   await runAndAwaitResult(page);
-  await openTab(page, "tests");
+  await openSimulator(page);
 
   // These two fields decline PLAIN Enter so accepting a datalist suggestion
   // does not also simulate — but the guard once preventDefaulted the modified
@@ -614,7 +615,7 @@ test("⌘⏎ on a focused provenance chip runs, rather than jumping", async ({ p
 test("Escape in a combobox reaches the page's own layer on the second press", async ({ page }) => {
   await page.goto("/");
   await runAndAwaitResult(page);
-  await openTab(page, "tests");
+  await openSimulator(page);
 
   // A native <datalist> popup cannot be detected — no node, no event — so the
   // field gets the FIRST Escape (which may be dismissing suggestions) and the
@@ -702,7 +703,7 @@ test("every deliberate ⌘⏎ runs, and the last one describes the editor", asyn
   await page.keyboard.press("ControlOrMeta+Enter");
 
   await expectRunIdle(page);
-  await openTab(page, "tests");
+  await openSimulator(page);
   // SEMANTIC_COMMITS_CONFIG has no packageRules, so the empty state is proof
   // the last run used the editor's current text.
   await expect(page.locator("#panel-tests")).not.toContainText("from your config");

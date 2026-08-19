@@ -83,6 +83,13 @@ import { useHostTokens } from "@/hooks/use-host-tokens";
 import { useInheritedConfigLayer } from "@/hooks/use-inherited-config-layer";
 import { useRepoLoad } from "@/hooks/use-repo-load";
 import { useRunSummary } from "@/hooks/use-run-summary";
+import type { FormState } from "@/features/simulator/form";
+import {
+  MAX_PINS,
+  type PinnedTest,
+  pinShareFields,
+  pinsFromShareFields,
+} from "@/features/simulator/pins";
 import { useShareLink } from "@/hooks/use-share-link";
 import type { RunInputs } from "@/lib/run-inputs";
 import { createRunQueue, type RunQueue } from "@/lib/run-queue";
@@ -364,6 +371,31 @@ export function App() {
   // a new simulation runs (a new merge sequence), and the reset effect below
   // clears it on a new pipeline result.
   const [mergeStepIndex, setMergeStepIndex] = useState(0);
+  /**
+   * Roadmap 075 (iteration 6): the pinned tests — dependency descriptors the
+   * Tests tab re-simulates against every run.
+   *
+   * Owned here for the two reasons every other cross-cutting piece of state is:
+   * a share link carries them (`buildShareState` / the decode path below), and
+   * the tab strip's count is one of the numbers `useRunSummary` assembles. The
+   * evaluation itself is the panel's (`usePinnedTests`), keyed on the run.
+   *
+   * Ids are minted here and never shared: a link carries descriptors, and two
+   * sessions minting `pin-1` for different dependencies would collide the
+   * moment a reader pinned one of their own.
+   */
+  const [pins, setPins] = useState<PinnedTest[]>([]);
+  const pinSeqRef = useRef(0);
+  const nextPinId = useCallback(() => `pin-${++pinSeqRef.current}`, []);
+  const addPin = useCallback(
+    (form: FormState) => {
+      setPins((prev) => (prev.length >= MAX_PINS ? prev : [...prev, { id: nextPinId(), form }]));
+    },
+    [nextPinId],
+  );
+  const removePin = useCallback((id: string) => {
+    setPins((prev) => prev.filter((pin) => pin.id !== id));
+  }, []);
   // Roadmap 028: the active results tab, and the one-step "back to where I
   // was" target recorded whenever something OTHER than a tab click moved the
   // user (a provenance chip, a message jump, a header digest link). The ref
@@ -445,6 +477,8 @@ export function App() {
       setSignedIn,
       setAuthUser,
       applyUntrustedGuard,
+      // Roadmap 075 (iteration 6): the link's pins, with ids minted here.
+      setPins: (shared) => setPins(pinsFromShareFields(shared, nextPinId)),
       pendingViewRef,
       contentRef,
       loadedContentRef,
@@ -1333,7 +1367,7 @@ export function App() {
     errorCount,
     warningCount,
     resultsTabs,
-  } = useRunSummary(result, effectiveStats);
+  } = useRunSummary(result, effectiveStats, pins.length);
 
   /**
    * Roadmap 068: the `?` sheet is a modal dialog, so every global binding is
@@ -1854,6 +1888,11 @@ export function App() {
       platformOverride: platformOverride && hasGlobalContext,
       view,
       sim,
+      // Roadmap 075 (iteration 6): the pinned tests travel with the config they
+      // are tests OF — a link that reproduces the run without them reproduces
+      // the wrong screen. Descriptors only (the same fields `sim.form` carries),
+      // so this adds no new class of data to a link.
+      pins: pins.map((pin) => pinShareFields(pin.form)),
     };
   }
 
@@ -2053,6 +2092,9 @@ export function App() {
               effectiveKeys={effectiveStats?.keys ?? null}
               onShowDescriptionOrder={onShowDescriptionOrder}
               descriptionLedgerNonce={descriptionLedgerNonce}
+              pins={pins}
+              onAddPin={addPin}
+              onRemovePin={removePin}
               pendingRuleFocus={pendingRuleFocus}
               onRuleFocused={onRuleFocused}
               simRequest={simRequest}

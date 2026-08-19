@@ -144,6 +144,33 @@ export async function openPresetTree(page: Page): Promise<void> {
 }
 
 /**
+ * Roadmap 075 (v2, iteration 6): the Tests tab opens on the PINNED TESTS — the
+ * descriptors re-checked on every run — and the full simulator (one dependency,
+ * every rule, the merge replay) is one quiet link away. Every spec that drives
+ * the simulator itself goes through here, so "where the simulator lives" is
+ * spelled once, exactly as `openPresetTree` spells the tree's home.
+ *
+ * A link carrying `sim` does NOT need it: naming a simulation opens the
+ * simulator by itself (see `TestsPanel`), which is what the 054 thread-link
+ * test relies on.
+ *
+ * Returns the simulator card, since every caller's next line asks it something.
+ */
+export async function openSimulator(page: Page): Promise<Locator> {
+  await openTab(page, "tests");
+  const panel = tabPanel(page, "tests");
+  const card = page.locator(".card", { hasText: "Update simulator" });
+  if (!(await card.isVisible())) {
+    await panel
+      .getByRole("button", { name: /explore one dependency in the simulator|open the simulator/ })
+      .first()
+      .click();
+  }
+  await expect(card).toBeVisible();
+  return card;
+}
+
+/**
  * Roadmap 047: the results are staged into summary drawers — a `<details>`
  * whose summary row abstracts the body. Addressed by their visible title, the
  * way a user finds them.

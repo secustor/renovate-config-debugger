@@ -56,6 +56,7 @@ export function SimulatorForm({
   onMoreFieldsToggle,
   onQuickFill,
   onSubmit,
+  formId = SIM_FORM_ID,
 }: {
   form: FormState;
   setForm: Dispatch<SetStateAction<FormState>>;
@@ -72,10 +73,14 @@ export function SimulatorForm({
   /** Roadmap 068: Enter in any field — the form owns the simulate action now,
    *  and the Simulate button submits it from the actions row. */
   onSubmit: () => void;
+  /** Roadmap 075 (iteration 6): which form this is, for the submit button that
+   *  sits outside it (`form=`). Defaults to the simulator's own; the Tests
+   *  tab's new-pin card passes `PIN_FORM_ID`. */
+  formId?: string;
 }) {
   return (
     <form
-      id={SIM_FORM_ID}
+      id={formId}
       aria-label="Dependency update to simulate"
       onSubmit={(e) => {
         e.preventDefault();

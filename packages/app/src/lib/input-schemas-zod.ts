@@ -30,6 +30,7 @@ import {
   isValidRepoRefPart,
   isValidShareConfigLayer,
   isValidToken,
+  MAX_PINNED_TESTS,
   STAGE_IDS,
 } from "./input-schemas";
 
@@ -167,6 +168,63 @@ export interface SanitizedShareSimulator {
 const threadKeySchema = z.string().check(z.minLength(1), z.maxLength(128));
 
 /**
+ * A dependency-descriptor field bag — the shape `sim.form` has carried since
+ * roadmap 018 and, since 075 (iteration 6), every entry of `pins`. Keeps only
+ * non-empty string values, dropping anything else; `undefined` when nothing
+ * survives, since an empty bag pre-fills no form and pins no test.
+ *
+ * Shared by the two sanitizers below so the rule for "what a link may put in a
+ * simulator form" is stated once. The keys themselves are deliberately NOT
+ * checked against `FormState` here: this module is the security layer (a form
+ * field is neither fetched nor merged — the worst an unknown key does is fail
+ * to fill a field), and the consumers already copy only the keys they know
+ * (`useShareLinkRequest`, `pinFormFromShareFields`).
+ */
+function sanitizeFormFields(raw: unknown): Record<string, string> | undefined {
+  if (!isPlainObject(raw)) {
+    return undefined;
+  }
+  const form: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    const parsed = z.string().check(z.minLength(1)).safeParse(value);
+    if (parsed.success) {
+      form[key] = parsed.data;
+    }
+  }
+  return Object.keys(form).length > 0 ? form : undefined;
+}
+
+/**
+ * Roadmap 075 (iteration 6): a decoded payload's `pins` — the pinned tests the
+ * sender had, as descriptor field bags.
+ *
+ * Additive exactly like `sim` was: a link made before this iteration simply
+ * lacks the key and decodes as it always did, and a reader that predates it
+ * ignores one. Tolerant per ENTRY rather than per payload, for the same reason
+ * `view`/`sim` are per-field: a pin is cosmetic state (it pre-fills a form and
+ * re-runs a simulation the app would run anyway), so a malformed one is dropped
+ * on its own instead of failing a link that also carries a config. The cap is
+ * enforced here too — a hand-edited link may not hand the app 500 simulations
+ * per run.
+ */
+export function sanitizeSharePins(raw: unknown): Record<string, string>[] | undefined {
+  if (!Array.isArray(raw)) {
+    return undefined;
+  }
+  const pins: Record<string, string>[] = [];
+  for (const entry of raw) {
+    if (pins.length >= MAX_PINNED_TESTS) {
+      break;
+    }
+    const form = sanitizeFormFields(entry);
+    if (form) {
+      pins.push(form);
+    }
+  }
+  return pins.length > 0 ? pins : undefined;
+}
+
+/**
  * Sanitizes a decoded share payload's `sim` sub-object: keeps only
  * non-empty string form values (matching `share.ts`'s existing
  * `normalizeSim`), dropping anything else — an array `sim`, a non-string
@@ -176,17 +234,11 @@ const threadKeySchema = z.string().check(z.minLength(1), z.maxLength(128));
  * pre-fill a form).
  */
 export function sanitizeShareSim(raw: unknown): SanitizedShareSimulator | undefined {
-  if (!isPlainObject(raw) || !isPlainObject(raw.form)) {
+  if (!isPlainObject(raw)) {
     return undefined;
   }
-  const form: Record<string, string> = {};
-  for (const [key, value] of Object.entries(raw.form)) {
-    const parsed = z.string().check(z.minLength(1)).safeParse(value);
-    if (parsed.success) {
-      form[key] = parsed.data;
-    }
-  }
-  if (Object.keys(form).length === 0) {
+  const form = sanitizeFormFields(raw.form);
+  if (!form) {
     return undefined;
   }
   const out: SanitizedShareSimulator = { form };

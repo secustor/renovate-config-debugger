@@ -4,6 +4,7 @@ import {
   must,
   openMigrateStage,
   openPresetTree,
+  openSimulator,
   openTab,
   runAndAwaitResult,
   runButton,
@@ -407,7 +408,7 @@ test("the simulate button holds its position when the validation banner clears",
   await setEditorContent(page, INVALID_RULES_CONFIG);
   await runAndAwaitResult(page);
 
-  await openTab(page, "tests");
+  await openSimulator(page);
   const panel = page.locator("#panel-tests");
   // Roadmap 075: the banner is the shell's run-level one now — same guarantee,
   // one level up, and the reserved box moved with it.
@@ -418,6 +419,9 @@ test("the simulate button holds its position when the validation banner clears",
 
   await setEditorContent(page, PACKAGE_RULES_CONFIG);
   await runAndAwaitResult(page);
+  // Roadmap 075 (iteration 6): the Tests tab has two views and the simulator is
+  // the second — the panel keeps the one the reader was on across the re-run, so
+  // this is the same screen, not a re-navigation.
   await openTab(page, "tests");
   // The banner is gone from view but its box is reserved (visibility, not unmount)…
   await expect(banner).toBeHidden();

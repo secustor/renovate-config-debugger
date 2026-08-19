@@ -220,6 +220,21 @@ export const STAGE_IDS = [
   "merge",
 ] as const satisfies typeof ENGINE_STAGE_IDS;
 
+/**
+ * Roadmap 075 (iteration 6): how many pinned tests the app keeps — and, being
+ * the same number, how many a share link is allowed to carry.
+ *
+ * It lives here, in the zod-free half, because both ends need it and only one
+ * of them may see zod: the payload sanitizer (`sanitizeSharePins`) enforces it
+ * on the way in, and the Tests tab enforces it at the "+ Pin a dependency…"
+ * row, which is entry-chunk code. A second copy of the number in either place
+ * would be a cap that disagrees with itself.
+ *
+ * The bound exists because every pin costs one engine simulation per run and
+ * one entry in the (compressed, URL-length-bound) fragment.
+ */
+export const MAX_PINNED_TESTS = 20;
+
 // ---------------------------------------------------------------------------
 // Storage reads (OAuth stored user — sync at boot, so zod-free)
 // ---------------------------------------------------------------------------

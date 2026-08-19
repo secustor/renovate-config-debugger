@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { encodeShareFragment, INVALID_AUTOMERGE_CONFIG, PACKAGE_RULES_CONFIG } from "./fixtures";
-import { openTab, runAndAwaitResult, setEditorContent } from "./helpers";
+import { openSimulator, openTab, runAndAwaitResult, setEditorContent } from "./helpers";
 
 /**
  * Roadmap 023 — honest error states. A config with a validate-stage error is
@@ -51,9 +51,7 @@ test("the simulator's repo-config filter shows repo rules with clause evidence e
   const fragment = await encodeShareFragment({ config: PACKAGE_RULES_CONFIG });
   await page.goto(fragment);
 
-  await openTab(page, "tests");
-  const simulator = page.locator(".card", { hasText: "Update simulator" });
-  await expect(simulator).toBeVisible();
+  const simulator = await openSimulator(page);
 
   // A run has to exist before the filter appears (it needs a simulation).
   await simulator.getByRole("button", { name: "npm dependency" }).click();

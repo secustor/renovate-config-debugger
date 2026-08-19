@@ -8,7 +8,8 @@ import {
   useState,
 } from "react";
 import type { SimulationResult, TraceResult } from "@renovate-config-debugger/engine";
-import { type FormState, hasMeaningfulInput, toDescriptor } from "./form";
+import { type FormState, hasMeaningfulInput } from "./form";
+import { runSimulation } from "./run-simulation";
 import { DEFAULT_RULE_FILTERS, type RuleFilters } from "@/lib/rule-filters";
 
 export type Simulate = (nextForm: FormState, touched: boolean, keepStep?: boolean) => Promise<void>;
@@ -132,17 +133,15 @@ export function useSimulationRun({
     setRunning(true);
     setError(null);
     try {
-      const engine = await import("@renovate-config-debugger/engine");
-      const derived = engine.deriveUpdateType(
-        nextForm.currentValue,
-        nextForm.newValue,
-        nextForm.versioning,
+      // Roadmap 075 (iteration 6): the engine call itself lives in
+      // `run-simulation.ts` — the pinned tests re-run the same one, and a
+      // pin's verdict has to be the verdict this panel would show for the
+      // same descriptor.
+      const { sim: simResult, effectiveUpdateType: effectiveType } = await runSimulation(
+        finalConfig,
+        nextForm,
+        touched,
       );
-      const effectiveType = touched || derived === undefined ? nextForm.updateType : derived;
-      const simResult = await engine.simulatePackageRules({
-        config: finalConfig,
-        dep: toDescriptor(nextForm, effectiveType),
-      });
       // Captured right before the state updates that can shrink the results
       // list (see the layout effect above) — not at the top of `simulate`,
       // so an in-flight fetch doesn't capture a scroll position the user has

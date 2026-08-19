@@ -116,6 +116,7 @@ function makeHost(onRun: ShareLinkHost["onRun"]): ShareLinkHost {
     setSignedIn: noop,
     setAuthUser: noop,
     applyUntrustedGuard: noop,
+    setPins: noop,
     pendingViewRef: { current: null },
     // Equal, so a hashchange never has unsaved edits to confirm away.
     contentRef: { current: "" },

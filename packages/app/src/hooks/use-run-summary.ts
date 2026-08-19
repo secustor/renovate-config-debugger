@@ -41,6 +41,11 @@ export interface RunSummary {
 export function useRunSummary(
   result: TraceResult | null,
   effectiveStats: EffectiveStats | null,
+  /** Roadmap 075 (iteration 6): how many dependency tests are pinned — the
+   *  Tests tab's badge. Owned by App (a share link carries the pins), passed in
+   *  for the same reason `effectiveStats` is: this hook counts, it does not
+   *  hold. */
+  pinCount: number,
 ): RunSummary {
   // One pass over the event stream per RESULT for every count below: the
   // migrate steps and the stage's final snapshot (004), the preset-resolution
@@ -71,10 +76,10 @@ export function useRunSummary(
   // typecheck until `tabData` grows a matching entry, rather than silently
   // shipping a strip one tab short of what the sheet advertises.
   const tabData: Record<ResultsTabId, Omit<ResultsTabDescriptor, "id">> = {
-    // Roadmap 075 (iteration 3): no count yet — a "test" is still the one
-    // descriptor in the simulator's form. Iteration 6 pins several, and that is
-    // the number this badge will carry.
-    tests: {},
+    // Roadmap 075 (iteration 6): the pinned tests. A run with none shows a
+    // dimmed 0 (the zero-count tab rule) rather than no badge — "nothing is
+    // being re-checked" is a fact about this config, not a missing number.
+    tests: { count: pinCount },
     pipeline: {},
     presets: { count: facts.presetCount },
     // Provenance is computed asynchronously by the effective-config view; no

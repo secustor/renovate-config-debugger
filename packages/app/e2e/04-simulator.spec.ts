@@ -5,7 +5,7 @@ import {
   MERGE_STEPS_CONFIG,
   PACKAGE_RULES_CONFIG,
 } from "./fixtures";
-import { drawer, openTab, runAndAwaitResult, setEditorContent, tabButton } from "./helpers";
+import { drawer, openSimulator, runAndAwaitResult, setEditorContent, tabButton } from "./helpers";
 
 /**
  * Journey 4 — the packageRules simulator. After a run whose config has a
@@ -26,9 +26,7 @@ test("simulating a matching dependency shows a verdict with a matched rule and i
 
   // The run completes and the Tests tab's simulator mounts (it needs a result
   // with rules).
-  await openTab(page, "tests");
-  const simulator = page.locator(".card", { hasText: "Update simulator" });
-  await expect(simulator).toBeVisible();
+  const simulator = await openSimulator(page);
 
   // The "npm dependency" quick-fill (lodash, patch update) both fills the form
   // and auto-runs the simulation.
@@ -79,9 +77,7 @@ test("focusing a pre-filled simulator field selects its content so typing replac
   const fragment = await encodeShareFragment({ config: PACKAGE_RULES_CONFIG });
   await page.goto(fragment);
 
-  await openTab(page, "tests");
-  const simulator = page.locator(".card", { hasText: "Update simulator" });
-  await expect(simulator).toBeVisible();
+  const simulator = await openSimulator(page);
 
   await simulator.getByRole("button", { name: "npm dependency" }).click();
   const packageNameInput = simulator.getByLabel("packageName", { exact: true });
@@ -107,9 +103,7 @@ test("A/B pin warns when the compared runs describe different simulated inputs",
   const fragment = await encodeShareFragment({ config: PACKAGE_RULES_CONFIG });
   await page.goto(fragment);
 
-  await openTab(page, "tests");
-  const simulator = page.locator(".card", { hasText: "Update simulator" });
-  await expect(simulator).toBeVisible();
+  const simulator = await openSimulator(page);
 
   await simulator.getByRole("button", { name: "npm dependency" }).click();
   await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
@@ -142,9 +136,7 @@ test("a pinned result survives a pipeline re-run and compares against the next s
   const fragment = await encodeShareFragment({ config: PACKAGE_RULES_CONFIG });
   await page.goto(fragment);
 
-  await openTab(page, "tests");
-  const simulator = page.locator(".card", { hasText: "Update simulator" });
-  await expect(simulator).toBeVisible();
+  const simulator = await openSimulator(page);
 
   // Simulate the lodash patch update and pin it as A.
   await simulator.getByRole("button", { name: "npm dependency" }).click();
@@ -193,9 +185,7 @@ test("the merge timeline walks the matching rules one stop at a time", async ({ 
   const fragment = await encodeShareFragment({ config: MERGE_STEPS_CONFIG });
   await page.goto(fragment);
 
-  await openTab(page, "tests");
-  const simulator = page.locator(".card", { hasText: "Update simulator" });
-  await expect(simulator).toBeVisible();
+  const simulator = await openSimulator(page);
 
   await simulator.getByRole("button", { name: "npm dependency" }).click();
   await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
@@ -278,8 +268,7 @@ test("a verdict thread's step link opens the merge drawer at the stop it names",
   const fragment = await encodeShareFragment({ config: MERGE_STEPS_CONFIG });
   await page.goto(fragment);
 
-  await openTab(page, "tests");
-  const simulator = page.locator(".card", { hasText: "Update simulator" });
+  const simulator = await openSimulator(page);
   await simulator.getByRole("button", { name: "npm dependency" }).click();
 
   const verdict = page.locator(".sim-verdict-block");
@@ -324,8 +313,7 @@ test("the consumed-blocks aside names an authored block that didn't apply, and s
   // Default-only consumption: a patch update against a config with no authored
   // update-type block says nothing on the card.
   await page.goto(await encodeShareFragment({ config: PACKAGE_RULES_CONFIG }));
-  await openTab(page, "tests");
-  let simulator = page.locator(".card", { hasText: "Update simulator" });
+  let simulator = await openSimulator(page);
   await simulator.getByRole("button", { name: "npm dependency" }).click();
   await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
   await expect(page.locator(".sim-consumed-note")).toHaveCount(0);
@@ -333,8 +321,7 @@ test("the consumed-blocks aside names an authored block that didn't apply, and s
   // The same patch update against a config carrying `minor: { automerge: true }`
   // explains why that block stayed inert.
   await page.goto(await encodeShareFragment({ config: AUTHORED_BLOCK_CONFIG }));
-  await openTab(page, "tests");
-  simulator = page.locator(".card", { hasText: "Update simulator" });
+  simulator = await openSimulator(page);
   await simulator.getByRole("button", { name: "npm dependency" }).click();
   await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
 
@@ -362,8 +349,7 @@ test("the consumed-blocks aside names an authored block that didn't apply, and s
  */
 test("stale results are veiled and the banner names the run they belong to", async ({ page }) => {
   await page.goto(await encodeShareFragment({ config: PACKAGE_RULES_CONFIG }));
-  await openTab(page, "tests");
-  const simulator = page.locator(".card", { hasText: "Update simulator" });
+  const simulator = await openSimulator(page);
   await simulator.getByRole("button", { name: "npm dependency" }).click();
   await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
 
@@ -387,8 +373,7 @@ test("the flatten cross-link brings the merge drawer into view from the bottom o
   page,
 }) => {
   await page.goto(await encodeShareFragment({ config: AUTHORED_BLOCK_CONFIG }));
-  await openTab(page, "tests");
-  const simulator = page.locator(".card", { hasText: "Update simulator" });
+  const simulator = await openSimulator(page);
   await simulator.getByRole("button", { name: "npm dependency" }).click();
   await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
 
@@ -420,9 +405,7 @@ test("the form shows four fields, a derived updateType, and a self-describing dr
   page,
 }) => {
   await page.goto(await encodeShareFragment({ config: PACKAGE_RULES_CONFIG }));
-  await openTab(page, "tests");
-  const simulator = page.locator(".card", { hasText: "Update simulator" });
-  await expect(simulator).toBeVisible();
+  const simulator = await openSimulator(page);
 
   await simulator.getByRole("button", { name: "npm dependency" }).click();
   await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });

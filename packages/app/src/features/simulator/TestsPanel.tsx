@@ -1,0 +1,166 @@
+import { memo, useMemo, useRef, useState } from "react";
+import type { TraceResult } from "@renovate-config-debugger/engine";
+import { useDescriptionProvenance } from "@/hooks/description-provenance";
+import { useRuleProvenance } from "@/hooks/rule-provenance";
+import { ruleLayerIndex } from "@/lib/rule-filters";
+import type { ShareSimulator } from "@/lib/share";
+import type { ErrorTranslationLib } from "@/platform/run";
+import type { FormState } from "./form";
+import { PinsView } from "./PinsView";
+import { type PinnedTest, pinShareFields } from "./pins";
+import { buildRuleDescriptions } from "./rule-descriptions";
+import { RuleSimulator } from "./RuleSimulator";
+import type { SimRequest } from "./use-share-link-request";
+import { usePinnedTests } from "./use-pinned-tests";
+
+/**
+ * Roadmap 075 (iteration 6): the Tests tab, which now has two views — the same
+ * split the Presets tab took in 5b, for the same reason.
+ *
+ * The PINS view leads: the descriptors this config is checked against, each
+ * re-simulated on every run, each saying in one row what the rules do to it.
+ * The SIMULATOR is the analysis surface for ONE dependency — verdict threads,
+ * A/B comparison, the merge replay, the full rule list — and it is unchanged,
+ * one quiet link away, pre-filled when the link came from a pin.
+ *
+ * The switch lives here rather than in App because nothing outside this tab
+ * names a view: what crosses the boundary is a SIMULATION (a share link's `sim`
+ * descriptor) or a RULE (a validation message naming `packageRules[N]`), and
+ * both of those are the simulator's — so either one switches this panel to it,
+ * exactly as an externally-set preset node switches the Presets tab to the
+ * tree.
+ */
+
+export type TestsView = "pins" | "simulator";
+
+function SimulatorViewStrip({ onBack }: { onBack: () => void }) {
+  return (
+    <div className="summary-strip">
+      <span>
+        The full simulator — one dependency, every rule, the merge that produced its config.
+      </span>
+      <button type="button" className="btn-quiet" onClick={onBack}>
+        ← Back to tests
+      </button>
+    </div>
+  );
+}
+
+export const TestsPanel = memo(function TestsPanel({
+  result,
+  pins,
+  onAddPin,
+  onRemovePin,
+  onSelectPreset,
+  onJumpToEditor,
+  focusRuleIndex,
+  onRuleFocused,
+  errorLib,
+  simRequest,
+  onCopySimLink,
+  mergeStepIndex,
+  onMergeStepChange,
+}: {
+  result: TraceResult;
+  pins: PinnedTest[];
+  onAddPin: (form: FormState) => void;
+  onRemovePin: (id: string) => void;
+  onSelectPreset?: (nodeId: string) => void;
+  onJumpToEditor?: (repoIndex: number) => void;
+  focusRuleIndex?: number | null;
+  onRuleFocused?: () => void;
+  errorLib?: ErrorTranslationLib | null;
+  simRequest?: SimRequest | null;
+  onCopySimLink?: (sim: ShareSimulator) => Promise<void>;
+  mergeStepIndex?: number;
+  onMergeStepChange?: (index: number) => void;
+}) {
+  // A link carrying a simulation, or a cross-link naming a rule, is a request
+  // for the simulator — including on the very first render, since App applies
+  // both before this panel's lazy chunk has mounted (the 5b lesson).
+  const wantsSimulator = Boolean(simRequest) || (focusRuleIndex ?? null) !== null;
+  const [view, setView] = useState<TestsView>(wantsSimulator ? "simulator" : "pins");
+  // Later requests are synced DURING RENDER (the `PresetsPanel` idiom): an
+  // effect would put the view one commit behind the request, and the simulator's
+  // own auto-run is already reacting to it by then.
+  const [seenSimNonce, setSeenSimNonce] = useState(simRequest?.nonce ?? null);
+  const [seenFocus, setSeenFocus] = useState(focusRuleIndex ?? null);
+  /** The request a pin's "open in simulator →" makes: the same descriptor
+   *  channel a share link uses, so the form is filled and re-simulated by the
+   *  one mechanism that already does exactly that (`useShareLinkRequest`).
+   *  NEGATIVE nonces, so a locally-minted one can never collide with the share
+   *  hook's own counter and swallow a link's request. */
+  const pinNonce = useRef(0);
+  const [pinRequest, setPinRequest] = useState<SimRequest | null>(null);
+  if ((simRequest?.nonce ?? null) !== seenSimNonce) {
+    setSeenSimNonce(simRequest?.nonce ?? null);
+    // A link replaces the screen, and with it any pin the reader had opened.
+    setPinRequest(null);
+    if (simRequest) {
+      setView("simulator");
+    }
+  }
+  if ((focusRuleIndex ?? null) !== seenFocus) {
+    setSeenFocus(focusRuleIndex ?? null);
+    if ((focusRuleIndex ?? null) !== null) {
+      setView("simulator");
+    }
+  }
+
+  const attribution = useRuleProvenance(result);
+  const layerByIndex = useMemo(() => ruleLayerIndex(attribution), [attribution]);
+  const descriptionProvenance = useDescriptionProvenance(result);
+  const descriptions = useMemo(
+    () => buildRuleDescriptions(descriptionProvenance),
+    [descriptionProvenance],
+  );
+  const { evaluations } = usePinnedTests({ result, pins });
+
+  function openPin(pin: PinnedTest) {
+    pinNonce.current -= 1;
+    setPinRequest({
+      form: pinShareFields(pin.form),
+      autoSimulate: true,
+      // The result on screen IS the one this request belongs to, which is what
+      // `useShareLinkRequest`'s attribution rule asks of it.
+      ranResult: result,
+      nonce: pinNonce.current,
+    });
+    setView("simulator");
+  }
+
+  if (view === "simulator") {
+    return (
+      <div className="tests-view">
+        <SimulatorViewStrip onBack={() => setView("pins")} />
+        <RuleSimulator
+          result={result}
+          onSelectPreset={onSelectPreset}
+          onJumpToEditor={onJumpToEditor}
+          focusRuleIndex={focusRuleIndex}
+          onRuleFocused={onRuleFocused}
+          errorLib={errorLib}
+          simRequest={pinRequest ?? simRequest}
+          onCopySimLink={onCopySimLink}
+          mergeStepIndex={mergeStepIndex}
+          onMergeStepChange={onMergeStepChange}
+        />
+      </div>
+    );
+  }
+  return (
+    <PinsView
+      pins={pins}
+      evaluations={evaluations}
+      layerByIndex={layerByIndex}
+      attribution={attribution}
+      descriptions={descriptions}
+      onSelectPreset={onSelectPreset}
+      onJumpToEditor={onJumpToEditor}
+      onAddPin={onAddPin}
+      onRemovePin={onRemovePin}
+      onOpenSimulator={() => setView("simulator")}
+      onOpenPinInSimulator={openPin}
+    />
+  );
+});

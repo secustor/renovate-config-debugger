@@ -74,7 +74,10 @@ commit on `feat/v2`:
    grouped by decider layer (repo / presets / defaults) with cascade stacks,
    Problems as fix-it cards; all led by summary strips.
 6. **Pinned tests** — multiple pinned descriptors, re-simulated per run,
-   carried in share links.
+   carried in share links. The full simulator stays: it is the Tests tab's
+   second view (the ledger/tree split, again), reached from a pin's "open in
+   simulator →" or the list's own link, and opened automatically by anything
+   that names a simulation (a link's `sim`) or a rule (a cross-link's index).
 
 ## Non-goals
 
@@ -84,3 +87,14 @@ commit on `feat/v2`:
   tokens.
 - The advanced zone (008/045 layers, host tokens) keeps its behavior; it
   moves with the editor pane.
+- **No seeded pins.** The Landing Transition mock shows a Tests tab that
+  already has pins in it; iteration 6 deliberately ships an empty list with an
+  explainer instead. A pin the user did not ask for is a test they did not
+  write, and every run would then re-check a descriptor they never chose —
+  magic, and wrong by default. The ghost row is the offer.
+- **No expectation model.** A pin records a descriptor, not an assertion about
+  its outcome, so a card's dot is green for any verdict the tool is confident
+  about and amber only when it may not be the truth (a failed simulation, or
+  the replay-02 caveat that one of the reader's own rules lost to an unset
+  field). "This pin should automerge, tell me when it stops" is a later idea
+  that this model leaves room for.

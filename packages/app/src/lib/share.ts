@@ -93,6 +93,10 @@ export interface ShareState {
   view?: ShareView;
   /** Roadmap 018: optional simulator inputs (never tokens). */
   sim?: ShareSimulator;
+  /** Roadmap 075 (iteration 6): the pinned tests, as descriptor field bags.
+   *  Same content class as `sim.form` — dependency descriptors, never tokens
+   *  and never an injected preset — and omitted entirely when there are none. */
+  pins?: Record<string, string>[];
 }
 
 /**
@@ -114,6 +118,13 @@ export interface SharePayload {
   platformOverride?: boolean;
   view?: ShareView;
   sim?: ShareSimulator;
+  /**
+   * Roadmap 075 (iteration 6): the pinned tests. Additive within v2 exactly
+   * like `sim` before it — a link that predates the field simply lacks it and
+   * decodes unchanged, a reader that predates it ignores the unknown key, and
+   * the version stays 2. Sanitized per entry (`sanitizeSharePins`).
+   */
+  pins?: Record<string, string>[];
   /**
    * Roadmap 027: additive integrity tag — the config's `configChecksum`. Stays
    * v2 (a decoder that predates it just ignores the extra key); when present it
@@ -202,7 +213,7 @@ export async function encodeShare(state: ShareState): Promise<string> {
   if (state.platformOverride) {
     payload.platformOverride = true;
   }
-  const { sanitizeShareView, sanitizeShareSim } = await loadSchemas();
+  const { sanitizeShareView, sanitizeShareSim, sanitizeSharePins } = await loadSchemas();
   // Roadmap 033: the encode side runs the SAME sanitizers the decoder runs
   // (input-schemas-zod.ts), so what goes onto the wire and what is accepted off
   // it can never disagree again. This reconciles the one live divergence the
@@ -219,6 +230,12 @@ export async function encodeShare(state: ShareState): Promise<string> {
   const sim = sanitizeShareSim(state.sim);
   if (sim) {
     payload.sim = sim;
+  }
+  // Roadmap 075: the same sanitizer on both sides as everything above — what
+  // goes onto the wire is what comes off it, cap included.
+  const pins = sanitizeSharePins(state.pins);
+  if (pins) {
+    payload.pins = pins;
   }
   const json = JSON.stringify(payload);
   const compressed = await deflateRaw(new TextEncoder().encode(json));
@@ -279,7 +296,7 @@ export async function decodeShareResult(token: string): Promise<DecodeResult> {
   if (typeof p.c === "string" && p.c !== configChecksum(p.config)) {
     return { ok: false, reason: "cutOff" };
   }
-  const { sanitizeShareView, sanitizeShareSim, sharePayloadStrictFieldsSchema } =
+  const { sanitizeShareView, sanitizeShareSim, sanitizeSharePins, sharePayloadStrictFieldsSchema } =
     await loadSchemas();
   // Roadmap 030: the security-relevant fields (platform/endpoint/the two
   // config layers/platformOverride) are schema-validated as a unit — a
@@ -309,6 +326,10 @@ export async function decodeShareResult(token: string): Promise<DecodeResult> {
   // this preserves roadmap 028's forward-compatible `tab` tolerance.
   p.view = sanitizeShareView(p.view);
   p.sim = sanitizeShareSim(p.sim);
+  // Roadmap 075: `pins` is cosmetic in the same sense — descriptors the app
+  // re-simulates, which it would do for a hand-typed pin just the same — so a
+  // malformed entry is dropped, never a reason to refuse the config.
+  p.pins = sanitizeSharePins(p.pins);
   return { ok: true, payload: p };
 }
 

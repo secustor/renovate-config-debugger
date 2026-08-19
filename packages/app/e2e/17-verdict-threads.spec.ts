@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { CONTESTED_KEY_CONFIG, encodeShareFragment } from "./fixtures";
-import { drawer, openTab } from "./helpers";
+import { drawer, openSimulator, openTab } from "./helpers";
 
 /** The `npm dependency` quick-fill's own fields — what a share link has to
  *  carry to reproduce a run this suite otherwise starts by clicking. */
@@ -19,9 +19,7 @@ const NPM_QUICK_FILL: Record<string, string> = {
  *  verdict card the threads live on. */
 async function runContestedSimulation(page: Page): Promise<void> {
   await page.goto(await encodeShareFragment({ config: CONTESTED_KEY_CONFIG }));
-  await openTab(page, "tests");
-  const simulator = page.locator(".card", { hasText: "Update simulator" });
-  await expect(simulator).toBeVisible();
+  const simulator = await openSimulator(page);
   await simulator.getByRole("button", { name: "npm dependency" }).click();
   await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
 }
