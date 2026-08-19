@@ -114,7 +114,7 @@ hold today; each is a candidate follow-up roadmap item, none blocks v2:
   do.
 - **True engine progress on the landing rail** ("Landing Transition"): the
   engine reports stages per run, not incrementally, so real progress needs an
-  engine change. A follow-up pass shipped the mock's *transition* as paced
+  engine change. A follow-up pass shipped the mock's _transition_ as paced
   narration instead — while a run is in flight the preview rail lights its
   stages on a timer (accent, not a verdict color), captions carry stage names
   only (never invented findings, unlike the mock's "rewriting masterIssue…"),
