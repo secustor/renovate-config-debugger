@@ -1,13 +1,9 @@
-import { createTwoFilesPatch } from "diff";
 import { type ReactNode, useMemo, useState, useTransition } from "react";
 import { Diff, getChangeKey, Hunk, parseDiff } from "react-diff-view";
 import { useDiffOptionHover } from "@/hooks/option-docs-hooks";
+import { buildJsonPatch } from "@/lib/json-patch";
 import { CopyButton } from "./CopyButton";
 import "react-diff-view/style/index.css";
-
-function pretty(value: unknown): string {
-  return `${JSON.stringify(value, null, 2) ?? ""}\n`;
-}
 
 type FileData = ReturnType<typeof parseDiff>[number];
 type HunkData = FileData["hunks"][number];
@@ -135,22 +131,15 @@ export function JsonDiff({ before, after, names, title, benignRemovals }: Props)
   // only recomputes when a label actually changes.
   const [nameBefore = "before", nameAfter = "after"] = names ?? [];
 
-  const diffText = useMemo(() => {
-    const patch = createTwoFilesPatch(
-      nameBefore,
-      nameAfter,
-      pretty(before),
-      pretty(after),
-      undefined,
-      undefined,
-      {
-        context: 3,
-      },
-    );
-    // drop the "===" preamble line — gitdiff-parser only understands the
-    // ---/+++/@@ unified format
-    return patch.split("\n").slice(1).join("\n");
-  }, [before, after, nameBefore, nameAfter]);
+  // Not jsdiff's `createTwoFilesPatch`: its Myers cost is proportional to the
+  // old text × the edit distance, which cost ~1.6 s of blocked main thread on
+  // the merge stage of a `config:recommended` run. `buildJsonPatch` produces
+  // the same ---/+++/@@ text by anchoring on unchanged JSON blocks — the full
+  // why, and the applyPatch contract it holds to, live in json-patch.ts.
+  const diffText = useMemo(
+    () => buildJsonPatch(nameBefore, nameAfter, before, after),
+    [before, after, nameBefore, nameAfter],
+  );
 
   const files = useMemo(() => {
     try {
