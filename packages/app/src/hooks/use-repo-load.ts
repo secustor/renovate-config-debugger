@@ -234,7 +234,7 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
     const knownHost = parsed.host ? HOST_PLATFORM[parsed.host] : undefined;
     if (parsed.host && !knownHost) {
       setNotice(
-        `Unknown host ${parsed.host}. Set its host and API endpoint under Advanced options → "Repository host & access tokens", then load with the owner/repo form.`,
+        `Unknown host ${parsed.host}. Set its host and API endpoint under Advanced — hosts & credentials → "Repository host", then load with the owner/repo form.`,
       );
       return;
     }
@@ -244,7 +244,7 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
     } else {
       if (!FETCHABLE_PLATFORMS.has(platform as RepoPlatform)) {
         setNotice(
-          `The current repository host (${platform}) can't be fetched from the browser. Choose github, gitlab, gitea or forgejo under Advanced options → "Repository host & access tokens", or use a full URL.`,
+          `The current repository host (${platform}) can't be fetched from the browser. Choose github, gitlab, gitea or forgejo under Advanced — hosts & credentials → "Repository host", or use a full URL.`,
         );
         return;
       }

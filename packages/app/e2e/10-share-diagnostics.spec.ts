@@ -209,7 +209,7 @@ test("hand-editing the endpoint ends the guard", async ({ page }) => {
   await page.goto(`#config=${await encodeRawShareToken(json)}`);
   await expect(page.locator(warningBanner)).toBeVisible({ timeout: 15_000 });
 
-  // The link forced Advanced options open, so the field is right there.
+  // The link forced the Advanced drawer open, so the field is right there.
   await page.getByLabel("Endpoint").fill("https://api.github.com");
 
   await expect(page.locator(warningBanner)).toHaveCount(0);
@@ -227,8 +227,10 @@ test("a link's globalConfig endpoint is caught too (it wins over the top-level o
 
   await expect(page.locator(warningBanner)).toBeVisible({ timeout: 15_000 });
   await expect(page.locator(warningBanner)).toContainText("untrusted.example");
-  // The endpoint is visible for review rather than hidden — Advanced options
-  // is opened by the link, showing the global layer that carries it.
+  // The endpoint is visible for review rather than hidden — the untrusted-
+  // endpoint policy opens the Advanced drawer and its host section (076: a link
+  // carrying 008 layers no longer opens anything, since the layers are pipeline
+  // stages now).
   await expect(page.locator("details.advanced-zone")).toHaveAttribute("open", "");
   const storedEndpoint = await page.evaluate(() => localStorage.getItem("rcv.endpoint"));
   expect(storedEndpoint).toBeNull();

@@ -3,14 +3,14 @@ import { resultsPanel } from "./helpers";
 
 /**
  * Journey 5 — first-load smoke. A fresh visit (no share link) shows the
- * landing, keeps Advanced options collapsed, and renders a glossary hover card
- * with a docs link when a term is hovered.
+ * landing, shows NO Advanced drawer (it is shell-only since the 076 review),
+ * and renders a glossary hover card with a docs link when a term is hovered.
  *
  * Roadmap 075 replaced 040's welcome strip with the landing (the page's
  * question, one Run, and the stage rail); the three facts this pins are the
  * same three, read off what the landing shows instead.
  */
-test("first load shows the landing, collapsed advanced options, and a glossary hover card", async ({
+test("first load shows the landing, no advanced drawer, and a glossary hover card", async ({
   page,
 }) => {
   await page.goto("/");
@@ -23,11 +23,9 @@ test("first load shows the landing, collapsed advanced options, and a glossary h
   );
   await expect(landing.locator(".landing-steps")).toContainText("Bring a config");
 
-  // Advanced options exist but are collapsed (the <details> is not open).
-  const advanced = page.locator("details.advanced-zone");
-  await expect(advanced).toBeVisible();
-  const isOpen = await advanced.evaluate((el) => (el as HTMLDetailsElement).open);
-  expect(isOpen).toBe(false);
+  // The Advanced drawer (076: hosts & credentials) is shell-only — the landing
+  // does not carry it at all.
+  await expect(page.locator("details.advanced-zone")).toHaveCount(0);
 
   // No pipeline has run yet: no results shell.
   await expect(resultsPanel(page)).toHaveCount(0);

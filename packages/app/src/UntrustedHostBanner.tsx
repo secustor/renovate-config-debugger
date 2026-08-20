@@ -15,7 +15,7 @@ function untrustedEndpointMessage(endpoints: readonly string[]): string {
     `This link asks the analysis to contact ${list}, which is not one of the public code hosts this app trusts. ` +
     `It was opened WITHOUT your GitHub sign-in and without any token you have saved — nothing was sent to that host — ` +
     `and your saved platform settings were left unchanged. ` +
-    `Every run keeps leaving your tokens behind until you decide otherwise below; you can review the host under Advanced options → “Repository host & access tokens”.`
+    `Every run keeps leaving your tokens behind until you decide otherwise below; you can review the host under Advanced — hosts & credentials → “Repository host”.`
   );
 }
 

@@ -55,11 +55,12 @@ export function focusHolder(): Element | null {
  * Where the text a pipeline run is built from is typed: the config document
  * (CodeMirror wraps its contenteditable in `.cm-editor`, and the app mounts
  * exactly one editor — `features/editor/ConfigEditor.tsx`), and the 008 layer
- * boxes in the advanced zone (`.layer-editor`), whose parsed JSON App hands to
- * the same run as `globalConfig` / `inheritedConfig` (`lib/run-inputs.ts`).
+ * boxes on the pipeline's global/inherit stage cards (`.layer-editor`, roadmap
+ * 076), whose parsed JSON App hands to the same run as `globalConfig` /
+ * `inheritedConfig` (`lib/run-inputs.ts`).
  *
  * A selector rather than refs because these surfaces are other components'
- * (the editor card, the advanced zone) while the listener is one document-level
+ * (the editor card, the stage card) while the listener is one document-level
  * handler — and the editor is CodeMirror's own DOM in any case, which App holds
  * as a `ConfigEditorHandle`, not as an element.
  *

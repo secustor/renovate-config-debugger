@@ -20,9 +20,12 @@ import type { FormState } from "@/features/simulator/form";
 import type { PinnedTest } from "@/features/simulator/pins";
 import { TestsPanel } from "@/features/simulator/TestsPanel";
 import { StageDiff } from "@/components/StageDiff";
+import { StageLayerEditor } from "@/features/editor/StageLayerEditor";
 import { StageRail } from "@/components/StageRail";
 import { StaleResultsBanner } from "@/components/StaleResultsBanner";
 import type { ResultsTabId } from "@/data/results-tabs";
+import type { InheritLayerState } from "@/lib/inherit-probe";
+import type { LayerParseResult } from "@/lib/input-schemas";
 import { motionScrollOptions } from "@/lib/motion";
 import type { ErrorTranslationLib } from "@/platform/run";
 import type { ShareSimulator } from "@/lib/share";
@@ -86,6 +89,22 @@ export interface ResultsColumnProps {
   finalMigrated: unknown;
   migrationStepIndex: number;
   onMigrationStepChange: (index: number) => void;
+  /**
+   * Roadmap 076 (design turn 18d): the two 008 merge layers are EDITED on the
+   * stage nodes that report on them — the `global` and `inherit` stage cards
+   * carry a `StageLayerEditor` above their diff. App owns the text (a share
+   * link carries it, the repo load's probe fills it), and the two callbacks it
+   * hands down are identity-stable per the 032 contract, so the `panels` memo
+   * below still keeps its element tree across keystrokes.
+   */
+  globalText: string;
+  onGlobalTextChange: (value: string) => void;
+  inheritedText: string;
+  onInheritedTextChange: (value: string) => void;
+  globalParse: LayerParseResult;
+  inheritedParse: LayerParseResult;
+  /** Roadmap 045: what the last inherited-config probe did, or null. */
+  inheritState: InheritLayerState | null;
 
   // —— presets ——
   onInject: (key: string, content: Record<string, unknown>) => void;
@@ -229,6 +248,59 @@ function StageCardHeader({
   );
 }
 
+/**
+ * Roadmap 076: the layer editor a `global` / `inherit` stage card carries,
+ * picked by stage. Its own component so the card's JSX stays a flat list —
+ * and so the choice of which layer is being edited is made once, in one
+ * place, rather than three times over in three ternaries.
+ *
+ * Driven by the SELECTED stage, not the deferred one: this is an input, and an
+ * input that lags a click by a frame is an input that eats the first keystroke
+ * typed into it.
+ */
+function StageLayerSlot({
+  stage,
+  globalText,
+  onGlobalTextChange,
+  inheritedText,
+  onInheritedTextChange,
+  globalParse,
+  inheritedParse,
+  inheritState,
+}: Pick<
+  ResultsColumnProps,
+  | "globalText"
+  | "onGlobalTextChange"
+  | "inheritedText"
+  | "onInheritedTextChange"
+  | "globalParse"
+  | "inheritedParse"
+  | "inheritState"
+> & { stage: StageId }) {
+  if (stage === "global") {
+    return (
+      <StageLayerEditor
+        kind="global"
+        value={globalText}
+        onChange={onGlobalTextChange}
+        parse={globalParse}
+      />
+    );
+  }
+  if (stage === "inherit") {
+    return (
+      <StageLayerEditor
+        kind="inherit"
+        value={inheritedText}
+        onChange={onInheritedTextChange}
+        parse={inheritedParse}
+        inheritState={inheritState}
+      />
+    );
+  }
+  return null;
+}
+
 export function ResultsColumn({
   result,
   resultsColRef,
@@ -252,6 +324,13 @@ export function ResultsColumn({
   finalMigrated,
   migrationStepIndex,
   onMigrationStepChange,
+  globalText,
+  onGlobalTextChange,
+  inheritedText,
+  onInheritedTextChange,
+  globalParse,
+  inheritedParse,
+  inheritState,
   onInject,
   selectedNodeId,
   onSelectNode,
@@ -418,6 +497,16 @@ export function ResultsColumn({
               effectiveKeys={effectiveKeys}
               rendering={deferredStage !== selectedStage}
             />
+            <StageLayerSlot
+              stage={selectedStage}
+              globalText={globalText}
+              onGlobalTextChange={onGlobalTextChange}
+              inheritedText={inheritedText}
+              onInheritedTextChange={onInheritedTextChange}
+              globalParse={globalParse}
+              inheritedParse={inheritedParse}
+              inheritState={inheritState}
+            />
             <StageDiff result={result} stage={deferredStage} />
           </div>
           {/* Roadmap 075 (iteration 3): the Rewrites tab, folded in. The
@@ -506,6 +595,13 @@ export function ResultsColumn({
     finalMigrated,
     migrationStepIndex,
     onMigrationStepChange,
+    globalText,
+    onGlobalTextChange,
+    inheritedText,
+    onInheritedTextChange,
+    globalParse,
+    inheritedParse,
+    inheritState,
     onInject,
     selectedNodeId,
     onSelectNode,

@@ -255,10 +255,14 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
       payload.inheritedConfig ? JSON.stringify(payload.inheritedConfig, null, 2) : "",
     );
     host.setPlatformOverride(payload.platformOverride === true);
-    if (payload.globalConfig || payload.inheritedConfig || policy.suppressTokens) {
-      host.setAdvancedOpen(true);
-    }
+    // Roadmap 076: the ONE reason left to force the drawer open is the
+    // untrusted-endpoint policy, whose banner tells the user to go review the
+    // host — so the field holding it has to be on screen. A link carrying 008
+    // layers used to open it too, because that is where the layers were; they
+    // are stage nodes on the pipeline rail now, where the link's own run lights
+    // them up without anything being unfolded for them.
     if (policy.suppressTokens) {
+      host.setAdvancedOpen(true);
       host.setHostSectionOpen(true);
     }
     host.pendingViewRef.current = payload.view ?? null;

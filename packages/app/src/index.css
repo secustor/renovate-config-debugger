@@ -4058,40 +4058,235 @@ pre.config-view.prov-before {
   background: var(--surface);
 }
 
-/* Roadmap 075 (the landing transition): the same zone, on the screen that is
-   not about it. It has to stay fully usable there — a run against a
-   self-hosted preset needs its host token BEFORE the first run — but a bordered
-   card under the stage rail read as a step, so on the landing it loses the card
-   and drops a size: present for whoever came looking, silent for everyone
-   else. Behavior, ids and `<details>` semantics are untouched. */
-.landing-advanced {
-  margin-top: 0.9rem;
-}
-
-.landing-advanced .advanced-zone {
-  border: none;
-  font-size: 0.9rem;
-  margin: 0;
-  padding: 0;
-}
-
-.landing-advanced .advanced-zone > summary {
-  color: var(--muted);
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
 .advanced-intro {
   color: var(--muted);
   font-size: 0.82rem;
   margin: 0.6rem 0 0.2rem;
 }
 
-/* Roadmap 075: an accent (or, when the layer will not parse, an error) `.pill`
-   — only its placement on the summary line is its own. */
+/* Roadmap 075/076: a `.pill` on the drawer's summary line — only its placement
+   there is its own. Since 076 it is the credentials count (or `default`), so it
+   is pushed to the right-hand end of the line. */
 .advanced-active-chip {
-  margin-left: 0.5rem;
+  margin-left: auto;
   vertical-align: 0.1rem;
+}
+
+/* ---------- 076: hosts & credentials ----------
+   The drawer's collapsed line has to say two things at a glance: which host
+   this session talks to, and whether it is carrying anything to talk to it
+   WITH — so it becomes a row, with the status pill pinned right. The caret is
+   drawn rather than inherited for the same reason `.drawer` draws its own: a
+   flex `<summary>` drops the native marker in every engine that has one. */
+.advanced-zone > summary {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  list-style: none;
+}
+
+.advanced-zone > summary::-webkit-details-marker {
+  display: none;
+}
+
+.advanced-zone > summary::before {
+  color: var(--muted);
+  content: "▸";
+  font-size: 0.8rem;
+}
+
+.advanced-zone[open] > summary::before {
+  content: "▾";
+}
+
+.advanced-context {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+/* The credentials list: a bordered list of hosts, one row each, in the shape
+   `hostRules` has in a real config — which is the vocabulary a reader who needs
+   this at all already has. Deliberately NOT a form with four empty boxes: only
+   hosts this tab can actually authenticate against get a row. */
+.host-list {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin: 0.5rem 0 0.35rem;
+}
+
+.host-list-head {
+  align-items: baseline;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  border-radius: 5px 5px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+}
+
+.host-list-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.host-list-count {
+  margin-left: auto;
+}
+
+.host-row-group + .host-row-group,
+.host-row-group + .host-row,
+.host-row + .host-row,
+.host-row + .host-row-group {
+  border-top: 1px solid var(--border);
+}
+
+.host-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.45rem 0.75rem;
+}
+
+.host-glyph {
+  fill: currentColor;
+  flex: none;
+}
+
+.host-name {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.host-kind {
+  flex: none;
+}
+
+.host-row-actions {
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+/* A credential that IS in force. The tick is part of the copy, so the hue is
+   all this adds. */
+.host-ok {
+  color: var(--ok);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* The bare × dismissal of the 075 component standard — never a bordered
+   button, since removing a row is not the row's action. */
+.host-remove {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 0.1rem 0.2rem;
+}
+
+.host-remove:hover {
+  color: var(--error);
+}
+
+.host-row-input,
+.host-row-note {
+  padding: 0 0.75rem 0.5rem;
+}
+
+.host-add {
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.host-add-toggle {
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 5px 5px;
+  display: block;
+  padding: 0.45rem 0.75rem;
+  text-align: left;
+  width: 100%;
+}
+
+.host-add-quick {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.host-chip {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+}
+
+/* The sentence with two blanks — "Requests to ⟨host⟩ authenticate with
+   ⟨token⟩". Its fields are marked the way the 075 digest link is: an underline
+   in the prose, never button-or-input chrome, because the line is a sentence
+   the reader is completing rather than a form they are filling in. */
+.host-add-sentence {
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.blank-select,
+.blank-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed var(--accent);
+  border-radius: 0;
+  color: var(--accent);
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  padding: 0 0.15rem;
+}
+
+.blank-input {
+  min-width: 8rem;
+}
+
+.blank-select:focus,
+.blank-input:focus {
+  border-bottom-style: solid;
+  outline: none;
+}
+
+.host-add-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.host-add-note {
+  font-size: 0.78rem;
+  margin-left: auto;
+}
+
+/* Roadmap 076: the layer editor a pipeline stage card carries, above the diff
+   the layer produces. Its parts are the old advanced-zone section's verbatim
+   (`.advanced-note`, `.layer-editor`, `.layer-origin`); the block only has to
+   space them and separate itself from the diff below. */
+.layer-editor-block {
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+  padding-bottom: 0.6rem;
 }
 
 /* ---------- rule identity & provenance (013) ---------- */

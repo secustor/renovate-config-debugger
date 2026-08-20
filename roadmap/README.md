@@ -80,6 +80,7 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [073](073-focused-by-default.md)                        | Focused by default: the answer that acted, and a map of the rest     | M19                  | in progress |
 | [074](074-group-simulation.md)                          | Group-level simulation: would this group actually form?              | M19                  | in progress |
 | [075](075-v2-integrated-shell.md)                       | v2: the Integrated Shell                                             | M20                  | done        |
+| [076](076-hosts-credentials-and-pipeline-layers.md)     | Hosts & credentials; the layers move to their stages                 | M20                  | done        |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live

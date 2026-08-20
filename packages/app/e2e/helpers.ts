@@ -127,6 +127,25 @@ export async function openMigrateStage(page: Page): Promise<void> {
 }
 
 /**
+ * Roadmap 076 (design turn 18d): the two 008 merge layers are EDITED on the
+ * pipeline stage cards that report on them, so reaching either editor is "open
+ * Pipeline, select that stage" — and, as a consequence, a layer cannot be
+ * touched at all until a run exists. Every spec that pastes a global or
+ * inherited config goes through here, so "where the layers live" is spelled
+ * once (exactly as `openMigrateStage` spells the rewrite stepper's home).
+ *
+ * Returns the stage card's layer textarea, since every caller's next line fills
+ * it or asserts on its value.
+ */
+export async function openLayerStage(page: Page, stage: "global" | "inherit"): Promise<Locator> {
+  await openTab(page, "pipeline");
+  await page.locator(`.stage-rail-btn[data-stage="${stage}"]`).click();
+  const editor = page.locator("#panel-pipeline textarea.layer-editor");
+  await expect(editor).toBeVisible();
+  return editor;
+}
+
+/**
  * Roadmap 075 (v2, iteration 5b): the Presets tab opens on the LEDGER — what
  * `extends` brought in, per source — and the full resolution tree is one click
  * away. Every spec that drives the tree itself goes through here, so "where the

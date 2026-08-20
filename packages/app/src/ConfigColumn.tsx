@@ -83,16 +83,16 @@ interface ConfigColumnProps {
  * - **Landing** (no result yet) — a centered reading column: the page's
  *   question, the editor, the two example shortcuts, one large Run, and a
  *   preview of the stages the run walks (which narrates itself while the run
- *   is in flight). Everything a first-time reader does not need is either
- *   absent here (the headless note) or muted (the advanced zone), so the
- *   screen has one question and one answer to it.
+ *   is in flight). Everything a first-time reader does not need is simply
+ *   absent here (the headless note, and — since the 076 review — the advanced
+ *   zone), so the screen has one question and one answer to it.
  * - **Shell** (a result exists) — the left pane of the two-pane frame: the
- *   editor filling the pane, and a footer restating the one promise the
- *   landing's subtitle made, for a reader who never saw it.
+ *   editor filling the pane, the advanced zone, and a footer restating the one
+ *   promise the landing's subtitle made, for a reader who never saw it.
  *
  * The parts that do not change between them — the editor card, its toolbar, the
- * repo-load overlay, the advanced zone, the banners — are rendered once, by
- * this component, in both.
+ * repo-load overlay, the banners — are rendered once, by this component, in
+ * both.
  */
 export function ConfigColumn({
   columnRef,
@@ -254,12 +254,13 @@ export function ConfigColumn({
       {hasResult ? null : <StageRailPreview running={running} />}
       {hasResult ? null : <LandingSteps />}
 
-      {/* Roadmap 075 (the landing transition): the advanced zone stays FULLY
-          functional before the first run — a self-hosted preset needs its host
-          token BEFORE there is anything to resolve — but it is not what the
-          landing is about, so on that screen it wears a wrapper that mutes it
-          (index.css). Same element, same ids, same `<details>` either way. */}
-      {hasResult ? advancedZone : <div className="landing-advanced">{advancedZone}</div>}
+      {/* Roadmap 076 review: the advanced zone is shell-only. The landing kept
+          a muted copy through 075 so host tokens could be set before the first
+          run; with the drawer narrowed to hosts & credentials that pre-run case
+          is served the same way everything else is — run first, and the failed
+          fetch's own banner (auth hint, preset-tree failure) points at the
+          drawer that is now on screen. */}
+      {hasResult ? advancedZone : null}
 
       {/* Roadmap 060: the headless interface, announced in visible copy — the
           whole discovery mechanism, and deliberately not a hidden hint. It

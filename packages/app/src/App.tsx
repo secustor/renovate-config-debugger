@@ -243,9 +243,20 @@ type InjectionMap = Record<string, Record<string, unknown>>;
 // (own `__proto__`/`constructor`/`prototype` keys anywhere, including nested
 // `packageRules[n]`, are rejected). Empty text = layer off, unchanged; the
 // "must be a JSON object" message and native JSON.parse error text are kept
-// verbatim — both `layer-editor-error` render sites (AdvancedZone) depend on
-// them.
+// verbatim — the `layer-editor-error` render site (StageLayerEditor) and this
+// file's own run-blocking message depend on them.
 const parseLayerText = parseLayerJson;
+
+/** Roadmap 076: the two 008 merge layers as one comparable value — what
+ *  `resultsStale` asks about them. Spelled once so the key a run RECORDS and
+ *  the key the editor derives can never be two different serializations of the
+ *  same pair. */
+function layerKey(
+  globalConfig: Record<string, unknown> | undefined,
+  inheritedConfig: Record<string, unknown> | undefined,
+): string {
+  return JSON.stringify([globalConfig ?? null, inheritedConfig ?? null]);
+}
 
 export function App() {
   const [content, setContent] = useState(DEFAULT_CONFIG);
@@ -258,6 +269,13 @@ export function App() {
   // against `content` to tell the reader that what they are looking at no
   // longer describes what is in the editor — see `resultsStale` below.
   const [lastRunContent, setLastRunContent] = useState<string | null>(null);
+  // Roadmap 076: and the same fact about the two 008 merge layers, which are
+  // now edited INSIDE the results pane (their pipeline stage cards). Before the
+  // move an edited layer was three disclosures away from the results and out of
+  // the stale banner's scope by construction; now a reader can retype the
+  // global config with the merge diff on screen beside it, so the banner has to
+  // cover them or it is lying in the one place it is most visible.
+  const [lastRunLayerKey, setLastRunLayerKey] = useState<string | null>(null);
   // Roadmap 016: bumped by `loadConfigText` to force the CodeMirror instance
   // to remount. The editor's own prop→doc sync defers to a ~200ms "typing
   // latch" that can be starved by browser timer throttling (backgrounded
@@ -282,16 +300,11 @@ export function App() {
   // override"). The inherited layer's own text lives in the hook below.
   const [globalText, setGlobalText] = useState("");
   const [platformOverride, setPlatformOverride] = useState(false);
-  // The single collapsed home of everything a typical repo user never touches
-  // (self-hosted layers, platform context, tokens). Auto-opens when a share
-  // link arrives carrying self-hosted layers, so their effect isn't invisible.
+  // Roadmap 040/076: the collapsed home of the platform context and the
+  // credentials this tab is carrying. Auto-opens only for the untrusted-endpoint
+  // guard now — the self-hosted layers it used to hold are pipeline stages.
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  // Roadmap 045: the inherited-layer section is controlled for the same kind of
-  // reason as the host section below — a repo load that auto-fills the layer has
-  // to be able to open the section holding the result, or the fetch it just did
-  // is invisible. Mirrored back on toggle, so the user still owns it.
-  const [inheritedSectionOpen, setInheritedSectionOpen] = useState(false);
-  // Security 2026-07-25: the host/tokens sub-section, controlled for the same
+  // Security 2026-07-25: the host sub-section, controlled for the same
   // reason — an untrusted-endpoint guard tells the user to review the host, so
   // the field holding it has to be actually on screen, not one more
   // disclosure deep. Mirrored back on toggle so the user still owns it.
@@ -556,6 +569,35 @@ export function App() {
     jumpToTab("pipeline");
   }, [jumpToTab]);
 
+  /**
+   * Roadmap 076 (design turn 18d): the Advanced zone's cross-link to the two
+   * self-hosted layers, which are edited on their own pipeline stage cards now.
+   * Lands on the FIRST of the two (global) — the rail's `inherit` node is one
+   * click along from there, and a link that landed between them would have to
+   * pick one anyway.
+   */
+  const onShowPipelineLayers = useCallback(() => {
+    setSelectedStage("global");
+    jumpToTab("pipeline");
+  }, [jumpToTab]);
+
+  /** Roadmap 045/076: where a probe that just filled (or failed to fill) the
+   *  inherited layer points. It used to unfold two disclosures; the layer's
+   *  editor is the `inherit` stage card now, so the reveal is the selection.
+   *  Deliberately does NOT switch tabs: a repo load ends in a run, and that
+   *  run's own landing (`executeRun`) is what decides where the reader is put.
+   *
+   *  Selecting the stage here alone would not survive: a probe always runs
+   *  BETWEEN the repo config arriving and the run that processes it, and that
+   *  run's commit resets the selected stage on its way past. So the reveal is
+   *  also armed as a ref the next commit honors — the immediate selection
+   *  still matters for the one path with no commit (the run threw). */
+  const pendingLayerStageRef = useRef<StageId | null>(null);
+  const revealInheritedStage = useCallback(() => {
+    pendingLayerStageRef.current = "inherit";
+    setSelectedStage("inherit");
+  }, []);
+
   /** Roadmap 069: the description card's "show raw order" link — lands on the
    *  `description` row's blame ledger. From the card's own home at the top of
    *  the Effective config tab this is an in-tab landing (`jumpToTab` declines a
@@ -777,9 +819,25 @@ export function App() {
   } = useInheritedConfigLayer({
     globalConfig: globalParse.config,
     repoInput,
-    setAdvancedOpen,
-    setInheritedSectionOpen,
+    revealInheritedStage,
   });
+  // Roadmap 032/076: the inherited layer's editor lives INSIDE the memoized
+  // results pane now, so its change handler has to be identity-stable or the
+  // `panels` memo reconciles all five panels on every keystroke. The hook
+  // redeclares `applyInheritedText` every render (it closes over the probe
+  // metadata that any hand edit clears), hence the latest-ref idiom.
+  // `setGlobalText` is a plain setter and is already stable.
+  const applyInheritedTextRef = useRef(applyInheritedText);
+  applyInheritedTextRef.current = applyInheritedText;
+  const onInheritedTextChange = useCallback((text: string) => {
+    applyInheritedTextRef.current(text);
+  }, []);
+  // Roadmap 076: the layer pair the CURRENT inputs would run with, against the
+  // pair the displayed result was computed from (`lastRunLayerKey`).
+  const currentLayerKey = useMemo(
+    () => layerKey(globalParse.config, inheritedParse.config),
+    [globalParse.config, inheritedParse.config],
+  );
   const reflectGlobal = hasGlobalContext && !platformOverride;
   const displayPlatform = reflectGlobal && globalPlatform !== undefined ? globalPlatform : platform;
   // A global-config platform also displaces the toolbar endpoint (it belongs
@@ -902,13 +960,13 @@ export function App() {
   function blockedByLayerErrors(): boolean {
     if (globalParse.error) {
       applyFatal(
-        `The global config is not valid JSON (${globalParse.error}). Fix it or clear the field to run.`,
+        `The global config is not valid JSON (${globalParse.error}). Fix it on the Pipeline tab's Global config stage, or clear it to run.`,
       );
       return true;
     }
     if (inheritedParse.error) {
       applyFatal(
-        `The inherited config is not valid JSON (${inheritedParse.error}). Fix it or clear the field to run.`,
+        `The inherited config is not valid JSON (${inheritedParse.error}). Fix it on the Pipeline tab's Inherited config stage, or clear it to run.`,
       );
       return true;
     }
@@ -1079,12 +1137,22 @@ export function App() {
       outcomeLeadRef.current = opts?.outcomeLead ?? null;
       setResult(traceResult);
       // Committed WITH the result, never before it: a run that threw or was
-      // abandoned must not mark the previous run's output fresh.
+      // abandoned must not mark the previous run's output fresh. Roadmap 076:
+      // and the layers this run actually carried, for the same reason and with
+      // the same timing — they are editable from inside the results now.
       setLastRunContent(inputs.content);
+      setLastRunLayerKey(layerKey(inputs.globalConfig, inputs.inheritedConfig));
       const firstError = (Object.entries(traceResult.stageStatus) as [StageId, string][]).find(
         ([, status]) => status === "error",
       );
-      setSelectedStage(firstError?.[0] ?? "preset");
+      // Roadmap 076: a probe that just revealed a layer stage
+      // (`revealInheritedStage`) armed it for THIS commit — the run a probe
+      // precedes is the run that shows what the layer did, so its landing keeps
+      // the stage instead of resetting it. An errored stage still wins: the
+      // reader is sent to what broke before what was fetched.
+      const revealedStage = pendingLayerStageRef.current;
+      pendingLayerStageRef.current = null;
+      setSelectedStage(firstError?.[0] ?? revealedStage ?? "preset");
       // Roadmap 028/075: a run lands on Tests — the dependency descriptors this
       // config is checked against — or straight on Problems when a stage
       // errored, the tabbed equivalent of the old "select the first errored
@@ -1912,8 +1980,6 @@ export function App() {
       onOpenChange={setAdvancedOpen}
       hostSectionOpen={hostSectionOpen}
       onHostSectionOpenChange={setHostSectionOpen}
-      globalParse={globalParse}
-      inheritedParse={inheritedParse}
       displayPlatform={displayPlatform}
       displayEndpoint={displayEndpoint}
       onPlatformChange={onPlatformChange}
@@ -1927,14 +1993,11 @@ export function App() {
       usesLocal={usesLocal}
       platform={platform}
       oauthConfigured={Boolean(oauthConfig)}
+      signedIn={signedIn}
+      onSignIn={onSignIn}
+      onSignOut={onSignOut}
       hostTokens={hostTokens}
-      globalText={globalText}
-      onGlobalTextChange={setGlobalText}
-      inheritedText={inheritedText}
-      onInheritedTextChange={applyInheritedText}
-      inheritState={inheritState}
-      inheritedSectionOpen={inheritedSectionOpen}
-      onInheritedSectionOpenChange={setInheritedSectionOpen}
+      onShowPipelineLayers={onShowPipelineLayers}
     />
   );
 
@@ -2068,7 +2131,10 @@ export function App() {
               onWalkTab={walkToTab}
               backTab={backTab}
               onBack={() => setTab(backTab ?? "tests")}
-              resultsStale={content !== lastRunContent}
+              // Roadmap 076: the editor's text OR either merge layer — both are
+              // inputs to the run, and both are editable while the result is on
+              // screen (the layers on their own pipeline stage cards).
+              resultsStale={content !== lastRunContent || currentLayerKey !== lastRunLayerKey}
               validateHasErrors={validateHasErrors}
               selectPresetNode={selectPresetNode}
               focusEditorRepoIndex={focusEditorRepoIndex}
@@ -2081,6 +2147,15 @@ export function App() {
               finalMigrated={finalMigrated}
               migrationStepIndex={migrationStepIndex}
               onMigrationStepChange={setMigrationStepIndex}
+              // Roadmap 076: the two 008 layers, edited on the stage cards that
+              // report on them. Both handlers are identity-stable (032).
+              globalText={globalText}
+              onGlobalTextChange={setGlobalText}
+              inheritedText={inheritedText}
+              onInheritedTextChange={onInheritedTextChange}
+              globalParse={globalParse}
+              inheritedParse={inheritedParse}
+              inheritState={inheritState}
               onInject={onInject}
               selectedNodeId={selectedNodeId}
               onSelectNode={setSelectedNodeId}

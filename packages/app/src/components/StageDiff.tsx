@@ -13,20 +13,22 @@ export const StageDiff = memo(function StageDiff({ result, stage }: Props) {
   const failed = stageEvents.findLast((e) => e.kind === "stage-error");
 
   if (result.stageStatus[stage] === "skipped") {
-    // The 008 layer stages skip when their input is absent, not on failure.
+    // The 008 layer stages skip when their input is absent, not on failure —
+    // and since 076 the input is the editor directly above this note, so it
+    // points at that rather than at a disclosure three clicks away.
     if (stage === "global") {
       return (
         <div className="empty-note">
-          No global config provided — add one under &ldquo;Global config (self-hosted admin)&rdquo;
-          to model a self-hosted run&rsquo;s admin layer.
+          No global config provided this run — paste one above and press Run to model a self-hosted
+          run&rsquo;s admin layer.
         </div>
       );
     }
     if (stage === "inherit") {
       return (
         <div className="empty-note">
-          No inherited config provided — add one under &ldquo;Inherited config
-          (inheritConfig)&rdquo; to model the layer injected between global and repo config.
+          No inherited config provided this run — paste one above (or let a repo load fetch it) and
+          press Run.
         </div>
       );
     }

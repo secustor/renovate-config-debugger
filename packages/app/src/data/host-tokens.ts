@@ -12,6 +12,10 @@ export interface HostTokenDescriptor {
   id: "github" | "gitlab" | "gitea" | "forgejo";
   /** Short host name, used in the token error rows ("<label> token …"). */
   label: string;
+  /** The canonical host this id stands for, as the credentials list names it
+   *  (roadmap 076 — a hostRules-style row is addressed by host, not by vendor).
+   *  These are the hosts of `PLATFORM_ENDPOINTS`' default endpoints. */
+  host: string;
   /** The token input's full label (the GitHub/GitLab ones carry extra hints). */
   inputLabel: string;
   /** sessionStorage key — per-host tokens are secrets, so they live in
@@ -27,6 +31,7 @@ export const HOST_TOKENS: readonly HostTokenDescriptor[] = [
   {
     id: "github",
     label: "GitHub",
+    host: "github.com",
     inputLabel: "GitHub personal access token (fallback)",
     storageKey: "rcv.githubToken",
     authKey: "githubToken",
@@ -34,6 +39,7 @@ export const HOST_TOKENS: readonly HostTokenDescriptor[] = [
   {
     id: "gitlab",
     label: "GitLab",
+    host: "gitlab.com",
     inputLabel: "GitLab token (PRIVATE-TOKEN)",
     storageKey: "rcv.gitlabToken",
     authKey: "gitlabToken",
@@ -41,6 +47,7 @@ export const HOST_TOKENS: readonly HostTokenDescriptor[] = [
   {
     id: "gitea",
     label: "Gitea",
+    host: "gitea.com",
     inputLabel: "Gitea token",
     storageKey: "rcv.giteaToken",
     authKey: "giteaToken",
@@ -48,6 +55,7 @@ export const HOST_TOKENS: readonly HostTokenDescriptor[] = [
   {
     id: "forgejo",
     label: "Forgejo",
+    host: "codeberg.org",
     inputLabel: "Forgejo token",
     storageKey: "rcv.forgejoToken",
     authKey: "forgejoToken",

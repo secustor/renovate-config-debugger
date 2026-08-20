@@ -15,6 +15,11 @@
  * `probeInheritedConfig` at the same point it always did — after the repo
  * config arrives, before the run that processes it. Everything the cluster acts
  * on but does not own comes in through {@link InheritedConfigLayerHost}.
+ *
+ * Roadmap 076: the layer's EDITOR moved to the pipeline's inherited-config
+ * stage card, so the three points where a probe used to open two nested
+ * disclosures now call one `revealInheritedStage` instead. Where that lands is
+ * App's business, not this cluster's.
  */
 import { useMemo, useState } from "react";
 import type { RepoPlatform } from "@renovate-config-debugger/engine";
@@ -31,8 +36,8 @@ import {
 import { isValidRepoRefPart, type LayerParseResult, parseLayerJson } from "@/lib/input-schemas";
 import { loadRepoFile } from "@/platform/run";
 
-/** The two live values the cluster derives from, and the two disclosure
- *  sections a probe has to be able to open. */
+/** The two live values the cluster derives from, and the one way a probe says
+ *  "the result of that fetch is over there". */
 export interface InheritedConfigLayerHost {
   /** The pasted global config, parsed (008). The `inheritConfig*` family is
    *  read off it live, so pasting or editing it re-frames the layer at once. */
@@ -40,8 +45,14 @@ export interface InheritedConfigLayerHost {
   /** The repo field's raw text in the load form — the target's owner while the
    *  user is still typing one. */
   repoInput: string;
-  setAdvancedOpen: (open: boolean) => void;
-  setInheritedSectionOpen: (open: boolean) => void;
+  /**
+   * Roadmap 076: selects the inherited-config stage, whose card is where the
+   * layer is edited since the layers left the Advanced zone (design turn 18d).
+   * It used to be a pair of `setOpen(true)` calls — the zone, then the section
+   * inside it — because that is where the layer lived; the reveal is one act
+   * now, and App decides what "reveal" means.
+   */
+  revealInheritedStage: () => void;
 }
 
 export interface InheritedConfigLayer {
@@ -64,7 +75,7 @@ export interface InheritedConfigLayer {
 }
 
 export function useInheritedConfigLayer(host: InheritedConfigLayerHost): InheritedConfigLayer {
-  const { globalConfig, repoInput, setAdvancedOpen, setInheritedSectionOpen } = host;
+  const { globalConfig, repoInput, revealInheritedStage } = host;
   // 008 layer input (JSON text; empty = layer off).
   const [inheritedText, setInheritedText] = useState("");
   // Roadmap 045: the form's second row. Corrected 2026-07-26 — this was
@@ -194,8 +205,7 @@ export function useInheritedConfigLayer(host: InheritedConfigLayerHost): Inherit
         // pasted global config sets strict).
         setInheritProbe({ status: "missing", target });
         if (inheritPolicy.strict) {
-          setAdvancedOpen(true);
-          setInheritedSectionOpen(true);
+          revealInheritedStage();
         }
         return inheritedParse.config;
       }
@@ -205,16 +215,14 @@ export function useInheritedConfigLayer(host: InheritedConfigLayerHost): Inherit
       // an origin, and that is the one thing that path exists to forget.
       setInheritedText(raw);
       setInheritProbe({ status: "loaded", target });
-      setAdvancedOpen(true);
-      setInheritedSectionOpen(true);
+      revealInheritedStage();
       return parseLayerJson(raw).config;
     } catch (err) {
       const e = err as { err?: { message?: string } };
       const detail = e?.err?.message ?? (err instanceof Error ? err.message : String(err));
       setInheritProbe({ status: "unreachable", target, detail: `${detail}.` });
       if (inheritPolicy.strict) {
-        setAdvancedOpen(true);
-        setInheritedSectionOpen(true);
+        revealInheritedStage();
       }
       return inheritedParse.config;
     }

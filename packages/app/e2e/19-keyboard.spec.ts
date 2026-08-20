@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { PACKAGE_RULES_CONFIG, SEMANTIC_COMMITS_CONFIG } from "./fixtures";
 import {
   expectRunIdle,
+  openLayerStage,
   openSessionMenu,
   openSimulator,
   openTab,
@@ -634,12 +635,10 @@ test("Escape in a combobox reaches the page's own layer on the second press", as
 test("a refused run says so, every time it is refused", async ({ page }) => {
   await page.goto("/");
   // Break the global-config layer so the run is refused before it starts.
-  // The layers live behind nested <details> disclosures, not buttons: the
-  // Advanced zone first, then the Global config layer inside it.
-  await page.locator("summary", { hasText: "Advanced options" }).click();
-  await page.locator("summary", { hasText: "Global config" }).click();
-  const globalConfig = page.locator("textarea").first();
-  await globalConfig.fill("{ not json");
+  // Roadmap 076: the layer is edited on the pipeline's own global stage card,
+  // so there has to be a run before there is one to break.
+  await runAndAwaitResult(page);
+  await (await openLayerStage(page, "global")).fill("{ not json");
 
   const live = page.locator("p.visually-hidden[role='status']");
   await page.locator(".cm-content").click();
