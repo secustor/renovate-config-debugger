@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
+import { useLatestRef } from "@/hooks/use-latest-ref";
 import { isTextEditingTarget } from "@/hooks/scroll-ergonomics";
 import { overlayKeyboardOwned } from "@/lib/escape-stack";
 import { digitTabIndex } from "@/lib/roving-tabs";
@@ -37,12 +38,9 @@ export function useTabDigits(
   onSelect: (index: number) => void,
   { enabled = true }: { enabled?: boolean } = {},
 ): void {
-  const onSelectRef = useRef(onSelect);
-  onSelectRef.current = onSelect;
-  const countRef = useRef(count);
-  countRef.current = count;
-  const enabledRef = useRef(enabled);
-  enabledRef.current = enabled;
+  const onSelectRef = useLatestRef(onSelect);
+  const countRef = useLatestRef(count);
+  const enabledRef = useLatestRef(enabled);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -81,5 +79,8 @@ export function useTabDigits(
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+    // All three are stable ref objects, listed only because `exhaustive-deps`
+    // cannot see the `useRef()` behind `useLatestRef` — the listener is still
+    // registered exactly once.
+  }, [onSelectRef, countRef, enabledRef]);
 }

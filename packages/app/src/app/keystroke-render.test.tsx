@@ -27,7 +27,7 @@ import { act, fireEvent, render, waitFor } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { ConfigEditorHandle } from "@/features/editor/ConfigEditor";
 import type * as PresetsPanelModule from "@/features/presets/PresetsPanel";
-import type * as EffectiveConfigModule from "@/components/EffectiveConfig";
+import type * as EffectiveConfigModule from "@/features/effective-config/EffectiveConfig";
 import type * as TestsPanelModule from "@/features/simulator/TestsPanel";
 import type * as MessagesPanelModule from "@/components/MessagesPanel";
 import type * as DescriptionDigestCardModule from "@/components/DescriptionDigestCard";
@@ -65,7 +65,7 @@ function wrapCounting<P extends object>(
   return isMemo ? memo(Counting, memoLike.compare ?? undefined) : Counting;
 }
 
-vi.mock("./features/editor/ConfigEditor", () => {
+vi.mock("../features/editor/ConfigEditor", () => {
   const ConfigEditor = forwardRef<
     ConfigEditorHandle,
     { fileName: string; value: string; onChange: (value: string) => void }
@@ -97,11 +97,11 @@ vi.mock("./features/editor/ConfigEditor", () => {
 // Roadmap 075 (iteration 5b): the Presets tab's panel is the ledger/tree
 // switch, and it is what the tab mounts — counting the tree alone would stop
 // measuring anything the moment the tab opens on the ledger.
-vi.mock("./features/presets/PresetsPanel", async (importOriginal) => {
+vi.mock("../features/presets/PresetsPanel", async (importOriginal) => {
   const mod = await importOriginal<typeof PresetsPanelModule>();
   return { ...mod, PresetsPanel: wrapCounting("PresetsPanel", mod.PresetsPanel) };
 });
-vi.mock("./components/EffectiveConfig", async (importOriginal) => {
+vi.mock("../features/effective-config/EffectiveConfig", async (importOriginal) => {
   const mod = await importOriginal<typeof EffectiveConfigModule>();
   return { ...mod, EffectiveConfig: wrapCounting("EffectiveConfig", mod.EffectiveConfig) };
 });
@@ -109,17 +109,17 @@ vi.mock("./components/EffectiveConfig", async (importOriginal) => {
 // switch, and it is what the tab mounts — counting the simulator alone would
 // stop measuring anything the moment the tab opens on the pins list (the same
 // reason the Presets tab counts its panel rather than its tree).
-vi.mock("./features/simulator/TestsPanel", async (importOriginal) => {
+vi.mock("../features/simulator/TestsPanel", async (importOriginal) => {
   const mod = await importOriginal<typeof TestsPanelModule>();
   return { ...mod, TestsPanel: wrapCounting("TestsPanel", mod.TestsPanel) };
 });
-vi.mock("./components/MessagesPanel", async (importOriginal) => {
+vi.mock("../components/MessagesPanel", async (importOriginal) => {
   const mod = await importOriginal<typeof MessagesPanelModule>();
   return { ...mod, MessagesPanel: wrapCounting("MessagesPanel", mod.MessagesPanel) };
 });
 // Roadmap 075 (iteration 3): the Overview retired; its one surviving card
 // leads the Effective config tab, and it is the panel content this counts.
-vi.mock("./components/DescriptionDigestCard", async (importOriginal) => {
+vi.mock("../components/DescriptionDigestCard", async (importOriginal) => {
   const mod = await importOriginal<typeof DescriptionDigestCardModule>();
   return {
     ...mod,

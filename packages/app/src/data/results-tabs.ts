@@ -51,13 +51,6 @@ const LEGACY_TAB_TARGETS: Record<LegacyResultsTabId, ResultsTabId> = {
   simulator: "tests",
 };
 
-export function isShareResultsTabId(value: unknown): value is ShareResultsTabId {
-  return (
-    isResultsTabId(value) ||
-    (typeof value === "string" && (LEGACY_RESULTS_TAB_IDS as readonly string[]).includes(value))
-  );
-}
-
 /** The tab a link's `tab` field opens, mapping the retired ids forward. */
 export function resultsTabForShareTab(id: ShareResultsTabId): ResultsTabId {
   return isResultsTabId(id) ? id : LEGACY_TAB_TARGETS[id];

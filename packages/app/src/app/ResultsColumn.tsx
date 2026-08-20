@@ -9,7 +9,8 @@ import type {
 import { AuthFailureBanner } from "@/components/AuthFailureBanner";
 import { collectGithubAuthFailures } from "@/features/presets/tree-shared";
 import { DescriptionDigestCard } from "@/components/DescriptionDigestCard";
-import { EffectiveConfig, type EffectiveStats } from "@/components/EffectiveConfig";
+import { EffectiveConfig } from "@/features/effective-config/EffectiveConfig";
+import type { EffectiveTally } from "@/lib/effective-tally";
 import type { AuthState } from "@/components/GithubAuthHint";
 import { HypotheticalBanner } from "@/components/HypotheticalBanner";
 import { MessagesPanel } from "@/components/MessagesPanel";
@@ -32,7 +33,7 @@ import type { ShareSimulator } from "@/lib/share";
 import { STAGE_LABELS } from "@/data/stage-copy";
 import { getStageActivity } from "@/lib/stage-activity";
 import { stageHint } from "@/lib/stage-delta";
-import { presetTreeSummary } from "@/components/preset-tree-stats";
+import { presetTreeSummary } from "@/lib/preset-tree-stats";
 import type { SimRequest } from "@/hooks/use-share-link";
 
 /**
@@ -112,13 +113,12 @@ export interface ResultsColumnProps {
   onSelectNode: (id: string | null) => void;
   authState: AuthState;
   onSignIn: () => void;
-  installUrl: string;
   /** Roadmap 009: re-runs the pipeline with the inputs currently on screen —
    *  the auth-failure banner's "Run again", for access granted mid-session. */
   onRunAgain: () => void;
 
   // —— effective ——
-  onEffectiveStats: (stats: EffectiveStats) => void;
+  onEffectiveStats: (stats: EffectiveTally) => void;
   /** Roadmap 075 (iteration 4): keys in the effective config, or null until
    *  the browser has finished computing provenance — the merge node's delta on
    *  the pipeline rail, and the merge stage card's hint. Owned by App (which
@@ -339,7 +339,6 @@ export function ResultsColumn({
   onSelectNode,
   authState,
   onSignIn,
-  installUrl,
   onRunAgain,
   onEffectiveStats,
   effectiveKeys,
@@ -439,21 +438,11 @@ export function ResultsColumn({
           rateLimited={authFailures.rateLimited}
           authState={authState}
           onSignIn={onSignIn}
-          installUrl={installUrl}
           onRunAgain={onRunAgain}
         />
       </>
     ),
-    [
-      resultsStale,
-      validateHasErrors,
-      invalidSeen,
-      authFailures,
-      authState,
-      onSignIn,
-      installUrl,
-      onRunAgain,
-    ],
+    [resultsStale, validateHasErrors, invalidSeen, authFailures, authState, onSignIn, onRunAgain],
   );
 
   // Roadmap 032: the five tab panels render RUN RESULTS — they change when a
@@ -540,7 +529,6 @@ export function ResultsColumn({
           onSelectNode={onSelectNode}
           authState={authState}
           onSignIn={onSignIn}
-          installUrl={installUrl}
           onShowDescriptionOrder={onShowDescriptionOrder}
         />
       ) : (
@@ -612,7 +600,6 @@ export function ResultsColumn({
     onSelectNode,
     authState,
     onSignIn,
-    installUrl,
     onEffectiveStats,
     effectiveKeys,
     onShowDescriptionOrder,

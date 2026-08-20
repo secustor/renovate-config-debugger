@@ -12,9 +12,11 @@ import { overlayKeyboardOwned } from "@/lib/escape-stack";
  * and a second card type with its own copy of them would be a second contract.
  * The hook owns WHEN a card is up; what the card says is the caller's.
  *
- * Lives in `hooks/` because a component module that also exports a hook breaks
- * Fast Refresh (`react/only-export-components`) — the same split
- * `option-docs.tsx` / `hooks/option-docs-hooks.ts` already makes.
+ * A separate FILE from `hover-card.tsx`, colocated with it: a component module
+ * that also exports a hook breaks Fast Refresh
+ * (`react/only-export-components`), and the split is about the module, not the
+ * folder — so the pair sits together, `-hooks` naming the half that holds the
+ * behavior. The same split `option-docs.tsx` / `option-docs-hooks.ts` makes.
  */
 
 /** Module-level singleton so only one hover card is ever open — of any kind. */

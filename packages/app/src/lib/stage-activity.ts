@@ -1,4 +1,5 @@
 import type { StageId, TraceEvent, TraceResult } from "@renovate-config-debugger/engine";
+import { plural } from "./format";
 
 /**
  * Roadmap 024: what a stage chip's dot should say happened this run, on top
@@ -71,10 +72,6 @@ export function getStageActivity(result: TraceResult, stage: StageId): StageActi
   // parse/global/inherit/preset/merge: always-transform stages (see the
   // module doc above) — clean whenever they succeed, never amber.
   return { level: "clean" };
-}
-
-function plural(count: number, noun: string): string {
-  return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
 
 /** Short, human sentence for the chip's accessible name — screen readers get

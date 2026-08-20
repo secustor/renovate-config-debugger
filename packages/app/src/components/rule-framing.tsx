@@ -1,3 +1,4 @@
+import { nf } from "@/lib/format";
 import type { RuleAttribution } from "@renovate-config-debugger/engine";
 import type { ReactNode } from "react";
 import { layerLabel } from "./provenance-layer";
@@ -12,8 +13,6 @@ import { layerLabel } from "./provenance-layer";
  * guessed fallback — when attribution is unavailable or doesn't cover every
  * rule, so callers can fall back to the bare count.
  */
-
-const nf = new Intl.NumberFormat();
 
 interface TopContributor {
   label: string;

@@ -66,29 +66,30 @@ export const TestsPanel = memo(function TestsPanel({
   pins: PinnedTest[];
   onAddPin: (form: FormState) => void;
   onRemovePin: (id: string) => void;
-  onSelectPreset?: (nodeId: string) => void;
-  onJumpToEditor?: (repoIndex: number) => void;
-  focusRuleIndex?: number | null;
-  onRuleFocused?: () => void;
-  errorLib?: ErrorTranslationLib | null;
-  simRequest?: SimRequest | null;
-  onCopySimLink?: (sim: ShareSimulator) => Promise<void>;
+  onSelectPreset: (nodeId: string) => void;
+  onJumpToEditor: (repoIndex: number) => void;
+  /** The rule a validation message cross-linked to, or null. */
+  focusRuleIndex: number | null;
+  onRuleFocused: () => void;
+  errorLib: ErrorTranslationLib | null;
+  simRequest: SimRequest | null;
+  onCopySimLink: (sim: ShareSimulator) => Promise<void>;
   /** Roadmap 077: the share-link build-and-copy, for the pins view's note that
    *  pins ride in the link. */
-  onShare?: () => Promise<void>;
-  mergeStepIndex?: number;
-  onMergeStepChange?: (index: number) => void;
+  onShare: () => Promise<void>;
+  mergeStepIndex: number;
+  onMergeStepChange: (index: number) => void;
 }) {
   // A link carrying a simulation, or a cross-link naming a rule, is a request
   // for the simulator — including on the very first render, since App applies
   // both before this panel's lazy chunk has mounted (the 5b lesson).
-  const wantsSimulator = Boolean(simRequest) || (focusRuleIndex ?? null) !== null;
+  const wantsSimulator = Boolean(simRequest) || focusRuleIndex !== null;
   const [view, setView] = useState<TestsView>(wantsSimulator ? "simulator" : "pins");
   // Later requests are synced DURING RENDER (the `PresetsPanel` idiom): an
   // effect would put the view one commit behind the request, and the simulator's
   // own auto-run is already reacting to it by then.
   const [seenSimNonce, setSeenSimNonce] = useState(simRequest?.nonce ?? null);
-  const [seenFocus, setSeenFocus] = useState(focusRuleIndex ?? null);
+  const [seenFocus, setSeenFocus] = useState(focusRuleIndex);
   /** The request a pin's "open in simulator →" makes: the same descriptor
    *  channel a share link uses, so the form is filled and re-simulated by the
    *  one mechanism that already does exactly that (`useShareLinkRequest`).
@@ -104,9 +105,9 @@ export const TestsPanel = memo(function TestsPanel({
       setView("simulator");
     }
   }
-  if ((focusRuleIndex ?? null) !== seenFocus) {
-    setSeenFocus(focusRuleIndex ?? null);
-    if ((focusRuleIndex ?? null) !== null) {
+  if (focusRuleIndex !== seenFocus) {
+    setSeenFocus(focusRuleIndex);
+    if (focusRuleIndex !== null) {
       setView("simulator");
     }
   }

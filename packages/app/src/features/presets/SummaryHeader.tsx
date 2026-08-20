@@ -1,7 +1,8 @@
-import type { TreeSummary } from "@/components/preset-tree-stats";
+import type { TreeSummary } from "@/lib/preset-tree-stats";
 import { Explained } from "@/components/glossary";
 import { GLOSSARY } from "@/data/glossary-data";
-import { nf, plural } from "./tree-shared";
+import { nf } from "@/lib/format";
+import { pluralWord } from "./tree-shared";
 
 /**
  * Roadmap 016: the counter strip gets the same hover-card treatment the stage
@@ -11,7 +12,7 @@ import { nf, plural } from "./tree-shared";
  */
 export function SummaryHeader({ summary }: { summary: TreeSummary }) {
   const bits: { key: keyof typeof GLOSSARY; label: string; value: number }[] = [
-    { key: "statPresets", label: plural(summary.resolved, "preset"), value: summary.resolved },
+    { key: "statPresets", label: pluralWord(summary.resolved, "preset"), value: summary.resolved },
     { key: "statFetched", label: "fetched", value: summary.fetched },
     { key: "statInternal", label: "internal", value: summary.internal },
     {
@@ -19,14 +20,14 @@ export function SummaryHeader({ summary }: { summary: TreeSummary }) {
       label: `option${summary.options === 1 ? "" : "s"} set`,
       value: summary.options,
     },
-    { key: "statRules", label: plural(summary.rules, "rule"), value: summary.rules },
+    { key: "statRules", label: pluralWord(summary.rules, "rule"), value: summary.rules },
     { key: "statDepth", label: "depth", value: summary.maxDepth },
     {
       key: "statDuplicates",
       label: `repeat occurrence${summary.duplicates === 1 ? "" : "s"}`,
       value: summary.duplicates,
     },
-    { key: "statErrors", label: plural(summary.errors, "error"), value: summary.errors },
+    { key: "statErrors", label: pluralWord(summary.errors, "error"), value: summary.errors },
   ];
   return (
     <div className="preset-summary">

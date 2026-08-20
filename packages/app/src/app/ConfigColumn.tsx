@@ -67,14 +67,14 @@ interface ConfigColumnProps {
    *  shows them hollow instead of claiming they ran (see StageRailPreview). */
   previewSkippedStages: readonly StageId[];
   // AdvancedZone is built by App.tsx and handed down as an already-constructed
-  // element — its import and JSX call stay in App.tsx untouched (that file is
-  // owned by a concurrent pass this one must not disturb).
+  // element: the zone's props are App's state, and passing the built element
+  // keeps them there rather than threading a dozen of them through this
+  // column, which only decides WHERE the zone sits.
   advancedZone: ReactNode;
   // Fatal error / GitHub-auth hint / notice, in render order
   fatal: string | null;
   repoAuthHint: { rateLimited: boolean } | null;
   authState: AuthState;
-  installUrl: string;
   notice: string | null;
   onDismissNotice: () => void;
 }
@@ -142,7 +142,6 @@ export function ConfigColumn({
   fatal,
   repoAuthHint,
   authState,
-  installUrl,
   notice,
   onDismissNotice,
 }: ConfigColumnProps) {
@@ -242,31 +241,34 @@ export function ConfigColumn({
           authState={authState}
           rateLimited={repoAuthHint.rateLimited}
           onSignIn={onSignIn}
-          installUrl={installUrl}
         />
       ) : null}
       {notice ? <NoticeBar message={notice} onDismiss={onDismissNotice} /> : null}
 
+      {/* The landing trio, under ONE guard: they appear and disappear together
+          (that IS the landing), so three copies of the same condition only
+          invited them to drift apart. */}
       {hasResult ? null : (
-        <LandingLaunch
-          onTryExample={onTryExample}
-          onAnalyzeThisProject={onAnalyzeThisProject}
-          running={running}
-          onRun={onRun}
-          onRunIntent={onRunIntent}
-          blockedReason={runBlockedReason}
-        />
+        <>
+          <LandingLaunch
+            onTryExample={onTryExample}
+            onAnalyzeThisProject={onAnalyzeThisProject}
+            running={running}
+            onRun={onRun}
+            onRunIntent={onRunIntent}
+            blockedReason={runBlockedReason}
+          />
+          {/* Roadmap 075 (the landing transition): the preview walks its own
+              stage list while the run it is previewing is in flight — see
+              StageRail. */}
+          <StageRailPreview
+            running={running}
+            onWalkEnd={onLandingWalkEnd}
+            skippedStages={previewSkippedStages}
+          />
+          <LandingSteps />
+        </>
       )}
-      {/* Roadmap 075 (the landing transition): the preview walks its own stage
-          list while the run it is previewing is in flight — see StageRail. */}
-      {hasResult ? null : (
-        <StageRailPreview
-          running={running}
-          onWalkEnd={onLandingWalkEnd}
-          skippedStages={previewSkippedStages}
-        />
-      )}
-      {hasResult ? null : <LandingSteps />}
 
       {/* Roadmap 076/077: the advanced zone is shell-only, and Proposal F puts
           it at the foot of the pane — a one-line bar whose panel opens upward,

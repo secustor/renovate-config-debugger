@@ -1,5 +1,5 @@
 import { CodeText } from "@/components/CodeText";
-import { useHoverCardClose } from "@/hooks/hover-card";
+import { useHoverCardClose } from "@/components/hover-card-hooks";
 import {
   type DescLineWithMarker,
   type NodeDescriptionFacts,

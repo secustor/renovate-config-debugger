@@ -3,9 +3,11 @@ import type { OptionIndex } from "@renovate-config-debugger/engine";
 
 /**
  * The option-docs context and the hooks that read it, plus the caret
- * hit-testing the diff views need. Split out of option-docs.tsx because that
- * module renders components, and a component module that also exports hooks
- * breaks Fast Refresh (react/only-export-components).
+ * hit-testing the diff views need. A separate FILE from `option-docs.tsx`,
+ * colocated with it: that module renders components, and a component module
+ * that also exports hooks breaks Fast Refresh
+ * (react/only-export-components). The constraint is about the module, so the
+ * pair stays side by side rather than being filed apart by kind.
  */
 
 export interface OptionDocsValue {

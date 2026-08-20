@@ -1,7 +1,7 @@
 import { type ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import type { OptionDoc, OptionIndex, OptionPlacement } from "@renovate-config-debugger/engine";
-import { useMoveGatedHover } from "@/hooks/hover-gate";
-import { OptionDocsContext, useOptionDocs } from "@/hooks/option-docs-hooks";
+import { useMoveGatedHover } from "./hover-gate";
+import { OptionDocsContext, useOptionDocs } from "./option-docs-hooks";
 import { type AnchorRect, anchoredCardStyle } from "@/lib/anchored-card";
 import { truncate } from "@/lib/truncate";
 

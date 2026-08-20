@@ -1,6 +1,5 @@
 import {
   lazy,
-  type MouseEvent,
   Suspense,
   useCallback,
   useDeferredValue,
@@ -17,15 +16,15 @@ import type {
   TraceResult,
 } from "@renovate-config-debugger/engine";
 import { AdvancedZone } from "@/features/editor/AdvancedZone";
-import { AppShellHeader } from "@/AppShellHeader";
+import { AppShellHeader } from "@/app/AppShellHeader";
 import type { ConfigEditorHandle } from "@/features/editor/ConfigEditor";
-import { ConfigColumn } from "@/ConfigColumn";
-import type { EffectiveStats } from "@/components/EffectiveConfig";
+import { ConfigColumn } from "@/app/ConfigColumn";
+import type { EffectiveTally } from "@/lib/effective-tally";
 import type { AuthState } from "@/components/GithubAuthHint";
 import { HeadlessNote } from "@/components/HeadlessNote";
-import { identityForNodeId, nodeIdForIdentity } from "@/components/preset-tree-stats";
-import type { ResultsColumnProps } from "@/ResultsColumn";
-import { UntrustedHostBanner } from "@/UntrustedHostBanner";
+import { identityForNodeId, nodeIdForIdentity } from "@/lib/preset-tree-stats";
+import type { ResultsColumnProps } from "@/app/ResultsColumn";
+import { UntrustedHostBanner } from "@/app/UntrustedHostBanner";
 import {
   legacyTabForView,
   type ResultsTabId,
@@ -35,21 +34,13 @@ import {
 import { OptionDocsProvider } from "@/components/option-docs";
 import { REPO_URL } from "@/data/project-repo";
 import { buildPresetLookup, type PresetHoverContext } from "@/lib/preset-hover";
-import {
-  flashTarget,
-  motionScrollOptions,
-  motionScrollToOptions,
-  prefersReducedMotion,
-} from "@/lib/motion";
-import { SELECTED_PRESET_ROW } from "@/lib/preset-row-dom";
-import { tabButtonSelector } from "@/lib/results-tab-dom";
+import { motionScrollToOptions, prefersReducedMotion } from "@/lib/motion";
 import { findPackageRuleOffsets } from "@/lib/rule-locate";
 import { useRuleProvenance } from "@/hooks/rule-provenance";
 import {
   beginSignIn,
   getOAuthConfig,
   getStoredUser,
-  installUrl,
   isSignedIn,
   signOut,
   type StoredUser,
@@ -64,18 +55,9 @@ import {
 } from "@/platform/run";
 import type { ShareSimulator, ShareState, ShareView, UntrustedEndpointGuard } from "@/lib/share";
 import { useBackToTopVisible, useHomeEndPageScroll } from "@/hooks/scroll-ergonomics";
-import type { LandingTicket } from "@/lib/focus-landing";
-import { focusHolder, useFocusLanding } from "@/hooks/use-focus-landing";
-import { useShortcut } from "@/hooks/use-shortcut";
-import { useTabDigits } from "@/hooks/use-tab-digits";
+import { useLatestRef } from "@/hooks/use-latest-ref";
+import { useKeyboardLandings } from "@/app/use-keyboard-landings";
 import { ShortcutSheet } from "@/components/ShortcutSheet";
-import {
-  FOCUS_EDITOR_SHORTCUT,
-  FOCUS_RESULTS_SHORTCUT,
-  HELP_SHORTCUT,
-  RUN_AND_READ_SHORTCUT,
-  RUN_SHORTCUT,
-} from "@/lib/shortcuts";
 import { isValidEndpoint, isValidPlatform, parseLayerJson } from "@/lib/input-schemas";
 import { PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
 import {
@@ -86,9 +68,9 @@ import {
   readLocal,
 } from "@/platform/storage";
 import { useCustomHostRules, useHostTokens } from "@/hooks/use-host-tokens";
-import { useInheritedConfigLayer } from "@/hooks/use-inherited-config-layer";
-import { useRepoLoad } from "@/hooks/use-repo-load";
-import { useRunSummary } from "@/hooks/use-run-summary";
+import { useInheritedConfigLayer } from "@/app/use-inherited-config-layer";
+import { useRepoLoad } from "@/app/use-repo-load";
+import { useRunSummary } from "@/app/use-run-summary";
 import type { FormState } from "@/features/simulator/form";
 import {
   MAX_PINS,
@@ -128,9 +110,13 @@ const EXAMPLE_CONFIG = `{
 }
 `;
 
-/** Roadmap 032: evaluated once — it derives from build-time env only, and a
- *  per-render call handed a fresh value to memoized children for nothing. */
-const INSTALL_URL = installUrl();
+/** OAuth sign-in (009). Configured only when both build-time vars are present
+ *  (or the deployment's runtime `__RCV_OAUTH__` supplies them); otherwise the
+ *  whole feature stays hidden and the PAT fallback remains. Module scope for
+ *  the same reason `oauth.ts` resolves `INSTALL_URL` at module scope: neither
+ *  input can change after the page loads, so there is nothing for a render to
+ *  re-read. */
+const OAUTH_CONFIG = getOAuthConfig();
 
 /** Roadmap 031: the whole results half (react-diff-view + diff + every
  *  result-only component) rides one lazy chunk — nothing behind this can
@@ -139,7 +125,7 @@ const INSTALL_URL = installUrl();
  *  (`result` never returns to null and a resolved `lazy` never re-suspends),
  *  so the 028 always-mounted tab-shell state is untouched by the boundary. */
 const ResultsColumn = lazy(() =>
-  import("@/ResultsColumn").then((m) => ({ default: m.ResultsColumn })),
+  import("@/app/ResultsColumn").then((m) => ({ default: m.ResultsColumn })),
 );
 
 /**
@@ -210,23 +196,8 @@ function AppBanners({
  *  behind the click. Both dynamic imports are module-cached (idempotent). */
 function preloadRunChunks(): void {
   preloadEngine();
-  void import("@/ResultsColumn").catch(() => {});
+  void import("@/app/ResultsColumn").catch(() => {});
 }
-
-/**
- * Roadmap 068: the tab the strip currently shows as chosen — where "take me to
- * the results" lands (`focusResults`), and the one element there that announces
- * where you are.
- *
- * Reaching for it by SELECTOR at all, because nothing on this side of the lazy
- * results boundary holds a handle to it. Spelled out here, unlike the other two
- * elements the landings find (`results-tab-dom.ts` for a named tab button,
- * `preset-row-dom.ts` for the selected preset row), because this one is not a
- * class or an attribute anyone chose: `aria-selected="true"` on a `role="tab"`
- * is the ARIA tablist pattern itself, which `ResultsPanel` cannot rename without
- * ceasing to be one.
- */
-const SELECTED_RESULTS_TAB = '[role="tab"][aria-selected="true"]';
 
 /** What a caller may ask of a run. Every request reaches the queue except one
  *  refused before it starts, by layers that would not parse — see `onRun`. */
@@ -244,14 +215,6 @@ interface RunOptions {
 }
 
 type InjectionMap = Record<string, Record<string, unknown>>;
-
-// Roadmap 030: parses an optional JSON config layer (008), pollution-checked
-// (own `__proto__`/`constructor`/`prototype` keys anywhere, including nested
-// `packageRules[n]`, are rejected). Empty text = layer off, unchanged; the
-// "must be a JSON object" message and native JSON.parse error text are kept
-// verbatim — the `layer-editor-error` render site (StageLayerEditor) and this
-// file's own run-blocking message depend on them.
-const parseLayerText = parseLayerJson;
 
 /** Roadmap 076 review: the safety cap on the landing walk-end handshake in
  *  `executeRun`. The uninterrupted walk takes ~1.3 s (StageRailPreview's
@@ -323,12 +286,9 @@ export function App() {
   // the field holding it has to be actually on screen, not one more
   // disclosure deep. Mirrored back on toggle so the user still owns it.
   const [hostSectionOpen, setHostSectionOpen] = useState(false);
-  // OAuth sign-in (009). Configured only when both build-time vars are present;
-  // otherwise the whole feature stays hidden and the PAT fallback remains.
-  const oauthConfig = useMemo(() => getOAuthConfig(), []);
-  const [signedIn, setSignedIn] = useState(() => (oauthConfig ? isSignedIn() : false));
+  const [signedIn, setSignedIn] = useState(() => (OAUTH_CONFIG ? isSignedIn() : false));
   const [authUser, setAuthUser] = useState<StoredUser | null>(() =>
-    oauthConfig ? getStoredUser() : null,
+    OAUTH_CONFIG ? getStoredUser() : null,
   );
   const [injected, setInjected] = useState<InjectionMap>({});
   const [running, setRunning] = useState(false);
@@ -431,12 +391,11 @@ export function App() {
   // Roadmap 075 (iteration 3): Tests is the first tab and where a run lands.
   const [tab, setTabState] = useState<ResultsTabId>("tests");
   const [backTab, setBackTab] = useState<ResultsTabId | null>(null);
-  const tabRef = useRef(tab);
-  tabRef.current = tab;
+  const tabRef = useLatestRef(tab);
   // Roadmap 028/029: the Effective config tab's badge + digest numbers,
   // reported by the view itself (it owns the async provenance computation)
   // rather than recomputed here. null = not known yet.
-  const [effectiveStats, setEffectiveStats] = useState<EffectiveStats | null>(null);
+  const [effectiveStats, setEffectiveStats] = useState<EffectiveTally | null>(null);
   // Roadmap 069: bumped by the description digest card's "show raw order" link
   // to land on the effective config's `description` row and its blame ledger.
   const [descriptionLedgerNonce, setDescriptionLedgerNonce] = useState(0);
@@ -475,10 +434,8 @@ export function App() {
   // Roadmap 017: mirrors of `content`/`loadedContent` for the hashchange
   // listener (inside `useShareLink`), which is registered once (empty deps)
   // and would otherwise close over the state from that first render.
-  const contentRef = useRef(content);
-  contentRef.current = content;
-  const loadedContentRef = useRef(loadedContent);
-  loadedContentRef.current = loadedContent;
+  const contentRef = useLatestRef(content);
+  const loadedContentRef = useLatestRef(loadedContent);
   // Roadmap 033: the whole share/hash/decode cluster — `shareError` feeds the
   // prominent, top-of-page banner below (not the dismissable notice), so a
   // broken link never reads as "nothing happened"; `simRequest` is handed to
@@ -488,7 +445,7 @@ export function App() {
   // arrow that only runs after this render — and the share hook re-reads the
   // host object every render, so nothing goes stale.
   const { shareError, simRequest, buildShareLinkAndCopy, buildSignInReturnHash } = useShareLink(
-    oauthConfig,
+    OAUTH_CONFIG,
     {
       onRun: (inputs, opts) => onRun(undefined, inputs, opts),
       loadConfigText,
@@ -498,8 +455,13 @@ export function App() {
       setGlobalText,
       setInheritedText: (text) => applyInheritedText(text),
       setPlatformOverride,
-      setAdvancedOpen,
-      setHostSectionOpen,
+      // Roadmap 076: the guard's one reveal — both disclosures, since the host
+      // field is behind both. They stay separate states here: the user owns
+      // each one independently.
+      openHostCredentials: () => {
+        setAdvancedOpen(true);
+        setHostSectionOpen(true);
+      },
       setNotice,
       setSignedIn,
       setAuthUser,
@@ -524,11 +486,17 @@ export function App() {
   const packageRuleOffsets = useMemo(() => findPackageRuleOffsets(content), [content]);
   /** Roadmap 028: a tab the user chose explicitly — clears the back affordance.
    *  Identity-stable (032): reads tab state only through its ref. */
-  const setTab = useCallback((next: ResultsTabId) => {
-    tabRef.current = next;
-    setTabState(next);
-    setBackTab(null);
-  }, []);
+  const setTab = useCallback(
+    (next: ResultsTabId) => {
+      tabRef.current = next;
+      setTabState(next);
+      setBackTab(null);
+      // `tabRef` is a stable ref object; it is listed only because
+      // `exhaustive-deps` cannot see the `useRef()` behind `useLatestRef`, and
+      // the identity these three callbacks promise is unaffected.
+    },
+    [tabRef],
+  );
 
   /**
    * Roadmap 068: the tab strip's arrows, which SELECT (see `ResultsPanel`) —
@@ -542,23 +510,29 @@ export function App() {
    * has been walked — leaving it would offer "← Back to Tests" to a reader
    * already on Tests.
    */
-  const walkToTab = useCallback((next: ResultsTabId) => {
-    tabRef.current = next;
-    setTabState(next);
-    setBackTab((from) => (from === next ? null : from));
-  }, []);
+  const walkToTab = useCallback(
+    (next: ResultsTabId) => {
+      tabRef.current = next;
+      setTabState(next);
+      setBackTab((from) => (from === next ? null : from));
+    },
+    [tabRef],
+  );
 
   /** Roadmap 028: a programmatic jump (a cross-instrument link, a header
    *  digest link) — records where the user was so one click returns them. */
-  const jumpToTab = useCallback((next: ResultsTabId) => {
-    const from = tabRef.current;
-    if (from === next) {
-      return;
-    }
-    tabRef.current = next;
-    setTabState(next);
-    setBackTab(from);
-  }, []);
+  const jumpToTab = useCallback(
+    (next: ResultsTabId) => {
+      const from = tabRef.current;
+      if (from === next) {
+        return;
+      }
+      tabRef.current = next;
+      setTabState(next);
+      setBackTab(from);
+    },
+    [tabRef],
+  );
 
   // Roadmap 032: stable handlers for the memoized panels — each reads state
   // only through refs and setters, so its identity never changes.
@@ -765,7 +739,13 @@ export function App() {
   // effect runs only after its content committed. `focusResultsRef` (armed by
   // onRun below) and `resultsColRef` (the pane to measure) are handed down.
 
-  const globalParse = useMemo(() => parseLayerText(globalText), [globalText]);
+  // Roadmap 030: parses an optional JSON config layer (008), pollution-checked
+  // (own `__proto__`/`constructor`/`prototype` keys anywhere, including nested
+  // `packageRules[n]`, are rejected). Empty text = layer off, unchanged; the
+  // "must be a JSON object" message and native JSON.parse error text are kept
+  // verbatim — the `layer-editor-error` render site (StageLayerEditor) and this
+  // file's own run-blocking message depend on them.
+  const globalParse = useMemo(() => parseLayerJson(globalText), [globalText]);
   // Platform context values the global config carries (008/010 interplay): the
   // control reflects them unless the user explicitly overrides.
   const globalPlatform =
@@ -808,7 +788,7 @@ export function App() {
     onRun: (inputs, opts) => onRun(undefined, inputs, opts),
     globalConfig: globalParse.config,
     platformOverride: platformOverride && hasGlobalContext,
-    oauthConfigured: Boolean(oauthConfig),
+    oauthConfigured: Boolean(OAUTH_CONFIG),
     // Roadmap 045: the org probe when auto-load is on, otherwise the layer as
     // it already stands. An arrow, so it reads the inherited-config layer
     // declared below — by the time a load calls it, that binding exists.
@@ -841,11 +821,13 @@ export function App() {
   // redeclares `applyInheritedText` every render (it closes over the probe
   // metadata that any hand edit clears), hence the latest-ref idiom.
   // `setGlobalText` is a plain setter and is already stable.
-  const applyInheritedTextRef = useRef(applyInheritedText);
-  applyInheritedTextRef.current = applyInheritedText;
-  const onInheritedTextChange = useCallback((text: string) => {
-    applyInheritedTextRef.current(text);
-  }, []);
+  const applyInheritedTextRef = useLatestRef(applyInheritedText);
+  const onInheritedTextChange = useCallback(
+    (text: string) => {
+      applyInheritedTextRef.current(text);
+    },
+    [applyInheritedTextRef],
+  );
   // Roadmap 076: the layer pair the CURRENT inputs would run with, against the
   // pair the displayed result was computed from (`lastRunLayerKey`).
   const currentLayerKey = useMemo(
@@ -1405,7 +1387,7 @@ export function App() {
     }
   }
 
-  const authState: AuthState = !oauthConfig
+  const authState: AuthState = !OAUTH_CONFIG
     ? "unconfigured"
     : signedIn
       ? "signed-in"
@@ -1509,29 +1491,36 @@ export function App() {
   } = useRunSummary(result, effectiveStats, pins.length);
 
   /**
-   * Roadmap 068: the `?` sheet is a modal dialog, so every global binding is
-   * inert while it is open — a key that acted on the page behind it would be
-   * acting on something the user cannot see. Declared here, above the first
-   * binding, because a binding registered above `keysLive` is a binding that
-   * silently opts out of that rule: ⌘⏎ was exactly that, and ran the pipeline,
-   * replaced the results and announced itself from behind the dialog.
+   * Roadmap 068/078: where a keystroke takes you — the `?` sheet every global
+   * binding is inert behind, the bindings themselves (⌘⏎, ⌘⇧⏎, `e`, `r`, `?`
+   * and the digit keys), the two skip links that mean the same thing with a
+   * pointer, and every focus landing those gestures perform. One hook
+   * (`app/use-keyboard-landings.ts`), because they are one question: a gesture
+   * arrives, and something has to decide where focus ends up and when.
    *
-   * Threaded through every `enabled` rather than replaced by
-   * `modalKeyboardOwned()` (eighth review), which answers the same question
-   * globally. The two are not interchangeable and the difference is the point:
-   * `enabled` UNREGISTERS the listener, so the binding cannot fire, cannot claim
-   * the key with `preventDefault`, and cannot hand the browser a chord we own —
-   * whereas a module-state query can only decline inside a handler that has
-   * already run. It also has to be answered at render time to be a prop at all,
-   * which is what puts the rule in one visible place instead of once per
-   * listener. `modalKeyboardOwned()` stays the query for the handlers that have
-   * no props to be gated by (the Escape ladder, the 016 page scroll, the
-   * evidence card's light-dismiss).
+   * `runFromGesture` below is the half that did NOT move: it is the run path,
+   * and the run queue is App's (048). It is handed in, and the hook hands back
+   * the one focus question that path asks — `gestureWantsResultsLanding`.
    */
-  const [shortcutSheetOpen, setShortcutSheetOpen] = useState(false);
-  const showShortcuts = useCallback(() => setShortcutSheetOpen(true), []);
-  const hideShortcuts = useCallback(() => setShortcutSheetOpen(false), []);
-  const keysLive = !shortcutSheetOpen;
+  const {
+    shortcutSheetOpen,
+    showShortcuts,
+    hideShortcuts,
+    landing,
+    focusTab,
+    landOnPresetNode,
+    skipToConfig,
+    skipToResults,
+    gestureWantsResultsLanding,
+  } = useKeyboardLandings({
+    result,
+    resultsTabs,
+    setTab,
+    runFromGesture,
+    configColRef,
+    resultsColRef,
+    configEditorRef,
+  });
 
   /**
    * Roadmap 068: what "the user asked for a run" means, in the one place its
@@ -1555,406 +1544,6 @@ export function App() {
       keepTab: !gestureWantsResultsLanding(),
     });
   }
-
-  /**
-   * Roadmap 068 review: whether 028's landing — reset the results to the first
-   * tab, or to Problems when a stage errored — belongs to the gesture asking for this
-   * run. The question the reset always depended on and never had to ask, because
-   * before 068 the only way to reach Run was to leave the results.
-   *
-   * ⌘⏎ is global, so it stopped being safe to assume: pressing it while reading
-   * Effective config, Presets or Problems replaced that panel with the landing
-   * tab a second later, and `setTab` clears `backTab` on its way, so the
-   * cross-link that brought the reader there was gone with it.
-   *
-   * The rule is the one 028 stated: **that landing belongs to the reader of the
-   * CONFIG column** — they edited, they asked for a run, and the landing tab is
-   * where its answer starts. So this asks whether the gesture was made there,
-   * and everything else keeps the tab it was on. Focus genuinely nowhere counts
-   * as the config column's: it is the state before anyone has touched anything,
-   * where the first run's landing is the whole point, and it is where a click on
-   * the Run button leaves Safari.
-   *
-   * Asked the other way round — "is focus inside the RESULTS column?" — until
-   * the eighth review, which is the same question only while the results are
-   * entirely inside their column, and they are not: the rule-evidence card
-   * (which takes focus in its own effect) and the simulator's return pill are
-   * both portalled to `<body>` (035). A ⌘⏎ from inside the evidence card
-   * therefore read as "outside the results" and threw the reader to the landing
-   * tab, back affordance cleared, card left explaining a rule that was no
-   * longer rendered. Enumerating those overlays here would work exactly until
-   * the next one is added — the failure mode the deleted request-fold key was
-   * retired for — while the config column has no portals and is one containment
-   * test that cannot go stale.
-   *
-   * What changed for gestures made in neither column (the header, a skip link):
-   * they now keep the tab instead of resetting it. That is the honest reading of
-   * the rule — nobody in the header is reading the config — and it is the safe
-   * direction besides: a run that errors under a reader who stayed put still
-   * says so through the Problems badge and the banner above the panels.
-   */
-  function gestureWantsResultsLanding(): boolean {
-    // `focusHolder`, not a second reading of `document.activeElement`: "holds
-    // nothing" is `<body>` as often as it is null (the browser drops focus to
-    // the body when the element holding it is hidden, Safari leaves it there
-    // after a click on a button), and the landings' own `from` is that same
-    // collapse — one spelling, in `hooks/use-focus-landing.ts`.
-    const active = focusHolder();
-    if (active === null) {
-      return true;
-    }
-    const column = configColRef.current;
-    return column !== null && column.contains(active);
-  }
-
-  /**
-   * Roadmap 068: ⌘⏎ (Ctrl+Enter) runs the pipeline from anywhere on the page.
-   * Inside the editor the same chord is handled by CodeMirror instead
-   * (`run-keymap.ts`) — it has to be, or Renovate's config would gain a blank
-   * line every time someone ran it — and that handler marks the event handled,
-   * which is what keeps the two from both firing.
-   */
-  useShortcut(
-    RUN_SHORTCUT,
-    () => void runFromGesture(),
-    // Not gated on `running` any more, and that is the point of the fix above:
-    // ⌘⏎ has to mean the same thing wherever it is pressed, and inside the
-    // editor it cannot decline (declining hands the chord back to
-    // `insertBlankLine`). A second press after an edit therefore queues a run
-    // from the page exactly as it does from the editor, and the button's
-    // `disabled={running}` stays what it always was — the visible half, for the
-    // pointer. Auto-repeat is declined a layer lower, by `useShortcut`'s
-    // `KeyboardEvent.repeat` test; a deliberate second press is a second run,
-    // queued behind the first (`onRun` explains why it is no longer folded into
-    // it).
-    { enabled: keysLive },
-  );
-
-  /**
-   * Roadmap 068: the landing machinery every jump below goes through — the
-   * ticket a gesture takes, the animation-frame wait for a target that does not
-   * exist yet, and the question each landing has to answer before it moves
-   * anyone (`lib/focus-landing.ts`, where it is unit-tested).
-   */
-  const landing = useFocusLanding();
-
-  /**
-   * Roadmap 068: the app's two jump targets, defined once.
-   *
-   * The skip links and the tier-1 `e` / `r` keys both land through these, so a
-   * link and a key can never disagree about where "the editor" or "the results"
-   * is.
-   *
-   * The config target is the EDITOR, not the column: landing on the column
-   * (what the bare fragment jump did) put the reader on the pre-run welcome
-   * blurb with the editor still two tab stops away, which reads as the link
-   * having done nothing. Safe to drop someone into a text box now, because 068
-   * also stopped the editor from trapping Tab.
-   */
-  function focusEditor() {
-    configEditorRef.current?.focus();
-  }
-
-  /**
-   * The results equivalent: the tab strip is the first thing worth acting on
-   * there, and a focused tab announces which one is selected. This is the "take
-   * me to the results" gesture — it scrolls the column to the top of the
-   * window, which is the point of it. `focusTab` below is the half without the
-   * scroll, for the gestures that only meant to change tabs.
-   *
-   * `ticket` is passed in by the one caller whose gesture is older than this
-   * call: ⌘⇧⏎ arms the landing and the run commits it seconds later, so it is
-   * the press that has to be judged, not the commit. The immediate callers (the
-   * skip link, the `r` key) take their ticket here and land on the same frame,
-   * where nothing can have happened yet — they carry one only for the first
-   * run, when the strip is still a download away.
-   */
-  function focusResults(ticket: LandingTicket = landing.arm()) {
-    // The results half is a lazy chunk (031), so on the FIRST run neither the
-    // column nor its tab strip exists yet when ⌘⇧⏎ asks for them — hence the
-    // wait, and hence the fallback: once the budget is spent, land on the bare
-    // column rather than nowhere, because a chunk that never arrives is a
-    // failed run, not a focus problem. Looks on THIS frame first, so the
-    // ordinary case (a strip that already exists) lands without a flicker.
-    landing.whenReady({
-      ticket,
-      find: () => resultsColRef.current?.querySelector<HTMLElement>(SELECTED_RESULTS_TAB) ?? null,
-      land: (selectedTab) => {
-        const column = resultsColRef.current;
-        if (!column) {
-          return;
-        }
-        column.scrollIntoView(motionScrollOptions("start"));
-        (selectedTab ?? column).focus({ preventScroll: true });
-      },
-      frames: 12,
-      thisFrame: true,
-    });
-  }
-
-  /**
-   * Roadmap 068: focus one NAMED tab, without moving the page. The digit jump
-   * and the apply-fix landing both switch tabs and want focus to follow the
-   * switch — but neither asked to be taken anywhere: on a side-by-side viewport
-   * both columns are already fully visible, and `focusResults`' scroll would
-   * push the config the user is reading off the top of the screen for a
-   * keystroke that only meant "show me tab 3". The strip is scrolled only when
-   * it is genuinely off screen, since focus landing somewhere invisible is the
-   * one thing worse than a scroll nobody asked for.
-   *
-   * The button is found by `data-tab`, not by `aria-selected`, so this does not
-   * depend on the selection having committed — but it still starts on the next
-   * frame, because a tab that announces itself before the commit announces the
-   * selection it is about to lose. Same lazy-chunk retry budget as
-   * `focusResults`, and the same reason to give up rather than spin.
-   *
-   * And it stands down if the user has moved on in the meantime (the ticket —
-   * see `landingWanted`): `applyErrorFix` calls this after an AWAITED re-run, so
-   * the poll can start a second after the click, by which time a keyboard user
-   * has routinely Tabbed on or clicked into the editor. A landing that arrives
-   * late has no business overruling that. A newer landing is the exception it
-   * DOES yield to rather than fight: two digit keys inside one frame are one
-   * gesture chain, and the strip must end up selecting the tab that focus is on.
-   *
-   * Which is why the ticket is a PARAMETER (eighth review). Arming it in here
-   * made the gesture "whatever was going on when the poll started", and for the
-   * caller that waits a whole run that is the wrong moment by seconds: click
-   * Apply fix, click into the editor while it resolves, and the ticket's `from`
-   * was the editor the user had just moved to, so `landingWanted` saw nobody
-   * move and yanked focus out onto the Problems tab. Callers that land
-   * immediately keep the default and are unaffected; the one that waits arms
-   * before its `await`, the way ⌘⇧⏎ always did.
-   *
-   * It does NOT ask whether the jump displaced the focus it is taking, the way
-   * `landOnPresetNode` does: both callers are a request to be taken somewhere
-   * (a digit key names a tab; applying a fix asks "did the error go away?"),
-   * not a request to be shown something.
-   */
-  function focusTab(id: ResultsTabId, ticket: LandingTicket = landing.arm()) {
-    landing.whenReady({
-      ticket,
-      find: () => resultsColRef.current?.querySelector<HTMLElement>(tabButtonSelector(id)) ?? null,
-      land: (button) => {
-        if (!button) {
-          // The strip never appeared inside the budget. Rare but reachable: the
-          // results half is a lazy chunk (031), the digit keys go live the
-          // moment a result exists, and on a first run that chunk can still be
-          // downloading. Land on the column (`tabIndex={-1}`), the same fallback
-          // and the same reason as `focusResults`: every caller here has just
-          // switched tabs, and for the two whose activator lived in the panel
-          // that switch marked `hidden` (applying a fix, a preset cross-link)
-          // "no landing" means focus dropped on `<body>`, with the user's next
-          // Tab restarting at the top of the document. No scroll: this landing
-          // moves the page only when its target is off screen, and it has no
-          // target.
-          resultsColRef.current?.focus({ preventScroll: true });
-          return;
-        }
-        button.focus({ preventScroll: true });
-        const box = button.getBoundingClientRect();
-        if (box.top < 0 || box.bottom > window.innerHeight) {
-          button.scrollIntoView(motionScrollOptions("nearest"));
-        }
-      },
-      frames: 12,
-      thisFrame: false,
-    });
-  }
-
-  /**
-   * Roadmap 068: the preset tree's half of "every cross-link focuses its
-   * target" (`selectPresetNode` above is the caller). It waits longer than the
-   * other landings because the row takes three commits to exist: the tab
-   * switch, the ancestor expansion the new selection triggers, and the
-   * windowed list (011) scrolling the row into its rendered slice. Until all
-   * three have happened there is no element to focus at all — which is also
-   * why this asks the DOM for "the selected row" rather than being handed one.
-   *
-   * The row's name IS a button, so nothing needs `tabIndex={-1}` here. When the
-   * node never appears — a filter is applied, the flat list has no matching row
-   * — the budget runs out and a landing that is taking focus (see below) falls
-   * back to the Presets TAB. It
-   * cannot fall back to "where the user left it": the chip they activated was
-   * inside a panel `jumpToTab("presets")` marked `hidden` in the same commit, so
-   * that place stopped existing half a second ago and the focus with it. The tab
-   * is where `applyErrorFix` lands for the same reason — a real control, naming
-   * where you are, at the top of the panel's tab order.
-   *
-   * The 068 review split the landing in two, because its three activators do
-   * not all displace the focus they would be taking (`jumpDisplacedFocus`): the
-   * SHOWING half — scroll and flash — is what every activator asked for, while
-   * the FOCUS half is only for the ones whose own home the tab switch just hid.
-   * Spelled out rather than `landOnTarget`, which bundles all three together.
-   */
-  function landOnPresetNode() {
-    // Thirty frames is long enough for the user to have moved on; if they have,
-    // `whenReady` never calls this back — and not even the scroll is welcome
-    // then (068 review: a page that scrolls and flashes half a second after a
-    // click on some unrelated prose).
-    const ticket = landing.arm();
-    landing.whenReady({
-      ticket,
-      find: () => resultsColRef.current?.querySelector<HTMLElement>(SELECTED_PRESET_ROW) ?? null,
-      land: (row) => {
-        const takeFocus = landing.displaced(ticket);
-        if (!row) {
-          if (takeFocus) {
-            // The SAME ticket: this is still the one gesture the user made, and
-            // arming a second one here would only make this landing outrank
-            // itself (`armSeq`).
-            focusTab("presets", ticket);
-          }
-          return;
-        }
-        // "nearest", not "center": the tree already scrolled its own box to the
-        // row, so this is only about the card being on the page.
-        row.scrollIntoView(motionScrollOptions("nearest"));
-        flashTarget(row);
-        if (takeFocus) {
-          row.focus({ preventScroll: true });
-        }
-      },
-      frames: 30,
-      thisFrame: false,
-    });
-  }
-
-  function skipToConfig(event: MouseEvent<HTMLAnchorElement>) {
-    event.preventDefault();
-    focusEditor();
-  }
-
-  function skipToResults(event: MouseEvent<HTMLAnchorElement>) {
-    event.preventDefault();
-    focusResults();
-  }
-
-  /**
-   * Roadmap 068 tier 1. Bare `e` / `r` because the modified space is a
-   * minefield (⌘⇧E is Firefox's network panel, ⌘⇧C/I/J are devtools) while
-   * single letters are free — and `useShortcut` refuses to fire a bare key
-   * while the user is typing, which includes a focused `<select>`.
-   *
-   * Everything here is inert while the shortcut sheet is open, `keysLive`
-   * being declared above the first binding so it cannot be forgotten.
-   */
-  useShortcut(FOCUS_EDITOR_SHORTCUT, focusEditor, { enabled: keysLive });
-  useShortcut(FOCUS_RESULTS_SHORTCUT, () => focusResults(), {
-    enabled: keysLive && Boolean(result),
-  });
-  useShortcut(HELP_SHORTCUT, showShortcuts, { enabled: keysLive });
-
-  /**
-   * Roadmap 068: `⌘⇧⏎`'s landing, deferred to the commit the run itself
-   * produces. Focusing in the microtask right after `await onRun(…)` looked
-   * right and was not: React has not committed that run's own `setTab` yet, so
-   * on every re-run the "selected" tab the DOM still shows is the one from
-   * BEFORE the run — focus ended up on a button that a moment later was no
-   * longer `aria-selected` (a screen reader announcing a panel that is now
-   * hidden, and the strip's arrows moving from somewhere else entirely).
-   * `focusResults`' retry budget is no help there: it is spent only when there
-   * is no selected tab at all, and there always is one.
-   *
-   * ONE ticket, and it is the NEWEST press's — not a flag, and no longer a queue
-   * consumed one per commit.
-   *
-   * A flag was the first shape, and a review found what breaks it: press ⌘⇧⏎ on
-   * a config whose run will fail, fix it, press again while the first is still
-   * resolving, and the failed run cleared the flag its successor was relying on,
-   * so the second press silently degraded to a plain run. What that needed was
-   * IDENTITY — a run that never commits may withdraw its own request and no
-   * other — and the queue supplied it by carrying one ticket per press.
-   *
-   * The queue's other half — pairing the OLDEST ticket with the next commit —
-   * is gone, and the shape it left behind is the right one on its own terms.
-   * Position was never load-bearing: `landingWanted` rejects any ticket that is
-   * not the newest landing armed (`armSeq`), so an older one in the queue could
-   * only ever be consumed and thrown away, and pairing by position merely
-   * decided WHICH commit threw it away. Keeping only the newest says that
-   * outright; the identity check that mattered survives as `=== ticket` below.
-   */
-  const pendingResultLanding = useRef<LandingTicket | null>(null);
-  // The 032 latest-ref idiom, for the reason the dependency list below spells
-  // out: `focusResults` is redeclared every render, and an effect that depended
-  // on it would consume a pending landing on every render instead of on the
-  // commit the run produced.
-  const focusResultsFnRef = useRef(focusResults);
-  focusResultsFnRef.current = focusResults;
-  useEffect(() => {
-    const ticket = pendingResultLanding.current;
-    if (ticket) {
-      pendingResultLanding.current = null;
-      focusResultsFnRef.current(ticket);
-    }
-    // `result` alone IS the run's commit: `executeRun` dispatches `setResult`
-    // and the `setTab` beside it from the same continuation, so React commits
-    // them together and there is no state in between to wait for. `tab` was in
-    // this list too, which made ANY tab change consume the request — press
-    // ⌘⇧⏎, then a digit key or a tab while the engine was still resolving, and
-    // the landing fired against the run BEFORE it and was already spent by the
-    // time the one it belonged to committed.
-  }, [result]);
-
-  /**
-   * `⌘⇧⏎` — run AND go read it. Plain ⌘⏎ deliberately leaves focus alone, so
-   * this is the explicit "take me there" variant; the focus move waits for the
-   * run to actually produce a result.
-   *
-   * Where the line is (068 review), since this chord is the one gesture that
-   * asks to be taken somewhere it cannot go for seconds: **waiting is not
-   * moving on, typing is.** A user who pressed it and watched the spinner still
-   * wants the results when they arrive, caret in the editor and all — that IS
-   * what they asked for, and standing down would make the chord's whole
-   * difference from ⌘⏎ evaporate on a cold network. A user who has typed a
-   * character since has plainly gone back to editing, and the results now
-   * describe the text as it was before that character. So the ticket taken here
-   * is judged by `landingWanted`, whose typing test reads `input` events rather
-   * than focus — the caret never moved, which is exactly why nothing else can
-   * see it.
-   */
-  useShortcut(
-    RUN_AND_READ_SHORTCUT,
-    () => {
-      // Armed for the next result to COMMIT, which — if a run was already in
-      // flight when this was pressed — is that run's rather than this one's.
-      // Deliberate: both commits land in the same place, this chord's own run
-      // arrives there a moment later, and the alternative is the swallowed
-      // keypress `onRun` was just cured of.
-      const ticket = landing.arm();
-      pendingResultLanding.current = ticket;
-      void (async () => {
-        const traceResult = await runFromGesture();
-        if (!traceResult && pendingResultLanding.current === ticket) {
-          // This run will never commit, so its request has to go — otherwise it
-          // fires on whatever run comes next. Only if the outstanding request is
-          // still THIS press's: `onRun` refuses a run whose layers would not
-          // parse (`blockedByLayerErrors`) and returns null synchronously, ahead
-          // of everything already queued, so press ⌘⇧⏎, break the global-config
-          // JSON while it resolves, press it again, and clearing unconditionally
-          // would cancel the SECOND press's landing on the first press's
-          // failure.
-          pendingResultLanding.current = null;
-        }
-      })();
-    },
-    // Ungated for the same reason as ⌘⏎ above: a chord that silently declines
-    // is the defect, not the fix.
-    { enabled: keysLive },
-  );
-
-  /** `1`–`5` — straight to that results tab, by position in the strip. */
-  useTabDigits(
-    resultsTabs.length,
-    (index) => {
-      const target = resultsTabs[index];
-      if (!target) {
-        return;
-      }
-      setTab(target.id);
-      focusTab(target.id);
-    },
-    { enabled: keysLive && Boolean(result) },
-  );
 
   /**
    * Roadmap 068: a finished run does NOT move focus — the user may still be
@@ -2044,10 +1633,10 @@ export function App() {
     await buildShareLinkAndCopy();
   }, [buildShareLinkAndCopy]);
 
-  // Hoisted so its literal JSX call — props unchanged — stays textually in
-  // this file (AdvancedZone.tsx is owned by a concurrent pass) while still
-  // being handed to ConfigColumn as an already-built element, which keeps
-  // ConfigColumn's own JSX shallow.
+  // Built here and handed to ConfigColumn as an already-constructed element:
+  // every prop below is App's own state, so the alternative is threading a
+  // dozen of them through a column whose only decision is WHERE the zone
+  // sits — and it keeps ConfigColumn's own JSX shallow (jsx-max-depth 3).
   const advancedZone = (
     <AdvancedZone
       open={advancedOpen}
@@ -2066,7 +1655,7 @@ export function App() {
       onUseGlobalValues={() => setPlatformOverride(false)}
       usesLocal={usesLocal}
       platform={platform}
-      oauthConfigured={Boolean(oauthConfig)}
+      oauthConfigured={Boolean(OAUTH_CONFIG)}
       signedIn={signedIn}
       authUser={authUser}
       onSignIn={onSignIn}
@@ -2120,10 +1709,9 @@ export function App() {
           onShowRewrites={onShowRewrites}
           onShare={result ? onCopyLink : undefined}
           renovateVersion={result?.renovateVersion}
-          oauthConfigured={Boolean(oauthConfig)}
+          oauthConfigured={Boolean(OAUTH_CONFIG)}
           signedIn={signedIn}
           authUser={authUser}
-          installUrl={INSTALL_URL}
           onSignIn={onSignIn}
           onSignOut={onSignOut}
           onShowShortcuts={showShortcuts}
@@ -2193,7 +1781,6 @@ export function App() {
             fatal={fatal}
             repoAuthHint={repoAuthHint}
             authState={authState}
-            installUrl={INSTALL_URL}
             notice={notice}
             onDismissNotice={() => setNotice(null)}
           />
@@ -2239,7 +1826,6 @@ export function App() {
               onSelectNode={setSelectedNodeId}
               authState={authState}
               onSignIn={onSignIn}
-              installUrl={INSTALL_URL}
               onRunAgain={onRunAgain}
               onEffectiveStats={setEffectiveStats}
               effectiveKeys={effectiveStats?.keys ?? null}

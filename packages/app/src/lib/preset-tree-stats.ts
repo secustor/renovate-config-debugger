@@ -20,6 +20,12 @@ export const ROOT_NODE_ID: typeof EngineModule.ROOT_NODE_ID = "root";
  * digest. Pure computation, so it lives outside `PresetTree.tsx`: a component
  * module that also exports plain functions breaks Fast Refresh
  * (react/only-export-components), and App.tsx reads three of these directly.
+ *
+ * It sits in `lib/` rather than `components/` because nothing here is React or
+ * DOM. `run-facts`, `tree-descriptions`, `description-attribution` and the
+ * headless entry point (`headless.ts`, which promises the CLI "no React, no
+ * DOM") all read it, and a shared derivation should not make its `lib/`
+ * consumers reach up into the component layer.
  */
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {

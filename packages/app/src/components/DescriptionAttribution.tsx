@@ -1,4 +1,4 @@
-import { useHoverCardClose } from "@/hooks/hover-card";
+import { useHoverCardClose } from "./hover-card-hooks";
 import {
   cardPathText,
   cardPositionText,

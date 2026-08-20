@@ -54,7 +54,7 @@ it("reports stats only once provenance has resolved, never a loading-time zero",
 /**
  * Roadmap 069 (PR 3): the `description` row stops being an anonymous string
  * array. The grouping and the wording have their own unit tests
- * (lib/description-ledger.test.ts); this covers what those cannot — that the
+ * (description-ledger.test.ts); this covers what those cannot — that the
  * engine's per-string attribution reaches the DOM through the row's own
  * expansion, that a re-extended preset's repeated sentence is called out
  * instead of silently listed twice, and that a source chip really selects its
@@ -221,7 +221,7 @@ it("clears the other filters when the digest card lands on the description row",
 
 /**
  * Roadmap 075 (iteration 5): the rows are cut by WHO DECIDED each key's final
- * value. The rule itself is unit tested (lib/decider-groups.test.ts) against
+ * value. The rule itself is unit tested (decider-groups.test.ts) against
  * hand-built chains; what this covers is the wiring against a REAL run — that
  * a key the repo config wrote, a key a preset wrote and a key only Renovate's
  * defaults set each land in their own section, that the defaults section is

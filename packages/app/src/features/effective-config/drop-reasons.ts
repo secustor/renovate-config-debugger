@@ -7,17 +7,17 @@ import type {
  * Roadmap 069: one wording table for the three rules that delete a description
  * before it can merge (069 PR 1's `dropped`).
  *
- * Two surfaces answer "where did my preset's description go" and they must
- * answer it identically: the Effective config's blame ledger footer (PR 3),
- * which lists every drop with its reason, and the preset tree's per-node note
- * (PR 4), which says it on the node whose sentence went missing. A wording that
- * drifts in one copy is a wording that lies in the other — the same argument
- * `description-approx.ts` makes for the `≈`.
+ * One surface answers "where did my preset's description go" today: the
+ * Effective config's blame ledger footer (PR 3), which lists every drop with
+ * its reason. The wording lives here rather than in that component because it
+ * is a fact about Renovate, not about the footer — the same argument
+ * `description-approx.ts` makes for the `≈`, and the reason a second surface
+ * that grows this question inherits the wording instead of restating it.
  *
- * The table is split into a LABEL and a WHY rather than one sentence, because
- * the two surfaces need different amounts of it: a node marker has room for
- * "muted by `group:recommended`" and nothing more, while the ledger's footer
- * cell can carry the whole rule. {@link dropReasonText} is the two joined.
+ * The table is split into a LABEL and a WHY rather than one sentence: the label
+ * is the compact half ("muted by `group:recommended`", all a node marker would
+ * have room for), the why is the whole rule, and {@link dropReasonText} is the
+ * two joined — which is what the ledger renders.
  *
  * Pure and DOM-free (`lib/`), and exhaustive by construction: a new
  * `DroppedDescriptionReason` in the engine fails to typecheck here rather than
@@ -55,12 +55,6 @@ export const DROP_REASONS: Record<DroppedDescriptionReason, DropReasonWording> =
     why: "its empty `ignoreDeps` deletes every description it extends",
   },
 };
-
-/** The compact form: the rule alone, naming the muting config where there is
- *  one. For a marker beside the node whose description went missing. */
-export function dropReasonLabel(drop: DroppedDescription): string {
-  return DROP_REASONS[drop.reason].label(drop);
-}
 
 /**
  * The full form: the rule and what it did.

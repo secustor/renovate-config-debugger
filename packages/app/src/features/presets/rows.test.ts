@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { PresetNode } from "@renovate-config-debugger/engine";
-import { computeTreeStats } from "@/components/preset-tree-stats";
+import { computeTreeStats } from "@/lib/preset-tree-stats";
 import { flattenTree, type Row } from "./rows";
 
 /**

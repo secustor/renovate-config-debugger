@@ -1,9 +1,10 @@
+import { nf } from "./format";
 import type {
   DescriptionProvenance,
   PresetNode,
   ProvenanceLayer,
 } from "@renovate-config-debugger/engine";
-import { computeTreeStats, ROOT_NODE_ID } from "@/components/preset-tree-stats";
+import { computeTreeStats, ROOT_NODE_ID } from "./preset-tree-stats";
 
 /**
  * Roadmap 069 (PR 5): attribution at the point of contact — the model behind
@@ -38,8 +39,6 @@ import { computeTreeStats, ROOT_NODE_ID } from "@/components/preset-tree-stats";
  *
  * Pure and DOM-free, so every wording is unit-testable.
  */
-
-const nf = new Intl.NumberFormat();
 
 /**
  * How many path segments a card prints before the middle is elided. The real

@@ -1,5 +1,5 @@
 import type { TraceEvent, TraceResult } from "@renovate-config-debugger/engine";
-import { presetTreeSummary, type TreeSummary } from "@/components/preset-tree-stats";
+import { presetTreeSummary, type TreeSummary } from "./preset-tree-stats";
 import type { DigestInput, DigestProblem } from "./run-digest";
 import type { EffectiveTally } from "./effective-tally";
 

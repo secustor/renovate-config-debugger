@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import type * as EngineModule from "@renovate-config-debugger/engine";
 import type { RuleAttribution, TraceResult } from "@renovate-config-debugger/engine";
+import { useEngineDerivation } from "./use-engine-derivation";
 
 /**
  * Roadmap 032: `computeRuleProvenance` replays the layer merge over every
@@ -12,12 +13,13 @@ import type { RuleAttribution, TraceResult } from "@renovate-config-debugger/eng
  */
 const ruleProvenanceCache = new WeakMap<TraceResult, Promise<RuleAttribution[] | null>>();
 
-function ruleProvenanceFor(result: TraceResult): Promise<RuleAttribution[] | null> {
+function ruleProvenanceFor(
+  engine: typeof EngineModule,
+  result: TraceResult,
+): Promise<RuleAttribution[] | null> {
   let promise = ruleProvenanceCache.get(result);
   if (!promise) {
-    promise = import("@renovate-config-debugger/engine").then(
-      (engine) => engine.computeRuleProvenance(result) ?? null,
-    );
+    promise = Promise.resolve().then(() => engine.computeRuleProvenance(result) ?? null);
     ruleProvenanceCache.set(result, promise);
   }
   return promise;
@@ -34,23 +36,8 @@ function ruleProvenanceFor(result: TraceResult): Promise<RuleAttribution[] | nul
 export function useRuleProvenance(
   result: TraceResult | null | undefined,
 ): RuleAttribution[] | null | undefined {
-  const [state, setState] = useState<RuleAttribution[] | null | undefined>(undefined);
-  useEffect(() => {
-    if (!result) {
-      setState(undefined);
-      return;
-    }
-    let live = true;
-    setState(undefined);
-    void (async () => {
-      const attribution = await ruleProvenanceFor(result);
-      if (live) {
-        setState(attribution);
-      }
-    })();
-    return () => {
-      live = false;
-    };
-  }, [result]);
-  return state;
+  return useEngineDerivation(
+    [result],
+    result ? (engine) => ruleProvenanceFor(engine, result) : null,
+  );
 }

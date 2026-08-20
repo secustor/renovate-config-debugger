@@ -52,3 +52,31 @@ Full suite per commit: typecheck, lint (the existing overrides cover the
 new folders with no config change), format, 219 app unit tests, build,
 59/59 e2e — zero test edits beyond mechanical import paths (including
 two `vi.mock` module paths in `keystroke-render.test.tsx`).
+
+## Addendum — 2026-08-20: `features/effective-config/` now exists
+
+The rejection above was premised on `EffectiveConfig` being a one-file
+folder whose supporting cast had to stay shared. That premise expired:
+roadmaps 069 and 075 grew the view four members nothing else consumes —
+`BlameLedger.tsx`, `description-ledger.ts`, `decider-groups.ts`,
+`drop-reasons.ts`. Five files with a single set of consumers is content,
+not structure, so the folder is now real.
+
+The one shared → future-feature edge the boundary forbade was
+`hooks/use-run-summary.ts` (and `App.tsx`) importing `EffectiveStats`
+from `EffectiveConfig.tsx` — an alias that was literally
+`= EffectiveTally`, re-exported from `lib/effective-tally.ts` since 058.
+Deleting the alias and pointing both at `@/lib/effective-tally` removed
+the edge, and the move needed no lint config change.
+
+The genuinely shared derivations stay in shared: `effective-tally.ts`,
+`description-attribution.ts`, `rule-selectors.ts`, `value-preview.ts`,
+`components/rule-framing.tsx` — each has consumers outside the view, and
+the first three are on the headless (CLI) path.
+
+Two other corrections in the section above also expired the same day:
+`preset-tree-stats.ts` moved to `lib/` (it is pure, and three `lib/`
+modules plus `headless.ts` were reaching up into `components/` for it),
+and `ErrorTranslationView` moved to `features/simulator/` — 075 gave the
+Problems tab its own `ProblemCard`, leaving the simulator its only
+consumer.

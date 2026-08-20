@@ -21,13 +21,13 @@ import {
   unattributedNoteText,
   unattributedValueText,
   viaNoteText,
-} from "@/lib/description-ledger";
-import { dropReasonText } from "@/lib/drop-reasons";
-import { CodeText } from "./CodeText";
-import { ApproximateMark, DegradedCaveat } from "./DescriptionApprox";
-import { ROOT_NODE_ID } from "./preset-tree-stats";
-import { layerLabel } from "./provenance-layer";
-import { ProvenanceChip } from "./ProvenanceChip";
+} from "./description-ledger";
+import { dropReasonText } from "./drop-reasons";
+import { CodeText } from "@/components/CodeText";
+import { ApproximateMark, DegradedCaveat } from "@/components/DescriptionApprox";
+import { ROOT_NODE_ID } from "@/lib/preset-tree-stats";
+import { layerLabel } from "@/components/provenance-layer";
+import { ProvenanceChip } from "@/components/ProvenanceChip";
 
 /**
  * Roadmap 069 (PR 3): the `description` row of the Effective config, expanded —

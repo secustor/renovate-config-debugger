@@ -18,10 +18,8 @@ import {
 import {
   configObjectSchema,
   endpointSchema,
-  oauthCallbackParamsSchema,
   pendingSignInSchema,
   platformSchema,
-  repoRefPartSchema,
   resultsTabIdSchema,
   sanitizeShareSim,
   sanitizeShareView,
@@ -267,11 +265,6 @@ describe("repo-load ref parts", () => {
     expect(isValidRepoRefPart("owner/repo\\evil")).toBe(false);
     expect(isValidRepoRefPart("//evil.example/x")).toBe(false);
   });
-  test("repoRefPartSchema mirrors the predicate", () => {
-    expect(repoRefPartSchema.safeParse("owner/repo").success).toBe(true);
-    expect(repoRefPartSchema.safeParse("owner/repo?x=1").success).toBe(false);
-  });
-
   test("isValidRepoHost keeps dotted hosts and an explicit port", () => {
     expect(isValidRepoHost("github.com")).toBe(true);
     expect(isValidRepoHost("gitea.example.com:3000")).toBe(true);
@@ -603,23 +596,9 @@ describe("stored user (OAuth)", () => {
 });
 
 describe("OAuth callback params", () => {
-  test("accepts ordinary code/state", () => {
-    expect(oauthCallbackParamsSchema.safeParse({ code: "abc123", state: "xyz789" }).success).toBe(
-      true,
-    );
-  });
-  test("rejects control characters", () => {
-    expect(oauthCallbackParamsSchema.safeParse({ code: "abc\r\ndef", state: "xyz" }).success).toBe(
-      false,
-    );
-  });
-  test("rejects empty values", () => {
-    expect(oauthCallbackParamsSchema.safeParse({ code: "", state: "xyz" }).success).toBe(false);
-  });
-
-  // Roadmap 031: `readCallbackParams` (sync, boot path) now applies the rule
-  // through this predicate; the schema above is its zod view. Same cases.
-  test("isValidOAuthParam mirrors the schema", () => {
+  // Roadmap 031: `readCallbackParams` (sync, boot path) applies the rule
+  // through this predicate — it is the only reader of it.
+  test("isValidOAuthParam bounds the param and bars control characters", () => {
     expect(isValidOAuthParam("abc123")).toBe(true);
     expect(isValidOAuthParam("abc\r\ndef")).toBe(false);
     expect(isValidOAuthParam("")).toBe(false);

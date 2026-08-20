@@ -532,7 +532,7 @@ describe("collapsing", () => {
 });
 
 describe("the dropped footer", () => {
-  // The wording of each drop rule lives in `lib/drop-reasons.ts` (shared with
+  // The wording of each drop rule lives in `drop-reasons.ts` (shared with
   // the preset tree's own note) and is tested there; this is the ledger's own
   // summary line.
   test("summarises the count", () => {

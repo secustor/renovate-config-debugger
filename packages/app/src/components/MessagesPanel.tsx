@@ -1,3 +1,4 @@
+import { plural } from "@/lib/format";
 import type {
   ErrorFixResult,
   RuleAttribution,
@@ -7,12 +8,6 @@ import { memo, useMemo } from "react";
 import type { ErrorTranslationLib } from "@/platform/run";
 import { validatedConfigOf } from "@/lib/run-facts";
 import { PresetProblemCard, ProblemCard } from "./ProblemCard";
-
-const nf = new Intl.NumberFormat();
-
-function plural(n: number, word: string): string {
-  return `${nf.format(n)} ${word}${n === 1 ? "" : "s"}`;
-}
 
 /**
  * Roadmap 075 (iteration 5): the tab's summary strip — the whole Problems

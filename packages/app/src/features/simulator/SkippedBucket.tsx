@@ -1,7 +1,6 @@
+import { nf } from "@/lib/format";
 import { useState } from "react";
 import type { PinBucket } from "./pin-outcome";
-
-const nf = new Intl.NumberFormat();
 
 /**
  * Roadmap 075 (iteration 6): one count-bucket of rules a pin card does not list

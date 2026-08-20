@@ -47,7 +47,6 @@ function tree(
       onSelectNode={opts.onSelectNode ?? (() => undefined)}
       authState="unconfigured"
       onSignIn={() => undefined}
-      installUrl="https://example.invalid"
       onShowDescriptionOrder={opts.onShowDescriptionOrder}
     />
   );

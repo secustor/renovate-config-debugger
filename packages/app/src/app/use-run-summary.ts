@@ -18,7 +18,7 @@
  */
 import { useMemo } from "react";
 import type { TraceEvent, TraceResult } from "@renovate-config-debugger/engine";
-import type { EffectiveStats } from "@/components/EffectiveConfig";
+import type { EffectiveTally } from "@/lib/effective-tally";
 import type { ResultsTabDescriptor } from "@/components/ResultsPanel";
 import { RESULTS_TAB_IDS, type ResultsTabId } from "@/data/results-tabs";
 import { deriveRunFacts } from "@/lib/run-facts";
@@ -40,7 +40,7 @@ export interface RunSummary {
 
 export function useRunSummary(
   result: TraceResult | null,
-  effectiveStats: EffectiveStats | null,
+  effectiveStats: EffectiveTally | null,
   /** Roadmap 075 (iteration 6): how many dependency tests are pinned — the
    *  Tests tab's badge. Owned by App (a share link carries the pins), passed in
    *  for the same reason `effectiveStats` is: this hook counts, it does not

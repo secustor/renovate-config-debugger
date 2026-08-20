@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { HoverCardCloseProvider, useHoverCard } from "@/hooks/hover-card";
-import { useMoveGatedHover } from "@/hooks/hover-gate";
+import { HoverCardCloseProvider, useHoverCard } from "./hover-card-hooks";
+import { useMoveGatedHover } from "./hover-gate";
 import { anchoredCardStyle } from "@/lib/anchored-card";
 
 /**
@@ -77,7 +77,7 @@ export function HoverCardAnchor({
       })}
       {anchor
         ? createPortal(
-            // The card's body gets its own dismissal (`hooks/hover-card.ts`):
+            // The card's body gets its own dismissal (`hover-card-hooks.ts`):
             // an action inside the card that moves the page — the attribution
             // card's tree jump — must close the card it was clicked in, and a
             // pointer-opened card has no blur to do that for it.

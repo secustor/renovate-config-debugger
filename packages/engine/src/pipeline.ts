@@ -18,6 +18,7 @@ import {
   resetInjectedPresets,
   setInjectedPresets,
 } from "./shims/presets/injection";
+import { countNoun } from "./text";
 import { setCurrentCollector, TraceCollector } from "./trace/collector";
 import { computeDelta, snapshot } from "./trace/delta";
 import type {
@@ -129,15 +130,6 @@ async function withRunAuth<T>(input: PipelineInput, task: () => Promise<T>): Pro
   } finally {
     setPresetAuth(previous);
   }
-}
-
-/**
- * "1 preset" / "2 presets" for the stage titles. The app's `plural()` helper
- * lives in the app package and the engine must not depend on it, so the two
- * regular nouns this file needs are pluralized here.
- */
-function countNoun(n: number, noun: string): string {
-  return `${n} ${noun}${n === 1 ? "" : "s"}`;
 }
 
 function execute(input: PipelineInput): Promise<TraceResult> {

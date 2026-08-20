@@ -1102,12 +1102,6 @@ pre.config-view {
   padding: 0.5rem 0.75rem;
 }
 
-.preset-children {
-  border-left: 1px solid var(--border);
-  margin-left: 0.55rem;
-  padding-left: 0.75rem;
-}
-
 .preset-row {
   align-items: center;
   display: flex;
@@ -2248,12 +2242,12 @@ textarea.layer-editor:focus {
 
 /* ---------- decided-by sections (075, iteration 5) ----------
    The key list is cut into one section per layer that DECIDED a key's final
-   value (see `lib/decider-groups.ts`). A section is a card in its group's own
-   tone: the hue says which layer without the reader having to read the pill,
-   and the tint is deliberately faint (6%) because the rows inside already
-   carry the same hue on their origin chips — the section must frame them, not
-   compete with them. Each group's edge/tint pair is set once, below; the
-   shared shape reads them through `--prov-section-*`. */
+   value (see `features/effective-config/decider-groups.ts`). A section is a
+   card in its group's own tone: the hue says which layer without the reader
+   having to read the pill, and the tint is deliberately faint (6%) because the
+   rows inside already carry the same hue on their origin chips — the section
+   must frame them, not compete with them. Each group's edge/tint pair is set
+   once, below; the shared shape reads them through `--prov-section-*`. */
 .prov-section {
   border: 1px solid var(--prov-section-edge, var(--border));
   border-radius: 8px;
@@ -3422,7 +3416,7 @@ pre.config-view.prov-before {
 
 /* The losing writer's reference IS the link — same mono reference text the
    thread uses elsewhere, marked as actionable rather than restated.
-   Deliberately the app's ACTIONABLE-text grammar (`.linklike`,
+   Deliberately the app's ACTIONABLE-text grammar (`.btn-quiet`,
    `.preset-hover-jump`: accent, solid underline at rest, brightened on hover)
    and not `.term`'s: a dotted accent underline at rest is exactly what a
    glossary term looks like while HOVERED, so this one read as "there is a

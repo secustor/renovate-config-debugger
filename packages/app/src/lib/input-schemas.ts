@@ -124,14 +124,6 @@ export function isValidShareConfigLayer(v: unknown): v is Record<string, unknown
   return isValidConfigObject(v) && hasValidPlatformContext(v);
 }
 
-/** Validates a config layer (already `JSON.parse`d) and returns it typed, or
- *  null when it is not a plain object or is polluted. Convenience wrapper
- *  around {@link isValidConfigObject} for call sites that want a value, not
- *  a boolean. */
-export function parseConfigObject(raw: unknown): Record<string, unknown> | null {
-  return isValidConfigObject(raw) ? raw : null;
-}
-
 // ---------------------------------------------------------------------------
 // URLs (the "dangerous URL" rule) and tokens (the "header injection" rule)
 // ---------------------------------------------------------------------------

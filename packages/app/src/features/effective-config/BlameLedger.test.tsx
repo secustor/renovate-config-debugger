@@ -1,14 +1,14 @@
 import type { DescriptionProvenance, ProvenanceLayer } from "@renovate-config-debugger/engine";
 import { cleanup, fireEvent, render, within } from "@testing-library/react";
 import { afterEach, expect, test } from "vitest";
-import { buildDescriptionLedger, type DescriptionLedger } from "@/lib/description-ledger";
+import { buildDescriptionLedger, type DescriptionLedger } from "./description-ledger";
 import { BlameLedger } from "./BlameLedger";
 
 /**
  * Roadmap 069 (PR 3): the ledger's honesty marks, over hand-built provenance.
  *
- * The wording is unit-tested (`lib/description-ledger.test.ts`,
- * `lib/drop-reasons.test.ts`) and the row's integration with the Effective
+ * The wording is unit-tested (`description-ledger.test.ts`,
+ * `drop-reasons.test.ts`) and the row's integration with the Effective
  * config is covered by that component's own test; what only a render can prove
  * is that the `≈` reaches the rows that need it — the ones a real run produces
  * only by degrading, which no fixture config can be relied on to do.

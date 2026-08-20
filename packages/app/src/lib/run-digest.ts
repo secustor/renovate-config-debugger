@@ -1,3 +1,4 @@
+import { nf } from "./format";
 import type { ResultsTabId } from "@/data/results-tabs";
 
 /**
@@ -23,8 +24,6 @@ import type { ResultsTabId } from "@/data/results-tabs";
  * design — the digest orients, it does not detect change. Rule-level
  * differences are visible in the simulator and in `rcd compare`.
  */
-
-const nf = new Intl.NumberFormat();
 
 /**
  * Above this many resolved presets a bare count reads as damage rather than as

@@ -42,7 +42,6 @@ export const PresetsPanel = memo(function PresetsPanel({
   onSelectNode,
   authState,
   onSignIn,
-  installUrl,
   onShowDescriptionOrder,
 }: {
   result: TraceResult;
@@ -51,7 +50,6 @@ export const PresetsPanel = memo(function PresetsPanel({
   onSelectNode: (id: string | null) => void;
   authState: AuthState;
   onSignIn: () => void;
-  installUrl: string;
   onShowDescriptionOrder?: () => void;
 }) {
   // A selection arriving from outside means "show me that node", and the node
@@ -97,7 +95,6 @@ export const PresetsPanel = memo(function PresetsPanel({
         onSelectNode={onSelectNode}
         authState={authState}
         onSignIn={onSignIn}
-        installUrl={installUrl}
         onShowDescriptionOrder={onShowDescriptionOrder}
       />
     </>

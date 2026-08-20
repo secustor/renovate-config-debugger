@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLatestRef } from "@/hooks/use-latest-ref";
 import type { SimulationResult } from "@renovate-config-debugger/engine";
 import { ESCAPE_PRIORITY } from "@/lib/escape-stack";
 import { landOnTarget } from "@/lib/motion";
@@ -55,8 +56,7 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
   // use-rule-focus's `scrollTarget`).
   const [focusKey, setFocusKey] = useState<string | null>(null);
   const pendingThreadRef = useRef<string | null>(null);
-  const returnKeyRef = useRef(returnKey);
-  returnKeyRef.current = returnKey;
+  const returnKeyRef = useLatestRef(returnKey);
 
   // A new run is new evidence: its threads start collapsed, and whatever jump
   // the previous run's threads sent the reader on is over. A link's requested
@@ -231,7 +231,9 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
     }
     setOpenThreads((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
     setFocusKey(key);
-  }, []);
+    // A stable ref object — listed only because `exhaustive-deps` cannot see
+    // the `useRef()` behind `useLatestRef`. The identity stays stable.
+  }, [returnKeyRef]);
 
   return {
     openThreads,

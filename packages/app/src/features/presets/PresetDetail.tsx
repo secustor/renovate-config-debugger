@@ -181,7 +181,6 @@ export function PresetDetail({
   migrationSteps,
   authState,
   onSignIn,
-  installUrl,
 }: {
   node: PresetNode;
   parent: PresetNode | undefined;
@@ -196,7 +195,6 @@ export function PresetDetail({
   migrationSteps: TraceEvent[];
   authState: AuthState;
   onSignIn: () => void;
-  installUrl: string;
 }) {
   const contribution = useContribution(node, parent);
   const stateLabel = STATE_LABELS[node.state];
@@ -242,7 +240,6 @@ export function PresetDetail({
           authState={authState}
           rateLimited={ghFailure.rateLimited}
           onSignIn={onSignIn}
-          installUrl={installUrl}
         />
       ) : null}
       {stateLabel && !node.error ? <p className="empty-note">{stateLabel}</p> : null}

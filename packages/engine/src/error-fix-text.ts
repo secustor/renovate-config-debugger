@@ -5,8 +5,9 @@
  * unrelated formatting, key order.
  *
  * This is a lightweight bracket-depth scanner in the same spirit as
- * `packages/app/src/rule-locate.ts` (013), not a full JSON5 parser: it
- * recognizes standard double-quoted JSON/JSON5 object keys and `//`/`/* *\/`
+ * `packages/app/src/lib/rule-locate.ts` (013) — and built on the same
+ * primitives, which both now take from `./text-scan` — not a full JSON5 parser:
+ * it recognizes standard double-quoted JSON/JSON5 object keys and `//`/`/* *\/`
  * comments, which covers the overwhelming convention (including generated
  * `.json5` files, which mainly use JSON5 for comments/trailing commas, not
  * unquoted or single-quoted keys). A path may end on an ARRAY INDEX — the
@@ -22,6 +23,7 @@
  */
 
 import type { ConfigPathSegment, ErrorFixResult } from "./error-translations";
+import { isIndentAt, isSpaceAt, skipComment, skipString } from "./text-scan";
 
 export interface AppliedTextFix {
   text: string;
@@ -111,54 +113,6 @@ function serializeValue(text: string, loc: EntryLocation, value: unknown): strin
   const pretty = JSON.stringify(value, null, 2);
   const indent = columnIndentAt(text, loc.valueStart);
   return indent === "" ? pretty : pretty.split("\n").join(`\n${indent}`);
-}
-
-/** Skips a double-quoted JSON string starting at `start`; returns the index just past it. */
-function skipString(text: string, start: number): number {
-  let i = start + 1;
-  const n = text.length;
-  while (i < n && text[i] !== '"') {
-    if (text[i] === "\\") {
-      i++;
-    }
-    i++;
-  }
-  return i + 1;
-}
-
-/** Skips a `//` or `/* *\/` comment (JSON5) starting at `start`; returns the index just past it, or null. */
-function skipComment(text: string, start: number): number | null {
-  if (text[start] !== "/") {
-    return null;
-  }
-  if (text[start + 1] === "/") {
-    let i = start + 2;
-    while (i < text.length && text[i] !== "\n") {
-      i++;
-    }
-    return i;
-  }
-  if (text[start + 1] === "*") {
-    let i = start + 2;
-    while (i < text.length && !(text[i] === "*" && text[i + 1] === "/")) {
-      i++;
-    }
-    return Math.min(i + 2, text.length);
-  }
-  return null;
-}
-
-/** Whitespace at `i`? Past the end counts as "no" — every caller is scanning
- *  forward and stops at the end of the text anyway. */
-function isSpaceAt(text: string, i: number): boolean {
-  const c = text[i];
-  return c !== undefined && /\s/.test(c);
-}
-
-/** Space or tab at `i`? (Line indentation, so newlines deliberately don't count.) */
-function isIndentAt(text: string, i: number): boolean {
-  const c = text[i];
-  return c === " " || c === "\t";
 }
 
 /** End of a scalar token at `i` — `,`, a closing bracket, or whitespace. */

@@ -110,8 +110,7 @@ function makeHost(onRun: ShareLinkHost["onRun"]): ShareLinkHost {
     setGlobalText: noop,
     setInheritedText: noop,
     setPlatformOverride: noop,
-    setAdvancedOpen: noop,
-    setHostSectionOpen: noop,
+    openHostCredentials: noop,
     setNotice: noop,
     setSignedIn: noop,
     setAuthUser: noop,
@@ -253,15 +252,13 @@ describe("useShareLink", () => {
       inheritedConfig: { automerge: false },
     });
     const onRun = vi.fn<ShareLinkHost["onRun"]>().mockResolvedValue(traceResult());
-    const setAdvancedOpen = vi.fn();
-    const setHostSectionOpen = vi.fn();
+    const openHostCredentials = vi.fn();
     history.replaceState(null, "", "/#config=A");
 
-    mount(onRun, { setAdvancedOpen, setHostSectionOpen });
+    mount(onRun, { openHostCredentials });
     await waitFor(() => expect(onRun).toHaveBeenCalledTimes(1));
 
-    expect(setAdvancedOpen).not.toHaveBeenCalled();
-    expect(setHostSectionOpen).not.toHaveBeenCalled();
+    expect(openHostCredentials).not.toHaveBeenCalled();
   });
 
   it("still opens the drawer and its host section when the link's endpoint is untrusted", async () => {
@@ -275,14 +272,15 @@ describe("useShareLink", () => {
       endpoint: "https://untrusted.example",
     });
     const onRun = vi.fn<ShareLinkHost["onRun"]>().mockResolvedValue(traceResult());
-    const setAdvancedOpen = vi.fn();
-    const setHostSectionOpen = vi.fn();
+    const openHostCredentials = vi.fn();
     history.replaceState(null, "", "/#config=A");
 
-    mount(onRun, { setAdvancedOpen, setHostSectionOpen });
+    mount(onRun, { openHostCredentials });
     await waitFor(() => expect(onRun).toHaveBeenCalledTimes(1));
 
-    expect(setAdvancedOpen).toHaveBeenCalledWith(true);
-    expect(setHostSectionOpen).toHaveBeenCalledWith(true);
+    // The drawer and its host sub-section are one act for this hook now: it
+    // never had a reason to open one without the other, so the "called
+    // together" invariant is a single call to assert rather than two.
+    expect(openHostCredentials).toHaveBeenCalledTimes(1);
   });
 });

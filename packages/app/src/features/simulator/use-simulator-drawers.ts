@@ -32,8 +32,8 @@ export function useSimulatorDrawers({
   mergeStepIndex,
   onMergeStepChange,
 }: {
-  mergeStepIndex?: number;
-  onMergeStepChange?: (index: number) => void;
+  mergeStepIndex: number;
+  onMergeStepChange: (index: number) => void;
 }): SimulatorDrawers {
   const [moreFieldsOpen, setMoreFieldsOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
@@ -45,7 +45,7 @@ export function useSimulatorDrawers({
   // arrive with the merge drawer open — the stop it restored is inside it.
   // One-way: a re-simulation resetting the index to 0 never folds the drawer.
   useEffect(() => {
-    if ((mergeStepIndex ?? 0) > 0) {
+    if (mergeStepIndex > 0) {
       setMergeOpen(true);
     }
   }, [mergeStepIndex]);
@@ -76,7 +76,7 @@ export function useSimulatorDrawers({
    *  bring the drawer into view. */
   function jumpToStep(stopIndex: number) {
     setMergeOpen(true);
-    onMergeStepChange?.(stopIndex);
+    onMergeStepChange(stopIndex);
     setPendingScroll("merge");
   }
 

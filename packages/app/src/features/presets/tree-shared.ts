@@ -179,8 +179,6 @@ export const ROW_HEIGHT = 26;
 export const INDENT = 14;
 export const OVERSCAN = 8;
 
-export const nf = new Intl.NumberFormat();
-
 /** Roadmap 016: hover-card text for a preset's `src-<kind>` badge — internal
  *  presets reuse the summary header's wording; every fetched kind gets a
  *  kind-specific explanation of where it came from. */
@@ -203,8 +201,11 @@ export function sourceKindEntry(kind: string): GlossaryEntry {
   };
 }
 
-/** Regular English plural — every summary/badge word here happens to take a
- *  plain trailing "s", so one helper covers them all. */
-export function plural(n: number, word: string): string {
+/** The plural WORD on its own, no count — for the places that print the
+ *  number separately (a stat tile whose value is its own element, a sentence
+ *  that already formatted the figure). `plural` in `lib/format.ts` is the one
+ *  that prints both. Every summary/badge word here happens to take a plain
+ *  trailing "s", so one helper covers them all. */
+export function pluralWord(n: number, word: string): string {
   return n === 1 ? word : `${word}s`;
 }

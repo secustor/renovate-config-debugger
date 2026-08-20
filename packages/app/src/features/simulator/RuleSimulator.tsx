@@ -1,3 +1,4 @@
+import { nf } from "@/lib/format";
 import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import type { TraceResult } from "@renovate-config-debugger/engine";
 import { Term } from "@/components/glossary";
@@ -31,8 +32,6 @@ import { useSimulatorDrawers } from "./use-simulator-drawers";
 import { useSimulatorForm } from "./use-simulator-form";
 import { useThreadNav } from "./use-thread-nav";
 import { buildVerdictThreads } from "./verdict-threads";
-
-const nf = new Intl.NumberFormat();
 
 /**
  * Roadmap 006: the packageRules simulator. Describe a hypothetical dependency
@@ -103,8 +102,8 @@ export const RuleSimulator = memo(function RuleSimulator({
   onCopySimLink?: (sim: ShareSimulator) => Promise<void>;
   /** Roadmap 044: the merge stepper's index, owned by App so a share link can
    *  restore it (mirrors `migrationStepIndex`). Absent = uncontrolled. */
-  mergeStepIndex?: number;
-  onMergeStepChange?: (index: number) => void;
+  mergeStepIndex: number;
+  onMergeStepChange: (index: number) => void;
 }) {
   const ruleAttribution = useRuleProvenance(result);
   // Roadmap 069 (PR 5): the author's description of every described rule, from
@@ -335,7 +334,7 @@ export const RuleSimulator = memo(function RuleSimulator({
    *  demoted drawer opens where the reader last left it (the first stop on a
    *  fresh run), not at a stop they never asked for. */
   function jumpToReplay() {
-    jumpToStep(mergeStepIndex ?? 0);
+    jumpToStep(mergeStepIndex);
   }
 
   /** Every simulation the PANEL starts goes through here — run it now, or hold

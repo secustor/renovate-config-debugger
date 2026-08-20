@@ -10,7 +10,6 @@ interface Props {
   oauthConfigured: boolean;
   signedIn: boolean;
   authUser: StoredUser | null;
-  installUrl: string;
   onSignIn: () => void;
   onSignOut: () => void;
   onShowShortcuts: () => void;
@@ -33,7 +32,6 @@ export function AppHeaderTools({
   oauthConfigured,
   signedIn,
   authUser,
-  installUrl,
   onSignIn,
   onSignOut,
   onShowShortcuts,
@@ -50,7 +48,6 @@ export function AppHeaderTools({
         oauthConfigured={oauthConfigured}
         signedIn={signedIn}
         authUser={authUser}
-        installUrl={installUrl}
         onSignIn={onSignIn}
         onSignOut={onSignOut}
         onShowShortcuts={onShowShortcuts}

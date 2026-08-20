@@ -1,10 +1,11 @@
 import type { PresetNode } from "@renovate-config-debugger/engine";
+import { plural } from "@/lib/format";
 import {
   computeTreeStats,
   isRealOptionKey,
   type TreeStats,
   type TreeSummary,
-} from "@/components/preset-tree-stats";
+} from "@/lib/preset-tree-stats";
 import { summarizeRuleSelectors } from "@/lib/rule-selectors";
 import { valuePreview } from "@/lib/value-preview";
 
@@ -310,10 +311,6 @@ function countRouters(order: PresetNode[], stats: TreeStats): number {
     }
   }
   return routers;
-}
-
-function plural(n: number, word: string): string {
-  return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
 
 /**

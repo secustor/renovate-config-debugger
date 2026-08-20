@@ -9,7 +9,11 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
  * of it. Roadmap 075 (iteration 4) moved the Pipeline tab to its own rail
  * (`StageRail`), so the simulator's merge timeline — a variable-length path
  * through `packageRules`, not a fixed row of stages — is now this grammar's
- * one adapter.
+ * one adapter. With the Pipeline tab gone to `StageRail`, the simulator is the
+ * only consumer left, which is why the grammar lives inside that feature
+ * rather than in shared `components/`; the CSS it renders (`.stage-timeline` /
+ * `.stage-chip` / `.stage-sep`) stays shared in `index.css`, since the rail
+ * paints from the same 024 vocabulary.
  *
  * The dot levels keep their 024 meanings everywhere: `clean` = ran and changed
  * nothing (green circle), `changed` = changed things (amber diamond), `error`

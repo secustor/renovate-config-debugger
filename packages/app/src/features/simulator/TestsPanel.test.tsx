@@ -52,6 +52,10 @@ function Harness({
   simRequest?: SimRequest | null;
 }) {
   const [pins, setPins] = useState<PinnedTest[]>(initialPins);
+  // Every callback is required (the shell always passes all of them), so the
+  // harness supplies the whole set; the ones no assertion here reads are inert
+  // stubs rather than absent props.
+  const [mergeStepIndex, setMergeStepIndex] = useState(0);
   return (
     <TestsPanel
       result={result}
@@ -60,7 +64,16 @@ function Harness({
         setPins((prev) => [...prev, { id: `pin-${prev.length + 1}`, form }])
       }
       onRemovePin={(id: string) => setPins((prev) => prev.filter((pin) => pin.id !== id))}
+      onSelectPreset={() => undefined}
+      onJumpToEditor={() => undefined}
+      focusRuleIndex={null}
+      onRuleFocused={() => undefined}
+      errorLib={null}
       simRequest={simRequest ?? null}
+      onCopySimLink={() => Promise.resolve()}
+      onShare={() => Promise.resolve()}
+      mergeStepIndex={mergeStepIndex}
+      onMergeStepChange={setMergeStepIndex}
     />
   );
 }

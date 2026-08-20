@@ -8,7 +8,8 @@ import {
   type PresetLedgerModel,
 } from "./ledger";
 import { LedgerCard } from "./LedgerCard";
-import { collectGithubAuthFailures, nf, plural } from "./tree-shared";
+import { nf } from "@/lib/format";
+import { collectGithubAuthFailures, pluralWord } from "./tree-shared";
 
 /**
  * Roadmap 075 (iteration 5b): the Presets tab's DEFAULT view — the ledger.
@@ -46,7 +47,7 @@ function LedgerSummary({
     <div className="summary-strip">
       <span>
         <code>extends</code> resolved <strong>{nf.format(sources.length)}</strong>{" "}
-        {plural(sources.length, "source")}:
+        {pluralWord(sources.length, "source")}:
       </span>
       {sources.map((source) => (
         <button
@@ -59,8 +60,8 @@ function LedgerSummary({
         </button>
       ))}
       <span>
-        · <strong>{nf.format(presets)}</strong> {plural(presets, "preset")} ·{" "}
-        <strong>{nf.format(errors)}</strong> {plural(errors, "error")}
+        · <strong>{nf.format(presets)}</strong> {pluralWord(presets, "preset")} ·{" "}
+        <strong>{nf.format(errors)}</strong> {pluralWord(errors, "error")}
       </span>
       <button type="button" className="btn-quiet" onClick={onOpenTree}>
         open the full tree →
@@ -94,8 +95,8 @@ function LedgerHealth({
       <div className="summary-strip ledger-health">
         <span>
           ✓ Nothing failed, nothing redundant — <strong>0</strong> errors ·{" "}
-          <strong>{nf.format(duplicates)}</strong> repeat {plural(duplicates, "occurrence")} served
-          from cache
+          <strong>{nf.format(duplicates)}</strong> repeat {pluralWord(duplicates, "occurrence")}{" "}
+          served from cache
         </span>
       </div>
     );
@@ -103,7 +104,7 @@ function LedgerHealth({
   return (
     <div className="summary-strip ledger-health failed">
       <span>
-        <strong>{nf.format(errors)}</strong> {plural(errors, "preset")} could not be resolved
+        <strong>{nf.format(errors)}</strong> {pluralWord(errors, "preset")} could not be resolved
         {auth.failures.length > 0
           ? auth.rateLimited
             ? " — the unauthenticated rate limit was reached; signing in raises it"

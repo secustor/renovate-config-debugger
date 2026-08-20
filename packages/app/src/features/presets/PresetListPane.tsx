@@ -1,5 +1,5 @@
 import type { PresetNode } from "@renovate-config-debugger/engine";
-import type { TreeStats } from "@/components/preset-tree-stats";
+import type { TreeStats } from "@/lib/preset-tree-stats";
 import { presetTableRowClass } from "@/lib/preset-row-dom";
 import type { NodeDescriptionFacts } from "@/lib/tree-descriptions";
 import type { Row, SortColumn, TableRow } from "./rows";

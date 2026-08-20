@@ -5,7 +5,7 @@ import { HoverCardAnchor, type HoverCardHandlers } from "./hover-card";
 /**
  * The hover/focus card UI for the glossary. The entries themselves live in
  * glossary-data.ts; the interaction (the one-card-at-a-time singleton, the
- * grace period, the Escape ruling) lives in `hooks/hover-card.ts`, which
+ * grace period, the Escape ruling) lives in `hover-card-hooks.ts`, which
  * roadmap 069 PR 5 hoisted out of here so the description attribution card
  * could inherit it rather than grow a second tooltip of its own.
  */

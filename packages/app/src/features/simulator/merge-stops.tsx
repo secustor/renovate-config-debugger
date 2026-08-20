@@ -9,7 +9,7 @@ import { CopyButton } from "@/components/CopyButton";
 import { Term } from "@/components/glossary";
 import { OptionKey } from "@/components/option-docs";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
-import type { SequenceDotLevel } from "@/components/SequenceTimeline";
+import type { SequenceDotLevel } from "./SequenceTimeline";
 import type { StepThroughStep } from "@/components/StepThrough";
 import { UPDATE_TYPE_KEYS } from "@/lib/update-type-keys";
 import { ruleLabel } from "./rule-format";

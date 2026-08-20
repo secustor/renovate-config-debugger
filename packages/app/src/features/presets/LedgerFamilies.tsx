@@ -1,6 +1,7 @@
 import { type CSSProperties, useState } from "react";
 import type { LedgerFamily, LedgerRule } from "./ledger";
-import { nf, plural } from "./tree-shared";
+import { nf } from "@/lib/format";
+import { pluralWord } from "./tree-shared";
 
 /**
  * Roadmap 075 (iteration 5b): the "Grouping rules" section — the other half of
@@ -80,7 +81,7 @@ function FamilyRow({
         <span className="ledger-family-note">{family.note ?? ""}</span>
         <FamilyBar rules={family.rules} max={max} />
         <span className="ledger-family-count">
-          {nf.format(family.rules)} {plural(family.rules, "rule")}
+          {nf.format(family.rules)} {pluralWord(family.rules, "rule")}
         </span>
       </button>
       {expanded ? <FamilySamples family={family} onOpenNode={onOpenNode} /> : null}
@@ -140,7 +141,7 @@ export function LedgerFamilies({
         Grouping rules
         <span className="ledger-section-hint">
           {" "}
-          — {nf.format(totalRules)} packageRules {plural(totalRules, "rule")} in this expansion
+          — {nf.format(totalRules)} packageRules {pluralWord(totalRules, "rule")} in this expansion
         </span>
       </h4>
       <ul className="ledger-family-list">

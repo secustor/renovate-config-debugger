@@ -1,9 +1,10 @@
 import type { CSSProperties } from "react";
 import type { PresetNode } from "@renovate-config-debugger/engine";
-import type { NodeStats } from "@/components/preset-tree-stats";
+import type { NodeStats } from "@/lib/preset-tree-stats";
 import { Explained } from "@/components/glossary";
 import { type HoverCardHandlers, HoverCardAnchor } from "@/components/hover-card";
 import { GLOSSARY } from "@/data/glossary-data";
+import { nf } from "@/lib/format";
 import { presetTreeNameClass } from "@/lib/preset-row-dom";
 import type { NodeDescriptionFacts } from "@/lib/tree-descriptions";
 import { NodeDescriptionCard } from "./NodeDescriptions";
@@ -11,7 +12,6 @@ import type { Row } from "./rows";
 import {
   INDENT,
   type InjectionKeyFn,
-  nf,
   nodeInjectionKey,
   ROW_HEIGHT,
   sourceKindEntry,

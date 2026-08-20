@@ -333,16 +333,6 @@ export async function decodeShareResult(token: string): Promise<DecodeResult> {
   return { ok: true, payload: p };
 }
 
-/**
- * Back-compat wrapper: the decoded payload, or null on any failure. Kept for
- * call sites that only need "did it decode"; the load path uses
- * decodeShareResult to surface the failure reason.
- */
-export async function decodeShare(token: string): Promise<SharePayload | null> {
-  const result = await decodeShareResult(token);
-  return result.ok ? result.payload : null;
-}
-
 /** Extracts the token from a `#config=…` location hash, or null. */
 export function readShareToken(hash: string): string | null {
   const raw = hash.startsWith("#") ? hash.slice(1) : hash;

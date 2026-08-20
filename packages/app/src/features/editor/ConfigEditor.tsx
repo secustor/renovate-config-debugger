@@ -7,7 +7,7 @@ import { json } from "@codemirror/lang-json";
 import { forwardRef, type ReactNode, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import type { PresetHoverContext } from "@/lib/preset-hover";
 import { flashTarget, motionScrollOptions } from "@/lib/motion";
-import { useEffectiveScheme } from "@/hooks/use-effective-scheme";
+import { useEffectiveScheme } from "./use-effective-scheme";
 import { oneDarkAccessible } from "./one-dark-accessible";
 import { runKeymap } from "./run-keymap";
 

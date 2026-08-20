@@ -16,7 +16,7 @@ import { useDescriptionProvenance } from "@/hooks/description-provenance";
 import { CodeText } from "./CodeText";
 import { approximateTitle } from "./description-approx";
 import { ApproximateMark, DegradedCaveat } from "./DescriptionApprox";
-import { ROOT_NODE_ID } from "./preset-tree-stats";
+import { ROOT_NODE_ID } from "@/lib/preset-tree-stats";
 import { ProvenanceChip } from "./ProvenanceChip";
 import { layerClass } from "./provenance-layer";
 

@@ -3,7 +3,7 @@ import type {
   DroppedDescription,
   DroppedDescriptionReason,
 } from "@renovate-config-debugger/engine";
-import { DROP_REASONS, dropReasonLabel, dropReasonText } from "./drop-reasons";
+import { DROP_REASONS, dropReasonText } from "./drop-reasons";
 
 /**
  * Roadmap 069: the wording of the three rules that delete a description before
@@ -53,14 +53,6 @@ describe("dropReasonText", () => {
     expect(dropReasonText({ ...wrapper, approximate: true })).toBe(
       `${dropReasonText(wrapper)}; exact preset unknown`,
     );
-  });
-});
-
-describe("dropReasonLabel", () => {
-  test("is the rule alone — the compact form a node marker has room for", () => {
-    expect(dropReasonLabel(wrapper)).toBe("wrapper preset");
-    expect(dropReasonLabel(packageList)).toBe("package-name list");
-    expect(dropReasonLabel(muted)).toBe("muted by `group:recommended`");
   });
 });
 

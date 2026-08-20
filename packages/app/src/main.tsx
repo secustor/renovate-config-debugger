@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { App } from "./App";
+import { App } from "./app/App";
 import { initAnalytics } from "@/platform/analytics";
 import { applyTheme, readTheme, runStorageMigrations } from "@/platform/storage";
 import "./index.css";

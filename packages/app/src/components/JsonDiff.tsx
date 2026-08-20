@@ -1,6 +1,6 @@
 import { type ReactNode, useMemo, useState, useTransition } from "react";
 import { Diff, getChangeKey, Hunk, parseDiff } from "react-diff-view";
-import { useDiffOptionHover } from "@/hooks/option-docs-hooks";
+import { useDiffOptionHover } from "./option-docs-hooks";
 import { buildJsonPatch } from "@/lib/json-patch";
 import { CopyButton } from "./CopyButton";
 import "react-diff-view/style/index.css";

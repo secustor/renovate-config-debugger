@@ -1,6 +1,7 @@
+import { nf } from "./format";
 import type { DescriptionProvenance } from "@renovate-config-debugger/engine";
 import { approximateTitle } from "@/components/description-approx";
-import { ROOT_NODE_ID } from "@/components/preset-tree-stats";
+import { ROOT_NODE_ID } from "./preset-tree-stats";
 
 /**
  * Roadmap 069 (PR 4): the preset tree's description surfaces, as data.
@@ -23,8 +24,6 @@ import { ROOT_NODE_ID } from "@/components/preset-tree-stats";
  * Pure and DOM-free, so every note's wording is unit-testable and the
  * components only decide where things sit.
  */
-
-const nf = new Intl.NumberFormat();
 
 /** Where one of a node's sentences landed in the final `description` array.
  *  Rendered after the sentence it places, on both description surfaces. */
@@ -258,7 +257,8 @@ export function zipDescLines(facts: NodeDescriptionFacts): DescLineWithMarker[] 
  * The other half of a mute's story, on the node that pressed the button —
  * `group:recommended` alone silences a hundred-plus sentences below it.
  *
- * Tree-only, and therefore local: `drop-reasons.ts` words the rule for the node
+ * Tree-only, and therefore local: the effective-config feature's
+ * `drop-reasons.ts` words the rule for the node
  * whose sentence went missing, which is the fact both surfaces state. This is an
  * AGGREGATE over the drops of a whole subtree, and it exists because the tree is
  * the only surface with a row for the muting node to say it on — the ledger

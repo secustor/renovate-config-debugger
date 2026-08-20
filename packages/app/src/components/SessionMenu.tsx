@@ -2,8 +2,8 @@ import { ProjectLinks } from "@/components/ProjectLinks";
 import { SessionAvatar } from "@/components/SessionAvatar";
 import { SessionMenuItem } from "@/components/SessionMenuItem";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
-import { useSessionMenu } from "@/hooks/use-session-menu";
-import { REVOKE_URL, type StoredUser } from "@/platform/oauth";
+import { useSessionMenu } from "./use-session-menu";
+import { INSTALL_URL, REVOKE_URL, type StoredUser } from "@/platform/oauth";
 import { formatShortcut, HELP_SHORTCUT } from "@/lib/shortcuts";
 
 /**
@@ -55,8 +55,6 @@ interface Props {
   oauthConfigured: boolean;
   signedIn: boolean;
   authUser: StoredUser | null;
-  /** Roadmap 032: computed once in App.tsx, not per render. */
-  installUrl: string;
   onSignIn: () => void;
   onSignOut: () => void;
   /** Roadmap 068 tier 1: opens the `?` shortcut sheet. The menu is where a
@@ -96,20 +94,12 @@ function Identity({ authUser }: { authUser: StoredUser | null }) {
 interface AccountGroupProps {
   signedIn: boolean;
   authUser: StoredUser | null;
-  installUrl: string;
   onSignIn: () => void;
   onSignOut: () => void;
   onDismiss: () => void;
 }
 
-function AccountGroup({
-  signedIn,
-  authUser,
-  installUrl,
-  onSignIn,
-  onSignOut,
-  onDismiss,
-}: AccountGroupProps) {
+function AccountGroup({ signedIn, authUser, onSignIn, onSignOut, onDismiss }: AccountGroupProps) {
   if (!signedIn) {
     return (
       <>
@@ -136,7 +126,7 @@ function AccountGroup({
       <SessionMenuItem
         icon={ICONS.repo}
         label="Manage repository access"
-        href={installUrl}
+        href={INSTALL_URL}
         onSelect={onDismiss}
       />
       {/* Sign out vs. revoke, finally stated where it can be read. Before 066
@@ -172,7 +162,6 @@ function SessionMenuPanel({
   oauthConfigured,
   signedIn,
   authUser,
-  installUrl,
   onSignIn,
   onSignOut,
   onShowShortcuts,
@@ -185,7 +174,6 @@ function SessionMenuPanel({
         <AccountGroup
           signedIn={signedIn}
           authUser={authUser}
-          installUrl={installUrl}
           onSignIn={onSignIn}
           onSignOut={onSignOut}
           onDismiss={onDismiss}
@@ -219,7 +207,6 @@ export function SessionMenu({
   oauthConfigured,
   signedIn,
   authUser,
-  installUrl,
   onSignIn,
   onSignOut,
   onShowShortcuts,
@@ -267,7 +254,6 @@ export function SessionMenu({
           oauthConfigured={oauthConfigured}
           signedIn={signedIn}
           authUser={authUser}
-          installUrl={installUrl}
           onSignIn={onSignIn}
           onSignOut={onSignOut}
           onShowShortcuts={onShowShortcuts}

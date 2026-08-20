@@ -49,7 +49,7 @@ export function useSimulationRun({
   onMergeStepChange,
 }: {
   result: TraceResult;
-  onMergeStepChange?: (index: number) => void;
+  onMergeStepChange: (index: number) => void;
 }): SimulationRun {
   const [sim, setSim] = useState<SimulationResult | null>(null);
   const [simForm, setSimForm] = useState<FormState | null>(null);
@@ -161,7 +161,7 @@ export function useSimulationRun({
       // exactly like the migration stepper's). `keepStep` is the share-link
       // auto-run, whose index the link itself just restored.
       if (!keepStep) {
-        onMergeStepChange?.(0);
+        onMergeStepChange(0);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));

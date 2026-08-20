@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { StageId, TraceResult } from "@renovate-config-debugger/engine";
 import { Explained, Term } from "./glossary";
 import type { HoverCardHandlers } from "./hover-card";
-import { presetTreeSummary } from "./preset-tree-stats";
+import { presetTreeSummary } from "@/lib/preset-tree-stats";
 import { STAGE_EXPLAINERS, STAGE_LABELS, STAGE_SHORT_LABELS } from "@/data/stage-copy";
 import { STAGE_IDS } from "@/lib/input-schemas";
 import { prefersReducedMotion } from "@/lib/motion";

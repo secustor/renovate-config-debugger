@@ -1,6 +1,5 @@
+import { nf } from "@/lib/format";
 import type { PinChip } from "./pin-outcome";
-
-const nf = new Intl.NumberFormat();
 
 /**
  * Roadmap 075 (iteration 6): a pin's outcome as the standard pills — what the

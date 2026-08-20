@@ -13,6 +13,7 @@
  * annotate.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLatestRef } from "./use-latest-ref";
 import type { TraceResult } from "@renovate-config-debugger/engine";
 import {
   completeCallback,
@@ -99,8 +100,14 @@ export interface ShareLinkHost {
   setGlobalText: (text: string) => void;
   setInheritedText: (text: string) => void;
   setPlatformOverride: (override: boolean) => void;
-  setAdvancedOpen: (open: boolean) => void;
-  setHostSectionOpen: (open: boolean) => void;
+  /** Reveals the host/endpoint field: the Advanced drawer AND the host
+   *  sub-section inside it, since one without the other still leaves the field
+   *  off screen. ONE callback rather than the two setters it happens to call,
+   *  because this hook has exactly one reason to reach for either (the
+   *  untrusted-endpoint guard below) and never a reason to open one alone — the
+   *  two disclosures stay separately owned in App, where the user toggles
+   *  them. */
+  openHostCredentials: () => void;
   setNotice: (notice: string | null) => void;
   setSignedIn: (signedIn: boolean) => void;
   setAuthUser: (user: StoredUser | null) => void;
@@ -179,6 +186,11 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
   // The latest host callbacks for the one-shot effects below (same latest-ref
   // idiom as `loadShareTokenRef`); reading through a ref keeps the effects'
   // dependency lists honest without re-registering them every render.
+  // Spelled out rather than through `useLatestRef`: the effects below read
+  // `hostRef.current.contentRef` etc., and `exhaustive-deps` only knows a
+  // `.current` read is not a dependency when it can see the `useRef()` call
+  // itself — routed through a custom hook it demands the DEREFERENCED value in
+  // the list, which is the one thing that must never be in there.
   const hostRef = useRef(host);
   hostRef.current = host;
 
@@ -262,8 +274,7 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
     // are stage nodes on the pipeline rail now, where the link's own run lights
     // them up without anything being unfolded for them.
     if (policy.suppressTokens) {
-      host.setAdvancedOpen(true);
-      host.setHostSectionOpen(true);
+      host.openHostCredentials();
     }
     host.pendingViewRef.current = payload.view ?? null;
     // Roadmap 075 (iteration 6): the pins ride in BEFORE the run below, so the
@@ -359,14 +370,14 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
       });
     }
   }
-  // Roadmap 034: both effects below are registered once (empty deps), so
-  // calling `loadShareToken` directly would freeze the FIRST render's closure
+  // Roadmap 034: both effects below are registered once (nothing in either
+  // dependency list ever changes identity after mount), so calling
+  // `loadShareToken` directly would freeze the FIRST render's closure
   // — and with it that render's `onRun`, token and platform state. A link
   // opened later (hashchange) would then run against stale inputs. The
   // latest-ref pattern (as with `selectPresetNodeRef` in App.tsx) keeps both
   // registrations one-shot while always invoking the current closure.
-  const loadShareTokenRef = useRef(loadShareToken);
-  loadShareTokenRef.current = loadShareToken;
+  const loadShareTokenRef = useLatestRef(loadShareToken);
 
   // On mount: first complete an OAuth callback if the URL carries one (QUERY
   // params ?code&state) — or, when there is none, try roadmap 065's silent
@@ -458,7 +469,9 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
       }
       await loadShareTokenRef.current(shareToken, isCancelled);
     })();
-  }, [oauthConfig]);
+    // `loadShareTokenRef` is a stable ref object, listed only because
+    // `exhaustive-deps` cannot see the `useRef()` behind `useLatestRef`.
+  }, [oauthConfig, loadShareTokenRef]);
 
   // Roadmap 017: a share link opened while the app is already running is a
   // hash-only navigation — nothing reloads, so without this listener nothing
@@ -467,9 +480,9 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
   // whether loading it would clobber unsaved edits; `event.oldURL` is what
   // lets a declined confirm restore exactly the hash that was showing before
   // the navigation, so the address bar never lies about what's on screen.
-  // Registered once (empty deps) — `contentRef`/`loadedContentRef` (via
-  // `hostRef`) and `loadShareTokenRef` keep it reading current state despite
-  // that.
+  // Registered once — `contentRef`/`loadedContentRef` (via `hostRef`) and
+  // `loadShareTokenRef` keep it reading current state despite that, and the
+  // one entry in its dependency list is that stable ref object.
   useEffect(() => {
     function onHashChange(event: HashChangeEvent) {
       const decision = decideHashChangeAction(
@@ -497,7 +510,7 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
     }
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
-  }, []);
+  }, [loadShareTokenRef]);
 
   // Encodes the CURRENT state (config + view, optionally simulator inputs) into
   // a link, copies it, and mirrors it into the address bar. Never continuously
@@ -520,11 +533,11 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
   // (its `onCopySimLink` prop); the latest-ref idiom (as with
   // `loadShareTokenRef` above) keeps the returned identity stable while every
   // call still encodes the current state.
-  const buildShareLinkAndCopyRef = useRef(buildShareLinkAndCopyImpl);
-  buildShareLinkAndCopyRef.current = buildShareLinkAndCopyImpl;
+  const buildShareLinkAndCopyRef = useLatestRef(buildShareLinkAndCopyImpl);
   const buildShareLinkAndCopy = useCallback(
     (sim?: ShareSimulator) => buildShareLinkAndCopyRef.current(sim),
-    [],
+    // A stable ref object; see `useLatestRef` for why the list is not empty.
+    [buildShareLinkAndCopyRef],
   );
 
   /**
@@ -540,9 +553,11 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
   // Same latest-ref reason as above: the impl closes over this render's `host`
   // (it must — the return hash IS the current state), and the identity handed
   // out reaches App's own stable `onSignIn`.
-  const buildSignInReturnHashRef = useRef(buildSignInReturnHashImpl);
-  buildSignInReturnHashRef.current = buildSignInReturnHashImpl;
-  const buildSignInReturnHash = useCallback(() => buildSignInReturnHashRef.current(), []);
+  const buildSignInReturnHashRef = useLatestRef(buildSignInReturnHashImpl);
+  const buildSignInReturnHash = useCallback(
+    () => buildSignInReturnHashRef.current(),
+    [buildSignInReturnHashRef],
+  );
 
   return { shareError, simRequest, buildShareLinkAndCopy, buildSignInReturnHash };
 }

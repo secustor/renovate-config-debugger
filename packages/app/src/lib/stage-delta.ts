@@ -1,5 +1,6 @@
 import type { StageId } from "@renovate-config-debugger/engine";
 import type { StageActivity } from "./stage-activity";
+import { nf, plural } from "./format";
 
 /**
  * Roadmap 075 (v2, iteration 4): the one-glance number under a stage node on
@@ -34,20 +35,14 @@ export interface StageDelta {
 export interface StageDeltaFacts {
   /** Unique resolved presets — `RunFacts.presetCount`. */
   presetCount: number;
-  /** Keys in the effective config — `EffectiveStats.keys`. Null until the
+  /** Keys in the effective config — `EffectiveTally.keys`. Null until the
    *  browser has finished computing provenance, and the merge node then shows
    *  no delta rather than a number it does not have. */
   effectiveKeys: number | null;
 }
 
-const NUMBER = new Intl.NumberFormat();
-
 function num(value: number): string {
-  return NUMBER.format(value);
-}
-
-function plural(count: number, noun: string): string {
-  return `${num(count)} ${noun}${count === 1 ? "" : "s"}`;
+  return nf.format(value);
 }
 
 /**

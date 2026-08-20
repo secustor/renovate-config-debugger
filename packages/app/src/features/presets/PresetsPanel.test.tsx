@@ -38,7 +38,6 @@ function panel(
       onSelectNode={opts.onSelectNode ?? (() => undefined)}
       authState="unconfigured"
       onSignIn={() => undefined}
-      installUrl="https://example.invalid"
     />
   );
 }

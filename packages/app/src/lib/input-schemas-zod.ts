@@ -25,9 +25,7 @@ import {
   isHttpUrl,
   isPlainObject,
   isValidConfigObject,
-  isValidOAuthParam,
   isValidPlatform,
-  isValidRepoRefPart,
   isValidShareConfigLayer,
   isValidToken,
   MAX_PINNED_TESTS,
@@ -333,24 +331,3 @@ export const userApiResponseSchema = z.object({
   login: z.optional(z.string()),
   avatar_url: z.optional(z.string()),
 });
-
-/** GitHub's `code`/`state` query params — the zod view of
- *  {@link isValidOAuthParam} (the sync `readCallbackParams` boot path uses
- *  the predicate directly). */
-export const oauthCallbackParamsSchema = z.object({
-  code: z
-    .string()
-    .check(
-      z.refine(isValidOAuthParam, { message: "must be a bounded, control-character-free param" }),
-    ),
-  state: z
-    .string()
-    .check(
-      z.refine(isValidOAuthParam, { message: "must be a bounded, control-character-free param" }),
-    ),
-});
-
-/** A parsed repo reference's repo/ref, right before it becomes fetch input. */
-export const repoRefPartSchema = z
-  .string()
-  .check(z.refine(isValidRepoRefPart, { message: "must be slug-shaped path segments" }));

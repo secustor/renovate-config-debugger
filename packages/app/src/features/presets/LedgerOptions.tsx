@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { OptionKey } from "@/components/option-docs";
 import type { LedgerOption } from "./ledger";
-import { nf, plural } from "./tree-shared";
+import { nf } from "@/lib/format";
+import { pluralWord } from "./tree-shared";
 
 /**
  * Roadmap 075 (iteration 5b): the "Set options" section — every option key a
@@ -47,7 +48,7 @@ function LedgerOptionRow({
       ) : null}
       {option.alsoSetBy > 0 ? (
         <span className="ledger-option-note">
-          also set by {nf.format(option.alsoSetBy)} earlier {plural(option.alsoSetBy, "preset")}
+          also set by {nf.format(option.alsoSetBy)} earlier {pluralWord(option.alsoSetBy, "preset")}
         </span>
       ) : null}
     </li>
@@ -76,8 +77,8 @@ export function LedgerOptions({
         Set options
         <span className="ledger-section-hint">
           {" "}
-          — {nf.format(options.length)} {plural(options.length, "key")}, with the preset whose value
-          survived the merge
+          — {nf.format(options.length)} {pluralWord(options.length, "key")}, with the preset whose
+          value survived the merge
         </span>
       </h4>
       <ul className="ledger-option-list">
@@ -87,7 +88,7 @@ export function LedgerOptions({
       </ul>
       {hidden > 0 ? (
         <button type="button" className="btn-quiet" onClick={() => setShowAll(true)}>
-          {nf.format(hidden)} more {plural(hidden, "key")} — show all
+          {nf.format(hidden)} more {pluralWord(hidden, "key")} — show all
         </button>
       ) : null}
     </section>

@@ -1,7 +1,7 @@
 import type { PresetNode } from "@renovate-config-debugger/engine";
-import type { TreeStats } from "@/components/preset-tree-stats";
+import type { TreeStats } from "@/lib/preset-tree-stats";
 import { Term } from "@/components/glossary";
-import { nf } from "./tree-shared";
+import { nf } from "@/lib/format";
 
 /**
  * Roadmap 016: honest origin framing for the headline preset count (persona

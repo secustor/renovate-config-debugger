@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { HoverCardAnchor } from "@/components/hover-card";
-import { SHOW_SCROLL_GRACE_MS } from "./hover-card";
+import { HoverCardAnchor } from "./hover-card";
+import { SHOW_SCROLL_GRACE_MS } from "./hover-card-hooks";
 
 /**
  * Roadmap 069 review — WHICH scrolls take a hover card down with them.

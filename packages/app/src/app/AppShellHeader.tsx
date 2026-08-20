@@ -1,4 +1,5 @@
-import { AppHeaderTools } from "@/AppHeaderTools";
+import { nf } from "@/lib/format";
+import { AppHeaderTools } from "@/app/AppHeaderTools";
 import type { ResultsTabId } from "@/data/results-tabs";
 import type { StoredUser } from "@/platform/oauth";
 
@@ -18,8 +19,6 @@ import type { StoredUser } from "@/platform/oauth";
  * the digest in the app now, and the clause model behind the prose stays what
  * `rcd digest` renders.
  */
-
-const nf = new Intl.NumberFormat();
 
 interface DigestLinksProps {
   rewrites: number;
@@ -145,7 +144,6 @@ interface Props {
   oauthConfigured: boolean;
   signedIn: boolean;
   authUser: StoredUser | null;
-  installUrl: string;
   onSignIn: () => void;
   onSignOut: () => void;
   onShowShortcuts: () => void;
@@ -166,7 +164,6 @@ export function AppShellHeader({
   oauthConfigured,
   signedIn,
   authUser,
-  installUrl,
   onSignIn,
   onSignOut,
   onShowShortcuts,
@@ -195,7 +192,6 @@ export function AppShellHeader({
         oauthConfigured={oauthConfigured}
         signedIn={signedIn}
         authUser={authUser}
-        installUrl={installUrl}
         onSignIn={onSignIn}
         onSignOut={onSignOut}
         onShowShortcuts={onShowShortcuts}

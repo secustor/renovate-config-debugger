@@ -16,7 +16,7 @@ import type * as DescriptionProvenanceHook from "@/hooks/description-provenance"
 import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { DescriptionDigestCard } from "./DescriptionDigestCard";
-import { ROOT_NODE_ID } from "./preset-tree-stats";
+import { ROOT_NODE_ID } from "@/lib/preset-tree-stats";
 
 /**
  * The engine's degraded fallback cannot be provoked from a real config — it

@@ -1,10 +1,9 @@
+import { nf } from "@/lib/format";
 import { type FocusEvent, type KeyboardEvent, type ReactNode, useRef, useState } from "react";
 import { RESULTS_TAB_IDS, RESULTS_TAB_LABELS, type ResultsTabId } from "@/data/results-tabs";
 import { tabButtonAttrs, tabButtonSelector, tabIdOfElement } from "@/lib/results-tab-dom";
 import { nextTabIndex } from "@/lib/roving-tabs";
 import { anyModifierHeld } from "@/lib/shortcuts";
-
-const nf = new Intl.NumberFormat();
 
 /** A tab's ambient count badge; `count: undefined` renders no badge at all. */
 export interface ResultsTabDescriptor {

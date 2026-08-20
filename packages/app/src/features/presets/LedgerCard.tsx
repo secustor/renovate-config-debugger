@@ -3,7 +3,8 @@ import { type LedgerSection, ledgerCardId, type LedgerSource, type LedgerTile } 
 import { LedgerFamilies } from "./LedgerFamilies";
 import { LedgerMosaic } from "./LedgerMosaic";
 import { LedgerOptions } from "./LedgerOptions";
-import { nf, plural } from "./tree-shared";
+import { nf } from "@/lib/format";
+import { pluralWord } from "./tree-shared";
 
 /**
  * Roadmap 075 (iteration 5b): one card per top-level `extends` entry — the
@@ -52,9 +53,9 @@ function LedgerCardToggle({
       <span className="ledger-head-counts">
         {source.failed
           ? "— did not resolve"
-          : `— ${nf.format(source.presets)} ${plural(source.presets, "preset")} · ${nf.format(
+          : `— ${nf.format(source.presets)} ${pluralWord(source.presets, "preset")} · ${nf.format(
               source.optionKeys,
-            )} ${plural(source.optionKeys, "option")} · ${nf.format(source.rules)} ${plural(
+            )} ${pluralWord(source.optionKeys, "option")} · ${nf.format(source.rules)} ${pluralWord(
               source.rules,
               "rule",
             )}`}

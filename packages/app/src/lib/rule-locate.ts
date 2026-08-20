@@ -12,7 +12,16 @@
  * single-quoted `packageRules` key — valid JSON5, rare in practice — is not
  * recognized and the function returns `null`, same as "no packageRules key
  * found" (the caller then just skips the editor cross-link).
+ *
+ * The character-level primitives (`skipString`, `skipComment`, `isSpaceAt`) are
+ * the engine's, shared with its own JSON5 scanner in `error-fix-text.ts` (014)
+ * — they were duplicated byte for byte here until the two copies were merged.
+ * They come from the `/text-scan` SUBPATH, not the engine barrel: this module is
+ * reached statically from `App.tsx`, and the barrel would drag the lazy
+ * Renovate chunk onto the first-paint critical path.
  */
+
+import { isSpaceAt, skipComment, skipString } from "@renovate-config-debugger/engine/text-scan";
 
 /** Returns the offset of each top-level `packageRules[i]` object's `{`, or `null`. */
 export function findPackageRuleOffsets(text: string): number[] | null {
@@ -21,48 +30,6 @@ export function findPackageRuleOffsets(text: string): number[] | null {
     return null;
   }
   return collectObjectStarts(text, arrayStart);
-}
-
-/** Skips a double-quoted JSON string starting at `start`; returns the index just past it. */
-function skipString(text: string, start: number): number {
-  let i = start + 1;
-  const n = text.length;
-  while (i < n && text[i] !== '"') {
-    if (text[i] === "\\") {
-      i++;
-    }
-    i++;
-  }
-  return i + 1;
-}
-
-/** Skips a `//` or `/* *\/` comment (JSON5) starting at `start`; returns the index just past it. */
-function skipComment(text: string, start: number): number | null {
-  if (text[start] !== "/") {
-    return null;
-  }
-  if (text[start + 1] === "/") {
-    let i = start + 2;
-    while (i < text.length && text[i] !== "\n") {
-      i++;
-    }
-    return i;
-  }
-  if (text[start + 1] === "*") {
-    let i = start + 2;
-    while (i < text.length && !(text[i] === "*" && text[i + 1] === "/")) {
-      i++;
-    }
-    return Math.min(i + 2, text.length);
-  }
-  return null;
-}
-
-/** Whitespace at `i`? Past the end counts as "no" — the scanners below only
- *  ever walk forward and stop at the end of the text anyway. */
-function isSpaceAt(text: string, i: number): boolean {
-  const c = text[i];
-  return c !== undefined && /\s/.test(c);
 }
 
 /** Finds the `[` of the top-level `key`'s array value (directly inside the root `{}`), or `null`. */

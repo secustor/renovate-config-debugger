@@ -1,3 +1,4 @@
+import { nf } from "./format";
 import type {
   DescriptionProvenance,
   DescriptionSource,
@@ -29,8 +30,6 @@ import { ruleWrittenKeys, summarizeRuleSelectors } from "./rule-selectors";
  *
  * Pure and DOM-free (`lib/`), so `packages/cli` can quote the same digest.
  */
-
-const nf = new Intl.NumberFormat();
 
 /** One string of the final top-level `description`, as the card renders it. */
 export interface DigestEntry {

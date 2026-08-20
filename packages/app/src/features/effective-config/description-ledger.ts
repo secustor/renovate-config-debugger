@@ -1,3 +1,4 @@
+import { nf } from "@/lib/format";
 import type {
   DescriptionAttribution,
   DescriptionProvenance,
@@ -6,7 +7,7 @@ import type {
   UnattributedDescription,
 } from "@renovate-config-debugger/engine";
 import { layerLabel, layerNodeKey, stableLayerKey } from "@/components/provenance-layer";
-import { truncate } from "./truncate";
+import { truncate } from "@/lib/truncate";
 
 /**
  * Roadmap 069 (PR 3): the view-model behind the Effective config's blame
@@ -37,8 +38,6 @@ import { truncate } from "./truncate";
  * Pure and DOM-free, so the wording of every note is unit-testable and the
  * component below it only decides where things sit.
  */
-
-const nf = new Intl.NumberFormat();
 
 /** An attributed string: one line of prose and the preset that wrote it. */
 export interface LedgerEntryRow {

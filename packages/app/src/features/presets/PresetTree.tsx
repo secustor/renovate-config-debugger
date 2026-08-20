@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useState } from "react";
 import type { PresetNode, TraceEvent, TraceResult } from "@renovate-config-debugger/engine";
 import { Term } from "@/components/glossary";
-import { computeTreeStats } from "@/components/preset-tree-stats";
+import { computeTreeStats } from "@/lib/preset-tree-stats";
 import type { AuthState } from "@/components/GithubAuthHint";
 import { useDescriptionProvenance } from "@/hooks/description-provenance";
 import { buildTreeDescriptions, describeCountText } from "@/lib/tree-descriptions";
@@ -10,7 +10,8 @@ import { PresetDetail } from "./PresetDetail";
 import { PresetListPane } from "./PresetListPane";
 import { buildTableRows, flattenTree, type SortColumn, sortTableRows } from "./rows";
 import { SummaryHeader } from "./SummaryHeader";
-import { nf, ROW_HEIGHT } from "./tree-shared";
+import { nf } from "@/lib/format";
+import { ROW_HEIGHT } from "./tree-shared";
 import { useEngineHelpers } from "./use-engine-helpers";
 import { useWindow } from "./use-window";
 
@@ -43,7 +44,6 @@ export const PresetTree = memo(function PresetTree({
   onSelectNode,
   authState,
   onSignIn,
-  installUrl,
   onShowDescriptionOrder,
 }: {
   result: TraceResult;
@@ -54,7 +54,6 @@ export const PresetTree = memo(function PresetTree({
   /** Sign-in state + hooks for the failed-GitHub-node hint (009). */
   authState: AuthState;
   onSignIn: () => void;
-  installUrl: string;
   /** Roadmap 069 (PR 4): the position marker's cross-link — jumps to the
    *  Effective config and opens the `description` row's blame ledger (PR 3),
    *  where the same sentence sits in the array's own order. */
@@ -352,7 +351,6 @@ export const PresetTree = memo(function PresetTree({
               migrationSteps={migrationStepsByPreset.get(selected.name) ?? []}
               authState={authState}
               onSignIn={onSignIn}
-              installUrl={installUrl}
             />
           ) : (
             <div className="preset-panel-hint">Select a preset to inspect it.</div>

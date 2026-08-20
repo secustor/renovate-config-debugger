@@ -205,8 +205,8 @@
     {
       // The shared layer. Reaching DOWN into a feature inverts the flow and
       // makes the two inseparable; the fix is always to hoist the composition
-      // into the app shell (`packages/app/src/*.tsx` — App.tsx and siblings),
-      // which is exactly why ResultsColumn.tsx lives there.
+      // into the app shell (`packages/app/src/app/**` — App.tsx and its
+      // siblings), which is exactly why ResultsColumn.tsx lives there.
       //
       // Roadmap 048 follow-up: this used to enumerate the five shared folders
       // by name (components/hooks/lib/data/platform), which meant a future
@@ -217,12 +217,24 @@
       // allow-list — measured via excludeFiles (confirmed against
       // configuration_schema.json: `OxlintOverride.excludeFiles` takes a
       // GlobSet of paths this override does NOT apply to, verified empirically
-      // that it works as documented). `packages/app/src/*.tsx` excludes
-      // exactly the app-shell files (App.tsx and siblings, plus main.tsx and
-      // the root-level test file) because `*` does not cross `/` — confirmed
-      // empirically it does not also swallow `components/ConfigEditor.tsx`.
+      // that it works as documented).
+      //
+      // The shell used to be loose files at `src/` root, excluded by
+      // `packages/app/src/*.tsx` (`*` does not cross `/`, so it caught exactly
+      // App.tsx and its siblings and nothing under `components/`). It now has
+      // a folder of its own, so the exclusion is the folder — which also
+      // covers the shell-only hooks that moved in with it (use-repo-load,
+      // use-inherited-config-layer, use-focus-landing, use-run-summary,
+      // use-tab-digits) and no longer depends on a glob subtlety to stay
+      // narrow. `main.tsx` stays at `src/` root because it is Vite's HTML
+      // entry, so it is named separately rather than losing the shell status
+      // the old glob gave it.
       "files": ["packages/app/src/**"],
-      "excludeFiles": ["packages/app/src/features/**", "packages/app/src/*.tsx"],
+      "excludeFiles": [
+        "packages/app/src/features/**",
+        "packages/app/src/app/**",
+        "packages/app/src/main.tsx"
+      ],
       "rules": {
         "no-restricted-imports": [
           "error",
@@ -248,7 +260,7 @@
               {
                 // Closes the upward arrow: nothing previously forbade shared
                 // modules from reaching UP into the app shell. `@/*` matches
-                // `@/App` but not `@/components/glossary` (confirmed
+                // a bare `@/App` but not `@/components/glossary` (confirmed
                 // empirically — minimatch `*` does not cross `/`); the three
                 // `../` variants cover every nesting depth actually present
                 // under the shared folders today (all are one level below
@@ -258,7 +270,29 @@
                 // shared-to-shared `../lib/foo` (measured: zero existing `../`
                 // imports anywhere in the shared or feature layers today, so
                 // this starts and stays at zero hits).
-                "group": ["@/*", "../*", "../../*", "../../../*"],
+                //
+                // The shell now lives in `src/app/`, one segment further down,
+                // which `*` by definition cannot reach — so the `@/app…` and
+                // `…/app/…` spellings are listed explicitly. Without them the
+                // upward arrow would have quietly reopened the moment the
+                // shell got a folder. `@/app/**` is safe to ban outright
+                // because no shared or feature module may name the shell at
+                // all; the shell itself is excluded from this override.
+                "group": [
+                  "@/*",
+                  "@/app",
+                  "@/app/*",
+                  "@/app/**",
+                  "../*",
+                  "../../*",
+                  "../../../*",
+                  "../app/*",
+                  "../app/**",
+                  "../../app/*",
+                  "../../app/**",
+                  "../../../app/*",
+                  "../../../app/**"
+                ],
                 "message": "Shared modules must not import the app shell — compose downward: the app shell composes features, features compose the shared layer (roadmap 048)."
               },
               {
@@ -308,10 +342,24 @@
                 // Same upward-arrow closure as the shared-layer override
                 // above, restated per the REPLACE rule. `features/simulator/`
                 // is one folder deeper than the shared layer's folders, so
-                // `../../*` (not just `../*`) is the one that actually
-                // matters here — reaching `src/App` from
+                // `../../app/*` (not just `../app/*`) is the one that actually
+                // matters here — reaching `src/app/App` from
                 // `features/simulator/*.ts` takes two `../` hops.
-                "group": ["@/*", "../*", "../../*", "../../../*"],
+                "group": [
+                  "@/*",
+                  "@/app",
+                  "@/app/*",
+                  "@/app/**",
+                  "../*",
+                  "../../*",
+                  "../../../*",
+                  "../app/*",
+                  "../app/**",
+                  "../../app/*",
+                  "../../app/**",
+                  "../../../app/*",
+                  "../../../app/**"
+                ],
                 "message": "Features must not import the app shell — compose downward: the app shell composes features (roadmap 048)."
               },
               {
@@ -354,7 +402,21 @@
                 "message": "Deep renovate/dist imports belong in renovate-adapter.ts, shims/ or types/ — go through the adapter instead."
               },
               {
-                "group": ["@/*", "../*", "../../*", "../../../*"],
+                "group": [
+                  "@/*",
+                  "@/app",
+                  "@/app/*",
+                  "@/app/**",
+                  "../*",
+                  "../../*",
+                  "../../../*",
+                  "../app/*",
+                  "../app/**",
+                  "../../app/*",
+                  "../../app/**",
+                  "../../../app/*",
+                  "../../../app/**"
+                ],
                 "message": "Shared modules must not import the app shell — compose downward: the app shell composes features, features compose the shared layer (roadmap 048)."
               },
               {
@@ -383,7 +445,21 @@
                 "message": "Deep renovate/dist imports belong in renovate-adapter.ts, shims/ or types/ — go through the adapter instead."
               },
               {
-                "group": ["@/*", "../*", "../../*", "../../../*"],
+                "group": [
+                  "@/*",
+                  "@/app",
+                  "@/app/*",
+                  "@/app/**",
+                  "../*",
+                  "../../*",
+                  "../../../*",
+                  "../app/*",
+                  "../app/**",
+                  "../../app/*",
+                  "../../app/**",
+                  "../../../app/*",
+                  "../../../app/**"
+                ],
                 "message": "Shared modules must not import the app shell — compose downward: the app shell composes features, features compose the shared layer (roadmap 048)."
               },
               {

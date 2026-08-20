@@ -154,13 +154,24 @@ export function getOAuthConfig(): OAuthConfig | null {
 }
 
 /** Where the user manages / installs the app on repositories. */
-export function installUrl(): string {
+function installUrl(): string {
   const cfg = getOAuthConfig();
   if (cfg?.appSlug) {
     return `https://github.com/apps/${cfg.appSlug}/installations/new`;
   }
   return "https://github.com/settings/installations";
 }
+
+/**
+ * Roadmap 032 evaluated this once in `App.tsx` and threaded it down three prop
+ * chains (the auth hint, the failure banner, the session menu — five hops at
+ * the deepest). It is deployment config, not state: both its inputs (the
+ * build-time `VITE_*` vars and the served `__RCV_OAUTH__`) are fixed before the
+ * app's first render, so there is nothing for a parent to own. Resolved once
+ * here, at the same place and for the same reason as {@link REVOKE_URL}, and
+ * imported directly by the three leaves that link to it.
+ */
+export const INSTALL_URL = installUrl();
 
 // ---------------------------------------------------------------------------
 // PKCE / random helpers

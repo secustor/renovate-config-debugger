@@ -69,8 +69,8 @@ export const SimMergeDrawer = memo(function SimMergeDrawer({
   stops: MergeStop[];
   showTimeline: boolean;
   changedKeys: string[];
-  mergeStepIndex?: number;
-  onMergeStepChange?: (index: number) => void;
+  mergeStepIndex: number;
+  onMergeStepChange: (index: number) => void;
   open: boolean;
   onToggle: (open: boolean) => void;
   detailsRef?: RefObject<HTMLDetailsElement | null>;

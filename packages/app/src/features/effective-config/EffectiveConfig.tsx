@@ -1,6 +1,7 @@
+import { nf } from "@/lib/format";
 import { memo, type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { openPickerOnEnter } from "@/lib/select-picker";
-import { countByDecider, type DeciderId, groupByDecider, winningStep } from "@/lib/decider-groups";
+import { countByDecider, type DeciderId, groupByDecider, winningStep } from "./decider-groups";
 import type {
   KeyProvenance,
   ProvenanceStep,
@@ -9,7 +10,7 @@ import type {
   RuleAttribution,
   TraceResult,
 } from "@renovate-config-debugger/engine";
-import { Explained, Term } from "./glossary";
+import { Explained, Term } from "@/components/glossary";
 import { GLOSSARY } from "@/data/glossary-data";
 import {
   effectiveTally,
@@ -18,12 +19,13 @@ import {
   type MultiContribBadge,
   multiContribBadgeKind,
 } from "@/lib/effective-tally";
-import { OptionKey } from "./option-docs";
+import { OptionKey } from "@/components/option-docs";
 import { BlameLedger } from "./BlameLedger";
-import { ConfigJson } from "./ConfigJson";
-import { CopyButton } from "./CopyButton";
-import { ProvenanceChip } from "./ProvenanceChip";
-import { layerId, layerLabel, type LayerId, layerNodeKey } from "./provenance-layer";
+import { ConfigJson } from "@/components/ConfigJson";
+import { CopyButton } from "@/components/CopyButton";
+import { ProvenanceChip } from "@/components/ProvenanceChip";
+import { layerId, layerLabel, type LayerId, layerNodeKey } from "@/components/provenance-layer";
+import { useEngineDerivation } from "@/hooks/use-engine-derivation";
 import { useRuleProvenance } from "@/hooks/rule-provenance";
 import { useDescriptionProvenance } from "@/hooks/description-provenance";
 import { buildDescriptionCards, type DescriptionCards } from "@/lib/description-attribution";
@@ -33,12 +35,12 @@ import {
   ledgerMatchesFinalValue,
   ledgerPreviewText,
   ledgerWriterText,
-} from "@/lib/description-ledger";
+} from "./description-ledger";
 // Roadmap 069 hoisted this out of here: the description digest prints the same
 // one-line matcher summary, and one spelling of it is enough.
 import { summarizeRuleSelectors } from "@/lib/rule-selectors";
 import { valuePreview } from "@/lib/value-preview";
-import { RuleFramingText } from "./rule-framing";
+import { RuleFramingText } from "@/components/rule-framing";
 
 /**
  * Roadmap 005: the effective config as a provenance view. Every top-level key
@@ -89,24 +91,10 @@ function ledgerForRow(
 // oxlint-disable-next-line typescript/no-redundant-type-constituents
 type LayerFilterValue = LayerId | "all";
 
-/** Loads + computes provenance for a result once the engine chunk is present. */
+/** Loads + computes provenance for a result once the engine chunk is present.
+ *  undefined = loading, null = unavailable (e.g. preset resolution failed). */
 function useProvenance(result: TraceResult): Provenance | null | undefined {
-  // undefined = loading, null = unavailable (e.g. preset resolution failed)
-  const [state, setState] = useState<Provenance | null | undefined>(undefined);
-  useEffect(() => {
-    let live = true;
-    setState(undefined);
-    void (async () => {
-      const engine = await import("@renovate-config-debugger/engine");
-      if (live) {
-        setState(engine.computeProvenance(result) ?? null);
-      }
-    })();
-    return () => {
-      live = false;
-    };
-  }, [result]);
-  return state;
+  return useEngineDerivation([result], (engine) => engine.computeProvenance(result) ?? null);
 }
 
 /** Roadmap 051: the card's two renderings — provenance rows / a standalone
@@ -128,24 +116,12 @@ function useResolvedConfig(
   mode: ResolvedConfigMode,
   includeDefaults: boolean,
 ): ResolvedConfigOutput | null | undefined {
-  const [state, setState] = useState<ResolvedConfigOutput | null | undefined>(undefined);
-  useEffect(() => {
-    if (!active) {
-      return;
-    }
-    let live = true;
-    setState(undefined);
-    void (async () => {
-      const engine = await import("@renovate-config-debugger/engine");
-      if (live) {
-        setState(engine.computeResolvedConfig(result, mode, { includeDefaults }) ?? null);
-      }
-    })();
-    return () => {
-      live = false;
-    };
-  }, [result, active, mode, includeDefaults]);
-  return state;
+  return useEngineDerivation(
+    [result, active, mode, includeDefaults],
+    active
+      ? (engine) => engine.computeResolvedConfig(result, mode, { includeDefaults }) ?? null
+      : null,
+  );
 }
 
 const VERBS: Record<ProvenanceStep["action"], string> = {
@@ -191,15 +167,6 @@ function MultiContribBadgeChip({ entry }: { entry: KeyProvenance }) {
     </Explained>
   );
 }
-
-/**
- * Roadmap 028/029: the numbers this view owns, reported to the shell so the
- * Effective config tab badge and the Overview digest quote exactly what the
- * rows here show. Roadmap 058 hoisted the derivation itself into
- * `lib/effective-tally.ts` so the CLI's `digest` quotes the same function
- * rather than a copy of it; the name the shell knows it by stays.
- */
-export type EffectiveStats = EffectiveTally;
 
 function Step({
   step,
@@ -553,8 +520,6 @@ function ProvFilters({
   );
 }
 
-const nf = new Intl.NumberFormat();
-
 /** The pill each decided-by section is headed with — the layer's own tone from
  *  the standard pill set, so a section header and the layer chips on its rows
  *  cannot disagree about which hue a level wears. */
@@ -816,10 +781,12 @@ export const EffectiveConfig = memo(function EffectiveConfig({
 }: {
   result: TraceResult;
   onSelectPreset?: (nodeId: string) => void;
-  /** Roadmap 028/029: reports this view's own numbers (see `EffectiveStats`)
-   *  whenever they change, so the shell never has to recompute provenance
-   *  itself — the tab badge and the digest quote what these rows show. */
-  onStats?: (stats: EffectiveStats) => void;
+  /** Roadmap 028/029: reports this view's own numbers (`EffectiveTally`,
+   *  derived in `lib/effective-tally.ts` so the CLI's `digest` quotes the same
+   *  function) whenever they change, so the shell never has to recompute
+   *  provenance itself — the tab badge and the digest quote what these rows
+   *  show. */
+  onStats?: (stats: EffectiveTally) => void;
   /** Roadmap 069: bumped by the description digest card's "show raw order"
    *  link (and by the preset tree's position markers, which are the same jump
    *  from the other end) — landing on the `description` row: filter prefilled,
@@ -922,7 +889,7 @@ export const EffectiveConfig = memo(function EffectiveConfig({
 
   /**
    * Roadmap 075 (iteration 5): the rows, cut by WHO DECIDED each key's final
-   * value (`lib/decider-groups.ts` reads that off the chain the engine already
+   * value (`features/effective-config/decider-groups.ts` reads that off the chain the engine already
    * built — nothing is recomputed here).
    *
    * `sections` are built from the filtered rows, so what a section renders is
