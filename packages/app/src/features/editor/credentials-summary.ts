@@ -1,33 +1,30 @@
 /**
- * Roadmap 076 — what the Advanced drawer's summary line says about credentials
- * before anyone opens it.
+ * Roadmap 076/077 (Proposal F) — what the Advanced drawer's collapsed line says
+ * about credentials before anyone opens it.
  *
- * Pure, and its own module, for the reason every other derivation in this app
- * is one: the drawer's `<summary>` is the only place a reader learns that this
- * session is carrying a token at all, and "carrying" is not a fact the markup
- * should be re-deciding inline. A `default` state is stated positively — github
- * on its shipped endpoint, nothing saved, nobody signed in — rather than as
- * "the count happens to be zero", because the endpoint is half of what makes
- * the defaults the defaults.
+ * The design's grammar is `⟨host⟩ ✓` / `⟨host⟩ anonymous`, plus ` · +N` when
+ * other hosts carry tokens too: the line names the host this session's
+ * platform context points at and states — positively, never as "the count is
+ * zero" — whether the session can authenticate against it. Pure, and its own
+ * module, because "carrying a credential" is not a fact the markup should be
+ * re-deciding inline.
  */
 import { PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
 import type { HostTokenId } from "@/data/host-tokens";
 
 export interface CredentialsInput {
-  /** The per-host tokens, exactly as `useHostTokens` reports them. */
-  tokens: readonly { id: HostTokenId; value: string }[];
+  /** The per-host tokens, exactly as `useHostTokens` reports them — `host` is
+   *  the descriptor's canonical display host (github.com, gitlab.com, …). */
+  tokens: readonly { id: HostTokenId; host: string; value: string }[];
   /** Roadmap 009: a GitHub sign-in covers github.com, so it counts as that
    *  host's credential whether or not a PAT is also saved. */
   signedIn: boolean;
   platform: string;
   endpoint: string;
-}
-
-export interface CredentialsSummary {
-  /** Hosts this session can authenticate against. */
-  count: number;
-  /** Nothing has been changed from what the app ships with. */
-  isDefault: boolean;
+  /** Roadmap 076: how many custom `hostRules` rows the session carries. They
+   *  are credentials for hosts the four-row table does not name, so they can
+   *  never BE the primary host — they only ever add to the ` · +N` tail. */
+  customHostCount: number;
 }
 
 /** The endpoint field is empty (platform default in force) or literally the
@@ -36,25 +33,40 @@ function isDefaultEndpoint(platform: string, endpoint: string): boolean {
   return endpoint === "" || endpoint === PLATFORM_ENDPOINTS[platform];
 }
 
-export function credentialsSummary(input: CredentialsInput): CredentialsSummary {
-  let count = 0;
+/** The host the line names. On the shipped endpoint that is the platform's
+ *  canonical site host (`github.com`, not `api.github.com` — the design names
+ *  the place, not the API path to it); once the endpoint is overridden it is
+ *  the override's host, which is where requests actually go. */
+function primaryHost(input: CredentialsInput, canonical: string | undefined): string {
+  if (isDefaultEndpoint(input.platform, input.endpoint) && canonical !== undefined) {
+    return canonical;
+  }
+  const effective = input.endpoint || PLATFORM_ENDPOINTS[input.platform] || "";
+  if (effective !== "") {
+    try {
+      return new URL(effective).host;
+    } catch {
+      return effective;
+    }
+  }
+  return input.platform;
+}
+
+export function credentialsLine(input: CredentialsInput): string {
+  const primary = input.tokens.find((token) => token.id === input.platform);
+  const primaryAuthed =
+    (input.platform === "github" && input.signedIn) || (primary?.value ?? "") !== "";
+  let extras = input.customHostCount;
   for (const token of input.tokens) {
-    if (token.id === "github") {
+    if (token.id === input.platform) {
       continue;
     }
-    if (token.value !== "") {
-      count += 1;
+    // A sign-in and a PAT are one credential for github.com, not two.
+    if (token.value !== "" || (token.id === "github" && input.signedIn)) {
+      extras += 1;
     }
   }
-  const github = input.tokens.find((token) => token.id === "github");
-  if (input.signedIn || (github?.value ?? "") !== "") {
-    count += 1;
-  }
-  return {
-    count,
-    isDefault:
-      count === 0 &&
-      input.platform === "github" &&
-      isDefaultEndpoint(input.platform, input.endpoint),
-  };
+  const host = primaryHost(input, primary?.host);
+  const status = primaryAuthed ? "✓" : "anonymous";
+  return extras > 0 ? `${host} ${status} · +${extras}` : `${host} ${status}`;
 }

@@ -56,6 +56,29 @@ describe("github preset fetcher", () => {
     );
   });
 
+  // Roadmap 076: a hostRules entry naming the host the request actually goes
+  // to wins over the per-type token — the whole point of the custom-host rows.
+  it("prefers a host rule matching the request URL over the type token", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(GITHUB_PRESET_BODY, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    setPresetAuth({
+      githubToken: "type-token",
+      hostRules: [{ matchHost: "api.github.com", hostType: "github", token: "rule-token" }],
+    });
+
+    await runPipeline({
+      fileName: "renovate.json",
+      content: '{ "extends": ["github>example-org/renovate-config"] }',
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        headers: expect.objectContaining({ authorization: "Bearer rule-token" }),
+      }),
+    );
+  });
+
   it("surfaces rate limiting as a contained preset error", async () => {
     vi.stubGlobal(
       "fetch",

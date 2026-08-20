@@ -10,7 +10,7 @@ import {
   PRESET_DEP_NOT_FOUND,
 } from "renovate/dist/config/presets/util.js";
 import { ExternalHostError } from "renovate/dist/types/errors/external-host-error.js";
-import { getPresetAuth } from "../../auth";
+import { resolveAuthToken } from "../../auth";
 import { encodePathSegments } from "../url-path";
 import { getInjectedPreset } from "./injection";
 
@@ -32,7 +32,7 @@ export async function fetchJSONFile(
     // raw media type avoids base64 decoding and returns the file as-is
     accept: "application/vnd.github.raw+json",
   };
-  const { githubToken } = getPresetAuth();
+  const githubToken = resolveAuthToken("github", url);
   if (githubToken) {
     headers.authorization = `Bearer ${githubToken}`;
   }

@@ -12,7 +12,7 @@
  * few transport lines (URL shape, auth header, error mapping) are duplicated.
  */
 import { ExternalHostError } from "renovate/dist/types/errors/external-host-error.js";
-import { getPresetAuth } from "../auth";
+import { resolveAuthToken } from "../auth";
 import { encodePathSegments } from "./url-path";
 
 export type RepoPlatform = "github" | "gitlab" | "gitea" | "forgejo";
@@ -131,7 +131,7 @@ async function githubRaw(
   const query = ref ? `?ref=${encodeURIComponent(ref)}` : "";
   const url = `${endpoint}repos/${encodePathSegments(repo)}/contents/${encodePathSegments(path)}${query}`;
   const headers: Record<string, string> = { accept: "application/vnd.github.raw+json" };
-  const { githubToken } = getPresetAuth();
+  const githubToken = resolveAuthToken("github", url);
   if (githubToken) {
     headers.authorization = `Bearer ${githubToken}`;
   }
@@ -155,7 +155,7 @@ async function gitlabRaw(
 ): Promise<string | typeof NOT_FOUND> {
   const url = `${endpoint}projects/${encodeURIComponent(repo)}/repository/files/${encodeURIComponent(path)}/raw?ref=${encodeURIComponent(ref)}`;
   const headers: Record<string, string> = { accept: "application/json" };
-  const { gitlabToken } = getPresetAuth();
+  const gitlabToken = resolveAuthToken("gitlab", url);
   if (gitlabToken) {
     headers["PRIVATE-TOKEN"] = gitlabToken;
   }
@@ -172,14 +172,15 @@ async function gitlabRaw(
 }
 
 async function gitlabDefaultBranch(repo: string, endpoint: string): Promise<string> {
+  const url = `${endpoint}projects/${encodeURIComponent(repo)}`;
   const headers: Record<string, string> = { accept: "application/json" };
-  const { gitlabToken } = getPresetAuth();
+  const gitlabToken = resolveAuthToken("gitlab", url);
   if (gitlabToken) {
     headers["PRIVATE-TOKEN"] = gitlabToken;
   }
   let res: Response;
   try {
-    res = await fetch(`${endpoint}projects/${encodeURIComponent(repo)}`, { headers });
+    res = await fetch(url, { headers });
   } catch (err) {
     unreachable("gitlab", endpoint, err);
   }
@@ -205,8 +206,7 @@ async function giteaLikeRaw(
   const query = ref ? `?ref=${encodeURIComponent(ref)}` : "";
   const url = `${endpoint}api/v1/repos/${encodePathSegments(repo)}/contents/${encodeURIComponent(path)}${query}`;
   const headers: Record<string, string> = { accept: "application/json" };
-  const auth = getPresetAuth();
-  const token = platform === "gitea" ? auth.giteaToken : auth.forgejoToken;
+  const token = resolveAuthToken(platform, url);
   if (token) {
     headers.authorization = `token ${token}`;
   }

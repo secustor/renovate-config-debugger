@@ -12,6 +12,7 @@ import type {
   ValidationMessage,
 } from "@renovate-config-debugger/engine";
 import type * as EngineModule from "@renovate-config-debugger/engine";
+import { readCustomHostRules } from "@/data/custom-host-rules";
 import { HOST_TOKENS } from "@/data/host-tokens";
 import { isValidToken } from "@/lib/input-schemas";
 import { getValidToken } from "./oauth";
@@ -57,7 +58,9 @@ export interface RunOptions {
  * Pushes the per-host tokens into the engine's preset auth. Shared by every
  * entry point that fetches (pipeline runs AND repo-config loads) so both reach
  * private repos / lift rate limits identically. A GitHub OAuth token (009),
- * silently refreshed when needed, wins over the GitHub PAT fallback.
+ * silently refreshed when needed, wins over the GitHub PAT fallback. Roadmap
+ * 076's custom credential rows ride along in the same object as `hostRules`,
+ * so the `suppressTokens` overwrite below covers them too.
  */
 function applyAuth(engine: Engine, oauthToken: string | null, opts?: RunOptions): void {
   if (opts?.suppressTokens) {
@@ -74,6 +77,16 @@ function applyAuth(engine: Engine, oauthToken: string | null, opts?: RunOptions)
   // A GitHub OAuth token (silently refreshed by the caller) wins over the
   // GitHub PAT.
   auth.githubToken = oauthToken ?? auth.githubToken;
+  // Roadmap 030, the same use-time boundary as `sessionToken`: each stored
+  // rule is re-validated here, not trusted from when it was written.
+  const hostRules = readCustomHostRules().filter((rule) => isValidToken(rule.token));
+  if (hostRules.length > 0) {
+    auth.hostRules = hostRules.map((rule) => ({
+      matchHost: rule.host,
+      hostType: rule.hostType,
+      token: rule.token,
+    }));
+  }
   engine.setPresetAuth(auth);
 }
 

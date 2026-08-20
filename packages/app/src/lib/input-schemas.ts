@@ -176,6 +176,33 @@ export function isValidToken(value: string): boolean {
   return value.length <= MAX_TOKEN_LENGTH && !CONTROL_CHARS.test(value);
 }
 
+const MAX_HOST_LENGTH = 253;
+// Letters, digits, dots and hyphens — a bare host name, optionally with a
+// `:port`. No scheme, no path, no userinfo, no whitespace.
+const HOST_NAME = /^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$/;
+
+/**
+ * Roadmap 076: a custom credential row's `matchHost` — a bare host name
+ * (`gitea.example.com`, `localhost:3000`), never a URL. The string is only
+ * ever a matching key (`resolveAuthToken` compares it against a request URL's
+ * host, it never composes one), but it is kept strict anyway: a value that
+ * cannot be a host can only be a mistake, and a lax rule here would let a
+ * pasted `https://…/path` silently match nothing.
+ */
+export function isValidHost(value: string): boolean {
+  if (value.length === 0 || value.length > MAX_HOST_LENGTH) {
+    return false;
+  }
+  const [host = "", port, ...rest] = value.split(":");
+  if (rest.length > 0) {
+    return false;
+  }
+  if (port !== undefined && !/^\d{1,5}$/.test(port)) {
+    return false;
+  }
+  return HOST_NAME.test(host);
+}
+
 const MAX_PLATFORM_LENGTH = 128;
 
 /** `platform` is intentionally NOT an enum: the app's own platform <select>

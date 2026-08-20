@@ -19,8 +19,43 @@ the editor is actually for, and answered it twice. Both answers shipped:
   gains a `hostRules`-shaped list of the credentials this browser tab is
   carrying: one row per host, github.com always first and fixed, everything else
   added through a sentence with two blanks ("Requests to ⟨host⟩ authenticate
-  with ⟨token⟩"). Its collapsed line says the context (`github ·
-api.github.com`) and a status pill — `default`, or `N credentials`.
+  with ⟨token⟩"). Its shape is Proposal F's (a review round re-aligned it after
+  the first cut copied 18e's standalone mock instead): a one-line bar at the
+  foot of the config pane — above the agents note and the pane's footer
+  promise, neither of which Proposal F models — whose panel
+  opens UPWARD, so the bar never moves; and its collapsed line is the
+  credentials statement itself, `github.com ✓` / `github.com anonymous`, plus
+  `· +N` when other hosts carry tokens. The upward opening is
+  `flex-direction: column-reverse` on the open `<details>` (summary stays first
+  in the DOM for the accessibility tree), which is why the panel is one wrapper
+  div.
+
+  The sentence's host blank is **free text**, not a picker of the four hosts
+  this app has canonical rows for: a custom row is a real `hostRules` entry —
+  `matchHost` + `hostType` + `token`. The engine resolves it per request URL
+  (`resolveAuthToken` in `packages/engine/src/auth.ts`): the most specific
+  matching rule wins — longest `matchHost` first, exact host or a dotted
+  subdomain of it (never a bare suffix, so `gitlab.example.com` cannot be
+  claimed by `evilgitlab.example.com`), a rule naming the host type beating an
+  equally specific untyped one — and with no match it falls back to the
+  per-type token, which is exactly the pre-076 behavior. A host typed by hand
+  gets `hostType: "any"`; the quick-fill chips (`registry.npmjs.org`,
+  `docker.io`, `gitlab.example.com`) fill both blanks' types at once. Naming
+  one of the four canonical hosts writes THAT row's type token instead of
+  creating a rule, so no host ever gets two rows.
+
+  The rules are secrets like every other token: sessionStorage only
+  (`rcv.hostRules`, one JSON value — the rows are dynamic, so a key per host
+  would leave orphans), never localStorage, never in a share link, and wiped
+  by the untrusted-endpoint guard along with everything else (they ride in the
+  same `PresetAuth` object `suppressTokens` overwrites). Both ends re-validate:
+  a rule that fails `isValidHost`/`isValidToken` is neither stored nor handed
+  to the engine.
+
+  Honest limit: an `npm` or `docker` rule is accepted and stored, but the
+  browser only has code-host fetchers (github/gitlab/gitea/forgejo). Such a
+  rule therefore takes effect only if one of those fetchers ever targets that
+  host — it does not make this app fetch a registry.
 
 Nothing about how a run is computed changed: the same two layers reach
 `RunInputs` through the same parse, the same token storage rules (030's
@@ -109,10 +144,13 @@ addressed by host, not by vendor.
   its nodes are buttons (a no-op button is a false affordance, a disabled one
   swallows the glossary hover), and its labels carry run-explainers where the
   landing deliberately carries glossary terms.
-- **The credentials count is a derivation, not markup.** A sign-in and a GitHub
-  PAT are one credential for github.com, not two; `default` is stated positively
-  (github, its shipped endpoint, nothing saved) rather than as "the count is
-  zero", because the endpoint is half of what makes the defaults the defaults.
+- **The credentials line is a derivation, not markup.** A sign-in and a GitHub
+  PAT are one credential for github.com, not two; an empty session is stated
+  positively (`github.com anonymous`) rather than as "the count is zero". The
+  line's subject is the platform's canonical site host on the shipped endpoint
+  (`github.com`, not `api.github.com` — the design names the place, not the API
+  path to it) and the override's own host once the endpoint is pointed
+  elsewhere, which is where requests actually go.
 
 ## Copy touched
 

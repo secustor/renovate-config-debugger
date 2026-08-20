@@ -4,7 +4,6 @@ import type { ConfigEditorHandle } from "@/features/editor/ConfigEditor";
 import { ConfigEditorCard } from "@/features/editor/ConfigEditorCard";
 import { ConfigToolbar } from "@/features/editor/ConfigToolbar";
 import { type AuthState, GithubAuthHint } from "@/components/GithubAuthHint";
-import { HeadlessNote } from "@/components/HeadlessNote";
 import { LandingIntro, LandingLaunch, LandingSteps } from "@/features/editor/Landing";
 import { NoticeBar } from "@/features/editor/NoticeBar";
 import { RepoLoadOverlay } from "@/features/editor/RepoLoadOverlay";
@@ -270,22 +269,16 @@ export function ConfigColumn({
       )}
       {hasResult ? null : <LandingSteps />}
 
-      {/* Roadmap 076 review: the advanced zone is shell-only. The landing kept
-          a muted copy through 075 so host tokens could be set before the first
-          run; with the drawer narrowed to hosts & credentials that pre-run case
-          is served the same way everything else is — run first, and the failed
-          fetch's own banner (auth hint, preset-tree failure) points at the
-          drawer that is now on screen. */}
+      {/* Roadmap 076/077: the advanced zone is shell-only, and Proposal F puts
+          it at the foot of the pane — a one-line bar whose panel opens upward,
+          so the bar itself never moves. The landing kept a muted copy through
+          075 so host tokens could be set before the first run; with the drawer
+          narrowed to hosts & credentials that pre-run case is served the same
+          way everything else is — run first, and the failed fetch's own banner
+          (auth hint, preset-tree failure) points at the drawer that is now on
+          screen. */}
       {hasResult ? advancedZone : null}
 
-      {/* Roadmap 060: the headless interface, announced in visible copy — the
-          whole discovery mechanism, and deliberately not a hidden hint. It
-          moved into this pane with 075's shell: the split has no rows left to
-          hang a full-width footer on, and the note is about driving the app
-          from outside the browser, which is a fact about the config half. The
-          landing does not carry it: a reader who has not run anything yet is
-          being offered a second interface to a thing they have not seen. */}
-      {hasResult ? <HeadlessNote /> : null}
       {hasResult ? (
         // Roadmap 075 (iteration 6): the second half is now a true statement
         // about what an edit DOES — the Tests tab re-checks every pinned

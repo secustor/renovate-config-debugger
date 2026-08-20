@@ -11,14 +11,17 @@ import {
   PRESET_DEP_NOT_FOUND,
 } from "renovate/dist/config/presets/util.js";
 import { ExternalHostError } from "renovate/dist/types/errors/external-host-error.js";
-import { getPresetAuth } from "../../auth";
+import { resolveAuthToken } from "../../auth";
 import { getInjectedPreset } from "./injection";
 
 export const Endpoint = "https://gitlab.com/api/v4/";
 
-function authHeaders(): Record<string, string> {
+/** Roadmap 076: the credential is chosen against the URL the request goes to,
+ *  so a self-hosted GitLab covered by a `hostRules` entry gets its own token
+ *  and gitlab.com keeps the per-type one. */
+function authHeaders(url: string): Record<string, string> {
   const headers: Record<string, string> = { accept: "application/json" };
-  const { gitlabToken } = getPresetAuth();
+  const gitlabToken = resolveAuthToken("gitlab", url);
   if (gitlabToken) {
     headers["PRIVATE-TOKEN"] = gitlabToken;
   }
@@ -28,7 +31,7 @@ function authHeaders(): Record<string, string> {
 async function gitlabRequest(url: string): Promise<Response> {
   let res: Response;
   try {
-    res = await fetch(url, { headers: authHeaders() });
+    res = await fetch(url, { headers: authHeaders(url) });
   } catch (err) {
     throw new ExternalHostError(
       new Error(

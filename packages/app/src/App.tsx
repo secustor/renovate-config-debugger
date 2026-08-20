@@ -22,6 +22,7 @@ import type { ConfigEditorHandle } from "@/features/editor/ConfigEditor";
 import { ConfigColumn } from "@/ConfigColumn";
 import type { EffectiveStats } from "@/components/EffectiveConfig";
 import type { AuthState } from "@/components/GithubAuthHint";
+import { HeadlessNote } from "@/components/HeadlessNote";
 import { identityForNodeId, nodeIdForIdentity } from "@/components/preset-tree-stats";
 import type { ResultsColumnProps } from "@/ResultsColumn";
 import { UntrustedHostBanner } from "@/UntrustedHostBanner";
@@ -84,7 +85,7 @@ import {
   PLATFORM_KEY,
   readLocal,
 } from "@/platform/storage";
-import { useHostTokens } from "@/hooks/use-host-tokens";
+import { useCustomHostRules, useHostTokens } from "@/hooks/use-host-tokens";
 import { useInheritedConfigLayer } from "@/hooks/use-inherited-config-layer";
 import { useRepoLoad } from "@/hooks/use-repo-load";
 import { useRunSummary } from "@/hooks/use-run-summary";
@@ -301,6 +302,7 @@ export function App() {
   // change handlers) as one table-driven hook — the inputs and the invalid-
   // token error rows below map over the same rows.
   const hostTokens = useHostTokens();
+  const customHostRules = useCustomHostRules();
   const [platform, setPlatform] = useState(() =>
     readLocal(PLATFORM_KEY, "github", isValidPlatform),
   );
@@ -2070,6 +2072,7 @@ export function App() {
       onSignIn={onSignIn}
       onSignOut={onSignOut}
       hostTokens={hostTokens}
+      customHostRules={customHostRules}
       onShowPipelineLayers={onShowPipelineLayers}
     />
   );
@@ -2260,6 +2263,15 @@ export function App() {
             />
           ) : null}
         </div>
+
+        {/* Roadmap 060: the headless interface, announced in visible copy —
+            the whole discovery mechanism, and deliberately not a hidden hint.
+            075 parked it inside the config pane; it is back under BOTH panes
+            now (centered, full frame width) because it is about the whole
+            page, not the config half. The landing still does not carry it: a
+            reader who has not run anything yet is being offered a second
+            interface to a thing they have not seen. */}
+        {result ? <HeadlessNote /> : null}
       </main>
       {showBackToTop ? (
         <button

@@ -8,6 +8,7 @@ import {
   isValidEndpoint,
   isValidOAuthParam,
   isValidPlatform,
+  isValidHost,
   isValidRepoHost,
   isValidRepoRefPart,
   isValidToken,
@@ -281,6 +282,26 @@ describe("repo-load ref parts", () => {
     expect(isValidRepoHost("user@github.com")).toBe(false);
     expect(isValidRepoHost("github.com:evil")).toBe(false);
     expect(isValidRepoHost("github.com:80:80")).toBe(false);
+  });
+
+  // Roadmap 076: the custom credential row's matchHost.
+  test("isValidHost accepts bare host names, with or without a port", () => {
+    expect(isValidHost("gitea.example.com")).toBe(true);
+    expect(isValidHost("registry.npmjs.org")).toBe(true);
+    expect(isValidHost("localhost")).toBe(true);
+    expect(isValidHost("localhost:3000")).toBe(true);
+    expect(isValidHost("192.168.1.10")).toBe(true);
+  });
+  test("isValidHost rejects schemes, paths, whitespace and control characters", () => {
+    expect(isValidHost("")).toBe(false);
+    expect(isValidHost("https://gitea.example.com")).toBe(false);
+    expect(isValidHost("gitea.example.com/api")).toBe(false);
+    expect(isValidHost("gitea example.com")).toBe(false);
+    expect(isValidHost("user@gitea.example.com")).toBe(false);
+    expect(isValidHost("gitea.example.com\r\nX: y")).toBe(false);
+    expect(isValidHost("-lead.example.com")).toBe(false);
+    expect(isValidHost("gitea.example.com:99999x")).toBe(false);
+    expect(isValidHost("a".repeat(254))).toBe(false);
   });
 });
 

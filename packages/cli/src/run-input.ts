@@ -6,6 +6,7 @@ import {
   type PresetAuth,
   type PresetNode,
   presetInjectionKey,
+  type PresetTokenKey,
   type RepoPlatform,
   runPipeline,
   setPresetAuth,
@@ -45,7 +46,7 @@ const REPO_PLATFORMS: readonly RepoPlatform[] = ["github", "gitlab", "gitea", "f
  * them. Coverage is identical to the web app's: the `npm` and `http` preset
  * fetchers have no auth at all.
  */
-const HOST_ENV: readonly { key: keyof PresetAuth; vars: readonly string[] }[] = [
+const HOST_ENV: readonly { key: PresetTokenKey; vars: readonly string[] }[] = [
   { key: "githubToken", vars: ["RCD_GITHUB_TOKEN", "GITHUB_TOKEN", "GH_TOKEN"] },
   { key: "gitlabToken", vars: ["RCD_GITLAB_TOKEN", "GITLAB_TOKEN"] },
   { key: "giteaToken", vars: ["RCD_GITEA_TOKEN"] },

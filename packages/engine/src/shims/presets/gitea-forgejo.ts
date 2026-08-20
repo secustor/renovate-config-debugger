@@ -12,7 +12,7 @@ import {
   PRESET_INVALID,
 } from "renovate/dist/config/presets/util.js";
 import { ExternalHostError } from "renovate/dist/types/errors/external-host-error.js";
-import { getPresetAuth } from "../../auth";
+import { resolveAuthToken } from "../../auth";
 import { encodePathSegments } from "../url-path";
 import { getInjectedPreset } from "./injection";
 
@@ -31,11 +31,6 @@ function decodeBase64(input: string): string {
   return new TextDecoder().decode(bytes);
 }
 
-function tokenFor(source: Source): string | undefined {
-  const auth = getPresetAuth();
-  return source === "gitea" ? auth.giteaToken : auth.forgejoToken;
-}
-
 function makeFetchJSONFile(source: Source) {
   return async function fetchJSONFile(
     repo: string,
@@ -49,7 +44,9 @@ function makeFetchJSONFile(source: Source) {
     // the github transport (`tag` lands in the query, plain encoding suffices).
     const url = `${endpoint}api/v1/repos/${encodePathSegments(repo)}/contents/${encodePathSegments(fileName)}${ref}`;
     const headers: Record<string, string> = { accept: "application/json" };
-    const token = tokenFor(source);
+    // Roadmap 076: resolved against the URL, so a `hostRules` entry for this
+    // instance wins over the per-type token.
+    const token = resolveAuthToken(source, url);
     if (token) {
       headers.authorization = `token ${token}`;
     }

@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { Term } from "@/components/glossary";
 import { SessionAvatar } from "@/components/SessionAvatar";
-import { isValidEndpoint, isValidToken } from "@/lib/input-schemas";
+import { isValidEndpoint, isValidHost, isValidToken } from "@/lib/input-schemas";
 import { openPickerOnEnter } from "@/lib/select-picker";
 import { PLATFORM_ENDPOINTS, PLATFORMS } from "@/data/platform-endpoints";
-import type { HostTokenId } from "@/data/host-tokens";
-import type { HostTokenField } from "@/hooks/use-host-tokens";
+import type { CustomHostRule } from "@/data/custom-host-rules";
+import type { CustomHostRules, HostTokenField } from "@/hooks/use-host-tokens";
 import type { StoredUser } from "@/platform/oauth";
-import { credentialsSummary } from "./credentials-summary";
+import { credentialsLine } from "./credentials-summary";
 
 /**
  * Roadmap 040/076 — the footer drawer under the editor.
@@ -18,6 +18,14 @@ import { credentialsSummary } from "./credentials-summary";
  * pipeline stage nodes that report on them (`StageLayerEditor`), and what is
  * left is the fetch context — which host `local>` presets resolve against — and
  * a `hostRules`-shaped list of the credentials this tab is carrying.
+ *
+ * Its shape is Proposal F's (`Proposal F - Integrated Shell.dc.html`): a
+ * one-line bar at the FOOT of the config pane — caret, title, and the
+ * credentials line (`github.com ✓` / `github.com anonymous · +N`) pinned right
+ * — whose panel opens UPWARD, above the bar, so the bar never moves. The
+ * `<details>` keeps DOM order (summary first, for the accessibility tree) and
+ * the flip is `flex-direction: column-reverse` on the open drawer, which is why
+ * the panel is one wrapper div rather than loose children.
  *
  * It still owns no state that outlives it: the drawer and the host section are
  * controlled by App (an untrusted-endpoint guard opens the host section so the
@@ -55,6 +63,10 @@ interface Props {
   onSignIn: () => void;
   onSignOut: () => void;
   hostTokens: HostTokenField[];
+  /** Roadmap 076: the credentials for hosts `hostTokens` does not name — the
+   *  list plus its add/remove, passed as one prop because the three are one
+   *  hook's return and never travel apart. */
+  customHostRules: CustomHostRules;
   /** Roadmap 076: takes the reader to the global-config stage on the Pipeline
    *  tab, where the two merge layers are edited now. Always a live link: the
    *  zone is shell-only (ConfigColumn renders it once a result exists), so the
@@ -418,30 +430,119 @@ function HostTokenRow({ host }: { host: HostTokenField }) {
   );
 }
 
-/** The quick-fill chips: one per host type that has no token yet. */
+/** One custom credential row (roadmap 076) — same shape as `HostTokenRow`,
+ *  but the pill is the rule's `hostType` rather than a fixed descriptor id,
+ *  and removal drops the whole rule instead of blanking a token. */
+function CustomHostRow({ rule, onRemove }: { rule: CustomHostRule; onRemove: () => void }) {
+  return (
+    <div className="host-row">
+      <code className="host-name">{rule.host}</code>
+      <span className="pill pill-count host-kind">{rule.hostType}</span>
+      <span className="host-row-actions">
+        {/* Always a tick: `useCustomHostRules` refuses to store a rule whose
+            token would fail 030's header-injection check, so a row that
+            exists is a credential in force. */}
+        <span className="host-ok">token ✓</span>
+        <button type="button" className="host-remove" title="Remove host" onClick={onRemove}>
+          ✕
+        </button>
+      </span>
+    </div>
+  );
+}
+
+/** Roadmap 076's quick-fill chips (design 18e, verbatim): the hosts a reader
+ *  most often needs a credential for, each filling BOTH blanks' types — the
+ *  host and the `hostType` the engine matches rules on. */
+const HOST_CHIPS: readonly { host: string; hostType: string }[] = [
+  { host: "registry.npmjs.org", hostType: "npm" },
+  { host: "docker.io", hostType: "docker" },
+  { host: "gitlab.example.com", hostType: "gitlab" },
+];
+
 function AddHostChips({
-  hosts,
   selected,
   onSelect,
 }: {
-  hosts: HostTokenField[];
-  selected: HostTokenId;
-  onSelect: (id: HostTokenId) => void;
+  selected: string;
+  onSelect: (host: string) => void;
 }) {
   return (
     <div className="host-add-quick">
       <span className="advanced-hint">Quick fill:</span>
-      {hosts.map((host) => (
+      {HOST_CHIPS.map((chip) => (
         <button
-          key={host.id}
+          key={chip.host}
           type="button"
           className="btn-secondary host-chip"
-          aria-pressed={host.id === selected}
-          onClick={() => onSelect(host.id)}
+          aria-pressed={chip.host === selected}
+          onClick={() => onSelect(chip.host)}
         >
-          {host.host}
+          {chip.host}
         </button>
       ))}
+    </div>
+  );
+}
+
+/** The sentence itself — its own component because the two blanks plus the
+ *  prose around them sit one level below the form's wrapper. */
+function AddHostSentence({
+  host,
+  token,
+  onHostChange,
+  onTokenChange,
+}: {
+  host: string;
+  token: string;
+  onHostChange: (value: string) => void;
+  onTokenChange: (value: string) => void;
+}) {
+  return (
+    <p className="host-add-sentence">
+      Requests to{" "}
+      <input
+        className="blank-input"
+        type="text"
+        aria-label="Host to authenticate against"
+        placeholder="gitea.example.com"
+        autoComplete="off"
+        spellCheck={false}
+        value={host}
+        onChange={(e) => onHostChange(e.target.value)}
+      />{" "}
+      authenticate with{" "}
+      <input
+        className="blank-input"
+        type="password"
+        aria-label="Token for this host"
+        placeholder="token"
+        value={token}
+        onChange={(e) => onTokenChange(e.target.value)}
+      />
+    </p>
+  );
+}
+
+/** The form's buttons — split out for the same depth reason as the sentence. */
+function AddHostActions({
+  canAdd,
+  onAdd,
+  onCancel,
+}: {
+  canAdd: boolean;
+  onAdd: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="host-add-actions">
+      <button type="button" className="btn-primary" disabled={!canAdd} onClick={onAdd}>
+        Add host
+      </button>
+      <button type="button" className="btn-secondary" onClick={onCancel}>
+        Cancel
+      </button>
+      <span className="advanced-hint host-add-note">tokens stay in this tab</span>
     </div>
   );
 }
@@ -451,16 +552,22 @@ function AddHostChips({
  * ⟨host⟩ authenticate with ⟨token⟩" — rather than as a form. Which is what
  * `hostRules` entries actually are, and it keeps the collapsed list to the
  * hosts that mean something.
+ *
+ * The host blank is free text: any host can carry a credential, not just the
+ * four this app happens to have canonical rows for. A host typed by hand gets
+ * hostType `"any"` (the app cannot know what runs there); a chip names the
+ * type it stands for. Naming one of the four canonical hosts writes THAT
+ * host's type token instead of a rule — one row per host, never two.
  */
-function AddHostForm({ hosts }: { hosts: HostTokenField[] }) {
+function AddHostForm({
+  onAdd,
+}: {
+  onAdd: (host: string, hostType: string, token: string) => void;
+}) {
   const [open, setOpen] = useState(false);
-  const [wanted, setWanted] = useState<HostTokenId | null>(null);
+  const [host, setHost] = useState("");
+  const [hostType, setHostType] = useState("any");
   const [token, setToken] = useState("");
-  const first = hosts[0];
-  if (!first) {
-    return null;
-  }
-  const selected = hosts.find((host) => host.id === wanted) ?? first;
   if (!open) {
     return (
       <button type="button" className="btn-quiet host-add-toggle" onClick={() => setOpen(true)}>
@@ -470,54 +577,52 @@ function AddHostForm({ hosts }: { hosts: HostTokenField[] }) {
   }
   const close = () => {
     setOpen(false);
+    setHost("");
+    setHostType("any");
     setToken("");
   };
   return (
     <div className="host-add">
-      <AddHostChips hosts={hosts} selected={selected.id} onSelect={setWanted} />
-      <p className="host-add-sentence">
-        Requests to{" "}
-        <select
-          className="blank-select"
-          aria-label="Host to authenticate against"
-          value={selected.id}
-          onChange={(e) => setWanted(e.target.value as HostTokenId)}
-          onKeyDown={openPickerOnEnter}
-        >
-          {hosts.map((host) => (
-            <option key={host.id} value={host.id}>
-              {host.host}
-            </option>
-          ))}
-        </select>{" "}
-        authenticate with{" "}
-        <input
-          className="blank-input"
-          type="password"
-          aria-label={`${selected.label} token`}
-          placeholder="token"
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
-        />
-      </p>
-      <div className="host-add-actions">
-        <button
-          type="button"
-          className="btn-primary"
-          disabled={token === ""}
-          onClick={() => {
-            selected.onChange(token);
-            setWanted(null);
-            close();
-          }}
-        >
-          Add host
-        </button>
-        <button type="button" className="btn-secondary" onClick={close}>
-          Cancel
-        </button>
-        <span className="advanced-hint host-add-note">tokens stay in this tab</span>
-      </div>
+      <AddHostChips
+        selected={host}
+        onSelect={(picked) => {
+          setHost(picked);
+          setHostType(HOST_CHIPS.find((chip) => chip.host === picked)?.hostType ?? "any");
+        }}
+      />
+      <AddHostSentence
+        host={host}
+        token={token}
+        onHostChange={(value) => {
+          setHost(value);
+          // Typing over a chip's host makes the type a guess again.
+          setHostType(HOST_CHIPS.find((chip) => chip.host === value)?.hostType ?? "any");
+        }}
+        onTokenChange={setToken}
+      />
+      {host !== "" && !isValidHost(host) ? (
+        <p className="layer-editor-error">
+          Not a valid host name: a bare host like <code>gitea.example.com</code> (a port is fine),
+          no scheme and no path.
+        </p>
+      ) : null}
+      {/* Roadmap 030's header-injection rule, surfaced HERE: `addRule` refuses
+          such a token silently (its contract), so without this gate a pasted
+          token with a stray newline would close the form and add nothing. */}
+      {token !== "" && !isValidToken(token) ? (
+        <p className="layer-editor-error">
+          This token contains characters that can&apos;t be sent in a request header, or is too
+          long.
+        </p>
+      ) : null}
+      <AddHostActions
+        canAdd={isValidHost(host) && token !== "" && isValidToken(token)}
+        onAdd={() => {
+          onAdd(host, hostType, token);
+          close();
+        }}
+        onCancel={close}
+      />
     </div>
   );
 }
@@ -529,37 +634,31 @@ function AddHostForm({ hosts }: { hosts: HostTokenField[] }) {
  */
 function CredentialsList({
   hostTokens,
+  customHostRules,
   displayPlatform,
   oauthConfigured,
   signedIn,
   authUser,
   onSignIn,
   onSignOut,
-  count,
 }: Pick<
   Props,
   | "hostTokens"
+  | "customHostRules"
   | "displayPlatform"
   | "oauthConfigured"
   | "signedIn"
   | "authUser"
   | "onSignIn"
   | "onSignOut"
-> & { count: number }) {
+>) {
   const github = hostTokens.find((host) => host.id === "github");
   const others = hostTokens.filter((host) => host.id !== "github");
+  // A host that has a canonical row here must never also become a rule — the
+  // add form routes it to that row's token instead.
+  const canonical = new Map(hostTokens.map((host) => [host.host, host] as const));
   return (
     <div className="host-list">
-      <div className="host-list-head">
-        <span className="host-list-title">Credentials</span>
-        <span className="advanced-hint">
-          {" "}
-          · like <code>hostRules</code>
-        </span>
-        <span className="pill pill-count host-list-count">
-          {count} host{count === 1 ? "" : "s"}
-        </span>
-      </div>
       {github ? (
         <GithubHostRow
           host={github}
@@ -576,7 +675,23 @@ function CredentialsList({
         .map((host) => (
           <HostTokenRow key={host.id} host={host} />
         ))}
-      <AddHostForm hosts={others.filter((host) => host.value === "")} />
+      {customHostRules.rules.map((rule) => (
+        <CustomHostRow
+          key={rule.host}
+          rule={rule}
+          onRemove={() => customHostRules.removeRule(rule.host)}
+        />
+      ))}
+      <AddHostForm
+        onAdd={(host, hostType, token) => {
+          const match = canonical.get(host);
+          if (match) {
+            match.onChange(token);
+            return;
+          }
+          customHostRules.addRule(host, hostType, token);
+        }}
+      />
       {/* Roadmap 030: the "header injection" rule (control characters, incl.
           CR/LF, or an unreasonable length) — a token failing this was never
           written to storage (see `useHostTokens`). */}
@@ -592,59 +707,30 @@ function CredentialsList({
   );
 }
 
-/** The drawer's opening paragraph, and the one sentence that says where the
- *  two merge layers went. */
+/** The panel's opening line (Proposal F verbatim): what the drawer is FOR, and
+ *  the one sentence that says where the two merge layers went. */
 function AdvancedIntro({ onShowPipelineLayers }: Pick<Props, "onShowPipelineLayers">) {
   return (
     <p className="advanced-intro">
-      Everything here is optional — the defaults suit a repository on github.com using the hosted
-      Renovate app.{" "}
-      <button type="button" className="btn-quiet" onClick={onShowPipelineLayers}>
-        Self-hosted bot layers (global, inherited) are edited on the Pipeline tab
+      Credentials for fetching presets and dependency data. Self-hosted bot layers (global,
+      inherited) live on the{" "}
+      <button type="button" className="digest-link" onClick={onShowPipelineLayers}>
+        Pipeline track
       </button>
+      .
     </p>
   );
 }
 
-/** The drawer's collapsed line: what host this session talks to, and whether it
- *  is carrying anything to talk to it WITH. */
-function AdvancedSummary({
-  context,
-  count,
-  isDefault,
-}: {
-  context: string;
-  count: number;
-  isDefault: boolean;
-}) {
+/** The drawer's collapsed bar: the title, and the credentials line pinned
+ *  right — `github.com ✓` / `github.com anonymous`, ` · +N` for other hosts. */
+function AdvancedSummary({ line }: { line: string }) {
   return (
     <summary>
-      Advanced
-      <span className="advanced-hint"> — hosts &amp; credentials</span>
-      <code className="advanced-context">{context}</code>
-      {isDefault ? (
-        <span className="pill pill-count advanced-active-chip">default</span>
-      ) : (
-        <span className="pill pill-count advanced-active-chip">
-          {count} credential{count === 1 ? "" : "s"}
-        </span>
-      )}
+      Advanced — hosts &amp; credentials
+      <span className="advanced-context">{line}</span>
     </summary>
   );
-}
-
-/** `github · api.github.com` — the platform and the HOST of its endpoint, which
- *  is the half of the URL that says where anything is actually going. */
-function contextLine(platform: string, endpoint: string): string {
-  const effective = endpoint || PLATFORM_ENDPOINTS[platform] || "";
-  if (effective === "") {
-    return `${platform} · not fetched in the browser`;
-  }
-  try {
-    return `${platform} · ${new URL(effective).host}`;
-  } catch {
-    return `${platform} · ${effective}`;
-  }
 }
 
 export function AdvancedZone({
@@ -670,13 +756,15 @@ export function AdvancedZone({
   onSignIn,
   onSignOut,
   hostTokens,
+  customHostRules,
   onShowPipelineLayers,
 }: Props) {
-  const summary = credentialsSummary({
+  const line = credentialsLine({
     tokens: hostTokens,
     signedIn: oauthConfigured && signedIn,
     platform: displayPlatform,
     endpoint: displayEndpoint,
+    customHostCount: customHostRules.rules.length,
   });
   return (
     <details
@@ -684,41 +772,42 @@ export function AdvancedZone({
       open={open}
       onToggle={(e) => onOpenChange(e.currentTarget.open)}
     >
-      <AdvancedSummary
-        context={contextLine(displayPlatform, displayEndpoint)}
-        count={summary.count}
-        isDefault={summary.isDefault}
-      />
+      <AdvancedSummary line={line} />
 
-      <AdvancedIntro onShowPipelineLayers={onShowPipelineLayers} />
+      {/* One wrapper on purpose: the open drawer is `column-reverse`, so the
+          panel renders ABOVE the summary bar — loose children would each be
+          reversed against one another. */}
+      <div className="advanced-drawer-body">
+        <AdvancedIntro onShowPipelineLayers={onShowPipelineLayers} />
 
-      <HostAccessSection
-        open={hostSectionOpen}
-        onOpenChange={onHostSectionOpenChange}
-        displayPlatform={displayPlatform}
-        displayEndpoint={displayEndpoint}
-        onPlatformChange={onPlatformChange}
-        onEndpointChange={onEndpointChange}
-        reflectGlobal={reflectGlobal}
-        globalPlatform={globalPlatform}
-        globalEndpoint={globalEndpoint}
-        platformOverride={platformOverride}
-        hasGlobalContext={hasGlobalContext}
-        onUseGlobalValues={onUseGlobalValues}
-        usesLocal={usesLocal}
-        platform={platform}
-      />
+        <HostAccessSection
+          open={hostSectionOpen}
+          onOpenChange={onHostSectionOpenChange}
+          displayPlatform={displayPlatform}
+          displayEndpoint={displayEndpoint}
+          onPlatformChange={onPlatformChange}
+          onEndpointChange={onEndpointChange}
+          reflectGlobal={reflectGlobal}
+          globalPlatform={globalPlatform}
+          globalEndpoint={globalEndpoint}
+          platformOverride={platformOverride}
+          hasGlobalContext={hasGlobalContext}
+          onUseGlobalValues={onUseGlobalValues}
+          usesLocal={usesLocal}
+          platform={platform}
+        />
 
-      <CredentialsList
-        hostTokens={hostTokens}
-        displayPlatform={displayPlatform}
-        oauthConfigured={oauthConfigured}
-        signedIn={signedIn}
-        authUser={authUser}
-        onSignIn={onSignIn}
-        onSignOut={onSignOut}
-        count={summary.count}
-      />
+        <CredentialsList
+          hostTokens={hostTokens}
+          customHostRules={customHostRules}
+          displayPlatform={displayPlatform}
+          oauthConfigured={oauthConfigured}
+          signedIn={signedIn}
+          authUser={authUser}
+          onSignIn={onSignIn}
+          onSignOut={onSignOut}
+        />
+      </div>
     </details>
   );
 }
