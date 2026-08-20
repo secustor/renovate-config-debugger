@@ -279,9 +279,9 @@ test("Format re-indents in place and leaves the revert baseline alone", async ({
 /**
  * Roadmap 075 (the landing transition): the editor's title bar has two shapes.
  * Before the first run it names the DOCUMENT and nothing else — Format
- * re-indents a config nobody has read yet, Copy link shares a view that does
- * not exist yet, and Run is already the landing's one large primary. All three
- * arrive with the result.
+ * re-indents a config nobody has read yet, and Run is already the landing's
+ * one large primary. Both arrive with the result. Share (roadmap 077) is the
+ * header's, and it too exists only once there is a view worth a link.
  */
 test("the title bar carries only the document on the landing, the actions in the shell", async ({
   page,
@@ -289,17 +289,19 @@ test("the title bar carries only the document on the landing, the actions in the
   await page.goto("/");
   const bar = page.locator(".toolbar");
   const format = bar.getByRole("button", { name: "Format", exact: true });
-  const copyLink = bar.getByRole("button", { name: "Copy link" });
+  const share = page.locator(".app-header").getByRole("button", { name: "Share" });
 
   await expect(bar.getByRole("button", { name: "Load from repo…" })).toBeVisible();
+  // The document's own copy is landing-safe — it acts on the text, not a run.
+  await expect(bar.getByRole("button", { name: "Copy renovate.json" })).toBeVisible();
   await expect(format).toHaveCount(0);
-  await expect(copyLink).toHaveCount(0);
+  await expect(share).toHaveCount(0);
   await expect(bar.locator("button.run-button")).toHaveCount(0);
 
   await runAndAwaitResult(page);
 
   await expect(format).toBeVisible();
-  await expect(copyLink).toBeVisible();
+  await expect(share).toBeVisible();
   await expect(bar.locator("button.run-button")).toBeVisible();
 });
 

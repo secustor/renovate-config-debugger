@@ -55,7 +55,7 @@ export const StageDiff = memo(function StageDiff({ result, stage }: Props) {
   ) {
     return (
       <div className="empty-note">
-        {completed?.title ?? "This stage made no changes to the config."}
+        {completed?.title ?? "This stage changed nothing in this run."}
       </div>
     );
   }

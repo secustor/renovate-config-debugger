@@ -315,8 +315,8 @@ test("a copied share link reopens on the tab that was active", async ({ page }) 
   await runAndAwaitResult(page);
   await openTab(page, "effective");
 
-  await page.getByRole("button", { name: "Copy link" }).click();
-  // Copy link mirrors the token into the address bar even when the clipboard
+  await page.locator(".app-header").getByRole("button", { name: "Share" }).click();
+  // The header's Share mirrors the token into the address bar even when the clipboard
   // itself is unavailable (headless has no clipboard permission), so the URL
   // is both the reliable thing to reopen and the signal that the async encode
   // has finished.

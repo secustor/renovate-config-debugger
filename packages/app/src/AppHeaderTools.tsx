@@ -1,8 +1,12 @@
 import { SessionMenu } from "@/components/SessionMenu";
+import { ShareButton } from "@/components/ShareButton";
 import type { StoredUser } from "@/platform/oauth";
 
 interface Props {
   renovateVersion: string | undefined;
+  /** Roadmap 077: the share-link build-and-copy — undefined before a run,
+   *  when there is no view worth a link yet and the control is absent. */
+  onShare: (() => Promise<void>) | undefined;
   oauthConfigured: boolean;
   signedIn: boolean;
   authUser: StoredUser | null;
@@ -25,6 +29,7 @@ interface Props {
  */
 export function AppHeaderTools({
   renovateVersion,
+  onShare,
   oauthConfigured,
   signedIn,
   authUser,
@@ -38,6 +43,9 @@ export function AppHeaderTools({
       {renovateVersion !== undefined ? (
         <span className="version-badge">Renovate v{renovateVersion}</span>
       ) : null}
+      {/* Roadmap 077: Share sits with the session, not the document — the link
+          carries the whole session (config, layers, pins, view). */}
+      {onShare === undefined ? null : <ShareButton onShare={onShare} />}
       <SessionMenu
         oauthConfigured={oauthConfigured}
         signedIn={signedIn}

@@ -4,8 +4,8 @@ import { openPickerOnEnter } from "@/lib/select-picker";
 import { formatShortcut, RUN_SHORTCUT } from "@/lib/shortcuts";
 
 /**
- * Roadmap 040 — the config column's action row: file name, revert, the
- * standing untrusted-host reminder, Run and Copy link. Lifted out of App.tsx
+ * Roadmap 040 — the config column's action row: file name (and its copy), the
+ * standing untrusted-host reminder, revert and Run. Lifted out of App.tsx
  * by the JSX-depth ratchet; it owns no state, and every prop is a plain value
  * or a callback App already had.
  *
@@ -23,11 +23,12 @@ import { formatShortcut, RUN_SHORTCUT } from "@/lib/shortcuts";
  * longer has a row to open into).
  *
  * Roadmap 075 (the landing transition) split it in two by `inShell`. Before the
- * first run the bar carries only the DOCUMENT — which file this is, and where
- * to fetch one from — because Format re-indents a config the reader has not
- * looked at yet, Copy link shares a view that does not exist yet, and Run is
- * already on the landing as its one large primary. They all arrive together
- * with the result, in the shell.
+ * first run the bar carries only the DOCUMENT — which file this is, its copy,
+ * and where to fetch one from — because Format re-indents a config the reader
+ * has not looked at yet and Run is already on the landing as its one large
+ * primary. They arrive together with the result, in the shell. (Copy link
+ * became the header's Share in 077 — the link carries the session, not the
+ * document.)
  */
 
 interface Props {
@@ -50,10 +51,13 @@ interface Props {
   /** Security 2026-07-25: the host a share link chose, while its guard stands. */
   untrustedHost: string | null;
   onTrustUntrustedHost: () => void;
+  /** Roadmap 077: the editor's current text, read lazily on click by the
+   *  file-name copy button (Proposal F's "copy renovate.json" affordance). */
+  getConfigText: () => string;
   /** Roadmap 075: a result exists, so this is the shell's title bar and not the
-   *  landing's. It gates the three controls that only make sense once there is
-   *  a run to act on — Format, Copy link, and Run (which the landing owns as
-   *  one large, centered primary). */
+   *  landing's. It gates the controls that only make sense once there is a run
+   *  to act on — Format and Run (which the landing owns as one large, centered
+   *  primary). Share moved to the header (077). */
   inShell: boolean;
   running: boolean;
   onRun: () => void;
@@ -62,7 +66,6 @@ interface Props {
   /** Roadmap 075: why Run is refusing, or null when it is not — today only the
    *  repo-load overlay, which covers the document Run would act on. */
   blockedReason: string | null;
-  onCopyLink: () => Promise<void>;
 }
 
 export function ConfigToolbar({
@@ -76,12 +79,12 @@ export function ConfigToolbar({
   onFormat,
   untrustedHost,
   onTrustUntrustedHost,
+  getConfigText,
   inShell,
   running,
   onRun,
   onRunIntent,
   blockedReason,
-  onCopyLink,
 }: Props) {
   // Read once per render, not memoized: `formatShortcut` is two string
   // comparisons and a join, and the platform cannot change mid-session.
@@ -102,6 +105,10 @@ export function ConfigToolbar({
         <option value="renovate.json">renovate.json</option>
         <option value="renovate.json5">renovate.json5</option>
       </select>
+      {/* Roadmap 077 (Proposal F): the document's copy, beside its name — the
+          text as it stands in the editor, edits and all. Icon-only: the name
+          it copies is already printed next to it. */}
+      <CopyButton iconOnly getText={getConfigText} label={`Copy ${fileName}`} />
       <span className="toolbar-spacer" />
       {/* Security 2026-07-25: the standing reminder. Small, but right
           where the risk materializes — the Run button — and it never
@@ -158,16 +165,6 @@ export function ConfigToolbar({
         >
           Revert to loaded config
         </button>
-      ) : null}
-      {/* Roadmap 036: the shared copy affordance. `buildShareLinkAndCopy`
-          writes the clipboard itself (it also mirrors the URL into the
-          address bar), so this passes `onCopy`, not `getText`. */}
-      {inShell ? (
-        <CopyButton
-          onCopy={onCopyLink}
-          label="Copy link"
-          title="Copy a link that reopens this config and view — never includes your tokens"
-        />
       ) : null}
       {/* Roadmap 068: the shortcut's visible home. A binding that lives only
           in a keyboard-shortcut document does not exist — so it is printed on

@@ -246,7 +246,7 @@ test("a link copied after an auto-load carries the layer as text and fetches not
   await loadRepo(page, "renovate-org/backend-api");
   await expect(await openLayerStage(page, "inherit")).toHaveValue(INHERITED_CONFIG);
 
-  await page.getByRole("button", { name: "Copy link" }).click();
+  await page.locator(".app-header").getByRole("button", { name: "Share" }).click();
   await expect.poll(() => page.url(), { timeout: 15_000 }).toContain("#config=");
   const url = page.url();
 

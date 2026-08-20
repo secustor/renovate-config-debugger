@@ -67,7 +67,6 @@ interface ConfigColumnProps {
   /** The stages the requested run will skip (absent 008 layers) — the walk
    *  shows them hollow instead of claiming they ran (see StageRailPreview). */
   previewSkippedStages: readonly StageId[];
-  onCopyLink: () => Promise<void>;
   // AdvancedZone is built by App.tsx and handed down as an already-constructed
   // element — its import and JSX call stay in App.tsx untouched (that file is
   // owned by a concurrent pass this one must not disturb).
@@ -141,7 +140,6 @@ export function ConfigColumn({
   onRunIntent,
   onLandingWalkEnd,
   previewSkippedStages,
-  onCopyLink,
   advancedZone,
   fatal,
   repoAuthHint,
@@ -166,15 +164,17 @@ export function ConfigColumn({
       onFormat={onFormat}
       untrustedHost={untrustedHost}
       onTrustUntrustedHost={onTrustUntrustedHost}
-      // The landing's title bar carries the DOCUMENT only; Format, Copy link
-      // and Run arrive with the result (the landing has its own, larger Run —
-      // one primary action per screen).
+      // Roadmap 077: the document's own copy — lazy, so typing never
+      // serializes anything.
+      getConfigText={() => value}
+      // The landing's title bar carries the DOCUMENT only; Format and Run
+      // arrive with the result (the landing has its own, larger Run — one
+      // primary action per screen; Share lives in the header since 077).
       inShell={hasResult}
       running={running}
       onRun={onRun}
       onRunIntent={onRunIntent}
       blockedReason={runBlockedReason}
-      onCopyLink={onCopyLink}
     />
   );
   const repoOverlay = repoFormOpen ? (

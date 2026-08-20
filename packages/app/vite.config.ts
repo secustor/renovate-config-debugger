@@ -91,6 +91,63 @@ export default defineConfig({
     },
   },
   plugins: [react(), renovateShims(), codemirrorJsonSchemaShims()],
+  /**
+   * Roadmap 077 review — the dev-only failure reported as "the Share button
+   * is not working": most of this app's module graph enters lazily (the
+   * editor chunk, the results chunk on the first run, `zod/mini` on the first
+   * share encode), so on a cold `.vite` cache the optimizer used to discover
+   * each batch mid-session — and every "optimized dependencies changed.
+   * reloading" threw the page (and the run, and the click that triggered it)
+   * away. The first Share click literally reloaded the app back to the
+   * landing. This is the steady-state list out of
+   * `node_modules/.vite/deps/_metadata.json`, pre-bundled at server start so
+   * dev discovers nothing mid-click. Production builds are untouched.
+   */
+  optimizeDeps: {
+    include: [
+      // First paint + the CodeMirror editor chunk.
+      "react-dom/client",
+      "@uiw/react-codemirror",
+      "@codemirror/lang-json",
+      "@codemirror/language",
+      "@lezer/highlight",
+      "codemirror-json-schema",
+      "codemirror-json-schema/json5",
+      "codemirror-json5",
+      // The lazy results chunk (diff views), loaded with the first run.
+      "diff",
+      "react-diff-view",
+      // The engine is a LINKED workspace package, so its own deps surface as
+      // top-level ids the app's root can't resolve — the `>` chain resolves
+      // them through the engine.
+      "@renovate-config-debugger/engine > fast-json-patch",
+      // The share codec (roadmap 030's validation), loaded on encode/decode.
+      "zod/mini",
+      // The shimmed engine graph's CJS deps — the engine chunk is the biggest
+      // lazy import of all, and these reloaded dev right as the first result
+      // was about to land.
+      "@renovate-config-debugger/engine > renovate > @breejs/later",
+      "@renovate-config-debugger/engine > renovate > croner",
+      "@renovate-config-debugger/engine > renovate > cronstrue",
+      "@renovate-config-debugger/engine > renovate > handlebars",
+      "@renovate-config-debugger/engine > renovate > json-dup-key-validator",
+      "@renovate-config-debugger/engine > renovate > json5",
+      "@renovate-config-debugger/engine > renovate > jsonata",
+      "@renovate-config-debugger/engine > renovate > luxon",
+      "@renovate-config-debugger/engine > renovate > ms",
+      "@renovate-config-debugger/engine > renovate > parse-link-header",
+      "@renovate-config-debugger/engine > renovate > safe-stable-stringify",
+      "@renovate-config-debugger/engine > renovate > semver",
+      "@renovate-config-debugger/engine > renovate > semver-stable",
+      "@renovate-config-debugger/engine > renovate > semver-utils",
+      "@renovate-config-debugger/engine > renovate > yaml",
+    ],
+    // `path` is not a package here — the shim plugin aliases it to `pathe`
+    // (pure ESM), and the aliased id can neither be pre-included ("Cannot
+    // optimize dependency: path") nor left to discovery (a mid-run reload).
+    // Excluded, Vite serves the ESM directly and never optimizes it.
+    exclude: ["path"],
+  },
   build: {
     /**
      * Roadmap 037: `light-dark()` MUST reach the browser intact. At Vite's

@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Term } from "@/components/glossary";
+import { SessionAvatar } from "@/components/SessionAvatar";
 import { isValidEndpoint, isValidToken } from "@/lib/input-schemas";
 import { openPickerOnEnter } from "@/lib/select-picker";
 import { PLATFORM_ENDPOINTS, PLATFORMS } from "@/data/platform-endpoints";
 import type { HostTokenId } from "@/data/host-tokens";
 import type { HostTokenField } from "@/hooks/use-host-tokens";
+import type { StoredUser } from "@/platform/oauth";
 import { credentialsSummary } from "./credentials-summary";
 
 /**
@@ -45,6 +47,11 @@ interface Props {
    *  offer where it is, and a token field where it is not (009). */
   oauthConfigured: boolean;
   signedIn: boolean;
+  /** Roadmap 077 (Proposal F): the signed-in github.com row shows WHO is
+   *  signed in — the same avatar the header trigger wears. Cosmetic and
+   *  allowed to be null (the profile fetch may fail); the row then keeps its
+   *  plain "signed in ✓". */
+  authUser: StoredUser | null;
   onSignIn: () => void;
   onSignOut: () => void;
   hostTokens: HostTokenField[];
@@ -270,6 +277,7 @@ function HostTokenInput({ host }: { host: HostTokenField }) {
 function GithubRowActions({
   oauthConfigured,
   signedIn,
+  avatarUrl,
   tokenSet,
   tokenValid,
   onSignIn,
@@ -279,6 +287,8 @@ function GithubRowActions({
 }: {
   oauthConfigured: boolean;
   signedIn: boolean;
+  /** See Props.authUser — the signed-in row names who, when it can. */
+  avatarUrl: string | undefined;
   tokenSet: boolean;
   /** Roadmap 030: the tick is a claim the credential is in force, and an
    *  invalid token never reaches storage — so it gets no tick (the error row
@@ -292,6 +302,9 @@ function GithubRowActions({
   if (oauthConfigured && signedIn) {
     return (
       <span className="host-row-actions">
+        {avatarUrl === undefined ? null : (
+          <SessionAvatar key={avatarUrl} url={avatarUrl} size={16} fallback="person" />
+        )}
         <span className="host-ok">signed in ✓</span>
         <button type="button" className="btn-quiet" onClick={onSignOut}>
           sign out
@@ -328,6 +341,7 @@ function GithubHostRow({
   isPlatform,
   oauthConfigured,
   signedIn,
+  avatarUrl,
   onSignIn,
   onSignOut,
 }: {
@@ -335,6 +349,7 @@ function GithubHostRow({
   isPlatform: boolean;
   oauthConfigured: boolean;
   signedIn: boolean;
+  avatarUrl: string | undefined;
   onSignIn: () => void;
   onSignOut: () => void;
 }) {
@@ -351,6 +366,7 @@ function GithubHostRow({
         <GithubRowActions
           oauthConfigured={oauthConfigured}
           signedIn={signedIn}
+          avatarUrl={avatarUrl}
           tokenSet={tokenSet}
           tokenValid={tokenSet && isValidToken(host.value)}
           onSignIn={onSignIn}
@@ -516,12 +532,19 @@ function CredentialsList({
   displayPlatform,
   oauthConfigured,
   signedIn,
+  authUser,
   onSignIn,
   onSignOut,
   count,
 }: Pick<
   Props,
-  "hostTokens" | "displayPlatform" | "oauthConfigured" | "signedIn" | "onSignIn" | "onSignOut"
+  | "hostTokens"
+  | "displayPlatform"
+  | "oauthConfigured"
+  | "signedIn"
+  | "authUser"
+  | "onSignIn"
+  | "onSignOut"
 > & { count: number }) {
   const github = hostTokens.find((host) => host.id === "github");
   const others = hostTokens.filter((host) => host.id !== "github");
@@ -543,6 +566,7 @@ function CredentialsList({
           isPlatform={displayPlatform === "github"}
           oauthConfigured={oauthConfigured}
           signedIn={signedIn}
+          avatarUrl={authUser?.avatarUrl}
           onSignIn={onSignIn}
           onSignOut={onSignOut}
         />
@@ -642,6 +666,7 @@ export function AdvancedZone({
   platform,
   oauthConfigured,
   signedIn,
+  authUser,
   onSignIn,
   onSignOut,
   hostTokens,
@@ -689,6 +714,7 @@ export function AdvancedZone({
         displayPlatform={displayPlatform}
         oauthConfigured={oauthConfigured}
         signedIn={signedIn}
+        authUser={authUser}
         onSignIn={onSignIn}
         onSignOut={onSignOut}
         count={summary.count}

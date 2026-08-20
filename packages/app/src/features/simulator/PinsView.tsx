@@ -16,6 +16,32 @@ import type { PinEvaluation } from "./use-pinned-tests";
  * one quiet link away in both states.
  */
 
+/** Roadmap 077 (Proposal F): pins ride in the share link, said where pins are
+ *  made. "Share" is live — the same build-and-copy as the header's button —
+ *  with its own inline receipt, since the header's popover is a screen away
+ *  from this click. */
+function ShareNote({ onShare }: { onShare: () => Promise<void> }) {
+  const [copied, setCopied] = useState(false);
+  async function share() {
+    try {
+      await onShare();
+    } catch {
+      return;
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+  return (
+    <p className="pins-share-note">
+      Pins are saved with the share link —{" "}
+      <button type="button" className="digest-link" onClick={() => void share()}>
+        Share
+      </button>{" "}
+      in the header copies it.{copied ? <span className="host-ok"> Copied ✓</span> : null}
+    </p>
+  );
+}
+
 function PinsSummary({ count, onOpenSimulator }: { count: number; onOpenSimulator: () => void }) {
   const sentence =
     count === 0
@@ -44,6 +70,7 @@ export function PinsView({
   onRemovePin,
   onOpenSimulator,
   onOpenPinInSimulator,
+  onShare,
 }: {
   pins: PinnedTest[];
   evaluations: Record<string, PinEvaluation>;
@@ -56,6 +83,8 @@ export function PinsView({
   onRemovePin: (id: string) => void;
   onOpenSimulator: () => void;
   onOpenPinInSimulator: (pin: PinnedTest) => void;
+  /** See {@link ShareNote}; absent (embedding without a share path) = no note. */
+  onShare?: () => Promise<void>;
 }) {
   const [ghostOpen, setGhostOpen] = useState(false);
   const links = { onSelectPreset, onJumpToEditor };
@@ -92,6 +121,7 @@ export function PinsView({
           setGhostOpen(false);
         }}
       />
+      {onShare ? <ShareNote onShare={onShare} /> : null}
     </div>
   );
 }

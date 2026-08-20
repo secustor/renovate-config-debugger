@@ -58,6 +58,7 @@ export const TestsPanel = memo(function TestsPanel({
   errorLib,
   simRequest,
   onCopySimLink,
+  onShare,
   mergeStepIndex,
   onMergeStepChange,
 }: {
@@ -72,6 +73,9 @@ export const TestsPanel = memo(function TestsPanel({
   errorLib?: ErrorTranslationLib | null;
   simRequest?: SimRequest | null;
   onCopySimLink?: (sim: ShareSimulator) => Promise<void>;
+  /** Roadmap 077: the share-link build-and-copy, for the pins view's note that
+   *  pins ride in the link. */
+  onShare?: () => Promise<void>;
   mergeStepIndex?: number;
   onMergeStepChange?: (index: number) => void;
 }) {
@@ -161,6 +165,7 @@ export const TestsPanel = memo(function TestsPanel({
       onRemovePin={onRemovePin}
       onOpenSimulator={() => setView("simulator")}
       onOpenPinInSimulator={openPin}
+      onShare={onShare}
     />
   );
 });

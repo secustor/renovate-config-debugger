@@ -144,6 +144,9 @@ export interface ResultsColumnProps {
   onRuleFocused: () => void;
   simRequest: SimRequest | null;
   onCopySimLink: (sim: ShareSimulator) => Promise<void>;
+  /** Roadmap 077: the header Share's own build-and-copy, for the pins view's
+   *  "pins are saved with the share link" note. */
+  onShare: () => Promise<void>;
   /** Roadmap 044: the simulator's merge-stepper index (owned by App so a share
    *  link can restore it, exactly like `migrationStepIndex`). */
   mergeStepIndex: number;
@@ -349,6 +352,7 @@ export function ResultsColumn({
   onRuleFocused,
   simRequest,
   onCopySimLink,
+  onShare,
   mergeStepIndex,
   onMergeStepChange,
   errorCount,
@@ -476,6 +480,7 @@ export function ResultsColumn({
           errorLib={errorLib}
           simRequest={simRequest}
           onCopySimLink={onCopySimLink}
+          onShare={onShare}
           mergeStepIndex={mergeStepIndex}
           onMergeStepChange={onMergeStepChange}
         />
@@ -619,6 +624,7 @@ export function ResultsColumn({
     onRuleFocused,
     simRequest,
     onCopySimLink,
+    onShare,
     mergeStepIndex,
     onMergeStepChange,
     errorCount,

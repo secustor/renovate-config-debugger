@@ -326,6 +326,67 @@ header.app-header {
   margin-left: auto;
 }
 
+/* Roadmap 077 (Proposal F): the header's Share and its receipt popover. The
+   wrapper anchors the popover; the button itself is a `.copy-btn`, so the
+   copied state (accent → ok) is the shared one. */
+.share-button {
+  display: inline-flex;
+  position: relative;
+}
+
+/* Same rule as the Run button's kbd: on a narrow viewport the header row is
+   tight, and a second line would push the stacked results below the fold —
+   the icon (a link, flipping to the check) carries the button alone there. */
+@media (max-width: 55rem) {
+  .share-button .copy-btn span {
+    display: none;
+  }
+
+  .share-button .copy-btn {
+    padding-inline: 0.4rem;
+  }
+}
+
+.share-pop {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-popover);
+  padding: 0.6rem 0.7rem;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.4rem);
+  width: min(17rem, calc(100vw - 2rem));
+  z-index: var(--z-popover);
+}
+
+.share-pop-ok {
+  color: var(--ok);
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin: 0 0 0.3rem;
+}
+
+/* One line, middle swallowed by the ellipsis — the interesting parts of a
+   `#config=` link are its host and that it exists, not the token. */
+.share-pop-url {
+  color: var(--muted);
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  margin: 0 0 0.35rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-pop-note {
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+  margin: 0;
+}
+
 /* The theme switcher is a `.seg` with icons; only the icon layout is its own. */
 .theme-switch button {
   align-items: center;
@@ -3566,6 +3627,12 @@ pre.config-view.prov-before {
   vertical-align: middle;
 }
 
+/* Roadmap 077: icon-only (the toolbar's file-name copy) — square-ish, the
+   label lives in `aria-label`/`title` and the name it copies sits beside it. */
+.copy-btn.icon-only {
+  padding-inline: 0.4rem;
+}
+
 .sim-compare {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -6391,5 +6458,13 @@ code.pin-rule-index {
 .pin-limit-note {
   color: var(--warn);
   font-size: 0.8rem;
+  margin: 0;
+}
+
+/* Roadmap 077 (Proposal F): pins ride in the share link — said at the foot of
+   the list where pins are made, pointing at the header's Share. */
+.pins-share-note {
+  color: var(--muted);
+  font-size: 0.78rem;
   margin: 0;
 }

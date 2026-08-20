@@ -138,6 +138,9 @@ interface Props {
   onJumpToTab: (tab: ResultsTabId) => void;
   /** Pipeline, on its migrate stage — see `DigestLinksProps`. */
   onShowRewrites: () => void;
+  /** Roadmap 077: builds and copies the share link (header Share button).
+   *  Undefined before a run — nothing to share yet, no control. */
+  onShare: (() => Promise<void>) | undefined;
   renovateVersion: string | undefined;
   oauthConfigured: boolean;
   signedIn: boolean;
@@ -158,6 +161,7 @@ export function AppShellHeader({
   effectiveKeys,
   onJumpToTab,
   onShowRewrites,
+  onShare,
   renovateVersion,
   oauthConfigured,
   signedIn,
@@ -187,6 +191,7 @@ export function AppShellHeader({
           in the row. */}
       <AppHeaderTools
         renovateVersion={renovateVersion}
+        onShare={onShare}
         oauthConfigured={oauthConfigured}
         signedIn={signedIn}
         authUser={authUser}

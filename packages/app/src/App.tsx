@@ -2033,11 +2033,14 @@ export function App() {
     };
   }
 
-  // Roadmap 036: the copied state now lives in CopyButton — this is only the
-  // share-link build, which mirrors the URL into the address bar too.
-  async function onCopyLink() {
+  // Roadmap 077: the copied state (and its receipt popover) live in the
+  // header's ShareButton — this is only the share-link build, which mirrors
+  // the URL into the address bar too. Stable identity so the memoized
+  // consumers (TestsPanel via ResultsColumn) don't re-render per keystroke;
+  // `buildShareLinkAndCopy` is itself a stable useCallback.
+  const onCopyLink = useCallback(async () => {
     await buildShareLinkAndCopy();
-  }
+  }, [buildShareLinkAndCopy]);
 
   // Hoisted so its literal JSX call — props unchanged — stays textually in
   // this file (AdvancedZone.tsx is owned by a concurrent pass) while still
@@ -2063,6 +2066,7 @@ export function App() {
       platform={platform}
       oauthConfigured={Boolean(oauthConfig)}
       signedIn={signedIn}
+      authUser={authUser}
       onSignIn={onSignIn}
       onSignOut={onSignOut}
       hostTokens={hostTokens}
@@ -2111,6 +2115,7 @@ export function App() {
           effectiveKeys={effectiveStats?.keys ?? null}
           onJumpToTab={jumpToTab}
           onShowRewrites={onShowRewrites}
+          onShare={result ? onCopyLink : undefined}
           renovateVersion={result?.renovateVersion}
           oauthConfigured={Boolean(oauthConfig)}
           signedIn={signedIn}
@@ -2181,7 +2186,6 @@ export function App() {
             onRunIntent={preloadRunChunks}
             onLandingWalkEnd={onLandingWalkEnd}
             previewSkippedStages={previewSkippedStages}
-            onCopyLink={onCopyLink}
             advancedZone={advancedZone}
             fatal={fatal}
             repoAuthHint={repoAuthHint}
@@ -2245,6 +2249,7 @@ export function App() {
               onRuleFocused={onRuleFocused}
               simRequest={simRequest}
               onCopySimLink={buildShareLinkAndCopy}
+              onShare={onCopyLink}
               mergeStepIndex={mergeStepIndex}
               onMergeStepChange={setMergeStepIndex}
               errorCount={errorCount}

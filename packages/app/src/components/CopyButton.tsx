@@ -35,9 +35,21 @@ type Props = CopySource & {
    * there, copying would also toggle the surrounding `<details>` open/closed.
    */
   inSummary?: boolean;
+  /** Roadmap 077: icon-only in tight chrome (the toolbar's file-name copy).
+   *  The label becomes the accessible name; the icon still flips to the
+   *  check, which is the whole feedback there is. */
+  iconOnly?: boolean;
 };
 
-export function CopyButton({ getText, onCopy, label, title, className, inSummary }: Props) {
+export function CopyButton({
+  getText,
+  onCopy,
+  label,
+  title,
+  className,
+  inSummary,
+  iconOnly,
+}: Props) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -57,8 +69,9 @@ export function CopyButton({ getText, onCopy, label, title, className, inSummary
   return (
     <button
       type="button"
-      className={`btn-secondary copy-btn${copied ? " copied" : ""}${className ? ` ${className}` : ""}`}
+      className={`btn-secondary copy-btn${copied ? " copied" : ""}${iconOnly ? " icon-only" : ""}${className ? ` ${className}` : ""}`}
       title={title}
+      aria-label={iconOnly ? label : undefined}
       onClick={(e) => {
         if (inSummary) {
           e.preventDefault();
@@ -70,7 +83,7 @@ export function CopyButton({ getText, onCopy, label, title, className, inSummary
       <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
         <path d={copied ? CHECK_PATH : COPY_PATH} />
       </svg>
-      <span>{copied ? "Copied" : label}</span>
+      {iconOnly ? null : <span>{copied ? "Copied" : label}</span>}
     </button>
   );
 }
