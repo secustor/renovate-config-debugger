@@ -80,6 +80,35 @@ addressed by host, not by vendor.
   the reader who opens the Pipeline tab finds the `inherit` card — and the
   auto-loaded text with its origin line — already selected, where the node now
   reports a delta instead of "skipped".
+- **The landing's stage walk now finishes before the shell docks in.** The
+  075 narration stepped on a timer while the run ran, and a warm run finished
+  in ~150 ms — one frame of "starting Renovate's own code…" and the landing
+  was gone. The design (`Landing Transition.dc.html`) has it the other way
+  around: the walk IS the transition, and the results wait for it. So the
+  first result commit (and only the first — `shellDockedRef`) holds until
+  `StageRailPreview` signals its walk complete (`onWalkEnd`, fired one step
+  after the Merge frame). A signal rather than a matching timer in App,
+  because the engine's first import blocks the main thread, which stalls the
+  walk's interval but not a wall-clock timeout — the fixed-duration version
+  measurably cut the walk at five of eight stages. The step pace dropped to
+  the design's 160 ms, reduced-motion readers signal immediately (no walk, no
+  hold), and a capped race (`LANDING_WALK_CAP_MS`, 4 s) guarantees a lost
+  signal can only delay the answer, never withhold it.
+- **The walk's glyphs are the rail's glyphs — colored by what is knowable.**
+  Both rails now draw through one `StageGlyph` component (one element, one
+  class vocabulary, so the teaser cannot drift from the rail it teases). A
+  walked node stays the accent `lit` — activity, never a verdict: mid-run the
+  app knows which stage Renovate's code is walking and nothing about how it
+  came out, so the rail's green/gold/red would be a claim (a review pass
+  tried `clean` green and reverted it for exactly that reason). The one
+  pre-run FACT the walk does state is an absent 008 layer: those nodes wear
+  the rail's hollow `skipped` glyph (`previewSkippedStages`, derived in App
+  from the layer parses — the design's walk draws the same hollow-vs-filled
+  distinction), and Merge stays unlit for the real rail to light. Full
+  `StageRail` reuse was considered and rejected — it needs a `TraceResult`,
+  its nodes are buttons (a no-op button is a false affordance, a disabled one
+  swallows the glossary hover), and its labels carry run-explainers where the
+  landing deliberately carries glossary terms.
 - **The credentials count is a derivation, not markup.** A sign-in and a GitHub
   PAT are one credential for github.com, not two; `default` is stated positively
   (github, its shipped endpoint, nothing saved) rather than as "the count is

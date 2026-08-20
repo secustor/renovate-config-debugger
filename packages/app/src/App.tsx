@@ -34,7 +34,12 @@ import {
 import { OptionDocsProvider } from "@/components/option-docs";
 import { REPO_URL } from "@/data/project-repo";
 import { buildPresetLookup, type PresetHoverContext } from "@/lib/preset-hover";
-import { flashTarget, motionScrollOptions, motionScrollToOptions } from "@/lib/motion";
+import {
+  flashTarget,
+  motionScrollOptions,
+  motionScrollToOptions,
+  prefersReducedMotion,
+} from "@/lib/motion";
 import { SELECTED_PRESET_ROW } from "@/lib/preset-row-dom";
 import { tabButtonSelector } from "@/lib/results-tab-dom";
 import { findPackageRuleOffsets } from "@/lib/rule-locate";
@@ -246,6 +251,13 @@ type InjectionMap = Record<string, Record<string, unknown>>;
 // verbatim — the `layer-editor-error` render site (StageLayerEditor) and this
 // file's own run-blocking message depend on them.
 const parseLayerText = parseLayerJson;
+
+/** Roadmap 076 review: the safety cap on the landing walk-end handshake in
+ *  `executeRun`. The uninterrupted walk takes ~1.3 s (StageRailPreview's
+ *  `RUNNING_STEP_MS` × eight stages) and the engine's first import can stall
+ *  it a while longer, so this only fires when the signal is genuinely lost —
+ *  and then it delays the first result, never withholds it. */
+const LANDING_WALK_CAP_MS = 4_000;
 
 /** Roadmap 076: the two 008 merge layers as one comparable value — what
  *  `resultsStale` asks about them. Spelled once so the key a run RECORDS and
@@ -838,6 +850,20 @@ export function App() {
     () => layerKey(globalParse.config, inheritedParse.config),
     [globalParse.config, inheritedParse.config],
   );
+  // Roadmap 076 review: the stages the landing walk shows hollow — a layer
+  // with no config is skipped, and that is a fact about the run's INPUTS, so
+  // the narration may state it before the engine reports anything. Memoized
+  // for the same identity reason as everything else handed into the column.
+  const previewSkippedStages = useMemo<readonly StageId[]>(() => {
+    const skips: StageId[] = [];
+    if (globalParse.config === undefined) {
+      skips.push("global");
+    }
+    if (inheritedParse.config === undefined) {
+      skips.push("inherit");
+    }
+    return skips;
+  }, [globalParse.config, inheritedParse.config]);
   const reflectGlobal = hasGlobalContext && !platformOverride;
   const displayPlatform = reflectGlobal && globalPlatform !== undefined ? globalPlatform : platform;
   // A global-config platform also displaces the toolbar endpoint (it belongs
@@ -1003,6 +1029,25 @@ export function App() {
   const runQueueRef = useRef<RunQueue<TraceResult | null> | null>(null);
   const runQueue = (runQueueRef.current ??= createRunQueue<TraceResult | null>(setRunning));
 
+  /** Roadmap 076 review: false until the first result commits — i.e. while the
+   *  landing (and its stage-walk narration) is still on screen. A ref, not
+   *  `result === null`, because `executeRun` runs from the queue with the
+   *  closure it was enqueued under: a second run queued behind the first would
+   *  still read the stale null and sit out a second walk. A failed first run
+   *  leaves it false on purpose — the landing is still up, so the next run
+   *  narrates again. */
+  const shellDockedRef = useRef(false);
+
+  /** The resolver of the walk-end promise the first commit is holding for —
+   *  armed by `executeRun`, fired by `StageRailPreview` via the callback
+   *  below. Nulled after firing so a late signal (the timeout the preview
+   *  schedules survives one render past the walk) resolves nothing twice. */
+  const landingWalkResolveRef = useRef<(() => void) | null>(null);
+  const onLandingWalkEnd = useCallback(() => {
+    landingWalkResolveRef.current?.();
+    landingWalkResolveRef.current = null;
+  }, []);
+
   /**
    * Roadmap 068: the ONE place a run is started — and, since the 2026-08-11
    * review's follow-up, a SERIAL QUEUE rather than a gate.
@@ -1121,7 +1166,30 @@ export function App() {
       if (fatalSeqRef.current === fatalSeq) {
         setFatal(null);
       }
-      const traceResult = await run({ ...inputs, injectedPresets }, { suppressTokens });
+      const runPromise = run({ ...inputs, injectedPresets }, { suppressTokens });
+      // Roadmap 076 review: the landing's stage-walk narration IS the
+      // landing → shell transition (the design walks all eight stages, THEN
+      // docks the results in), and a sub-second run cut it to a single frame.
+      // So the commit that unmounts the landing — and only that one — waits
+      // for the walk's own end signal (`onLandingWalkEnd`; a reader who asked
+      // for less motion has no walk and signals immediately). A run slower
+      // than the walk pays nothing either way. The race is a safety net, not
+      // the mechanism: a signal that never comes (the one known path is a
+      // second run queued behind a failed first, whose walk never restarts)
+      // must delay the answer, never withhold it.
+      if (!shellDockedRef.current && !prefersReducedMotion()) {
+        const walkEnd = new Promise<void>((resolve) => {
+          landingWalkResolveRef.current = resolve;
+        });
+        await Promise.all([
+          runPromise,
+          Promise.race([
+            walkEnd,
+            new Promise((resolve) => window.setTimeout(resolve, LANDING_WALK_CAP_MS)),
+          ]),
+        ]);
+      }
+      const traceResult = await runPromise;
       // Roadmap 023: hold the current scroll so re-running an edited config
       // doesn't jump the user back to the top (captured right before the result
       // state commits, so an abandoned in-flight run can't pin a stale offset).
@@ -1136,6 +1204,7 @@ export function App() {
       // sentence inherits the lead of the run before it.
       outcomeLeadRef.current = opts?.outcomeLead ?? null;
       setResult(traceResult);
+      shellDockedRef.current = true;
       // Committed WITH the result, never before it: a run that threw or was
       // abandoned must not mark the previous run's output fresh. Roadmap 076:
       // and the layers this run actually carried, for the same reason and with
@@ -2110,6 +2179,8 @@ export function App() {
             // button paying for the warm-up twice costs nothing.
             onRun={() => void runFromGesture()}
             onRunIntent={preloadRunChunks}
+            onLandingWalkEnd={onLandingWalkEnd}
+            previewSkippedStages={previewSkippedStages}
             onCopyLink={onCopyLink}
             advancedZone={advancedZone}
             fatal={fatal}

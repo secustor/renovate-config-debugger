@@ -1,4 +1,5 @@
 import type { ReactNode, RefObject } from "react";
+import type { StageId } from "@renovate-config-debugger/engine";
 import type { ConfigEditorHandle } from "@/features/editor/ConfigEditor";
 import { ConfigEditorCard } from "@/features/editor/ConfigEditorCard";
 import { ConfigToolbar } from "@/features/editor/ConfigToolbar";
@@ -59,6 +60,13 @@ interface ConfigColumnProps {
   running: boolean;
   onRun: () => void;
   onRunIntent: () => void;
+  /** Roadmap 076 review: fired by the landing rail when its stage-walk
+   *  narration has shown every frame — App holds the FIRST result commit for
+   *  it, so the transition always plays whole (see StageRailPreview). */
+  onLandingWalkEnd: () => void;
+  /** The stages the requested run will skip (absent 008 layers) — the walk
+   *  shows them hollow instead of claiming they ran (see StageRailPreview). */
+  previewSkippedStages: readonly StageId[];
   onCopyLink: () => Promise<void>;
   // AdvancedZone is built by App.tsx and handed down as an already-constructed
   // element — its import and JSX call stay in App.tsx untouched (that file is
@@ -131,6 +139,8 @@ export function ConfigColumn({
   running,
   onRun,
   onRunIntent,
+  onLandingWalkEnd,
+  previewSkippedStages,
   onCopyLink,
   advancedZone,
   fatal,
@@ -251,7 +261,13 @@ export function ConfigColumn({
       )}
       {/* Roadmap 075 (the landing transition): the preview walks its own stage
           list while the run it is previewing is in flight — see StageRail. */}
-      {hasResult ? null : <StageRailPreview running={running} />}
+      {hasResult ? null : (
+        <StageRailPreview
+          running={running}
+          onWalkEnd={onLandingWalkEnd}
+          skippedStages={previewSkippedStages}
+        />
+      )}
       {hasResult ? null : <LandingSteps />}
 
       {/* Roadmap 076 review: the advanced zone is shell-only. The landing kept

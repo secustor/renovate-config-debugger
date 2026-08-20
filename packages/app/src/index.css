@@ -3860,11 +3860,12 @@ pre.config-view.prov-before {
   opacity: 0.6;
 }
 
-/* Roadmap 075 (the landing transition): a stage the in-flight run has reached.
-   ACCENT, not `--ok` — a lit dot is activity, never a verdict: mid-run the app
-   knows which stage Renovate's code is walking and nothing at all about how it
-   came out. (Declared after `.preview`, whose background it overrides at equal
-   specificity.) */
+/* Roadmap 075/076: a stage the in-flight walk has passed. ACCENT, not `--ok`
+   — a lit dot is activity, never a verdict: mid-run the app knows which stage
+   Renovate's code is walking and nothing at all about how it came out. (The
+   one pre-run FACT the walk may state is a skipped layer, which wears the
+   rail's own hollow `skipped` glyph — see StageGlyph. Declared after
+   `.preview`, whose background it overrides at equal specificity.) */
 .stage-rail-glyph.lit {
   background: var(--accent);
   border-color: var(--accent);

@@ -50,6 +50,23 @@ function StageNodeDelta({ delta }: { delta: StageDelta | null }) {
   );
 }
 
+/** What a preview node can wear: the live rail's own activity levels, plus
+ *  the two states only the landing has — `preview` (the dimmed hollow dot of
+ *  a stage the walk has not reached) and `lit` (a stage the walk has passed:
+ *  ACCENT, deliberately not the rail's verdict green, because mid-run the app
+ *  knows which stage Renovate's code is walking and nothing at all about how
+ *  it came out). */
+type GlyphLevel = StageActivity["level"] | "preview" | "lit";
+
+/** The one glyph either rail draws (076 review): one element, one class
+ *  vocabulary, so the preview cannot draw a node the live rail would draw
+ *  differently — a walked node IS a rail node, minus the delta and the
+ *  click. The only classes the preview adds are the two above, and `lit` is
+ *  an activity color, never a verdict one. */
+function StageGlyph({ level }: { level: GlyphLevel }) {
+  return <span className={`stage-rail-glyph ${level}`} aria-hidden="true" />;
+}
+
 interface StageNodeButtonProps {
   stage: StageId;
   activity: StageActivity;
@@ -78,7 +95,7 @@ function StageNodeButton({
       onClick={() => onSelect(stage)}
       {...handlers}
     >
-      <span className={`stage-rail-glyph ${activity.level}`} aria-hidden="true" />
+      <StageGlyph level={activity.level} />
       <span className="stage-rail-label">{STAGE_SHORT_LABELS[stage]}</span>
       <StageNodeDelta delta={delta} />
     </button>
@@ -148,14 +165,24 @@ export function StageRail({ result, selected, onSelect, effectiveKeys }: Props) 
   );
 }
 
-/** One preview node: the same column and the same glyph geometry, hollow and
- *  dimmed, with no delta to report and nothing to click. `lit`/`current` are
- *  the landing transition's only additions (see `StageRailPreview`). */
-function PreviewNode({ stage, lit, current }: { stage: StageId; lit: boolean; current: boolean }) {
+/** One preview node: the same column, glyph and label as a live rail node
+ *  (`StageGlyph` — 076 review: one glyph component, one class vocabulary),
+ *  with no delta to report and nothing to click. Deliberately NOT the rail's
+ *  `StageNodeButton`: a button that does nothing is a false affordance, and a
+ *  disabled one would swallow the glossary hover these labels carry. */
+function PreviewNode({
+  stage,
+  level,
+  current,
+}: {
+  stage: StageId;
+  level: GlyphLevel;
+  current: boolean;
+}) {
   const term = PREVIEW_TERMS[stage];
   return (
     <li className={`stage-rail-node${current ? " current" : ""}`}>
-      <span className={`stage-rail-glyph preview${lit ? " lit" : ""}`} aria-hidden="true" />
+      <StageGlyph level={level} />
       <span className="stage-rail-label">
         {term ? <Term id={term}>{STAGE_SHORT_LABELS[stage]}</Term> : STAGE_SHORT_LABELS[stage]}
       </span>
@@ -165,8 +192,14 @@ function PreviewNode({ stage, lit, current }: { stage: StageId; lit: boolean; cu
 
 /** Roadmap 075 (the landing transition): how fast the preview walks its own
  *  list while a run is in flight. Paced narration, not measurement — the
- *  engine reports nothing until it is finished. */
-const RUNNING_STEP_MS = 450;
+ *  engine reports nothing until it is finished. The design's pace: quick
+ *  enough that the whole walk fits in the moment before the shell docks in. */
+const RUNNING_STEP_MS = 160;
+
+/** Roadmap 076 review: what an uninterrupted walk takes end to end —
+ *  1.28 s at this pace. Stated here because App's `LANDING_WALK_CAP_MS`
+ *  (the safety cap on the walk-end handshake below) must stay comfortably
+ *  above it. */
 
 /** The last column. The run's own completion is what lights it, and by then
  *  the landing has unmounted — so the narration never claims it. */
@@ -219,10 +252,32 @@ function previewCaption(running: boolean, reducedMotion: boolean, step: number):
  * The stepping state is internal on purpose: the parent re-renders on every
  * keystroke, and the interval must belong to the rail rather than to App.
  * The caption deliberately carries no live region — a new sentence every
- * 450 ms would be screen-reader noise, and the Run button's "Running…" already
+ * step would be screen-reader noise, and the Run button's "Running…" already
  * announces the state.
+ *
+ * Roadmap 076 review: `onWalkEnd` is the other half of the transition. The
+ * narration IS the landing → shell handover (the design walks every stage,
+ * THEN docks the results in), so App holds the FIRST result commit until this
+ * fires — one step after the walk shows its last frame, or immediately when
+ * reduced motion means there is no walk to wait for. A signal, not a timer in
+ * App: the engine's first import blocks the main thread, which stalls the
+ * interval here but not a wall-clock timeout there, and that skew is exactly
+ * what cut the walk short.
  */
-export function StageRailPreview({ running }: { running: boolean }) {
+export function StageRailPreview({
+  running,
+  onWalkEnd,
+  skippedStages,
+}: {
+  running: boolean;
+  onWalkEnd: () => void;
+  /** The stages this run will NOT walk — the two 008 layers when their config
+   *  is absent, which is a fact about the run's INPUTS and so honestly known
+   *  before it reports anything. The walk shows them with the rail's own
+   *  hollow `skipped` glyph instead of claiming they ran (076 review — the
+   *  design's walk draws exactly this distinction). */
+  skippedStages: readonly StageId[];
+}) {
   const [step, setStep] = useState(0);
   // Read once, at mount: the landing lives for exactly one screen, and this is
   // an OS preference, not something worth subscribing to for that long.
@@ -238,17 +293,39 @@ export function StageRailPreview({ running }: { running: boolean }) {
     return () => window.clearInterval(id);
   }, [running, reducedMotion]);
   const stepping = running && !reducedMotion;
+  useEffect(() => {
+    // No walk under reduced motion, so nothing to hold the results for.
+    if (running && reducedMotion) {
+      onWalkEnd();
+      return;
+    }
+    // The last frame (the ring on Merge, "merging…") gets one full step on
+    // screen before the signal — the same beat every other frame had.
+    if (stepping && step === LAST_STAGE_INDEX) {
+      const id = window.setTimeout(onWalkEnd, RUNNING_STEP_MS);
+      return () => window.clearTimeout(id);
+    }
+  }, [running, reducedMotion, stepping, step, onWalkEnd]);
   return (
     <div className={`stage-rail-preview${running ? " running" : ""}`}>
       <ol className="stage-rail preview" aria-label="The stages this run will walk">
-        {STAGE_ORDER.map((stage, index) => (
-          <PreviewNode
-            key={stage}
-            stage={stage}
-            lit={stepping && index <= step && index < LAST_STAGE_INDEX}
-            current={stepping && index === step}
-          />
-        ))}
+        {STAGE_ORDER.map((stage, index) => {
+          // A node the walk has passed wears what is knowable pre-run and no
+          // more: the rail's hollow `skipped` glyph for a layer the inputs
+          // lack, the accent `lit` otherwise — activity, never a verdict.
+          // Merge stays unlit — only the real result may light the finish,
+          // and by then this rail is gone.
+          const lit = stepping && index <= step && index < LAST_STAGE_INDEX;
+          const level = lit ? (skippedStages.includes(stage) ? "skipped" : "lit") : "preview";
+          return (
+            <PreviewNode
+              key={stage}
+              stage={stage}
+              level={level}
+              current={stepping && index === step}
+            />
+          );
+        })}
       </ol>
       <p className="stage-rail-caption">{previewCaption(running, reducedMotion, step)}</p>
     </div>
