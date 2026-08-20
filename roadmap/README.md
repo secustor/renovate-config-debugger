@@ -82,6 +82,7 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [075](075-v2-integrated-shell.md)                       | v2: the Integrated Shell                                             | M20                  | done        |
 | [076](076-hosts-credentials-and-pipeline-layers.md)     | Hosts & credentials; the layers move to their stages                 | M20                  | done        |
 | [077](077-proposal-f-parity.md)                         | Proposal F parity: Share moves to the header                         | M20                  | done        |
+| [078](078-dep-proposals-from-extraction.md)             | Dependency proposals: extract real deps from a pasted package file   | M17                  | proposed    |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live
@@ -221,7 +222,14 @@ distinguishes nothing, 063 is the feature (the first input the app has
 ever taken that is not a config), and 064 makes its claims honest — real
 Renovate compiles `matchStrings` with RE2, the browser falls back to
 native `RegExp`, and the two diverge in both directions — while answering
-the discussion's actual question.
+the discussion's actual question. 078 extends the arc to built-in
+managers — the part 063 explicitly deferred — after the 2026-08-21 survey
+([2026-08-builtin-extraction-feasibility.md](2026-08-builtin-extraction-feasibility.md))
+found the "very different bundle conversation" tractable: most extract
+functions are pure parsers, all file access flows through one shimmable
+choke point, and per-manager deep imports dodge the barrel. Pasted
+package files become extracted, clickable dependency proposals for the
+Tests tab and the simulator form.
 
 M18 — **Keyboard** — is 068, and it starts from an omission the feature
 milestones never noticed: the app is shaped like a keyboard tool — an editor
