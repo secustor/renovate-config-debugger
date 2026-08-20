@@ -93,8 +93,7 @@ interface ConfigColumnProps {
  *   absent here (the headless note, and — since the 076 review — the advanced
  *   zone), so the screen has one question and one answer to it.
  * - **Shell** (a result exists) — the left pane of the two-pane frame: the
- *   editor filling the pane, the advanced zone, and a footer restating the one
- *   promise the landing's subtitle made, for a reader who never saw it.
+ *   editor filling the pane, with the advanced zone as its foot.
  *
  * The parts that do not change between them — the editor card, its toolbar, the
  * repo-load overlay, the banners — are rendered once, by this component, in
@@ -278,15 +277,6 @@ export function ConfigColumn({
           (auth hint, preset-tree failure) points at the drawer that is now on
           screen. */}
       {hasResult ? advancedZone : null}
-
-      {hasResult ? (
-        // Roadmap 075 (iteration 6): the second half is now a true statement
-        // about what an edit DOES — the Tests tab re-checks every pinned
-        // descriptor against each run — rather than only where it happens.
-        <p className="pane-foot">
-          Everything runs in your browser · edits re-check your pinned tests on Run.
-        </p>
-      ) : null}
     </div>
   );
 }

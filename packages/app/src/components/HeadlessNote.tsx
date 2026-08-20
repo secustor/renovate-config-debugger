@@ -56,7 +56,7 @@ export function HeadlessNote() {
     <footer className="headless-note">
       <details className="headless-note-details">
         <summary className="headless-note-summary">
-          Looking for a solution for Agents and scripts?
+          Looking for a solution for agents and scripts?
         </summary>
         <HeadlessNoteBody />
       </details>

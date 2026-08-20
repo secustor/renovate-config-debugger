@@ -4074,14 +4074,6 @@ pre.config-view.prov-before {
   padding-top: 0.75rem;
 }
 
-/* The shell's counterpart to the landing's subtitle: the same promise, for a
-   reader who arrived through a share link and never saw the landing. */
-.pane-foot {
-  color: var(--muted);
-  font-size: 0.78rem;
-  margin: 0;
-}
-
 /* Roadmap 068's fatal-error paragraph, off the inline style it carried. */
 .fatal-error {
   color: var(--error);
@@ -5042,7 +5034,7 @@ pre.config-view.prov-before {
 
   /* The editor fills its pane: the toolbar strip stays at the top of the card,
      the document grows into whatever is left, and the zones below it (advanced
-     options, notices, the footer line) follow underneath. */
+     options, notices) follow underneath. */
   .app-split.has-results > .config-col {
     display: flex;
     flex-direction: column;
