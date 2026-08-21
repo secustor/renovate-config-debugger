@@ -16,7 +16,7 @@ export function UpdateTypeSelect({
   return (
     <div className="sim-form sim-form-updatetype">
       <label className="sim-field">
-        updateType
+        <Term id="updateType">updateType</Term>
         <select value={value} onChange={(e) => onChange(e.target.value)} onKeyDown={onKeyDown}>
           <option value="">(unset)</option>
           {UPDATE_TYPES.map((t) => (

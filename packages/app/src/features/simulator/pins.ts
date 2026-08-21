@@ -90,14 +90,19 @@ export function pinName(form: FormState): string {
 }
 
 /**
- * The muted line under the name: where the update comes from and what kind it
- * is. `manager` falls back to `datasource` (the simulator's own first field is
- * the datasource, and a descriptor that names only one of the two still has to
- * read as something); `updateType` is the EFFECTIVE one from the evaluation
- * when there is one, since a derived type is what actually drove the run.
+ * The muted line beside the name — the design's header grammar: the version
+ * move first (`18.3.1 → 19.0.0`), then where the update comes from, then what
+ * kind it is. `manager` falls back to `datasource` (the simulator's own first
+ * field is the datasource, and a descriptor that names only one of the two
+ * still has to read as something); `updateType` is the EFFECTIVE one from the
+ * evaluation when there is one, since a derived type is what actually drove
+ * the run.
  */
 export function pinContext(form: FormState, effectiveUpdateType: string): string {
+  const current = form.currentValue.trim();
+  const next = form.newValue.trim();
+  const move = current !== "" && next !== "" ? `${current} → ${next}` : current || next;
   const source = form.manager.trim() || form.datasource.trim();
   const updateType = effectiveUpdateType.trim() || form.updateType.trim();
-  return [source, updateType].filter((part) => part !== "").join(" · ");
+  return [move, source, updateType].filter((part) => part !== "").join(" · ");
 }

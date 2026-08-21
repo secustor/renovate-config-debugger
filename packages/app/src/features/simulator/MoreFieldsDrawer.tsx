@@ -36,10 +36,12 @@ function MoreFieldsGrid({
   form: FormState;
   setForm: Dispatch<SetStateAction<FormState>>;
 }) {
+  // Every label wears the glossary hover — these are Renovate's own descriptor
+  // fields, and the card says which matcher reads each one.
   return (
     <div className="sim-form">
       <Field
-        label="manager"
+        label={<Term id="manager">manager</Term>}
         value={form.manager}
         onChange={(v) => setForm({ ...form, manager: v })}
         placeholder="(unset) — type to search"
@@ -56,53 +58,65 @@ function MoreFieldsGrid({
         placeholder="https://github.com/facebook/react — the DEPENDENCY's repo"
       />
       <Field
-        label="depName"
+        label={<Term id="simDepName">depName</Term>}
         value={form.depName}
         onChange={(v) => setForm({ ...form, depName: v })}
         placeholder="= packageName"
       />
       <Field
-        label="depType"
+        label={<Term id="simDepType">depType</Term>}
         value={form.depType}
         onChange={(v) => setForm({ ...form, depType: v })}
         placeholder="dependencies"
       />
       <Field
-        label="packageFile"
+        label={<Term id="simPackageFile">packageFile</Term>}
         value={form.packageFile}
         onChange={(v) => setForm({ ...form, packageFile: v })}
         placeholder="package.json"
       />
       <Field
-        label="versioning"
+        label={<Term id="simVersioning">versioning</Term>}
         value={form.versioning}
         onChange={(v) => setForm({ ...form, versioning: v })}
         placeholder="semver"
       />
       <Field
-        label="currentVersion"
+        label={<Term id="simCurrentVersion">currentVersion</Term>}
         value={form.currentVersion}
         onChange={(v) => setForm({ ...form, currentVersion: v })}
       />
       <Field
-        label="lockedVersion"
+        label={<Term id="simLockedVersion">lockedVersion</Term>}
         value={form.lockedVersion}
         onChange={(v) => setForm({ ...form, lockedVersion: v })}
       />
       <Field
-        label="lockFiles (comma-separated)"
+        label={
+          <>
+            <Term id="simLockFiles">lockFiles</Term> (comma-separated)
+          </>
+        }
         value={form.lockFiles}
         onChange={(v) => setForm({ ...form, lockFiles: v })}
         placeholder="package-lock.json"
       />
       <Field
-        label="registryUrls (comma-separated)"
+        label={
+          <>
+            <Term id="simRegistryUrls">registryUrls</Term> (comma-separated)
+          </>
+        }
         value={form.registryUrls}
         onChange={(v) => setForm({ ...form, registryUrls: v })}
         placeholder="https://registry.npmjs.org"
       />
       <Field
-        label="categories (comma-separated)"
+        label={
+          <>
+            <Term id="simCategories">categories</Term> (comma-separated)
+          </>
+        }
         value={form.categories}
         onChange={(v) => setForm({ ...form, categories: v })}
         placeholder="js"
@@ -114,13 +128,13 @@ function MoreFieldsGrid({
         placeholder="your-org/your-repo — the repo Renovate runs in"
       />
       <Field
-        label="baseBranch"
+        label={<Term id="simBaseBranch">baseBranch</Term>}
         value={form.baseBranch}
         onChange={(v) => setForm({ ...form, baseBranch: v })}
         placeholder="main"
       />
       <Field
-        label="currentVersionTimestamp"
+        label={<Term id="simCurrentVersionTimestamp">currentVersionTimestamp</Term>}
         value={form.currentVersionTimestamp}
         onChange={(v) => setForm({ ...form, currentVersionTimestamp: v })}
         placeholder="2024-01-01T00:00:00.000Z"

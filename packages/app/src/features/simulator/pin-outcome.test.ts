@@ -1,14 +1,16 @@
 /**
- * Roadmap 075 (iteration 6): what a pin card says about a simulation.
+ * What a funnel card says about a simulation (Proposal F rebuild).
  *
- * The two things locked here are the ones a reader would be misled by if they
- * drifted: the chips (which read the same `finalDependencyConfig` the verdict
- * sentence reads), and the bucketing — every non-matching rule is counted
- * exactly once, the reader's OWN rules are never swallowed by a bucket, and the
- * cut falls back to an honest pair when the run has no provenance to group by.
+ * The things locked here are the ones a reader would be misled by if they
+ * drifted: the headline (which reads the same `finalDependencyConfig` the
+ * verdict sentence reads), the write survival on a matched rule (who beat
+ * whom, straight from the merge steps), the reader's OWN rules never being
+ * swallowed by a bucket, and the reason-cut bucketing counting every skipped
+ * rule exactly once.
  */
 import type {
   ClauseEvaluation,
+  MergeStep,
   ProvenanceLayer,
   RuleAttribution,
   RuleEvaluation,
@@ -17,14 +19,13 @@ import type {
 import { describe, expect, test } from "vitest";
 import { buildPinOutcome } from "./pin-outcome";
 
-function clause(state: ClauseEvaluation["state"]): ClauseEvaluation {
-  return {
-    key: "matchSourceUrls",
-    value: ["x"],
-    state,
-    inputValues: {},
-    readFields: ["sourceUrl"],
-  };
+function clause(
+  state: ClauseEvaluation["state"],
+  key = "matchSourceUrls",
+  value: unknown = ["x"],
+  inputValues: Record<string, unknown> = {},
+): ClauseEvaluation {
+  return { key, value, state, inputValues, readFields: ["sourceUrl"] };
 }
 
 function rule(
@@ -39,6 +40,7 @@ function simulation(
   rules: RuleEvaluation[],
   finalDependencyConfig: Record<string, unknown> = {},
   updateType = "minor",
+  mergeSteps: MergeStep[] = [],
 ): SimulationResult {
   return {
     rules,
@@ -47,7 +49,7 @@ function simulation(
     rawFinalConfig: {},
     finalDependencyConfig,
     flattened: { updateType, merged: [], blocks: {}, authoredBlocks: [] },
-    mergeSteps: [],
+    mergeSteps,
     errors: [],
     warnings: [],
     notes: [],
@@ -60,7 +62,9 @@ const RECOMMENDED: ProvenanceLayer = {
   name: "config:recommended",
   nodeId: "n1",
 };
-const MONOREPO: ProvenanceLayer = { kind: "preset", name: "group:monorepos", nodeId: "n2" };
+const ANGULAR: ProvenanceLayer = { kind: "preset", name: "monorepo:angular", nodeId: "n2" };
+const AWS: ProvenanceLayer = { kind: "preset", name: "monorepo:aws", nodeId: "n3" };
+const REPLACEMENTS: ProvenanceLayer = { kind: "preset", name: "replacements:all", nodeId: "n4" };
 
 function layers(entries: [number, ProvenanceLayer][]): Map<number, ProvenanceLayer> {
   return new Map(entries);
@@ -70,8 +74,8 @@ function attribution(entries: [number, ProvenanceLayer, number][]): RuleAttribut
   return entries.map(([index, layer, sourceIndex]) => ({ index, layer, sourceIndex }));
 }
 
-describe("the header chips", () => {
-  test("name the grouping and the automerge the rules produced", () => {
+describe("the headline", () => {
+  test("names the grouping and the automerge the rules produced, with the counts", () => {
     const outcome = buildPinOutcome(
       simulation([rule(0, "matched", [clause("matched")])], {
         groupName: "react",
@@ -80,20 +84,23 @@ describe("the header chips", () => {
       layers([[0, REPO]]),
       attribution([[0, REPO, 0]]),
     );
-    expect(outcome.chips).toEqual([
-      { tone: "accent", label: "grouped: react" },
-      { tone: "ok", label: "automerge ✓" },
-    ]);
+    expect(outcome.headline).toBe("grouped as “react” · automerge ✓");
     expect(outcome.updateType).toBe("minor");
     expect(outcome.matched.map((r) => r.index)).toEqual([0]);
+    expect(outcome.skippedCount).toBe(0);
   });
 
-  test("say so plainly when the matched rules changed nothing worth a chip", () => {
-    const outcome = buildPinOutcome(simulation([]), layers([]), null);
-    expect(outcome.chips).toEqual([{ tone: "muted", label: "default behavior" }]);
+  test("an update nothing wrote to says the defaults apply", () => {
+    const outcome = buildPinOutcome(
+      simulation([rule(0, "no-match", [clause("no-match")])]),
+      layers([]),
+      null,
+    );
+    expect(outcome.headline).toBe("0 matched — defaults apply");
+    expect(outcome.skippedCount).toBe(1);
   });
 
-  test("lead with an update Renovate would not raise at all", () => {
+  test("leads with an update Renovate would not raise at all", () => {
     const outcome = buildPinOutcome(
       simulation([], { skipReason: "disabled-by-config", groupName: "react" }),
       layers([]),
@@ -103,86 +110,141 @@ describe("the header chips", () => {
   });
 });
 
-describe("the rules a card names and the ones it counts", () => {
+describe("what a matched rule wrote, against the merge steps", () => {
+  const RULES = [rule(0, "matched", [clause("matched")]), rule(1, "matched", [clause("matched")])];
+  const STEPS: MergeStep[] = [
+    {
+      kind: "rule",
+      ruleIndex: 0,
+      before: {},
+      after: {},
+      merged: [{ key: "groupName", after: "react monorepo" }],
+    },
+    {
+      kind: "rule",
+      ruleIndex: 1,
+      before: {},
+      after: {},
+      merged: [{ key: "groupName", before: "react monorepo", after: "npm minor" }],
+    },
+  ];
+
+  test("an overridden write says who took it, a surviving one says who it beat", () => {
+    const outcome = buildPinOutcome(
+      simulation(RULES, {}, "minor", STEPS),
+      layers([
+        [0, RECOMMENDED],
+        [1, REPO],
+      ]),
+      null,
+    );
+    const [first, second] = outcome.matched;
+    expect(first?.wroteSummary).toBe("groupName · overridden below");
+    expect(first?.conflictNote).toBe("packageRules[1] runs later and rewrote groupName.");
+    expect(second?.wroteSummary).toBe("groupName · wins");
+    expect(second?.conflictNote).toBe("Applied later — its groupName wins over packageRules[0].");
+  });
+
+  test("a matched rule that merged nothing says so", () => {
+    const outcome = buildPinOutcome(
+      simulation([rule(0, "matched", [clause("matched")])]),
+      layers([]),
+      null,
+    );
+    expect(outcome.matched[0]?.wroteSummary).toBe("no writes");
+    expect(outcome.matched[0]?.conflictNote).toBeUndefined();
+  });
+});
+
+describe("the rules a card names and the ones it buckets", () => {
   const RULES = [
     rule(0, "matched", [clause("matched")]),
     // the reader's own rule, genuinely mismatched — never bucketed
-    rule(1, "no-match", [clause("no-match")]),
+    rule(1, "no-match", [
+      clause("matched", "matchManagers", ["npm"], { manager: "npm" }),
+      clause("no-match", "matchUpdateTypes", ["patch"], { updateType: "minor" }),
+    ]),
     rule(2, "no-match", [clause("no-match")]),
     rule(3, "no-match", [clause("no-match")]),
-    rule(4, "no-match", [clause("no-input")]),
-    rule(5, "no-match", [clause("error")]),
+    rule(4, "no-match", [clause("no-match")]),
+    rule(5, "no-match", [clause("no-match")]),
+    rule(6, "no-match", [clause("no-input")]),
+    rule(7, "no-match", [clause("error")]),
   ];
   const LAYERS = layers([
     [0, RECOMMENDED],
     [1, REPO],
-    [2, RECOMMENDED],
-    [3, MONOREPO],
-    [4, RECOMMENDED],
-    [5, MONOREPO],
+    [2, ANGULAR],
+    [3, ANGULAR],
+    [4, AWS],
+    [5, REPLACEMENTS],
+    [6, RECOMMENDED],
+    [7, RECOMMENDED],
   ]);
   const ATTRIBUTION = attribution([
     [0, RECOMMENDED, 0],
     [1, REPO, 2],
-    [2, RECOMMENDED, 1],
-    [3, MONOREPO, 0],
-    [4, RECOMMENDED, 2],
-    [5, MONOREPO, 1],
   ]);
 
-  test("names the reader's own failed rule and buckets the rest, counting each once", () => {
+  test("names the reader's own failed rule, with the index the editor jump needs", () => {
     const outcome = buildPinOutcome(simulation(RULES), LAYERS, ATTRIBUTION);
-    expect(outcome.matched.map((r) => r.index)).toEqual([0]);
-    // The repo rule is named, with the index it has in the reader's own config
-    // — the number the editor jump needs.
     expect(outcome.failed).toHaveLength(1);
     expect(outcome.failed[0]?.index).toBe(1);
     expect(outcome.failed[0]?.repoIndex).toBe(2);
-    expect(outcome.failed[0]?.label).toContain("failed on matchSourceUrls");
+    expect(outcome.failed[0]?.label).toContain("failed on matchUpdateTypes");
+  });
 
+  test("offers the one-edit fix when exactly one list clause failed", () => {
+    const outcome = buildPinOutcome(simulation(RULES), LAYERS, ATTRIBUTION);
+    expect(outcome.failed[0]?.closestMiss).toEqual({
+      clauseKey: "matchUpdateTypes",
+      suggestion: '["patch","minor"]',
+    });
+  });
+
+  test("cuts the buckets by reason and counts every skipped rule exactly once", () => {
+    const outcome = buildPinOutcome(simulation(RULES), LAYERS, ATTRIBUTION, "react");
     const byId = Object.fromEntries(outcome.buckets.map((b) => [b.id, b]));
-    expect(byId["preset:config:recommended"]?.count).toBe(1);
-    expect(byId["preset:group:monorepos"]?.count).toBe(1);
+    // monorepo:* rules grouped per family, biggest first.
+    expect(byId["monorepo"]?.count).toBe(3);
+    expect(byId["monorepo"]?.rows.map((r) => r.label)).toEqual([
+      "monorepo:angular",
+      "monorepo:aws",
+    ]);
+    expect(byId["monorepo"]?.rows[0]?.note).toContain("2 rules");
+    // the replacements reason names the dependency.
+    expect(byId["replacements"]?.count).toBe(1);
+    expect(byId["replacements"]?.reason).toBe("replacement rules — react hasn’t been renamed");
+    // verdict specials keep their own buckets.
     expect(byId["missing-input"]?.count).toBe(1);
     expect(byId["not-evaluated"]?.count).toBe(1);
-    // Every non-matching rule that is not the reader's own is in exactly one
-    // bucket: 5 rules, 1 matched, 1 named, 4 counted.
+    // Every skipped rule that is not the reader's own is in exactly one bucket.
     const bucketed = outcome.buckets.reduce((sum, b) => sum + b.count, 0);
     expect(bucketed).toBe(RULES.length - outcome.matched.length - outcome.failed.length);
-    expect(outcome.totalRules).toBe(RULES.length);
+    // The header count is total minus matched — the named failures included.
+    expect(outcome.skippedCount).toBe(RULES.length - outcome.matched.length);
   });
 
-  test("a preset rule that lost to an unset field is not counted as a mismatch", () => {
-    const outcome = buildPinOutcome(simulation(RULES), LAYERS, ATTRIBUTION);
-    const preset = outcome.buckets.find((b) => b.id === "preset:config:recommended");
-    expect(preset?.samples).toEqual([2]);
-    expect(outcome.buckets.find((b) => b.id === "missing-input")?.samples).toEqual([4]);
-  });
-
-  test("falls back to two honest buckets when the run has no provenance", () => {
+  test("without provenance nothing is anyone's own, and the remainder is one axis bucket", () => {
     const outcome = buildPinOutcome(simulation(RULES), layers([]), null);
     expect(outcome.failed).toEqual([]);
-    expect(outcome.buckets.map((b) => b.label)).toEqual([
-      "preset rules that didn’t match",
-      "rules missing an input",
-      "rules the tool could not evaluate",
-    ]);
-    // 4 genuine mismatches (rule 1 is nobody's own without provenance) + the
-    // two verdict buckets.
-    expect(outcome.buckets.reduce((sum, b) => sum + b.count, 0)).toBe(5);
+    const byId = Object.fromEntries(outcome.buckets.map((b) => [b.id, b]));
+    expect(byId["other-axis"]?.count).toBe(5);
+    expect(outcome.buckets.reduce((sum, b) => sum + b.count, 0)).toBe(7);
   });
 
-  test("rolls the tail of a long provenance list into one bucket, never truncating the count", () => {
+  test("a long family list keeps its count and says how much the rows elide", () => {
     const manyLayers: [number, ProvenanceLayer][] = [];
     const rules: RuleEvaluation[] = [];
     for (let i = 0; i < 8; i++) {
       rules.push(rule(i, "no-match", [clause("no-match")]));
-      manyLayers.push([i, { kind: "preset", name: `preset-${i}`, nodeId: `n${i}` }]);
+      manyLayers.push([i, { kind: "preset", name: `monorepo:family-${i}`, nodeId: `n${i}` }]);
     }
     const outcome = buildPinOutcome(simulation(rules), layers(manyLayers), null);
-    expect(outcome.buckets).toHaveLength(4);
-    expect(outcome.buckets.reduce((sum, b) => sum + b.count, 0)).toBe(8);
-    expect(outcome.buckets.at(-1)?.label).toBe("rules from other sources that didn’t match");
+    const bucket = outcome.buckets[0];
+    expect(bucket?.count).toBe(8);
+    expect(bucket?.rows).toHaveLength(3);
+    expect(bucket?.more).toBe("5 more families, sorted by rule count");
   });
 });
 

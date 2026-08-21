@@ -38,17 +38,18 @@ test("a run lands on the Tests tab, not on an expanded instrument", async ({ pag
 
   await expect(tabButton(page, "tests")).toHaveAttribute("aria-selected", "true");
   await expect(tabPanel(page, "tests")).toBeVisible();
-  // …and Tests is the pinned dependency tests (075 iteration 6): the list a run
-  // re-checks, with the full simulator one quiet link away.
-  await expect(tabPanel(page, "tests")).toContainText("re-checked on every run");
+  // …and Tests is the pinned dependency tests (075 iteration 6, Proposal F
+  // funnel): the empty state explains a pin, the Add-a-test form is open.
+  await expect(tabPanel(page, "tests")).toContainText("No tests pinned yet");
   await expect(tabPanel(page, "tests")).toContainText("+ Pin a dependency…");
   // The heavy instruments are mounted but hidden — nothing is expanded on
   // arrival.
   await expect(tabPanel(page, "presets")).toBeHidden();
   await expect(tabPanel(page, "effective")).toBeHidden();
   await expect(tabPanel(page, "pipeline")).toBeHidden();
-  // Five tabs, in the v2 order.
-  await expect(page.locator(".tab-bar .tab")).toHaveText([
+  // Five tabs, in the v2 order — scoped to the results tablist, because the
+  // Add-a-test box reuses the same tab grammar inside the Tests panel.
+  await expect(page.getByRole("tablist", { name: "Results" }).locator(".tab")).toHaveText([
     /^Tests/,
     /^Pipeline/,
     /^Presets/,
@@ -388,7 +389,7 @@ test("a share link naming a retired tab lands on the tab that replaced it", asyn
   );
   await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
   await expect(tabButton(page, "tests")).toHaveAttribute("aria-selected", "true");
-  await expect(tabPanel(page, "tests")).toContainText("re-checked on every run");
+  await expect(tabPanel(page, "tests")).toContainText("No tests pinned yet");
 
   // `rewrites` — Pipeline, AND the migrate stage, or the stepper the sender was
   // pointing at is not on screen.

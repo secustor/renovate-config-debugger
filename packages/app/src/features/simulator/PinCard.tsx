@@ -1,17 +1,21 @@
 import { useMemo, useState } from "react";
 import type { ProvenanceLayer, RuleAttribution } from "@renovate-config-debugger/engine";
+import { nf } from "@/lib/format";
 import { buildPinOutcome, type PinOutcome } from "./pin-outcome";
-import { PinChips } from "./PinChips";
-import { PinRuleList } from "./PinRuleList";
+import { PinBucketList } from "./PinBucketList";
 import { pinContext, pinName, type PinnedTest } from "./pins";
+import { PinProbe } from "./PinProbe";
+import { PinFailedSection, PinMatchedSection } from "./PinRuleSections";
 import type { RuleDescriptionNote } from "./rule-descriptions";
-import { SkippedBucket } from "./SkippedBucket";
 import type { PinEvaluation } from "./use-pinned-tests";
 
 /**
- * Roadmap 075 (iteration 6): one pinned test, as the design's card — a header
- * row that answers the question at a glance (dot, dependency, outcome chips)
- * and an expansion that says which rules produced that answer.
+ * One pinned test as the design's funnel card (Proposal F / "Skip Reason
+ * Funnel"): a header row that answers the question at a glance — caret, dot,
+ * dependency, version move, and the outcome sentence with its counts — and an
+ * expansion that IS the funnel: the matched rules with their evidence, the
+ * reader's own missed rules with their checklists, the skip buckets by
+ * reason, and the probe.
  *
  * Everything it renders comes from `buildPinOutcome`; the card itself decides
  * only what is on screen.
@@ -22,16 +26,44 @@ interface CrossLinks {
   onJumpToEditor?: (repoIndex: number) => void;
 }
 
-/** The header dot. Amber is reserved for "this verdict may not be the truth" —
- *  a simulation that failed, or the 023/replay-02 caveat that one of the
- *  reader's OWN rules lost to a field they left unset. There is no expectation
- *  model yet, so a verdict the tool is confident about is green whatever it
- *  says. */
+/** The header dot. Amber says "look closer" — a simulation that failed, the
+ *  023/replay-02 caveat that one of the reader's OWN rules lost to a field
+ *  they left unset, or (the design's own amber) an update no rule wrote to at
+ *  all, which ships with Renovate defaults. */
 function dotTone(evaluation: PinEvaluation | undefined, outcome: PinOutcome | null): string {
   if (!evaluation) {
     return "pending";
   }
-  return evaluation.error !== undefined || outcome?.caveat !== undefined ? "warn" : "ok";
+  if (evaluation.error !== undefined || outcome?.caveat !== undefined) {
+    return "warn";
+  }
+  return outcome !== null && outcome.matched.length === 0 ? "warn" : "ok";
+}
+
+function dotTitle(evaluation: PinEvaluation | undefined, outcome: PinOutcome | null): string {
+  if (!evaluation) {
+    return "checking…";
+  }
+  if (evaluation.error !== undefined) {
+    return "this pin could not be checked";
+  }
+  if (outcome?.caveat !== undefined) {
+    return outcome.caveat;
+  }
+  if (outcome !== null && outcome.matched.length === 0) {
+    return "no rule matched — Renovate defaults apply";
+  }
+  return "checked against the current run";
+}
+
+/** The header's right edge — the design's one-line outcome sentence:
+ *  `grouped as “npm minor” · 2 matched, 461 skipped`. */
+function headSummary(outcome: PinOutcome): string {
+  const counts =
+    outcome.matched.length > 0
+      ? `${nf.format(outcome.matched.length)} matched, ${nf.format(outcome.skippedCount)} skipped`
+      : `${nf.format(outcome.skippedCount)} skipped`;
+  return `${outcome.headline} · ${counts}`;
 }
 
 function PinCardHead({
@@ -53,19 +85,19 @@ function PinCardHead({
   return (
     <div className="pin-head">
       <button type="button" className="pin-head-toggle" aria-expanded={expanded} onClick={onToggle}>
-        <span className={`pin-dot ${dotTone(evaluation, outcome)}`} aria-hidden="true" />
+        <span className="caret">{expanded ? "▾" : "▸"}</span>
+        <span
+          className={`pin-dot ${dotTone(evaluation, outcome)}`}
+          title={dotTitle(evaluation, outcome)}
+        />
         <span className="pin-name">{name}</span>
         <span className="pin-meta">{pinContext(pin.form, outcome?.updateType ?? "")}</span>
+        {outcome ? (
+          <span className="pin-summary">{headSummary(outcome)}</span>
+        ) : (
+          <span className="pin-pending">{evaluation ? "not checked" : "checking…"}</span>
+        )}
       </button>
-      {outcome ? (
-        <PinChips
-          chips={outcome.chips}
-          matched={outcome.matched.length}
-          total={outcome.totalRules}
-        />
-      ) : (
-        <span className="pin-pending">{evaluation ? "not checked" : "checking…"}</span>
-      )}
       <button
         type="button"
         className="btn-quiet pin-remove"
@@ -81,17 +113,28 @@ function PinCardHead({
 function PinCardBody({
   outcome,
   evaluation,
+  layerByIndex,
+  attribution,
   descriptions,
+  ruleBodies,
+  subject,
   links,
   onOpenSimulator,
 }: {
   outcome: PinOutcome | null;
   evaluation: PinEvaluation | undefined;
+  layerByIndex: Map<number, ProvenanceLayer>;
+  attribution: RuleAttribution[] | null | undefined;
   descriptions: Map<number, RuleDescriptionNote>;
+  ruleBodies?: readonly unknown[];
+  subject: string;
   links: CrossLinks;
   onOpenSimulator: () => void;
 }) {
-  if (!outcome) {
+  // The probe's query lives here rather than in `PinProbe` because a bucket
+  // row's "probe" button is the other writer.
+  const [probeQuery, setProbeQuery] = useState("");
+  if (!outcome || !evaluation?.sim) {
     return (
       <p className="empty-note">
         {evaluation?.error
@@ -103,24 +146,20 @@ function PinCardBody({
   return (
     <div className="pin-body">
       {outcome.caveat ? <p className="sim-verdict-caveat">⚠ {outcome.caveat}</p> : null}
-      <PinRuleList
-        title={`✓ ${outcome.matched.length} matched`}
-        rules={outcome.matched}
+      <PinMatchedSection rules={outcome.matched} descriptions={descriptions} links={links} />
+      <PinFailedSection rules={outcome.failed} descriptions={descriptions} links={links} />
+      <PinBucketList buckets={outcome.buckets} onProbe={setProbeQuery} />
+      <PinProbe
+        sim={evaluation.sim}
+        layerByIndex={layerByIndex}
+        attribution={attribution}
         descriptions={descriptions}
+        ruleBodies={ruleBodies}
+        subject={subject}
+        query={probeQuery}
+        onQueryChange={setProbeQuery}
         onSelectPreset={links.onSelectPreset}
-        onJumpToEditor={links.onJumpToEditor}
       />
-      {outcome.failed.length > 0 ? (
-        <PinRuleList
-          title={`✗ ${outcome.failed.length} of your own rules didn’t match`}
-          rules={outcome.failed}
-          onSelectPreset={links.onSelectPreset}
-          onJumpToEditor={links.onJumpToEditor}
-        />
-      ) : null}
-      {outcome.buckets.map((bucket) => (
-        <SkippedBucket key={bucket.id} bucket={bucket} />
-      ))}
       <button type="button" className="btn-quiet pin-open-sim" onClick={onOpenSimulator}>
         open in simulator →
       </button>
@@ -134,6 +173,7 @@ export function PinCard({
   layerByIndex,
   attribution,
   descriptions,
+  ruleBodies,
   links,
   onRemove,
   onOpenSimulator,
@@ -143,6 +183,8 @@ export function PinCard({
   layerByIndex: Map<number, ProvenanceLayer>;
   attribution: RuleAttribution[] | null | undefined;
   descriptions: Map<number, RuleDescriptionNote>;
+  /** `finalConfig.packageRules` — makes the probe's writes field searchable. */
+  ruleBodies?: readonly unknown[];
   links: CrossLinks;
   onRemove: () => void;
   onOpenSimulator: () => void;
@@ -151,8 +193,11 @@ export function PinCard({
   // Derived from the pin's own simulation only — a run's worth of rules is
   // walked once per pin per run, never per render of the list around it.
   const outcome = useMemo(
-    () => (evaluation?.sim ? buildPinOutcome(evaluation.sim, layerByIndex, attribution) : null),
-    [evaluation, layerByIndex, attribution],
+    () =>
+      evaluation?.sim
+        ? buildPinOutcome(evaluation.sim, layerByIndex, attribution, pinName(pin.form))
+        : null,
+    [evaluation, layerByIndex, attribution, pin],
   );
   return (
     <div className="card pin-card">
@@ -168,7 +213,17 @@ export function PinCard({
         <PinCardBody
           outcome={outcome}
           evaluation={evaluation}
+          layerByIndex={layerByIndex}
+          attribution={attribution}
           descriptions={descriptions}
+          ruleBodies={ruleBodies}
+          subject={[
+            pinName(pin.form),
+            pin.form.manager.trim() || pin.form.datasource.trim(),
+            outcome?.updateType ?? pin.form.updateType,
+          ]
+            .filter((part) => part !== "")
+            .join(" · ")}
           links={links}
           onOpenSimulator={onOpenSimulator}
         />

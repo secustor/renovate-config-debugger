@@ -121,10 +121,13 @@ export const TestsPanel = memo(function TestsPanel({
   );
   const { evaluations } = usePinnedTests({ result, pins });
 
-  function openPin(pin: PinnedTest) {
+  /** A pin's "open in simulator →" — and the one-off result's: both hand the
+   *  descriptor to the same channel a share link uses, so the form is filled
+   *  and re-simulated by the one mechanism that already does exactly that. */
+  function openInSimulator(form: FormState) {
     pinNonce.current -= 1;
     setPinRequest({
-      form: pinShareFields(pin.form),
+      form: pinShareFields(form),
       autoSimulate: true,
       // The result on screen IS the one this request belongs to, which is what
       // `useShareLinkRequest`'s attribution rule asks of it.
@@ -155,6 +158,7 @@ export const TestsPanel = memo(function TestsPanel({
   }
   return (
     <PinsView
+      result={result}
       pins={pins}
       evaluations={evaluations}
       layerByIndex={layerByIndex}
@@ -165,7 +169,7 @@ export const TestsPanel = memo(function TestsPanel({
       onAddPin={onAddPin}
       onRemovePin={onRemovePin}
       onOpenSimulator={() => setView("simulator")}
-      onOpenPinInSimulator={openPin}
+      onOpenInSimulator={openInSimulator}
       onShare={onShare}
     />
   );

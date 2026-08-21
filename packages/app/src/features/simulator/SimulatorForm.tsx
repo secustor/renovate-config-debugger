@@ -1,4 +1,5 @@
 import type { Dispatch, KeyboardEvent, SetStateAction } from "react";
+import { Term } from "@/components/glossary";
 import { mayOwnNativePopup } from "@/hooks/scroll-ergonomics";
 import { DATASOURCE_LIST_ID, MANAGER_LIST_ID, SIM_FORM_ID } from "./datalist-ids";
 import { Field } from "./Field";
@@ -145,28 +146,31 @@ export function SimulatorForm({
       </div>
       <RegistryDatalist id={DATASOURCE_LIST_ID} names={datasourceNames} />
       <RegistryDatalist id={MANAGER_LIST_ID} names={managerNames} />
+      {/* Every label wears the glossary hover: these are Renovate's own
+          descriptor fields, and the card is where "which matcher reads this"
+          is answered without leaving the form. */}
       <div className="sim-form">
         <Field
-          label="datasource"
+          label={<Term id="datasource">datasource</Term>}
           value={form.datasource}
           onChange={(v) => setForm({ ...form, datasource: v })}
           placeholder="(unset) — type to search"
           datalistId={DATASOURCE_LIST_ID}
         />
         <Field
-          label="packageName"
+          label={<Term id="simPackageName">packageName</Term>}
           value={form.packageName}
           onChange={(v) => setForm({ ...form, packageName: v })}
           placeholder="lodash"
         />
         <Field
-          label="currentValue"
+          label={<Term id="simCurrentValue">currentValue</Term>}
           value={form.currentValue}
           onChange={(v) => setForm({ ...form, currentValue: v })}
           placeholder="4.17.20"
         />
         <Field
-          label="newValue"
+          label={<Term id="simNewValue">newValue</Term>}
           value={form.newValue}
           onChange={(v) => setForm({ ...form, newValue: v })}
           placeholder="4.17.21"

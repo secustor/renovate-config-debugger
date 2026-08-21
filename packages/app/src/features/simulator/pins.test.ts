@@ -58,4 +58,16 @@ describe("how a pin names itself", () => {
     // A descriptor that names only a datasource still reads as something.
     expect(pinContext({ ...EMPTY_FORM, datasource: "docker" }, "major")).toBe("docker · major");
   });
+
+  test("the version move leads when the descriptor carries one (the design's grammar)", () => {
+    const form = {
+      ...EMPTY_FORM,
+      manager: "npm",
+      currentValue: "18.3.1",
+      newValue: "19.0.0",
+    };
+    expect(pinContext(form, "major")).toBe("18.3.1 → 19.0.0 · npm · major");
+    // Half a move still reads as something rather than a dangling arrow.
+    expect(pinContext({ ...EMPTY_FORM, currentValue: "18.3.1" }, "")).toBe("18.3.1");
+  });
 });

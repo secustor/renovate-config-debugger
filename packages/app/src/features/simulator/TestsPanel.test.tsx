@@ -79,7 +79,6 @@ function Harness({
 }
 
 async function pinReact(view: ReturnType<typeof render>): Promise<void> {
-  fireEvent.click(view.getByRole("button", { name: /Pin a dependency/ }));
   fireEvent.change(view.getByLabelText("packageName", { exact: true }), {
     target: { value: "react" },
   });
@@ -89,18 +88,19 @@ async function pinReact(view: ReturnType<typeof render>): Promise<void> {
   fireEvent.change(view.getByLabelText("newValue", { exact: true }), {
     target: { value: "17.0.1" },
   });
-  fireEvent.click(view.getByRole("button", { name: "Pin ⏎" }));
+  fireEvent.click(view.getByRole("button", { name: "Pin as a standing test" }));
   await waitFor(() => expect(view.container.querySelector(".pin-card")).not.toBeNull());
 }
 
-it("opens on the pins list, pins a dependency from the ghost form, and checks it against the run", async () => {
+it("opens on the pins list, pins a dependency from the Add-a-test form, and checks it against the run", async () => {
   const result = await run();
   const view = render(<Harness result={result} />);
 
-  // The list leads: a summary strip, the explainer, the ghost row — and not
-  // the simulator card.
-  expect(view.container.querySelector(".summary-strip")?.textContent).toContain("0");
-  expect(view.container.querySelector(".pin-ghost")).not.toBeNull();
+  // The list leads: the summary strip, the empty-state card, and the always-
+  // open Add-a-test form — and not the simulator card.
+  expect(view.container.querySelector(".summary-strip")?.textContent).toContain("none pinned");
+  expect(view.container.querySelector(".pin-empty-card")).not.toBeNull();
+  expect(view.container.querySelector(".pin-add-panel")).not.toBeNull();
   expect(view.queryByText("Update simulator")).toBeNull();
 
   await pinReact(view);
@@ -111,24 +111,29 @@ it("opens on the pins list, pins a dependency from the ghost form, and checks it
   }
   expect(card.textContent).toContain("react");
   // The outcome, in the run's own terms: the rule that groups react matched,
-  // and the count is over the whole merged rule list.
+  // and the header sentence carries the funnel's counts.
   await waitFor(() => {
-    expect(within(card).getByText("grouped: react")).toBeTruthy();
+    expect(card.textContent).toContain("grouped as “react”");
   });
-  expect(within(card).getByText("1 of 2 rules")).toBeTruthy();
+  expect(card.textContent).toContain("1 matched, 1 skipped");
+  // The version move is the header's context line (the design's grammar).
+  expect(card.textContent).toContain("17.0.0 → 17.0.1");
   // Amber, and for the honest reason: the reader's second rule lost to a
   // `sourceUrl` this descriptor leaves unset, which is exactly the caveat the
   // verdict card raises (replay-02 R3). Green is for a verdict the tool is
   // confident about, whatever it says.
   expect(card.querySelector(".pin-dot.warn")).not.toBeNull();
 
-  // Expanding names both sides in the simulator's own grammar: what matched,
-  // and which of the reader's OWN rules did not.
+  // Expanding opens the funnel: the matched section, the reader's OWN missed
+  // rule by name — never bucketed — with its checklist open by default.
   fireEvent.click(within(card).getByRole("button", { expanded: false }));
-  expect(within(card).getByText("✓ 1 matched")).toBeTruthy();
+  expect(within(card).getByText("1 matched")).toBeTruthy();
+  expect(within(card).getByText("wrote to this update’s config")).toBeTruthy();
   expect(card.textContent).toContain("packageRules[0]");
-  expect(within(card).getByText("✗ 1 of your own rules didn’t match")).toBeTruthy();
-  expect(card.textContent).toContain("failed on matchSourceUrls");
+  expect(within(card).getByText("1 of your rules")).toBeTruthy();
+  expect(card.textContent).toContain("Matcher checklist — first failure stops the rule");
+  // The probe is part of the open funnel.
+  expect(within(card).getByPlaceholderText(/angular, groupName/)).toBeTruthy();
 
   // …and removing it leaves the list empty again.
   fireEvent.click(view.getByRole("button", { name: "Remove the pinned test for react" }));
@@ -139,7 +144,7 @@ it("re-checks the pins against a NEW run without being asked", async () => {
   const first = await run();
   const view = render(<Harness result={first} />);
   await pinReact(view);
-  await waitFor(() => expect(view.getByText("grouped: react")).toBeTruthy());
+  await waitFor(() => expect(view.container.textContent).toContain("grouped as “react”"));
 
   // The edit a reader would make: the rule now automerges react instead of
   // grouping it. Nothing asks the pin to re-run — the new RESULT is the ask.
@@ -148,9 +153,9 @@ it("re-checks the pins against a NEW run without being asked", async () => {
     content: JSON.stringify({ packageRules: [{ matchPackageNames: ["react"], automerge: true }] }),
   });
   view.rerender(<Harness result={second} />);
-  await waitFor(() => expect(view.getByText("automerge ✓")).toBeTruthy());
-  expect(view.queryByText("grouped: react")).toBeNull();
-  expect(view.getByText("1 of 1 rules")).toBeTruthy();
+  await waitFor(() => expect(view.container.textContent).toContain("automerge ✓"));
+  expect(view.container.textContent).not.toContain("grouped as “react”");
+  expect(view.container.textContent).toContain("1 matched, 0 skipped");
 });
 
 it("opens a pin in the full simulator, pre-filled, and comes back", async () => {
@@ -190,7 +195,7 @@ it("lands on the simulator when the link that opened the app carried a simulatio
   // No click: a `sim` link names a simulation, and the simulator is where one
   // is read (the auto-run itself is `useShareLinkRequest`'s, unchanged).
   expect(view.getByText("Update simulator")).toBeTruthy();
-  expect(view.container.querySelector(".pin-ghost")).toBeNull();
+  expect(view.container.querySelector(".pin-add-panel")).toBeNull();
   await waitFor(() => expect(view.container.querySelector(".sim-verdict-block")).not.toBeNull(), {
     timeout: 30_000,
   });

@@ -1,19 +1,25 @@
 import { useState } from "react";
-import type { ProvenanceLayer, RuleAttribution } from "@renovate-config-debugger/engine";
+import type {
+  ProvenanceLayer,
+  RuleAttribution,
+  TraceResult,
+} from "@renovate-config-debugger/engine";
+import { nf } from "@/lib/format";
+import { AddTestBox } from "./AddTestBox";
+import { EmptyTestsCard } from "./EmptyTestsCard";
 import type { FormState } from "./form";
-import { GhostPinRow } from "./GhostPinRow";
 import { PinCard } from "./PinCard";
 import type { PinnedTest } from "./pins";
 import type { RuleDescriptionNote } from "./rule-descriptions";
 import type { PinEvaluation } from "./use-pinned-tests";
 
 /**
- * Roadmap 075 (iteration 6): the Tests tab's own view — the pinned dependency
- * descriptors and what the CURRENT run's rules do to each of them.
- *
- * No pin is ever created for the reader: an empty list says what a pin is and
- * offers the form, and the simulator (one dependency, the full analysis) stays
- * one quiet link away in both states.
+ * The Tests tab's own view, as Proposal F draws it: the summary strip
+ * ("N pinned · R rules evaluated per test, in merge order" — with the merge
+ * law on the right), the funnel card per pin, and the always-open "Add a
+ * test" box at the foot. No pin is ever created for the reader: the empty
+ * state says what a pin is and seeds the form, and the simulator (one
+ * dependency, the full analysis) stays one quiet link away in both states.
  */
 
 /** Roadmap 077 (Proposal F): pins ride in the share link, said where pins are
@@ -42,23 +48,45 @@ function ShareNote({ onShare }: { onShare: () => Promise<void> }) {
   );
 }
 
-function PinsSummary({ count, onOpenSimulator }: { count: number; onOpenSimulator: () => void }) {
-  const sentence =
-    count === 0
-      ? "pinned tests — pin a dependency below and it is re-checked on every run"
-      : `pinned test${count === 1 ? "" : "s"} — re-checked on every run`;
+function PinsSummary({
+  count,
+  ruleCount,
+  onOpenSimulator,
+}: {
+  count: number;
+  /** Rules evaluated per test in the current run — from the first finished
+   *  evaluation; absent until one lands. */
+  ruleCount: number | undefined;
+  onOpenSimulator: () => void;
+}) {
+  const pinned =
+    count === 0 ? (
+      <span>none pinned</span>
+    ) : (
+      <span>
+        <strong>{count}</strong> pinned
+        {ruleCount === undefined
+          ? " — re-checked on every run"
+          : ` · ${nf.format(ruleCount)} rules evaluated per test, in merge order`}
+      </span>
+    );
   return (
     <div className="summary-strip">
-      <strong>{count}</strong>
-      <span>{sentence}</span>
-      <button type="button" className="btn-quiet" onClick={onOpenSimulator}>
-        {count === 0 ? "or explore one dependency in the simulator →" : "open the simulator →"}
-      </button>
+      {pinned}
+      <span className="pins-strip-note">later rules win on conflict</span>
+      {/* No simulator link in the empty state: the Add-a-test box's Manual tab
+          already offers a one-off Simulate right below it. */}
+      {count > 0 ? (
+        <button type="button" className="btn-quiet" onClick={onOpenSimulator}>
+          open the simulator →
+        </button>
+      ) : null}
     </div>
   );
 }
 
 export function PinsView({
+  result,
   pins,
   evaluations,
   layerByIndex,
@@ -69,9 +97,10 @@ export function PinsView({
   onAddPin,
   onRemovePin,
   onOpenSimulator,
-  onOpenPinInSimulator,
+  onOpenInSimulator,
   onShare,
 }: {
+  result: TraceResult;
   pins: PinnedTest[];
   evaluations: Record<string, PinEvaluation>;
   layerByIndex: Map<number, ProvenanceLayer>;
@@ -82,21 +111,30 @@ export function PinsView({
   onAddPin: (form: FormState) => void;
   onRemovePin: (id: string) => void;
   onOpenSimulator: () => void;
-  onOpenPinInSimulator: (pin: PinnedTest) => void;
+  /** The descriptor channel into the full simulator — a pin's form, or the
+   *  one-off simulation's. */
+  onOpenInSimulator: (form: FormState) => void;
   /** See {@link ShareNote}; absent (embedding without a share path) = no note. */
   onShare?: () => Promise<void>;
 }) {
-  const [ghostOpen, setGhostOpen] = useState(false);
+  // A quick-start chip seeds the Add-a-test form below — nonce-versioned so
+  // the same chip works twice in a row.
+  const [seed, setSeed] = useState<{ fill: Partial<FormState>; nonce: number }>({
+    fill: {},
+    nonce: 0,
+  });
   const links = { onSelectPreset, onJumpToEditor };
+  const ruleCount = Object.values(evaluations).find((e) => e.sim)?.sim?.rules.length;
+  // The merged rule bodies, for the probe's writes field — indexed exactly the
+  // way RuleEvaluation.index counts.
+  const ruleBodies = Array.isArray(result.finalConfig?.packageRules)
+    ? (result.finalConfig.packageRules as readonly unknown[])
+    : undefined;
   return (
     <div className="pins-view">
-      <PinsSummary count={pins.length} onOpenSimulator={onOpenSimulator} />
+      <PinsSummary count={pins.length} ruleCount={ruleCount} onOpenSimulator={onOpenSimulator} />
       {pins.length === 0 ? (
-        <p className="empty-note">
-          A pinned test is a dependency update you describe once. It is re-simulated against your
-          rules after every run, so an edit tells you what changed for the updates you actually care
-          about.
-        </p>
+        <EmptyTestsCard onStartFrom={(fill) => setSeed((s) => ({ fill, nonce: s.nonce + 1 }))} />
       ) : null}
       {pins.map((pin) => (
         <PinCard
@@ -106,22 +144,23 @@ export function PinsView({
           layerByIndex={layerByIndex}
           attribution={attribution}
           descriptions={descriptions}
+          ruleBodies={ruleBodies}
           links={links}
           onRemove={() => onRemovePin(pin.id)}
-          onOpenSimulator={() => onOpenPinInSimulator(pin)}
+          onOpenSimulator={() => onOpenInSimulator(pin.form)}
         />
       ))}
-      <GhostPinRow
-        open={ghostOpen}
+      <AddTestBox
+        result={result}
+        layerByIndex={layerByIndex}
+        attribution={attribution}
         pinCount={pins.length}
-        onOpen={() => setGhostOpen(true)}
-        onCancel={() => setGhostOpen(false)}
-        onPin={(form) => {
-          onAddPin(form);
-          setGhostOpen(false);
-        }}
+        seed={seed.fill}
+        seedNonce={seed.nonce}
+        onAddPin={onAddPin}
+        onOpenInSimulator={onOpenInSimulator}
+        footnote={onShare ? <ShareNote onShare={onShare} /> : undefined}
       />
-      {onShare ? <ShareNote onShare={onShare} /> : null}
     </div>
   );
 }
