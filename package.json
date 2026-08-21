@@ -17,7 +17,7 @@
   "devDependencies": {
     "@semantic-release/exec": "7.1.0",
     "@types/node": "26.2.0",
-    "oxfmt": "0.63.0",
+    "oxfmt": "0.64.0",
     "oxlint": "1.78.0",
     "oxlint-tsgolint": "7.0.2001",
     "semantic-release": "25.0.9",
