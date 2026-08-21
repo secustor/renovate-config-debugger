@@ -69,9 +69,6 @@ argued in code or an earlier roadmap doc:
 - **The drawer's collapsed line says the context** (`github · api.github.com` +
   `default`/`N credentials`), not the mock's "github.com anonymous" — the
   endpoint is half of what makes the defaults the defaults (076).
-- **Add-host quick-fills are the platform hosts** (github/gitlab/gitea/
-  codeberg), not the mock's registry hosts — the browser engine fetches
-  presets only, so a `registry.npmjs.org` token would authenticate nothing.
 - **"+ Pin a dependency…" (the ghost row), not an always-open "Add a test"
   form** — 075 iteration 6's no-seeded-pins rule.
 - **Pin cards say `✓ N matched` / `✗ N of your own rules didn’t match`** in
@@ -85,5 +82,10 @@ argued in code or an earlier roadmap doc:
 - **Everything the mock doesn't know about stays**: the landing, the banners
   (stale, hypothetical, auth-failure, share-error, untrusted endpoint), the
   Tests tab's full simulator view, Format/Revert, the filename select
-  (json/json5), the headless note, the header's error-state verdict pill, and
-  the rail's `error` glyph.
+  (json/json5), the header's error-state verdict pill, and the rail's `error`
+  glyph.
+- **The headless note is a frame row, not the pane's last row** — the mock
+  draws "Looking for a solution for agents and scripts?" at the foot of the
+  config pane; the app centers it under both panes because it speaks for the
+  page, not the document (060/076). Its body — lead sentence, command block
+  with the top-right copy, "Experimental …" foot — follows the mock.

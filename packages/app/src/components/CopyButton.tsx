@@ -66,11 +66,15 @@ export function CopyButton({
     }
   }
 
+  // An icon-only button has no visible text, so pointer users get the
+  // accessible name as the hover tooltip too (the design's `title`).
+  const hoverTitle = title ?? (iconOnly ? label : undefined);
+
   return (
     <button
       type="button"
       className={`btn-secondary copy-btn${copied ? " copied" : ""}${iconOnly ? " icon-only" : ""}${className ? ` ${className}` : ""}`}
-      title={title}
+      title={hoverTitle}
       aria-label={iconOnly ? label : undefined}
       onClick={(e) => {
         if (inSummary) {

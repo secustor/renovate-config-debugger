@@ -21,8 +21,10 @@ the editor is actually for, and answered it twice. Both answers shipped:
   added through a sentence with two blanks ("Requests to ⟨host⟩ authenticate
   with ⟨token⟩"). Its shape is Proposal F's (a review round re-aligned it after
   the first cut copied 18e's standalone mock instead): a one-line bar at the
-  foot of the config pane (the agents note, which Proposal F does not model,
-  sits below it as a centered row of the whole frame) — whose panel
+  foot of the config pane — above the pane's footer promise, with the agents
+  note below that (Proposal F draws the note as the pane's last row; the app
+  widens it to a centered row of the whole frame, since it speaks for the
+  page, not the document) — whose panel
   opens UPWARD, so the bar never moves; and its collapsed line is the
   credentials statement itself, `github.com ✓` / `github.com anonymous`, plus
   `· +N` when other hosts carry tokens. The upward opening is

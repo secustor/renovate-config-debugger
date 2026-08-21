@@ -3621,6 +3621,9 @@ pre.config-view.prov-before {
 }
 
 .copy-btn.copied {
+  /* The design's copied state is a green WASH, not just a green outline —
+     the strong tint step, so the flash reads at icon-only sizes too. */
+  background: var(--ok-bg-strong);
   border-color: var(--ok);
   color: var(--ok);
 }
@@ -4076,6 +4079,14 @@ pre.config-view.prov-before {
   justify-content: center;
   margin: 1.25rem 0 0;
   padding-top: 0.75rem;
+}
+
+/* The shell's counterpart to the landing's subtitle: the same promise, for a
+   reader who arrived through a share link and never saw the landing. */
+.pane-foot {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin: 0;
 }
 
 /* Roadmap 068's fatal-error paragraph, off the inline style it carried. */
@@ -5038,7 +5049,7 @@ pre.config-view.prov-before {
 
   /* The editor fills its pane: the toolbar strip stays at the top of the card,
      the document grows into whatever is left, and the zones below it (advanced
-     options, notices) follow underneath. */
+     options, notices, the footer line) follow underneath. */
   .app-split.has-results > .config-col {
     display: flex;
     flex-direction: column;
@@ -5129,6 +5140,15 @@ pre.config-view.prov-before {
 
 .tab:hover {
   color: var(--ink);
+}
+
+/* A disabled tab (the "From repository" tab until 078 lights it up) must not
+   be pixel-identical to a live inactive tab — one gray step fainter, and the
+   cursor says why a click does nothing. Placed after :hover so hovering it
+   does not promise the ink it will not give. */
+.tab:disabled {
+  color: var(--faint);
+  cursor: not-allowed;
 }
 
 /* Roadmap 075, the attached tab: the selected tab is a card of the BODY's
@@ -5911,6 +5931,12 @@ button.desc-digest-leaf:focus-visible {
   max-width: 60rem;
 }
 
+/* The code-block copy rule (Standard Components): the button sits top-right
+   INSIDE the block, so the wrapper is its positioning context. */
+.headless-note-code-wrap {
+  position: relative;
+}
+
 .headless-note-code {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -5920,6 +5946,22 @@ button.desc-digest-leaf:focus-visible {
   margin: 0;
   overflow-x: auto;
   padding: 0.7rem 0.9rem;
+}
+
+/* On the raised code surface the button needs its own ground — transparent
+   would let the commands run through the glyph. */
+.headless-note-copy {
+  background: var(--canvas);
+  position: absolute;
+  right: 0.4rem;
+  top: 0.4rem;
+}
+
+/* The generic `.copy-btn:hover` tint mixes into TRANSPARENT, which here would
+   strip the opaque ground back off mid-hover; mix into the same canvas
+   instead. `:not(.copied)` leaves the success wash to `.copy-btn.copied`. */
+.copy-btn.headless-note-copy:hover:not(.copied) {
+  background: color-mix(in srgb, var(--accent) 8%, var(--canvas));
 }
 
 .headless-note-foot {
