@@ -8,13 +8,13 @@ import type {
 } from "@renovate-config-debugger/engine";
 import { AuthFailureBanner } from "@/components/AuthFailureBanner";
 import { collectGithubAuthFailures } from "@/features/presets/tree-shared";
-import { DescriptionDigestCard } from "@/components/DescriptionDigestCard";
 import { EffectiveConfig } from "@/features/effective-config/EffectiveConfig";
 import type { EffectiveTally } from "@/lib/effective-tally";
 import type { AuthState } from "@/components/GithubAuthHint";
 import { HypotheticalBanner } from "@/components/HypotheticalBanner";
 import { MessagesPanel } from "@/components/MessagesPanel";
 import { MigrationSteps } from "@/components/MigrationSteps";
+import { OverviewPanel } from "@/features/overview/OverviewPanel";
 import {
   PresetReferenceProvider,
   type PresetReferenceValue,
@@ -41,7 +41,7 @@ import { presetTreeSummary } from "@/lib/preset-tree-stats";
 import type { SimRequest } from "@/hooks/use-share-link";
 
 /**
- * Everything the five tab panels consume, handed down from App.tsx. All of
+ * Everything the six tab panels consume, handed down from App.tsx. All of
  * it is identity-stable across keystrokes (run results, memoized derivations
  * and latest-ref callbacks — the 032 contract), which is what lets the
  * `panels` memo below keep its element tree between renders.
@@ -68,7 +68,7 @@ export interface ResultsColumnProps {
   /** The editor's text has diverged from the text `result` was computed from.
    *  The ONE prop here that changes on a keystroke — it feeds the `banner`
    *  memo and nothing else, deliberately not the `panels` memo below, whose
-   *  032 contract is that typing reconciles none of the five panels. */
+   *  032 contract is that typing reconciles none of the six panels. */
   resultsStale: boolean;
 
   // —— shared across tabs ——
@@ -76,7 +76,7 @@ export interface ResultsColumnProps {
    *  hypothetical. Consumed by the run-level banner below — a property of the
    *  RUN, so it is stated once, above whichever panel is on screen. */
   validateHasErrors: boolean;
-  /** Consumed by: effective (069's digest card), problems. */
+  /** Consumed by: overview (083's digest), effective, problems. */
   selectPresetNode: (nodeId: string) => void;
   /** Consumed by: tests, problems. */
   focusEditorRepoIndex: (repoIndex: number) => void;
@@ -121,6 +121,12 @@ export interface ResultsColumnProps {
    *  the auth-failure banner's "Run again", for access granted mid-session. */
   onRunAgain: () => void;
 
+  // —— overview ——
+  /** Roadmap 083: the sentences the Overview listed — its tab badge. Reported
+   *  by the panel for the same reason `onEffectiveStats` is: the derivation
+   *  behind it is async and lives in the panel. */
+  onOverviewStats: (behaviors: number) => void;
+
   // —— effective ——
   onEffectiveStats: (stats: EffectiveTally) => void;
   /** Roadmap 075 (iteration 4): keys in the effective config, or null until
@@ -129,10 +135,9 @@ export interface ResultsColumnProps {
    *  already holds it for the header digest) so both quote one number. */
   effectiveKeys: number | null;
   /** Roadmap 069: the digest card's "show raw order" link — lands on the
-   *  `description` row's blame ledger. Since 075 the card sits at the top of
-   *  THIS tab, so from there it is an in-tab landing; the preset tree (PR 4),
-   *  whose `→ #16 of 24` position markers are the same jump from the other end,
-   *  still crosses a tab boundary to get here. */
+   *  `description` row's blame ledger. Roadmap 083 gave the card its own
+   *  Overview tab, so both callers (the card and the preset tree's `→ #16 of
+   *  24` position markers) cross a tab boundary to get here. */
   onShowDescriptionOrder: () => void;
   /** Roadmap 069: bumped alongside the jump above, so the row is filtered to
    *  and expanded once the tab is on screen. */
@@ -344,6 +349,7 @@ export function ResultsColumn({
   authState,
   onSignIn,
   onRunAgain,
+  onOverviewStats,
   onEffectiveStats,
   effectiveKeys,
   onShowDescriptionOrder,
@@ -454,17 +460,30 @@ export function ResultsColumn({
     [result.presetTree, selectPresetNode],
   );
 
-  // Roadmap 032: the five tab panels render RUN RESULTS — they change when a
+  // Roadmap 032: the six tab panels render RUN RESULTS — they change when a
   // run completes or a view-state jump lands, never while the user types. So
   // `content` (and every other per-keystroke value: `injected`,
   // `packageRuleOffsets`, the live share state) is deliberately absent from
   // these deps: every callback that needs such state reads it through the
   // latest-ref idiom in App.tsx (`onInject`, `focusEditorRepoIndex`,
   // `onApplyFix`, `onCopySimLink`). The element tree here keeps its identity
-  // across keystrokes, so React bails out of reconciling all five panels —
+  // across keystrokes, so React bails out of reconciling all six panels —
   // typing re-renders App (and this shell) and nothing below it.
   const panels = useMemo<Record<ResultsTabId, ReactNode>>(() => {
     return {
+      // Roadmap 083: the config in English, first in the strip. The panel owns
+      // BOTH states — its own empty note when a run carries no author prose —
+      // so there is no `EmptyNote` branch here: "this config documents nothing"
+      // is something only the description derivation can know, and it knows it
+      // asynchronously.
+      overview: (
+        <OverviewPanel
+          result={result}
+          onSelectPreset={selectPresetNode}
+          onShowRawOrder={onShowDescriptionOrder}
+          onStats={onOverviewStats}
+        />
+      ),
       tests: result.finalConfig ? (
         <TestsPanel
           result={result}
@@ -545,24 +564,16 @@ export function ResultsColumn({
           No presets — this config has no <code>extends</code> entries to resolve.
         </EmptyNote>
       ),
+      // Roadmap 083: the description digest that led this tab since 075 is the
+      // Overview again, so the effective config stands alone — this tab answers
+      // "what is the merged config", the Overview answers "what does it do".
       effective: result.finalConfig ? (
-        <>
-          {/* Roadmap 069/075: "What this config does" led the Overview and
-              leads this tab now — it describes the merged config's own
-              `description` field, and its "show raw order" link has always
-              landed here, which makes that jump an in-tab landing. */}
-          <DescriptionDigestCard
-            result={result}
-            onSelectPreset={selectPresetNode}
-            onShowRawOrder={onShowDescriptionOrder}
-          />
-          <EffectiveConfig
-            result={result}
-            onSelectPreset={selectPresetNode}
-            onStats={onEffectiveStats}
-            focusDescriptionNonce={descriptionLedgerNonce}
-          />
-        </>
+        <EffectiveConfig
+          result={result}
+          onSelectPreset={selectPresetNode}
+          onStats={onEffectiveStats}
+          focusDescriptionNonce={descriptionLedgerNonce}
+        />
       ) : (
         <EmptyNote>
           No effective config — the pipeline did not get far enough to merge one.
@@ -609,6 +620,7 @@ export function ResultsColumn({
     onSelectNode,
     authState,
     onSignIn,
+    onOverviewStats,
     onEffectiveStats,
     effectiveKeys,
     onShowDescriptionOrder,

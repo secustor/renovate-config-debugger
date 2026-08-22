@@ -301,11 +301,19 @@ test("digits jump straight to a results tab, by strip position", async ({ page }
   await runAndAwaitResult(page);
   await tabButton(page, "tests").focus();
 
-  await page.keyboard.press("2");
+  // Roadmap 083 put Overview at the head of the strip, so every digit shifted
+  // by one — which is the point of the binding being by POSITION rather than by
+  // a frozen digit-to-tab map (`digitTabIndex`, and the `?` sheet's derived
+  // range).
+  await page.keyboard.press("1");
+  await expect(tabButton(page, "overview")).toHaveAttribute("aria-selected", "true");
+  await expect(tabPanel(page, "overview")).toBeVisible();
+
+  await page.keyboard.press("3");
   await expect(tabButton(page, "pipeline")).toHaveAttribute("aria-selected", "true");
   await expect(tabPanel(page, "pipeline")).toBeVisible();
 
-  await page.keyboard.press("3");
+  await page.keyboard.press("4");
   await expect(tabButton(page, "presets")).toHaveAttribute("aria-selected", "true");
 });
 
@@ -327,7 +335,7 @@ test("? opens the shortcut sheet, listing every global binding", async ({ page }
   await expect(sheet).toBeVisible();
   await expect(sheet).toContainText("Run the pipeline");
   await expect(sheet).toContainText("Jump to the config editor");
-  await expect(sheet).toContainText("1 – 5");
+  await expect(sheet).toContainText("1 – 6");
 
   // Escape stays out of the ladder — but the sheet claims it rather than
   // letting the dialog's default action close it (see the test below).
@@ -665,7 +673,7 @@ test("a run requested from inside the results keeps the panel being read", async
   await expect(tabButton(page, "effective")).toHaveAttribute("aria-selected", "true");
 });
 
-test("a run requested from the config column still lands on the first tab", async ({ page }) => {
+test("a run requested from the config column still lands on the Tests tab", async ({ page }) => {
   await page.goto("/");
   await runAndAwaitResult(page);
   await openTab(page, "presets");

@@ -553,16 +553,17 @@ describe("stageIdSchema / resultsTabIdSchema", () => {
     expect(stageIdSchema.safeParse("bogus").success).toBe(false);
   });
   test("accepts every real tab id", () => {
-    for (const tab of ["tests", "pipeline", "presets", "effective", "problems"]) {
+    for (const tab of ["overview", "tests", "pipeline", "presets", "effective", "problems"]) {
       expect(resultsTabIdSchema.safeParse(tab).success).toBe(true);
     }
   });
-  // Roadmap 075: the three ids v2 retired are still ACCEPTED off the wire — the
+  // Roadmap 075: the ids v2 retired are still ACCEPTED off the wire — the
   // opener maps each onto the tab that replaced it (`resultsTabForShareTab`),
   // and dropping the field here would land an old link on the default tab
-  // instead. Nothing encodes them any more.
+  // instead. Nothing encodes them any more. (083 un-retired `overview`, which
+  // is asserted a test up as the current id it now is.)
   test("still accepts the retired v1 tab ids, so old links keep their tab", () => {
-    for (const tab of ["overview", "rewrites", "simulator"]) {
+    for (const tab of ["rewrites", "simulator"]) {
       expect(resultsTabIdSchema.safeParse(tab).success).toBe(true);
     }
   });

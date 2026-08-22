@@ -404,6 +404,12 @@ export function App() {
   // reported by the view itself (it owns the async provenance computation)
   // rather than recomputed here. null = not known yet.
   const [effectiveStats, setEffectiveStats] = useState<EffectiveTally | null>(null);
+  // Roadmap 083: the Overview tab's badge — how many author-written sentences
+  // its card lists. Reported by that panel for the same reason `effectiveStats`
+  // is: the description provenance behind it is an async engine derivation the
+  // panel owns, and the badge must quote the number the card actually printed.
+  // null = not known yet, which is a badge-less tab rather than a zero.
+  const [overviewBehaviors, setOverviewBehaviors] = useState<number | null>(null);
   // Roadmap 069: bumped by the description digest card's "show raw order" link
   // to land on the effective config's `description` row and its blame ledger.
   const [descriptionLedgerNonce, setDescriptionLedgerNonce] = useState(0);
@@ -595,9 +601,11 @@ export function App() {
   }, []);
 
   /** Roadmap 069: the description card's "show raw order" link — lands on the
-   *  `description` row's blame ledger. From the card's own home at the top of
-   *  the Effective config tab this is an in-tab landing (`jumpToTab` declines a
-   *  jump to the tab already on screen); from the preset tree it crosses. */
+   *  `description` row's blame ledger. Roadmap 083 moved the card to its own
+   *  Overview tab, so this crosses a tab boundary again (as it does from the
+   *  preset tree) and records the one-step way back; it is the way to the two
+   *  facts the Overview trades away, Renovate's own array order and the
+   *  repeated sentences. */
   const onShowDescriptionOrder = useCallback(() => {
     jumpToTab("effective");
     setDescriptionLedgerNonce((n) => n + 1);
@@ -733,10 +741,12 @@ export function App() {
     setSelectedNodeId(null);
     setMigrationStepIndex(0);
     setMergeStepIndex(0);
-    // Roadmap 028: a new run invalidates both the previous run's key counts
-    // (recomputed asynchronously by the effective-config view) and any
+    // Roadmap 028: a new run invalidates the previous run's async counts —
+    // the effective key stats and the Overview's behavior count (083), both
+    // recomputed by their views once the new derivations settle — and any
     // "back to where I was" target from the run that just ended.
     setEffectiveStats(null);
+    setOverviewBehaviors(null);
     setBackTab(null);
   }, [result]);
 
@@ -919,8 +929,8 @@ export function App() {
     }
     // Roadmap 028: an explicit tab wins; a pre-028 link infers one from the
     // view state it does carry. Roadmap 075: and a v1 tab id is mapped onto the
-    // tab that replaced it — links naming `overview` / `simulator` / `rewrites`
-    // are already out there.
+    // tab that replaced it — links naming `simulator` / `rewrites` are already
+    // out there (`overview` needs no mapping since 083 made it a real tab again).
     const linkTab =
       pending.tab === undefined ? legacyTabForView(pending) : resultsTabForShareTab(pending.tab);
     if (linkTab) {
@@ -1496,7 +1506,7 @@ export function App() {
     errorCount,
     warningCount,
     resultsTabs,
-  } = useRunSummary(result, effectiveStats, pins.length);
+  } = useRunSummary(result, effectiveStats, pins.length, overviewBehaviors);
 
   /**
    * Roadmap 068/078: where a keystroke takes you — the `?` sheet every global
@@ -1835,6 +1845,7 @@ export function App() {
               authState={authState}
               onSignIn={onSignIn}
               onRunAgain={onRunAgain}
+              onOverviewStats={setOverviewBehaviors}
               onEffectiveStats={setEffectiveStats}
               effectiveKeys={effectiveStats?.keys ?? null}
               onShowDescriptionOrder={onShowDescriptionOrder}

@@ -6,11 +6,9 @@ import type {
 } from "@renovate-config-debugger/engine";
 import {
   buildDescriptionDigest,
-  descriptionCountText,
   type DescriptionDigest,
   type DigestGroup,
   type DigestRule,
-  groupContributionText,
   hasTopLevelDescriptions,
   ruleNoteText,
   unattributedNoteText,
@@ -22,7 +20,7 @@ import {
 const SEP = "␟";
 
 /**
- * Roadmap 069 (PR 2): the grouping, the redundancy verdict and the counts, over
+ * Roadmap 069 (PR 2): the grouping and the counts, over
  * hand-built provenance. The engine's own tests prove the ATTRIBUTION is right
  * (069 PR 1, against the real 1,088-preset tree); everything here is about what
  * the card makes of it, so nothing needs the real pipeline.
@@ -150,7 +148,7 @@ describe("grouping", () => {
     );
 
     expect(digest.groups).toHaveLength(2);
-    expect(digest.groups.map((g) => g.redundant)).toEqual([false, true]);
+    expect(digest.groups.map((g) => g.behaviors)).toEqual([1, 0]);
     expect(digest.groups.map((g) => g.key)).toEqual([
       "preset::dependencyDashboard",
       `preset::dependencyDashboard${SEP}2`,
@@ -242,8 +240,8 @@ describe("grouping", () => {
   });
 });
 
-describe("redundancy", () => {
-  test("a group whose every string repeats an earlier one is redundant", () => {
+describe("duplicate counting", () => {
+  test("a group whose every string repeats an earlier one added no behavior", () => {
     const digest = digestOf(
       provenance({
         entries: entries([
@@ -256,13 +254,12 @@ describe("redundancy", () => {
 
     expect(groupAt(digest, 1)).toMatchObject({
       key: "preset::dependencyDashboard",
-      redundant: true,
       behaviors: 0,
     });
-    expect(groupAt(digest, 0)).toMatchObject({ redundant: false, behaviors: 2 });
+    expect(groupAt(digest, 0)).toMatchObject({ behaviors: 2 });
   });
 
-  test("one new sentence is enough to stop a group being redundant", () => {
+  test("one new sentence counts, however many repeats ride along", () => {
     const digest = digestOf(
       provenance({
         entries: entries([
@@ -273,24 +270,7 @@ describe("redundancy", () => {
       }),
     );
 
-    expect(groupAt(digest, 1)).toMatchObject({ redundant: false, behaviors: 1 });
-  });
-
-  test("a repo group carrying rule descriptions is never redundant", () => {
-    const digest = digestOf(
-      provenance({
-        entries: entries([
-          { value: "Shared note.", via: BEST_PRACTICES },
-          { value: "Shared note.", via: REPO, node: "root" },
-        ]),
-        ruleDescriptions: [
-          { ruleIndex: 0, sourceIndex: 0, layer: REPO, values: ["Slow down majors"] },
-        ],
-      }),
-      [{ matchUpdateTypes: ["major"] }],
-    );
-
-    expect(groupAt(digest, 1)).toMatchObject({ key: "repo", redundant: false });
+    expect(groupAt(digest, 1)).toMatchObject({ behaviors: 1 });
   });
 });
 
@@ -383,7 +363,6 @@ describe("totals and empty state", () => {
 
     // 4 entries, one of them a repeat.
     expect(digest.totals).toEqual({ behaviors: 3, extendsCount: 2, hasUserRules: true });
-    expect(descriptionCountText(digest.totals)).toBe("3 behaviors · from 2 extends + your rules");
     expect(hasTopLevelDescriptions(digest)).toBe(true);
   });
 
@@ -416,7 +395,6 @@ describe("totals and empty state", () => {
     );
 
     expect(digest.totals).toEqual({ behaviors: 0, extendsCount: 0, hasUserRules: true });
-    expect(descriptionCountText(digest.totals)).toBe("from your rules");
     // …but no top-level `description` key at all: Renovate never hoists a
     // rule's prose, so there is no Effective config row to send a reader to.
     expect(hasTopLevelDescriptions(digest)).toBe(false);
@@ -440,7 +418,6 @@ describe("totals and empty state", () => {
     );
     // The behavior count is a count of SENTENCES, and stays one.
     expect(digest.totals.behaviors).toBe(1);
-    expect(descriptionCountText(digest.totals)).toBe("1 behavior");
   });
 
   test("several non-text members read as several", () => {
@@ -486,43 +463,5 @@ describe("totals and empty state", () => {
     );
 
     expect(digest.degraded).toBe(true);
-  });
-
-  test("counts read singular where they should", () => {
-    expect(descriptionCountText({ behaviors: 1, extendsCount: 1, hasUserRules: false })).toBe(
-      "1 behavior · from 1 extend",
-    );
-  });
-});
-
-describe("group notes", () => {
-  test("names what a group added, and its described rules", () => {
-    const digest = digestOf(
-      provenance({
-        entries: entries([{ value: "My note.", via: REPO, node: "root" }]),
-        ruleDescriptions: [
-          { ruleIndex: 0, sourceIndex: 0, layer: REPO, values: ["a"] },
-          { ruleIndex: 1, sourceIndex: 1, layer: REPO, values: ["b"] },
-        ],
-      }),
-      [{}, {}],
-    );
-
-    expect(groupContributionText(groupAt(digest, 0))).toBe(
-      "contributes 1 behavior · 2 described rules",
-    );
-  });
-
-  test("a redundant group has nothing to report", () => {
-    const digest = digestOf(
-      provenance({
-        entries: entries([
-          { value: "Dashboard.", via: BEST_PRACTICES },
-          { value: "Dashboard.", via: DASHBOARD },
-        ]),
-      }),
-    );
-
-    expect(groupContributionText(groupAt(digest, 1))).toBe("");
   });
 });

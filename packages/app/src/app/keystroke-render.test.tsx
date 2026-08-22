@@ -30,7 +30,7 @@ import type * as PresetsPanelModule from "@/features/presets/PresetsPanel";
 import type * as EffectiveConfigModule from "@/features/effective-config/EffectiveConfig";
 import type * as TestsPanelModule from "@/features/simulator/TestsPanel";
 import type * as MessagesPanelModule from "@/components/MessagesPanel";
-import type * as DescriptionDigestCardModule from "@/components/DescriptionDigestCard";
+import type * as OverviewPanelModule from "@/features/overview/OverviewPanel";
 
 /** Render-function invocations per wrapped panel (memo bailouts excluded). */
 const renderCounts: Record<string, number> = {};
@@ -117,18 +117,16 @@ vi.mock("../components/MessagesPanel", async (importOriginal) => {
   const mod = await importOriginal<typeof MessagesPanelModule>();
   return { ...mod, MessagesPanel: wrapCounting("MessagesPanel", mod.MessagesPanel) };
 });
-// Roadmap 075 (iteration 3): the Overview retired; its one surviving card
-// leads the Effective config tab, and it is the panel content this counts.
-vi.mock("../components/DescriptionDigestCard", async (importOriginal) => {
-  const mod = await importOriginal<typeof DescriptionDigestCardModule>();
-  return {
-    ...mod,
-    DescriptionDigestCard: wrapCounting("DescriptionDigestCard", mod.DescriptionDigestCard),
-  };
+// Roadmap 083: the description digest is the Overview tab's panel again, and
+// it is the heaviest thing a keystroke must not reconcile — it re-derives the
+// per-string provenance and re-runs the topic classifier over every sentence.
+vi.mock("../features/overview/OverviewPanel", async (importOriginal) => {
+  const mod = await importOriginal<typeof OverviewPanelModule>();
+  return { ...mod, OverviewPanel: wrapCounting("OverviewPanel", mod.OverviewPanel) };
 });
 
 const PANELS = [
-  "DescriptionDigestCard",
+  "OverviewPanel",
   "PresetsPanel",
   "EffectiveConfig",
   "TestsPanel",
@@ -203,7 +201,7 @@ describe("keystroke render performance (roadmap 032)", () => {
     await waitForQuiescence();
 
     // Sanity: the run really mounted and rendered the heavy panels.
-    for (const name of ["DescriptionDigestCard", "PresetsPanel", "EffectiveConfig", "TestsPanel"]) {
+    for (const name of ["OverviewPanel", "PresetsPanel", "EffectiveConfig", "TestsPanel"]) {
       expect(renderCounts[name] ?? 0, `${name} should have rendered after the run`).toBeGreaterThan(
         0,
       );

@@ -9,13 +9,29 @@
  * retired — its digest is the header's jump-links now. The three retired ids
  * live on below as decode-only aliases, because share links carrying them are
  * already out there.
+ *
+ * Roadmap 083 brings **Overview** back, first in the strip: the design's Final
+ * artboard turns 069's description digest into the beginner's entry point
+ * ("What this config does", sorted by topic), and that is a tab, not a card at
+ * the top of somebody else's. So `overview` stops being a retired alias and
+ * becomes a current id again — which needs no compatibility machinery at all,
+ * because a link that says `tab=overview` now opens the tab it named. The two
+ * ids still retired are `rewrites` and `simulator`.
  */
 
-export const RESULTS_TAB_IDS = ["tests", "pipeline", "presets", "effective", "problems"] as const;
+export const RESULTS_TAB_IDS = [
+  "overview",
+  "tests",
+  "pipeline",
+  "presets",
+  "effective",
+  "problems",
+] as const;
 
 export type ResultsTabId = (typeof RESULTS_TAB_IDS)[number];
 
 export const RESULTS_TAB_LABELS: Record<ResultsTabId, string> = {
+  overview: "Overview",
   tests: "Tests",
   pipeline: "Pipeline",
   presets: "Presets",
@@ -31,8 +47,14 @@ export function isResultsTabId(value: unknown): value is ResultsTabId {
  * Roadmap 075 (v2, iteration 3): the pre-v2 tab ids. Nothing ENCODES these any
  * more — `buildShareState` writes whichever `ResultsTabId` is active — but every
  * link shared before v2 carries one, so the decoder still has to know them.
+ *
+ * Roadmap 083 removed `overview` from this list. It is a real tab again, so the
+ * encoder writes it (as it writes any active tab) and the decoder accepts it as
+ * a current id — a v1 link naming it lands on the Overview, which is the tab its
+ * sender was looking at. It was never a rename; it was a removal, and the
+ * removal is undone.
  */
-export const LEGACY_RESULTS_TAB_IDS = ["overview", "rewrites", "simulator"] as const;
+export const LEGACY_RESULTS_TAB_IDS = ["rewrites", "simulator"] as const;
 
 export type LegacyResultsTabId = (typeof LEGACY_RESULTS_TAB_IDS)[number];
 
@@ -40,13 +62,11 @@ export type LegacyResultsTabId = (typeof LEGACY_RESULTS_TAB_IDS)[number];
 export type ShareResultsTabId = ResultsTabId | LegacyResultsTabId;
 
 /**
- * Where each retired tab went. `overview` → Tests because the digest it opened
- * on is the header's now and Tests is where a run lands; `simulator` → Tests
- * because that IS the simulator, renamed; `rewrites` → Pipeline, whose migrate
- * stage holds the stepper (see `shareTabWantsMigrateStage`).
+ * Where each retired tab went. `simulator` → Tests because that IS the
+ * simulator, renamed; `rewrites` → Pipeline, whose migrate stage holds the
+ * stepper (see `shareTabWantsMigrateStage`).
  */
 const LEGACY_TAB_TARGETS: Record<LegacyResultsTabId, ResultsTabId> = {
-  overview: "tests",
   rewrites: "pipeline",
   simulator: "tests",
 };
@@ -77,6 +97,14 @@ export function shareTabWantsMigrateStage(id: ShareResultsTabId): boolean {
  * Roadmap 075: `step` used to infer the Rewrites tab and now infers Pipeline,
  * for the same reason `rewrites` maps there — the stepper lives on the migrate
  * stage, which App selects alongside (see its pending-view effect).
+ *
+ * Roadmap 083 deliberately does NOT add an `overview` answer here. This
+ * function only ever fires for a link with no `tab` field at all, and it infers
+ * from what the sender had SELECTED — a preset node, a migration step, a stage.
+ * The Overview has no such state (it selects nothing, and the one thing it
+ * remembers is a disclosure), so there is nothing in a pre-028 link that could
+ * mean "they were on the Overview". Returning `null` leaves App's own landing
+ * rule in charge, which is the honest answer: we do not know.
  */
 export function legacyTabForView(view: {
   stage?: unknown;

@@ -18,15 +18,12 @@ import { ruleWrittenKeys, summarizeRuleSelectors } from "./rule-selectors";
  * so this groups the same strings by the top-level layer they arrived through,
  * in merge order, without reordering anything inside a group.
  *
- * Two things fall out of the grouping that the flat list cannot say:
- *
- * - A top-level extend whose every string repeats an earlier one contributed no
- *   new behavior at all — it is `redundant`, i.e. a preset some other extend
- *   already pulled in. That is a real and common mistake (adding a preset
- *   `config:recommended` already contains), and the card names it.
- * - The repo's own `packageRules` descriptions have no top-level presence
- *   whatsoever (Renovate never hoists them), so they are carried alongside the
- *   repo group — the first surface in the app to show them.
+ * What falls out of the grouping that the flat list cannot say: the repo's own
+ * `packageRules` descriptions have no top-level presence whatsoever (Renovate
+ * never hoists them), so they are carried alongside the repo group — the first
+ * surface in the app to show them. Duplicate strings are tracked per entry
+ * (`duplicateOfIndex` → the `behaviors` count), which is how the Overview drops
+ * repeats and the preset tree wears its `duplicate ×N` badge.
  *
  * Pure and DOM-free (`lib/`), so `packages/cli` can quote the same digest.
  */
@@ -79,8 +76,6 @@ export interface DigestGroup {
   rules: DigestRule[];
   /** Entries that are not duplicates of an earlier string: what this layer ADDED. */
   behaviors: number;
-  /** Every string this layer contributed was already contributed above it. */
-  redundant: boolean;
 }
 
 export interface DescriptionDigestTotals {
@@ -110,7 +105,7 @@ export interface DescriptionDigest {
   finalLength: number;
 }
 
-interface MutableGroup extends Omit<DigestGroup, "behaviors" | "key" | "redundant"> {
+interface MutableGroup extends Omit<DigestGroup, "behaviors" | "key"> {
   behaviors: number;
 }
 
@@ -199,8 +194,6 @@ export function buildDescriptionDigest(
       // before it in merge order — stable across runs, unlike the node id.
       key: stableLayerKey(group.layer, keyUses),
       ...group,
-      // A group with rules always has something to show, whatever its strings did.
-      redundant: group.entries.length > 0 && group.behaviors === 0 && group.rules.length === 0,
     });
   }
 
@@ -229,25 +222,6 @@ export function hasTopLevelDescriptions(digest: DescriptionDigest): boolean {
   return digest.groups.some((group) => group.entries.length > 0);
 }
 
-/** The card title's muted count: `22 behaviors · from 3 extends + your rules`. */
-export function descriptionCountText(totals: DescriptionDigestTotals): string {
-  const parts: string[] = [];
-  if (totals.behaviors > 0) {
-    parts.push(`${nf.format(totals.behaviors)} behavior${totals.behaviors === 1 ? "" : "s"}`);
-  }
-  const sources: string[] = [];
-  if (totals.extendsCount > 0) {
-    sources.push(`${nf.format(totals.extendsCount)} extend${totals.extendsCount === 1 ? "" : "s"}`);
-  }
-  if (totals.hasUserRules) {
-    sources.push("your rules");
-  }
-  if (sources.length > 0) {
-    parts.push(`from ${sources.join(" + ")}`);
-  }
-  return parts.join(" · ");
-}
-
 /**
  * The card's quiet footnote about the members no group can show: `2 members of
  * the description array are not text, so no preset can be credited with them`.
@@ -266,22 +240,6 @@ export function unattributedNoteText(digest: DescriptionDigest): string {
   const members = count === 1 ? "member" : "members";
   const them = count === 1 ? "it" : "them";
   return `${nf.format(count)} ${members} of the description array ${count === 1 ? "is" : "are"} not text, so no preset can be credited with ${them}.`;
-}
-
-/** A group header's muted note: what this layer added, in its own right. */
-export function groupContributionText(group: DigestGroup): string {
-  const parts: string[] = [];
-  if (group.behaviors > 0) {
-    parts.push(
-      `contributes ${nf.format(group.behaviors)} behavior${group.behaviors === 1 ? "" : "s"}`,
-    );
-  }
-  if (group.rules.length > 0) {
-    parts.push(
-      `${nf.format(group.rules.length)} described rule${group.rules.length === 1 ? "" : "s"}`,
-    );
-  }
-  return parts.join(" · ");
 }
 
 /**

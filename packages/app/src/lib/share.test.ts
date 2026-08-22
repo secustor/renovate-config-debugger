@@ -739,16 +739,27 @@ describe("054: sim.simThread round-trips and stays additive", () => {
  * links already in the wild still carry. The compatibility contract has two
  * halves and both are asserted here: links ENCODE only current ids, and the
  * DECODER accepts the retired ones and says which tab each opens.
+ *
+ * Roadmap 083 un-retired one of the three. `overview` is a real tab again, so
+ * it needs no mapping at all — a v1 link naming it opens the Overview, which is
+ * what its sender was looking at.
  */
 describe("075: retired tab ids still open the tab that replaced them", () => {
-  test("the strip is the v2 five, and none of them is a retired id", () => {
-    expect(RESULTS_TAB_IDS).toEqual(["tests", "pipeline", "presets", "effective", "problems"]);
+  test("the strip is the v2 six, Overview first, and none of them is a retired id", () => {
+    expect(RESULTS_TAB_IDS).toEqual([
+      "overview",
+      "tests",
+      "pipeline",
+      "presets",
+      "effective",
+      "problems",
+    ]);
   });
 
   test("each retired id maps to its successor", () => {
-    // The digest the Overview opened on is the header's now, and a run lands on
-    // Tests — so that is where an `overview` link goes.
-    expect(resultsTabForShareTab("overview")).toBe("tests");
+    // Roadmap 083: `overview` is not one of them any more — it maps to itself,
+    // through the "a current id is its own answer" branch below.
+    expect(resultsTabForShareTab("overview")).toBe("overview");
     // The same instrument, renamed.
     expect(resultsTabForShareTab("simulator")).toBe("tests");
     // Folded into Pipeline's migrate stage.
@@ -764,7 +775,6 @@ describe("075: retired tab ids still open the tab that replaced them", () => {
     // Pipeline on its default stage would put an old link's reader in front of
     // something its sender was not looking at; the stepper lives on migrate.
     expect(shareTabWantsMigrateStage("rewrites")).toBe(true);
-    expect(shareTabWantsMigrateStage("overview")).toBe(false);
     expect(shareTabWantsMigrateStage("simulator")).toBe(false);
     for (const id of RESULTS_TAB_IDS) {
       expect(shareTabWantsMigrateStage(id)).toBe(false);
@@ -779,12 +789,16 @@ describe("075: retired tab ids still open the tab that replaced them", () => {
     // carries, and it still beats a step.
     expect(legacyTabForView({ stage: "migrate", step: 0, node: "abc" })).toBe("presets");
     expect(legacyTabForView({})).toBeNull();
+    // Roadmap 083: nothing infers the Overview. It selects nothing, so a
+    // pre-028 link carries no evidence that its sender was on it — App's own
+    // landing rule stays in charge rather than a guess.
+    expect(legacyTabForView({ stage: "preset" })).toBe("pipeline");
   });
 
   test("a retired id survives the decoder verbatim, for the opener to map", async () => {
     // Sanitizing it away would land the reader on the default tab instead of
     // the one the sender meant — worse than the id being unknown.
-    for (const legacy of ["overview", "simulator", "rewrites"] as const) {
+    for (const legacy of ["simulator", "rewrites"] as const) {
       const token = await rawEncodeToken(taggedPayload({ view: { stage: "preset", tab: legacy } }));
       const result = await decodeShareResult(token);
       expect(result.ok).toBe(true);

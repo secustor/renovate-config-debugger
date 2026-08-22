@@ -5516,11 +5516,14 @@ pre.config-view.prov-losing {
   display: inline-flex;
   font-family: inherit;
   font-size: 0.85rem;
-  gap: 0.4rem;
+  gap: 0.3rem;
   /* Overlaps the rail's own bottom border, which is what lets the active tab
      paint over it and read as one surface with the body below. */
   margin-bottom: -1px;
-  padding: 0.45rem 0.8rem;
+  /* 083 made the strip six tabs; at the previous 0.8rem sides the sixth
+     wrapped onto its own row at a 1280px viewport. The strip must hold one
+     row at the standard desktop width (guarded in 12-layout-regressions). */
+  padding: 0.45rem 0.55rem;
 }
 
 .tab:hover {
@@ -5840,155 +5843,153 @@ pre.config-view.prov-losing {
   padding: 0.05rem 0.3rem;
 }
 
-/* ---------- 069: the "What this config does" digest card ----------
+/* ---------- 083: the Overview tab — "What this config does" ----------
+
    Every preset carries a sentence its author wrote; the resolved config
-   concatenates them all into one anonymous array. This card is that array
-   regrouped by the `extends` entry that pulled each sentence in — so the
-   Overview's first answer to "what does this config do" is the config's own
-   documentation, in its authors' words.
+   concatenates them all into one anonymous array. 069 regrouped that array by
+   the `extends` entry that pulled each sentence in; the design's Final artboard
+   regroups it by SUBJECT instead — pull requests, grouping, automerge, safety,
+   and an "Everything else" tail behind one toggle — because the reader this tab
+   is for has not learned which preset is which yet.
 
-   The palette is not new: a group wears the hue its ProvenanceChip wears
-   (purple preset / blue repo / …), and the dots are the same `.prov-dot` the
-   054 evidence rows use. Only the left rail needs per-layer rules, since it is
-   the one element that carries the hue as a BORDER rather than as `color`. */
-.desc-digest {
-  padding: 0.7rem 0.75rem 0.4rem;
-}
-
-.desc-digest-count {
-  color: var(--muted);
-  font-weight: 400;
-  margin-left: 0.5rem;
-}
-
-.desc-digest-group {
-  margin-bottom: 0.85rem;
-}
-
-.desc-digest-group-head {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.35rem;
-}
-
-.desc-digest-note {
-  color: var(--muted);
-  font-size: 0.75rem;
-}
-
-/* The "this extend added nothing" chip — a fact about redundancy, not a
-   problem, so it stays muted rather than borrowing the warn tint. */
-.badge.desc-digest-redundant {
-  color: var(--muted);
-  font-family: inherit;
-}
-
-.desc-digest-list {
-  border-left: 2px solid color-mix(in srgb, var(--accent-purple) 30%, transparent);
-  display: grid;
-  gap: 0.25rem;
-  list-style: none;
-  margin: 0 0 0.35rem;
-  padding: 0.1rem 0 0.1rem 0.85rem;
-}
-
-/* The rail follows the group's layer, matching the dots inside it. */
-.desc-digest-list.prov-repo {
-  border-left-color: color-mix(in srgb, var(--accent) 30%, transparent);
-}
-
-.desc-digest-list.prov-global {
-  border-left-color: color-mix(in srgb, var(--accent-teal) 30%, transparent);
-}
-
-.desc-digest-list.prov-inherited {
-  border-left-color: color-mix(in srgb, var(--accent-pink) 30%, transparent);
-}
-
-.desc-digest-list.prov-defaults {
-  border-left-color: color-mix(in srgb, var(--muted) 30%, transparent);
-}
-
-.desc-digest-row {
+   Nothing here is a new colour. The count is `.pill-count`, the source chips
+   are `.preset-token` and `.badge.prov-*`, and the dots are the same
+   `.prov-dot` the 054 evidence rows use — the artboard's two-colour scheme
+   (blue = mine, purple = a preset) is the app's five-hue layer palette with the
+   three levels it does not draw left out. */
+.overview-head {
   align-items: baseline;
   display: flex;
-  flex-wrap: wrap;
-  font-size: 0.85rem;
   gap: 0.5rem;
-  line-height: 1.5;
 }
 
-/* A repeat of a sentence contributed above: kept (the array really does say it
-   twice) but visibly demoted. */
-.desc-digest-row.duplicate .desc-digest-text {
+.overview-head-note {
   color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 400;
 }
 
-.desc-digest-row > .prov-dot {
+/* The way back to Renovate's own array order (069 PR 3) — a card-title action,
+   so it sits with the count rather than inside the prose, exactly where the
+   digest card carried it. */
+.overview-raw {
+  font-size: 0.75rem;
+  font-weight: 400;
+  margin-left: auto;
+}
+
+.overview-body {
+  padding: 0.7rem 0.75rem 0.6rem;
+}
+
+.overview-intro {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin: 0 0 0.9rem;
+}
+
+.overview-topic {
+  margin-bottom: 0.9rem;
+}
+
+.overview-topic-title {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  margin: 0 0 0.35rem;
+  text-transform: uppercase;
+}
+
+.overview-rows {
+  display: grid;
+  gap: 0.3rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.overview-row {
+  align-items: baseline;
+  display: flex;
+  font-size: 0.84rem;
+  gap: 0.5rem;
+  line-height: 1.45;
+}
+
+/* The dot is a baseline-aligned circle, so it needs the same nudge every other
+   `.prov-dot` in a baseline row gets. */
+.overview-row > .prov-dot {
   position: relative;
   top: -0.1rem;
 }
 
-.desc-digest-text code {
+/* The prose takes the slack, which is what pushes the source chip right without
+   a second `margin-left: auto` fighting the flex. */
+.overview-text {
+  flex: 1;
+}
+
+.overview-text code {
   font-size: 0.9em;
 }
 
-/* Who actually wrote the sentence. Roadmap 081: the label itself is now the
-   standard `.preset-token` (its own rule), so all that is left here is the
-   right-hand placement and the gap to the `≈` mark that may precede it. */
-.desc-digest-attr {
+.overview-source {
   align-items: center;
   display: inline-flex;
+  flex: none;
   gap: 0.25rem;
-  margin-left: auto;
   white-space: nowrap;
 }
 
-.desc-digest-rule-note {
-  color: var(--muted);
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  margin-left: auto;
-}
-
-.desc-digest-more {
-  font-size: 0.78rem;
-  font-style: italic;
+/* The card's ONE disclosure: the unmatched tail. Not a per-topic "show all" —
+   the design has exactly one, and a second would make the reader wonder which
+   of the two is hiding the sentence they are looking for. */
+.overview-more {
+  font-size: 0.8rem;
 }
 
 /* A member of the description array that is not a string: Renovate warns and
-   keeps it, no preset can be credited with it, and no group can show it. A
+   keeps it, no preset can be credited with it, and no topic can show it. A
    quiet footnote rather than a warning — the config is the way it is, and the
    card's job here is only to not under-report it. */
-.desc-digest-aside {
+.overview-aside {
   color: var(--muted);
   font-size: 0.78rem;
   margin: 0;
   padding: 0 0.75rem 0.5rem;
 }
 
-/* Roadmap 069: the approximate-attribution family, shared by every surface
-   that renders the engine's per-string attribution — the Overview's digest
-   card here, the Effective config's blame ledger (PR 3), the preset tree's
-   inline descriptions (PR 4). One family, so the `≈` and its caveat cannot
-   drift apart between them; see components/description-approx.tsx. */
+/* The design's closing line, attached to the card's foot the way the caveat
+   below it is. */
+.overview-footer {
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.76rem;
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+}
 
-/* The standalone mark, for a row with no leaf label to prefix. Same muted
-   weight as the label's own `≈` prefix, so the two read as one mark.
-   Placement is the caller's: the digest card pushes it to the row's right edge
-   where the leaf label would sit, while the ledger keeps it inline, immediately
-   before the chip it qualifies. */
+.overview-footer code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+/* Roadmap 069: the approximate-attribution family, shared by every surface
+   that renders the engine's per-string attribution — the Overview tab (083),
+   the Effective config's blame ledger (PR 3), the preset tree's inline
+   descriptions (PR 4). One family, so the `≈` and its caveat cannot drift
+   apart between them; see components/description-approx.tsx. */
+
+/* The standalone mark, for a row with no preset token to prefix. Same muted
+   weight as the token's own `≈`, so the two read as one mark. Placement is the
+   caller's: the Overview keeps it inside the row's source cell, and the ledger
+   inline, immediately before the chip it qualifies. */
 .desc-approx-mark {
   color: var(--muted);
   cursor: help;
   font-family: var(--font-mono);
   font-size: 0.7rem;
-}
-
-.desc-digest-row > .desc-approx-mark {
-  margin-left: auto;
 }
 
 /* Same warn-notice tint (050 families) and attachment as the resolved
@@ -6131,25 +6132,6 @@ pre.config-view.prov-losing {
    gets from the card padding — the wording and the tint stay shared. */
 .desc-ledger > .desc-approx-caveat {
   margin-top: 0.5rem;
-}
-
-/* The digest card's way back to the ledger above (069 PR 3) — a card-title
-   action, so it sits with the count rather than inside the prose. The title
-   becomes a row for it, the way the effective config's already is. */
-.desc-digest-card > .card-title {
-  align-items: baseline;
-  display: flex;
-  gap: 0.5rem;
-}
-
-.desc-digest-card > .card-title .desc-digest-count {
-  margin-left: 0;
-}
-
-.desc-digest-raw {
-  font-size: 0.75rem;
-  font-weight: 400;
-  margin-left: auto;
 }
 
 /* ---------- 069 PR 5: attribution at the point of contact ----------

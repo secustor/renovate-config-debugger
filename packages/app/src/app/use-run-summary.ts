@@ -46,6 +46,11 @@ export function useRunSummary(
    *  for the same reason `effectiveStats` is: this hook counts, it does not
    *  hold. */
   pinCount: number,
+  /** Roadmap 083: how many author-written sentences the Overview lists — the
+   *  Overview tab's badge. `null` until the description provenance has settled,
+   *  exactly like `effectiveStats`: both are engine derivations the panel
+   *  reports back, and neither may be guessed at as a zero. */
+  overviewBehaviors: number | null,
 ): RunSummary {
   // One pass over the event stream per RESULT for every count below: the
   // migrate steps and the stage's final snapshot (004), the preset-resolution
@@ -76,6 +81,12 @@ export function useRunSummary(
   // typecheck until `tabData` grows a matching entry, rather than silently
   // shipping a strip one tab short of what the sheet advertises.
   const tabData: Record<ResultsTabId, Omit<ResultsTabDescriptor, "id">> = {
+    // Roadmap 083: the sentences the Overview lists — the SAME number its own
+    // count pill prints, because the panel reports the count it rendered rather
+    // than a second derivation of it. Derived asynchronously (the description
+    // provenance is a dynamic engine import), hence `null` until it reports —
+    // no badge rather than a wrong zero, the 028 rule the Effective tab follows.
+    overview: { count: overviewBehaviors ?? undefined },
     // Roadmap 075 (iteration 6): the pinned tests. A run with none shows a
     // dimmed 0 (the zero-count tab rule) rather than no badge — "nothing is
     // being re-checked" is a fact about this config, not a missing number.

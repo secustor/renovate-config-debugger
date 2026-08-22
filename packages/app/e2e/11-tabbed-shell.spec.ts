@@ -30,6 +30,11 @@ import {
  * `Tests · Pipeline · Presets · Effective config · Problems`. Tests is the
  * simulator, first and where a run lands; Rewrites folded into Pipeline's
  * migrate stage; Overview retired into the header's digest links.
+ *
+ * Roadmap 083 put Overview back at the head of the strip — "What this config
+ * does", the beginner's entry point. A run still LANDS on Tests: landing is
+ * about the loop the app is shaped around (edit → Run → read), and the Overview
+ * is where a reader goes to orient, not where an edit's answer appears.
  */
 
 test("a run lands on the Tests tab, not on an expanded instrument", async ({ page }) => {
@@ -48,9 +53,12 @@ test("a run lands on the Tests tab, not on an expanded instrument", async ({ pag
   await expect(tabPanel(page, "presets")).toBeHidden();
   await expect(tabPanel(page, "effective")).toBeHidden();
   await expect(tabPanel(page, "pipeline")).toBeHidden();
-  // Five tabs, in the v2 order — scoped to the results tablist, because the
-  // Add-a-test box reuses the same tab grammar inside the Tests panel.
+  await expect(tabPanel(page, "overview")).toBeHidden();
+  // Six tabs, in the v2 order with 083's Overview at the head — scoped to the
+  // results tablist, because the Add-a-test box reuses the same tab grammar
+  // inside the Tests panel.
   await expect(page.getByRole("tablist", { name: "Results" }).locator(".tab")).toHaveText([
+    /^Overview/,
     /^Tests/,
     /^Pipeline/,
     /^Presets/,
@@ -285,28 +293,66 @@ test("a provenance chip switches to Presets and offers a one-step way back", asy
 });
 
 /**
- * Roadmap 069/075 — "What this config does" was the Overview's second card and
- * leads the Effective config tab now: it describes the merged config's own
- * `description` field, and its "show raw order" link lands on that field's row,
- * which since the move is a landing inside the tab the reader is already on.
+ * Roadmap 069/083 — "What this config does" is the Overview tab: the same
+ * author-written sentences, sorted by topic, with one chip per row saying who
+ * wrote it. Its "show raw order" link is the way to the two facts the topic
+ * grouping trades away — Renovate's own array order, and the repeats — and
+ * since the card left the Effective config, that link crosses a tab again.
  */
-test("the description digest card leads the Effective config tab and lands on its row", async ({
-  page,
-}) => {
+test("the Overview tab is the description digest, and lands on the raw row", async ({ page }) => {
   await page.goto("/");
   await runAndAwaitResult(page);
 
-  await openTab(page, "effective");
-  const card = page.locator("#panel-effective .desc-digest-card");
+  await openTab(page, "overview");
+  const card = page.locator("#panel-overview .overview-card");
   await expect(card).toBeVisible();
   await expect(card).toContainText("What this config does");
+  await expect(card).toContainText("behaviors · explained by their authors");
+  await expect(card).toContainText(
+    "Every preset carries a sentence describing what it does. Here they are, sorted by topic instead of by preset.",
+  );
+  // The topics are the design's, uppercased by CSS — assert the source text.
+  await expect(card.locator(".overview-topic-title").first()).toHaveText("Pull requests & noise");
+  // Every row names its source: a preset token, or the blue `repo config` chip.
+  const firstRow = card.locator(".overview-row").first();
+  await expect(firstRow.locator(".overview-source")).toBeVisible();
+  // …and the count pill quotes the same number as the tab badge.
+  const pill = await card.locator(".overview-count").innerText();
+  await expect(tabButton(page, "overview").locator(".tab-count")).toHaveText(pill);
 
   await card.getByRole("button", { name: "show raw order" }).click();
-  // Same tab, so no cross-tab trail is recorded — just the row, filtered to and
-  // expanded.
+  // A cross-tab jump now, so it records the one-step way back.
   await expect(tabButton(page, "effective")).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#panel-effective .prov-filter-input")).toHaveValue("description");
-  await expect(page.locator(".tab-back")).toHaveCount(0);
+  await expect(page.locator(".tab-back")).toHaveText(/Back to Overview/);
+});
+
+/**
+ * Roadmap 083 — the tail. Everything the classifier could not file lands in
+ * "Everything else", behind the card's ONE toggle, so nothing is hidden without
+ * the reader being told how much of it there is.
+ */
+test("the Overview's Everything-else tail opens and closes from one toggle", async ({ page }) => {
+  await page.goto("/");
+  await runAndAwaitResult(page);
+
+  await openTab(page, "overview");
+  const card = page.locator("#panel-overview .overview-card");
+  const toggle = card.locator(".overview-more");
+  // `.overview-topic-title`, not the card's text: the toggle's own label quotes
+  // the group's name, so a text query would find the tail's heading in the
+  // control that reveals it.
+  const tail = card.locator(".overview-topic-title", { hasText: "Everything else" });
+  await expect(toggle).toContainText(/more in “Everything else” — show all/);
+  await expect(tail).toHaveCount(0);
+
+  await toggle.click();
+  await expect(tail).toHaveCount(1);
+  await expect(card.locator(".overview-topic-title").last()).toHaveText("Everything else");
+  await expect(toggle).toHaveText("show less");
+
+  await toggle.click();
+  await expect(tail).toHaveCount(0);
 });
 
 test("a copied share link reopens on the tab that was active", async ({ page }) => {
@@ -365,19 +411,20 @@ test("pre-028 links without a tab field map stage/step/node to the right tab", a
 });
 
 /**
- * Roadmap 075 (v2, iteration 3) — the tab ids `overview`, `simulator` and
- * `rewrites` are gone from the strip, but every link shared while they existed
- * still names one. Nothing encodes them any more; the DECODER maps each onto
- * the tab that replaced it, so an old link opens on what its sender meant.
+ * Roadmap 075 (v2, iteration 3) retired `overview`, `simulator` and `rewrites`;
+ * 083 brought `overview` back as a REAL tab. Links shared while an id was
+ * retired still name it: the DECODER maps `simulator`/`rewrites` onto the tab
+ * that replaced them, while `tab=overview` simply opens the returned Overview —
+ * the same surface (the description digest) its sender was looking at.
  */
 test("a share link naming a retired tab lands on the tab that replaced it", async ({ page }) => {
-  // `overview` — the digest it opened on is the header's now, so the link lands
-  // where a run lands.
+  // `overview` — retired in 075, a real tab again since 083: the link lands on
+  // the Overview itself, not on a stand-in.
   await page.goto(
     await encodeShareFragment({ config: PACKAGE_RULES_CONFIG, view: { tab: "overview" } }),
   );
   await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
-  await expect(tabButton(page, "tests")).toHaveAttribute("aria-selected", "true");
+  await expect(tabButton(page, "overview")).toHaveAttribute("aria-selected", "true");
 
   // `simulator` — the same instrument, renamed (and, since iteration 6, the
   // Tests tab's second view: the link lands on the tab, the pins list leads).

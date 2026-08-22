@@ -469,3 +469,18 @@ test("the simulate button holds its position when the validation banner clears",
   const after = must(await simulate.boundingBox(), "the simulate button's bounding box");
   expect(Math.abs(after.y - before.y)).toBeLessThan(1);
 });
+
+test("the six-tab results strip holds one row at the standard desktop width", async ({ page }) => {
+  // 083 added the sixth tab (Overview); at the pre-083 tab padding the strip
+  // wrapped at 1280px — the default Desktop Chrome viewport — leaving
+  // "Problems" alone on a second line. Every tab must share one row here.
+  await page.goto("/");
+  await runAndAwaitResult(page);
+
+  // Scoped to the results strip — the pin card reuses the `.tab-bar` grammar
+  // at the card's scale, so a bare `.tab` locator would count its tabs too.
+  const tabs = page.getByRole("tablist", { name: "Results" }).locator(".tab");
+  await expect(tabs).toHaveCount(6);
+  const boxes = await tabs.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().top));
+  expect(new Set(boxes).size).toBe(1);
+});

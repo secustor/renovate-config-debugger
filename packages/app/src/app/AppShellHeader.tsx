@@ -18,6 +18,16 @@ import type { StoredUser } from "@/platform/oauth";
  * paragraph could. Iteration 3 retired that paragraph outright: these links ARE
  * the digest in the app now, and the clause model behind the prose stays what
  * `rcd digest` renders.
+ *
+ * Roadmap 083 brought the Overview tab back and deliberately left this row
+ * alone. The two things called "the digest" are not the same digest: this is
+ * the RUN's (rewrites, presets, effective options, problems — four counts, each
+ * linked to the instrument that explains it), while the Overview is the
+ * DESCRIPTION digest, the config's own prose. No clause here ever pointed at
+ * that card, so there was nothing to re-point; and repointing a clause at the
+ * Overview would send a reader asking "which presets?" to a tab that does not
+ * answer it. What 075's note above now over-claims is only the word "retired" —
+ * the tab is back, the header's links stay what they are.
  */
 
 interface DigestLinksProps {
