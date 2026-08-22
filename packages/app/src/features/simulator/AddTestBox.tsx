@@ -184,7 +184,10 @@ export function AddTestBox({
     managerNames,
     updateTypeKeyDown,
   } = useSimulatorForm(engineModule);
-  const [moreFieldsOpen, setMoreFieldsOpen] = useState(false);
+  // Roadmap 079: which field group is expanded (-1 = all closed, the state the
+  // panel opens in). Held here rather than in the form so a re-render from a
+  // simulation never folds what the reader opened.
+  const [openGroup, setOpenGroup] = useState(-1);
   // Roadmap 015's empty-form guard: a descriptor with nothing identifying in
   // it would be pinned forever and match nothing on every run.
   const [emptyGuard, setEmptyGuard] = useState(false);
@@ -247,15 +250,15 @@ export function AddTestBox({
         <SimulatorForm
           form={form}
           setForm={setForm}
-          updateTypeTouched={updateTypeTouched}
           setUpdateTypeTouched={setUpdateTypeTouched}
           effectiveUpdateType={effectiveUpdateType}
           derivedUpdateType={derivedUpdateType}
           updateTypeKeyDown={updateTypeKeyDown}
           datasourceNames={datasourceNames}
           managerNames={managerNames}
-          moreFieldsOpen={moreFieldsOpen}
-          onMoreFieldsToggle={setMoreFieldsOpen}
+          openGroup={openGroup}
+          onOpenGroupChange={setOpenGroup}
+          compact
           onQuickFill={(fill) => {
             setForm({ ...EMPTY_FORM, ...fill });
             setUpdateTypeTouched(false);

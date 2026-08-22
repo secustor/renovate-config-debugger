@@ -9,8 +9,9 @@ import {
 import { motionScrollOptions } from "@/lib/motion";
 
 export interface SimulatorDrawers {
-  moreFieldsOpen: boolean;
-  setMoreFieldsOpen: Dispatch<SetStateAction<boolean>>;
+  /** Roadmap 079: which of the form's three field groups is expanded, or -1. */
+  openFieldGroup: number;
+  setOpenFieldGroup: Dispatch<SetStateAction<number>>;
   rulesOpen: boolean;
   setRulesOpen: Dispatch<SetStateAction<boolean>>;
   mergeOpen: boolean;
@@ -22,11 +23,13 @@ export interface SimulatorDrawers {
 }
 
 /**
- * Roadmap 047: the three summary drawers' open state, and the cross-links
- * that open the drawer they target. It lives here rather than on the
- * `<details>` elements so it survives a quick-fill, a re-simulation and a new
- * pipeline run — "a disclosure must not move or reset unrelated UI", and a
- * re-run must never fold what the user opened.
+ * Roadmap 047: the panel's disclosure state — the two summary drawers below
+ * the verdict, the form's open field group (079's successor to the single
+ * "More about this update" drawer), and the cross-links that open the drawer
+ * they target. It lives here rather than on the `<details>` elements so it
+ * survives a quick-fill, a re-simulation and a new pipeline run — "a
+ * disclosure must not move or reset unrelated UI", and a re-run must never
+ * fold what the user opened.
  */
 export function useSimulatorDrawers({
   mergeStepIndex,
@@ -35,7 +38,7 @@ export function useSimulatorDrawers({
   mergeStepIndex: number;
   onMergeStepChange: (index: number) => void;
 }): SimulatorDrawers {
-  const [moreFieldsOpen, setMoreFieldsOpen] = useState(false);
+  const [openFieldGroup, setOpenFieldGroup] = useState(-1);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
   const rulesDrawerRef = useRef<HTMLDetailsElement>(null);
@@ -81,8 +84,8 @@ export function useSimulatorDrawers({
   }
 
   return {
-    moreFieldsOpen,
-    setMoreFieldsOpen,
+    openFieldGroup,
+    setOpenFieldGroup,
     rulesOpen,
     setRulesOpen,
     mergeOpen,

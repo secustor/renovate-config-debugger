@@ -120,6 +120,17 @@
   --diff-added-bg: light-dark(#eaffee, #1a2d1f);
   --diff-removed-bg: light-dark(#fdeff0, #301c1e);
 
+  /* ---------- printed JSON (079) ----------
+     The two roles a pretty-printed descriptor needs to tell apart: the key and
+     the string it is set to. Aliases rather than new hues — the design's
+     #0055aa / #aa1111 pair cannot ship here (raw literals are banned, and red
+     is the app's error hue, which a perfectly healthy value must not wear), so
+     the keys take the accent they already have on every other config surface
+     and the values take the teal that is not spoken for in running text. Both
+     halves are theme-aware through the tokens they point at. */
+  --json-key: var(--accent);
+  --json-string: var(--accent-teal);
+
   --accent-bg: color-mix(in srgb, var(--accent) 10%, var(--surface));
   --accent-border: color-mix(in srgb, var(--accent) 40%, var(--border));
   --accent-wash: light-dark(#ddf4ff, #121d2f);
@@ -2890,39 +2901,242 @@ pre.config-view.prov-before {
   font-weight: 400;
 }
 
-.sim-presets {
+/* ---------- the simulator form, redesigned (079) ----------
+   The design's "Simulator Form Redesign" artboard: a quick-fill row, a
+   sentence card whose blanks are the four fields that identify an update,
+   `updateType` as a derived chip inside that sentence, and everything else in
+   three named collapsible groups — with the live descriptor beside them in the
+   standalone simulator. The form carries the card's inset once; nothing inside
+   it pads itself. */
+
+.sim-form-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem 0;
+}
+
+/* ----- "Start from:" ----- */
+
+.sim-quickfills {
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
-  padding: 0.6rem 0.75rem 0;
+  gap: 0.35rem;
 }
 
-.sim-presets button {
-  background: var(--surface);
+.sim-quickfills-lead {
+  color: var(--faint);
+  font-size: 0.72rem;
+}
+
+.sim-quickfill {
+  background: transparent;
   border: 1px solid var(--border);
   border-radius: 999px;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 0.15rem 0.6rem;
+}
+
+.sim-quickfill:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* The example the form still agrees with — accent-tinted over the CANVAS, not
+   over --surface: this row sits on the card's own background. */
+.sim-quickfill.active {
+  background: color-mix(in srgb, var(--accent) 8%, var(--canvas));
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ----- the sentence ----- */
+
+.sim-sentence {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.6rem 0.7rem;
+}
+
+.sim-sentence p {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.92rem;
+  gap: 0.3rem;
+  line-height: 1.9;
+  margin: 0;
+}
+
+/* A blank in running copy: no box, just the dashed accent underline that says
+   "this word is yours to write". The focus ring is NOT suppressed (the mock's
+   `outline: none` is a mock's luxury) — these are the form's primary fields. */
+.sim-blank {
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px dashed var(--accent);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  padding: 0 0.1rem;
+}
+
+.sim-blank.strong {
+  font-weight: 600;
+}
+
+.sim-blank-name {
+  width: 7.5rem;
+}
+
+.sim-blank-version {
+  width: 5.2rem;
+}
+
+.sim-blank-datasource {
+  width: 6rem;
+}
+
+/* ----- updateType: a derived chip, not a field ----- */
+
+.sim-ut-chip {
+  align-items: center;
+  background: var(--warn-bg);
+  border: 1.5px dashed var(--warn-border-strong);
+  border-radius: 6px;
+  color: var(--warn);
+  display: inline-flex;
+  font-size: 0.85rem;
+  font-weight: 600;
+  gap: 0.3rem;
+  padding: 0.05rem 0.5rem;
+  position: relative;
+}
+
+/* The override `<select>` is painted out and stretched over the chip, so the
+   ring has to come from the wrapper or the keyboard gets nothing. */
+.sim-ut-chip:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sim-ut-caret {
+  color: color-mix(in srgb, var(--warn) 65%, var(--muted));
+  font-size: 0.7rem;
+}
+
+.sim-ut-select {
+  appearance: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  padding: 0;
+  position: absolute;
+  width: 100%;
+}
+
+/* ----- the groups, and the descriptor beside them ----- */
+
+.sim-form-body {
+  display: block;
+}
+
+/* Two columns when there is a preview — auto-fit rather than `1fr 1fr`,
+   because the simulator lives in the results COLUMN, whose width the viewport
+   does not report. Below ~18rem of column the preview drops underneath. */
+.sim-form-body.with-preview {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+}
+
+.sim-group {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 0.45rem;
+  overflow: hidden;
+}
+
+.sim-group:last-child {
+  margin-bottom: 0;
+}
+
+.sim-group-head {
+  align-items: baseline;
+  background: transparent;
+  border: none;
   color: inherit;
   cursor: pointer;
-  font-size: 0.8rem;
-  padding: 0.2rem 0.7rem;
+  display: flex;
+  font: inherit;
+  font-size: 0.78rem;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+  white-space: nowrap;
+  width: 100%;
 }
 
-.sim-presets button:hover {
-  border-color: var(--accent);
+.sim-group-head:hover {
+  background: var(--surface);
 }
 
-.sim-form {
+.sim-group-caret {
+  color: var(--muted);
+  flex: none;
+  font-size: 0.68rem;
+}
+
+.sim-group-title {
+  flex: none;
+  font-weight: 600;
+}
+
+/* The abstract a collapsed group owes: how many of its fields hold a value.
+   Ghost while it holds nothing, accent-tinted the moment it does. */
+.sim-group-count {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--faint);
+  flex: none;
+  font-size: 0.66rem;
+  margin-left: auto;
+  padding: 0 0.4rem;
+}
+
+.sim-group-count.set {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+
+/* The design's two columns, fixed: `auto-fit` here would widen to 3–4 tracks
+   in the Add-a-test panel (the results column is ~44rem), a materially denser
+   form than the artboard draws. Two `1fr` tracks track the container at every
+   width the form actually renders at. */
+.sim-group-body {
+  border-top: 1px solid var(--border);
   display: grid;
-  gap: 0.5rem 0.75rem;
-  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
-  padding: 0.6rem 0.75rem 0;
+  gap: 0.4rem;
+  grid-template-columns: 1fr 1fr;
+  padding: 0.5rem 0.6rem;
 }
 
 .sim-field {
   display: flex;
   flex-direction: column;
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   gap: 0.15rem;
+  min-width: 0;
 }
 
 /* Every field label wears a glossary `.term` now; in this flex column the
@@ -2932,15 +3146,116 @@ pre.config-view.prov-before {
   align-self: flex-start;
 }
 
-.sim-field input,
-.sim-field select {
-  background: var(--canvas);
+/* The direct child only: a multi-value field's draft input is nested inside
+   its chip box and wears `.sim-multi-draft` instead. */
+.sim-field > input {
+  background: transparent;
   border: 1px solid var(--border);
   border-radius: 6px;
   color: inherit;
-  font: inherit;
-  font-size: 0.85rem;
-  padding: 0.25rem 0.45rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  min-width: 0;
+  padding: 0.24rem 0.4rem;
+}
+
+/* ----- multi-value fields: chips in a box that looks like an input ----- */
+
+.sim-multi-box {
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  min-height: 1.65rem;
+  padding: 0.14rem 0.25rem;
+}
+
+.sim-multi-box:focus-within {
+  border-color: var(--accent);
+}
+
+.sim-chip {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  display: inline-flex;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  gap: 0.25rem;
+  line-height: 1.4;
+  padding: 0 0.45rem;
+}
+
+.sim-chip-remove {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.sim-chip-remove:hover {
+  color: var(--error);
+}
+
+.sim-multi-draft {
+  background: transparent;
+  border: none;
+  color: inherit;
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  min-width: 5rem;
+  padding: 0.1rem;
+}
+
+/* ----- the live descriptor (standalone only) ----- */
+
+.sim-descriptor {
+  align-self: start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.55rem 0.65rem;
+  position: sticky;
+  top: 0.5rem;
+}
+
+.sim-descriptor-label {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.35rem;
+  text-transform: uppercase;
+}
+
+.sim-descriptor-json {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  line-height: 1.6;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.sim-json-key {
+  color: var(--json-key);
+}
+
+.sim-json-str {
+  color: var(--json-string);
+}
+
+.sim-descriptor-empty {
+  color: var(--faint);
+  font-size: 0.7rem;
+  margin: 0.35rem 0 0;
 }
 
 .sim-actions {
@@ -4699,23 +5014,13 @@ pre.config-view.prov-before {
 /* Roadmap 015: simulator input ergonomics — the empty-form guard and an
    unmissable stale-results veil (the small .sim-stale text hint alone was
    skimmed past in the persona study). 047 moved the derived-updateType hint
-   into its own one-liner, `.sim-derived-line`. */
-
-.sim-link {
-  background: none;
-  border: none;
-  color: var(--accent);
-  cursor: pointer;
-  font: inherit;
-  font-size: inherit;
-  padding: 0;
-  text-decoration: underline;
-}
+   into its own one-liner; 079 moved it again, into the sentence's own
+   `.sim-ut-chip`. */
 
 .sim-empty-guard {
   color: var(--warn);
   font-size: 0.85rem;
-  margin: -0.25rem 0.75rem 0.75rem;
+  margin: 0.5rem 0.75rem 0;
 }
 
 /* One sentence shape for "what you are looking at is behind the inputs above
@@ -5305,8 +5610,7 @@ pre.config-view.prov-before {
   padding: 0.6rem 0.75rem;
 }
 
-/* The simulator's own drawers carry the card's horizontal inset; the form's
-   grid inside one already sits in the body's padding. */
+/* The simulator's own drawers carry the card's horizontal inset. */
 .sim-drawer {
   margin: 0.5rem 0.75rem 0;
 }
@@ -5314,29 +5618,6 @@ pre.config-view.prov-before {
 .sim-results-body > .sim-drawer {
   margin-left: 0;
   margin-right: 0;
-}
-
-.sim-drawer .sim-form {
-  padding: 0;
-}
-
-/* 047: `updateType` as a derived one-liner instead of a primary select — the
-   value first, then how it was arrived at, then the override affordance. */
-.sim-derived-line {
-  color: var(--muted);
-  font-size: 0.78rem;
-  margin: 0.5rem 0 0;
-  padding: 0 0.75rem;
-}
-
-.sim-derived-line .value {
-  color: var(--ink);
-  font-family: var(--font-mono);
-}
-
-/* The manual-override select sits where the derived line was. */
-.sim-form-updatetype {
-  padding-top: 0.5rem;
 }
 
 /* ── Roadmap 068: keyboard UX ─────────────────────────────────────────────

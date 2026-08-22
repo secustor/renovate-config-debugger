@@ -125,16 +125,50 @@ export const QUICK_FILLS: { label: string; fill: Partial<FormState> }[] = [
   },
 ];
 
+/**
+ * Roadmap 079: the quick-fill the form still agrees with, or null.
+ *
+ * "Agrees with" is every value the fill writes still being the form's — an
+ * edit to one of them drops the chip, an edit to a field the fill never
+ * touched keeps it. Derived rather than remembered, so the chip cannot outlive
+ * the form it describes (a pin clears the form; the empty state's own
+ * quick-start chips seed it from outside the simulator form entirely).
+ */
+export function activeQuickFill(form: FormState): string | null {
+  const hit = QUICK_FILLS.find(({ fill }) =>
+    Object.entries(fill).every(([key, value]) => form[key as keyof FormState] === value),
+  );
+  return hit?.label ?? null;
+}
+
 function trimmed(value: string): string | undefined {
   const t = value.trim();
   return t === "" ? undefined : t;
 }
 
-function list(value: string): string[] | undefined {
-  const items = value
+/**
+ * Roadmap 079: the comma-separated multi-value fields, split for display.
+ *
+ * `FormState` keeps these as ONE string on purpose — the share-link codec
+ * encodes the form as flat strings and `list()` below is what Renovate
+ * actually receives — so the chip editor is a view over that string, not a
+ * second representation of it. A value containing a comma cannot be expressed
+ * either way, which is the same limit the comma-separated text field had.
+ */
+export function splitValues(value: string): string[] {
+  return value
     .split(",")
     .map((s) => s.trim())
     .filter((s) => s !== "");
+}
+
+/** The inverse of `splitValues` — what a chip edit writes back into the form. */
+export function joinValues(values: readonly string[]): string {
+  return values.join(", ");
+}
+
+function list(value: string): string[] | undefined {
+  const items = splitValues(value);
   return items.length > 0 ? items : undefined;
 }
 

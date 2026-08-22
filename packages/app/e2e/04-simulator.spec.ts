@@ -396,12 +396,13 @@ test("the flatten cross-link brings the merge drawer into view from the bottom o
 });
 
 /**
- * Roadmap 047 — the form's own staging. Four primary fields; everything else
- * (including `manager` and `sourceUrl`) sits in one drawer whose summary line
- * shows the values it holds, so a wrong quick-fill is catchable while closed.
- * `updateType` is a derived one-liner, not a select, until "override".
+ * Roadmap 079 — the form's own staging, redesigned. The update is a SENTENCE
+ * whose four blanks identify it; `updateType` is a derived chip inside that
+ * sentence, not a field; everything else sits in three named groups whose
+ * headers count what they hold, so a wrong quick-fill is catchable while
+ * closed. The live descriptor beside it says what will actually be matched.
  */
-test("the form shows four fields, a derived updateType, and a self-describing drawer", async ({
+test("the form states the update as a sentence, with counted groups beside a live descriptor", async ({
   page,
 }) => {
   await page.goto(await encodeShareFragment({ config: PACKAGE_RULES_CONFIG }));
@@ -410,36 +411,51 @@ test("the form shows four fields, a derived updateType, and a self-describing dr
   await simulator.getByRole("button", { name: "npm dependency" }).click();
   await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
 
-  // The primary grid is exactly datasource / packageName / currentValue / newValue.
-  const primary = simulator.locator(".sim-form").first();
-  await expect(primary.locator(".sim-field")).toHaveCount(4);
+  // The chip that started it is the one the form still agrees with.
+  await expect(simulator.locator(".sim-quickfill.active")).toHaveText("npm dependency");
+
+  // The sentence's blanks are exactly packageName / currentValue / newValue /
+  // datasource — the four fields that identify an update.
+  const sentence = simulator.locator(".sim-sentence");
+  await expect(sentence.locator("input")).toHaveCount(4);
   await expect(simulator.getByLabel("datasource", { exact: true })).toHaveValue("npm");
+  await expect(simulator.getByLabel("packageName", { exact: true })).toHaveValue("lodash");
 
-  // updateType is stated, not asked — and the version pair it came from is named.
-  const derived = simulator.locator(".sim-derived-line");
-  await expect(derived).toContainText("updateType: patch");
-  await expect(derived).toContainText("4.17.20 → 4.17.21");
+  // updateType is stated, not asked — and the version pair it came from is in
+  // the chip's title, where 047's one-liner used to spell it out.
+  await expect(simulator.locator(".sim-ut-value")).toHaveText("patch");
+  const updateType = simulator.getByLabel("updateType", { exact: true });
+  await expect(updateType).toHaveValue("patch");
+  await expect(updateType).toHaveAttribute("title", /derived from 4\.17\.20 → 4\.17\.21/);
+  // Overriding it is the same select, and still drives the simulation.
+  await updateType.selectOption("major");
+  await expect(simulator.locator(".sim-ut-value")).toHaveText("major");
 
-  // The quick-fill's other writes are visible on the closed drawer's summary.
-  const moreDrawer = drawer(page, "More about this update");
-  await expect(moreDrawer).toHaveJSProperty("open", false);
-  const summary = moreDrawer.locator(".drawer-summary");
-  await expect(summary).toContainText("manager npm");
-  await expect(summary).toContainText("packageFile package.json");
-  await expect(summary).toContainText("sourceUrl —");
+  // The quick-fill's other writes are counted on the closed group headers.
+  const groups = simulator.locator(".sim-group");
+  await expect(groups).toHaveCount(3);
+  await expect(groups.nth(0)).toContainText("Where it lives in your repo");
+  await expect(groups.nth(0).locator(".sim-group-count")).toHaveText("3 set");
+  await expect(groups.nth(1).locator(".sim-group-count")).toHaveText("none set");
+  await expect(simulator.locator(".sim-group-body")).toHaveCount(0);
 
-  // "override" reveals the select, which still drives the simulation.
-  await derived.getByRole("button", { name: "override" }).click();
-  await expect(derived).toHaveCount(0);
-  // The only <select> left on the form is the revealed updateType override.
-  await expect(simulator.locator("select")).toHaveValue("patch");
+  // The live descriptor prints what will actually be matched, derived type
+  // included — and omits the keys this form leaves unset.
+  const descriptor = simulator.locator(".sim-descriptor-json");
+  await expect(descriptor).toContainText('"packageName": "lodash"');
+  await expect(descriptor).toContainText('"updateType": "major"');
+  await expect(descriptor).not.toContainText('"depType": ""');
 
-  // The drawer holds `manager` (a registry combobox) and survives a re-run.
-  await moreDrawer.getByText("More about this update").click();
-  await expect(moreDrawer).toHaveJSProperty("open", true);
+  // One group open at a time; it holds `manager` (a registry combobox) and
+  // survives a re-run.
+  await groups.nth(0).getByRole("button").first().click();
+  await expect(simulator.locator(".sim-group-body")).toHaveCount(1);
   const manager = simulator.getByLabel("manager", { exact: true });
   await expect(manager).toHaveValue("npm");
   await expect(manager).toHaveAttribute("list", "sim-manager-names");
+  await groups.nth(1).getByRole("button").first().click();
+  await expect(groups.nth(0).locator(".sim-group-body")).toHaveCount(0);
+  await expect(groups.nth(1).locator(".sim-group-body")).toHaveCount(1);
   await simulator.getByRole("button", { name: "Simulate" }).click();
-  await expect(moreDrawer).toHaveJSProperty("open", true);
+  await expect(groups.nth(1).locator(".sim-group-body")).toHaveCount(1);
 });

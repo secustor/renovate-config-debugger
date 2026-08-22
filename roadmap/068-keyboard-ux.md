@@ -271,8 +271,9 @@ this document's author wrote, which the gate had quietly made false.
 
 The DOM query in `use-thread-nav.ts:89-96` is deleted as part of this — it is
 the exact case the stack exists to make unnecessary. Disclosures (`Advanced`,
-`More about this update`, the summary drawers) deliberately do **not** join the
-ladder: they are persistent state the user set, not transient layers, and
+the simulator form's field groups — 047's `More about this update` drawer until
+079 split it into three — and the summary drawers) deliberately do **not** join
+the ladder: they are persistent state the user set, not transient layers, and
 Escape closing them would lose work rather than dismiss noise.
 
 Every layer that closes restores focus to whatever opened it. The popover and

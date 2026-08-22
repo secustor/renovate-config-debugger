@@ -242,7 +242,9 @@ test("Enter in a simulator field simulates", async ({ page }) => {
   await runAndAwaitResult(page);
   await openSimulator(page);
 
-  const packageName = page.locator(".sim-field", { hasText: "packageName" }).locator("input");
+  // Roadmap 079: the sentence blanks have no visible label — the words around
+  // them are the label — so each carries its Renovate name as `aria-label`.
+  const packageName = page.getByLabel("packageName", { exact: true });
   await packageName.fill("react");
   await packageName.press("Enter");
 
@@ -577,7 +579,7 @@ test("⌘⏎ still runs from a simulator combobox", async ({ page }) => {
   // does not also simulate — but the guard once preventDefaulted the modified
   // chord too, and `useShortcut` bails on `defaultPrevented`, so the app's
   // primary shortcut was silently dead in the fields users type in most.
-  const datasource = page.locator(".sim-field", { hasText: "datasource" }).locator("input");
+  const datasource = page.getByLabel("datasource", { exact: true });
   await datasource.click();
   await datasource.fill("npm");
   await page.keyboard.press("ControlOrMeta+Enter");
@@ -622,7 +624,7 @@ test("Escape in a combobox reaches the page's own layer on the second press", as
   // field gets the FIRST Escape (which may be dismissing suggestions) and the
   // page's ladder gets the next. Before this, the two combobox fields made
   // Escape permanently inert for anything below popover rank.
-  const datasource = page.locator(".sim-field", { hasText: "datasource" }).locator("input");
+  const datasource = page.getByLabel("datasource", { exact: true });
   await datasource.click();
   await datasource.fill("np");
   await page.keyboard.press("Escape");

@@ -60,7 +60,8 @@ export function useSimulatorForm(engineModule: typeof EngineModule | null): Simu
    */
   function updateTypeKeyDown(e: KeyboardEvent<HTMLSelectElement>) {
     // Roadmap 068: `openPickerOnEnter` is a no-op here because this select
-    // lives inside `#simulator-inputs` (`select.form !== null`) — Enter keeps
+    // lives inside a simulator form (`select.form !== null`, whichever of the
+    // two homes renders it) — Enter keeps
     // its native job of submitting the form, matching every other field in
     // it. Composed here rather than on the element, because this handler
     // already owns the select's keys.

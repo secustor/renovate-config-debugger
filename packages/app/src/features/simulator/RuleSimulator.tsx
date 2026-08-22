@@ -155,8 +155,8 @@ export const RuleSimulator = memo(function RuleSimulator({
     onThreadRequest: threadNav.requestThread,
   });
   const {
-    moreFieldsOpen,
-    setMoreFieldsOpen,
+    openFieldGroup,
+    setOpenFieldGroup,
     rulesOpen,
     setRulesOpen,
     mergeOpen,
@@ -419,15 +419,14 @@ export const RuleSimulator = memo(function RuleSimulator({
       <SimulatorForm
         form={form}
         setForm={setForm}
-        updateTypeTouched={updateTypeTouched}
         setUpdateTypeTouched={setUpdateTypeTouched}
         effectiveUpdateType={effectiveUpdateType}
         derivedUpdateType={derivedUpdateType}
         updateTypeKeyDown={updateTypeKeyDown}
         datasourceNames={datasourceNames}
         managerNames={managerNames}
-        moreFieldsOpen={moreFieldsOpen}
-        onMoreFieldsToggle={setMoreFieldsOpen}
+        openGroup={openFieldGroup}
+        onOpenGroupChange={setOpenFieldGroup}
         onQuickFill={quickFill}
         onSubmit={submitSimulation}
       />
@@ -446,8 +445,11 @@ export const RuleSimulator = memo(function RuleSimulator({
             no feedback of any kind, in a state the `?` sheet documents Enter as
             working in. The press is held instead, the way ⌘⏎ holds a run rather
             than dropping it, and the label is what says one is already going. */}
+        {/* Roadmap 079: the design prints the key on the primary action, the
+            same way the Add-a-test panel's Simulate does — one grammar for
+            "Enter does this", on both of the form's two homes. */}
         <button type="submit" form={SIM_FORM_ID} className="btn-primary">
-          {running ? "Simulating…" : "Simulate"}
+          {running ? "Simulating…" : "Simulate"} <kbd>⏎</kbd>
         </button>
         {stale ? (
           <span className="sim-stale">inputs changed — simulate again to refresh</span>
@@ -457,8 +459,8 @@ export const RuleSimulator = memo(function RuleSimulator({
           matched" wall of no-matches with a plain nudge. */}
       {showEmptyGuard ? (
         <p className="sim-empty-guard">
-          Pick an example above, or fill in a package name (or another identifying field) below — an
-          empty form can't match anything.
+          Pick an example above, or fill in a package name (or another identifying field) — an empty
+          form can’t match anything.
         </p>
       ) : null}
 

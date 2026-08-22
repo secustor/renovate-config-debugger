@@ -18,37 +18,49 @@ import { SimulatorForm } from "./SimulatorForm";
  * Implicit submission itself is jsdom's blind spot (it does not implement it),
  * so the bare-Enter half is asserted where the form actually acts on it — the
  * default of the keydown, which is the browser's signal to submit or not.
+ *
+ * Roadmap 079 added the third claimant the same rules have to hold for: a
+ * multi-value field's draft input, where bare Enter commits a chip and must
+ * never also fire a verdict.
  */
 
 // vitest runs without `globals`, so RTL's automatic cleanup never registers.
 afterEach(cleanup);
 
-function Harness({ onRun }: { onRun: () => void }) {
+function Harness({
+  onRun,
+  openGroup = 0,
+  compact = false,
+}: {
+  onRun: () => void;
+  openGroup?: number;
+  compact?: boolean;
+}) {
   useShortcut(RUN_SHORTCUT, onRun);
   return (
     <SimulatorForm
       form={EMPTY_FORM}
       setForm={() => undefined}
-      updateTypeTouched={false}
       setUpdateTypeTouched={() => undefined}
       effectiveUpdateType=""
       derivedUpdateType={undefined}
       updateTypeKeyDown={() => undefined}
       datasourceNames={["npm"]}
       managerNames={["npm"]}
-      // Open, because `manager` — the second combobox — lives in this drawer
-      // and `SummaryDrawer` renders its body only while open.
-      moreFieldsOpen={true}
-      onMoreFieldsToggle={() => undefined}
+      // Group 0 by default, because `manager` — the second combobox — lives in
+      // it and a collapsed group renders no fields.
+      openGroup={openGroup}
+      onOpenGroupChange={() => undefined}
       onQuickFill={() => undefined}
       onSubmit={() => undefined}
+      compact={compact}
     />
   );
 }
 
-function renderForm() {
+function renderForm(props: { openGroup?: number; compact?: boolean } = {}) {
   const onRun = vi.fn();
-  const view = render(<Harness onRun={onRun} />);
+  const view = render(<Harness onRun={onRun} {...props} />);
   return { view, onRun };
 }
 
@@ -73,5 +85,64 @@ describe("SimulatorForm — Enter", () => {
 
     expect(fireEvent.keyDown(view.getByLabelText("datasource"), { key: "Enter" })).toBe(false);
     expect(fireEvent.keyDown(view.getByLabelText("packageName"), { key: "Enter" })).toBe(true);
+  });
+});
+
+describe("SimulatorForm — the redesigned shape (079)", () => {
+  it("states the update as a sentence with four blanks and a derived chip", () => {
+    const { view } = renderForm();
+
+    for (const name of ["packageName", "currentValue", "newValue", "datasource"]) {
+      expect(view.getByLabelText(name, { exact: true })).toBeTruthy();
+    }
+    // updateType is stated, not asked — but the override is one click away,
+    // and it is the same nine types 015 offered.
+    const updateType = view.getByLabelText("updateType", { exact: true });
+    expect(updateType).toHaveProperty("value", "");
+    expect(updateType.getAttribute("title")).toBe(
+      "fill the version pair to derive it — click to set one",
+    );
+    expect(view.container.querySelector(".sim-ut-value")?.textContent).toBe("(unset)");
+  });
+
+  it("holds the rest in three groups, one open at a time, each counting itself", () => {
+    const { view } = renderForm();
+
+    const heads = view.container.querySelectorAll(".sim-group-head");
+    expect(heads).toHaveLength(3);
+    // Nothing is filled in, so every count pill is the ghost one.
+    expect(view.container.querySelectorAll(".sim-group-count.set")).toHaveLength(0);
+    // Only the open group's body is mounted (the harness opens the first).
+    expect(view.container.querySelectorAll(".sim-group-body")).toHaveLength(1);
+    expect(heads[0]?.getAttribute("aria-expanded")).toBe("true");
+    expect(heads[1]?.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("previews the descriptor standalone and not compact", () => {
+    // Standalone: the card is there, and an empty form says so rather than
+    // printing seven keys set to "".
+    const standalone = renderForm().view;
+    expect(standalone.container.querySelector(".sim-descriptor")).not.toBeNull();
+    expect(standalone.container.querySelector(".sim-descriptor-json")?.textContent).toBe("{}");
+    expect(standalone.container.querySelector(".sim-descriptor-empty")).not.toBeNull();
+
+    cleanup();
+    // Compact (the Tests tab's Add-a-test panel): one column, no preview.
+    const compact = renderForm({ compact: true }).view;
+    expect(compact.container.querySelector(".sim-descriptor")).toBeNull();
+    expect(compact.container.querySelector(".sim-form-body.with-preview")).toBeNull();
+  });
+
+  it("gives a multi-value field's Enter to the chip, never to the form", () => {
+    // Group 1 holds `registryUrls`, the first of the three chip fields.
+    const { view, onRun } = renderForm({ openGroup: 1 });
+    const draft = view.getByLabelText("registryUrls", { exact: true });
+
+    // Bare Enter is consumed here — the default is prevented, so implicit
+    // submission cannot happen even though the field is no combobox.
+    expect(fireEvent.keyDown(draft, { key: "Enter" })).toBe(false);
+    // …and the Run chord still reaches the page listener, as everywhere else.
+    fireEvent.keyDown(draft, { key: "Enter", metaKey: true });
+    expect(onRun).toHaveBeenCalledOnce();
   });
 });
