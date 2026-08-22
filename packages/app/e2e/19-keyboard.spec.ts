@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { PACKAGE_RULES_CONFIG, SEMANTIC_COMMITS_CONFIG } from "./fixtures";
 import {
+  effectivePresetChip,
   expectRunIdle,
   openLayerStage,
   openSessionMenu,
@@ -183,10 +184,7 @@ test("arrowing across the strip keeps the cross-link back affordance", async ({ 
   // back; merely looking at a neighbouring tab must not throw that away. Same
   // chip 11-tabbed-shell uses to prove the jump itself.
   await openTab(page, "effective");
-  const chip = page
-    .locator('#panel-effective .badge.prov-layer.prov-preset[role="button"]')
-    .first();
-  await expect(chip).toBeVisible();
+  const chip = await effectivePresetChip(page);
   await chip.click();
 
   const back = page.locator(".tab-back");
@@ -211,10 +209,7 @@ test("walking onto the tab a cross-link came from ends the trail", async ({ page
   await runAndAwaitResult(page);
 
   await openTab(page, "effective");
-  const chip = page
-    .locator('#panel-effective .badge.prov-layer.prov-preset[role="button"]')
-    .first();
-  await expect(chip).toBeVisible();
+  const chip = await effectivePresetChip(page);
   await chip.click();
 
   const back = page.locator(".tab-back");
@@ -592,10 +587,7 @@ test("⌘⏎ on a focused provenance chip runs, rather than jumping", async ({ p
   await runAndAwaitResult(page);
   await openTab(page, "effective");
 
-  const chip = page
-    .locator('#panel-effective .badge.prov-layer.prov-preset[role="button"]')
-    .first();
-  await expect(chip).toBeVisible();
+  const chip = await effectivePresetChip(page);
   await chip.focus();
 
   // The chip implements its own Enter/Space activation, so without a modifier

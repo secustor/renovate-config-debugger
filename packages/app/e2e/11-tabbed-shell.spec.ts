@@ -8,6 +8,7 @@ import {
   SEMANTIC_COMMITS_CONFIG,
 } from "./fixtures";
 import {
+  effectivePresetChip,
   must,
   openMigrateStage,
   openPresetTree,
@@ -263,10 +264,7 @@ test("a provenance chip switches to Presets and offers a one-step way back", asy
   await runAndAwaitResult(page);
 
   await openTab(page, "effective");
-  const chip = page
-    .locator('#panel-effective .badge.prov-layer.prov-preset[role="button"]')
-    .first();
-  await expect(chip).toBeVisible();
+  const chip = await effectivePresetChip(page);
   await chip.click();
 
   // The jump landed in the Presets tab with the node selected…

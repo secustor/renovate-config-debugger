@@ -1,5 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { openPresetTree, openTab, runAndAwaitResult, setEditorContent, tabButton } from "./helpers";
+import {
+  effectivePresetChip,
+  openPresetTree,
+  openTab,
+  runAndAwaitResult,
+  setEditorContent,
+  tabButton,
+} from "./helpers";
 
 /** Two top-level sources: Renovate's own firehose, and a one-preset entry. */
 const TWO_SOURCE_CONFIG = `{
@@ -118,10 +125,7 @@ test("a cross-link into the tab still lands on the tree, never on the ledger", a
   // one 11 covers for the tab switch; here it pins the VIEW the switch lands
   // on, which the ledger could have quietly taken over.
   await openTab(page, "effective");
-  await page
-    .locator('#panel-effective .badge.prov-layer.prov-preset[role="button"]')
-    .first()
-    .click();
+  await (await effectivePresetChip(page)).click();
 
   await expect(page.locator("#panel-presets .preset-name.selected")).toBeVisible();
   await expect(page.locator("#panel-presets .ledger-card")).toHaveCount(0);

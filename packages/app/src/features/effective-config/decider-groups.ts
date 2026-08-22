@@ -1,4 +1,5 @@
-import type { KeyProvenance, ProvenanceStep } from "@renovate-config-debugger/engine";
+import type { KeyProvenance, PresetNode, ProvenanceStep } from "@renovate-config-debugger/engine";
+import { nf } from "@/lib/format";
 
 /**
  * Roadmap 075 (iteration 5): the effective config, grouped by WHO DECIDED each
@@ -72,14 +73,94 @@ export function groupByDecider(entries: Iterable<KeyProvenance>): DeciderGroup[]
   });
 }
 
-/** How many keys each layer decided, for the "N of M shown" a filtered section
- *  header reports. Counted over the same entries the sections are built from
- *  minus the interactive filters, so the M is the honest size of the group. */
-export function countByDecider(entries: Iterable<KeyProvenance>): Map<DeciderId, number> {
-  const counts = new Map<DeciderId, number>();
-  for (const entry of entries) {
-    const id = decidedBy(entry);
-    counts.set(id, (counts.get(id) ?? 0) + 1);
+/**
+ * Roadmap 082 (GAP-3): the top-level `extends` entries of a run, in the order
+ * the reader wrote them — the only presets that can DECIDE a key, since the
+ * provenance replay merges exactly these (`buildLayers` walks `root.children`).
+ * Nested presets are excluded for the same reason, and so are the ones that
+ * failed to resolve: a preset Renovate could not fetch decided nothing.
+ */
+export function topLevelPresetNames(root: PresetNode | undefined): string[] {
+  if (!root) {
+    return [];
   }
-  return counts;
+  return root.children.filter((c) => !c.nested && c.state === "resolved").map((c) => c.name);
+}
+
+/**
+ * …and the name the presets band is headed with: the design writes
+ * `config:recommended decided 24 options`, i.e. the band is named after the
+ * line the reader would delete to undo it.
+ *
+ * With several top-level extends there is no single such line, and inventing
+ * one would be a lie about which preset decided what — so the first is named
+ * and the rest are counted (`config:recommended +2 more`). `null` when the run
+ * has no resolved top-level preset at all, which is where the generic
+ * "Presets decided …" wording stays.
+ */
+export function presetDeciderName(names: readonly string[]): string | null {
+  const [first, ...rest] = names;
+  if (first === undefined) {
+    return null;
+  }
+  return rest.length === 0 ? first : `${first} +${rest.length} more`;
+}
+
+/**
+ * The one sentence a band is headed with, in the design's three emphases: the
+ * `lead` in the header's own ink and weight, the `count` in the band's hue, and
+ * the trailing `note` muted and regular-weight. The defaults band folds its
+ * count into the lead — its whole header is the muted one, and only the
+ * trailing clause drops the weight.
+ */
+export interface DeciderHeadline {
+  lead: string;
+  /** The counted phrase (`4 options`) the design paints in the band's hue;
+   *  null where the design leaves the count unhued (defaults). */
+  count: string | null;
+  note: string | null;
+}
+
+/**
+ * Says what the group MEANS for the reader, not just how big it is: the repo
+ * rows are the editable ones, the defaults rows are the ones this run never
+ * touched.
+ *
+ * The count is the band's OWN rows — what is on screen under the header. Since
+ * 082 removed the "N of M shown" pill (the layer filters that made it necessary
+ * went with it), a header quoting a number the reader cannot count in the band
+ * below it would be the only unverifiable claim in the view.
+ */
+export function deciderHeadline(
+  id: DeciderId,
+  count: number,
+  presetName?: string | null,
+): DeciderHeadline {
+  const n = nf.format(count);
+  const options = `${n} option${count === 1 ? "" : "s"}`;
+  if (id === "repo") {
+    return {
+      lead: "Your repo config decided",
+      count: options,
+      note: "— the ones you can edit directly",
+    };
+  }
+  if (id === "preset") {
+    return {
+      lead: presetName ? `${presetName} decided` : "Presets decided",
+      count: options,
+      note: null,
+    };
+  }
+  if (id === "inherited") {
+    return { lead: "The inherited config decided", count: options, note: null };
+  }
+  if (id === "global") {
+    return { lead: "The global config decided", count: options, note: null };
+  }
+  return {
+    lead: `Renovate defaults filled the remaining ${n}`,
+    count: null,
+    note: "— nothing in your run touched them",
+  };
 }

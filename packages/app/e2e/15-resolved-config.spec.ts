@@ -26,10 +26,11 @@ test("the As JSON view keeps internal presets referenced, expands fully on deman
   await expect(panel.locator(".prov-section-preset")).toBeVisible();
 
   await panel.getByRole("radio", { name: "As JSON" }).click();
-  // The row filters are a per-rendering affordance — replaced by the output
-  // options, not left dangling over a document they cannot filter.
+  // Roadmap 082: ONE toolbar row in both views, so the key filter stays on
+  // screen — inert, because it narrows rows and this document is copied whole.
+  // The output options are what this view adds under it.
   await expect(panel.locator("#resolved-expand")).toBeVisible();
-  await expect(panel.locator(".prov-filter-input")).toHaveCount(0);
+  await expect(panel.locator(".prov-filter-input")).toBeDisabled();
 
   // keep-internal (the default): config:recommended stays a reference.
   const doc = panel.locator("pre.config-view");
@@ -50,9 +51,9 @@ test("the As JSON view keeps internal presets referenced, expands fully on deman
   await defaults.check();
   await expect(doc).toContainText('"branchPrefix"');
 
-  // Switching back restores the provenance rows and their filters.
+  // Switching back restores the provenance rows, and the filters go live again.
   await panel.getByRole("radio", { name: "By key" }).click();
   await expect(panel.locator(".prov-row").first()).toBeVisible();
   await expect(panel.locator(".prov-section-repo")).toBeVisible();
-  await expect(panel.locator(".prov-filter-input")).toBeVisible();
+  await expect(panel.locator(".prov-filter-input")).toBeEnabled();
 });

@@ -163,6 +163,27 @@ export async function openPresetTree(page: Page): Promise<void> {
 }
 
 /**
+ * Roadmap 082: the Effective config's clickable preset chip lives in the
+ * CASCADE now — the design's row carries a note in its third cell, not a copy
+ * of the layer chip its band header already states. So a spec that drives the
+ * chip expands a preset-decided row first, exactly as a reader does.
+ *
+ * Assumes the tab is open and the presets band has rows (the default config
+ * extends `config:recommended`). Returns the chip, since every caller's next
+ * line clicks or focuses it.
+ */
+export async function effectivePresetChip(page: Page): Promise<Locator> {
+  const band = page.locator("#panel-effective .prov-section-preset");
+  await expect(band.locator(".prov-row-head").first()).toBeVisible();
+  await band.locator(".prov-row-head").first().click();
+  const chip = page
+    .locator('#panel-effective .badge.prov-layer.prov-preset[role="button"]')
+    .first();
+  await expect(chip).toBeVisible();
+  return chip;
+}
+
+/**
  * Roadmap 075 (v2, iteration 6): the Tests tab opens on the PINNED TESTS — the
  * descriptors re-checked on every run — and the full simulator (one dependency,
  * every rule, the merge replay) is one quiet link away. Every spec that drives

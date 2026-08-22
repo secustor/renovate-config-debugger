@@ -19,9 +19,23 @@ per failed preset — the preset token, the error message, and a right-aligned
 failures; a failed top-level entry of the reader's own is a case it does not
 draw, and see below for what that gets).
 
-**`Effective Tab Final.dc.html`.** An icon-only copy button in the toolbar,
-right after the By key / As JSON switch, `title="Copy effective config as
-JSON"`, visible in BOTH views, flipping to a green check for 1.5 s.
+**`Effective Tab Final.dc.html`.** ONE toolbar row holding all four controls —
+the `Filter keys…` box, `only overridden`, the By key / As JSON switch pushed
+right, then an icon-only copy (`title="Copy effective config as JSON"`, green
+check for 1.5 s) — in BOTH views. Under it, one band per deciding layer:
+the repo band, a presets band headed with the reader's own top-level extend
+(`config:recommended decided 24 options`), each capped with a
+`N more — show all` line; and a defaults band that is a collapsed single-line
+toggle over INERT rows (no caret, no cascade) closing with
+`N more defaults — show all · hover any key for Renovate's docs; no cascade to
+show — only the default ever touched these`. A row is key · preview · NOTE —
+prose, not chips (`also set by :dependencyDashboard — same value` in warn,
+`appended, not overridden`, `5 presets wrote these`). Expanded, it is
+`The cascade, bottom to top`: the `✓ final` card FIRST, every losing card's
+value struck through, `Per-rule provenance: all 463 rules with their source
+preset →` deferred behind its own link, and the blame ledger
+(`Who wrote each line (7 lines · 5 presets)`) closing with one combined
+`5 more lines · 135 dropped before merging →`.
 
 **`Pin Options.dc.html`**, variant `combined`, `repoAvailable: false`. The
 Tests tab's pin card with three tabs — Manual, **Paste JSON**, From repository
@@ -37,14 +51,22 @@ Most of all three, from three earlier passes.
 - **The ledger** (075 iteration 5b, tokens standardised in 081) — the strip's
   sentence, one card per top-level source, the mosaic, the option and family
   sections, the docs links, the clean-run health line word for word.
-- **The Effective tab's three decider bands and the cascade** (075 iteration 5,
-  069's blame ledger, 051's As-JSON view) — the pills, the headlines, the
-  `✓ final` marker, the struck-through losing values, the folded defaults band.
 - **The Manual pin form** (079's redesign, 080's always-open Add-a-test box) —
   the quick-fill chips, the sentence card, the derived `updateType` chip, the
   three collapsible field groups with their "N set" pills, Simulate/Pin.
 
 Nothing in those was touched.
+
+**The Effective tab used to be the third bullet here, and that was wrong.** The
+retracted claim was "the three decider bands and the cascade already match (075
+iteration 5, 069's blame ledger, 051's As-JSON view) — the pills, the
+headlines, the `✓ final` marker, the struck-through losing values, the folded
+defaults band". An adversarial review against the artboard found twenty
+divergences: the toolbar was split across two chrome rows, two of its controls
+were not in the design at all, the defaults sat behind a checkbox rather than in
+a band, the cascade ran oldest-first with only overwrite steps struck through,
+and the row's third cell repeated the chip its own band header carries. What
+follows is the correction.
 
 ## What changed
 
@@ -90,7 +112,8 @@ Nothing in those was touched.
 
 - **The Effective tab's copy button is in the toolbar, in both views**
   (`EffectiveConfig.tsx`). It is the shared `CopyButton` in `iconOnly` mode
-  (077's shape), seated in `.card-title-actions` right after the view switch.
+  (077's shape), last in the one toolbar row (it was seated in
+  `.card-title-actions` beside the view switch until that row was built below).
   Both copies now read `resolvedConfigText()` — a new one-function module,
   `features/effective-config/resolved-json.ts` — so the toolbar's document and
   the As-JSON view's document are the same string by construction.
@@ -101,6 +124,87 @@ Nothing in those was touched.
   computed on demand; the cost is one extra `computeResolvedConfig` per RUN, in
   an effect, off the critical path — and not per keystroke, since `expand` and
   `includeDefaults` can only be changed from the JSON view.
+
+### The Effective tab, rebuilt to the artboard
+
+- **ONE toolbar row, in both views** (GAP-1/GAP-2). The filter box, `only
+overridden`, the view switch (`margin-left: auto`) and the copy now sit in a
+  single `.prov-filters.prov-toolbar` row that renders as soon as provenance
+  exists — where the switch and the copy used to live in the card title and the
+  filters in a separate bordered row that existed only in the By-key view. Two
+  controls went with the rewrite: the **`Filter keys by layer` select** and the
+  **`show default-only` checkbox**, neither of which is in the design (what the
+  checkbox gated is the defaults band now). `contributingLayerIds`,
+  `layerOptions` and the `LayerFilterValue` sentinel type went with the select.
+
+- **The presets band is named after the reader's extends** (GAP-3).
+  `topLevelPresetNames` + `presetDeciderName` (`decider-groups.ts`, unit-tested)
+  read the non-nested, resolved children of the preset tree root — exactly the
+  presets the provenance replay gives a layer to — so the headline reads
+  `config:recommended decided 24 options`.
+
+- **The defaults band always exists, folded** (GAP-4/GAP-5/GAP-6). Default-only
+  rows are no longer filtered out of the view: they are the `defaults` band,
+  collapsed by default, and the other bands cannot contain them (the band IS the
+  set of keys the defaults decided). Its rows are inert — an empty caret slot,
+  the key with its docs hover, a grey code value, no cascade — and it closes with
+  the design's footer: `N more defaults — show all · hover any key for
+Renovate's docs; no cascade to show — only the default ever touched these`.
+  The two "N default-only options hidden" footnotes are gone with the checkbox
+  they pointed at.
+
+- **Every band stops at eight rows** (GAP-7), with a `N more — show all` line
+  (`N more defaults — show all` in the defaults band). The `max-height`
+  scrollers this replaces — `.prov-list`'s 40rem and `.prov-section .prov-list`'s
+  32rem — are deleted: a scrollbar inside a scrolling page hides the same rows
+  without ever saying how many.
+
+- **The same-value note** (GAP-8), in `features/effective-config/row-notes.ts`.
+  A losing step whose value deep-equals the winner's is the one actionable fact
+  a row can carry — "this line changes nothing" — and it lived in the chain's
+  no-op steps, which every rendering filtered out. The note reads `also set by
+:dependencyDashboard — same value` in the warn tone.
+
+- **The third cell is prose, not chips** (GAP-9/GAP-19). `rowNote` produces one
+  note per row, ordered by what the reader can act on: the description row's
+  `5 presets wrote these`, then the same-value note, then `appended, not
+overridden` / `merged, not overridden` / `overridden`. The winning-layer
+  `ProvenanceChip` is gone from the row — the band header above it already names
+  that layer — and the one-word badge is gone with it, though the notes that
+  name a merge behaviour keep its 016 glossary card.
+
+- **The cascade reads winner-first** (GAP-10/GAP-11/GAP-12/GAP-14). The heading
+  is `The cascade, bottom to top`; the stack is `chain.toReversed()`, so the
+  `✓ final` card leads and the Renovate default is last; EVERY losing card's
+  value is struck through and muted (`.prov-losing`), not only the overwrite
+  steps; and the leading `Final value` block is gone, because the winner card
+  already prints it.
+
+- **No-op steps are cards again.** The stack renders the whole chain, filtering
+  nothing. The design's own example (`Renovate defaults → :dependencyDashboard
+→ repo config`) is three cards, and the middle one is a no-op in the engine's
+  model — "the default was `false` and a preset set it to `true`" is the answer
+  even when the default changed nothing. The defaults card's verb is the
+  design's `defaults to` rather than `sets`.
+
+- **The per-rule table is deferred** (GAP-13). An expanded `packageRules` row
+  shows `Per-rule provenance: all N rules with their source preset →`; the 463
+  rows render on click, in local state so collapsing the row forgets it.
+
+- **The blame ledger counts lines and closes once** (GAP-15/GAP-16). The heading
+  is `Who wrote each line (7 lines · 5 presets)` and the collapsed row's preview
+  is `7 strings — "…"` (two functions, `ledgerCountText`/`ledgerStringCountText`
+  — the row describes a VALUE, the ledger counts its own rows). The cap is the
+  ledger's, applied across the runs in order so what is shown is always a PREFIX
+  of the final array, and one button — `5 more lines · 135 dropped before
+merging →` — reveals both the rest and the dropped section, replacing the
+  per-run "show all" buttons and the `Not included:` disclosure (whose sentence
+  survives as the revealed list's heading).
+
+- **A row can show both its ledger and its cascade** (GAP-17). They answer
+  different questions — who wrote each sentence, and how the array was
+  assembled — and the exclusive `ledger ? … : …` hid the second one on the only
+  row that has both.
 
 - **The Tests tab has a Paste JSON tab** (`AddTestBox.tsx`,
   `paste-descriptor.ts`). The descriptor a reader can already get their hands on
@@ -156,6 +260,92 @@ Nothing in those was touched.
   design's "Sign in with GitHub or load a repo to pick from detected
   dependencies". It stays `disabled` — `.tab:disabled` already carries the
   faint ink and the `not-allowed` cursor.
+
+## The Effective tab's judgment calls
+
+- **The row filters apply to the By-key view only, and are DISABLED (not
+  hidden) in As JSON.** The design's row is one row in both views, so they stay
+  on screen; what they must not do is narrow the document, because that document
+  is a copyable artifact and the toolbar's own button hands it to the clipboard
+  under the title "Copy effective config as JSON". A filtered copy would be a
+  config that is not the config. Disabled with a `title` saying why beats an
+  enabled control that silently does nothing.
+
+- **Multiple top-level extends give `first +N more decided …`.** There is no
+  single line to name, and naming only the first would credit it with what the
+  others decided. `presetDeciderName` names the first and counts the rest;
+  with no resolved top-level preset the generic `Presets decided N options`
+  stays.
+
+- **One truncation cap, eight rows, for every band.** The artboard's per-band
+  counts (repo 4, presets 3, defaults 8) are its mock data, not a rule. Bands
+  hold whatever a config produced, and a cap that differed by band would be a
+  rule the reader has to learn instead of a list that stops.
+
+- **A band header counts the rows it is SHOWING.** GAP-20 removed the
+  `N of M shown` pill along with the layer filters that made it necessary, so a
+  header quoting a pre-filter total would be the one number in the view the
+  reader cannot check. Under a key filter the presets band says "decided 1
+  option" and shows one; `countByDecider` is deleted.
+
+- **The defaults rows have no note column.** The artboard's per-option prose
+  ("when PRs are opened", "schedules use UTC") is mock copy for a mock config —
+  the run knows nothing of the sort, and inventing it per option is exactly the
+  kind of confident sentence this app must not print. The honest sentence about
+  all of those rows is the band's footer, which is why the footer says it once.
+
+- **`ignorePaths` still previews as `[ 8 items ]`, not `[ 8 globs ]`**
+  (GAP-18). `valuePreview` is shared with the Presets ledger, and the noun would
+  have to come from a hand-written per-option map: Renovate's option metadata
+  says `type: array, subType: string` for `ignorePaths` and has no notion of a
+  glob. A map maintained by hand is a second source of truth about Renovate's
+  options that nothing can check, and it drifts silently. The generic noun is
+  less charming and cannot be wrong.
+
+- **The same-value note names the DEFAULTS layer too.** `also set by default —
+same value` on a line the reader wrote is the same finding as `also set by
+:dependencyDashboard — same value`, and it is the one Renovate's own docs ask
+  for ("don't restate the defaults"). Several layers agreeing are named as
+  `first +N more`.
+
+- **The bands stay disclosures; only the defaults band starts shut.** The
+  artboard draws the repo and presets band headers as plain headings and only
+  the defaults band as a toggle. 075 made all of them `<details>` — once one
+  group collapses they all must, or the affordance reads as an oddity of that
+  group — and the defaults band's `<details>` IS the design's collapsed
+  single-line toggle bar expanding in place. Keeping the other two collapsible
+  costs a caret and keeps one grammar.
+
+The confirming review's residuals were closed in a polish pass: the band
+headline now carries the design's three emphases (lead in the header's ink at
+600, the count in the band's hue via `--prov-section-hue`, the trailing clause
+muted at 400 — the defaults header all-muted), `deciderHeadline` returning the
+three parts instead of one string; the row preview is set in the running sans
+(much of it is prose) with only the defaults band's value cell in mono, per the
+artboard's `span` vs `code` split; the toolbar row is borderless like the
+design's (the bordered band boxes below it carry the separation); the note
+column wears the design's `white-space: nowrap`; and the defaults footer
+regained the space its `· hover any key…` separator lost to JSX whitespace
+stripping.
+
+Two more calls from that pass:
+
+- **The card title stays.** The artboard's frame begins at the toolbar row;
+  `Effective config — grouped by …` is the app shell's card grammar, which
+  every tab has. Removing it here would make this card the odd one out to
+  satisfy a frame the artboard simply doesn't draw.
+
+- **A band a filter empties disappears, defaults included.** The artboard
+  draws the defaults band unconditionally, but it draws no filters either; once
+  the key filter or "only overridden" is narrowing rows, an empty band held
+  open just to exist would be a heading with nothing under it. Bands render
+  whatever the filter leaves.
+
+- **The glossary note keeps its `tabIndex` inside the row button** — carried
+  over from the badge it replaced, and interactive-inside-interactive is not
+  markup to be proud of; fixing it means moving the third cell out of the
+  row-head button, which is a row-structure change for another pass, not a
+  silent tweak inside this one.
 
 ## Deliberate differences kept
 
@@ -266,7 +456,33 @@ Nothing in those was touched.
   surviving a switch back to the Paste tab.
 - `features/effective-config/EffectiveConfig.test.tsx` (render) — the toolbar
   copy is reachable from the By-key view and stays put in As JSON, beside that
-  view's own labelled copy.
+  view's own labelled copy; the single toolbar row with the two retired controls
+  gone and the two surviving ones disabled over the document; the always-there
+  defaults band (folded, inert rows, capped at eight, its footer note and its
+  "show all"); the presets band named after the extend; a band header counting
+  what it shows; the same-value warn note with no layer chip beside it; and, on
+  one expansion of `packageRules`, the cascade heading, the winner-first order,
+  `.prov-losing` on every other card, the absent `Final value` block and the
+  deferred per-rule table.
+- `features/effective-config/row-notes.test.ts` (unit, new) — the same-value
+  derivation over hand-built chains: the design's `:dependencyDashboard` case,
+  several layers counted as `+N more`, structural (not reference) comparison,
+  silence when the layers genuinely disagreed, and the prose for each merge
+  behaviour.
+- `features/effective-config/decider-groups.test.ts` (unit) — `countByDecider`'s
+  test is gone with it; added: the top-level names (nested and failed presets
+  skipped), the `+N more` naming, and each band headline.
+- `features/effective-config/description-ledger.test.ts` (unit) — lines vs
+  strings, the global cap keeping index order, and the one combined reveal
+  sentence in all four of its shapes.
+- `features/effective-config/BlameLedger.test.tsx` (render) — one click reveals
+  the held-back lines AND the dropped list, and spends the offer.
+- `e2e/15-resolved-config.spec.ts` — the filter input is disabled over the
+  As-JSON document rather than absent. `e2e/helpers.ts` gains
+  `effectivePresetChip`, which expands a preset-band row first: the clickable
+  chip lives in the cascade now, so the four cross-link specs
+  (`11-tabbed-shell`, `19-keyboard` ×3, `20-presets-ledger`) reach it the way a
+  reader does.
 - `features/presets/PresetsPanel.test.tsx` and
   `e2e/20-presets-ledger.spec.ts` updated for the strip: it counts the sources
   and no longer tokenises them, and the folded built-in opens from its own

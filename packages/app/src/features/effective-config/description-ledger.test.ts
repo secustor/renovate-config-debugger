@@ -15,13 +15,15 @@ import {
   duplicatePillText,
   hiddenCount,
   LEDGER_COLLAPSE_AFTER,
+  ledgerCountText,
   type LedgerGroup,
   ledgerMatchesFinalValue,
   ledgerPreviewText,
+  ledgerRevealText,
   type LedgerRow,
+  ledgerView,
   ledgerWriterText,
   moreDroppedText,
-  moreEntriesText,
   unattributedNoteText,
   unattributedValueText,
   viaNoteRef,
@@ -406,7 +408,7 @@ describe("the collapsed row's cells", () => {
     );
     const text = ledgerPreviewText(ledger);
 
-    expect(text.startsWith('3 entries — "Enable Renovate Dependency Dashboard creation."')).toBe(
+    expect(text.startsWith('3 strings — "Enable Renovate Dependency Dashboard creation."')).toBe(
       true,
     );
     // Truncated, so the cell never becomes the wall of text the row is meant
@@ -426,12 +428,28 @@ describe("the collapsed row's cells", () => {
     ).toBe(false);
   });
 
-  test("one string is one entry", () => {
+  /** Roadmap 082: the design's two nouns, and they are not interchangeable —
+   *  the collapsed row describes a VALUE (an array of strings), the expanded
+   *  ledger counts the LINES it wrote a row for. */
+  test("the row counts strings, the ledger counts lines", () => {
     const ledger = ledgerOf(
       provenance({ entries: entries([{ value: "Just this.", via: REPO, node: "root" }]) }),
     );
 
-    expect(ledgerPreviewText(ledger)).toBe('1 entry — "Just this."');
+    expect(ledgerPreviewText(ledger)).toBe('1 string — "Just this."');
+    expect(ledgerCountText(ledger)).toBe("1 line");
+    expect(
+      ledgerCountText(
+        ledgerOf(
+          provenance({
+            entries: entries([
+              { value: "a", via: REPO, node: "root" },
+              { value: "b", via: REPO, node: "root" },
+            ]),
+          }),
+        ),
+      ),
+    ).toBe("2 lines");
   });
 
   test("the origin cell counts contributing presets, and says nothing without one", () => {
@@ -524,12 +542,49 @@ describe("collapsing", () => {
     expect(hiddenCount(2, DROPPED_COLLAPSE_AFTER, false)).toBe(0);
   });
 
-  test("the toggle names the layer whose run it belongs to", () => {
-    expect(moreEntriesText(11, BEST_PRACTICES)).toBe(
-      "11 more from config:best-practices — show all",
-    );
-    expect(moreEntriesText(2, REPO)).toBe("2 more from repo config — show all");
+  test("the dropped list keeps a toggle of its own", () => {
     expect(moreDroppedText(129)).toBe("129 more — show all");
+  });
+
+  /**
+   * Roadmap 082 (GAP-16): the cap is the LEDGER's, applied across the runs in
+   * order, so what a collapsed ledger shows is always a prefix of the final
+   * array — the one property "this is that array, with the authorship put back"
+   * rests on.
+   */
+  test("cuts the runs at one global cap, keeping index order", () => {
+    const ledger = ledgerOf(
+      provenance({
+        entries: entries(
+          Array.from({ length: LEDGER_COLLAPSE_AFTER + 4 }, (_, i) => ({
+            value: `line ${i}`,
+            via: i < 2 ? REPO : BEST_PRACTICES,
+            node: "p1",
+          })),
+        ),
+      }),
+    );
+
+    const collapsed = ledgerView(ledger, false);
+    expect(collapsed.groups.flatMap((g) => g.rows).length).toBe(LEDGER_COLLAPSE_AFTER);
+    expect(collapsed.hiddenRows).toBe(4);
+    // The first run survives whole, the second is cut — nothing is reordered.
+    expect(collapsed.groups[0]?.rows).toHaveLength(2);
+    expect(collapsed.groups.flatMap((g) => g.rows).map((r) => r.index)).toEqual([
+      0, 1, 2, 3, 4, 5, 6, 7,
+    ]);
+
+    const revealed = ledgerView(ledger, true);
+    expect(revealed.hiddenRows).toBe(0);
+    expect(revealed.groups).toBe(ledger.groups);
+  });
+
+  test("closes the list with ONE sentence offering both halves", () => {
+    expect(ledgerRevealText(5, 135)).toBe("5 more lines · 135 dropped before merging →");
+    expect(ledgerRevealText(1, 0)).toBe("1 more line →");
+    expect(ledgerRevealText(0, 1)).toBe("1 dropped before merging →");
+    // Nothing held back and nothing dropped: no button at all.
+    expect(ledgerRevealText(0, 0)).toBeNull();
   });
 });
 

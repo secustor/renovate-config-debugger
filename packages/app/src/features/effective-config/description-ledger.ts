@@ -92,11 +92,13 @@ export interface DescriptionLedger {
   degraded: boolean;
 }
 
-/** Entries shown before a run collapses. Larger than the Overview card's five:
- *  this list IS the detail view, and the run it most often applies to —
- *  `config:best-practices` with twenty-odd sentences — is what the reader
- *  expanded the row to read. It only has to stop one extend from burying the
- *  ones after it. */
+/** Lines shown before the ledger's ONE reveal (082 GAP-16). Counted across the
+ *  whole ledger rather than per run: the design closes the list with a single
+ *  affordance (`N more lines · M dropped before merging →`), so a per-run cap
+ *  would have several buttons competing with the one that is meant to be the
+ *  end of the list. Larger than the Overview card's five — this list IS the
+ *  detail view, and `config:best-practices`' twenty-odd sentences are what the
+ *  reader expanded the row to read. */
 export const LEDGER_COLLAPSE_AFTER = 8;
 
 /** Dropped descriptions shown before the footer's own list collapses. The
@@ -241,23 +243,38 @@ const PREVIEW_CHARS = 80;
  *  prose. */
 const UNATTRIBUTED_PREVIEW_CHARS = 60;
 
-/** The head of the collapsed row's value cell — and the ledger's own count of
- *  what the array holds. Plain `24 entries` while every member is a sentence;
- *  once one is not, the two kinds are counted apart rather than summed, because
- *  "3 entries" over two sentences and a number is the under-reporting the
- *  unattributed rows exist to prevent. */
-export function ledgerCountText(ledger: DescriptionLedger): string {
-  if (ledger.unattributedCount === 0) {
-    return `${nf.format(ledger.finalLength)} ${ledger.finalLength === 1 ? "entry" : "entries"}`;
-  }
+/** The mixed-array count, kept apart rather than summed: "3 lines" over two
+ *  sentences and a number is the under-reporting the unattributed rows exist to
+ *  prevent. Shared by both count texts below, which differ only in the noun
+ *  they use when every member IS a sentence. */
+function mixedCountText(ledger: DescriptionLedger): string {
   const sentences = `${nf.format(ledger.entryCount)} sentence${ledger.entryCount === 1 ? "" : "s"}`;
   const others = `${nf.format(ledger.unattributedCount)} other member${ledger.unattributedCount === 1 ? "" : "s"}`;
   return `${sentences} + ${others}`;
 }
 
-/** The collapsed row's value cell: `24 entries — "Pin Docker digests.", "Use…`. */
+/** The expanded ledger's own count — `Who wrote each line (7 lines · 5
+ *  presets)`. The design's noun (082): the ledger's unit is the LINE, which is
+ *  what its heading, its per-line rows and its reveal button all count. */
+export function ledgerCountText(ledger: DescriptionLedger): string {
+  if (ledger.unattributedCount === 0) {
+    return `${nf.format(ledger.finalLength)} line${ledger.finalLength === 1 ? "" : "s"}`;
+  }
+  return mixedCountText(ledger);
+}
+
+/** …and the collapsed row's, where the design says `7 strings` (082): the row
+ *  is describing a VALUE — an array of strings — not a list of ledger rows. */
+function ledgerStringCountText(ledger: DescriptionLedger): string {
+  if (ledger.unattributedCount === 0) {
+    return `${nf.format(ledger.finalLength)} string${ledger.finalLength === 1 ? "" : "s"}`;
+  }
+  return mixedCountText(ledger);
+}
+
+/** The collapsed row's value cell: `24 strings — "Pin Docker digests.", "Use…`. */
 export function ledgerPreviewText(ledger: DescriptionLedger): string {
-  const head = ledgerCountText(ledger);
+  const head = ledgerStringCountText(ledger);
   // Runs per keystroke via KeyRowPreview — stop quoting once the cell is full.
   let quoted = "";
   for (const group of ledger.groups) {
@@ -351,17 +368,69 @@ export function unattributedNoteText(): string {
   return "not text — Renovate accepted it, but no preset can be credited";
 }
 
-/** The collapse toggle inside one run. */
-export function moreEntriesText(hidden: number, layer: ProvenanceLayer): string {
-  return `${nf.format(hidden)} more from ${layerLabel(layer)} — show all`;
+/**
+ * The rows a collapsed ledger renders, and how many it is holding back.
+ *
+ * The cap is global (see {@link LEDGER_COLLAPSE_AFTER}), so it is applied by
+ * walking the runs in order and cutting at whichever row crosses it — a run
+ * that falls entirely past the cap disappears rather than rendering as an empty
+ * hairline. Nothing is reordered: what is shown is always a PREFIX of the final
+ * array, which is the one property the ledger's "this is that array" claim
+ * rests on.
+ */
+export interface LedgerView {
+  groups: LedgerGroup[];
+  /** Lines the cap is holding back — 0 once revealed. */
+  hiddenRows: number;
 }
 
-/** …and the dropped footer's, which has no single layer to name. */
+export function ledgerView(ledger: DescriptionLedger, revealed: boolean): LedgerView {
+  if (revealed) {
+    return { groups: ledger.groups, hiddenRows: 0 };
+  }
+  const groups: LedgerGroup[] = [];
+  let budget = LEDGER_COLLAPSE_AFTER;
+  let hiddenRows = 0;
+  for (const group of ledger.groups) {
+    if (budget <= 0) {
+      hiddenRows += group.rows.length;
+      continue;
+    }
+    const rows = group.rows.slice(0, budget);
+    hiddenRows += group.rows.length - rows.length;
+    budget -= rows.length;
+    groups.push(rows.length === group.rows.length ? group : { ...group, rows });
+  }
+  return { groups, hiddenRows };
+}
+
+/**
+ * The ledger's ONE closing affordance (082 GAP-16): the lines the cap is
+ * holding back and the descriptions Renovate deleted before they could merge,
+ * in a single sentence and behind a single click. They used to be a "show all"
+ * per run plus a separate `Not included:` disclosure — three or four buttons
+ * around one list, each answering "there is more" about a different part of it.
+ *
+ * `null` when there is neither, which is the ordinary short ledger.
+ */
+export function ledgerRevealText(hiddenRows: number, dropped: number): string | null {
+  const lines =
+    hiddenRows > 0 ? `${nf.format(hiddenRows)} more line${hiddenRows === 1 ? "" : "s"}` : null;
+  const cut = dropped > 0 ? `${nf.format(dropped)} dropped before merging` : null;
+  if (!lines && !cut) {
+    return null;
+  }
+  return `${[lines, cut].filter(Boolean).join(" · ")} →`;
+}
+
+/** The dropped list's own collapse toggle, which has no single layer to name. */
 export function moreDroppedText(hidden: number): string {
   return `${nf.format(hidden)} more — show all`;
 }
 
-/** The quiet footer's own line — "where did my preset's description go". */
+/** The heading over the dropped list once the reveal has opened it — "where did
+ *  my preset's description go". A label rather than the disclosure it used to
+ *  be: {@link ledgerRevealText} is the only thing that opens this now. */
 export function droppedSummaryText(dropped: readonly DroppedDescription[]): string {
   const count = dropped.length;
   return `Not included: ${nf.format(count)} description${count === 1 ? "" : "s"} Renovate dropped`;

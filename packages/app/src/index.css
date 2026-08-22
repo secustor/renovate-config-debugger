@@ -2293,7 +2293,32 @@ textarea.layer-editor:focus {
 
 .prov-filters input.prov-filter-input {
   flex: 1;
+  /* The design's cap (082): a filter box that grew to the panel width read as
+     the view's main input rather than a way to narrow the list. */
+  max-width: 16rem;
   min-width: 10rem;
+}
+
+/* Roadmap 082: ONE toolbar row for the whole tab — filter, "only overridden",
+   the view switch pushed right, then the copy. Same chrome-row grammar as the
+   filter bar it replaces (036), plus the design's right-hand grouping. The
+   design's row is borderless — the bordered band boxes right below it carry
+   the separation, and the chrome border doubled it. */
+.prov-toolbar {
+  border-bottom: none;
+}
+
+.prov-toolbar-switch {
+  margin-left: auto;
+}
+
+/* The filters narrow ROWS, so they are inert while the As-JSON document is on
+   screen — visible (the design's row is one row in both views), and saying so
+   rather than silently doing nothing. */
+.prov-toolbar input:disabled,
+.prov-toolbar label:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .prov-check {
@@ -2331,13 +2356,15 @@ textarea.layer-editor:focus {
    The key track is `minmax(0, max-content)` rather than the thread ledger's
    bare `max-content`: this list is filtered, not curated, so it can hold every
    option Renovate has, and the longest of those must be allowed to wrap in a
-   narrow panel instead of pushing the preview column off the edge. */
+   narrow panel instead of pushing the preview column off the edge.
+
+   Roadmap 082 removed the scroll cap this list used to carry: a band stops
+   after `BAND_COLLAPSE_AFTER` rows and says how many it is holding back, which
+   is the same protection stated in words — where a scrollbar inside a scrolling
+   page hid the rest without ever admitting to it. */
 .prov-list {
   --kv-cols: minmax(0, max-content) minmax(0, 1fr) auto;
   --kv-gap: 0.5rem;
-
-  max-height: 40rem;
-  overflow: auto;
 }
 
 /* ---------- decided-by sections (075, iteration 5) ----------
@@ -2376,33 +2403,48 @@ textarea.layer-editor:focus {
   display: none;
 }
 
+/* The design's three header emphases: the sentence in the header's own ink at
+   heading weight, the count in the band's hue, the trailing clause muted and
+   regular. The defaults band is the exception — its whole header is muted,
+   only the clause dropping the weight. */
 .prov-section-headline {
-  color: var(--muted);
   font-size: 0.8rem;
+  font-weight: 600;
 }
 
-/* Pinned right: how much of the group the current filters are showing — a
-   count, so the `.pill-count` tone rather than a semantic one. */
-.prov-section-shown {
-  margin-left: auto;
+.prov-headline-count {
+  color: var(--prov-section-hue, var(--muted));
+}
+
+.prov-headline-note {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.prov-section-defaults .prov-section-headline {
+  color: var(--muted);
 }
 
 .prov-section-repo {
+  --prov-section-hue: var(--accent);
   --prov-section-edge: color-mix(in srgb, var(--accent) 40%, var(--border));
   --prov-section-tint: color-mix(in srgb, var(--accent) 6%, var(--surface));
 }
 
 .prov-section-preset {
+  --prov-section-hue: var(--accent-purple);
   --prov-section-edge: color-mix(in srgb, var(--accent-purple) 40%, var(--border));
   --prov-section-tint: color-mix(in srgb, var(--accent-purple) 6%, var(--surface));
 }
 
 .prov-section-global {
+  --prov-section-hue: var(--accent-teal);
   --prov-section-edge: color-mix(in srgb, var(--accent-teal) 40%, var(--border));
   --prov-section-tint: color-mix(in srgb, var(--accent-teal) 6%, var(--surface));
 }
 
 .prov-section-inherited {
+  --prov-section-hue: var(--accent-pink);
   --prov-section-edge: color-mix(in srgb, var(--accent-pink) 40%, var(--border));
   --prov-section-tint: color-mix(in srgb, var(--accent-pink) 6%, var(--surface));
 }
@@ -2414,11 +2456,18 @@ textarea.layer-editor:focus {
   --prov-section-tint: var(--surface);
 }
 
-/* One list per section now, so the scroll budget is per group: the flat list's
-   40rem cap applied to a repo group of four rows would have been a 40rem
-   scroller holding four rows. */
-.prov-section .prov-list {
-  max-height: 32rem;
+/* A band's truncation line and, in the defaults band, the one sentence that
+   covers every row above it (082). Sits inside the list's grid, so it spans the
+   ledger's tracks rather than starting in the key column. */
+.prov-band-more {
+  font-size: 0.75rem;
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0.3rem 0.75rem 0.4rem;
+}
+
+.prov-band-note {
+  color: var(--muted);
 }
 
 /* The row wrapper carries the separator and passes the ledger's tracks down to
@@ -2463,23 +2512,63 @@ textarea.layer-editor:focus {
 
 /* The preview is already truncated in JS (80 chars), so the ellipsis this used
    to need was a second truncation; what is left wraps like every other value
-   column in the app rather than being clipped mid-token. */
+   column in the app rather than being clipped mid-token. The design sets the
+   preview in the running sans — much of it is prose ("463 rules — 2 yours");
+   only the defaults band's value cell, a bare literal, is code. */
 .prov-key-preview {
   color: var(--muted);
-  font-family: var(--font-mono);
   font-size: 0.8rem;
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
-/* Both chips a row can wear — the multi-contributor badge and the winning
-   layer — are ONE cell, so the origin column holds even on rows that have
-   neither. */
-.prov-row-origin {
-  align-items: baseline;
-  display: flex;
-  gap: 0.4rem;
+.prov-row-default .prov-key-preview {
+  font-family: var(--font-mono);
+}
+
+/* The third cell is the design's NOTE (082): prose, not chips — the band
+   header already names the deciding layer, so the column that used to repeat it
+   says the one thing the row alone knows. Always rendered, empty or not, so the
+   ledger's third track holds on the rows that have nothing to say. */
+.prov-row-note {
+  color: var(--muted);
+  font-size: 0.72rem;
   justify-self: end;
+  text-align: right;
+  /* The design's note never wraps — a two-line note would change the row's
+     height and break the ledger's rhythm. */
+  white-space: nowrap;
+}
+
+/* The redundancy tone: some other layer already set exactly this value, which
+   is the one thing in this column a reader can act on. */
+.prov-row-note.warn {
+  color: var(--warn);
+}
+
+/* The 016 glossary affordance the one-word badge used to carry, kept on the
+   notes that are prose for a merge behaviour. */
+.prov-row-note.explained {
+  cursor: help;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+
+.prov-row-note.explained:hover,
+.prov-row-note.explained:focus-visible {
+  color: var(--accent);
+}
+
+/* Roadmap 082: a defaults row is INERT — nothing to expand, so it is not a
+   button. It keeps the caret's width as an empty spacer so the option names
+   line up with every other band's. */
+.prov-row-default {
+  padding: 0.3rem 0.75rem;
+}
+
+.prov-row-default .caret-empty {
+  display: inline-block;
+  width: 0.9rem;
 }
 
 .badge.prov-layer {
@@ -2554,10 +2643,6 @@ textarea.layer-editor:focus {
   cursor: pointer;
 }
 
-.badge.prov-overridden {
-  color: var(--warn);
-}
-
 /* The expanded detail is a block, not a row: it spans the ledger's columns
    rather than sharing them. */
 .prov-detail {
@@ -2565,7 +2650,6 @@ textarea.layer-editor:focus {
   padding: 0 0.75rem 0.75rem 1.65rem;
 }
 
-.prov-final-title,
 .prov-chain-title {
   color: var(--muted);
   font-size: 0.75rem;
@@ -2629,16 +2713,26 @@ pre.config-view.prov-value {
   max-height: 16rem;
 }
 
-/* The superseded value. 075 (iteration 5) states the `--muted` ink directly
-   rather than leaning on the opacity wash alone: the wash dimmed the option
-   keys inside (which paint their own colour) but left the plain values at full
-   ink, so the block read as "quiet" without reading as "not what you got".
-   The opacity stays for the keys, which no `color` here can reach. */
-pre.config-view.prov-before {
+/* Every LOSING card's value (082): struck through and muted, whatever the verb
+   that produced it. The stack is read winner-first now, so "this is not the
+   value you got" has to be legible on the card rather than inferred from where
+   it sits. 075 states the `--muted` ink directly rather than leaning on the
+   opacity wash alone: the wash dimmed the option keys inside (which paint their
+   own colour) but left the plain values at full ink, so the block read as
+   "quiet" without reading as "not what you got". The opacity stays for the
+   keys, which no `color` here can reach. */
+pre.config-view.prov-losing {
   color: var(--muted);
   opacity: 0.65;
   text-decoration: line-through;
-  text-decoration-color: var(--error);
+}
+
+/* The deferred per-rule table's one line (082 GAP-13): 463 rows are an answer
+   about ONE rule, not about `packageRules`, so they wait for a click. */
+.prov-rules-defer {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin: 0.5rem 0 0;
 }
 
 /* ---------- shareable links + load from repo (007) ---------- */
@@ -2711,10 +2805,10 @@ pre.config-view.prov-before {
   gap: 0.3rem;
 }
 
-/* The card title becomes a row when it carries actions (039). Only the editor
-   card and the effective config's card (051: the view switch) do; every other
-   card title stays plain text so its inline hints and copy buttons keep
-   wrapping as prose. The hint is allowed to vanish before the actions wrap. */
+/* The card title becomes a row when it needs one (039): the editor card for
+   its toolbar, the effective card for its truncating hint (082 moved its view
+   switch into the tab's own toolbar row). Every other card title stays plain
+   text so its inline hints and copy buttons keep wrapping as prose. */
 .editor-card-title,
 .effective-card-title {
   align-items: center;
@@ -2792,13 +2886,6 @@ pre.config-view.prov-before {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.card-title-actions {
-  align-items: center;
-  display: flex;
-  gap: 0.5rem;
-  margin-left: auto;
 }
 
 /* Roadmap 027: a broken share link must be unmissable — a full-width banner at
@@ -5172,15 +5259,9 @@ pre.config-view.prov-before {
   color: var(--accent);
 }
 
-/* Roadmap 016: `appended`/`merged` replace the misleading `overridden` badge
-   on effective-config keys that were combined, not replaced. */
-.badge.prov-appended {
-  color: var(--ok);
-}
-
-.badge.prov-merged {
-  color: var(--accent-teal);
-}
+/* Roadmap 016's `appended`/`merged`/`overridden` badges were retired by 082:
+   the effective config's third cell is prose now (`.prov-row-note`), which says
+   the same thing in the design's own words and keeps the glossary card. */
 
 /* Back-to-top affordance (roadmap 016): appears once the page has scrolled
    past the fold; simpler and more robust than a sticky mini-toolbar. */
@@ -6021,10 +6102,23 @@ pre.config-view.prov-before {
   padding: 0.2rem 0 0 3rem;
 }
 
+/* Roadmap 082 (GAP-16): the ledger's ONE closing affordance — the rest of the
+   lines and the dropped footnote behind a single click, where there used to be
+   a "show all" per run plus a separate disclosure. */
+.desc-ledger-reveal {
+  font-size: 0.78rem;
+  margin: 0.3rem 0 0;
+}
+
 /* The footer answering "where did my preset's description go" — a footnote,
-   and typed like one: quiet, closed, and never competing with the ledger. */
+   and typed like one: quiet and never competing with the ledger. */
 .desc-ledger-dropped {
   font-size: 0.78rem;
+}
+
+.desc-ledger-dropped-title {
+  color: var(--muted);
+  margin: 0.5rem 0 0.2rem;
 }
 
 .desc-ledger-dropped .desc-ledger-text {

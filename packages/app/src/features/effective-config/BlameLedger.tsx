@@ -11,13 +11,13 @@ import {
   duplicateNoteText,
   duplicatePillText,
   hiddenCount,
-  LEDGER_COLLAPSE_AFTER,
   ledgerCountText,
   type LedgerGroup,
+  ledgerRevealText,
   type LedgerRow,
+  ledgerView,
   ledgerWriterText,
   moreDroppedText,
-  moreEntriesText,
   unattributedNoteText,
   unattributedValueText,
   viaNoteRef,
@@ -179,7 +179,9 @@ function LedgerLine({
   return <LedgerEntryLine entry={row.entry} onSelectPreset={onSelectPreset} />;
 }
 
-/** One blame run — consecutive rows from the same top-level extend. */
+/** One blame run — consecutive rows from the same top-level extend. Truncation
+ *  is the LEDGER's, not the run's (082 GAP-16): a run renders exactly the rows
+ *  `ledgerView` left it. */
 function LedgerRun({
   group,
   onSelectPreset,
@@ -187,21 +189,11 @@ function LedgerRun({
   group: LedgerGroup;
   onSelectPreset?: (nodeId: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
-  const hidden = hiddenCount(group.rows.length, LEDGER_COLLAPSE_AFTER, expanded);
-  const shown = hidden > 0 ? group.rows.slice(0, LEDGER_COLLAPSE_AFTER) : group.rows;
   return (
     <ul className="desc-ledger-list">
-      {shown.map((row) => (
+      {group.rows.map((row) => (
         <LedgerLine key={row.index} row={row} onSelectPreset={onSelectPreset} />
       ))}
-      {hidden > 0 ? (
-        <li className="desc-ledger-more">
-          <button type="button" className="btn-quiet" onClick={() => setExpanded(true)}>
-            {moreEntriesText(hidden, group.layer)}
-          </button>
-        </li>
-      ) : null}
     </ul>
   );
 }
@@ -286,8 +278,8 @@ function DroppedList({
  * The quiet footer. Three Renovate quirks delete a description before it can
  * merge (069 PR 1) — including `config:best-practices`' own one-liner — and
  * "my preset's description is missing" is otherwise an unanswerable question.
- * Muted and closed by default: it is a footnote, and on a real config the
- * `ignoreDeps: []` mute alone drops 135 sentences.
+ * A footnote, so it stays out of the way until the ledger's one reveal asks for
+ * it: on a real config the `ignoreDeps: []` mute alone drops 135 sentences.
  */
 function DroppedSection({
   dropped,
@@ -296,18 +288,10 @@ function DroppedSection({
   dropped: readonly DroppedDescription[];
   onSelectPreset?: (nodeId: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
   return (
     <div className="desc-ledger-dropped">
-      <button
-        type="button"
-        className="btn-quiet"
-        aria-expanded={open}
-        onClick={() => setOpen((prev) => !prev)}
-      >
-        {droppedSummaryText(dropped)}
-      </button>
-      {open ? <DroppedList dropped={dropped} onSelectPreset={onSelectPreset} /> : null}
+      <p className="desc-ledger-dropped-title">{droppedSummaryText(dropped)}</p>
+      <DroppedList dropped={dropped} onSelectPreset={onSelectPreset} />
     </div>
   );
 }
@@ -321,20 +305,33 @@ export function BlameLedger({
    *  other chip in this view gets (013). */
   onSelectPreset?: (nodeId: string) => void;
 }) {
+  // 082 (GAP-16): ONE piece of state for the whole ledger — the rest of the
+  // lines and the dropped footnote are two halves of "there is more here", and
+  // the design closes the list with a single sentence offering both.
+  const [revealed, setRevealed] = useState(false);
   const writers = ledgerWriterText(ledger);
+  const view = ledgerView(ledger, revealed);
+  const reveal = ledgerRevealText(view.hiddenRows, revealed ? 0 : ledger.dropped.length);
   return (
     <div className="desc-ledger">
       <div className="prov-chain-title">
-        {/* The same count the collapsed row shows, from the same function: a
+        {/* The same count the collapsed row shows, from the same source: a
             title claiming more lines than the list has is the exact
             under-reporting the unattributed rows exist to prevent. */}
         Who wrote each line ({ledgerCountText(ledger)}
         {writers ? ` · ${writers}` : null})
       </div>
-      {ledger.groups.map((group) => (
+      {view.groups.map((group) => (
         <LedgerRun key={group.key} group={group} onSelectPreset={onSelectPreset} />
       ))}
-      {ledger.dropped.length > 0 ? (
+      {reveal ? (
+        <p className="desc-ledger-reveal">
+          <button type="button" className="btn-quiet" onClick={() => setRevealed(true)}>
+            {reveal}
+          </button>
+        </p>
+      ) : null}
+      {revealed && ledger.dropped.length > 0 ? (
         <DroppedSection dropped={ledger.dropped} onSelectPreset={onSelectPreset} />
       ) : null}
       {ledger.degraded ? <DegradedCaveat /> : null}

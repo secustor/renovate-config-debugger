@@ -91,8 +91,12 @@ test("marks an approximate drop and hedges its reason", () => {
   });
 
   const view = render(<BlameLedger ledger={ledger} />);
-  // The footer is closed by default — it is a footnote.
-  fireEvent.click(view.getByText("Not included: 1 description Renovate dropped"));
+  // Roadmap 082: ONE affordance closes the ledger — the rest of the lines and
+  // the dropped footnote behind a single click. Here there is nothing else to
+  // reveal, so it names only the drop.
+  expect(view.container.querySelector(".desc-ledger-row.dropped")).toBeNull();
+  fireEvent.click(view.getByRole("button", { name: "1 dropped before merging →" }));
+  expect(view.getByText("Not included: 1 description Renovate dropped")).toBeTruthy();
 
   const dropped = view.container.querySelector<HTMLElement>(".desc-ledger-row.dropped");
   if (!dropped) {
@@ -100,6 +104,40 @@ test("marks an approximate drop and hedges its reason", () => {
   }
   expect(dropped.querySelector(".desc-approx-mark")).not.toBeNull();
   expect(dropped.textContent).toContain("exact preset unknown");
+});
+
+/**
+ * Roadmap 082 (GAP-16): the cap is the ledger's, not the run's, and the same
+ * click that lifts it opens the dropped footnote — one affordance, where there
+ * used to be a "show all" per run plus a separate disclosure.
+ */
+test("reveals the held-back lines and the dropped list in one click", () => {
+  const ledger = ledgerOf({
+    entries: Array.from({ length: 10 }, (_, index) => ({
+      index,
+      value: `Sentence ${index}.`,
+      viaTopLevel: DASHBOARD,
+      node: { nodeId: "p1", name: ":dependencyDashboard" },
+    })),
+    dropped: [
+      {
+        value: "Group Jest packages.",
+        node: { nodeId: "n5", name: "group:recommended" },
+        reason: "wrapper-preset",
+      },
+    ],
+  });
+
+  const view = render(<BlameLedger ledger={ledger} />);
+  expect(view.container.querySelectorAll(".desc-ledger-row")).toHaveLength(8);
+  expect(view.container.querySelector(".desc-ledger-dropped")).toBeNull();
+
+  fireEvent.click(view.getByRole("button", { name: "2 more lines · 1 dropped before merging →" }));
+
+  expect(view.container.querySelectorAll(".desc-ledger-row:not(.dropped)")).toHaveLength(10);
+  expect(view.container.querySelector(".desc-ledger-row.dropped")).not.toBeNull();
+  // …and the offer is spent: nothing left to reveal.
+  expect(view.container.querySelector(".desc-ledger-reveal")).toBeNull();
 });
 
 test("gives a non-string member its own line rather than skipping it", () => {

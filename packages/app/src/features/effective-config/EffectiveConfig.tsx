@@ -1,7 +1,16 @@
 import { nf } from "@/lib/format";
 import { memo, type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { openPickerOnEnter } from "@/lib/select-picker";
-import { countByDecider, type DeciderId, groupByDecider, winningStep } from "./decider-groups";
+import {
+  deciderHeadline,
+  type DeciderGroup,
+  type DeciderHeadline,
+  type DeciderId,
+  groupByDecider,
+  presetDeciderName,
+  topLevelPresetNames,
+  winningStep,
+} from "./decider-groups";
 import type {
   KeyProvenance,
   ProvenanceStep,
@@ -17,14 +26,14 @@ import {
   type EffectiveTally,
   isOverridden,
   type MultiContribBadge,
-  multiContribBadgeKind,
 } from "@/lib/effective-tally";
+import { type RowNote, rowNote } from "./row-notes";
 import { OptionKey } from "@/components/option-docs";
 import { BlameLedger } from "./BlameLedger";
 import { ConfigJson } from "@/components/ConfigJson";
 import { CopyButton } from "@/components/CopyButton";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
-import { layerId, layerLabel, type LayerId, layerNodeKey } from "@/components/provenance-layer";
+import { layerNodeKey } from "@/components/provenance-layer";
 import { useEngineDerivation } from "@/hooks/use-engine-derivation";
 import { useRuleProvenance } from "@/hooks/rule-provenance";
 import { useDescriptionProvenance } from "@/hooks/description-provenance";
@@ -84,14 +93,6 @@ function ledgerForRow(
   return ledger && ledgerMatchesFinalValue(ledger, entry.finalValue) ? ledger : null;
 }
 
-// `LayerId` IS `string`, so `| "all"` is formally redundant — it stays as
-// documentation that "all" is the sentinel this filter uses for "no layer
-// selected", which every read of a `LayerFilterValue` relies on. Named here
-// (rather than inlined at each use) so the one disable comment covers both
-// the state and the filter bar's props.
-// oxlint-disable-next-line typescript/no-redundant-type-constituents
-type LayerFilterValue = LayerId | "all";
-
 /** Loads + computes provenance for a result once the engine chunk is present.
  *  undefined = loading, null = unavailable (e.g. preset resolution failed). */
 function useProvenance(result: TraceResult): Provenance | null | undefined {
@@ -134,41 +135,20 @@ const VERBS: Record<ProvenanceStep["action"], string> = {
   forced: "forces",
 };
 
-/** Non-no-op layers that contributed to a key, for the layer filter. */
-function contributingLayerIds(entry: KeyProvenance): Set<LayerId> {
-  const ids = new Set<LayerId>();
-  for (const step of entry.chain) {
-    if (!step.noop) {
-      ids.add(layerId(step.layer));
-    }
-  }
-  return ids;
-}
-
 const MULTI_BADGE_GLOSSARY: Record<MultiContribBadge, keyof typeof GLOSSARY> = {
   overridden: "keyOverridden",
   appended: "keyAppended",
   merged: "keyMerged",
 };
 
-/** The badge shown on a row touched by more than one layer — `overridden`
- *  only when a value was actually replaced; `appended`/`merged` otherwise. */
-function MultiContribBadgeChip({ entry }: { entry: KeyProvenance }) {
-  if (!isOverridden(entry)) {
-    return null;
-  }
-  const kind = multiContribBadgeKind(entry);
-  return (
-    <Explained entry={GLOSSARY[MULTI_BADGE_GLOSSARY[kind]]}>
-      {(handlers) => (
-        <span className={`badge explained prov-${kind}`} tabIndex={0} {...handlers}>
-          {kind}
-        </span>
-      )}
-    </Explained>
-  );
-}
-
+/**
+ * One card of the cascade. Roadmap 082 makes every LOSING card's value struck
+ * through and muted, whatever the verb: the cards are read as a stack now
+ * (winner first), so "this is not the value you got" has to be legible on the
+ * card itself rather than inferred from its position. The separate `before`
+ * block went with that — the value a layer overwrote is the card BELOW this
+ * one, so printing it here rendered the same value twice in one stack.
+ */
 function Step({
   step,
   winning,
@@ -181,13 +161,15 @@ function Step({
   winning: boolean;
   onSelectPreset?: (nodeId: string) => void;
 }) {
-  const showBefore =
-    (step.action === "overwrite" || step.action === "forced") && step.before !== undefined;
   return (
     <div className={`prov-step action-${step.action}${winning ? " winning" : ""}`}>
       <div className="prov-step-head">
         <ProvenanceChip layer={step.layer} onSelectPreset={onSelectPreset} />
-        <span className="prov-step-verb">{VERBS[step.action]}</span>
+        {/* The defaults layer does not "set" anything — it is what the key was
+            before the run began, which is the design's own verb for it. */}
+        <span className="prov-step-verb">
+          {step.layer.kind === "defaults" ? "defaults to" : VERBS[step.action]}
+        </span>
         {step.expandedNested ? (
           <span
             className="badge nested"
@@ -198,12 +180,7 @@ function Step({
         ) : null}
         {winning ? <span className="pill pill-ok prov-step-final">✓ final</span> : null}
       </div>
-      {showBefore ? (
-        <pre className="config-view prov-value prov-before">
-          <ConfigJson value={step.before} />
-        </pre>
-      ) : null}
-      <pre className="config-view prov-value">
+      <pre className={`config-view prov-value${winning ? "" : " prov-losing"}`}>
         <ConfigJson value={step.after} />
       </pre>
     </div>
@@ -254,17 +231,42 @@ function PackageRulesProvenance({
   );
 }
 
-/** The "Final value" block of an expanded row — its own component since the
- *  nested `<pre><ConfigJson /></pre>` puts it one level past the depth
- *  ratchet when left inline in `KeyRow`. */
-function FinalValueBlock({ value }: { value: unknown }) {
+/**
+ * Roadmap 082 (GAP-13): the 463-row table is DEFERRED behind its own line. It
+ * is the answer to a question the reader asks about one rule, not the answer to
+ * "what is packageRules" — and rendering it eagerly meant expanding the
+ * packageRules row pushed the cascade (the thing every other row shows) a
+ * thousand pixels down the page.
+ *
+ * Local state, so collapsing the row forgets it: the deferral is per reading,
+ * not a preference.
+ */
+function DeferredRuleProvenance({
+  rules,
+  attribution,
+  onSelectPreset,
+}: {
+  rules: unknown[];
+  attribution: RuleAttribution[];
+  onSelectPreset?: (nodeId: string) => void;
+}) {
+  const [shown, setShown] = useState(false);
+  if (shown) {
+    return (
+      <PackageRulesProvenance
+        rules={rules}
+        attribution={attribution}
+        onSelectPreset={onSelectPreset}
+      />
+    );
+  }
   return (
-    <div className="prov-final">
-      <div className="prov-final-title">Final value</div>
-      <pre className="config-view prov-value">
-        <ConfigJson value={value} />
-      </pre>
-    </div>
+    <p className="prov-rules-defer">
+      Per-rule provenance:{" "}
+      <button type="button" className="btn-quiet" onClick={() => setShown(true)}>
+        {`all ${nf.format(rules.length)} rule${rules.length === 1 ? "" : "s"} with their source preset →`}
+      </button>
+    </p>
   );
 }
 
@@ -310,45 +312,44 @@ function KeyRowPreview({
   );
 }
 
-/** The origin cell — the multi-contributor badge (an `explained` chip since
- *  054 layer 6) and the winning layer's chip, as ONE cell so the ledger's
- *  third column holds on rows that carry neither. */
-function KeyRowOrigin({
-  entry,
-  winner,
-  onSelectPreset,
-  ledger,
-}: {
-  entry: KeyProvenance;
-  winner?: ProvenanceStep;
-  onSelectPreset?: (nodeId: string) => void;
-  /** 069: the `description` row's own count of contributors, which the layer
-   *  chips cannot express — for a concatenated array the "winning" layer is
-   *  just the last of twenty-odd presets that each wrote a line, not the one
-   *  that decided the value. */
-  ledger?: DescriptionLedger | null;
-}) {
-  const writers = ledger ? ledgerWriterText(ledger) : null;
+/**
+ * The third cell — the design's note (082). It replaced two things: the winning
+ * layer's chip, which repeated what the band header above the row already says,
+ * and the one-word `overridden`/`appended` badge, which said less than the
+ * sentence does. The glossary card the badge carried survives on the notes that
+ * name a merge behaviour, so the 016/054 "this explains itself" affordance is
+ * not lost with the word.
+ */
+function KeyRowNote({ note }: { note: RowNote | null }) {
+  if (!note) {
+    return <span className="prov-row-note" />;
+  }
+  if (!note.badge) {
+    return <span className={`prov-row-note${note.warn ? " warn" : ""}`}>{note.text}</span>;
+  }
   return (
-    <span className="prov-row-origin">
-      <MultiContribBadgeChip entry={entry} />
-      {writers ? (
-        <span
-          className="badge prov-layer prov-preset"
-          title="Presets that wrote at least one of these sentences — expand the row for the per-line ledger"
-        >
-          {writers}
+    <Explained entry={GLOSSARY[MULTI_BADGE_GLOSSARY[note.badge]]}>
+      {(handlers) => (
+        <span className="prov-row-note explained" tabIndex={0} {...handlers}>
+          {note.text}
         </span>
-      ) : null}
-      {winner ? <ProvenanceChip layer={winner.layer} onSelectPreset={onSelectPreset} /> : null}
-    </span>
+      )}
+    </Explained>
   );
 }
 
-/** The expanded row's default body: the final value, the per-rule table on the
- *  one row that has one, and the override chain. Its own component since 069
- *  gave the `description` row a different body — and the depth ratchet counts
- *  the two alternatives inside `KeyRow` as one expression. */
+/**
+ * The expanded row's cascade — WINNER FIRST (082): the design reverses the
+ * authored stack so the `✓ final` card leads and the earliest layer (usually
+ * the Renovate default) is last, which is the order the question is asked in.
+ * No-op steps stay in the stack rather than being filtered out: "the default
+ * was false and a preset set it to true" is the answer even when the default
+ * changed nothing, and dropping those cards left a two-card cascade claiming to
+ * be the whole story.
+ *
+ * Its own component since 069 gave the `description` row a ledger as well — and
+ * the depth ratchet counts the two bodies inside `KeyRow` as one expression.
+ */
 function KeyRowChain({
   entry,
   rules,
@@ -360,31 +361,29 @@ function KeyRowChain({
   ruleAttribution?: RuleAttribution[] | null;
   onSelectPreset?: (nodeId: string) => void;
 }) {
-  const visibleSteps = entry.chain.filter((s) => !s.noop);
+  const winner = winningStep(entry);
+  const steps = entry.chain.toReversed();
   return (
     <>
-      <FinalValueBlock value={entry.finalValue} />
+      <div className="prov-chain-title">The cascade, bottom to top</div>
+      {/* Each layer contributes at most one step to a key's chain, so the
+          layer's NODE identity is a genuine key here (roadmap 041) — and
+          the rows are rebuilt per run, so per-run node ids are fine. */}
+      {steps.map((step) => (
+        <Step
+          key={layerNodeKey(step.layer)}
+          step={step}
+          winning={step === winner}
+          onSelectPreset={onSelectPreset}
+        />
+      ))}
       {rules && rules.length > 0 && ruleAttribution && ruleAttribution.length === rules.length ? (
-        <PackageRulesProvenance
+        <DeferredRuleProvenance
           rules={rules}
           attribution={ruleAttribution}
           onSelectPreset={onSelectPreset}
         />
       ) : null}
-      <div className="prov-chain-title">
-        Override chain ({visibleSteps.length} step{visibleSteps.length === 1 ? "" : "s"})
-      </div>
-      {/* Each layer contributes at most one step to a key's chain, so the
-          layer's NODE identity is a genuine key here (roadmap 041) — and
-          the rows are rebuilt per run, so per-run node ids are fine. */}
-      {visibleSteps.map((step) => (
-        <Step
-          key={layerNodeKey(step.layer)}
-          step={step}
-          winning={step === visibleSteps.at(-1)}
-          onSelectPreset={onSelectPreset}
-        />
-      ))}
     </>
   );
 }
@@ -407,9 +406,9 @@ function KeyRow({
    *  is unavailable, in which case the row renders exactly as it always did. */
   ledger?: DescriptionLedger | null;
 }) {
-  const winner = winningStep(entry);
   const rules =
     entry.key === "packageRules" && Array.isArray(entry.finalValue) ? entry.finalValue : null;
+  const note = rowNote(entry, ledger ? ledgerWriterText(ledger) : null);
   return (
     <div className={`kv-row prov-row${expanded ? " expanded" : ""}`}>
       <button
@@ -425,98 +424,124 @@ function KeyRow({
           ruleAttribution={ruleAttribution}
           ledger={ledger}
         />
-        <KeyRowOrigin
-          entry={entry}
-          winner={winner}
-          onSelectPreset={onSelectPreset}
-          ledger={ledger}
-        />
+        <KeyRowNote note={note} />
       </button>
+      {/* 082 (GAP-17): the two bodies are independent. The `description` row
+          has both — the per-line ledger says who wrote each sentence, the
+          cascade says how the array was assembled — and gating them against
+          each other hid the second answer on the one row that needs both. */}
       {expanded ? (
         <div className="prov-detail">
-          {ledger ? (
-            <BlameLedger ledger={ledger} onSelectPreset={onSelectPreset} />
-          ) : (
+          {ledger ? <BlameLedger ledger={ledger} onSelectPreset={onSelectPreset} /> : null}
+          {entry.chain.length > 0 ? (
             <KeyRowChain
               entry={entry}
               rules={rules}
               ruleAttribution={ruleAttribution}
               onSelectPreset={onSelectPreset}
             />
-          )}
+          ) : null}
         </div>
       ) : null}
     </div>
   );
 }
 
-/** The filter bar above the key list — its own component since the
- *  `select > option` and `label > input` pairs each put the bar one level
- *  past the depth ratchet when left inline. */
-function ProvFilters({
+/**
+ * Roadmap 082 (GAP-6): a row of the defaults band. INERT by design — no caret,
+ * no expansion, no cascade — because there is nothing to expand: exactly one
+ * layer ever touched these keys, and it is the one the band is named after.
+ * The caret slot is kept as an empty spacer so the option names still start on
+ * the same edge as every other band's.
+ *
+ * The note column is deliberately empty. The artboard's per-option prose
+ * ("when PRs are opened", "schedules use UTC") is mock copy for a mock config;
+ * the run knows nothing of the sort, and the honest sentence about ALL of these
+ * rows is the band's own footer.
+ */
+function DefaultRow({ entry }: { entry: KeyProvenance }) {
+  return (
+    <div className="kv-row prov-row prov-row-default">
+      <span className="prov-key-name">
+        <span className="caret caret-empty" />
+        <OptionKey name={entry.key} flagUnknown />
+      </span>
+      <code className="prov-key-preview">{valuePreview(entry.finalValue)}</code>
+      <span className="prov-row-note" />
+    </div>
+  );
+}
+
+/**
+ * Roadmap 082 (GAP-1/GAP-2): ONE toolbar row, in BOTH views — the key filter,
+ * the "only overridden" gate, the By key / As JSON switch pushed right, and the
+ * copy button. It used to be two rows in two places (the switch and the copy in
+ * the card title, the filters in a chrome row that existed only in the By-key
+ * view), which made the two halves of one control strip look like controls of
+ * two different things.
+ *
+ * The layer `<select>` and the "show default-only" checkbox are gone with it:
+ * neither is in the design, and what the checkbox gated is now the always-there
+ * defaults band below.
+ */
+function EffectiveToolbar({
   filterInputRef,
   query,
   onQueryChange,
-  layerFilter,
-  onLayerFilterChange,
-  layerOptions,
   onlyOverridden,
   onOnlyOverriddenChange,
-  showDefaults,
-  onShowDefaultsChange,
-  hiddenDefaults,
+  filtersApply,
+  view,
+  onViewChange,
+  getText,
 }: {
   filterInputRef: RefObject<HTMLInputElement | null>;
   query: string;
   onQueryChange: (value: string) => void;
-  layerFilter: LayerFilterValue;
-  onLayerFilterChange: (value: string) => void;
-  layerOptions: [LayerId, string][];
   onlyOverridden: boolean;
   onOnlyOverriddenChange: (checked: boolean) => void;
-  showDefaults: boolean;
-  onShowDefaultsChange: (checked: boolean) => void;
-  hiddenDefaults: number;
+  /** False in the As-JSON view: the filters narrow ROWS, and that document is
+   *  copied whole (see the note on `EffectiveView`). */
+  filtersApply: boolean;
+  view: EffectiveView;
+  onViewChange: (view: EffectiveView) => void;
+  /** Null while the document is still being derived — same wait as the
+   *  As-JSON view's own copy, which this one is a second door to. */
+  getText: (() => string) | null;
 }) {
+  const inertTitle = filtersApply
+    ? undefined
+    : "Key filters narrow the By key rows — the JSON document is always the whole config";
   return (
-    <div className="prov-filters">
+    <div className="prov-filters prov-toolbar">
       <input
         ref={filterInputRef}
         type="text"
         className="prov-filter-input"
         placeholder="Filter keys…"
         value={query}
+        disabled={!filtersApply}
+        title={inertTitle}
         onChange={(e) => onQueryChange(e.target.value)}
       />
-      <select
-        aria-label="Filter keys by layer"
-        onKeyDown={openPickerOnEnter}
-        value={layerFilter}
-        onChange={(e) => onLayerFilterChange(e.target.value)}
-      >
-        <option value="all">All layers</option>
-        {layerOptions.map(([id, label]) => (
-          <option key={id} value={id}>
-            only set by {label}
-          </option>
-        ))}
-      </select>
-      <label className="prov-check">
+      <label className="prov-check" title={inertTitle}>
         <input
           type="checkbox"
           checked={onlyOverridden}
+          disabled={!filtersApply}
           onChange={(e) => onOnlyOverriddenChange(e.target.checked)}
         />{" "}
         only overridden
       </label>
-      <label className="prov-check">
-        <input
-          type="checkbox"
-          checked={showDefaults}
-          onChange={(e) => onShowDefaultsChange(e.target.checked)}
-        />{" "}
-        show default-only ({hiddenDefaults})
-      </label>
+      <ViewSwitch view={view} onViewChange={onViewChange} />
+      {getText ? (
+        <CopyButton
+          iconOnly
+          getText={getText}
+          label="Copy effective config as JSON"
+          title="Copy effective config as JSON"
+        />
+      ) : null}
     </div>
   );
 }
@@ -532,52 +557,35 @@ const DECIDER_PILL: Record<DeciderId, { tone: string; label: string }> = {
   defaults: { tone: "pill-muted", label: "defaults" },
 };
 
-/** The section's one sentence. Says what the group MEANS for the reader, not
- *  just how big it is: the repo rows are the editable ones, the defaults rows
- *  are the ones this run never touched. */
-function deciderHeadline(id: DeciderId, count: number): string {
-  const n = nf.format(count);
-  const options = `${n} option${count === 1 ? "" : "s"}`;
-  if (id === "repo") {
-    return `Your repo config decided ${options} — the ones you can edit directly`;
-  }
-  if (id === "preset") {
-    return `Presets decided ${options}`;
-  }
-  if (id === "inherited") {
-    return `The inherited config decided ${options}`;
-  }
-  if (id === "global") {
-    return `The global config decided ${options}`;
-  }
-  return `Renovate defaults filled the remaining ${n} — nothing in your run touched them`;
-}
+/**
+ * Roadmap 082 (GAP-7): rows a band renders before its "show all". A single cap
+ * across every band, rather than the design's mock per-band counts: the bands
+ * hold whatever a config produced, and a cap that differed by band would be a
+ * rule the reader has to learn instead of a list that stops. It replaces the
+ * `max-height` scroller the sections used to carry — a scrollbar inside a
+ * scrolling page hides the same rows without saying how many.
+ */
+const BAND_COLLAPSE_AFTER = 8;
 
 /**
- * Roadmap 075 (iteration 5): one decided-by section. A disclosure rather than
- * a plain heading because the defaults group is the one nobody opens by
- * default and it is routinely the largest — and once one group collapses they
- * all must, or the affordance reads as an oddity of that group.
+ * Roadmap 075 (iteration 5): one decided-by band. A disclosure rather than a
+ * plain heading because the defaults band is the one nobody opens by default
+ * and it is routinely the largest — and once one band collapses they all must,
+ * or the affordance reads as an oddity of that band.
  *
- * `open` is controlled by the view (the "show default-only" checkbox has to be
- * able to open the defaults group it fills), so `summary`'s own toggle is
- * suppressed and the click reported instead — the standard controlled-details
- * idiom.
+ * `open` is controlled by the view (the description landing has to be able to
+ * open the band its row is in), so `summary`'s own toggle is suppressed and the
+ * click reported instead — the standard controlled-details idiom.
  */
 function DeciderSection({
   id,
-  shown,
-  total,
+  headline,
   open,
   onToggleOpen,
   children,
 }: {
   id: DeciderId;
-  /** Rows surviving the interactive filters — what this section renders. */
-  shown: number;
-  /** The group's size before those filters, so a narrowed view still reports
-   *  how much of the group it is showing. */
-  total: number;
+  headline: DeciderHeadline;
   open: boolean;
   onToggleOpen: () => void;
   children: ReactNode;
@@ -594,67 +602,94 @@ function DeciderSection({
       >
         <span className="caret">{open ? "▾" : "▸"}</span>
         <span className={`pill ${tone}`}>{label}</span>
-        <span className="prov-section-headline">{deciderHeadline(id, total)}</span>
-        {shown < total ? (
-          <span className="pill pill-count prov-section-shown">
-            {nf.format(shown)} of {nf.format(total)} shown
-          </span>
-        ) : null}
+        <SectionHeadline headline={headline} />
       </summary>
       <div className="kv prov-list">{children}</div>
     </details>
   );
 }
 
-/** Roadmap 051: the card-title view switch. Segmented, like the diff's
- *  unified/side-by-side control and for the same 036 reason — it labels the
- *  STATE, not an action, so the active rendering is always legible.
- *
- *  Roadmap 082 seats the copy button beside it: the design puts one in the
- *  toolbar for BOTH views, because "give me this config as JSON" is a thing a
- *  reader wants from the row list too, and having to switch views to find the
- *  button made the JSON view feel like the only place the document exists. */
+/** The header sentence in the design's three emphases: lead in the header's
+ *  ink and weight, count in the band's hue, trailing clause muted and regular.
+ *  The leading spaces live in the spans so the textContent stays the sentence. */
+function SectionHeadline({ headline }: { headline: DeciderHeadline }) {
+  return (
+    <span className="prov-section-headline">
+      {headline.lead}
+      {headline.count === null ? null : (
+        <span className="prov-headline-count"> {headline.count}</span>
+      )}
+      {headline.note === null ? null : <span className="prov-headline-note"> {headline.note}</span>}
+    </span>
+  );
+}
+
+/** A band's truncation line: what it is holding back, and the click that lifts
+ *  it. `defaults` only changes the noun, which the design spells out there. */
+function BandMore({
+  hidden,
+  onShowAll,
+  defaults,
+}: {
+  hidden: number;
+  onShowAll: () => void;
+  defaults?: boolean;
+}) {
+  return (
+    <button type="button" className="btn-quiet" onClick={onShowAll}>
+      {`${nf.format(hidden)} more${defaults ? " defaults" : ""} — show all`}
+    </button>
+  );
+}
+
+/** The defaults band's footer (082 GAP-5): its truncation line, plus the one
+ *  honest sentence about every row above it — which is also why those rows
+ *  carry no note of their own. */
+function DefaultsFooter({ hidden, onShowAll }: { hidden: number; onShowAll: () => void }) {
+  return (
+    <p className="prov-band-more">
+      {hidden > 0 ? <BandMore hidden={hidden} onShowAll={onShowAll} defaults /> : null}
+      <span className="prov-band-note">
+        {/* The leading space is load-bearing: JSX drops the newline between the
+            button and this span, so the separator carries its own gap. */}
+        {hidden > 0 ? " · " : ""}hover any key for Renovate’s docs; no cascade to show — only the
+        default ever touched these
+      </span>
+    </p>
+  );
+}
+
+/** Roadmap 051: the view switch. Segmented, like the diff's unified/side-by-side
+ *  control and for the same 036 reason — it labels the STATE, not an action, so
+ *  the active rendering is always legible. Roadmap 082 moves it out of the card
+ *  title into the one toolbar row, pushed right, where the design has it. */
 function ViewSwitch({
   view,
   onViewChange,
-  getText,
 }: {
   view: EffectiveView;
   onViewChange: (view: EffectiveView) => void;
-  /** Null while the document is still being derived — same wait as the
-   *  As-JSON view's own copy, which this one is a second door to. */
-  getText: (() => string) | null;
 }) {
   return (
-    <span className="card-title-actions">
-      <span className="seg" role="radiogroup" aria-label="Effective config view">
-        <button
-          type="button"
-          role="radio"
-          aria-checked={view === "keys"}
-          className={view === "keys" ? "active" : undefined}
-          onClick={() => onViewChange("keys")}
-        >
-          By key
-        </button>
-        <button
-          type="button"
-          role="radio"
-          aria-checked={view === "json"}
-          className={view === "json" ? "active" : undefined}
-          onClick={() => onViewChange("json")}
-        >
-          As JSON
-        </button>
-      </span>
-      {getText ? (
-        <CopyButton
-          iconOnly
-          getText={getText}
-          label="Copy effective config as JSON"
-          title="Copy effective config as JSON"
-        />
-      ) : null}
+    <span className="seg prov-toolbar-switch" role="radiogroup" aria-label="Effective config view">
+      <button
+        type="button"
+        role="radio"
+        aria-checked={view === "keys"}
+        className={view === "keys" ? "active" : undefined}
+        onClick={() => onViewChange("keys")}
+      >
+        By key
+      </button>
+      <button
+        type="button"
+        role="radio"
+        aria-checked={view === "json"}
+        className={view === "json" ? "active" : undefined}
+        onClick={() => onViewChange("json")}
+      >
+        As JSON
+      </button>
     </span>
   );
 }
@@ -787,6 +822,141 @@ function ResolvedJsonView({
   );
 }
 
+/** What every band needs to render its rows — one object rather than eight
+ *  props threaded through two components. */
+interface BandRowContext {
+  expanded: ReadonlySet<string>;
+  onToggleRow: (key: string) => void;
+  onSelectPreset?: (nodeId: string) => void;
+  ruleAttribution: RuleAttribution[] | null | undefined;
+  ledger: DescriptionLedger | null;
+}
+
+/** The defaults band: inert rows, its own footer, and (082 GAP-4) always here —
+ *  collapsed, but never filtered away behind a checkbox. */
+function DefaultsBand({
+  entries,
+  open,
+  onToggleOpen,
+  showAll,
+  onShowAll,
+}: {
+  entries: KeyProvenance[];
+  open: boolean;
+  onToggleOpen: () => void;
+  showAll: boolean;
+  onShowAll: () => void;
+}) {
+  const shown = showAll ? entries : entries.slice(0, BAND_COLLAPSE_AFTER);
+  return (
+    <DeciderSection
+      id="defaults"
+      headline={deciderHeadline("defaults", entries.length)}
+      open={open}
+      onToggleOpen={onToggleOpen}
+    >
+      {shown.map((entry) => (
+        <DefaultRow key={entry.key} entry={entry} />
+      ))}
+      <DefaultsFooter hidden={entries.length - shown.length} onShowAll={onShowAll} />
+    </DeciderSection>
+  );
+}
+
+/** …and every other band: expandable rows, cascade and all. */
+function KeyBand({
+  id,
+  headline,
+  entries,
+  open,
+  onToggleOpen,
+  showAll,
+  onShowAll,
+  rows,
+}: {
+  id: DeciderId;
+  headline: DeciderHeadline;
+  entries: KeyProvenance[];
+  open: boolean;
+  onToggleOpen: () => void;
+  showAll: boolean;
+  onShowAll: () => void;
+  rows: BandRowContext;
+}) {
+  const shown = showAll ? entries : entries.slice(0, BAND_COLLAPSE_AFTER);
+  const hidden = entries.length - shown.length;
+  return (
+    <DeciderSection id={id} headline={headline} open={open} onToggleOpen={onToggleOpen}>
+      {shown.map((entry) => (
+        <KeyRow
+          key={entry.key}
+          entry={entry}
+          ruleAttribution={entry.key === "packageRules" ? rows.ruleAttribution : undefined}
+          ledger={ledgerForRow(entry, rows.ledger)}
+          expanded={rows.expanded.has(entry.key)}
+          onToggle={() => rows.onToggleRow(entry.key)}
+          onSelectPreset={rows.onSelectPreset}
+        />
+      ))}
+      {hidden > 0 ? (
+        <p className="prov-band-more">
+          <BandMore hidden={hidden} onShowAll={onShowAll} />
+        </p>
+      ) : null}
+    </DeciderSection>
+  );
+}
+
+/** The By-key view's body: one band per deciding layer, the defaults one built
+ *  differently because its rows are inert (082 GAP-4/GAP-6). */
+function EffectiveBands({
+  sections,
+  presetName,
+  collapsed,
+  onToggleSection,
+  shownAll,
+  onShowAll,
+  rows,
+}: {
+  sections: DeciderGroup[];
+  presetName: string | null;
+  collapsed: ReadonlySet<DeciderId>;
+  onToggleSection: (id: DeciderId) => void;
+  shownAll: ReadonlySet<DeciderId>;
+  onShowAll: (id: DeciderId) => void;
+  rows: BandRowContext;
+}) {
+  return (
+    <>
+      {sections.length === 0 ? <p className="empty-note">No keys match.</p> : null}
+      {sections.map((section) =>
+        section.id === "defaults" ? (
+          <DefaultsBand
+            key={section.id}
+            entries={section.entries}
+            open={!collapsed.has(section.id)}
+            onToggleOpen={() => onToggleSection(section.id)}
+            showAll={shownAll.has(section.id)}
+            onShowAll={() => onShowAll(section.id)}
+          />
+        ) : (
+          <KeyBand
+            key={section.id}
+            id={section.id}
+            headline={deciderHeadline(section.id, section.entries.length, presetName)}
+            entries={section.entries}
+            open={!collapsed.has(section.id)}
+            onToggleOpen={() => onToggleSection(section.id)}
+            showAll={shownAll.has(section.id)}
+            onShowAll={() => onShowAll(section.id)}
+            rows={rows}
+          />
+        ),
+      )}
+    </>
+  );
+}
+
 // Roadmap 032: memoized — this view renders ~100 provenance rows and reads
 // nothing that changes while the user types in the editor, so a keystroke
 // must not re-render it. All props are identity-stable in App (the callbacks
@@ -822,12 +992,12 @@ export const EffectiveConfig = memo(function EffectiveConfig({
   );
   const filterInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
-  const [layerFilter, setLayerFilter] = useState<LayerFilterValue>("all");
   const [onlyOverridden, setOnlyOverridden] = useState(false);
-  const [showDefaults, setShowDefaults] = useState(false);
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   // Roadmap 075 (iteration 5): which decided-by sections are folded shut.
   const [collapsed, setCollapsed] = useState<ReadonlySet<DeciderId>>(DEFAULT_COLLAPSED);
+  // Roadmap 082 (GAP-7): the bands whose row cap the reader has lifted.
+  const [shownAll, setShownAll] = useState<ReadonlySet<DeciderId>>(new Set());
   // Roadmap 051: the As-JSON rendering and its output options
   const [view, setView] = useState<EffectiveView>("keys");
   const [expand, setExpand] = useState<ResolvedConfigMode>("keep-internal");
@@ -870,10 +1040,9 @@ export const EffectiveConfig = memo(function EffectiveConfig({
     setResetOwner(provenance);
     setExpanded(new Set());
     setCollapsed(DEFAULT_COLLAPSED);
+    setShownAll(new Set());
     setQuery("");
-    setLayerFilter("all");
     setOnlyOverridden(false);
-    setShowDefaults(false);
     setView("keys");
     setExpand("keep-internal");
     setIncludeDefaults(false);
@@ -881,60 +1050,40 @@ export const EffectiveConfig = memo(function EffectiveConfig({
 
   const entries = useMemo(() => (provenance ? [...provenance.values()] : []), [provenance]);
 
-  // dropdown options: every layer that non-trivially contributed to some key
-  const layerOptions = useMemo(() => {
-    const seen = new Map<LayerId, string>();
-    for (const entry of entries) {
-      for (const step of entry.chain) {
-        if (!step.noop) {
-          seen.set(layerId(step.layer), layerLabel(step.layer));
-        }
-      }
-    }
-    return [...seen.entries()];
-  }, [entries]);
-
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return entries.filter((entry) => {
-      if (!showDefaults && entry.isDefaultOnly) {
-        return false;
-      }
       if (q && !entry.key.toLowerCase().includes(q)) {
         return false;
       }
       if (onlyOverridden && !isOverridden(entry)) {
         return false;
       }
-      if (layerFilter !== "all" && !contributingLayerIds(entry).has(layerFilter)) {
-        return false;
-      }
       return true;
     });
-  }, [entries, query, showDefaults, onlyOverridden, layerFilter]);
+  }, [entries, query, onlyOverridden]);
 
   /**
    * Roadmap 075 (iteration 5): the rows, cut by WHO DECIDED each key's final
-   * value (`features/effective-config/decider-groups.ts` reads that off the chain the engine already
-   * built — nothing is recomputed here).
+   * value (`features/effective-config/decider-groups.ts` reads that off the
+   * chain the engine already built — nothing is recomputed here).
    *
-   * `sections` are built from the filtered rows, so what a section renders is
-   * exactly what the filters allow. `totals` are counted one step earlier —
-   * after the default-only gate, before the interactive filters — because the
-   * "show default-only" checkbox answers a different question than the filter
-   * bar does (which config is this, versus which of it am I reading), and a
-   * section header that quoted the hidden defaults would report a group it is
-   * not offering to show.
+   * Roadmap 082: the default-only rows are in here now. They used to be
+   * filtered out of the view entirely until a checkbox asked for them, which
+   * meant the tab's headline count and the config Renovate actually runs were
+   * two different documents; they are the defaults band, folded shut.
    */
-  const scoped = useMemo(
-    () => (showDefaults ? entries : entries.filter((entry) => !entry.isDefaultOnly)),
-    [entries, showDefaults],
-  );
-  const totals = useMemo(() => countByDecider(scoped), [scoped]);
   const sections = useMemo(() => groupByDecider(filtered), [filtered]);
 
-  // Roadmap 032: the view's headline numbers — shown keys, hidden default-only
-  // rows, really-overridden rows — in ONE pass over the entries (they were
+  /** Roadmap 082 (GAP-3): the band is named after the reader's own `extends`. */
+  const presetName = useMemo(
+    () => presetDeciderName(topLevelPresetNames(result.presetTree)),
+    [result.presetTree],
+  );
+
+  // Roadmap 032: the view's headline numbers — decided keys, default-only
+  // rows (the folded defaults band), really-overridden rows — in ONE pass
+  // over the entries (they were
   // three separate filter passes: the stats effect made two and the render
   // counted the defaults again). `filtered` above stays its own memo since it
   // additionally depends on the interactive filters.
@@ -955,22 +1104,18 @@ export const EffectiveConfig = memo(function EffectiveConfig({
   // Roadmap 069: the description card's "show raw order" link lands on the blame
   // ledger — the row is one of ~90, so arriving at the tab is not arriving at
   // the answer. Filter, expand, no focus steal: the reader is here to read.
-  // …which means clearing every OTHER filter too, not just setting the query:
-  // a layer filter or "only overridden" left over from earlier reading would
-  // hide the very row the link promised, and the reader would land on "No keys
-  // match". `showDefaults` is deliberately left alone — `description` has no
-  // Renovate default, so the row can never be default-only and that checkbox
-  // cannot hide it.
-  // …and, since 075, re-opening the decided-by sections for the same reason: a
-  // reader who folded the presets group shut earlier would otherwise land on a
-  // collapsed section instead of the ledger the link promised. The defaults
-  // group stays shut — `description` has no Renovate default, so it can never
-  // be the section this row is in.
+  // …which means clearing the OTHER filter too, not just setting the query:
+  // "only overridden" left over from earlier reading would hide the very row the
+  // link promised, and the reader would land on "No keys match".
+  // …and, since 075, re-opening the decided-by bands for the same reason: a
+  // reader who folded the presets band shut earlier would otherwise land on a
+  // collapsed band instead of the ledger the link promised. The defaults band
+  // stays shut — `description` has no Renovate default, so it can never be the
+  // band this row is in.
   useEffect(() => {
     if (focusDescriptionNonce) {
       setView("keys");
       setQuery(DESCRIPTION_KEY);
-      setLayerFilter("all");
       setOnlyOverridden(false);
       setExpanded(new Set([DESCRIPTION_KEY]));
       setCollapsed(DEFAULT_COLLAPSED);
@@ -1000,22 +1145,6 @@ export const EffectiveConfig = memo(function EffectiveConfig({
     );
   }
 
-  const hiddenDefaults = tallies.hiddenDefaults;
-
-  /** Ticking "show default-only" fills the defaults section — so it also opens
-   *  it. Without this the checkbox would appear to do nothing whenever the
-   *  reader had left that section folded (which is where it starts). */
-  function onShowDefaultsChange(checked: boolean) {
-    setShowDefaults(checked);
-    if (checked) {
-      setCollapsed((prev) => {
-        const next = new Set(prev);
-        next.delete("defaults");
-        return next;
-      });
-    }
-  }
-
   function toggleSection(id: DeciderId) {
     setCollapsed((prev) => {
       const next = new Set(prev);
@@ -1028,6 +1157,30 @@ export const EffectiveConfig = memo(function EffectiveConfig({
     });
   }
 
+  function showAllIn(id: DeciderId) {
+    setShownAll((prev) => new Set(prev).add(id));
+  }
+
+  function toggleRow(key: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
+
+  const rowContext: BandRowContext = {
+    expanded,
+    onToggleRow: toggleRow,
+    onSelectPreset,
+    ruleAttribution,
+    ledger,
+  };
+
   return (
     <div className="card">
       <div className="card-title effective-card-title">
@@ -1037,15 +1190,21 @@ export const EffectiveConfig = memo(function EffectiveConfig({
             ? " — the resolved config as a document"
             : " — grouped by the layer that decided each option"}
         </span>
-        {provenance !== undefined ? (
-          <ViewSwitch
-            view={view}
-            onViewChange={setView}
-            getText={resolvedOutput ? () => resolvedConfigText(resolvedOutput) : null}
-          />
-        ) : null}
       </div>
       {provenance === undefined ? <p className="empty-note">Computing provenance…</p> : null}
+      {provenance !== undefined ? (
+        <EffectiveToolbar
+          filterInputRef={filterInputRef}
+          query={query}
+          onQueryChange={setQuery}
+          onlyOverridden={onlyOverridden}
+          onOnlyOverriddenChange={setOnlyOverridden}
+          filtersApply={view === "keys"}
+          view={view}
+          onViewChange={setView}
+          getText={resolvedOutput ? () => resolvedConfigText(resolvedOutput) : null}
+        />
+      ) : null}
       {provenance !== undefined && view === "json" ? (
         <ResolvedJsonView
           output={resolvedOutput}
@@ -1053,73 +1212,21 @@ export const EffectiveConfig = memo(function EffectiveConfig({
           onExpandChange={setExpand}
           includeDefaults={includeDefaults}
           onIncludeDefaultsChange={setIncludeDefaults}
-          defaultsCount={hiddenDefaults}
+          defaultsCount={tallies.hiddenDefaults}
           descriptions={descriptionCards}
           onSelectPreset={onSelectPreset}
         />
       ) : null}
       {provenance !== undefined && view === "keys" ? (
-        <>
-          <ProvFilters
-            filterInputRef={filterInputRef}
-            query={query}
-            onQueryChange={setQuery}
-            layerFilter={layerFilter}
-            onLayerFilterChange={setLayerFilter}
-            layerOptions={layerOptions}
-            onlyOverridden={onlyOverridden}
-            onOnlyOverriddenChange={setOnlyOverridden}
-            showDefaults={showDefaults}
-            onShowDefaultsChange={onShowDefaultsChange}
-            hiddenDefaults={hiddenDefaults}
-          />
-          {filtered.length === 0 ? (
-            <p className="empty-note">
-              No keys match.{" "}
-              {!showDefaults && hiddenDefaults > 0
-                ? `${hiddenDefaults} default-only option${hiddenDefaults === 1 ? "" : "s"} hidden — enable "show default-only" to reveal the fully hydrated config.`
-                : null}
-            </p>
-          ) : null}
-          {sections.map((section) => (
-            <DeciderSection
-              key={section.id}
-              id={section.id}
-              shown={section.entries.length}
-              total={totals.get(section.id) ?? section.entries.length}
-              open={!collapsed.has(section.id)}
-              onToggleOpen={() => toggleSection(section.id)}
-            >
-              {section.entries.map((entry) => (
-                <KeyRow
-                  key={entry.key}
-                  entry={entry}
-                  ruleAttribution={entry.key === "packageRules" ? ruleAttribution : undefined}
-                  ledger={ledgerForRow(entry, ledger)}
-                  expanded={expanded.has(entry.key)}
-                  onToggle={() =>
-                    setExpanded((prev) => {
-                      const next = new Set(prev);
-                      if (next.has(entry.key)) {
-                        next.delete(entry.key);
-                      } else {
-                        next.add(entry.key);
-                      }
-                      return next;
-                    })
-                  }
-                  onSelectPreset={onSelectPreset}
-                />
-              ))}
-            </DeciderSection>
-          ))}
-          {!showDefaults && hiddenDefaults > 0 && filtered.length > 0 ? (
-            <p className="empty-note">
-              {hiddenDefaults} default-only option{hiddenDefaults === 1 ? "" : "s"} hidden — enable
-              “show default-only” above for the fully hydrated config.
-            </p>
-          ) : null}
-        </>
+        <EffectiveBands
+          sections={sections}
+          presetName={presetName}
+          collapsed={collapsed}
+          onToggleSection={toggleSection}
+          shownAll={shownAll}
+          onShowAll={showAllIn}
+          rows={rowContext}
+        />
       ) : null}
     </div>
   );
