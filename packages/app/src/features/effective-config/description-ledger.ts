@@ -94,18 +94,14 @@ export interface DescriptionLedger {
   degraded: boolean;
 }
 
-/** Lines shown before the ledger's ONE reveal (082 GAP-16). Counted across the
- *  whole ledger rather than per run: the design closes the list with a single
+/** The shared cap, applied to the ledger's lines. Counted across the whole
+ *  ledger rather than per run: the design closes the list with a single
  *  affordance (`N more lines · M dropped before merging →`), so a per-run cap
  *  would have several buttons competing with the one that is meant to be the
- *  end of the list. Larger than the Overview card's five — this list IS the
- *  detail view, and `config:best-practices`' twenty-odd sentences are what the
- *  reader expanded the row to read. */
+ *  end of the list. */
 export const LEDGER_COLLAPSE_AFTER = COLLAPSE_AFTER;
 
-/** Dropped descriptions shown before the footer's own list collapses. The
- *  `ignoreDeps: []` mute alone drops 135 sentences on a `config:best-practices`
- *  run — a footnote must not become the page. */
+/** The same cap again, applied to the footer's dropped-description list. */
 export const DROPPED_COLLAPSE_AFTER = COLLAPSE_AFTER;
 
 /**

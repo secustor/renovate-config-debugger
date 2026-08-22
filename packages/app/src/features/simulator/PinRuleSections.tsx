@@ -15,7 +15,11 @@ import { RuleDescriptionQuote } from "./RuleDescriptionQuote";
  * the list.
  */
 
-interface CrossLinks {
+/** The two optional jumps a rule's evidence can offer — to the preset that
+ *  declared it, or to the repo config that did. Exported because `PinCard`
+ *  threads the same object down to these sections and so takes the same
+ *  contract; it is stated once, here, where the links are actually rendered. */
+export interface CrossLinks {
   onSelectPreset?: (nodeId: string) => void;
   onJumpToEditor?: (repoIndex: number) => void;
 }

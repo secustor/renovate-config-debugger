@@ -5,7 +5,7 @@ import type { DescriptionCards } from "@/lib/description-attribution";
 import { openPickerOnEnter } from "@/lib/select-picker";
 import { resolvedConfigText } from "./resolved-json";
 
-/** The JSON view's options row — the same chrome-row grammar as ProvFilters,
+/** The JSON view's options row — the same chrome-row grammar as EffectiveToolbar,
  *  its own component for the same depth-ratchet reason. */
 function ResolvedOptionsRow({
   expand,

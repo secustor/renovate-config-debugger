@@ -92,7 +92,7 @@ describe("parsePastedDescriptor", () => {
     expect(result.ok && result.value.unknown).toBe(1);
     expect(result.ok && result.value.updateTypeGiven).toBe(false);
     expect(result.ok && pasteImportNote(result.value)).toBe(
-      "Imported 1 field from pasted JSON · 2 keys ignored (1 not a string)",
+      "Imported 1 field from pasted JSON · 2 keys ignored (1 the form can't hold)",
     );
   });
 

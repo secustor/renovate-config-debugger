@@ -108,8 +108,8 @@ function PlatformFromGlobalNote({
  *  context (010) and what the global config contributes to it. The tokens that
  *  used to sit at the bottom of this section are the credentials list's now. */
 export function HostAccessSection({
-  open,
-  onOpenChange,
+  hostSectionOpen,
+  onHostSectionOpenChange,
   displayPlatform,
   displayEndpoint,
   onPlatformChange,
@@ -124,6 +124,8 @@ export function HostAccessSection({
   platform,
 }: Pick<
   Props,
+  | "hostSectionOpen"
+  | "onHostSectionOpenChange"
   | "displayPlatform"
   | "displayEndpoint"
   | "onPlatformChange"
@@ -136,15 +138,12 @@ export function HostAccessSection({
   | "onUseGlobalValues"
   | "usesLocal"
   | "platform"
-> & {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
+>) {
   return (
     <details
       className="advanced-settings"
-      open={open}
-      onToggle={(e) => onOpenChange(e.currentTarget.open)}
+      open={hostSectionOpen}
+      onToggle={(e) => onHostSectionOpenChange(e.currentTarget.open)}
     >
       <summary>
         Repository host

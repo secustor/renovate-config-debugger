@@ -1,4 +1,4 @@
-import { RepoLoadForm } from "./RepoLoadForm";
+import { type Props, RepoLoadForm } from "./RepoLoadForm";
 
 /**
  * Roadmap 075 (v2, iteration 2) — the repo-load form as an overlay over the
@@ -17,22 +17,6 @@ import { RepoLoadForm } from "./RepoLoadForm";
  * (the design's disabled-primary rule): the run would act on a document the
  * user is in the middle of replacing.
  */
-
-interface Props {
-  repo: string;
-  onRepoChange: (value: string) => void;
-  gitRef: string;
-  onRefChange: (value: string) => void;
-  loading: boolean;
-  onSubmit: () => void;
-  onClose: () => void;
-  inheritAuto: boolean;
-  onInheritAutoChange: (value: boolean) => void;
-  inheritRepo: string;
-  onInheritRepoChange: (value: string) => void;
-  inheritFile: string;
-  onInheritFileChange: (value: string) => void;
-}
 
 export function RepoLoadOverlay({
   repo,

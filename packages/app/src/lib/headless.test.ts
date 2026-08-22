@@ -21,7 +21,7 @@ const ENTRY = resolve(SRC, "lib/headless.ts");
 
 /** `import x from "y"` / `export * from "y"` — static forms only, which is all
  *  the closure uses. */
-const SPECIFIER = /(?:^|\n)\s*(?:import|export)\b[^;\n]*?from\s*["']([^"']+)["']/g;
+const SPECIFIER = /(?:^|\n)\s*(?:import|export)\b[^;]*?from\s*["']([^"']+)["']/g;
 
 /** Comments carry prose that legitimately says "document" (run-facts.ts,
  *  description-attribution.ts), so they are stripped before the ban applies. */
@@ -67,8 +67,17 @@ function closureOf(entry: string): Map<string, string> {
 describe("the headless barrel's transitive closure", () => {
   const closure = closureOf(ENTRY);
 
-  it("has more than the entry in it", () => {
-    expect(closure.size).toBeGreaterThan(10);
+  it("reaches the deep files, not just the barrel's neighbours", () => {
+    // A size floor alone once passed while the walker's specifier regex could
+    // not cross a newline, so multi-line `import {…} from "x"` statements were
+    // invisible and the closure stopped five files short. Membership of the
+    // chain the guard exists for (rule-filters → provenance-layer →
+    // glossary-data) is what actually proves the walk went all the way down.
+    const paths = [...closure.keys()].map((file) => relative(SRC, file));
+    expect(paths).toContain("lib/rule-filters.ts");
+    expect(paths).toContain("lib/provenance-layer.ts");
+    expect(paths).toContain("data/glossary-data.ts");
+    expect(closure.size).toBeGreaterThan(15);
   });
 
   it("lives entirely under lib/ or data/", () => {

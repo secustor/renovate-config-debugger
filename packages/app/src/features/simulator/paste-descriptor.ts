@@ -141,7 +141,7 @@ export function parsePastedDescriptor(text: string): PasteResult {
 export function pasteImportNote({ imported, unknown, unusable }: PasteFill): string {
   const head = `Imported ${plural(imported, "field")} from pasted JSON`;
   if (unusable > 0) {
-    return `${head} · ${plural(unknown + unusable, "key")} ignored (${unusable} not a string)`;
+    return `${head} · ${plural(unknown + unusable, "key")} ignored (${unusable} the form can't hold)`;
   }
   return unknown > 0 ? `${head} · ${plural(unknown, "unknown key")} ignored` : head;
 }

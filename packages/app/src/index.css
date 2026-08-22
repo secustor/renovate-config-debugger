@@ -2384,7 +2384,8 @@ textarea.layer-editor:focus {
    narrow panel instead of pushing the preview column off the edge.
 
    Roadmap 082 removed the scroll cap this list used to carry: a band stops
-   after `BAND_COLLAPSE_AFTER` rows and says how many it is holding back, which
+   after `COLLAPSE_AFTER` rows (`lib/collapse.ts`) and says how many it is
+   holding back, which
    is the same protection stated in words — where a scrollbar inside a scrolling
    page hid the rest without ever admitting to it. */
 .prov-list {

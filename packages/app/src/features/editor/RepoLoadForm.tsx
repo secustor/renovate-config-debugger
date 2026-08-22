@@ -22,7 +22,10 @@ import { Term } from "@/components/glossary";
  * wrap — and both rows disappear with the disclosure.
  */
 
-interface Props {
+/** The form's whole prop contract. Exported because `RepoLoadOverlay` is the
+ *  only way this form is mounted and passes every one of these straight
+ *  through — the contract is stated once, here. */
+export interface Props {
   repo: string;
   onRepoChange: (value: string) => void;
   gitRef: string;

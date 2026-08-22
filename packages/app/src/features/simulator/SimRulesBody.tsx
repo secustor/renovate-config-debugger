@@ -28,7 +28,7 @@ function optionLabel(option: FilterOption): string {
  * from the row above it.
  *
  * Its own component for the depth ratchet (`react/jsx-max-depth` is 3) —
- * the same reason `ProvFilters` is separate from the panel it filters.
+ * the same reason `EffectiveToolbar` is separate from the panel it filters.
  */
 function SimRulesFilters({
   filters,

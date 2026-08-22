@@ -146,8 +146,8 @@ export function AdvancedZone({
         <AdvancedIntro onShowPipelineLayers={onShowPipelineLayers} />
 
         <HostAccessSection
-          open={hostSectionOpen}
-          onOpenChange={onHostSectionOpenChange}
+          hostSectionOpen={hostSectionOpen}
+          onHostSectionOpenChange={onHostSectionOpenChange}
           displayPlatform={displayPlatform}
           displayEndpoint={displayEndpoint}
           onPlatformChange={onPlatformChange}

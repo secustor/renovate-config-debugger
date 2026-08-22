@@ -12,7 +12,7 @@ import { Caret } from "@/components/Caret";
 import { PinBucketList } from "./PinBucketList";
 import { pinContext, pinName, type PinnedTest } from "./pins";
 import { PinProbe } from "./PinProbe";
-import { PinFailedSection, PinMatchedSection } from "./PinRuleSections";
+import { type CrossLinks, PinFailedSection, PinMatchedSection } from "./PinRuleSections";
 import type { RuleDescriptionNote } from "./rule-descriptions";
 import type { PinEvaluation } from "./use-pinned-tests";
 
@@ -27,11 +27,6 @@ import type { PinEvaluation } from "./use-pinned-tests";
  * Everything it renders comes from `buildPinOutcome`; the card itself decides
  * only what is on screen.
  */
-
-interface CrossLinks {
-  onSelectPreset?: (nodeId: string) => void;
-  onJumpToEditor?: (repoIndex: number) => void;
-}
 
 function PinCardHead({
   pin,
