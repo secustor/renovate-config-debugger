@@ -1,11 +1,6 @@
 import { memo, useMemo, useState } from "react";
 import type { PresetNode } from "@renovate-config-debugger/engine";
-import {
-  computePresetLedger,
-  CONFIG_PRESETS_DOCS,
-  type LedgerErrorRow,
-  type PresetLedgerModel,
-} from "./ledger";
+import { computePresetLedger, CONFIG_PRESETS_DOCS, type LedgerErrorRow } from "./ledger";
 import { LedgerCard } from "./LedgerCard";
 import { PresetName } from "@/components/PresetName";
 import { nf } from "@/lib/format";
@@ -26,9 +21,10 @@ import { pluralWord } from "./tree-shared";
  * and the header digest cannot disagree.
  */
 
-function defaultOpenIds(model: PresetLedgerModel): ReadonlySet<string> {
-  return new Set(model.sources.filter((s) => s.defaultOpen).map((s) => s.nodeId));
-}
+/** Every card starts shut — the final design's own state (its source cards
+ *  begin closed), and the card HEADER already answers the tab's question: the
+ *  source, its counts, its docs. The body is detail the reader asks for. */
+const NO_OPEN_CARDS: ReadonlySet<string> = new Set();
 
 /**
  * The strip: three counts and the way into the tree.
@@ -234,7 +230,7 @@ export const PresetLedger = memo(function PresetLedger({
   // Roadmap 032: derived once per RESULT (the model is cached on the tree
   // object itself), so typing in the editor never pays for it.
   const model = useMemo(() => computePresetLedger(root), [root]);
-  const [openIds, setOpenIds] = useState<ReadonlySet<string>>(() => defaultOpenIds(model));
+  const [openIds, setOpenIds] = useState<ReadonlySet<string>>(NO_OPEN_CARDS);
   // A new run brings a new model — and with it new node ids, so the open set
   // has to start over. During render, not in an effect: the same reason
   // `EffectiveConfig` resets that way (a click landing between the commit and
@@ -242,7 +238,7 @@ export const PresetLedger = memo(function PresetLedger({
   const [owner, setOwner] = useState(model);
   if (owner !== model) {
     setOwner(model);
-    setOpenIds(defaultOpenIds(model));
+    setOpenIds(NO_OPEN_CARDS);
   }
 
   function toggle(nodeId: string) {

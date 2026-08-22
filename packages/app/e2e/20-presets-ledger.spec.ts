@@ -44,13 +44,15 @@ test("the Presets tab opens on the ledger, and its numbers are the tab's own", a
   // …and nothing of the tree is on screen yet.
   await expect(page.locator("#panel-presets .preset-row")).toHaveCount(0);
 
-  // The lone source's card is open: the ledger never opens with everything
-  // shut, whatever the folding rule says about a firehose.
+  // Every card starts shut — the header alone carries the source, its counts
+  // and its docs; the body is detail the reader asks for.
   const card = page.locator("#panel-presets .ledger-card").first();
   const toggle = card.locator(".ledger-head-toggle");
-  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
   await expect(toggle).toContainText("config:recommended");
   await expect(toggle).toContainText("Renovate built-in");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
 
   // The mosaic names the families the expansion is mostly made of…
   const tiles = card.locator(".ledger-tile");
@@ -70,6 +72,8 @@ test("an option row's preset token lands on that node in the tree, and back retu
   await openTab(page, "presets");
 
   const card = page.locator("#panel-presets .ledger-card").first();
+  // Cards start shut; the option rows are body content, opened from the header.
+  await card.locator(".ledger-head-toggle").click();
   const row = card.locator(".ledger-option-row").first();
   await expect(row).toBeVisible();
   const token = row.locator("button.preset-token");
@@ -88,7 +92,7 @@ test("an option row's preset token lands on that node in the tree, and back retu
   await expect(page.locator("#panel-presets .ledger-card").first()).toBeVisible();
 });
 
-test("the big built-in folds away when another source can carry the view", async ({ page }) => {
+test("every source card starts shut and opens from its own header", async ({ page }) => {
   await page.goto("/");
   await setEditorContent(page, TWO_SOURCE_CONFIG);
   await runAndAwaitResult(page);
@@ -96,24 +100,28 @@ test("the big built-in folds away when another source can carry the view", async
 
   const cards = page.locator("#panel-presets .ledger-card");
   await expect(cards).toHaveCount(2);
-  // `config:recommended` is the 1,100-preset firehose and starts shut; the
-  // small preset next to it is the one the reader came to read.
+  // Both closed — no card is promoted over another, whatever their sizes; the
+  // headers alone are the list of sources with their counts.
   await expect(cards.nth(0).locator(".ledger-head-toggle")).toHaveAttribute(
     "aria-expanded",
     "false",
   );
   await expect(cards.nth(1).locator(".ledger-head-toggle")).toHaveAttribute(
     "aria-expanded",
-    "true",
+    "false",
   );
 
-  // …and the shut one opens from its own header. (Until 082 the strip listed
-  // the sources as tokens that scrolled to their cards; the strip is counts
-  // only now — the cards below ARE the list of sources.)
+  // …and each opens from its own header, independently. (Until 082 the strip
+  // listed the sources as tokens that scrolled to their cards; the strip is
+  // counts only now — the cards below ARE the list of sources.)
   await cards.nth(0).locator(".ledger-head-toggle").click();
   await expect(cards.nth(0).locator(".ledger-head-toggle")).toHaveAttribute(
     "aria-expanded",
     "true",
+  );
+  await expect(cards.nth(1).locator(".ledger-head-toggle")).toHaveAttribute(
+    "aria-expanded",
+    "false",
   );
 });
 

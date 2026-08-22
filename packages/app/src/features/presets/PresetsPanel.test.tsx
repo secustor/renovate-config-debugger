@@ -58,6 +58,9 @@ it("opens on the ledger and keeps the full tree one click away", async () => {
   expect(strip?.querySelector(".preset-token")).toBeNull();
   expect(view.container.querySelector(".ledger-card")).not.toBeNull();
   expect(view.container.querySelector(".preset-row")).toBeNull();
+  // Every card starts shut — the header is the answer, the body is on request.
+  const headToggle = view.container.querySelector(".ledger-head-toggle");
+  expect(headToggle?.getAttribute("aria-expanded")).toBe("false");
 
   fireEvent.click(view.getByRole("button", { name: "open the full tree →" }));
   await waitFor(() => expect(view.container.querySelector(".preset-row")).not.toBeNull());
@@ -72,6 +75,12 @@ it("lists the options a source set, and its preset token opens that node in the 
   const onSelectNode = vi.fn();
   const view = render(panel(result, { onSelectNode }));
 
+  // The card starts shut; its body — the option rows — renders on request.
+  const headToggle = view.container.querySelector<HTMLElement>(".ledger-head-toggle");
+  if (!headToggle) {
+    throw new Error("the ledger rendered no card header");
+  }
+  fireEvent.click(headToggle);
   const row = view.container.querySelector<HTMLElement>(".ledger-option-row");
   if (!row) {
     throw new Error("the ledger listed no option row for a preset that sets one");

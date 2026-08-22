@@ -78,32 +78,6 @@ describe("sources", () => {
     // Its numbers still come from the run's own walk, never a recount.
     expect(model.summary.errors).toBe(1);
   });
-
-  it("opens a fetched source, folds a big built-in shut", () => {
-    const model = computePresetLedger(
-      root([
-        node("config:recommended", {
-          children: Array.from({ length: 30 }, (_, i) => node(`:preset${i}`)),
-        }),
-        node("github>me/presets", { kind: "github" }),
-        node(":dependencyDashboard", { input: { dependencyDashboard: true } }),
-      ]),
-    );
-    expect(model.sources.map((s) => s.defaultOpen)).toEqual([false, true, true]);
-  });
-
-  it("never opens with every card shut", () => {
-    // The lone-source run: folding the firehose away would leave the tab
-    // showing a strip and a closed card — an empty answer.
-    const model = computePresetLedger(
-      root([
-        node("config:recommended", {
-          children: Array.from({ length: 30 }, (_, i) => node(`:preset${i}`)),
-        }),
-      ]),
-    );
-    expect(model.sources[0]?.defaultOpen).toBe(true);
-  });
 });
 
 describe("families", () => {

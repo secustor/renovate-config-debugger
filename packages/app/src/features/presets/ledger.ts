@@ -88,8 +88,6 @@ export interface LedgerSource {
   /** packageRules entries in its subtree. */
   rules: number;
   docsUrl: string;
-  /** Cards start open unless the source is a Renovate built-in firehose. */
-  defaultOpen: boolean;
   /** The mosaic, already split into the rows it renders as. */
   tileRows: LedgerTile[][];
   options: LedgerOption[];
@@ -147,8 +145,6 @@ export function ledgerCardId(nodeId: string): string {
 const FAMILY_MAX = 6;
 /** A source with no more direct children than this gives each one a tile. */
 const FAMILY_ALL_BELOW = FAMILY_MAX;
-/** A built-in bringing more than this many presets starts folded shut. */
-const BIG_BUILT_IN = 25;
 /** How many child names a family row samples. */
 const SAMPLE_MAX = 5;
 
@@ -435,7 +431,6 @@ function ledgerSource(source: PresetNode, stats: TreeStats): LedgerSource {
     optionKeys: options.length,
     rules,
     docsUrl: presetDocsUrl(source.name, kind),
-    defaultOpen: !builtIn || presets <= BIG_BUILT_IN,
     tileRows: tileRowsFor(families, aggregates),
     options,
     families,
@@ -499,15 +494,6 @@ export function computePresetLedger(root: PresetNode): PresetLedgerModel {
   }
   const stats = computeTreeStats(root);
   const sources = root.children.map((child) => ledgerSource(child, stats));
-  // …but the ledger never opens with everything shut. The rule that folds a
-  // firehose away exists so five sources cannot bury each other; a run whose
-  // ONLY source is `config:recommended` would otherwise show the reader a
-  // strip, a closed card and nothing else — an empty answer to the question
-  // the tab exists for. The card's body is an aggregation, not the expansion.
-  const first = sources[0];
-  if (first && !sources.some((source) => source.defaultOpen)) {
-    first.defaultOpen = true;
-  }
   const model: PresetLedgerModel = { sources, errors: errorRows(root), summary: stats.summary };
   ledgerCache.set(root, model);
   return model;

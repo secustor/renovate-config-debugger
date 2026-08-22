@@ -51,6 +51,13 @@ Most of all three, from three earlier passes.
 - **The ledger** (075 iteration 5b, tokens standardised in 081) — the strip's
   sentence, one card per top-level source, the mosaic, the option and family
   sections, the docs links, the clean-run health line word for word.
+  One correction after review: every source card now starts SHUT. 075 opened
+  fetched sources and small built-ins by default (with a "never all shut"
+  fallback for the lone-firehose run) — but the final artboard's own state
+  starts every card closed (`internalOpen: null, customOpen: null`), and the
+  owner confirmed it: the header alone answers the tab's question — the
+  source, its counts, its docs — and the body is detail the reader asks for.
+  `defaultOpen`, `BIG_BUILT_IN` and the fallback are deleted.
 - **The Manual pin form** (079's redesign, 080's always-open Add-a-test box) —
   the quick-fill chips, the sentence card, the derived `updateType` chip, the
   three collapsible field groups with their "N set" pills, Simulate/Pin.
