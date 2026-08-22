@@ -5,7 +5,7 @@ import type {
   DroppedDescription,
   ProvenanceLayer,
 } from "@renovate-config-debugger/engine";
-import { approximateTitle } from "@/components/description-approx";
+import { approximateTitle } from "@/lib/description-approx";
 import {
   APPROXIMATE_NOTE,
   buildTreeDescriptions,

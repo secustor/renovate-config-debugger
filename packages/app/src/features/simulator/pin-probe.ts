@@ -4,7 +4,7 @@ import type {
   RuleAttribution,
   SimulationResult,
 } from "@renovate-config-debugger/engine";
-import { layerLabel } from "@/components/provenance-layer";
+import { layerLabel } from "@/lib/provenance-layer";
 import { crossRuleIndex } from "@/lib/rule-cross-index";
 import { fullValue } from "./rule-format";
 import type { RuleDescriptionNote } from "./rule-descriptions";

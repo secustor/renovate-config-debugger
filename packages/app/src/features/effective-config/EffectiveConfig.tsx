@@ -38,7 +38,7 @@ import { BlameLedger } from "./BlameLedger";
 import { ConfigJson } from "@/components/ConfigJson";
 import { CopyButton } from "@/components/CopyButton";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
-import { layerNodeKey } from "@/components/provenance-layer";
+import { layerNodeKey } from "@/lib/provenance-layer";
 import { useEngineDerivation } from "@/hooks/use-engine-derivation";
 import { useRuleProvenance } from "@/hooks/rule-provenance";
 import { useDescriptionProvenance } from "@/hooks/description-provenance";

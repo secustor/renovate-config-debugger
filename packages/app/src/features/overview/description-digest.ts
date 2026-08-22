@@ -1,11 +1,11 @@
-import { nf } from "./format";
+import { nf } from "@/lib/format";
 import type {
   DescriptionProvenance,
   DescriptionSource,
   ProvenanceLayer,
 } from "@renovate-config-debugger/engine";
-import { layerNodeKey, stableLayerKey } from "@/components/provenance-layer";
-import { ruleWrittenKeys, summarizeRuleSelectors } from "./rule-selectors";
+import { layerNodeKey, stableLayerKey } from "@/lib/provenance-layer";
+import { ruleWrittenKeys, summarizeRuleSelectors } from "@/lib/rule-selectors";
 
 /**
  * Roadmap 069 (PR 2): the view-model behind the Overview's "What this config

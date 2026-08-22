@@ -2,7 +2,7 @@ import { nf } from "@/lib/format";
 import type { RuleAttribution } from "@renovate-config-debugger/engine";
 import type { ReactNode } from "react";
 import { PresetName } from "./PresetName";
-import { layerLabel } from "./provenance-layer";
+import { layerLabel } from "@/lib/provenance-layer";
 
 /**
  * Roadmap 016: honest "N rules — M from your config, K pulled in by

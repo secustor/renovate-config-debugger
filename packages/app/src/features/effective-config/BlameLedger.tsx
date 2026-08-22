@@ -27,7 +27,7 @@ import { CodeText } from "@/components/CodeText";
 import { ApproximateMark, DegradedCaveat } from "@/components/DescriptionApprox";
 import { PresetName } from "@/components/PresetName";
 import { ROOT_NODE_ID } from "@/lib/preset-tree-stats";
-import { layerLabel } from "@/components/provenance-layer";
+import { layerLabel } from "@/lib/provenance-layer";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
 
 /**

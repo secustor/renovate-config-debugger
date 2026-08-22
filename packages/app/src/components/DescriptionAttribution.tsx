@@ -7,7 +7,7 @@ import {
 } from "@/lib/description-attribution";
 import { APPROXIMATE_NOTE } from "@/lib/tree-descriptions";
 import { HoverCardAnchor } from "./hover-card";
-import { layerClass, layerLabel } from "./provenance-layer";
+import { layerClass, layerLabel } from "@/lib/provenance-layer";
 
 /**
  * Roadmap 069 (PR 5): the attribution card on a `description` string, and the

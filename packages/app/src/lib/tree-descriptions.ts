@@ -1,6 +1,6 @@
 import { nf } from "./format";
 import type { DescriptionProvenance } from "@renovate-config-debugger/engine";
-import { approximateTitle } from "@/components/description-approx";
+import { approximateTitle } from "@/lib/description-approx";
 import { ROOT_NODE_ID } from "./preset-tree-stats";
 
 /**
@@ -96,7 +96,7 @@ export interface TreeDescriptions {
 
 /**
  * The note on an `approximate` entry: the shared hedge, not a fourth phrasing of
- * it (`components/description-approx.ts`, 069 PR 2).
+ * it (`lib/description-approx.ts`, 069 PR 2).
  *
  * The nameless form is the right one here even though the enclosing node is
  * known — the line is rendered ON that node's card, so naming it again would

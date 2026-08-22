@@ -1,5 +1,5 @@
 import type { DescriptionSource, ProvenanceLayer } from "@renovate-config-debugger/engine";
-import { type DescriptionDigest, type DigestGroup, ruleNoteText } from "@/lib/description-digest";
+import { type DescriptionDigest, type DigestGroup, ruleNoteText } from "./description-digest";
 
 /**
  * Roadmap 083 — the Overview's rows: 069's per-extend digest flattened back

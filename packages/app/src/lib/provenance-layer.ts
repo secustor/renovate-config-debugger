@@ -2,11 +2,18 @@ import type { ProvenanceLayer } from "@renovate-config-debugger/engine";
 import type { GlossaryEntry } from "@/data/glossary-data";
 
 /**
- * Naming/classing helpers for a provenance layer (005/013). They live next to
- * `ProvenanceChip` rather than inside it because callers use them without
- * rendering a chip — the effective config's layer filter, the rule-framing
- * summary — and a component module that also exports plain functions breaks
- * Fast Refresh (react/only-export-components).
+ * Naming/classing helpers for a provenance layer (005/013). They are not part
+ * of `ProvenanceChip` because callers use them without rendering a chip — the
+ * effective config's layer filter, the rule-framing summary — and a component
+ * module that also exports plain functions breaks Fast Refresh
+ * (react/only-export-components).
+ *
+ * They live in `lib/` rather than beside the chip because they are pure (no
+ * React, no DOM) and sit on the headless path: `lib/rule-filters.ts` imports
+ * `layerId`/`layerLabel`, and `lib/headless.ts` re-exports that — so
+ * `packages/cli` compiles this module's whole closure. A shared helper the CLI
+ * graph reaches must not live under `components/` (roadmap 049's
+ * preset-tree-stats precedent).
  */
 
 export type LayerId = string;

@@ -1,12 +1,12 @@
 import { describe, expect, test } from "vitest";
 import type { DescriptionProvenance, ProvenanceLayer } from "@renovate-config-debugger/engine";
-import { buildDescriptionDigest } from "@/lib/description-digest";
+import { buildDescriptionDigest } from "./description-digest";
 import { overviewRows } from "./rows";
 
 /**
  * Roadmap 083: the flattening, and the one thing it decides — what the card's
  * count means. Everything else about the model is 069's and tested there
- * (`lib/description-digest.test.ts`).
+ * (`description-digest.test.ts`).
  */
 
 const REPO: ProvenanceLayer = { kind: "repo" };

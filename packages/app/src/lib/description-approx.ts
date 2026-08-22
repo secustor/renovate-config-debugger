@@ -2,11 +2,15 @@
  * Roadmap 069: the wording behind the engine's *approximate* attribution.
  *
  * Split from the components that render it ({@link DescriptionApprox.tsx}) for
- * the reason `provenance-layer.ts` is split from `ProvenanceChip.tsx`: a module
+ * the reason `lib/provenance-layer.ts` is split from `ProvenanceChip.tsx`: a module
  * that exports both a component and a plain function breaks Fast Refresh
  * (react/only-export-components), and this text is wanted by callers that
  * render no component of their own — a title attribute on someone else's label,
  * a CLI line.
+ *
+ * In `lib/` rather than beside the component because it is exactly that: a pure
+ * string function with no React and no DOM, reached from `lib/tree-descriptions.ts`
+ * as well as from the components.
  */
 
 /**

@@ -70,7 +70,7 @@ function fetchCalls(path: string) {
 
 /** A fresh module instance, with the same env in force as a deployment that
  *  has sign-in configured (all three vars stubbed — vitest would otherwise
- *  leak a developer's gitignored `.env`, exactly as oauth-config.test.ts
+ *  leak a developer's gitignored `.env`, exactly as oauth.config.test.ts
  *  documents). */
 async function freshOAuth() {
   vi.resetModules();

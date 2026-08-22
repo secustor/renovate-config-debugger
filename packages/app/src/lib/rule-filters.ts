@@ -3,7 +3,7 @@ import type {
   RuleAttribution,
   RuleEvaluation,
 } from "@renovate-config-debugger/engine";
-import { type LayerId, layerId, layerLabel } from "@/components/provenance-layer";
+import { type LayerId, layerId, layerLabel } from "@/lib/provenance-layer";
 import { hasEvaluationError, isNoInputNoMatch } from "./rule-verdict";
 
 /**

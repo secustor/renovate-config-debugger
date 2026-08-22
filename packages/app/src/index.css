@@ -5975,7 +5975,7 @@ pre.config-view.prov-losing {
    that renders the engine's per-string attribution — the Overview tab (083),
    the Effective config's blame ledger (PR 3), the preset tree's inline
    descriptions (PR 4). One family, so the `≈` and its caveat cannot drift
-   apart between them; see components/description-approx.tsx. */
+   apart between them; see components/DescriptionApprox.tsx. */
 
 /* The standalone mark, for a row with no preset token to prefix. Same muted
    weight as the token's own `≈`, so the two read as one mark. Placement is the

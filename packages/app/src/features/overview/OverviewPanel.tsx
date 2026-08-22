@@ -5,8 +5,8 @@ import {
   type DescriptionDigest,
   hasTopLevelDescriptions,
   unattributedNoteText,
-} from "@/lib/description-digest";
-import { groupByTopic, OTHER_TOPIC_ID, type TopicGroup } from "@/lib/description-topics";
+} from "./description-digest";
+import { groupByTopic, OTHER_TOPIC_ID, type TopicGroup } from "./description-topics";
 import { useDescriptionProvenance } from "@/hooks/description-provenance";
 import { CodeText } from "@/components/CodeText";
 import { ApproximateMark, DegradedCaveat } from "@/components/DescriptionApprox";
@@ -14,7 +14,7 @@ import { nf } from "@/lib/format";
 import { type OverviewRow, overviewRows } from "./rows";
 import { PresetName } from "@/components/PresetName";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
-import { layerClass } from "@/components/provenance-layer";
+import { layerClass } from "@/lib/provenance-layer";
 import { ROOT_NODE_ID } from "@/lib/preset-tree-stats";
 
 /**
@@ -30,7 +30,7 @@ import { ROOT_NODE_ID } from "@/lib/preset-tree-stats";
  * Everything visible is still derived, and by the same modules: the grouping
  * and counts by `buildDescriptionDigest` (headless), the attribution by the
  * engine's `computeDescriptionProvenance`, the topics by
- * `lib/description-topics.ts` (a documented keyword match, and nothing more).
+ * `description-topics.ts` (a documented keyword match, and nothing more).
  * The card renders them and invents nothing.
  */
 

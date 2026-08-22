@@ -7,7 +7,7 @@ import type {
   ProvenanceLayer,
   UnattributedDescription,
 } from "@renovate-config-debugger/engine";
-import { layerLabel, layerNodeKey, stableLayerKey } from "@/components/provenance-layer";
+import { layerLabel, layerNodeKey, stableLayerKey } from "@/lib/provenance-layer";
 import { truncate } from "@/lib/truncate";
 
 /**

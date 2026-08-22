@@ -1,6 +1,6 @@
 import type { KeyProvenance, ProvenanceLayer } from "@renovate-config-debugger/engine";
 import { isOverridden, type MultiContribBadge, multiContribBadgeKind } from "@/lib/effective-tally";
-import { layerLabel } from "@/components/provenance-layer";
+import { layerLabel } from "@/lib/provenance-layer";
 import { winningStep } from "./decider-groups";
 
 /**

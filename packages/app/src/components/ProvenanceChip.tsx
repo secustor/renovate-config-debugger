@@ -1,7 +1,7 @@
 import type { ProvenanceLayer } from "@renovate-config-debugger/engine";
 import { anyModifierHeld } from "@/lib/shortcuts";
 import { Explained } from "./glossary";
-import { layerClass, layerLabel, provenanceGlossaryEntry } from "./provenance-layer";
+import { layerClass, layerLabel, provenanceGlossaryEntry } from "@/lib/provenance-layer";
 
 /**
  * Roadmap 013: the layer-provenance chip introduced by the effective config
