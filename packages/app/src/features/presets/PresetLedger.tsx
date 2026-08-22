@@ -1,10 +1,11 @@
 import { memo, useMemo, useState } from "react";
+import { Caret } from "@/components/Caret";
+import { useToggleSet } from "@/hooks/use-toggle-set";
 import type { PresetNode } from "@renovate-config-debugger/engine";
 import { computePresetLedger, CONFIG_PRESETS_DOCS, type LedgerErrorRow } from "./ledger";
 import { LedgerCard } from "./LedgerCard";
 import { PresetName } from "@/components/PresetName";
-import { nf, plural } from "@/lib/format";
-import { pluralWord } from "./tree-shared";
+import { nf, plural, pluralWord } from "@/lib/format";
 
 /**
  * Roadmap 075 (iteration 5b): the Presets tab's DEFAULT view — the ledger.
@@ -20,11 +21,6 @@ import { pluralWord } from "./tree-shared";
  * (`computeTreeStats` via `computePresetLedger`), so the strip, the tab badge
  * and the header digest cannot disagree.
  */
-
-/** Every card starts shut — the final design's own state (its source cards
- *  begin closed), and the card HEADER already answers the tab's question: the
- *  source, its counts, its docs. The body is detail the reader asks for. */
-const NO_OPEN_CARDS: ReadonlySet<string> = new Set();
 
 /**
  * The strip: three counts and the way into the tree.
@@ -137,7 +133,7 @@ function LedgerHealthHead({
         aria-expanded={open}
         onClick={onToggle}
       >
-        <span className="caret">{open ? "▾" : "▸"}</span>
+        <Caret open={open} />
         <span className="ledger-health-count">✗ {plural(errors, "error")}</span>
         <span className="ledger-health-note">
           · {nf.format(duplicates)} repeat {pluralWord(duplicates, "occurrence")} served from cache
@@ -226,7 +222,10 @@ export const PresetLedger = memo(function PresetLedger({
   // Roadmap 032: derived once per RESULT (the model is cached on the tree
   // object itself), so typing in the editor never pays for it.
   const model = useMemo(() => computePresetLedger(root), [root]);
-  const [openIds, setOpenIds] = useState<ReadonlySet<string>>(NO_OPEN_CARDS);
+  // Every card starts shut — the final design's own state (its source cards
+  // begin closed), and the card HEADER already answers the tab's question: the
+  // source, its counts, its docs. The body is detail the reader asks for.
+  const openCards = useToggleSet();
   // A new run brings a new model — and with it new node ids, so the open set
   // has to start over. During render, not in an effect: the same reason
   // `EffectiveConfig` resets that way (a click landing between the commit and
@@ -234,19 +233,7 @@ export const PresetLedger = memo(function PresetLedger({
   const [owner, setOwner] = useState(model);
   if (owner !== model) {
     setOwner(model);
-    setOpenIds(NO_OPEN_CARDS);
-  }
-
-  function toggle(nodeId: string) {
-    setOpenIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(nodeId)) {
-        next.delete(nodeId);
-      } else {
-        next.add(nodeId);
-      }
-      return next;
-    });
+    openCards.reset();
   }
 
   return (
@@ -261,8 +248,8 @@ export const PresetLedger = memo(function PresetLedger({
         <LedgerCard
           key={source.nodeId}
           source={source}
-          open={openIds.has(source.nodeId)}
-          onToggle={() => toggle(source.nodeId)}
+          open={openCards.set.has(source.nodeId)}
+          onToggle={() => openCards.toggle(source.nodeId)}
           onOpenNode={onOpenNode}
         />
       ))}

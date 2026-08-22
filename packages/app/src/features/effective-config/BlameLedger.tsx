@@ -17,12 +17,12 @@ import {
   type LedgerRow,
   ledgerView,
   ledgerWriterText,
-  moreDroppedText,
   unattributedNoteText,
   unattributedValueText,
   viaNoteRef,
 } from "./description-ledger";
 import { dropReasonText } from "./drop-reasons";
+import { ShowAllMore } from "@/components/ShowAllMore";
 import { CodeText } from "@/components/CodeText";
 import { ApproximateMark, DegradedCaveat } from "@/components/DescriptionApprox";
 import { PresetName } from "@/components/PresetName";
@@ -265,9 +265,7 @@ function DroppedList({
       ))}
       {hidden > 0 ? (
         <li className="desc-ledger-more">
-          <button type="button" className="btn-quiet" onClick={() => setExpanded(true)}>
-            {moreDroppedText(hidden)}
-          </button>
+          <ShowAllMore hidden={hidden} onShowAll={() => setExpanded(true)} />
         </li>
       ) : null}
     </ul>

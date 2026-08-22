@@ -23,7 +23,6 @@ import {
   type LedgerRow,
   ledgerView,
   ledgerWriterText,
-  moreDroppedText,
   unattributedNoteText,
   unattributedValueText,
   viaNoteRef,
@@ -540,10 +539,6 @@ describe("collapsing", () => {
     expect(hiddenCount(LEDGER_COLLAPSE_AFTER + 3, LEDGER_COLLAPSE_AFTER, false)).toBe(3);
     expect(hiddenCount(LEDGER_COLLAPSE_AFTER + 3, LEDGER_COLLAPSE_AFTER, true)).toBe(0);
     expect(hiddenCount(2, DROPPED_COLLAPSE_AFTER, false)).toBe(0);
-  });
-
-  test("the dropped list keeps a toggle of its own", () => {
-    expect(moreDroppedText(129)).toBe("129 more — show all");
   });
 
   /**

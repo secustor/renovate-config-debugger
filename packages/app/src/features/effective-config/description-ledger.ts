@@ -1,3 +1,4 @@
+import { COLLAPSE_AFTER } from "@/lib/collapse";
 import { nf } from "@/lib/format";
 import type {
   DescriptionAttribution,
@@ -99,12 +100,12 @@ export interface DescriptionLedger {
  *  end of the list. Larger than the Overview card's five — this list IS the
  *  detail view, and `config:best-practices`' twenty-odd sentences are what the
  *  reader expanded the row to read. */
-export const LEDGER_COLLAPSE_AFTER = 8;
+export const LEDGER_COLLAPSE_AFTER = COLLAPSE_AFTER;
 
 /** Dropped descriptions shown before the footer's own list collapses. The
  *  `ignoreDeps: []` mute alone drops 135 sentences on a `config:best-practices`
  *  run — a footnote must not become the page. */
-export const DROPPED_COLLAPSE_AFTER = 8;
+export const DROPPED_COLLAPSE_AFTER = COLLAPSE_AFTER;
 
 /**
  * The array's members in index order, strings and non-strings interleaved.
@@ -421,11 +422,6 @@ export function ledgerRevealText(hiddenRows: number, dropped: number): string | 
     return null;
   }
   return `${[lines, cut].filter(Boolean).join(" · ")} →`;
-}
-
-/** The dropped list's own collapse toggle, which has no single layer to name. */
-export function moreDroppedText(hidden: number): string {
-  return `${nf.format(hidden)} more — show all`;
 }
 
 /** The heading over the dropped list once the reveal has opened it — "where did

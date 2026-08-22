@@ -18,3 +18,15 @@ export const nf = new Intl.NumberFormat();
 export function plural(n: number, word: string): string {
   return `${nf.format(n)} ${word}${n === 1 ? "" : "s"}`;
 }
+
+/** The plural WORD on its own, no count — for the places that print the
+ *  number separately (a stat tile whose value is its own element, a sentence
+ *  that already formatted the figure). {@link plural} is the one that prints
+ *  both. Same regular-English caveat: every noun this is asked for takes a
+ *  plain trailing "s".
+ *
+ *  Here rather than in the preset slice it grew up in: the shared "N more … —
+ *  show all" line needs it too, and `components/` may not import a feature. */
+export function pluralWord(n: number, word: string): string {
+  return n === 1 ? word : `${word}s`;
+}

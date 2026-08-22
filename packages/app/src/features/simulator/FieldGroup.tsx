@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Caret } from "@/components/Caret";
 
 /**
  * Roadmap 079: one collapsible group of descriptor fields — the successor to
@@ -28,9 +29,7 @@ export function FieldGroup({
   return (
     <div className="sim-group">
       <button type="button" className="sim-group-head" aria-expanded={open} onClick={onToggle}>
-        <span className="sim-group-caret" aria-hidden="true">
-          {open ? "▾" : "▸"}
-        </span>
+        <Caret open={open} />
         <span className="sim-group-title">{title}</span>
         <span className={`sim-group-count${count > 0 ? " set" : ""}`}>
           {count > 0 ? `${count} set` : "none set"}

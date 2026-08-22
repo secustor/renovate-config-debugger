@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { MergedKey, ProvenanceLayer, RuleEvaluation } from "@renovate-config-debugger/engine";
+import { Caret } from "@/components/Caret";
 import { CopyMarkdownButton } from "@/components/CopyMarkdownButton";
 import { Explained } from "@/components/glossary";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
@@ -99,7 +100,7 @@ export function RuleRow({
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
       >
-        <span className="caret">{expanded ? "▾" : "▸"}</span>
+        <Caret open={expanded} />
         {/* Roadmap 013: canonical form — the SAME text a validator message and
             the editor cross-link use, so this row is unmistakably the same
             rule as "packageRules[N]" elsewhere on the page. Replay-02 R6: the

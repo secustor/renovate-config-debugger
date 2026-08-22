@@ -200,12 +200,3 @@ export function sourceKindEntry(kind: string): GlossaryEntry {
     plain: HOST_TEXT[kind] ?? GLOSSARY.presetSourceFetched.plain,
   };
 }
-
-/** The plural WORD on its own, no count — for the places that print the
- *  number separately (a stat tile whose value is its own element, a sentence
- *  that already formatted the figure). `plural` in `lib/format.ts` is the one
- *  that prints both. Every summary/badge word here happens to take a plain
- *  trailing "s", so one helper covers them all. */
-export function pluralWord(n: number, word: string): string {
-  return n === 1 ? word : `${word}s`;
-}

@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { OptionKey } from "@/components/option-docs";
 import { PresetName } from "@/components/PresetName";
+import { ShowAllMore } from "@/components/ShowAllMore";
+import { COLLAPSE_AFTER } from "@/lib/collapse";
 import type { LedgerOption } from "./ledger";
-import { nf, plural } from "@/lib/format";
-import { pluralWord } from "./tree-shared";
+import { nf, plural, pluralWord } from "@/lib/format";
 
 /**
  * Roadmap 075 (iteration 5b): the "Set options" section — every option key a
@@ -14,9 +15,6 @@ import { pluralWord } from "./tree-shared";
  * docs hover card works here exactly as it does there; the setter wears the
  * standard preset token, and clicking it opens that preset's node in the tree.
  */
-
-/** Long lists truncate here — enough to see the shape, short enough to scan. */
-const PREVIEW_KEYS = 8;
 
 function LedgerOptionRow({
   option,
@@ -69,7 +67,7 @@ export function LedgerOptions({
   if (options.length === 0) {
     return null;
   }
-  const shown = showAll ? options : options.slice(0, PREVIEW_KEYS);
+  const shown = showAll ? options : options.slice(0, COLLAPSE_AFTER);
   const hidden = options.length - shown.length;
   return (
     <section className={`ledger-section${active ? " active" : ""}`}>
@@ -85,11 +83,7 @@ export function LedgerOptions({
           <LedgerOptionRow key={option.key} option={option} onOpenNode={onOpenNode} />
         ))}
       </ul>
-      {hidden > 0 ? (
-        <button type="button" className="btn-quiet" onClick={() => setShowAll(true)}>
-          {nf.format(hidden)} more {pluralWord(hidden, "key")} — show all
-        </button>
-      ) : null}
+      <ShowAllMore hidden={hidden} noun="key" onShowAll={() => setShowAll(true)} />
     </section>
   );
 }

@@ -1,6 +1,8 @@
 import { memo, useEffect, useMemo, useState } from "react";
 import type { PresetNode, TraceEvent, TraceResult } from "@renovate-config-debugger/engine";
 import { Term } from "@/components/glossary";
+import { SegmentedControl, type SegmentedOption } from "@/components/SegmentedControl";
+import { useToggleSet } from "@/hooks/use-toggle-set";
 import { computeTreeStats } from "@/lib/preset-tree-stats";
 import type { AuthState } from "@/components/GithubAuthHint";
 import { useDescriptionProvenance } from "@/hooks/description-provenance";
@@ -36,6 +38,15 @@ import { useWindow } from "./use-window";
  * surface rather than a view mode: the tree already has a tree/table switch,
  * and the rows stay exactly `ROW_HEIGHT`, which the windowing math depends on.
  */
+
+/** The same rows, read two ways — a tree of the expansion, or a sortable flat
+ *  table of every node in it. */
+type PresetTreeView = "tree" | "table";
+
+const VIEW_OPTIONS: readonly SegmentedOption<PresetTreeView>[] = [
+  { value: "tree", label: "tree" },
+  { value: "table", label: "table" },
+];
 
 export const PresetTree = memo(function PresetTree({
   result,
@@ -93,7 +104,7 @@ export const PresetTree = memo(function PresetTree({
     [descriptionProvenance],
   );
 
-  const [view, setView] = useState<"tree" | "table">("tree");
+  const [view, setView] = useState<PresetTreeView>("tree");
   const [hideZero, setHideZero] = useState(false);
   const [rawQuery, setRawQuery] = useState("");
   const [query, setQuery] = useState("");
@@ -101,7 +112,10 @@ export const PresetTree = memo(function PresetTree({
   const [sortDir, setSortDir] = useState<1 | -1>(-1);
   // Expansion keyed by stable structural identity (name-path from root), so it
   // survives re-runs of the same config even though node ids restart at p1.
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  const expandedRows = useToggleSet();
+  // Destructured so `exhaustive-deps` can see what the effects below depend on:
+  // the hook's callbacks are identity-stable, but the rule reads the object.
+  const { addAll: expandAll, retain: retainExpanded } = expandedRows;
 
   // Debounce the filter box; the match pass is a full walk, so avoid running it
   // on every keystroke.
@@ -116,16 +130,8 @@ export const PresetTree = memo(function PresetTree({
     if (!stats) {
       return;
     }
-    setExpanded((prev) => {
-      const valid = new Set<string>();
-      for (const id of prev) {
-        if (stats.idByIdentity.has(id)) {
-          valid.add(id);
-        }
-      }
-      return valid.size === prev.size ? prev : valid;
-    });
-  }, [stats]);
+    retainExpanded((id) => stats.idByIdentity.has(id));
+  }, [stats, retainExpanded]);
 
   // `null` when the run has no description facts at all — then no name carries
   // a hover card and the detail panel shows no Description entry.
@@ -143,13 +149,13 @@ export const PresetTree = memo(function PresetTree({
         ? flattenTree({
             root,
             stats,
-            expandedIdentities: expanded,
+            expandedIdentities: expandedRows.set,
             hideZero,
             query,
             described: describedIds,
           })
         : [],
-    [root, stats, expanded, hideZero, query, describedIds],
+    [root, stats, expandedRows.set, hideZero, query, describedIds],
   );
 
   const tableRows = useMemo(() => {
@@ -184,18 +190,8 @@ export const PresetTree = memo(function PresetTree({
     if (additions.length === 0) {
       return;
     }
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      let changed = false;
-      for (const id of additions) {
-        if (!next.has(id)) {
-          next.add(id);
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
-    });
-  }, [selectedId, stats]);
+    expandAll(additions);
+  }, [selectedId, stats, expandAll]);
 
   // …then scroll the selected row into view once it is in the flattened list.
   useEffect(() => {
@@ -220,18 +216,6 @@ export const PresetTree = memo(function PresetTree({
     return null;
   }
   const selected = selectedId ? stats.nodesById.get(selectedId) : undefined;
-
-  function toggle(identity: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(identity)) {
-        next.delete(identity);
-      } else {
-        next.add(identity);
-      }
-      return next;
-    });
-  }
 
   function cycleDup(node: PresetNode) {
     const list = stats?.occurrencesByName.get(node.name);
@@ -294,24 +278,12 @@ export const PresetTree = memo(function PresetTree({
           hide zero-contribution
         </label>
         {/* Roadmap 036: `.preset-view-toggle` generalized into `.seg` — the one
-            segmented-control chrome, now shared with the diff chrome row and
-            the theme switcher. */}
-        <div className="seg" role="group" aria-label="View">
-          <button
-            type="button"
-            className={view === "tree" ? "active" : ""}
-            onClick={() => setView("tree")}
-          >
-            tree
-          </button>
-          <button
-            type="button"
-            className={view === "table" ? "active" : ""}
-            onClick={() => setView("table")}
-          >
-            table
-          </button>
-        </div>
+            segmented-control chrome, shared with the diff chrome row, the
+            effective config's toolbar and the theme switcher. It used to be a
+            `role="group"` of plain buttons, so which rendering was current
+            reached assistive tech through a CSS class and nothing else; the
+            shared control is a radio group. */}
+        <SegmentedControl label="View" value={view} options={VIEW_OPTIONS} onChange={setView} />
       </div>
       {/* Roadmap 035: the query container for the tree/detail split — it has to
           be a wrapper rather than the layout grid itself, since an element
@@ -330,7 +302,7 @@ export const PresetTree = memo(function PresetTree({
             tableSlice={tableSlice}
             selectedId={selectedId}
             onSelectNode={onSelectNode}
-            onToggle={toggle}
+            onToggle={expandedRows.toggle}
             onCycleDup={cycleDup}
             injectionKey={injectionKey}
             usedInjections={usedInjections}

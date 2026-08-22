@@ -1,5 +1,10 @@
 import { nf } from "@/lib/format";
 import { memo, type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react";
+import { Caret } from "@/components/Caret";
+import { COLLAPSE_AFTER } from "@/lib/collapse";
+import { SegmentedControl, type SegmentedOption } from "@/components/SegmentedControl";
+import { ShowAllMore } from "@/components/ShowAllMore";
+import { useToggleSet } from "@/hooks/use-toggle-set";
 import { openPickerOnEnter } from "@/lib/select-picker";
 import {
   deciderHeadline,
@@ -277,7 +282,7 @@ function DeferredRuleProvenance({
 function KeyRowKey({ name, expanded }: { name: string; expanded: boolean }) {
   return (
     <span className="prov-key-name">
-      <span className="caret">{expanded ? "▾" : "▸"}</span>
+      <Caret open={expanded} />
       <OptionKey name={name} flagUnknown />
     </span>
   );
@@ -463,7 +468,7 @@ function DefaultRow({ entry }: { entry: KeyProvenance }) {
   return (
     <div className="kv-row prov-row prov-row-default">
       <span className="prov-key-name">
-        <span className="caret caret-empty" />
+        <Caret empty />
         <OptionKey name={entry.key} flagUnknown />
       </span>
       <code className="prov-key-preview">{valuePreview(entry.finalValue)}</code>
@@ -558,16 +563,6 @@ const DECIDER_PILL: Record<DeciderId, { tone: string; label: string }> = {
 };
 
 /**
- * Roadmap 082 (GAP-7): rows a band renders before its "show all". A single cap
- * across every band, rather than the design's mock per-band counts: the bands
- * hold whatever a config produced, and a cap that differed by band would be a
- * rule the reader has to learn instead of a list that stops. It replaces the
- * `max-height` scroller the sections used to carry — a scrollbar inside a
- * scrolling page hides the same rows without saying how many.
- */
-const BAND_COLLAPSE_AFTER = 8;
-
-/**
  * Roadmap 075 (iteration 5): one decided-by band. A disclosure rather than a
  * plain heading because the defaults band is the one nobody opens by default
  * and it is routinely the largest — and once one band collapses they all must,
@@ -600,7 +595,7 @@ function DeciderSection({
           onToggleOpen();
         }}
       >
-        <span className="caret">{open ? "▾" : "▸"}</span>
+        <Caret open={open} />
         <span className={`pill ${tone}`}>{label}</span>
         <SectionHeadline headline={headline} />
       </summary>
@@ -624,31 +619,13 @@ function SectionHeadline({ headline }: { headline: DeciderHeadline }) {
   );
 }
 
-/** A band's truncation line: what it is holding back, and the click that lifts
- *  it. `defaults` only changes the noun, which the design spells out there. */
-function BandMore({
-  hidden,
-  onShowAll,
-  defaults,
-}: {
-  hidden: number;
-  onShowAll: () => void;
-  defaults?: boolean;
-}) {
-  return (
-    <button type="button" className="btn-quiet" onClick={onShowAll}>
-      {`${nf.format(hidden)} more${defaults ? " defaults" : ""} — show all`}
-    </button>
-  );
-}
-
 /** The defaults band's footer (082 GAP-5): its truncation line, plus the one
  *  honest sentence about every row above it — which is also why those rows
  *  carry no note of their own. */
 function DefaultsFooter({ hidden, onShowAll }: { hidden: number; onShowAll: () => void }) {
   return (
     <p className="prov-band-more">
-      {hidden > 0 ? <BandMore hidden={hidden} onShowAll={onShowAll} defaults /> : null}
+      <ShowAllMore hidden={hidden} noun="default" onShowAll={onShowAll} />
       <span className="prov-band-note">
         {/* The leading space is load-bearing: JSX drops the newline between the
             button and this span, so the separator carries its own gap. */}
@@ -658,6 +635,11 @@ function DefaultsFooter({ hidden, onShowAll }: { hidden: number; onShowAll: () =
     </p>
   );
 }
+
+const VIEW_OPTIONS: readonly SegmentedOption<EffectiveView>[] = [
+  { value: "keys", label: "By key" },
+  { value: "json", label: "As JSON" },
+];
 
 /** Roadmap 051: the view switch. Segmented, like the diff's unified/side-by-side
  *  control and for the same 036 reason — it labels the STATE, not an action, so
@@ -671,26 +653,13 @@ function ViewSwitch({
   onViewChange: (view: EffectiveView) => void;
 }) {
   return (
-    <span className="seg prov-toolbar-switch" role="radiogroup" aria-label="Effective config view">
-      <button
-        type="button"
-        role="radio"
-        aria-checked={view === "keys"}
-        className={view === "keys" ? "active" : undefined}
-        onClick={() => onViewChange("keys")}
-      >
-        By key
-      </button>
-      <button
-        type="button"
-        role="radio"
-        aria-checked={view === "json"}
-        className={view === "json" ? "active" : undefined}
-        onClick={() => onViewChange("json")}
-      >
-        As JSON
-      </button>
-    </span>
+    <SegmentedControl
+      className="prov-toolbar-switch"
+      label="Effective config view"
+      value={view}
+      options={VIEW_OPTIONS}
+      onChange={onViewChange}
+    />
   );
 }
 
@@ -847,7 +816,7 @@ function DefaultsBand({
   showAll: boolean;
   onShowAll: () => void;
 }) {
-  const shown = showAll ? entries : entries.slice(0, BAND_COLLAPSE_AFTER);
+  const shown = showAll ? entries : entries.slice(0, COLLAPSE_AFTER);
   return (
     <DeciderSection
       id="defaults"
@@ -883,7 +852,7 @@ function KeyBand({
   onShowAll: () => void;
   rows: BandRowContext;
 }) {
-  const shown = showAll ? entries : entries.slice(0, BAND_COLLAPSE_AFTER);
+  const shown = showAll ? entries : entries.slice(0, COLLAPSE_AFTER);
   const hidden = entries.length - shown.length;
   return (
     <DeciderSection id={id} headline={headline} open={open} onToggleOpen={onToggleOpen}>
@@ -900,7 +869,7 @@ function KeyBand({
       ))}
       {hidden > 0 ? (
         <p className="prov-band-more">
-          <BandMore hidden={hidden} onShowAll={onShowAll} />
+          <ShowAllMore hidden={hidden} onShowAll={onShowAll} />
         </p>
       ) : null}
     </DeciderSection>
@@ -993,11 +962,15 @@ export const EffectiveConfig = memo(function EffectiveConfig({
   const filterInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [onlyOverridden, setOnlyOverridden] = useState(false);
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  const expandedRows = useToggleSet();
   // Roadmap 075 (iteration 5): which decided-by sections are folded shut.
-  const [collapsed, setCollapsed] = useState<ReadonlySet<DeciderId>>(DEFAULT_COLLAPSED);
+  const collapsedSections = useToggleSet<DeciderId>(DEFAULT_COLLAPSED);
   // Roadmap 082 (GAP-7): the bands whose row cap the reader has lifted.
-  const [shownAll, setShownAll] = useState<ReadonlySet<DeciderId>>(new Set());
+  const shownAllBands = useToggleSet<DeciderId>();
+  // Destructured so `exhaustive-deps` can see what the effects below depend on:
+  // the hook's callbacks are identity-stable, but the rule reads the object.
+  const { reset: resetExpandedRows } = expandedRows;
+  const { reset: resetCollapsedSections } = collapsedSections;
   // Roadmap 051: the As-JSON rendering and its output options
   const [view, setView] = useState<EffectiveView>("keys");
   const [expand, setExpand] = useState<ResolvedConfigMode>("keep-internal");
@@ -1038,9 +1011,9 @@ export const EffectiveConfig = memo(function EffectiveConfig({
   const [resetOwner, setResetOwner] = useState(provenance);
   if (resetOwner !== provenance) {
     setResetOwner(provenance);
-    setExpanded(new Set());
-    setCollapsed(DEFAULT_COLLAPSED);
-    setShownAll(new Set());
+    resetExpandedRows();
+    resetCollapsedSections(DEFAULT_COLLAPSED);
+    shownAllBands.reset();
     setQuery("");
     setOnlyOverridden(false);
     setView("keys");
@@ -1117,10 +1090,10 @@ export const EffectiveConfig = memo(function EffectiveConfig({
       setView("keys");
       setQuery(DESCRIPTION_KEY);
       setOnlyOverridden(false);
-      setExpanded(new Set([DESCRIPTION_KEY]));
-      setCollapsed(DEFAULT_COLLAPSED);
+      resetExpandedRows(new Set([DESCRIPTION_KEY]));
+      resetCollapsedSections(DEFAULT_COLLAPSED);
     }
-  }, [focusDescriptionNonce]);
+  }, [focusDescriptionNonce, resetExpandedRows, resetCollapsedSections]);
 
   if (!result.finalConfig) {
     return null;
@@ -1145,37 +1118,9 @@ export const EffectiveConfig = memo(function EffectiveConfig({
     );
   }
 
-  function toggleSection(id: DeciderId) {
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  }
-
-  function showAllIn(id: DeciderId) {
-    setShownAll((prev) => new Set(prev).add(id));
-  }
-
-  function toggleRow(key: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
-  }
-
   const rowContext: BandRowContext = {
-    expanded,
-    onToggleRow: toggleRow,
+    expanded: expandedRows.set,
+    onToggleRow: expandedRows.toggle,
     onSelectPreset,
     ruleAttribution,
     ledger,
@@ -1221,10 +1166,10 @@ export const EffectiveConfig = memo(function EffectiveConfig({
         <EffectiveBands
           sections={sections}
           presetName={presetName}
-          collapsed={collapsed}
-          onToggleSection={toggleSection}
-          shownAll={shownAll}
-          onShowAll={showAllIn}
+          collapsed={collapsedSections.set}
+          onToggleSection={collapsedSections.toggle}
+          shownAll={shownAllBands.set}
+          onShowAll={shownAllBands.add}
           rows={rowContext}
         />
       ) : null}

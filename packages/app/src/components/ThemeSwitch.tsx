@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { applyTheme, getTheme, persistTheme, subscribeTheme, type Theme } from "@/platform/storage";
+import { SegmentedControl, type SegmentedOption } from "./SegmentedControl";
 
 /**
  * Roadmap 037 — the Auto / Light / Dark override, in the header beside the
@@ -21,37 +22,53 @@ const ICONS: Record<Theme, string> = {
   dark: "M9.598 1.591a.749.749 0 0 1 .785-.175 7.001 7.001 0 1 1-8.967 8.967.75.75 0 0 1 .961-.96 5.5 5.5 0 0 0 7.046-7.046.75.75 0 0 1 .175-.786Zm1.616 1.945a7 7 0 0 1-7.678 7.678 5.499 5.499 0 1 0 7.678-7.678Z",
 };
 
-const OPTIONS: readonly { theme: Theme; label: string; title: string }[] = [
-  { theme: "auto", label: "Auto", title: "Follow the system theme" },
-  { theme: "light", label: "Light", title: "Light theme" },
-  { theme: "dark", label: "Dark", title: "Dark theme" },
+/** A segment's face: the theme's icon and its word. The icon is decoration —
+ *  the segment's own `aria-label` carries the name. */
+function ThemeLabel({ theme, label }: { theme: Theme; label: string }) {
+  return (
+    <>
+      <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+        <path d={ICONS[theme]} />
+      </svg>
+      {label}
+    </>
+  );
+}
+
+const OPTIONS: readonly SegmentedOption<Theme>[] = [
+  {
+    value: "auto",
+    label: <ThemeLabel theme="auto" label="Auto" />,
+    ariaLabel: "Auto",
+    title: "Follow the system theme",
+  },
+  {
+    value: "light",
+    label: <ThemeLabel theme="light" label="Light" />,
+    ariaLabel: "Light",
+    title: "Light theme",
+  },
+  {
+    value: "dark",
+    label: <ThemeLabel theme="dark" label="Dark" />,
+    ariaLabel: "Dark",
+    title: "Dark theme",
+  },
 ];
 
 export function ThemeSwitch() {
   const theme = useSyncExternalStore(subscribeTheme, getTheme);
 
   return (
-    <span className="seg theme-switch" role="radiogroup" aria-label="Color theme">
-      {OPTIONS.map(({ theme: value, label, title }) => (
-        <button
-          key={value}
-          type="button"
-          role="radio"
-          aria-checked={theme === value}
-          aria-label={label}
-          title={title}
-          className={theme === value ? "active" : undefined}
-          onClick={() => {
-            applyTheme(value);
-            persistTheme(value);
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
-            <path d={ICONS[value]} />
-          </svg>
-          {label}
-        </button>
-      ))}
-    </span>
+    <SegmentedControl
+      className="theme-switch"
+      label="Color theme"
+      value={theme}
+      options={OPTIONS}
+      onChange={(next) => {
+        applyTheme(next);
+        persistTheme(next);
+      }}
+    />
   );
 }

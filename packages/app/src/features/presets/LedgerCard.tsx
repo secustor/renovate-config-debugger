@@ -3,6 +3,7 @@ import { type LedgerSection, ledgerCardId, type LedgerSource, type LedgerTile } 
 import { LedgerFamilies } from "./LedgerFamilies";
 import { LedgerMosaic } from "./LedgerMosaic";
 import { LedgerOptions } from "./LedgerOptions";
+import { Caret } from "@/components/Caret";
 import { PresetName } from "@/components/PresetName";
 import { plural } from "@/lib/format";
 
@@ -47,7 +48,7 @@ function LedgerCardToggle({
 }) {
   return (
     <button type="button" className="ledger-head-toggle" aria-expanded={open} onClick={onToggle}>
-      <span className="caret">{open ? "▾" : "▸"}</span>
+      <Caret open={open} />
       {/* Inert: this token lives inside the header's own toggle button. */}
       <PresetName name={source.name} nodeId={source.nodeId} />
       <SourcePill source={source} />

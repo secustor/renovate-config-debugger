@@ -1,8 +1,7 @@
 import type { TreeSummary } from "@/lib/preset-tree-stats";
 import { Explained } from "@/components/glossary";
 import { GLOSSARY } from "@/data/glossary-data";
-import { nf } from "@/lib/format";
-import { pluralWord } from "./tree-shared";
+import { nf, pluralWord } from "@/lib/format";
 
 /**
  * Roadmap 016: the counter strip gets the same hover-card treatment the stage

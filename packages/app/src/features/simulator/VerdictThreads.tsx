@@ -1,4 +1,5 @@
 import type { ProvenanceLayer } from "@renovate-config-debugger/engine";
+import { Caret } from "@/components/Caret";
 import { OptionKey } from "@/components/option-docs";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { previewValue } from "./rule-format";
@@ -22,7 +23,7 @@ import type { ThreadModel } from "./verdict-threads";
 function ThreadHeadKey({ name, open }: { name: string; open: boolean }) {
   return (
     <span className="sim-thread-key">
-      <span className="sim-thread-caret">{open ? "▾" : "▸"}</span>{" "}
+      <Caret open={open} />{" "}
       <code>
         <OptionKey name={name} flagUnknown />
       </code>

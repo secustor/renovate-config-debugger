@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Caret } from "@/components/Caret";
 import { nf } from "@/lib/format";
 import type { PinBucket } from "./pin-outcome";
 
@@ -42,7 +43,7 @@ function BucketItem({ bucket, onProbe }: { bucket: PinBucket; onProbe: (query: s
         onClick={() => setOpen(!open)}
         aria-expanded={open}
       >
-        <span className="caret">{open ? "▾" : "▸"}</span>
+        <Caret open={open} />
         <span className="pill pill-count">{nf.format(bucket.count)} skipped</span>
         <span className="pin-bucket-reason">{bucket.reason}</span>
         <span className="pin-bucket-source">{bucket.source}</span>

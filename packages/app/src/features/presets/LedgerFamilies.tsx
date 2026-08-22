@@ -1,8 +1,9 @@
-import { type CSSProperties, useState } from "react";
+import type { CSSProperties } from "react";
 import type { LedgerFamily, LedgerRule } from "./ledger";
+import { Caret } from "@/components/Caret";
 import { PresetName } from "@/components/PresetName";
-import { nf, plural } from "@/lib/format";
-import { pluralWord } from "./tree-shared";
+import { useToggleSet } from "@/hooks/use-toggle-set";
+import { nf, plural, pluralWord } from "@/lib/format";
 
 /**
  * Roadmap 075 (iteration 5b): the "Grouping rules" section — the other half of
@@ -75,7 +76,7 @@ function FamilyRow({
         aria-expanded={expanded}
         onClick={onToggle}
       >
-        <span className="caret">{expanded ? "▾" : "▸"}</span>
+        <Caret open={expanded} />
         {/* Inert inside the row's own toggle — a nested button is invalid
             HTML, and the row already activates on click. */}
         <PresetName name={family.name} nodeId={family.nodeId} />
@@ -120,20 +121,11 @@ export function LedgerFamilies({
   activeFamilyId: string | null;
   onOpenNode: (nodeId: string) => void;
 }) {
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  const expandedFamilies = useToggleSet();
   if (families.length === 0 && ownRules.length === 0) {
     return null;
   }
   const max = families.reduce((m, family) => Math.max(m, family.rules), 0);
-  function toggle(id: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (!next.delete(id)) {
-        next.add(id);
-      }
-      return next;
-    });
-  }
   return (
     <section className={`ledger-section${active ? " active" : ""}`}>
       <h4 className="ledger-section-title">
@@ -149,9 +141,9 @@ export function LedgerFamilies({
             key={family.nodeId}
             family={family}
             max={max}
-            expanded={expanded.has(family.nodeId)}
+            expanded={expandedFamilies.set.has(family.nodeId)}
             highlighted={family.nodeId === activeFamilyId}
-            onToggle={() => toggle(family.nodeId)}
+            onToggle={() => expandedFamilies.toggle(family.nodeId)}
             onOpenNode={onOpenNode}
           />
         ))}

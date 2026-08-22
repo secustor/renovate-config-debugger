@@ -3,6 +3,7 @@ import { Diff, getChangeKey, Hunk, parseDiff } from "react-diff-view";
 import { useDiffOptionHover } from "./option-docs-hooks";
 import { buildJsonPatch } from "@/lib/json-patch";
 import { CopyButton } from "./CopyButton";
+import { SegmentedControl, type SegmentedOption } from "./SegmentedControl";
 import "react-diff-view/style/index.css";
 
 type FileData = ReturnType<typeof parseDiff>[number];
@@ -15,6 +16,14 @@ type HunkData = FileData["hunks"][number];
  * note to that specific line instead of leaving it looking like an error.
  */
 const SCHEMA_KEY_LINE_RE = /^\s*"\$schema"\s*:/;
+
+/** The diff's two renderings. */
+type DiffViewType = "unified" | "split";
+
+const VIEW_OPTIONS: readonly SegmentedOption<DiffViewType>[] = [
+  { value: "unified", label: "Unified" },
+  { value: "split", label: "Side-by-side" },
+];
 
 function schemaRemovalWidgets(files: FileData[]): Record<string, ReactNode> {
   const widgets: Record<string, ReactNode> = {};
@@ -120,7 +129,7 @@ interface Props {
  * expansion state resets.
  */
 export function JsonDiff({ before, after, names, title, benignRemovals }: Props) {
-  const [viewType, setViewType] = useState<"unified" | "split">("unified");
+  const [viewType, setViewType] = useState<DiffViewType>("unified");
   const [showAllRequested, setShowAllRequested] = useState(false);
   const [, startTransition] = useTransition();
   const hoverHandlers = useDiffOptionHover();
@@ -207,26 +216,12 @@ export function JsonDiff({ before, after, names, title, benignRemovals }: Props)
           <span className="plus">+{stat.insert}</span> <span className="minus">−{stat.remove}</span>
         </span>
         <span className="diff-chrome-spacer" />
-        <span className="seg" role="radiogroup" aria-label="Diff view">
-          <button
-            type="button"
-            role="radio"
-            aria-checked={viewType === "unified"}
-            className={viewType === "unified" ? "active" : undefined}
-            onClick={() => startTransition(() => setViewType("unified"))}
-          >
-            Unified
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={viewType === "split"}
-            className={viewType === "split" ? "active" : undefined}
-            onClick={() => startTransition(() => setViewType("split"))}
-          >
-            Side-by-side
-          </button>
-        </span>
+        <SegmentedControl
+          label="Diff view"
+          value={viewType}
+          options={VIEW_OPTIONS}
+          onChange={(next) => startTransition(() => setViewType(next))}
+        />
         <CopyButton
           getText={() => `${JSON.stringify(after, null, 2)}\n`}
           label="Copy result"

@@ -8,6 +8,7 @@ import {
   pinCheck,
   type PinOutcome,
 } from "./pin-outcome";
+import { Caret } from "@/components/Caret";
 import { PinBucketList } from "./PinBucketList";
 import { pinContext, pinName, type PinnedTest } from "./pins";
 import { PinProbe } from "./PinProbe";
@@ -52,7 +53,7 @@ function PinCardHead({
   return (
     <div className="pin-head">
       <button type="button" className="pin-head-toggle" aria-expanded={expanded} onClick={onToggle}>
-        <span className="caret">{expanded ? "▾" : "▸"}</span>
+        <Caret open={expanded} />
         <span className={`pin-dot ${dotTone(check)}`} title={dotTitle(check)} />
         <span className="pin-name">{name}</span>
         <span className="pin-meta">{pinContext(pin.form, outcome?.updateType ?? "")}</span>

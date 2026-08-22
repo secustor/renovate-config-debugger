@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Caret } from "@/components/Caret";
 import { CopyButton } from "@/components/CopyButton";
 import { type DescriptorEntry, descriptorEntries, descriptorJsonText } from "./descriptor-json";
 import type { FormState } from "./form";
@@ -119,7 +120,7 @@ export function DescriptorSection({
         aria-expanded={open}
         onClick={() => setOpen((prev) => !prev)}
       >
-        <span className="sim-group-caret">{open ? "▾" : "▸"}</span>
+        <Caret open={open} />
         <span className="sim-descriptor-section-title">Descriptor JSON</span>
         <span className="pill pill-count sim-descriptor-readonly">result · read-only</span>
       </button>

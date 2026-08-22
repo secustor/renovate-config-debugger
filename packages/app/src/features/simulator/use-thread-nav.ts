@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLatestRef } from "@/hooks/use-latest-ref";
+import { useToggleSet } from "@/hooks/use-toggle-set";
 import type { SimulationResult } from "@renovate-config-debugger/engine";
 import { ESCAPE_PRIORITY } from "@/lib/escape-stack";
 import { landOnTarget } from "@/lib/motion";
@@ -19,8 +20,6 @@ import { useEscapeLayer } from "@/hooks/use-escape-layer";
  * The consequence is documented where it bites: a jump does not push a history
  * entry, so browser Back does not undo one — the pill is what undoes it.
  */
-
-const NO_THREADS: ReadonlySet<string> = new Set();
 
 /** The thread head's DOM id — what a return (or a deep link) scrolls to. Keys
  *  are config option names, so this is `getElementById`-safe as written. */
@@ -50,7 +49,14 @@ export interface ThreadNav {
 }
 
 export function useThreadNav(sim: SimulationResult | null): ThreadNav {
-  const [openThreads, setOpenThreads] = useState<ReadonlySet<string>>(NO_THREADS);
+  // Destructured so `exhaustive-deps` can see what the callbacks below depend
+  // on: the hook's own are identity-stable, but the rule reads the object.
+  const {
+    set: openThreads,
+    reset: resetThreads,
+    add: addThread,
+    remove: removeThread,
+  } = useToggleSet();
   const [returnKey, setReturnKey] = useState<string | null>(null);
   // The key awaiting a scroll+flash once its row has committed (same idiom as
   // use-rule-focus's `scrollTarget`).
@@ -65,9 +71,9 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
   useEffect(() => {
     const pending = pendingThreadRef.current;
     pendingThreadRef.current = null;
-    setOpenThreads(pending === null ? NO_THREADS : new Set([pending]));
+    resetThreads(pending === null ? undefined : new Set([pending]));
     setReturnKey(null);
-  }, [sim]);
+  }, [sim, resetThreads]);
 
   // The landing itself. One pass is enough, unlike use-rule-focus: a thread's
   // HEAD renders whether or not the thread is expanded, so the element EXISTS by
@@ -189,17 +195,16 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
     }
   }, [returnKey]);
 
-  const toggleThread = useCallback((key: string, open: boolean) => {
-    setOpenThreads((prev) => {
-      const next = new Set(prev);
+  const toggleThread = useCallback(
+    (key: string, open: boolean) => {
       if (open) {
-        next.add(key);
+        addThread(key);
       } else {
-        next.delete(key);
+        removeThread(key);
       }
-      return next;
-    });
-  }, []);
+    },
+    [addThread, removeThread],
+  );
 
   const noteJump = useCallback((key: string) => {
     setReturnKey(key);
@@ -229,11 +234,11 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
     if (key === null) {
       return;
     }
-    setOpenThreads((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
+    addThread(key);
     setFocusKey(key);
     // A stable ref object — listed only because `exhaustive-deps` cannot see
     // the `useRef()` behind `useLatestRef`. The identity stays stable.
-  }, [returnKeyRef]);
+  }, [returnKeyRef, addThread]);
 
   return {
     openThreads,

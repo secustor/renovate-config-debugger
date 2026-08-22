@@ -817,6 +817,27 @@ h1 {
   padding: 0.25rem 0.7rem;
 }
 
+/* THE disclosure triangle (`components/Caret`). Eight near-identical rules
+   spelled this out per surface — and one surface, the Effective config's band
+   headers, had none at all despite a comment claiming it used "the same one the
+   rows use". A fixed width because the slot must not move when the triangle
+   turns: option names start on one edge whichever way it points, which is also
+   why `.caret-empty` (an inert row's spacer) needs nothing beyond this rule.
+   `flex: none` because every head that holds one is a flex row.
+
+   Only genuinely different HUES are overridden per surface (the pin cards'
+   faint, the ledger health box's error red); nothing overrides the metrics
+   except the preset tree's row caret, which is a button rather than an
+   ornament and keeps its own block. */
+.caret {
+  color: var(--muted);
+  display: inline-block;
+  flex: none;
+  font-size: 0.75rem;
+  text-align: center;
+  width: 0.9rem;
+}
+
 /* Roadmap 075: the toolbar IS the editor card's title bar now (see
    `.editor-card-title`), so it carries no margin of its own — the card's
    chrome-row padding is its padding. */
@@ -1226,6 +1247,9 @@ pre.config-view {
   color: var(--muted);
 }
 
+/* The tree row's caret is a BUTTON in a treeitem, not the shared ornament —
+   its own metrics, and `.caret-spacer` (the elided-caret slot) must match them
+   declaration for declaration, `flex` included. */
 .preset-row .caret,
 .preset-row .caret-spacer {
   background: transparent;
@@ -1233,6 +1257,7 @@ pre.config-view {
   color: var(--muted);
   cursor: pointer;
   display: inline-block;
+  flex: none;
   font-size: 0.8rem;
   padding: 0;
   text-align: center;
@@ -2393,8 +2418,9 @@ textarea.layer-editor:focus {
   padding: 0.4rem 0.6rem;
 }
 
-/* The disclosure triangle is drawn by the summary's own caret span (the same
-   one the rows use), so the UA marker would be a second one. */
+/* The disclosure triangle is drawn by the summary's own `Caret` (the same one
+   the rows use — which, until the shared `.caret` rule existed, it only
+   claimed to be), so the UA marker would be a second one. */
 .prov-section-head::marker {
   content: "";
 }
@@ -2495,15 +2521,6 @@ textarea.layer-editor:focus {
   background: var(--surface);
 }
 
-/* Inside the key cell, as in the thread ledger: a fixed width so the option
-   names still start on one edge whichever way the triangle points. */
-.prov-row-head .caret {
-  color: var(--muted);
-  display: inline-block;
-  font-size: 0.75rem;
-  width: 0.9rem;
-}
-
 .prov-key-name {
   font-family: var(--font-mono);
   font-size: 0.85rem;
@@ -2564,11 +2581,6 @@ textarea.layer-editor:focus {
    line up with every other band's. */
 .prov-row-default {
   padding: 0.3rem 0.75rem;
-}
-
-.prov-row-default .caret-empty {
-  display: inline-block;
-  width: 0.9rem;
 }
 
 .badge.prov-layer {
@@ -3262,12 +3274,6 @@ pre.config-view.prov-losing {
   background: var(--surface);
 }
 
-.sim-group-caret {
-  color: var(--muted);
-  flex: none;
-  font-size: 0.68rem;
-}
-
 .sim-group-title {
   flex: none;
   font-weight: 600;
@@ -3551,11 +3557,6 @@ pre.config-view.prov-losing {
   background: var(--surface);
 }
 
-.sim-rule-head .caret {
-  color: var(--muted);
-  width: 0.8rem;
-}
-
 .sim-rule-index {
   color: var(--muted);
   font-family: var(--font-mono);
@@ -3821,11 +3822,6 @@ pre.config-view.prov-losing {
 
 .sim-thread-key {
   white-space: nowrap;
-}
-
-.sim-thread-caret {
-  color: var(--muted);
-  font-size: 0.75rem;
 }
 
 .sim-thread-value {
@@ -6359,12 +6355,6 @@ pre.config-view.prov-losing {
   text-align: left;
 }
 
-.ledger-head-toggle .caret {
-  color: var(--muted);
-  font-size: 0.75rem;
-  width: 0.9rem;
-}
-
 .ledger-head-counts {
   color: var(--muted);
   font-size: 0.78rem;
@@ -6563,12 +6553,6 @@ button.ledger-tile {
   color: var(--accent);
 }
 
-.ledger-family-head .caret {
-  color: var(--muted);
-  font-size: 0.75rem;
-  width: 0.9rem;
-}
-
 .ledger-family-note {
   color: var(--muted);
   flex: 1;
@@ -6673,11 +6657,9 @@ button.ledger-tile {
   text-align: left;
 }
 
+/* Hue only: the failed-health box's caret is red like the count beside it. */
 .ledger-health-toggle .caret {
   color: var(--error);
-  flex: none;
-  font-size: 0.7rem;
-  width: 0.9rem;
 }
 
 .ledger-health-count {
@@ -6840,10 +6822,9 @@ button.ledger-tile {
   text-align: left;
 }
 
+/* Hue only: the pin card's own head sits a shade back from its contents. */
 .pin-head-toggle > .caret {
   color: var(--faint);
-  flex: none;
-  font-size: 0.68rem;
 }
 
 /* The status dot. Green is "this verdict is what the run says"; amber is
@@ -7074,11 +7055,9 @@ button.ledger-tile {
   color: var(--ink);
 }
 
+/* Hue, plus the wider slot the bucket rows line their count pills against. */
 .pin-bucket-head .caret {
   color: var(--faint);
-  flex: none;
-  font-size: 0.75rem;
-  text-align: center;
   width: 1rem;
 }
 
