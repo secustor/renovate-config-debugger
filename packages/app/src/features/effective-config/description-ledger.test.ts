@@ -3,11 +3,13 @@ import type {
   DescriptionAttribution,
   DescriptionProvenance,
   DroppedDescription,
+  KeyProvenance,
   ProvenanceLayer,
   UnattributedDescription,
 } from "@renovate-config-debugger/engine";
 import {
   buildDescriptionLedger,
+  DESCRIPTION_KEY,
   type DescriptionLedger,
   DROPPED_COLLAPSE_AFTER,
   droppedSummaryText,
@@ -16,6 +18,7 @@ import {
   hiddenCount,
   LEDGER_COLLAPSE_AFTER,
   ledgerCountText,
+  ledgerForRow,
   type LedgerGroup,
   ledgerMatchesFinalValue,
   ledgerPreviewText,
@@ -391,6 +394,46 @@ describe("ledgerMatchesFinalValue", () => {
     const overclaiming: DescriptionLedger = { ...ledger, finalLength: 4 };
 
     expect(ledgerMatchesFinalValue(overclaiming, ["a", "b", "c", "d"])).toBe(false);
+  });
+});
+
+/** A provenance row with a given key and final value; the chain is beside the
+ *  point here — `ledgerForRow` reads the key and the value and nothing else. */
+function provRow(key: string, finalValue: unknown): KeyProvenance {
+  return { key, finalValue, isDefaultOnly: false, chain: [] };
+}
+
+describe("ledgerForRow", () => {
+  const three = provenance({
+    entries: entries([
+      { value: "a", via: REPO, node: "root" },
+      { value: "b", via: BEST_PRACTICES, node: "p1" },
+      { value: "c", via: BEST_PRACTICES, node: "p1" },
+    ]),
+  });
+
+  test("is undefined for every row but `description` — they never have one", () => {
+    expect(ledgerForRow(provRow("labels", ["a", "b", "c"]), ledgerOf(three))).toBeUndefined();
+    expect(ledgerForRow(provRow("packageRules", []), ledgerOf(three))).toBeUndefined();
+  });
+
+  test("hands the description row its ledger when that ledger IS the final value", () => {
+    const ledger = ledgerOf(three);
+
+    expect(ledgerForRow(provRow(DESCRIPTION_KEY, ["a", "b", "c"]), ledger)).toBe(ledger);
+  });
+
+  // The guard this function exists for: a ledger that cannot reproduce the
+  // row's final value is not shown — the row keeps the generic preview and
+  // chain rather than quietly under-reporting it.
+  test("withholds a ledger that cannot reproduce the row's final value", () => {
+    expect(ledgerForRow(provRow(DESCRIPTION_KEY, ["a", "b"]), ledgerOf(three))).toBeNull();
+    expect(ledgerForRow(provRow(DESCRIPTION_KEY, ["c", "b", "a"]), ledgerOf(three))).toBeNull();
+    expect(ledgerForRow(provRow(DESCRIPTION_KEY, "a b c"), ledgerOf(three))).toBeNull();
+  });
+
+  test("is null, not undefined, when the run produced no ledger at all", () => {
+    expect(ledgerForRow(provRow(DESCRIPTION_KEY, ["a", "b", "c"]), null)).toBeNull();
   });
 });
 

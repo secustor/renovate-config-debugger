@@ -4,6 +4,7 @@ import type {
   DescriptionAttribution,
   DescriptionProvenance,
   DroppedDescription,
+  KeyProvenance,
   ProvenanceLayer,
   UnattributedDescription,
 } from "@renovate-config-debugger/engine";
@@ -232,6 +233,28 @@ export function ledgerMatchesFinalValue(ledger: DescriptionLedger, finalValue: u
   // One row per index, so a ledger missing a member (or claiming one twice)
   // cannot pass by having every row it does carry line up.
   return rows === ledger.finalLength;
+}
+
+/** Roadmap 069: the one key whose expanded body is a per-string blame ledger
+ *  rather than an override chain — see `BlameLedger`. */
+export const DESCRIPTION_KEY = "description";
+
+/**
+ * The ledger a row renders with: only the `description` row has one at all
+ * (`undefined` everywhere else), and only when it accounts for that row's final
+ * value member for member — including the non-string members Renovate merges
+ * with a warning, which the ledger carries as authorless rows of their own. A
+ * ledger that cannot reproduce the row's final value is not shown: the row
+ * keeps the generic preview and chain rather than quietly under-reporting it.
+ */
+export function ledgerForRow(
+  entry: KeyProvenance,
+  ledger: DescriptionLedger | null,
+): DescriptionLedger | null | undefined {
+  if (entry.key !== DESCRIPTION_KEY) {
+    return undefined;
+  }
+  return ledger && ledgerMatchesFinalValue(ledger, entry.finalValue) ? ledger : null;
 }
 
 /** How much of the array fits in a collapsed row's preview cell. The generic
