@@ -27,7 +27,6 @@ import type { ResultsColumnProps } from "@/app/ResultsColumn";
 import { UntrustedHostBanner } from "@/app/UntrustedHostBanner";
 import {
   legacyTabForView,
-  type ResultsTabId,
   resultsTabForShareTab,
   shareTabWantsMigrateStage,
 } from "@/data/results-tabs";
@@ -72,6 +71,7 @@ import { useInheritedConfigLayer } from "@/app/use-inherited-config-layer";
 import { useRepoLoad } from "@/app/use-repo-load";
 import { useRunSummary } from "@/app/use-run-summary";
 import { usePinnedRun } from "@/app/use-pinned-run";
+import { useResultsTab } from "@/app/use-results-tab";
 import { useShareLink } from "@/hooks/use-share-link";
 import type { RunInputs } from "@/lib/run-inputs";
 import { createRunQueue, type RunQueue } from "@/lib/run-queue";
@@ -362,15 +362,24 @@ export function App() {
    * evaluation itself is the panel's (`usePinnedTests`), keyed on the run.
    */
   const { pins, addPin, removePin, setPinsFromShare, pinsAsShareFields } = usePinnedRun();
-  // Roadmap 028: the active results tab, and the one-step "back to where I
-  // was" target recorded whenever something OTHER than a tab click moved the
-  // user (a provenance chip, a message jump, a header digest link). The ref
-  // mirrors the tab for handlers that need the pre-switch value synchronously.
-  //
-  // Roadmap 075 (iteration 3): Tests is the first tab and where a run lands.
-  const [tab, setTabState] = useState<ResultsTabId>("tests");
-  const [backTab, setBackTab] = useState<ResultsTabId | null>(null);
-  const tabRef = useLatestRef(tab);
+  // Roadmap 028: which results tab the reader is on, the one-step "back to
+  // where I was" trail, and the rule-focus jump that is a tab switch too — as
+  // one hook. Every COMPOSITION of a tab switch with other App state is still
+  // here: the run path's landing (`executeRun`), the decoded link's tab (the
+  // pending-view effect), the digit shortcuts (`useKeyboardLandings`) and the
+  // cross-links below that select a stage on their way.
+  const {
+    tab,
+    backTab,
+    setTab,
+    walkToTab,
+    jumpToTab,
+    clearBackTab,
+    landAfterRun,
+    pendingRuleFocus,
+    onRuleFocused,
+    onJumpToSimRule,
+  } = useResultsTab();
   // Roadmap 028/029: the Effective config tab's badge + digest numbers,
   // reported by the view itself (it owns the async provenance computation)
   // rather than recomputed here. null = not known yet.
@@ -460,77 +469,16 @@ export function App() {
       buildShareState,
     },
   );
-  // Roadmap 013: rule identity cross-links. The editor is an imperative jump
-  // target (CodeMirror has no declarative "scroll to offset X" prop); the
-  // simulator's target rule is prop-driven since it is a sibling component.
+  // Roadmap 013: the editor half of the rule identity cross-links — an
+  // imperative jump target, since CodeMirror has no declarative "scroll to
+  // offset X" prop. (The simulator half is prop-driven: `pendingRuleFocus`,
+  // owned by `useResultsTab` because arriving at a rule is a tab switch.)
   const configEditorRef = useRef<ConfigEditorHandle>(null);
-  const [pendingRuleFocus, setPendingRuleFocus] = useState<number | null>(null);
   const ruleProvenance = useRuleProvenance(result);
   // The raw text is re-scanned only when it changes, not on every keystroke's
   // render of something unrelated — this is a plain bracket-depth scan, not a
   // full parse, so it stays cheap even for large configs.
   const packageRuleOffsets = useMemo(() => findPackageRuleOffsets(content), [content]);
-  /** Roadmap 028: a tab the user chose explicitly — clears the back affordance.
-   *  Identity-stable (032): reads tab state only through its ref. */
-  const setTab = useCallback(
-    (next: ResultsTabId) => {
-      tabRef.current = next;
-      setTabState(next);
-      setBackTab(null);
-      // `tabRef` is a stable ref object; it is listed only because
-      // `exhaustive-deps` cannot see the `useRef()` behind `useLatestRef`, and
-      // the identity these three callbacks promise is unaffected.
-    },
-    [tabRef],
-  );
-
-  /**
-   * Roadmap 068: the tab strip's arrows, which SELECT (see `ResultsPanel`) —
-   * but a walk along the strip is not the same act as choosing a tab, which is
-   * what `setTab` above is defined by and why it clears the cross-link trail.
-   * Keeping the trail is the whole reason this is not just `setTab`: a reader
-   * sent to Presets by a provenance chip can look at the next instrument along
-   * without the one-step way back disappearing from under them.
-   *
-   * Landing back ON the origin ends the trail, because at that point the trail
-   * has been walked — leaving it would offer "← Back to Tests" to a reader
-   * already on Tests.
-   */
-  const walkToTab = useCallback(
-    (next: ResultsTabId) => {
-      tabRef.current = next;
-      setTabState(next);
-      setBackTab((from) => (from === next ? null : from));
-    },
-    [tabRef],
-  );
-
-  /** Roadmap 028: a programmatic jump (a cross-instrument link, a header
-   *  digest link) — records where the user was so one click returns them. */
-  const jumpToTab = useCallback(
-    (next: ResultsTabId) => {
-      const from = tabRef.current;
-      if (from === next) {
-        return;
-      }
-      tabRef.current = next;
-      setTabState(next);
-      setBackTab(from);
-    },
-    [tabRef],
-  );
-
-  // Roadmap 032: stable handlers for the memoized panels — each reads state
-  // only through refs and setters, so its identity never changes.
-  const onRuleFocused = useCallback(() => setPendingRuleFocus(null), []);
-  const onJumpToSimRule = useCallback(
-    (index: number) => {
-      setPendingRuleFocus(index);
-      jumpToTab("tests");
-    },
-    [jumpToTab],
-  );
-
   /**
    * Roadmap 075 (iteration 3): the header's `N rewrites` link. The Rewrites tab
    * retired into Pipeline's migrate stage, so "show me the rewrites" is two
@@ -719,8 +667,11 @@ export function App() {
     // "back to where I was" target from the run that just ended.
     setEffectiveStats(null);
     setOverviewBehaviors(null);
-    setBackTab(null);
-  }, [result]);
+    clearBackTab();
+    // `clearBackTab` is identity-stable (a `useCallback` with no dependencies,
+    // in `useResultsTab`), so listing it leaves this effect firing on the result
+    // and nothing else — it is here because `exhaustive-deps` cannot see that.
+  }, [result, clearBackTab]);
 
   // Roadmap 028's post-Run scroll-into-view lives in ResultsColumn since 031:
   // with the results half lazy, an App-side effect on `result` could run
@@ -1196,10 +1147,11 @@ export function App() {
       const revealedStage = pendingLayerStageRef.current;
       pendingLayerStageRef.current = null;
       setSelectedStage(firstError?.[0] ?? revealedStage ?? "preset");
-      // Roadmap 028/075: a run lands on Tests — the dependency descriptors this
-      // config is checked against — or straight on Problems when a stage
-      // errored, the tabbed equivalent of the old "select the first errored
-      // stage". That landing belongs to the reader of the
+      // Roadmap 028/075: a run lands on Tests, or straight on Problems when a
+      // stage errored — the rule itself is `useResultsTab`'s (`landAfterRun`),
+      // since it is a fact about the tab strip. WHETHER a run lands is this
+      // path's, and it is the half with the reasoning: that landing belongs to
+      // the reader of the
       // CONFIG column: they edited, they asked for a run, and this is where its
       // answer starts. `keepTab` is every run that was not asked for from there
       // — the re-runs triggered inside an instrument (injecting a preset,
@@ -1210,7 +1162,7 @@ export function App() {
       // it and the banner above the panels states it, neither of which moves
       // anyone.
       if (!opts?.keepTab) {
-        setTab(firstError ? "problems" : "tests");
+        landAfterRun(firstError !== undefined);
       }
       focusResultsRef.current = true;
       // the engine chunk is loaded now — hydrate the hover docs and the 014
