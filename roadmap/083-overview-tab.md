@@ -49,7 +49,11 @@ config.
 
 ## What changed
 
-### The classifier (`lib/description-topics.ts`, new)
+### The classifier (`features/overview/description-topics.ts`, new)
+
+> Shipped as `lib/description-topics.ts`; the later structure-conformance pass
+> moved it (and `description-digest.ts`) into the Overview slice — one consumer,
+> feature-local, absent from the headless barrel.
 
 Five topics, one documented regex each, case-insensitive, first match wins,
 generic over the row (`Row extends { text: string }`) so the view's row shape
@@ -245,7 +249,7 @@ the description array are not text…`) are all absent from the artboard and all
 
 ## Tests
 
-- `lib/description-topics.test.ts` (unit, new) — all thirteen artboard sentences
+- `features/overview/description-topics.test.ts` (unit, new) — all thirteen artboard sentences
   file where the design draws them; eleven real `config:recommended` sentences
   (from `rcd provenance renovate.json description`) file plausibly; match order
   beats display order for the automerge/schedule overlap; `\bpin` does not swallow

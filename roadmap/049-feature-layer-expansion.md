@@ -72,7 +72,11 @@ the edge, and the move needed no lint config change.
 The genuinely shared derivations stay in shared: `effective-tally.ts`,
 `description-attribution.ts`, `rule-selectors.ts`, `value-preview.ts`,
 `components/rule-framing.tsx` — each has consumers outside the view, and
-the first three are on the headless (CLI) path.
+`effective-tally.ts` and `rule-selectors.ts` are on the headless (CLI)
+path. `description-attribution.ts` is not — it appears nowhere in
+`lib/headless.ts` — but it is shared on the ordinary grounds: three
+consumers (`ConfigJson.tsx`, `DescriptionAttribution.tsx`,
+`EffectiveConfig.tsx`) across two layers.
 
 Two other corrections in the section above also expired the same day:
 `preset-tree-stats.ts` moved to `lib/` (it is pure, and three `lib/`

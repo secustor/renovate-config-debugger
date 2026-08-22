@@ -282,8 +282,10 @@ line counts the whole array — `Position 3 of 4`, not `3 of 3`. Preset-body vie
 different array again.
 
 The affordance is the glossary's, not a new one. `useHoverCard` and the anchor
-component were hoisted out of `components/glossary.tsx` (`hooks/hover-card.ts` +
-`components/hover-card.tsx`), so the attribution card inherits the
+component were hoisted out of `components/glossary.tsx`
+(`components/hover-card-hooks.ts` + `components/hover-card.tsx` — the hook sits
+beside the component it exists for, as that file's own header ledgers), so the
+attribution card inherits the
 one-card-at-a-time singleton, the pointer grace period, focus reachability and
 the 068 Escape ruling rather than restating them. `Term`/`Explained` are now
 that primitive with a glossary body. Two consequences worth knowing: the chip
