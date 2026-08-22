@@ -25,6 +25,10 @@ export function layerLabel(layer: ProvenanceLayer): string {
 interface ChainStepBase {
   layer: string;
   action: string;
+  /** The nested preset whose own body wrote the value, when the engine
+   *  verified one — the layer is then only the direct extend it arrived
+   *  through. */
+  writtenBy?: string;
   expandedNested?: true;
 }
 
@@ -76,6 +80,7 @@ function stepView(step: KeyProvenance["chain"][number]): ProvenanceChainStep {
   const base: ChainStepBase = {
     layer: layerLabel(step.layer),
     action: step.action,
+    ...(step.writtenBy ? { writtenBy: `preset ${step.writtenBy.name}` } : {}),
     ...(step.expandedNested ? { expandedNested: true as const } : {}),
   };
   if (step.action === "concat" && appendsTo(step.before, step.after) && Array.isArray(step.after)) {

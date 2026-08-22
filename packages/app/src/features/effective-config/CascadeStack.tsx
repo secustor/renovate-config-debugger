@@ -36,6 +36,10 @@ export function Step({
   onSelectPreset?: (nodeId: string) => void;
 }) {
   const layer = step.layer;
+  // The ORIGINATING preset when the engine verified one — the nested preset
+  // whose own body wrote the value — falling back to the direct extend the
+  // merge layer names. Its hover card's via chain says how it arrived.
+  const source = layer.kind === "preset" ? (step.writtenBy ?? layer) : null;
   return (
     <div className={`prov-step action-${step.action}${winning ? " winning" : ""}`}>
       <div className="prov-step-head">
@@ -43,11 +47,11 @@ export function Step({
             card names the extends chain that brought the preset in, which is
             the "where did this layer come from" the chip's glossary card
             could not answer. The four base layers keep their chip. */}
-        {layer.kind === "preset" ? (
+        {source ? (
           <PresetName
-            name={layer.name}
-            nodeId={layer.nodeId}
-            onClick={onSelectPreset ? () => onSelectPreset(layer.nodeId) : undefined}
+            name={source.name}
+            nodeId={source.nodeId}
+            onClick={onSelectPreset ? () => onSelectPreset(source.nodeId) : undefined}
           />
         ) : (
           <ProvenanceChip layer={layer} onSelectPreset={onSelectPreset} />
