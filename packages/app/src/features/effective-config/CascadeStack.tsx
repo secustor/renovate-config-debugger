@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type { ProvenanceStep, RuleAttribution } from "@renovate-config-debugger/engine";
 import { ConfigJson } from "@/components/ConfigJson";
 import { nf } from "@/lib/format";
+import { PresetName } from "@/components/PresetName";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { summarizeRuleSelectors } from "@/lib/rule-selectors";
 
@@ -34,10 +35,23 @@ export function Step({
   winning: boolean;
   onSelectPreset?: (nodeId: string) => void;
 }) {
+  const layer = step.layer;
   return (
     <div className={`prov-step action-${step.action}${winning ? " winning" : ""}`}>
       <div className="prov-step-head">
-        <ProvenanceChip layer={step.layer} onSelectPreset={onSelectPreset} />
+        {/* A preset step wears the standard `PresetName` token — its hover
+            card names the extends chain that brought the preset in, which is
+            the "where did this layer come from" the chip's glossary card
+            could not answer. The four base layers keep their chip. */}
+        {layer.kind === "preset" ? (
+          <PresetName
+            name={layer.name}
+            nodeId={layer.nodeId}
+            onClick={onSelectPreset ? () => onSelectPreset(layer.nodeId) : undefined}
+          />
+        ) : (
+          <ProvenanceChip layer={layer} onSelectPreset={onSelectPreset} />
+        )}
         {/* The defaults layer does not "set" anything — it is what the key was
             before the run began, which is the design's own verb for it. */}
         <span className="prov-step-verb">
