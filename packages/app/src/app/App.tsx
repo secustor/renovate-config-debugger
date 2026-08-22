@@ -71,14 +71,7 @@ import { useCustomHostRules, useHostTokens } from "@/hooks/use-host-tokens";
 import { useInheritedConfigLayer } from "@/app/use-inherited-config-layer";
 import { useRepoLoad } from "@/app/use-repo-load";
 import { useRunSummary } from "@/app/use-run-summary";
-import type { FormState } from "@/features/simulator/form";
-import {
-  MAX_PINS,
-  type PinnedTest,
-  pinShareFields,
-  pinsFromShareFields,
-  samePinForm,
-} from "@/features/simulator/pins";
+import { usePinnedRun } from "@/app/use-pinned-run";
 import { useShareLink } from "@/hooks/use-share-link";
 import type { RunInputs } from "@/lib/run-inputs";
 import { createRunQueue, type RunQueue } from "@/lib/run-queue";
@@ -367,30 +360,8 @@ export function App() {
    * a share link carries them (`buildShareState` / the decode path below), and
    * the tab strip's count is one of the numbers `useRunSummary` assembles. The
    * evaluation itself is the panel's (`usePinnedTests`), keyed on the run.
-   *
-   * Ids are minted here and never shared: a link carries descriptors, and two
-   * sessions minting `pin-1` for different dependencies would collide the
-   * moment a reader pinned one of their own.
    */
-  const [pins, setPins] = useState<PinnedTest[]>([]);
-  const pinSeqRef = useRef(0);
-  const nextPinId = useCallback(() => `pin-${++pinSeqRef.current}`, []);
-  const addPin = useCallback(
-    (form: FormState) => {
-      // Roadmap 080: the detail view's pin leaves the form on screen, so a
-      // repeated click reaches here with the same descriptor — an identical
-      // test is a no-op, not a second row.
-      setPins((prev) =>
-        prev.length >= MAX_PINS || prev.some((pin) => samePinForm(pin.form, form))
-          ? prev
-          : [...prev, { id: nextPinId(), form }],
-      );
-    },
-    [nextPinId],
-  );
-  const removePin = useCallback((id: string) => {
-    setPins((prev) => prev.filter((pin) => pin.id !== id));
-  }, []);
+  const { pins, addPin, removePin, setPinsFromShare, pinsAsShareFields } = usePinnedRun();
   // Roadmap 028: the active results tab, and the one-step "back to where I
   // was" target recorded whenever something OTHER than a tab click moved the
   // user (a provenance chip, a message jump, a header digest link). The ref
@@ -480,8 +451,9 @@ export function App() {
       setSignedIn,
       setAuthUser,
       applyUntrustedGuard,
-      // Roadmap 075 (iteration 6): the link's pins, with ids minted here.
-      setPins: (shared) => setPins(pinsFromShareFields(shared, nextPinId)),
+      // Roadmap 075 (iteration 6): the link's pins, with ids minted by the
+      // cluster that owns them.
+      setPins: setPinsFromShare,
       pendingViewRef,
       contentRef,
       loadedContentRef,
@@ -1634,11 +1606,7 @@ export function App() {
       platformOverride: platformOverride && hasGlobalContext,
       view,
       sim,
-      // Roadmap 075 (iteration 6): the pinned tests travel with the config they
-      // are tests OF — a link that reproduces the run without them reproduces
-      // the wrong screen. Descriptors only (the same fields `sim.form` carries),
-      // so this adds no new class of data to a link.
-      pins: pins.map((pin) => pinShareFields(pin.form)),
+      pins: pinsAsShareFields(),
     };
   }
 
