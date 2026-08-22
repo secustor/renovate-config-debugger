@@ -50,10 +50,12 @@ it("opens on the ledger and keeps the full tree one click away", async () => {
   const result = await run();
   const view = render(panel(result));
 
-  // The ledger leads: a summary strip naming the sources, a card per source —
-  // and not a single tree row.
+  // The ledger leads: a summary strip COUNTING the sources (082 took the
+  // per-source tokens out of it — the cards below are the list), a card per
+  // source, and not a single tree row.
   const strip = view.container.querySelector(".summary-strip");
   expect(strip?.textContent).toContain("1 source");
+  expect(strip?.querySelector(".preset-token")).toBeNull();
   expect(view.container.querySelector(".ledger-card")).not.toBeNull();
   expect(view.container.querySelector(".preset-row")).toBeNull();
 

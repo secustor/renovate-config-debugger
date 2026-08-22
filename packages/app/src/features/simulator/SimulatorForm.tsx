@@ -1,7 +1,7 @@
 import type { Dispatch, KeyboardEvent, SetStateAction } from "react";
 import { mayOwnNativePopup } from "@/hooks/scroll-ergonomics";
 import { DATASOURCE_LIST_ID, MANAGER_LIST_ID, SIM_FORM_ID } from "./datalist-ids";
-import { DescriptorPreview } from "./DescriptorPreview";
+import { DescriptorPreview, DescriptorSection } from "./DescriptorPreview";
 import { FieldGroups } from "./FieldGroups";
 import type { FormState } from "./form";
 import { QuickFillChips } from "./QuickFillChips";
@@ -38,9 +38,9 @@ function RegistryDatalist({
   );
 }
 
-/** Roadmap 079: the groups, and — standalone only — the live descriptor beside
- *  them. Compact (the Tests tab's Add-a-test panel) is one column with no
- *  preview: the panel is narrow, and the pin card it produces is the receipt. */
+/** Roadmap 079: the groups, and the descriptor. Standalone gets it as the live
+ *  card beside them; compact (the Tests tab's Add-a-test panel) is one narrow
+ *  column, so 082 gives it the same document folded away underneath instead. */
 function FormBody({
   form,
   setForm,
@@ -67,7 +67,11 @@ function FormBody({
         openGroup={openGroup}
         onOpenGroupChange={onOpenGroupChange}
       />
-      {compact ? null : <DescriptorPreview form={form} effectiveUpdateType={effectiveUpdateType} />}
+      {compact ? (
+        <DescriptorSection form={form} effectiveUpdateType={effectiveUpdateType} />
+      ) : (
+        <DescriptorPreview form={form} effectiveUpdateType={effectiveUpdateType} />
+      )}
     </div>
   );
 }

@@ -368,3 +368,30 @@ it("attributes the description strings of the As-JSON document", async () => {
   expect(repoCard?.querySelector(".desc-attr-path")).toBeNull();
   expect(repoCard?.textContent).not.toContain("Show in preset tree");
 });
+
+/**
+ * Roadmap 082: the toolbar's copy. It is the design's one-click way to the
+ * resolved document, and it must be reachable from the row view — which is
+ * where a reader spends the tab — not only from As JSON.
+ */
+it("offers the resolved document from the toolbar in both views", async () => {
+  const result = await runPipeline({
+    fileName: "renovate.json",
+    content: JSON.stringify({ extends: [":dependencyDashboard"] }),
+  });
+
+  const view = render(<EffectiveConfig result={result} />);
+  const copy = await waitFor(() =>
+    view.getByRole("button", { name: "Copy effective config as JSON" }),
+  );
+  // …while the By-key view is still the one on screen.
+  expect(view.getByRole("radio", { name: "By key" }).getAttribute("aria-checked")).toBe("true");
+  expect(copy.title).toBe("Copy effective config as JSON");
+
+  // And it stays put in As JSON, beside that view's own labelled copy.
+  fireEvent.click(view.getByRole("radio", { name: "As JSON" }));
+  await waitFor(() =>
+    expect(view.getByRole("button", { name: "Copy resolved config" })).toBeTruthy(),
+  );
+  expect(view.getByRole("button", { name: "Copy effective config as JSON" })).toBeTruthy();
+});

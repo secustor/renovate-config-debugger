@@ -270,3 +270,83 @@ describe("docs links", () => {
     );
   });
 });
+
+describe("error rows (roadmap 082)", () => {
+  it("names every failed preset and where it came from", () => {
+    const model = computePresetLedger(
+      root([
+        node("config:recommended", {
+          children: [
+            node("npm>@acme/shared", { kind: "npm", state: "error", error: "fetch failed" }),
+          ],
+        }),
+        node("github>me/presets", {
+          kind: "github",
+          children: [
+            node("github>me/presets:security", {
+              kind: "github",
+              state: "error",
+              error: "Cannot find preset's package (github>me/presets:security)",
+            }),
+          ],
+        }),
+      ]),
+    );
+
+    expect(model.errors).toEqual([
+      {
+        nodeId: expect.any(String),
+        name: "npm>@acme/shared",
+        message: "fetch failed",
+        // Its top-level entry is a Renovate built-in: nobody wrote this
+        // reference in their config, a preset did.
+        via: "extends",
+        authFixable: false,
+        rateLimited: false,
+      },
+      {
+        nodeId: expect.any(String),
+        name: "github>me/presets:security",
+        message: "Cannot find preset's package (github>me/presets:security)",
+        // Its top-level entry is a preset the reader hosts.
+        via: "own",
+        // Roadmap 009: a GitHub not-found IS the sign-in-fixable flavor.
+        authFixable: true,
+        rateLimited: false,
+      },
+    ]);
+    // The rows and the headline count are the same walk seen twice.
+    expect(model.errors).toHaveLength(model.summary.errors);
+  });
+
+  it("calls a failed top-level entry the reader's own, whatever its kind", () => {
+    // The commonest single-error run there is: a typo in a built-in preset
+    // name. Classifying by source kind alone would tell its author the name
+    // "arrived through a preset's own extends", which is flatly false — they
+    // typed it.
+    const typo = computePresetLedger(
+      root([node("config:recomended", { state: "error", error: "preset not found" })]),
+    );
+    expect(typo.errors[0]?.via).toBe("config");
+
+    // Same rule for a fetched entry, plus the rate-limit flavor (009).
+    const fetched = computePresetLedger(
+      root([
+        node("github>me/private", {
+          kind: "github",
+          state: "error",
+          error: "dep not found - rate limit or missing token",
+        }),
+      ]),
+    );
+    expect(fetched.errors[0]?.via).toBe("config");
+    expect(fetched.errors[0]?.rateLimited).toBe(true);
+    expect(fetched.errors[0]?.authFixable).toBe(true);
+  });
+
+  it("is empty for a clean expansion", () => {
+    const model = computePresetLedger(root([node("config:recommended")]));
+    expect(model.errors).toEqual([]);
+    expect(model.summary.errors).toBe(0);
+  });
+});

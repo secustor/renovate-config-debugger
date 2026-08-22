@@ -38,6 +38,7 @@ import {
 } from "./description-ledger";
 // Roadmap 069 hoisted this out of here: the description digest prints the same
 // one-line matcher summary, and one spelling of it is enough.
+import { resolvedConfigText } from "./resolved-json";
 import { summarizeRuleSelectors } from "@/lib/rule-selectors";
 import { valuePreview } from "@/lib/value-preview";
 import { RuleFramingText } from "@/components/rule-framing";
@@ -607,13 +608,22 @@ function DeciderSection({
 
 /** Roadmap 051: the card-title view switch. Segmented, like the diff's
  *  unified/side-by-side control and for the same 036 reason — it labels the
- *  STATE, not an action, so the active rendering is always legible. */
+ *  STATE, not an action, so the active rendering is always legible.
+ *
+ *  Roadmap 082 seats the copy button beside it: the design puts one in the
+ *  toolbar for BOTH views, because "give me this config as JSON" is a thing a
+ *  reader wants from the row list too, and having to switch views to find the
+ *  button made the JSON view feel like the only place the document exists. */
 function ViewSwitch({
   view,
   onViewChange,
+  getText,
 }: {
   view: EffectiveView;
   onViewChange: (view: EffectiveView) => void;
+  /** Null while the document is still being derived — same wait as the
+   *  As-JSON view's own copy, which this one is a second door to. */
+  getText: (() => string) | null;
 }) {
   return (
     <span className="card-title-actions">
@@ -637,6 +647,14 @@ function ViewSwitch({
           As JSON
         </button>
       </span>
+      {getText ? (
+        <CopyButton
+          iconOnly
+          getText={getText}
+          label="Copy effective config as JSON"
+          title="Copy effective config as JSON"
+        />
+      ) : null}
     </span>
   );
 }
@@ -737,7 +755,7 @@ function ResolvedJsonView({
         includeDefaults={includeDefaults}
         onIncludeDefaultsChange={onIncludeDefaultsChange}
         defaultsCount={defaultsCount}
-        getText={output ? () => `${JSON.stringify(output.config, null, 2)}\n` : null}
+        getText={output ? () => resolvedConfigText(output) : null}
       />
       {output === undefined ? <p className="empty-note">Computing…</p> : null}
       {output === null ? (
@@ -825,9 +843,17 @@ export const EffectiveConfig = memo(function EffectiveConfig({
         : null,
     [descriptionProvenance, result.presetTree, view],
   );
+  // Roadmap 082: derived for BOTH views, not only As-JSON. The toolbar's copy
+  // button is on screen in the By-key view too and must hand over the same
+  // document — and `navigator.clipboard.writeText` has to be called in the
+  // click's own task (Safari drops a write issued after an await), so the
+  // document cannot be computed on demand. The cost is one extra
+  // `computeResolvedConfig` per RUN — a handful of `mergeChildConfig` calls,
+  // off the critical path in an effect, and not per keystroke: `expand` and
+  // `includeDefaults` can only be changed from the JSON view.
   const resolvedOutput = useResolvedConfig(
     result,
-    provenance !== undefined && view === "json",
+    provenance !== undefined,
     expand,
     expand === "full" && includeDefaults,
   );
@@ -1011,7 +1037,13 @@ export const EffectiveConfig = memo(function EffectiveConfig({
             ? " — the resolved config as a document"
             : " — grouped by the layer that decided each option"}
         </span>
-        {provenance !== undefined ? <ViewSwitch view={view} onViewChange={setView} /> : null}
+        {provenance !== undefined ? (
+          <ViewSwitch
+            view={view}
+            onViewChange={setView}
+            getText={resolvedOutput ? () => resolvedConfigText(resolvedOutput) : null}
+          />
+        ) : null}
       </div>
       {provenance === undefined ? <p className="empty-note">Computing provenance…</p> : null}
       {provenance !== undefined && view === "json" ? (

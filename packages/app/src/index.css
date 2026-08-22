@@ -3307,6 +3307,10 @@ pre.config-view.prov-before {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
+  /* Since 082 the document prints every set descriptor field, not a capped
+     eight — a sticky box taller than the viewport would hide its own tail. */
+  max-height: calc(100vh - 1rem);
+  overflow-y: auto;
   padding: 0.55rem 0.65rem;
   position: sticky;
   top: 0.5rem;
@@ -3342,6 +3346,55 @@ pre.config-view.prov-before {
   color: var(--faint);
   font-size: 0.7rem;
   margin: 0.35rem 0 0;
+}
+
+/* ----- the same descriptor, folded away (roadmap 082, the compact form) -----
+   A `.sim-group` in every metric — it sits in the same stack as the three
+   field groups and must read as one more of them — except that it is tinted,
+   because it is the one row in that stack that is a RESULT rather than an
+   input. */
+.sim-descriptor-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-top: 0.45rem;
+  overflow: hidden;
+}
+
+.sim-descriptor-section-title {
+  color: var(--muted);
+  flex: none;
+  font-weight: 600;
+}
+
+.sim-descriptor-readonly {
+  flex: none;
+  font-size: 0.66rem;
+  margin-left: auto;
+}
+
+.sim-descriptor-body {
+  border-top: 1px solid var(--border);
+  padding: 0.55rem 0.65rem;
+  position: relative;
+}
+
+/* Over the document's top-right corner, the way every code block's copy sits —
+   with the document keeping a lane clear for it. */
+.sim-descriptor-copy {
+  position: absolute;
+  right: 0.5rem;
+  top: 0.45rem;
+}
+
+.sim-descriptor-body .sim-descriptor-json {
+  padding-right: 2.4rem;
+}
+
+.sim-descriptor-note {
+  color: var(--faint);
+  font-size: 0.7rem;
+  margin: 0.4rem 0 0;
 }
 
 .sim-actions {
@@ -6503,11 +6556,89 @@ button.ledger-tile {
 }
 
 /* The closing health line. The clean case is the common one and reads as a
-   plain strip; a failed expansion tints it, and keeps the tree one click
-   away — the failed node's own detail panel lives there. */
+   plain strip (`.summary-strip`); a failed expansion is a BOX instead — a
+   toggle header over one row per failed preset (082), so "which of them
+   failed" is answered here rather than in the 1,100-row tree.
+
+   The tint is the shared status-tint family, not the artboard's 4%: the
+   palette states one background step and one border step per hue precisely
+   because those had drifted across 7/10/12/16%, and a health box that mixed
+   its own would re-open that. */
 .ledger-health.failed {
   background: var(--error-bg);
-  border-color: var(--error-border);
+  border: 1px solid var(--error-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Same shape as `.ledger-head`: a full-width toggle plus the docs link beside
+   it, which cannot live inside a button. */
+.ledger-health-head {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.45rem 0.7rem;
+}
+
+.ledger-health-toggle {
+  align-items: baseline;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  font: inherit;
+  font-size: 0.82rem;
+  gap: 0.4rem;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.ledger-health-toggle .caret {
+  color: var(--error);
+  flex: none;
+  font-size: 0.7rem;
+  width: 0.9rem;
+}
+
+.ledger-health-count {
+  color: var(--error);
+  font-weight: 600;
+}
+
+.ledger-health-note {
+  color: var(--muted);
+}
+
+/* The rows themselves, under a divider in the box's own hue. */
+.ledger-error-rows {
+  border-top: 1px solid color-mix(in srgb, var(--error) 25%, var(--border));
+  font-size: 0.8rem;
+  padding: 0.35rem 0.7rem 0.45rem;
+}
+
+.ledger-error-row {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.2rem 0;
+}
+
+.ledger-error-message {
+  color: var(--ink);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ledger-error-via {
+  color: var(--faint);
+  font-size: 0.72rem;
+  margin-left: auto;
+  white-space: nowrap;
 }
 
 @media (max-width: 45rem) {
@@ -7130,6 +7261,74 @@ button.ledger-tile {
   color: var(--faint);
   font-size: 0.68rem;
   margin-left: 0.3rem;
+}
+
+/* Roadmap 082: the receipt a Paste-JSON import leaves on the Manual tab. A
+   green NOTE, not a banner — it reports something that went right, and the
+   form it describes is directly underneath. */
+.pin-import-note {
+  background: var(--ok-bg);
+  border: 1px solid var(--ok-border);
+  border-radius: 6px;
+  color: var(--ok);
+  /* Hugs its text: it is a note about what just happened, not a full-width
+     banner about the state of the panel. */
+  display: inline-block;
+  font-size: 0.74rem;
+  margin: 0.6rem 0.75rem 0;
+  padding: 0.2rem 0.55rem;
+}
+
+/* ----- the Paste JSON tab (roadmap 082) ----- */
+
+.pin-paste {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 34rem;
+  padding: 0.6rem 0.75rem 0.75rem;
+}
+
+.pin-paste-intro {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin: 0;
+}
+
+.pin-paste-intro code {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 0 0.25rem;
+}
+
+.pin-paste-input {
+  background: var(--canvas);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-sizing: border-box;
+  color: inherit;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  line-height: 1.5;
+  min-height: 9rem;
+  padding: 0.5rem 0.6rem;
+  resize: vertical;
+  width: 100%;
+}
+
+.pin-paste-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.pin-paste-note {
+  color: var(--faint);
+  font-size: 0.72rem;
 }
 
 .pin-new-actions {

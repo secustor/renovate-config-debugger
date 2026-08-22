@@ -237,3 +237,56 @@ it("lands on the simulator when the link that opened the app carried a simulatio
     timeout: 30_000,
   });
 });
+
+it("fills the Manual form from a pasted descriptor, and shows the descriptor back (082)", async () => {
+  const result = await run();
+  const view = render(<Harness result={result} />);
+
+  const paste = view.getByRole("button", { name: "Paste JSON" });
+  // The tab strip carries its selection in ARIA, not only in a CSS class.
+  expect(paste.getAttribute("aria-pressed")).toBe("false");
+  fireEvent.click(paste);
+  expect(paste.getAttribute("aria-pressed")).toBe("true");
+  const textarea = view.getByLabelText("Dependency descriptor JSON");
+
+  // A half-copied log line says so rather than doing nothing.
+  fireEvent.change(textarea, { target: { value: '{"packageName": "react"' } });
+  fireEvent.click(view.getByRole("button", { name: "Parse & fill" }));
+  expect(view.container.querySelector(".sim-empty-guard")?.textContent).toContain("valid JSON");
+
+  const pasted = JSON.stringify({
+    depName: "actions/checkout",
+    packageName: "checkout",
+    currentValue: "v4",
+    newValue: "v5",
+    updates: [{ newValue: "v5" }],
+  });
+  fireEvent.change(textarea, { target: { value: pasted } });
+  fireEvent.click(view.getByRole("button", { name: "Parse & fill" }));
+
+  // Back on Manual, with the receipt and the fields the paste carried.
+  expect(view.container.querySelector(".pin-import-note")?.textContent).toContain(
+    "Imported 4 fields from pasted JSON · 1 unknown key ignored",
+  );
+  const field = (label: string) =>
+    (view.getByLabelText(label, { exact: true }) as HTMLInputElement).value;
+  expect(field("packageName")).toBe("checkout");
+  expect(field("newValue")).toBe("v5");
+
+  // The compact form's Descriptor JSON block (082) prints what would be SENT —
+  // BOTH names, since Renovate matches on both — and says which end of the card
+  // is the editable one.
+  fireEvent.click(view.getByRole("button", { name: /Descriptor JSON/ }));
+  const json = view.container.querySelector(".sim-descriptor-body")?.textContent ?? "";
+  expect(json).toContain('"packageName": "checkout"');
+  expect(json).toContain('"depName": "actions/checkout"');
+  expect(json).toContain('"newValue": "v5"');
+  expect(json).toContain("edit them, not this");
+
+  // …and the draft survives the round trip, so a descriptor is never lost to a
+  // glance at the form it filled.
+  fireEvent.click(view.getByRole("button", { name: "Paste JSON" }));
+  expect((view.getByLabelText("Dependency descriptor JSON") as HTMLTextAreaElement).value).toBe(
+    pasted,
+  );
+});

@@ -7,13 +7,16 @@ import type {
 import { nf } from "@/lib/format";
 import { PIN_FORM_ID } from "./datalist-ids";
 import { EMPTY_FORM, type FormState, hasMeaningfulInput } from "./form";
+import { type PasteFill, parsePastedDescriptor, pasteImportNote } from "./paste-descriptor";
 import { buildPinOutcome, type PinOutcome } from "./pin-outcome";
 import { pinContext, pinName, MAX_PINS } from "./pins";
 import { PinSectionHead } from "./PinRuleSections";
 import { runSimulation } from "./run-simulation";
 import { SimulatorForm } from "./SimulatorForm";
 import { useEngineModule } from "./use-engine-module";
-import { useSimulatorForm } from "./use-simulator-form";
+// Aliased: the hook's return type and the form COMPONENT share a name, and
+// this module is the one place that holds both.
+import { type SimulatorForm as SimulatorFormApi, useSimulatorForm } from "./use-simulator-form";
 
 /**
  * The design's "Add a test" box (Proposal F): always open at the foot of the
@@ -122,28 +125,179 @@ function AddTestActions({
   );
 }
 
+/** Which way a descriptor is arriving. "repo" is the 078 surface and is not
+ *  selectable yet, so it is not one of these. */
+type AddTestTab = "manual" | "paste";
+
 /**
- * The design's Manual / "From repository" strip. It borrows the shell's tab
- * STYLING (`.tab-bar`/`.tab` — one tab grammar in the app) but deliberately
- * not its tablist ARIA: with a single selectable tab and no arrow-key roving,
+ * The design's Manual / Paste JSON / "From repository" strip. It borrows the
+ * shell's tab STYLING (`.tab-bar`/`.tab` — one tab grammar in the app) but
+ * deliberately not its tablist ARIA: there is no arrow-key roving here, so
  * `role="tablist"` would promise keyboard behavior that isn't there — and
  * would collide with everything that addresses the results strip by role.
  * When 078 lights the repository tab up, real tablist semantics come with it.
+ *
+ * `aria-pressed` is what carries the selection instead. Without it the two
+ * live tabs differ only by a CSS class, and a screen reader reads two
+ * identical buttons with no way to tell which panel is on screen.
  */
-function AddTestTabs() {
+function AddTestTabs({
+  tab,
+  onTabChange,
+}: {
+  tab: AddTestTab;
+  onTabChange: (t: AddTestTab) => void;
+}) {
   return (
     <div className="tab-bar pin-add-tabs">
-      <span className="tab active">Manual</span>
+      <button
+        type="button"
+        className={`tab${tab === "manual" ? " active" : ""}`}
+        aria-pressed={tab === "manual"}
+        onClick={() => onTabChange("manual")}
+      >
+        Manual
+      </button>
+      <button
+        type="button"
+        className={`tab${tab === "paste" ? " active" : ""}`}
+        aria-pressed={tab === "paste"}
+        onClick={() => onTabChange("paste")}
+      >
+        Paste JSON
+      </button>
       <button
         type="button"
         className="tab"
         disabled
-        title="Load a repository's config to pick from detected dependencies — not available yet"
+        title="Sign in with GitHub or load a repo to pick from detected dependencies"
       >
         From repository
-        <span className="pin-add-tab-hint">soon</span>
+        <span className="pin-add-tab-hint">sign in required</span>
       </button>
     </div>
+  );
+}
+
+const PASTE_PLACEHOLDER =
+  '{ "packageName": "lodash", "datasource": "npm", "currentValue": "4.17.20", ... }';
+
+/**
+ * Roadmap 082: the Paste JSON tab. The descriptor a reader can already get
+ * their hands on is the one Renovate's own debug log prints, and retyping its
+ * eight fields into the sentence above is the step this removes. Parsing is
+ * `paste-descriptor.ts`'s; this is the textarea around it.
+ *
+ * The design silently no-ops on invalid JSON. It says so inline instead: a
+ * button that does nothing is indistinguishable from one that is broken, and a
+ * half-copied log line (the commonest paste there is) is exactly the case that
+ * produces it.
+ *
+ * The draft belongs to the CALLER (the design keeps `pasteDraft` in the card's
+ * own state, and so does this): the panel unmounts on a tab switch, so a local
+ * `useState` would throw away a descriptor the moment its author looked at the
+ * form it filled.
+ */
+function PasteJsonTab({
+  text,
+  onTextChange,
+  onFill,
+}: {
+  text: string;
+  onTextChange: (text: string) => void;
+  onFill: (value: PasteFill) => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <div className="pin-paste">
+      <p className="pin-paste-intro">
+        Paste a dependency descriptor from a Renovate debug log — look for{" "}
+        <code>packageFiles with updates</code> — or any JSON with the same keys.
+      </p>
+      <textarea
+        className="pin-paste-input"
+        aria-label="Dependency descriptor JSON"
+        placeholder={PASTE_PLACEHOLDER}
+        value={text}
+        onChange={(e) => onTextChange(e.target.value)}
+      />
+      {error ? <p className="sim-empty-guard">{error}</p> : null}
+      <div className="pin-paste-actions">
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={() => {
+            const result = parsePastedDescriptor(text);
+            setError(result.ok ? null : result.error);
+            if (result.ok) {
+              onFill(result.value);
+            }
+          }}
+        >
+          Parse &amp; fill
+        </button>
+        <span className="pin-paste-note">
+          fills the Manual form — unknown keys are ignored, nothing is sent anywhere
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The Manual tab's own body: the form, the 015 empty guard, and the actions
+ * row — one component because the tab strip now switches between two of these
+ * and the alternative is five sibling `{tab === "manual" ? … : null}` lines.
+ */
+function ManualPanel({
+  sim,
+  importNote,
+  emptyGuard,
+  openGroup,
+  onOpenGroupChange,
+  onQuickFill,
+  onSubmit,
+  actions,
+}: {
+  sim: SimulatorFormApi;
+  /** Roadmap 082: the receipt from a Paste-JSON import, or null. */
+  importNote: string | null;
+  emptyGuard: boolean;
+  openGroup: number;
+  onOpenGroupChange: (index: number) => void;
+  onQuickFill: (fill: Partial<FormState>) => void;
+  onSubmit: () => void;
+  /** Simulate/Pin — they submit the form from OUTSIDE it (`form=`), so the
+   *  caller keeps them and this only places them. */
+  actions: ReactNode;
+}) {
+  return (
+    <>
+      {importNote ? <p className="pin-import-note">✓ {importNote}</p> : null}
+      <SimulatorForm
+        form={sim.form}
+        setForm={sim.setForm}
+        setUpdateTypeTouched={sim.setUpdateTypeTouched}
+        effectiveUpdateType={sim.effectiveUpdateType}
+        derivedUpdateType={sim.derivedUpdateType}
+        updateTypeKeyDown={sim.updateTypeKeyDown}
+        datasourceNames={sim.datasourceNames}
+        managerNames={sim.managerNames}
+        openGroup={openGroup}
+        onOpenGroupChange={onOpenGroupChange}
+        compact
+        onQuickFill={onQuickFill}
+        onSubmit={onSubmit}
+        formId={PIN_FORM_ID}
+      />
+      {emptyGuard ? (
+        <p className="sim-empty-guard">
+          Pick an example above, or fill in a package name (or another identifying field) — an empty
+          form can’t match anything.
+        </p>
+      ) : null}
+      {actions}
+    </>
   );
 }
 
@@ -173,17 +327,11 @@ export function AddTestBox({
   footnote?: ReactNode;
 }) {
   const engineModule = useEngineModule();
-  const {
-    form,
-    setForm,
-    updateTypeTouched,
-    setUpdateTypeTouched,
-    derivedUpdateType,
-    effectiveUpdateType,
-    datasourceNames,
-    managerNames,
-    updateTypeKeyDown,
-  } = useSimulatorForm(engineModule);
+  // Kept whole as well as destructured: the Manual panel takes the API object
+  // (it renders the form), while the simulate/pin actions here read the four
+  // fields they act on.
+  const simForm = useSimulatorForm(engineModule);
+  const { form, setForm, updateTypeTouched, setUpdateTypeTouched, effectiveUpdateType } = simForm;
   // Roadmap 079: which field group is expanded (-1 = all closed, the state the
   // panel opens in). Held here rather than in the form so a re-render from a
   // simulation never folds what the reader opened.
@@ -193,6 +341,12 @@ export function AddTestBox({
   const [emptyGuard, setEmptyGuard] = useState(false);
   const [oneOff, setOneOff] = useState<OneOff | null>(null);
   const [simulating, setSimulating] = useState(false);
+  // Roadmap 082: which door the descriptor is coming through, the draft in the
+  // other one (held here so a tab switch does not throw it away), and the
+  // receipt the Manual tab wears after a paste came through it.
+  const [tab, setTab] = useState<AddTestTab>("manual");
+  const [pasteDraft, setPasteDraft] = useState("");
+  const [importNote, setImportNote] = useState<string | null>(null);
 
   // The empty state's quick-start chips write into this form — synced during
   // render (the panel idiom), keyed by nonce so re-clicking the chip works.
@@ -203,7 +357,25 @@ export function AddTestBox({
       setForm({ ...EMPTY_FORM, ...seed });
       setUpdateTypeTouched(false);
       setEmptyGuard(false);
+      setImportNote(null);
+      setTab("manual");
     }
+  }
+
+  /**
+   * A paste REPLACES the descriptor rather than patching it: the pasted JSON
+   * is a whole dependency, and merging it over whatever a quick-fill chip left
+   * behind would carry a stale `packageFile: package.json` into a Dockerfile
+   * descriptor without saying so. `updateTypeTouched` follows the paste — an
+   * updateType the log stated is the user's choice, not something to re-derive
+   * from the versions and silently overwrite.
+   */
+  function applyPaste(value: PasteFill) {
+    setForm({ ...EMPTY_FORM, ...value.fill });
+    setUpdateTypeTouched(value.updateTypeGiven);
+    setEmptyGuard(false);
+    setImportNote(pasteImportNote(value));
+    setTab("manual");
   }
 
   const atLimit = pinCount >= MAX_PINS;
@@ -240,48 +412,45 @@ export function AddTestBox({
     setForm(EMPTY_FORM);
     setUpdateTypeTouched(false);
     setOneOff(null);
+    // The note described a form that no longer exists.
+    setImportNote(null);
   }
 
   return (
     <div className="pin-add-panel">
       <p className="pin-add-label">Add a test</p>
       <div className="card pin-add-card">
-        <AddTestTabs />
-        <SimulatorForm
-          form={form}
-          setForm={setForm}
-          setUpdateTypeTouched={setUpdateTypeTouched}
-          effectiveUpdateType={effectiveUpdateType}
-          derivedUpdateType={derivedUpdateType}
-          updateTypeKeyDown={updateTypeKeyDown}
-          datasourceNames={datasourceNames}
-          managerNames={managerNames}
-          openGroup={openGroup}
-          onOpenGroupChange={setOpenGroup}
-          compact
-          onQuickFill={(fill) => {
-            setForm({ ...EMPTY_FORM, ...fill });
-            setUpdateTypeTouched(false);
-            setEmptyGuard(false);
-          }}
-          onSubmit={simulate}
-          formId={PIN_FORM_ID}
-        />
-        {emptyGuard && !hasMeaningfulInput(form) ? (
-          <p className="sim-empty-guard">
-            Pick an example above, or fill in a package name (or another identifying field) — an
-            empty form can’t match anything.
-          </p>
+        <AddTestTabs tab={tab} onTabChange={setTab} />
+        {tab === "paste" ? (
+          <PasteJsonTab text={pasteDraft} onTextChange={setPasteDraft} onFill={applyPaste} />
         ) : null}
-        <AddTestActions
-          simulateDisabled={simulating || !result.finalConfig}
-          atLimit={atLimit}
-          onPin={() => {
-            if (guarded()) {
-              pin(form, effectiveUpdateType);
+        {tab === "manual" ? (
+          <ManualPanel
+            sim={simForm}
+            importNote={importNote}
+            emptyGuard={emptyGuard && !hasMeaningfulInput(form)}
+            openGroup={openGroup}
+            onOpenGroupChange={setOpenGroup}
+            onQuickFill={(fill) => {
+              setForm({ ...EMPTY_FORM, ...fill });
+              setUpdateTypeTouched(false);
+              setEmptyGuard(false);
+              setImportNote(null);
+            }}
+            onSubmit={simulate}
+            actions={
+              <AddTestActions
+                simulateDisabled={simulating || !result.finalConfig}
+                atLimit={atLimit}
+                onPin={() => {
+                  if (guarded()) {
+                    pin(form, effectiveUpdateType);
+                  }
+                }}
+              />
             }
-          }}
-        />
+          />
+        ) : null}
         {atLimit ? (
           <p className="pin-limit-note">
             {MAX_PINS} pinned tests is the maximum — remove one to pin another.

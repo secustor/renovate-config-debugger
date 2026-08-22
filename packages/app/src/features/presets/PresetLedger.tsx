@@ -1,16 +1,15 @@
 import { memo, useMemo, useState } from "react";
 import type { PresetNode } from "@renovate-config-debugger/engine";
-import { motionScrollOptions } from "@/lib/motion";
 import {
   computePresetLedger,
-  ledgerCardId,
-  type LedgerSource,
+  CONFIG_PRESETS_DOCS,
+  type LedgerErrorRow,
   type PresetLedgerModel,
 } from "./ledger";
 import { LedgerCard } from "./LedgerCard";
 import { PresetName } from "@/components/PresetName";
 import { nf } from "@/lib/format";
-import { collectGithubAuthFailures, pluralWord } from "./tree-shared";
+import { pluralWord } from "./tree-shared";
 
 /**
  * Roadmap 075 (iteration 5b): the Presets tab's DEFAULT view — the ledger.
@@ -31,37 +30,47 @@ function defaultOpenIds(model: PresetLedgerModel): ReadonlySet<string> {
   return new Set(model.sources.filter((s) => s.defaultOpen).map((s) => s.nodeId));
 }
 
+/**
+ * The strip: three counts and the way into the tree.
+ *
+ * Roadmap 082 took the source TOKENS out of it. The strip used to list every
+ * top-level `extends` entry as a `PresetName` that scrolled to its card — but
+ * the cards are directly below, wearing the same names in the same tokens, so
+ * the strip was a table of contents for a list one screen long. What it is for
+ * is the three numbers: how many entries, what they expanded into, and whether
+ * any of it failed.
+ */
 function LedgerSummary({
   sources,
   presets,
   errors,
   onOpenTree,
-  onFocusSource,
 }: {
-  sources: LedgerSource[];
+  sources: number;
   presets: number;
   errors: number;
   onOpenTree: () => void;
-  onFocusSource: (nodeId: string) => void;
 }) {
   return (
     <div className="summary-strip">
       <span>
-        <code>extends</code> resolved <strong>{nf.format(sources.length)}</strong>{" "}
-        {pluralWord(sources.length, "source")}:
+        <code>extends</code> resolved <strong>{nf.format(sources)}</strong>{" "}
+        {pluralWord(sources, "source")} into <strong>{nf.format(presets)}</strong>{" "}
+        {pluralWord(presets, "preset")} ·
       </span>
-      {sources.map((source) => (
-        <PresetName
-          key={source.nodeId}
-          name={source.name}
-          nodeId={source.nodeId}
-          onClick={() => onFocusSource(source.nodeId)}
-        />
-      ))}
-      <span>
-        · <strong>{nf.format(presets)}</strong> {pluralWord(presets, "preset")} ·{" "}
-        <strong>{nf.format(errors)}</strong> {pluralWord(errors, "error")}
-      </span>
+      {/* Roadmap 082: the error count is a red PILL the moment there is one —
+          the strip is otherwise all muted text, and a run that failed to fetch
+          a preset must not have to be read to be noticed. Zero stays text: a
+          pill saying "0 errors" is an alarm about nothing. */}
+      {errors > 0 ? (
+        <span className="pill pill-error">
+          {nf.format(errors)} {pluralWord(errors, "error")}
+        </span>
+      ) : (
+        <span>
+          <strong>0</strong> errors
+        </span>
+      )}
       <button type="button" className="btn-quiet" onClick={onOpenTree}>
         open the full tree →
       </button>
@@ -69,27 +78,112 @@ function LedgerSummary({
   );
 }
 
+/** The design's two phrasings, plus the one it has no mock data for: the
+ *  reader's OWN `extends` entry failing, which is the commonest single-error
+ *  run there is (a typo in a preset name). What each one claims is in its
+ *  title — the note is three words and the claim behind it is not. */
+const VIA_TEXT: Record<LedgerErrorRow["via"], { text: string; title: string }> = {
+  config: {
+    text: "in your config",
+    title: "An entry of your own extends — this name is in the config you ran",
+  },
+  own: {
+    text: "via your preset",
+    title: "Pulled in below a top-level entry that is a preset you host",
+  },
+  extends: {
+    text: "via extends",
+    title: "Reached through a preset's own extends, not written in your config",
+  },
+};
+
+/** One failed preset: the reference, what went wrong, and where it came from. */
+function LedgerErrorLine({
+  row,
+  onOpenNode,
+}: {
+  row: LedgerErrorRow;
+  onOpenNode: (nodeId: string) => void;
+}) {
+  const via = VIA_TEXT[row.via];
+  return (
+    <div className="ledger-error-row">
+      <PresetName name={row.name} nodeId={row.nodeId} onClick={() => onOpenNode(row.nodeId)} />
+      <span className="ledger-error-message">{row.message}</span>
+      <span className="ledger-error-via" title={via.title}>
+        {via.text}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * The failed box's header: the count, the cache line, the hint that says which
+ * failures a sign-in would fix — and, outside the toggle (an anchor inside a
+ * button is not a control), the docs link, exactly as the ledger cards do it.
+ */
+function LedgerHealthHead({
+  errors,
+  duplicates,
+  authHint,
+  open,
+  onToggle,
+}: {
+  errors: number;
+  duplicates: number;
+  authHint: string;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="ledger-health-head">
+      <button
+        type="button"
+        className="ledger-health-toggle"
+        aria-expanded={open}
+        onClick={onToggle}
+      >
+        <span className="caret">{open ? "▾" : "▸"}</span>
+        <span className="ledger-health-count">
+          ✗ {nf.format(errors)} {pluralWord(errors, "error")}
+        </span>
+        <span className="ledger-health-note">
+          · {nf.format(duplicates)} repeat {pluralWord(duplicates, "occurrence")} served from cache
+          {authHint}
+        </span>
+      </button>
+      <a className="ledger-docs" href={CONFIG_PRESETS_DOCS} target="_blank" rel="noreferrer">
+        docs ↗
+      </a>
+    </div>
+  );
+}
+
 /**
  * The ledger's closing line. A clean expansion says so — "nothing failed,
  * nothing redundant" is the fact a reader came for and would otherwise have to
- * infer from the absence of red. When something DID fail, the strip says what
- * and sends the reader to the tree, which is where a failed node's detail
- * panel (and its sign-in affordance) lives; the run-level auth banner above
- * the tabs states the fixable half of it once, for the whole run.
+ * infer from the absence of red.
+ *
+ * Roadmap 082: when something DID fail, the line becomes a red box that names
+ * the failures instead of only counting them. The previous version reported "N
+ * presets could not be resolved" and sent the reader to the tree to find out
+ * WHICH — a 1,100-row inventory to answer a question the run already knows the
+ * answer to. Every row carries the standard `PresetName`, so the hover card and
+ * the jump into the tree come for free; the auth hint (009) stays on the header
+ * line, where it is legible with the box still shut, and the run-level banner
+ * above the tabs states the same fixable half once for the whole run.
  */
 function LedgerHealth({
-  root,
   errors,
   duplicates,
-  onOpenTree,
+  onOpenNode,
 }: {
-  root: PresetNode;
-  errors: number;
+  errors: LedgerErrorRow[];
   duplicates: number;
-  onOpenTree: () => void;
+  onOpenNode: (nodeId: string) => void;
 }) {
-  const auth = useMemo(() => collectGithubAuthFailures(root), [root]);
-  if (errors === 0) {
+  const [open, setOpen] = useState(false);
+  if (errors.length === 0) {
     return (
       <div className="summary-strip ledger-health">
         <span>
@@ -100,20 +194,28 @@ function LedgerHealth({
       </div>
     );
   }
+  const authFixable = errors.some((row) => row.authFixable);
+  const authHint = authFixable
+    ? errors.some((row) => row.rateLimited)
+      ? " · the unauthenticated rate limit was reached; signing in raises it"
+      : " · signing in would reach the private ones"
+    : "";
   return (
-    <div className="summary-strip ledger-health failed">
-      <span>
-        <strong>{nf.format(errors)}</strong> {pluralWord(errors, "preset")} could not be resolved
-        {auth.failures.length > 0
-          ? auth.rateLimited
-            ? " — the unauthenticated rate limit was reached; signing in raises it"
-            : " — signing in would reach the private ones"
-          : ""}
-        .
-      </span>
-      <button type="button" className="btn-quiet" onClick={onOpenTree}>
-        open the full tree →
-      </button>
+    <div className="ledger-health failed">
+      <LedgerHealthHead
+        errors={errors.length}
+        duplicates={duplicates}
+        authHint={authHint}
+        open={open}
+        onToggle={() => setOpen((prev) => !prev)}
+      />
+      {open ? (
+        <div className="ledger-error-rows">
+          {errors.map((row) => (
+            <LedgerErrorLine key={row.nodeId} row={row} onOpenNode={onOpenNode} />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -155,22 +257,13 @@ export const PresetLedger = memo(function PresetLedger({
     });
   }
 
-  /** The strip's tokens: open that source's card and put it on screen. */
-  function focusSource(nodeId: string) {
-    setOpenIds((prev) => (prev.has(nodeId) ? prev : new Set(prev).add(nodeId)));
-    // The card exists whether or not it is open, so nothing has to wait for a
-    // commit here.
-    document.getElementById(ledgerCardId(nodeId))?.scrollIntoView(motionScrollOptions("start"));
-  }
-
   return (
     <div className="preset-ledger">
       <LedgerSummary
-        sources={model.sources}
+        sources={model.sources.length}
         presets={model.summary.resolved}
         errors={model.summary.errors}
         onOpenTree={onOpenTree}
-        onFocusSource={focusSource}
       />
       {model.sources.map((source) => (
         <LedgerCard
@@ -182,10 +275,9 @@ export const PresetLedger = memo(function PresetLedger({
         />
       ))}
       <LedgerHealth
-        root={root}
-        errors={model.summary.errors}
+        errors={model.errors}
         duplicates={model.summary.duplicates}
-        onOpenTree={onOpenTree}
+        onOpenNode={onOpenNode}
       />
     </div>
   );

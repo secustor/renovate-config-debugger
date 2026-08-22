@@ -118,19 +118,22 @@ describe("SimulatorForm — the redesigned shape (079)", () => {
     expect(heads[1]?.getAttribute("aria-expanded")).toBe("false");
   });
 
-  it("previews the descriptor standalone and not compact", () => {
-    // Standalone: the card is there, and an empty form says so rather than
-    // printing seven keys set to "".
+  it("previews the descriptor as an aside standalone, as a collapsed section compact", () => {
+    // Standalone: the sticky aside is there, and an empty form says so rather
+    // than printing seven keys set to "".
     const standalone = renderForm().view;
     expect(standalone.container.querySelector(".sim-descriptor")).not.toBeNull();
+    expect(standalone.container.querySelector(".sim-descriptor-section")).toBeNull();
     expect(standalone.container.querySelector(".sim-descriptor-json")?.textContent).toBe("{}");
     expect(standalone.container.querySelector(".sim-descriptor-empty")).not.toBeNull();
 
     cleanup();
-    // Compact (the Tests tab's Add-a-test panel): one column, no preview.
+    // Compact (the Tests tab's Add-a-test panel): no aside column — the same
+    // document lives in the collapsed "Descriptor JSON" section instead (082).
     const compact = renderForm({ compact: true }).view;
     expect(compact.container.querySelector(".sim-descriptor")).toBeNull();
     expect(compact.container.querySelector(".sim-form-body.with-preview")).toBeNull();
+    expect(compact.container.querySelector(".sim-descriptor-section")).not.toBeNull();
   });
 
   it("gives a multi-value field's Enter to the chip, never to the form", () => {

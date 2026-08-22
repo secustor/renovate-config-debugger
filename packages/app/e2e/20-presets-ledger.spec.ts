@@ -32,7 +32,7 @@ test("the Presets tab opens on the ledger, and its numbers are the tab's own", a
   // The strip is the tab's lead sentence, and it quotes the badge to the digit
   // — both read the one `TreeSummary` the run produced.
   await expect(strip).toContainText("1 source");
-  await expect(strip).toContainText(`${presets} presets`);
+  await expect(strip).toContainText(`into ${presets} presets`);
   await expect(strip).toContainText("0 errors");
   // …and nothing of the tree is on screen yet.
   await expect(page.locator("#panel-presets .preset-row")).toHaveCount(0);
@@ -100,12 +100,10 @@ test("the big built-in folds away when another source can carry the view", async
     "true",
   );
 
-  // The strip's token opens the card it names.
-  await page
-    .locator("#panel-presets .summary-strip")
-    .first()
-    .getByRole("button", { name: "config:recommended" })
-    .click();
+  // …and the shut one opens from its own header. (Until 082 the strip listed
+  // the sources as tokens that scrolled to their cards; the strip is counts
+  // only now — the cards below ARE the list of sources.)
+  await cards.nth(0).locator(".ledger-head-toggle").click();
   await expect(cards.nth(0).locator(".ledger-head-toggle")).toHaveAttribute(
     "aria-expanded",
     "true",
