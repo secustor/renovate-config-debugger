@@ -19,7 +19,6 @@ import { AdvancedZone } from "@/features/editor/AdvancedZone";
 import { AppShellHeader } from "@/app/AppShellHeader";
 import type { ConfigEditorHandle } from "@/features/editor/ConfigEditor";
 import { ConfigColumn } from "@/app/ConfigColumn";
-import type { EffectiveTally } from "@/lib/effective-tally";
 import type { AuthState } from "@/components/GithubAuthHint";
 import { HeadlessNote } from "@/components/HeadlessNote";
 import { identityForNodeId, nodeIdForIdentity } from "@/lib/preset-tree-stats";
@@ -70,6 +69,7 @@ import { useCustomHostRules, useHostTokens } from "@/hooks/use-host-tokens";
 import { useInheritedConfigLayer } from "@/app/use-inherited-config-layer";
 import { useRepoLoad } from "@/app/use-repo-load";
 import { useRunSummary } from "@/app/use-run-summary";
+import { usePanelStats } from "@/app/use-panel-stats";
 import { usePinnedRun } from "@/app/use-pinned-run";
 import { useResultsTab } from "@/app/use-results-tab";
 import { useShareLink } from "@/hooks/use-share-link";
@@ -380,19 +380,19 @@ export function App() {
     onRuleFocused,
     onJumpToSimRule,
   } = useResultsTab();
-  // Roadmap 028/029: the Effective config tab's badge + digest numbers,
-  // reported by the view itself (it owns the async provenance computation)
-  // rather than recomputed here. null = not known yet.
-  const [effectiveStats, setEffectiveStats] = useState<EffectiveTally | null>(null);
-  // Roadmap 083: the Overview tab's badge — how many author-written sentences
-  // its card lists. Reported by that panel for the same reason `effectiveStats`
-  // is: the description provenance behind it is an async engine derivation the
-  // panel owns, and the badge must quote the number the card actually printed.
-  // null = not known yet, which is a badge-less tab rather than a zero.
-  const [overviewBehaviors, setOverviewBehaviors] = useState<number | null>(null);
-  // Roadmap 069: bumped by the description digest card's "show raw order" link
-  // to land on the effective config's `description` row and its blame ledger.
-  const [descriptionLedgerNonce, setDescriptionLedgerNonce] = useState(0);
+  // Roadmap 028/069/083: the counts the results panels report back up (the
+  // Effective tab's key tally, the Overview tab's behavior count) and the
+  // ledger signal that goes the other way — as one hook, because a new run
+  // invalidates the counts TOGETHER.
+  const {
+    effectiveStats,
+    setEffectiveStats,
+    overviewBehaviors,
+    setOverviewBehaviors,
+    descriptionLedgerNonce,
+    requestDescriptionLedger,
+    resetPanelStats,
+  } = usePanelStats();
   // Roadmap 028: the results pane, so a Run on a stacked (narrow) viewport can
   // scroll its consequence into view instead of appearing to do nothing.
   const resultsColRef = useRef<HTMLDivElement>(null);
@@ -528,8 +528,8 @@ export function App() {
    *  repeated sentences. */
   const onShowDescriptionOrder = useCallback(() => {
     jumpToTab("effective");
-    setDescriptionLedgerNonce((n) => n + 1);
-  }, [jumpToTab]);
+    requestDescriptionLedger();
+  }, [jumpToTab, requestDescriptionLedger]);
 
   // Roadmap 028: selecting a preset node from anywhere else (a provenance
   // chip, a simulator rule, an editor preset hover) also switches to the
@@ -663,15 +663,16 @@ export function App() {
     setMergeStepIndex(0);
     // Roadmap 028: a new run invalidates the previous run's async counts —
     // the effective key stats and the Overview's behavior count (083), both
-    // recomputed by their views once the new derivations settle — and any
-    // "back to where I was" target from the run that just ended.
-    setEffectiveStats(null);
-    setOverviewBehaviors(null);
+    // recomputed by their views once the new derivations settle (they reset as
+    // one, which is what `usePanelStats` exists for) — and any "back to where I
+    // was" target from the run that just ended.
+    resetPanelStats();
     clearBackTab();
-    // `clearBackTab` is identity-stable (a `useCallback` with no dependencies,
-    // in `useResultsTab`), so listing it leaves this effect firing on the result
-    // and nothing else — it is here because `exhaustive-deps` cannot see that.
-  }, [result, clearBackTab]);
+    // Both are identity-stable (`useCallback`s with no dependencies, in
+    // `usePanelStats` and `useResultsTab`), so listing them leaves this effect
+    // firing on the result and nothing else — they are here because
+    // `exhaustive-deps` cannot see that.
+  }, [result, resetPanelStats, clearBackTab]);
 
   // Roadmap 028's post-Run scroll-into-view lives in ResultsColumn since 031:
   // with the results half lazy, an App-side effect on `result` could run
