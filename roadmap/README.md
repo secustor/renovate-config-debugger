@@ -88,6 +88,7 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [081](081-standard-preset-names-and-hovers.md)          | One preset name, one preset hover                                    | M20                  | done     |
 | [082](082-final-tab-specs-deltas.md)                    | The final tab specs: health box, toolbar copy, paste-a-descriptor    | M20                  | done     |
 | [083](083-overview-tab.md)                              | The Overview tab: what this config does, by topic                    | M20                  | done     |
+| [084](084-post-v2-cleanup.md)                           | The post-v2 cleanup pass: primitives, layer moves, the big splits    | M20                  | done     |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live
