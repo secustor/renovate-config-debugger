@@ -20,8 +20,13 @@ import { useEscapeLayer } from "@/hooks/use-escape-layer";
 import type { RepoPlatform, TraceResult } from "@renovate-config-debugger/engine";
 import { PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
 import { isValidRepoHost, isValidRepoRefPart } from "@/lib/input-schemas";
+import {
+  configFileNameFor,
+  extractRenovateFromPackageJson,
+  parseRepoReference,
+} from "@/lib/repo-reference";
 import type { ShareFileName, UntrustedEndpointGuard } from "@/lib/share";
-import { loadRepoConfig } from "@/platform/run";
+import { loadRepoConfig, loadRepoFile } from "@/platform/run";
 import { ENDPOINT_KEY, persistLocal, PLATFORM_KEY } from "@/platform/storage";
 import type { RunInputs } from "@/lib/run-inputs";
 
@@ -35,48 +40,6 @@ const HOST_PLATFORM: Record<string, RepoPlatform> = {
   "gitea.com": "gitea",
   "codeberg.org": "forgejo",
 };
-
-/** Strips a trailing `.git` and slashes from a repo path. */
-function stripRepoSuffix(path: string): string {
-  return path.replace(/\.git$/, "").replace(/^\/+|\/+$/g, "");
-}
-
-/**
- * Parses a repo reference liberally: `org/repo`, `github.com/org/repo`, a full
- * URL (`https://gitlab.com/org/repo`), or scp-style (`git@github.com:org/repo.git`).
- * Returns the host (null for a bare slug) and the repo path (may be nested for
- * GitLab subgroups), or null when it is not a recognizable reference.
- */
-function parseRepoRef(raw: string): { host: string | null; repo: string } | null {
-  const trimmed = raw.trim();
-  if (!trimmed) {
-    return null;
-  }
-  const scp = /^git@([^:]+):(.+)$/.exec(trimmed);
-  if (scp?.[1] && scp[2]) {
-    return { host: scp[1], repo: stripRepoSuffix(scp[2]) };
-  }
-  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)) {
-    try {
-      const u = new URL(trimmed);
-      const repo = stripRepoSuffix(u.pathname);
-      return repo ? { host: u.host, repo } : null;
-    } catch {
-      return null;
-    }
-  }
-  const path = stripRepoSuffix(trimmed);
-  const segments = path.split("/");
-  // A first segment that looks like a domain (contains a dot) is treated as a
-  // host; owners/groups never contain dots on the supported hosts.
-  if (segments.length >= 3 && segments[0]?.includes(".")) {
-    return { host: segments[0], repo: segments.slice(1).join("/") };
-  }
-  if (segments.length < 2 || segments.some((s) => s === "")) {
-    return null;
-  }
-  return { host: null, repo: path };
-}
 
 /**
  * What the load needs from App.tsx. Handed in fresh every render and read
@@ -213,20 +176,27 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
   // from a known host (and sets the platform context so a later run resolves
   // `local>` correctly); a bare slug uses the current platform context.
   async function onLoadRepo(reference?: string) {
-    const parsed = parseRepoRef(reference ?? repoInput);
-    // An explicit reference is a shortcut to a repo's default branch — the ref
-    // field belongs to the form gesture it bypassed.
+    const parsed = parseRepoReference(reference ?? repoInput);
+    // Roadmap 085: the reference itself may pin a branch (`@ref`, a /tree/
+    // URL) or an exact file (a /blob/ URL). The form's own ref field wins when
+    // BOTH name one — it is the more deliberate gesture — and an explicit
+    // `reference` argument is a shortcut whose ref, if any, is its own.
     const trimmedRef = reference !== undefined ? "" : repoRef.trim();
-    // Roadmap 030: the parsed host/repo/ref are bounded and control-character
-    // free before they compose a request URL/path — the same "Enter a repo
-    // as..." notice covers a reference that parsed but shouldn't be trusted.
+    const effectiveRef = trimmedRef || parsed?.ref || "";
+    // Roadmap 030: the parsed host/repo/ref/path are bounded and control-
+    // character free before they compose a request URL/path — the same "Enter
+    // a repo as..." notice covers a reference that parsed but shouldn't be
+    // trusted.
     if (
       !parsed ||
       !isValidRepoRefPart(parsed.repo) ||
       (parsed.host && !isValidRepoHost(parsed.host)) ||
-      !isValidRepoRefPart(trimmedRef)
+      !isValidRepoRefPart(effectiveRef) ||
+      (parsed.path !== undefined && !isValidRepoRefPart(parsed.path))
     ) {
-      setNotice("Enter a repo as owner/repo, github.com/owner/repo, or a full repository URL.");
+      setNotice(
+        "Enter a repo as owner/repo, github.com/owner/repo, a full repository URL, or a config file URL (…/blob/main/renovate.json).",
+      );
       return;
     }
     let repoPlatform: RepoPlatform;
@@ -269,18 +239,51 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
     setNotice(null);
     setRepoAuthHint(null);
     try {
-      const loaded = await loadRepoConfig(
-        {
-          platform: repoPlatform,
-          repo: parsed.repo,
-          endpoint: repoEndpoint || undefined,
-          ref: trimmedRef || undefined,
-        },
-        { suppressTokens },
-      );
-      const nextFileName: ShareFileName = loaded.fileName.endsWith(".json5")
-        ? "renovate.json5"
-        : "renovate.json";
+      let loaded: { fileName: string; content: string };
+      if (parsed.path !== undefined) {
+        // Roadmap 085: the reference named an exact file, so discovery would
+        // be inventing behavior — read THAT file, or say it is not there.
+        const raw = await loadRepoFile(
+          {
+            platform: repoPlatform,
+            repo: parsed.repo,
+            path: parsed.path,
+            endpoint: repoEndpoint || undefined,
+            ref: effectiveRef || undefined,
+          },
+          { suppressTokens },
+        );
+        const refLabel = effectiveRef ? `@${effectiveRef}` : "";
+        if (raw === null) {
+          setFatal(
+            `No ${parsed.path} in ${parsed.repo}${refLabel}. Check the path and branch — or, for a private repo, sign in or add a token.`,
+          );
+          if (oauthConfigured && repoPlatform === "github") {
+            setRepoAuthHint({ rateLimited: false });
+          }
+          return;
+        }
+        const content = parsed.path.endsWith("package.json")
+          ? extractRenovateFromPackageJson(raw)
+          : raw;
+        if (content === null) {
+          setFatal(`${parsed.path} in ${parsed.repo}${refLabel} has no "renovate" key.`);
+          return;
+        }
+        // Empty config file is `{}` upstream — the same rule discovery applies.
+        loaded = { fileName: parsed.path, content: content.trim() === "" ? "{}" : content };
+      } else {
+        loaded = await loadRepoConfig(
+          {
+            platform: repoPlatform,
+            repo: parsed.repo,
+            endpoint: repoEndpoint || undefined,
+            ref: effectiveRef || undefined,
+          },
+          { suppressTokens },
+        );
+      }
+      const nextFileName: ShareFileName = configFileNameFor(loaded.fileName);
       if (knownHost) {
         setPlatform(repoPlatform);
         persistLocal(PLATFORM_KEY, repoPlatform);
@@ -289,7 +292,9 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
       }
       loadConfigText(loaded.content);
       setFileName(nextFileName);
-      setNotice(`Loaded ${loaded.fileName} from ${parsed.repo}`);
+      setNotice(
+        `Loaded ${loaded.fileName} from ${parsed.repo}${effectiveRef ? `@${effectiveRef}` : ""}`,
+      );
       // Roadmap 039: the panel's job is done — it collapses so the config it
       // just fetched gets the height back. A FAILED load leaves it open: the
       // reference in it is what the user has to correct. A shortcut load never

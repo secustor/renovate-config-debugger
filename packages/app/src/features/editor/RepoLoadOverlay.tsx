@@ -32,6 +32,8 @@ export function RepoLoadOverlay({
   onInheritRepoChange,
   inheritFile,
   onInheritFileChange,
+  picker,
+  pickerUser,
 }: Props) {
   return (
     <div className="repo-overlay">
@@ -55,6 +57,8 @@ export function RepoLoadOverlay({
         onInheritRepoChange={onInheritRepoChange}
         inheritFile={inheritFile}
         onInheritFileChange={onInheritFileChange}
+        picker={picker}
+        pickerUser={pickerUser}
       />
     </div>
   );

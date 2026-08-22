@@ -1,5 +1,6 @@
 import type { ReactNode, RefObject } from "react";
 import type { StageId } from "@renovate-config-debugger/engine";
+import type { StoredUser } from "@/platform/oauth";
 import type { ConfigEditorHandle } from "@/features/editor/ConfigEditor";
 import { ConfigEditorCard } from "@/features/editor/ConfigEditorCard";
 import { ConfigToolbar } from "@/features/editor/ConfigToolbar";
@@ -7,6 +8,7 @@ import { type AuthState, GithubAuthHint } from "@/components/GithubAuthHint";
 import { LandingIntro, LandingLaunch, LandingSteps } from "@/features/editor/Landing";
 import { NoticeBar } from "@/features/editor/NoticeBar";
 import { RepoLoadOverlay } from "@/features/editor/RepoLoadOverlay";
+import type { RepoPickerView } from "@/features/editor/RepoPicker";
 import { StageRailPreview } from "@/components/StageRail";
 import type { PresetHoverContext } from "@/lib/preset-hover";
 
@@ -45,6 +47,10 @@ interface ConfigColumnProps {
   onInheritRepoChange: (value: string) => void;
   inheritFile: string;
   onInheritFileChange: (value: string) => void;
+  /** Roadmap 085: the signed-in repo picker inside the overlay (null while
+   *  signed out), and whose repositories it lists. */
+  repoPicker: RepoPickerView | null;
+  authUser: StoredUser | null;
   // ConfigToolbar
   onFileNameChange: (value: string) => void;
   canRevert: boolean;
@@ -127,6 +133,8 @@ export function ConfigColumn({
   onInheritRepoChange,
   inheritFile,
   onInheritFileChange,
+  repoPicker,
+  authUser,
   onFileNameChange,
   canRevert,
   onRevert,
@@ -190,6 +198,8 @@ export function ConfigColumn({
       onInheritRepoChange={onInheritRepoChange}
       inheritFile={inheritFile}
       onInheritFileChange={onInheritFileChange}
+      picker={repoPicker}
+      pickerUser={authUser}
     />
   ) : null;
   const editor = (

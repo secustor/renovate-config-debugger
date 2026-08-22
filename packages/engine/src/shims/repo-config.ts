@@ -60,7 +60,7 @@ export class RepoConfigNotFoundError extends Error {
  * because upstream exports `getConfigFileNames()`, not the raw `configFileNames`
  * array; keep in sync with the pinned Renovate version.
  */
-const CONFIG_FILE_NAMES = [
+export const CONFIG_FILE_NAMES = [
   "renovate.json",
   "renovate.jsonc",
   "renovate.json5",

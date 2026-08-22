@@ -2818,6 +2818,95 @@ pre.config-view.prov-losing {
   gap: 0.3rem;
 }
 
+/* Roadmap 085: the signed-in "Your repositories" picker between the reference
+   row and the inherit row (the design's "combined" variant). Rows are buttons
+   that WRITE the reference field — the one Load button stays the only
+   trigger, so branch and inherit fields apply to a picked repo exactly as to
+   a pasted one. */
+.repo-picker {
+  border-bottom: 1px solid var(--border);
+  padding: 0.25rem 0.75rem 0.4rem;
+}
+
+.repo-picker-label {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  font-size: 0.7rem;
+  font-weight: 600;
+  gap: 0.35rem;
+  letter-spacing: 0.04em;
+  margin: 0.25rem 0;
+  text-transform: uppercase;
+}
+
+.repo-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.repo-picker-row {
+  align-items: baseline;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font-family: inherit;
+  font-size: 0.8rem;
+  gap: 0.5rem;
+  padding: 0.25rem 0.4rem;
+  text-align: left;
+  width: 100%;
+}
+
+.repo-picker-row:hover {
+  background: var(--surface);
+}
+
+.repo-picker-row.selected {
+  background: var(--accent-bg);
+  outline: 1px solid var(--accent);
+}
+
+.repo-picker-row > code {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repo-picker-note {
+  color: var(--muted);
+  font-size: 0.72rem;
+  margin: 0.15rem 0;
+}
+
+/* The probe's verdict: which config file a load would find (--ok, it exists),
+   or the probe's confident "no config found". No badge at all = unknown. */
+.repo-picker-badge {
+  border-radius: 999px;
+  flex: none;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  margin-left: auto;
+  padding: 0 0.45rem;
+}
+
+.repo-picker-badge.found {
+  background: var(--ok-bg);
+  border: 1px solid var(--ok-border);
+  color: var(--ok);
+}
+
+.repo-picker-badge.none {
+  border: 1px solid var(--border);
+  color: var(--faint);
+}
+
 /* The card title becomes a row when it needs one (039): the editor card for
    its toolbar, the effective card for its truncating hint (082 moved its view
    switch into the tab's own toolbar row). Every other card title stays plain
@@ -2882,7 +2971,10 @@ pre.config-view.prov-losing {
   border-radius: 8px;
   box-shadow: var(--shadow-popover);
   left: 0.6rem;
-  overflow: hidden;
+  /* Roadmap 085: the signed-in picker can make the form taller than the
+     editor pane it overlays — the form scrolls, never the page. */
+  max-height: calc(100% - 1.2rem);
+  overflow: hidden auto;
   position: absolute;
   right: 0.6rem;
   top: 0.6rem;

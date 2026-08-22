@@ -68,6 +68,7 @@ import {
 import { useCustomHostRules, useHostTokens } from "@/hooks/use-host-tokens";
 import { useInheritedConfigLayer } from "@/app/use-inherited-config-layer";
 import { useRepoLoad } from "@/app/use-repo-load";
+import { useRepoPicker } from "@/app/use-repo-picker";
 import { useRunSummary } from "@/app/use-run-summary";
 import { usePanelStats } from "@/app/use-panel-stats";
 import { usePinnedRun } from "@/app/use-pinned-run";
@@ -736,6 +737,14 @@ export function App() {
     // declared below — by the time a load calls it, that binding exists.
     resolveInheritedConfig: async (args) =>
       inheritAuto ? await probeInheritedConfig(args) : inheritedParse.config,
+  });
+  // Roadmap 085: the signed-in repo picker inside the load overlay. Picking
+  // only writes the reference field — Load stays the one trigger.
+  const repoPicker = useRepoPicker({
+    open: repoFormOpen,
+    signedIn,
+    query: repoInput,
+    onPick: setRepoInput,
   });
   // Roadmap 045/048: the inherited-config layer — its text and parse, the
   // probe-target fields, the `inheritConfig*` policy read off the global
@@ -1699,6 +1708,8 @@ export function App() {
             onInheritRepoChange={onInheritRepoFieldChange}
             inheritFile={inheritFields.file}
             onInheritFileChange={onInheritFileFieldChange}
+            repoPicker={repoPicker}
+            authUser={authUser}
             onFileNameChange={(value) => setFileName(value as typeof fileName)}
             canRevert={content !== loadedContent}
             onRevert={() => loadConfigText(loadedContent)}

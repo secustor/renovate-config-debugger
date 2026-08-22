@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Term } from "@/components/glossary";
+import type { StoredUser } from "@/platform/oauth";
+import { RepoPicker, type RepoPickerView } from "./RepoPicker";
 
 /**
  * Roadmap 039 — the repo-load disclosure's open state: one chrome row (036
@@ -41,6 +43,11 @@ export interface Props {
   onInheritRepoChange: (value: string) => void;
   inheritFile: string;
   onInheritFileChange: (value: string) => void;
+  /** Roadmap 085: the signed-in repo picker, or null while signed out — the
+   *  form then is exactly the paste-a-reference bar it always was. */
+  picker: RepoPickerView | null;
+  /** Whose repositories the picker lists — the label's identity glyph. */
+  pickerUser: StoredUser | null;
 }
 
 export function RepoLoadForm({
@@ -57,6 +64,8 @@ export function RepoLoadForm({
   onInheritRepoChange,
   inheritFile,
   onInheritFileChange,
+  picker,
+  pickerUser,
 }: Props) {
   const firstFieldRef = useRef<HTMLInputElement>(null);
 
@@ -91,7 +100,11 @@ export function RepoLoadForm({
           type="text"
           className="ctl repo-panel-repo"
           aria-label="Repository"
-          placeholder="owner/repo, github.com/owner/repo, or a full repository URL"
+          placeholder={
+            picker
+              ? "owner/repo, a repository or file URL, or search your repos…"
+              : "owner/repo, github.com/owner/repo, or a repository or file URL"
+          }
           value={repo}
           onChange={(e) => onRepoChange(e.target.value)}
         />
@@ -110,6 +123,10 @@ export function RepoLoadForm({
           Cancel
         </button>
       </div>
+      {/* Roadmap 085: the signed-in picker sits between the reference row and
+          the inherit row (the design's "combined" variant) — picking only
+          fills the reference field, so everything below applies unchanged. */}
+      {picker ? <RepoPicker picker={picker} user={pickerUser} /> : null}
       {/* Roadmap 045, corrected 2026-07-26: the sub-row. Off by default —
           `inheritConfig` itself defaults to false, and the Mend-hosted app
           currently disables it too — auto-checked only when a pasted global

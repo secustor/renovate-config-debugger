@@ -105,6 +105,7 @@ export {
   presetInjectionKey,
 } from "./shims/presets/injection";
 export {
+  CONFIG_FILE_NAMES,
   fetchRepoConfig,
   fetchRepoFile,
   RepoConfigNotFoundError,
