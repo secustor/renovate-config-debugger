@@ -8,7 +8,7 @@ import { nf } from "@/lib/format";
 import { PIN_FORM_ID } from "./datalist-ids";
 import { EMPTY_FORM, type FormState, hasMeaningfulInput } from "./form";
 import { type PasteFill, parsePastedDescriptor, pasteImportNote } from "./paste-descriptor";
-import { buildPinOutcome, type PinOutcome } from "./pin-outcome";
+import { buildPinOutcome, type PinCheck, dotTitle, dotTone, type PinOutcome } from "./pin-outcome";
 import { pinContext, pinName, MAX_PINS } from "./pins";
 import { PinSectionHead } from "./PinRuleSections";
 import { runSimulation } from "./run-simulation";
@@ -56,15 +56,20 @@ function OneOffResult({
   onOpenInSimulator: (form: FormState) => void;
 }) {
   const { form, outcome, effectiveUpdateType } = oneOff;
+  // A one-off exists only once its simulation came back, so the dot reads the
+  // same `checked` state a pinned card's does — including the caveat, which is
+  // what ambers it.
+  const check: PinCheck = { status: "checked", outcome };
   return (
     <div className="card pin-oneoff">
       <div className="pin-head">
-        <span className={`pin-dot ${outcome.matched.length === 0 ? "warn" : "ok"}`} />
+        <span className={`pin-dot ${dotTone(check)}`} title={dotTitle(check)} />
         <span className="pin-name">{pinName(form)}</span>
         <span className="pin-meta">{pinContext(form, effectiveUpdateType)}</span>
         <span className="pin-summary">simulation · not pinned</span>
       </div>
       <div className="pin-oneoff-body">
+        {outcome.caveat ? <p className="sim-verdict-caveat">⚠ {outcome.caveat}</p> : null}
         <PinSectionHead
           mark={outcome.matched.length === 0 ? "⚠" : "✓"}
           tone={outcome.matched.length === 0 ? "warn" : "ok"}

@@ -167,6 +167,15 @@ export function joinValues(values: readonly string[]): string {
   return values.join(", ");
 }
 
+/** The fields this form keeps as ONE comma-separated string but Renovate — and
+ *  so a pasted descriptor — carries as an array. `list()` below is what turns
+ *  them back into one. */
+export const MULTI_VALUE_KEYS = [
+  "lockFiles",
+  "registryUrls",
+  "categories",
+] as const satisfies readonly (keyof FormState)[];
+
 function list(value: string): string[] | undefined {
   const items = splitValues(value);
   return items.length > 0 ? items : undefined;

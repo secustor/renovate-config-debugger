@@ -17,7 +17,7 @@ import type {
   SimulationResult,
 } from "@renovate-config-debugger/engine";
 import { describe, expect, test } from "vitest";
-import { buildPinOutcome } from "./pin-outcome";
+import { buildPinOutcome, dotTitle, dotTone, headSummary, pinCheck } from "./pin-outcome";
 
 function clause(
   state: ClauseEvaluation["state"],
@@ -245,6 +245,70 @@ describe("the rules a card names and the ones it buckets", () => {
     expect(bucket?.count).toBe(8);
     expect(bucket?.rows).toHaveLength(3);
     expect(bucket?.more).toBe("5 more families, sorted by rule count");
+  });
+});
+
+/**
+ * The header derivations both cards read. They live here rather than in
+ * `PinCard` because the one-off card re-spelled the dot as
+ * `matched.length === 0 ? "warn" : "ok"` and so showed a GREEN dot for the very
+ * outcome a pin of the same descriptor ambered — the caveat case below.
+ */
+describe("the header dot and the outcome sentence", () => {
+  const MATCHED = buildPinOutcome(
+    simulation([rule(0, "matched", [clause("matched")])], { groupName: "react" }),
+    layers([[0, REPO]]),
+    null,
+  );
+  const NO_MATCH = buildPinOutcome(
+    simulation([rule(0, "no-match", [clause("no-match")])]),
+    layers([]),
+    null,
+  );
+  const CAVEATED = buildPinOutcome(
+    simulation([
+      rule(0, "matched", [clause("matched")]),
+      rule(1, "no-match", [clause("no-input")]),
+    ]),
+    layers([
+      [0, RECOMMENDED],
+      [1, REPO],
+    ]),
+    attribution([[1, REPO, 0]]),
+  );
+
+  test("a pin with no evaluation yet is pending, not green", () => {
+    const check = pinCheck(undefined, null);
+    expect(check).toEqual({ status: "pending" });
+    expect(dotTone(check)).toBe("pending");
+    expect(dotTitle(check)).toBe("checking…");
+  });
+
+  test("a check that threw is amber and says so", () => {
+    const check = pinCheck({ error: "boom" }, null);
+    expect(check).toEqual({ status: "failed", error: "boom" });
+    expect(dotTone(check)).toBe("warn");
+    expect(dotTitle(check)).toBe("this pin could not be checked");
+  });
+
+  test("a caveat ambers a card whose rules DID match, and titles it with the caveat", () => {
+    expect(CAVEATED.matched).toHaveLength(1);
+    expect(CAVEATED.caveat).toBeDefined();
+    const check = pinCheck({}, CAVEATED);
+    expect(dotTone(check)).toBe("warn");
+    expect(dotTitle(check)).toBe(CAVEATED.caveat);
+  });
+
+  test("an update no rule wrote to is amber; a clean match is green", () => {
+    expect(dotTone(pinCheck({}, NO_MATCH))).toBe("warn");
+    expect(dotTitle(pinCheck({}, NO_MATCH))).toBe("no rule matched — Renovate defaults apply");
+    expect(dotTone(pinCheck({}, MATCHED))).toBe("ok");
+    expect(dotTitle(pinCheck({}, MATCHED))).toBe("checked against the current run");
+  });
+
+  test("the sentence names the matched count only when there is one", () => {
+    expect(headSummary(MATCHED)).toBe("grouped as “react” · 1 matched, 0 skipped");
+    expect(headSummary(NO_MATCH)).toBe("0 matched — defaults apply · 1 skipped");
   });
 });
 

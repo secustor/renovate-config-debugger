@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { EMPTY_FORM, MULTI_VALUE_KEYS } from "./form";
 import { parsePastedDescriptor, pasteImportNote } from "./paste-descriptor";
 
 /**
@@ -46,6 +47,25 @@ describe("parsePastedDescriptor", () => {
         updateTypeGiven: true,
       },
     });
+  });
+
+  it("has a home for every field the form shows — none of them is an unknown key", () => {
+    // The guard against the drift this replaced: KEYS was hand-listed and ran
+    // ten fields behind the form, so a paste carrying `sourceUrl` was reported
+    // as an unknown key while the form was showing an empty sourceUrl box.
+    const multi = new Set<string>(MULTI_VALUE_KEYS);
+    const descriptor = Object.fromEntries(
+      Object.keys(EMPTY_FORM).map((key) => [key, multi.has(key) ? [`${key}-a`, `${key}-b`] : key]),
+    );
+    const result = parsePastedDescriptor(JSON.stringify(descriptor));
+
+    expect(result.ok && result.value.unknown).toBe(0);
+    expect(result.ok && result.value.unusable).toBe(0);
+    expect(result.ok && result.value.imported).toBe(Object.keys(EMPTY_FORM).length);
+    // The multi-value fields arrive as arrays and land as the comma-separated
+    // string the form (and its chip editor) holds them in.
+    expect(result.ok && result.value.fill.lockFiles).toBe("lockFiles-a, lockFiles-b");
+    expect(result.ok && result.value.fill.sourceUrl).toBe("sourceUrl");
   });
 
   it("fills packageName from depName, and keeps both when both are given", () => {

@@ -6,6 +6,7 @@ import type {
   RuleEvaluation,
   SimulationResult,
 } from "@renovate-config-debugger/engine";
+import { nf } from "@/lib/format";
 import { crossRuleIndex } from "@/lib/rule-cross-index";
 import { hasEvaluationError, isNoInputNoMatch } from "@/lib/rule-verdict";
 import { buildNoInputCaveat } from "@/lib/verdict-sentence";
@@ -539,4 +540,73 @@ export function buildPinOutcome(
     skippedCount: sim.rules.length - matched.length,
     ...(caveat === undefined ? {} : { caveat }),
   };
+}
+
+/**
+ * How far a test's check has got. A pinned test moves pending → failed or
+ * checked as the run's simulations come back; a one-off is `checked` by
+ * construction — it exists only once its own simulation returned.
+ *
+ * The header derivations below read this instead of an evaluation, so the
+ * pinned card and the one-off card cannot say different things about the same
+ * outcome (they did: a one-off with a caveat wore a green dot).
+ */
+export type PinCheck =
+  | { status: "pending" }
+  | { status: "failed"; error: string }
+  | { status: "checked"; outcome: PinOutcome };
+
+/** The check state of a pinned test, from the evaluation the run holds and the
+ *  outcome derived from it. Structural on purpose: the model must not import
+ *  the hook that produces the evaluation. */
+export function pinCheck(
+  evaluation: { error?: string } | undefined,
+  outcome: PinOutcome | null,
+): PinCheck {
+  if (!evaluation) {
+    return { status: "pending" };
+  }
+  if (evaluation.error !== undefined) {
+    return { status: "failed", error: evaluation.error };
+  }
+  return outcome === null ? { status: "pending" } : { status: "checked", outcome };
+}
+
+/** The header dot. Amber says "look closer" — a simulation that failed, the
+ *  023/replay-02 caveat that one of the reader's OWN rules lost to a field
+ *  they left unset, or (the design's own amber) an update no rule wrote to at
+ *  all, which ships with Renovate defaults. */
+export function dotTone(check: PinCheck): "pending" | "warn" | "ok" {
+  if (check.status !== "checked") {
+    return check.status === "pending" ? "pending" : "warn";
+  }
+  if (check.outcome.caveat !== undefined || check.outcome.matched.length === 0) {
+    return "warn";
+  }
+  return "ok";
+}
+
+export function dotTitle(check: PinCheck): string {
+  if (check.status === "pending") {
+    return "checking…";
+  }
+  if (check.status === "failed") {
+    return "this pin could not be checked";
+  }
+  if (check.outcome.caveat !== undefined) {
+    return check.outcome.caveat;
+  }
+  return check.outcome.matched.length === 0
+    ? "no rule matched — Renovate defaults apply"
+    : "checked against the current run";
+}
+
+/** The header's right edge — the design's one-line outcome sentence:
+ *  `grouped as “npm minor” · 2 matched, 461 skipped`. */
+export function headSummary(outcome: PinOutcome): string {
+  const counts =
+    outcome.matched.length > 0
+      ? `${nf.format(outcome.matched.length)} matched, ${nf.format(outcome.skippedCount)} skipped`
+      : `${nf.format(outcome.skippedCount)} skipped`;
+  return `${outcome.headline} · ${counts}`;
 }

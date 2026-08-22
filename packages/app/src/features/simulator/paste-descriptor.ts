@@ -1,5 +1,5 @@
 import { plural } from "@/lib/format";
-import type { FormState } from "./form";
+import { EMPTY_FORM, type FormState, joinValues, MULTI_VALUE_KEYS } from "./form";
 
 /**
  * Roadmap 082: the Tests tab's "Paste JSON" tab, as a pure function.
@@ -10,8 +10,8 @@ import type { FormState } from "./form";
  * happens here, in the browser: the paste is parsed, the keys this form has a
  * field for are kept, and everything else is COUNTED rather than silently
  * dropped — a log entry carries a dozen keys the simulator has no meaning for
- * (`updates`, `versioning` metadata, `fixedVersion`, …) and a reader who is
- * not told they were ignored will believe the simulation saw them.
+ * (`updates`, `fixedVersion`, `isSingleVersion`, …) and a reader who is not
+ * told they were ignored will believe the simulation saw them.
  *
  * Pure and DOM-free so the whole mapping is unit-testable
  * (`paste-descriptor.test.ts`); the tab component only routes the result into
@@ -19,23 +19,44 @@ import type { FormState } from "./form";
  */
 
 /**
- * The descriptor keys the form has a field for. `depName` maps to the form's
- * own `depName` — Renovate matches on both, and a descriptor whose two names
- * differ is exactly the case worth simulating — and additionally FILLS IN
- * `packageName` when the paste has none, which is the design's KEYS map and
- * the honest reading of a log entry that only carries `depName`.
+ * The descriptor keys the form has a field for — every one of them, derived
+ * from the form's own shape rather than hand-listed: the list drifted ten
+ * fields behind `FormState` once already, and a paste carrying `sourceUrl`
+ * (the decisive matcher in two of the persona study's three problems) was
+ * dropped and reported as an unknown key.
+ *
+ * `depName` maps to the form's own `depName` — Renovate matches on both, and a
+ * descriptor whose two names differ is exactly the case worth simulating — and
+ * additionally FILLS IN `packageName` when the paste has none, which is the
+ * design's KEYS map and the honest reading of a log entry that only carries
+ * `depName`.
  */
-const KEYS = [
-  "packageName",
-  "depName",
-  "currentValue",
-  "newValue",
-  "datasource",
-  "updateType",
-  "manager",
-  "packageFile",
-  "depType",
-] as const satisfies readonly (keyof FormState)[];
+function isKnownKey(key: string): key is keyof FormState {
+  return Object.hasOwn(EMPTY_FORM, key);
+}
+
+function isMultiValueKey(key: keyof FormState): boolean {
+  return (MULTI_VALUE_KEYS as readonly string[]).includes(key);
+}
+
+/**
+ * The pasted value as the form can hold it, or undefined when it cannot.
+ *
+ * Every field of `FormState` is a string, so a string is always usable. The
+ * three multi-value fields are the honest exception: the form keeps them as one
+ * comma-separated string while a real descriptor (and Renovate's own log)
+ * carries `lockFiles: ["package-lock.json"]` — the same array the chip editor
+ * splits back out, so it is imported, not dropped.
+ */
+function coerce(key: keyof FormState, value: unknown): string | undefined {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (isMultiValueKey(key) && Array.isArray(value) && value.every((v) => typeof v === "string")) {
+    return joinValues(value);
+  }
+  return undefined;
+}
 
 export interface PasteFill {
   /** Applied over an EMPTY form: a paste is a whole descriptor, not a patch. */
@@ -45,7 +66,7 @@ export interface PasteFill {
   /** Keys this form has no field for at all — reported, not hidden. */
   unknown: number;
   /**
-   * Keys it HAS a field for whose value was not a string (`depType:
+   * Keys it HAS a field for whose value it cannot hold (`depType:
    * ["dependencies"]`, a numeric version). Counted apart from `unknown`
    * because the note has to be true: calling `depType` an unknown key when the
    * form is showing a `depType` box would read as a bug in the parser.
@@ -61,10 +82,6 @@ export type PasteResult = { ok: true; value: PasteFill } | { ok: false; error: s
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isKnownKey(key: string): key is (typeof KEYS)[number] {
-  return (KEYS as readonly string[]).includes(key);
 }
 
 export function parsePastedDescriptor(text: string): PasteResult {
@@ -93,13 +110,14 @@ export function parsePastedDescriptor(text: string): PasteResult {
       unknown++;
       continue;
     }
-    // Only strings: every field of this form IS a string, so a `depType` of
-    // `["dependencies"]` is a value it cannot hold. Dropped — and said so.
-    if (typeof value !== "string") {
+    const held = coerce(key, value);
+    // A `depType` of `["dependencies"]` is a value this form cannot hold — it
+    // is not a multi-value field. Dropped, and said so.
+    if (held === undefined) {
       unusable++;
       continue;
     }
-    fill[key] = value;
+    fill[key] = held;
     imported++;
   }
   if (fill.packageName === undefined && fill.depName !== undefined) {

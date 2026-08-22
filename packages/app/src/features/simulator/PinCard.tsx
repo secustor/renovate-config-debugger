@@ -1,7 +1,13 @@
 import { useMemo, useState } from "react";
 import type { ProvenanceLayer, RuleAttribution } from "@renovate-config-debugger/engine";
-import { nf } from "@/lib/format";
-import { buildPinOutcome, type PinOutcome } from "./pin-outcome";
+import {
+  buildPinOutcome,
+  dotTitle,
+  dotTone,
+  headSummary,
+  pinCheck,
+  type PinOutcome,
+} from "./pin-outcome";
 import { PinBucketList } from "./PinBucketList";
 import { pinContext, pinName, type PinnedTest } from "./pins";
 import { PinProbe } from "./PinProbe";
@@ -26,46 +32,6 @@ interface CrossLinks {
   onJumpToEditor?: (repoIndex: number) => void;
 }
 
-/** The header dot. Amber says "look closer" — a simulation that failed, the
- *  023/replay-02 caveat that one of the reader's OWN rules lost to a field
- *  they left unset, or (the design's own amber) an update no rule wrote to at
- *  all, which ships with Renovate defaults. */
-function dotTone(evaluation: PinEvaluation | undefined, outcome: PinOutcome | null): string {
-  if (!evaluation) {
-    return "pending";
-  }
-  if (evaluation.error !== undefined || outcome?.caveat !== undefined) {
-    return "warn";
-  }
-  return outcome !== null && outcome.matched.length === 0 ? "warn" : "ok";
-}
-
-function dotTitle(evaluation: PinEvaluation | undefined, outcome: PinOutcome | null): string {
-  if (!evaluation) {
-    return "checking…";
-  }
-  if (evaluation.error !== undefined) {
-    return "this pin could not be checked";
-  }
-  if (outcome?.caveat !== undefined) {
-    return outcome.caveat;
-  }
-  if (outcome !== null && outcome.matched.length === 0) {
-    return "no rule matched — Renovate defaults apply";
-  }
-  return "checked against the current run";
-}
-
-/** The header's right edge — the design's one-line outcome sentence:
- *  `grouped as “npm minor” · 2 matched, 461 skipped`. */
-function headSummary(outcome: PinOutcome): string {
-  const counts =
-    outcome.matched.length > 0
-      ? `${nf.format(outcome.matched.length)} matched, ${nf.format(outcome.skippedCount)} skipped`
-      : `${nf.format(outcome.skippedCount)} skipped`;
-  return `${outcome.headline} · ${counts}`;
-}
-
 function PinCardHead({
   pin,
   evaluation,
@@ -82,14 +48,12 @@ function PinCardHead({
   onRemove: () => void;
 }) {
   const name = pinName(pin.form);
+  const check = pinCheck(evaluation, outcome);
   return (
     <div className="pin-head">
       <button type="button" className="pin-head-toggle" aria-expanded={expanded} onClick={onToggle}>
         <span className="caret">{expanded ? "▾" : "▸"}</span>
-        <span
-          className={`pin-dot ${dotTone(evaluation, outcome)}`}
-          title={dotTitle(evaluation, outcome)}
-        />
+        <span className={`pin-dot ${dotTone(check)}`} title={dotTitle(check)} />
         <span className="pin-name">{name}</span>
         <span className="pin-meta">{pinContext(pin.form, outcome?.updateType ?? "")}</span>
         {outcome ? (
