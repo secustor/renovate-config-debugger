@@ -3,32 +3,9 @@ import { Term } from "@/components/glossary";
 import { MANAGER_LIST_ID } from "./datalist-ids";
 import { Field } from "./Field";
 import { FieldGroup } from "./FieldGroup";
+import { countSet, GROUP_KEYS } from "./field-groups";
 import type { FormState } from "./form";
 import { MultiValueInput } from "./MultiValueInput";
-
-/**
- * Roadmap 079: the three groups, and the fields each one holds.
- *
- * The list is here rather than inline in the groups because the count pill on
- * a CLOSED group is derived from it — the header has to be able to say how
- * many of its fields hold a value without the fields being mounted.
- */
-const GROUP_KEYS: readonly (readonly (keyof FormState)[])[] = [
-  ["manager", "packageFile", "depType", "depName"],
-  ["sourceUrl", "registryUrls", "repository", "baseBranch"],
-  [
-    "versioning",
-    "currentVersion",
-    "lockedVersion",
-    "lockFiles",
-    "categories",
-    "currentVersionTimestamp",
-  ],
-];
-
-function countSet(form: FormState, group: number): number {
-  return (GROUP_KEYS[group] ?? []).filter((key) => form[key].trim() !== "").length;
-}
 
 interface GroupProps {
   form: FormState;
@@ -51,7 +28,7 @@ function RepoGroup({
   return (
     <FieldGroup
       title="Where it lives in your repo"
-      count={countSet(form, 0)}
+      count={countSet(form, GROUP_KEYS.repo)}
       open={open}
       onToggle={onToggle}
     >
@@ -92,7 +69,7 @@ function SourceGroup({ form, setForm, open, onToggle }: GroupProps) {
   return (
     <FieldGroup
       title="Where it comes from"
-      count={countSet(form, 1)}
+      count={countSet(form, GROUP_KEYS.source)}
       open={open}
       onToggle={onToggle}
     >
@@ -133,7 +110,7 @@ function VersioningGroup({ form, setForm, open, onToggle }: GroupProps) {
   return (
     <FieldGroup
       title="Versioning details"
-      count={countSet(form, 2)}
+      count={countSet(form, GROUP_KEYS.versioning)}
       open={open}
       onToggle={onToggle}
     >

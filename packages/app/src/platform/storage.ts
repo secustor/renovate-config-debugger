@@ -123,7 +123,7 @@ export function persistSession(key: string, value: string): void {
 /** "auto" follows `prefers-color-scheme`, exactly as the app did before 037. */
 export type Theme = "auto" | "light" | "dark";
 
-export const THEMES: readonly Theme[] = ["auto", "light", "dark"];
+const THEMES: readonly Theme[] = ["auto", "light", "dark"];
 
 function isTheme(value: string): value is Theme {
   return (THEMES as readonly string[]).includes(value);

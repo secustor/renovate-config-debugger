@@ -3,7 +3,7 @@ import type { PresetNode } from "@renovate-config-debugger/engine";
 import { computePresetLedger, CONFIG_PRESETS_DOCS, type LedgerErrorRow } from "./ledger";
 import { LedgerCard } from "./LedgerCard";
 import { PresetName } from "@/components/PresetName";
-import { nf } from "@/lib/format";
+import { nf, plural } from "@/lib/format";
 import { pluralWord } from "./tree-shared";
 
 /**
@@ -59,9 +59,7 @@ function LedgerSummary({
           a preset must not have to be read to be noticed. Zero stays text: a
           pill saying "0 errors" is an alarm about nothing. */}
       {errors > 0 ? (
-        <span className="pill pill-error">
-          {nf.format(errors)} {pluralWord(errors, "error")}
-        </span>
+        <span className="pill pill-error">{plural(errors, "error")}</span>
       ) : (
         <span>
           <strong>0</strong> errors
@@ -140,9 +138,7 @@ function LedgerHealthHead({
         onClick={onToggle}
       >
         <span className="caret">{open ? "▾" : "▸"}</span>
-        <span className="ledger-health-count">
-          ✗ {nf.format(errors)} {pluralWord(errors, "error")}
-        </span>
+        <span className="ledger-health-count">✗ {plural(errors, "error")}</span>
         <span className="ledger-health-note">
           · {nf.format(duplicates)} repeat {pluralWord(duplicates, "occurrence")} served from cache
           {authHint}

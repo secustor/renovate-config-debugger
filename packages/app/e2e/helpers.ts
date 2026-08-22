@@ -88,7 +88,7 @@ export function resultsPanel(page: Page) {
 /** The tab ids of the 028 results shell — the app's own union (roadmap 033:
  *  imported, not hand-copied, so a renamed/added tab breaks these helpers at
  *  compile time instead of silently never matching). */
-export type TabId = ResultsTabId;
+type TabId = ResultsTabId;
 
 /** The tab strip button for a tab (visible whether or not it has content). */
 export function tabButton(page: Page, id: TabId) {

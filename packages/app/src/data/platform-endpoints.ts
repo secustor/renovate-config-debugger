@@ -33,7 +33,7 @@ export const PLATFORMS = Object.keys(PLATFORM_ENDPOINTS);
  * and `https://api.github.com/#…` cannot smuggle a different host through the
  * fragment. Returns null for anything that is not an http(s) URL.
  */
-export function normalizeEndpoint(value: string): string | null {
+function normalizeEndpoint(value: string): string | null {
   let url: URL;
   try {
     url = new URL(value);
@@ -59,7 +59,7 @@ function buildTrustedEndpoints(): ReadonlySet<string> {
 
 /** The public hosts this app ships with — the ONLY endpoints a share link may
  *  point a run at without the token-suppression policy kicking in. */
-export const TRUSTED_ENDPOINTS = buildTrustedEndpoints();
+const TRUSTED_ENDPOINTS = buildTrustedEndpoints();
 
 /**
  * Security 2026-07-25: is this endpoint one of the shipped public hosts?

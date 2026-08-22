@@ -4,8 +4,7 @@ import { LedgerFamilies } from "./LedgerFamilies";
 import { LedgerMosaic } from "./LedgerMosaic";
 import { LedgerOptions } from "./LedgerOptions";
 import { PresetName } from "@/components/PresetName";
-import { nf } from "@/lib/format";
-import { pluralWord } from "./tree-shared";
+import { plural } from "@/lib/format";
 
 /**
  * Roadmap 075 (iteration 5b): one card per top-level `extends` entry — the
@@ -55,12 +54,10 @@ function LedgerCardToggle({
       <span className="ledger-head-counts">
         {source.failed
           ? "— did not resolve"
-          : `— ${nf.format(source.presets)} ${pluralWord(source.presets, "preset")} · ${nf.format(
+          : `— ${plural(source.presets, "preset")} · ${plural(
               source.optionKeys,
-            )} ${pluralWord(source.optionKeys, "option")} · ${nf.format(source.rules)} ${pluralWord(
-              source.rules,
-              "rule",
-            )}`}
+              "option",
+            )} · ${plural(source.rules, "rule")}`}
       </span>
     </button>
   );

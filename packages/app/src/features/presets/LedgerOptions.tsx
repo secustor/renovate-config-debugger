@@ -2,7 +2,7 @@ import { useState } from "react";
 import { OptionKey } from "@/components/option-docs";
 import { PresetName } from "@/components/PresetName";
 import type { LedgerOption } from "./ledger";
-import { nf } from "@/lib/format";
+import { nf, plural } from "@/lib/format";
 import { pluralWord } from "./tree-shared";
 
 /**
@@ -77,8 +77,7 @@ export function LedgerOptions({
         Set options
         <span className="ledger-section-hint">
           {" "}
-          — {nf.format(options.length)} {pluralWord(options.length, "key")}, with the preset whose
-          value survived the merge
+          — {plural(options.length, "key")}, with the preset whose value survived the merge
         </span>
       </h4>
       <ul className="ledger-option-list">

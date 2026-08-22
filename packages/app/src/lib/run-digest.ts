@@ -1,4 +1,4 @@
-import { nf } from "./format";
+import { nf, plural } from "./format";
 import type { ResultsTabId } from "@/data/results-tabs";
 
 /**
@@ -125,10 +125,6 @@ export interface DigestInput {
   layers: DigestLayers;
 }
 
-function count(n: number, word: string): string {
-  return `${nf.format(n)} ${word}${n === 1 ? "" : "s"}`;
-}
-
 /** Renders a list as English prose: "a", "a and b", "a, b and c". */
 function list(items: string[]): string {
   if (items.length <= 1) {
@@ -194,10 +190,10 @@ function summarizeProblem(problem: DigestProblem): string {
 function problemCounts(errors: number, warnings: number): string {
   const parts: string[] = [];
   if (errors > 0) {
-    parts.push(count(errors, "error"));
+    parts.push(plural(errors, "error"));
   }
   if (warnings > 0) {
-    parts.push(count(warnings, "warning"));
+    parts.push(plural(warnings, "warning"));
   }
   return list(parts);
 }
@@ -254,7 +250,7 @@ function rewriteClause(migrations: DigestMigrations): DigestClause | null {
       tab: "pipeline",
       label: named
         ? `rewrote ${list(migrations.labels.map(code))}`
-        : `rewrote ${count(migrations.count, "deprecated option")}`,
+        : `rewrote ${plural(migrations.count, "deprecated option")}`,
     },
     tail: " in your file.",
   };
@@ -290,7 +286,7 @@ function presetClauses(presets: DigestPresets): DigestClause[] {
       id: "presets",
       tone: "plain",
       text: `${extendsSubject(presets.entries)} expanded into`,
-      link: { tab: "presets", label: count(presets.resolved, "preset") },
+      link: { tab: "presets", label: plural(presets.resolved, "preset") },
       tail,
     });
   }
@@ -299,7 +295,7 @@ function presetClauses(presets: DigestPresets): DigestClause[] {
       id: "preset-failures",
       tone: "warn",
       text: "",
-      link: { tab: "presets", label: `${count(presets.failed, "preset")} could not be fetched` },
+      link: { tab: "presets", label: `${plural(presets.failed, "preset")} could not be fetched` },
       tail: " — provide their content by hand, or add a token for their host.",
     });
   }
@@ -310,7 +306,7 @@ function presetClauses(presets: DigestPresets): DigestClause[] {
       text: "",
       link: {
         tab: "presets",
-        label: `${count(presets.injected, "preset")} used content you supplied`,
+        label: `${plural(presets.injected, "preset")} used content you supplied`,
       },
       tail: " instead of being fetched.",
     });
@@ -332,7 +328,7 @@ function effectiveClauses(effective: DigestEffective): DigestClause[] {
       id: "effective",
       tone: "plain",
       text: "Everything merged into",
-      link: { tab: "effective", label: count(effective.options, "effective option") },
+      link: { tab: "effective", label: plural(effective.options, "effective option") },
       tail: overridden > 0 ? "," : ".",
     },
   ];

@@ -126,31 +126,12 @@ export const GLOSSARY = {
   // of Renovate's per-dependency update object, and each card says which
   // matcher (or derivation) reads it — the reason the field exists on the
   // form at all.
-  simPackageName: {
-    name: "packageName",
-    plain:
-      'The dependency\'s exact name in its registry — "lodash" on npm, ' +
-      '"library/node" on Docker Hub. This is what matchPackageNames compares against.',
-    url: "https://docs.renovatebot.com/configuration-options/#matchpackagenames",
-  },
   simDepName: {
     name: "depName",
     plain:
       'The name as it appears in your package file, when that differs from the registry name — e.g. a Docker image written as "node" whose packageName is "library/node". ' +
       "Usually identical to packageName, which is why the form defaults it. matchDepNames compares against it.",
     url: "https://docs.renovatebot.com/configuration-options/#matchdepnames",
-  },
-  simCurrentValue: {
-    name: "currentValue",
-    plain:
-      'The version constraint exactly as your package file spells it — "^4.17.20", "20-alpine", "v4". ' +
-      "matchCurrentValue tests it as a raw string, and the updateType derivation compares it against newValue.",
-    url: "https://docs.renovatebot.com/configuration-options/#matchcurrentvalue",
-  },
-  simNewValue: {
-    name: "newValue",
-    plain:
-      "The value the update would write into your package file. Together with currentValue it is what the update IS — and what the form derives the updateType from.",
   },
   simCurrentVersion: {
     name: "currentVersion",

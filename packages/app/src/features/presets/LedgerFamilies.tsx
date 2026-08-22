@@ -1,7 +1,7 @@
 import { type CSSProperties, useState } from "react";
 import type { LedgerFamily, LedgerRule } from "./ledger";
 import { PresetName } from "@/components/PresetName";
-import { nf } from "@/lib/format";
+import { nf, plural } from "@/lib/format";
 import { pluralWord } from "./tree-shared";
 
 /**
@@ -81,9 +81,7 @@ function FamilyRow({
         <PresetName name={family.name} nodeId={family.nodeId} />
         <span className="ledger-family-note">{family.note ?? ""}</span>
         <FamilyBar rules={family.rules} max={max} />
-        <span className="ledger-family-count">
-          {nf.format(family.rules)} {pluralWord(family.rules, "rule")}
-        </span>
+        <span className="ledger-family-count">{plural(family.rules, "rule")}</span>
       </button>
       {expanded ? <FamilySamples family={family} onOpenNode={onOpenNode} /> : null}
     </li>

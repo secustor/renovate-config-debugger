@@ -6933,10 +6933,6 @@ button.ledger-tile {
   color: var(--warn);
 }
 
-.mark-accent {
-  color: var(--accent);
-}
-
 .mark-muted {
   color: var(--faint);
 }

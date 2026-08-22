@@ -20,6 +20,14 @@ interface CrossLinks {
   onJumpToEditor?: (repoIndex: number) => void;
 }
 
+/** The pill tones (075). */
+type SectionTone = "ok" | "accent" | "warn" | "muted";
+
+/** The glyph tones. `accent` is deliberately NOT one: there is no `.mark-accent`
+ *  style — the design colors an accent section's glyph red — so the fallback
+ *  below maps it rather than emitting a class with no rule behind it. */
+type MarkTone = "ok" | "warn" | "muted" | "error";
+
 export function PinSectionHead({
   mark,
   tone,
@@ -28,16 +36,17 @@ export function PinSectionHead({
   text,
 }: {
   mark: string;
-  tone: "ok" | "accent" | "warn" | "muted";
+  tone: SectionTone;
   /** The design colors the lead glyph independently of the pill — the "your
    *  rules" section wears a red ✗ beside an accent pill. Defaults to `tone`. */
-  markTone?: "ok" | "accent" | "warn" | "muted" | "error";
+  markTone?: MarkTone;
   pill: string;
   text: string;
 }) {
+  const glyphTone: MarkTone = markTone ?? (tone === "accent" ? "error" : tone);
   return (
     <div className="pin-section-head">
-      <span className={`pin-section-mark mark-${markTone ?? tone}`} aria-hidden="true">
+      <span className={`pin-section-mark mark-${glyphTone}`} aria-hidden="true">
         {mark}
       </span>
       <span className={`pill pill-${tone}`}>{pill}</span>

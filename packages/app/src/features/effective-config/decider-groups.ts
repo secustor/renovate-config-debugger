@@ -27,13 +27,7 @@ export type DeciderId = "repo" | "preset" | "inherited" | "global" | "defaults";
  * defaults nobody in this run touched. It is Renovate's merge order read
  * backwards, which is the order "why is this value what it is?" is answered in.
  */
-export const DECIDER_ORDER: readonly DeciderId[] = [
-  "repo",
-  "preset",
-  "inherited",
-  "global",
-  "defaults",
-];
+const DECIDER_ORDER: readonly DeciderId[] = ["repo", "preset", "inherited", "global", "defaults"];
 
 /** The step whose value survives into the final config (skips no-op steps).
  *  `undefined` only for an empty chain, which the provenance builder never

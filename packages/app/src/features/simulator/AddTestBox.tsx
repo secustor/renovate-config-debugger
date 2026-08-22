@@ -7,6 +7,7 @@ import type {
 import { nf } from "@/lib/format";
 import { PIN_FORM_ID } from "./datalist-ids";
 import { EMPTY_FORM, type FormState, hasMeaningfulInput } from "./form";
+import { EmptyFormGuard, PinLimitNote } from "./FormNotes";
 import { type PasteFill, parsePastedDescriptor, pasteImportNote } from "./paste-descriptor";
 import { buildPinOutcome, type PinCheck, dotTitle, dotTone, type PinOutcome } from "./pin-outcome";
 import { pinContext, pinName, MAX_PINS } from "./pins";
@@ -295,12 +296,7 @@ function ManualPanel({
         onSubmit={onSubmit}
         formId={PIN_FORM_ID}
       />
-      {emptyGuard ? (
-        <p className="sim-empty-guard">
-          Pick an example above, or fill in a package name (or another identifying field) — an empty
-          form can’t match anything.
-        </p>
-      ) : null}
+      {emptyGuard ? <EmptyFormGuard /> : null}
       {actions}
     </>
   );
@@ -353,33 +349,46 @@ export function AddTestBox({
   const [pasteDraft, setPasteDraft] = useState("");
   const [importNote, setImportNote] = useState<string | null>(null);
 
+  /**
+   * Every door into this form — a quick-start chip, a quick-fill, a paste, the
+   * clear after a pin — REPLACES the descriptor rather than patching it: a fill
+   * is a whole dependency, and merging it over whatever the last one left
+   * behind would carry a stale `packageFile: package.json` into a Dockerfile
+   * descriptor without saying so. One function so the four doors cannot drift
+   * into four slightly different meanings of "replace".
+   *
+   * @param opts.updateTypeTouched Whether the fill STATED an updateType
+   * (roadmap 015): a value a log carried is the user's choice, not something to
+   * re-derive from the versions and silently overwrite.
+   * @param opts.note The receipt the Manual tab wears, or null — a note
+   * describing a form that no longer exists is cleared with it.
+   */
+  function replaceForm(
+    fill: Partial<FormState>,
+    opts: { updateTypeTouched?: boolean; note?: string | null } = {},
+  ) {
+    setForm({ ...EMPTY_FORM, ...fill });
+    setUpdateTypeTouched(opts.updateTypeTouched ?? false);
+    setEmptyGuard(false);
+    setImportNote(opts.note ?? null);
+  }
+
   // The empty state's quick-start chips write into this form — synced during
   // render (the panel idiom), keyed by nonce so re-clicking the chip works.
   const [seenSeed, setSeenSeed] = useState(0);
   if (seedNonce !== seenSeed) {
     setSeenSeed(seedNonce);
     if (seed) {
-      setForm({ ...EMPTY_FORM, ...seed });
-      setUpdateTypeTouched(false);
-      setEmptyGuard(false);
-      setImportNote(null);
+      replaceForm(seed);
       setTab("manual");
     }
   }
 
-  /**
-   * A paste REPLACES the descriptor rather than patching it: the pasted JSON
-   * is a whole dependency, and merging it over whatever a quick-fill chip left
-   * behind would carry a stale `packageFile: package.json` into a Dockerfile
-   * descriptor without saying so. `updateTypeTouched` follows the paste — an
-   * updateType the log stated is the user's choice, not something to re-derive
-   * from the versions and silently overwrite.
-   */
   function applyPaste(value: PasteFill) {
-    setForm({ ...EMPTY_FORM, ...value.fill });
-    setUpdateTypeTouched(value.updateTypeGiven);
-    setEmptyGuard(false);
-    setImportNote(pasteImportNote(value));
+    replaceForm(value.fill, {
+      updateTypeTouched: value.updateTypeGiven,
+      note: pasteImportNote(value),
+    });
     setTab("manual");
   }
 
@@ -414,11 +423,8 @@ export function AddTestBox({
     // The EFFECTIVE updateType is baked in, not the raw field: a pin is a
     // saved test, and it must keep meaning what it meant when it was made.
     onAddPin({ ...source, updateType });
-    setForm(EMPTY_FORM);
-    setUpdateTypeTouched(false);
+    replaceForm({});
     setOneOff(null);
-    // The note described a form that no longer exists.
-    setImportNote(null);
   }
 
   return (
@@ -436,12 +442,7 @@ export function AddTestBox({
             emptyGuard={emptyGuard && !hasMeaningfulInput(form)}
             openGroup={openGroup}
             onOpenGroupChange={setOpenGroup}
-            onQuickFill={(fill) => {
-              setForm({ ...EMPTY_FORM, ...fill });
-              setUpdateTypeTouched(false);
-              setEmptyGuard(false);
-              setImportNote(null);
-            }}
+            onQuickFill={(fill) => replaceForm(fill)}
             onSubmit={simulate}
             actions={
               <AddTestActions
@@ -456,11 +457,7 @@ export function AddTestBox({
             }
           />
         ) : null}
-        {atLimit ? (
-          <p className="pin-limit-note">
-            {MAX_PINS} pinned tests is the maximum — remove one to pin another.
-          </p>
-        ) : null}
+        {atLimit ? <PinLimitNote /> : null}
       </div>
       {oneOff !== null && oneOff.result === result ? (
         <OneOffResult

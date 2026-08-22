@@ -14,6 +14,7 @@ import type { ErrorTranslationLib } from "@/platform/run";
 import { SIM_FORM_ID } from "./datalist-ids";
 import { EMPTY_FORM, type FormState, hasMeaningfulInput } from "./form";
 import { buildMergeStops } from "./merge-stops";
+import { EmptyFormGuard, PinLimitNote } from "./FormNotes";
 import { MAX_PINS } from "./pins";
 import { ReturnPill } from "./ReturnPill";
 import { buildRuleDescriptions } from "./rule-descriptions";
@@ -519,17 +520,8 @@ export const RuleSimulator = memo(function RuleSimulator({
       />
       {/* Roadmap 015: empty-form guard — replaces a would-be "0 of N rules
           matched" wall of no-matches with a plain nudge. */}
-      {showEmptyGuard ? (
-        <p className="sim-empty-guard">
-          Pick an example above, or fill in a package name (or another identifying field) — an empty
-          form can’t match anything.
-        </p>
-      ) : null}
-      {atLimit ? (
-        <p className="pin-limit-note">
-          {MAX_PINS} pinned tests is the maximum — remove one to pin another.
-        </p>
-      ) : null}
+      {showEmptyGuard ? <EmptyFormGuard /> : null}
+      {atLimit ? <PinLimitNote /> : null}
 
       {error ? <p className="sim-error">Simulation failed: {error}</p> : null}
 
