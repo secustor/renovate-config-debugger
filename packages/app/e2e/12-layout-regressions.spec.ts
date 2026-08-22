@@ -452,7 +452,9 @@ test("the simulate button holds its position when the validation banner clears",
   // one level up, and the reserved box moved with it.
   const banner = page.locator(".results-panel .hypothetical-banner");
   await expect(banner).toBeVisible();
-  const simulate = panel.getByRole("button", { name: "Simulate", exact: true });
+  // Substring name, not `exact`: since 079 the button's accessible name is
+  // "Simulate ⏎" (the kbd is part of it), which an exact "Simulate" misses.
+  const simulate = panel.getByRole("button", { name: "Simulate" });
   const before = must(await simulate.boundingBox(), "the simulate button's bounding box");
 
   await setEditorContent(page, PACKAGE_RULES_CONFIG);

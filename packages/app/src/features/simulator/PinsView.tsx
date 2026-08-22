@@ -18,8 +18,9 @@ import type { PinEvaluation } from "./use-pinned-tests";
  * ("N pinned · R rules evaluated per test, in merge order" — with the merge
  * law on the right), the funnel card per pin, and the always-open "Add a
  * test" box at the foot. No pin is ever created for the reader: the empty
- * state says what a pin is and seeds the form, and the simulator (one
- * dependency, the full analysis) stays one quiet link away in both states.
+ * state says what a pin is and seeds the form, and the detail view (one
+ * dependency, the full analysis) is one quiet link away from every card that
+ * HAS a dependency to hand it — roadmap 080 closed the descriptor-less door.
  */
 
 /** Roadmap 077 (Proposal F): pins ride in the share link, said where pins are
@@ -51,13 +52,11 @@ function ShareNote({ onShare }: { onShare: () => Promise<void> }) {
 function PinsSummary({
   count,
   ruleCount,
-  onOpenSimulator,
 }: {
   count: number;
   /** Rules evaluated per test in the current run — from the first finished
    *  evaluation; absent until one lands. */
   ruleCount: number | undefined;
-  onOpenSimulator: () => void;
 }) {
   const pinned =
     count === 0 ? (
@@ -73,14 +72,12 @@ function PinsSummary({
   return (
     <div className="summary-strip">
       {pinned}
+      {/* Roadmap 080: no "open the simulator →" here. The detail view is
+          reached WITH A SUBJECT — a pin card's or a one-off's "open in
+          simulator →", a share link's `sim`, a validation message naming a
+          rule; a door that opened it on an empty form was a duplicate of the
+          Add-a-test Manual form one screen below. */}
       <span className="pins-strip-note">later rules win on conflict</span>
-      {/* No simulator link in the empty state: the Add-a-test box's Manual tab
-          already offers a one-off Simulate right below it. */}
-      {count > 0 ? (
-        <button type="button" className="btn-quiet" onClick={onOpenSimulator}>
-          open the simulator →
-        </button>
-      ) : null}
     </div>
   );
 }
@@ -96,7 +93,6 @@ export function PinsView({
   onJumpToEditor,
   onAddPin,
   onRemovePin,
-  onOpenSimulator,
   onOpenInSimulator,
   onShare,
 }: {
@@ -110,9 +106,9 @@ export function PinsView({
   onJumpToEditor?: (repoIndex: number) => void;
   onAddPin: (form: FormState) => void;
   onRemovePin: (id: string) => void;
-  onOpenSimulator: () => void;
   /** The descriptor channel into the full simulator — a pin's form, or the
-   *  one-off simulation's. */
+   *  one-off simulation's. Roadmap 080: the ONLY one this view has, since the
+   *  strip's descriptor-less door is gone. */
   onOpenInSimulator: (form: FormState) => void;
   /** See {@link ShareNote}; absent (embedding without a share path) = no note. */
   onShare?: () => Promise<void>;
@@ -132,7 +128,7 @@ export function PinsView({
     : undefined;
   return (
     <div className="pins-view">
-      <PinsSummary count={pins.length} ruleCount={ruleCount} onOpenSimulator={onOpenSimulator} />
+      <PinsSummary count={pins.length} ruleCount={ruleCount} />
       {pins.length === 0 ? (
         <EmptyTestsCard onStartFrom={(fill) => setSeed((s) => ({ fill, nonce: s.nonce + 1 }))} />
       ) : null}
@@ -147,7 +143,7 @@ export function PinsView({
           ruleBodies={ruleBodies}
           links={links}
           onRemove={() => onRemovePin(pin.id)}
-          onOpenSimulator={() => onOpenInSimulator(pin.form)}
+          onOpenInSimulator={() => onOpenInSimulator(pin.form)}
         />
       ))}
       <AddTestBox

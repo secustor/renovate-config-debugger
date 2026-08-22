@@ -4,7 +4,14 @@
  */
 import { describe, expect, test } from "vitest";
 import { EMPTY_FORM } from "./form";
-import { MAX_PINS, pinContext, pinFormFromShareFields, pinName, pinsFromShareFields } from "./pins";
+import {
+  MAX_PINS,
+  pinContext,
+  pinFormFromShareFields,
+  pinName,
+  pinsFromShareFields,
+  samePinForm,
+} from "./pins";
 import { pinShareFields } from "./pins";
 
 function ids(): () => string {
@@ -17,6 +24,20 @@ test("a pin's share fields are its non-empty descriptor fields, and they round-t
   const fields = pinShareFields(form);
   expect(fields).toEqual({ packageName: "react", currentValue: "17.0.0", newValue: "18.0.0" });
   expect(pinFormFromShareFields(fields)).toEqual(form);
+});
+
+// Roadmap 080: the detail view's pin leaves the form on screen, so App's
+// addPin dedupes through this — two forms are the same test when their share
+// fields agree, whitespace and all-empty fields notwithstanding.
+test("samePinForm sees through empty fields, and only through them", () => {
+  const form = { ...EMPTY_FORM, packageName: "react", currentValue: "17.0.0" };
+  expect(samePinForm(form, { ...form })).toBe(true);
+  // A round-trip through the share codec (which drops empty fields) is still
+  // the same pin…
+  expect(samePinForm(form, pinFormFromShareFields(pinShareFields(form)))).toBe(true);
+  // …but any differing descriptor field is a different test.
+  expect(samePinForm(form, { ...form, newValue: "18.0.0" })).toBe(false);
+  expect(samePinForm(form, { ...form, packageName: "lodash" })).toBe(false);
 });
 
 test("a field a link invented is dropped — a link may not add form fields", () => {

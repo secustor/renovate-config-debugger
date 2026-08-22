@@ -30,6 +30,7 @@ const ONE_LINERS = [
   `# every answer on this page, as JSON`,
   `npx -y ${PACKAGE} digest renovate.json`,
   `npx -y ${PACKAGE} validate renovate.json    # exit 2 = Renovate would refuse it`,
+  `npx -y ${PACKAGE} compare before.json after.json --dep '{"depName":"react"}'`,
   ``,
   `# or register it once, for an agent session`,
   `claude mcp add rcd -- npx -y ${PACKAGE} mcp`,

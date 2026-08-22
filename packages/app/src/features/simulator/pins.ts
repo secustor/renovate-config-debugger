@@ -44,6 +44,17 @@ export function pinShareFields(form: FormState): Record<string, string> {
   return fields;
 }
 
+/**
+ * Roadmap 080: whether two forms describe the same test. Compared through the
+ * share fields, so empty-vs-absent — a distinction the codec already erases —
+ * cannot make two identical descriptors look different. Exists because the
+ * detail view's pin leaves the form on screen (it captions the results), so a
+ * repeated click must not mint a duplicate.
+ */
+export function samePinForm(a: FormState, b: FormState): boolean {
+  return JSON.stringify(pinShareFields(a)) === JSON.stringify(pinShareFields(b));
+}
+
 /** The inverse: a decoded field bag as a full `FormState` (unknown keys are
  *  dropped — a link may not invent form fields). */
 export function pinFormFromShareFields(fields: Record<string, string>): FormState {

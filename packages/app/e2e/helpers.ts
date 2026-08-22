@@ -173,12 +173,13 @@ export async function openPresetTree(page: Page): Promise<void> {
  * simulator by itself (see `TestsPanel`), which is what the 054 thread-link
  * test relies on.
  *
- * With pins on screen the strip's "open the simulator →" is the door; with
- * none, the door is the one a user has: simulate a one-off in the Add-a-test
- * box (the "npm dependency" quick-fill) and follow its "open in simulator →".
- * The simulator then arrives with that descriptor filled and run — the same
- * state a pin's own link produces, which the specs immediately overwrite with
- * their own quick-fill anyway.
+ * Roadmap 080: every door into the detail view carries a SUBJECT — the strip's
+ * descriptor-less "open the simulator →" is gone. So the door a spec uses is
+ * the one a user has: simulate a one-off in the Add-a-test box (the "npm
+ * dependency" quick-fill) and follow its "open in simulator →". The simulator
+ * then arrives with that descriptor filled and run — the same state a pin's own
+ * link produces, which the specs immediately overwrite with their own quick-fill
+ * anyway.
  *
  * Returns the simulator card, since every caller's next line asks it something.
  */
@@ -187,21 +188,24 @@ export async function openSimulator(page: Page): Promise<Locator> {
   const panel = tabPanel(page, "tests");
   const card = page.locator(".card", { hasText: "Update simulator" });
   if (!(await card.isVisible())) {
-    const stripLink = panel.getByRole("button", { name: "open the simulator →" });
-    if (await stripLink.count()) {
-      await stripLink.click();
-    } else {
-      const addCard = panel.locator(".pin-add-card");
-      await addCard.getByRole("button", { name: "npm dependency" }).click();
-      await addCard.getByRole("button", { name: /^Simulate/ }).click();
-      await panel
-        .locator(".pin-oneoff")
-        .getByRole("button", { name: "open in simulator →" })
-        .click();
-    }
+    const addCard = panel.locator(".pin-add-card");
+    await addCard.getByRole("button", { name: "npm dependency" }).click();
+    await addCard.getByRole("button", { name: /^Simulate/ }).click();
+    await panel.locator(".pin-oneoff").getByRole("button", { name: "open in simulator →" }).click();
   }
   await expect(card).toBeVisible();
   return card;
+}
+
+/**
+ * Roadmap 080: in the detail view a quick-fill chip FILLS the form and Simulate
+ * runs it — one form, one behavior, the same as the Add-a-test box's chips. The
+ * two clicks are spelled once here, since every spec that starts from an example
+ * makes them.
+ */
+export async function simulateQuickFill(simulator: Locator, label: string): Promise<void> {
+  await simulator.getByRole("button", { name: label }).click();
+  await simulator.getByRole("button", { name: /^Simulate/ }).click();
 }
 
 /**

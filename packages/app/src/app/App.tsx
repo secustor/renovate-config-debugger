@@ -77,6 +77,7 @@ import {
   type PinnedTest,
   pinShareFields,
   pinsFromShareFields,
+  samePinForm,
 } from "@/features/simulator/pins";
 import { useShareLink } from "@/hooks/use-share-link";
 import type { RunInputs } from "@/lib/run-inputs";
@@ -376,7 +377,14 @@ export function App() {
   const nextPinId = useCallback(() => `pin-${++pinSeqRef.current}`, []);
   const addPin = useCallback(
     (form: FormState) => {
-      setPins((prev) => (prev.length >= MAX_PINS ? prev : [...prev, { id: nextPinId(), form }]));
+      // Roadmap 080: the detail view's pin leaves the form on screen, so a
+      // repeated click reaches here with the same descriptor — an identical
+      // test is a no-op, not a second row.
+      setPins((prev) =>
+        prev.length >= MAX_PINS || prev.some((pin) => samePinForm(pin.form, form))
+          ? prev
+          : [...prev, { id: nextPinId(), form }],
+      );
     },
     [nextPinId],
   );

@@ -20,8 +20,10 @@ import { usePinnedTests } from "./use-pinned-tests";
  * The PINS view leads: the descriptors this config is checked against, each
  * re-simulated on every run, each saying in one row what the rules do to it.
  * The SIMULATOR is the analysis surface for ONE dependency — verdict threads,
- * A/B comparison, the merge replay, the full rule list — and it is unchanged,
- * one quiet link away, pre-filled when the link came from a pin.
+ * the merge replay, the full rule list — one quiet link away, pre-filled when
+ * the link came from a pin. Roadmap 080 made it the tab's DETAIL VIEW rather
+ * than a peer feature: every door into it now carries a subject, and it can
+ * pin what it is looking at as a standing test.
  *
  * The switch lives here rather than in App because nothing outside this tab
  * names a view: what crosses the boundary is a SIMULATION (a share link's `sim`
@@ -150,6 +152,8 @@ export const TestsPanel = memo(function TestsPanel({
           errorLib={errorLib}
           simRequest={pinRequest ?? simRequest}
           onCopySimLink={onCopySimLink}
+          onAddPin={onAddPin}
+          pinCount={pins.length}
           mergeStepIndex={mergeStepIndex}
           onMergeStepChange={onMergeStepChange}
         />
@@ -168,7 +172,6 @@ export const TestsPanel = memo(function TestsPanel({
       onJumpToEditor={onJumpToEditor}
       onAddPin={onAddPin}
       onRemovePin={onRemovePin}
-      onOpenSimulator={() => setView("simulator")}
       onOpenInSimulator={openInSimulator}
       onShare={onShare}
     />

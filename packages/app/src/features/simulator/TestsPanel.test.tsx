@@ -179,6 +179,43 @@ it("opens a pin in the full simulator, pre-filled, and comes back", async () => 
   expect(view.container.querySelector(".pin-card")).not.toBeNull();
 });
 
+it("pins the descriptor the detail view is analysing, and stays where it is", async () => {
+  const result = await run();
+  const view = render(
+    <Harness
+      result={result}
+      simRequest={{
+        form: { packageName: "react", currentValue: "17.0.0", newValue: "17.0.1" },
+        // No auto-run: this is about the pin action, not the arrival run.
+        autoSimulate: false,
+        ranResult: result,
+        nonce: 1,
+      }}
+    />,
+  );
+  await waitFor(() =>
+    expect(view.getByLabelText("packageName", { exact: true })).toHaveProperty("value", "react"),
+  );
+
+  // Roadmap 080: the same action the Add-a-test panel has, on the same
+  // `onAddPin` — and pinning does NOT navigate, so the analysis on screen
+  // (the form the reader filled) survives it.
+  fireEvent.click(view.getByRole("button", { name: "Pin as a standing test" }));
+  expect(view.getByText("Update simulator")).toBeTruthy();
+  expect(view.getByLabelText("packageName", { exact: true })).toHaveProperty("value", "react");
+  expect(view.container.querySelector(".sim-actions")?.textContent).toContain("Pinned ✓");
+
+  // The pin is in the list behind the back link, with the EFFECTIVE updateType
+  // baked in — derived here from the version pair, never left blank.
+  fireEvent.click(view.getByRole("button", { name: "← Back to tests" }));
+  const card = view.container.querySelector<HTMLElement>(".pin-card");
+  if (!card) {
+    throw new Error("pinning from the detail view produced no card");
+  }
+  expect(card.textContent).toContain("react");
+  await waitFor(() => expect(card.textContent).toContain("patch"));
+});
+
 it("lands on the simulator when the link that opened the app carried a simulation", async () => {
   const result = await run();
   const view = render(

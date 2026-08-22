@@ -137,6 +137,7 @@ owns the flag, and `setUpdateTypeTouched` is still what the override sets.
   made in the Tests tab, which owns the pins list; the standalone simulator's
   "Pin" already means something else (the A/B comparison pin on the verdict
   card, 044). Two different pins in one view is the confusion this declines.
+  (Superseded by 080 — retiring the A/B pin freed the name.)
 - **The one-off result card is unchanged.** Already at parity (077), and the
   design's copy of it in this artboard is the same card.
 - **The disabled repo tab says "soon", not "sign in required".** The handoff's

@@ -5,7 +5,7 @@ import {
   MERGE_STEPS_CONFIG,
   PACKAGE_RULES_CONFIG,
 } from "./fixtures";
-import { drawer, openSimulator, runAndAwaitResult, setEditorContent, tabButton } from "./helpers";
+import { drawer, openSimulator, simulateQuickFill, tabButton } from "./helpers";
 
 /**
  * Journey 4 — the packageRules simulator. After a run whose config has a
@@ -28,9 +28,9 @@ test("simulating a matching dependency shows a verdict with a matched rule and i
   // with rules).
   const simulator = await openSimulator(page);
 
-  // The "npm dependency" quick-fill (lodash, patch update) both fills the form
-  // and auto-runs the simulation.
-  await simulator.getByRole("button", { name: "npm dependency" }).click();
+  // The "npm dependency" quick-fill (lodash, patch update) fills the form;
+  // Simulate is what runs it (roadmap 080).
+  await simulateQuickFill(simulator, "npm dependency");
 
   // Verdict block appears with a non-zero matched count.
   const verdict = page.locator(".sim-verdict-block");
@@ -92,86 +92,36 @@ test("focusing a pre-filled simulator field selects its content so typing replac
 });
 
 /**
- * Roadmap 021 — A/B comparison integrity. Pinning a lodash run as A, then
- * quick-filling and re-simulating a totally different dependency (a GitHub
- * Action) as B, must not present a normal-looking delta — the panel has to
- * flag that A and B describe different simulated inputs.
+ * Roadmap 080 — the detail view can pin what it is looking at. The A/B pin it
+ * replaces kept ONE result around for a side-by-side; a standing test keeps the
+ * DESCRIPTOR, re-checked on every run and carried in the share link. The action
+ * is the Add-a-test panel's, with the same rules: the effective updateType is
+ * baked in, and pinning does not navigate — the list is one "← Back to tests"
+ * away, and the analysis the reader was in stays on screen.
  */
-test("A/B pin warns when the compared runs describe different simulated inputs", async ({
-  page,
-}) => {
-  const fragment = await encodeShareFragment({ config: PACKAGE_RULES_CONFIG });
-  await page.goto(fragment);
+test("pinning from the detail view adds a standing test without leaving it", async ({ page }) => {
+  await page.goto(await encodeShareFragment({ config: PACKAGE_RULES_CONFIG }));
 
   const simulator = await openSimulator(page);
-
-  await simulator.getByRole("button", { name: "npm dependency" }).click();
+  await simulateQuickFill(simulator, "GitHub Action");
   await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
-  await simulator.getByRole("button", { name: "Pin result for comparison" }).click();
 
-  // A completely different simulated dependency re-runs and becomes B.
-  await simulator.getByRole("button", { name: "GitHub Action" }).click();
+  await simulator.getByRole("button", { name: "Pin as a standing test" }).click();
 
-  const mismatch = page.locator(".sim-compare-mismatch");
-  await expect(mismatch).toBeVisible({ timeout: 15_000 });
-  await expect(mismatch).toContainText("Inputs differ");
-  await expect(mismatch).toContainText("packageName");
-
-  // Both input sets are shown, not just the warning.
-  const inputsPanel = page.locator(".sim-compare-inputs");
-  await expect(inputsPanel).toContainText("lodash");
-  await expect(inputsPanel).toContainText("actions/checkout");
-});
-
-/**
- * Roadmap 018/021 — the pin's whole workflow is pin → edit the config → run
- * the pipeline again → simulate → compare. A new pipeline run clears the
- * simulation, but the pinned A must visibly SURVIVE that step (with its own
- * Unpin), or the workflow dead-ends exactly where the hint sends the user;
- * the next Simulate then produces B and the real delta.
- */
-test("a pinned result survives a pipeline re-run and compares against the next simulation", async ({
-  page,
-}) => {
-  const fragment = await encodeShareFragment({ config: PACKAGE_RULES_CONFIG });
-  await page.goto(fragment);
-
-  const simulator = await openSimulator(page);
-
-  // Simulate the lodash patch update and pin it as A.
-  await simulator.getByRole("button", { name: "npm dependency" }).click();
-  await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
-  await simulator.getByRole("button", { name: "Pin result for comparison" }).click();
-  await expect(page.locator(".sim-compare")).toBeVisible();
-
-  // Edit the config (the rule now sets automerge: false) and re-run the
-  // pipeline — the step that used to make the pinned panel vanish.
-  await setEditorContent(
-    page,
-    PACKAGE_RULES_CONFIG.replace('"automerge": true', '"automerge": false'),
+  // The click answers itself where it was made — the pins list is a screen away
+  // — and the view does not move: the verdict on screen is still the reader's.
+  await expect(simulator.locator(".sim-actions")).toContainText("Pinned ✓");
+  await expect(page.locator(".sim-verdict-block")).toBeVisible();
+  await expect(simulator.getByLabel("packageName", { exact: true })).toHaveValue(
+    "actions/checkout",
   );
-  await runAndAwaitResult(page);
-  // Roadmap 075: the run lands on Tests, which is where the simulator now
-  // lives — so the tab no longer flips, and the stale banner clearing is what
-  // says the NEW result committed (the shell and badge `runAndAwaitResult`
-  // waits on were already there).
-  await expect(page.locator(".stale-banner")).toHaveCount(0);
-  await expect(tabButton(page, "tests")).toHaveAttribute("aria-selected", "true");
 
-  // The pin is still there, says what remains to do, and offers its own Unpin.
-  const compare = page.locator(".sim-compare");
-  await expect(compare).toBeVisible();
-  await expect(compare).toContainText("still pinned");
-  await expect(compare.getByRole("button", { name: "Unpin comparison" })).toBeVisible();
-
-  // The form kept its values, so one Simulate produces B against the edited
-  // config — and the delta names the setting the edit changed.
-  await simulator.getByRole("button", { name: "Simulate", exact: true }).click();
-  const configDelta = page.locator(".sim-compare-config");
-  await expect(configDelta).toBeVisible({ timeout: 15_000 });
-  await expect(configDelta).toContainText("automerge");
-  // Same simulated inputs on both sides — no mismatch warning.
-  await expect(page.locator(".sim-compare-mismatch")).toHaveCount(0);
+  // …and the pin is in the list behind the back link, checked against this run.
+  await page.getByRole("button", { name: "← Back to tests" }).click();
+  const card = page.locator(".pin-card");
+  await expect(card).toHaveCount(1);
+  await expect(card).toContainText("actions/checkout");
+  await expect(tabButton(page, "tests")).toContainText("1");
 });
 
 /**
@@ -187,7 +137,7 @@ test("the merge timeline walks the matching rules one stop at a time", async ({ 
 
   const simulator = await openSimulator(page);
 
-  await simulator.getByRole("button", { name: "npm dependency" }).click();
+  await simulateQuickFill(simulator, "npm dependency");
   await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
 
   // Roadmap 047: the timeline lives in a drawer whose collapsed row already
@@ -249,7 +199,7 @@ test("the merge timeline walks the matching rules one stop at a time", async ({ 
   // A dependency no rule matches has no merge sequence — the timeline is gone,
   // not an empty frame. The drawer itself stays OPEN across the re-simulation
   // (047: a re-run must never fold what the user opened).
-  await simulator.getByRole("button", { name: "Dockerfile image" }).click();
+  await simulateQuickFill(simulator, "Dockerfile image");
   await expect(page.locator(".sim-verdict-block")).toContainText("0 of 3 rules");
   await expect(mergeDrawer).toHaveJSProperty("open", true);
   await expect(stepper).toHaveCount(0);
@@ -269,7 +219,7 @@ test("a verdict thread's step link opens the merge drawer at the stop it names",
   await page.goto(fragment);
 
   const simulator = await openSimulator(page);
-  await simulator.getByRole("button", { name: "npm dependency" }).click();
+  await simulateQuickFill(simulator, "npm dependency");
 
   const verdict = page.locator(".sim-verdict-block");
   await expect(verdict).toBeVisible({ timeout: 15_000 });
@@ -314,7 +264,7 @@ test("the consumed-blocks aside names an authored block that didn't apply, and s
   // update-type block says nothing on the card.
   await page.goto(await encodeShareFragment({ config: PACKAGE_RULES_CONFIG }));
   let simulator = await openSimulator(page);
-  await simulator.getByRole("button", { name: "npm dependency" }).click();
+  await simulateQuickFill(simulator, "npm dependency");
   await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
   await expect(page.locator(".sim-consumed-note")).toHaveCount(0);
 
@@ -322,7 +272,7 @@ test("the consumed-blocks aside names an authored block that didn't apply, and s
   // explains why that block stayed inert.
   await page.goto(await encodeShareFragment({ config: AUTHORED_BLOCK_CONFIG }));
   simulator = await openSimulator(page);
-  await simulator.getByRole("button", { name: "npm dependency" }).click();
+  await simulateQuickFill(simulator, "npm dependency");
   await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
 
   const consumed = page.locator(".sim-consumed-note");
@@ -350,7 +300,7 @@ test("the consumed-blocks aside names an authored block that didn't apply, and s
 test("stale results are veiled and the banner names the run they belong to", async ({ page }) => {
   await page.goto(await encodeShareFragment({ config: PACKAGE_RULES_CONFIG }));
   const simulator = await openSimulator(page);
-  await simulator.getByRole("button", { name: "npm dependency" }).click();
+  await simulateQuickFill(simulator, "npm dependency");
   await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
 
   // Change an input WITHOUT re-running: the run below is now stale.
@@ -374,7 +324,7 @@ test("the flatten cross-link brings the merge drawer into view from the bottom o
 }) => {
   await page.goto(await encodeShareFragment({ config: AUTHORED_BLOCK_CONFIG }));
   const simulator = await openSimulator(page);
-  await simulator.getByRole("button", { name: "npm dependency" }).click();
+  await simulateQuickFill(simulator, "npm dependency");
   await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
 
   // Stand where the links live: the bottom of the results, where the clamped
@@ -408,7 +358,7 @@ test("the form states the update as a sentence, with counted groups beside a liv
   await page.goto(await encodeShareFragment({ config: PACKAGE_RULES_CONFIG }));
   const simulator = await openSimulator(page);
 
-  await simulator.getByRole("button", { name: "npm dependency" }).click();
+  await simulateQuickFill(simulator, "npm dependency");
   await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
 
   // The chip that started it is the one the form still agrees with.

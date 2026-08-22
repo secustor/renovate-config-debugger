@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 import { encodeShareFragment, INVALID_AUTOMERGE_CONFIG, PACKAGE_RULES_CONFIG } from "./fixtures";
-import { openSimulator, openTab, runAndAwaitResult, setEditorContent } from "./helpers";
+import {
+  openSimulator,
+  openTab,
+  runAndAwaitResult,
+  setEditorContent,
+  simulateQuickFill,
+} from "./helpers";
 
 /**
  * Roadmap 023 — honest error states. A config with a validate-stage error is
@@ -53,8 +59,9 @@ test("the simulator's repo-config filter shows repo rules with clause evidence e
 
   const simulator = await openSimulator(page);
 
-  // A run has to exist before the filter appears (it needs a simulation).
-  await simulator.getByRole("button", { name: "npm dependency" }).click();
+  // A run has to exist before the filter appears (it needs a simulation) —
+  // roadmap 080: the chip fills, Simulate runs.
+  await simulateQuickFill(simulator, "npm dependency");
   await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
 
   // Roadmap 047: the rule list and its filters live in the "Matched rules"

@@ -101,6 +101,10 @@
   --ok-bg-strong: color-mix(in srgb, var(--ok) 20%, var(--surface));
   --ok-border: color-mix(in srgb, var(--ok) 40%, var(--border));
   --warn-bg: color-mix(in srgb, var(--warn) 10%, var(--surface));
+  /* Consumer-less since 080 retired the A/B mismatch banner; stays for the
+     same family reason as --accent-wash — the -strong step exists per hue,
+     and a hue that loses its step is a hole the next emphatic warn surface
+     would re-open by hand. */
   --warn-bg-strong: color-mix(in srgb, var(--warn) 20%, var(--surface));
   --warn-border: color-mix(in srgb, var(--warn) 40%, var(--border));
   --warn-border-strong: color-mix(in srgb, var(--warn) 55%, var(--border));
@@ -3787,8 +3791,8 @@ pre.config-view.prov-before {
 
 /* 054 layer 7: ONE grammar for "something wrote this key", on shared columns
    (mark · key · values) so a column of writes reads down its value edge — the
-   evidence card's digest, a thread's beaten values, the matched rule's applied
-   diff and the A/B config delta are all this grid. */
+   evidence card's digest, a thread's beaten values and the matched rule's
+   applied diff are all this grid. */
 .sim-writes {
   --kv-cols: max-content max-content minmax(0, 1fr);
   --kv-row-gap: 0.2rem;
@@ -3897,28 +3901,13 @@ pre.config-view.prov-before {
   font-size: 0.82rem;
 }
 
-/* ---------- 018 evidence export: copy-as-markdown, sim link, A/B ---------- */
+/* ---------- 018 evidence export: copy-as-markdown, sim link ---------- */
 
 .sim-verdict-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem 0.9rem;
   margin-left: auto;
-}
-
-.sim-verdict-action {
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--accent);
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.8rem;
-  padding: 0.2rem 0.55rem;
-}
-
-.sim-verdict-action:hover {
-  border-color: var(--accent);
 }
 
 /* Roadmap 036: ONE copy affordance (components/CopyButton.tsx), at ONE size —
@@ -3953,131 +3942,6 @@ pre.config-view.prov-before {
    label lives in `aria-label`/`title` and the name it copies sits beside it. */
 .copy-btn.icon-only {
   padding-inline: 0.4rem;
-}
-
-.sim-compare {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  margin-bottom: 0.75rem;
-  padding: 0.7rem 0.85rem;
-}
-
-.sim-compare-title {
-  align-items: center;
-  color: var(--muted);
-  display: flex;
-  font-size: 0.75rem;
-  font-weight: 600;
-  gap: 0.6rem;
-  justify-content: space-between;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-}
-
-/* The panel's own Unpin (shown while a pipeline re-run leaves it without a
-   verdict card) — a button, not part of the uppercase eyebrow it sits in. */
-.sim-compare-title .sim-verdict-action {
-  letter-spacing: normal;
-  text-transform: none;
-}
-
-/* Roadmap 021: prominent — A and B describe different simulated dependencies,
-   not just a config edit — deliberately louder than .sim-compare-nochange /
-   .sim-stale-banner (bold, stronger tint) since a silently-wrong comparison
-   is the failure mode this exists to prevent — hence the `-strong` step of the
-   warn tint where those two take the plain one. */
-.sim-compare-mismatch {
-  background: var(--warn-bg-strong);
-  border: 1px solid var(--warn-border-strong);
-  border-radius: 6px;
-  color: var(--warn);
-  font-size: 0.85rem;
-  font-weight: 600;
-  margin: 0 0 0.6rem;
-  padding: 0.55rem 0.75rem;
-}
-
-.sim-compare-mismatch code {
-  font-weight: 600;
-}
-
-.sim-compare-inputs {
-  margin-top: 0.6rem;
-}
-
-.sim-compare-inputs > summary {
-  cursor: pointer;
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-.sim-input-diff {
-  color: var(--warn);
-  font-weight: 600;
-}
-
-.sim-compare-nochange {
-  background: var(--ok-bg);
-  border: 1px solid var(--ok-border);
-  border-radius: 6px;
-  color: var(--ok);
-  font-size: 0.88rem;
-  margin: 0.5rem 0 0;
-  padding: 0.5rem 0.7rem;
-}
-
-.sim-compare-rules {
-  display: grid;
-  gap: 0.6rem;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  margin-top: 0.55rem;
-}
-
-.sim-compare-col {
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 0.4rem 0.55rem;
-}
-
-.sim-compare-col.only-a {
-  border-color: var(--error-border);
-}
-
-.sim-compare-col.only-b {
-  border-color: var(--ok-border);
-}
-
-.sim-compare-col-title {
-  font-size: 0.76rem;
-  font-weight: 600;
-  margin-bottom: 0.3rem;
-}
-
-.sim-compare-col-title .count {
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.sim-compare-col ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.sim-compare-col li {
-  font-size: 0.78rem;
-  overflow-wrap: anywhere;
-  padding: 0.12rem 0;
-}
-
-.sim-compare-config {
-  margin-top: 0.6rem;
-}
-
-.sim-compare-config .sim-writes {
-  font-size: 0.82rem;
-  margin-top: 0.3rem;
 }
 
 /* The rules drawer's filter row: the SAME chrome as the Effective Config tab's

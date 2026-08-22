@@ -16,17 +16,20 @@ export type Simulate = (nextForm: FormState, touched: boolean, keepStep?: boolea
 
 export interface SimulationRun {
   sim: SimulationResult | null;
-  /** Roadmap 021: the form (all fields) + effective updateType that produced
-   *  `sim`, kept alongside it so the comparison panel can show/diff exactly
-   *  what was simulated — never the live `form`, which may have been edited
-   *  further without a re-run (that drift is what the "stale" banner covers). */
+  /** Roadmap 021: the form (all fields) that produced `sim`, kept alongside it
+   *  so the card can name exactly what was simulated — never the live `form`,
+   *  which may have been edited further without a re-run (that drift is what
+   *  the "stale" banner covers). */
   simForm: FormState | null;
-  simEffectiveUpdateType: string;
   /** The serialized form `sim` was run against, for the staleness check. */
   ranKey: string | null;
   running: boolean;
   error: string | null;
   emptyGuardTriggered: boolean;
+  /** Roadmap 080: "Pin as a standing test" trips the same 015 guard without
+   *  running anything, and a quick-fill clears it — so the flag is settable
+   *  from outside the run itself. */
+  setEmptyGuardTriggered: Dispatch<SetStateAction<boolean>>;
   /** Roadmap 023/047: the rules drawer's two filter facets (verdict, provenance). */
   ruleFilters: RuleFilters;
   setRuleFilters: Dispatch<SetStateAction<RuleFilters>>;
@@ -53,7 +56,6 @@ export function useSimulationRun({
 }): SimulationRun {
   const [sim, setSim] = useState<SimulationResult | null>(null);
   const [simForm, setSimForm] = useState<FormState | null>(null);
-  const [simEffectiveUpdateType, setSimEffectiveUpdateType] = useState("");
   const [ranKey, setRanKey] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -89,7 +91,6 @@ export function useSimulationRun({
   useEffect(() => {
     setSim(null);
     setSimForm(null);
-    setSimEffectiveUpdateType("");
     setRanKey(null);
     setError(null);
     setRuleFilters(DEFAULT_RULE_FILTERS);
@@ -137,11 +138,7 @@ export function useSimulationRun({
       // `run-simulation.ts` — the pinned tests re-run the same one, and a
       // pin's verdict has to be the verdict this panel would show for the
       // same descriptor.
-      const { sim: simResult, effectiveUpdateType: effectiveType } = await runSimulation(
-        finalConfig,
-        nextForm,
-        touched,
-      );
+      const { sim: simResult } = await runSimulation(finalConfig, nextForm, touched);
       // Captured right before the state updates that can shrink the results
       // list (see the layout effect above) — not at the top of `simulate`,
       // so an in-flight fetch doesn't capture a scroll position the user has
@@ -149,7 +146,6 @@ export function useSimulationRun({
       scrollYBeforeSimulate.current = window.scrollY;
       setSim(simResult);
       setSimForm(nextForm);
-      setSimEffectiveUpdateType(effectiveType);
       setRanKey(JSON.stringify(nextForm));
       // The verdict facet goes back to the default view for the new run; the
       // provenance one is left alone — a user filtered to their own rules
@@ -177,11 +173,11 @@ export function useSimulationRun({
   return {
     sim,
     simForm,
-    simEffectiveUpdateType,
     ranKey,
     running,
     error,
     emptyGuardTriggered,
+    setEmptyGuardTriggered,
     ruleFilters,
     setRuleFilters,
     focusHint,

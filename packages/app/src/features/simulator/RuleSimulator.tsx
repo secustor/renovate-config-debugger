@@ -1,5 +1,5 @@
 import { nf } from "@/lib/format";
-import { memo, useCallback, useEffect, useMemo, useRef } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { TraceResult } from "@renovate-config-debugger/engine";
 import { Term } from "@/components/glossary";
 import { RuleFramingAside } from "@/components/rule-framing";
@@ -11,10 +11,10 @@ import type { ShareSimulator } from "@/lib/share";
 import { changedDependencyKeys } from "@/lib/simulation-changes";
 import { buildNoInputCaveat, buildVerdictSegments } from "@/lib/verdict-sentence";
 import type { ErrorTranslationLib } from "@/platform/run";
-import { ComparisonPanel } from "./ComparisonPanel";
 import { SIM_FORM_ID } from "./datalist-ids";
 import { EMPTY_FORM, type FormState, hasMeaningfulInput } from "./form";
 import { buildMergeStops } from "./merge-stops";
+import { MAX_PINS } from "./pins";
 import { ReturnPill } from "./ReturnPill";
 import { buildRuleDescriptions } from "./rule-descriptions";
 import { buildRuleEvidence } from "./rule-evidence";
@@ -23,7 +23,6 @@ import { SimMessages } from "./SimMessages";
 import { SimRulesDrawer } from "./SimRulesDrawer";
 import { SimulatorForm } from "./SimulatorForm";
 import { SimVerdictBlock } from "./SimVerdictBlock";
-import { useAbComparison } from "./use-ab-comparison";
 import { useEngineModule } from "./use-engine-module";
 import { useRuleFocus } from "./use-rule-focus";
 import { type SimRequest, useShareLinkRequest } from "./use-share-link-request";
@@ -38,9 +37,10 @@ import { buildVerdictThreads } from "./verdict-threads";
  * update and see which of the CURRENT run's `finalConfig.packageRules` match
  * — rule by rule, clause by clause, with the config each matching rule
  * merges — plus the final per-dependency config Renovate would use.
- * Evaluation is on demand (Simulate button; quick-fill presets also run) via
- * the engine's `simulatePackageRules`, loaded through the same dynamic import
- * that keeps the renovate chunk out of the initial bundle.
+ * Evaluation is on demand (Simulate; roadmap 080: the quick-fill chips fill the
+ * form and leave the running to it, as the Add-a-test form's chips do) via the
+ * engine's `simulatePackageRules`, loaded through the same dynamic import that
+ * keeps the renovate chunk out of the initial bundle.
  */
 
 // Roadmap 032: memoized — the simulator renders the full merged rule list and
@@ -65,6 +65,57 @@ function SimStaleBanner({ ranLabel }: { ranLabel: string }) {
   );
 }
 
+/**
+ * Roadmap 080: the detail view's actions — the design's pair, the same two the
+ * Add-a-test panel has (`AddTestActions`), for the same reason: one form, one
+ * grammar. Its own component because the card's JSX is already three levels
+ * deep where this sits, and the primary button carries a `<kbd>`.
+ *
+ * The primary is NOT disabled while a run is in flight (068): HTML performs
+ * implicit submission by clicking the form's default button, and disabling it
+ * takes Enter-to-simulate off the form entirely. The label is what says a run
+ * is already going; a second press is held (`pendingRunRef`).
+ */
+function SimActions({
+  running,
+  stale,
+  atLimit,
+  justPinned,
+  onPin,
+}: {
+  running: boolean;
+  stale: boolean;
+  atLimit: boolean;
+  /** The transient receipt — the pins list is a click away, so the pin has to
+   *  say it happened where it was clicked. */
+  justPinned: boolean;
+  onPin: () => void;
+}) {
+  return (
+    <div className="sim-actions">
+      {/* Roadmap 079: the design prints the key on the primary action, the
+          same way the Add-a-test panel's Simulate does — one grammar for
+          "Enter does this", on both of the form's two homes. */}
+      <button type="submit" form={SIM_FORM_ID} className="btn-primary">
+        {running ? "Simulating…" : "Simulate"} <kbd>⏎</kbd>
+      </button>
+      {atLimit ? null : (
+        <button type="button" className="btn-quiet" onClick={onPin}>
+          Pin as a standing test
+        </button>
+      )}
+      {stale ? <span className="sim-stale">inputs changed — simulate again to refresh</span> : null}
+      {/* A persistent status region, not a conditional span: the receipt has
+          to be ANNOUNCED, and a live region only reliably announces content
+          that arrives after the region itself exists. Last in the row so its
+          empty state contributes only a trailing (invisible) flex gap. */}
+      <span className="host-ok" role="status">
+        {justPinned ? "Pinned ✓" : null}
+      </span>
+    </div>
+  );
+}
+
 export const RuleSimulator = memo(function RuleSimulator({
   result,
   onSelectPreset,
@@ -74,6 +125,8 @@ export const RuleSimulator = memo(function RuleSimulator({
   errorLib,
   simRequest,
   onCopySimLink,
+  onAddPin,
+  pinCount,
   mergeStepIndex,
   onMergeStepChange,
 }: {
@@ -100,6 +153,12 @@ export const RuleSimulator = memo(function RuleSimulator({
   /** Roadmap 018: encode the current config + view + these simulator inputs into
    *  a share link and copy it (App owns the full share state). */
   onCopySimLink?: (sim: ShareSimulator) => Promise<void>;
+  /** Roadmap 080: "Pin as a standing test" — the same `onAddPin` the Add-a-test
+   *  panel calls, with the same rule (the EFFECTIVE updateType baked in). */
+  onAddPin: (form: FormState) => void;
+  /** How many tests are pinned, so the quiet action can hide at `MAX_PINS`
+   *  exactly as it does in the panel. */
+  pinCount: number;
   /** Roadmap 044: the merge stepper's index, owned by App so a share link can
    *  restore it (mirrors `migrationStepIndex`). Absent = uncontrolled. */
   mergeStepIndex: number;
@@ -129,11 +188,11 @@ export const RuleSimulator = memo(function RuleSimulator({
   const {
     sim,
     simForm,
-    simEffectiveUpdateType,
     ranKey,
     running,
     error,
     emptyGuardTriggered,
+    setEmptyGuardTriggered,
     ruleFilters,
     setRuleFilters,
     focusHint,
@@ -210,14 +269,13 @@ export const RuleSimulator = memo(function RuleSimulator({
       void simulateRef.current?.(pending.form, pending.touched);
     }
   }, [running, simulateRef]);
-  const { pinned, pin, unpin, comparison, currentDescriptor } = useAbComparison({
-    engineModule,
-    sim,
-    simForm,
-    simEffectiveUpdateType,
-    form,
-    effectiveUpdateType,
-  });
+  // Roadmap 080: the pin's own receipt — the pins list is behind "← Back to
+  // tests", so the click has to answer itself here. Transient, like the pins
+  // view's own Share receipt — but unlike that view, this one unmounts on the
+  // very next click ("← Back to tests"), so the timer is held and cleared.
+  const [justPinned, setJustPinned] = useState(false);
+  const pinReceiptTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(pinReceiptTimer.current), []);
 
   const finalConfig = result.finalConfig;
   const packageRules = useMemo(
@@ -355,14 +413,35 @@ export const RuleSimulator = memo(function RuleSimulator({
     runSimulation(form, updateTypeTouched);
   }
 
+  /** Roadmap 080: a chip FILLS. Running is Simulate's job — the same as the
+   *  Add-a-test form's chips (079), and the same as the design's. The auto-run
+   *  on ARRIVAL (a pin's "open in simulator", a link's `autoSimulate`) is not a
+   *  chip and keeps running: it was promised the verdict of a descriptor. */
   function quickFill(fill: Partial<FormState>) {
-    const next = { ...EMPTY_FORM, ...fill };
-    setForm(next);
+    setForm({ ...EMPTY_FORM, ...fill });
     // A quick-fill's updateType is only a starting guess, not the user's own
     // choice — derivation should keep tracking it if they go on to edit the
     // pre-filled versions.
     setUpdateTypeTouched(false);
-    runSimulation(next, false);
+    setEmptyGuardTriggered(false);
+  }
+
+  /** Roadmap 080: "Pin as a standing test" — `AddTestBox.pin()`'s rule, in the
+   *  detail view. The EFFECTIVE updateType is baked in (a pin is a saved test,
+   *  and it must keep meaning what it meant when it was made), and the 015
+   *  empty-form guard gates it. The form is deliberately NOT cleared: the
+   *  reader is mid-analysis of this dependency, and the pin list is one "← Back
+   *  to tests" away — clearing here would delete the subject on screen. */
+  function pinAsTest() {
+    if (!hasMeaningfulInput(form)) {
+      setEmptyGuardTriggered(true);
+      return;
+    }
+    setEmptyGuardTriggered(false);
+    onAddPin({ ...form, updateType: effectiveUpdateType });
+    setJustPinned(true);
+    window.clearTimeout(pinReceiptTimer.current);
+    pinReceiptTimer.current = window.setTimeout(() => setJustPinned(false), 2000);
   }
 
   if (packageRules.length === 0) {
@@ -397,6 +476,7 @@ export const RuleSimulator = memo(function RuleSimulator({
   // Roadmap 015: reactive, not sticky — the moment the form gains ANY
   // meaningful field, the guard clears itself even without clicking Simulate.
   const showEmptyGuard = emptyGuardTriggered && !hasMeaningfulInput(form);
+  const atLimit = pinCount >= MAX_PINS;
 
   return (
     <div className="card" ref={cardRef}>
@@ -430,37 +510,24 @@ export const RuleSimulator = memo(function RuleSimulator({
         onQuickFill={quickFill}
         onSubmit={submitSimulation}
       />
-      <div className="sim-actions">
-        {/* Roadmap 068: the form s submit button, associated across the DOM
-            by the form attribute — so Enter in a field and a click here are the
-            same action, not two code paths that have to be kept in step.
-
-            Not disabled while a run is in flight, which is the price of that
-            sameness (068 review). HTML performs implicit submission by firing a
-            click at the form's DEFAULT BUTTON — the first submit button among
-            its controls, which is this one — and only when that button is not
-            disabled. So `disabled={running}` did not merely grey a control out:
-            it took implicit submission off the form entirely, and Enter in
-            `packageName` during a run produced no click, no `submit` event and
-            no feedback of any kind, in a state the `?` sheet documents Enter as
-            working in. The press is held instead, the way ⌘⏎ holds a run rather
-            than dropping it, and the label is what says one is already going. */}
-        {/* Roadmap 079: the design prints the key on the primary action, the
-            same way the Add-a-test panel's Simulate does — one grammar for
-            "Enter does this", on both of the form's two homes. */}
-        <button type="submit" form={SIM_FORM_ID} className="btn-primary">
-          {running ? "Simulating…" : "Simulate"} <kbd>⏎</kbd>
-        </button>
-        {stale ? (
-          <span className="sim-stale">inputs changed — simulate again to refresh</span>
-        ) : null}
-      </div>
+      <SimActions
+        running={running}
+        stale={stale}
+        atLimit={atLimit}
+        justPinned={justPinned}
+        onPin={pinAsTest}
+      />
       {/* Roadmap 015: empty-form guard — replaces a would-be "0 of N rules
           matched" wall of no-matches with a plain nudge. */}
       {showEmptyGuard ? (
         <p className="sim-empty-guard">
           Pick an example above, or fill in a package name (or another identifying field) — an empty
           form can’t match anything.
+        </p>
+      ) : null}
+      {atLimit ? (
+        <p className="pin-limit-note">
+          {MAX_PINS} pinned tests is the maximum — remove one to pin another.
         </p>
       ) : null}
 
@@ -512,9 +579,6 @@ export const RuleSimulator = memo(function RuleSimulator({
               // the row, scrolls to it and flashes it.
               onOpenRule={focusRule}
               copySimLink={onCopySimLink ? copySimLink : null}
-              pinned={pinned !== null}
-              onUnpin={unpin}
-              onPin={pin}
             />
 
             {/* Roadmap 054 layer 4: the way back from a thread's own jump.
@@ -525,14 +589,6 @@ export const RuleSimulator = memo(function RuleSimulator({
                 threadKey={threadNav.returnKey}
                 onReturn={threadNav.returnToThread}
                 onFocusFrom={threadNav.notePillFocus}
-              />
-            ) : null}
-
-            {pinned ? (
-              <ComparisonPanel
-                pinned={pinned}
-                comparison={comparison}
-                currentDescriptor={currentDescriptor}
               />
             ) : null}
 
@@ -578,20 +634,6 @@ export const RuleSimulator = memo(function RuleSimulator({
               detailsRef={mergeDrawerRef}
             />
           </div>
-        </div>
-      ) : pinned ? (
-        // The pin's whole purpose is surviving a pipeline re-run (which clears
-        // `sim` above) — so the panel must not vanish with the results block,
-        // or the pin reads as deleted at exactly the step the workflow needs
-        // it. It carries its own Unpin here, since the verdict card is gone.
-        <div className="sim-results">
-          <ComparisonPanel
-            pinned={pinned}
-            comparison={null}
-            currentDescriptor={currentDescriptor}
-            awaitingSimulate
-            onUnpin={unpin}
-          />
         </div>
       ) : null}
     </div>

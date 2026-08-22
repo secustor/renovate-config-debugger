@@ -84,6 +84,7 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [077](077-proposal-f-parity.md)                         | Proposal F parity: Share moves to the header                         | M20                  | done        |
 | [078](078-dep-proposals-from-extraction.md)             | Dependency proposals: extract real deps from a pasted package file   | M17                  | proposed    |
 | [079](079-simulator-form-redesign.md)                   | The simulator form as a sentence                                     | M20                  | done        |
+| [080](080-tests-succeed-the-simulator.md)               | Tests succeed the simulator: the A/B pin retires                     | M20                  | done        |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live

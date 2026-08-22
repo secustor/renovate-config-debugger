@@ -21,8 +21,8 @@ export interface SimulatorForm {
  * Roadmap 015: the simulator's form fields and the updateType derivation that
  * rides on them. While `updateTypeTouched` is false the effective updateType
  * tracks currentValue/newValue live; the moment the user touches the select
- * (or a quick-fill runs, which resets it) their choice wins outright, even if
- * they go on to edit the versions afterward.
+ * (or a quick-fill fills the form, which resets it) their choice wins
+ * outright, even if they go on to edit the versions afterward.
  */
 export function useSimulatorForm(engineModule: typeof EngineModule | null): SimulatorForm {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);

@@ -119,7 +119,7 @@ function PinCardBody({
   ruleBodies,
   subject,
   links,
-  onOpenSimulator,
+  onOpenInSimulator,
 }: {
   outcome: PinOutcome | null;
   evaluation: PinEvaluation | undefined;
@@ -129,7 +129,7 @@ function PinCardBody({
   ruleBodies?: readonly unknown[];
   subject: string;
   links: CrossLinks;
-  onOpenSimulator: () => void;
+  onOpenInSimulator: () => void;
 }) {
   // The probe's query lives here rather than in `PinProbe` because a bucket
   // row's "probe" button is the other writer.
@@ -160,7 +160,7 @@ function PinCardBody({
         onQueryChange={setProbeQuery}
         onSelectPreset={links.onSelectPreset}
       />
-      <button type="button" className="btn-quiet pin-open-sim" onClick={onOpenSimulator}>
+      <button type="button" className="btn-quiet pin-open-sim" onClick={onOpenInSimulator}>
         open in simulator →
       </button>
     </div>
@@ -176,7 +176,7 @@ export function PinCard({
   ruleBodies,
   links,
   onRemove,
-  onOpenSimulator,
+  onOpenInSimulator,
 }: {
   pin: PinnedTest;
   evaluation: PinEvaluation | undefined;
@@ -187,7 +187,7 @@ export function PinCard({
   ruleBodies?: readonly unknown[];
   links: CrossLinks;
   onRemove: () => void;
-  onOpenSimulator: () => void;
+  onOpenInSimulator: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   // Derived from the pin's own simulation only — a run's worth of rules is
@@ -225,7 +225,7 @@ export function PinCard({
             .filter((part) => part !== "")
             .join(" · ")}
           links={links}
-          onOpenSimulator={onOpenSimulator}
+          onOpenInSimulator={onOpenInSimulator}
         />
       ) : null}
     </div>
