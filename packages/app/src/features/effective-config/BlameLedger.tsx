@@ -19,7 +19,6 @@ import {
   ledgerWriterText,
   unattributedNoteText,
   unattributedValueText,
-  viaNoteRef,
 } from "./description-ledger";
 import { dropReasonText } from "./drop-reasons";
 import { ShowAllMore } from "@/components/ShowAllMore";
@@ -72,16 +71,13 @@ function sourceLayer(entry: DescriptionAttribution): ProvenanceLayer {
     : entry.viaTopLevel;
 }
 
-/** "via ⟨token⟩" — the extend the sentence arrived through. */
-function ViaNote({ via }: { via: { nodeId: string; name: string } }) {
-  return (
-    <span className="desc-ledger-via">
-      via <PresetName name={via.name} nodeId={via.nodeId} />
-    </span>
-  );
-}
-
-/** The third cell of a normal row: who wrote it, and which extend carried it. */
+/**
+ * The third cell of a normal row: who wrote it. A preset writer wears the
+ * standard `PresetName` token (the Overview's `RowSource` precedent) — its
+ * hover card already names the extends chain that carried the preset in
+ * (081's "via"), so the cell does not repeat it as an inline note. Everything
+ * else wears its layer's `ProvenanceChip`.
+ */
 function LedgerSource({
   entry,
   onSelectPreset,
@@ -89,17 +85,21 @@ function LedgerSource({
   entry: DescriptionAttribution;
   onSelectPreset?: (nodeId: string) => void;
 }) {
-  const via = viaNoteRef(entry);
+  const layer = sourceLayer(entry);
   return (
     <span className="desc-ledger-src">
-      {/* Named after the chip beside it, whatever that resolved to — the two
+      {/* Named after the token beside it, whatever that resolved to — the two
           must never disagree about which thing was approximated. */}
-      {entry.approximate ? <ApproximateMark name={layerLabel(sourceLayer(entry))} /> : null}
-      <ProvenanceChip layer={sourceLayer(entry)} onSelectPreset={onSelectPreset} />
-      {/* Roadmap 081: two presets in one cell, in the two languages the sheet
-          gives them — the chip is the LAYER the value came from, the token is a
-          reference to the extend that carried it in. */}
-      {via ? <ViaNote via={via} /> : null}
+      {entry.approximate ? <ApproximateMark name={layerLabel(layer)} /> : null}
+      {layer.kind === "preset" ? (
+        <PresetName
+          name={layer.name}
+          nodeId={layer.nodeId}
+          onClick={onSelectPreset ? () => onSelectPreset(layer.nodeId) : undefined}
+        />
+      ) : (
+        <ProvenanceChip layer={layer} onSelectPreset={onSelectPreset} />
+      )}
     </span>
   );
 }

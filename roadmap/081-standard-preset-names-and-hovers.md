@@ -276,3 +276,16 @@ tree's origin framing), and a descendant-selector size override
   `viaNoteText` → `viaNoteRef`: the three cases it pinned (nested writer, the
   extend that IS the writer, a non-preset layer) are unchanged, asserted on the
   reference rather than on the assembled sentence.
+
+## Addendum — 2026-08-23: the blame ledger's via note is gone
+
+The "via ⟨extend⟩" note was 081's way of putting two presets in one ledger
+cell — the chip for the writer, the token for the extend that carried it in.
+User ruling (and what the Effective Tab Final artboard had drawn all along:
+one pill per line, no via): the note duplicates the standard hover card, whose
+first section IS the via chain, so `LedgerSource` now renders the writer as
+the standard `PresetName` token — the Overview `RowSource` pattern, hover card
+and click-through included — and nothing else. Non-preset writers keep their
+`ProvenanceChip`. `viaNoteRef` and its test died with the note;
+`duplicateNoteText`'s "X resolves it again" stays, because a repeat's cell has
+no writer token whose hover could carry that fact.

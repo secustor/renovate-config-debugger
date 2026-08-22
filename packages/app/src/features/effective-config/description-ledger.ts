@@ -321,26 +321,6 @@ export function ledgerWriterText(ledger: DescriptionLedger): string | null {
   return `${nf.format(ledger.writerCount)} preset${ledger.writerCount === 1 ? "" : "s"}`;
 }
 
-/**
- * The muted note after a source chip: the top-level `extends` entry the string
- * ARRIVED through, when that is not the preset that wrote it. Nested presets
- * are the common case — `docker:pinDigests` writes the sentence, but
- * `config:best-practices` is the line you delete to stop it.
- *
- * Roadmap 081 returns the REFERENCE rather than the sentence "via X": the name
- * is the whole payload of this note, and it is a preset reference, so it wears
- * the standard token and carries the standard hover card. The rule — when there
- * is a note at all — stays here; the one preposition in front of it is prose,
- * and prose lives in the component.
- */
-export function viaNoteRef(entry: DescriptionAttribution): { nodeId: string; name: string } | null {
-  const via = entry.viaTopLevel;
-  if (via.kind !== "preset" || entry.node?.nodeId === via.nodeId) {
-    return null;
-  }
-  return { nodeId: via.nodeId, name: via.name };
-}
-
 /** The warn-tinted pill on a repeated sentence, pointing at the occurrence
  *  that already said it (1-based, like every index this view prints). */
 export function duplicatePillText(entry: DescriptionAttribution): string {
