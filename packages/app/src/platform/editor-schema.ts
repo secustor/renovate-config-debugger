@@ -61,7 +61,12 @@ function presetCard(info: PresetHoverInfo, onSelectPreset: (nodeId: string) => v
   const head = document.createElement("div");
   head.className = "option-card-head";
   const name = document.createElement("code");
-  name.className = "option-card-name";
+  // Roadmap 081: this card is vanilla DOM on a lazily-imported chunk, so it
+  // cannot render `PresetName` — but it can wear the same CLASS, and the design
+  // rule ("purple = preset, everywhere") is about the token, not the React
+  // tree. The heading variant, so the name reads as this card's title exactly
+  // as it does on the preset detail panel.
+  name.className = "preset-token preset-token-heading";
   name.textContent = info.name;
   head.append(name);
   const badge = document.createElement("span");

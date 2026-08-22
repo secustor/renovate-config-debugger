@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { OptionKey } from "@/components/option-docs";
+import { PresetName } from "@/components/PresetName";
 import type { LedgerOption } from "./ledger";
 import { nf } from "@/lib/format";
 import { pluralWord } from "./tree-shared";
@@ -33,14 +34,13 @@ function LedgerOptionRow({
       <span className="ledger-option-arrow" aria-hidden="true">
         ←
       </span>
-      <button
-        type="button"
-        className="preset-token"
+      {/* The `title` this carried is now the hover card's own tree link — one
+          explanation of the affordance, not a tooltip racing a card. */}
+      <PresetName
+        name={option.setterName}
+        nodeId={option.setterId}
         onClick={() => onOpenNode(option.setterId)}
-        title="Show this preset in the resolution tree"
-      >
-        {option.setterName}
-      </button>
+      />
       {option.nested ? (
         <span className="pill pill-muted" title="Reached through another preset's extends">
           nested · via extends

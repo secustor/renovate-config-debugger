@@ -20,11 +20,12 @@ import {
   moreEntriesText,
   unattributedNoteText,
   unattributedValueText,
-  viaNoteText,
+  viaNoteRef,
 } from "./description-ledger";
 import { dropReasonText } from "./drop-reasons";
 import { CodeText } from "@/components/CodeText";
 import { ApproximateMark, DegradedCaveat } from "@/components/DescriptionApprox";
+import { PresetName } from "@/components/PresetName";
 import { ROOT_NODE_ID } from "@/lib/preset-tree-stats";
 import { layerLabel } from "@/components/provenance-layer";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
@@ -71,6 +72,15 @@ function sourceLayer(entry: DescriptionAttribution): ProvenanceLayer {
     : entry.viaTopLevel;
 }
 
+/** "via ⟨token⟩" — the extend the sentence arrived through. */
+function ViaNote({ via }: { via: { nodeId: string; name: string } }) {
+  return (
+    <span className="desc-ledger-via">
+      via <PresetName name={via.name} nodeId={via.nodeId} />
+    </span>
+  );
+}
+
 /** The third cell of a normal row: who wrote it, and which extend carried it. */
 function LedgerSource({
   entry,
@@ -79,14 +89,17 @@ function LedgerSource({
   entry: DescriptionAttribution;
   onSelectPreset?: (nodeId: string) => void;
 }) {
-  const via = viaNoteText(entry);
+  const via = viaNoteRef(entry);
   return (
     <span className="desc-ledger-src">
       {/* Named after the chip beside it, whatever that resolved to — the two
           must never disagree about which thing was approximated. */}
       {entry.approximate ? <ApproximateMark name={layerLabel(sourceLayer(entry))} /> : null}
       <ProvenanceChip layer={sourceLayer(entry)} onSelectPreset={onSelectPreset} />
-      {via ? <span className="desc-ledger-via">{via}</span> : null}
+      {/* Roadmap 081: two presets in one cell, in the two languages the sheet
+          gives them — the chip is the LAYER the value came from, the token is a
+          reference to the extend that carried it in. */}
+      {via ? <ViaNote via={via} /> : null}
     </span>
   );
 }

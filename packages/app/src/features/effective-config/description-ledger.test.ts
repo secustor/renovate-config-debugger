@@ -24,7 +24,7 @@ import {
   moreEntriesText,
   unattributedNoteText,
   unattributedValueText,
-  viaNoteText,
+  viaNoteRef,
 } from "./description-ledger";
 
 /**
@@ -472,11 +472,13 @@ describe("the per-row notes", () => {
   test("names the top-level extend only when it is not the writer itself", () => {
     // Nested: written four levels down, arrived through the extend the reader
     // actually wrote — which is the line they would delete.
-    expect(viaNoteText(entryAt(list, 0))).toBe("via config:best-practices");
+    // Roadmap 081: the reference, not the sentence — the note's name is a
+    // preset token, and the "via" in front of it is the component's prose.
+    expect(viaNoteRef(entryAt(list, 0))?.name).toBe("config:best-practices");
     // The top-level extend IS the writer: repeating its name would be noise.
-    expect(viaNoteText(entryAt(list, 1))).toBeUndefined();
+    expect(viaNoteRef(entryAt(list, 1))).toBeNull();
     // Not a preset layer at all — the chip already says "repo config".
-    expect(viaNoteText(entryAt(list, 2))).toBeUndefined();
+    expect(viaNoteRef(entryAt(list, 2))).toBeNull();
   });
 
   test("a duplicate points at the occurrence that already said it, 1-based", () => {

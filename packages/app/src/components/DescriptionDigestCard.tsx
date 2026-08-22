@@ -14,8 +14,8 @@ import {
 } from "@/lib/description-digest";
 import { useDescriptionProvenance } from "@/hooks/description-provenance";
 import { CodeText } from "./CodeText";
-import { approximateTitle } from "./description-approx";
 import { ApproximateMark, DegradedCaveat } from "./DescriptionApprox";
+import { PresetName } from "./PresetName";
 import { ROOT_NODE_ID } from "@/lib/preset-tree-stats";
 import { ProvenanceChip } from "./ProvenanceChip";
 import { layerClass } from "./provenance-layer";
@@ -45,9 +45,18 @@ import { layerClass } from "./provenance-layer";
  *  question pills — and every other card — below the fold. */
 const COLLAPSE_AFTER = 5;
 
-/** The mono leaf label: the preset that actually wrote this sentence, which is
- *  rarely the extend it arrived through. Clickable for the same reason the
- *  chips are — the name is only useful if it takes you to the node. */
+/**
+ * The leaf label: the preset that actually wrote this sentence, which is rarely
+ * the extend it arrived through. Clickable for the same reason the chips are —
+ * the name is only useful if it takes you to the node.
+ *
+ * Roadmap 081: this was a 0.7rem muted mono label with a `title`, i.e. a fourth
+ * way of naming a preset. It is now the standard token, at the standard size,
+ * with the standard hover card — which is also what replaces the `title` it
+ * carried ("show it in the preset tree" is the card's own link). An approximate
+ * attribution keeps its explanation, but as the shared `≈` mark beside the
+ * token rather than as prose glued onto the front of the name.
+ */
 function LeafLabel({
   node,
   approximate,
@@ -58,26 +67,15 @@ function LeafLabel({
   approximate?: boolean;
   onSelectPreset?: (nodeId: string) => void;
 }) {
-  const label = approximate ? `≈ ${node.name}` : node.name;
-  const title = approximate
-    ? approximateTitle(node.name)
-    : `Written by ${node.name} — show it in the preset tree`;
-  if (!onSelectPreset) {
-    return (
-      <span className="desc-digest-leaf" title={title}>
-        {label}
-      </span>
-    );
-  }
   return (
-    <button
-      type="button"
-      className="desc-digest-leaf"
-      title={title}
-      onClick={() => onSelectPreset(node.nodeId)}
-    >
-      {label}
-    </button>
+    <span className="desc-digest-attr">
+      {approximate ? <ApproximateMark name={node.name} /> : null}
+      <PresetName
+        name={node.name}
+        nodeId={node.nodeId}
+        onClick={onSelectPreset ? () => onSelectPreset(node.nodeId) : undefined}
+      />
+    </span>
   );
 }
 

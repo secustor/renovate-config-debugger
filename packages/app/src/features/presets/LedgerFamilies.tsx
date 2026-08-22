@@ -1,5 +1,6 @@
 import { type CSSProperties, useState } from "react";
 import type { LedgerFamily, LedgerRule } from "./ledger";
+import { PresetName } from "@/components/PresetName";
 import { nf } from "@/lib/format";
 import { pluralWord } from "./tree-shared";
 
@@ -37,14 +38,12 @@ function FamilySamples({
   return (
     <div className="ledger-family-samples">
       {family.samples.map((sample) => (
-        <button
+        <PresetName
           key={sample.nodeId}
-          type="button"
-          className="preset-token"
+          name={sample.name}
+          nodeId={sample.nodeId}
           onClick={() => onOpenNode(sample.nodeId)}
-        >
-          {sample.name}
-        </button>
+        />
       ))}
       <button type="button" className="btn-quiet" onClick={() => onOpenNode(family.nodeId)}>
         open in tree →
@@ -77,7 +76,9 @@ function FamilyRow({
         onClick={onToggle}
       >
         <span className="caret">{expanded ? "▾" : "▸"}</span>
-        <span className="preset-token">{family.name}</span>
+        {/* Inert inside the row's own toggle — a nested button is invalid
+            HTML, and the row already activates on click. */}
+        <PresetName name={family.name} nodeId={family.nodeId} />
         <span className="ledger-family-note">{family.note ?? ""}</span>
         <FamilyBar rules={family.rules} max={max} />
         <span className="ledger-family-count">

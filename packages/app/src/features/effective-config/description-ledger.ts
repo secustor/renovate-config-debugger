@@ -289,13 +289,19 @@ export function ledgerWriterText(ledger: DescriptionLedger): string | null {
  * ARRIVED through, when that is not the preset that wrote it. Nested presets
  * are the common case — `docker:pinDigests` writes the sentence, but
  * `config:best-practices` is the line you delete to stop it.
+ *
+ * Roadmap 081 returns the REFERENCE rather than the sentence "via X": the name
+ * is the whole payload of this note, and it is a preset reference, so it wears
+ * the standard token and carries the standard hover card. The rule — when there
+ * is a note at all — stays here; the one preposition in front of it is prose,
+ * and prose lives in the component.
  */
-export function viaNoteText(entry: DescriptionAttribution): string | undefined {
+export function viaNoteRef(entry: DescriptionAttribution): { nodeId: string; name: string } | null {
   const via = entry.viaTopLevel;
   if (via.kind !== "preset" || entry.node?.nodeId === via.nodeId) {
-    return undefined;
+    return null;
   }
-  return `via ${via.name}`;
+  return { nodeId: via.nodeId, name: via.name };
 }
 
 /** The warn-tinted pill on a repeated sentence, pointing at the occurrence

@@ -15,6 +15,10 @@ import type { AuthState } from "@/components/GithubAuthHint";
 import { HypotheticalBanner } from "@/components/HypotheticalBanner";
 import { MessagesPanel } from "@/components/MessagesPanel";
 import { MigrationSteps } from "@/components/MigrationSteps";
+import {
+  PresetReferenceProvider,
+  type PresetReferenceValue,
+} from "@/components/preset-reference-context";
 import { PresetsPanel } from "@/features/presets/PresetsPanel";
 import { ResultsPanel, type ResultsTabDescriptor } from "@/components/ResultsPanel";
 import type { FormState } from "@/features/simulator/form";
@@ -445,6 +449,11 @@ export function ResultsColumn({
     [resultsStale, validateHasErrors, invalidSeen, authFailures, authState, onSignIn, onRunAgain],
   );
 
+  const presetReferences = useMemo<PresetReferenceValue>(
+    () => ({ root: result.presetTree ?? null, onSelectPreset: selectPresetNode }),
+    [result.presetTree, selectPresetNode],
+  );
+
   // Roadmap 032: the five tab panels render RUN RESULTS — they change when a
   // run completes or a view-state jump lands, never while the user types. So
   // `content` (and every other per-keystroke value: `injected`,
@@ -622,15 +631,24 @@ export function ResultsColumn({
   ]);
 
   return (
-    <ResultsPanel
-      tabs={tabs}
-      active={tab}
-      onSelect={onSelectTab}
-      onWalk={onWalkTab}
-      back={backTab}
-      onBack={onBack}
-      banner={banner}
-      panels={panels}
-    />
+    // Roadmap 081: every preset token under here explains itself from the same
+    // two things — this run's tree and the app's one preset navigation. The
+    // value is memoized on both, which are per-RUN identities (the tree object
+    // is what `computeTreeStats` is cached on, and `selectPresetNode` is
+    // identity-stable by construction), so typing in the editor never pushes a
+    // new context value through the panels and the 032 render counts are
+    // untouched.
+    <PresetReferenceProvider value={presetReferences}>
+      <ResultsPanel
+        tabs={tabs}
+        active={tab}
+        onSelect={onSelectTab}
+        onWalk={onWalkTab}
+        back={backTab}
+        onBack={onBack}
+        banner={banner}
+        panels={panels}
+      />
+    </PresetReferenceProvider>
   );
 }

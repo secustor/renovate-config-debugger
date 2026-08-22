@@ -90,6 +90,22 @@ export interface NodeStats {
   descRules: number;
   /** Descendants that are contributing or non-resolved — i.e. would render something. */
   descContrib: number;
+  /**
+   * Roadmap 081: EVERY descendant, whatever its state — the "N after nesting"
+   * number the standard preset hover card quotes. Deliberately not
+   * `descResolved`, which drops errored, ignored and aborted nodes: the card
+   * sits next to a link into the tree, and the tree shows a row for each of
+   * them, so a count that skipped them would disagree with what the reader
+   * lands on.
+   */
+  descPresets: number;
+  /**
+   * Deepest chain BELOW this node — 0 on a leaf, 1 when its children are all
+   * leaves. The card's "deepest chain N levels", i.e. how far the nesting the
+   * reader is about to walk actually goes; `depth` above is the distance in
+   * the other direction, from the root down to here.
+   */
+  subtreeDepth: number;
 }
 
 export interface TreeStats {
@@ -209,7 +225,7 @@ function computeTreeStatsUncached(root: PresetNode): TreeStats {
     node: PresetNode,
     identity: string,
     depth: number,
-  ): { resolved: number; rules: number; contrib: number } => {
+  ): { resolved: number; rules: number; contrib: number; all: number; height: number } => {
     nodesById.set(node.id, node);
     identityById.set(node.id, identity);
     if (!idByIdentity.has(identity)) {
@@ -233,6 +249,8 @@ function computeTreeStatsUncached(root: PresetNode): TreeStats {
     let aggResolved = selfResolved;
     let aggRules = ownRules;
     let aggContrib = selfContrib;
+    let aggAll = 1;
+    let height = 0;
 
     // Disambiguate identical-named siblings by occurrence index.
     const nameCounts = new Map<string, number>();
@@ -245,6 +263,8 @@ function computeTreeStatsUncached(root: PresetNode): TreeStats {
       aggResolved += sub.resolved;
       aggRules += sub.rules;
       aggContrib += sub.contrib;
+      aggAll += sub.all;
+      height = Math.max(height, sub.height + 1);
     }
 
     statsById.set(node.id, {
@@ -258,9 +278,17 @@ function computeTreeStatsUncached(root: PresetNode): TreeStats {
       descResolved: aggResolved - selfResolved,
       descRules: aggRules - ownRules,
       descContrib: aggContrib - selfContrib,
+      descPresets: aggAll - 1,
+      subtreeDepth: height,
     });
 
-    return { resolved: aggResolved, rules: aggRules, contrib: aggContrib };
+    return {
+      resolved: aggResolved,
+      rules: aggRules,
+      contrib: aggContrib,
+      all: aggAll,
+      height,
+    };
   };
 
   visit(root, "", 0);

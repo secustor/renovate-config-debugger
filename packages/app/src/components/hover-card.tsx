@@ -49,6 +49,7 @@ export function HoverCardAnchor({
   className,
   width = DEFAULT_WIDTH,
   flipMargin = DEFAULT_FLIP_MARGIN,
+  openDelayMs = 0,
   children,
 }: {
   /** The card's body. Rendered only while the card is up. */
@@ -57,11 +58,21 @@ export function HoverCardAnchor({
   className?: string;
   width?: number;
   flipMargin?: number;
+  /**
+   * Roadmap 081: hover-intent delay before the card opens, in ms. 0 (the
+   * default, and every anchor that predates 081) opens on the first genuine
+   * pointer move. See `useMoveGatedHover` for why this is per-anchor.
+   *
+   * Applies to the POINTER only — a focus is already an explicit act, and
+   * making a keyboard user hold a stop for four tenths of a second before the
+   * card they Tabbed to appears would be a delay with nothing to prevent.
+   */
+  openDelayMs?: number;
   /** Renders the anchor element; receives the handlers to spread. */
   children: (handlers: HoverCardHandlers) => ReactNode;
 }) {
   const { anchor, show, hide, hideNow, cancelHide, onKeyDown } = useHoverCard();
-  const moveGate = useMoveGatedHover(show);
+  const moveGate = useMoveGatedHover(show, openDelayMs);
   return (
     <>
       {children({

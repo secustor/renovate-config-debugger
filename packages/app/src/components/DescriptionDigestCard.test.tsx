@@ -90,10 +90,16 @@ it("renders the descriptions grouped by extend, with the user's rules", async ()
   // painted on the first commit.
   await waitFor(() => expect(view.queryByText("What this config does")).not.toBeNull());
 
-  // The preset's own sentence, attributed to the node that wrote it. By title,
+  // The preset's own sentence, attributed to the node that wrote it. By CLASS,
   // not by name: the group's ProvenanceChip carries the same preset name (and
-  // the same button role) one row above, which is the point of both.
-  const leaf = view.getByTitle(":dependencyDashboard", { exact: false });
+  // the same button role) one row above, which is the point of both. Roadmap
+  // 081 made the label the standard preset token, so the class is what
+  // separates it from the chip — the `title` it used to be found by is now the
+  // token's own hover card.
+  const leaves = [
+    ...view.container.querySelectorAll<HTMLElement>(".desc-digest-attr button.preset-token"),
+  ].filter((el) => el.textContent === ":dependencyDashboard");
+  expect(leaves).toHaveLength(1);
   expect(view.getByText("Enable Renovate Dependency Dashboard creation.")).toBeTruthy();
   // …and the second extend of the same preset, which bought nothing.
   expect(view.getByText("redundant — already included above")).toBeTruthy();
@@ -111,7 +117,9 @@ it("renders the descriptions grouped by extend, with the user's rules", async ()
   expect(view.queryByTitle("(input config)", { exact: false })).toBeNull();
 
   // The leaf label is the tree jump, exactly like the effective config's chips.
-  fireEvent.click(leaf);
+  for (const leaf of leaves) {
+    fireEvent.click(leaf);
+  }
   expect(onSelectPreset).toHaveBeenCalledTimes(1);
 });
 
@@ -202,15 +210,18 @@ it("marks every approximate sentence, including the ones with no leaf to label",
 
   await waitFor(() => expect(view.queryByText("What this config does")).not.toBeNull());
 
-  // Two standalone marks — the tree-less layer and the root node — each
-  // carrying the same explanation the leaf label's own `≈` carries.
+  // Every approximate row carries the mark: the tree-less layer and the root
+  // node standing alone, and — since 081 — the labelled row beside its token
+  // rather than as a `≈ ` prefix glued onto the preset's name. Three marks, one
+  // wording, which is what `DegradedCaveat` promises.
   const marks = view.container.querySelectorAll(".desc-approx-mark");
-  expect(marks).toHaveLength(2);
+  expect(marks).toHaveLength(3);
   for (const mark of marks) {
     expect(mark.getAttribute("title")).toContain("could not be determined");
   }
-  // …and the entry that DOES have a leaf keeps carrying the mark on the label.
-  expect(view.getByText("≈ config:best-practices")).toBeTruthy();
+  // …and the labelled row's name is the standard token, not a prefixed string.
+  const labelled = view.container.querySelector(".desc-digest-attr .preset-token");
+  expect(labelled?.textContent).toBe("config:best-practices");
   expect(view.container.querySelector(".desc-approx-caveat")).not.toBeNull();
 });
 

@@ -44,8 +44,17 @@
   --highlight: light-dark(#fffce0, #3b2f0b);
   /* Promoted from 2 identical inline light-dark() calls — teal layer-badge accent (prov-global/prov-merged). */
   --accent-teal: light-dark(#1b7c83, #56d4dd);
-  /* Promoted from 3 identical inline literals — purple layer-badge accent (prov-preset/src-*). */
-  --accent-purple: #8250df;
+  /* Promoted from 3 identical inline literals — purple layer-badge accent
+     (prov-preset/src-*). Roadmap 081 made this the app's ONE preset hue (every
+     preset token, pill and tint derives from it), which is also what finally
+     made its fixed light-mode value a problem: #8250df is ~3.0:1 on the dark
+     surfaces, and it was the last accent here still stated as a single literal
+     while --accent, --muted and --accent-pink all carry a dark half. It now
+     wears the design sheet's dark preset colour. Every consumer is either the
+     bare token as TEXT (contrast improves) or a `color-mix()` tint of it (the
+     mix scales with the hue, so the fills and dotted underlines lighten with
+     the dark theme instead of sinking into it). */
+  --accent-purple: light-dark(#8250df, #ab7df8);
   /* The fourth 008 layer-badge hue (prov-inherited). Single-use, promoted so
      the badge palette is complete at :root rather than three-quarters here and
      one quarter buried in a rule 1400 lines down. */
@@ -847,28 +856,107 @@ h1 {
   margin-left: auto;
 }
 
-/* ---------- preset token (roadmap 075) ----------
+/* ---------- preset token (roadmap 075, standardised in 081) ----------
    Every preset reference wears this: mono, purple-tinted, whether it is static
    text naming a preset or a control that jumps to that preset's node. The hue
    is the app's existing preset hue (`.badge.src-github`, `.prov-preset`), so a
-   token and the chips that point at the same thing agree. */
+   token and the chips that point at the same thing agree.
+
+   Roadmap 081 pins the SIZE, which is the half 075 left out: the class set no
+   `font-size`, so the token was whatever its context was — 0.85rem in a ledger
+   header, 0.7rem in a digest row, 0.95rem in the detail heading — and "the
+   same token everywhere" was true of the hue only. One declaration, one size;
+   the heading below is the single deliberate exception. The class is written
+   by `components/PresetName.tsx` and nothing else. */
 .preset-token {
   background: color-mix(in srgb, var(--accent-purple) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent-purple) 24%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-purple) 25%, transparent);
   border-radius: 4px;
   color: var(--accent-purple);
   font-family: var(--font-mono);
+  font-size: 0.78rem;
   padding: 0.02rem 0.35rem;
 }
 
 button.preset-token {
   cursor: pointer;
-  font-size: inherit;
   text-align: left;
 }
 
-button.preset-token:hover {
-  border-color: color-mix(in srgb, var(--accent-purple) 55%, transparent);
+/* The design's hover: the border goes to full purple. `focus-visible` too —
+   the card opens on focus, so the token has to look active when it does. */
+button.preset-token:hover,
+button.preset-token:focus-visible {
+  border-color: var(--accent-purple);
+}
+
+/* The one size variant: the preset detail panel's own title (and the editor's
+   preset tooltip, which names the preset the same way). Through the component's
+   `heading` prop, not through a context selector, so the exception is visible in
+   the call rather than hidden in a descendant rule. */
+.preset-token-heading {
+  font-size: 0.95rem;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+/* ---------- the standard preset hover card (roadmap 081) ----------
+   Behind every token: the "via" chain that reaches this preset, what it drags
+   in, and the way into the tree. Rides the shared `.option-card` popover plane
+   (surface, hairline, radius, shadow, z-index) and re-states only its own
+   metrics. */
+.option-card.preset-ref-card {
+  padding: 0.7rem 0.85rem;
+  width: 300px;
+}
+
+.preset-ref-via {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.74rem;
+  gap: 0.3rem;
+}
+
+/* The chain's chips ARE the standard pill (`.pill-accent` for the repo layer,
+   `.pill-preset` for an ancestor preset) — mono and one step down, because
+   here they carry preset NAMES inside running text rather than a one-word
+   label, and unbolded for the same reason: the chain is context, not a claim. */
+.preset-ref-via .pill {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 400;
+  padding: 0 0.4rem;
+}
+
+.preset-ref-lead,
+.preset-ref-arrow {
+  color: var(--muted);
+}
+
+/* Where the token's own name would go — and deliberately does not. */
+.preset-ref-self {
+  color: var(--accent-purple);
+  font-size: 0.72rem;
+  font-style: italic;
+}
+
+.preset-ref-counts {
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.74rem;
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+}
+
+.preset-ref-counts strong {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.preset-ref-link {
+  font-size: 0.72rem;
+  margin-top: 0.35rem;
 }
 
 .stage-timeline {
@@ -1789,12 +1877,6 @@ textarea.layer-editor:focus {
   gap: 0.5rem;
   justify-content: space-between;
   margin-bottom: 0.5rem;
-}
-
-.preset-panel-head .preset-token {
-  font-size: 0.95rem;
-  font-weight: 600;
-  word-break: break-all;
 }
 
 .preset-panel-head .close {
@@ -5719,26 +5801,15 @@ pre.config-view.prov-before {
   font-size: 0.9em;
 }
 
-/* Who actually wrote the sentence — a quiet mono label, and a button, because
-   the name is only useful if it takes you to the node (013's chip contract). */
-.desc-digest-leaf {
-  background: none;
-  border: none;
-  color: var(--muted);
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
+/* Who actually wrote the sentence. Roadmap 081: the label itself is now the
+   standard `.preset-token` (its own rule), so all that is left here is the
+   right-hand placement and the gap to the `≈` mark that may precede it. */
+.desc-digest-attr {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.25rem;
   margin-left: auto;
-  padding: 0;
   white-space: nowrap;
-}
-
-button.desc-digest-leaf {
-  cursor: pointer;
-}
-
-button.desc-digest-leaf:hover,
-button.desc-digest-leaf:focus-visible {
-  color: var(--accent);
 }
 
 .desc-digest-rule-note {

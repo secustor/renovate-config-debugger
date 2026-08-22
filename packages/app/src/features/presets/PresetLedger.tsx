@@ -8,6 +8,7 @@ import {
   type PresetLedgerModel,
 } from "./ledger";
 import { LedgerCard } from "./LedgerCard";
+import { PresetName } from "@/components/PresetName";
 import { nf } from "@/lib/format";
 import { collectGithubAuthFailures, pluralWord } from "./tree-shared";
 
@@ -50,14 +51,12 @@ function LedgerSummary({
         {pluralWord(sources.length, "source")}:
       </span>
       {sources.map((source) => (
-        <button
+        <PresetName
           key={source.nodeId}
-          type="button"
-          className="preset-token"
+          name={source.name}
+          nodeId={source.nodeId}
           onClick={() => onFocusSource(source.nodeId)}
-        >
-          {source.name}
-        </button>
+        />
       ))}
       <span>
         · <strong>{nf.format(presets)}</strong> {pluralWord(presets, "preset")} ·{" "}

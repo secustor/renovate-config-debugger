@@ -5,6 +5,7 @@ import { CopyMarkdownButton } from "@/components/CopyMarkdownButton";
 import { type AuthState, GithubAuthHint } from "@/components/GithubAuthHint";
 import { JsonDiff } from "@/components/JsonDiff";
 import { MigrationSteps } from "@/components/MigrationSteps";
+import { PresetName } from "@/components/PresetName";
 import { findPollutedPath } from "@/lib/input-schemas";
 import type { NodeDescriptionFacts } from "@/lib/tree-descriptions";
 import { NodeDescriptionLines } from "./NodeDescriptions";
@@ -223,7 +224,10 @@ export function PresetDetail({
   return (
     <div className="preset-panel">
       <div className="preset-panel-head">
-        <code className="preset-token">{node.name}</code>
+        {/* The heading variant, and the one token with no hover card: this
+            panel IS what the card previews, so a card here would offer the
+            reader a summary of the page they are already reading. */}
+        <PresetName name={node.name} heading noCard />
         <button type="button" className="close" onClick={onClose} aria-label="Close panel">
           ×
         </button>
