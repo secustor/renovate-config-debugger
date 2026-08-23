@@ -1,4 +1,3 @@
-import { readFile } from "node:fs/promises";
 import {
   type DependencyDescriptor,
   deriveUpdateType,
@@ -7,6 +6,7 @@ import {
 import type { OptionName, ParsedArgs } from "./args";
 import { listOption, stringOption } from "./args";
 import { CliError, errorMessage } from "./io";
+import { readTextFile } from "./run-input";
 
 /**
  * The hypothetical dependency update `simulate`/`compare` evaluate the rules
@@ -64,14 +64,7 @@ export async function readDependency(
   if (literal && path) {
     throw new CliError(`pass --${inline} or --${fromFile}, not both`);
   }
-  let text = literal;
-  if (path) {
-    try {
-      text = await readFile(path, "utf8");
-    } catch (err) {
-      throw new CliError(`cannot read --${fromFile} "${path}": ${errorMessage(err)}`);
-    }
-  }
+  const text = path ? await readTextFile(path, `--${fromFile}`) : literal;
   if (!text) {
     throw new CliError(
       `--${inline} is required, e.g. --${inline} '{"depName":"react","currentValue":"17.0.0","newValue":"18.0.0"}'`,
@@ -91,12 +84,7 @@ export async function readDependencies(args: ParsedArgs): Promise<DependencyDesc
   );
   const path = stringOption(args, "deps-file");
   if (path) {
-    let text: string;
-    try {
-      text = await readFile(path, "utf8");
-    } catch (err) {
-      throw new CliError(`cannot read --deps-file "${path}": ${errorMessage(err)}`);
-    }
+    const text = await readTextFile(path, "--deps-file");
     let parsed: unknown;
     try {
       parsed = JSON.parse(text);

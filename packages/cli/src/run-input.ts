@@ -191,7 +191,9 @@ export function resolveRunAuth(
   };
 }
 
-async function readTextFile(path: string, what: string): Promise<string> {
+/** A file the user named on the command line, with the flag in the error —
+ *  "cannot read a file" is only actionable when it says which flag chose it. */
+export async function readTextFile(path: string, what: string): Promise<string> {
   try {
     return await readFile(path, "utf8");
   } catch (err) {
