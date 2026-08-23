@@ -16,50 +16,21 @@ import { type Props, RepoLoadForm } from "./RepoLoadForm";
  * already had (Cancel, Escape) are unchanged. While it is up, Run is disabled
  * (the design's disabled-primary rule): the run would act on a document the
  * user is in the middle of replacing.
+ *
+ * The overlay adds a scrim and forwards the form's props untouched — spread,
+ * not re-listed, so a new form prop needs no edit here.
  */
 
-export function RepoLoadOverlay({
-  repo,
-  onRepoChange,
-  gitRef,
-  onRefChange,
-  loading,
-  onSubmit,
-  onClose,
-  inheritAuto,
-  onInheritAutoChange,
-  inheritRepo,
-  onInheritRepoChange,
-  inheritFile,
-  onInheritFileChange,
-  picker,
-  pickerUser,
-}: Props) {
+export function RepoLoadOverlay(props: Props) {
   return (
     <div className="repo-overlay">
       <button
         type="button"
         className="repo-overlay-scrim"
         aria-label="Cancel loading from a repository"
-        onClick={onClose}
+        onClick={props.onClose}
       />
-      <RepoLoadForm
-        repo={repo}
-        onRepoChange={onRepoChange}
-        gitRef={gitRef}
-        onRefChange={onRefChange}
-        loading={loading}
-        onSubmit={onSubmit}
-        onClose={onClose}
-        inheritAuto={inheritAuto}
-        onInheritAutoChange={onInheritAutoChange}
-        inheritRepo={inheritRepo}
-        onInheritRepoChange={onInheritRepoChange}
-        inheritFile={inheritFile}
-        onInheritFileChange={onInheritFileChange}
-        picker={picker}
-        pickerUser={pickerUser}
-      />
+      <RepoLoadForm {...props} />
     </div>
   );
 }
