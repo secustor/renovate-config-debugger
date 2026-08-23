@@ -49,9 +49,9 @@ import {
   getRenovateVersion,
   loadErrorTranslationLib,
   loadOptionIndex,
-  preloadEngine,
   run,
 } from "@/platform/run";
+import { preloadEngine } from "@/platform/engine-chunk";
 import type { ShareSimulator, ShareState, ShareView, UntrustedEndpointGuard } from "@/lib/share";
 import { useBackToTopVisible, useHomeEndPageScroll } from "@/hooks/scroll-ergonomics";
 import { useLatestRef } from "@/hooks/use-latest-ref";

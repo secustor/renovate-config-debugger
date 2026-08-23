@@ -17,6 +17,7 @@
  */
 import { isValidRepoRefPart } from "@/lib/input-schemas";
 import { extractRenovateFromPackageJson } from "@/lib/repo-reference";
+import { loadEngine } from "./engine-chunk";
 import { getValidToken } from "./oauth";
 
 const API_ROOT = "https://api.github.com/";
@@ -104,7 +105,7 @@ export async function probeConfigFile(repo: UserRepo): Promise<string | null> {
   if (!isValidRepoRefPart(repo.name) || !isValidRepoRefPart(repo.defaultBranch)) {
     return null;
   }
-  const engine = await import("@renovate-config-debugger/engine");
+  const engine = await loadEngine();
   const top = await fetchTree(repo.defaultBranch, repo.name);
   const topByPath = new Map(top.map((e) => [e.path, e]));
   const subtrees = new Map<string, Set<string>>();

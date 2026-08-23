@@ -4,6 +4,7 @@ import type {
   OptionDoc,
   OptionIndex,
   PipelineInput,
+  PresetAuth,
   RepoConfigRequest,
   RepoConfigResult,
   RepoFileRequest,
@@ -11,10 +12,10 @@ import type {
   TranslatedMessage,
   ValidationMessage,
 } from "@renovate-config-debugger/engine";
-import type * as EngineModule from "@renovate-config-debugger/engine";
 import { readCustomHostRules } from "@/data/custom-host-rules";
 import { HOST_TOKENS } from "@/data/host-tokens";
 import { isValidToken } from "@/lib/input-schemas";
+import { type Engine, loadEngine } from "./engine-chunk";
 import { getValidToken } from "./oauth";
 import { sessionGet } from "./storage";
 
@@ -23,11 +24,6 @@ import { sessionGet } from "./storage";
 // Platform/endpoint (non-secrets) stay in localStorage — see App.tsx.
 // Roadmap 033: the hosts and their storage keys come from the one HOST_TOKENS
 // table instead of being restated here.
-
-// The engine is only ever loaded dynamically here (it is the heavy chunk), so
-// this names its shape without pulling it into the initial bundle — a type-only
-// import declaration rather than an inline `typeof import(…)` annotation.
-type Engine = typeof EngineModule;
 
 /** Roadmap 030: the "header injection" rule applied at the last possible
  *  moment — right before a token is handed to the engine to place into a
@@ -70,7 +66,7 @@ function applyAuth(engine: Engine, oauthToken: string | null, opts?: RunOptions)
     engine.setPresetAuth({});
     return;
   }
-  const auth: EngineModule.PresetAuth = {};
+  const auth: PresetAuth = {};
   for (const host of HOST_TOKENS) {
     auth[host.authKey] = sessionToken(host.storageKey);
   }
@@ -102,7 +98,7 @@ function applyAuth(engine: Engine, oauthToken: string | null, opts?: RunOptions)
  */
 async function engineWithAuth(opts?: RunOptions): Promise<Engine> {
   const [engine, oauthToken] = await Promise.all([
-    import("@renovate-config-debugger/engine"),
+    loadEngine(),
     opts?.suppressTokens ? null : getValidToken(),
   ]);
   applyAuth(engine, oauthToken, opts);
@@ -110,19 +106,8 @@ async function engineWithAuth(opts?: RunOptions): Promise<Engine> {
 }
 
 /**
- * Roadmap 031: warms the engine chunk (~437 kB gz) so the download overlaps
- * idle time or hover intent instead of serializing behind the Run click.
- * Idempotent — the dynamic import is module-cached, so a Run that beats the
- * preload simply awaits the same in-flight promise. Best-effort: a network
- * failure here is swallowed, the real import on Run will surface it.
- */
-export function preloadEngine(): void {
-  void import("@renovate-config-debugger/engine").catch(() => {});
-}
-
-/**
- * Dynamic import keeps the heavy renovate chunk out of the initial page load;
- * Vite code-splits it automatically behind this call.
+ * `loadEngine` keeps the heavy renovate chunk out of the initial page load;
+ * Vite code-splits it automatically behind that call.
  */
 export async function run(input: PipelineInput, opts?: RunOptions): Promise<TraceResult> {
   const engine = await engineWithAuth(opts);
@@ -131,13 +116,13 @@ export async function run(input: PipelineInput, opts?: RunOptions): Promise<Trac
 
 /** Option metadata for hover docs; cheap once the engine chunk is loaded. */
 export async function loadOptionIndex(): Promise<OptionIndex> {
-  const engine = await import("@renovate-config-debugger/engine");
+  const engine = await loadEngine();
   return engine.getOptionIndex();
 }
 
 /** The bundled Renovate version — for the shareable-link version-drift check. */
 export async function getRenovateVersion(): Promise<string> {
-  const engine = await import("@renovate-config-debugger/engine");
+  const engine = await loadEngine();
   return engine.renovateVersion;
 }
 
@@ -158,7 +143,7 @@ export interface ErrorTranslationLib {
 }
 
 export async function loadErrorTranslationLib(): Promise<ErrorTranslationLib> {
-  const engine = await import("@renovate-config-debugger/engine");
+  const engine = await loadEngine();
   return {
     translateMessage: engine.translateMessage,
     findMentionedOption: engine.findMentionedOption,
