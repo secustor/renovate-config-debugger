@@ -201,7 +201,9 @@ function LedgerRun({
 /** A dropped description's cell: the preset that authored it, and the rule
  *  that deleted it — the two halves of "why isn't my description showing up".
  *  Marked when that preset is the engine's enclosing-subtree guess, exactly as
- *  an approximate entry's cell is. */
+ *  an approximate entry's cell is. The author wears the standard `PresetName`
+ *  token like every other preset reference (081's rule) — with `LedgerSource`'s
+ *  root guard, since a root-attributed drop has no tree row to jump to. */
 function DroppedSource({
   drop,
   onSelectPreset,
@@ -209,12 +211,16 @@ function DroppedSource({
   drop: DroppedDescription;
   onSelectPreset?: (nodeId: string) => void;
 }) {
+  const isRoot = drop.node.nodeId === ROOT_NODE_ID;
   return (
     <span className="desc-ledger-src">
       {drop.approximate ? <ApproximateMark name={drop.node.name} /> : null}
-      <ProvenanceChip
-        layer={{ kind: "preset", nodeId: drop.node.nodeId, name: drop.node.name }}
-        onSelectPreset={onSelectPreset}
+      <PresetName
+        name={drop.node.name}
+        nodeId={isRoot ? undefined : drop.node.nodeId}
+        onClick={
+          !isRoot && onSelectPreset ? () => onSelectPreset(drop.node.nodeId) : undefined
+        }
       />
       <span className="desc-ledger-via">
         <CodeText text={dropReasonText(drop)} />

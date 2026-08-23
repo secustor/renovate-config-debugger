@@ -104,6 +104,10 @@ test("marks an approximate drop and hedges its reason", () => {
   }
   expect(dropped.querySelector(".desc-approx-mark")).not.toBeNull();
   expect(dropped.textContent).toContain("exact preset unknown");
+  // 081's rule: the authoring preset wears the standard token, not a chip —
+  // this was the app's last hand-built preset layer literal.
+  expect(dropped.querySelector(".preset-token")).not.toBeNull();
+  expect(dropped.querySelector(".prov-layer")).toBeNull();
 });
 
 /**
