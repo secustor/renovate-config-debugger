@@ -96,6 +96,17 @@ written down once, in `skills/debug-renovate-config/SKILL.md` (roadmap 061).
 Read it when you are debugging a config here; it is the same skill the
 published plugin ships to consumers.
 
+**Read it by path.** The repo root's `skills/` is the PLUGIN's skill directory
+(`.claude-plugin/plugin.json`), so in this checkout the skill auto-loads only
+for someone who has the published plugin installed — it is not a project skill.
+The two skill directories that ARE loaded here hold other things:
+`.claude/skills/` has the persona-replay skill (roadmap 019) plus symlinks into
+`.agents/skills/`, which is vendored third-party skills pinned by
+`skills-lock.json` — neither is where this repo's own skill belongs. A developer
+who wants it loaded in-checkout can symlink it
+(`ln -s ../../skills/debug-renovate-config .claude/skills/`); nothing in the
+repo does it for them, and the pointer above is why that is survivable.
+
 A plain Node import of the engine is NOT equivalent — it silently has no preset
 tree and no provenance at all. See Architecture below for why.
 
