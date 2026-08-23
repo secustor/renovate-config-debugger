@@ -1,5 +1,5 @@
 import type { TreeSummary } from "@/lib/preset-tree-stats";
-import { Explained } from "@/components/glossary";
+import { ExplainedText } from "@/components/glossary";
 import { GLOSSARY } from "@/data/glossary-data";
 import { nf, pluralWord } from "@/lib/format";
 
@@ -31,13 +31,13 @@ export function SummaryHeader({ summary }: { summary: TreeSummary }) {
   return (
     <div className="preset-summary">
       {bits.map((b) => (
-        <Explained key={b.key} entry={GLOSSARY[b.key]}>
-          {(handlers) => (
-            <span className="preset-summary-stat explained" tabIndex={0} {...handlers}>
-              <strong>{nf.format(b.value)}</strong> {b.label}
-            </span>
-          )}
-        </Explained>
+        <ExplainedText
+          key={b.key}
+          entry={GLOSSARY[b.key]}
+          className="preset-summary-stat explained"
+        >
+          <strong>{nf.format(b.value)}</strong> {b.label}
+        </ExplainedText>
       ))}
     </div>
   );

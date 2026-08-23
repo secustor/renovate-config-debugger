@@ -3,7 +3,7 @@ import { BlameLedger } from "./BlameLedger";
 import { Caret } from "@/components/Caret";
 import { DeferredRuleProvenance, Step } from "./CascadeStack";
 import { type DescriptionLedger, ledgerPreviewText, ledgerWriterText } from "./description-ledger";
-import { Explained } from "@/components/glossary";
+import { ExplainedText } from "@/components/glossary";
 import { GLOSSARY } from "@/data/glossary-data";
 import type { MultiContribBadge } from "@/lib/effective-tally";
 import { layerNodeKey } from "@/lib/provenance-layer";
@@ -77,13 +77,12 @@ function KeyRowNote({ note }: { note: RowNote | null }) {
     return <span className={`prov-row-note${note.warn ? " warn" : ""}`}>{note.text}</span>;
   }
   return (
-    <Explained entry={GLOSSARY[MULTI_BADGE_GLOSSARY[note.badge]]}>
-      {(handlers) => (
-        <span className="prov-row-note explained" tabIndex={0} {...handlers}>
-          {note.text}
-        </span>
-      )}
-    </Explained>
+    <ExplainedText
+      entry={GLOSSARY[MULTI_BADGE_GLOSSARY[note.badge]]}
+      className="prov-row-note explained"
+    >
+      {note.text}
+    </ExplainedText>
   );
 }
 

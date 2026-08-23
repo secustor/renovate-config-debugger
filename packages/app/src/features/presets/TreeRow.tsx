@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import type { PresetNode } from "@renovate-config-debugger/engine";
 import type { NodeStats } from "@/lib/preset-tree-stats";
-import { Explained } from "@/components/glossary";
+import { Explained, ExplainedText } from "@/components/glossary";
 import { type HoverCardHandlers, HoverCardAnchor } from "@/components/hover-card";
 import { GLOSSARY } from "@/data/glossary-data";
 import { nf } from "@/lib/format";
@@ -22,32 +22,23 @@ function ContributionBadges({ stats, collapsed }: { stats: NodeStats; collapsed:
   return (
     <>
       {stats.ownOptions > 0 ? (
-        <Explained entry={GLOSSARY.presetContribOpts}>
-          {(handlers) => (
-            <span className="badge contrib opts explained" tabIndex={0} {...handlers}>
-              · {stats.ownOptions} opt{stats.ownOptions === 1 ? "" : "s"}
-            </span>
-          )}
-        </Explained>
+        <ExplainedText entry={GLOSSARY.presetContribOpts} className="badge contrib opts explained">
+          · {stats.ownOptions} opt{stats.ownOptions === 1 ? "" : "s"}
+        </ExplainedText>
       ) : null}
       {stats.ownRules > 0 ? (
-        <Explained entry={GLOSSARY.presetContribRules}>
-          {(handlers) => (
-            <span className="badge contrib rules explained" tabIndex={0} {...handlers}>
-              · {stats.ownRules} rule{stats.ownRules === 1 ? "" : "s"}
-            </span>
-          )}
-        </Explained>
+        <ExplainedText
+          entry={GLOSSARY.presetContribRules}
+          className="badge contrib rules explained"
+        >
+          · {stats.ownRules} rule{stats.ownRules === 1 ? "" : "s"}
+        </ExplainedText>
       ) : null}
       {collapsed && (stats.descResolved > 0 || stats.descRules > 0) ? (
-        <Explained entry={GLOSSARY.presetRollup}>
-          {(handlers) => (
-            <span className="badge rollup explained" tabIndex={0} {...handlers}>
-              {stats.descResolved > 0 ? `· ${nf.format(stats.descResolved)} presets ` : ""}
-              {stats.descRules > 0 ? `· ${nf.format(stats.descRules)} rules` : ""}
-            </span>
-          )}
-        </Explained>
+        <ExplainedText entry={GLOSSARY.presetRollup} className="badge rollup explained">
+          {stats.descResolved > 0 ? `· ${nf.format(stats.descResolved)} presets ` : ""}
+          {stats.descRules > 0 ? `· ${nf.format(stats.descRules)} rules` : ""}
+        </ExplainedText>
       ) : null}
     </>
   );
@@ -168,13 +159,12 @@ export function TreeRow({
         // now means "this one didn't come from Renovate itself". The table
         // view keeps the badge on every row (PresetListPane): a column of
         // values is a comparison, not repetition.
-        <Explained entry={sourceKindEntry(presetSource)}>
-          {(handlers) => (
-            <span className={`badge src src-${presetSource} explained`} tabIndex={0} {...handlers}>
-              {presetSource}
-            </span>
-          )}
-        </Explained>
+        <ExplainedText
+          entry={sourceKindEntry(presetSource)}
+          className={`badge src src-${presetSource} explained`}
+        >
+          {presetSource}
+        </ExplainedText>
       ) : null}
       {node.source?.platform ? (
         <span
@@ -210,13 +200,9 @@ export function TreeRow({
         </Explained>
       ) : null}
       {node.nested ? (
-        <Explained entry={GLOSSARY.presetNested}>
-          {(handlers) => (
-            <span className="badge nested explained" tabIndex={0} {...handlers}>
-              nested
-            </span>
-          )}
-        </Explained>
+        <ExplainedText entry={GLOSSARY.presetNested} className="badge nested explained">
+          nested
+        </ExplainedText>
       ) : null}
       {badge ? <span className={`badge state ${badge.className}`}>{badge.label}</span> : null}
       {node.state === "error" && node.error ? (
