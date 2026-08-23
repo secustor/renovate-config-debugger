@@ -1,4 +1,4 @@
-import { SessionMenuItem } from "@/components/SessionMenuItem";
+import { SessionMenuItem } from "./SessionMenuItem";
 import { REPO_URL } from "@/data/project-repo";
 
 /**

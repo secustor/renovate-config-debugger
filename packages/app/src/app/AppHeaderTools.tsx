@@ -1,4 +1,4 @@
-import { SessionMenu } from "@/components/SessionMenu";
+import { SessionMenu } from "@/features/session/SessionMenu";
 import { ShareButton } from "@/components/ShareButton";
 import type { StoredUser } from "@/platform/oauth";
 
