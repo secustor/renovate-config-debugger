@@ -6,40 +6,11 @@
  * shimmed module graph). A golden twin (simulate-package-rules.node.test.ts)
  * asserts the same parity unshimmed.
  */
-import { mergeChildConfig } from "renovate/dist/config/utils.js";
 import { applyPackageRules } from "renovate/dist/util/package-rules/index.js";
 import { describe, expect, it } from "vitest";
 import type { DependencyDescriptor } from "../src/index";
 import { simulatePackageRules } from "../src/index";
-
-/** The update-type blocks upstream `flattenUpdates` merges up and then drops. */
-const UPDATE_TYPE_KEYS = [
-  "major",
-  "minor",
-  "patch",
-  "pin",
-  "digest",
-  "lockFileMaintenance",
-  "replacement",
-];
-
-/**
- * The oracle for the 012 update-type flattening step: exactly upstream's two
- * lines in `flattenUpdates` after `applyPackageRules` — merge `config[updateType]`
- * up, then delete every update-type block.
- */
-function oracleFlatten(raw: Record<string, unknown>): Record<string, unknown> {
-  const updateType = typeof raw.updateType === "string" ? raw.updateType : undefined;
-  const block = updateType !== undefined ? raw[updateType] : undefined;
-  const out =
-    block && typeof block === "object"
-      ? (mergeChildConfig(raw, block as Record<string, unknown>) as Record<string, unknown>)
-      : { ...raw };
-  for (const key of UPDATE_TYPE_KEYS) {
-    delete out[key];
-  }
-  return out;
-}
+import { oracleFlatten } from "./helpers";
 
 /** Strip a raw config to the display config exactly as the simulator does. */
 function toDisplay(

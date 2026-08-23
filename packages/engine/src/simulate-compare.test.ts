@@ -5,7 +5,7 @@
  * machinery and runs as a plain node test.
  */
 import { describe, expect, it } from "vitest";
-import { compareSimulations, type RuleEvaluation, type SimulationResult } from "../src/index";
+import { compareSimulations, type RuleEvaluation, type SimulationResult } from "./index";
 
 /** A matched rule with the given selector clauses (only key+value are read). */
 function matched(index: number, clauses: [string, unknown][]): RuleEvaluation {

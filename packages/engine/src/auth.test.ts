@@ -4,7 +4,7 @@
  * test is the matching rule the fetchers delegate to, not a transport.
  */
 import { afterEach, describe, expect, it } from "vitest";
-import { resolveAuthToken, setPresetAuth } from "../src/auth";
+import { resolveAuthToken, setPresetAuth } from "./auth";
 
 afterEach(() => {
   setPresetAuth({});

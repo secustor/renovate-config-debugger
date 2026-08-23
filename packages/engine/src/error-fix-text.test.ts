@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { applyFixToText } from "../src/error-fix-text";
-import type { ErrorFixResult } from "../src/error-translations";
-import { must } from "./helpers";
+import { applyFixToText } from "./error-fix-text";
+import type { ErrorFixResult } from "./error-translations";
+import { must } from "../test/helpers";
 
 function valueFix(overrides: Partial<ErrorFixResult>): ErrorFixResult {
   return {

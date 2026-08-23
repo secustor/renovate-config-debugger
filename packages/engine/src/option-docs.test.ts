@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { getOptions } from "../src/renovate-adapter";
-import { getOptionIndex, optionsSourceUrl, REQUIRED_IF_NOTE } from "../src/option-docs";
+import { getOptions } from "./renovate-adapter";
+import { getOptionIndex, optionsSourceUrl, REQUIRED_IF_NOTE } from "./option-docs";
 
 describe("option index", () => {
   it("exposes renovate's option metadata for hover docs", () => {

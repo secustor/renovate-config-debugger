@@ -11,7 +11,7 @@
  * reaches the task.
  */
 import { describe, expect, it } from "vitest";
-import { runPipeline, simulatePackageRules } from "../src/index";
+import { runPipeline, simulatePackageRules } from "./index";
 
 const CONFIG = { fileName: "renovate.json", content: '{"labels":["deps"]}' };
 

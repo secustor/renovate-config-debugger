@@ -4,9 +4,9 @@ import {
   findMentionedOption,
   parseConfigPath,
   translateMessage,
-} from "../src/error-translations";
-import type { ValidationMessage } from "../src/trace/model";
-import { must } from "./helpers";
+} from "./error-translations";
+import type { ValidationMessage } from "./trace/model";
+import { must } from "../test/helpers";
 
 describe("parseConfigPath", () => {
   it("parses a bare top-level key", () => {

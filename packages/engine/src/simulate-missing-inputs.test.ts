@@ -13,8 +13,8 @@ import {
   isNoInputNoMatch,
   summarizeEvaluationErrors,
   summarizeMissingInputs,
-} from "../src/simulate-missing-inputs";
-import type { RuleEvaluation } from "../src/simulate-package-rules";
+} from "./simulate-missing-inputs";
+import type { RuleEvaluation } from "./simulate-package-rules";
 
 type ClauseSpec = [
   key: string,
