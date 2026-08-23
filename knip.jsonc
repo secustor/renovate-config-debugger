@@ -1,0 +1,47 @@
+// Roadmap 084 left the unused-export gate as an open ruling; the second
+// cleanup pass took it after trimming the engine barrel's 27 dead lines.
+// Scope: EXPORTS only — `pnpm check:exports` runs with
+// `--include exports,types,nsExports,nsTypes`, so knip's other issue types
+// (files, dependencies, …) never gate CI.
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  // An export consumed in its own file is 084's documented-contract pattern
+  // (the export is the documentation); the gate hunts exports NOBODY uses.
+  "ignoreExportsUsedInFile": true,
+  "ignoreIssues": {
+    // The app's exported hook/view-model contract TYPES are deliberate
+    // documentation (084's ledger) — value exports still gate.
+    "packages/app/src/**": ["types", "nsTypes"],
+    // The adapter is the LEDGER of the pinned renovate/dist deep-import
+    // surface, not a consumer-driven API: a re-exported type may sit beside
+    // its used value half (VersioningApi / getVersioningApi), and the shims
+    // that would consume some entries must deep-import instead (routing a
+    // shim through the adapter closes an import cycle via presets/index.js).
+    "packages/engine/src/renovate-adapter.ts": ["exports", "types"],
+  },
+  "workspaces": {
+    "packages/engine": {
+      // Every shim is an entry: the vite plugin swaps them in by resolved
+      // path, so no static import reaches them. Tests are entries so
+      // test-only helpers don't read as dead.
+      "entry": ["src/shims/**/*.ts", "test/**/*.test.ts", "test/helpers.ts"],
+      "project": ["src/**/*.ts", "test/**/*.ts"],
+    },
+    "packages/app": {
+      "entry": ["e2e/**/*.spec.ts"],
+      "project": ["src/**/*.{ts,tsx}", "e2e/**/*.ts"],
+    },
+    "packages/cli": {
+      "entry": ["src/main.ts"],
+      "project": ["src/**/*.ts", "bin/**/*.mjs"],
+    },
+    "packages/oauth-worker": {
+      "entry": ["server.mjs"],
+      "project": ["src/**/*.ts", "test/**/*.ts", "*.mjs"],
+    },
+    ".": {
+      "entry": ["tools/**/*.ts"],
+      "project": ["tools/**/*.ts"],
+    },
+  },
+}

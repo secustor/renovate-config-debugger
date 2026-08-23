@@ -36,6 +36,9 @@ jobs:
       # The root script, not `pnpm -r typecheck`: it adds `tools/` (the agent
       # hooks), which is not a workspace package and so has no `-r` entry.
       - run: pnpm typecheck
+      # The unused-export gate (084's open ruling, taken by the second cleanup
+      # pass): exports-scoped knip — see knip.jsonc for the two carve-outs.
+      - run: pnpm check:exports
 
   test:
     needs: setup

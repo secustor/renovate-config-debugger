@@ -218,9 +218,7 @@ function DroppedSource({
       <PresetName
         name={drop.node.name}
         nodeId={isRoot ? undefined : drop.node.nodeId}
-        onClick={
-          !isRoot && onSelectPreset ? () => onSelectPreset(drop.node.nodeId) : undefined
-        }
+        onClick={!isRoot && onSelectPreset ? () => onSelectPreset(drop.node.nodeId) : undefined}
       />
       <span className="desc-ledger-via">
         <CodeText text={dropReasonText(drop)} />
