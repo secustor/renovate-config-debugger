@@ -1,6 +1,6 @@
 import type { PresetReferenceFacts, PresetViaStep } from "@/lib/preset-reference";
 import { nf, plural } from "@/lib/format";
-import { useHoverCardClose } from "./hover-card-hooks";
+import { HoverCardJump } from "./HoverCardJump";
 
 /**
  * Roadmap 081: the standard preset hover card — one card behind every preset
@@ -65,26 +65,11 @@ function NestingCounts({ facts }: { facts: PresetReferenceFacts }) {
   );
 }
 
-/**
- * The way into the tree. It closes its own card first: the click switches tabs
- * and lands on a row, pulling the page out from under a card that a pointer
- * opened and therefore has no blur to take down (the same rule
- * `NodeDescriptionCard`'s jump follows).
- */
+/** The way into the tree — `HoverCardJump` owns the close-then-jump sequence. */
 function FullTreeLink({ nodeId, onSelect }: { nodeId: string; onSelect: (id: string) => void }) {
-  const close = useHoverCardClose();
   return (
     <div className="preset-ref-link">
-      <button
-        type="button"
-        className="btn-quiet"
-        onClick={() => {
-          close();
-          onSelect(nodeId);
-        }}
-      >
-        show the full tree →
-      </button>
+      <HoverCardJump label="show the full tree →" onJump={() => onSelect(nodeId)} />
     </div>
   );
 }
