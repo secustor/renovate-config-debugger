@@ -66,6 +66,7 @@ import {
   readLocal,
 } from "@/platform/storage";
 import { useCustomHostRules, useHostTokens } from "@/hooks/use-host-tokens";
+import { useAppMessages } from "@/app/use-app-messages";
 import { useInheritedConfigLayer } from "@/app/use-inherited-config-layer";
 import { useRepoLoad } from "@/app/use-repo-load";
 import { useRepoPicker } from "@/app/use-repo-picker";
@@ -293,17 +294,23 @@ export function App() {
   // stage keeps chip clicks responsive and makes the diff render
   // interruptible instead of blocking the main thread.
   const deferredStage = useDeferredValue(selectedStage);
-  const [fatal, setFatal] = useState<string | null>(null);
-  // Roadmap 068: the banner carries two kinds of message and they expire
-  // differently. A RUN's own failure is answered by the next run's outcome. A
-  // message about something that never ran — a config layer that would not
-  // parse, a repo load that failed — is not, because the run it happened to
-  // race is no answer to it. This counter stamps the second kind (see
-  // `applyFatal`), and a run only clears a banner whose stamp it was already
-  // carrying when it was requested.
-  const fatalSeqRef = useRef(0);
-  // Non-fatal notices (version drift, load-from-repo results).
-  const [notice, setNotice] = useState<string | null>(null);
+  // Roadmap 086: the four message surfaces — fatal banner (with the 068
+  // stamp/expiry rule), notice, toast, and the run-outcome live region — as
+  // one hook. `applyFatal` is the stamped raise; `setFatal` the unstamped
+  // run-failure write; both alternating-space devices live there, spelled once.
+  const {
+    fatal,
+    setFatal,
+    applyFatal,
+    fatalSeqRef,
+    notice,
+    setNotice,
+    toast,
+    showToast,
+    runAnnouncement,
+    announceRun,
+    outcomeLeadRef,
+  } = useAppMessages();
   // Security 2026-07-25: set while the platform context in force came from a
   // share link naming an untrusted endpoint. This is the ONLY thing that
   // decides token suppression — it outlives the banner on purpose, so a user
@@ -320,24 +327,6 @@ export function App() {
   // direction: over-suppressing would silently break a legitimate private
   // repo load, under-suppressing would leak the token.
   const untrustedGuardRef = useRef<UntrustedEndpointGuard | null>(null);
-  // Roadmap 023: a transient toast — used to land an "Apply fix" re-run on its
-  // consequence ("re-ran: 0 errors") without yanking the user's scroll around.
-  const [toast, setToast] = useState<string | null>(null);
-  const toastTimer = useRef<number | undefined>(undefined);
-  // Roadmap 068: what the polite live region at the bottom of the tree is
-  // saying about the last run. Declared up here with the other run state
-  // because the two outcomes that produce no result — a refusal (`onRun`) and a
-  // run that threw (`executeRun`) — announce themselves the moment they happen,
-  // while the success sentence is composed by an effect far below, once
-  // `useRunSummary` has counted the result it describes.
-  const [runAnnouncement, setRunAnnouncement] = useState("");
-  const announcementSeq = useRef(0);
-  // Roadmap 068, ninth review: how the NEXT committed result's sentence starts
-  // (`RunOptions.outcomeLead`). Written by `executeRun` immediately before the
-  // commit it describes and read by the effect that commit triggers — never
-  // consumed, because every commit rewrites it, which is what keeps it about the
-  // result on screen rather than about the last run that happened to set one.
-  const outcomeLeadRef = useRef<string | null>(null);
   const [optionIndex, setOptionIndex] = useState<OptionIndex | null>(null);
   // Roadmap 014: curated validator-message translations + suggested fixes,
   // loaded lazily alongside the option index (same engine chunk).
@@ -590,13 +579,6 @@ export function App() {
       }
     }
   }, [result]);
-
-  /** Roadmap 023: shows a transient toast that auto-dismisses. */
-  function showToast(message: string) {
-    setToast(message);
-    window.clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => setToast(null), 4500);
-  }
 
   // A validation message's REPO-config `packageRules[repoIndex]` → the editor
   // line. Reads `packageRuleOffsets`, which is rescanned on every edit — so
@@ -870,49 +852,6 @@ export function App() {
       setTab(linkTab);
     }
   }, [result, setTab]);
-
-  /**
-   * Roadmap 068: the banner for everything that did NOT run — a layer that
-   * would not parse, a repo load that failed. Stamping it (`fatalSeqRef`) is
-   * what keeps it on screen: a run already in flight when the user clicked
-   * Inject is not an answer to "the global config is not valid JSON", and
-   * before this it wiped that message on its way past, leaving the injection
-   * looking like it had silently done nothing.
-   *
-   * A run's own failure goes through `setFatal` directly, unstamped, because
-   * the next run's outcome genuinely does supersede it.
-   *
-   * Roadmap 068, eighth review: and it is raised so that it is HEARD. The banner
-   * is a `role="alert"` (ConfigColumn), which speaks when its text changes — so
-   * raising the identical message twice, which is exactly what a second attempt
-   * at the same unfixed thing does, was silent, and React does not even
-   * re-render for it. The invisible alternating space is the same device the run
-   * announcement uses, for the same reason: it makes every raise a change. The
-   * case that needs it is the repeat that nothing else speaks for — a repo load
-   * that fails the same way twice. (A refused RUN is also announced as an
-   * outcome by `onRun`; the two say different things, WHAT is wrong and what
-   * became of the keystroke, and neither is the other's echo.)
-   */
-  const fatalSpacerRef = useRef(false);
-  function applyFatal(next: string | null) {
-    if (next === null) {
-      setFatal(null);
-      return;
-    }
-    fatalSeqRef.current += 1;
-    fatalSpacerRef.current = !fatalSpacerRef.current;
-    setFatal(fatalSpacerRef.current ? `${next} ` : next);
-  }
-
-  /** Roadmap 068: one sentence into the polite live region — the run's outcome
-   *  for anyone not watching the screen, since a finished run deliberately does
-   *  not move focus. A live region only speaks when its text CHANGES, and two
-   *  runs of the same config produce the same sentence, so an invisible
-   *  non-breaking space alternates to make every run a mutation. */
-  function announceRun(sentence: string) {
-    announcementSeq.current += 1;
-    setRunAnnouncement(announcementSeq.current % 2 === 0 ? `${sentence} ` : sentence);
-  }
 
   // An unparseable 008 layer never silently runs without it — block instead.
   // Roadmap 030: the same gate gets a matching case for the endpoint field
@@ -1529,9 +1468,9 @@ export function App() {
     ].filter((part) => part !== null);
     const lead = outcomeLeadRef.current ?? "Run finished";
     announceRun(`${lead} — ${problems.length === 0 ? "no problems" : problems.join(", ")}.`);
-    // `announceRun` is redeclared every render and deliberately not a
-    // dependency — it reads nothing but its own ref and state setter.
-  }, [result, errorCount, warningCount]);
+    // `announceRun` and the ref are identity-stable (use-app-messages), so
+    // listing them leaves this effect firing on the result and the counts.
+  }, [result, errorCount, warningCount, announceRun, outcomeLeadRef]);
 
   // The encode side of `useShareLink`'s copy-link path: assembles the CURRENT
   // state (config + view, optionally simulator inputs) for the share codec.
