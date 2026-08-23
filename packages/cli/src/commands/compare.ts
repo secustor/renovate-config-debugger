@@ -3,7 +3,7 @@ import { outputFormat, stringOption } from "../args";
 import type { Command } from "../command";
 import { EXIT_OK } from "../io";
 import { emitJson, emitLines, writeNotes } from "../output";
-import { INPUT_OPTIONS, runOne, takeInputFile, wouldRefuse } from "../run-input";
+import { INPUT_OPTIONS, refusalNote, runOne, takeInputFile, wouldRefuse } from "../run-input";
 import { readDependency } from "../dep";
 import { deltaLine, parseConfigScope, parseKeys } from "../projections/config-view";
 import {
@@ -66,18 +66,9 @@ export function comparisonHeadline(comparison: HeadlineFields): string {
  * output (`wouldRefuse` per side, this note in pretty and `exitNote` in JSON).
  * `validate` is the command whose exit code carries refusal.
  */
-function compareRefusalNote(refused: readonly string[]): string | undefined {
-  if (refused.length === 0) {
-    return undefined;
-  }
-  const subject = refused.length === 1 ? refused[0] : refused.join(" and ");
-  const verb = refused.length === 1 ? "would be" : "would both be";
-  return (
-    `note: ${subject} ${verb} refused by Renovate (the parse or validate stage failed) — the ` +
-    "comparison above still ran on its resolved output and the exit code reflects the " +
-    "comparison, not the refusal. `rcd validate` lists the messages and exits 2 on them."
-  );
-}
+const COMPARE_REFUSAL_TAIL =
+  "the comparison above still ran on its resolved output and the exit code reflects the " +
+  "comparison, not the refusal. `rcd validate` lists the messages and exits 2 on them.";
 
 /**
  * The identity axis, as the requested detail level carries it: the list of
@@ -193,10 +184,13 @@ export const compareCommand: Command = {
 
     const refusedA = wouldRefuse(a.result);
     const refusedB = wouldRefuse(b.result);
-    const refusal = compareRefusalNote([
-      ...(refusedA ? ["config A"] : []),
-      ...(refusedB && b.result !== a.result ? ["config B"] : []),
-    ]);
+    const refusal = refusalNote(
+      [
+        ...(refusedA ? ["config A"] : []),
+        ...(refusedB && b.result !== a.result ? ["config B"] : []),
+      ],
+      COMPARE_REFUSAL_TAIL,
+    );
 
     // Per SIDE, and reported even when the verdict is `identical:`. Two sides
     // that both failed to evaluate the same rule for lack of input agree

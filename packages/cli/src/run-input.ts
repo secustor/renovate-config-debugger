@@ -426,18 +426,20 @@ export function wouldRefuse(result: TraceResult): boolean {
  * answer says which input caused it, in words, on the same output.
  *
  * `simulate`/`group` keep the `2` (their subject is one config, and the
- * contract is documented and hook-relied-upon). `compare` no longer uses this
- * note: replay-04 showed its `2` overruling its own "no behavioral change"
- * verdict, so it exits on the comparison and carries its own wording.
+ * contract is documented and hook-relied-upon) and take the default `tail`.
+ * `compare` names the same inputs and then says the opposite about its exit
+ * code — replay-04 showed its `2` overruling its own "no behavioral change"
+ * verdict — so it passes its own tail rather than a second copy of the
+ * sentence that names them.
  */
-export function refusalNote(refused: readonly string[]): string | undefined {
+export function refusalNote(
+  refused: readonly string[],
+  tail = "exit code 2 reflects that, not this command's answer. `rcd validate` lists the messages.",
+): string | undefined {
   if (refused.length === 0) {
     return undefined;
   }
   const subject = refused.length === 1 ? refused[0] : refused.join(" and ");
   const verb = refused.length === 1 ? "would be" : "would both be";
-  return (
-    `note: ${subject} ${verb} refused by Renovate (the parse or validate stage failed) — ` +
-    "exit code 2 reflects that, not this command's answer. `rcd validate` lists the messages."
-  );
+  return `note: ${subject} ${verb} refused by Renovate (the parse or validate stage failed) — ${tail}`;
 }
