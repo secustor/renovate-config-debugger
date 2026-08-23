@@ -7,6 +7,7 @@ import { INPUT_OPTIONS, runOne, takeInputFile, wouldRefuse } from "../run-input"
 import { readDependency } from "../dep";
 import { deltaLine, parseConfigScope, parseKeys } from "../projections/config-view";
 import {
+  comparisonMode,
   comparisonPayload,
   parseCompareDetail,
   type ProjectedComparison,
@@ -176,10 +177,7 @@ export const compareCommand: Command = {
 
     const simA = await simulateAgainst(a.result, depA);
     const simB = await simulateAgainst(b.result, depB);
-    // What this invocation varied. Two files AND two dependencies is neither
-    // axis alone, and a wrong guess is how the comparison came to claim a
-    // pattern rewrite about one unchanged config file.
-    const mode = fileB && twoDeps ? "unspecified" : twoDeps ? "dependency" : "config";
+    const mode = comparisonMode(Boolean(fileB), twoDeps);
     const comparison = comparisonPayload(compareSimulations(simA, simB, { mode }), {
       scope: scope ?? "package-rules",
       detail,

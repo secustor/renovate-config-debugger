@@ -1209,6 +1209,22 @@ describe("simulate and compare", () => {
     expect(comparison.summary).toContain("groupName");
   });
 
+  /** Two runs AND two dependencies is neither axis alone. The guess used to
+   *  collapse to `config` (the ternary's first and last arms were identical),
+   *  which is exactly the wrong-guess class `simulate-compare` documents —
+   *  the mode is derived by the same `comparisonMode` the CLI uses now. */
+  test("two runs and two dependencies report mode `unspecified`", async () => {
+    const before = await runConfig(CONFIG);
+    const after = await runConfig(GROUPED);
+    const comparison = (await call("compare_simulations", {
+      runId: before,
+      runIdB: after,
+      dep: { depName: "react", packageName: "react" },
+      depB: { depName: "vue", packageName: "vue" },
+    })) as { mode: string };
+    expect(comparison.mode).toBe("unspecified");
+  });
+
   /** Replay-03 (2 sessions): the delta only lists keys that DIFFER, and
    *  `absent` for an unchanged key read as "not in the config" about an option
    *  both configs hold. */

@@ -42,6 +42,7 @@ import {
 } from "../projections/messages";
 import {
   COMPARE_DETAIL,
+  comparisonMode,
   comparisonPayload,
   SIMULATE_DETAIL,
   simulationPayload,
@@ -1078,12 +1079,9 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
           return note ? [`${index === 0 ? "A" : "B"} — ${note}`] : [];
         }),
       ];
-      // What the CALLER varied — the engine cannot see it, and guessing is
-      // how the comparison came to claim a selector rewrite about one
-      // unchanged config read through two dependencies.
       const comparison = comparisonPayload(
         compareSimulations(simA, simB, {
-          mode: runIdB ? "config" : depB ? "dependency" : "config",
+          mode: comparisonMode(Boolean(runIdB), Boolean(depB)),
         }),
         {
           scope: configScope ?? "package-rules",

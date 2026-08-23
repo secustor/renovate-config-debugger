@@ -1,4 +1,5 @@
 import type {
+  ComparisonMode,
   ConfigKeyDelta,
   MergedKey,
   RuleAttribution,
@@ -280,6 +281,19 @@ function notesFor(sim: SimulationResult, transport: RunTransport): string[] {
  */
 export const COMPARE_DETAIL = ["verdict", "rules", "full"] as const;
 export type CompareDetail = (typeof COMPARE_DETAIL)[number];
+
+/**
+ * What the CALLER varied. The engine cannot see it, and a wrong guess is how
+ * the comparison came to claim a selector rewrite about one unchanged config
+ * read through two dependencies — so both surfaces derive it here, from the
+ * same two facts, instead of each spelling its own ternary.
+ */
+export function comparisonMode(twoConfigs: boolean, twoDeps: boolean): ComparisonMode {
+  if (twoConfigs && twoDeps) {
+    return "unspecified";
+  }
+  return twoDeps ? "dependency" : "config";
+}
 
 export interface ComparisonProjection {
   keys?: readonly string[];
