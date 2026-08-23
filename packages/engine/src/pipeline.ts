@@ -137,6 +137,24 @@ function execute(input: PipelineInput): Promise<TraceResult> {
   return withRunAuth(input, () => executeRun(input));
 }
 
+/** What `validateConfig` answers with — the shape both the 008 layers and the
+ *  repo-level `validate` stage feed into `errors`/`warnings`. */
+type ValidationOutcome = Awaited<ReturnType<typeof validateConfig>>;
+
+/**
+ * The prologue both 008 layers share: keep the raw input as the `before` blob
+ * of the stage-complete event, then migrate and massage a COPY of it — the
+ * order upstream applies to a global config and to an inherited one alike.
+ */
+function prepareLayer(rawInput: Record<string, unknown>): {
+  raw: Record<string, unknown>;
+  config: Record<string, unknown>;
+} {
+  const raw = snapshot(rawInput);
+  const migrated = migrateConfig(snapshot(raw)).migratedConfig;
+  return { raw, config: massageConfig(migrated) };
+}
+
 async function executeRun(input: PipelineInput): Promise<TraceResult> {
   const platformContext = resolvePlatformContext(input);
   const collector = new TraceCollector(parsePreset, platformContext);
@@ -159,6 +177,23 @@ async function executeRun(input: PipelineInput): Promise<TraceResult> {
   // Assembled 008 merge layers; undefined = layer absent or failed validation.
   let globalLayer: Record<string, unknown> | undefined;
   let inheritedLayer: Record<string, unknown> | undefined;
+
+  /**
+   * Validate one config and file the outcome the one way every stage files it:
+   * onto the run's `errors`/`warnings`, and as one trace event per message.
+   * Returns the outcome, because each caller then decides for itself what an
+   * error means for its stage.
+   */
+  const recordValidation = async (
+    scope: Parameters<typeof validateConfig>[0],
+    config: Record<string, unknown>,
+  ): Promise<ValidationOutcome> => {
+    const validation = await validateConfig(scope, config);
+    errors.push(...validation.errors);
+    warnings.push(...validation.warnings);
+    emitValidationMessages(collector, validation);
+    return validation;
+  };
 
   const result = (): TraceResult => ({
     events: collector.events,
@@ -202,13 +237,10 @@ async function executeRun(input: PipelineInput): Promise<TraceResult> {
     if (input.globalConfig) {
       collector.enterStage("global");
       collector.emit({ kind: "stage-start", title: "Assemble global (self-hosted) config" });
-      const rawGlobal = snapshot(input.globalConfig);
-      let globalCfg = migrateConfig(snapshot(rawGlobal)).migratedConfig;
-      globalCfg = massageConfig(globalCfg);
-      const globalValidation = await validateConfig("global", globalCfg);
-      errors.push(...globalValidation.errors);
-      warnings.push(...globalValidation.warnings);
-      emitValidationMessages(collector, globalValidation);
+      const { raw: rawGlobal, config: massagedGlobal } = prepareLayer(input.globalConfig);
+      // reassigned below as globalExtends resolve under it
+      let globalCfg = massagedGlobal;
+      const globalValidation = await recordValidation("global", globalCfg);
       stageStatus.global = globalValidation.errors.length > 0 ? "error" : "ok";
       if (Array.isArray(globalCfg.globalExtends) && globalCfg.globalExtends.length > 0) {
         try {
@@ -250,13 +282,8 @@ async function executeRun(input: PipelineInput): Promise<TraceResult> {
     if (input.inheritedConfig) {
       collector.enterStage("inherit");
       collector.emit({ kind: "stage-start", title: "Merge inherited config (inheritConfig)" });
-      const rawInherited = snapshot(input.inheritedConfig);
-      let inheritedCfg = migrateConfig(snapshot(rawInherited)).migratedConfig;
-      inheritedCfg = massageConfig(inheritedCfg);
-      const inheritValidation = await validateConfig("inherit", inheritedCfg);
-      errors.push(...inheritValidation.errors);
-      warnings.push(...inheritValidation.warnings);
-      emitValidationMessages(collector, inheritValidation);
+      const { raw: rawInherited, config: inheritedCfg } = prepareLayer(input.inheritedConfig);
+      const inheritValidation = await recordValidation("inherit", inheritedCfg);
       if (inheritValidation.errors.length > 0) {
         stageStatus.inherit = "error";
         collector.emit({
@@ -278,10 +305,7 @@ async function executeRun(input: PipelineInput): Promise<TraceResult> {
               base,
               base.ignorePresets as string[] | undefined,
             );
-            const resolvedValidation = await validateConfig("inherit", resolved);
-            errors.push(...resolvedValidation.errors);
-            warnings.push(...resolvedValidation.warnings);
-            emitValidationMessages(collector, resolvedValidation);
+            const resolvedValidation = await recordValidation("inherit", resolved);
             if (resolvedValidation.errors.length > 0) {
               stageStatus.inherit = "error";
               collector.emit({
@@ -365,10 +389,7 @@ async function executeRun(input: PipelineInput): Promise<TraceResult> {
     // validate
     collector.enterStage("validate");
     collector.emit({ kind: "stage-start", title: "Validate config" });
-    const validation = await validateConfig("repo", config);
-    errors.push(...validation.errors);
-    warnings.push(...validation.warnings);
-    emitValidationMessages(collector, validation);
+    const validation = await recordValidation("repo", config);
     stageStatus.validate = validation.errors.length > 0 ? "error" : "ok";
     collector.emit({
       kind: "stage-complete",
