@@ -8,8 +8,10 @@ import { nf } from "@/lib/format";
 import { PIN_FORM_ID } from "./datalist-ids";
 import { EMPTY_FORM, type FormState, hasMeaningfulInput } from "./form";
 import { EmptyFormGuard, PinLimitNote } from "./FormNotes";
+import { OpenInSimulatorLink } from "./OpenInSimulatorLink";
 import { type PasteFill, parsePastedDescriptor, pasteImportNote } from "./paste-descriptor";
-import { buildPinOutcome, type PinCheck, dotTitle, dotTone, type PinOutcome } from "./pin-outcome";
+import { buildPinOutcome, type PinCheck, type PinOutcome } from "./pin-outcome";
+import { PinHeadRow } from "./PinHeadRow";
 import { pinContext, pinName, MAX_PINS } from "./pins";
 import { PinSectionHead } from "./PinRuleSections";
 import { runSimulation } from "./run-simulation";
@@ -64,10 +66,12 @@ function OneOffResult({
   return (
     <div className="card pin-oneoff">
       <div className="pin-head">
-        <span className={`pin-dot ${dotTone(check)}`} title={dotTitle(check)} />
-        <span className="pin-name">{pinName(form)}</span>
-        <span className="pin-meta">{pinContext(form, effectiveUpdateType)}</span>
-        <span className="pin-summary">simulation · not pinned</span>
+        <PinHeadRow
+          check={check}
+          name={pinName(form)}
+          context={pinContext(form, effectiveUpdateType)}
+          summary="simulation · not pinned"
+        />
       </div>
       <div className="pin-oneoff-body">
         {outcome.caveat ? <p className="sim-verdict-caveat">⚠ {outcome.caveat}</p> : null}
@@ -94,13 +98,7 @@ function OneOffResult({
           )}{" "}
           keeps it in the list above and re-checks it on every run.
         </p>
-        <button
-          type="button"
-          className="btn-quiet pin-open-sim"
-          onClick={() => onOpenInSimulator(form)}
-        >
-          open in simulator →
-        </button>
+        <OpenInSimulatorLink onClick={() => onOpenInSimulator(form)} />
       </div>
     </div>
   );

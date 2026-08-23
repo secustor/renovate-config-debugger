@@ -1,15 +1,10 @@
 import { useMemo, useState } from "react";
 import type { ProvenanceLayer, RuleAttribution } from "@renovate-config-debugger/engine";
-import {
-  buildPinOutcome,
-  dotTitle,
-  dotTone,
-  headSummary,
-  pinCheck,
-  type PinOutcome,
-} from "./pin-outcome";
+import { buildPinOutcome, headSummary, pinCheck, type PinOutcome } from "./pin-outcome";
 import { Caret } from "@/components/Caret";
+import { OpenInSimulatorLink } from "./OpenInSimulatorLink";
 import { PinBucketList } from "./PinBucketList";
+import { PinHeadRow } from "./PinHeadRow";
 import { pinContext, pinName, type PinnedTest } from "./pins";
 import { PinProbe } from "./PinProbe";
 import { type CrossLinks, PinFailedSection, PinMatchedSection } from "./PinRuleSections";
@@ -49,14 +44,13 @@ function PinCardHead({
     <div className="pin-head">
       <button type="button" className="pin-head-toggle" aria-expanded={expanded} onClick={onToggle}>
         <Caret open={expanded} />
-        <span className={`pin-dot ${dotTone(check)}`} title={dotTitle(check)} />
-        <span className="pin-name">{name}</span>
-        <span className="pin-meta">{pinContext(pin.form, outcome?.updateType ?? "")}</span>
-        {outcome ? (
-          <span className="pin-summary">{headSummary(outcome)}</span>
-        ) : (
-          <span className="pin-pending">{evaluation ? "not checked" : "checking…"}</span>
-        )}
+        <PinHeadRow
+          check={check}
+          name={name}
+          context={pinContext(pin.form, outcome?.updateType ?? "")}
+          summary={outcome ? headSummary(outcome) : null}
+          pending={evaluation ? "not checked" : "checking…"}
+        />
       </button>
       <button
         type="button"
@@ -120,9 +114,7 @@ function PinCardBody({
         onQueryChange={setProbeQuery}
         onSelectPreset={links.onSelectPreset}
       />
-      <button type="button" className="btn-quiet pin-open-sim" onClick={onOpenInSimulator}>
-        open in simulator →
-      </button>
+      <OpenInSimulatorLink onClick={onOpenInSimulator} />
     </div>
   );
 }
