@@ -249,6 +249,40 @@ export function parseChoice<T extends string>(
   return found;
 }
 
+/** What an integer option accepts beyond "an integer no smaller than min". */
+interface IntOptionSpec {
+  /** Smallest accepted value; the message says so in words. */
+  min: number;
+  /** A non-numeric spelling the flag also takes, e.g. `"all"` for `--depth`.
+   *  Named in the message, because a value the flag accepts and the error does
+   *  not mention is a feature nobody finds. */
+  or?: string;
+}
+
+/**
+ * `--rule 3`, `--depth 2`: the value as an integer, or `undefined` when the
+ * flag was not passed. A non-integer is an error rather than a `NaN` that
+ * would silently behave like "no filter at all".
+ */
+export function intOption(
+  args: ParsedArgs,
+  name: OptionName,
+  spec: IntOptionSpec,
+): number | undefined {
+  const raw = stringOption(args, name);
+  if (raw === undefined) {
+    return undefined;
+  }
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < spec.min) {
+    const bound = spec.min === 0 ? "a non-negative integer" : `an integer >= ${spec.min}`;
+    throw new CliError(
+      `--${name} must be ${bound}${spec.or ? ` or ${spec.or}` : ""} (got "${raw}")`,
+    );
+  }
+  return value;
+}
+
 /** {@link parseChoice} against an option, named as the user typed it. */
 export function choiceOption<T extends string>(
   args: ParsedArgs,

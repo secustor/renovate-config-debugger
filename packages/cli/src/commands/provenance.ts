@@ -1,6 +1,6 @@
 import { computeRuleProvenance } from "@renovate-config-debugger/engine";
 import { effectiveTally, SOURCE_FILTERS } from "@renovate-config-debugger/app/headless";
-import { choiceOption, outputFormat, type ParsedArgs, stringOption } from "../args";
+import { choiceOption, intOption, outputFormat } from "../args";
 import type { Command } from "../command";
 import { CliError, EXIT_OK, EXIT_REFUSED } from "../io";
 import { emitJson, emitLines, preview, writeNotes } from "../output";
@@ -29,18 +29,6 @@ import { INPUT_OPTIONS, runFromArgs, wouldRefuse } from "../run-input";
  * and the honest answer is which contiguous slice of the merged array each
  * layer contributed.
  */
-
-function parseRuleIndex(args: ParsedArgs): number | undefined {
-  const raw = stringOption(args, "rule");
-  if (raw === undefined) {
-    return undefined;
-  }
-  const index = Number(raw);
-  if (!Number.isInteger(index) || index < 0) {
-    throw new CliError(`--rule takes a merged rule index, 0 or greater (got "${raw}")`);
-  }
-  return index;
-}
 
 /** `repo — merged packageRules[1]–[3] (its own packageRules[0]–[2])`. */
 function contributionHeader(contribution: RuleContribution): string {
@@ -89,7 +77,7 @@ export const provenanceCommand: Command = {
   options: [...INPUT_OPTIONS, "rule", "source", "format"],
   async run(args, io) {
     const format = outputFormat(args);
-    const ruleIndex = parseRuleIndex(args);
+    const ruleIndex = intOption(args, "rule", { min: 0 });
     const source = choiceOption(args, "source", SOURCE_FILTERS);
     const { result, rest, notes } = await runFromArgs(args, io);
     writeNotes(io, notes);

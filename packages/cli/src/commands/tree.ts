@@ -1,4 +1,4 @@
-import { outputFormat, stringOption } from "../args";
+import { intOption, outputFormat, type ParsedArgs, stringOption } from "../args";
 import type { Command } from "../command";
 import { CliError, EXIT_OK, EXIT_REFUSED } from "../io";
 import { emitJson, emitLines, json, writeNotes } from "../output";
@@ -21,18 +21,13 @@ import { INPUT_OPTIONS, runFromArgs, wouldRefuse } from "../run-input";
  * human or model. Same reason the tree defaults to two levels deep.
  */
 
-function parseDepth(raw: string | undefined): number {
-  if (raw === undefined) {
-    return DEFAULT_TREE_DEPTH;
-  }
-  if (raw === "all") {
+/** `--depth <n|all>` — the one spelling that is not a number is the whole
+ *  tree, so it is read before the integer reader ever sees it. */
+function parseDepth(args: ParsedArgs): number {
+  if (stringOption(args, "depth") === "all") {
     return Number.POSITIVE_INFINITY;
   }
-  const value = Number(raw);
-  if (!Number.isInteger(value) || value < 0) {
-    throw new CliError(`--depth must be a non-negative integer or "all" (got "${raw}")`);
-  }
-  return value;
+  return intOption(args, "depth", { min: 0, or: '"all"' }) ?? DEFAULT_TREE_DEPTH;
 }
 
 export const treeCommand: Command = {
@@ -42,7 +37,7 @@ export const treeCommand: Command = {
   options: [...INPUT_OPTIONS, "node", "body", "depth", "format"],
   async run(args, io) {
     const format = outputFormat(args);
-    const depth = parseDepth(stringOption(args, "depth"));
+    const depth = parseDepth(args);
     const body = parseBody(stringOption(args, "body"));
     const nodeQuery = stringOption(args, "node");
     if (body && !nodeQuery) {
