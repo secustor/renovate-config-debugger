@@ -9,11 +9,10 @@ import {
 import { groupByTopic, OTHER_TOPIC_ID, type TopicGroup } from "./description-topics";
 import { useDescriptionProvenance } from "@/hooks/description-provenance";
 import { CodeText } from "@/components/CodeText";
-import { ApproximateMark, DegradedCaveat } from "@/components/DescriptionApprox";
+import { DegradedCaveat } from "@/components/DescriptionApprox";
 import { nf } from "@/lib/format";
 import { type OverviewRow, overviewRows } from "./rows";
-import { PresetName } from "@/components/PresetName";
-import { ProvenanceChip } from "@/components/ProvenanceChip";
+import { LayerSource } from "@/components/LayerSource";
 import { layerClass } from "@/lib/provenance-layer";
 import { ROOT_NODE_ID } from "@/lib/preset-tree-stats";
 
@@ -50,7 +49,8 @@ function countOf(rows: readonly OverviewRow[]): number {
  *  (081's "one preset name, one preset hover"). Everything else wears its
  *  layer's `ProvenanceChip`, which for the reader's own config is the blue
  *  `repo config` pill the design draws, with the glossary card explaining
- *  Renovate's merge order behind it. */
+ *  Renovate's merge order behind it. Both of those are `LayerSource`'s job; what
+ *  is this row's own is WHICH preset counts as the writer. */
 function RowSource({
   row,
   onSelectPreset,
@@ -67,18 +67,17 @@ function RowSource({
     leaf ??
     (row.layer.kind === "preset" ? { nodeId: row.layer.nodeId, name: row.layer.name } : null);
   return (
-    <span className="overview-source">
-      {row.approximate ? <ApproximateMark name={preset?.name} /> : null}
-      {preset ? (
-        <PresetName
-          name={preset.name}
-          nodeId={preset.nodeId}
-          onClick={onSelectPreset ? () => onSelectPreset(preset.nodeId) : undefined}
-        />
-      ) : (
-        <ProvenanceChip layer={row.layer} onSelectPreset={onSelectPreset} />
-      )}
-    </span>
+    <LayerSource
+      className="overview-source"
+      preset={preset}
+      layer={row.layer}
+      approximate={row.approximate}
+      // The token beside it, whatever that resolved to — a row that fell
+      // through to the chip has no leaf label to name, and the bare `≈` is
+      // exactly the case `ApproximateMark` exists for.
+      approximateName={preset?.name}
+      onSelectPreset={onSelectPreset}
+    />
   );
 }
 

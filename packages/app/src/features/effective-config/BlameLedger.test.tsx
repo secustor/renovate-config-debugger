@@ -67,6 +67,10 @@ test("marks an approximate row, duplicates included", () => {
 
   // The confident row is unmarked…
   expect(rows[0]?.querySelector(".desc-approx-mark")).toBeNull();
+  // …and names its preset writer with the shared cell's standard token.
+  expect(rows[0]?.querySelector(".desc-ledger-src .preset-token")?.textContent).toBe(
+    ":dependencyDashboard",
+  );
   // …and the guessed one carries the shared mark plus the hedged wording.
   expect(duplicate.querySelector(".desc-approx-mark")).not.toBeNull();
   expect(within(duplicate).getByText("duplicate of #1")).toBeTruthy();
@@ -161,6 +165,10 @@ test("gives a non-string member its own line rather than skipping it", () => {
   const rows = [...view.container.querySelectorAll<HTMLElement>(".desc-ledger-row")];
 
   expect(rows).toHaveLength(2);
+  // A root-attributed line has no tree row to name, so the shared cell falls
+  // through to the arrival layer's chip rather than inventing a preset token.
+  expect(rows[0]?.querySelector(".desc-ledger-src .prov-layer")?.textContent).toBe("repo config");
+  expect(rows[0]?.querySelector(".preset-token")).toBeNull();
   expect(rows.map((row) => row.querySelector(".desc-ledger-idx")?.textContent)).toEqual(["1", "2"]);
   expect(rows[1]?.className).toContain("unattributed");
   expect(rows[1]?.textContent).toContain("42");

@@ -24,10 +24,9 @@ import { dropReasonText } from "./drop-reasons";
 import { ShowAllMore } from "@/components/ShowAllMore";
 import { CodeText } from "@/components/CodeText";
 import { ApproximateMark, DegradedCaveat } from "@/components/DescriptionApprox";
-import { PresetName } from "@/components/PresetName";
+import { LayerSource } from "@/components/LayerSource";
 import { ROOT_NODE_ID } from "@/lib/preset-tree-stats";
 import { layerLabel } from "@/lib/provenance-layer";
-import { ProvenanceChip } from "@/components/ProvenanceChip";
 
 /**
  * Roadmap 069 (PR 3): the `description` row of the Effective config, expanded —
@@ -72,11 +71,12 @@ function sourceLayer(entry: DescriptionAttribution): ProvenanceLayer {
 }
 
 /**
- * The third cell of a normal row: who wrote it. A preset writer wears the
- * standard `PresetName` token (the Overview's `RowSource` precedent) — its
- * hover card already names the extends chain that carried the preset in
- * (081's "via"), so the cell does not repeat it as an inline note. Everything
- * else wears its layer's `ProvenanceChip`.
+ * The third cell of a normal row: who wrote it — the shared `LayerSource`, so a
+ * preset writer wears the standard `PresetName` token and everything else its
+ * layer's chip. Its hover card already names the extends chain that carried the
+ * preset in (081's "via"), so the cell does not repeat it as an inline note.
+ *
+ * What this row contributes is the writer itself: `sourceLayer` above.
  */
 function LedgerSource({
   entry,
@@ -87,20 +87,16 @@ function LedgerSource({
 }) {
   const layer = sourceLayer(entry);
   return (
-    <span className="desc-ledger-src">
-      {/* Named after the token beside it, whatever that resolved to — the two
-          must never disagree about which thing was approximated. */}
-      {entry.approximate ? <ApproximateMark name={layerLabel(layer)} /> : null}
-      {layer.kind === "preset" ? (
-        <PresetName
-          name={layer.name}
-          nodeId={layer.nodeId}
-          onClick={onSelectPreset ? () => onSelectPreset(layer.nodeId) : undefined}
-        />
-      ) : (
-        <ProvenanceChip layer={layer} onSelectPreset={onSelectPreset} />
-      )}
-    </span>
+    <LayerSource
+      className="desc-ledger-src"
+      preset={layer.kind === "preset" ? { name: layer.name, nodeId: layer.nodeId } : null}
+      layer={layer}
+      approximate={entry.approximate}
+      // Named after the token beside it, whatever that resolved to — the two
+      // must never disagree about which thing was approximated.
+      approximateName={layerLabel(layer)}
+      onSelectPreset={onSelectPreset}
+    />
   );
 }
 
@@ -202,8 +198,9 @@ function LedgerRun({
  *  that deleted it — the two halves of "why isn't my description showing up".
  *  Marked when that preset is the engine's enclosing-subtree guess, exactly as
  *  an approximate entry's cell is. The author wears the standard `PresetName`
- *  token like every other preset reference (081's rule) — with `LedgerSource`'s
- *  root guard, since a root-attributed drop has no tree row to jump to. */
+ *  token like every other preset reference (081's rule) — a root-attributed
+ *  drop passes no `nodeId`, which is how `LayerSource` renders an inert token
+ *  for a writer the tree has no row to jump to. */
 function DroppedSource({
   drop,
   onSelectPreset,
@@ -213,17 +210,17 @@ function DroppedSource({
 }) {
   const isRoot = drop.node.nodeId === ROOT_NODE_ID;
   return (
-    <span className="desc-ledger-src">
-      {drop.approximate ? <ApproximateMark name={drop.node.name} /> : null}
-      <PresetName
-        name={drop.node.name}
-        nodeId={isRoot ? undefined : drop.node.nodeId}
-        onClick={!isRoot && onSelectPreset ? () => onSelectPreset(drop.node.nodeId) : undefined}
-      />
+    <LayerSource
+      className="desc-ledger-src"
+      preset={{ name: drop.node.name, nodeId: isRoot ? undefined : drop.node.nodeId }}
+      approximate={drop.approximate}
+      approximateName={drop.node.name}
+      onSelectPreset={onSelectPreset}
+    >
       <span className="desc-ledger-via">
         <CodeText text={dropReasonText(drop)} />
       </span>
-    </span>
+    </LayerSource>
   );
 }
 

@@ -205,6 +205,12 @@ it("keeps the chain on every other key, winner first", async () => {
     expect(losing.querySelector(".prov-value")?.className).toContain("prov-losing");
   }
   expect(steps[0]?.querySelector(".prov-value")?.className).not.toContain("prov-losing");
+  // Every step head opens with the shared source cell — a preset writer as the
+  // standard token, a base layer as its chip, and nothing hand-built between.
+  for (const step of steps) {
+    const head = step.querySelector(".prov-step-head");
+    expect(head?.querySelector(".preset-token, .prov-layer")).not.toBeNull();
+  }
 
   // GAP-13: the per-rule table waits for a click of its own.
   expect(view.container.querySelector(".prov-rules-list")).toBeNull();
