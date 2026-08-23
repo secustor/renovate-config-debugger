@@ -763,8 +763,10 @@
 }
 
 /* A tab with nothing to show stays visible and clickable — dimmed, not gone,
-   so the strip's geometry is stable across runs. */
-.tab.empty {
+   so the strip's geometry is stable across runs. Not while SELECTED, though:
+   the reader is on that tab, and dimming its label made Tests/Problems read
+   fainter than every other selected tab (the two are routinely empty). */
+.tab.empty:not(.active) {
   opacity: 0.55;
 }
 

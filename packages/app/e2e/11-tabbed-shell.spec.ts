@@ -534,3 +534,21 @@ test("the results say so once the config has changed since the run", async ({ pa
   await page.getByRole("button", { name: "Revert to loaded config" }).click();
   await expect(stale).toBeVisible();
 });
+
+test("a selected empty tab keeps full ink — only unselected empties are dimmed", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await runAndAwaitResult(page);
+
+  // The default config pins no tests, so the Tests tab is `.empty`. Selected,
+  // it must read at the same strength as any other selected tab: the empty
+  // dimming (opacity 0.55) is for tabs the reader is NOT on.
+  await openTab(page, "tests");
+  await expect(tabButton(page, "tests")).toHaveClass(/empty/);
+  await expect(tabButton(page, "tests")).toHaveCSS("opacity", "1");
+
+  // Leaving it restores the dim — the geometry-stability rule is untouched.
+  await openTab(page, "problems");
+  await expect(tabButton(page, "tests")).toHaveCSS("opacity", "0.55");
+});
