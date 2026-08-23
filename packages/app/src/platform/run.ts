@@ -151,6 +151,19 @@ export async function loadErrorTranslationLib(): Promise<ErrorTranslationLib> {
   };
 }
 
+/**
+ * The engine's own `renovate`-key extractor, reached the same lazy way as the
+ * option index and the error-translation library. Same reason as those two:
+ * the answer is Renovate's, not the app's — a pasted
+ * `…/blob/main/package.json` reference has to yield exactly what config
+ * DISCOVERY would have yielded for that file, and the engine copy is the one
+ * the pinned-Renovate CI covers.
+ */
+export async function extractPackageJsonConfig(raw: string): Promise<string | null> {
+  const engine = await loadEngine();
+  return engine.extractPackageJsonConfig(raw);
+}
+
 /** Probes a repository for its Renovate config file (roadmap 007). Takes the
  *  same `suppressTokens` seam as {@link run}: a repo load against an endpoint
  *  a share link chose must not carry credentials either. */

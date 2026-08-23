@@ -192,29 +192,3 @@ export function parseRepoReference(raw: string): RepoReference | null {
 export function configFileNameFor(path: string): "renovate.json" | "renovate.json5" {
   return path.endsWith(".json5") ? "renovate.json5" : "renovate.json";
 }
-
-/**
- * Extracts the `renovate` key from a package.json body, mirroring the engine's
- * own `extractPackageJsonConfig` (private there): an object is pretty-printed,
- * a string becomes Renovate's `{ "extends": [value] }` shorthand, anything
- * else — including a missing key — is null.
- */
-export function extractRenovateFromPackageJson(raw: string): string | null {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return null;
-  }
-  if (typeof parsed !== "object" || parsed === null) {
-    return null;
-  }
-  const value = (parsed as Record<string, unknown>).renovate;
-  if (typeof value === "string") {
-    return JSON.stringify({ extends: [value] }, null, 2);
-  }
-  if (typeof value === "object" && value !== null) {
-    return JSON.stringify(value, null, 2);
-  }
-  return null;
-}

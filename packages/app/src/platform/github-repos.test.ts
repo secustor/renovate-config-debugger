@@ -5,8 +5,10 @@ vi.mock("./oauth", () => ({
   getValidToken: vi.fn(async () => "tok-1"),
 }));
 
-// The engine is only touched for its candidate list — mocked so the unit test
-// never loads the real module graph.
+// The engine is only touched for its candidate list and its `renovate`-key
+// extractor — mocked so the unit test never loads the real module graph. The
+// extractor stands in for the engine's own (tested there, against the pinned
+// Renovate): all this suite asks of it is the object/absent split.
 vi.mock("@renovate-config-debugger/engine", () => ({
   CONFIG_FILE_NAMES: [
     "renovate.json",
@@ -15,6 +17,11 @@ vi.mock("@renovate-config-debugger/engine", () => ({
     ".renovaterc",
     "package.json",
   ],
+  extractPackageJsonConfig: (raw: string) => {
+    const parsed: unknown = JSON.parse(raw);
+    const value = (parsed as Record<string, unknown>).renovate;
+    return value === undefined ? null : JSON.stringify(value, null, 2);
+  },
 }));
 
 interface StubResponse {

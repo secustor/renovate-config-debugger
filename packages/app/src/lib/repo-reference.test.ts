@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  configFileNameFor,
-  extractRenovateFromPackageJson,
-  parseRepoReference,
-} from "./repo-reference";
+import { configFileNameFor, parseRepoReference } from "./repo-reference";
 
 describe("parseRepoReference", () => {
   it("parses a bare slug", () => {
@@ -146,25 +142,5 @@ describe("configFileNameFor", () => {
     expect(configFileNameFor("renovate.json")).toBe("renovate.json");
     expect(configFileNameFor("renovate.jsonc")).toBe("renovate.json");
     expect(configFileNameFor(".renovaterc")).toBe("renovate.json");
-  });
-});
-
-describe("extractRenovateFromPackageJson", () => {
-  it("extracts an object renovate key pretty-printed", () => {
-    expect(extractRenovateFromPackageJson('{"renovate":{"automerge":true}}')).toBe(
-      JSON.stringify({ automerge: true }, null, 2),
-    );
-  });
-
-  it("turns a string value into the extends shorthand", () => {
-    expect(extractRenovateFromPackageJson('{"renovate":"config:recommended"}')).toBe(
-      JSON.stringify({ extends: ["config:recommended"] }, null, 2),
-    );
-  });
-
-  it("is null for a missing key, a scalar, or unparseable JSON", () => {
-    expect(extractRenovateFromPackageJson('{"name":"x"}')).toBeNull();
-    expect(extractRenovateFromPackageJson('{"renovate":5}')).toBeNull();
-    expect(extractRenovateFromPackageJson("not json")).toBeNull();
   });
 });

@@ -83,6 +83,7 @@ export {
 export { parseInjectedPreset, presetInjectionKey } from "./shims/presets/injection";
 export {
   CONFIG_FILE_NAMES,
+  extractPackageJsonConfig,
   fetchRepoConfig,
   fetchRepoFile,
   RepoConfigNotFoundError,

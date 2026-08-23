@@ -21,13 +21,9 @@ import type { RepoPlatform, TraceResult } from "@renovate-config-debugger/engine
 import { PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
 import { FETCHABLE_PLATFORMS, HOST_PLATFORM } from "@/data/host-tokens";
 import { isValidRepoHost, isValidRepoRefPart } from "@/lib/input-schemas";
-import {
-  configFileNameFor,
-  extractRenovateFromPackageJson,
-  parseRepoReference,
-} from "@/lib/repo-reference";
+import { configFileNameFor, parseRepoReference } from "@/lib/repo-reference";
 import type { ShareFileName, UntrustedEndpointGuard } from "@/lib/share";
-import { loadRepoConfig, loadRepoFile } from "@/platform/run";
+import { extractPackageJsonConfig, loadRepoConfig, loadRepoFile } from "@/platform/run";
 import type { RunInputs } from "@/lib/run-inputs";
 
 /**
@@ -254,7 +250,7 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
           return;
         }
         const content = parsed.path.endsWith("package.json")
-          ? extractRenovateFromPackageJson(raw)
+          ? await extractPackageJsonConfig(raw)
           : raw;
         if (content === null) {
           setFatal(`${parsed.path} in ${parsed.repo}${refLabel} has no "renovate" key.`);

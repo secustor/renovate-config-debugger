@@ -16,7 +16,6 @@
  * the badge names the same file the load would find.
  */
 import { isValidRepoRefPart } from "@/lib/input-schemas";
-import { extractRenovateFromPackageJson } from "@/lib/repo-reference";
 import { loadEngine } from "./engine-chunk";
 import { getValidToken } from "./oauth";
 
@@ -138,7 +137,7 @@ export async function probeConfigFile(repo: UserRepo): Promise<string | null> {
       if (!res.ok) {
         continue;
       }
-      if (extractRenovateFromPackageJson(await res.text()) !== null) {
+      if (engine.extractPackageJsonConfig(await res.text()) !== null) {
         return candidate;
       }
       continue;

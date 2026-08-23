@@ -308,8 +308,14 @@ export async function fetchRepoFile(req: RepoFileRequest): Promise<string | null
  * returned pretty-printed; a string value becomes `{ "extends": [value] }`
  * (Renovate's shorthand). Returns null on parse error or a missing key so the
  * probe loop continues.
+ *
+ * Exported (roadmap 085 follow-up) for the same reason `CONFIG_FILE_NAMES` is:
+ * the app has two surfaces that decide "does this package.json carry a config"
+ * — the repo picker's badge and a pasted `…/blob/main/package.json` reference —
+ * and both have to answer it the way the DISCOVERY probe here answers it. The
+ * app used to keep a copy; this is the one the pinned-Renovate CI covers.
  */
-function extractPackageJsonConfig(raw: string): string | null {
+export function extractPackageJsonConfig(raw: string): string | null {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);

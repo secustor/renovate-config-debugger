@@ -7,6 +7,7 @@
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  extractPackageJsonConfig,
   fetchRepoConfig,
   fetchRepoFile,
   RepoConfigNotFoundError,
@@ -358,5 +359,31 @@ describe("fetchRepoFile", () => {
       fetchRepoFile({ platform: "github", repo: "org/cfg", path: "../../etc/passwd" }),
     ).rejects.toThrow(/traversal/i);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * `extractPackageJsonConfig` directly: `fetchRepoConfig` above exercises it
+ * through the probe, but the app reaches it as a function of its own (a pasted
+ * `…/blob/main/package.json` reference is one file, not a discovery walk), so
+ * the value-shape rules are pinned here rather than only via the transport.
+ */
+describe("extractPackageJsonConfig", () => {
+  it("pretty-prints an object value", () => {
+    expect(extractPackageJsonConfig('{"renovate":{"automerge":true}}')).toBe(
+      JSON.stringify({ automerge: true }, null, 2),
+    );
+  });
+
+  it("expands a string value into Renovate's extends shorthand", () => {
+    expect(extractPackageJsonConfig('{"renovate":"config:recommended"}')).toBe(
+      JSON.stringify({ extends: ["config:recommended"] }, null, 2),
+    );
+  });
+
+  it("returns null for a missing key, a scalar value, or unparseable JSON", () => {
+    expect(extractPackageJsonConfig('{"name":"x"}')).toBeNull();
+    expect(extractPackageJsonConfig('{"renovate":5}')).toBeNull();
+    expect(extractPackageJsonConfig("not json")).toBeNull();
   });
 });
