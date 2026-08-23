@@ -30,7 +30,12 @@ import { CliError, type CliIo, errorMessage, EXIT_ERROR, EXIT_OK } from "./io";
  * process global, including the parser.
  */
 
-const COMMANDS: readonly Command[] = [
+/**
+ * The registry: every subcommand `rcd` has. Exported so the dispatch test can
+ * assert against the list itself rather than a second copy of it — a command
+ * added to `src/commands/` and forgotten here is a command nobody can run.
+ */
+export const COMMANDS: readonly Command[] = [
   validateCommand,
   digestCommand,
   runCommand,

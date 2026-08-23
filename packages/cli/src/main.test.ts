@@ -1,5 +1,6 @@
+import { readdirSync } from "node:fs";
 import { describe, expect, test } from "vitest";
-import { main } from "./main";
+import { COMMANDS, main } from "./main";
 import { fixture, recordingIo } from "./test-harness";
 
 /**
@@ -11,24 +12,32 @@ import { fixture, recordingIo } from "./test-harness";
  * runs that same shimmed graph.
  */
 
+/** One module per command, named after it — the convention the registry check
+ *  below reads as the list of commands that EXIST. */
+function commandModules(): string[] {
+  return readdirSync(new URL("./commands/", import.meta.url))
+    .filter((file) => file.endsWith(".ts") && !file.endsWith(".test.ts"))
+    .map((file) => file.slice(0, -".ts".length))
+    .toSorted();
+}
+
 describe("dispatch", () => {
-  test("--help lists every command and exits 0", async () => {
+  test("--help lists every registered command and exits 0", async () => {
     const io = recordingIo();
     expect(await main(["--help"], io)).toBe(0);
-    for (const name of [
-      "validate",
-      "digest",
-      "run",
-      "tree",
-      "provenance",
-      "resolved",
-      "simulate",
-      "compare",
-      "docs",
-    ]) {
-      expect(io.stdout).toContain(name);
+    // Over the registry, never a second copy of it: a hand-written list is
+    // how `group` and `mcp` came to be shipped untested by this suite.
+    for (const command of COMMANDS) {
+      expect(io.stdout).toContain(command.name);
     }
     expect(io.stdout).toContain("EXPERIMENTAL");
+  });
+
+  test("every command module is registered", () => {
+    // The registry and the help/dispatch table cannot drift — `buildProgram`
+    // reads this same array — but a command that exists and is not IN it can,
+    // and it is unreachable from the CLI without a word of warning.
+    expect(COMMANDS.map((command) => command.name).toSorted()).toEqual(commandModules());
   });
 
   test("bare `rcd` is the same question as --help, and just as successful", async () => {
