@@ -1,4 +1,5 @@
 import type { StageId, StageStatus, ValidationMessage } from "@renovate-config-debugger/engine";
+import { truncate } from "@renovate-config-debugger/app/headless";
 import type { CliIo } from "./io";
 
 /**
@@ -47,11 +48,18 @@ export function byteLength(text: string): number {
   return new TextEncoder().encode(text).length;
 }
 
-/** A one-line preview of a value, for tables and tree rows. */
+/**
+ * A one-line preview of a value, for tables and tree rows.
+ *
+ * The cut is the app's {@link truncate}, not a local `slice`: a `slice(0, max)`
+ * cuts UTF-16 code UNITS, so a cut landing between the halves of a surrogate
+ * pair leaves an orphan half — an emoji in a `groupName` rendered as U+FFFD by
+ * the very code meant to make the row readable. One truncation for the app and
+ * the CLI, and the safe one.
+ */
 export function preview(value: unknown, max = 80): string {
   if (value === undefined) {
     return "(unset)";
   }
-  const text = JSON.stringify(value) ?? String(value);
-  return text.length > max ? `${text.slice(0, max)}…` : text;
+  return truncate(JSON.stringify(value) ?? String(value), max);
 }

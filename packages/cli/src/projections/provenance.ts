@@ -5,7 +5,11 @@ import {
   type TraceResult,
   UPDATE_TYPE_KEYS,
 } from "@renovate-config-debugger/engine";
-import { isOverridden, multiContribBadgeKind } from "@renovate-config-debugger/app/headless";
+import {
+  isOverridden,
+  multiContribBadgeKind,
+  truncate,
+} from "@renovate-config-debugger/app/headless";
 import { CliError } from "../io";
 
 /**
@@ -122,10 +126,11 @@ export interface ProvenanceIndexEntry {
   preview: string;
 }
 
-/** A value, short enough to scan. */
+/** A value, short enough to scan, with what it cost to get there. The cut is
+ *  the app's surrogate-safe `truncate` — see `../output`'s `preview`. */
 export function previewValue(value: unknown, max = 60): string {
   const text = JSON.stringify(value) ?? String(value);
-  return text.length <= max ? text : `${text.slice(0, max)}… (${text.length} chars)`;
+  return text.length <= max ? text : `${truncate(text, max)} (${text.length} chars)`;
 }
 
 /**

@@ -43,6 +43,7 @@ export {
   type VerdictFilter,
 } from "./rule-filters";
 export { ruleWrittenKeys, summarizeRuleSelectors } from "./rule-selectors";
+export { truncate } from "./truncate";
 export { changedDependencyKeys } from "./simulation-changes";
 export { buildRunDigest, clauseText, digestText } from "./run-digest";
 export { buildDigestInput, deriveRunFacts, type RunFacts, validatedConfigOf } from "./run-facts";
