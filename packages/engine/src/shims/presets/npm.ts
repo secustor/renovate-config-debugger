@@ -9,22 +9,17 @@ import {
   PRESET_NOT_FOUND,
   PRESET_RENOVATE_CONFIG_NOT_FOUND,
 } from "../renovate-internals";
-import { getInjectedPreset } from "./injection";
+import { makeInjectableGetPreset } from "./host-transport";
 
 interface Packument {
   "dist-tags"?: Record<string, string>;
   versions?: Record<string, { "renovate-config"?: Record<string, Record<string, unknown>> }>;
 }
 
-export async function getPreset(config: {
-  repo: string;
-  presetName?: string;
-}): Promise<Record<string, unknown> | null> {
-  const { repo: pkgName, presetName = "default" } = config;
-  const injected = getInjectedPreset({ presetSource: "npm", repo: pkgName, presetName });
-  if (injected) {
-    return injected;
-  }
+async function fetchPresetFromRegistry(
+  pkgName: string,
+  presetName: string,
+): Promise<Record<string, unknown> | null> {
   let latestVersion: { "renovate-config"?: Record<string, Record<string, unknown>> } | undefined;
   try {
     const res = await fetch(`https://registry.npmjs.org/${encodeURIComponent(pkgName)}`, {
@@ -48,3 +43,5 @@ export async function getPreset(config: {
   }
   return presetConfig;
 }
+
+export const getPreset = makeInjectableGetPreset("npm", fetchPresetFromRegistry);

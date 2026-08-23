@@ -14,6 +14,7 @@ import {
 import { getPresetAuth, setPresetAuth } from "./auth";
 import { removeGlobalConfig } from "./config-scope";
 import { snapshot } from "./lib";
+import { defaultEndpointFor } from "./shims/presets/host-transport";
 import {
   getUsedInjectionKeys,
   resetInjectedPresets,
@@ -31,14 +32,6 @@ import type {
   ValidationMessage,
 } from "./trace/model";
 import { renovateVersion } from "./version";
-
-/** Default browser endpoint per platform, for display + when none is given. */
-const ENDPOINT_DEFAULTS: Record<string, string> = {
-  github: "https://api.github.com/",
-  gitlab: "https://gitlab.com/api/v4/",
-  gitea: "https://gitea.com/",
-  forgejo: "https://codeberg.org/",
-};
 
 function resolvePlatformContext(input: PipelineInput): PlatformContext {
   const globalConfig = input.globalConfig ?? {};
@@ -62,7 +55,8 @@ function resolvePlatformContext(input: PipelineInput): PlatformContext {
       : input.endpoint;
   const endpoint =
     (overridden ? (explicitEndpoint ?? globalEndpoint) : (globalEndpoint ?? explicitEndpoint)) ??
-    ENDPOINT_DEFAULTS[platform] ??
+    // Display default; a platform with no browser fetcher simply has none.
+    defaultEndpointFor(platform) ??
     "";
   return overridden ? { platform, endpoint, overridden } : { platform, endpoint };
 }

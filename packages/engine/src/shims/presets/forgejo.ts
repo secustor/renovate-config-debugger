@@ -7,10 +7,11 @@
  * (falling back to manual injection when they lack CORS).
  */
 import { makeGiteaLikeResolver } from "./gitea-forgejo";
+import { PLATFORM_ENDPOINTS } from "./host-transport";
 
 const { Endpoint, fetchJSONFile, getPresetFromEndpoint, getPreset } = makeGiteaLikeResolver(
   "forgejo",
-  "https://codeberg.org/",
+  PLATFORM_ENDPOINTS.forgejo,
 );
 
 export { Endpoint, fetchJSONFile, getPreset, getPresetFromEndpoint };
