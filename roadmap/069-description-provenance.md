@@ -340,3 +340,46 @@ the wrong file would be worse than naming none.
 - `src/features/simulator/RuleRow.test.tsx`, `RuleEvidenceCard.test.tsx` and
   `rule-evidence.test.ts` — the quote where it belongs (outside the head button,
   above the clause evidence), and only on a matched, described rule.
+
+## Addendum — 2026-08-23: `writtenBy`, the same honesty rule for a KEY
+
+069 attributes a description string to the exact node that wrote it. A key's
+provenance could not do that: `computeProvenance` replays the TOP-LEVEL merge
+layers only, so a preset step could name the direct extend and nothing more —
+`config:recommended` "sets" `dependencyDashboard` when `:dependencyDashboard`
+wrote it, two levels down. `aa55bfc` closes the gap with an optional
+`writtenBy: { nodeId, name }` on `ProvenanceStep`
+(`packages/engine/src/trace/provenance.ts`).
+
+The mechanism is this document's, one level up. `collectWriters` walks the
+extend's subtree in Renovate's own resolution order — children in `extends`
+order, the node's own body last, non-nested resolved children only — and keeps
+the LAST node whose own `input` carries the key, plus how many nodes did. The
+walk itself is no longer a second copy: the second cleanup pass moved the
+participant filter and the replay into `trace/tree.ts` (`mergingChildren`,
+`walkResolutionOrder`), which `description-provenance.ts` and `collectWriters`
+now share.
+
+What makes it 069's rule rather than a guess is the verification, and the three
+ways it declines to answer:
+
+- the writer IS the direct extend — the layer already names it, so there is
+  nothing to add;
+- the option is `mergeable` and more than one node in the subtree wrote it —
+  several authors, no single writer to name;
+- the writer's own value does not `deepEqual` the extend's ground-truth
+  `resolved` value for that key — a migration, an in-subtree merge or a `force`
+  reshaped it on the way up, so the leaf would be a confident wrong claim.
+
+Absence over a guess, exactly as the description ledger degrades rather than
+name a leaf it cannot verify.
+
+Both headless surfaces spend it. The Effective config's cascade card renders
+the writer as the standard `PresetName` token through `LayerSource` (081's
+token, whose hover card's via chain is what says how the nested preset got
+there), falling back to the layer's own chip when there is no verified writer;
+`rcd provenance` and the `get_provenance` tool report the same field as
+`writtenBy: "preset <name>"`. Pinned by case (g) of
+`test/provenance.shimmed.test.ts`: a value written two levels inside a wrapper
+names the deep preset, and a preset that writes its own key carries no
+`writtenBy` at all.
