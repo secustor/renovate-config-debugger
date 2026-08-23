@@ -83,8 +83,12 @@ function bodyOf(node: PresetNode): Obj {
   return body;
 }
 
-/** Top-level (non-nested) children — the same participant filter as
- *  provenance's buildLayers: nested nodes merge inside their parent value. */
+/** Top-level (non-nested) children. DELIBERATELY weaker than `tree.ts`'s
+ *  `mergingChildren`, which also requires a resolved payload: an unresolved
+ *  child still belongs in the emitted document — as the `extends` reference it
+ *  was, which is exactly what `inlineable()` below decides. Only the nested
+ *  ones are dropped here, because they merge inside their parent's value and
+ *  ride along with the body. */
 function topChildren(node: PresetNode): PresetNode[] {
   return node.children.filter((child) => !child.nested);
 }

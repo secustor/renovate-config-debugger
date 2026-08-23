@@ -1,6 +1,7 @@
 import { isPlainObject } from "../lib";
 import { getDefaultConfig, getOptions, mergeChildConfig } from "../renovate-adapter";
 import type { PresetNode, TraceResult } from "./model";
+import { mergingChildren, walkResolutionOrder } from "./tree";
 
 /**
  * Roadmap 005: per-key merge provenance. Computed post-hoc from the trace data
@@ -107,12 +108,7 @@ function buildLayers(root: PresetNode, layerConfigs: TraceResult["layerConfigs"]
   if (layerConfigs?.inheritedResolved) {
     layers.push({ layer: { kind: "inherited" }, config: layerConfigs.inheritedResolved });
   }
-  // Same filter PresetTree's contribution replay uses: only non-nested,
-  // resolved children with a `resolved` payload participate in the top merge.
-  for (const child of root.children) {
-    if (child.nested || child.state !== "resolved" || child.resolved === undefined) {
-      continue;
-    }
+  for (const child of mergingChildren(root)) {
     layers.push({
       layer: { kind: "preset", nodeId: child.id, name: child.name },
       config: child.resolved as Obj,
@@ -138,35 +134,29 @@ interface KeyWriter {
 }
 
 /**
- * One post-order walk of a direct extend's subtree — every merging child in
- * `extends` order (the same participant filter `buildLayers` applies), then
- * the node's own body LAST, which is `resolveConfigPresets`' merge order. The
- * last body to carry a key is therefore the key's winner under
- * `mergeChildConfig`'s overwrite semantics.
+ * Which body wrote each key of a direct extend's subtree, by walking it in
+ * `resolveConfigPresets`' own merge order — so the LAST body to carry a key is
+ * that key's winner under `mergeChildConfig`'s overwrite semantics.
  */
 function collectWriters(node: PresetNode, index: Map<string, KeyWriter>): void {
-  for (const child of node.children) {
-    if (child.nested || child.state !== "resolved" || child.resolved === undefined) {
-      continue;
+  walkResolutionOrder(node, (visited) => {
+    const input = visited.input;
+    if (!isPlainObject(input)) {
+      return;
     }
-    collectWriters(child, index);
-  }
-  const input = node.input;
-  if (!isPlainObject(input)) {
-    return;
-  }
-  for (const key of Object.keys(input)) {
-    if (RESOLUTION_KEYS.has(key)) {
-      continue;
+    for (const key of Object.keys(input)) {
+      if (RESOLUTION_KEYS.has(key)) {
+        continue;
+      }
+      const existing = index.get(key);
+      if (existing) {
+        existing.last = visited;
+        existing.count += 1;
+      } else {
+        index.set(key, { last: visited, count: 1 });
+      }
     }
-    const existing = index.get(key);
-    if (existing) {
-      existing.last = node;
-      existing.count += 1;
-    } else {
-      index.set(key, { last: node, count: 1 });
-    }
-  }
+  });
 }
 
 /**

@@ -2,6 +2,7 @@ import { isPlainObject } from "../lib";
 import { getDefaultConfig, internalPresetGroups } from "../renovate-adapter";
 import type { PresetNode, TraceResult } from "./model";
 import { computeRuleProvenance, type ProvenanceLayer } from "./provenance";
+import { mergingChildren } from "./tree";
 
 /**
  * Roadmap 069: per-string `description` provenance.
@@ -173,14 +174,6 @@ function descriptionsOf(body: unknown): string[] {
 
 function sourceOf(node: PresetNode): DescriptionSource {
   return { nodeId: node.id, name: node.name };
-}
-
-/** Same participant filter `buildLayers` uses: nested nodes merge inside their
- *  parent's value, and unresolved ones never merged at all. */
-function mergingChildren(node: PresetNode): PresetNode[] {
-  return node.children.filter(
-    (child) => !child.nested && child.state === "resolved" && child.resolved !== undefined,
-  );
 }
 
 /** Renovate's `inputConfig?.ignoreDeps?.length === 0` guard, on a node's own body. */
