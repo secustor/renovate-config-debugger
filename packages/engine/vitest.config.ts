@@ -15,7 +15,12 @@ export default defineConfig({
       {
         test: {
           name: "golden",
-          include: ["test/*.node.test.ts"],
+          // `test/*.node.test.ts` are the suites that need the untouched
+          // renovate modules as their reference; `src/**/*.test.ts` are the
+          // colocated suites of modules that need no shims at all (roadmap
+          // 084 follow-up). Both regimes are "real renovate, no plugin", so
+          // they share this project.
+          include: ["test/*.node.test.ts", "src/**/*.test.ts"],
           environment: "node",
         },
       },

@@ -1,3 +1,4 @@
+import { isPlainObject } from "../lib";
 import { getDefaultConfig, getOptions, mergeChildConfig } from "../renovate-adapter";
 import type { PresetNode, TraceResult } from "./model";
 
@@ -66,10 +67,6 @@ export interface KeyProvenance {
 }
 
 type Obj = Record<string, unknown>;
-
-function isPlainObject(v: unknown): v is Obj {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
-}
 
 /** Structural equality over JSON-shaped values (also used by resolved-config.ts). */
 export function deepEqual(a: unknown, b: unknown): boolean {

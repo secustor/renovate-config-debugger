@@ -13,6 +13,7 @@ import {
 } from "./renovate-adapter";
 import { getPresetAuth, setPresetAuth } from "./auth";
 import { removeGlobalConfig } from "./config-scope";
+import { snapshot } from "./lib";
 import {
   getUsedInjectionKeys,
   resetInjectedPresets,
@@ -20,7 +21,7 @@ import {
 } from "./shims/presets/injection";
 import { countNoun } from "./text";
 import { setCurrentCollector, TraceCollector } from "./trace/collector";
-import { computeDelta, snapshot } from "./trace/delta";
+import { computeDelta } from "./trace/delta";
 import type {
   PipelineInput,
   PlatformContext,

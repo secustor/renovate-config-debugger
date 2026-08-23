@@ -1,4 +1,5 @@
-import { computeDelta, snapshot, toSerializable } from "./delta";
+import { snapshot } from "../lib";
+import { computeDelta, toSerializable } from "./delta";
 import { describeMigration } from "./migration-names";
 import type { LogLevel, PlatformContext, PresetNode, StageId, TraceEvent } from "./model";
 import {

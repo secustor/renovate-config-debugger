@@ -24,7 +24,7 @@
       // Every shim is an entry: the vite plugin swaps them in by resolved
       // path, so no static import reaches them. Tests are entries so
       // test-only helpers don't read as dead.
-      "entry": ["src/shims/**/*.ts", "test/**/*.test.ts", "test/helpers.ts"],
+      "entry": ["src/shims/**/*.ts", "src/**/*.test.ts", "test/**/*.test.ts", "test/helpers.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts"],
     },
     "packages/app": {

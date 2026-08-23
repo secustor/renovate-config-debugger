@@ -20,7 +20,7 @@
  */
 
 import { getInternalPreset, parsePreset } from "./renovate-adapter";
-import { snapshot } from "./trace/delta";
+import { isPlainObject, snapshot } from "./lib";
 import type { ValidationMessage } from "./trace/model";
 import { getOptionIndex, type OptionDoc, STRING_PATTERN_MATCHING_DOCS_URL } from "./option-docs";
 
@@ -167,10 +167,6 @@ function withKeyRenamed(
   delete parent[last];
   parent[newKey] = value;
   return clone;
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function isStringArray(value: unknown): value is string[] {

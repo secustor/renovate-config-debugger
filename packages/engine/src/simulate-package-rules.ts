@@ -1,3 +1,4 @@
+import { isPlainObject, jsonEqual, snapshot } from "./lib";
 import { enqueueEngineTask } from "./pipeline";
 import {
   type EvaluationErrorSummary,
@@ -380,14 +381,6 @@ function buildDepFields(dep: DependencyDescriptor): {
   return { fields, notes };
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function jsonEqual(a: unknown, b: unknown): boolean {
-  return a === b || JSON.stringify(a) === JSON.stringify(b);
-}
-
 /** Upstream removeMatchers: strip every key starting with match/exclude. */
 function removeMatchers(rule: Record<string, unknown>): Record<string, unknown> {
   const out = { ...rule };
@@ -539,23 +532,20 @@ async function evaluateRule(
 }
 
 /**
- * Roadmap 044: a detached copy of a cumulative config for a merge step. The
- * configs here are JSON (a resolved Renovate config plus the simulated
- * dependency's fields), so `structuredClone` is exact; the JSON round-trip
- * fallback covers the theoretical value it would refuse (a function reaching
- * the config would make the whole simulation unserializable anyway) rather
- * than letting a snapshot throw and take the simulation down with it.
+ * Keys whose value changed between two cumulative configs.
+ *
+ * `jsonEqual` is order-sensitive, so a merge that only reorders an object's
+ * keys still reports the key as changed. That is pinned by
+ * `simulate-package-rules.test.ts` ("diffKeys / key-order sensitivity"):
+ * `mergeChildConfig` does not reorder keys in practice, and swapping in a
+ * structural `deepEqual` is a behavior change that wants its own evidence.
+ *
+ * Exported for that test only — not on the barrel.
  */
-function snapshot(config: Record<string, unknown>): Record<string, unknown> {
-  try {
-    return structuredClone(config);
-  } catch {
-    return JSON.parse(JSON.stringify(config)) as Record<string, unknown>;
-  }
-}
-
-/** Keys whose value changed between two cumulative configs. */
-function diffKeys(before: Record<string, unknown>, after: Record<string, unknown>): MergedKey[] {
+export function diffKeys(
+  before: Record<string, unknown>,
+  after: Record<string, unknown>,
+): MergedKey[] {
   const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
   const merged: MergedKey[] = [];
   for (const key of keys) {

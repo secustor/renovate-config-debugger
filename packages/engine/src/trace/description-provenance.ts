@@ -1,3 +1,4 @@
+import { isPlainObject } from "../lib";
 import { getDefaultConfig, internalPresetGroups } from "../renovate-adapter";
 import type { PresetNode, TraceResult } from "./model";
 import { computeRuleProvenance, type ProvenanceLayer } from "./provenance";
@@ -140,12 +141,6 @@ export interface DescriptionProvenance {
   ruleDescriptions: RuleDescriptionAttribution[];
   /** At least one entry needed the enclosing-node fallback. */
   degraded: boolean;
-}
-
-type Obj = Record<string, unknown>;
-
-function isPlainObject(value: unknown): value is Obj {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /**
