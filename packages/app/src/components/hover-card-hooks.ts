@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { type AnchorRect, anchorRectOf } from "@/lib/anchored-card";
+import { type AnchorRect, anchorRectOf, type AnchorSource } from "@/lib/anchored-card";
 import { overlayKeyboardOwned } from "@/lib/escape-stack";
 
 /**
@@ -43,7 +43,7 @@ function sameRect(a: AnchorRect, b: AnchorRect): boolean {
 export interface HoverCardControls {
   /** The anchor's viewport box while a card is up; `null` when none is. */
   anchor: AnchorRect | null;
-  show: (el: Element) => void;
+  show: (el: AnchorSource) => void;
   hide: () => void;
   hideNow: () => void;
   cancelHide: () => void;
@@ -58,9 +58,9 @@ export interface HoverCardControls {
 export function useHoverCard(): HoverCardControls {
   const [anchor, setAnchor] = useState<AnchorRect | null>(null);
   const hideTimer = useRef<number | undefined>(undefined);
-  // The anchor ELEMENT, not just the box it had: a scroll inside the grace
+  // The anchor ITSELF, not just the box it had: a scroll inside the grace
   // window re-reads it (see the scroll effect), which a stored rect cannot do.
-  const anchorEl = useRef<Element | null>(null);
+  const anchorEl = useRef<AnchorSource | null>(null);
   const shownAt = useRef(0);
 
   const hideNow = useCallback(() => {
@@ -70,7 +70,7 @@ export function useHoverCard(): HoverCardControls {
   }, []);
 
   const show = useCallback(
-    (el: Element) => {
+    (el: AnchorSource) => {
       if (activeHide && activeHide !== hideNow) {
         activeHide();
       }
@@ -78,7 +78,11 @@ export function useHoverCard(): HoverCardControls {
       window.clearTimeout(hideTimer.current);
       anchorEl.current = el;
       shownAt.current = Date.now();
-      setAnchor(anchorRectOf(el));
+      // Same box as last time is the same card: the delegated diff hover
+      // re-shows on every qualifying pointer move across ONE token, and a fresh
+      // rect object there would re-render the card per move.
+      const next = anchorRectOf(el);
+      setAnchor((prev) => (prev && sameRect(prev, next) ? prev : next));
     },
     [hideNow],
   );

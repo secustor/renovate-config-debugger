@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useRef } from "react";
 import type { OptionIndex } from "@renovate-config-debugger/engine";
+import type { AnchorSource } from "@/lib/anchored-card";
 
 /**
  * The option-docs context and the hooks that read it, plus the caret
@@ -12,16 +13,21 @@ import type { OptionIndex } from "@renovate-config-debugger/engine";
 
 export interface OptionDocsValue {
   index: OptionIndex | null;
-  show: (name: string, rect: DOMRect) => void;
+  /**
+   * Opens the DELEGATED card — the diff views' only route, since their keys are
+   * text rather than elements. `target` is what the placement measures and
+   * re-measures: a live `Range` over the token, so a scroll that moves the text
+   * moves the card with it. Element-anchored keys (`OptionKey`) never come
+   * through here; they are ordinary `HoverCardAnchor`s.
+   */
+  show: (name: string, target: AnchorSource) => void;
   hide: () => void;
-  cancelHide: () => void;
 }
 
 export const OptionDocsContext = createContext<OptionDocsValue>({
   index: null,
   show: () => {},
   hide: () => {},
-  cancelHide: () => {},
 });
 
 export function useOptionDocs(): OptionDocsValue {
@@ -50,7 +56,7 @@ function caretAt(x: number, y: number): { node: Node; offset: number } | null {
   return range ? { node: range.startContainer, offset: range.startOffset } : null;
 }
 
-function findOptionTokenAt(x: number, y: number): { name: string; rect: DOMRect } | null {
+function findOptionTokenAt(x: number, y: number): { name: string; target: Range } | null {
   const caret = caretAt(x, y);
   if (!caret || caret.node.nodeType !== Node.TEXT_NODE) {
     return null;
@@ -67,7 +73,10 @@ function findOptionTokenAt(x: number, y: number): { name: string; rect: DOMRect 
       // caretPositionFromPoint snaps to the nearest character, so verify the
       // pointer is actually over the token before showing a card
       if (x >= rect.left - 2 && x <= rect.right + 2 && y >= rect.top - 2 && y <= rect.bottom + 2) {
-        return { name: match[1] ?? "", rect };
+        // The RANGE travels, not the box it currently has: a range over a text
+        // node is live, so the card can re-read it when a scroll inside the
+        // `<pre>` moves the token (`useHoverCard`'s show-grace re-anchor).
+        return { name: match[1] ?? "", target: range };
       }
       return null;
     }
@@ -98,7 +107,7 @@ export function useDiffOptionHover(): {
       last.current = { x: e.clientX, y: e.clientY };
       const hit = findOptionTokenAt(e.clientX, e.clientY);
       if (hit) {
-        show(hit.name, hit.rect);
+        show(hit.name, hit.target);
       } else {
         hide();
       }

@@ -26,6 +26,18 @@
   text-decoration-skip-ink: none;
 }
 
+/* The docs card is keyboard-reachable now (the key is a focusable span, like
+   every other explainer anchor), so it needs a visible focus of its own. The
+   ring rather than the `.term` accent lift: both key states already spend
+   color on a meaning — accent for known, error for a suspected typo — and a
+   focus that overwrote either would say the wrong thing about the key. Same
+   ring the stage rail uses. */
+.opt-key.known:focus-visible,
+.opt-key.unknown:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .option-card {
   background: var(--surface-raised);
   border: 1px solid var(--border);

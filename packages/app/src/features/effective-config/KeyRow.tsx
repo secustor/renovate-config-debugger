@@ -20,9 +20,12 @@ const MULTI_BADGE_GLOSSARY: Record<MultiContribBadge, keyof typeof GLOSSARY> = {
 };
 
 /** The key cell of a ledger row: the disclosure caret and the option name,
- *  with its docs hover card intact (`OptionKey` is a plain span, safe inside
- *  the button). Its own component so `KeyRow` keeps its cells one level from
- *  the row, exactly as the simulator's thread ledger does. */
+ *  with its docs hover card intact (`OptionKey` is a span, never a button, so
+ *  it nests inside the row's toggle — the same arrangement `ProvenanceChip`
+ *  already has there; it is a focusable span, so it is a tab stop of its own
+ *  inside that toggle, which is what makes the docs keyboard-reachable). Its
+ *  own component so `KeyRow` keeps its cells one level from the row, exactly as
+ *  the simulator's thread ledger does. */
 function KeyRowKey({ name, expanded }: { name: string; expanded: boolean }) {
   return (
     <span className="prov-key-name">
