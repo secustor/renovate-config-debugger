@@ -27,7 +27,6 @@ import {
 } from "@/lib/repo-reference";
 import type { ShareFileName, UntrustedEndpointGuard } from "@/lib/share";
 import { loadRepoConfig, loadRepoFile } from "@/platform/run";
-import { ENDPOINT_KEY, persistLocal, PLATFORM_KEY } from "@/platform/storage";
 import type { RunInputs } from "@/lib/run-inputs";
 
 /** Platforms whose repos can be fetched from the browser (roadmap 007/010). */
@@ -51,8 +50,10 @@ export interface RepoLoadHost {
    *  what decides whether such a load is fetchable from the browser at all. */
   platform: string;
   endpoint: string;
-  setPlatform: (platform: string) => void;
-  setEndpoint: (endpoint: string) => void;
+  /** The one set-and-persist spelling (086). A load from a KNOWN host is a
+   *  deliberate act, so it persists — the security decision stays visible at
+   *  this call site. */
+  applyPlatformContext: (platform: string, endpoint: string, opts: { persist: boolean }) => void;
   /** Roadmap 016: the one path every authoritative content load goes through. */
   loadConfigText: (text: string) => void;
   setFileName: (fileName: ShareFileName) => void;
@@ -118,8 +119,7 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
   const {
     platform,
     endpoint,
-    setPlatform,
-    setEndpoint,
+    applyPlatformContext,
     loadConfigText,
     setFileName,
     setNotice,
@@ -285,10 +285,7 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
       }
       const nextFileName: ShareFileName = configFileNameFor(loaded.fileName);
       if (knownHost) {
-        setPlatform(repoPlatform);
-        persistLocal(PLATFORM_KEY, repoPlatform);
-        setEndpoint(repoEndpoint);
-        persistLocal(ENDPOINT_KEY, repoEndpoint);
+        applyPlatformContext(repoPlatform, repoEndpoint, { persist: true });
       }
       loadConfigText(loaded.content);
       setFileName(nextFileName);

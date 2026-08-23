@@ -40,7 +40,6 @@ import {
   type UntrustedEndpointGuard,
   untrustedGuardForPolicy,
 } from "@/lib/share";
-import { ENDPOINT_KEY, persistLocal, PLATFORM_KEY } from "@/platform/storage";
 
 /** Roadmap 018: a share link's simulator inputs, applied once by nonce. */
 export interface SimRequest {
@@ -95,8 +94,9 @@ export interface ShareLinkHost {
   /** Roadmap 016: the one path every authoritative content load goes through. */
   loadConfigText: (text: string) => void;
   setFileName: (fileName: ShareFileName) => void;
-  setPlatform: (platform: string) => void;
-  setEndpoint: (endpoint: string) => void;
+  /** The one set-and-persist spelling (086). Both values always reach the
+   *  UI; persistence is the link policy's decision, passed explicitly. */
+  applyPlatformContext: (platform: string, endpoint: string, opts: { persist: boolean }) => void;
   setGlobalText: (text: string) => void;
   setInheritedText: (text: string) => void;
   setPlatformOverride: (override: boolean) => void;
@@ -255,12 +255,9 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
     // is written to localStorage — a link must never silently repoint a
     // persistent setting at an arbitrary host, where it would outlive the tab
     // and quietly apply to later, credentialed runs.
-    host.setPlatform(nextPlatform);
-    host.setEndpoint(nextEndpoint);
-    if (policy.persistPlatformSettings) {
-      persistLocal(PLATFORM_KEY, nextPlatform);
-      persistLocal(ENDPOINT_KEY, nextEndpoint);
-    }
+    host.applyPlatformContext(nextPlatform, nextEndpoint, {
+      persist: policy.persistPlatformSettings,
+    });
     // 008 layers ride along in v2 links; absent = layers off.
     host.setGlobalText(payload.globalConfig ? JSON.stringify(payload.globalConfig, null, 2) : "");
     host.setInheritedText(

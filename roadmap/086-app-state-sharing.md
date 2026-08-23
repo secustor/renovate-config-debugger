@@ -5,8 +5,8 @@ Milestone: M21 · Status: done (feat/v2)
 ## The question, and why it is due
 
 048 decomposed App.tsx (1,563 → 1,073) and its termination note deferred the
-real question: *"the post-split state-sharing mechanism (props vs context vs
-store) — which is where a future item should start."* That item was never
+real question: _"the post-split state-sharing mechanism (props vs context vs
+store) — which is where a future item should start."_ That item was never
 written, and the second cleanup pass measured the consequence: 1,851 lines and
 35 state/ref slots — the exact numbers 033 opened with. The trajectory
 (1,600 → 1,073 → 1,919 → 1,840 → 1,851) is the evidence that hook extraction
@@ -75,7 +75,7 @@ re-rendered anyway.
 ## Not moved, deliberately
 
 - The run path (`onRun`/`executeRun`, the queue, the landing-walk handshake)
-  — App's irreducible core; it is what App *is*.
+  — App's irreducible core; it is what App _is_.
 - The share/decode wiring (`useShareLink`'s host object) — it exists to
   reach into everything, and hiding that behind a context would only make
   the reach invisible.

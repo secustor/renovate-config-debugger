@@ -56,17 +56,10 @@ import { useBackToTopVisible, useHomeEndPageScroll } from "@/hooks/scroll-ergono
 import { useLatestRef } from "@/hooks/use-latest-ref";
 import { useKeyboardLandings } from "@/app/use-keyboard-landings";
 import { ShortcutSheet } from "@/components/ShortcutSheet";
-import { isValidEndpoint, isValidPlatform, parseLayerJson } from "@/lib/input-schemas";
-import { PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
-import {
-  ENDPOINT_KEY,
-  localRemove,
-  persistLocal,
-  PLATFORM_KEY,
-  readLocal,
-} from "@/platform/storage";
+import { isValidEndpoint } from "@/lib/input-schemas";
 import { useCustomHostRules, useHostTokens } from "@/hooks/use-host-tokens";
 import { useAppMessages } from "@/app/use-app-messages";
+import { usePlatformContext } from "@/app/use-platform-context";
 import { useInheritedConfigLayer } from "@/app/use-inherited-config-layer";
 import { useRepoLoad } from "@/app/use-repo-load";
 import { useRepoPicker } from "@/app/use-repo-picker";
@@ -262,17 +255,35 @@ export function App() {
   // token error rows below map over the same rows.
   const hostTokens = useHostTokens();
   const customHostRules = useCustomHostRules();
-  const [platform, setPlatform] = useState(() =>
-    readLocal(PLATFORM_KEY, "github", isValidPlatform),
-  );
-  const [endpoint, setEndpoint] = useState(() =>
-    readLocal(ENDPOINT_KEY, "https://api.github.com", isValidEndpoint),
-  );
-  // The 008 global layer's input (JSON text; empty = layer off) + the explicit
-  // override of the global config's platform/endpoint (010 "reflect, then
-  // override"). The inherited layer's own text lives in the hook below.
-  const [globalText, setGlobalText] = useState("");
-  const [platformOverride, setPlatformOverride] = useState(false);
+  // Roadmap 086: the platform context — platform/endpoint, the 008 global
+  // layer that can dictate them, the override, and the untrusted-endpoint
+  // guard — as one hook. `applyPlatformContext` is the one set-and-persist
+  // spelling; persistence is each caller's explicit security decision.
+  const {
+    platform,
+    endpoint,
+    globalText,
+    setGlobalText,
+    globalParse,
+    globalPlatform,
+    globalEndpoint,
+    hasGlobalContext,
+    platformOverride,
+    setPlatformOverride,
+    reflectGlobal,
+    displayPlatform,
+    displayEndpoint,
+    usesLocal,
+    untrustedGuard,
+    untrustedGuardRef,
+    applyUntrustedGuard,
+    applyPlatformContext,
+    onPlatformChange,
+    onEndpointChange,
+    onUseGlobalValues,
+    onAcknowledgeUntrusted,
+    onTrustUntrustedHost,
+  } = usePlatformContext();
   // Roadmap 040/076: the collapsed home of the platform context and the
   // credentials this tab is carrying. Auto-opens only for the untrusted-endpoint
   // guard now — the self-hosted layers it used to hold are pipeline stages.
@@ -311,22 +322,6 @@ export function App() {
     announceRun,
     outcomeLeadRef,
   } = useAppMessages();
-  // Security 2026-07-25: set while the platform context in force came from a
-  // share link naming an untrusted endpoint. This is the ONLY thing that
-  // decides token suppression — it outlives the banner on purpose, so a user
-  // who clicks past the warning without reading is not one Run away from
-  // handing their token to the attacker's host. Cleared only by the explicit
-  // opt-in, by hand-editing platform/endpoint, or by loading something else.
-  const [untrustedGuard, setUntrustedGuard] = useState<UntrustedEndpointGuard | null>(null);
-  // The same value read synchronously. Every mutation goes through
-  // `applyUntrustedGuard`, so a handler that installs/clears the guard and
-  // then starts a fetch in the SAME tick (the auto-run of `loadShareToken`
-  // in use-share-link.ts, a
-  // known-host repo load) decides suppression from the new value rather than
-  // from a `useState` closure React has not re-rendered yet — in either
-  // direction: over-suppressing would silently break a legitimate private
-  // repo load, under-suppressing would leak the token.
-  const untrustedGuardRef = useRef<UntrustedEndpointGuard | null>(null);
   const [optionIndex, setOptionIndex] = useState<OptionIndex | null>(null);
   // Roadmap 014: curated validator-message translations + suggested fixes,
   // loaded lazily alongside the option index (same engine chunk).
@@ -434,8 +429,7 @@ export function App() {
       onRun: (inputs, opts) => onRun(undefined, inputs, opts),
       loadConfigText,
       setFileName,
-      setPlatform,
-      setEndpoint,
+      applyPlatformContext,
       setGlobalText,
       setInheritedText: (text) => applyInheritedText(text),
       setPlatformOverride,
@@ -664,20 +658,6 @@ export function App() {
   // effect runs only after its content committed. `focusResultsRef` (armed by
   // onRun below) and `resultsColRef` (the pane to measure) are handed down.
 
-  // Roadmap 030: parses an optional JSON config layer (008), pollution-checked
-  // (own `__proto__`/`constructor`/`prototype` keys anywhere, including nested
-  // `packageRules[n]`, are rejected). Empty text = layer off, unchanged; the
-  // "must be a JSON object" message and native JSON.parse error text are kept
-  // verbatim — the `layer-editor-error` render site (StageLayerEditor) and this
-  // file's own run-blocking message depend on them.
-  const globalParse = useMemo(() => parseLayerJson(globalText), [globalText]);
-  // Platform context values the global config carries (008/010 interplay): the
-  // control reflects them unless the user explicitly overrides.
-  const globalPlatform =
-    typeof globalParse.config?.platform === "string" ? globalParse.config.platform : undefined;
-  const globalEndpoint =
-    typeof globalParse.config?.endpoint === "string" ? globalParse.config.endpoint : undefined;
-  const hasGlobalContext = globalPlatform !== undefined || globalEndpoint !== undefined;
   // Roadmap 048: the load-from-repo cluster — the disclosure and its focus
   // hand-back, the reference fields, the in-flight flag, the auth hint, and
   // the load itself. Called BEFORE the inherited-config layer because that
@@ -699,8 +679,7 @@ export function App() {
   } = useRepoLoad({
     platform,
     endpoint,
-    setPlatform,
-    setEndpoint,
+    applyPlatformContext,
     loadConfigText,
     setFileName,
     setNotice,
@@ -781,24 +760,6 @@ export function App() {
     }
     return skips;
   }, [globalParse.config, inheritedParse.config]);
-  const reflectGlobal = hasGlobalContext && !platformOverride;
-  const displayPlatform = reflectGlobal && globalPlatform !== undefined ? globalPlatform : platform;
-  // A global-config platform also displaces the toolbar endpoint (it belongs
-  // to the toolbar's platform): fall back to the global platform's default.
-  const displayEndpoint =
-    reflectGlobal && globalEndpoint !== undefined
-      ? globalEndpoint
-      : reflectGlobal && globalPlatform !== undefined
-        ? (PLATFORM_ENDPOINTS[globalPlatform] ?? "")
-        : endpoint;
-
-  // An override only exists relative to global-config values; when the global
-  // config stops defining platform/endpoint, snap back to normal behavior.
-  useEffect(() => {
-    if (!hasGlobalContext) {
-      setPlatformOverride(false);
-    }
-  }, [hasGlobalContext]);
 
   // Apply pending link view state after the run's result exists. Declared after
   // the reset effect so it wins over the reset for a decoded link.
@@ -1205,79 +1166,6 @@ export function App() {
     void applyErrorFixRef.current?.(fix);
   }, []);
 
-  /** The one way the guard changes — ref first, so a same-tick reader sees it. */
-  function applyUntrustedGuard(next: UntrustedEndpointGuard | null) {
-    untrustedGuardRef.current = next;
-    setUntrustedGuard(next);
-  }
-
-  /**
-   * Security 2026-07-25: the user typing in the platform/endpoint fields is a
-   * deliberate act that REPLACES the context a link installed, so it ends the
-   * guard. Whatever they typed is then governed by the ordinary hand-typed
-   * rules (`isValidEndpoint` for storage, `blockedByLayerErrors` for Run).
-   */
-  function clearUntrustedGuard() {
-    applyUntrustedGuard(null);
-  }
-
-  function onPlatformChange(value: string) {
-    // With a global config supplying platform/endpoint, a manual change is an
-    // explicit override (008/010) — flagged with a visible warning below.
-    if (hasGlobalContext) {
-      setPlatformOverride(true);
-    }
-    clearUntrustedGuard();
-    setPlatform(value);
-    if (isValidPlatform(value)) {
-      persistLocal(PLATFORM_KEY, value);
-    }
-    // Snap the endpoint to the new platform's default; the user can still edit.
-    const next = PLATFORM_ENDPOINTS[value] ?? "";
-    setEndpoint(next);
-    persistLocal(ENDPOINT_KEY, next);
-  }
-
-  // Roadmap 030: the endpoint is validated (http(s) only — the "dangerous
-  // URL" rule) before it is persisted; an invalid value stays only in the
-  // live field (see `blockedByLayerErrors`'s endpoint case, which blocks Run
-  // rather than silently using it) and is never written to storage.
-  function onEndpointChange(value: string) {
-    if (hasGlobalContext) {
-      setPlatformOverride(true);
-    }
-    clearUntrustedGuard();
-    setEndpoint(value);
-    if (isValidEndpoint(value)) {
-      persistLocal(ENDPOINT_KEY, value);
-    } else {
-      localRemove(ENDPOINT_KEY);
-    }
-  }
-
-  /** "Continue without tokens": the banner collapses to the standing reminder
-   *  beside Run. The suppression itself is deliberately untouched — this is an
-   *  acknowledgement, not a decision about credentials. */
-  function onAcknowledgeUntrusted() {
-    const guard = untrustedGuardRef.current;
-    if (guard) {
-      applyUntrustedGuard({ ...guard, acknowledged: true });
-    }
-  }
-
-  /** "Use my tokens with <host>": the explicit, host-named opt-in. From here
-   *  the endpoint is treated exactly like a hand-typed one — later runs carry
-   *  credentials and the platform/endpoint may persist to localStorage. */
-  function onTrustUntrustedHost() {
-    applyUntrustedGuard(null);
-    if (isValidPlatform(platform)) {
-      persistLocal(PLATFORM_KEY, platform);
-    }
-    if (isValidEndpoint(endpoint)) {
-      persistLocal(ENDPOINT_KEY, endpoint);
-    }
-  }
-
   const authState: AuthState = !OAUTH_CONFIG
     ? "unconfigured"
     : signedIn
@@ -1364,8 +1252,6 @@ export function App() {
     (key: string, contentObj: Record<string, unknown>) => onInjectRef.current?.(key, contentObj),
     [],
   );
-
-  const usesLocal = displayPlatform !== "github";
 
   // Roadmap 048: every number derived from a finished run — the tab-strip
   // counts, the migration-stepper inputs and the header digest links they must
@@ -1539,7 +1425,7 @@ export function App() {
       globalEndpoint={globalEndpoint}
       platformOverride={platformOverride}
       hasGlobalContext={hasGlobalContext}
-      onUseGlobalValues={() => setPlatformOverride(false)}
+      onUseGlobalValues={onUseGlobalValues}
       usesLocal={usesLocal}
       platform={platform}
       oauthConfigured={Boolean(OAUTH_CONFIG)}
