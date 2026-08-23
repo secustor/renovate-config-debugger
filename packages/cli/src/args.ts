@@ -89,7 +89,9 @@ export const OPTIONS = {
   "dep-file": { flags: "--dep-file <file>", description: "--dep, read from a file" },
   "deps-file": {
     flags: "--deps-file <file>",
-    description: "a JSON array of `--dep` objects — `group`'s batch input",
+    description:
+      "a JSON array of `--dep` objects — `group`'s batch input. Strict JSON: the inline " +
+      "forms take JSON5, a batch FILE does not",
   },
   "dep-b": { flags: "--dep-b <json>", description: "the B-side dependency to compare" },
   "dep-b-file": { flags: "--dep-b-file <file>", description: "--dep-b, read from a file" },

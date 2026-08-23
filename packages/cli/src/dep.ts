@@ -12,6 +12,18 @@ import { readTextFile } from "./run-input";
  *
  * `group` (roadmap 074) takes SEVERAL: `--dep` repeatedly, or `--deps-file`
  * with a JSON array of the same objects.
+ *
+ * ONE asymmetry, stated because the two flags otherwise read as the same
+ * input: a single descriptor (`--dep`, `--dep-file`, `--dep-b`, `--dep-b-file`)
+ * is parsed as JSON5 — the superset the app accepts in its own paste-a-JSON
+ * fields, and the one Renovate accepts for a preset file — while `--deps-file`
+ * is parsed as strict JSON. The engine exposes exactly one JSON5 entry point
+ * (`parseInjectedPreset`) and it parses an OBJECT; there is no array shape to
+ * hand a batch file to, and giving the CLI its own JSON5 parser to close a
+ * one-flag gap costs a dependency in the package whose build is a
+ * dependency-free bundle. The ENTRIES are finished identically either way, so
+ * only the punctuation of the file itself differs; `--help` and the README say
+ * so where they name the flag.
  */
 
 /** One descriptor, parsed and finished the way a real lookup would finish it. */
@@ -68,6 +80,7 @@ export async function readDependencies(args: ParsedArgs): Promise<DependencyDesc
   if (path) {
     const text = await readTextFile(path, "--deps-file");
     let parsed: unknown;
+    // Strict JSON, unlike the inline forms above — see this module's header.
     try {
       parsed = JSON.parse(text);
     } catch (err) {

@@ -103,7 +103,7 @@ The rest belong to one command each.
 |              | `--keys <a,b,…>`             | only these options of the config delta                                  |
 |              | `--config-scope <which>`     | `package-rules` (default) \| `full`                                     |
 | `group`      | `--dep <json>` (repeatable)  | one pending update per occurrence, at least two                         |
-|              | `--deps-file <file>`         | a JSON array of the same objects                                        |
+|              | `--deps-file <file>`         | a JSON array of the same objects (strict JSON — see below)              |
 | `run`        | `--select <a,b,…>`           | `status\|errors\|warnings\|final\|events\|tree\|layers\|platform\|all`  |
 |              | `--keys <a,b,…>`             | only these options of `--select final`                                  |
 |              | `--config-scope <which>`     | `full` (default) \| `package-rules`                                     |
@@ -387,6 +387,13 @@ don't reach it", never "this group can never form". And membership is by
 `groupName` as the rules resolved it: branch splitting (`separateMajorMinor`,
 custom `branchName` templates) is not modeled. The MCP `simulate_group` tool is
 the same answer over a held run.
+
+One punctuation note, since the two spellings otherwise read as the same input:
+an inline descriptor (`--dep`, `--dep-file`, `--dep-b`, `--dep-b-file`) is
+parsed as JSON5 — the superset Renovate accepts for a preset file, so unquoted
+keys, comments and trailing commas are fine — while a `--deps-file` batch is
+parsed as strict JSON. The entries themselves are finished identically either
+way, `updateType` derivation included.
 
 On a `config:best-practices` run the rule list runs to several hundred, so BOTH
 output formats answer with the rules that ACTED — `--verdict notable`: matched,
