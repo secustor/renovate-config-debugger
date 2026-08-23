@@ -42,7 +42,25 @@ interface Frame {
   fetchEventId?: string;
 }
 
-const RESOLVING_RE = /^Resolving preset "(.+)"$/;
+/** Exported for the collector's outside-the-preset-stage fallback, which must
+ *  recognize the same log line rather than re-inline the pattern. */
+export const RESOLVING_RE = /^Resolving preset "(.+)"$/;
+/**
+ * The descriptive message behind a "Preset fetch error" log's `err`. Renovate
+ * wraps host failures in ExternalHostError, whose OWN message is the constant
+ * "external-host-error" — the descriptive message (the one the app's 009
+ * auth-failure detection reads, e.g. "… rate limit or missing token") lives on
+ * its `.err`. Unwrapped structurally, not by class: the instance comes from
+ * renovate's bundle, not our import graph. Shared with the collector's
+ * outside-the-preset-stage fallback, which used to read `.message` directly
+ * and surface the useless constant.
+ */
+export function fetchErrorMessage(raw: unknown): string {
+  const inner = (raw as { err?: unknown } | undefined)?.err;
+  const err = inner instanceof Error ? inner : raw;
+  return err instanceof Error ? err.message : String(err ?? "unknown error");
+}
+
 const ALREADY_SEEN_RE = /^Already seen preset (.+) in \[.*\]$/;
 const IGNORING_RE = /^Ignoring preset (.+) in \[.*\]$/;
 const FOUND_RE = /^Found preset (.+)$/;
@@ -219,15 +237,7 @@ export class PresetTreeBuilder {
 
   private onFetchError(meta: Record<string, unknown>): void {
     const preset = typeof meta.preset === "string" ? meta.preset : "(unknown)";
-    // Renovate wraps host failures in ExternalHostError, whose OWN message is
-    // the constant "external-host-error" — the descriptive message (the one
-    // the app's 009 auth-failure detection reads, e.g. "… rate limit or
-    // missing token") lives on its `.err`. Unwrapped structurally, not by
-    // class: the instance comes from renovate's bundle, not our import graph.
-    const raw = meta.err;
-    const inner = (raw as { err?: unknown } | undefined)?.err;
-    const err = inner instanceof Error ? inner : raw;
-    const errMsg = err instanceof Error ? err.message : String(err ?? "unknown error");
+    const errMsg = fetchErrorMessage(meta.err);
     const top = this.top();
     let node = top?.pendingChild;
     if (node?.name !== preset) {
