@@ -1,4 +1,5 @@
 import type { RuleAttribution, SimulationResult } from "@renovate-config-debugger/engine";
+import { pluralWord } from "./format";
 
 /** A config value in a plain-language sentence: `[a, b]`, `"x"`, `42`. */
 function plainValue(value: unknown): string {
@@ -209,5 +210,5 @@ export function buildNoInputCaveat(
     return undefined;
   }
   const named = [...fields].join(", ");
-  return `${count} of your rule${count === 1 ? "" : "s"} failed only because a field was left unset in this simulation (${named}) — this result may not reflect a real Renovate run.`;
+  return `${count} of your ${pluralWord(count, "rule")} failed only because a field was left unset in this simulation (${named}) — this result may not reflect a real Renovate run.`;
 }

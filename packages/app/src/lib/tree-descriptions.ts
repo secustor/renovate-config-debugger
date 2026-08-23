@@ -1,4 +1,4 @@
-import { nf } from "./format";
+import { nf, plural } from "./format";
 import type { DescriptionProvenance } from "@renovate-config-debugger/engine";
 import { approximateTitle } from "@/lib/description-approx";
 import { ROOT_NODE_ID } from "./preset-tree-stats";
@@ -265,7 +265,7 @@ export function zipDescLines(facts: NodeDescriptionFacts): DescLineWithMarker[] 
  * lists drops, never their causes, so there is no twin to drift from.
  */
 export function muteNoteText(count: number): string {
-  return `mutes ${nf.format(count)} description${count === 1 ? "" : "s"} below (empty \`ignoreDeps\`)`;
+  return `mutes ${plural(count, "description")} below (empty \`ignoreDeps\`)`;
 }
 
 /** The card title's count — the cue that the tree has descriptions to show. */

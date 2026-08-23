@@ -19,6 +19,7 @@ import type { RefObject } from "react";
 import { renovateSchema } from "@renovate-config-debugger/engine/schema";
 import type { PresetNodeState } from "@renovate-config-debugger/engine";
 import type { PresetHoverContext, PresetHoverInfo } from "@/lib/preset-hover";
+import { pluralWord } from "@/lib/format";
 
 const STRING_RE = /"(?:[^"\\]|\\.)*"/g;
 
@@ -79,10 +80,10 @@ function presetCard(info: PresetHoverInfo, onSelectPreset: (nodeId: string) => v
   desc.className = "option-card-desc";
   const contribs: string[] = [];
   if (info.optionCount > 0) {
-    contribs.push(`${info.optionCount} option${info.optionCount === 1 ? "" : "s"}`);
+    contribs.push(`${info.optionCount} ${pluralWord(info.optionCount, "option")}`);
   }
   if (info.ruleCount > 0) {
-    contribs.push(`${info.ruleCount} packageRule${info.ruleCount === 1 ? "" : "s"}`);
+    contribs.push(`${info.ruleCount} ${pluralWord(info.ruleCount, "packageRule")}`);
   }
   const summary =
     info.state === "resolved" && contribs.length > 0

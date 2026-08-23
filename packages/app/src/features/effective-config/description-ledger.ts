@@ -1,5 +1,5 @@
 import { COLLAPSE_AFTER } from "@/lib/collapse";
-import { nf } from "@/lib/format";
+import { nf, plural } from "@/lib/format";
 import type {
   DescriptionAttribution,
   DescriptionProvenance,
@@ -268,8 +268,8 @@ const UNATTRIBUTED_PREVIEW_CHARS = 60;
  *  prevent. Shared by both count texts below, which differ only in the noun
  *  they use when every member IS a sentence. */
 function mixedCountText(ledger: DescriptionLedger): string {
-  const sentences = `${nf.format(ledger.entryCount)} sentence${ledger.entryCount === 1 ? "" : "s"}`;
-  const others = `${nf.format(ledger.unattributedCount)} other member${ledger.unattributedCount === 1 ? "" : "s"}`;
+  const sentences = plural(ledger.entryCount, "sentence");
+  const others = plural(ledger.unattributedCount, "other member");
   return `${sentences} + ${others}`;
 }
 
@@ -278,7 +278,7 @@ function mixedCountText(ledger: DescriptionLedger): string {
  *  what its heading, its per-line rows and its reveal button all count. */
 export function ledgerCountText(ledger: DescriptionLedger): string {
   if (ledger.unattributedCount === 0) {
-    return `${nf.format(ledger.finalLength)} line${ledger.finalLength === 1 ? "" : "s"}`;
+    return plural(ledger.finalLength, "line");
   }
   return mixedCountText(ledger);
 }
@@ -287,7 +287,7 @@ export function ledgerCountText(ledger: DescriptionLedger): string {
  *  is describing a VALUE — an array of strings — not a list of ledger rows. */
 function ledgerStringCountText(ledger: DescriptionLedger): string {
   if (ledger.unattributedCount === 0) {
-    return `${nf.format(ledger.finalLength)} string${ledger.finalLength === 1 ? "" : "s"}`;
+    return plural(ledger.finalLength, "string");
   }
   return mixedCountText(ledger);
 }
@@ -318,7 +318,7 @@ export function ledgerWriterText(ledger: DescriptionLedger): string | null {
   if (ledger.writerCount === 0) {
     return null;
   }
-  return `${nf.format(ledger.writerCount)} preset${ledger.writerCount === 1 ? "" : "s"}`;
+  return plural(ledger.writerCount, "preset");
 }
 
 /** The warn-tinted pill on a repeated sentence, pointing at the occurrence
@@ -414,8 +414,7 @@ export function ledgerView(ledger: DescriptionLedger, revealed: boolean): Ledger
  * `null` when there is neither, which is the ordinary short ledger.
  */
 export function ledgerRevealText(hiddenRows: number, dropped: number): string | null {
-  const lines =
-    hiddenRows > 0 ? `${nf.format(hiddenRows)} more line${hiddenRows === 1 ? "" : "s"}` : null;
+  const lines = hiddenRows > 0 ? plural(hiddenRows, "more line") : null;
   const cut = dropped > 0 ? `${nf.format(dropped)} dropped before merging` : null;
   if (!lines && !cut) {
     return null;
@@ -428,7 +427,7 @@ export function ledgerRevealText(hiddenRows: number, dropped: number): string | 
  *  be: {@link ledgerRevealText} is the only thing that opens this now. */
 export function droppedSummaryText(dropped: readonly DroppedDescription[]): string {
   const count = dropped.length;
-  return `Not included: ${nf.format(count)} description${count === 1 ? "" : "s"} Renovate dropped`;
+  return `Not included: ${plural(count, "description")} Renovate dropped`;
 }
 
 /** Rows hidden by a collapsed list — shared by the runs and the dropped

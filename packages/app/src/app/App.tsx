@@ -71,6 +71,7 @@ import { useResultsTab } from "@/app/use-results-tab";
 import { useShareLink } from "@/hooks/use-share-link";
 import type { RunInputs } from "@/lib/run-inputs";
 import { createRunQueue, type RunQueue } from "@/lib/run-queue";
+import { pluralWord } from "@/lib/format";
 
 const DEFAULT_CONFIG = `{
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
@@ -1151,9 +1152,7 @@ export function App() {
       // dropping it on `<body>`.
       focusTab("problems", ticket);
       const n = next.errors.length;
-      showToast(
-        `Fix applied — re-ran: ${n === 0 ? "0 errors" : `${n} error${n === 1 ? "" : "s"}`}`,
-      );
+      showToast(`Fix applied — re-ran: ${n === 0 ? "0 errors" : `${n} ${pluralWord(n, "error")}`}`);
     }
   }
 
@@ -1350,8 +1349,8 @@ export function App() {
       return;
     }
     const problems = [
-      errorCount === 0 ? null : `${errorCount} error${errorCount === 1 ? "" : "s"}`,
-      warningCount === 0 ? null : `${warningCount} warning${warningCount === 1 ? "" : "s"}`,
+      errorCount === 0 ? null : `${errorCount} ${pluralWord(errorCount, "error")}`,
+      warningCount === 0 ? null : `${warningCount} ${pluralWord(warningCount, "warning")}`,
     ].filter((part) => part !== null);
     const lead = outcomeLeadRef.current ?? "Run finished";
     announceRun(`${lead} — ${problems.length === 0 ? "no problems" : problems.join(", ")}.`);

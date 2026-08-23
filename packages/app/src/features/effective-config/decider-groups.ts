@@ -1,5 +1,5 @@
 import type { KeyProvenance, PresetNode, ProvenanceStep } from "@renovate-config-debugger/engine";
-import { nf } from "@/lib/format";
+import { nf, plural } from "@/lib/format";
 
 /**
  * Roadmap 075 (iteration 5): the effective config, grouped by WHO DECIDED each
@@ -131,7 +131,7 @@ export function deciderHeadline(
   presetName?: string | null,
 ): DeciderHeadline {
   const n = nf.format(count);
-  const options = `${n} option${count === 1 ? "" : "s"}`;
+  const options = plural(count, "option");
   if (id === "repo") {
     return {
       lead: "Your repo config decided",

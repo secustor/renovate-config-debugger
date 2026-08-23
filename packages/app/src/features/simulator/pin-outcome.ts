@@ -6,7 +6,7 @@ import type {
   RuleEvaluation,
   SimulationResult,
 } from "@renovate-config-debugger/engine";
-import { nf } from "@/lib/format";
+import { nf, pluralWord } from "@/lib/format";
 import { crossRuleIndex } from "@/lib/rule-cross-index";
 import { hasEvaluationError, isNoInputNoMatch } from "@/lib/rule-verdict";
 import { buildNoInputCaveat } from "@/lib/verdict-sentence";
@@ -331,7 +331,7 @@ function familyBucket(
     return {
       key: group.name,
       label: group.name,
-      note: `${count} rule${count === 1 ? "" : "s"} — ${first ? failingClauseNote(first) : ""}`,
+      note: `${count} ${pluralWord(count, "rule")} — ${first ? failingClauseNote(first) : ""}`,
       probeQuery: group.name,
     };
   });
@@ -414,7 +414,7 @@ function missingInputBucket(
   const rows: PinBucketRow[] = groups.map((group) => ({
     key: group.fieldList,
     label: group.fieldList,
-    note: `${group.rules} rule${group.rules === 1 ? "" : "s"} read it — set it on this test to evaluate them for real (${group.selectors.join(", ")})`,
+    note: `${group.rules} ${pluralWord(group.rules, "rule")} read it — set it on this test to evaluate them for real (${group.selectors.join(", ")})`,
     probeQuery: group.selectors[0] ?? group.fieldList,
   }));
   const hidden = missingInputs.groups.length - groups.length;
@@ -424,7 +424,7 @@ function missingInputBucket(
     reason: "matcher input not set on this simulation",
     source: "fail-closed matchers",
     rows,
-    ...(hidden > 0 ? { more: `${hidden} more field group${hidden === 1 ? "" : "s"}` } : {}),
+    ...(hidden > 0 ? { more: `${hidden} more ${pluralWord(hidden, "field group")}` } : {}),
   };
 }
 

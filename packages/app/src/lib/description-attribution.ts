@@ -1,4 +1,4 @@
-import { nf } from "./format";
+import { nf, plural } from "./format";
 import type {
   DescriptionProvenance,
   PresetNode,
@@ -234,9 +234,7 @@ export function cardPositionText(card: DescriptionCard): string {
     parts.push(`duplicate of #${nf.format(card.duplicateOfPosition)}`);
   }
   if (card.ownRules !== undefined) {
-    parts.push(
-      `also sets ${nf.format(card.ownRules)} packageRule${card.ownRules === 1 ? "" : "s"}`,
-    );
+    parts.push(`also sets ${plural(card.ownRules, "packageRule")}`);
   }
   return parts.join(" · ");
 }

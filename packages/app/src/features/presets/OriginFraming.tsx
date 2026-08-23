@@ -2,7 +2,7 @@ import type { PresetNode } from "@renovate-config-debugger/engine";
 import type { TreeStats } from "@/lib/preset-tree-stats";
 import { Term } from "@/components/glossary";
 import { PresetName } from "@/components/PresetName";
-import { nf } from "@/lib/format";
+import { nf, plural, pluralWord } from "@/lib/format";
 
 /**
  * Roadmap 016: honest origin framing for the headline preset count (persona
@@ -32,7 +32,7 @@ export function OriginFraming({ root, stats }: { root: PresetNode; stats: TreeSt
       <p className="origin-framing">
         Your <Term id="extends">extends</Term> entry{" "}
         <PresetName name={onlyRoot.name} nodeId={onlyRoot.id} /> expands to {nf.format(total)}{" "}
-        preset{total === 1 ? "" : "s"}.
+        {pluralWord(total, "preset")}.
       </p>
     );
   }
@@ -43,7 +43,7 @@ export function OriginFraming({ root, stats }: { root: PresetNode; stats: TreeSt
   return (
     <p className="origin-framing">
       Your {nf.format(roots.length)} <Term id="extends">extends</Term> entries expand to{" "}
-      {nf.format(total)} preset{total === 1 ? "" : "s"}
+      {plural(total, "preset")}
       {majority ? (
         <>
           , mostly via <PresetName name={majority.name} nodeId={majority.nodeId} /> (

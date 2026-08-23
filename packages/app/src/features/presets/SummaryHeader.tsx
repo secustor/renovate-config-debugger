@@ -16,14 +16,14 @@ export function SummaryHeader({ summary }: { summary: TreeSummary }) {
     { key: "statInternal", label: "internal", value: summary.internal },
     {
       key: "statOptionsSet",
-      label: `option${summary.options === 1 ? "" : "s"} set`,
+      label: `${pluralWord(summary.options, "option")} set`,
       value: summary.options,
     },
     { key: "statRules", label: pluralWord(summary.rules, "rule"), value: summary.rules },
     { key: "statDepth", label: "depth", value: summary.maxDepth },
     {
       key: "statDuplicates",
-      label: `repeat occurrence${summary.duplicates === 1 ? "" : "s"}`,
+      label: pluralWord(summary.duplicates, "repeat occurrence"),
       value: summary.duplicates,
     },
     { key: "statErrors", label: pluralWord(summary.errors, "error"), value: summary.errors },

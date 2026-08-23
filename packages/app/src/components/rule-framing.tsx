@@ -1,4 +1,4 @@
-import { nf } from "@/lib/format";
+import { nf, plural } from "@/lib/format";
 import type { RuleAttribution } from "@renovate-config-debugger/engine";
 import type { ReactNode } from "react";
 import { PresetName } from "./PresetName";
@@ -181,7 +181,7 @@ export function RuleFramingText({
   attribution: RuleAttribution[] | null | undefined;
 }) {
   const framing = computeRuleFraming(total, attribution);
-  const bare = `${nf.format(total)} rule${total === 1 ? "" : "s"}`;
+  const bare = plural(total, "rule");
   if (!framing || (framing.own === 0 && !framing.top)) {
     // Nothing to attribute — just the count, as plain text.
     return bare;

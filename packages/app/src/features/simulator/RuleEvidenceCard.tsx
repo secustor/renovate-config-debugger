@@ -13,6 +13,7 @@ import { RULE_POP_CLASS, RULE_POP_SELECTOR } from "./rule-pop-dom";
 import { ruleAppliedMarkdown, ruleVerdictLabel, writeMark } from "./rule-format";
 import type { RuleEvidence, RuleWrite } from "./rule-evidence";
 import { WriteRow } from "./WriteRow";
+import { pluralWord } from "@/lib/format";
 
 /**
  * Roadmap 054 (variant A), layer 3: the second — and last — disclosure level.
@@ -151,7 +152,7 @@ function RuleEvidenceSummary({ evidence }: { evidence: RuleEvidence }) {
   const { writes, survivedCount } = evidence;
   return (
     <p className="sim-rule-pop-line">
-      merged in {evidence.stopLabel} — {writes.length} write{writes.length === 1 ? "" : "s"},{" "}
+      merged in {evidence.stopLabel} — {writes.length} {pluralWord(writes.length, "write")},{" "}
       {survivedCount} survived
     </p>
   );

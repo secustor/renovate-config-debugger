@@ -1,4 +1,5 @@
 import { truncate } from "./truncate";
+import { pluralWord } from "./format";
 
 /**
  * One line standing in for a config value: the effective config's value cells
@@ -13,11 +14,11 @@ export function valuePreview(value: unknown): string {
     return "null";
   }
   if (Array.isArray(value)) {
-    return value.length ? `[ ${value.length} item${value.length === 1 ? "" : "s"} ]` : "[]";
+    return value.length ? `[ ${value.length} ${pluralWord(value.length, "item")} ]` : "[]";
   }
   if (typeof value === "object") {
     const n = Object.keys(value).length;
-    return n ? `{ ${n} key${n === 1 ? "" : "s"} }` : "{}";
+    return n ? `{ ${n} ${pluralWord(n, "key")} }` : "{}";
   }
   return truncate(JSON.stringify(value) ?? String(value), 80);
 }

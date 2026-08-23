@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { ProvenanceStep, RuleAttribution } from "@renovate-config-debugger/engine";
 import { ConfigJson } from "@/components/ConfigJson";
-import { nf } from "@/lib/format";
+import { plural, pluralWord } from "@/lib/format";
 import { PresetName } from "@/components/PresetName";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { summarizeRuleSelectors } from "@/lib/rule-selectors";
@@ -94,7 +94,7 @@ function PackageRulesProvenance({
   return (
     <div className="prov-rules">
       <div className="prov-rules-title">
-        Per-rule provenance ({rules.length} rule{rules.length === 1 ? "" : "s"})
+        Per-rule provenance ({rules.length} {pluralWord(rules.length, "rule")})
       </div>
       <ul className="prov-rules-list">
         {rules.map((rule, i) => {
@@ -155,7 +155,7 @@ export function DeferredRuleProvenance({
     <p className="prov-rules-defer">
       Per-rule provenance:{" "}
       <button type="button" className="btn-quiet" onClick={() => setShown(true)}>
-        {`all ${nf.format(rules.length)} rule${rules.length === 1 ? "" : "s"} with their source preset →`}
+        {`all ${plural(rules.length, "rule")} with their source preset →`}
       </button>
     </p>
   );

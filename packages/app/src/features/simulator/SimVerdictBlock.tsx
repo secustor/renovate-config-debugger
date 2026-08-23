@@ -7,6 +7,7 @@ import type { RuleEvidence } from "./rule-evidence";
 import { SimConsumedBlock } from "./SimConsumedBlock";
 import type { ThreadModel } from "./verdict-threads";
 import { type ThreadNavigation, VerdictThreads } from "./VerdictThreads";
+import { pluralWord } from "@/lib/format";
 
 /**
  * Roadmap 054 (variant A): the two full-trace links the evidence drawers
@@ -31,12 +32,12 @@ function VerdictTraceLinks({
     <span className="sim-trace-links">
       Full trace:{" "}
       <button type="button" className="sim-jump" onClick={onJumpToRules}>
-        {matchedCount} of {totalRules} rule{totalRules === 1 ? "" : "s"} matched
+        {matchedCount} of {totalRules} {pluralWord(totalRules, "rule")} matched
       </button>
       {onJumpToReplay ? " · " : null}
       {onJumpToReplay ? (
         <button type="button" className="sim-jump" onClick={onJumpToReplay}>
-          build replay, {replayStops} stop{replayStops === 1 ? "" : "s"}
+          build replay, {replayStops} {pluralWord(replayStops, "stop")}
         </button>
       ) : null}
     </span>

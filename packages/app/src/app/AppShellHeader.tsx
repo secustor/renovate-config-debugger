@@ -1,4 +1,4 @@
-import { nf } from "@/lib/format";
+import { nf, plural } from "@/lib/format";
 import { AppHeaderTools } from "@/app/AppHeaderTools";
 import { useRunView } from "@/app/run-view-context";
 import type { ResultsTabId } from "@/data/results-tabs";
@@ -123,7 +123,7 @@ function RunStatusPill({ hasErrors, errorCount }: { hasErrors: boolean; errorCou
     return (
       <span className="pill pill-error app-header-status">
         <span className="app-header-status-dot" aria-hidden="true" />
-        {nf.format(errorCount)} error{errorCount === 1 ? "" : "s"}
+        {plural(errorCount, "error")}
       </span>
     );
   }

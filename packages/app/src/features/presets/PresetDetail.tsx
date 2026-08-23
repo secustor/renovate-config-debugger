@@ -17,6 +17,7 @@ import {
   STATE_LABELS,
 } from "./tree-shared";
 import { useEngineHelpers } from "./use-engine-helpers";
+import { pluralWord } from "@/lib/format";
 
 /**
  * Replays the parent's merge loop with renovate's real mergeChildConfig to
@@ -285,8 +286,8 @@ export function PresetDetail({
           {migrationSteps.length > 0 ? (
             <div className="preset-migration-steps">
               <div className="preset-migration-steps-title">
-                Step through the {migrationSteps.length} migration
-                {migrationSteps.length === 1 ? "" : "s"}
+                Step through the {migrationSteps.length}{" "}
+                {pluralWord(migrationSteps.length, "migration")}
               </div>
               <MigrationSteps key={`${node.id}-steps`} steps={migrationSteps} compact />
             </div>
