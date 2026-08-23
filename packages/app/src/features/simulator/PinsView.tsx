@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTransientFlag } from "@/hooks/use-transient-flag";
 import type {
   ProvenanceLayer,
   RuleAttribution,
@@ -28,15 +29,14 @@ import type { PinEvaluation } from "./use-pinned-tests";
  *  with its own inline receipt, since the header's popover is a screen away
  *  from this click. */
 function ShareNote({ onShare }: { onShare: () => Promise<void> }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, flashCopied] = useTransientFlag(1500);
   async function share() {
     try {
       await onShare();
     } catch {
       return;
     }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    flashCopied();
   }
   return (
     <p className="pins-share-note">

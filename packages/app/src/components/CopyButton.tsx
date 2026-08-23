@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useTransientFlag } from "@/hooks/use-transient-flag";
 
 /**
  * Roadmap 036 — THE copy affordance. Before it, four unrelated implementations
@@ -50,7 +50,7 @@ export function CopyButton({
   inSummary,
   iconOnly,
 }: Props) {
-  const [copied, setCopied] = useState(false);
+  const [copied, flashCopied] = useTransientFlag(1500);
 
   async function copy() {
     try {
@@ -59,8 +59,7 @@ export function CopyButton({
       } else {
         await onCopy?.();
       }
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      flashCopied();
     } catch {
       // Clipboard can be unavailable (insecure context) — fail quietly.
     }
