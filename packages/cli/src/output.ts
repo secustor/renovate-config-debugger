@@ -38,6 +38,15 @@ export function messageLines(prefix: string, messages: readonly ValidationMessag
   return messages.map((m) => `  ${prefix} ${m.topic}: ${m.message}`);
 }
 
+/**
+ * What a string COSTS on the wire — bytes, not UTF-16 code units, because
+ * every budget this CLI keeps (the MCP result budget, a key index's size
+ * column) is measured in the bytes a transport actually carries.
+ */
+export function byteLength(text: string): number {
+  return new TextEncoder().encode(text).length;
+}
+
 /** A one-line preview of a value, for tables and tree rows. */
 export function preview(value: unknown, max = 80): string {
   if (value === undefined) {

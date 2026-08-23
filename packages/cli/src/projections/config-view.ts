@@ -1,6 +1,6 @@
 import { globalOnlyOptionNames, removeGlobalConfig } from "@renovate-config-debugger/engine";
 import { parseChoice } from "../args";
-import { preview } from "../output";
+import { byteLength, preview } from "../output";
 
 /**
  * Roadmap 070: the projection over a CONFIG-SHAPED document — the effective
@@ -182,7 +182,7 @@ export function configKeyIndex(config: Record<string, unknown>): ConfigKeySize[]
   return Object.entries(config)
     .map(([key, value]) => ({
       key,
-      bytes: new TextEncoder().encode(JSON.stringify(value) ?? "null").length,
+      bytes: byteLength(JSON.stringify(value) ?? "null"),
     }))
     .toSorted((a, b) => b.bytes - a.bytes || a.key.localeCompare(b.key));
 }

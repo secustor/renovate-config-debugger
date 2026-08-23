@@ -1,3 +1,5 @@
+import { byteLength } from "../output";
+
 /**
  * The one JSON document every MCP tool answers with — and its size budget.
  *
@@ -64,10 +66,6 @@ interface Elision {
   omitted: number;
   /** Where the gap sits among the elements that remain. */
   from: number;
-}
-
-function byteLength(text: string): number {
-  return new TextEncoder().encode(text).length;
 }
 
 function stringify(value: unknown): string {
