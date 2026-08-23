@@ -234,7 +234,8 @@ RCD_DEV_AUTH_SCHEME=oauth          # optional: oauth (default) | cookie | pat
 is the signed-in session (tokens live for the tab), `cookie` additionally
 plants the persistent-sign-in marker so the cookie-mode code paths run, and
 `pat` skips OAuth entirely and seeds the per-host token fallback of an
-OAuth-off deployment.
+OAuth-off deployment. Seeding never overwrites tokens a tab already holds,
+so after switching schemes, sign out or use a fresh tab.
 
 `pnpm dev` then boots already signed in and sends that token on GitHub
 fetches, so the repo picker lists the token's real repositories. This is

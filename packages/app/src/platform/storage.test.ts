@@ -258,6 +258,38 @@ describe("runStorageMigrations", () => {
     expect(local.map.get("rcd.v")).toBe("7");
   });
 
+  test("one throwing key aborts neither the rest of the sweep nor the marker", () => {
+    const local = memoryStorage();
+    const session = memoryStorage();
+    g.localStorage = local;
+    g.sessionStorage = session;
+    local.map.set("rcv.poison", "x");
+    local.map.set("rcv.theme", "dark");
+    const plainSet = local.setItem;
+    local.setItem = (key, value) => {
+      if (key === "rcd.poison") {
+        boom();
+      }
+      plainSet(key, value);
+    };
+    runStorageMigrations();
+    // The poisoned key stays under its old name; everything else migrated.
+    expect(local.map.get("rcv.poison")).toBe("x");
+    expect(local.map.get("rcd.theme")).toBe("dark");
+    expect(local.map.get("rcd.v")).toBe("2");
+  });
+
+  test("a pre-rename marker from a newer version is carried over and the old key retired", () => {
+    const local = memoryStorage();
+    const session = memoryStorage();
+    g.localStorage = local;
+    g.sessionStorage = session;
+    local.map.set("rcv.v", "7");
+    runStorageMigrations();
+    expect(local.map.get("rcd.v")).toBe("7");
+    expect(local.map.has("rcv.v")).toBe(false);
+  });
+
   test("storage-disabled: does not throw (the old module-scope loop did, before createRoot)", () => {
     g.localStorage = throwingStorage();
     g.sessionStorage = throwingStorage();

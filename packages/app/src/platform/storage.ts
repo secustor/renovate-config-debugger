@@ -244,12 +244,21 @@ const STORAGE_MIGRATIONS: readonly (() => void)[] = [
         }
       }
       for (const key of keys) {
-        const value = storage.getItem(key);
-        const renamed = `rcd.${key.slice("rcv.".length)}`;
-        if (value !== null && storage.getItem(renamed) === null) {
-          storage.setItem(renamed, value);
+        // Per-key try, matching the safe-wrapper discipline of everything
+        // else in this file: one QuotaExceededError (or a key going away
+        // under a concurrent tab) must not abort the rest of the sweep, the
+        // migrations after it, or the marker write — that key just stays
+        // under its old name and reads as absent, like any unwritten value.
+        try {
+          const value = storage.getItem(key);
+          const renamed = `rcd.${key.slice("rcv.".length)}`;
+          if (value !== null && storage.getItem(renamed) === null) {
+            storage.setItem(renamed, value);
+          }
+          storage.removeItem(key);
+        } catch {
+          // Skipped key; see above.
         }
-        storage.removeItem(key);
       }
     }
   },
@@ -278,6 +287,13 @@ export function runStorageMigrations(): void {
     // stays, so going back and forth doesn't replay its migrations).
     if (from < STORAGE_MIGRATIONS.length) {
       localSet(STORAGE_VERSION_KEY, String(STORAGE_MIGRATIONS.length));
+    } else if (localGet(STORAGE_VERSION_KEY) === null) {
+      // The marker existed only under its pre-rename name AND claims a newer
+      // version than this build knows, so no migration (and no sweep that
+      // would rename it) ran. Carry the value across by hand — otherwise the
+      // legacy key and its fallback read above would live forever.
+      localSet(STORAGE_VERSION_KEY, String(from));
+      localRemove("rcv.v");
     }
   } catch {
     // A failed migration must never block rendering the app.

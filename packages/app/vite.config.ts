@@ -135,20 +135,22 @@ function devFakeOAuth(env: Record<string, string>): Plugin | null {
           `    sessionStorage.setItem("rcd.githubToken", ${js(token)});`,
         ]
       : [
+          // Cookie mode's whole JS footprint is this marker (the refresh
+          // token would live in an HttpOnly cookie, invisible here anyway);
+          // the 6-month horizon mirrors GitHub's refresh-token lifetime.
+          // BEFORE the already-seeded guard, so switching the scheme to
+          // "cookie" takes effect in a tab that seeded under "oauth".
+          ...(scheme === "cookie"
+            ? [
+                `    localStorage.setItem("rcd.oauth.cookieSession", String(Date.now() + 180 * 24 * 60 * 60 * 1000));`,
+              ]
+            : []),
           `    if (sessionStorage.getItem("rcd.oauth.token")) return;`,
           `    sessionStorage.setItem("rcd.oauth.token", ${js(token)});`,
           // GitHub App user tokens live 8 h; anything > the 60 s refresh
           // skew works, since with no refresh token expiry means sign-out.
           `    sessionStorage.setItem("rcd.oauth.tokenExpiresAt", String(Date.now() + 8 * 60 * 60 * 1000));`,
           `    sessionStorage.setItem("rcd.oauth.user", JSON.stringify({ login: ${js(login)}, avatarUrl: ${js(avatarUrl)} }));`,
-          // Cookie mode's whole JS footprint is this marker (the refresh
-          // token would live in an HttpOnly cookie, invisible here anyway);
-          // the 6-month horizon mirrors GitHub's refresh-token lifetime.
-          ...(scheme === "cookie"
-            ? [
-                `    localStorage.setItem("rcd.oauth.cookieSession", String(Date.now() + 180 * 24 * 60 * 60 * 1000));`,
-              ]
-            : []),
         ];
   return {
     name: "dev-fake-oauth",
@@ -182,7 +184,7 @@ function devFakeOAuth(env: Record<string, string>): Plugin | null {
   };
 }
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode, command }) => ({
   // Served from the domain root everywhere: renovate.secustor.dev in
   // production (custom domains host at "/", and a repo-prefixed base 404s
   // every asset there), localhost + the self-host images elsewhere.
@@ -196,7 +198,13 @@ export default defineConfig(({ mode }) => ({
     react(),
     renovateShims(),
     codemirrorJsonSchemaShims(),
-    devFakeOAuth(loadEnv(mode, fileURLToPath(new URL(".", import.meta.url)), "RCD_DEV_")),
+    // Guarded here, not just by the plugin's own `apply: "serve"`: the
+    // factory VALIDATES the dev-only vars and throws on a bad value, and the
+    // config callback runs for `vite build` too — a typo'd .env entry must
+    // fail the dev server it configures, never a production build.
+    ...(command === "serve"
+      ? [devFakeOAuth(loadEnv(mode, fileURLToPath(new URL(".", import.meta.url)), "RCD_DEV_"))]
+      : []),
   ],
   /**
    * Roadmap 077 review — the dev-only failure reported as "the Share button
