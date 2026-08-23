@@ -108,8 +108,9 @@ export function useRepoPicker(host: RepoPickerHost): RepoPickerView | null {
           const file = await probeConfigFile(repo);
           setBadges((prev) => new Map(prev).set(repo.name, file));
         } catch {
-          // A failed probe stays unknown (no badge) — and is retryable, which
-          // a null (a confident "no config") would not be.
+          // A probe that could not answer — the request failed, or the row's
+          // name is not addressable at all — stays unknown (no badge) and is
+          // retryable, which a null (a confident "no config") would not be.
           probing.current.delete(repo.name);
         }
       })();

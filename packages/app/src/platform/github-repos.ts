@@ -96,13 +96,17 @@ async function fetchTree(ref: string, repo: string): Promise<TreeEntry[]> {
  * Names the config file Renovate's discovery would find in `repo`'s default
  * branch, or null when there is none. The `package.json` candidate is only
  * decided by its body (the `renovate` key), exactly as the real probe decides
- * it. Transport failures throw — "the probe failed" must stay distinguishable
- * from "no config found".
+ * it. Failures throw — "the probe could not answer" must stay distinguishable
+ * from "no config found", which is a confident claim the picker renders as a
+ * blank badge.
  */
 export async function probeConfigFile(repo: UserRepo): Promise<string | null> {
-  // Roadmap 030's use-time boundary: these two compose request paths.
+  // Roadmap 030's use-time boundary: these two compose request paths. A name
+  // that cannot go in a URL is a probe this module REFUSES, not a repository
+  // it has looked at and found nothing in — so it throws with the transport
+  // failures rather than returning the null that means "no config".
   if (!isValidRepoRefPart(repo.name) || !isValidRepoRefPart(repo.defaultBranch)) {
-    return null;
+    throw new Error(`Can't probe ${repo.name}: its name or default branch is not addressable.`);
   }
   const engine = await loadEngine();
   const top = await fetchTree(repo.defaultBranch, repo.name);

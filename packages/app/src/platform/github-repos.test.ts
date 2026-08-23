@@ -156,9 +156,11 @@ describe("probeConfigFile", () => {
     expect(await probeConfigFile(repo())).toBeNull();
   });
 
-  it("refuses to compose a request from an invalid name", async () => {
+  it("throws rather than claiming 'no config' for an unaddressable name", async () => {
     const asked = stubFetch({});
-    expect(await probeConfigFile(repo({ name: "../evil" }))).toBeNull();
+    // Null is the picker's confident "this repo has no Renovate config"; a
+    // name that cannot go in a URL is a probe that never happened.
+    await expect(probeConfigFile(repo({ name: "../evil" }))).rejects.toThrow(/addressable/i);
     expect(asked).toEqual([]);
   });
 });
