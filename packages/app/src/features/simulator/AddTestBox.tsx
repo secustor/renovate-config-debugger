@@ -6,6 +6,7 @@ import type {
 } from "@renovate-config-debugger/engine";
 import { nf } from "@/lib/format";
 import { PIN_FORM_ID } from "./datalist-ids";
+import { DescriptorActions } from "./DescriptorActions";
 import { EMPTY_FORM, type FormState, hasMeaningfulInput } from "./form";
 import { EmptyFormGuard, PinLimitNote } from "./FormNotes";
 import { OpenInSimulatorLink } from "./OpenInSimulatorLink";
@@ -100,31 +101,6 @@ function OneOffResult({
         </p>
         <OpenInSimulatorLink onClick={() => onOpenInSimulator(form)} />
       </div>
-    </div>
-  );
-}
-
-function AddTestActions({
-  simulateDisabled,
-  atLimit,
-  onPin,
-}: {
-  simulateDisabled: boolean;
-  atLimit: boolean;
-  onPin: () => void;
-}) {
-  return (
-    <div className="pin-new-actions">
-      {/* The form's submit button, associated across the DOM by `form=` — so
-          Enter in a field and a click here are the same action (068). */}
-      <button type="submit" form={PIN_FORM_ID} className="btn-primary" disabled={simulateDisabled}>
-        Simulate <kbd>⏎</kbd>
-      </button>
-      {atLimit ? null : (
-        <button type="button" className="btn-quiet" onClick={onPin}>
-          Pin as a standing test
-        </button>
-      )}
     </div>
   );
 }
@@ -443,8 +419,11 @@ export function AddTestBox({
             onQuickFill={(fill) => replaceForm(fill)}
             onSubmit={simulate}
             actions={
-              <AddTestActions
-                simulateDisabled={simulating || !result.finalConfig}
+              <DescriptorActions
+                className="pin-new-actions"
+                formId={PIN_FORM_ID}
+                submitLabel="Simulate"
+                submitDisabled={simulating || !result.finalConfig}
                 atLimit={atLimit}
                 onPin={() => {
                   if (guarded()) {

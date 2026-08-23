@@ -12,6 +12,7 @@ import { changedDependencyKeys } from "@/lib/simulation-changes";
 import { buildNoInputCaveat, buildVerdictSegments } from "@/lib/verdict-sentence";
 import type { ErrorTranslationLib } from "@/platform/run";
 import { SIM_FORM_ID } from "./datalist-ids";
+import { DescriptorActions } from "./DescriptorActions";
 import { EMPTY_FORM, type FormState, hasMeaningfulInput } from "./form";
 import { buildMergeStops } from "./merge-stops";
 import { EmptyFormGuard, PinLimitNote } from "./FormNotes";
@@ -63,57 +64,6 @@ function SimStaleBanner({ ranLabel }: { ranLabel: string }) {
       These results are for <code>{ranLabel}</code> — inputs changed since this run. Simulate again
       to refresh.
     </p>
-  );
-}
-
-/**
- * Roadmap 080: the detail view's actions — the design's pair, the same two the
- * Add-a-test panel has (`AddTestActions`), for the same reason: one form, one
- * grammar. Its own component because the card's JSX is already three levels
- * deep where this sits, and the primary button carries a `<kbd>`.
- *
- * The primary is NOT disabled while a run is in flight (068): HTML performs
- * implicit submission by clicking the form's default button, and disabling it
- * takes Enter-to-simulate off the form entirely. The label is what says a run
- * is already going; a second press is held (`pendingRunRef`).
- */
-function SimActions({
-  running,
-  stale,
-  atLimit,
-  justPinned,
-  onPin,
-}: {
-  running: boolean;
-  stale: boolean;
-  atLimit: boolean;
-  /** The transient receipt — the pins list is a click away, so the pin has to
-   *  say it happened where it was clicked. */
-  justPinned: boolean;
-  onPin: () => void;
-}) {
-  return (
-    <div className="sim-actions">
-      {/* Roadmap 079: the design prints the key on the primary action, the
-          same way the Add-a-test panel's Simulate does — one grammar for
-          "Enter does this", on both of the form's two homes. */}
-      <button type="submit" form={SIM_FORM_ID} className="btn-primary">
-        {running ? "Simulating…" : "Simulate"} <kbd>⏎</kbd>
-      </button>
-      {atLimit ? null : (
-        <button type="button" className="btn-quiet" onClick={onPin}>
-          Pin as a standing test
-        </button>
-      )}
-      {stale ? <span className="sim-stale">inputs changed — simulate again to refresh</span> : null}
-      {/* A persistent status region, not a conditional span: the receipt has
-          to be ANNOUNCED, and a live region only reliably announces content
-          that arrives after the region itself exists. Last in the row so its
-          empty state contributes only a trailing (invisible) flex gap. */}
-      <span className="host-ok" role="status">
-        {justPinned ? "Pinned ✓" : null}
-      </span>
-    </div>
   );
 }
 
@@ -511,13 +461,29 @@ export const RuleSimulator = memo(function RuleSimulator({
         onQuickFill={quickFill}
         onSubmit={submitSimulation}
       />
-      <SimActions
-        running={running}
-        stale={stale}
+      {/* The primary is NOT disabled while a run is in flight (068): HTML
+          performs implicit submission by clicking the form's default button,
+          and disabling it takes Enter-to-simulate off the form entirely. The
+          label is what says a run is already going; a second press is held
+          (`pendingRunRef`). */}
+      <DescriptorActions
+        className="sim-actions"
+        formId={SIM_FORM_ID}
+        submitLabel={running ? "Simulating…" : "Simulate"}
         atLimit={atLimit}
-        justPinned={justPinned}
         onPin={pinAsTest}
-      />
+      >
+        {stale ? (
+          <span className="sim-stale">inputs changed — simulate again to refresh</span>
+        ) : null}
+        {/* A persistent status region, not a conditional span: the receipt has
+            to be ANNOUNCED, and a live region only reliably announces content
+            that arrives after the region itself exists. Last in the row so its
+            empty state contributes only a trailing (invisible) flex gap. */}
+        <span className="host-ok" role="status">
+          {justPinned ? "Pinned ✓" : null}
+        </span>
+      </DescriptorActions>
       {/* Roadmap 015: empty-form guard — replaces a would-be "0 of N rules
           matched" wall of no-matches with a plain nudge. */}
       {showEmptyGuard ? <EmptyFormGuard /> : null}
