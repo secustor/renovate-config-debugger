@@ -22,7 +22,7 @@
  */
 import { type RefObject, useCallback, useEffect, useMemo, useState } from "react";
 import { useRef } from "react";
-import { PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
+import { DEFAULT_ENDPOINT, DEFAULT_PLATFORM, PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
 import {
   isValidEndpoint,
   isValidPlatform,
@@ -83,10 +83,10 @@ export interface PlatformContext {
 
 export function usePlatformContext(): PlatformContext {
   const [platform, setPlatform] = useState(() =>
-    readLocal(PLATFORM_KEY, "github", isValidPlatform),
+    readLocal(PLATFORM_KEY, DEFAULT_PLATFORM, isValidPlatform),
   );
   const [endpoint, setEndpoint] = useState(() =>
-    readLocal(ENDPOINT_KEY, "https://api.github.com", isValidEndpoint),
+    readLocal(ENDPOINT_KEY, DEFAULT_ENDPOINT, isValidEndpoint),
   );
   const [globalText, setGlobalText] = useState("");
   const [platformOverride, setPlatformOverride] = useState(false);

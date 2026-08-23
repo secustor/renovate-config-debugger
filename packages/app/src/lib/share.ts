@@ -12,7 +12,12 @@
  */
 import type { StageId } from "@renovate-config-debugger/engine";
 import type { ShareResultsTabId } from "@/data/results-tabs";
-import { isTrustedEndpoint, PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
+import {
+  DEFAULT_ENDPOINT,
+  DEFAULT_PLATFORM,
+  isTrustedEndpoint,
+  PLATFORM_ENDPOINTS,
+} from "@/data/platform-endpoints";
 
 // Roadmap 031: the payload schemas (and with them zod) load with the first
 // encode/decode — both call sites are already async — via this module-cached
@@ -22,8 +27,6 @@ function loadSchemas() {
   return import("./input-schemas-zod");
 }
 
-const DEFAULT_PLATFORM = "github";
-const DEFAULT_ENDPOINT = "https://api.github.com";
 const FRAGMENT_KEY = "config";
 
 export type ShareFileName = "renovate.json" | "renovate.json5";

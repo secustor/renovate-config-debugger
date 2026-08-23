@@ -24,6 +24,7 @@ import {
   type StoredUser,
 } from "@/platform/oauth";
 import { getRenovateVersion } from "@/platform/run";
+import { DEFAULT_ENDPOINT, DEFAULT_PLATFORM } from "@/data/platform-endpoints";
 import type { RunInputs } from "@/lib/run-inputs";
 import {
   buildShareUrl,
@@ -246,8 +247,8 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
     // clears) any guard a previous link installed.
     const policy = decideShareRunPolicy(payload);
     host.applyUntrustedGuard(untrustedGuardForPolicy(policy));
-    const nextPlatform = payload.platform ?? "github";
-    const nextEndpoint = payload.endpoint ?? "https://api.github.com";
+    const nextPlatform = payload.platform ?? DEFAULT_PLATFORM;
+    const nextEndpoint = payload.endpoint ?? DEFAULT_ENDPOINT;
     host.loadConfigText(payload.config);
     host.setFileName(payload.fileName);
     // The link's platform/endpoint always reach the UI (transparency: the user
