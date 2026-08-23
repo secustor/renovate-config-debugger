@@ -225,8 +225,8 @@ To develop against the signed-in state without provisioning a GitHub App and
 Worker, put a token into the gitignored `packages/app/.env`:
 
 ```ini
-RCV_DEV_FAKE_OAUTH_TOKEN=ghp_xxx   # any GitHub token, e.g. a classic PAT
-RCV_DEV_FAKE_OAUTH_LOGIN=octocat   # optional: the login the session menu shows
+RCD_DEV_FAKE_OAUTH_TOKEN=ghp_xxx   # any GitHub token, e.g. a classic PAT
+RCD_DEV_FAKE_OAUTH_LOGIN=octocat   # optional: the login the session menu shows
 ```
 
 `pnpm dev` then boots already signed in and sends that token on GitHub

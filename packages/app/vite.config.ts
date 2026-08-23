@@ -82,7 +82,7 @@ function codemirrorJsonSchemaShims(): Plugin {
 
 /**
  * Dev-only signed-in state, without a GitHub App or Worker: when the
- * gitignored `packages/app/.env` sets `RCV_DEV_FAKE_OAUTH_TOKEN` (any GitHub
+ * gitignored `packages/app/.env` sets `RCD_DEV_FAKE_OAUTH_TOKEN` (any GitHub
  * token — a classic PAT works), `pnpm dev` boots the app already signed in.
  * The seeding has to run before ANY module code (App.tsx reads the OAuth
  * config at module scope), so it goes in as an inline `head-prepend` script,
@@ -106,11 +106,11 @@ function codemirrorJsonSchemaShims(): Plugin {
 const js = (value: string) => JSON.stringify(value).replaceAll("<", "\\u003c");
 
 function devFakeOAuth(env: Record<string, string>): Plugin | null {
-  const token = env.RCV_DEV_FAKE_OAUTH_TOKEN?.trim();
+  const token = env.RCD_DEV_FAKE_OAUTH_TOKEN?.trim();
   if (!token) {
     return null;
   }
-  const login = env.RCV_DEV_FAKE_OAUTH_LOGIN?.trim() || "octocat";
+  const login = env.RCD_DEV_FAKE_OAUTH_LOGIN?.trim() || "octocat";
   const avatarUrl = `https://github.com/${encodeURIComponent(login)}.png`;
   return {
     name: "dev-fake-oauth",
@@ -158,7 +158,7 @@ export default defineConfig(({ mode }) => ({
     react(),
     renovateShims(),
     codemirrorJsonSchemaShims(),
-    devFakeOAuth(loadEnv(mode, fileURLToPath(new URL(".", import.meta.url)), "RCV_DEV_")),
+    devFakeOAuth(loadEnv(mode, fileURLToPath(new URL(".", import.meta.url)), "RCD_DEV_")),
   ],
   /**
    * Roadmap 077 review — the dev-only failure reported as "the Share button
