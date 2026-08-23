@@ -2,7 +2,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 import { renovateShims } from "@renovate-config-debugger/engine/vite-plugin";
 
 /**
@@ -80,7 +80,71 @@ function codemirrorJsonSchemaShims(): Plugin {
   };
 }
 
-export default defineConfig({
+/**
+ * Dev-only signed-in state, without a GitHub App or Worker: when the
+ * gitignored `packages/app/.env` sets `RCV_DEV_FAKE_OAUTH_TOKEN` (any GitHub
+ * token — a classic PAT works), `pnpm dev` boots the app already signed in.
+ * The seeding has to run before ANY module code (App.tsx reads the OAuth
+ * config at module scope), so it goes in as an inline `head-prepend` script,
+ * not an app import: it plants a fake `__RCV_OAUTH__` (which outranks the
+ * `VITE_*` vars, so a configured real deployment is overridden while the
+ * fake is on) and seeds the `rcv.oauth.*` sessionStorage keys — mirrors of
+ * `K` in src/platform/oauth.ts, which deliberately does not export them.
+ * `getValidToken()` then returns the token verbatim, so GitHub fetches (and
+ * the roadmap-085 repo picker) hit the real API with it.
+ *
+ * Why the token cannot leak into a bundle: `apply: "serve"` keeps the plugin
+ * out of every build, and the non-`VITE_` prefix keeps the var out of
+ * `import.meta.env`. Seeding skips when a token already exists (never
+ * clobbers a session); "Sign out" clears the keys, so the next reload seeds
+ * again. The one dead end is the sign-in button itself — GitHub 404s the
+ * fake client id. This fakes the signed-in STATE, not the flow; the flow
+ * needs the real setup in packages/oauth-worker/README.md.
+ */
+// JSON.stringify plus a `<` escape keeps a value inert inside an inline
+// <script> — no `</script>` breakout from a hand-typed .env value.
+const js = (value: string) => JSON.stringify(value).replaceAll("<", "\\u003c");
+
+function devFakeOAuth(env: Record<string, string>): Plugin | null {
+  const token = env.RCV_DEV_FAKE_OAUTH_TOKEN?.trim();
+  if (!token) {
+    return null;
+  }
+  const login = env.RCV_DEV_FAKE_OAUTH_LOGIN?.trim() || "octocat";
+  const avatarUrl = `https://github.com/${encodeURIComponent(login)}.png`;
+  return {
+    name: "dev-fake-oauth",
+    apply: "serve",
+    transformIndexHtml() {
+      return [
+        {
+          tag: "script",
+          injectTo: "head-prepend",
+          children: [
+            "(() => {",
+            // The Worker port from oauth-worker/server.mjs, in case one is
+            // actually running there; signOut's fire-and-forget POST /logout
+            // swallows the connection error when nothing is.
+            `  globalThis.__RCV_OAUTH__ = { clientId: "dev-fake", workerUrl: "http://localhost:8788" };`,
+            "  try {",
+            `    if (sessionStorage.getItem("rcv.oauth.token")) return;`,
+            `    sessionStorage.setItem("rcv.oauth.token", ${js(token)});`,
+            // GitHub App user tokens live 8 h; anything > the 60 s refresh
+            // skew works, since with no refresh token expiry means sign-out.
+            `    sessionStorage.setItem("rcv.oauth.tokenExpiresAt", String(Date.now() + 8 * 60 * 60 * 1000));`,
+            `    sessionStorage.setItem("rcv.oauth.user", JSON.stringify({ login: ${js(login)}, avatarUrl: ${js(avatarUrl)} }));`,
+            "  } catch {",
+            "    // storage-disabled browser: boots signed out, like everywhere else",
+            "  }",
+            "})();",
+          ].join("\n"),
+        },
+      ];
+    },
+  };
+}
+
+export default defineConfig(({ mode }) => ({
   // Served from the domain root everywhere: renovate.secustor.dev in
   // production (custom domains host at "/", and a repo-prefixed base 404s
   // every asset there), localhost + the self-host images elsewhere.
@@ -90,7 +154,12 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
-  plugins: [react(), renovateShims(), codemirrorJsonSchemaShims()],
+  plugins: [
+    react(),
+    renovateShims(),
+    codemirrorJsonSchemaShims(),
+    devFakeOAuth(loadEnv(mode, fileURLToPath(new URL(".", import.meta.url)), "RCV_DEV_")),
+  ],
   /**
    * Roadmap 077 review — the dev-only failure reported as "the Share button
    * is not working": most of this app's module graph enters lazily (the
@@ -171,4 +240,4 @@ export default defineConfig({
      */
     sourcemap: true,
   },
-});
+}));

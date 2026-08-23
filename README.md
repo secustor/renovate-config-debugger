@@ -221,6 +221,21 @@ pnpm lint && pnpm format:check
 [docs/Architecture.md](docs/Architecture.md) covers how it all works: the shim
 plugin, the golden tests, the pinned Renovate.
 
+To develop against the signed-in state without provisioning a GitHub App and
+Worker, put a token into the gitignored `packages/app/.env`:
+
+```ini
+RCV_DEV_FAKE_OAUTH_TOKEN=ghp_xxx   # any GitHub token, e.g. a classic PAT
+RCV_DEV_FAKE_OAUTH_LOGIN=octocat   # optional: the login the session menu shows
+```
+
+`pnpm dev` then boots already signed in and sends that token on GitHub
+fetches, so the repo picker lists the token's real repositories. This is
+dev-server-only (builds never see the variable) and fakes the signed-in
+_state_, not the sign-in _flow_ — testing the flow itself takes the real
+provisioning in
+[packages/oauth-worker/README.md](packages/oauth-worker/README.md#provisioning).
+
 <details>
 <summary>Privacy, tokens & GitHub sign-in</summary>
 
