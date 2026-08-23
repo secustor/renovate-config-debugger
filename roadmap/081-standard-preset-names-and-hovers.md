@@ -271,7 +271,9 @@ tree's origin framing), and a descendant-selector size override
 - `components/DescriptionDigestCard.test.tsx` updated where the leaf label
   changed shape: it is found by class rather than by the `title` it no longer
   has, and the approximate run now carries three `≈` marks — the labelled row's
-  mark moved out of the name prefix and next to the token.
+  mark moved out of the name prefix and next to the token. (Both the card and
+  this suite were deleted by 083, which regrouped the digest by topic as
+  `features/overview/OverviewPanel.tsx`; the token adoption survives there.)
 - `features/effective-config/description-ledger.test.ts` updated for
   `viaNoteText` → `viaNoteRef`: the three cases it pinned (nested writer, the
   extend that IS the writer, a non-preset layer) are unchanged, asserted on the

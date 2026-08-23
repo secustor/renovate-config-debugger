@@ -51,7 +51,9 @@ shared layer, and those files stay. The rest sorted into:
 Full suite per commit: typecheck, lint (the existing overrides cover the
 new folders with no config change), format, 219 app unit tests, build,
 59/59 e2e — zero test edits beyond mechanical import paths (including
-two `vi.mock` module paths in `keystroke-render.test.tsx`).
+two `vi.mock` module paths in `keystroke-render.test.tsx` — since renamed and
+moved to `src/app/keystroke-render.shimmed.test.tsx`, the filename being what
+assigns it to the shimmed vitest project).
 
 ## Addendum — 2026-08-20: `features/effective-config/` now exists
 

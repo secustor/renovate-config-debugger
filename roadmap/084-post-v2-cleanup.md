@@ -26,7 +26,8 @@ below.
   copy, which is what made the divergence invisible until they sat side by side.
 - **`lib/provenance-layer.ts`, `lib/description-approx.ts`** (`dc1b9b3`) — out
   of `components/`. They are DOM-free and on the headless (CLI) path, which is
-  049's stated rule for what lives in `lib/`; 034 had put `provenance-layer`
+  what earned them the move — not a property of `lib/` itself [corrected
+  2026-08-23: see the addendum]; 034 had put `provenance-layer`
   under `components/` only because that is where it was extracted FROM.
 - **`features/overview/description-digest.ts`, `description-topics.ts`**
   (`dc1b9b3`) — the other direction. One consumer, absent from the headless
@@ -130,4 +131,27 @@ purpose:
 No new suite beyond `lib/headless.test.ts`. The existing unit and render
 projects are the pass's proof: every extraction and every move had to leave 869
 app unit tests and the CLI's 324 green, which is what "behavior-preserving"
-means operationally here.
+means operationally here. (The `render` project was split into `components` and
+`shimmed` by the second cleanup pass; the sentence is what it was at the time.)
+
+## Addendum — 2026-08-23: two claims the second cleanup pass corrected
+
+**`lib/` is not "the DOM-free layer", and no rule here says it is.** The
+sentence above reads that way, and it would be a rule this repository does not
+keep: eight `lib/` modules touch the DOM by design — `anchored-card`,
+`escape-stack`, `focus-landing`, `focus-restore`, `motion`, `results-tab-dom`,
+`share` and `shortcuts` — and belong there, being shared browser machinery with
+no feature to live in. The invariant that IS tested is narrower and is the one
+this pass built: everything in the transitive closure of `lib/headless.ts` is
+pure (no React, no browser global) and lives under `lib/`/`data/`, asserted by
+`lib/headless.test.ts`. So "DOM-free and on the headless path" is what earned
+`provenance-layer.ts` and `description-approx.ts` their move — a property of
+those two modules, not a promise about their destination. The general rule for
+`lib/` is still 049's: shared by consumers in more than one place.
+
+**The knip ruling was taken, and it is yes.** The "deliberately not done"
+bullet above left an unused-export gate to the user on the grounds that it
+would start life with an allowlist as long as its findings. The second cleanup
+pass measured the premise and found it false once the engine barrel was
+trimmed: `pnpm check:exports` now gates CI, scoped to exports only, with the
+two carve-outs and the reasoning in `knip.jsonc`'s own header.
