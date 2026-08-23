@@ -44,3 +44,23 @@ three commits with deliberately different rigor:
   (base rule in the 008 section, `@container` override in 002 — the
   stacked `border-left: none` is currently dead, a latent bug recorded
   but not fixed) and `.diff-wrapper`'s split base/dark blocks.
+
+## Addendum (2026-08-23): the deferred split, executed
+
+The second cleanup pass ruled to take it (`index.css` had grown 3,184 →
+7,515 lines through 051–085). Shape: `index.css` keeps the token block
+and element base; the rest is cut **at its own section boundaries, in
+original order**, into fifteen numbered `src/styles/` files that
+`main.tsx` imports in sequence. Cutting at boundaries rather than
+re-sorting rules into per-feature purity is the deliberate deviation
+from the sketch above: order fidelity is what makes the split provable,
+and it is exactly what the two recorded couplings need — both are
+preserved as-is (including the dead `border-left: none`, still recorded,
+still not this change's to fix).
+
+Gate, as specified: the built asset is **byte-identical** before and
+after (same content hash, `index-BIdr67D9.css`), so nothing about the
+cascade changed. One config consequence:
+`csstools/value-no-unknown-custom-properties` resolved tokens same-file
+only, so it now carries `importFrom: index.css` — every split file's
+`var()` still has to resolve against the token block.

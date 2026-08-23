@@ -1,0 +1,429 @@
+/* Split out of index.css (roadmap 050's deferred plan, executed 2026-08-23).
+   ORDER IS LOAD-BEARING: main.tsx imports these numbered files in sequence,
+   preserving the original file's cascade byte-for-byte — two cross-file
+   equal-specificity couplings (.preset-panel, .diff-wrapper) depend on it.
+   This file: shareable links, load from repo, sign in with GitHub (007/009). */
+
+/* ---------- shareable links + load from repo (007) ---------- */
+
+/* Roadmap 039: the repo-load disclosure. The always-open form above the editor
+   cost ~64px of standing height for an action a session performs zero or one
+   times; it is now a chrome row (036 grammar: surface fill, bottom border)
+   that exists only while the disclosure in the card title is open — inside the
+   card whose content the load replaces. */
+.repo-panel {
+  align-items: center;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  /* Roadmap 035: ONE unwrappable row. Both inputs shrink and the buttons never
+     do, so Load can't be orphaned onto a line of its own however narrow the
+     config column gets. */
+  flex-wrap: nowrap;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem;
+}
+
+/* `min-width: 0` defeats the intrinsic minimum width a text input otherwise
+   imposes on a flex item — without it the row cannot shrink and overflows. */
+.repo-panel-repo {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.repo-panel-ref {
+  flex: 0 1 9rem;
+  min-width: 5rem;
+}
+
+.repo-panel .btn-primary,
+.repo-panel .btn-secondary {
+  flex: none;
+}
+
+/* Roadmap 045: the sub-row under the inputs — the default-on inherited-config
+   checkbox and the exact repo/file the probe will read. It carries the chrome
+   row's bottom border so the two rows read as one block, and unlike the row
+   above it MAY wrap: it holds no submit button whose position matters, and its
+   two fields need a readable width more than they need one line. */
+.repo-panel.no-border {
+  border-bottom: none;
+}
+
+.repo-panel-row2 {
+  align-items: center;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  gap: 0.4rem;
+  padding: 0 0.75rem 0.5rem;
+}
+
+.repo-panel-row2 .ctl {
+  flex: 1 1 9rem;
+  min-width: 7rem;
+}
+
+.repo-panel-inherit {
+  align-items: center;
+  display: inline-flex;
+  flex: none;
+  gap: 0.3rem;
+}
+
+/* Roadmap 085: the signed-in "Your repositories" picker between the reference
+   row and the inherit row (the design's "combined" variant). Rows are buttons
+   that WRITE the reference field — the one Load button stays the only
+   trigger, so branch and inherit fields apply to a picked repo exactly as to
+   a pasted one. */
+.repo-picker {
+  border-bottom: 1px solid var(--border);
+  padding: 0.25rem 0.75rem 0.4rem;
+}
+
+.repo-picker-label {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  font-size: 0.7rem;
+  font-weight: 600;
+  gap: 0.35rem;
+  letter-spacing: 0.04em;
+  margin: 0.25rem 0;
+  text-transform: uppercase;
+}
+
+.repo-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.repo-picker-row {
+  align-items: baseline;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font-family: inherit;
+  font-size: 0.8rem;
+  gap: 0.5rem;
+  padding: 0.25rem 0.4rem;
+  text-align: left;
+  width: 100%;
+}
+
+.repo-picker-row:hover {
+  background: var(--surface);
+}
+
+.repo-picker-row.selected {
+  background: var(--accent-bg);
+  outline: 1px solid var(--accent);
+}
+
+.repo-picker-row > code {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repo-picker-note {
+  color: var(--muted);
+  font-size: 0.72rem;
+  margin: 0.15rem 0;
+}
+
+/* The probe's verdict: which config file a load would find (--ok, it exists),
+   or the probe's confident "no config found". No badge at all = unknown. */
+.repo-picker-badge {
+  border-radius: 999px;
+  flex: none;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  margin-left: auto;
+  padding: 0 0.45rem;
+}
+
+.repo-picker-badge.found {
+  background: var(--ok-bg);
+  border: 1px solid var(--ok-border);
+  color: var(--ok);
+}
+
+.repo-picker-badge.none {
+  border: 1px solid var(--border);
+  color: var(--faint);
+}
+
+/* The card title becomes a row when it needs one (039): the editor card for
+   its toolbar, the effective card for its truncating hint (082 moved its view
+   switch into the tab's own toolbar row). Every other card title stays plain
+   text so its inline hints and copy buttons keep wrapping as prose. */
+.editor-card-title,
+.effective-card-title {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Roadmap 075: the editor card's title bar holds the whole config toolbar —
+   the file name (as its select), where to fetch one from, how to format it and
+   how to run it. It is a control row rather than a heading, so it drops the
+   card title's heading weight and takes the tighter chrome padding. */
+.editor-card-title {
+  font-weight: 400;
+  padding: 0.35rem 0.5rem;
+}
+
+.editor-card-title > .toolbar {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Roadmap 075: the editor card and whatever sits under it. */
+.editor-shell {
+  margin-bottom: 1rem;
+}
+
+.editor-shell > .card {
+  margin-bottom: 0;
+}
+
+/* The document itself, and the positioning context for a layer over it. */
+.editor-body {
+  position: relative;
+}
+
+/* Roadmap 075: loading a config from a repository REPLACES the document under
+   it, so the form covers that document instead of pushing it out of the pane
+   (039's chrome row, which had a page that could grow). The scrim is a real
+   button: click-to-dismiss must be reachable and announced. */
+.repo-overlay {
+  inset: 0;
+  position: absolute;
+  z-index: var(--z-float);
+}
+
+.repo-overlay-scrim {
+  background: var(--backdrop);
+  border: none;
+  cursor: pointer;
+  inset: 0;
+  padding: 0;
+  position: absolute;
+}
+
+.repo-overlay > form {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-popover);
+  left: 0.6rem;
+  /* Roadmap 085: the signed-in picker can make the form taller than the
+     editor pane it overlays — the form scrolls, never the page. */
+  max-height: calc(100% - 1.2rem);
+  overflow: hidden auto;
+  position: absolute;
+  right: 0.6rem;
+  top: 0.6rem;
+}
+
+/* The rows' bottom borders separated the form from the editor under it when it
+   was a chrome row; inside a card of its own the last one is a stray line. */
+.repo-overlay .repo-panel-row2 {
+  border-bottom: none;
+}
+
+.effective-card-title .card-title-hint {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Roadmap 027: a broken share link must be unmissable — a full-width banner at
+   the top of the page, not the small dismissable notice below the fold. */
+.share-error-banner {
+  background: var(--error-wash);
+  border: 1px solid var(--error);
+  border-left: 4px solid var(--error);
+  border-radius: 6px;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  line-height: 1.4;
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+}
+
+.share-error-banner-title {
+  color: var(--error);
+  font-size: 1rem;
+}
+
+/* Security 2026-07-25: a link aimed at an untrusted endpoint gets the same
+   unmissable banner as a broken one, in the warning tone — it reports a
+   decision the app already made (the run happened, just without tokens),
+   not a failure, and stays until the user acknowledges it. */
+.share-warning-banner {
+  background: var(--warn-wash);
+  border-color: var(--warn);
+  border-left-color: var(--warn);
+}
+
+.share-warning-banner .share-error-banner-title {
+  color: var(--warn);
+}
+
+.share-warning-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.share-warning-ack,
+.share-warning-trust {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.7rem;
+}
+
+/* The opt-in is the consequential choice: outlined in the warning colour so it
+   reads as deliberate, never as the easy default. */
+.share-warning-trust {
+  border-color: var(--warn);
+  font-weight: 600;
+}
+
+/* The standing reminder beside Run — present for as long as the suppression
+   is, which is why it carries the opt-in too rather than being a dead end.
+   Roadmap 075: a warn `.pill`; what is left here is that it holds a control. */
+.untrusted-endpoint-chip {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.4rem;
+  padding: 0.1rem 0.5rem;
+}
+
+.untrusted-endpoint-allow {
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.app-notice {
+  align-items: baseline;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--warn);
+  border-radius: 6px;
+  color: inherit;
+  display: flex;
+  font-size: 0.88rem;
+  gap: 0.75rem;
+  justify-content: space-between;
+  margin: 0.5rem 0;
+  padding: 0.5rem 0.75rem;
+}
+
+.app-notice-dismiss {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  text-decoration: underline;
+}
+
+/* ---------- sign in with GitHub (009) ----------
+   The identity chip that used to live here (`.gh-auth-chip` and its four
+   children) went with 066: the session is a header menu now, styled under
+   "session menu" below. What remains is the ERROR-PATH surfacing, which stays
+   exactly where it was — a hint belongs beside the failure it explains, not in
+   a corner the reader would have to go looking in. */
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+/* Roadmap 075 review: on narrow panes the toolbar wraps and Run lands on a
+   row of its own — WITHOUT the spacer, which stayed on the first line. The
+   auto margin only resolves when that happens (on one line the spacer's
+   flex-grow has already absorbed the free space), so Run stays the rightmost
+   thing on whichever row it occupies. Scoped to the toolbar: the landing's
+   primary Run is centered by its own container. */
+.toolbar .run-button {
+  margin-left: auto;
+}
+
+.gh-auth-hint {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 0.25rem 0 0.4rem;
+}
+
+.preset-panel .gh-auth-hint {
+  padding-left: 0;
+}
+
+.gh-inline-signin {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
+/* Roadmap 009 (auth-failure surfacing): the run-level counterpart of the hint
+   above — it sits inside the results shell, above every tab panel, so it takes
+   the same tint-on-a-card treatment as 023's hypothetical banner rather than
+   the full-bleed page banners (`.share-error-banner`), which belong to the
+   page and not to a result. */
+.auth-failure-banner {
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
+  border-left: 3px solid var(--error);
+  border-radius: 6px;
+  color: inherit;
+  margin: 0 0 0.6rem;
+  padding: 0.5rem 0.7rem;
+}
+
+.auth-failure-banner-line {
+  color: var(--error);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+/* The hint sits directly under the sentence it qualifies — its own default
+   margins would read as a second, unrelated paragraph. */
+.auth-failure-banner .gh-auth-hint {
+  margin: 0.2rem 0 0;
+}
+
+/* Roadmap 075: a `.btn-secondary`; only its detachment from the line above is
+   its own. */
+.auth-failure-rerun {
+  margin-top: 0.35rem;
+}

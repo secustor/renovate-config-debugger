@@ -1,0 +1,324 @@
+/* Split out of index.css (roadmap 050's deferred plan, executed 2026-08-23).
+   ORDER IS LOAD-BEARING: main.tsx imports these numbered files in sequence,
+   preserving the original file's cascade byte-for-byte — two cross-file
+   equal-specificity couplings (.preset-panel, .diff-wrapper) depend on it.
+   This file: the landing (075). */
+
+/* ---------- the landing (roadmap 075, v2 iteration 2) ----------
+   What the app is before a run. It replaced 040's three-step welcome card,
+   which explained the app above an editor the reader had not used yet; the
+   landing asks the page's question instead and puts everything that can be
+   done about it in one centered column. */
+
+.landing-intro {
+  margin: 1.25rem 0 1.25rem;
+  text-align: center;
+}
+
+/* Visually the headline; semantically an h2 — the document's h1 is the product
+   name in the header (see `.app-brand h1`). */
+.landing-title {
+  font-size: 1.65rem;
+  line-height: 1.25;
+  margin: 0 0 0.5rem;
+}
+
+.landing-subtitle {
+  color: var(--muted);
+  margin: 0;
+}
+
+.landing-launch {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin: 1.1rem 0 1.4rem;
+}
+
+.landing-examples {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  gap: 0.5rem;
+  justify-content: center;
+  margin: 0;
+}
+
+/* The landing's one primary action, and the only control on the screen that is
+   allowed to be bigger than the standard button metrics. */
+.landing-run {
+  font-size: 0.95rem;
+  padding: 0.45rem 1.4rem;
+}
+
+/* Roadmap 075 (iteration 4) — THE STAGE RAIL. One implementation, two modes:
+   the Pipeline tab's stage selector (live glyphs, deltas, clickable) and the
+   landing's `.preview` teaser of it (hollow, dimmed, inert). Geometry and
+   glyph shapes are defined once here, so the preview cannot drift from the
+   rail it previews. */
+.stage-rail {
+  display: flex;
+  list-style: none;
+  margin: 0 0 0.9rem;
+  padding: 0;
+  position: relative;
+}
+
+/* The line the nodes sit ON. It stops short of the outer columns' centers so
+   it never runs off past the first and last node. */
+.stage-rail::before {
+  background: var(--border);
+  content: "";
+  height: 2px;
+  left: 6%;
+  position: absolute;
+  right: 6%;
+  /* The glyph is 0.6rem tall, so its center is 0.3rem down; half the line's
+     own 2px puts the line's top here. */
+  top: 0.24rem;
+}
+
+.stage-rail-node {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  position: relative;
+  text-align: center;
+}
+
+.stage-rail-btn {
+  align-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  gap: 0.3rem;
+  padding: 0 0.1rem;
+  width: 100%;
+}
+
+/* Roadmap 024's dot vocabulary, on the rail: clean/changed/error/skipped each
+   keep a distinct SHAPE as well as a color, so the signal survives grayscale
+   and color-blind viewing. The canvas halo punches the line out from under the
+   glyph, so the line reads as passing BEHIND the nodes (and shows through no
+   hollow one). */
+.stage-rail-glyph {
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px var(--canvas);
+  flex: none;
+  height: 0.6rem;
+  width: 0.6rem;
+}
+
+.stage-rail-glyph.clean {
+  background: var(--ok);
+}
+
+.stage-rail-glyph.error {
+  background: var(--error);
+}
+
+.stage-rail-glyph.changed {
+  background: var(--warn);
+  border-radius: 2px;
+  transform: rotate(45deg);
+}
+
+.stage-rail-glyph.skipped,
+.stage-rail-glyph.preview {
+  background: var(--canvas);
+  border: 1.5px solid var(--muted);
+}
+
+.stage-rail-glyph.preview {
+  opacity: 0.6;
+}
+
+/* Roadmap 075/076: a stage the in-flight walk has passed. ACCENT, not `--ok`
+   — a lit dot is activity, never a verdict: mid-run the app knows which stage
+   Renovate's code is walking and nothing at all about how it came out. (The
+   one pre-run FACT the walk may state is a skipped layer, which wears the
+   rail's own hollow `skipped` glyph — see StageGlyph. Declared after
+   `.preview`, whose background it overrides at equal specificity.) */
+.stage-rail-glyph.lit {
+  background: var(--accent);
+  border-color: var(--accent);
+  opacity: 1;
+}
+
+.stage-rail-label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+/* The delta line: glyph shorthand for what the stage did (`stage-delta.ts`),
+   mono and tabular so eight columns of numbers line up. Always rendered, empty
+   or not, so selecting a stage never shifts the rail's height. */
+.stage-rail-delta {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  min-height: 0.85rem;
+}
+
+.stage-rail-delta.dim {
+  color: var(--muted);
+  opacity: 0.55;
+}
+
+.stage-rail-delta.neutral {
+  color: var(--muted);
+}
+
+.stage-rail-delta.ok {
+  color: var(--ok);
+}
+
+.stage-rail-delta.warn {
+  color: var(--warn);
+}
+
+.stage-rail-delta.error {
+  color: var(--error);
+}
+
+.stage-rail-btn:hover .stage-rail-label {
+  color: var(--ink);
+}
+
+/* Selected: the accent ring sits OUTSIDE the canvas halo, so the node keeps
+   hiding the line while wearing it. */
+.stage-rail-btn.selected .stage-rail-glyph {
+  box-shadow:
+    0 0 0 3px var(--canvas),
+    0 0 0 6px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.stage-rail-btn.selected .stage-rail-label {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.stage-rail-btn:focus-visible {
+  border-radius: 6px;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The landing's mode: the same rail, with nothing to report yet.
+
+   Roadmap 075 (the landing transition): idle, it sits back — it is a promise
+   about a screen the reader has not asked for yet, and at full strength it
+   competed with the Run button above it. While a run is in flight the block
+   comes forward, because for those seconds it IS the screen's content. */
+.stage-rail-preview {
+  margin: 0.5rem 0 0;
+  opacity: 0.55;
+  transition: opacity 220ms ease;
+}
+
+.stage-rail-preview.running {
+  opacity: 1;
+}
+
+.stage-rail.preview {
+  margin-bottom: 0;
+}
+
+/* No button to carry the column's gap in this mode, so the node carries it. */
+.stage-rail.preview .stage-rail-node {
+  gap: 0.35rem;
+}
+
+/* The stage the narration is on. Same ring as the live rail's selected node
+   (and outside the canvas halo for the same reason), so "where the run is" and
+   "where you are" read as one vocabulary. */
+.stage-rail.preview .stage-rail-node.current .stage-rail-glyph {
+  box-shadow:
+    0 0 0 3px var(--canvas),
+    0 0 0 6px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.stage-rail.preview .stage-rail-node.current .stage-rail-label {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* The only thing on the landing that MOVES, so it is the first thing the
+   preference switches off — the ring above already marks the stage without
+   it. */
+@media (prefers-reduced-motion: no-preference) {
+  .stage-rail.preview .stage-rail-node.current .stage-rail-glyph {
+    animation: stage-rail-pulse 1.1s ease-in-out infinite;
+  }
+
+  @keyframes stage-rail-pulse {
+    50% {
+      opacity: 0.45;
+    }
+  }
+}
+
+.stage-rail-caption {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin: 0.7rem 0 0;
+  text-align: center;
+}
+
+/* The bottom strip: the session in three steps. */
+.landing-steps {
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  gap: 0.4rem;
+  justify-content: center;
+  margin: 1.25rem 0 0;
+  padding-top: 0.75rem;
+}
+
+/* The shell's counterpart to the landing's subtitle: the same promise, for a
+   reader who arrived through a share link and never saw the landing. */
+.pane-foot {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin: 0;
+}
+
+/* Roadmap 068's fatal-error paragraph, off the inline style it carried. */
+.fatal-error {
+  color: var(--error);
+}
+
+/* A term explained by a glossary hover card: quiet until noticed. */
+.term {
+  border-bottom: 1px dotted var(--muted);
+  cursor: help;
+}
+
+.term:hover,
+.term:focus-visible {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+}
+
+.glossary-card {
+  line-height: 1.45;
+}
+
+.card-title-hint {
+  color: var(--muted);
+  font-weight: 400;
+}

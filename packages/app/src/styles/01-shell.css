@@ -1,0 +1,508 @@
+/* Split out of index.css (roadmap 050's deferred plan, executed 2026-08-23).
+   ORDER IS LOAD-BEARING: main.tsx imports these numbered files in sequence,
+   preserving the original file's cascade byte-for-byte — two cross-file
+   equal-specificity couplings (.preset-panel, .diff-wrapper) depend on it.
+   This file: the app frame: header, banners, docking, session menu (075/066). */
+
+/* ---------- the shell (roadmap 075, v2 iteration 2) ----------
+   The app is a full-viewport frame: a header row that never scrolls, and a
+   content area that does — as one centered reading column before the first run
+   (the landing) and as two independently scrolling panes after it. The PAGE
+   itself does not scroll at all on a desktop viewport; below the ~60rem
+   breakpoint the frame gives up and the document scrolls exactly as it did
+   before v2 (see the media query at the end of the shell section). */
+main.app-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0 auto;
+  max-width: 92rem;
+  min-height: 100dvh;
+  padding: 0.75rem 1rem 4rem;
+  width: 100%;
+}
+
+/* The header is the run's status line since 075: identity, the verdict as a
+   pill, the digest as jump-links, and the session corner. It never scrolls and
+   never grows — everything in it is one line tall. */
+header.app-header {
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.65rem;
+  padding-bottom: 0.5rem;
+}
+
+.app-brand {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.app-brand img {
+  flex: none;
+}
+
+/* The h1 stays the h1 — the document's title is still the product's name — but
+   at the weight and size of a chrome label rather than a page heading: on the
+   shell the reader's attention belongs to the run beside it, and on the landing
+   the question the page asks is the visual headline. */
+.app-brand h1 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* The verdict. A solid dot in the tone's own hue, so the pill reads as a status
+   light at a glance and not only as a word. */
+.app-header-status {
+  align-items: center;
+  display: inline-flex;
+  flex: none;
+  gap: 0.35rem;
+}
+
+.app-header-status-dot {
+  background: currentColor;
+  border-radius: 50%;
+  flex: none;
+  height: 0.4rem;
+  width: 0.4rem;
+}
+
+/* The digest: the numbers the reader steers by, each a link to the instrument
+   that explains it. Muted and dashed — cross-navigation, not the row's action. */
+.app-header-digest {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  gap: 0.3rem 0.4rem;
+  min-width: 0;
+}
+
+/* Deliberately the SAME `.digest-link` the run digest defines (its
+   declaration is with the digest, further down): a number that opens the
+   instrument behind it is one role with one spelling, and 075 iteration 3
+   retires the paragraph, leaving this its only caller. What the header
+   overrides is the tone — a status line is read past, not read. */
+.app-header-digest .digest-link {
+  border-bottom-color: color-mix(in srgb, var(--muted) 55%, transparent);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.app-header-digest .digest-link:hover,
+.app-header-digest .digest-link:focus-visible {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Roadmap 075: the page-level banners (a broken share link, an untrusted
+   endpoint) as a row between the header and the content. They used to be the
+   first things on a scrolling page; in the frame there is no such place, and a
+   banner inside a pane would scroll away from the thing it is warning about. */
+.app-banners {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.app-banners > * {
+  margin: 0;
+}
+
+/* The content area. On a desktop viewport it becomes the frame's own scroller
+   (one column before the first run, two panes after it) — see the shell's
+   media query further down. Narrower than that, it is plain flow on a page
+   that scrolls, which is what this app was before v2 and what a phone
+   expects. */
+
+/* ---------- docking in (roadmap 075) ----------
+   The one transition the shell has: landing → shell, the first time a run
+   produces a result. The header's verdict and digest pop in (they mount with
+   the result), the editor docks up into its pane (the `.has-results` class
+   arriving is what starts it — the element itself is never remounted), and the
+   results pane slides in from the right, a beat later, because it is the thing
+   the reader is waiting for.
+
+   Declared ONLY inside the no-preference query — the convention `skip-link`
+   and `session-menu-pop` above follow — so under `prefers-reduced-motion:
+   reduce` there is no `animation` property at all and every element simply
+   appears where it belongs. */
+@media (prefers-reduced-motion: no-preference) {
+  .app-header-status {
+    animation: chip-pop 200ms ease-out;
+  }
+
+  .app-header-digest {
+    animation: chip-pop 200ms ease-out 80ms backwards;
+  }
+
+  .app-split.has-results > .config-col {
+    animation: dock-in 300ms ease-out;
+  }
+
+  .app-split.has-results > .results-col {
+    animation: pane-in 320ms ease-out 120ms backwards;
+  }
+
+  @keyframes chip-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.85);
+    }
+  }
+
+  @keyframes dock-in {
+    from {
+      opacity: 0.4;
+      transform: translateY(-8px);
+    }
+  }
+
+  @keyframes pane-in {
+    from {
+      opacity: 0;
+      transform: translateX(16px);
+    }
+  }
+}
+
+/* Roadmap 037/066: the header's session corner — the version badge and the
+   one trigger everything else now lives behind. It still wraps, but after 066
+   there are only two things left in it to wrap. */
+.app-header-tools {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  /* Roadmap 075: the row grew a verdict and a digest between the brand and
+     this, so the session corner pins itself right instead of relying on the
+     old two-item `space-between`. */
+  margin-left: auto;
+}
+
+/* Roadmap 077 (Proposal F): the header's Share and its receipt popover. The
+   wrapper anchors the popover; the button itself is a `.copy-btn`, so the
+   copied state (accent → ok) is the shared one. */
+.share-button {
+  display: inline-flex;
+  position: relative;
+}
+
+/* Same rule as the Run button's kbd: on a narrow viewport the header row is
+   tight, and a second line would push the stacked results below the fold —
+   the icon (a link, flipping to the check) carries the button alone there. */
+@media (max-width: 55rem) {
+  .share-button .copy-btn span {
+    display: none;
+  }
+
+  .share-button .copy-btn {
+    padding-inline: 0.4rem;
+  }
+}
+
+.share-pop {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-popover);
+  padding: 0.6rem 0.7rem;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.4rem);
+  width: min(17rem, calc(100vw - 2rem));
+  z-index: var(--z-popover);
+}
+
+.share-pop-ok {
+  color: var(--ok);
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin: 0 0 0.3rem;
+}
+
+/* One line, middle swallowed by the ellipsis — the interesting parts of a
+   `#config=` link are its host and that it exists, not the token. */
+.share-pop-url {
+  color: var(--muted);
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  margin: 0 0 0.35rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-pop-note {
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* The theme switcher is a `.seg` with icons; only the icon layout is its own. */
+.theme-switch button {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.3rem;
+}
+
+.theme-switch svg {
+  fill: currentColor;
+  flex: none;
+}
+
+/* ---------- session menu (066) ----------
+   The header corner collapsed to one control: account, theme and the project
+   links behind a single trigger, anchored to the corner every user looks in.
+
+   Positioned `absolute` off the trigger rather than through 054's
+   `anchoredCardStyle` portal: the trigger is always at the viewport's right
+   edge, so there is no flip case to compute, and staying in the DOM where it
+   is declared keeps focus management (`use-session-menu.ts`) trivial. */
+
+.session-menu {
+  position: relative;
+}
+
+/* Quiet until it matters: the trigger carries no border at rest so the corner
+   reads as one avatar, and gains the button outline on hover and while open. */
+.session-menu-trigger {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  gap: 0.15rem;
+  padding: 0.15rem;
+}
+
+.session-menu-trigger:hover,
+.session-menu-trigger[aria-expanded="true"] {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.session-menu-caret {
+  fill: currentColor;
+  flex: none;
+}
+
+/* Both glyphs and the real avatar render into the SAME circle, which is what
+   keeps the header's width constant across signed-in / signed-out / no-OAuth. */
+.session-avatar {
+  border-radius: 50%;
+  display: block;
+  flex: none;
+  /* A pale avatar on the pale surface would otherwise have no edge. */
+  outline: 1px solid var(--border);
+  outline-offset: -1px;
+}
+
+.session-avatar-glyph {
+  align-items: center;
+  background: var(--surface);
+  color: var(--muted);
+  display: inline-flex;
+  justify-content: center;
+}
+
+.session-avatar-glyph svg {
+  fill: currentColor;
+}
+
+.session-menu-panel {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-popover);
+  /* Right-anchored, and capped against the viewport rather than the trigger:
+     a panel hanging off a control this close to the edge has nowhere to go
+     but left, and on a narrow screen it must still fit. */
+  max-width: min(19rem, calc(100vw - 2rem));
+  min-width: 15rem;
+  padding: 0.35rem;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.4rem);
+  z-index: var(--z-popover);
+}
+
+.session-menu-identity {
+  align-items: center;
+  display: flex;
+  gap: 0.55rem;
+  padding: 0.45rem 0.5rem 0.55rem;
+}
+
+.session-menu-identity-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.session-menu-login {
+  font-size: 0.9rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-menu-meta {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.session-menu-sep {
+  background: var(--border);
+  border: none;
+  height: 1px;
+  margin: 0.25rem 0;
+}
+
+.session-menu-group-label {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin: 0;
+  padding: 0.4rem 0.5rem 0.2rem;
+  text-transform: uppercase;
+}
+
+/* One row, whether it is an anchor or a button — the distinction is about what
+   the browser does with it, not about what the reader is looking at. */
+.session-menu-item {
+  /* Top-aligned, NOT centered: a row with a caption is three lines tall, and
+     centering pushed its icon a line and a half down while its single-line
+     neighbours kept theirs at the top — a ragged icon column down the panel.
+     The icons are nudged to sit on the LABEL's line instead. */
+  align-items: flex-start;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font-family: inherit;
+  font-size: 0.85rem;
+  gap: 0.55rem;
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  text-decoration: none;
+  width: 100%;
+}
+
+.session-menu-item:hover,
+.session-menu-item:focus-visible {
+  background: var(--surface);
+}
+
+.session-menu-item-icon,
+.session-menu-item-ext {
+  fill: currentColor;
+  flex: none;
+  /* Optically on the label's baseline given `align-items: flex-start` above. */
+  margin-top: 0.12rem;
+  opacity: 0.75;
+}
+
+/* The out-of-app glyph is a footnote, and it pins itself to the right edge. */
+.session-menu-item-ext {
+  margin-left: auto;
+  opacity: 0.5;
+}
+
+.session-menu-item-body {
+  min-width: 0;
+}
+
+/* Deliberately NOT inheriting the row's tone: a caption explaining what sign
+   out does is not itself a destructive thing to read. */
+.session-menu-item-note {
+  color: var(--muted);
+  display: block;
+  font-size: 0.73rem;
+  line-height: 1.3;
+  margin-top: 0.1rem;
+}
+
+.session-menu-item.danger {
+  color: var(--error);
+}
+
+.session-menu-item.danger:hover {
+  background: var(--error-bg);
+}
+
+.session-menu-item.accent {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.session-menu-item.accent .session-menu-item-icon {
+  opacity: 1;
+}
+
+/* The 037 segmented control, full width of the panel — it keeps its shape and
+   its one-click behavior, it just lives one disclosure deeper now. */
+.session-menu-theme {
+  padding: 0.1rem 0.5rem 0.4rem;
+}
+
+.session-menu-theme .seg {
+  width: 100%;
+}
+
+.session-menu-theme .seg button {
+  flex: 1;
+  justify-content: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .session-menu-panel {
+    animation: session-menu-pop 90ms ease-out;
+    /* Grown out of the trigger, which is up and to the right of it. */
+    transform-origin: top right;
+  }
+
+  @keyframes session-menu-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.card > .card-title {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.5rem 0.75rem;
+}

@@ -1,0 +1,558 @@
+/* Split out of index.css (roadmap 050's deferred plan, executed 2026-08-23).
+   ORDER IS LOAD-BEARING: main.tsx imports these numbered files in sequence,
+   preserving the original file's cascade byte-for-byte — two cross-file
+   equal-specificity couplings (.preset-panel, .diff-wrapper) depend on it.
+   This file: the preset resolution tree, its legibility at scale, preset descriptions (002/011/069). */
+
+/* ---------- preset resolution tree (002) ---------- */
+
+/* Roadmap 035: the tree/detail split answers to ITS OWN width, not the
+   viewport's. The old `@media (max-width: 60rem)` was tuned pre-028, when this
+   card spanned the page; since 028 it lives inside the results column, which
+   is ~3/5 of the page — so at a 1000px viewport the detail pane was squeezed
+   to ~420px while the viewport query never came close to firing. */
+.preset-split {
+  container-name: preset-split;
+  container-type: inline-size;
+}
+
+.preset-tree-layout {
+  display: grid;
+  gap: 0;
+  grid-template-columns: 1fr;
+}
+
+/* The panel's floor is 24rem, not the 4fr share: just above the stacking
+   threshold 4/9 of the container would be ~370px, below what an embedded diff
+   needs — the minimum wins there and the tree gives up the difference. */
+.preset-tree-layout.with-panel {
+  grid-template-columns: minmax(16rem, 5fr) minmax(24rem, 4fr);
+}
+
+/* Below this the two columns cannot both stay readable — stack, panel under
+   the tree, each full width. */
+@container preset-split (max-width: 52rem) {
+  .preset-tree-layout.with-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .preset-panel {
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Stacked, the tree sits BETWEEN the row the user clicked and the detail it
+     opened, so a full-height tree would push the panel below the fold and the
+     click would look like it did nothing (roadmap 023). Only while a panel is
+     open — an unselected tree keeps its full height. */
+  .preset-tree-layout.with-panel .preset-tree {
+    max-height: min(26rem, calc(100dvh - 24rem));
+  }
+}
+
+/* The sticky results column (`.results-col { top: 0.75rem }`) means these
+   scrollers are the page's tallest fixed boxes; cap them against the viewport
+   so the panel's own scrollbar, not the page's, does the work. */
+.preset-tree {
+  font-size: 0.85rem;
+  max-height: min(44rem, calc(100dvh - 10rem));
+  overflow: auto;
+  padding: 0.5rem 0.75rem;
+}
+
+.preset-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.35rem;
+  overflow: hidden;
+  padding: 0 0.1rem;
+  white-space: nowrap;
+}
+
+.preset-row.dimmed {
+  opacity: 0.5;
+}
+
+.preset-row.zero .preset-name {
+  color: var(--muted);
+}
+
+/* The tree row's caret is a BUTTON in a treeitem, not the shared ornament —
+   its own metrics, and `.caret-spacer` (the elided-caret slot) must match them
+   declaration for declaration, `flex` included. */
+.preset-row .caret,
+.preset-row .caret-spacer {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-block;
+  flex: none;
+  font-size: 0.8rem;
+  padding: 0;
+  text-align: center;
+  width: 1.1rem;
+}
+
+.preset-row .preset-name {
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: inherit;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  padding: 0.05rem 0.3rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.preset-row .preset-name:hover {
+  background: var(--surface);
+}
+
+.preset-row .preset-name.selected {
+  background: var(--surface);
+  outline: 1px solid var(--accent);
+}
+
+.preset-row.state-ignored .preset-name,
+.preset-row.state-already-seen .preset-name,
+.preset-row.state-aborted .preset-name {
+  color: var(--muted);
+}
+
+.preset-row.state-error .preset-name {
+  color: var(--error);
+}
+
+/* Roadmap 036: badges are FILLED, from ONE rule. Both the tint and the border
+   derive from the badge's own `currentColor`, so all ~15 variants gain a fill
+   by setting nothing but `color` — no per-variant background, and the text
+   contrast each hue was tuned for is untouched. (Solid fills were mocked up
+   and rejected: white-on-warn fails contrast at 0.7rem and a row of saturated
+   chips overpowers the content it annotates.) Variants therefore declare
+   `color` ONLY; a `border-color` of their own would defeat the softening. Two
+   deliberate exceptions keep their meaning and opt out below: `.elided`
+   (dashed = a collapsed chain) and `.rollup` (borderless). The fill itself
+   lives on --chip-fill/--chip-border so the 046 verdict verb — the other
+   currentColor-tinted chip in the app — can wear the same one.
+
+   Roadmap 075 names this shape `.pill` and makes it the standard: the design
+   sheet's pill IS the 036 badge (999px, 0.7rem, `0 / 0.45rem`, the 13%/32%
+   currentColor tint), so the two are ONE declaration block rather than a
+   second implementation. `.badge` stays the spelling of the preset tree's and
+   the provenance ledger's ~15 domain variants (their hues, their glossary
+   cards and the e2e selectors all hang off it); `.pill` plus a tone below is
+   what everything else — and all v2 work — says. */
+.pill,
+.badge {
+  background: var(--chip-fill);
+  border: 1px solid var(--chip-border);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  padding: 0 0.45rem;
+  white-space: nowrap;
+}
+
+/* The tones. A semantic tone declares its hue and nothing else — the fill and
+   the border derive from it — and is weight 600, because it is saying
+   something. `.pill-count` is the exception the sheet spells out: a bare
+   number is not a claim, so it drops the tint for a plain border and stays at
+   the surrounding text's weight. */
+.pill-accent {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.pill-preset {
+  color: var(--accent-purple);
+  font-weight: 600;
+}
+
+.pill-ok {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.pill-warn {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.pill-error {
+  color: var(--error);
+  font-weight: 600;
+}
+
+.pill-muted {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+/* The two 008 layer hues as tones (075 iteration 5, for the effective config's
+   decided-by section headers). They exist only because a run that HAS a global
+   or inherited config gets a section for it; the common run never renders one.
+   Same hues as `.badge.prov-global` / `.badge.prov-inherited`, so a section
+   header and the layer chips on its rows can never disagree. */
+.pill-global {
+  color: var(--accent-teal);
+  font-weight: 600;
+}
+
+.pill-inherited {
+  color: var(--accent-pink);
+  font-weight: 600;
+}
+
+.pill-count {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+}
+
+.badge.count {
+  color: var(--muted);
+}
+
+.badge.src-internal {
+  color: var(--accent);
+}
+
+.badge.src-github,
+.badge.src-gitlab,
+.badge.src-gitea,
+.badge.src-forgejo {
+  color: var(--accent-purple);
+}
+
+.badge.src-npm,
+.badge.src-http,
+.badge.src-local {
+  color: var(--warn);
+}
+
+.badge.dup,
+.badge.nested {
+  color: var(--muted);
+}
+
+.badge.state {
+  color: var(--muted);
+}
+
+.badge.state.state-error {
+  color: var(--error);
+}
+
+/* Roadmap 009 (auth-failure surfacing): the two failures a user can act on say
+   so in the badge, and wear their own hue so the tree can be scanned for
+   "which of these is about my access?" without opening a node. Violet is
+   already the app's remote-source hue (`.badge.src-github` and friends — this
+   IS a github fetch that did not happen); amber is its "throttled, come back"
+   hue. Both declare `color` only, per the 036 chip rule that derives the fill
+   from it. Placed after `.state-error` deliberately: same specificity, and
+   these nodes still carry `state-error`, so source order is the override. */
+.badge.state.auth-no-access {
+  color: var(--accent-purple);
+}
+
+.badge.state.auth-rate-limited {
+  color: var(--warn);
+}
+
+.badge.via {
+  color: var(--accent);
+}
+
+.badge.user-supplied {
+  color: var(--warn);
+}
+
+/* ---------- preset tree legibility at scale (011) ---------- */
+
+.preset-summary {
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  font-size: 0.8rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.preset-summary-stat strong {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.preset-controls {
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.preset-search {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: inherit;
+  flex: 1;
+  font-size: 0.85rem;
+  min-width: 12rem;
+  padding: 0.3rem 0.5rem;
+}
+
+.preset-check {
+  color: var(--muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+/* Roadmap 036: THE segmented control. Born here as `.preset-view-toggle`, it is
+   now the one shape shared by the preset tree/table switch, the diff chrome
+   row's Unified/Side-by-side control and the header theme switcher — its
+   font-size + padding are those of the shared button base, so every control in
+   a chrome row measures the same height. Written for N segments
+   (`:first-child`/`:last-child` round the ends; the theme switcher has three).
+   Roadmap 039: the metrics themselves now come from the button base (which
+   lists `.seg button`); only what makes a segment a segment lives here. */
+.seg {
+  display: inline-flex;
+}
+
+.seg button {
+  /* Segments butt against each other: the base's 6px is re-applied to the two
+     ends only, so a middle segment stays square. */
+  border-radius: 0;
+  color: var(--muted);
+}
+
+.seg button:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.seg button + button {
+  border-left: none;
+}
+
+.seg button:last-child {
+  border-radius: 0 6px 6px 0;
+}
+
+/* Roadmap 075: the selected segment wears `.btn-secondary`'s active state —
+   accent outline over the page's ground — so "this control is on" looks the
+   same whether it is a segment or a standalone toggle. A middle segment's LEFT
+   edge is drawn by its predecessor's right border (segments collapse their
+   shared border), so that one edge has to be coloured from the sibling. */
+.seg button.active {
+  background: var(--canvas);
+  border-color: var(--accent);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.seg button:has(+ .active) {
+  border-right-color: var(--accent);
+}
+
+/* contribution + roll-up counts.
+   Deliberate 036 exception: these are bare counts, not chips. The roll-up
+   always was; the per-node "N opts" / "N rules" joined it, because a chip on
+   every visible row is a fill the eye has to skip past on the way to the
+   name, and the two read as one family of counts anyway ("· 2 opts · 6 rules"
+   next to "· 924 presets · 462 rules"). They keep their `.badge` classes —
+   the glossary hover cards and the e2e selectors hang off those — and keep
+   `.explained`'s accent-on-hover, which is now their only color state. One
+   rule, so no per-variant hue has to be overridden back out. */
+.badge.contrib,
+.badge.rollup {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: 0;
+}
+
+/* Deliberate 036 exception: dashed + unfilled says "a collapsed chain", not
+   "another chip". */
+.badge.elided {
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  cursor: pointer;
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* No `background` reset here (036): a `<button class="badge">` takes the same
+   tinted fill as its `<span>` siblings — only the UA cursor differs. */
+button.badge.dup {
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.preset-row-error {
+  color: var(--error);
+  font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- preset descriptions (roadmap 069 PR 4) ----------
+   A node that wrote (or lost) a sentence of the final `description` says so
+   ON its name: a hover card, so the rows stay exactly one ROW_HEIGHT (which
+   the windowing math depends on), and the detail panel repeats the same facts
+   as a Description entry. Both render the same `.preset-desc-line`s. */
+
+/* The cue on a described name — the `.opt-key.known` dotted-underline grammar,
+   in the preset hue, because the sentence is the preset's own. The name stays
+   a select button, so it keeps its pointer cursor. */
+.preset-name.described {
+  border-bottom: 1px dotted color-mix(in srgb, var(--accent-purple) 65%, transparent);
+}
+
+/* The card body and the panel entry share the line rendering. */
+.preset-desc-lines {
+  display: grid;
+  gap: 0.35rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* One fact: the quote behind a left rail in the preset hue, its muted note,
+   and the slot marker. */
+.preset-desc-line {
+  border-left: 2px solid color-mix(in srgb, var(--accent-purple) 45%, transparent);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  padding-left: 0.55rem;
+}
+
+/* A mute line is a fact about the node, not a quotation — no quote rail. */
+.preset-desc-line.desc-mute {
+  border-left-color: transparent;
+}
+
+.preset-desc-line .preset-desc-note {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.preset-desc-line .preset-desc-text + .preset-desc-note {
+  margin-left: 0.35rem;
+}
+
+/* A dropped sentence renders exactly like a contributed one, minus the slot
+   marker: wrapper and package-list presets shed their description by design,
+   so on the node itself the sentence is simply what the preset says about
+   itself. The drop mechanics live on the blame ledger's footer. */
+
+.preset-desc-line code {
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+}
+
+/* Where the sentence landed in the final array (`→ #16 of 24 · approx`). */
+.preset-desc-pos {
+  color: var(--muted);
+  font-size: 0.7rem;
+  margin-left: 0.4rem;
+  white-space: nowrap;
+}
+
+/* The hover card's jump to the Effective config's description row. */
+.preset-desc-order {
+  display: block;
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+/* The Description entry's value is prose — the source grid's break-all is for
+   URLs and paths and must not tear words apart here. */
+.preset-source .preset-source-desc dd {
+  word-break: normal;
+}
+
+/* flat table view */
+.preset-table-head,
+.preset-table-row {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: minmax(8rem, 1fr) 7rem 3.5rem 3.5rem 3.5rem;
+  padding: 0 0.75rem;
+}
+
+.preset-table-head {
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+}
+
+.preset-th {
+  background: var(--surface);
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.35rem 0;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.preset-th.col-opts,
+.preset-th.col-rules,
+.preset-th.col-count {
+  text-align: right;
+}
+
+.preset-th.sorted {
+  color: var(--accent);
+}
+
+.preset-table-row {
+  align-items: center;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-align: left;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.preset-table-row:hover {
+  background: var(--surface);
+}
+
+.preset-table-row.selected {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.preset-table-row .col-name {
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preset-table-row .col-opts,
+.preset-table-row .col-rules,
+.preset-table-row .col-count {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}

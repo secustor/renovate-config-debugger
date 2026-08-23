@@ -1,0 +1,802 @@
+/* Split out of index.css (roadmap 050's deferred plan, executed 2026-08-23).
+   ORDER IS LOAD-BEARING: main.tsx imports these numbered files in sequence,
+   preserving the original file's cascade byte-for-byte — two cross-file
+   equal-specificity couplings (.preset-panel, .diff-wrapper) depend on it.
+   This file: inline option docs, migration step-through, the shared key/value grid, merge provenance, decided-by sections (003/004/005/054/075). */
+
+/* ---------- inline option docs (003) ---------- */
+
+.opt-key.known {
+  border-bottom: 1px dotted var(--accent);
+  cursor: help;
+}
+
+.opt-key.deprecated {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.opt-key.experimental {
+  border-bottom-color: var(--warn);
+}
+
+.opt-key.unknown {
+  cursor: help;
+  text-decoration: var(--error) wavy underline;
+  text-decoration-skip-ink: none;
+}
+
+.option-card {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-popover);
+  font-size: 0.8rem;
+  /* Fallback for producers that don't compute an inline max-width themselves
+     (the CodeMirror preset-string hover, roadmap 023). Anchors that DO set an
+     inline max-width (the glossary/option cards below) override this. */
+  max-width: min(340px, calc(100vw - 2rem));
+  overflow-wrap: anywhere;
+  padding: 0.6rem 0.75rem;
+  position: fixed;
+  /* Roadmap 025: these cards render position:fixed, which takes them out of
+     layout flow but NOT out of the inheritance chain — an ancestor row with
+     `white-space: nowrap` (e.g. .preset-row) still inherits onto them,
+     turning multi-sentence copy into one unwrapped line that overflows the
+     box. Pin it back to normal explicitly rather than relying on no ancestor
+     ever setting nowrap. */
+  white-space: normal;
+  z-index: var(--z-popover);
+}
+
+.option-card-head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.35rem;
+}
+
+.option-card-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.option-card .badge.experimental,
+.option-card .badge.advanced {
+  color: var(--warn);
+}
+
+.option-card .badge.deprecated {
+  color: var(--error);
+}
+
+.option-card .badge.global {
+  color: var(--accent);
+}
+
+.option-card p {
+  margin: 0.25rem 0;
+}
+
+.option-card-deprecation {
+  color: var(--error);
+}
+
+.option-card-row {
+  color: var(--muted);
+}
+
+.option-card-row strong {
+  color: var(--ink);
+}
+
+.option-card a {
+  color: var(--accent);
+}
+
+.unknown-note {
+  color: var(--error);
+}
+
+.version-badge {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  padding: 0.25rem 0.75rem;
+  white-space: nowrap;
+}
+
+/* 004 migration step-through */
+.migration-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.migration-step-head {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.migration-step-counter {
+  color: var(--muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.migration-step-name {
+  font-weight: 600;
+}
+
+.migration-step-key {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-size: 0.8rem;
+  padding: 0.05rem 0.35rem;
+}
+
+.migration-explanation {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+/* The engine writes explanations with markdown backticks; CodeText turns them
+   into `<code>`, which needs the app's inline-name chip (a lighter
+   `.migration-step-key`). */
+.migration-explanation code {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.85em;
+  padding: 0.05em 0.3em;
+}
+
+.migration-nav {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.migration-cumulative {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  font-size: 0.85rem;
+  gap: 0.3rem;
+}
+
+/* "Copy migrated config" is the row's terminal action — pushed to the end,
+   away from the step controls it must never be mistaken for. */
+.migration-nav .copy-btn {
+  margin-left: auto;
+}
+
+/* 042: `.card` carries no body padding — every child brings its own inset. In
+   the Rewrites card the TEXT rows take the card's 0.75rem while the diff stays
+   full-bleed, the same grammar the Pipeline card's stage diff uses. Scoped to
+   the card context so the compact stepper nested in a preset row (a child of
+   `.preset-migration-steps`, never of `.card`) keeps its own spacing. The
+   0.6rem flex gap already separates the rows, so only the outer edges here. */
+.card > .migration-steps > .migration-step-head {
+  padding: 0.6rem 0.75rem 0;
+}
+
+.card > .migration-steps > .migration-explanation {
+  padding: 0 0.75rem;
+}
+
+.card > .migration-steps > .migration-nav {
+  padding: 0 0.75rem 0.75rem;
+}
+
+/* The one deliberate departure from the shared metrics: the stepper embedded
+   in a preset row is a compact echo of the real one. */
+.migration-steps.compact .migration-nav .btn-secondary {
+  font-size: 0.78rem;
+  padding: 0.2rem 0.5rem;
+}
+
+.preset-migration-steps {
+  border-top: 1px dashed var(--border);
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+}
+
+.preset-migration-steps-title {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+/* react-diff-view ships light-theme colors only; keep text readable in dark.
+   Roadmap 035 (fixing a 031 regression): this used to override the library's
+   own `.diff-code-delete` etc. at EQUAL specificity, so stylesheet ORDER
+   decided the winner. 031 moved `react-diff-view/style/index.css` into the
+   lazily-imported ResultsColumn chunk, which loads AFTER this entry
+   stylesheet — the library's light backgrounds started winning, leaving
+   near-white inherited text on #fdeff0/#eaffee.
+   react-diff-view 3.3.3 is entirely custom-property driven and declares its
+   defaults on `:root`, so declaring the same variables SCOPED ON THE WRAPPER
+   wins on specificity/proximity no matter which stylesheet loaded last. The
+   dark diff contrast e2e assertion (e2e/12-layout-regressions.spec.ts) is the
+   guard against this inverting again.
+   Note the library's defaults are `--diff-*-text-color: var(--diff-text-color)`
+   resolved AT :root, where `--diff-text-color: initial` makes them
+   guaranteed-invalid — so each text color is restated here rather than relying
+   on `--diff-text-color` alone to cascade into them.
+   Roadmap 037: this was a `@media (prefers-color-scheme: dark)` block, the
+   app's one remaining piece of CSS that answered to the OS instead of to
+   `color-scheme` — so the theme switcher would have left the diff behind.
+   Every variable is now a `light-dark()` pair, still scoped on `.diff-wrapper`
+   (the 035 proximity guarantee is unchanged). The LIGHT half is the
+   react-diff-view 3.3.3 default for that variable, read from its stylesheet,
+   except the text colors: their library default resolves to
+   guaranteed-invalid, which made the text simply INHERIT — so the light half
+   states the app's own body text color, which is what was inheriting.
+   These hexes look like the app's --error/--ok tints and are deliberately NOT
+   folded into them: every light half is a verbatim library default and every
+   dark half was tuned to clear 4.5:1 against --diff-text-color (the assertion
+   in e2e/12-layout-regressions.spec.ts). They are the library's palette that
+   the app matches, not the app's palette — so they stay stated here. */
+/* stylelint-disable scale-unlimited/declaration-strict-value -- mirrors
+   react-diff-view's own palette verbatim (see the comment above): every
+   light-dark() pair here is either a library default or a dark half tuned to
+   clear 4.5:1 against --diff-text-color, an invariant asserted by
+   e2e/12-layout-regressions.spec.ts, not a value this app is free to retoken.
+   (Structurally a no-op today too: these are all custom-property
+   declarations, which the rule always skips — kept for documentation and as
+   a guard if that ever changes.) */
+.diff-wrapper {
+  --diff-background-color: transparent;
+  /* Dark halves are a quiet WASH, not an alarm color: the light theme gets
+     soft pastels while the dark row fills used to be fully saturated
+     (#3d1418 / #103218, ~51% HSL saturation), which made the fill, not the
+     code, the foreground. Both row fills are now the same hues at ~26%
+     saturation and roughly the surface's own lightness — #151b23 with a tint,
+     the same relationship every other tinted surface in this file has to it.
+     Contrast against --ink (#f0f6fc, relative luminance 0.9146) is unchanged
+     or better: 14.72:1 delete (was 14.71), 13.41:1 insert (was 12.94). */
+  --diff-code-delete-background-color: var(--diff-removed-bg);
+  /* The word-level edit highlight was never dark-themed at all: the library
+     paints it #f39ea2/#c0dc91, which left light text on a light chip inside
+     an otherwise dark row. Both pass 4.5:1 against --diff-text-color. The
+     dark halves stay ~4x and ~3x the luminance of the row fill they sit in,
+     so the word-level emphasis still reads as the stronger mark: 8.65:1
+     delete (L 0.0616 over the row's 0.0155), 8.10:1 insert (0.0690 over
+     0.0220). */
+  --diff-code-delete-edit-background-color: light-dark(#f39ea2, #6e3539);
+  --diff-code-delete-edit-text-color: var(--ink);
+  --diff-code-delete-text-color: var(--ink);
+  --diff-code-insert-background-color: var(--diff-added-bg);
+  --diff-code-insert-edit-background-color: light-dark(#c0dc91, #285336);
+  --diff-code-insert-edit-text-color: var(--ink);
+  --diff-code-insert-text-color: var(--ink);
+  --diff-code-selected-background-color: var(--highlight);
+  --diff-code-selected-text-color: var(--ink);
+  /* The gutter is chrome; it must never shout louder than the row it labels.
+     The old dark halves did exactly that (#67060c / #033a16 at luminance
+     0.0304 / 0.0310, roughly twice their own row fills). Each is now a shade
+     BELOW its row: 0.0122 vs 0.0155 delete, 0.0172 vs 0.0220 insert.
+     15.51:1 and 14.36:1 against --ink. */
+  --diff-gutter-delete-background-color: light-dark(#fadde0, #2a181a);
+  --diff-gutter-delete-text-color: var(--ink);
+  --diff-gutter-insert-background-color: light-dark(#d6fedb, #17271c);
+  --diff-gutter-insert-text-color: var(--ink);
+  --diff-gutter-selected-background-color: var(--highlight);
+  --diff-gutter-selected-text-color: var(--ink);
+  --diff-selection-background-color: light-dark(#b3d7ff, #1c4f82);
+  --diff-selection-text-color: var(--ink);
+  --diff-text-color: var(--ink);
+}
+/* stylelint-enable scale-unlimited/declaration-strict-value */
+
+/* Unchanged gutters carry no library color of their own, so this quiet
+   override is order-independent already. 037: it used to apply in dark only
+   (it lived inside the media query); unconditional now, because line numbers
+   are chrome in either theme and `--muted` is already a light-dark() pair. */
+.diff-gutter {
+  color: var(--muted);
+}
+
+/* ---------- the shared key/value grid (054 layer 8) ----------
+   ONE primitive for every ledger in the app that reads as `key · value ·
+   origin`. Roadmap 054 planned exactly this and then grew three copies of it
+   (the thread ledger, the clause grid, the writes grid), each re-declaring the
+   same `display: grid` + child `grid-column: 1 / -1; grid-template-columns:
+   subgrid` shape with near-identical gaps; the effective config's key list,
+   older than all three, still had the ragged-column problem the primitive
+   exists to solve.
+
+   A surface configures it with two custom properties and nothing else:
+   `--kv-cols` (its track list) and, when the default gap is wrong, `--kv-gap`
+   / `--kv-row-gap`. Everything surface-specific — a hover fill, a state hue, a
+   column's own typography — stays a small delta on the surface's own classes.
+
+   Why subgrid and not one fixed template per surface: the tracks are sized
+   from ALL the rows at once, so the value column starts on one edge down the
+   whole ledger instead of wherever each row's key happened to end — the
+   alignment IS the feature, and a fixed template cannot size `max-content`
+   across siblings. */
+.kv {
+  column-gap: var(--kv-gap, 0.45rem);
+  display: grid;
+  grid-template-columns: var(--kv-cols);
+  row-gap: var(--kv-row-gap, 0);
+}
+
+/* Anything placed directly in a kv grid spans all of its columns: the rows,
+   and the full-width blocks (an expanded body, an empty note) between them. */
+.kv > * {
+  grid-column: 1 / -1;
+}
+
+/* A ROW re-uses the grid's own tracks. Applied at whatever depth the row
+   actually lives at — a row nested inside another `.kv-row` (a button inside
+   its bordered wrapper) passes the tracks straight through. */
+.kv-row {
+  align-items: baseline;
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+
+/* ---------- merge provenance view (005) ---------- */
+
+.prov-filters {
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.prov-filters input.prov-filter-input,
+.prov-filters select {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: inherit;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.5rem;
+}
+
+.prov-filters input.prov-filter-input {
+  flex: 1;
+  /* The design's cap (082): a filter box that grew to the panel width read as
+     the view's main input rather than a way to narrow the list. */
+  max-width: 16rem;
+  min-width: 10rem;
+}
+
+/* Roadmap 082: ONE toolbar row for the whole tab — filter, "only overridden",
+   the view switch pushed right, then the copy. Same chrome-row grammar as the
+   filter bar it replaces (036), plus the design's right-hand grouping. The
+   design's row is borderless — the bordered band boxes right below it carry
+   the separation, and the chrome border doubled it. */
+.prov-toolbar {
+  border-bottom: none;
+}
+
+.prov-toolbar-switch {
+  margin-left: auto;
+}
+
+/* The filters narrow ROWS, so they are inert while the As-JSON document is on
+   screen — visible (the design's row is one row in both views), and saying so
+   rather than silently doing nothing. */
+.prov-toolbar input:disabled,
+.prov-toolbar label:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.prov-check {
+  color: var(--muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+/* Roadmap 051: the As-JSON view's options row shares the .prov-filters chrome;
+   only its own pieces live here. */
+.resolved-label {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.resolved-copy {
+  margin-left: auto;
+}
+
+/* The merge-order honesty note — the warn notice tint (050 families), attached
+   under the document it qualifies. */
+.resolved-caveat {
+  background: var(--warn-bg);
+  border-top: 1px solid var(--warn-border);
+  font-size: 0.85rem;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+}
+
+/* 054 layer 8: the key list is a `.kv` ledger — key · value preview · origin,
+   on ONE set of columns, so previews start on a common edge instead of
+   wherever each option name happens to end (this list had the ragged-column
+   problem the simulator's thread ledger was built to fix).
+
+   The key track is `minmax(0, max-content)` rather than the thread ledger's
+   bare `max-content`: this list is filtered, not curated, so it can hold every
+   option Renovate has, and the longest of those must be allowed to wrap in a
+   narrow panel instead of pushing the preview column off the edge.
+
+   Roadmap 082 removed the scroll cap this list used to carry: a band stops
+   after `COLLAPSE_AFTER` rows (`lib/collapse.ts`) and says how many it is
+   holding back, which
+   is the same protection stated in words — where a scrollbar inside a scrolling
+   page hid the rest without ever admitting to it. */
+.prov-list {
+  --kv-cols: minmax(0, max-content) minmax(0, 1fr) auto;
+  --kv-gap: 0.5rem;
+}
+
+/* ---------- decided-by sections (075, iteration 5) ----------
+   The key list is cut into one section per layer that DECIDED a key's final
+   value (see `features/effective-config/decider-groups.ts`). A section is a
+   card in its group's own tone: the hue says which layer without the reader
+   having to read the pill, and the tint is deliberately faint (6%) because the
+   rows inside already carry the same hue on their origin chips — the section
+   must frame them, not compete with them. Each group's edge/tint pair is set
+   once, below; the shared shape reads them through `--prov-section-*`. */
+.prov-section {
+  border: 1px solid var(--prov-section-edge, var(--border));
+  border-radius: 8px;
+  margin: 0.6rem 0.75rem;
+  overflow: hidden;
+}
+
+.prov-section-head {
+  align-items: center;
+  background: var(--prov-section-tint, var(--surface));
+  cursor: pointer;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  list-style: none;
+  padding: 0.4rem 0.6rem;
+}
+
+/* The disclosure triangle is drawn by the summary's own `Caret` (the same one
+   the rows use — which, until the shared `.caret` rule existed, it only
+   claimed to be), so the UA marker would be a second one. */
+.prov-section-head::marker {
+  content: "";
+}
+
+.prov-section-head::-webkit-details-marker {
+  display: none;
+}
+
+/* The design's three header emphases: the sentence in the header's own ink at
+   heading weight, the count in the band's hue, the trailing clause muted and
+   regular. The defaults band is the exception — its whole header is muted,
+   only the clause dropping the weight. */
+.prov-section-headline {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.prov-headline-count {
+  color: var(--prov-section-hue, var(--muted));
+}
+
+.prov-headline-note {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.prov-section-defaults .prov-section-headline {
+  color: var(--muted);
+}
+
+.prov-section-repo {
+  --prov-section-hue: var(--accent);
+  --prov-section-edge: color-mix(in srgb, var(--accent) 40%, var(--border));
+  --prov-section-tint: color-mix(in srgb, var(--accent) 6%, var(--surface));
+}
+
+.prov-section-preset {
+  --prov-section-hue: var(--accent-purple);
+  --prov-section-edge: color-mix(in srgb, var(--accent-purple) 40%, var(--border));
+  --prov-section-tint: color-mix(in srgb, var(--accent-purple) 6%, var(--surface));
+}
+
+.prov-section-global {
+  --prov-section-hue: var(--accent-teal);
+  --prov-section-edge: color-mix(in srgb, var(--accent-teal) 40%, var(--border));
+  --prov-section-tint: color-mix(in srgb, var(--accent-teal) 6%, var(--surface));
+}
+
+.prov-section-inherited {
+  --prov-section-hue: var(--accent-pink);
+  --prov-section-edge: color-mix(in srgb, var(--accent-pink) 40%, var(--border));
+  --prov-section-tint: color-mix(in srgb, var(--accent-pink) 6%, var(--surface));
+}
+
+/* The defaults group is the neutral one on purpose: it is the pile nothing in
+   the run touched, and a tint would make it look like a finding. */
+.prov-section-defaults {
+  --prov-section-edge: var(--border);
+  --prov-section-tint: var(--surface);
+}
+
+/* A band's truncation line and, in the defaults band, the one sentence that
+   covers every row above it (082). Sits inside the list's grid, so it spans the
+   ledger's tracks rather than starting in the key column. */
+.prov-band-more {
+  font-size: 0.75rem;
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0.3rem 0.75rem 0.4rem;
+}
+
+.prov-band-note {
+  color: var(--muted);
+}
+
+/* The row wrapper carries the separator and passes the ledger's tracks down to
+   the head button, which is the cell-bearing row. */
+.prov-row {
+  border-bottom: 1px solid var(--border);
+}
+
+.prov-row:last-child {
+  border-bottom: none;
+}
+
+.prov-row-head {
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0.4rem 0.75rem;
+  text-align: left;
+  width: 100%;
+}
+
+.prov-row-head:hover {
+  background: var(--surface);
+}
+
+.prov-key-name {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+/* The preview is already truncated in JS (80 chars), so the ellipsis this used
+   to need was a second truncation; what is left wraps like every other value
+   column in the app rather than being clipped mid-token. The design sets the
+   preview in the running sans — much of it is prose ("463 rules — 2 yours");
+   only the defaults band's value cell, a bare literal, is code. */
+.prov-key-preview {
+  color: var(--muted);
+  font-size: 0.8rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.prov-row-default .prov-key-preview {
+  font-family: var(--font-mono);
+}
+
+/* The third cell is the design's NOTE (082): prose, not chips — the band
+   header already names the deciding layer, so the column that used to repeat it
+   says the one thing the row alone knows. Always rendered, empty or not, so the
+   ledger's third track holds on the rows that have nothing to say. */
+.prov-row-note {
+  color: var(--muted);
+  font-size: 0.72rem;
+  justify-self: end;
+  text-align: right;
+  /* The design's note never wraps — a two-line note would change the row's
+     height and break the ledger's rhythm. */
+  white-space: nowrap;
+}
+
+/* The redundancy tone: some other layer already set exactly this value, which
+   is the one thing in this column a reader can act on. */
+.prov-row-note.warn {
+  color: var(--warn);
+}
+
+/* The 016 glossary affordance the one-word badge used to carry, kept on the
+   notes that are prose for a merge behaviour. */
+.prov-row-note.explained {
+  cursor: help;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+
+.prov-row-note.explained:hover,
+.prov-row-note.explained:focus-visible {
+  color: var(--accent);
+}
+
+/* Roadmap 082: a defaults row is INERT — nothing to expand, so it is not a
+   button. It keeps the caret's width as an empty spacer so the option names
+   line up with every other band's. */
+.prov-row-default {
+  padding: 0.3rem 0.75rem;
+}
+
+.badge.prov-layer {
+  cursor: default;
+  flex: none;
+}
+
+/* No `background` reset (036): the clickable layer chip is filled like the
+   non-clickable ones — only the cursor tells them apart. */
+.badge.prov-layer[role="button"] {
+  cursor: pointer;
+}
+
+/* 054: the hue rules are shared with the dot variant below — the dot IS the
+   chip's color with the label moved into the hover card, so the two must never
+   be able to disagree about which hue a layer wears. */
+.badge.prov-defaults,
+.prov-dot.prov-defaults {
+  color: var(--muted);
+}
+
+.badge.prov-repo,
+.prov-dot.prov-repo {
+  color: var(--accent);
+}
+
+.badge.prov-preset,
+.prov-dot.prov-preset {
+  color: var(--accent-purple);
+}
+
+/* 008 layer badges — distinct hues next to the repo blue / preset purple */
+.badge.prov-global,
+.prov-dot.prov-global {
+  color: var(--accent-teal);
+}
+
+.badge.prov-inherited,
+.prov-dot.prov-inherited {
+  color: var(--accent-pink);
+}
+
+/* 054: inside an evidence layer the chip repeats on every row, where a column
+   of colored labels competes with the evidence itself. The dot keeps the one
+   thing that column is scanned for — same origin as the row above, or not —
+   and hands the label to the tooltip and the chip's own hover card. */
+.prov-dot {
+  background: currentColor;
+  border-radius: 50%;
+  display: inline-block;
+  flex: none;
+  height: 0.5rem;
+  width: 0.5rem;
+}
+
+/* The 016 "this explains itself" affordance (see `.badge.explained`), in the
+   only channel a dot has: a badge lights up by turning accent, but the dot's
+   HUE is its entire content — repainting it would erase the answer at the
+   moment the reader asks for it — so it gains an accent ring instead. Declared
+   here, above the clickable rule, so a dot that is a BUTTON still says
+   pointer: same specificity, and the last one wins. */
+.prov-dot.explained {
+  cursor: help;
+}
+
+.prov-dot.explained:hover,
+.prov-dot.explained:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.prov-dot[role="button"] {
+  cursor: pointer;
+}
+
+/* The expanded detail is a block, not a row: it spans the ledger's columns
+   rather than sharing them. */
+.prov-detail {
+  grid-column: 1 / -1;
+  padding: 0 0.75rem 0.75rem 1.65rem;
+}
+
+.prov-chain-title {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin: 0.5rem 0 0.3rem;
+  text-transform: uppercase;
+}
+
+/* 075 (iteration 5): a step is a BOX, not a margin note. The chain is the
+   answer to "why is this value what it is", and a stack of bordered boxes is
+   what makes it read as a sequence of hand-offs — the old 2px rule left every
+   step floating in the detail block's whitespace, where the reader had to
+   count blank lines to see where one layer's contribution ended. */
+.prov-step {
+  border: 1px solid var(--border);
+  border-left-width: 2px;
+  border-radius: 6px;
+  margin: 0.4rem 0;
+  padding: 0.4rem 0.55rem;
+}
+
+/* The step whose value survives. Tinted, so the end of the chain is findable
+   without reading it top to bottom — the `✓ final` pill in its head says the
+   same thing in words. Declared BEFORE the action edge below, which must keep
+   its warn colour even on the winning step: "this replaced something" and
+   "this is what you got" are two different facts. */
+.prov-step.winning {
+  background: var(--ok-bg);
+  border-color: var(--ok-border);
+}
+
+.prov-step.action-overwrite,
+.prov-step.action-forced {
+  border-left-color: var(--warn);
+}
+
+.prov-step-final {
+  margin-left: auto;
+}
+
+.prov-step-head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.25rem;
+}
+
+.prov-step-verb {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.prov-step.action-forced .prov-step-verb {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+pre.config-view.prov-value {
+  border-radius: 6px;
+  max-height: 16rem;
+}
+
+/* Every LOSING card's value (082): struck through and muted, whatever the verb
+   that produced it. The stack is read winner-first now, so "this is not the
+   value you got" has to be legible on the card rather than inferred from where
+   it sits. 075 states the `--muted` ink directly rather than leaning on the
+   opacity wash alone: the wash dimmed the option keys inside (which paint their
+   own colour) but left the plain values at full ink, so the block read as
+   "quiet" without reading as "not what you got". The opacity stays for the
+   keys, which no `color` here can reach. */
+pre.config-view.prov-losing {
+  color: var(--muted);
+  opacity: 0.65;
+  text-decoration: line-through;
+}
+
+/* The deferred per-rule table's one line (082 GAP-13): 463 rows are an answer
+   about ONE rule, not about `packageRules`, so they wait for a click. */
+.prov-rules-defer {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin: 0.5rem 0 0;
+}

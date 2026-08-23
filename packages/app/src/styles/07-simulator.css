@@ -1,0 +1,1119 @@
+/* Split out of index.css (roadmap 050's deferred plan, executed 2026-08-23).
+   ORDER IS LOAD-BEARING: main.tsx imports these numbered files in sequence,
+   preserving the original file's cascade byte-for-byte — two cross-file
+   equal-specificity couplings (.preset-panel, .diff-wrapper) depend on it.
+   This file: the packageRules simulator: form, verdict card, thread ledger, evidence export (006/012/018/046/054/079). */
+
+/* ---------- packageRules simulator (006) ---------- */
+
+.sim-title-hint {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+/* ---------- the simulator form, redesigned (079) ----------
+   The design's "Simulator Form Redesign" artboard: a quick-fill row, a
+   sentence card whose blanks are the four fields that identify an update,
+   `updateType` as a derived chip inside that sentence, and everything else in
+   three named collapsible groups — with the live descriptor beside them in the
+   standalone simulator. The form carries the card's inset once; nothing inside
+   it pads itself. */
+
+.sim-form-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem 0;
+}
+
+/* ----- "Start from:" ----- */
+
+.sim-quickfills {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.sim-quickfills-lead {
+  color: var(--faint);
+  font-size: 0.72rem;
+}
+
+.sim-quickfill {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 0.15rem 0.6rem;
+}
+
+.sim-quickfill:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* The example the form still agrees with — accent-tinted over the CANVAS, not
+   over --surface: this row sits on the card's own background. */
+.sim-quickfill.active {
+  background: color-mix(in srgb, var(--accent) 8%, var(--canvas));
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ----- the sentence ----- */
+
+.sim-sentence {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.6rem 0.7rem;
+}
+
+.sim-sentence p {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.92rem;
+  gap: 0.3rem;
+  line-height: 1.9;
+  margin: 0;
+}
+
+/* A blank in running copy: no box, just the dashed accent underline that says
+   "this word is yours to write". The focus ring is NOT suppressed (the mock's
+   `outline: none` is a mock's luxury) — these are the form's primary fields. */
+.sim-blank {
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px dashed var(--accent);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  padding: 0 0.1rem;
+}
+
+.sim-blank.strong {
+  font-weight: 600;
+}
+
+.sim-blank-name {
+  width: 7.5rem;
+}
+
+.sim-blank-version {
+  width: 5.2rem;
+}
+
+.sim-blank-datasource {
+  width: 6rem;
+}
+
+/* ----- updateType: a derived chip, not a field ----- */
+
+.sim-ut-chip {
+  align-items: center;
+  background: var(--warn-bg);
+  border: 1.5px dashed var(--warn-border-strong);
+  border-radius: 6px;
+  color: var(--warn);
+  display: inline-flex;
+  font-size: 0.85rem;
+  font-weight: 600;
+  gap: 0.3rem;
+  padding: 0.05rem 0.5rem;
+  position: relative;
+}
+
+/* The override `<select>` is painted out and stretched over the chip, so the
+   ring has to come from the wrapper or the keyboard gets nothing. */
+.sim-ut-chip:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sim-ut-caret {
+  color: color-mix(in srgb, var(--warn) 65%, var(--muted));
+  font-size: 0.7rem;
+}
+
+.sim-ut-select {
+  appearance: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  padding: 0;
+  position: absolute;
+  width: 100%;
+}
+
+/* ----- the groups, and the descriptor beside them ----- */
+
+.sim-form-body {
+  display: block;
+}
+
+/* Two columns when there is a preview — auto-fit rather than `1fr 1fr`,
+   because the simulator lives in the results COLUMN, whose width the viewport
+   does not report. Below ~18rem of column the preview drops underneath. */
+.sim-form-body.with-preview {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+}
+
+.sim-group {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 0.45rem;
+  overflow: hidden;
+}
+
+.sim-group:last-child {
+  margin-bottom: 0;
+}
+
+.sim-group-head {
+  align-items: baseline;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 0.78rem;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.sim-group-head:hover {
+  background: var(--surface);
+}
+
+.sim-group-title {
+  flex: none;
+  font-weight: 600;
+}
+
+/* The abstract a collapsed group owes: how many of its fields hold a value.
+   Ghost while it holds nothing, accent-tinted the moment it does. */
+.sim-group-count {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--faint);
+  flex: none;
+  font-size: 0.66rem;
+  margin-left: auto;
+  padding: 0 0.4rem;
+}
+
+.sim-group-count.set {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+
+/* The design's two columns, fixed: `auto-fit` here would widen to 3–4 tracks
+   in the Add-a-test panel (the results column is ~44rem), a materially denser
+   form than the artboard draws. Two `1fr` tracks track the container at every
+   width the form actually renders at. */
+.sim-group-body {
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 0.4rem;
+  grid-template-columns: 1fr 1fr;
+  padding: 0.5rem 0.6rem;
+}
+
+.sim-field {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.7rem;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+/* Every field label wears a glossary `.term` now; in this flex column the
+   span would stretch, and a dotted underline running the whole cell reads as
+   a rule, not an affordance — the design hugs the label text. */
+.sim-field > .term {
+  align-self: flex-start;
+}
+
+/* The direct child only: a multi-value field's draft input is nested inside
+   its chip box and wears `.sim-multi-draft` instead. */
+.sim-field > input {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: inherit;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  min-width: 0;
+  padding: 0.24rem 0.4rem;
+}
+
+/* ----- multi-value fields: chips in a box that looks like an input ----- */
+
+.sim-multi-box {
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  min-height: 1.65rem;
+  padding: 0.14rem 0.25rem;
+}
+
+.sim-multi-box:focus-within {
+  border-color: var(--accent);
+}
+
+.sim-chip {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  display: inline-flex;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  gap: 0.25rem;
+  line-height: 1.4;
+  padding: 0 0.45rem;
+}
+
+.sim-chip-remove {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.sim-chip-remove:hover {
+  color: var(--error);
+}
+
+.sim-multi-draft {
+  background: transparent;
+  border: none;
+  color: inherit;
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  min-width: 5rem;
+  padding: 0.1rem;
+}
+
+/* ----- the live descriptor (standalone only) ----- */
+
+.sim-descriptor {
+  align-self: start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  /* Since 082 the document prints every set descriptor field, not a capped
+     eight — a sticky box taller than the viewport would hide its own tail. */
+  max-height: calc(100vh - 1rem);
+  overflow-y: auto;
+  padding: 0.55rem 0.65rem;
+  position: sticky;
+  top: 0.5rem;
+}
+
+.sim-descriptor-label {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.35rem;
+  text-transform: uppercase;
+}
+
+.sim-descriptor-json {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  line-height: 1.6;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.sim-json-key {
+  color: var(--json-key);
+}
+
+.sim-json-str {
+  color: var(--json-string);
+}
+
+.sim-descriptor-empty {
+  color: var(--faint);
+  font-size: 0.7rem;
+  margin: 0.35rem 0 0;
+}
+
+/* ----- the same descriptor, folded away (roadmap 082, the compact form) -----
+   A `.sim-group` in every metric — it sits in the same stack as the three
+   field groups and must read as one more of them — except that it is tinted,
+   because it is the one row in that stack that is a RESULT rather than an
+   input. */
+.sim-descriptor-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-top: 0.45rem;
+  overflow: hidden;
+}
+
+.sim-descriptor-section-title {
+  color: var(--muted);
+  flex: none;
+  font-weight: 600;
+}
+
+.sim-descriptor-readonly {
+  flex: none;
+  font-size: 0.66rem;
+  margin-left: auto;
+}
+
+.sim-descriptor-body {
+  border-top: 1px solid var(--border);
+  padding: 0.55rem 0.65rem;
+  position: relative;
+}
+
+/* Over the document's top-right corner, the way every code block's copy sits —
+   with the document keeping a lane clear for it. */
+.sim-descriptor-copy {
+  position: absolute;
+  right: 0.5rem;
+  top: 0.45rem;
+}
+
+.sim-descriptor-body .sim-descriptor-json {
+  padding-right: 2.4rem;
+}
+
+.sim-descriptor-note {
+  color: var(--faint);
+  font-size: 0.7rem;
+  margin: 0.4rem 0 0;
+}
+
+.sim-actions {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.sim-stale {
+  color: var(--warn);
+  font-size: 0.82rem;
+}
+
+.sim-error {
+  color: var(--error);
+  padding: 0 0.75rem 0.75rem;
+}
+
+.sim-results {
+  border-top: 1px solid var(--border);
+  margin-top: 0.25rem;
+  padding: 0.6rem 0.75rem 0.75rem;
+}
+
+.sim-messages {
+  margin: 0 0 0.5rem;
+  padding-left: 1.25rem;
+}
+
+.sim-note {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 0.25rem 0;
+}
+
+.sim-rules {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.sim-rule {
+  border-bottom: 1px solid var(--border);
+}
+
+.sim-rule:last-child {
+  border-bottom: none;
+}
+
+.sim-rule-head {
+  align-items: center;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 0.85rem;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+  width: 100%;
+}
+
+.sim-rule-head:hover {
+  background: var(--surface);
+}
+
+.sim-rule-index {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.sim-rule-label {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.badge.sim-verdict.verdict-matched {
+  color: var(--ok);
+}
+
+.badge.sim-verdict.verdict-no-match {
+  color: var(--muted);
+}
+
+/* Replay-02 R3/R4: the fail-closed no-match wears the warn hue its clause
+   glyph already uses — the row says "no input" and the hover card says why,
+   rather than a muted chip carrying a sentence too long for the row. */
+.badge.sim-verdict.verdict-no-input {
+  color: var(--warn);
+}
+
+.badge.sim-verdict.verdict-not-simulated {
+  color: var(--warn);
+}
+
+.sim-rule-detail {
+  border-top: 1px dashed var(--border);
+  padding: 0.5rem 0.75rem 0.6rem 1.9rem;
+}
+
+/* ONE clause-state → hue mapping for the ONE form a clause is read in (054
+   layer 7 retired the prose list the rules drawer used to have its own copy
+   of). Every state is named explicitly on purpose — the grid used to inherit
+   green as a fall-through, so a state the list did not know about rendered as
+   "matched". Anything unmapped is muted (see `.sim-clause-mark`), which says
+   nothing rather than the wrong thing. */
+.sim-clause-row.state-matched .sim-clause-mark {
+  color: var(--ok);
+}
+
+.sim-clause-row.state-no-match .sim-clause-mark,
+.sim-clause-row.state-error .sim-clause-mark {
+  color: var(--error);
+}
+
+.sim-clause-row.state-no-input .sim-clause-mark {
+  color: var(--warn);
+}
+
+/* Replay-02 R4: neutral states get a neutral hue — a warn-colored glyph on a
+   clause that was never evaluated reads like a problem with the run. */
+.sim-clause-row.state-not-applicable .sim-clause-mark,
+.sim-clause-row.state-not-simulated .sim-clause-mark {
+  color: var(--muted);
+}
+
+/* Replay-02 R3: the verdict card's fail-closed caveat — visually part of the
+   answer band so a screenshot of the sentence carries its own disclaimer. */
+.sim-verdict-caveat {
+  color: var(--warn);
+  font-size: 0.82rem;
+  margin: 0.35rem 0 0;
+}
+
+.sim-merged {
+  background: var(--surface);
+  border-radius: 6px;
+  font-size: 0.82rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.7rem;
+}
+
+.sim-merged .sim-writes {
+  margin-top: 0.25rem;
+}
+
+.sim-merged-title {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* A value that never reached the final config, wherever it is read: what a
+   write replaced, and — since 054 layer 7 — the beaten value a thread's
+   override row states, which is the same fact in the same grammar. */
+.sim-merged-before {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  text-decoration: line-through;
+}
+
+.sim-merged-after {
+  color: var(--ok);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+/* 047: the no-timeline fallback inside the merge drawer — a plain disclosure
+   for the resolved config when nothing merged. */
+.sim-final {
+  margin-top: 0.25rem;
+}
+
+/* 044: the merge step-through inside the final-config section. It reuses the
+   004 `.migration-steps` grammar verbatim — the only thing it adds is the
+   section spacing every other `.sim-final` block has. 042's insets are scoped
+   to `.card > .migration-steps`, so they deliberately don't reach this one: it
+   sits inside `.sim-results`, which already brings the card's 0.75rem inset. */
+.sim-merge-steps {
+  margin: 0.5rem 0 0.75rem;
+}
+
+/* 046: the merge timeline reuses the `.stage-timeline` grammar; only the
+   Pipeline tab's outer margins are re-tuned for this context. */
+.sim-merge-steps .stage-timeline {
+  margin: 0.5rem 0;
+}
+
+.sim-merge-steps .migration-steps {
+  margin-top: 0.4rem;
+}
+
+/* 046: the final stop's body — the resolved config with its copy affordance,
+   replacing the old details disclosure. */
+.sim-final-config-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.4rem;
+}
+
+.sim-final > summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  margin-bottom: 0.4rem;
+}
+
+/* ---------- verdict card (012 → 046: band / ledger / foot) ---------- */
+
+.sim-verdict-block {
+  border: 1px solid var(--ok-border);
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+}
+
+.sim-verdict-block.none {
+  border-color: var(--border);
+}
+
+/* The answer band — the only tinted surface on the card; everything below it
+   sits on the page background so the judgment reads first. */
+.sim-verdict-band {
+  background: var(--ok-bg);
+  border-bottom: 1px solid var(--border);
+  padding: 0.6rem 0.85rem 0.7rem;
+}
+
+.sim-verdict-block.none .sim-verdict-band {
+  background: var(--surface);
+}
+
+.sim-verdict-eyebrow {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  margin: 0 0 0.4rem;
+  text-transform: uppercase;
+}
+
+.sim-verdict-sentence {
+  font-size: 1.15rem;
+  font-weight: 500;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 46rem;
+  text-wrap: balance;
+}
+
+/* 046: the modal verb as a set piece — the single most information-bearing
+   word the simulator produces; the badge color IS the verdict. It is a `.badge`
+   in everything but class, so it takes the same currentColor fill and, like a
+   badge variant, `.not` states nothing but the hue. The heavier `-strong`
+   outline is what keeps it louder than the badges around it. */
+.sim-modal-verb {
+  background: var(--chip-fill);
+  border: 1px solid var(--chip-border-strong);
+  border-radius: 5px;
+  color: var(--ok);
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+  padding: 0 0.35em;
+  text-transform: uppercase;
+  transform: translateY(-0.08em);
+}
+
+.sim-modal-verb.not {
+  color: var(--error);
+}
+
+.sim-verdict-body {
+  padding: 0.6rem 0.85rem 0.7rem;
+}
+
+/* ---------- 054: the thread ledger (variant A) ----------
+   The ledger IS the trace. Collapsed it reads as the 046 ledger did, but every
+   row expands into that key's own causal story, so the three grains 047 kept
+   re-stating (ledger, per-rule applied list, step diff) have one home each.
+   Rows share ONE set of columns — key · value · origin — through `subgrid`, so
+   values start on a common edge instead of wherever the key happens to end;
+   the head button IS the subgrid row, which is why the <li> around it
+   disappears into `display: contents`. Columns come from the shared `.kv`
+   primitive; only the track list and the list reset are this surface's. */
+.sim-thread-list {
+  --kv-cols: max-content minmax(0, 1fr) auto;
+  --kv-gap: 0.6rem;
+
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sim-thread {
+  display: contents;
+}
+
+/* The head IS the row (`.kv-row`); this is only the button reset it needs to
+   stop looking like a button. */
+.sim-thread-head {
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.83rem;
+  padding: 0.2rem 0.4rem;
+  text-align: left;
+}
+
+.sim-thread-head:hover {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+.sim-thread-key {
+  white-space: nowrap;
+}
+
+.sim-thread-value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sim-thread-final {
+  color: var(--ok);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.sim-thread-final.removed {
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* The contested case the 046 ledger made invisible, stated on the COLLAPSED
+   row — otherwise "who else wrote this?" is a question nobody knows to ask. */
+.sim-thread-writers {
+  margin-left: 0.4rem;
+}
+
+.sim-thread-origin {
+  justify-self: end;
+}
+
+/* The expanded thread hangs off a rule of its own, so the story reads as
+   belonging to the row that opened it. */
+.sim-thread-body {
+  border-left: 2px solid var(--border);
+  font-size: 0.82rem;
+  grid-column: 1 / -1;
+  margin: 0.15rem 0 0.5rem 0.95rem;
+  padding: 0.2rem 0 0.2rem 0.75rem;
+}
+
+.sim-thread-line {
+  color: var(--muted);
+  margin: 0.25rem 0;
+}
+
+/* The verb carries the merge semantics (set / appended / removed), so it is
+   the one word in the thread that gets full-strength ink. */
+.sim-thread-line b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.sim-thread-rule,
+.sim-thread-stop {
+  color: var(--ink);
+}
+
+.sim-thread-chip {
+  margin-left: 0.4rem;
+}
+
+.sim-thread-body .sim-step-link {
+  margin-left: 0;
+}
+
+/* 054: clause evidence as COLUMNS — mark · matcher · what it checks · what
+   this update actually is. Rows are subgrid so both value columns line up
+   straight down the grid; the comparison IS the evidence, and the prose form
+   this replaced (layer 7 retired it) hid the comparison in a sentence. */
+/* Replay-02 N6: both text columns are `fr`, not `1fr auto`. An `auto` track
+   grows toward its max-content BEFORE any fr track gets space, and a clause
+   that did NOT match carries a whole sentence there ("evaluated false — the
+   simulated dependency has no depType …"). That starved the checks column to
+   ~1ch, breaking its value one glyph per line — and because subgrid sizes
+   tracks across ALL rows, a single failing clause collapsed the whole grid.
+   Two minmax(0, fr) tracks can't starve each other; the explanation gets the
+   larger share because it is prose, while the value it sits beside is a
+   `previewValue`, capped at 60 characters. */
+.sim-clause-grid {
+  --kv-cols: max-content max-content minmax(0, 1fr) minmax(0, 1.6fr);
+  --kv-row-gap: 0.2rem;
+
+  margin: 0.3rem 0;
+}
+
+/* The neutral default; the state hues come from the per-state mapping above. */
+.sim-clause-mark {
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+
+/* The matcher name, in the same mono the digest and the merge drawer set their
+   keys in — a key column is a key column wherever a 054 grid puts one. */
+.sim-clause-key {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.sim-clause-checks,
+.sim-clause-evaluated {
+  color: var(--muted);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sim-clause-value {
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+/* Replay-02 N6: a truncated clause value is a button — click for the full
+   value (also in its title). Inherits the value styling above; the dotted
+   underline is the only affordance chrome. */
+.sim-clause-expand {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+
+/* 054 layer 3: the rule-evidence popover. The plane is the app's existing
+   hover-card plane (.option-card: raised surface, popover shadow, fixed
+   placement clamped to the viewport by lib/anchored-card) — this only sets the
+   shape the mockup asked for. Nothing here animates: the card is opened by a
+   click and read immediately, so a transition would only delay it. */
+.sim-rule-pop {
+  font-size: 0.78rem;
+  /* The inline max-width from the placement helper wins; this is the shape
+     when the viewport is wide enough for the card's full 36rem. */
+  max-width: min(36rem, 92vw);
+  width: max-content;
+}
+
+.sim-rule-pop-anchor {
+  display: inline;
+}
+
+/* The losing writer's reference IS the link — same mono reference text the
+   thread uses elsewhere, marked as actionable rather than restated.
+   Deliberately the app's ACTIONABLE-text grammar (`.btn-quiet`,
+   `.preset-hover-jump`: accent, solid underline at rest, brightened on hover)
+   and not `.term`'s: a dotted accent underline at rest is exactly what a
+   glossary term looks like while HOVERED, so this one read as "there is a
+   definition here" when what it does is open a dialog. */
+.sim-rule-pop-link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  /* The reference stays the same `packageRules[N]` token the winner line sets
+     in <code> — only its color and underline say it opens something. */
+  font-family: var(--font-mono);
+  padding: 0;
+  text-decoration: underline;
+}
+
+.sim-rule-pop-link:hover {
+  filter: brightness(1.1);
+}
+
+.sim-rule-pop-head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 0.35rem;
+}
+
+.sim-rule-pop-id {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.sim-rule-pop-line {
+  color: var(--muted);
+  margin: 0.35rem 0;
+}
+
+.sim-rule-pop-foot {
+  margin: 0.4rem 0 0;
+}
+
+/* 054 layer 7: ONE grammar for "something wrote this key", on shared columns
+   (mark · key · values) so a column of writes reads down its value edge — the
+   evidence card's digest, a thread's beaten values and the matched rule's
+   applied diff are all this grid. */
+.sim-writes {
+  --kv-cols: max-content max-content minmax(0, 1fr);
+  --kv-row-gap: 0.2rem;
+}
+
+.sim-write-mark {
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+
+.sim-write-key {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.sim-write-values {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A write that happened here but lost to a later stop: it IS this step's
+   addition, so it keeps the add tint, and it is struck like every other value
+   in 054 that never reached the final config. */
+.sim-merged-after.overridden {
+  text-decoration: line-through;
+}
+
+/* The trailing aside — who wrote a beaten value, which step took a write away.
+   Muted, so the references inside it (`.sim-thread-rule`, the popover link)
+   stay the only full-strength ink on the row. */
+.sim-write-note {
+  color: var(--muted);
+}
+
+.sim-step-link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  margin-left: 0.5rem;
+  padding: 0;
+}
+
+.sim-step-link:hover {
+  text-decoration: underline;
+}
+
+/* 046: the consumed-blocks aside wears the flatten step's glyph and amber, so
+   the two surfaces explain each other. */
+.sim-consumed-note {
+  border-left: 3px solid color-mix(in srgb, var(--warn) 45%, transparent);
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  margin: 0.6rem 0 0;
+  max-width: 46rem;
+  padding-left: 0.6rem;
+}
+
+.sim-consumed-note .sim-step-link {
+  margin-left: 0;
+}
+
+.sim-consumed-glyph {
+  color: var(--warn);
+  font-family: var(--font-mono);
+}
+
+.sim-verdict-foot {
+  align-items: center;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.9rem;
+  padding: 0.45rem 0.85rem;
+}
+
+.sim-verdict-none {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0;
+}
+
+.sim-jump {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  display: inline-block;
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0;
+}
+
+.sim-jump:hover {
+  text-decoration: underline;
+}
+
+/* 054: the demoted evidence drawers' only mention on the card — one quiet
+   line, with "N of M" stated here and nowhere else on it. Both of its links
+   ARE `.sim-jump`; they are the same affordance saying two things. */
+.sim-trace-links {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+/* ---------- 018 evidence export: copy-as-markdown, sim link ---------- */
+
+.sim-verdict-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.9rem;
+  margin-left: auto;
+}
+
+/* Roadmap 036: ONE copy affordance (components/CopyButton.tsx), at ONE size —
+   the four it replaced ran 0.72rem/0.8rem/0.9rem and read as unrelated
+   controls. Roadmap 039: the metrics (and the icon rule) come from the button
+   base it now carries; what is left here is what makes a copy button a copy
+   button — the accent label, its tinted hover, and `.copied`, the transient
+   success state whose icon swaps to a check in the same beat. */
+.copy-btn {
+  color: var(--accent);
+}
+
+.copy-btn:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.copy-btn.copied {
+  /* The design's copied state is a green WASH, not just a green outline —
+     the strong tint step, so the flash reads at icon-only sizes too. */
+  background: var(--ok-bg-strong);
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+/* Sits on a `<summary>` / section-title line rather than in a control row. */
+.copy-btn.inline {
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+
+/* Roadmap 077: icon-only (the toolbar's file-name copy) — square-ish, the
+   label lives in `aria-label`/`title` and the name it copies sits beside it. */
+.copy-btn.icon-only {
+  padding-inline: 0.4rem;
+}
+
+/* The rules drawer's filter row: the SAME chrome as the Effective Config tab's
+   `.prov-filters` (one `<select>` per facet), but the controls sit on the right
+   edge — the drawer's own summary row already carries the headline count on the
+   left, so the row reads header-left / controls-right. */
+.sim-filters {
+  justify-content: flex-end;
+  margin-bottom: 0.5rem;
+  scroll-margin-top: 0.5rem;
+}
+
+/* Stated ONLY while the filters are narrowing the list (the component renders
+   nothing otherwise): unfiltered it would repeat "N of M matched" from the
+   summary row above it. */
+.sim-filter-count {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-right: auto;
+  white-space: nowrap;
+}
+
+/* Roadmap 075: the "show all / hide" toggles are `.btn-quiet` — what is left
+   here is only their size and their refusal to wrap. */
+.sim-toggle {
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.sim-toggle.inline {
+  font-size: inherit;
+}

@@ -1,0 +1,823 @@
+/* Split out of index.css (roadmap 050's deferred plan, executed 2026-08-23).
+   ORDER IS LOAD-BEARING: main.tsx imports these numbered files in sequence,
+   preserving the original file's cascade byte-for-byte — two cross-file
+   equal-specificity couplings (.preset-panel, .diff-wrapper) depend on it.
+   This file: rule identity, error translations, problem cards, ergonomics, tooltips, the tabbed results shell (013/014/016/023/028/075). */
+
+/* ---------- rule identity & provenance (013) ---------- */
+
+/* A packageRules[N] reference inside a validator message: the primary link
+   jumps to that index's own scheme (repo → editor, merged → simulator row);
+   the muted cross-link (rule-ref-cross) names the other scheme's index. */
+.rule-ref-link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline dotted;
+}
+
+.rule-ref-link:hover {
+  text-decoration-style: solid;
+}
+
+.rule-ref-cross {
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+/* Transient "you are here" flash for a cross-link's target: a CodeMirror
+   line, or a simulator rule row. Timed to match the callers' ~1.6s timeout. */
+@keyframes rcv-flash {
+  from {
+    background: color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  to {
+    background: transparent;
+  }
+}
+
+.rcv-flash {
+  animation: rcv-flash 1.6s ease-out;
+}
+
+/* Roadmap 054: the same "you are here", without the motion — the target still
+   has to be markable for a reader who asked for less animation, so the flash
+   becomes a static highlight for the same duration (the class is removed on
+   the callers' timeout either way). Same HUE as the animation's first frame:
+   one signal may only have one color, or the two readings of "you are here"
+   are two different marks. */
+@media (prefers-reduced-motion: reduce) {
+  .rcv-flash {
+    animation: none;
+    background: color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+}
+
+.sim-rule-provenance {
+  flex: none;
+}
+
+/* Per-entry provenance list inside the effective config's packageRules row. */
+.prov-rules {
+  margin-top: 0.5rem;
+}
+
+.prov-rules-title {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin: 0.5rem 0 0.3rem;
+  text-transform: uppercase;
+}
+
+.prov-rules-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.prov-rules-list li {
+  align-items: center;
+  display: flex;
+  font-size: 0.82rem;
+  gap: 0.45rem;
+  padding: 0.2rem 0;
+}
+
+.prov-rule-index {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 2rem;
+}
+
+.prov-rule-preview {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- validation error translations + quick fixes (014) ---------- */
+
+/* Sits directly under a message's own text (never replacing it) — a quiet
+   card, one level down from the surrounding `.messages li`. */
+.error-translation {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  margin: 0.4rem 0 0.15rem;
+  padding: 0.5rem 0.65rem;
+}
+
+/* The unmatched-message fallback (003's docs link) is a single line, no card. */
+.error-translation-fallback {
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.error-translation-explain {
+  color: inherit;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.error-translation-fix {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.45rem;
+}
+
+.error-translation-diff {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  gap: 0.4rem;
+  overflow-wrap: anywhere;
+}
+
+.error-translation-diff .before {
+  color: var(--error);
+  text-decoration: line-through;
+}
+
+.error-translation-diff .after {
+  color: var(--ok);
+}
+
+.error-translation-arrow {
+  color: var(--muted);
+}
+
+.error-translation-summary {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+/* `.error-translation-apply` lived here until 075 (iteration 5): an ok-tinted
+   button that was the app's only copy of "the main action of this block". The
+   Problems tab, its one caller, now renders fix-it cards whose Apply button is
+   the standard `.btn-primary` — one primary, one spelling. */
+
+.error-translation-docs {
+  color: var(--accent);
+  display: inline-block;
+  font-size: 0.78rem;
+  margin-top: 0.35rem;
+}
+
+/* ---------- problems as fix-it cards (075, iteration 5) ----------
+   One problem, one card. The list stays a `<ul class="messages">` — the list
+   semantics are what say how many findings there are, and the two severity
+   classes are the ones the e2e suites already key off — but each item becomes
+   a framed card: head strip (severity · option · docs), then Renovate's own
+   message, then the explanation and the fix. */
+.problem-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  list-style: none;
+  /* The panel supplies the outer padding (`.tab-body`); the top margin is the
+     gap under the tab's summary strip. */
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+
+/* The old rendering painted the whole item in its severity hue, which is a lot
+   of red for a paragraph the reader has to actually read. The hue moves to the
+   card's edge and its pill; the text goes back to ink. Written at the same
+   specificity as `.messages li.error` and after it, deliberately: the two
+   severity classes stay on the item for everything else that reads them. */
+.messages li.problem-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--ink);
+  overflow: hidden;
+}
+
+.messages li.problem-card.error {
+  border-color: var(--error-border);
+}
+
+.messages li.problem-card.warn {
+  border-color: var(--warn-border);
+}
+
+.problem-head {
+  align-items: center;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.35rem 0.6rem;
+}
+
+/* The option the message is about — mono and bold, because it is the one token
+   in the card the reader will go looking for in the editor. */
+.problem-key {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.problem-docs {
+  color: var(--accent);
+  font-size: 0.75rem;
+  margin-left: auto;
+}
+
+/* Renovate's own words, unedited (014's standing rule) — first thing in the
+   body, above anything this app has to say about them. */
+.problem-message {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin: 0;
+  padding: 0.5rem 0.6rem 0;
+}
+
+.problem-body {
+  padding: 0.5rem 0.6rem 0.6rem;
+}
+
+.problem-explain {
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin: 0 0 0.45rem;
+}
+
+.problem-fix {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.problem-fix-summary {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+.problem-nofix {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+/* The suggested edit as a unified diff, in the SAME row tints every other diff
+   in the app uses (`--diff-added-bg` / `--diff-removed-bg`, hoisted out of
+   `.diff-wrapper` for exactly this). Two lines, not an arrow between two
+   values: the arrow stopped being legible the moment either side was an
+   object. */
+.problem-diff {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  min-width: 12rem;
+  overflow: hidden;
+}
+
+.problem-diff-line {
+  display: flex;
+  gap: 0.45rem;
+  overflow-wrap: anywhere;
+  padding: 0.15rem 0.45rem;
+}
+
+.problem-diff-line.removed {
+  background: var(--diff-removed-bg);
+}
+
+.problem-diff-line.added {
+  background: var(--diff-added-bg);
+}
+
+.problem-diff-sign {
+  color: var(--muted);
+  flex: none;
+}
+
+/* Roadmap 015: simulator input ergonomics — the empty-form guard and an
+   unmissable stale-results veil (the small .sim-stale text hint alone was
+   skimmed past in the persona study). 047 moved the derived-updateType hint
+   into its own one-liner; 079 moved it again, into the sentence's own
+   `.sim-ut-chip`. */
+
+.sim-empty-guard {
+  color: var(--warn);
+  font-size: 0.85rem;
+  margin: 0.5rem 0.75rem 0;
+}
+
+/* One sentence shape for "what you are looking at is behind the inputs above
+   it", at two scopes: the simulator's own form (015) and the whole run
+   (`StaleResultsBanner`, in the tab shell's run-level banner slot). Sharing
+   the rule is the point — the two must not drift into two different warnings
+   for the same idea. */
+.sim-stale-banner,
+.stale-banner {
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-border);
+  border-radius: 6px;
+  color: var(--warn);
+  font-size: 0.85rem;
+  margin: 0 0 0.6rem;
+  padding: 0.5rem 0.65rem;
+}
+
+/* The run-level one sits inside `.tab-body`'s padding, above the tab panel. */
+.stale-banner {
+  margin: 0 0 0.75rem;
+}
+
+/* Replay-02 R1: once the hypothetical banner has been shown, its box stays
+   reserved for the session — the banner vanishing after an applied fix used
+   to move the Simulate button out from under the pointer. */
+/* Roadmap 075: the run-level hypothetical banner's reserved box (Replay-02 R1)
+   — once shown, the slot keeps its height for the session so a cleared banner
+   never moves the control under the reader's pointer. */
+.run-banner-slot.ghost {
+  visibility: hidden;
+}
+
+.sim-results-body.stale {
+  filter: grayscale(65%);
+  opacity: 0.4;
+  position: relative;
+}
+
+/* Replay-02 R1: the dim alone is invisible in a cropped screenshot — a stale
+   and a fresh card are structurally identical. The stamp makes any capture
+   self-labelling (it dims with the card, but stays legible). */
+.sim-results-body.stale::after {
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-border);
+  border-radius: 6px;
+  color: var(--warn);
+  content: "Stale — inputs changed, simulate again";
+  font-size: 0.9rem;
+  font-weight: 600;
+  left: 50%;
+  padding: 0.4rem 0.8rem;
+  position: absolute;
+  top: 1.5rem;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+/* The veil FADES in only for readers who did not ask for less motion; the
+   state itself (grayed, half-opacity) is the message and always applies —
+   reduced motion must not mean "no stale warning". */
+@media (prefers-reduced-motion: no-preference) {
+  .sim-results-body.stale {
+    transition:
+      opacity 0.15s ease,
+      filter 0.15s ease;
+  }
+}
+
+/* ---------- scale framing, badge glossary, page & editor ergonomics (016) ---------- */
+
+/* Honest origin sentence under a card title, e.g. "your extends entry
+   `config:recommended` expands to 1,076 presets." */
+.origin-framing {
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 0;
+  padding: 0.4rem 0.75rem;
+}
+
+.origin-framing code {
+  font-size: 0.85em;
+}
+
+/* Any badge/stat given a glossary hover card (see glossary.tsx's `Explained`)
+   gets a quiet affordance; more-specific rules elsewhere (e.g. the clickable
+   dup/elided badges' own `cursor: pointer`) still win by specificity. The 054
+   provenance DOT carries the same class and states its own form of this next
+   to `.prov-dot`, where the ordering against the clickable case is visible. */
+.badge.explained,
+.preset-summary-stat.explained {
+  cursor: help;
+}
+
+/* ---------- editor hover tooltips ----------
+   CodeMirror positions tooltips `fixed`, so they escape the editor card and
+   the sticky column's scroll container by design — which is fine for a
+   popover, except nothing dressed the schema hover as one: `packageRules`
+   carries a full docs URL on one unbreakable line, so the tooltip ran edge
+   to edge across the results column, width-sized by its longest word and
+   wearing only the syntax theme's flat background. The `.cm-tooltip` box
+   itself must stay chromeless: for preset strings it is a tiny anchor whose
+   `.option-card` child paints its own popover — dressing the container puts
+   an empty pill behind that card. So the container goes transparent, and
+   only a tooltip actually holding the schema hover's markup (`:has`) gets
+   the popover plane, the option-card width cap, and URL breaking. Three
+   classes to out-spec the theme's injected `.ͼ* .cm-tooltip` rules, which
+   land later in the cascade. */
+.card .cm-editor .cm-tooltip {
+  background: transparent;
+  border: none;
+  z-index: var(--z-popover);
+}
+
+.card .cm-editor .cm-tooltip:has(.cm6-json-schema-hover) {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: var(--shadow-popover);
+  color: var(--ink);
+  font-size: 0.8rem;
+  max-width: min(26rem, calc(100vw - 2rem));
+  overflow-wrap: anywhere;
+  padding: 0.45rem 0.65rem;
+}
+
+/* The library's hover markup brings document-flow <p> margins with it;
+   inside a tooltip they read as stray whitespace. */
+.cm-tooltip .cm6-json-schema-hover p {
+  margin: 0;
+}
+
+.cm-tooltip .cm6-json-schema-hover--code-wrapper {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  margin-top: 0.35rem;
+}
+
+/* The hover shifts `color`, which (036) carries the badge's fill and border
+   with it — the whole chip lights up, not just its outline. */
+.badge.explained:hover,
+.badge.explained:focus-visible {
+  color: var(--accent);
+}
+
+.preset-summary-stat.explained:hover,
+.preset-summary-stat.explained:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Roadmap 016's `appended`/`merged`/`overridden` badges were retired by 082:
+   the effective config's third cell is prose now (`.prov-row-note`), which says
+   the same thing in the design's own words and keeps the glossary card. */
+
+/* Back-to-top affordance (roadmap 016): appears once the page has scrolled
+   past the fold; simpler and more robust than a sticky mini-toolbar. */
+.back-to-top {
+  background: var(--accent-fill);
+  border: none;
+  border-radius: 999px;
+  bottom: 1.25rem;
+  box-shadow: var(--shadow-float);
+  color: var(--on-accent);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.5rem 0.9rem;
+  position: fixed;
+  right: 1.25rem;
+  z-index: var(--z-float);
+}
+
+.back-to-top:hover {
+  filter: brightness(1.1);
+}
+
+/* Roadmap 054: the return pill — the same bottom-of-the-viewport plane as
+   .back-to-top and .rcv-toast (same offset, same float shadow, the same
+   --z-float rung), but centered and quiet: it answers a jump the reader made
+   one click ago, so it must be findable without competing with the page it
+   floats over. */
+.sim-return-pill {
+  align-items: center;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  bottom: 1.25rem;
+  box-shadow: var(--shadow-float);
+  color: var(--accent);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 0.82rem;
+  gap: 0.3rem;
+  left: 50%;
+  padding: 0.4rem 0.95rem;
+  position: fixed;
+  transform: translateX(-50%);
+  z-index: var(--z-float);
+}
+
+.sim-return-pill:hover {
+  border-color: var(--accent);
+}
+
+.sim-return-pill code {
+  font-size: 0.95em;
+}
+
+/* ---------- post-action focus, honest error states, rule filters (023) ---------- */
+
+/* Shown on post-Validate results (stage diffs, effective config, simulator)
+   when validation reported errors — everything below is hypothetical. */
+.hypothetical-banner {
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
+  border-left: 3px solid var(--error);
+  border-radius: 6px;
+  color: inherit;
+  font-size: 0.85rem;
+  margin: 0 0 0.6rem;
+  padding: 0.5rem 0.7rem;
+}
+
+/* Transient toast (e.g. Apply fix → "re-ran: 0 errors"): lands the user on a
+   consequence without moving their scroll. */
+.rcv-toast {
+  background: var(--accent-fill);
+  border-radius: 8px;
+  bottom: 1.25rem;
+  box-shadow: var(--shadow-float);
+  color: var(--on-accent);
+  font-size: 0.9rem;
+  font-weight: 600;
+  left: 50%;
+  padding: 0.6rem 1rem;
+  position: fixed;
+  transform: translateX(-50%);
+  z-index: var(--z-toast);
+}
+
+/* Hint shown when a "packageRules[N]" cross-link is clicked before any
+   simulation exists to render that row. */
+.sim-focus-hint {
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  margin: 0 0 0.6rem;
+  padding: 0.5rem 0.7rem;
+}
+
+/* Preset-string hover card in the editor (extends the shared .option-card). */
+.preset-hover-jump {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.preset-hover-jump:hover {
+  filter: brightness(1.1);
+}
+
+/* ---------- tabbed results shell (028) ---------- */
+
+/* Two panes once a run exists: config left, one tabbed results panel right.
+
+   Roadmap 075 replaced the sticky-columns arrangement with the frame the two
+   panes were always trying to be. Sticking was the page-scrolling answer to a
+   real problem — scrolling thousands of diff lines dragged the editor, the
+   thing being explained, off the top — and it cost a viewport-height cap, a
+   row span for the headless note and a static fallback per breakpoint. Now the
+   grid IS the viewport's remaining height, and each pane scrolls itself: the
+   editor cannot leave, because nothing it sits in moves.
+
+   Stated as what the WIDE viewport adds, rather than as a narrow viewport
+   undoing it: the fallback is the plain document this app was before v2, and a
+   frame written the other way round had to unset a height, an overflow and
+   three flex declarations per box to get back to it — including CodeMirror's
+   own min-height, which the fill deliberately overrides.
+
+   61rem, not 60rem, is the exact complement of the stacked query below it
+   (960px + 1px at a 16px root). Both must stay in sync with
+   STACKED_VIEWPORT_QUERY in ResultsColumn.tsx: that file's post-run
+   scroll-into-view exists for the stacked layout, where the page scrolls. */
+@media (min-width: 60.0625rem) {
+  /* The frame: the header keeps its height, the content area takes the rest,
+     and nothing outside a pane scrolls. */
+  main.app-shell {
+    height: 100dvh;
+    min-height: 0;
+    padding-bottom: 0.75rem;
+  }
+
+  .app-content {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .app-split.has-results {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: minmax(24rem, 5fr) minmax(28rem, 6fr);
+    /* The panes own the scrolling; the grid clips instead of growing. */
+    overflow: hidden;
+  }
+
+  /* `min-width: 0` is what lets a pane's wide content (a diff, a long preset
+     path) scroll INSIDE it rather than widening its track — a grid item's
+     automatic minimum is its content's, which would push the other pane out.
+     Every hover card in the app portals to `document.body`
+     (`components/hover-card.tsx`), so these scroll containers cannot clip one. */
+  .app-split.has-results > .config-col,
+  .app-split.has-results > .results-col {
+    min-width: 0;
+    overflow-y: auto;
+  }
+
+  /* The editor fills its pane: the toolbar strip stays at the top of the card,
+     the document grows into whatever is left, and the zones below it (advanced
+     options, notices, the footer line) follow underneath. */
+  .app-split.has-results > .config-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .app-split.has-results .editor-shell {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    margin-bottom: 0;
+    min-height: 16rem;
+  }
+
+  /* Three boxes deep, because `@uiw/react-codemirror` wraps the editor in a
+     theme div of its own (`.cm-theme-light` / `.cm-theme-dark`) — a height that
+     stops at either of them leaves the document short of the card it is in. The
+     `:not()` keeps the repo-load overlay, the editor body's other child, out of
+     the column: it is a layer, not a row. */
+  .app-split.has-results .editor-shell > .card,
+  .app-split.has-results .editor-body,
+  .app-split.has-results .editor-body > div:not(.repo-overlay) {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  /* Beats CodeMirror's own `maxHeight` theme rule (one class), so the document
+     scrolls inside the card instead of the card growing past the pane. */
+  .app-split.has-results .editor-body .cm-editor {
+    flex: 1 1 auto;
+    max-height: none;
+    min-height: 0;
+  }
+}
+
+/* The landing is a reading column, centered in the content area. */
+.config-col.landing {
+  margin: 0 auto;
+  max-width: 46rem;
+  padding-bottom: 2rem;
+  width: 100%;
+}
+
+/* Stacked (the fallback above's complement): config on top, results below,
+   full width, on a page that scrolls. */
+@media (max-width: 60rem) {
+  .app-split.has-results > .config-col {
+    margin-bottom: 1rem;
+  }
+}
+
+.results-panel {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Wraps rather than overflowing: the strip must never push the page sideways.
+   Roadmap 075: a rail, so the active tab has something to be attached TO — its
+   top padding is the gap the raised card needs above it. */
+.tab-bar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+  padding: 0.3rem 0.3rem 0;
+}
+
+.tab {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px 6px 0 0;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  font-family: inherit;
+  font-size: 0.85rem;
+  gap: 0.3rem;
+  /* Overlaps the rail's own bottom border, which is what lets the active tab
+     paint over it and read as one surface with the body below. */
+  margin-bottom: -1px;
+  /* 083 made the strip six tabs; at the previous 0.8rem sides the sixth
+     wrapped onto its own row at a 1280px viewport. The strip must hold one
+     row at the standard desktop width (guarded in 12-layout-regressions). */
+  padding: 0.45rem 0.55rem;
+}
+
+.tab:hover {
+  color: var(--ink);
+}
+
+/* A disabled tab (the "From repository" tab until 078 lights it up) must not
+   be pixel-identical to a live inactive tab — one gray step fainter, and the
+   cursor says why a click does nothing. Placed after :hover so hovering it
+   does not promise the ink it will not give. */
+.tab:disabled {
+  color: var(--faint);
+  cursor: not-allowed;
+}
+
+/* Roadmap 075, the attached tab: the selected tab is a card of the BODY's
+   ground, bordered on three sides, with its fourth side painted out in that
+   same ground so the seam between tab and panel disappears. */
+.tab.active {
+  background: var(--canvas);
+  border-color: var(--border);
+  border-bottom-color: var(--canvas);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* A tab with nothing to show stays visible and clickable — dimmed, not gone,
+   so the strip's geometry is stable across runs. */
+.tab.empty {
+  opacity: 0.55;
+}
+
+/* The count is a `.pill` (see the pill standard); `.tab-count` is kept as the
+   stable hook the e2e specs and the keystroke render test address it by. */
+.tab-count {
+  flex: none;
+}
+
+.tab-body {
+  padding: 0.75rem;
+}
+
+.tab-panel > .card:last-child,
+.tab-panel > .empty-note:last-child {
+  margin-bottom: 0;
+}
+
+/* One-step "back to where I was" after an automatic tab switch. Quiet by
+   design — it is a way back, not a call to action. */
+.tab-back {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  display: block;
+  font: inherit;
+  font-size: 0.8rem;
+  margin: 0 0 0.5rem;
+  padding: 0;
+}
+
+.tab-back:hover {
+  color: var(--accent);
+}
+
+/* --- roadmap 029/075: the run digest --------------------------------------
+   The numbers the run is steered by, each a button into the tab that explains
+   it. They were a paragraph of prose on the Overview tab until v2 retired it;
+   what is left is the link itself, worn by the header's digest cluster (whose
+   own sizing overrides sit up with `.app-header-digest`). Reads as text first
+   — marked by a dashed underline, never by button chrome. */
+.digest-link {
+  background: none;
+  border: none;
+  border-bottom: 1px dashed var(--accent);
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.digest-link:hover {
+  border-bottom-style: solid;
+}
