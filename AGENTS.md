@@ -113,7 +113,7 @@ There are three module regimes, each with its own guard:
 2. **Production build** — Playwright e2e (`packages/app/e2e/`) drives the **production build via `vite preview`**, never `vite dev` (dev cold-starts can wedge the first engine import). Build the app first locally; CI reuses its build artifact.
 3. **`vite dev`** — weakest CJS/ESM interop; `check:dev-graph` boots the dev server and fails on Node-only specifiers leaking into the graph.
 
-The app's vitest config also has a `render` project (`src/**/*.test.tsx`, jsdom + shims) that counts panel re-renders while typing — a performance regression test, hence its long timeout.
+The app's vitest config splits its DOM tests in two, by filename: `components` (`src/**/*.test.tsx`, jsdom, **no** shims, default timeout) for ordinary component and hook tests, and `shimmed` (`src/**/*.shimmed.test.tsx`, jsdom + shims + inlined renovate, long timeout) for the few that run Renovate's own code — the keystroke re-render budget test and the panel tests that call `runPipeline` for real. `src/vitest-projects.test.ts` pins the convention so a test can't silently land in the wrong project.
 
 ## Enforced conventions (lint will fail otherwise)
 
