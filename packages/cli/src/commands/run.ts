@@ -63,7 +63,7 @@ export const runCommand: Command = {
     const format = outputFormat(args);
     const selection = parseSelection(stringOption(args, "select"));
     const keys = parseKeys(stringOption(args, "keys"));
-    const scope = parseConfigScope(stringOption(args, "config-scope"), "--config-scope");
+    const scope = parseConfigScope(stringOption(args, "config-scope"));
     const { result, notes } = await runFromArgs(args, io);
     writeNotes(io, notes);
 

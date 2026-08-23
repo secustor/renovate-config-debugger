@@ -1,5 +1,6 @@
 import type { PresetNode, TraceResult } from "@renovate-config-debugger/engine";
 import { computeTreeStats, type TreeStats } from "@renovate-config-debugger/app/headless";
+import { parseChoice } from "../args";
 import { CliError } from "../io";
 
 /**
@@ -83,15 +84,9 @@ export function treeLines(view: NodeView, out: string[]): string[] {
   return out;
 }
 
+/** Shared with `get_preset_node`, hence the transport-neutral label. */
 export function parseBody(raw: string | undefined): BodyKind | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  const found = BODIES.find((b) => b === raw);
-  if (!found) {
-    throw new CliError(`body must be one of ${BODIES.join(", ")} (got "${raw}")`);
-  }
-  return found;
+  return parseChoice(raw, BODIES, "body");
 }
 
 /** The run's tree root + stats, or a legible error when it produced no tree. */

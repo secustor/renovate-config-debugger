@@ -122,7 +122,7 @@ export const simulateCommand: Command = {
     const selection = ruleFilterSelection(args);
     const detail = parseDetail(stringOption(args, "detail")) ?? "verdict";
     const keys = parseKeys(stringOption(args, "keys"));
-    const scope = parseConfigScope(stringOption(args, "config-scope"), "--config-scope");
+    const scope = parseConfigScope(stringOption(args, "config-scope"));
     const dep = await readDependency(args, "dep", "dep-file");
     const { result, notes } = await runFromArgs(args, io);
     writeNotes(io, notes);

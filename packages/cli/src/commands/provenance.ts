@@ -1,10 +1,6 @@
 import { computeRuleProvenance } from "@renovate-config-debugger/engine";
-import {
-  effectiveTally,
-  SOURCE_FILTERS,
-  type SourceFilter,
-} from "@renovate-config-debugger/app/headless";
-import { outputFormat, type ParsedArgs, stringOption } from "../args";
+import { effectiveTally, SOURCE_FILTERS } from "@renovate-config-debugger/app/headless";
+import { choiceOption, outputFormat, type ParsedArgs, stringOption } from "../args";
 import type { Command } from "../command";
 import { CliError, EXIT_OK, EXIT_REFUSED } from "../io";
 import { emitJson, emitLines, preview, writeNotes } from "../output";
@@ -44,18 +40,6 @@ function parseRuleIndex(args: ParsedArgs): number | undefined {
     throw new CliError(`--rule takes a merged rule index, 0 or greater (got "${raw}")`);
   }
   return index;
-}
-
-function parseSource(args: ParsedArgs): SourceFilter | undefined {
-  const raw = stringOption(args, "source");
-  if (raw === undefined) {
-    return undefined;
-  }
-  const found = SOURCE_FILTERS.find((value) => value === raw);
-  if (!found) {
-    throw new CliError(`--source must be one of ${SOURCE_FILTERS.join("|")} (got "${raw}")`);
-  }
-  return found;
 }
 
 /** `repo — merged packageRules[1]–[3] (its own packageRules[0]–[2])`. */
@@ -106,7 +90,7 @@ export const provenanceCommand: Command = {
   async run(args, io) {
     const format = outputFormat(args);
     const ruleIndex = parseRuleIndex(args);
-    const source = parseSource(args);
+    const source = choiceOption(args, "source", SOURCE_FILTERS);
     const { result, rest, notes } = await runFromArgs(args, io);
     writeNotes(io, notes);
     // One key per call, stated — a second positional used to be silently

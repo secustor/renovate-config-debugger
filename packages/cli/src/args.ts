@@ -225,6 +225,39 @@ export function listOption(args: ParsedArgs, name: OptionName): string[] {
   return Array.isArray(value) ? value : [];
 }
 
+/**
+ * One value out of a fixed vocabulary, or `undefined` when the flag was not
+ * passed — the caller applies its own default with `??`, so "not given" and
+ * "given wrong" stay different answers.
+ *
+ * `label` is how the message names the input, because the same vocabularies are
+ * read from a flag (`--detail`) and from an MCP parameter (`body`): quoting a
+ * flag at an agent that cannot pass one is worse than saying nothing.
+ */
+export function parseChoice<T extends string>(
+  raw: string | undefined,
+  allowed: readonly T[],
+  label: string,
+): T | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  const found = allowed.find((value) => value === raw);
+  if (!found) {
+    throw new CliError(`${label} must be one of ${allowed.join("|")} (got "${raw}")`);
+  }
+  return found;
+}
+
+/** {@link parseChoice} against an option, named as the user typed it. */
+export function choiceOption<T extends string>(
+  args: ParsedArgs,
+  name: OptionName,
+  allowed: readonly T[],
+): T | undefined {
+  return parseChoice(stringOption(args, name), allowed, `--${name}`);
+}
+
 export type OutputFormat = "pretty" | "json";
 
 export function outputFormat(args: ParsedArgs): OutputFormat {

@@ -1,5 +1,5 @@
 import { computeResolvedConfig, type ResolvedConfigMode } from "@renovate-config-debugger/engine";
-import { boolOption, outputFormat, stringOption } from "../args";
+import { boolOption, choiceOption, outputFormat } from "../args";
 import type { Command } from "../command";
 import { CliError, EXIT_OK, EXIT_REFUSED } from "../io";
 import { emitJson, emitLines, json, writeNotes } from "../output";
@@ -25,11 +25,7 @@ export const resolvedCommand: Command = {
   options: [...INPUT_OPTIONS, "mode", "include-defaults", "format"],
   async run(args, io) {
     const format = outputFormat(args);
-    const raw = stringOption(args, "mode") ?? "keep-internal";
-    const mode = MODES.find((m) => m === raw);
-    if (!mode) {
-      throw new CliError(`--mode must be one of ${MODES.join(", ")} (got "${raw}")`);
-    }
+    const mode = choiceOption(args, "mode", MODES) ?? "keep-internal";
     const includeDefaults = boolOption(args, "include-defaults");
     if (includeDefaults && mode !== "full") {
       throw new CliError("--include-defaults needs --mode full (see `rcd resolved --help`)");

@@ -10,7 +10,7 @@ import type {
   SimulationResult,
   ValidationMessage,
 } from "@renovate-config-debugger/engine";
-import { CliError } from "../io";
+import { parseChoice } from "../args";
 import {
   evaluationErrorsNote,
   missingInputsNote,
@@ -444,23 +444,9 @@ export function comparisonPayload(
 }
 
 export function parseCompareDetail(raw: string | undefined): CompareDetail | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  const found = COMPARE_DETAIL.find((detail) => detail === raw);
-  if (!found) {
-    throw new CliError(`--detail must be one of ${COMPARE_DETAIL.join("|")} (got "${raw}")`);
-  }
-  return found;
+  return parseChoice(raw, COMPARE_DETAIL, "--detail");
 }
 
 export function parseDetail(raw: string | undefined): SimulateDetail | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  const found = SIMULATE_DETAIL.find((detail) => detail === raw);
-  if (!found) {
-    throw new CliError(`--detail must be one of ${SIMULATE_DETAIL.join("|")} (got "${raw}")`);
-  }
-  return found;
+  return parseChoice(raw, SIMULATE_DETAIL, "--detail");
 }

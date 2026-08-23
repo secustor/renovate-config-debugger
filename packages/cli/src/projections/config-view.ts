@@ -1,5 +1,5 @@
 import { globalOnlyOptionNames, removeGlobalConfig } from "@renovate-config-debugger/engine";
-import { CliError } from "../io";
+import { parseChoice } from "../args";
 import { preview } from "../output";
 
 /**
@@ -340,15 +340,8 @@ export function mergedLine(diff: KeyDiff | CollapsedKeyDiff): string {
   return `${diff.key} = ${preview(diff.after)}`;
 }
 
-export function parseConfigScope(raw: string | undefined, flag: string): ConfigScope | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  const found = CONFIG_SCOPES.find((scope) => scope === raw);
-  if (!found) {
-    throw new CliError(`${flag} must be one of ${CONFIG_SCOPES.join("|")} (got "${raw}")`);
-  }
-  return found;
+export function parseConfigScope(raw: string | undefined): ConfigScope | undefined {
+  return parseChoice(raw, CONFIG_SCOPES, "--config-scope");
 }
 
 /** `--keys a,b,c` — `--select`'s grammar, so one comma list means one thing
