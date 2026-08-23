@@ -115,6 +115,27 @@ function jsonResponse(
 }
 
 /**
+ * The request body as JSON, or the 400 to answer with. Both endpoints take a
+ * JSON body and both refuse a malformed one identically, so the guard is
+ * written once: a caller returns the {@link Response} it gets back untouched.
+ *
+ * The shape is asserted, never validated — every field of `T` is `unknown` and
+ * the handlers type-check what they read. A body that parses but says nothing
+ * useful falls through to the endpoint's own "required" 400.
+ */
+async function parseJsonBody<T>(req: Request, origin: string): Promise<T | Response> {
+  try {
+    return (await req.json()) as T;
+  } catch {
+    return jsonResponse(
+      { error: "invalid_request", error_description: "body must be JSON" },
+      400,
+      origin,
+    );
+  }
+}
+
+/**
  * True only for the exact opt-in string — an unset/typo'd var means 009 — and
  * never on a `*.workers.dev` host. That fallback URL is only ever reached
  * cross-site (the same-site deployment is the `/oauth` route on the app's own
@@ -291,15 +312,9 @@ async function handleExchange(
   mount: string,
   cookies: boolean,
 ): Promise<Response> {
-  let body: ExchangeBody;
-  try {
-    body = (await req.json()) as ExchangeBody;
-  } catch {
-    return jsonResponse(
-      { error: "invalid_request", error_description: "body must be JSON" },
-      400,
-      origin,
-    );
+  const body = await parseJsonBody<ExchangeBody>(req, origin);
+  if (body instanceof Response) {
+    return body;
   }
   const code = typeof body.code === "string" ? body.code : "";
   const codeVerifier = typeof body.code_verifier === "string" ? body.code_verifier : "";
@@ -331,15 +346,9 @@ async function handleRefresh(
   mount: string,
   cookies: boolean,
 ): Promise<Response> {
-  let body: RefreshBody;
-  try {
-    body = (await req.json()) as RefreshBody;
-  } catch {
-    return jsonResponse(
-      { error: "invalid_request", error_description: "body must be JSON" },
-      400,
-      origin,
-    );
+  const body = await parseJsonBody<RefreshBody>(req, origin);
+  if (body instanceof Response) {
+    return body;
   }
   // An explicit body token always wins: 009 clients and cookie-off deployments
   // send one, and a client that holds its own token must be able to use it
