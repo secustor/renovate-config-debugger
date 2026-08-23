@@ -13,7 +13,7 @@ import { buildNoInputCaveat, buildVerdictSegments } from "@/lib/verdict-sentence
 import type { ErrorTranslationLib } from "@/platform/run";
 import { SIM_FORM_ID } from "./datalist-ids";
 import { DescriptorActions } from "./DescriptorActions";
-import { EMPTY_FORM, type FormState, hasMeaningfulInput } from "./form";
+import type { FormState } from "./form";
 import { buildMergeStops } from "./merge-stops";
 import { EmptyFormGuard, PinLimitNote } from "./FormNotes";
 import { MAX_PINS } from "./pins";
@@ -135,6 +135,11 @@ export const RuleSimulator = memo(function RuleSimulator({
     datasourceNames,
     managerNames,
     updateTypeKeyDown,
+    replaceForm,
+    guard,
+    clearGuard,
+    showEmptyGuard,
+    pinDescriptor,
   } = useSimulatorForm(engineModule);
   const {
     sim,
@@ -142,15 +147,13 @@ export const RuleSimulator = memo(function RuleSimulator({
     ranKey,
     running,
     error,
-    emptyGuardTriggered,
-    setEmptyGuardTriggered,
     ruleFilters,
     setRuleFilters,
     focusHint,
     setFocusHint,
     simulate,
     simulateRef,
-  } = useSimulationRun({ result, onMergeStepChange });
+  } = useSimulationRun({ result, onMergeStepChange, guard, clearGuard });
   // Roadmap 054 layer 4: thread expansion + the return pill. Declared BEFORE
   // the share-link request so its reset effect (keyed on the run) is
   // registered first: a link arms the thread it wants, the auto-run it starts
@@ -369,27 +372,21 @@ export const RuleSimulator = memo(function RuleSimulator({
    *  on ARRIVAL (a pin's "open in simulator", a link's `autoSimulate`) is not a
    *  chip and keeps running: it was promised the verdict of a descriptor. */
   function quickFill(fill: Partial<FormState>) {
-    setForm({ ...EMPTY_FORM, ...fill });
     // A quick-fill's updateType is only a starting guess, not the user's own
     // choice — derivation should keep tracking it if they go on to edit the
-    // pre-filled versions.
-    setUpdateTypeTouched(false);
-    setEmptyGuardTriggered(false);
+    // pre-filled versions, which is `replaceForm`'s default.
+    replaceForm(fill);
   }
 
-  /** Roadmap 080: "Pin as a standing test" — `AddTestBox.pin()`'s rule, in the
-   *  detail view. The EFFECTIVE updateType is baked in (a pin is a saved test,
-   *  and it must keep meaning what it meant when it was made), and the 015
-   *  empty-form guard gates it. The form is deliberately NOT cleared: the
-   *  reader is mid-analysis of this dependency, and the pin list is one "← Back
-   *  to tests" away — clearing here would delete the subject on screen. */
+  /** Roadmap 080: "Pin as a standing test" — the form hook's rule (the guard,
+   *  then the EFFECTIVE updateType baked in), plus what is this view's alone:
+   *  the receipt, and NOT clearing the form. The reader is mid-analysis of this
+   *  dependency, and the pin list is one "← Back to tests" away — clearing here
+   *  would delete the subject on screen. */
   function pinAsTest() {
-    if (!hasMeaningfulInput(form)) {
-      setEmptyGuardTriggered(true);
+    if (!pinDescriptor(onAddPin)) {
       return;
     }
-    setEmptyGuardTriggered(false);
-    onAddPin({ ...form, updateType: effectiveUpdateType });
     setJustPinned(true);
     window.clearTimeout(pinReceiptTimer.current);
     pinReceiptTimer.current = window.setTimeout(() => setJustPinned(false), 2000);
@@ -424,9 +421,6 @@ export const RuleSimulator = memo(function RuleSimulator({
         .filter(Boolean)
         .join(" ")
     : "";
-  // Roadmap 015: reactive, not sticky — the moment the form gains ANY
-  // meaningful field, the guard clears itself even without clicking Simulate.
-  const showEmptyGuard = emptyGuardTriggered && !hasMeaningfulInput(form);
   const atLimit = pinCount >= MAX_PINS;
 
   return (

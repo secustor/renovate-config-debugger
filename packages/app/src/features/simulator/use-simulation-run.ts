@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 import type { SimulationResult, TraceResult } from "@renovate-config-debugger/engine";
-import { type FormState, hasMeaningfulInput } from "./form";
+import type { FormState } from "./form";
 import { runSimulation } from "./run-simulation";
 import { DEFAULT_RULE_FILTERS, type RuleFilters } from "@/lib/rule-filters";
 
@@ -25,11 +25,6 @@ export interface SimulationRun {
   ranKey: string | null;
   running: boolean;
   error: string | null;
-  emptyGuardTriggered: boolean;
-  /** Roadmap 080: "Pin as a standing test" trips the same 015 guard without
-   *  running anything, and a quick-fill clears it — so the flag is settable
-   *  from outside the run itself. */
-  setEmptyGuardTriggered: Dispatch<SetStateAction<boolean>>;
   /** Roadmap 023/047: the rules drawer's two filter facets (verdict, provenance). */
   ruleFilters: RuleFilters;
   setRuleFilters: Dispatch<SetStateAction<RuleFilters>>;
@@ -50,9 +45,16 @@ export interface SimulationRun {
 export function useSimulationRun({
   result,
   onMergeStepChange,
+  guard,
+  clearGuard,
 }: {
   result: TraceResult;
   onMergeStepChange: (index: number) => void;
+  /** Roadmap 015's empty-form guard, owned by `useSimulatorForm` — a run and a
+   *  pin trip the same one, so there is one flag and one notice, not two. Both
+   *  are identity-stable, hence usable as effect deps. */
+  guard: (form: FormState) => boolean;
+  clearGuard: () => void;
 }): SimulationRun {
   const [sim, setSim] = useState<SimulationResult | null>(null);
   const [simForm, setSimForm] = useState<FormState | null>(null);
@@ -68,9 +70,6 @@ export function useSimulationRun({
   // simulation exists to render its row — kept to show a "run a simulation"
   // hint rather than the click doing nothing (the "looks broken" finding).
   const [focusHint, setFocusHint] = useState<number | null>(null);
-  // Roadmap 015: set when Simulate is clicked on a form with no identifying
-  // input; cleared reactively the moment the form has ANY meaningful field.
-  const [emptyGuardTriggered, setEmptyGuardTriggered] = useState(false);
   // Roadmap 016: re-simulating (e.g. after editing the form and clicking
   // Simulate again) resets the verdict facet to its default, which can
   // unmount rows the user was scrolled past — the browser's scroll-anchoring
@@ -95,8 +94,8 @@ export function useSimulationRun({
     setError(null);
     setRuleFilters(DEFAULT_RULE_FILTERS);
     setFocusHint(null);
-    setEmptyGuardTriggered(false);
-  }, [result]);
+    clearGuard();
+  }, [result, clearGuard]);
 
   // Roadmap 016: restore the scroll position captured in `simulate` right
   // before the DOM the browser is about to repaint — after `sim` and the
@@ -126,11 +125,9 @@ export function useSimulationRun({
     // Roadmap 015: empty-form guard — an all-blank descriptor is guaranteed
     // to match nothing, and running it just renders hundreds of "no match"
     // rows with no explanation (the study's "did I break something?" moment).
-    if (!hasMeaningfulInput(nextForm)) {
-      setEmptyGuardTriggered(true);
+    if (!guard(nextForm)) {
       return;
     }
-    setEmptyGuardTriggered(false);
     setRunning(true);
     setError(null);
     try {
@@ -176,8 +173,6 @@ export function useSimulationRun({
     ranKey,
     running,
     error,
-    emptyGuardTriggered,
-    setEmptyGuardTriggered,
     ruleFilters,
     setRuleFilters,
     focusHint,

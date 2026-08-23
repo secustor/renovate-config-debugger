@@ -7,7 +7,7 @@ import type {
 import { nf } from "@/lib/format";
 import { PIN_FORM_ID } from "./datalist-ids";
 import { DescriptorActions } from "./DescriptorActions";
-import { EMPTY_FORM, type FormState, hasMeaningfulInput } from "./form";
+import type { FormState } from "./form";
 import { EmptyFormGuard, PinLimitNote } from "./FormNotes";
 import { OpenInSimulatorLink } from "./OpenInSimulatorLink";
 import { type PasteFill, parsePastedDescriptor, pasteImportNote } from "./paste-descriptor";
@@ -303,49 +303,21 @@ export function AddTestBox({
 }) {
   const engineModule = useEngineModule();
   // Kept whole as well as destructured: the Manual panel takes the API object
-  // (it renders the form), while the simulate/pin actions here read the four
-  // fields they act on.
+  // (it renders the form), while the simulate/pin actions here read the few
+  // members they act on.
   const simForm = useSimulatorForm(engineModule);
-  const { form, setForm, updateTypeTouched, setUpdateTypeTouched, effectiveUpdateType } = simForm;
+  const { form, updateTypeTouched, importNote, replaceForm, guard, showEmptyGuard, pinDescriptor } =
+    simForm;
   // Roadmap 079: which field group is expanded (-1 = all closed, the state the
   // panel opens in). Held here rather than in the form so a re-render from a
   // simulation never folds what the reader opened.
   const [openGroup, setOpenGroup] = useState(-1);
-  // Roadmap 015's empty-form guard: a descriptor with nothing identifying in
-  // it would be pinned forever and match nothing on every run.
-  const [emptyGuard, setEmptyGuard] = useState(false);
   const [oneOff, setOneOff] = useState<OneOff | null>(null);
   const [simulating, setSimulating] = useState(false);
-  // Roadmap 082: which door the descriptor is coming through, the draft in the
-  // other one (held here so a tab switch does not throw it away), and the
-  // receipt the Manual tab wears after a paste came through it.
+  // Roadmap 082: which door the descriptor is coming through, and the draft in
+  // the other one — held here so a tab switch does not throw it away.
   const [tab, setTab] = useState<AddTestTab>("manual");
   const [pasteDraft, setPasteDraft] = useState("");
-  const [importNote, setImportNote] = useState<string | null>(null);
-
-  /**
-   * Every door into this form — a quick-start chip, a quick-fill, a paste, the
-   * clear after a pin — REPLACES the descriptor rather than patching it: a fill
-   * is a whole dependency, and merging it over whatever the last one left
-   * behind would carry a stale `packageFile: package.json` into a Dockerfile
-   * descriptor without saying so. One function so the four doors cannot drift
-   * into four slightly different meanings of "replace".
-   *
-   * @param opts.updateTypeTouched Whether the fill STATED an updateType
-   * (roadmap 015): a value a log carried is the user's choice, not something to
-   * re-derive from the versions and silently overwrite.
-   * @param opts.note The receipt the Manual tab wears, or null — a note
-   * describing a form that no longer exists is cleared with it.
-   */
-  function replaceForm(
-    fill: Partial<FormState>,
-    opts: { updateTypeTouched?: boolean; note?: string | null } = {},
-  ) {
-    setForm({ ...EMPTY_FORM, ...fill });
-    setUpdateTypeTouched(opts.updateTypeTouched ?? false);
-    setEmptyGuard(false);
-    setImportNote(opts.note ?? null);
-  }
 
   // The empty state's quick-start chips write into this form — synced during
   // render (the panel idiom), keyed by nonce so re-clicking the chip works.
@@ -368,18 +340,9 @@ export function AddTestBox({
 
   const atLimit = pinCount >= MAX_PINS;
 
-  function guarded(): boolean {
-    if (!hasMeaningfulInput(form)) {
-      setEmptyGuard(true);
-      return false;
-    }
-    setEmptyGuard(false);
-    return true;
-  }
-
   function simulate() {
     const finalConfig = result.finalConfig;
-    if (!guarded() || !finalConfig || simulating) {
+    if (!guard(form) || !finalConfig || simulating) {
       return;
     }
     setSimulating(true);
@@ -393,10 +356,18 @@ export function AddTestBox({
       .finally(() => setSimulating(false));
   }
 
-  function pin(source: FormState, updateType: string) {
-    // The EFFECTIVE updateType is baked in, not the raw field: a pin is a
-    // saved test, and it must keep meaning what it meant when it was made.
-    onAddPin({ ...source, updateType });
+  /** The pin itself is the form hook's (the guard, then the EFFECTIVE
+   *  updateType baked in); what follows is this panel's alone — the form is
+   *  cleared for the next test, and the one-off it may have been pinned from
+   *  goes with it, since the card above it now says the same thing.
+   *
+   *  Called with no descriptor for the form on screen, and with the one-off's
+   *  own for the result card below it — which carries the updateType its run
+   *  actually used, not whatever the form derives now. */
+  function pin(source?: FormState, updateType?: string) {
+    if (!pinDescriptor(onAddPin, source, updateType)) {
+      return;
+    }
     replaceForm({});
     setOneOff(null);
   }
@@ -413,7 +384,7 @@ export function AddTestBox({
           <ManualPanel
             sim={simForm}
             importNote={importNote}
-            emptyGuard={emptyGuard && !hasMeaningfulInput(form)}
+            emptyGuard={showEmptyGuard}
             openGroup={openGroup}
             onOpenGroupChange={setOpenGroup}
             onQuickFill={(fill) => replaceForm(fill)}
@@ -425,11 +396,7 @@ export function AddTestBox({
                 submitLabel="Simulate"
                 submitDisabled={simulating || !result.finalConfig}
                 atLimit={atLimit}
-                onPin={() => {
-                  if (guarded()) {
-                    pin(form, effectiveUpdateType);
-                  }
-                }}
+                onPin={() => pin()}
               />
             }
           />
