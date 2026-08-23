@@ -1,6 +1,6 @@
 # 085 — Load-from-repo options: paste anything, or pick from your repos
 
-- Status: done 2026-08-23
+- Milestone: M21 · Status: done 2026-08-23
 - Design: Claude Design project "Renovate Config Debugger", artboard
   `Load From Repo Options.dc.html` (variants: inline / smart / browser /
   combined)

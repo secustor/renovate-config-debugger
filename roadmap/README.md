@@ -89,6 +89,8 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [082](082-final-tab-specs-deltas.md)                    | The final tab specs: health box, toolbar copy, paste-a-descriptor    | M20                  | done     |
 | [083](083-overview-tab.md)                              | The Overview tab: what this config does, by topic                    | M20                  | done     |
 | [084](084-post-v2-cleanup.md)                           | The post-v2 cleanup pass: primitives, layer moves, the big splits    | M20                  | done     |
+| [085](085-load-from-repo-options.md)                    | Load-from-repo options: paste any URL, or pick from your repos       | M21                  | done     |
+| [086](086-app-state-sharing.md)                         | The App.tsx state-sharing ruling: context, hooks, no store           | M21                  | done     |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live
@@ -266,3 +268,36 @@ the node that wrote it, plus the three rules under which Renovate silently
 deletes one) and four UI passes that spend it: the config in English on the
 Overview, a per-string blame ledger in the Effective config, inline
 descriptions in the preset tree, and hover attribution across the two.
+
+M20 — **v2** — is the shell itself, rebuilt around the "Proposal F — Integrated
+Shell" design project. 075 is the frame, shipped in six iterations: one
+full-viewport window with an editor pane and an instruments pane that scroll
+independently, the run's digest carried as jump-links in the header, the
+simulator recast as pinned **dependency tests** in the first tab, Rewrites
+folded into Pipeline's migrate stage, and one implementation per component role
+(the "Standard Components" sheet). The rest of the milestone finishes that
+shell a surface at a time: 076 gives hosts and credentials a home and moves the
+config layers onto the pipeline stages they belong to; 077 takes the last frame
+delta (Share moves to the header); 079 rewrites the simulator form as a
+sentence; 080 rules that the Tests grammar SUCCEEDS the simulator — the A/B pin
+retires and the simulator survives as the per-dependency detail view; 081 makes
+every preset reference one token with one hover card; 082 lands the three final
+tab specs and the four deltas they still asked for; and 083 brings the Overview
+back as a real tab, the description digest regrouped by topic for a reader who
+is not an expert. 084 closes the milestone with the debt the deadlines left:
+three adversarial reviews run in parallel, ten commits of shared primitives,
+layer moves and view splits, a headless-purity guard turned from a comment into
+a test, and a "deliberately not done" ledger for everything whose fix would
+have changed behavior.
+
+M21 — **After v2** — collects what the finished shell asked for next. 085 is
+the load form's own gap: it now accepts anything actually in a clipboard — a
+branch or file URL on GitHub/GitLab/Gitea/Forgejo, `owner/repo@branch`, a raw
+URL — and, for a signed-in user, offers their own repositories with a per-row
+badge saying which config file a load would find. 086 answers the question 048
+deferred and the 2026-08-23 second cleanup pass measured (App.tsx back at the
+line count and slot count 033 was written to fix): the state-sharing mechanism
+is a run-scoped context confined to the app layer, hooks for the input
+clusters, and props for anything that changes on a keystroke — with an external
+store rejected rather than deferred, since the 032 render contract already is
+the subscription discipline one would bring.
