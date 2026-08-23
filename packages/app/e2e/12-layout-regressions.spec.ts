@@ -3,6 +3,7 @@ import { INVALID_RULES_CONFIG, PACKAGE_RULES_CONFIG, SEMANTIC_COMMITS_CONFIG } f
 import {
   must,
   openMigrateStage,
+  tabButton,
   openPresetTree,
   openSimulator,
   openTab,
@@ -459,10 +460,13 @@ test("the simulate button holds its position when the validation banner clears",
 
   await setEditorContent(page, PACKAGE_RULES_CONFIG);
   await runAndAwaitResult(page);
-  // Roadmap 075 (iteration 6): the Tests tab has two views and the simulator is
-  // the second — the panel keeps the one the reader was on across the re-run, so
-  // this is the same screen, not a re-navigation.
-  await openTab(page, "tests");
+  // Roadmap 075 (iteration 6): the run lands on Tests itself (the editor asked
+  // for it), and the panel keeps the simulator view across the re-run — so
+  // this is the same screen already. Deliberately NOT re-clicking the tab:
+  // clicking a tab focuses it, focusing scroll-reveals it, and that scrolls
+  // the results column — a 29px shift this test would then blame on the
+  // banner. The guarantee under test is the banner's reserved box alone.
+  await expect(tabButton(page, "tests")).toHaveAttribute("aria-selected", "true");
   // The banner is gone from view but its box is reserved (visibility, not unmount)…
   await expect(banner).toBeHidden();
   // …so the button sits exactly where the pointer left it.
