@@ -195,6 +195,16 @@ its own layer is `index - from`, and for the `repo` range that is the
 indexes do not move), and `--rule <n>` prints one merged rule's body with the
 layer that wrote it.
 
+Two vocabularies name layers here, on purpose. A layer is printed by its own
+name — `defaults`, `global`, `inherited`, `repo`, `preset <name>` — wherever an
+answer says who wrote a value. `--source` (and the MCP `source` parameter)
+takes `repo | presets | all`, which is a CLASS of layer: `presets` is plural
+because it scopes to every preset at once, and it is never printed as the
+writer of anything. `repo` is the one word both use, and it means the same
+thing in both. To scope to ONE preset, drill down instead — `--rule <n>` names
+the layer that wrote a rule, and `rcd tree --node` reads that preset's own
+contribution.
+
 The same numbers travel with the answers that quote an index:
 
 - `rcd simulate --format json` carries `ruleSources` (the same ranges) and, on

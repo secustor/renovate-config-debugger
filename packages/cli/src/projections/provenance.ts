@@ -22,6 +22,26 @@ import { CliError } from "../io";
  * separately from the app.
  */
 
+/**
+ * The display name of ONE layer: `defaults`, `global`, `inherited`, `repo`, or
+ * `preset <name>`. Every answer that names where a value came from prints this
+ * — the override chain, the `packageRules` ranges, a matched rule's `origin`,
+ * a dropped update-type block — so a layer reads the same on every surface.
+ *
+ * There is a SECOND layer vocabulary on this CLI, and the two are deliberately
+ * not the same one. `--source` / the MCP `source` parameter takes
+ * `repo | presets | all`: that is a CLASS of layer, not a layer — `presets` is
+ * plural because it scopes to every preset at once, and it has no label
+ * because no answer ever prints it as the writer of anything. Unifying them
+ * would mean either inventing a `presets` layer that never wrote a value, or
+ * making the facet name each preset (which is the drill-down `--rule` and
+ * get_preset_node already are). `repo` is the one word both use, and it means
+ * the same thing in both. Anything the facet does not cover — `defaults`,
+ * `global`, `inherited` — is reachable only by reading the chain, which is why
+ * the facet is documented as a scope over CONTRIBUTIONS rather than a filter
+ * over layers. Ledgered rather than churned: the strings below are asserted by
+ * the CLI suites, the MCP payload tests and the app's own ledger.
+ */
 export function layerLabel(layer: ProvenanceLayer): string {
   return layer.kind === "preset" ? `preset ${layer.name}` : layer.kind;
 }
