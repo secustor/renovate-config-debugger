@@ -1,11 +1,9 @@
 import type { DependencyDescriptor, SimulationResult } from "@renovate-config-debugger/engine";
-import { outputFormat } from "../args";
-import type { Command } from "../command";
-import { EXIT_OK, EXIT_REFUSED } from "../io";
-import { emitJson, emitLines, writeNotes } from "../output";
-import { INPUT_OPTIONS, refusalNote, runFromArgs, wouldRefuse } from "../run-input";
+import { emitJson, emitLines } from "../output";
+import { INPUT_OPTIONS, refusalNote, wouldRefuse } from "../run-input";
 import { readDependencies } from "../dep";
 import { blindTallyNote, groupTally, groupTallyLines, inputGaps } from "../projections/group";
+import { defineRunCommand } from "../run-command";
 import { simulateAgainst } from "./simulate";
 
 /**
@@ -15,7 +13,7 @@ import { simulateAgainst } from "./simulate";
  * blind-tally correction live in the projection, shared with `simulate_group`.
  */
 
-export const groupCommand: Command = {
+export const groupCommand = defineRunCommand<DependencyDescriptor[]>({
   name: "group",
   summary: "which groups form from several updates, and does each meet its minimumGroupSize",
   usage: [
@@ -36,11 +34,8 @@ export const groupCommand: Command = {
     "modeled; membership is by groupName as the rules resolved it.",
   ],
   options: [...INPUT_OPTIONS, "dep", "deps-file", "format"],
-  async run(args, io) {
-    const format = outputFormat(args);
-    const deps = await readDependencies(args);
-    const { result, notes } = await runFromArgs(args, io);
-    writeNotes(io, notes);
+  prepare: (args) => readDependencies(args),
+  async answer({ io, format, prepared: deps, result }) {
     const simulated: { dep: DependencyDescriptor; sim: SimulationResult }[] = [];
     for (const dep of deps) {
       simulated.push({ dep, sim: await simulateAgainst(result, dep) });
@@ -64,6 +59,5 @@ export const groupCommand: Command = {
         ...(refusal ? ["", refusal] : []),
       ]);
     }
-    return refused ? EXIT_REFUSED : EXIT_OK;
   },
-};
+});

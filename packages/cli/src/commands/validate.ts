@@ -1,9 +1,6 @@
 import { computeRuleProvenance, type ValidationMessage } from "@renovate-config-debugger/engine";
 import { validatedConfigOf } from "@renovate-config-debugger/app/headless";
-import { outputFormat } from "../args";
-import type { Command } from "../command";
-import { EXIT_OK, EXIT_REFUSED } from "../io";
-import { emitJson, emitLines, writeNotes } from "../output";
+import { emitJson, emitLines } from "../output";
 import {
   describeMessage,
   type MessageSeverity,
@@ -11,7 +8,8 @@ import {
   repoStageMessage,
   ruleCrossLink,
 } from "../projections/messages";
-import { INPUT_OPTIONS, runFromArgs, wouldRefuse } from "../run-input";
+import { INPUT_OPTIONS, wouldRefuse } from "../run-input";
+import { defineRunCommand } from "../run-command";
 
 /**
  * "Would Renovate accept this?" — the most automatable question, and the one
@@ -24,7 +22,7 @@ import { INPUT_OPTIONS, runFromArgs, wouldRefuse } from "../run-input";
  * tools and come back to `validate`/`compare` as the oracle.
  */
 
-export const validateCommand: Command = {
+export const validateCommand = defineRunCommand({
   name: "validate",
   summary: "would Renovate accept this config? (exit 2 if not)",
   usage: ["validate [file]"],
@@ -34,11 +32,7 @@ export const validateCommand: Command = {
     "so this drops into a Stop/PreToolUse hook without a wrapper.",
   ],
   options: [...INPUT_OPTIONS, "format"],
-  async run(args, io) {
-    const format = outputFormat(args);
-    const { result, input, notes } = await runFromArgs(args, io);
-    writeNotes(io, notes);
-
+  answer({ io, format, result, input }) {
     // The snapshot the validator's messages were produced from, so a fix's
     // path resolves against the same document (`packageRules[N]` included).
     const validated = validatedConfigOf(result);
@@ -98,6 +92,5 @@ export const validateCommand: Command = {
       }
       emitLines(io, lines);
     }
-    return refused ? EXIT_REFUSED : EXIT_OK;
   },
-};
+});

@@ -1,9 +1,9 @@
-import { computeResolvedConfig, type ResolvedConfigMode } from "@renovate-config-debugger/engine";
-import { boolOption, choiceOption, outputFormat } from "../args";
-import type { Command } from "../command";
-import { CliError, EXIT_OK, EXIT_REFUSED } from "../io";
-import { emitJson, emitLines, json, writeNotes } from "../output";
-import { INPUT_OPTIONS, runFromArgs, wouldRefuse } from "../run-input";
+import type { ResolvedConfigMode } from "@renovate-config-debugger/engine";
+import { boolOption, choiceOption } from "../args";
+import { emitJson, emitLines, json } from "../output";
+import { askResolved } from "../questions/resolved";
+import { INPUT_OPTIONS } from "../run-input";
+import { defineRunCommand } from "../run-command";
 
 /**
  * "Give me the equivalent config with no external references" (roadmap 051) —
@@ -12,7 +12,12 @@ import { INPUT_OPTIONS, runFromArgs, wouldRefuse } from "../run-input";
 
 const MODES: readonly ResolvedConfigMode[] = ["keep-internal", "full"];
 
-export const resolvedCommand: Command = {
+interface ResolvedFlags {
+  mode: ResolvedConfigMode;
+  includeDefaults: boolean;
+}
+
+export const resolvedCommand = defineRunCommand<ResolvedFlags>({
   name: "resolved",
   summary: "the resolved config as a standalone document",
   usage: ["resolved [file] [--mode full|keep-internal] [--include-defaults]"],
@@ -23,22 +28,15 @@ export const resolvedCommand: Command = {
     "extends presets they would merge AFTER them and override them.",
   ],
   options: [...INPUT_OPTIONS, "mode", "include-defaults", "format"],
-  async run(args, io) {
-    const format = outputFormat(args);
-    const mode = choiceOption(args, "mode", MODES) ?? "keep-internal";
-    const includeDefaults = boolOption(args, "include-defaults");
-    if (includeDefaults && mode !== "full") {
-      throw new CliError("--include-defaults needs --mode full (see `rcd resolved --help`)");
-    }
-    const { result, notes } = await runFromArgs(args, io);
-    writeNotes(io, notes);
-
-    const output = computeResolvedConfig(result, mode, { includeDefaults });
-    if (!output) {
-      throw new CliError(
-        "this document needs a completed preset resolution — see `rcd validate` for why it stopped",
-      );
-    }
+  prepare: (args) => ({
+    mode: choiceOption(args, "mode", MODES) ?? "keep-internal",
+    includeDefaults: boolOption(args, "include-defaults"),
+  }),
+  answer({ io, format, prepared, result }) {
+    const { mode, includeDefaults, output } = askResolved(result, {
+      ...prepared,
+      transport: "cli",
+    });
     if (format === "json") {
       emitJson(io, { mode, includeDefaults, ...output });
     } else {
@@ -53,6 +51,5 @@ export const resolvedCommand: Command = {
       }
       emitLines(io, lines);
     }
-    return wouldRefuse(result) ? EXIT_REFUSED : EXIT_OK;
   },
-};
+});

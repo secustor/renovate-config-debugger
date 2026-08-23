@@ -1,9 +1,14 @@
-import { outputFormat, stringOption } from "../args";
-import type { Command } from "../command";
-import { CliError, EXIT_OK, EXIT_REFUSED } from "../io";
-import { emitJson, emitLines, json, messageLines, stageLines, writeNotes } from "../output";
-import { parseConfigScope, parseKeys, projectConfig } from "../projections/config-view";
-import { INPUT_OPTIONS, runFromArgs, wouldRefuse } from "../run-input";
+import { stringOption } from "../args";
+import { CliError } from "../io";
+import { emitJson, emitLines, json, messageLines, stageLines } from "../output";
+import {
+  type ConfigScope,
+  parseConfigScope,
+  parseKeys,
+  projectConfig,
+} from "../projections/config-view";
+import { INPUT_OPTIONS } from "../run-input";
+import { defineRunCommand } from "../run-command";
 
 /**
  * The superset: raw `TraceResult` slices. Everything else is `run` plus a
@@ -43,7 +48,13 @@ function parseSelection(raw: string | undefined): Selection[] {
   });
 }
 
-export const runCommand: Command = {
+interface RunFlags {
+  selection: Selection[];
+  keys: string[] | undefined;
+  scope: ConfigScope | undefined;
+}
+
+export const runCommand = defineRunCommand<RunFlags>({
   name: "run",
   summary: "run the pipeline and print the trace slices you ask for",
   usage: ["run [file] [--select status,errors,warnings,final]"],
@@ -59,14 +70,13 @@ export const runCommand: Command = {
     "global or inherited layer. `--config-scope package-rules` drops them.",
   ],
   options: [...INPUT_OPTIONS, "select", "keys", "config-scope", "format"],
-  async run(args, io) {
-    const format = outputFormat(args);
-    const selection = parseSelection(stringOption(args, "select"));
-    const keys = parseKeys(stringOption(args, "keys"));
-    const scope = parseConfigScope(stringOption(args, "config-scope"));
-    const { result, notes } = await runFromArgs(args, io);
-    writeNotes(io, notes);
-
+  prepare: (args) => ({
+    selection: parseSelection(stringOption(args, "select")),
+    keys: parseKeys(stringOption(args, "keys")),
+    scope: parseConfigScope(stringOption(args, "config-scope")),
+  }),
+  answer({ io, format, prepared, result }) {
+    const { selection, keys, scope } = prepared;
     const projected =
       result.finalConfig && (keys || scope)
         ? projectConfig(result.finalConfig, { scope: scope ?? "full", ...(keys ? { keys } : {}) })
@@ -145,6 +155,5 @@ export const runCommand: Command = {
       }
       emitLines(io, lines);
     }
-    return wouldRefuse(result) ? EXIT_REFUSED : EXIT_OK;
   },
-};
+});

@@ -1,8 +1,8 @@
-import { intOption, outputFormat, type ParsedArgs, stringOption } from "../args";
-import type { Command } from "../command";
-import { CliError, EXIT_OK, EXIT_REFUSED } from "../io";
-import { emitJson, emitLines, json, writeNotes } from "../output";
+import { intOption, type ParsedArgs, stringOption } from "../args";
+import { CliError } from "../io";
+import { emitJson, emitLines, json } from "../output";
 import {
+  type BodyKind,
   DEFAULT_TREE_DEPTH,
   findNode,
   parseBody,
@@ -10,7 +10,8 @@ import {
   treeStatsOf,
   viewOf,
 } from "../projections/tree";
-import { INPUT_OPTIONS, runFromArgs, wouldRefuse } from "../run-input";
+import { INPUT_OPTIONS } from "../run-input";
+import { defineRunCommand } from "../run-command";
 
 /**
  * "What did `extends` expand into, and what did preset X contribute?"
@@ -30,21 +31,28 @@ function parseDepth(args: ParsedArgs): number {
   return intOption(args, "depth", { min: 0, or: '"all"' }) ?? DEFAULT_TREE_DEPTH;
 }
 
-export const treeCommand: Command = {
+interface TreeFlags {
+  depth: number;
+  body: BodyKind | undefined;
+  nodeQuery: string | undefined;
+}
+
+export const treeCommand = defineRunCommand<TreeFlags>({
   name: "tree",
   summary: "the `extends` expansion: structure, stats, and per-node bodies",
   usage: ["tree [file] [--depth <n|all>]", "tree [file] --node <name> [--body resolved]"],
   options: [...INPUT_OPTIONS, "node", "body", "depth", "format"],
-  async run(args, io) {
-    const format = outputFormat(args);
+  prepare(args) {
     const depth = parseDepth(args);
     const body = parseBody(stringOption(args, "body"));
     const nodeQuery = stringOption(args, "node");
     if (body && !nodeQuery) {
       throw new CliError("--body needs --node: bodies are printed one node at a time");
     }
-    const { result, notes } = await runFromArgs(args, io);
-    writeNotes(io, notes);
+    return { depth, body, nodeQuery };
+  },
+  answer({ io, format, prepared, result }) {
+    const { depth, body, nodeQuery } = prepared;
     const { root, stats } = treeStatsOf(result);
 
     if (nodeQuery) {
@@ -67,7 +75,7 @@ export const treeCommand: Command = {
         }
         emitLines(io, lines);
       }
-      return wouldRefuse(result) ? EXIT_REFUSED : EXIT_OK;
+      return;
     }
 
     const view = viewOf(root, stats, depth);
@@ -83,6 +91,5 @@ export const treeCommand: Command = {
         ...treeLines(view, []),
       ]);
     }
-    return wouldRefuse(result) ? EXIT_REFUSED : EXIT_OK;
   },
-};
+});
