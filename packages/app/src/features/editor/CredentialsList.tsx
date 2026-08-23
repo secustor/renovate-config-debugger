@@ -1,6 +1,6 @@
 import type { Props } from "./AdvancedZone";
 import { AddHostForm } from "./AddHostForm";
-import { CustomHostRow, GithubHostRow, HostTokenRow } from "./HostAccessSection";
+import { CustomHostRow, GithubHostRow, HostTokenRow } from "./HostRows";
 import { isValidToken } from "@/lib/input-schemas";
 
 /**
