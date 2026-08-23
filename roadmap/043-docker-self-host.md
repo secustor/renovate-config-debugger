@@ -5,7 +5,7 @@ Milestone: M11 · Status: done (2026-07-26)
 ## Summary
 
 A user request: make the app installable, not just visitable. Everything the
-visualizer does happens in the browser, so a self-hoster needs nothing but a
+debugger does happens in the browser, so a self-hoster needs nothing but a
 static file server — but "clone the repo, install pnpm 11, run a Vite build"
 is a developer workflow, not a distribution. This item publishes two container
 images from `main`: the app behind nginx, and (optional) the OAuth
@@ -19,8 +19,8 @@ token-exchange proxy for deployments that want "Sign in with GitHub".
   rejected on that basis alone — a published image would carry one operator's
   client id forever, so every self-hoster wanting sign-in would have to rebuild
   the image, which defeats publishing it. Instead the deploy writes a served
-  file: `public/rcv-config.js` (a comment-only stub, so every deploy serves it
-  and nothing 404s) may define `globalThis.__RCV_OAUTH__`, and
+  file: `public/rcd-config.js` (a comment-only stub, so every deploy serves it
+  and nothing 404s) may define `globalThis.__RCD_OAUTH__`, and
   `getOAuthConfig()` prefers it over the build-time vars. `index.html` loads it
   as a classic script before the module entry. The GitHub Pages build is
   untouched: it ships the empty stub and keeps reading its Actions variables.
@@ -59,14 +59,14 @@ token-exchange proxy for deployments that want "Sign in with GitHub".
 
 ## What was done
 
-- **`packages/app/public/rcv-config.js`** — comment-only stub, copied verbatim
+- **`packages/app/public/rcd-config.js`** — comment-only stub, copied verbatim
   by Vite, referenced from `index.html` by a classic `<script src>` placed
   before the module entry (Vite rewrites the root-absolute URL with `base`, so
   the Pages build still resolves it).
 - **`getOAuthConfig()` reads two sources.** The validity rule — both ids
   present and non-blank, trailing slashes stripped off the worker URL — moved
   into one `toOAuthConfig` helper that both sources go through, so the runtime
-  path cannot drift from the env path. `globalThis.__RCV_OAUTH__` is declared
+  path cannot drift from the env path. `globalThis.__RCD_OAUTH__` is declared
   `unknown` in `vite-env.d.ts` (it is a served file, not a build constant) and
   every field is type-checked; anything malformed falls through to the vars.
   Callers are untouched — the function's contract is unchanged.
@@ -78,10 +78,10 @@ token-exchange proxy for deployments that want "Sign in with GitHub".
   caching,
   and runs the app build with **no** `VITE_*` in the environment. `app` on
   `nginx:alpine` adds `docker/nginx.conf` (gzip; `/assets/` immutable for a
-  year; `index.html` and `rcv-config.js` `no-cache`; `nosniff`; a `try_files`
+  year; `index.html` and `rcd-config.js` `no-cache`; `nosniff`; a `try_files`
   SPA fallback that never actually fires, since the app routes by hash/query)
-  and `docker/40-rcv-config.sh` in `/docker-entrypoint.d/`, which the official
-  image runs on start — it writes `rcv-config.js` only when both `RCV_*` ids
+  and `docker/40-rcd-config.sh` in `/docker-entrypoint.d/`, which the official
+  image runs on start — it writes `rcd-config.js` only when both `RCD_*` ids
   are set, escaping the values for a JS string literal. `oauth-proxy` on
   `node:26.5.0-alpine` copies the Worker source plus `server.mjs` and runs it
   as the `node` user; nothing is installed.
@@ -96,13 +96,13 @@ token-exchange proxy for deployments that want "Sign in with GitHub".
   target into the `latest` + `sha-<short>` manifest list with
   `docker buildx imagetools create`, and inspects it.
 - **Docs** — a "Self-hosting (Docker)" section in the root README (quickstart,
-  the `RCV_*` table, the sign-in story with the privacy boundary restated,
+  the `RCD_*` table, the sign-in story with the privacy boundary restated,
   compose, local build) and a note in the Worker README that the same handler
   ships as a Node image.
 - Verification: `pnpm lint` (silent), `pnpm -r typecheck`, `pnpm format:check`,
   the Worker tests (untouched), app `test:unit` (186 tests — 8 new for the
-  config precedence), `build` (dist carries `rcv-config.js`, `index.html`
+  config precedence), `build` (dist carries `rcd-config.js`, `index.html`
   references it), all 49 e2e tests, and both images built and exercised: the
-  stub served `no-cache`, `/assets/` `immutable`, `__RCV_OAUTH__` appearing
-  when the two `RCV_*` variables are passed, and the proxy answering `403`
+  stub served `no-cache`, `/assets/` `immutable`, `__RCD_OAUTH__` appearing
+  when the two `RCD_*` variables are passed, and the proxy answering `403`
   without an `Origin` and reaching GitHub with an allow-listed one.

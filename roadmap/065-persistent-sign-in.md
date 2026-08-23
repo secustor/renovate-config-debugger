@@ -61,7 +61,7 @@ live entry point (before the DNS switch).
 
 - `POST /exchange`, `POST /refresh` (success): the `refresh_token` is removed
   from the JSON body and set as
-  `__Secure-rcv-refresh=<token>; HttpOnly; Secure; SameSite=Strict;
+  `__Secure-rcd-refresh=<token>; HttpOnly; Secure; SameSite=Strict;
 Path=<mount>; Max-Age=<refresh_token_expires_in>`; the body instead carries
   `refresh_token_cookie: true` (how the SPA knows which mode it is talking
   to) and keeps `refresh_token_expires_in` (feeds the localStorage marker).
@@ -86,7 +86,7 @@ persisted server-side and the never-sees-content boundary is unchanged.
   exists; requires the allow-credentials header above).
 - `applyTokenResponse`: when the response says `refresh_token_cookie`, no
   refresh token is stored; instead the marker
-  `rcv.oauth.cookieSession = <refresh horizon epoch ms>` goes to
+  `rcd.oauth.cookieSession = <refresh horizon epoch ms>` goes to
   `localStorage` (non-secret; validated like every stored value).
 - Boot restore: on mount, signed out + live marker → one silent `/refresh`
   (then the profile fetch for the chip). **Single-flight** like 009's

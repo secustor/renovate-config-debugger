@@ -102,7 +102,7 @@ const EXAMPLE_CONFIG = `{
 `;
 
 /** OAuth sign-in (009). Configured only when both build-time vars are present
- *  (or the deployment's runtime `__RCV_OAUTH__` supplies them); otherwise the
+ *  (or the deployment's runtime `__RCD_OAUTH__` supplies them); otherwise the
  *  whole feature stays hidden and the PAT fallback remains. Module scope for
  *  the same reason `oauth.ts` resolves `INSTALL_URL` at module scope: neither
  *  input can change after the page loads, so there is nothing for a render to
@@ -1713,7 +1713,7 @@ export function App() {
           problems.", via `RunOptions.outcomeLead`). One region owns the outcome,
           spoken; this one shows it to the reader who is watching the screen
           rather than listening to it. */}
-      {toast ? <div className="rcv-toast">{toast}</div> : null}
+      {toast ? <div className="rcd-toast">{toast}</div> : null}
       {shortcutSheetOpen ? <ShortcutSheet onClose={hideShortcuts} /> : null}
       {/* Roadmap 068: the run's outcome for anyone not watching the screen.
           Always mounted — a live region has to exist BEFORE its text changes

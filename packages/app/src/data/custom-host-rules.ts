@@ -21,7 +21,7 @@ export interface CustomHostRule {
 
 /** One sessionStorage key for the whole list — the rows are dynamic, so a
  *  key per host would leave orphans behind on every removal. */
-export const HOST_RULES_KEY = "rcv.hostRules";
+export const HOST_RULES_KEY = "rcd.hostRules";
 
 const MAX_HOST_TYPE_LENGTH = 32;
 /** Renovate's host types are plain lowercase identifiers (`npm`, `docker`,

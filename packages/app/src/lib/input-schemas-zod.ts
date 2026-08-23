@@ -288,7 +288,7 @@ export const sharePayloadStrictFieldsSchema = z.object({
 // ---------------------------------------------------------------------------
 
 /**
- * Security 2026-07-25: the `rcv.oauth.pending` stash (oauth.ts `beginSignIn`
+ * Security 2026-07-25: the `rcd.oauth.pending` stash (oauth.ts `beginSignIn`
  * writes `{ state, verifier, returnHash }`) was `JSON.parse`d and type-ASSERTED
  * on the callback path, so a hand-edited/corrupted value reached the CSRF
  * `state` comparison and the PKCE `code_verifier` sent to the Worker as

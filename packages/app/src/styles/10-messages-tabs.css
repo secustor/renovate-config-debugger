@@ -30,7 +30,7 @@
 
 /* Transient "you are here" flash for a cross-link's target: a CodeMirror
    line, or a simulator rule row. Timed to match the callers' ~1.6s timeout. */
-@keyframes rcv-flash {
+@keyframes rcd-flash {
   from {
     background: color-mix(in srgb, var(--accent) 35%, transparent);
   }
@@ -39,8 +39,8 @@
   }
 }
 
-.rcv-flash {
-  animation: rcv-flash 1.6s ease-out;
+.rcd-flash {
+  animation: rcd-flash 1.6s ease-out;
 }
 
 /* Roadmap 054: the same "you are here", without the motion — the target still
@@ -50,7 +50,7 @@
    one signal may only have one color, or the two readings of "you are here"
    are two different marks. */
 @media (prefers-reduced-motion: reduce) {
-  .rcv-flash {
+  .rcd-flash {
     animation: none;
     background: color-mix(in srgb, var(--accent) 35%, transparent);
   }
@@ -498,7 +498,7 @@
 }
 
 /* Roadmap 054: the return pill — the same bottom-of-the-viewport plane as
-   .back-to-top and .rcv-toast (same offset, same float shadow, the same
+   .back-to-top and .rcd-toast (same offset, same float shadow, the same
    --z-float rung), but centered and quiet: it answers a jump the reader made
    one click ago, so it must be findable without competing with the page it
    floats over. */
@@ -547,7 +547,7 @@
 
 /* Transient toast (e.g. Apply fix → "re-ran: 0 errors"): lands the user on a
    consequence without moving their scroll. */
-.rcv-toast {
+.rcd-toast {
   background: var(--accent-fill);
   border-radius: 8px;
   bottom: 1.25rem;

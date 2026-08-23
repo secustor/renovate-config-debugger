@@ -111,7 +111,7 @@ common:
 - **Manual preset injection as the universal fallback**: on any
   unreachable node, let the user paste that preset's JSON; the node is
   marked "user-supplied" and resolution continues with it. This keeps the
-  visualizer useful for air-gapped/self-hosted setups no fetcher will ever
+  debugger useful for air-gapped/self-hosted setups no fetcher will ever
   reach — and doubles as a way to explore hypothetical presets.
 - No API proxying through the 009 Worker — its token-exchange-only
   boundary stands. If demand for a CORS relay materializes, that is a

@@ -36,7 +36,7 @@ repository reference instead of pasting.
 ## User story
 
 As a maintainer helping someone in the Renovate discussions, I paste their
-config into the visualizer and send back a link that opens the exact same
+config into the debugger and send back a link that opens the exact same
 analysis. As a user, I type `github.com/org/repo` and the app finds and loads
 its Renovate config file.
 

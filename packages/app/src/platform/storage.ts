@@ -10,13 +10,11 @@
  * didn't stick" (set/remove → no-op): exactly the behavior the app already
  * has for a value that was never stored, so no caller needs a special path.
  */
-import { HOST_TOKENS } from "@/data/host-tokens";
-
 /** localStorage keys for the non-secret platform context (see readLocal). */
-export const PLATFORM_KEY = "rcv.platform";
-export const ENDPOINT_KEY = "rcv.endpoint";
+export const PLATFORM_KEY = "rcd.platform";
+export const ENDPOINT_KEY = "rcd.endpoint";
 /** Roadmap 037 — the explicit color-theme override. */
-export const THEME_KEY = "rcv.theme";
+export const THEME_KEY = "rcd.theme";
 
 export function localGet(key: string): string | null {
   try {
@@ -195,7 +193,7 @@ export function applyTheme(theme: Theme): void {
 
 /** The stored-schema version marker. Absent/invalid = version 0 (a fresh
  *  browser, or one that predates the marker). */
-const STORAGE_VERSION_KEY = "rcv.v";
+const STORAGE_VERSION_KEY = "rcd.v";
 
 /**
  * Migration i upgrades stored-schema version i → i+1; the marker records how
@@ -208,15 +206,50 @@ const STORAGE_MIGRATIONS: readonly (() => void)[] = [
   // sessionStorage. Copy any legacy value across (without clobbering a
   // session value) and drop the localStorage copy. Runs before the App
   // component reads its initial state (see main.tsx). platform/endpoint
-  // stay in localStorage.
+  // stay in localStorage. The key names are the literal pre-rename ones —
+  // migrations describe history, so they must NOT track the current
+  // HOST_TOKENS storage keys (v1 → v2 below renames these to `rcd.`).
   () => {
-    for (const { storageKey } of HOST_TOKENS) {
-      const legacy = localGet(storageKey);
+    for (const legacyKey of [
+      "rcv.githubToken",
+      "rcv.gitlabToken",
+      "rcv.giteaToken",
+      "rcv.forgejoToken",
+    ]) {
+      const legacy = localGet(legacyKey);
       if (legacy !== null) {
-        if (sessionGet(storageKey) === null) {
-          sessionSet(storageKey, legacy);
+        if (sessionGet(legacyKey) === null) {
+          sessionSet(legacyKey, legacy);
         }
-        localRemove(storageKey);
+        localRemove(legacyKey);
+      }
+    }
+  },
+  // v1 → v2: the project rename (the app once carried a different name whose
+  // `rcv.` abbreviation prefixed every storage key) moved every key to the
+  // `rcd.` prefix. A prefix sweep over BOTH storages, existing `rcd.` values
+  // win. The marker lives in localStorage, so another already-open tab's
+  // sessionStorage keeps its old-prefix keys and reads as signed out there —
+  // the same per-tab blind spot the v0 → v1 migration accepted.
+  () => {
+    for (const storage of [localStorage, sessionStorage]) {
+      // The `length`/`key(i)` API, not `Object.keys(storage)`: stored entries
+      // are own properties only on real Storage objects, not on test stubs —
+      // and the key list must be collected before the loop mutates it.
+      const keys: string[] = [];
+      for (let i = 0; i < storage.length; i++) {
+        const key = storage.key(i);
+        if (key !== null && key.startsWith("rcv.")) {
+          keys.push(key);
+        }
+      }
+      for (const key of keys) {
+        const value = storage.getItem(key);
+        const renamed = `rcd.${key.slice("rcv.".length)}`;
+        if (value !== null && storage.getItem(renamed) === null) {
+          storage.setItem(renamed, value);
+        }
+        storage.removeItem(key);
       }
     }
   },
@@ -233,7 +266,10 @@ const STORAGE_MIGRATIONS: readonly (() => void)[] = [
  */
 export function runStorageMigrations(): void {
   try {
-    const raw = localGet(STORAGE_VERSION_KEY);
+    // The marker itself was renamed in v1 → v2: a browser that stored "rcv.v"
+    // under the old name reads through the fallback exactly once — the sweep
+    // migration deletes the old-name marker.
+    const raw = localGet(STORAGE_VERSION_KEY) ?? localGet("rcv.v");
     const from = raw !== null && /^\d+$/.test(raw) ? Number(raw) : 0;
     for (let v = from; v < STORAGE_MIGRATIONS.length; v++) {
       STORAGE_MIGRATIONS[v]?.();

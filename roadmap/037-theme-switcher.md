@@ -74,7 +74,7 @@ visits.
   Baseline 2024-05), which is where the app's container queries and
   `color-mix()` already put the floor. The emitted CSS got ~1.5 kB
   smaller as a side effect.
-- **Persistence** — `rcv.theme` through the 033 wrappers, read and
+- **Persistence** — `rcd.theme` through the 033 wrappers, read and
   applied at module scope in main.tsx before `createRoot()` so the
   first paint is already correct. "auto" stores nothing (absence is the
   default); an invalid stored value is dropped and reads as auto (030).

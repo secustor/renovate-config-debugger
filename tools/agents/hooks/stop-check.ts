@@ -115,7 +115,7 @@ if (relevant.length === 0) {
   process.exit(0);
 }
 
-const statePath = await getGitStatePath(root, "rcv-stop-check.json");
+const statePath = await getGitStatePath(root, "rcd-stop-check.json");
 const state = await readState(statePath);
 // The fingerprint is the content of the changes themselves, and the checks are
 // derived from that content — so an unchanged fingerprint means an unchanged

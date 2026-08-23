@@ -32,7 +32,7 @@ browser tab.
   the version badge onto its own line. The accessible name lives on the
   anchor (`aria-label` + `title`), so the links are named for a screen reader
   and on hover, just not in pixels.
-- **Hard-coded to the upstream repository**, not runtime config (`RCV_*`). A
+- **Hard-coded to the upstream repository**, not runtime config (`RCD_*`). A
   self-hoster deploying the Docker image (043) still wants a bug report to
   land upstream — a fork's issue tracker is where such a report would be
   ignored. Revisit if a fork ever asks.

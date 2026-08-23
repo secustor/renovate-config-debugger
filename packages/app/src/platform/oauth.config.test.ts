@@ -3,8 +3,8 @@ import { getOAuthConfig } from "./oauth";
 
 /**
  * Roadmap 043 — `getOAuthConfig` reads two sources now: the deployment-time
- * `globalThis.__RCV_OAUTH__` (what the Docker image writes into
- * `/rcv-config.js`) and the build-time `VITE_*` vars (what the Pages build
+ * `globalThis.__RCD_OAUTH__` (what the Docker image writes into
+ * `/rcd-config.js`) and the build-time `VITE_*` vars (what the Pages build
  * inlines). One published image must be able to turn sign-in on without a
  * rebuild, so the runtime source wins — but only when it is actually usable,
  * because it is a served file a deployment can get wrong.
@@ -22,7 +22,7 @@ function setEnv(clientId: string | undefined, workerUrl: string | undefined): vo
 }
 
 function setGlobal(value: unknown): void {
-  globalThis.__RCV_OAUTH__ = value;
+  globalThis.__RCD_OAUTH__ = value;
 }
 
 afterEach(() => {
@@ -50,12 +50,12 @@ describe("getOAuthConfig", () => {
     setGlobal({
       clientId: "  runtime-client  ",
       workerUrl: "https://runtime-worker.example///",
-      appSlug: "rcv",
+      appSlug: "rcd",
     });
     expect(getOAuthConfig()).toEqual({
       clientId: "runtime-client",
       workerUrl: "https://runtime-worker.example",
-      appSlug: "rcv",
+      appSlug: "rcd",
     });
   });
 

@@ -3,7 +3,7 @@ import { getMeasurementId, isTrackableHostname } from "./analytics";
 
 /**
  * `getMeasurementId` mirrors `getOAuthConfig` (roadmap 043): a deployment-time
- * `globalThis.__RCV_ANALYTICS__` that wins over the build-time
+ * `globalThis.__RCD_ANALYTICS__` that wins over the build-time
  * `VITE_GA_MEASUREMENT_ID` var, and a served-file source that must therefore
  * be validated — a malformed global falls through to the var, and an id that
  * is not `G-` + alphanumerics never loads gtag at all (it would end up in the
@@ -22,7 +22,7 @@ function setEnv(id: string | undefined): void {
 }
 
 function setGlobal(value: unknown): void {
-  globalThis.__RCV_ANALYTICS__ = value;
+  globalThis.__RCD_ANALYTICS__ = value;
 }
 
 afterEach(() => {
@@ -81,7 +81,7 @@ describe("getMeasurementId on a local hostname", () => {
   );
 
   test("a self-host's own runtime id still tracks there", () => {
-    // The one case the guard must not break: `RCV_GA_MEASUREMENT_ID` names the
+    // The one case the guard must not break: `RCD_GA_MEASUREMENT_ID` names the
     // deployer's property, and their container may well be reached on
     // localhost.
     setGlobal({ measurementId: "G-SELFHOST1" });
@@ -97,7 +97,7 @@ describe("isTrackableHostname", () => {
     },
   );
 
-  test.for(["app.localhost", "rcv.internal.localhost"] as const)(
+  test.for(["app.localhost", "rcd.internal.localhost"] as const)(
     "the reserved .localhost TLD is not trackable: %s",
     (hostname) => {
       expect(isTrackableHostname(hostname)).toBe(false);

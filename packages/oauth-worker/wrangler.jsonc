@@ -5,7 +5,7 @@
   // preset, or an API request. Stateless, no persistence, no body logging.
   //
   // Deploy: `pnpm run deploy` (see README.md for full provisioning).
-  "name": "rcv-oauth-worker",
+  "name": "rcd-oauth-worker",
   "main": "src/index.ts",
   "compatibility_date": "2025-07-01",
 
@@ -21,7 +21,7 @@
   //                       Worker; requests from any other origin get 403 and
   //                       never reach GitHub.
   //   REFRESH_COOKIE    — roadmap 065: "true" returns the refresh token as an
-  //                       HttpOnly `__Secure-rcv-refresh` cookie instead of in
+  //                       HttpOnly `__Secure-rcd-refresh` cookie instead of in
   //                       the JSON body, so a closed tab no longer ends the
   //                       session. Only correct on a SAME-SITE deployment —
   //                       here the route below puts the Worker on the app's

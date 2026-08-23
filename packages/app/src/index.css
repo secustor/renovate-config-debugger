@@ -70,7 +70,7 @@
      of --surface — that IS the dark theme's raised plane. */
   --surface-raised: light-dark(#ffffff, #151b23);
   /* Consolidated: the two floating pills at the bottom of the viewport
-     (.back-to-top, .rcv-toast) had drifted to 10px/0.25 and 12px/0.3 for one
+     (.back-to-top, .rcd-toast) had drifted to 10px/0.25 and 12px/0.3 for one
      and the same "hovering above the page" role. */
   --shadow-float: 0 2px 12px rgb(0 0 0 / 0.3);
   /* The higher plane: hover/option cards, which float over content the user is

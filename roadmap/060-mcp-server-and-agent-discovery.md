@@ -66,7 +66,7 @@ out that this exists.
   command modules were refactored first: `src/projections/{digest,tree,
 provenance,messages}.ts` now hold the shapes, and the subcommands and the
   MCP tools both import them. So "no new functionality" is structural — a
-  change to what `get_preset_tree` answers is a change to what `rcv tree`
+  change to what `get_preset_tree` answers is a change to what `rcd tree`
   answers.
 - Same for credentials: `applyRunAuth` (with the endpoint guard inside it) is
   shared, so the guard cannot be enforced on one transport and forgotten on
@@ -79,9 +79,9 @@ provenance,messages}.ts` now hold the shapes, and the subcommands and the
   two runs.
 - Tested through a real MCP client over the SDK's in-memory transport pair
   (`test/mcp.test.ts`), so schemas, handlers and result shapes are exercised
-  the way a client exercises them; `rcv mcp` was additionally smoke-tested
+  the way a client exercises them; `rcd mcp` was additionally smoke-tested
   over stdio against the built bundle.
-- **Nothing is written to stdout by `rcv mcp`** — on a stdio transport stdout
+- **Nothing is written to stdout by `rcd mcp`** — on a stdio transport stdout
   IS the protocol. Diagnostics go to stderr, which is also what keeps them out
   of a `--format json` document.
 

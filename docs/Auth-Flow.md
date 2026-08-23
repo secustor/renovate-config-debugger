@@ -43,7 +43,7 @@ sequenceDiagram
     Worker->>GitHub: POST /login/oauth/access_token (+ client_secret)
     GitHub-->>Worker: access + refresh token JSON
     alt cookie mode (REFRESH_COOKIE=true, not *.workers.dev)
-        Worker-->>SPA: body without refresh_token, refresh_token_cookie: true<br/>+ Set-Cookie: __Secure-rcv-refresh (HttpOnly, SameSite=Strict)
+        Worker-->>SPA: body without refresh_token, refresh_token_cookie: true<br/>+ Set-Cookie: __Secure-rcd-refresh (HttpOnly, SameSite=Strict)
         SPA->>SPA: store access token (sessionStorage),<br/>marker → localStorage
     else 009 protocol
         Worker-->>SPA: tokens in the body, verbatim
@@ -98,7 +98,7 @@ over a network blip.
 
 ## Sign-out
 
-`signOut()` clears memory, every `rcv.oauth.*` storage key, and the marker,
+`signOut()` clears memory, every `rcd.oauth.*` storage key, and the marker,
 then fires a best-effort `POST /logout`, since only the worker can clear the
 `HttpOnly` cookie (the answer carries a clearing `Max-Age=0`). True revocation of the GitHub
 grant can only be done on

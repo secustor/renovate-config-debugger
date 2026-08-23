@@ -9,7 +9,7 @@ Milestone: M6 · Status: done 2026-07-24
 > "Running…" fails fast instead of stalling. The dist must be built first:
 > the required check order is `build` → `test:e2e`; CI reuses the build step's
 > dist rather than rebuilding. `vite.config.ts`'s base path
-> (`/renovate-config-visualizer/` under `GITHUB_ACTIONS`, `/` locally) is
+> (`/renovate-config-debugger/` under `GITHUB_ACTIONS`, `/` locally) is
 > mirrored in the Playwright baseURL so preview and tests agree in both
 > environments.
 >

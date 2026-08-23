@@ -14,7 +14,7 @@
     "suspicious": "error"
   },
   // `public/` is copied into the bundle verbatim — it is deployment payload,
-  // not app source (roadmap 043's `rcv-config.js` stub is a comment and
+  // not app source (roadmap 043's `rcd-config.js` stub is a comment and
   // nothing else, by design).
   "ignorePatterns": ["dist", "coverage", "node_modules", "packages/app/public"],
   "rules": {
@@ -56,10 +56,10 @@
     "typescript/no-import-type-side-effects": "error",
     "typescript/no-explicit-any": "error",
     "unicorn/no-array-for-each": "error",
-    // Roadmap 043: the `__RCV_*__` globals are the injected deployment config —
+    // Roadmap 043: the `__RCD_*__` globals are the injected deployment config —
     // the dangling underscores are the convention that says "written by a
     // deployment, not by this codebase". Everything else keeps the rule.
-    "no-underscore-dangle": ["error", { "allow": ["__RCV_OAUTH__", "__RCV_ANALYTICS__"] }],
+    "no-underscore-dangle": ["error", { "allow": ["__RCD_OAUTH__", "__RCD_ANALYTICS__"] }],
 
     // --- Type-aware tier (needs `--type-aware` + oxlint-tsgolint) -----------
     "typescript/no-misused-promises": "error",
