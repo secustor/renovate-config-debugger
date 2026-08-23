@@ -1,4 +1,4 @@
-import { compareSimulations, type SimulationComparison } from "@renovate-config-debugger/engine";
+import type { SimulationComparison } from "@renovate-config-debugger/engine";
 import { outputFormat, stringOption } from "../args";
 import type { Command } from "../command";
 import { EXIT_OK } from "../io";
@@ -6,13 +6,8 @@ import { emitJson, emitLines, writeNotes } from "../output";
 import { INPUT_OPTIONS, refusalNote, runOne, takeInputFile, wouldRefuse } from "../run-input";
 import { readDependency } from "../dep";
 import { deltaLine, parseConfigScope, parseKeys } from "../projections/config-view";
-import {
-  comparisonMode,
-  comparisonPayload,
-  parseCompareDetail,
-  type ProjectedComparison,
-} from "../projections/simulate";
-import { evaluationErrorsNote, missingInputsNote } from "../rule-view";
+import { parseCompareDetail, type ProjectedComparison } from "../projections/simulate";
+import { askCompare } from "../questions/compare";
 import { simulateAgainst } from "./simulate";
 
 /**
@@ -168,17 +163,14 @@ export const compareCommand: Command = {
 
     const simA = await simulateAgainst(a.result, depA);
     const simB = await simulateAgainst(b.result, depB);
-    const mode = comparisonMode(Boolean(fileB), twoDeps);
-    const comparison = comparisonPayload(compareSimulations(simA, simB, { mode }), {
-      scope: scope ?? "package-rules",
+    const { comparison, sideNotes, notes } = askCompare({
+      simA,
+      simB,
+      twoConfigs: Boolean(fileB),
+      twoDeps,
       detail,
+      scope: scope ?? "package-rules",
       transport: "cli",
-      sideKeys: [
-        ...new Set([
-          ...Object.keys(simA.finalDependencyConfig),
-          ...Object.keys(simB.finalDependencyConfig),
-        ]),
-      ],
       ...(keys ? { keys } : {}),
     });
 
@@ -191,23 +183,6 @@ export const compareCommand: Command = {
       ],
       COMPARE_REFUSAL_TAIL,
     );
-
-    // Per SIDE, and reported even when the verdict is `identical:`. Two sides
-    // that both failed to evaluate the same rule for lack of input agree
-    // perfectly — and "the edit does nothing" is the wrong lesson to draw from
-    // two blind runs.
-    const missingA = missingInputsNote(simA.missingInputs, "cli");
-    const missingB = missingInputsNote(simB.missingInputs, "cli");
-    // Same reasoning, one step more serious: a side that could not EVALUATE a
-    // rule is not a side that disagreed with the other one.
-    const erroredA = evaluationErrorsNote(simA.evaluationErrors, "cli");
-    const erroredB = evaluationErrorsNote(simB.evaluationErrors, "cli");
-    const sideNotes = [
-      ...(erroredA ? [`A — ${erroredA}`] : []),
-      ...(erroredB ? [`B — ${erroredB}`] : []),
-      ...(missingA ? [`A — ${missingA}`] : []),
-      ...(missingB ? [`B — ${missingB}`] : []),
-    ];
 
     if (format === "json") {
       emitJson(io, {
@@ -228,9 +203,7 @@ export const compareCommand: Command = {
         ...comparison,
         // ONE notes array (roadmap 073): the per-side pointers and the
         // detail-level pointer read the same way, so they live in one place.
-        ...(sideNotes.length + (comparison.notes?.length ?? 0) > 0
-          ? { notes: [...sideNotes, ...(comparison.notes ?? [])] }
-          : {}),
+        ...(notes.length > 0 ? { notes } : {}),
         ...(refusal ? { exitNote: refusal } : {}),
       });
     } else {

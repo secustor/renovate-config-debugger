@@ -1,11 +1,8 @@
-import {
-  type DependencyDescriptor,
-  deriveUpdateType,
-  parseInjectedPreset,
-} from "@renovate-config-debugger/engine";
+import { type DependencyDescriptor, parseInjectedPreset } from "@renovate-config-debugger/engine";
 import type { OptionName, ParsedArgs } from "./args";
 import { listOption, stringOption } from "./args";
 import { CliError, errorMessage } from "./io";
+import { finishDescriptor } from "./questions/dependency";
 import { readTextFile } from "./run-input";
 
 /**
@@ -28,21 +25,6 @@ function parseDescriptor(text: string, what: string): DependencyDescriptor {
     throw new CliError(`${what}: ${errorMessage(err)}`);
   }
   return finishDescriptor(parsed as DependencyDescriptor);
-}
-
-/** Every field of DependencyDescriptor is optional, so the descriptor is
- *  whatever subset the caller supplied; the matchers themselves report which
- *  fields they could not read (`no-input`), which is a better error than any
- *  shape check here could give. `updateType` is the one derived field: Renovate
- *  sets it from the version pair long before packageRules run. */
-function finishDescriptor(dep: DependencyDescriptor): DependencyDescriptor {
-  if (!dep.updateType) {
-    const derived = deriveUpdateType(dep.currentValue, dep.newValue, dep.versioning);
-    if (derived) {
-      return { ...dep, updateType: derived };
-    }
-  }
-  return dep;
 }
 
 export async function readDependency(

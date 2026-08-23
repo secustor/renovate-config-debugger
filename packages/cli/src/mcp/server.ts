@@ -1,14 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import {
-  compareSimulations,
-  computeResolvedConfig,
   computeRuleProvenance,
   type DependencyDescriptor,
-  deriveUpdateType,
-  getOptionIndex,
   optionsSourceUrl,
-  type PipelineInput,
   type PresetNode,
   type ResolvedConfigMode,
   renovateVersion,
@@ -25,7 +20,7 @@ import {
 } from "@renovate-config-debugger/app/headless";
 import pkg from "../../package.json";
 import { errorMessage, type CliIo } from "../io";
-import { buildRuleView, evaluationErrorsNote, missingInputsNote } from "../rule-view";
+import { buildRuleView } from "../rule-view";
 import { digestPayload } from "../projections/digest";
 import {
   CONFIG_SCOPES,
@@ -40,22 +35,16 @@ import {
   ruleCrossLink,
   repoStageMessage,
 } from "../projections/messages";
-import {
-  COMPARE_DETAIL,
-  comparisonMode,
-  comparisonPayload,
-  SIMULATE_DETAIL,
-  simulationPayload,
-} from "../projections/simulate";
-import {
-  entryView,
-  indexView,
-  perDependencyNote,
-  previewValue,
-  provenanceOf,
-} from "../projections/provenance";
+import { COMPARE_DETAIL, SIMULATE_DETAIL, simulationPayload } from "../projections/simulate";
+import { entryView, indexView, previewValue } from "../projections/provenance";
 import { blindTallyNote, groupTally, inputGaps } from "../projections/group";
-import { oneRuleView, RULE_DIGEST_PLANS, ruleProvenanceView } from "../projections/rule-provenance";
+import { RULE_DIGEST_PLANS } from "../projections/rule-provenance";
+import { askCompare } from "../questions/compare";
+import { finishDescriptor } from "../questions/dependency";
+import { askOptionDocs } from "../questions/option-docs";
+import { buildPipelineInput } from "../questions/pipeline";
+import { askProvenance } from "../questions/provenance";
+import { askResolved } from "../questions/resolved";
 import {
   BODIES,
   type BodyKind,
@@ -299,18 +288,9 @@ const RULE_SOURCE = z
   );
 
 /** The dependency descriptor, with `updateType` derived the way a real lookup
- *  would when the caller did not set it. */
+ *  would when the caller did not set it — the same finishing `--dep` gets. */
 function toDependency(dep: DepInput): DependencyDescriptor {
-  const descriptor: DependencyDescriptor = dep;
-  if (descriptor.updateType) {
-    return descriptor;
-  }
-  const derived = deriveUpdateType(
-    descriptor.currentValue,
-    descriptor.newValue,
-    descriptor.versioning,
-  );
-  return derived ? { ...descriptor, updateType: derived } : descriptor;
+  return finishDescriptor(dep);
 }
 
 /** The run's effective config, or the reason there is none — an empty object
@@ -604,7 +584,7 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         },
         "mcp",
       );
-      const input: PipelineInput = {
+      const input = buildPipelineInput({
         fileName: args.fileName,
         content: args.content,
         // Per-run credentials, installed by the pipeline inside its own
@@ -612,12 +592,12 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         // auth would let a trusting run's tokens leak into a run whose
         // untrusted global config picked the endpoint.
         presetAuth: auth,
-        ...(args.globalConfig ? { globalConfig: args.globalConfig } : {}),
-        ...(args.inheritedConfig ? { inheritedConfig: args.inheritedConfig } : {}),
-        ...(args.platform ? { platform: args.platform } : {}),
-        ...(args.endpoint ? { endpoint: args.endpoint } : {}),
-        ...(args.platformOverride ? { platformOverride: true } : {}),
-      };
+        globalConfig: args.globalConfig,
+        inheritedConfig: args.inheritedConfig,
+        platform: args.platform,
+        endpoint: args.endpoint,
+        platformOverride: args.platformOverride,
+      });
       throwIfCancelled(ctx);
       const result: TraceResult = await runPipeline(input, ctx.mcpReq.signal);
       return runSummary(store.put(result, input), notes, store);
@@ -768,68 +748,51 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       }),
     },
     answer(({ runId, key, rule, source }) => {
-      const { result } = store.get(runId);
-      const provenance = provenanceOf(result);
-      if (!key) {
+      const answered = askProvenance(store.get(runId).result, {
+        key,
+        rule,
+        source,
+        transport: "mcp",
+      });
+      if (answered.kind === "index") {
         return {
           note: "index only — pass `key` for that option's full override chain.",
-          keys: [...provenance.values()].filter((e) => !e.isDefaultOnly).map(indexView),
+          keys: answered.shown.map(indexView),
         };
       }
-      const entry = provenance.get(key);
-      if (!entry) {
-        throw new Error(`no key "${key}" in the effective config`);
+      if (answered.kind === "rule") {
+        return answered.view;
       }
-      if (key !== "packageRules") {
-        for (const [name, value] of [
-          ["rule", rule],
-          ["source", source],
-        ] as const) {
-          if (value !== undefined) {
-            throw new Error(
-              `\`${name}\` scopes the merged packageRules; key "${key}" is not an array of rules. ` +
-                'Drop it, or ask for key: "packageRules".',
-            );
+      if (answered.kind === "rules") {
+        // The richest digest that survives the budget WHOLE. Degrading here is
+        // semantic (shorter lines, complete ranges); leaving it to the generic
+        // elider is structural (2 rules of 727), which is no answer at all.
+        const [richest, ...leaner] = RULE_DIGEST_PLANS;
+        let view = answered.view(richest);
+        for (const plan of leaner) {
+          if (fitsBudget(view)) {
+            break;
           }
+          view = answered.view(plan);
         }
-        const perDependency = perDependencyNote(key, result.finalConfig);
-        const view = {
-          ...entryView(entry),
-          ...(perDependency ? { note: perDependency } : {}),
-        };
-        // Last resort before the generic elider gets it: an override chain
-        // whose FINAL value alone blows the budget keeps the chain — which is
-        // this tool's answer — and previews the value.
-        return fitsBudget(view)
-          ? view
-          : {
-              ...view,
-              finalValue: previewValue(entry.finalValue, 200),
-              finalValueNote:
-                "`finalValue` is a preview — the whole value did not fit this answer's budget. " +
-                `get_final_config with \`keys: ["${key}"]\` returns it in full.`,
-            };
+        return view;
       }
-      const attribution = computeRuleProvenance(result);
-      const rules = Array.isArray(result.finalConfig?.packageRules)
-        ? result.finalConfig.packageRules
-        : [];
-      if (rule !== undefined) {
-        return oneRuleView(rule, attribution, rules);
-      }
-      // The richest digest that survives the budget WHOLE. Degrading here is
-      // semantic (shorter lines, complete ranges); leaving it to the generic
-      // elider is structural (2 rules of 727), which is no answer at all.
-      const scoped = source ? { source } : {};
-      const [richest, ...leaner] = RULE_DIGEST_PLANS;
-      let view = ruleProvenanceView(entry, attribution, rules, richest, scoped);
-      for (const plan of leaner) {
-        if (fitsBudget(view)) {
-          break;
-        }
-        view = ruleProvenanceView(entry, attribution, rules, plan, scoped);
-      }
-      return view;
+      const view = {
+        ...entryView(answered.entry),
+        ...(answered.perDependency ? { note: answered.perDependency } : {}),
+      };
+      // Last resort before the generic elider gets it: an override chain
+      // whose FINAL value alone blows the budget keeps the chain — which is
+      // this tool's answer — and previews the value.
+      return fitsBudget(view)
+        ? view
+        : {
+            ...view,
+            finalValue: previewValue(answered.entry.finalValue, 200),
+            finalValueNote:
+              "`finalValue` is a preview — the whole value did not fit this answer's budget. " +
+              `get_final_config with \`keys: ["${answered.entry.key}"]\` returns it in full.`,
+          };
     }, HINTS.provenance),
   );
 
@@ -851,16 +814,12 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
     },
     answer(({ runId, mode, includeDefaults }) => {
       const resolvedMode: ResolvedConfigMode = mode ?? "keep-internal";
-      if (includeDefaults && resolvedMode !== "full") {
-        throw new Error('includeDefaults needs mode "full"');
-      }
-      const output = computeResolvedConfig(store.get(runId).result, resolvedMode, {
+      const answered = askResolved(store.get(runId).result, {
+        mode: resolvedMode,
         includeDefaults: includeDefaults ?? false,
+        transport: "mcp",
       });
-      if (!output) {
-        throw new Error("this document needs a completed preset resolution — validate the config");
-      }
-      return { mode: resolvedMode, ...output };
+      return { mode: answered.mode, ...answered.output };
     }, HINTS.resolved),
   );
 
@@ -1066,37 +1025,20 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         simulateRun(a, dep, ctx),
         simulateRun(b, depB ?? dep, ctx),
       ]);
-      // Per side, and outside `comparisonPayload`: the pure diff module states
-      // what the two runs did, and a side that never got to evaluate a rule is
-      // a fact about that side's INPUT, not about the difference.
-      const sideNotes = [
-        ...[simA, simB].flatMap((sim, index) => {
-          const note = evaluationErrorsNote(sim.evaluationErrors, "mcp");
-          return note ? [`${index === 0 ? "A" : "B"} — ${note}`] : [];
-        }),
-        ...[simA, simB].flatMap((sim, index) => {
-          const note = missingInputsNote(sim.missingInputs, "mcp");
-          return note ? [`${index === 0 ? "A" : "B"} — ${note}`] : [];
-        }),
-      ];
-      const comparison = comparisonPayload(
-        compareSimulations(simA, simB, {
-          mode: comparisonMode(Boolean(runIdB), Boolean(depB)),
-        }),
-        {
-          scope: configScope ?? "package-rules",
-          detail: detail ?? "verdict",
-          transport: "mcp",
-          sideKeys: [
-            ...new Set([
-              ...Object.keys(simA.finalDependencyConfig),
-              ...Object.keys(simB.finalDependencyConfig),
-            ]),
-          ],
-          ...(keys ? { keys } : {}),
-        },
-      );
-      const notes = [...sideNotes, ...(comparison.notes ?? [])];
+      // The per-side caveats are computed outside `comparisonPayload`: the
+      // pure diff module states what the two runs did, and a side that never
+      // got to evaluate a rule is a fact about that side's INPUT, not about
+      // the difference.
+      const { comparison, notes } = askCompare({
+        simA,
+        simB,
+        twoConfigs: Boolean(runIdB),
+        twoDeps: Boolean(depB),
+        detail: detail ?? "verdict",
+        scope: configScope ?? "package-rules",
+        transport: "mcp",
+        ...(keys ? { keys } : {}),
+      });
       return {
         a: {
           runId: a.runId,
@@ -1231,25 +1173,12 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       }),
     },
     answer(({ name, search }) => {
-      const index = getOptionIndex();
-      if (search) {
-        const needle = name.toLowerCase();
-        return {
-          renovateVersion,
-          optionsSourceUrl,
-          matches: [...index.options.values()]
-            .filter((doc) => doc.name.toLowerCase().includes(needle))
-            .map((doc) => ({ name: doc.name, type: doc.type, description: doc.description })),
-        };
-      }
-      const doc = index.options.get(name);
-      if (!doc) {
-        throw new Error(
-          `Renovate ${renovateVersion} has no option "${name}" — retry with search: true`,
-        );
+      const answered = askOptionDocs({ name, search, transport: "mcp" });
+      if (answered.kind === "search") {
+        return { renovateVersion, optionsSourceUrl, matches: answered.matches };
       }
       // `isContainer` rides on the doc (roadmap 072) — no call site derives it.
-      return { renovateVersion, optionsSourceUrl, ...doc };
+      return { renovateVersion, optionsSourceUrl, ...answered.doc };
     }, HINTS.optionDocs),
   );
 

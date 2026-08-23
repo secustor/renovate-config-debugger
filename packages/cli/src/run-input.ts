@@ -15,6 +15,7 @@ import {
 import { parseLayerJson } from "@renovate-config-debugger/app/headless";
 import { boolOption, listOption, type OptionName, type ParsedArgs, stringOption } from "./args";
 import { CliError, type CliIo, errorMessage } from "./io";
+import { buildPipelineInput } from "./questions/pipeline";
 
 /**
  * Turning flags into a `PipelineInput` and running it. Every subcommand that
@@ -297,16 +298,16 @@ export async function loadPipelineInput(
   }
 
   return {
-    input: {
+    input: buildPipelineInput({
       fileName,
       content,
       presetAuth: auth,
-      ...(globalConfig ? { globalConfig } : {}),
-      ...(inheritedConfig ? { inheritedConfig } : {}),
-      ...(stringOption(args, "platform") ? { platform: stringOption(args, "platform") } : {}),
-      ...(stringOption(args, "endpoint") ? { endpoint: stringOption(args, "endpoint") } : {}),
-      ...(boolOption(args, "platform-override") ? { platformOverride: true } : {}),
-    },
+      globalConfig,
+      inheritedConfig,
+      platform: stringOption(args, "platform"),
+      endpoint: stringOption(args, "endpoint"),
+      platformOverride: boolOption(args, "platform-override"),
+    }),
     notes,
   };
 }
