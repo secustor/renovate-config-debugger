@@ -5,7 +5,7 @@
  * this instead, so adding a host is a one-row change. Pure data, no React —
  * run.ts (which must stay engine-chunk-light) imports it too.
  */
-import type { PresetTokenKey } from "@renovate-config-debugger/engine";
+import type { PresetTokenKey, RepoPlatform } from "@renovate-config-debugger/engine";
 
 export interface HostTokenDescriptor {
   /** Stable id, also the token's field prefix in the engine's PresetAuth. */
@@ -62,3 +62,20 @@ export const HOST_TOKENS: readonly HostTokenDescriptor[] = [
     authKey: "forgejoToken",
   },
 ];
+
+/**
+ * Platforms whose repositories this app can fetch from the browser (roadmap
+ * 007/010) — which is exactly the set of hosts the table above has a token
+ * for, since a host is listed here precisely because the browser talks to it.
+ * Derived rather than restated so "add a host" stays the one-row change the
+ * table's header promises.
+ */
+export const FETCHABLE_PLATFORMS: ReadonlySet<RepoPlatform> = new Set(
+  HOST_TOKENS.map((descriptor) => descriptor.id),
+);
+
+/** Known public hosts → the platform that serves their repos, from the same
+ *  one table (`host` is documented there as the canonical host of that id). */
+export const HOST_PLATFORM: Readonly<Record<string, RepoPlatform>> = Object.fromEntries(
+  HOST_TOKENS.map((descriptor) => [descriptor.host, descriptor.id]),
+);

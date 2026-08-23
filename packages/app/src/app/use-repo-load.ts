@@ -19,6 +19,7 @@ import { ESCAPE_PRIORITY } from "@/lib/escape-stack";
 import { useEscapeLayer } from "@/hooks/use-escape-layer";
 import type { RepoPlatform, TraceResult } from "@renovate-config-debugger/engine";
 import { PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
+import { FETCHABLE_PLATFORMS, HOST_PLATFORM } from "@/data/host-tokens";
 import { isValidRepoHost, isValidRepoRefPart } from "@/lib/input-schemas";
 import {
   configFileNameFor,
@@ -28,17 +29,6 @@ import {
 import type { ShareFileName, UntrustedEndpointGuard } from "@/lib/share";
 import { loadRepoConfig, loadRepoFile } from "@/platform/run";
 import type { RunInputs } from "@/lib/run-inputs";
-
-/** Platforms whose repos can be fetched from the browser (roadmap 007/010). */
-const FETCHABLE_PLATFORMS = new Set<RepoPlatform>(["github", "gitlab", "gitea", "forgejo"]);
-
-/** Known public hosts → the platform that serves their repos. */
-const HOST_PLATFORM: Record<string, RepoPlatform> = {
-  "github.com": "github",
-  "gitlab.com": "gitlab",
-  "gitea.com": "gitea",
-  "codeberg.org": "forgejo",
-};
 
 /**
  * What the load needs from App.tsx. Handed in fresh every render and read
