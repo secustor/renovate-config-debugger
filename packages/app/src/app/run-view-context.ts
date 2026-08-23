@@ -1,0 +1,119 @@
+/**
+ * Roadmap 086 (the 048-deferred state-sharing ruling): the run-scoped view
+ * cluster as a context, INSIDE the app layer only. App provides it;
+ * `ResultsColumn` and `AppShellHeader` consume it. Features never do — 048's
+ * boundary stays props, so this is app-shell wiring, not an API.
+ *
+ * The admission rule (stated in roadmap/086 and enforced by review): a value
+ * enters this context only if its identity changes on a run, a
+ * tab/stage/node/step selection, or a panel's async report — NEVER on a
+ * keystroke. The provider value is memoized on exactly those inputs, which is
+ * what keeps the 032 keystroke budget: consumers re-render when the run view
+ * changes, which is when they re-rendered anyway. `resultsStale` and the
+ * layer texts/parses are the canonical disqualified values — they stay props.
+ *
+ * Why a context at all: 033 → 048 → 084 measured that hook extraction alone
+ * does not hold. Every feature touching a run added a prop through App's JSX,
+ * `ResultsColumnProps` and the panel — three files per value — and the wiring
+ * accreted back into App faster than extraction drained it. A run-view value
+ * now costs its provider entry and its consumer.
+ */
+import { createContext, useContext } from "react";
+import type {
+  ErrorFixResult,
+  RuleAttribution,
+  StageId,
+  TraceEvent,
+  TraceResult,
+} from "@renovate-config-debugger/engine";
+import type { AuthState } from "@/components/GithubAuthHint";
+import type { ResultsTabDescriptor } from "@/components/ResultsPanel";
+import type { ResultsTabId } from "@/data/results-tabs";
+import type { FormState } from "@/features/simulator/form";
+import type { PinnedTest } from "@/features/simulator/pins";
+import type { EffectiveTally } from "@/lib/effective-tally";
+import type { ShareSimulator } from "@/lib/share";
+import type { ErrorTranslationLib } from "@/platform/run";
+import type { SimRequest } from "@/hooks/use-share-link";
+
+export interface RunView {
+  /** The committed run, or null before the first one (the header renders its
+   *  identity row either way; the results column only mounts with a result). */
+  result: TraceResult | null;
+  validateHasErrors: boolean;
+
+  // —— tab shell ——
+  tabs: ResultsTabDescriptor[];
+  tab: ResultsTabId;
+  onSelectTab: (tab: ResultsTabId) => void;
+  onWalkTab: (tab: ResultsTabId) => void;
+  backTab: ResultsTabId | null;
+  onBack: () => void;
+  onJumpToTab: (tab: ResultsTabId) => void;
+
+  // —— header digest ——
+  errorCount: number;
+  warningCount: number;
+  presetCount: number;
+  effectiveKeys: number | null;
+  onShowRewrites: () => void;
+
+  // —— pipeline ——
+  selectedStage: StageId;
+  onSelectStage: (stage: StageId) => void;
+  deferredStage: StageId;
+  migrateSteps: TraceEvent[];
+  migrateStepperMounted: boolean;
+  finalMigrated: unknown;
+  migrationStepIndex: number;
+  onMigrationStepChange: (index: number) => void;
+
+  // —— cross-links + shared handlers ——
+  selectPresetNode: (nodeId: string) => void;
+  focusEditorRepoIndex: (repoIndex: number) => void;
+  errorLib: ErrorTranslationLib | null;
+  authState: AuthState;
+  onSignIn: () => void;
+  onRunAgain: () => void;
+
+  // —— presets ——
+  onInject: (key: string, content: Record<string, unknown>) => void;
+  selectedNodeId: string | null;
+  onSelectNode: (id: string | null) => void;
+
+  // —— overview / effective ——
+  onOverviewStats: (behaviors: number) => void;
+  onEffectiveStats: (stats: EffectiveTally) => void;
+  onShowDescriptionOrder: () => void;
+  descriptionLedgerNonce: number;
+
+  // —— tests ——
+  pins: PinnedTest[];
+  onAddPin: (form: FormState) => void;
+  onRemovePin: (id: string) => void;
+  pendingRuleFocus: number | null;
+  onRuleFocused: () => void;
+  simRequest: SimRequest | null;
+  onCopySimLink: (sim: ShareSimulator) => Promise<void>;
+  onShare: () => Promise<void>;
+  mergeStepIndex: number;
+  onMergeStepChange: (index: number) => void;
+
+  // —— problems ——
+  ruleProvenance: RuleAttribution[] | null | undefined;
+  onJumpToSimRule: (index: number) => void;
+  onApplyFix: (fix: ErrorFixResult) => void;
+}
+
+/** App renders `<RunViewContext.Provider>` directly — a wrapper component
+ *  here would make this file export a component beside the hook, which the
+ *  fast-refresh lint rule (and fast refresh itself) refuses. */
+export const RunViewContext = createContext<RunView | null>(null);
+
+export function useRunView(): RunView {
+  const view = useContext(RunViewContext);
+  if (view === null) {
+    throw new Error("useRunView must be rendered under App's RunViewProvider");
+  }
+  return view;
+}

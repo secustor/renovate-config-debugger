@@ -29,7 +29,8 @@ import {
   resultsTabForShareTab,
   shareTabWantsMigrateStage,
 } from "@/data/results-tabs";
-import { OptionDocsProvider } from "@/components/option-docs";
+import { AppProviders } from "@/app/AppProviders";
+import type { RunView } from "@/app/run-view-context";
 import { REPO_URL } from "@/data/project-repo";
 import { buildPresetLookup, type PresetHoverContext } from "@/lib/preset-hover";
 import { motionScrollToOptions, prefersReducedMotion } from "@/lib/motion";
@@ -1406,6 +1407,111 @@ export function App() {
     await buildShareLinkAndCopy();
   }, [buildShareLinkAndCopy]);
 
+  /**
+   * Roadmap 086: the run-scoped view cluster, provided once. The memo's deps
+   * are exactly the context's admission rule — run commits, tab/stage/node/
+   * step selections, panel reports, pins — and deliberately nothing that
+   * changes on a keystroke, so the provider value (and with it every
+   * consumer's render) is untouched while the user types.
+   */
+  const runView = useMemo<RunView>(
+    () => ({
+      result,
+      validateHasErrors,
+      tabs: resultsTabs,
+      tab,
+      onSelectTab: setTab,
+      onWalkTab: walkToTab,
+      backTab,
+      onBack: () => setTab(backTab ?? "tests"),
+      onJumpToTab: jumpToTab,
+      errorCount,
+      warningCount,
+      presetCount,
+      effectiveKeys: effectiveStats?.keys ?? null,
+      onShowRewrites,
+      selectedStage,
+      onSelectStage: setSelectedStage,
+      deferredStage,
+      migrateSteps,
+      migrateStepperMounted,
+      finalMigrated,
+      migrationStepIndex,
+      onMigrationStepChange: setMigrationStepIndex,
+      selectPresetNode,
+      focusEditorRepoIndex,
+      errorLib,
+      authState,
+      onSignIn,
+      onRunAgain,
+      onInject,
+      selectedNodeId,
+      onSelectNode: setSelectedNodeId,
+      onOverviewStats: setOverviewBehaviors,
+      onEffectiveStats: setEffectiveStats,
+      onShowDescriptionOrder,
+      descriptionLedgerNonce,
+      pins,
+      onAddPin: addPin,
+      onRemovePin: removePin,
+      pendingRuleFocus,
+      onRuleFocused,
+      simRequest,
+      onCopySimLink: buildShareLinkAndCopy,
+      onShare: onCopyLink,
+      mergeStepIndex,
+      onMergeStepChange: setMergeStepIndex,
+      ruleProvenance,
+      onJumpToSimRule,
+      onApplyFix,
+    }),
+    [
+      result,
+      validateHasErrors,
+      resultsTabs,
+      tab,
+      setTab,
+      walkToTab,
+      backTab,
+      jumpToTab,
+      errorCount,
+      warningCount,
+      presetCount,
+      effectiveStats,
+      onShowRewrites,
+      selectedStage,
+      deferredStage,
+      migrateSteps,
+      migrateStepperMounted,
+      finalMigrated,
+      migrationStepIndex,
+      selectPresetNode,
+      focusEditorRepoIndex,
+      errorLib,
+      authState,
+      onSignIn,
+      onRunAgain,
+      onInject,
+      selectedNodeId,
+      setOverviewBehaviors,
+      setEffectiveStats,
+      onShowDescriptionOrder,
+      descriptionLedgerNonce,
+      pins,
+      addPin,
+      removePin,
+      pendingRuleFocus,
+      onRuleFocused,
+      simRequest,
+      buildShareLinkAndCopy,
+      onCopyLink,
+      mergeStepIndex,
+      ruleProvenance,
+      onJumpToSimRule,
+      onApplyFix,
+    ],
+  );
+
   // Built here and handed to ConfigColumn as an already-constructed element:
   // every prop below is App's own state, so the alternative is threading a
   // dozen of them through a column whose only decision is WHERE the zone
@@ -1440,7 +1546,7 @@ export function App() {
   );
 
   return (
-    <OptionDocsProvider index={optionIndex}>
+    <AppProviders optionIndex={optionIndex} runView={runView}>
       {/* Roadmap 075: the app is a full-viewport frame — header row on top,
           content below — and the PAGE stops scrolling once a result exists.
           `has-results` is what switches the content area from the landing's
@@ -1470,22 +1576,13 @@ export function App() {
             the numbers that used to be an Overview tab, each wired to the
             instrument that explains it. Before a run it is identity + session
             only; the subtitle that used to sit under it is the landing's. */}
+        {/* The run half of the header (verdict, digest links) reads the
+            run-view context; only the session half stays props (086). */}
         <AppShellHeader
-          hasResult={Boolean(result)}
-          validateHasErrors={validateHasErrors}
-          errorCount={errorCount}
-          warningCount={warningCount}
-          rewrites={migrateSteps.length}
-          presets={presetCount}
-          effectiveKeys={effectiveStats?.keys ?? null}
-          onJumpToTab={jumpToTab}
-          onShowRewrites={onShowRewrites}
           onShare={result ? onCopyLink : undefined}
-          renovateVersion={result?.renovateVersion}
           oauthConfigured={Boolean(OAUTH_CONFIG)}
           signedIn={signedIn}
           authUser={authUser}
-          onSignIn={onSignIn}
           onSignOut={onSignOut}
           onShowShortcuts={showShortcuts}
         />
@@ -1565,30 +1662,11 @@ export function App() {
               result={result}
               resultsColRef={resultsColRef}
               focusResultsRef={focusResultsRef}
-              tabs={resultsTabs}
-              tab={tab}
-              onSelectTab={setTab}
-              onWalkTab={walkToTab}
-              backTab={backTab}
-              onBack={() => setTab(backTab ?? "tests")}
               // Roadmap 076: the editor's text OR either merge layer — both are
               // inputs to the run, and both are editable while the result is on
-              // screen (the layers on their own pipeline stage cards).
+              // screen (the layers on their own pipeline stage cards). This is
+              // the keystroke-scoped cluster the run-view context refuses (086).
               resultsStale={content !== lastRunContent || currentLayerKey !== lastRunLayerKey}
-              validateHasErrors={validateHasErrors}
-              selectPresetNode={selectPresetNode}
-              focusEditorRepoIndex={focusEditorRepoIndex}
-              errorLib={errorLib}
-              selectedStage={selectedStage}
-              onSelectStage={setSelectedStage}
-              deferredStage={deferredStage}
-              migrateSteps={migrateSteps}
-              migrateStepperMounted={migrateStepperMounted}
-              finalMigrated={finalMigrated}
-              migrationStepIndex={migrationStepIndex}
-              onMigrationStepChange={setMigrationStepIndex}
-              // Roadmap 076: the two 008 layers, edited on the stage cards that
-              // report on them. Both handlers are identity-stable (032).
               globalText={globalText}
               onGlobalTextChange={setGlobalText}
               inheritedText={inheritedText}
@@ -1596,32 +1674,6 @@ export function App() {
               globalParse={globalParse}
               inheritedParse={inheritedParse}
               inheritState={inheritState}
-              onInject={onInject}
-              selectedNodeId={selectedNodeId}
-              onSelectNode={setSelectedNodeId}
-              authState={authState}
-              onSignIn={onSignIn}
-              onRunAgain={onRunAgain}
-              onOverviewStats={setOverviewBehaviors}
-              onEffectiveStats={setEffectiveStats}
-              effectiveKeys={effectiveStats?.keys ?? null}
-              onShowDescriptionOrder={onShowDescriptionOrder}
-              descriptionLedgerNonce={descriptionLedgerNonce}
-              pins={pins}
-              onAddPin={addPin}
-              onRemovePin={removePin}
-              pendingRuleFocus={pendingRuleFocus}
-              onRuleFocused={onRuleFocused}
-              simRequest={simRequest}
-              onCopySimLink={buildShareLinkAndCopy}
-              onShare={onCopyLink}
-              mergeStepIndex={mergeStepIndex}
-              onMergeStepChange={setMergeStepIndex}
-              errorCount={errorCount}
-              warningCount={warningCount}
-              ruleProvenance={ruleProvenance}
-              onJumpToSimRule={onJumpToSimRule}
-              onApplyFix={onApplyFix}
             />
           ) : null}
         </div>
@@ -1671,6 +1723,6 @@ export function App() {
       <p className="visually-hidden" role="status" aria-live="polite">
         {runAnnouncement}
       </p>
-    </OptionDocsProvider>
+    </AppProviders>
   );
 }

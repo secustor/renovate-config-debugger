@@ -1,16 +1,8 @@
 import { type ReactNode, type RefObject, useEffect, useMemo, useState } from "react";
-import type {
-  ErrorFixResult,
-  RuleAttribution,
-  StageId,
-  TraceEvent,
-  TraceResult,
-} from "@renovate-config-debugger/engine";
+import type { StageId, TraceEvent, TraceResult } from "@renovate-config-debugger/engine";
 import { AuthFailureBanner } from "@/components/AuthFailureBanner";
 import { collectGithubAuthFailures } from "@/features/presets/tree-shared";
 import { EffectiveConfig } from "@/features/effective-config/EffectiveConfig";
-import type { EffectiveTally } from "@/lib/effective-tally";
-import type { AuthState } from "@/components/GithubAuthHint";
 import { HypotheticalBanner } from "@/components/HypotheticalBanner";
 import { MessagesPanel } from "@/components/MessagesPanel";
 import { MigrationSteps } from "@/components/MigrationSteps";
@@ -20,34 +12,31 @@ import {
   type PresetReferenceValue,
 } from "@/components/preset-reference-context";
 import { PresetsPanel } from "@/features/presets/PresetsPanel";
-import { ResultsPanel, type ResultsTabDescriptor } from "@/components/ResultsPanel";
-import type { FormState } from "@/features/simulator/form";
-import type { PinnedTest } from "@/features/simulator/pins";
+import { ResultsPanel } from "@/components/ResultsPanel";
 import { TestsPanel } from "@/features/simulator/TestsPanel";
 import { StageDiff } from "@/components/StageDiff";
 import { StageLayerEditor } from "@/features/editor/StageLayerEditor";
 import { StageRail } from "@/components/StageRail";
+import { useRunView } from "@/app/run-view-context";
 import { StaleResultsBanner } from "@/components/StaleResultsBanner";
 import type { ResultsTabId } from "@/data/results-tabs";
 import type { InheritLayerState } from "@/lib/inherit-probe";
 import type { LayerParseResult } from "@/lib/input-schemas";
 import { motionScrollOptions } from "@/lib/motion";
-import type { ErrorTranslationLib } from "@/platform/run";
-import type { ShareSimulator } from "@/lib/share";
 import { STAGE_LABELS } from "@/data/stage-copy";
 import { getStageActivity } from "@/lib/stage-activity";
 import { stageHint } from "@/lib/stage-delta";
 import { presetTreeSummary } from "@/lib/preset-tree-stats";
-import type { SimRequest } from "@/hooks/use-share-link";
 
 /**
- * Everything the six tab panels consume, handed down from App.tsx. All of
- * it is identity-stable across keystrokes (run results, memoized derivations
- * and latest-ref callbacks — the 032 contract), which is what lets the
- * `panels` memo below keep its element tree between renders.
+ * The keystroke-scoped remainder (roadmap 086). Everything RUN-scoped that
+ * used to be handed down here comes through `useRunView()` now — this
+ * interface holds only what is disqualified from that context: the values
+ * that change while the user types (`resultsStale`, the layer texts and
+ * parses), plus the run result itself (non-null by this column's mount
+ * condition) and the two refs App owns.
  */
 export interface ResultsColumnProps {
-  // —— run result + refs ——
   result: TraceResult;
   /** The `.results-col` wrapper (owned by App), measured by the stacked-
    *  viewport scroll-into-view effect below. */
@@ -55,45 +44,11 @@ export interface ResultsColumnProps {
   /** Armed by App's onRun right before a result commits; consumed (and
    *  cleared) here once per run. */
   focusResultsRef: RefObject<boolean>;
-
-  // —— tab shell (forwarded to ResultsPanel) ——
-  tabs: ResultsTabDescriptor[];
-  tab: ResultsTabId;
-  onSelectTab: (tab: ResultsTabId) => void;
-  /** Roadmap 068: the strip's arrows, which select without discarding the
-   *  cross-link back trail (App's `walkToTab`). */
-  onWalkTab: (tab: ResultsTabId) => void;
-  backTab: ResultsTabId | null;
-  onBack: () => void;
   /** The editor's text has diverged from the text `result` was computed from.
    *  The ONE prop here that changes on a keystroke — it feeds the `banner`
    *  memo and nothing else, deliberately not the `panels` memo below, whose
    *  032 contract is that typing reconciles none of the six panels. */
   resultsStale: boolean;
-
-  // —— shared across tabs ——
-  /** Roadmap 023/075: validation errors make everything after the parse stage
-   *  hypothetical. Consumed by the run-level banner below — a property of the
-   *  RUN, so it is stated once, above whichever panel is on screen. */
-  validateHasErrors: boolean;
-  /** Consumed by: overview (083's digest), effective, problems. */
-  selectPresetNode: (nodeId: string) => void;
-  /** Consumed by: tests, problems. */
-  focusEditorRepoIndex: (repoIndex: number) => void;
-  /** Consumed by: tests, problems. */
-  errorLib: ErrorTranslationLib | null;
-
-  // —— pipeline ——
-  selectedStage: StageId;
-  onSelectStage: (stage: StageId) => void;
-  deferredStage: StageId;
-  /** Roadmap 075 (iteration 3): the migrate stage's own rewrites, stepped
-   *  through in place — the Rewrites tab's stepper, folded in. */
-  migrateSteps: TraceEvent[];
-  migrateStepperMounted: boolean;
-  finalMigrated: unknown;
-  migrationStepIndex: number;
-  onMigrationStepChange: (index: number) => void;
   /**
    * Roadmap 076 (design turn 18d): the two 008 merge layers are EDITED on the
    * stage nodes that report on them — the `global` and `inherit` stage cards
@@ -110,64 +65,6 @@ export interface ResultsColumnProps {
   inheritedParse: LayerParseResult;
   /** Roadmap 045: what the last inherited-config probe did, or null. */
   inheritState: InheritLayerState | null;
-
-  // —— presets ——
-  onInject: (key: string, content: Record<string, unknown>) => void;
-  selectedNodeId: string | null;
-  onSelectNode: (id: string | null) => void;
-  authState: AuthState;
-  onSignIn: () => void;
-  /** Roadmap 009: re-runs the pipeline with the inputs currently on screen —
-   *  the auth-failure banner's "Run again", for access granted mid-session. */
-  onRunAgain: () => void;
-
-  // —— overview ——
-  /** Roadmap 083: the sentences the Overview listed — its tab badge. Reported
-   *  by the panel for the same reason `onEffectiveStats` is: the derivation
-   *  behind it is async and lives in the panel. */
-  onOverviewStats: (behaviors: number) => void;
-
-  // —— effective ——
-  onEffectiveStats: (stats: EffectiveTally) => void;
-  /** Roadmap 075 (iteration 4): keys in the effective config, or null until
-   *  the browser has finished computing provenance — the merge node's delta on
-   *  the pipeline rail, and the merge stage card's hint. Owned by App (which
-   *  already holds it for the header digest) so both quote one number. */
-  effectiveKeys: number | null;
-  /** Roadmap 069: the digest card's "show raw order" link — lands on the
-   *  `description` row's blame ledger. Roadmap 083 gave the card its own
-   *  Overview tab, so both callers (the card and the preset tree's `→ #16 of
-   *  24` position markers) cross a tab boundary to get here. */
-  onShowDescriptionOrder: () => void;
-  /** Roadmap 069: bumped alongside the jump above, so the row is filtered to
-   *  and expanded once the tab is on screen. */
-  descriptionLedgerNonce: number;
-
-  // —— tests ——
-  /** Roadmap 075 (iteration 6): the pinned dependency tests, owned by App (a
-   *  share link carries them) and re-simulated by the panel on every run. */
-  pins: PinnedTest[];
-  onAddPin: (form: FormState) => void;
-  onRemovePin: (id: string) => void;
-  pendingRuleFocus: number | null;
-  onRuleFocused: () => void;
-  simRequest: SimRequest | null;
-  onCopySimLink: (sim: ShareSimulator) => Promise<void>;
-  /** Roadmap 077: the header Share's own build-and-copy, for the pins view's
-   *  "pins are saved with the share link" note. */
-  onShare: () => Promise<void>;
-  /** Roadmap 044: the simulator's merge-stepper index (owned by App so a share
-   *  link can restore it, exactly like `migrationStepIndex`). */
-  mergeStepIndex: number;
-  onMergeStepChange: (index: number) => void;
-
-  // —— problems ——
-  errorCount: number;
-  warningCount: number;
-  ruleProvenance: RuleAttribution[] | null | undefined;
-  /** Opens the Tests tab focused on one `packageRules` entry. */
-  onJumpToSimRule: (index: number) => void;
-  onApplyFix: (fix: ErrorFixResult) => void;
 }
 
 /**
@@ -317,25 +214,7 @@ export function ResultsColumn({
   result,
   resultsColRef,
   focusResultsRef,
-  tabs,
-  tab,
-  onSelectTab,
-  onWalkTab,
-  backTab,
-  onBack,
   resultsStale,
-  validateHasErrors,
-  selectPresetNode,
-  focusEditorRepoIndex,
-  errorLib,
-  selectedStage,
-  onSelectStage,
-  deferredStage,
-  migrateSteps,
-  migrateStepperMounted,
-  finalMigrated,
-  migrationStepIndex,
-  onMigrationStepChange,
   globalText,
   onGlobalTextChange,
   inheritedText,
@@ -343,33 +222,56 @@ export function ResultsColumn({
   globalParse,
   inheritedParse,
   inheritState,
-  onInject,
-  selectedNodeId,
-  onSelectNode,
-  authState,
-  onSignIn,
-  onRunAgain,
-  onOverviewStats,
-  onEffectiveStats,
-  effectiveKeys,
-  onShowDescriptionOrder,
-  descriptionLedgerNonce,
-  pins,
-  onAddPin,
-  onRemovePin,
-  pendingRuleFocus,
-  onRuleFocused,
-  simRequest,
-  onCopySimLink,
-  onShare,
-  mergeStepIndex,
-  onMergeStepChange,
-  errorCount,
-  warningCount,
-  ruleProvenance,
-  onJumpToSimRule,
-  onApplyFix,
 }: ResultsColumnProps) {
+  // Roadmap 086: the run-scoped view cluster — everything here changes on a
+  // run or an in-results interaction, never on a keystroke (the context's
+  // admission rule), so reading it keeps the 032 render counts untouched.
+  const {
+    tabs,
+    tab,
+    onSelectTab,
+    onWalkTab,
+    backTab,
+    onBack,
+    validateHasErrors,
+    selectPresetNode,
+    focusEditorRepoIndex,
+    errorLib,
+    selectedStage,
+    onSelectStage,
+    deferredStage,
+    migrateSteps,
+    migrateStepperMounted,
+    finalMigrated,
+    migrationStepIndex,
+    onMigrationStepChange,
+    onInject,
+    selectedNodeId,
+    onSelectNode,
+    authState,
+    onSignIn,
+    onRunAgain,
+    onOverviewStats,
+    onEffectiveStats,
+    effectiveKeys,
+    onShowDescriptionOrder,
+    descriptionLedgerNonce,
+    pins,
+    onAddPin,
+    onRemovePin,
+    pendingRuleFocus,
+    onRuleFocused,
+    simRequest,
+    onCopySimLink,
+    onShare,
+    mergeStepIndex,
+    onMergeStepChange,
+    errorCount,
+    warningCount,
+    ruleProvenance,
+    onJumpToSimRule,
+    onApplyFix,
+  } = useRunView();
   // Roadmap 028: on a stacked (narrow) viewport the results pane sits below
   // the fold, so a Run would otherwise look like it did nothing — land on the
   // consequence (023's pattern). Lives HERE (not App) since 031: this effect

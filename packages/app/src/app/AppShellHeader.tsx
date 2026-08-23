@@ -1,5 +1,6 @@
 import { nf } from "@/lib/format";
 import { AppHeaderTools } from "@/app/AppHeaderTools";
+import { useRunView } from "@/app/run-view-context";
 import type { ResultsTabId } from "@/data/results-tabs";
 import type { StoredUser } from "@/platform/oauth";
 
@@ -134,58 +135,50 @@ function RunStatusPill({ hasErrors, errorCount }: { hasErrors: boolean; errorCou
   );
 }
 
+/**
+ * The session half stays props (it is account state, not run view); the run
+ * half — verdict, counts, digest links — reads `useRunView()` (roadmap 086).
+ */
 interface Props {
-  /** Whether a run exists at all: before one, the header is identity + session
-   *  only — there is no verdict to state and no instrument to jump to. */
-  hasResult: boolean;
-  validateHasErrors: boolean;
-  errorCount: number;
-  warningCount: number;
-  rewrites: number;
-  presets: number;
-  effectiveKeys: number | null;
-  onJumpToTab: (tab: ResultsTabId) => void;
-  /** Pipeline, on its migrate stage — see `DigestLinksProps`. */
-  onShowRewrites: () => void;
   /** Roadmap 077: builds and copies the share link (header Share button).
    *  Undefined before a run — nothing to share yet, no control. */
   onShare: (() => Promise<void>) | undefined;
-  renovateVersion: string | undefined;
   oauthConfigured: boolean;
   signedIn: boolean;
   authUser: StoredUser | null;
-  onSignIn: () => void;
   onSignOut: () => void;
   onShowShortcuts: () => void;
 }
 
 export function AppShellHeader({
-  hasResult,
-  validateHasErrors,
-  errorCount,
-  warningCount,
-  rewrites,
-  presets,
-  effectiveKeys,
-  onJumpToTab,
-  onShowRewrites,
   onShare,
-  renovateVersion,
   oauthConfigured,
   signedIn,
   authUser,
-  onSignIn,
   onSignOut,
   onShowShortcuts,
 }: Props) {
+  const {
+    result,
+    validateHasErrors,
+    errorCount,
+    warningCount,
+    presetCount,
+    effectiveKeys,
+    migrateSteps,
+    onJumpToTab,
+    onShowRewrites,
+    onSignIn,
+  } = useRunView();
+  const hasResult = result !== null;
   return (
     <header className="app-header">
       <AppBrand />
       {hasResult ? <RunStatusPill hasErrors={validateHasErrors} errorCount={errorCount} /> : null}
       {hasResult ? (
         <DigestLinks
-          rewrites={rewrites}
-          presets={presets}
+          rewrites={migrateSteps.length}
+          presets={presetCount}
           effectiveKeys={effectiveKeys}
           problems={errorCount + warningCount}
           onJump={onJumpToTab}
@@ -197,7 +190,7 @@ export function AppShellHeader({
           session". Untouched by the shell — it just stops being the only thing
           in the row. */}
       <AppHeaderTools
-        renovateVersion={renovateVersion}
+        renovateVersion={result?.renovateVersion}
         onShare={onShare}
         oauthConfigured={oauthConfigured}
         signedIn={signedIn}
