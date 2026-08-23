@@ -10,6 +10,13 @@ const HOST_CHIPS: readonly { host: string; hostType: string }[] = [
   { host: "gitlab.example.com", hostType: "gitlab" },
 ];
 
+/** A chip's host carries the chip's `hostType`; anything typed by hand is a
+ *  guess the app cannot make, so it gets `"any"` — and typing over a chip's
+ *  host makes it a guess again, for free, because this is derived. */
+function hostTypeFor(host: string): string {
+  return HOST_CHIPS.find((chip) => chip.host === host)?.hostType ?? "any";
+}
+
 function AddHostChips({
   selected,
   onSelect,
@@ -116,8 +123,11 @@ export function AddHostForm({
 }) {
   const [open, setOpen] = useState(false);
   const [host, setHost] = useState("");
-  const [hostType, setHostType] = useState("any");
   const [token, setToken] = useState("");
+  // Not state: the type is a pure function of the host, so holding it
+  // separately only creates a second thing to keep in sync — which is exactly
+  // what the two setters that used to shadow every `setHost` were doing.
+  const hostType = hostTypeFor(host);
   if (!open) {
     return (
       <button type="button" className="btn-quiet host-add-toggle" onClick={() => setOpen(true)}>
@@ -128,28 +138,12 @@ export function AddHostForm({
   const close = () => {
     setOpen(false);
     setHost("");
-    setHostType("any");
     setToken("");
   };
   return (
     <div className="host-add">
-      <AddHostChips
-        selected={host}
-        onSelect={(picked) => {
-          setHost(picked);
-          setHostType(HOST_CHIPS.find((chip) => chip.host === picked)?.hostType ?? "any");
-        }}
-      />
-      <AddHostSentence
-        host={host}
-        token={token}
-        onHostChange={(value) => {
-          setHost(value);
-          // Typing over a chip's host makes the type a guess again.
-          setHostType(HOST_CHIPS.find((chip) => chip.host === value)?.hostType ?? "any");
-        }}
-        onTokenChange={setToken}
-      />
+      <AddHostChips selected={host} onSelect={setHost} />
+      <AddHostSentence host={host} token={token} onHostChange={setHost} onTokenChange={setToken} />
       {host !== "" && !isValidHost(host) ? (
         <p className="layer-editor-error">
           Not a valid host name: a bare host like <code>gitea.example.com</code> (a port is fine),
