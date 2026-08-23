@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import type { CliIo } from "./io";
+import { main } from "./main";
 
 /**
  * The commands are driven in-process against the same module graph the bin
@@ -15,10 +16,12 @@ export interface RecordingIo extends CliIo {
   json(): unknown;
 }
 
-export function recordingIo(options?: {
+export interface ProcessStub {
   env?: Record<string, string | undefined>;
   stdin?: string;
-}): RecordingIo {
+}
+
+export function recordingIo(options?: ProcessStub): RecordingIo {
   const io: RecordingIo = {
     stdout: "",
     stderr: "",
@@ -33,6 +36,41 @@ export function recordingIo(options?: {
     json: () => JSON.parse(io.stdout) as unknown,
   };
   return io;
+}
+
+/** What one `rcd` invocation produced: the code it exited with, and everything
+ *  it wrote. */
+export interface CliRun extends RecordingIo {
+  /**
+   * The exit code — the command's answer, not an aside: `2` means Renovate
+   * would refuse the config, `1` that the question was not answered.
+   */
+  code: number;
+}
+
+/**
+ * One invocation, end to end: argv in, exit code and captured streams out.
+ *
+ * Every suite here asks the same three-line question — build a recording io,
+ * await `main` with it, assert on the code and then on what was written — so
+ * the wiring is spelled once and a test reads as the invocation it is. It runs
+ * the WHOLE CLI (dispatch, flags, the real engine), which is the point: these
+ * suites exist to prove the surface a user types, not a function underneath it.
+ */
+export async function runCli(argv: readonly string[], process?: ProcessStub): Promise<CliRun> {
+  const io = recordingIo(process);
+  const code = await main([...argv], io);
+  return Object.assign(io, { code });
+}
+
+/** {@link runCli}, with stdout already parsed as the one JSON document
+ *  `--format json` promises — `payload` typed as the caller expects it. */
+export async function runJson<Payload>(
+  argv: readonly string[],
+  process?: ProcessStub,
+): Promise<CliRun & { payload: Payload }> {
+  const run = await runCli(argv, process);
+  return Object.assign(run, { payload: run.json() as Payload });
 }
 
 export function fixture(name: string): string {

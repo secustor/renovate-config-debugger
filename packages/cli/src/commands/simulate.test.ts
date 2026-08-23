@@ -1,27 +1,21 @@
 import { describe, expect, test } from "vitest";
-import { main } from "../main";
-import { fixture, recordingIo } from "../test-harness";
+import { fixture, runCli, runJson } from "../test-harness";
 
 describe("simulate", () => {
   test("reports a verdict per rule with clause-level evidence", async () => {
-    const io = recordingIo();
-    expect(
-      await main(
-        [
-          "simulate",
-          fixture("grouped.json"),
-          "--dep",
-          '{"depName":"react","packageName":"react","currentValue":"17.0.0","newValue":"18.0.0"}',
-          "--format",
-          "json",
-        ],
-        io,
-      ),
-    ).toBe(0);
-    const sim = io.json() as {
+    const run = await runJson<{
       dep: { updateType?: string };
       rules: { verdict: string; clauses: { key: string; state: string }[] }[];
-    };
+    }>([
+      "simulate",
+      fixture("grouped.json"),
+      "--dep",
+      '{"depName":"react","packageName":"react","currentValue":"17.0.0","newValue":"18.0.0"}',
+      "--format",
+      "json",
+    ]);
+    expect(run.code).toBe(0);
+    const sim = run.payload;
     // updateType was not given, so it was derived from the version pair.
     expect(sim.dep.updateType).toBe("major");
     expect(sim.rules[0]?.verdict).toBe("matched");
@@ -29,27 +23,22 @@ describe("simulate", () => {
   });
 
   test("a dependency no rule matches is a verdict, not an error", async () => {
-    const io = recordingIo();
-    expect(
-      await main(
-        [
-          "simulate",
-          fixture("grouped.json"),
-          "--dep",
-          '{"depName":"lodash","packageName":"lodash","currentValue":"4.17.20","newValue":"4.17.21"}',
-          "--format",
-          "json",
-          // Roadmap 073: the default answer is the rules that ACTED, so a
-          // genuine mismatch is one facet away.
-          "--verdict",
-          "all",
-        ],
-        io,
-      ),
-    ).toBe(0);
-    const sim = io.json() as {
+    const run = await runJson<{
       rules: { verdict: string; clauses: { key: string; state: string }[]; merged?: unknown }[];
-    };
+    }>([
+      "simulate",
+      fixture("grouped.json"),
+      "--dep",
+      '{"depName":"lodash","packageName":"lodash","currentValue":"4.17.20","newValue":"4.17.21"}',
+      "--format",
+      "json",
+      // Roadmap 073: the default answer is the rules that ACTED, so a
+      // genuine mismatch is one facet away.
+      "--verdict",
+      "all",
+    ]);
+    expect(run.code).toBe(0);
+    const sim = run.payload;
     expect(sim.rules[0]?.verdict).toBe("no-match");
     expect(sim.rules[0]?.clauses[0]).toMatchObject({
       key: "matchPackageNames",
@@ -60,9 +49,9 @@ describe("simulate", () => {
   });
 
   test("a dependency is required", async () => {
-    const io = recordingIo();
-    expect(await main(["simulate", fixture("grouped.json")], io)).toBe(1);
-    expect(io.stderr).toContain("--dep");
+    const run = await runCli(["simulate", fixture("grouped.json")]);
+    expect(run.code).toBe(1);
+    expect(run.stderr).toContain("--dep");
   });
 });
 
@@ -73,21 +62,16 @@ describe("simulate", () => {
  * read. It now answers at the same `detail` the MCP `simulate` tool does,
  * through the same projection.
  */
-async function simulateJson(...flags: string[]) {
-  const io = recordingIo();
-  const code = await main(
-    [
-      "simulate",
-      fixture("described.json"),
-      "--dep",
-      '{"depName":"react"}',
-      "--format",
-      "json",
-      ...flags,
-    ],
-    io,
-  );
-  return { io, code, payload: io.json() as Record<string, unknown> };
+function simulateJson(...flags: string[]) {
+  return runJson<Record<string, unknown>>([
+    "simulate",
+    fixture("described.json"),
+    "--dep",
+    '{"depName":"react"}',
+    "--format",
+    "json",
+    ...flags,
+  ]);
 }
 
 describe("simulate --detail / --keys / --config-scope", () => {
@@ -142,20 +126,17 @@ describe("simulate --detail / --keys / --config-scope", () => {
   });
 
   test("an unknown value names the ones that exist", async () => {
-    const io = recordingIo();
-    const code = await main(
-      [
-        "simulate",
-        fixture("described.json"),
-        "--dep",
-        '{"depName":"react"}',
-        "--config-scope",
-        "global",
-      ],
-      io,
-    );
+    const run = await runCli([
+      "simulate",
+      fixture("described.json"),
+      "--dep",
+      '{"depName":"react"}',
+      "--config-scope",
+      "global",
+    ]);
+    const code = run.code;
     expect(code).toBe(1);
-    expect(io.stderr).toContain("package-rules|full");
+    expect(run.stderr).toContain("package-rules|full");
   });
 
   /** The measured defect: `mergeChildConfig` concatenates `description` on
@@ -180,22 +161,25 @@ describe("simulate --detail / --keys / --config-scope", () => {
   });
 
   test("pretty output says what the rule appended, not the whole array", async () => {
-    const io = recordingIo();
-    expect(
-      await main(["simulate", fixture("described.json"), "--dep", '{"depName":"react"}'], io),
-    ).toBe(0);
-    expect(io.stdout).toContain(
+    const run = await runCli([
+      "simulate",
+      fixture("described.json"),
+      "--dep",
+      '{"depName":"react"}',
+    ]);
+    expect(run.code).toBe(0);
+    expect(run.stdout).toContain(
       'sets description += 1 of 3 entries: ["Group the react packages into one PR."]',
     );
-    expect(io.stdout).not.toContain("The base config for this repository.");
+    expect(run.stdout).not.toContain("The base config for this repository.");
   });
 });
 
 describe("simulate errors", () => {
   test("a dependency is required", async () => {
-    const io = recordingIo();
-    expect(await main(["simulate", fixture("grouped.json")], io)).toBe(1);
-    expect(io.stderr).toContain("--dep");
+    const run = await runCli(["simulate", fixture("grouped.json")]);
+    expect(run.code).toBe(1);
+    expect(run.stderr).toContain("--dep");
   });
 });
 
@@ -209,65 +193,66 @@ describe("simulate errors", () => {
  *  indexes since replay-03 — the same numbers `--rule` and JSON's `index`
  *  take, where the old one-based `#N+1` cost two expert sessions a wasted
  *  `--rule` call each. */
-function shown(io: { stdout: string }): number[] {
-  return [...io.stdout.matchAll(/^ {2}#(\d+) /gm)].map((m) => Number(m[1]));
+function shown(run: { stdout: string }): number[] {
+  return [...run.stdout.matchAll(/^ {2}#(\d+) /gm)].map((m) => Number(m[1]));
 }
 
-async function simulateMixed(...flags: string[]) {
-  const io = recordingIo();
-  const code = await main(
-    ["simulate", fixture("mixed-rules.json"), "--dep", '{"depName":"react"}', ...flags],
-    io,
-  );
-  return { io, code };
+function simulateMixed(...flags: string[]) {
+  return runCli([
+    "simulate",
+    fixture("mixed-rules.json"),
+    "--dep",
+    '{"depName":"react"}',
+    ...flags,
+  ]);
 }
 
 describe("simulate --verdict / --source", () => {
-  const run = simulateMixed;
+  const simulate = simulateMixed;
 
   test("pretty output defaults to the notable rules and says what it hid", async () => {
-    const { io, code } = await run();
-    expect(code).toBe(0);
-    expect(shown(io)).toEqual([1]);
-    expect(io.stdout).toContain(
+    const run = await simulate();
+    expect(run.code).toBe(0);
+    expect(shown(run)).toEqual([1]);
+    expect(run.stdout).toContain(
       "3 of 4 rules hidden by --verdict notable — `--verdict all --source all` shows every rule.",
     );
   });
 
   test("--verdict all prints every rule and hides nothing", async () => {
-    const { io } = await run("--verdict", "all");
-    expect(shown(io)).toEqual([0, 1, 2, 3]);
-    expect(io.stdout).not.toContain("hidden by");
+    const run = await simulate("--verdict", "all");
+    expect(shown(run)).toEqual([0, 1, 2, 3]);
+    expect(run.stdout).not.toContain("hidden by");
   });
 
   test("the verdict facets split no-input from a genuine mismatch", async () => {
-    expect(shown((await run("--verdict", "matched")).io)).toEqual([1]);
-    expect(shown((await run("--verdict", "no-input")).io)).toEqual([0, 2]);
-    expect(shown((await run("--verdict", "no-match")).io)).toEqual([3]);
+    expect(shown(await simulate("--verdict", "matched"))).toEqual([1]);
+    expect(shown(await simulate("--verdict", "no-input"))).toEqual([0, 2]);
+    expect(shown(await simulate("--verdict", "no-match"))).toEqual([3]);
   });
 
   test("--source separates the repo's own rules from what a preset brought in", async () => {
-    expect(shown((await run("--verdict", "all", "--source", "repo")).io)).toEqual([1, 2, 3]);
-    expect(shown((await run("--verdict", "all", "--source", "presets")).io)).toEqual([0]);
+    expect(shown(await simulate("--verdict", "all", "--source", "repo"))).toEqual([1, 2, 3]);
+    expect(shown(await simulate("--verdict", "all", "--source", "presets"))).toEqual([0]);
   });
 
   /** The printed number and the flag agree: `#N` in the prose is the row
    *  `--rule N` returns. */
   test("the pretty rule number is the index --rule takes", async () => {
-    const notable = await run();
-    const [printed] = shown(notable.io);
+    const notable = await simulate();
+    const [printed] = shown(notable);
     expect(printed).toBe(1);
-    expect(notable.io.stdout).toContain("`--rule <n>` takes them verbatim");
-    const one = await run("--rule", String(printed), "--format", "json");
-    const report = one.io.json() as { rules: { index: number; verdict: string }[] };
+    expect(notable.stdout).toContain("`--rule <n>` takes them verbatim");
+    const one = await simulate("--rule", String(printed), "--format", "json");
+    const report = one.json() as { rules: { index: number; verdict: string }[] };
     expect(report.rules).toHaveLength(1);
     expect(report.rules[0]).toMatchObject({ index: printed, verdict: "matched" });
   });
 
   test("an unknown value names the ones that exist", async () => {
-    const { io, code } = await run("--verdict", "nope");
-    expect(code).toBe(1);
-    expect(io.stderr).toContain("notable|all|matched|no-input|no-match");
+    const run = await simulate("--verdict", "nope");
+    expect(run.code).toBe(1);
+    expect(run.stderr).toContain("notable|all|matched|no-input|no-match");
   });
 
   /**
@@ -279,8 +264,8 @@ describe("simulate --verdict / --source", () => {
    * rows. What is new is that the payload SAYS what it withheld.
    */
   test("--format json answers with the notable rules and states what it withheld", async () => {
-    const { io } = await run("--format", "json");
-    const sim = io.json() as {
+    const run = await simulate("--format", "json");
+    const sim = run.json() as {
       rules: { verdict: string }[];
       ruleFilter: Record<string, unknown>;
       notes: string[];
@@ -300,8 +285,8 @@ describe("simulate --verdict / --source", () => {
   });
 
   test("--verdict all is the way back, and it says nothing was withheld", async () => {
-    const { io } = await run("--format", "json", "--verdict", "all");
-    const sim = io.json() as { rules: unknown[]; ruleFilter: { hidden: number } };
+    const run = await simulate("--format", "json", "--verdict", "all");
+    const sim = run.json() as { rules: unknown[]; ruleFilter: { hidden: number } };
     expect(sim.rules).toHaveLength(4);
     expect(sim.ruleFilter.hidden).toBe(0);
   });
@@ -312,11 +297,11 @@ describe("simulate --verdict / --source", () => {
    * facet hides, which is the only reason to ask.
    */
   test("--rule returns one row by index, the same row --verdict all holds there", async () => {
-    const all = (await run("--format", "json", "--verdict", "all")).io.json() as {
+    const all = (await simulate("--format", "json", "--verdict", "all")).json() as {
       rules: Record<string, unknown>[];
     };
     for (const index of [0, 2, 3]) {
-      const one = (await run("--format", "json", "--rule", String(index))).io.json() as {
+      const one = (await simulate("--format", "json", "--rule", String(index))).json() as {
         rules: Record<string, unknown>[];
         ruleFilter: Record<string, unknown>;
       };
@@ -330,9 +315,9 @@ describe("simulate --verdict / --source", () => {
   });
 
   test("--rule out of range names the total", async () => {
-    const { io, code } = await run("--rule", "9");
-    expect(code).toBe(1);
-    expect(io.stderr).toContain("evaluated 4 merged packageRules; there is no rule 9");
+    const run = await simulate("--rule", "9");
+    expect(run.code).toBe(1);
+    expect(run.stderr).toContain("evaluated 4 merged packageRules; there is no rule 9");
   });
 
   /**
@@ -342,26 +327,26 @@ describe("simulate --verdict / --source", () => {
    * does not do what it plainly does.
    */
   test("the rules an unset field cost are named even when their rows are hidden", async () => {
-    const { io } = await run();
-    expect(shown(io)).toEqual([1]);
-    expect(io.stdout).toContain("2 of 4 rules could not match");
-    expect(io.stdout).toContain("sourceUrl");
-    expect(io.stdout).toContain("`--verdict no-input` lists them.");
+    const run = await simulate();
+    expect(shown(run)).toEqual([1]);
+    expect(run.stdout).toContain("2 of 4 rules could not match");
+    expect(run.stdout).toContain("sourceUrl");
+    expect(run.stdout).toContain("`--verdict no-input` lists them.");
   });
 
   test("the same line survives --verdict matched, and --verdict all where nothing is hidden", async () => {
-    const matched = await run("--verdict", "matched");
-    expect(shown(matched.io)).toEqual([1]);
-    expect(matched.io.stdout).toContain("2 of 4 rules could not match");
+    const matched = await simulate("--verdict", "matched");
+    expect(shown(matched)).toEqual([1]);
+    expect(matched.stdout).toContain("2 of 4 rules could not match");
 
-    const all = await run("--verdict", "all");
-    expect(all.io.stdout).not.toContain("hidden by");
-    expect(all.io.stdout).toContain("2 of 4 rules could not match");
+    const all = await simulate("--verdict", "all");
+    expect(all.stdout).not.toContain("hidden by");
+    expect(all.stdout).toContain("2 of 4 rules could not match");
   });
 
   test("json carries the summary whatever the filter, and it counts the no-input rows", async () => {
-    const { io } = await run("--format", "json", "--verdict", "matched");
-    const sim = io.json() as {
+    const run = await simulate("--format", "json", "--verdict", "matched");
+    const sim = run.json() as {
       rules: unknown[];
       missingInputs: { rules: number; groups: { fieldList: string; rules: number }[] };
       notes: string[];
@@ -369,7 +354,7 @@ describe("simulate --verdict / --source", () => {
     expect(sim.rules).toHaveLength(1);
     // The parity property: the number in the summary is the number of rows
     // `--verdict no-input` prints.
-    expect(sim.missingInputs.rules).toBe(shown((await run("--verdict", "no-input")).io).length);
+    expect(sim.missingInputs.rules).toBe(shown(await simulate("--verdict", "no-input")).length);
     expect(sim.missingInputs.rules).toBe(2);
     expect(sim.missingInputs.groups.map((group) => group.fieldList)).toEqual([
       "depType or depTypes",
@@ -379,8 +364,8 @@ describe("simulate --verdict / --source", () => {
   });
 
   test("a filtered json payload states what it left out", async () => {
-    const { io } = await run("--format", "json", "--verdict", "matched");
-    const sim = io.json() as { rules: unknown[]; ruleFilter: Record<string, unknown> };
+    const run = await simulate("--format", "json", "--verdict", "matched");
+    const sim = run.json() as { rules: unknown[]; ruleFilter: Record<string, unknown> };
     expect(sim.rules).toHaveLength(1);
     expect(sim.ruleFilter).toEqual({
       verdict: "matched",
@@ -400,38 +385,29 @@ describe("simulate --verdict / --source", () => {
  */
 describe("simulate --dep defaulting", () => {
   test("packageName defaults from depName, and the note says so", async () => {
-    const io = recordingIo();
-    expect(
-      await main(
-        ["simulate", fixture("grouped.json"), "--dep", '{"depName":"react"}', "--format", "json"],
-        io,
-      ),
-    ).toBe(0);
-    const sim = io.json() as {
+    const run = await runJson<{
       rules: { verdict: string; clauses: { key: string; state: string }[] }[];
       notes: string[];
-    };
+    }>(["simulate", fixture("grouped.json"), "--dep", '{"depName":"react"}', "--format", "json"]);
+    expect(run.code).toBe(0);
+    const sim = run.payload;
     expect(sim.rules[0]?.verdict).toBe("matched");
     expect(sim.rules[0]?.clauses[0]).toMatchObject({ key: "matchPackageNames", state: "matched" });
     expect(sim.notes).toContainEqual(expect.stringContaining("packageName defaulted from depName"));
   });
 
   test("an explicit packageName is never overwritten", async () => {
-    const io = recordingIo();
-    await main(
-      [
-        "simulate",
-        fixture("grouped.json"),
-        "--dep",
-        '{"depName":"react","packageName":"lodash"}',
-        "--format",
-        "json",
-        "--verdict",
-        "all",
-      ],
-      io,
-    );
-    const sim = io.json() as { rules: { verdict: string }[]; notes: string[] };
+    const run = await runJson<{ rules: { verdict: string }[]; notes: string[] }>([
+      "simulate",
+      fixture("grouped.json"),
+      "--dep",
+      '{"depName":"react","packageName":"lodash"}',
+      "--format",
+      "json",
+      "--verdict",
+      "all",
+    ]);
+    const sim = run.payload;
     expect(sim.rules[0]?.verdict).toBe("no-match");
     expect(sim.notes.join(" ")).not.toContain("packageName defaulted");
   });
@@ -441,20 +417,21 @@ describe("simulate --dep defaulting", () => {
  *  nothing in the output to say so. */
 describe("simulate on a config Renovate would refuse", () => {
   test("exit 2 is explained on the same output", async () => {
-    const io = recordingIo();
-    expect(
-      await main(["simulate", fixture("invalid.json"), "--dep", '{"depName":"react"}'], io),
-    ).toBe(2);
-    expect(io.stdout).toContain("exit code 2 reflects that, not this command's answer");
+    const run = await runCli(["simulate", fixture("invalid.json"), "--dep", '{"depName":"react"}']);
+    expect(run.code).toBe(2);
+    expect(run.stdout).toContain("exit code 2 reflects that, not this command's answer");
   });
 
   test("json carries the same fact as a field", async () => {
-    const io = recordingIo();
-    await main(
-      ["simulate", fixture("invalid.json"), "--dep", '{"depName":"react"}', "--format", "json"],
-      io,
-    );
-    const sim = io.json() as { wouldRefuse: boolean; exitNote: string };
+    const run = await runJson<{ wouldRefuse: boolean; exitNote: string }>([
+      "simulate",
+      fixture("invalid.json"),
+      "--dep",
+      '{"depName":"react"}',
+      "--format",
+      "json",
+    ]);
+    const sim = run.payload;
     expect(sim.wouldRefuse).toBe(true);
     expect(sim.exitNote).toContain("would be refused by Renovate");
   });
@@ -467,19 +444,14 @@ describe("simulate on a config Renovate would refuse", () => {
  * nothing". `automerge-minor.json` puts one authored `minor` block in front of
  * both readings.
  */
-async function simulateAutomerge(newValue: string, ...flags: string[]) {
-  const io = recordingIo();
-  const code = await main(
-    [
-      "simulate",
-      fixture("automerge-minor.json"),
-      "--dep",
-      `{"depName":"react","currentValue":"17.0.0","newValue":"${newValue}"}`,
-      ...flags,
-    ],
-    io,
-  );
-  return { io, code };
+function simulateAutomerge(newValue: string, ...flags: string[]) {
+  return runCli([
+    "simulate",
+    fixture("automerge-minor.json"),
+    "--dep",
+    `{"depName":"react","currentValue":"17.0.0","newValue":"${newValue}"}`,
+    ...flags,
+  ]);
 }
 
 interface VerdictJson {
@@ -493,9 +465,9 @@ interface VerdictJson {
 
 describe("simulate answers in one sentence", () => {
   test("the block that merged up is named, and so is what it set", async () => {
-    const { io, code } = await simulateAutomerge("17.1.0", "--format", "json");
-    expect(code).toBe(0);
-    const payload = io.json() as VerdictJson;
+    const run = await simulateAutomerge("17.1.0", "--format", "json");
+    expect(run.code).toBe(0);
+    const payload = run.json() as VerdictJson;
     expect(payload.verdict.text).toBe(
       'This minor update WOULD automerge, get labels [deps], and be grouped as "react monorepo".',
     );
@@ -513,8 +485,8 @@ describe("simulate answers in one sentence", () => {
    *  the whole story. The block exists — it is Renovate's own — and the
    *  authored `minor` block is the one that was dropped without applying. */
   test("an empty merge says WHICH empty it was", async () => {
-    const { io } = await simulateAutomerge("18.0.0", "--format", "json");
-    const payload = io.json() as VerdictJson;
+    const run = await simulateAutomerge("18.0.0", "--format", "json");
+    const payload = run.json() as VerdictJson;
     expect(payload.verdict.text).toContain("WOULD NOT automerge");
     expect(payload.verdict.text).toContain("only for minor updates");
     expect(payload.flattened.appliedBlock).toMatchObject({
@@ -530,12 +502,12 @@ describe("simulate answers in one sentence", () => {
   });
 
   test("pretty output leads with the sentence, and states the flattening", async () => {
-    const { io } = await simulateAutomerge("18.0.0");
-    expect(io.stdout.split("\n")[0]).toBe(
+    const run = await simulateAutomerge("18.0.0");
+    expect(run.stdout.split("\n")[0]).toBe(
       'This major update WOULD get labels [deps] and be grouped as "react monorepo", ' +
         "but WOULD NOT automerge (your config enables automerge only for minor updates).",
     );
-    expect(io.stdout).toContain(
+    expect(run.stdout).toContain(
       "Update-type flattening: the `major` block was flattened and changed nothing",
     );
   });
@@ -543,8 +515,8 @@ describe("simulate answers in one sentence", () => {
   /** `full` is the level a caller reaches for when the projection got in the
    *  way — it must not be the level that loses the answer. */
   test("--detail full keeps the sentence", async () => {
-    const { io } = await simulateAutomerge("17.1.0", "--format", "json", "--detail", "full");
-    const payload = io.json() as VerdictJson & { mergeSteps: unknown[] };
+    const run = await simulateAutomerge("17.1.0", "--format", "json", "--detail", "full");
+    const payload = run.json() as VerdictJson & { mergeSteps: unknown[] };
     expect(payload.mergeSteps.length).toBeGreaterThan(0);
     expect(payload.verdict.text).toContain("WOULD automerge");
     expect(payload.flattened.note).toContain("merged up and set");
@@ -560,26 +532,21 @@ describe("simulate answers in one sentence", () => {
  * not evaluate this rule" is the last thing that may go missing, so the
  * conclusion-preserving gate is asserted on the default answer.
  */
-async function simulateConda(...flags: string[]) {
-  const io = recordingIo();
-  const code = await main(
-    [
-      "simulate",
-      fixture("conda-version.json"),
-      "--dep",
-      '{"depName":"react","versioning":"conda","currentValue":"1.2.3"}',
-      ...flags,
-    ],
-    io,
-  );
-  return { io, code };
+function simulateConda(...flags: string[]) {
+  return runCli([
+    "simulate",
+    fixture("conda-version.json"),
+    "--dep",
+    '{"depName":"react","versioning":"conda","currentValue":"1.2.3"}',
+    ...flags,
+  ]);
 }
 
 describe("simulate on a rule the tool cannot evaluate", () => {
   test("the default answer keeps the error row AND counts it", async () => {
-    const { io, code } = await simulateConda("--format", "json");
-    expect(code).toBe(0);
-    const sim = io.json() as {
+    const run = await simulateConda("--format", "json");
+    expect(run.code).toBe(0);
+    const sim = run.json() as {
       rules: { index: number; verdict: string; clauses: { state: string; note?: string }[] }[];
       evaluationErrors: {
         rules: number;
@@ -610,9 +577,7 @@ describe("simulate on a rule the tool cannot evaluate", () => {
   });
 
   test("--verdict error is the facet that names them, --verdict no-match is not", async () => {
-    const onlyErrors = (
-      await simulateConda("--format", "json", "--verdict", "error")
-    ).io.json() as {
+    const onlyErrors = (await simulateConda("--format", "json", "--verdict", "error")).json() as {
       rules: { index: number }[];
     };
     expect(onlyErrors.rules.map((rule) => rule.index)).toEqual([0]);
@@ -620,13 +585,13 @@ describe("simulate on a rule the tool cannot evaluate", () => {
     // rule 1 matched, rule 0 could not be evaluated, so neither is one.
     const mismatches = (
       await simulateConda("--format", "json", "--verdict", "no-match")
-    ).io.json() as { rules: unknown[] };
+    ).json() as { rules: unknown[] };
     expect(mismatches.rules).toEqual([]);
   });
 
   test("pretty output states it too, whatever the view hid", async () => {
-    const { io } = await simulateConda();
-    expect(io.stdout).toContain("could not be EVALUATED");
-    expect(io.stdout).toContain("may not reflect a real Renovate run");
+    const run = await simulateConda();
+    expect(run.stdout).toContain("could not be EVALUATED");
+    expect(run.stdout).toContain("may not reflect a real Renovate run");
   });
 });

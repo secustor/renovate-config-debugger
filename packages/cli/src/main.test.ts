@@ -1,7 +1,7 @@
 import { readdirSync } from "node:fs";
 import { describe, expect, test } from "vitest";
-import { COMMANDS, main } from "./main";
-import { fixture, recordingIo } from "./test-harness";
+import { COMMANDS } from "./main";
+import { fixture, runCli } from "./test-harness";
 
 /**
  * Dispatch: help, version, and the argv failures that never reach a command.
@@ -23,14 +23,14 @@ function commandModules(): string[] {
 
 describe("dispatch", () => {
   test("--help lists every registered command and exits 0", async () => {
-    const io = recordingIo();
-    expect(await main(["--help"], io)).toBe(0);
+    const run = await runCli(["--help"]);
+    expect(run.code).toBe(0);
     // Over the registry, never a second copy of it: a hand-written list is
     // how `group` and `mcp` came to be shipped untested by this suite.
     for (const command of COMMANDS) {
-      expect(io.stdout).toContain(command.name);
+      expect(run.stdout).toContain(command.name);
     }
-    expect(io.stdout).toContain("EXPERIMENTAL");
+    expect(run.stdout).toContain("EXPERIMENTAL");
   });
 
   test("every command module is registered", () => {
@@ -41,46 +41,46 @@ describe("dispatch", () => {
   });
 
   test("bare `rcd` is the same question as --help, and just as successful", async () => {
-    const io = recordingIo();
-    expect(await main([], io)).toBe(0);
-    expect(io.stdout).toContain("EXPERIMENTAL");
-    expect(io.stderr).toBe("");
+    const run = await runCli([]);
+    expect(run.code).toBe(0);
+    expect(run.stdout).toContain("EXPERIMENTAL");
+    expect(run.stderr).toBe("");
   });
 
   test("--version names both versions and exits 0", async () => {
-    const io = recordingIo();
-    expect(await main(["-v"], io)).toBe(0);
-    expect(io.stdout).toMatch(/^rcd \S+ \(renovate \d+\./);
+    const run = await runCli(["-v"]);
+    expect(run.code).toBe(0);
+    expect(run.stdout).toMatch(/^rcd \S+ \(renovate \d+\./);
   });
 
   test("a flag the subcommand does not accept is an error, not a silent no-op", async () => {
-    const io = recordingIo();
-    expect(await main(["digest", fixture("clean.json"), "--dep", "{}"], io)).toBe(1);
-    expect(io.stderr).toContain("--dep");
-    expect(io.stdout).toBe("");
+    const run = await runCli(["digest", fixture("clean.json"), "--dep", "{}"]);
+    expect(run.code).toBe(1);
+    expect(run.stderr).toContain("--dep");
+    expect(run.stdout).toBe("");
   });
 
   test("an unknown command is an infrastructure error, on stderr", async () => {
-    const io = recordingIo();
-    expect(await main(["explode"], io)).toBe(1);
-    expect(io.stderr).toContain("unknown command 'explode'");
-    expect(io.stdout).toBe("");
+    const run = await runCli(["explode"]);
+    expect(run.code).toBe(1);
+    expect(run.stderr).toContain("unknown command 'explode'");
+    expect(run.stdout).toBe("");
   });
 
   test("a per-command --help never runs anything", async () => {
-    const io = recordingIo();
-    expect(await main(["tree", "--help"], io)).toBe(0);
-    expect(io.stdout).toContain("--body");
+    const run = await runCli(["tree", "--help"]);
+    expect(run.code).toBe(0);
+    expect(run.stdout).toContain("--body");
   });
 
   test("a bad --format is caught before the pipeline runs", async () => {
-    const io = recordingIo();
-    expect(await main(["digest", fixture("clean.json"), "--format", "yaml"], io)).toBe(1);
+    const run = await runCli(["digest", fixture("clean.json"), "--format", "yaml"]);
+    expect(run.code).toBe(1);
   });
 
   test("no input at all is an error", async () => {
-    const io = recordingIo();
-    expect(await main(["digest"], io)).toBe(1);
-    expect(io.stderr).toContain("--stdin");
+    const run = await runCli(["digest"]);
+    expect(run.code).toBe(1);
+    expect(run.stderr).toContain("--stdin");
   });
 });
