@@ -1,29 +1,22 @@
 import type * as EngineModule from "@renovate-config-debugger/engine";
 import type { RuleAttribution, TraceResult } from "@renovate-config-debugger/engine";
+import { makeResultCache } from "./result-cache";
 import { useEngineDerivation } from "./use-engine-derivation";
 
 /**
  * Roadmap 032: `computeRuleProvenance` replays the layer merge over every
  * `packageRules` entry, and three consumers mount per run (App for the
  * message cross-links, EffectiveConfig's `packageRules` row, the simulator's
- * rule rows). The per-result promise is cached on the immutable result
- * object so the computation runs ONCE per run no matter how many consumers
- * ask — and every consumer settles on the same attribution array identity,
- * which is what lets their memoized derivations agree.
+ * rule rows). `makeResultCache` keys the promise on the immutable result, so
+ * the replay runs ONCE per run no matter how many consumers ask — and every
+ * consumer settles on the same attribution array identity, which is what lets
+ * their memoized derivations agree. It also ends the chain with the `.catch`
+ * this side used to lack: a throw inside the replay is "unavailable", not an
+ * unhandled rejection in whichever consumer happened to arrive last.
  */
-const ruleProvenanceCache = new WeakMap<TraceResult, Promise<RuleAttribution[] | null>>();
-
-function ruleProvenanceFor(
-  engine: typeof EngineModule,
-  result: TraceResult,
-): Promise<RuleAttribution[] | null> {
-  let promise = ruleProvenanceCache.get(result);
-  if (!promise) {
-    promise = Promise.resolve().then(() => engine.computeRuleProvenance(result) ?? null);
-    ruleProvenanceCache.set(result, promise);
-  }
-  return promise;
-}
+const ruleProvenanceFor = makeResultCache((engine: typeof EngineModule, result: TraceResult) =>
+  engine.computeRuleProvenance(result),
+);
 
 /**
  * Roadmap 013: loads + computes per-`packageRules`-entry provenance for a
