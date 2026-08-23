@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { INVALID_RULES_CONFIG, PACKAGE_RULES_CONFIG, SEMANTIC_COMMITS_CONFIG } from "./fixtures";
 import {
   must,
+  openLayerStage,
   openMigrateStage,
   tabButton,
   openPresetTree,
@@ -487,4 +488,18 @@ test("the six-tab results strip holds one row at the standard desktop width", as
   await expect(tabs).toHaveCount(6);
   const boxes = await tabs.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().top));
   expect(new Set(boxes).size).toBe(1);
+});
+
+test("the layer editor block insets itself from its stage card's edges", async ({ page }) => {
+  // 076 moved the global/inherited layer editors from the Advanced drawer
+  // (whose body carried the padding) onto the pipeline stage cards — and
+  // `.card` gives its body no padding, so the block arrived flush against the
+  // card border. The Pipeline Stage Display design pads this section; the
+  // block now pads itself like the card's other children do.
+  await page.goto("/");
+  await runAndAwaitResult(page);
+  await openLayerStage(page, "global");
+  const block = page.locator("#panel-pipeline .layer-editor-block");
+  await expect(block).toHaveCSS("padding-left", "12px");
+  await expect(block).toHaveCSS("padding-top", "9.6px");
 });
