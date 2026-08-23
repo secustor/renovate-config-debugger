@@ -11,7 +11,7 @@
  * NOT want here. We want the file's exact text, one probe per candidate, so the
  * few transport lines (URL shape, auth header, error mapping) are duplicated.
  */
-import { ExternalHostError } from "renovate/dist/types/errors/external-host-error.js";
+import { ExternalHostError } from "./renovate-internals";
 import { resolveAuthToken } from "../auth";
 import { encodePathSegments } from "./url-path";
 

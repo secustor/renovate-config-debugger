@@ -6,11 +6,11 @@
  * a missing tag resolves the project's default branch first.
  */
 import {
+  ExternalHostError,
   fetchPreset,
   parsePreset,
   PRESET_DEP_NOT_FOUND,
-} from "renovate/dist/config/presets/util.js";
-import { ExternalHostError } from "renovate/dist/types/errors/external-host-error.js";
+} from "../renovate-internals";
 import { resolveAuthToken } from "../../auth";
 import { getInjectedPreset } from "./injection";
 

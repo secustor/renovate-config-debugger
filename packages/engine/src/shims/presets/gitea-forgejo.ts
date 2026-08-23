@@ -6,12 +6,12 @@
  * Renovate's fetchPreset for the file-candidate / sub-preset logic.
  */
 import {
+  ExternalHostError,
   fetchPreset,
   parsePreset,
   PRESET_DEP_NOT_FOUND,
   PRESET_INVALID,
-} from "renovate/dist/config/presets/util.js";
-import { ExternalHostError } from "renovate/dist/types/errors/external-host-error.js";
+} from "../renovate-internals";
 import { resolveAuthToken } from "../../auth";
 import { encodePathSegments } from "../url-path";
 import { getInjectedPreset } from "./injection";

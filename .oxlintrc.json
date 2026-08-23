@@ -112,10 +112,10 @@
       // The renovate/dist import boundary (previously a grep step in ci.yml).
       // Renovate has no public API, so every deep import is a private-file
       // dependency a version bump can break — they are confined to the adapter,
-      // the browser shims and the ambient declarations so a bump has exactly one
-      // place to look. The Node tests that deliberately compare against the real
-      // modules live outside `src/`, so they are unaffected — same scope as the
-      // grep this replaces.
+      // the shims' own ledger and the ambient declarations so a bump has exactly
+      // one place to look. The Node tests that deliberately compare against the
+      // real modules live outside `src/`, so they are unaffected — same scope as
+      // the grep this replaces.
       "files": ["packages/engine/src/**", "packages/app/src/**"],
       "rules": {
         "no-restricted-imports": [
@@ -124,7 +124,7 @@
             "patterns": [
               {
                 "group": ["renovate/dist", "renovate/dist/**"],
-                "message": "Deep renovate/dist imports belong in renovate-adapter.ts, shims/ or types/ — go through the adapter instead."
+                "message": "Deep renovate/dist imports belong in renovate-adapter.ts, shims/renovate-internals.ts or types/ — go through one of those instead."
               }
             ]
           }
@@ -133,9 +133,13 @@
     },
     {
       // …and the three places that ARE allowed to reach into renovate/dist.
+      // The shims cannot use the adapter (it re-exports config/presets/index.js,
+      // whose per-host children the preset shims replace — that is an import
+      // cycle), so they get their own ledger; naming the ONE file here, rather
+      // than all of shims/**, is what keeps that surface a ledger.
       "files": [
         "packages/engine/src/renovate-adapter.ts",
-        "packages/engine/src/shims/**",
+        "packages/engine/src/shims/renovate-internals.ts",
         "packages/engine/src/types/**"
       ],
       "rules": {

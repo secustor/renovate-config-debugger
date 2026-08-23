@@ -8,7 +8,7 @@ import {
   PRESET_DEP_NOT_FOUND,
   PRESET_NOT_FOUND,
   PRESET_RENOVATE_CONFIG_NOT_FOUND,
-} from "renovate/dist/config/presets/util.js";
+} from "../renovate-internals";
 import { getInjectedPreset } from "./injection";
 
 interface Packument {
