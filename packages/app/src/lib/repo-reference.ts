@@ -22,9 +22,20 @@ export interface RepoReference {
   path?: string;
 }
 
-/** Strips a trailing `.git` and slashes from a repo path. */
-function stripRepoSuffix(path: string): string {
+/** Strips a trailing `.git` and slashes from a repo path. Shared with
+ *  `inherit-probe`, which reads the same reference shapes half-typed. */
+export function stripRepoSuffix(path: string): string {
   return path.replace(/\.git$/, "").replace(/^\/+|\/+$/g, "");
+}
+
+/** The one host heuristic: a leading path segment containing a dot is a HOST,
+ *  never an owner — owners and groups cannot contain dots on any supported
+ *  host. Shared with `inherit-probe` for the same reason as
+ *  {@link stripRepoSuffix}: both modules read the same typed reference, and a
+ *  second spelling of this rule is how they would come to disagree about where
+ *  the owner starts. */
+export function isHostSegment(segment: string | undefined): boolean {
+  return segment !== undefined && segment.includes(".");
 }
 
 /** The web-UI path segments that separate `owner/repo` from a ref: GitHub's
@@ -165,7 +176,7 @@ export function parseRepoReference(raw: string): RepoReference | null {
   // A first segment that looks like a domain (contains a dot) is treated as a
   // host; owners/groups never contain dots on the supported hosts. The
   // schemeless form gets the same web-UI parsing as a full URL.
-  if (segments.length >= 3 && segments[0]?.includes(".")) {
+  if (segments.length >= 3 && isHostSegment(segments[0])) {
     const parsed = parseUrl(`https://${path}`);
     return parsed ? { ...parsed, ...(ref && !parsed.ref ? { ref } : {}) } : null;
   }

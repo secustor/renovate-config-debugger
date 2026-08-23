@@ -15,6 +15,7 @@
  * itself is `loadRepoFile` (run.ts → the engine's `fetchRepoFile`), and the 008
  * pipeline that consumes the filled layer is untouched.
  */
+import { isHostSegment, stripRepoSuffix } from "./repo-reference";
 
 /** `inheritConfigRepoName`'s default, verbatim from the pinned Renovate. */
 export const INHERIT_REPO_TEMPLATE = "{{parentOrg}}/renovate-config";
@@ -31,11 +32,6 @@ export interface InheritTemplateVars {
   repository: string;
 }
 
-/** Strips a trailing `.git` and surrounding slashes from a repo path. */
-function stripRepoSuffix(path: string): string {
-  return path.replace(/\.git$/, "").replace(/^\/+|\/+$/g, "");
-}
-
 /**
  * The repo SLUG in a liberally-written reference — the same shapes the repo
  * field accepts (`owner/repo`, `github.com/owner/repo`, a full URL, scp-style),
@@ -43,8 +39,9 @@ function stripRepoSuffix(path: string): string {
  * live instead of appearing only once the reference is complete.
  *
  * A first segment containing a dot is a host, never an owner (owners cannot
- * contain dots on any supported host) — the same heuristic `parseRepoRef` uses
- * for a complete reference.
+ * contain dots on any supported host) — literally the same heuristic
+ * `parseRepoReference` uses for a complete reference, imported rather than
+ * restated.
  */
 export function repoSlugOf(raw: string): string {
   const trimmed = raw.trim();
@@ -56,7 +53,7 @@ export function repoSlugOf(raw: string): string {
   const segments = stripRepoSuffix(withoutHost)
     .split("/")
     .filter((segment) => segment !== "");
-  if (segments[0]?.includes(".")) {
+  if (isHostSegment(segments[0])) {
     segments.shift();
   }
   return segments.join("/");
