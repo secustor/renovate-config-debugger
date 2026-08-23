@@ -34,7 +34,7 @@ function mount(): FocusLanding {
  * Arms a landing from `from`, then types into `target` — focusing it first,
  * since that is what typing into a form control entails and is exactly what the
  * focus half of `landingWanted` reads. Reports whether the landing still ran.
- * `frames: 0` with `thisFrame` keeps it synchronous: the target already exists.
+ * `budgetMs: 0` with `thisFrame` keeps it synchronous: the target already exists.
  */
 function landsAfterTypingIn(target: HTMLElement, from: HTMLElement): boolean {
   const api = mount();
@@ -43,7 +43,7 @@ function landsAfterTypingIn(target: HTMLElement, from: HTMLElement): boolean {
   target.focus();
   fireEvent.input(target);
   const land = vi.fn();
-  api.whenReady({ ticket, find: () => from, land, frames: 0, thisFrame: true });
+  api.whenReady({ ticket, find: () => from, land, budgetMs: 0, thisFrame: true });
   return land.mock.calls.length > 0;
 }
 
@@ -116,7 +116,7 @@ describe("useFocusLanding", () => {
       ticket,
       find: () => document.body,
       land,
-      frames: 0,
+      budgetMs: 0,
       thisFrame: true,
     });
     expect(land).not.toHaveBeenCalled();

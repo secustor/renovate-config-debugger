@@ -279,7 +279,11 @@ export function useKeyboardLandings(host: KeyboardLandingsHost): KeyboardLanding
         column.scrollIntoView(motionScrollOptions("start"));
         (selectedTab ?? column).focus({ preventScroll: true });
       },
-      frames: 12,
+      // 600 ms: the chunk fetch plus React's ~300 ms suspended-fallback reveal
+      // (the field's doc in `use-focus-landing.ts` — on a machine fast enough
+      // to commit the result before the chunk resolves, the strip enters the
+      // DOM only when that reveal fires).
+      budgetMs: 600,
       thisFrame: true,
     });
   }
@@ -348,7 +352,10 @@ export function useKeyboardLandings(host: KeyboardLandingsHost): KeyboardLanding
           button.scrollIntoView(motionScrollOptions("nearest"));
         }
       },
-      frames: 12,
+      // Same budget and same reason as `focusResults`: the digit keys go live
+      // the moment a result exists, which on a first run can be before the
+      // lazy strip has been revealed.
+      budgetMs: 600,
       thisFrame: false,
     });
   }
@@ -379,7 +386,7 @@ export function useKeyboardLandings(host: KeyboardLandingsHost): KeyboardLanding
    * Spelled out rather than `landOnTarget`, which bundles all three together.
    */
   function landOnPresetNode() {
-    // Thirty frames is long enough for the user to have moved on; if they have,
+    // Half a second is long enough for the user to have moved on; if they have,
     // `whenReady` never calls this back — and not even the scroll is welcome
     // then (068 review: a page that scrolls and flashes half a second after a
     // click on some unrelated prose).
@@ -406,7 +413,7 @@ export function useKeyboardLandings(host: KeyboardLandingsHost): KeyboardLanding
           row.focus({ preventScroll: true });
         }
       },
-      frames: 30,
+      budgetMs: 500,
       thisFrame: false,
     });
   }

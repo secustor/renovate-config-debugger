@@ -21,7 +21,18 @@ export interface LandingRequest {
    *  "it never appeared" means instead of spinning forever. Not called at all
    *  when the user has moved on in the meantime (`landingWanted`). */
   land: (target: HTMLElement | null) => void;
-  frames: number;
+  /**
+   * Wall-clock milliseconds, not a frame count. The waits this budget covers
+   * are wall-time: the lazy chunk's download, and React holding a suspended
+   * boundary on its fallback for ~300 ms before revealing the content — which
+   * is when the tab strip actually enters the DOM on a first run fast enough
+   * to commit its result before the chunk has resolved. A frame count measures
+   * neither: twelve frames were ~100 ms in the headless e2e browser and would
+   * be ~50 ms on a 240 Hz display, both inside the reveal delay, and the
+   * landing silently degraded to its no-target fallback exactly on the fastest
+   * machines.
+   */
+  budgetMs: number;
   /** Look on THIS frame first, so a target that already exists is landed on
    *  without a flicker. */
   thisFrame: boolean;
@@ -134,10 +145,11 @@ export function useFocusLanding(): FocusLanding {
     () => ({
       arm: () => armLanding(activity, focusHolder()),
       displaced: (ticket) => jumpDisplacedFocus(ticket.from),
-      whenReady: ({ ticket, find, land, frames, thisFrame }) => {
-        function look(left: number) {
+      whenReady: ({ ticket, find, land, budgetMs, thisFrame }) => {
+        const deadline = performance.now() + budgetMs;
+        function look() {
           const target = find();
-          if (target || left <= 0) {
+          if (target || performance.now() >= deadline) {
             // Asked once, here at the end of the wait rather than while it runs:
             // what matters is whether the user still wants to be moved NOW.
             if (landingWanted(ticket, activity, focusHolder())) {
@@ -145,13 +157,13 @@ export function useFocusLanding(): FocusLanding {
             }
             return;
           }
-          requestAnimationFrame(() => look(left - 1));
+          requestAnimationFrame(() => look());
         }
         if (thisFrame) {
-          look(frames);
+          look();
           return;
         }
-        requestAnimationFrame(() => look(frames));
+        requestAnimationFrame(() => look());
       },
     }),
     [activity],
