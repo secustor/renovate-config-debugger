@@ -11,10 +11,10 @@ import { describe, expect, it } from "vitest";
 import {
   hasEvaluationError,
   isNoInputNoMatch,
-  type RuleEvaluation,
   summarizeEvaluationErrors,
   summarizeMissingInputs,
-} from "../src/index";
+} from "../src/simulate-missing-inputs";
+import type { RuleEvaluation } from "../src/simulate-package-rules";
 
 type ClauseSpec = [
   key: string,

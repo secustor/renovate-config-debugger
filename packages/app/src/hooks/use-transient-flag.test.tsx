@@ -28,9 +28,13 @@ test("flashes on, turns itself off after the window", () => {
   const seen: boolean[] = [];
   const fire: { current: (() => void) | null } = { current: null };
   render(<Probe onRender={(flag) => seen.push(flag)} fire={fire} />);
-  act(() => fire.current?.());
+  act(() => {
+    fire.current?.();
+  });
   expect(seen.at(-1)).toBe(true);
-  act(() => vi.advanceTimersByTime(1500));
+  act(() => {
+    vi.advanceTimersByTime(1500);
+  });
   expect(seen.at(-1)).toBe(false);
 });
 
@@ -38,13 +42,23 @@ test("a second flash restarts the window instead of ending it early", () => {
   const seen: boolean[] = [];
   const fire: { current: (() => void) | null } = { current: null };
   render(<Probe onRender={(flag) => seen.push(flag)} fire={fire} />);
-  act(() => fire.current?.());
-  act(() => vi.advanceTimersByTime(1000));
-  act(() => fire.current?.());
-  act(() => vi.advanceTimersByTime(1000));
+  act(() => {
+    fire.current?.();
+  });
+  act(() => {
+    vi.advanceTimersByTime(1000);
+  });
+  act(() => {
+    fire.current?.();
+  });
+  act(() => {
+    vi.advanceTimersByTime(1000);
+  });
   // The first timer would have fired at 1500ms; the second flash replaced it.
   expect(seen.at(-1)).toBe(true);
-  act(() => vi.advanceTimersByTime(500));
+  act(() => {
+    vi.advanceTimersByTime(500);
+  });
   expect(seen.at(-1)).toBe(false);
 });
 
@@ -54,10 +68,14 @@ test("unmount inside the window clears the timer — no dead setState", () => {
   window.addEventListener("error", onError);
   const fire: { current: (() => void) | null } = { current: null };
   const view = render(<Probe onRender={() => undefined} fire={fire} />);
-  act(() => fire.current?.());
+  act(() => {
+    fire.current?.();
+  });
   view.unmount();
   expect(vi.getTimerCount()).toBe(0);
-  act(() => vi.advanceTimersByTime(2000));
+  act(() => {
+    vi.advanceTimersByTime(2000);
+  });
   window.removeEventListener("error", onError);
   expect(errors).toEqual([]);
 });
