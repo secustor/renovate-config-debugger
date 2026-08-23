@@ -65,6 +65,31 @@ claude mcp add rcd -- npx -y @renovate-config-debugger/cli mcp
 (In Claude Code this checkout already registers the server: the repo root's
 `.mcp.json` is the plugin's server config, and the project scope picks it up.)
 
+**In this checkout that server answers from the LAST PUBLISHED release**, not
+from your working tree: `.mcp.json` resolves `rcd` through `npx`, and it has to
+— it doubles as the published plugin's server config
+(`.claude-plugin/plugin.json` names it), so it cannot point at a path inside
+the repo. While you are changing `packages/cli/src` (or anything the CLI reads
+— engine, or the app's `headless` derivations), the MCP answers describe the
+released bundle instead of your edit. Two ways out:
+
+```bash
+# per developer: a local-scope entry that shadows .mcp.json's `rcd` for THIS
+# project only (stored in ~/.claude.json under this project, never committed)
+claude mcp add -s local rcd -- node packages/cli/bin/rcd-dev.mjs mcp
+claude mcp remove -s local rcd   # back to the published bundle
+
+# or per question, no config at all:
+pnpm --filter @renovate-config-debugger/cli rcd digest renovate.json
+```
+
+MCP servers cannot be declared in `.claude/settings.json` or
+`settings.local.json` — Claude Code reads server definitions only from
+`.mcp.json` (project scope) and `~/.claude.json` (local/user scope) — which is
+why the override is a command you run once rather than a file in the repo.
+`bin/rcd-dev.mjs` is the same graph, served from `src/`, so an edit is live on
+the next call with no build step.
+
 The workflow those tools want — validate first, digest for orientation, drill
 down one node at a time, `compare` as the oracle before proposing an edit — is
 written down once, in `skills/debug-renovate-config/SKILL.md` (roadmap 061).

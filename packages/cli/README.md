@@ -575,6 +575,30 @@ The server holds a small number of recent runs (an LRU), so an agent can
 compare the run before an edit with the run after it. A `runId` that has been
 evicted says so, and lists the ones still held.
 
+### Working on the CLI itself
+
+Every config above runs the **published** bundle. In a checkout of this
+repository that is the wrong one: it answers from the last release while your
+`src/` differs. `bin/rcd-dev.mjs` is the same module graph served straight from
+`src/` — no build step between an edit and the next answer — but the repo's
+`.mcp.json` cannot name it, because that file doubles as the published plugin's
+server config.
+
+Claude Code takes server definitions only from `.mcp.json` (project scope) and
+`~/.claude.json` (local and user scope), never from `settings.json`, so the
+override is a one-time command rather than a file in the repo. A local-scope
+entry shadows the project one for this project alone:
+
+```console
+$ claude mcp add -s local rcd -- node packages/cli/bin/rcd-dev.mjs mcp
+$ claude mcp remove -s local rcd   # back to the published bundle
+```
+
+Other harnesses take the same swap in their own config file: replace `npx -y
+@renovate-config-debugger/cli mcp` with `node <repo>/packages/cli/bin/rcd-dev.mjs
+mcp`. For one-off questions, `pnpm --filter @renovate-config-debugger/cli rcd
+<subcommand>` already runs the dev bin and needs no configuration at all.
+
 ## Compatibility
 
 Every release states the Renovate it carries. The engine and its `renovate`
