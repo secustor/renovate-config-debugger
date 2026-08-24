@@ -44,6 +44,25 @@
     // index/assertion really is the honest answer carry an inline disable that
     // states the invariant, so there is no tier left for a hit to hide in.
     "react/no-array-index-key": "error",
+    // oxlint 1.79.0 split the react-compiler diagnostics into per-category
+    // rules and activated them under `correctness`/`suspicious`, so the bump
+    // PR surfaced them at error — which is this config's designed decision
+    // point. Decision: off. These are React Compiler migration diagnostics,
+    // and this app does not run the compiler; the 56 hits at evaluation time
+    // (refs 20, set-state-in-effect 15, exhaustive-effect-dependencies 10,
+    // immutability 5, preserve-manual-memoization 2, memo-dependencies 2,
+    // globals 2) are dominated by deliberate patterns — useLatestRef-style
+    // ref reads during render, effect-driven state sync, and test files
+    // reassigning outer probes from render. Adopting any of them means the
+    // matching refactor first; until then "off" is the recorded decision,
+    // not an oversight.
+    "react/refs": "off",
+    "react/set-state-in-effect": "off",
+    "react/exhaustive-effect-dependencies": "off",
+    "react/immutability": "off",
+    "react/preserve-manual-memoization": "off",
+    "react/memo-dependencies": "off",
+    "react/globals": "off",
     "typescript/no-non-null-assertion": "error",
     // Named exports keep re-exports and IDE rename working; the tool-mandated
     // default exports are listed in the overrides below.
