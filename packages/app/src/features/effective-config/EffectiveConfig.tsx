@@ -211,7 +211,7 @@ export const EffectiveConfig = memo(function EffectiveConfig({
   // unavailable, still show the effective config as plain JSON.
   if (provenance === null) {
     return (
-      <div className="card">
+      <>
         <p className="empty-note">
           Per-key provenance is unavailable because preset resolution did not complete. Showing the
           effective config Renovate produced from the defaults.
@@ -219,7 +219,7 @@ export const EffectiveConfig = memo(function EffectiveConfig({
         <pre className="config-view">
           <ConfigJson value={result.finalConfig} />
         </pre>
-      </div>
+      </>
     );
   }
 
@@ -232,9 +232,9 @@ export const EffectiveConfig = memo(function EffectiveConfig({
   };
 
   return (
-    // No card title: the tab strip already says "Effective config", so the
-    // card opens straight with its toolbar.
-    <div className="card">
+    // No card and no title: the tab strip already says "Effective config",
+    // and the toolbar row plus the bordered band boxes frame themselves.
+    <>
       {provenance === undefined ? <p className="empty-note">Computing provenance…</p> : null}
       {provenance !== undefined ? (
         <EffectiveToolbar
@@ -272,6 +272,6 @@ export const EffectiveConfig = memo(function EffectiveConfig({
           rows={rowContext}
         />
       ) : null}
-    </div>
+    </>
   );
 });

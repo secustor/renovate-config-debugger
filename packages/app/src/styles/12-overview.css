@@ -17,9 +17,9 @@
    `.badge.prov-*`, and the dots are the same `.prov-dot` the 054 evidence rows
    use — the artboard's two-colour scheme (blue = mine, purple = a preset) is
    the app's five-hue layer palette with the three levels it does not draw left
-   out. The card has no title of its own: the tab strip says "Overview" and the
-   tab badge carries the behavior count, so the card opens with the intro
-   line. */
+   out. No card chrome and no title of its own: the tab strip says "Overview"
+   and the tab badge carries the behavior count, so the panel opens with the
+   intro line. */
 .overview-body {
   padding: 0.7rem 0.75rem 0.6rem;
 }
@@ -118,7 +118,7 @@
   padding: 0 0.75rem 0.5rem;
 }
 
-/* The design's closing line, attached to the card's foot the way the caveat
+/* The design's closing line, attached to the panel's foot the way the caveat
    below it is. */
 .overview-footer {
   border-top: 1px solid var(--border);

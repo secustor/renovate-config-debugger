@@ -257,9 +257,10 @@ export function OverviewPanel({ result, onSelectPreset, onShowRawOrder, onStats 
   const tail = groups.find((group) => group.id === OTHER_TOPIC_ID) ?? null;
   const shown = tail && !showTail ? groups.filter((group) => group !== tail) : groups;
   return (
-    // `overview-card` styles nothing either — it is the handle the e2e suite
-    // and the panel test grab the card by.
-    <div className="card overview-card">
+    // No `.card` chrome — the tab panel is frame enough. `overview-card`
+    // styles nothing: it is the handle the e2e suite and the panel test grab
+    // this block by.
+    <div className="overview-card">
       <div className="overview-body">
         <OverviewIntro
           // Only when there IS a `description` row to land on: a digest built
