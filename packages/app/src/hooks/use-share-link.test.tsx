@@ -115,7 +115,7 @@ function makeHost(onRun: ShareLinkHost["onRun"]): ShareLinkHost {
     setAuthUser: noop,
     applyUntrustedGuard: noop,
     setPins: noop,
-    pendingViewRef: { current: null },
+    setPendingView: noop,
     // Equal, so a hashchange never has unsaved edits to confirm away.
     contentRef: { current: "" },
     loadedContentRef: { current: "" },
@@ -130,11 +130,19 @@ function makeHost(onRun: ShareLinkHost["onRun"]): ShareLinkHost {
   };
 }
 
-function Harness({ host, seen }: { host: ShareLinkHost; seen: { current: SimRequest | null } }) {
+/**
+ * The newest `simRequest` the hook produced, hoisted out of the render so a
+ * test can read it. A module binding rather than a ref-shaped prop: mutating a
+ * prop is what `react/immutability` forbids, in an effect as much as in the
+ * render.
+ */
+let seen: SimRequest | null = null;
+
+function Harness({ host }: { host: ShareLinkHost }) {
   const { simRequest } = useShareLink(null, host);
   useEffect(() => {
-    seen.current = simRequest;
-  }, [simRequest, seen]);
+    seen = simRequest;
+  }, [simRequest]);
   return null;
 }
 
@@ -151,8 +159,12 @@ async function openLink(token: string) {
 }
 
 function mount(onRun: ShareLinkHost["onRun"], overrides: Partial<ShareLinkHost> = {}) {
-  const seen: { current: SimRequest | null } = { current: null };
-  render(<Harness host={{ ...makeHost(onRun), ...overrides }} seen={seen} />);
+  seen = null;
+  render(<Harness host={{ ...makeHost(onRun), ...overrides }} />);
+}
+
+/** The newest request the mounted harness has observed. */
+function lastRequest(): SimRequest | null {
   return seen;
 }
 
@@ -163,11 +175,11 @@ describe("useShareLink", () => {
     const onRun = vi.fn<ShareLinkHost["onRun"]>().mockResolvedValue(ran);
     history.replaceState(null, "", "/#config=A");
 
-    const seen = mount(onRun);
-    await waitFor(() => expect(seen.current).not.toBeNull());
+    mount(onRun);
+    await waitFor(() => expect(lastRequest()).not.toBeNull());
 
-    expect(seen.current?.ranResult).toBe(ran);
-    expect(seen.current?.autoSimulate).toBe(true);
+    expect(lastRequest()?.ranResult).toBe(ran);
+    expect(lastRequest()?.autoSimulate).toBe(true);
   });
 
   it("attributes nothing to a run that produced no effective config", async () => {
@@ -182,11 +194,11 @@ describe("useShareLink", () => {
     const onRun = vi.fn<ShareLinkHost["onRun"]>().mockResolvedValue(parseErrorResult());
     history.replaceState(null, "", "/#config=A");
 
-    const seen = mount(onRun);
-    await waitFor(() => expect(seen.current).not.toBeNull());
+    mount(onRun);
+    await waitFor(() => expect(lastRequest()).not.toBeNull());
 
-    expect(seen.current?.ranResult).toBeNull();
-    expect(seen.current?.autoSimulate).toBe(true);
+    expect(lastRequest()?.ranResult).toBeNull();
+    expect(lastRequest()?.autoSimulate).toBe(true);
   });
 
   it("never leaves a failed link's request standing for the next link's run", async () => {
@@ -203,14 +215,14 @@ describe("useShareLink", () => {
       .mockResolvedValueOnce(traceResult());
     history.replaceState(null, "", "/#config=A");
 
-    const seen = mount(onRun);
+    mount(onRun);
     await waitFor(() => expect(onRun).toHaveBeenCalledTimes(1));
 
     await openLink("B");
     await waitFor(() => expect(onRun).toHaveBeenCalledTimes(2));
     await act(async () => undefined);
 
-    expect(seen.current).toBeNull();
+    expect(lastRequest()).toBeNull();
   });
 
   it("keeps autoSimulate alive when a link's own run fails over a running session", async () => {
@@ -226,15 +238,15 @@ describe("useShareLink", () => {
       .mockResolvedValueOnce(null);
     history.replaceState(null, "", "/#config=A");
 
-    const seen = mount(onRun);
+    mount(onRun);
     await waitFor(() => expect(onRun).toHaveBeenCalledTimes(1));
 
     await openLink("C");
-    await waitFor(() => expect(seen.current).not.toBeNull());
+    await waitFor(() => expect(lastRequest()).not.toBeNull());
 
     expect(onRun).toHaveBeenCalledTimes(2);
-    expect(seen.current?.autoSimulate).toBe(true);
-    expect(seen.current?.ranResult).toBeNull();
+    expect(lastRequest()?.autoSimulate).toBe(true);
+    expect(lastRequest()?.ranResult).toBeNull();
   });
 
   it("leaves the advanced drawer alone for a link that merely carries 008 layers", async () => {

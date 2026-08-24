@@ -412,6 +412,12 @@ export function App() {
   // result (identities → node ids need the resolved tree). A ref, not state, so
   // consuming it does not trigger a render.
   const pendingViewRef = useRef<ShareView | null>(null);
+  // …and the one way the share cluster arms it. A callback rather than the ref
+  // itself: the ref is App's, and a hook writing through an object handed to it
+  // is a hook mutating its own argument (`react/immutability`).
+  const setPendingView = useCallback((view: ShareView | null) => {
+    pendingViewRef.current = view;
+  }, []);
   // Roadmap 017: mirrors of `content`/`loadedContent` for the hashchange
   // listener (inside `useShareLink`), which is registered once (empty deps)
   // and would otherwise close over the state from that first render.
@@ -449,7 +455,7 @@ export function App() {
       // Roadmap 075 (iteration 6): the link's pins, with ids minted by the
       // cluster that owns them.
       setPins: setPinsFromShare,
-      pendingViewRef,
+      setPendingView,
       contentRef,
       loadedContentRef,
       buildShareState,
@@ -517,6 +523,20 @@ export function App() {
     requestDescriptionLedger();
   }, [jumpToTab, requestDescriptionLedger]);
 
+  /**
+   * A forward handle to the keyboard-landing cluster's preset landing. The
+   * cluster itself cannot be declared until `resultsTabs` exists (it is the run
+   * summary's, ~800 lines down), while `selectPresetNode` below has to be
+   * declared up here for `presetHover` — so the binding is reached through a
+   * ref rather than read out of a `const` that is still in its temporal dead
+   * zone at this point in the body (`react/immutability`).
+   *
+   * Same rule as the 032 latest-ref idiom: written on every render, read only
+   * from an event handler, i.e. always after the commit that filled it in. The
+   * no-op placeholder is never the one that runs — nothing can activate a
+   * cross-link before the first commit.
+   */
+  const landOnPresetNodeRef = useRef<() => void>(() => undefined);
   // Roadmap 028: selecting a preset node from anywhere else (a provenance
   // chip, a simulator rule, an editor preset hover) also switches to the
   // Presets tab. Identity-stable, so the preset-hover context — memoized on
@@ -531,7 +551,7 @@ export function App() {
     // landing the user's next Tab restarts at the top of the document. The
     // editor's preset hover is the third and keeps its caret — see
     // `jumpDisplacedFocus`.
-    landOnPresetNode();
+    landOnPresetNodeRef.current();
   });
   // The dependency is the REF, not the callback it holds: a ref object's
   // identity never changes, so this wrapper is still declared once for the
@@ -1169,19 +1189,8 @@ export function App() {
     }
   }
 
-  // Roadmap 032: `applyErrorFix` reads `content` and `errorLib`, so the
-  // memoized MessagesPanel gets this stable wrapper (latest-ref idiom) — an
-  // "Apply fix" click must patch the text as it is NOW, not as it was when
-  // the panel last rendered.
-  // The dependency is the REF, not the function it holds — its identity never
-  // changes, so the wrapper stays declared once (see `selectPresetNode`).
-  const applyErrorFixRef = useLatestRef(applyErrorFix);
-  const onApplyFix = useCallback(
-    (fix: ErrorFixResult) => {
-      void applyErrorFixRef.current(fix);
-    },
-    [applyErrorFixRef],
-  );
+  // The stable `onApplyFix` wrapper this function is reached through is
+  // registered after the keyboard-landing cluster below — see it for why.
 
   const authState: AuthState = !OAUTH_CONFIG
     ? "unconfigured"
@@ -1315,6 +1324,33 @@ export function App() {
     resultsColRef,
     configEditorRef,
   });
+  // …and the forward handle `selectPresetNode` (declared far above, because
+  // `presetHover` needs it) lands through. See its declaration.
+  landOnPresetNodeRef.current = landOnPresetNode;
+
+  /**
+   * Roadmap 032: `applyErrorFix` reads `content` and `errorLib`, so the
+   * memoized MessagesPanel gets this stable wrapper (latest-ref idiom) — an
+   * "Apply fix" click must patch the text as it is NOW, not as it was when
+   * the panel last rendered.
+   *
+   * The dependency is the REF, not the function it holds — its identity never
+   * changes, so the wrapper stays declared once (see `selectPresetNode`).
+   *
+   * Registered HERE rather than beside `applyErrorFix` itself: that function
+   * arms and lands through `landing`/`focusTab`, which the destructure above
+   * declares, and handing it to a hook any earlier reads those bindings while
+   * they are still in their temporal dead zone (`react/immutability`). The
+   * function declaration is hoisted, so only the registration had to move, and
+   * `onApplyFix` is consumed by the panel props memos further below.
+   */
+  const applyErrorFixRef = useLatestRef(applyErrorFix);
+  const onApplyFix = useCallback(
+    (fix: ErrorFixResult) => {
+      void applyErrorFixRef.current(fix);
+    },
+    [applyErrorFixRef],
+  );
 
   /**
    * Roadmap 068: what "the user asked for a run" means, in the one place its
