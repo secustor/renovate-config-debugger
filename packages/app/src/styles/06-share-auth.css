@@ -164,22 +164,18 @@
 }
 
 /* The card title becomes a row when it needs one (039): the editor card for
-   its toolbar, the effective card for its truncating hint (082 moved its view
-   switch into the tab's own toolbar row). Every other card title stays plain
-   text so its inline hints and copy buttons keep wrapping as prose. */
-.editor-card-title,
-.effective-card-title {
-  align-items: center;
-  display: flex;
-  gap: 0.5rem;
-}
+   its toolbar. Every other card title stays plain text so its inline hints and
+   copy buttons keep wrapping as prose.
 
-/* Roadmap 075: the editor card's title bar holds the whole config toolbar —
+   Roadmap 075: the editor card's title bar holds the whole config toolbar —
    the file name (as its select), where to fetch one from, how to format it and
    how to run it. It is a control row rather than a heading, so it drops the
    card title's heading weight and takes the tighter chrome padding. */
 .editor-card-title {
+  align-items: center;
+  display: flex;
   font-weight: 400;
+  gap: 0.5rem;
   padding: 0.35rem 0.5rem;
 }
 
@@ -240,13 +236,6 @@
    was a chrome row; inside a card of its own the last one is a stray line. */
 .repo-overlay .repo-panel-row2 {
   border-bottom: none;
-}
-
-.effective-card-title .card-title-hint {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* Roadmap 027: a broken share link must be unmissable — a full-width banner at

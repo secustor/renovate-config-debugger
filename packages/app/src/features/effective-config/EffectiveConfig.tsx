@@ -2,7 +2,6 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { DeciderId } from "./decider-groups";
 import { groupByDecider, presetDeciderName, topLevelPresetNames } from "./decider-groups";
 import type { ResolvedConfigMode, TraceResult } from "@renovate-config-debugger/engine";
-import { Term } from "@/components/glossary";
 import { type EffectiveTally, effectiveTally, isOverridden } from "@/lib/effective-tally";
 import { type BandRowContext, EffectiveBands } from "./Bands";
 import { ConfigJson } from "@/components/ConfigJson";
@@ -213,9 +212,6 @@ export const EffectiveConfig = memo(function EffectiveConfig({
   if (provenance === null) {
     return (
       <div className="card">
-        <div className="card-title">
-          <Term id="effectiveConfig">Effective config</Term>
-        </div>
         <p className="empty-note">
           Per-key provenance is unavailable because preset resolution did not complete. Showing the
           effective config Renovate produced from the defaults.
@@ -236,15 +232,9 @@ export const EffectiveConfig = memo(function EffectiveConfig({
   };
 
   return (
+    // No card title: the tab strip already says "Effective config", so the
+    // card opens straight with its toolbar.
     <div className="card">
-      <div className="card-title effective-card-title">
-        <Term id="effectiveConfig">Effective config</Term>
-        <span className="card-title-hint">
-          {view === "json"
-            ? " — the resolved config as a document"
-            : " — grouped by the layer that decided each option"}
-        </span>
-      </div>
       {provenance === undefined ? <p className="empty-note">Computing provenance…</p> : null}
       {provenance !== undefined ? (
         <EffectiveToolbar

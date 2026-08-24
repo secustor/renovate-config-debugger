@@ -33,12 +33,12 @@ import { ROOT_NODE_ID } from "@/lib/preset-tree-stats";
  * The card renders them and invents nothing.
  */
 
-/** The card's own count, and the tab badge's: the sentences listed BELOW it —
- *  counted from the rows, never from the digest's own tallies of the top-level
- *  `description` array, which exclude the repo's `packageRules` prose (it never
- *  enters that array). A header quoting a number the reader cannot get by
- *  counting the rows under it is the one number in the view they cannot check
- *  (082's rule for band headers). */
+/** The tab badge's count: the sentences listed in the card — counted from the
+ *  rows, never from the digest's own tallies of the top-level `description`
+ *  array, which exclude the repo's `packageRules` prose (it never enters that
+ *  array). A badge quoting a number the reader cannot get by counting the rows
+ *  under it is the one number in the view they cannot check (082's rule for
+ *  band headers). */
 function countOf(rows: readonly OverviewRow[]): number {
   return rows.length;
 }
@@ -128,16 +128,17 @@ function TopicGroupBlock({
   );
 }
 
-/** The card's header: the title, the neutral count pill, and what the number
- *  counts. `show raw order` rides along on the right — see the panel. */
-function OverviewHeader({ count, onShowRawOrder }: { count: number; onShowRawOrder?: () => void }) {
+/** The card's opening line, with `show raw order` riding along on the right.
+ *  No card title above it: the tab strip already says "Overview", and the
+ *  behavior count is the tab's badge (`onStats`), so restating either here was
+ *  saying it twice. */
+function OverviewIntro({ onShowRawOrder }: { onShowRawOrder?: () => void }) {
   return (
-    <div className="card-title overview-head">
-      What this config does
-      {/* `overview-count` styles nothing — it is how the e2e suite and the
-          panel test read this number back. */}
-      <span className="pill pill-count overview-count">{nf.format(count)}</span>
-      <span className="overview-head-note">behaviors · explained by their authors</span>
+    <div className="overview-intro">
+      <p className="overview-intro-text">
+        Every preset carries a sentence describing what it does. Here they are, sorted by topic
+        instead of by preset.
+      </p>
       {onShowRawOrder ? (
         <button
           type="button"
@@ -259,21 +260,16 @@ export function OverviewPanel({ result, onSelectPreset, onShowRawOrder, onStats 
     // `overview-card` styles nothing either — it is the handle the e2e suite
     // and the panel test grab the card by.
     <div className="card overview-card">
-      <OverviewHeader
-        count={count}
-        // Only when there IS a `description` row to land on: a digest built
-        // purely from the repo's own `packageRules` prose has no top-level
-        // array, so the link would filter the Effective config down to a key
-        // that isn't there and land on "No keys match".
-        onShowRawOrder={
-          onShowRawOrder && hasTopLevelDescriptions(digest) ? onShowRawOrder : undefined
-        }
-      />
       <div className="overview-body">
-        <p className="overview-intro">
-          Every preset carries a sentence describing what it does. Here they are, sorted by topic
-          instead of by preset.
-        </p>
+        <OverviewIntro
+          // Only when there IS a `description` row to land on: a digest built
+          // purely from the repo's own `packageRules` prose has no top-level
+          // array, so the link would filter the Effective config down to a key
+          // that isn't there and land on "No keys match".
+          onShowRawOrder={
+            onShowRawOrder && hasTopLevelDescriptions(digest) ? onShowRawOrder : undefined
+          }
+        />
         {shown.map((group) => (
           <TopicGroupBlock key={group.id} group={group} onSelectPreset={onSelectPreset} />
         ))}

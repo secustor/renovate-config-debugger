@@ -102,19 +102,16 @@ it("renders the design's copy, with a source chip on every row", async () => {
   );
 
   // Provenance is loaded through the engine's dynamic import, so nothing is
-  // painted on the first commit.
-  await waitFor(() => expect(view.queryByText("What this config does")).not.toBeNull());
-
-  // The header, verbatim from the artboard: title, neutral count pill, and what
-  // the number counts.
-  expect(view.container.querySelector(".overview-count")?.textContent).toBe("3");
-  expect(view.container.querySelector(".overview-count")?.className).toContain("pill-count");
-  expect(view.getByText("behaviors · explained by their authors")).toBeTruthy();
-  expect(
-    view.getByText(
-      "Every preset carries a sentence describing what it does. Here they are, sorted by topic instead of by preset.",
-    ),
-  ).toBeTruthy();
+  // painted on the first commit. The card has no title — the tab strip names
+  // it and the tab badge (onStats, below) carries the count — so its first
+  // words are the intro line.
+  await waitFor(() =>
+    expect(
+      view.queryByText(
+        "Every preset carries a sentence describing what it does. Here they are, sorted by topic instead of by preset.",
+      ),
+    ).not.toBeNull(),
+  );
   // …and the closing line, which is the card explaining its own source.
   const footer = view.container.querySelector(".overview-footer");
   expect(footer?.textContent).toBe(
@@ -267,7 +264,7 @@ it("keeps 069's honest extras that the artboard does not draw", async () => {
     unattributed: [{ index: 3, value: 42 }],
   });
 
-  await waitFor(() => expect(view.queryByText("What this config does")).not.toBeNull());
+  await waitFor(() => expect(view.container.querySelector(".overview-card")).not.toBeNull());
 
   // Every approximate row carries the mark — including the two with no preset
   // token to sit beside (the tree-less `global` layer, and the root node, whose

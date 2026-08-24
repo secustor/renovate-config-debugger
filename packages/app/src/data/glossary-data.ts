@@ -100,11 +100,6 @@ export const GLOSSARY = {
       "Where Renovate looks up available versions for a dependency — the npm registry, Docker Hub, Maven Central, GitHub releases, and so on.",
     url: "https://docs.renovatebot.com/modules/datasource/",
   },
-  effectiveConfig: {
-    name: "effective config",
-    plain:
-      "The final result after defaults, presets and your own settings are merged in order — the configuration Renovate actually acts on for your repository.",
-  },
   simSourceUrl: {
     name: "sourceUrl",
     plain:

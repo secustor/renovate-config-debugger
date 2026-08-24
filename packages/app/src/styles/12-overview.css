@@ -13,40 +13,37 @@
    and an "Everything else" tail behind one toggle — because the reader this tab
    is for has not learned which preset is which yet.
 
-   Nothing here is a new colour. The count is `.pill-count`, the source chips
-   are `.preset-token` and `.badge.prov-*`, and the dots are the same
-   `.prov-dot` the 054 evidence rows use — the artboard's two-colour scheme
-   (blue = mine, purple = a preset) is the app's five-hue layer palette with the
-   three levels it does not draw left out. */
-.overview-head {
-  align-items: baseline;
-  display: flex;
-  gap: 0.5rem;
-}
-
-.overview-head-note {
-  color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 400;
-}
-
-/* The way back to Renovate's own array order (069 PR 3) — a card-title action,
-   so it sits with the count rather than inside the prose, exactly where the
-   digest card carried it. */
-.overview-raw {
-  font-size: 0.75rem;
-  font-weight: 400;
-  margin-left: auto;
-}
-
+   Nothing here is a new colour. The source chips are `.preset-token` and
+   `.badge.prov-*`, and the dots are the same `.prov-dot` the 054 evidence rows
+   use — the artboard's two-colour scheme (blue = mine, purple = a preset) is
+   the app's five-hue layer palette with the three levels it does not draw left
+   out. The card has no title of its own: the tab strip says "Overview" and the
+   tab badge carries the behavior count, so the card opens with the intro
+   line. */
 .overview-body {
   padding: 0.7rem 0.75rem 0.6rem;
 }
 
+/* The opening line, with the way back to Renovate's own array order (069 PR 3)
+   pushed right on the same row. */
 .overview-intro {
+  align-items: baseline;
+  display: flex;
+  gap: 0.5rem;
+  margin: 0 0 0.9rem;
+}
+
+.overview-intro-text {
   color: var(--muted);
   font-size: 0.8rem;
-  margin: 0 0 0.9rem;
+  margin: 0;
+}
+
+.overview-raw {
+  flex: none;
+  font-size: 0.75rem;
+  font-weight: 400;
+  margin-left: auto;
 }
 
 .overview-topic {

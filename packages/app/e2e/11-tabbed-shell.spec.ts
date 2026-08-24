@@ -306,8 +306,8 @@ test("the Overview tab is the description digest, and lands on the raw row", asy
   await openTab(page, "overview");
   const card = page.locator("#panel-overview .overview-card");
   await expect(card).toBeVisible();
-  await expect(card).toContainText("What this config does");
-  await expect(card).toContainText("behaviors · explained by their authors");
+  // The card has no title of its own — the tab strip names it and the tab
+  // badge carries the count — so it opens with the intro line.
   await expect(card).toContainText(
     "Every preset carries a sentence describing what it does. Here they are, sorted by topic instead of by preset.",
   );
@@ -316,9 +316,6 @@ test("the Overview tab is the description digest, and lands on the raw row", asy
   // Every row names its source: a preset token, or the blue `repo config` chip.
   const firstRow = card.locator(".overview-row").first();
   await expect(firstRow.locator(".overview-source")).toBeVisible();
-  // …and the count pill quotes the same number as the tab badge.
-  const pill = await card.locator(".overview-count").innerText();
-  await expect(tabButton(page, "overview").locator(".tab-count")).toHaveText(pill);
 
   await card.getByRole("button", { name: "show raw order" }).click();
   // A cross-tab jump now, so it records the one-step way back.
@@ -350,6 +347,10 @@ test("the Overview's Everything-else tail opens and closes from one toggle", asy
   await expect(tail).toHaveCount(1);
   await expect(card.locator(".overview-topic-title").last()).toHaveText("Everything else");
   await expect(toggle).toHaveText("show less");
+  // With the tail open every behavior is a row on screen, so the tab badge —
+  // the count's only home now the card carries no pill — must equal the rows.
+  const rows = await card.locator(".overview-row").count();
+  await expect(tabButton(page, "overview").locator(".tab-count")).toHaveText(String(rows));
 
   await toggle.click();
   await expect(tail).toHaveCount(0);
