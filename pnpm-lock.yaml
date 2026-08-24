@@ -166,8 +166,8 @@ importers:
         specifier: ^2.0.3
         version: 2.0.3
       renovate:
-        specifier: 44.30.0
-        version: 44.30.0(supports-color@10.2.2)(typanion@3.14.0)
+        specifier: 44.39.1
+        version: 44.39.1(supports-color@10.2.2)(typanion@3.14.0)
     devDependencies:
       typescript:
         specifier: 7.0.2
@@ -1742,8 +1742,8 @@ packages:
     resolution: {integrity: sha512-91cFM32/pnOAvC7W1W1kPPI9QM2y6OrYCeomz7pop4A+3Ksh2XnZXGznUMlzR7YbOQlg7X/MNlF27s9Yt9hhTA==}
     engines: {node: ^22.11.0 || >=24.10.0, pnpm: '>=10.0.0'}
 
-  '@renovatebot/pgp@1.3.16':
-    resolution: {integrity: sha512-NUWzQDyHNfmlR3fpssNbvkQZj3abYPeGYqK+Vef84dVylZrrZgPmmRnww3FwSinV6fMTStzo/PY6mjNejiAN5w==}
+  '@renovatebot/pgp@1.3.17':
+    resolution: {integrity: sha512-iDx7AR53Xhz6PfYEdIoiPYWq5KAvVjGUk0zVJ4U6CchbbTvSKuJ3nRLKsgA8sFKZTTuSlJLkqcL8peimkiZ27g==}
     engines: {node: ^22.11.0 || >=24.10.0, pnpm: '>=10.0.0'}
 
   '@renovatebot/ruby-semver@5.0.0':
@@ -2401,8 +2401,8 @@ packages:
   aws4@1.13.2:
     resolution: {integrity: sha512-lHe62zvbTB5eEABUVi/AwVh0ZKY9rMMDhmm+eeyuuUQbQ3+J+fONVQOZyj+DdrvD4BY33uYniyRJ4UJIaSKAfw==}
 
-  azure-devops-node-api@15.1.2:
-    resolution: {integrity: sha512-PfJTGK8oaBB3e0hilF5QE5BT0axpxssZlc0pRq3Rb0XsKr4qk1Cma+jBRRz0hE+zuUsu/7cz0WTCVo+kcVvOjw==}
+  azure-devops-node-api@15.1.3:
+    resolution: {integrity: sha512-YMgxCjQDqBr//vGy658tXTrXAgS2BzIChJ2Mzrq+fzLK+dh42fODWO/kEQMmtp+Rw0jNgEoUA72cHYVBrxrjRw==}
     engines: {node: '>= 16.0.0'}
 
   backslash@0.2.2:
@@ -3655,8 +3655,8 @@ packages:
   jsonc-morph@0.3.5:
     resolution: {integrity: sha512-48t3FzTaEcePC0xKtadykUy7iqMx9fpxzigbi0YtNdEiPXUr7CoM1rfyBUKg0HW167eaG0EENdjc8aowa1TMvQ==}
 
-  jsonc-weaver@0.2.4:
-    resolution: {integrity: sha512-aIKK8SOg+TdBdeML4MB++phUEdS7KWZxuaPPjxUSat8Kc/2A+2AoxmAGhvbVajNjqsgSX4dhjfCJq3QlE/NSCg==}
+  jsonc-weaver@0.3.1:
+    resolution: {integrity: sha512-a6e90+Hn5e+l7i6MC2YJ57TE6nv9gDKFyCLBIVKt0Jdv48lUBEV7StnnuwC0Y+sjnux41cnPlHJl65DH4+d9eA==}
 
   jsonfile@6.2.1:
     resolution: {integrity: sha512-zwOTdL3rFQ/lRdBnntKVOX6k5cKJwEc1HdilT71BWEu7J41gXIB2MRp+vxduPSwZJPWBxEzv4yH1wYLJGUHX4Q==}
@@ -4607,8 +4607,8 @@ packages:
   proto-list@1.2.4:
     resolution: {integrity: sha512-vtK/94akxsTMhe0/cbfpR+syPuszcuwhqVjJq26CuNDgFGj682oRBXOP5MJpv2r7JtE8MsiepGIqvvOTBwn2vA==}
 
-  protobufjs@8.7.1:
-    resolution: {integrity: sha512-agdGHrXNTv0IrYscJPDou/PlEJk1c/hBZ9o/B5NH2i/nSPtPqacNxzgwf1CebXxFMjMrZH5sqv9uQuw96aGt/A==}
+  protobufjs@8.7.2:
+    resolution: {integrity: sha512-oTVHV+oelUBtiu5iTuTNNZ0eLYsXSMxry4cgr30mayNkgIZL6qZ0IOQVPuSWGcyAaXKl/XgqwWHIC3a0khYVBA==}
     engines: {node: '>=12.0.0'}
 
   protocols@2.0.2:
@@ -4732,8 +4732,8 @@ packages:
   remark@15.0.1:
     resolution: {integrity: sha512-Eht5w30ruCXgFmxVUSlNWQ9iiimq07URKeFS3hNc8cUWy1llX4KDWfyEDZRycMc+znsN9Ux5/tJ/BFdgdOwA3A==}
 
-  renovate@44.30.0:
-    resolution: {integrity: sha512-9K323QR9BlGohjgQozAV36+AnRB5FhxHV0WcHuwpe4uI5ymVpQ6O/l7+PviJK0RQUYLJyfXW04YnuQjhCGD57A==}
+  renovate@44.39.1:
+    resolution: {integrity: sha512-cdzyHKPYYpT3PP1drOi8RyOgiWqKkGAq7hCYrpoJ8Ul+nKEye/GLg4Mu77l0wqyCKkcNHHZpJPdd48A79E3fyg==}
     engines: {node: ^24.11.0, pnpm: ^11.0.0}
     hasBin: true
 
@@ -7054,7 +7054,7 @@ snapshots:
 
   '@renovatebot/pep440@5.0.0': {}
 
-  '@renovatebot/pgp@1.3.16': {}
+  '@renovatebot/pgp@1.3.17': {}
 
   '@renovatebot/ruby-semver@5.0.0': {}
 
@@ -7701,7 +7701,7 @@ snapshots:
 
   aws4@1.13.2: {}
 
-  azure-devops-node-api@15.1.2:
+  azure-devops-node-api@15.1.3:
     dependencies:
       tunnel: 0.0.6
       typed-rest-client: 2.1.0
@@ -9020,7 +9020,7 @@ snapshots:
 
   jsonc-morph@0.3.5: {}
 
-  jsonc-weaver@0.2.4:
+  jsonc-weaver@0.3.1:
     dependencies:
       jsonc-morph: 0.3.5
 
@@ -10077,7 +10077,7 @@ snapshots:
 
   proto-list@1.2.4: {}
 
-  protobufjs@8.7.1:
+  protobufjs@8.7.2:
     dependencies:
       long: 5.3.2
 
@@ -10249,7 +10249,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  renovate@44.30.0(supports-color@10.2.2)(typanion@3.14.0):
+  renovate@44.39.1(supports-color@10.2.2)(typanion@3.14.0):
     dependencies:
       '@aws-sdk/client-codecommit': 3.1095.0
       '@aws-sdk/client-ec2': 3.1095.0
@@ -10284,7 +10284,7 @@ snapshots:
       '@renovatebot/good-enough-parser': 2.0.1
       '@renovatebot/osv-offline': 3.0.10(supports-color@10.2.2)
       '@renovatebot/pep440': 5.0.0
-      '@renovatebot/pgp': 1.3.16
+      '@renovatebot/pgp': 1.3.17
       '@renovatebot/ruby-semver': 5.0.0
       '@sindresorhus/is': 8.1.0
       '@yarnpkg/core': 4.9.1(typanion@3.14.0)
@@ -10294,7 +10294,7 @@ snapshots:
       agentkeepalive: 4.6.0
       async-mutex: 0.5.0
       aws4: 1.13.2
-      azure-devops-node-api: 15.1.2
+      azure-devops-node-api: 15.1.3
       bunyan: 1.8.15
       cacache: 20.0.4
       changelog-filename-regex: 2.0.1
@@ -10329,7 +10329,7 @@ snapshots:
       json-stringify-pretty-compact: 4.0.0
       json5: 2.2.3
       jsonata: 2.2.1
-      jsonc-weaver: 0.2.4
+      jsonc-weaver: 0.3.1
       klona: 2.0.6
       lru-cache: 11.5.2
       luxon: 3.7.2
@@ -10346,7 +10346,7 @@ snapshots:
       p-throttle: 8.1.0
       parse-link-header: 2.0.0
       prettier: 3.8.1
-      protobufjs: 8.7.1
+      protobufjs: 8.7.2
       punycode: 2.3.1
       remark: 15.0.1(supports-color@10.2.2)
       remark-gfm: 4.0.1(supports-color@10.2.2)
