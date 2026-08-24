@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
+import { useEffect } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type FocusLanding, useFocusLanding } from "./use-focus-landing";
 
@@ -17,7 +18,14 @@ afterEach(cleanup);
 let landing: FocusLanding | null = null;
 
 function Harness() {
-  landing = useFocusLanding();
+  const api = useFocusLanding();
+  // Reassigning the outer binding happens in an effect, not during render —
+  // `react/globals` only permits render itself to read props/state, not write
+  // an outside variable. `render`'s act() wrapper flushes it synchronously, so
+  // `mount()` still observes it before returning.
+  useEffect(() => {
+    landing = api;
+  }, [api]);
   return null;
 }
 
