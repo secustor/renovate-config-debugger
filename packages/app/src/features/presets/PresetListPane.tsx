@@ -51,6 +51,12 @@ export function PresetListPane({
   descFacts: ReadonlyMap<string, NodeDescriptionFacts> | null;
   onShowDescriptionOrder?: () => void;
 }) {
+  // Destructured rather than read as `win.…` below: `win.ref` is a CALLBACK
+  // ref, and handing a member of an object to `ref=` makes `react/refs` treat
+  // every other member of that object as a ref read during render too — which
+  // `padTop`/`padBottom` (plain numbers derived from scroll state, and the
+  // whole point of this render) are not.
+  const { ref: containerRef, padTop, padBottom } = win;
   return (
     <div>
       {view === "table" ? (
@@ -68,12 +74,12 @@ export function PresetListPane({
           ))}
         </div>
       ) : null}
-      <div className="preset-tree" role={view === "tree" ? "tree" : "table"} ref={win.ref}>
+      <div className="preset-tree" role={view === "tree" ? "tree" : "table"} ref={containerRef}>
         {activeCount === 0 ? (
           <p className="empty-note">No presets match the filter.</p>
         ) : (
           <>
-            <div style={{ height: win.padTop }} />
+            <div style={{ height: padTop }} />
             {view === "tree"
               ? treeSlice.map((row) => (
                   <TreeRow
@@ -98,7 +104,7 @@ export function PresetListPane({
                     onSelect={onSelectNode}
                   />
                 ))}
-            <div style={{ height: win.padBottom }} />
+            <div style={{ height: padBottom }} />
           </>
         )}
       </div>

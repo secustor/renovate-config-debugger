@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useInsertionEffect, useRef, useState } from "react";
 import type { SimulationResult, TraceResult } from "@renovate-config-debugger/engine";
 import type { PinnedTest } from "./pins";
 import { runSimulation } from "./run-simulation";
@@ -53,9 +53,17 @@ export function usePinnedTests({
   const [state, setState] = useState<PinState>({ result: null, byId: {} });
   // Read by the async loop below to know what is ALREADY evaluated for this
   // result, without listing `state` in the effect's deps — which would restart
-  // the loop after every pin it finishes.
+  // the loop after every pin it finishes. The write is `useLatestRef`'s,
+  // inlined rather than the helper itself: the effect below reads
+  // `stateRef.current.result`, and `exhaustive-deps` only knows a `.current`
+  // read is not a dependency when it can see the `useRef()` call — behind a
+  // custom hook it demands the DEREFERENCED value, which is the one thing that
+  // must never be in this list. An insertion effect lands the value before
+  // every effect of the same commit, which is all that reads it.
   const stateRef = useRef(state);
-  stateRef.current = state;
+  useInsertionEffect(() => {
+    stateRef.current = state;
+  });
 
   useEffect(() => {
     const finalConfig = result.finalConfig;

@@ -4,6 +4,7 @@ import {
   useCallback,
   useDeferredValue,
   useEffect,
+  useInsertionEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -126,10 +127,15 @@ const ResultsColumn = lazy(() =>
  * column's own, forwarded unchanged.
  */
 function ResultsPane(props: ResultsColumnProps) {
+  // Destructured rather than `ref={props.resultsColRef}`: handing a MEMBER of
+  // an object to `ref=` makes `react/refs` read the whole object as a ref, and
+  // the spread below then counts as dereferencing it during render. Pulled out
+  // by name it is what it always was — the column's own ref, forwarded.
+  const { resultsColRef } = props;
   return (
     // Roadmap 068: `id`/`tabIndex` are the skip link's target — see the
     // config column's matching pair.
-    <div className="results-col" id="results-column" tabIndex={-1} ref={props.resultsColRef}>
+    <div className="results-col" id="results-column" tabIndex={-1} ref={resultsColRef}>
       {/* Roadmap 031: the results chunk is preloaded at idle and on Run
           intent, so this fallback is a formality — and once the lazy module
           has resolved, re-renders never suspend, so the mounted shell (and all
@@ -607,16 +613,15 @@ export function App() {
   // the memoized panels get the stable wrapper below (032, latest-ref idiom)
   // and a click always jumps against offsets from the CURRENT text, never a
   // closure over stale one.
-  const focusEditorRepoIndexRef = useRef<((repoIndex: number) => void) | undefined>(undefined);
-  focusEditorRepoIndexRef.current = (repoIndex: number) => {
+  const focusEditorRepoIndexRef = useLatestRef((repoIndex: number) => {
     const offset = packageRuleOffsets?.[repoIndex];
     if (offset !== undefined) {
       configEditorRef.current?.highlightOffset(offset);
     }
-  };
+  });
   const focusEditorRepoIndex = useCallback(
-    (repoIndex: number) => focusEditorRepoIndexRef.current?.(repoIndex),
-    [],
+    (repoIndex: number) => focusEditorRepoIndexRef.current(repoIndex),
+    [focusEditorRepoIndexRef],
   );
 
   /** Roadmap 016: the one path every authoritative content load goes
@@ -1241,8 +1246,7 @@ export function App() {
    * that quietly threw away a clean run's config would be the same bug in a
    * case that is merely less annoying.
    */
-  const signInRef = useRef<(() => Promise<void>) | undefined>(undefined);
-  signInRef.current = async () => {
+  const signInRef = useLatestRef(async () => {
     let returnHash = window.location.hash;
     if (result) {
       try {
@@ -1253,12 +1257,12 @@ export function App() {
       }
     }
     await beginSignIn(returnHash);
-  };
+  });
   // Roadmap 032: identity-stable (latest-ref idiom) — this prop reaches the
   // memoized results panels, and it reads `result`, which changes per run.
   const onSignIn = useCallback(() => {
-    void signInRef.current?.();
-  }, []);
+    void signInRef.current();
+  }, [signInRef]);
 
   /**
    * Roadmap 009 (auth-failure surfacing): the banner's "Run again" — the same
@@ -1268,11 +1272,10 @@ export function App() {
    * panel: the user is looking at the thing they just acted on, and a run that
    * bounced them to another tab would hide its own answer.
    */
-  const onRunAgainRef = useRef<(() => void) | undefined>(undefined);
-  onRunAgainRef.current = () => {
+  const onRunAgainRef = useLatestRef(() => {
     void onRun(undefined, undefined, { preserveScroll: true, keepTab: true });
-  };
-  const onRunAgain = useCallback(() => onRunAgainRef.current?.(), []);
+  });
+  const onRunAgain = useCallback(() => onRunAgainRef.current(), [onRunAgainRef]);
 
   function onSignOut() {
     signOut();
@@ -1283,19 +1286,16 @@ export function App() {
   // Roadmap 032: `onInject` reads `injected` and so is redeclared with it —
   // handed out directly it was the one unstable prop defeating PresetTree's
   // memo on every keystroke. Latest-ref idiom, as with `selectPresetNodeRef`.
-  const onInjectRef = useRef<
-    ((key: string, contentObj: Record<string, unknown>) => void) | undefined
-  >(undefined);
-  onInjectRef.current = (key: string, contentObj: Record<string, unknown>) => {
+  const onInjectRef = useLatestRef((key: string, contentObj: Record<string, unknown>) => {
     const next = { ...injected, [key]: contentObj };
     setInjected(next);
     // Injecting preset content is done FROM the preset tree — keep the user
     // there rather than bouncing them to the landing tab (028).
     void onRun(next, undefined, { preserveScroll: true, keepTab: true });
-  };
+  });
   const onInject = useCallback(
-    (key: string, contentObj: Record<string, unknown>) => onInjectRef.current?.(key, contentObj),
-    [],
+    (key: string, contentObj: Record<string, unknown>) => onInjectRef.current(key, contentObj),
+    [onInjectRef],
   );
 
   // Roadmap 048: every number derived from a finished run — the tab-strip
@@ -1344,8 +1344,14 @@ export function App() {
     configEditorRef,
   });
   // …and the forward handle `selectPresetNode` (declared far above, because
-  // `presetHover` needs it) lands through. See its declaration.
-  landOnPresetNodeRef.current = landOnPresetNode;
+  // `presetHover` needs it) lands through. See its declaration. The write is
+  // `useLatestRef`'s, inlined because the ref has to be declared up there
+  // rather than here: an insertion effect, so it is not a render-time ref
+  // write (`react/refs`) and still lands before anything can activate a
+  // cross-link.
+  useInsertionEffect(() => {
+    landOnPresetNodeRef.current = landOnPresetNode;
+  });
 
   /**
    * Roadmap 032: `applyErrorFix` reads `content` and `errorLib`, so the
