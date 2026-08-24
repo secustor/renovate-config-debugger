@@ -599,6 +599,7 @@ export function App() {
         resultsColRef.current.scrollTop = saved.results;
       }
     }
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- `result` is the TRIGGER: the positions come from a ref captured before the run committed, and the run's commit is the layout this restore has to run against. Nothing is read out of the result, and there is nothing in it to read.
   }, [result]);
 
   // A validation message's REPO-config `packageRules[repoIndex]` → the editor
@@ -676,6 +677,8 @@ export function App() {
     // `usePanelStats` and `useResultsTab`), so listing them leaves this effect
     // firing on the result and nothing else — they are here because
     // `exhaustive-deps` cannot see that.
+    //
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- `result` is the TRIGGER: what is invalidated here belongs to the run that just ENDED, so the body reads nothing out of the new one. It cannot move into render either — `resetPanelStats` and `clearBackTab` belong to other hooks, and a cross-hook call during render is the side effect React is free to replay.
   }, [result, resetPanelStats, clearBackTab]);
 
   // Roadmap 028's post-Run scroll-into-view lives in ResultsColumn since 031:

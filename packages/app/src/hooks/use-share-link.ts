@@ -200,11 +200,17 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
 
   /** Roadmap 017: the one path every self-initiated hash write goes through —
    *  updates the address bar and records the token (or lack of one) so the
-   *  hashchange listener can recognize its own writes. */
-  function writeHash(url: string, shareToken: string | null) {
+   *  hashchange listener can recognize its own writes.
+   *
+   *  A `useCallback([])` rather than a plain function declaration because the
+   *  two one-shot effects below call it: it reads nothing but a ref and the
+   *  `history` global, so it never goes stale, but as a per-render declaration
+   *  it was a value those effects used and did not list. Pinned here it can be
+   *  listed honestly without either effect re-registering. */
+  const writeHash = useCallback((url: string, shareToken: string | null) => {
     lastWrittenTokenRef.current = shareToken;
     history.replaceState(null, "", url);
-  }
+  }, []);
 
   /** Drops the `#config=` fragment, keeping any query string. */
   function clearShareHash() {
@@ -471,8 +477,10 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
       await loadShareTokenRef.current(shareToken, isCancelled);
     })();
     // `loadShareTokenRef` is a stable ref object, listed only because
-    // `exhaustive-deps` cannot see the `useRef()` behind `useLatestRef`.
-  }, [oauthConfig, loadShareTokenRef]);
+    // `exhaustive-deps` cannot see the `useRef()` behind `useLatestRef`;
+    // `writeHash` is pinned by its own `useCallback([])`. Neither ever changes
+    // identity, so this stays the one-shot registration described above.
+  }, [oauthConfig, loadShareTokenRef, writeHash]);
 
   // Roadmap 017: a share link opened while the app is already running is a
   // hash-only navigation — nothing reloads, so without this listener nothing
@@ -482,8 +490,9 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
   // lets a declined confirm restore exactly the hash that was showing before
   // the navigation, so the address bar never lies about what's on screen.
   // Registered once — `contentRef`/`loadedContentRef` (via `hostRef`) and
-  // `loadShareTokenRef` keep it reading current state despite that, and the
-  // one entry in its dependency list is that stable ref object.
+  // `loadShareTokenRef` keep it reading current state despite that, so the
+  // dependency list holds only identity-pinned values: that ref object and
+  // `writeHash`'s `useCallback([])`.
   useEffect(() => {
     function onHashChange(event: HashChangeEvent) {
       const decision = decideHashChangeAction(
@@ -511,7 +520,7 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
     }
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
-  }, [loadShareTokenRef]);
+  }, [loadShareTokenRef, writeHash]);
 
   // Encodes the CURRENT state (config + view, optionally simulator inputs) into
   // a link, copies it, and mirrors it into the address bar. Never continuously

@@ -95,6 +95,7 @@ export function useSimulationRun({
     setRuleFilters(DEFAULT_RULE_FILTERS);
     setFocusHint(null);
     clearGuard();
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- `result` is this effect's TRIGGER, not an input: the invalidation reads nothing from the new run, it only has to happen once per run. It cannot move into render (React's "adjust state when a prop changes" idiom) because `clearGuard` belongs to another hook, and a cross-hook call during render is the side effect React is free to replay.
   }, [result, clearGuard]);
 
   // Roadmap 016: restore the scroll position captured in `simulate` right
@@ -107,6 +108,7 @@ export function useSimulationRun({
       scrollYBeforeSimulate.current = null;
       window.scrollTo({ top: y, behavior: "auto" });
     }
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- both entries are TRIGGERS naming the layout this restore must run against: the position is read from a ref, and what the list says is "after `sim` and the verdict facet have changed TOGETHER". Dropping either would restore against an intermediate DOM — the jump this exists to prevent.
   }, [sim, ruleFilters.verdict]);
 
   /**
