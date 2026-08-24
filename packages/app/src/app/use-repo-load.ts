@@ -12,7 +12,10 @@
  *
  * App.tsx keeps everything the load acts ON — the editor's content, the
  * platform context, the layer parses, the untrusted-endpoint guard and the run
- * path itself — and hands it in through {@link RepoLoadHost}.
+ * path itself — and hands it in through {@link RepoLoadHost}. It also owns the
+ * reference field's state: the inherited-config layer derives its probe target
+ * from it, so the two hooks would otherwise have to close over each other's
+ * later-declared bindings (see `repoInput` below).
  */
 import { type RefObject, useRef, useState } from "react";
 import { ESCAPE_PRIORITY } from "@/lib/escape-stack";
@@ -61,12 +64,19 @@ export interface RepoLoadHost {
   /** `platformOverride && hasGlobalContext`, as the run takes it (010). */
   platformOverride: boolean;
   /**
+   * Roadmap 007/039: the reference the user types — App's state, not this
+   * hook's, because the inherited-config layer derives its probe target from
+   * the same string and is declared BEFORE this hook (it has to be: the load
+   * calls into it). Owning it here would mean one of the two hooks closing over
+   * a binding the render has not created yet.
+   */
+  repoInput: string;
+  /**
    * Roadmap 045: the inherited config the run should use — the org probe's
    * result when auto-load is on, otherwise whatever the layer already holds.
-   * A function, not a value, because App declares the inherited-config layer
-   * AFTER this hook (that layer derives from `repoInput`, which this hook
-   * owns); the load calls it at the one point in the sequence a real
-   * `inheritConfig` run resolves the layer.
+   * A function, not a value, because the probe is a fetch: the load calls it at
+   * the one point in the sequence a real `inheritConfig` run resolves the
+   * layer — after the repo config has arrived, before the run that processes it.
    */
   resolveInheritedConfig: (args: {
     platform: RepoPlatform;
@@ -88,8 +98,6 @@ export interface RepoLoad {
   repoToggleRef: RefObject<HTMLButtonElement | null>;
   toggleRepoForm: () => void;
   closeRepoForm: () => void;
-  repoInput: string;
-  setRepoInput: (value: string) => void;
   repoRef: string;
   setRepoRef: (value: string) => void;
   repoLoading: boolean;
@@ -116,6 +124,7 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
     onRun,
     globalConfig,
     platformOverride,
+    repoInput,
     resolveInheritedConfig,
     oauthConfigured,
   } = host;
@@ -124,7 +133,6 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
   // editor card's title bar.
   const [repoFormOpen, setRepoFormOpen] = useState(false);
   const repoToggleRef = useRef<HTMLButtonElement>(null);
-  const [repoInput, setRepoInput] = useState("");
   const [repoRef, setRepoRef] = useState("");
   const [repoLoading, setRepoLoading] = useState(false);
   // When a GitHub load fails with a not-found/auth/rate-limit error, offer the
@@ -340,8 +348,6 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
     repoToggleRef,
     toggleRepoForm,
     closeRepoForm,
-    repoInput,
-    setRepoInput,
     repoRef,
     setRepoRef,
     repoLoading,

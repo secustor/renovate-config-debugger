@@ -665,19 +665,46 @@ export function App() {
   // effect runs only after its content committed. `focusResultsRef` (armed by
   // onRun below) and `resultsColRef` (the pane to measure) are handed down.
 
+  // Roadmap 007/039: the repo reference the load form (and the welcome panel's
+  // shortcut) types into. App's state rather than `useRepoLoad`'s, because BOTH
+  // clusters below read it — the load parses it, the inherited-config layer
+  // derives its probe target from it — and one of them has to be declared
+  // first. Owning it here is what lets the layer come first without the load
+  // closing over bindings this render has not created yet: a forward capture is
+  // a value React Compiler must treat as "may change later", which costs the
+  // memoization of everything downstream of the layer's parse.
+  const [repoInput, setRepoInput] = useState("");
+  // Roadmap 045/048: the inherited-config layer — its text and parse, the
+  // probe-target fields, the `inheritConfig*` policy read off the global
+  // config, and the probe the repo load calls between the repo config arriving
+  // and the run that processes it. Declared BEFORE the load, which calls into
+  // it.
+  const {
+    inheritedText,
+    inheritedParse,
+    applyInheritedText,
+    inheritAuto,
+    inheritFields,
+    inheritState,
+    onInheritAutoFieldChange,
+    onInheritRepoFieldChange,
+    onInheritFileFieldChange,
+    probeInheritedConfig,
+  } = useInheritedConfigLayer({
+    globalConfig: globalParse.config,
+    repoInput,
+    revealInheritedStage,
+  });
   // Roadmap 048: the load-from-repo cluster — the disclosure and its focus
-  // hand-back, the reference fields, the in-flight flag, the auth hint, and
-  // the load itself. Called BEFORE the inherited-config layer because that
-  // layer derives its probe target from `repoInput`, which this hook owns;
-  // everything the load acts on is either declared above or (for the run path,
-  // the layer gate and the guard) a hoisted function declaration below.
+  // hand-back, the branch/tag field, the in-flight flag, the auth hint, and the
+  // load itself. Everything the load acts on is either declared above or (for
+  // the run path, the layer gate and the guard) a hoisted function declaration
+  // below.
   const {
     repoFormOpen,
     repoToggleRef,
     toggleRepoForm,
     closeRepoForm,
-    repoInput,
-    setRepoInput,
     repoRef,
     setRepoRef,
     repoLoading,
@@ -699,10 +726,11 @@ export function App() {
     onRun: (inputs, opts) => onRun(undefined, inputs, opts),
     globalConfig: globalParse.config,
     platformOverride: platformOverride && hasGlobalContext,
+    repoInput,
     oauthConfigured: Boolean(OAUTH_CONFIG),
     // Roadmap 045: the org probe when auto-load is on, otherwise the layer as
-    // it already stands. An arrow, so it reads the inherited-config layer
-    // declared below — by the time a load calls it, that binding exists.
+    // it already stands — resolved at the one point in the load's sequence a
+    // real `inheritConfig` run resolves it.
     resolveInheritedConfig: async (args) =>
       inheritAuto ? await probeInheritedConfig(args) : inheritedParse.config,
   });
@@ -713,26 +741,6 @@ export function App() {
     signedIn,
     query: repoInput,
     onPick: setRepoInput,
-  });
-  // Roadmap 045/048: the inherited-config layer — its text and parse, the
-  // probe-target fields, the `inheritConfig*` policy read off the global
-  // config, and the probe the repo load calls between the repo config arriving
-  // and the run that processes it.
-  const {
-    inheritedText,
-    inheritedParse,
-    applyInheritedText,
-    inheritAuto,
-    inheritFields,
-    inheritState,
-    onInheritAutoFieldChange,
-    onInheritRepoFieldChange,
-    onInheritFileFieldChange,
-    probeInheritedConfig,
-  } = useInheritedConfigLayer({
-    globalConfig: globalParse.config,
-    repoInput,
-    revealInheritedStage,
   });
   // Roadmap 032/076: the inherited layer's editor lives INSIDE the memoized
   // results pane now, so its change handler has to be identity-stable or the
