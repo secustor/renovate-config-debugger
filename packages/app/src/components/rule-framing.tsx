@@ -1,6 +1,8 @@
+import { nf, plural } from "@/lib/format";
 import type { RuleAttribution } from "@renovate-config-debugger/engine";
 import type { ReactNode } from "react";
-import { layerLabel } from "./provenance-layer";
+import { PresetName } from "./PresetName";
+import { layerLabel } from "@/lib/provenance-layer";
 
 /**
  * Roadmap 016: honest "N rules — M from your config, K pulled in by
@@ -13,12 +15,14 @@ import { layerLabel } from "./provenance-layer";
  * rule, so callers can fall back to the bare count.
  */
 
-const nf = new Intl.NumberFormat();
-
 interface TopContributor {
   label: string;
   count: number;
   isPreset: boolean;
+  /** Roadmap 081: the preset's node, so the name can be the standard token
+   *  with the standard card. Absent for the non-preset layers, which are prose
+   *  here and have no node to point at. */
+  nodeId?: string;
 }
 
 export interface RuleFramingData {
@@ -38,7 +42,10 @@ function computeRuleFraming(
     return null;
   }
   let own = 0;
-  const byOther = new Map<string, { label: string; n: number; isPreset: boolean }>();
+  const byOther = new Map<
+    string,
+    { label: string; n: number; isPreset: boolean; nodeId?: string }
+  >();
   for (const a of attribution) {
     if (a.layer.kind === "repo") {
       own++;
@@ -49,7 +56,15 @@ function computeRuleFraming(
     if (existing) {
       existing.n++;
     } else {
-      byOther.set(key, { label: layerLabel(a.layer), n: 1, isPreset: a.layer.kind === "preset" });
+      byOther.set(key, {
+        label: layerLabel(a.layer),
+        n: 1,
+        isPreset: a.layer.kind === "preset",
+        // Grouped by NAME, so this is the first occurrence's node — which is
+        // the one the tree lands on for a preset resolved more than once
+        // anyway (the later ones are `duplicate` rows served from its cache).
+        nodeId: a.layer.kind === "preset" ? a.layer.nodeId : undefined,
+      });
     }
   }
   const sorted = [...byOther.values()].toSorted((a, b) => b.n - a.n);
@@ -57,14 +72,21 @@ function computeRuleFraming(
   const otherCount = sorted.slice(1).reduce((n, e) => n + e.n, 0);
   return {
     own,
-    top: top ? { label: top.label, count: top.n, isPreset: top.isPreset } : null,
+    top: top
+      ? { label: top.label, count: top.n, isPreset: top.isPreset, nodeId: top.nodeId }
+      : null,
     otherCount,
   };
 }
 
-/** A contributor's name: preset names get `<code>`, layer names stay prose. */
+/**
+ * A contributor's name: a preset gets the standard token (081), a layer name
+ * stays prose. Inert — the aside is a parenthetical inside a sentence, and a
+ * button there would put a second activation into a line whose own control is
+ * whatever encloses it; the token's hover card carries the jump instead.
+ */
 function ContributorLabel({ top }: { top: TopContributor }) {
-  return top.isPreset ? <code>{top.label}</code> : top.label;
+  return top.isPreset ? <PresetName name={top.label} nodeId={top.nodeId} /> : top.label;
 }
 
 /** Renders the "M from your config, K pulled in by `preset`, and R more from
@@ -159,7 +181,7 @@ export function RuleFramingText({
   attribution: RuleAttribution[] | null | undefined;
 }) {
   const framing = computeRuleFraming(total, attribution);
-  const bare = `${nf.format(total)} rule${total === 1 ? "" : "s"}`;
+  const bare = plural(total, "rule");
   if (!framing || (framing.own === 0 && !framing.top)) {
     // Nothing to attribute — just the count, as plain text.
     return bare;

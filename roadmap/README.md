@@ -3,82 +3,94 @@
 Planned features for the Renovate Config Debugger, in intended build order.
 Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 
-| #                                                       | Feature                                                              | Milestone            | Status      |
-| ------------------------------------------------------- | -------------------------------------------------------------------- | -------------------- | ----------- |
-| [001](001-engine-and-config-input.md)                   | Trace engine + config input                                          | M0/M1                | done        |
-| [002](002-preset-resolution-tree.md)                    | Preset resolution tree                                               | M1 (MVP centerpiece) | done        |
-| [003](003-inline-option-docs.md)                        | Inline option documentation                                          | M1                   | done        |
-| [004](004-migration-step-through.md)                    | Migration step-through                                               | M2                   | done        |
-| [005](005-merge-provenance-view.md)                     | Merge provenance view                                                | M2                   | done        |
-| [006](006-package-rules-simulator.md)                   | packageRules simulator                                               | M3                   | done        |
-| [007](007-shareable-links-and-repo-fetch.md)            | Shareable links + fetch config from repo                             | M4                   | done        |
-| [008](008-global-and-inherited-config.md)               | Global + inherited config layers                                     | M3                   | done        |
-| [009](009-github-oauth-sign-in.md)                      | "Sign in with GitHub" (replace PAT field)                            | M4                   | done        |
-| [010](010-preset-hosting-coverage.md)                   | Preset hosting coverage + `local>`                                   | M2                   | done        |
-| [011](011-preset-tree-legibility-at-scale.md)           | Preset tree legibility at scale                                      | M2                   | done        |
-| [012](012-simulator-verdict-first-results.md)           | Simulator: verdict-first results + update-type flattening            | M5                   | done        |
-| [013](013-rule-identity-and-provenance.md)              | Rule identity: numbering, provenance, cross-links                    | M5                   | done        |
-| [014](014-validation-translations-and-quick-fixes.md)   | Validation error translations + suggested fixes                      | M5                   | done        |
-| [015](015-simulator-input-ergonomics.md)                | Simulator input ergonomics                                           | M5                   | done        |
-| [016](016-scale-framing-and-page-ergonomics.md)         | Scale framing, badge glossary, page & editor ergonomics              | M5                   | done        |
-| [017](017-share-links-in-a-running-app.md)              | Share links opened in a running app (hashchange)                     | M5                   | done        |
-| [018](018-evidence-export-and-expert-precision.md)      | Evidence export + expert-grade precision                             | M6                   | done        |
-| [019](019-persona-replay-skill.md)                      | Persona usability-test replay skill                                  | M6                   | done        |
-| [020](020-browser-e2e-tests.md)                         | Browser end-to-end test suite                                        | M6                   | done        |
-| [021](021-simulator-input-hardening.md)                 | Simulator input hardening + A/B comparison integrity                 | M7                   | done        |
-| [022](022-verdict-copy-precision.md)                    | Verdict & translation copy precision                                 | M7                   | done        |
-| [023](023-post-action-focus-and-guidance.md)            | Post-action focus, honest error states, rule filters                 | M7                   | done        |
-| [024](024-stage-chips-signal-outcomes.md)               | Stage chips signal what each stage did                               | M7                   | done        |
-| [025](025-hover-card-overflow.md)                       | Hover card text overflows its box                                    | M7                   | done        |
-| [026](026-schema-first-class-option.md)                 | Treat `$schema` as a first-class option                              | M7                   | done        |
-| [027](027-share-link-failure-diagnostics.md)            | Share-link failure diagnostics                                       | M7                   | done        |
-| [028](028-tabbed-results-shell.md)                      | Tabbed results shell (post-run progressive disclosure)               | M8                   | done        |
-| [029](029-run-digest.md)                                | Run digest (plain-English overview)                                  | M8                   | done        |
-| [030](030-input-validation-zod.md)                      | Input validation at every boundary (zod/mini)                        | M8                   | done        |
-| [031](031-critical-path-loading.md)                     | Critical-path loading performance                                    | M9                   | done        |
-| [032](032-keystroke-render-performance.md)              | Keystroke render performance                                         | M9                   | done        |
-| [033](033-app-decomposition-and-boundaries.md)          | App decomposition + single-source boundaries                         | M9                   | done        |
-| [034](034-lint-hardening.md)                            | Lint hardening (oxlint)                                              | M9                   | done        |
-| [035](035-layout-polish.md)                             | Layout polish + regression tests                                     | M10                  | done        |
-| [036](036-unified-chrome.md)                            | Unified chrome: filled badges, copy button, diff toolbar             | M10                  | done        |
-| [037](037-theme-switcher.md)                            | Light / dark theme switcher                                          | M10                  | done        |
-| [038](038-lint-audit-follow-up.md)                      | Lint audit follow-up: quick wins + 034 corrections                   | M10                  | done        |
-| [039](039-editor-column-polish.md)                      | Editor column polish: theme, one Button, repo-load                   | M10                  | done        |
-| [040](040-jsx-depth-decomposition.md)                   | JSX-depth ratchet: decompose the monoliths to depth 4                | M10                  | done        |
-| [041](041-warn-tier-to-error.md)                        | Promote the warn tier to error                                       | M10                  | done        |
-| [042](042-rewrites-inset-and-pipeline-arrows.md)        | Rewrites inset + Pipeline order arrows                               | M10                  | done        |
-| [043](043-docker-self-host.md)                          | Docker self-host distribution                                        | M11                  | done        |
-| [044](044-simulator-merge-step-through.md)              | Simulator: step through rule merges one at a time                    | M12                  | done        |
-| [045](045-auto-load-inherited-config.md)                | Auto-load the inherited config for a loaded repository               | M12                  | done        |
-| [046](046-simulator-verdict-card-and-merge-timeline.md) | Simulator: verdict card + merge timeline                             | M12                  | done        |
-| [047](047-simulator-progressive-disclosure.md)          | Simulator: progressive disclosure                                    | M12                  | done        |
-| [048](048-app-decomposition-and-depth-ratchet.md)       | App decomposition + depth ratchet to 3                               | M13                  | done        |
-| [049](049-feature-layer-expansion.md)                   | Feature-layer expansion: editor, presets                             | M13                  | done        |
-| [050](050-css-design-tokens.md)                         | CSS design tokens: dedup, consolidation, enforcement                 | M13                  | done        |
-| [051](051-resolved-config-output.md)                    | Effective config: resolved config as a copyable document             | M14                  | done        |
-| [052](052-post-resolution-remigration.md)               | Fidelity: re-migrate the resolved config (upstream parity)           | M14                  | done        |
-| [053](053-analytics-localhost-exclusion.md)             | Analytics: CI is not an audience, not tracked on localhost           | M14                  | done        |
-| [054](054-simulator-results-readability.md)             | Simulator: results readability — the ledger is the trace             | M14                  | done        |
-| [055](055-header-project-links.md)                      | Header links to the source and the issue tracker                     | M14                  | done        |
-| [056](056-publish-engine-package.md)                    | Publish the engine as `@renovate-config-debugger/engine`             | M15                  | proposed    |
-| [057](057-fork-codemirror-json-schema.md)               | Fork + publish `codemirror-json-schema`                              | M15                  | proposed    |
-| [058](058-rcd-debugger-cli.md)                          | `rcd`: the debugger CLI on the shimmed engine (experimental)         | M16                  | done        |
-| [059](059-publish-cli-package.md)                       | Publish the CLI as `@renovate-config-debugger/cli` (experimental)    | M16                  | done        |
-| [060](060-mcp-server-and-agent-discovery.md)            | `rcd mcp` + pointing agents at the headless interface                | M16                  | done        |
-| [061](061-claude-plugin-marketplace.md)                 | Claude plugin marketplace for the debugger                           | M16                  | done        |
-| [062](062-results-tab-taxonomy.md)                      | Results tabs: `Simulator` → `packageRules`, + `Extraction`           | M17                  | proposed    |
-| [063](063-custom-manager-extraction.md)                 | Custom-manager extraction simulator                                  | M17                  | proposed    |
-| [064](064-extraction-fidelity-and-mismatch.md)          | Extraction fidelity: RE2 gap + unmatched comments                    | M17                  | proposed    |
-| [065](065-persistent-sign-in.md)                        | Persistent sign-in: HttpOnly refresh-token cookie                    | M14                  | done        |
-| [066](066-header-account-menu.md)                       | Header session menu: account, theme and links in one corner          | M14                  | done        |
-| [067](067-semantic-release.md)                          | semantic-release: one version for every public package               | M16                  | done        |
-| [068](068-keyboard-ux.md)                               | Keyboard UX: ⌘⏎ to run, a bare-key jump layer, one Escape ladder     | M18                  | done        |
-| [069](069-description-provenance.md)                    | Per-string `description` provenance: who said what about this config | M19                  | in progress |
-| [070](070-agent-payload-projection.md)                  | Agent payload projection: `keys`, config scope, collapsed diffs      | M19                  | in progress |
-| [071](071-rule-index-provenance.md)                     | Rule indexes: per-layer ranges, and one number per rule              | M19                  | in progress |
-| [072](072-option-docs-depth.md)                         | Option docs: where an option may go, and what the table cannot know  | M19                  | in progress |
-| [073](073-focused-by-default.md)                        | Focused by default: the answer that acted, and a map of the rest     | M19                  | in progress |
-| [074](074-group-simulation.md)                          | Group-level simulation: would this group actually form?              | M19                  | in progress |
+| #                                                       | Feature                                                              | Milestone            | Status   |
+| ------------------------------------------------------- | -------------------------------------------------------------------- | -------------------- | -------- |
+| [001](001-engine-and-config-input.md)                   | Trace engine + config input                                          | M0/M1                | done     |
+| [002](002-preset-resolution-tree.md)                    | Preset resolution tree                                               | M1 (MVP centerpiece) | done     |
+| [003](003-inline-option-docs.md)                        | Inline option documentation                                          | M1                   | done     |
+| [004](004-migration-step-through.md)                    | Migration step-through                                               | M2                   | done     |
+| [005](005-merge-provenance-view.md)                     | Merge provenance view                                                | M2                   | done     |
+| [006](006-package-rules-simulator.md)                   | packageRules simulator                                               | M3                   | done     |
+| [007](007-shareable-links-and-repo-fetch.md)            | Shareable links + fetch config from repo                             | M4                   | done     |
+| [008](008-global-and-inherited-config.md)               | Global + inherited config layers                                     | M3                   | done     |
+| [009](009-github-oauth-sign-in.md)                      | "Sign in with GitHub" (replace PAT field)                            | M4                   | done     |
+| [010](010-preset-hosting-coverage.md)                   | Preset hosting coverage + `local>`                                   | M2                   | done     |
+| [011](011-preset-tree-legibility-at-scale.md)           | Preset tree legibility at scale                                      | M2                   | done     |
+| [012](012-simulator-verdict-first-results.md)           | Simulator: verdict-first results + update-type flattening            | M5                   | done     |
+| [013](013-rule-identity-and-provenance.md)              | Rule identity: numbering, provenance, cross-links                    | M5                   | done     |
+| [014](014-validation-translations-and-quick-fixes.md)   | Validation error translations + suggested fixes                      | M5                   | done     |
+| [015](015-simulator-input-ergonomics.md)                | Simulator input ergonomics                                           | M5                   | done     |
+| [016](016-scale-framing-and-page-ergonomics.md)         | Scale framing, badge glossary, page & editor ergonomics              | M5                   | done     |
+| [017](017-share-links-in-a-running-app.md)              | Share links opened in a running app (hashchange)                     | M5                   | done     |
+| [018](018-evidence-export-and-expert-precision.md)      | Evidence export + expert-grade precision                             | M6                   | done     |
+| [019](019-persona-replay-skill.md)                      | Persona usability-test replay skill                                  | M6                   | done     |
+| [020](020-browser-e2e-tests.md)                         | Browser end-to-end test suite                                        | M6                   | done     |
+| [021](021-simulator-input-hardening.md)                 | Simulator input hardening + A/B comparison integrity                 | M7                   | done     |
+| [022](022-verdict-copy-precision.md)                    | Verdict & translation copy precision                                 | M7                   | done     |
+| [023](023-post-action-focus-and-guidance.md)            | Post-action focus, honest error states, rule filters                 | M7                   | done     |
+| [024](024-stage-chips-signal-outcomes.md)               | Stage chips signal what each stage did                               | M7                   | done     |
+| [025](025-hover-card-overflow.md)                       | Hover card text overflows its box                                    | M7                   | done     |
+| [026](026-schema-first-class-option.md)                 | Treat `$schema` as a first-class option                              | M7                   | done     |
+| [027](027-share-link-failure-diagnostics.md)            | Share-link failure diagnostics                                       | M7                   | done     |
+| [028](028-tabbed-results-shell.md)                      | Tabbed results shell (post-run progressive disclosure)               | M8                   | done     |
+| [029](029-run-digest.md)                                | Run digest (plain-English overview)                                  | M8                   | done     |
+| [030](030-input-validation-zod.md)                      | Input validation at every boundary (zod/mini)                        | M8                   | done     |
+| [031](031-critical-path-loading.md)                     | Critical-path loading performance                                    | M9                   | done     |
+| [032](032-keystroke-render-performance.md)              | Keystroke render performance                                         | M9                   | done     |
+| [033](033-app-decomposition-and-boundaries.md)          | App decomposition + single-source boundaries                         | M9                   | done     |
+| [034](034-lint-hardening.md)                            | Lint hardening (oxlint)                                              | M9                   | done     |
+| [035](035-layout-polish.md)                             | Layout polish + regression tests                                     | M10                  | done     |
+| [036](036-unified-chrome.md)                            | Unified chrome: filled badges, copy button, diff toolbar             | M10                  | done     |
+| [037](037-theme-switcher.md)                            | Light / dark theme switcher                                          | M10                  | done     |
+| [038](038-lint-audit-follow-up.md)                      | Lint audit follow-up: quick wins + 034 corrections                   | M10                  | done     |
+| [039](039-editor-column-polish.md)                      | Editor column polish: theme, one Button, repo-load                   | M10                  | done     |
+| [040](040-jsx-depth-decomposition.md)                   | JSX-depth ratchet: decompose the monoliths to depth 4                | M10                  | done     |
+| [041](041-warn-tier-to-error.md)                        | Promote the warn tier to error                                       | M10                  | done     |
+| [042](042-rewrites-inset-and-pipeline-arrows.md)        | Rewrites inset + Pipeline order arrows                               | M10                  | done     |
+| [043](043-docker-self-host.md)                          | Docker self-host distribution                                        | M11                  | done     |
+| [044](044-simulator-merge-step-through.md)              | Simulator: step through rule merges one at a time                    | M12                  | done     |
+| [045](045-auto-load-inherited-config.md)                | Auto-load the inherited config for a loaded repository               | M12                  | done     |
+| [046](046-simulator-verdict-card-and-merge-timeline.md) | Simulator: verdict card + merge timeline                             | M12                  | done     |
+| [047](047-simulator-progressive-disclosure.md)          | Simulator: progressive disclosure                                    | M12                  | done     |
+| [048](048-app-decomposition-and-depth-ratchet.md)       | App decomposition + depth ratchet to 3                               | M13                  | done     |
+| [049](049-feature-layer-expansion.md)                   | Feature-layer expansion: editor, presets                             | M13                  | done     |
+| [050](050-css-design-tokens.md)                         | CSS design tokens: dedup, consolidation, enforcement                 | M13                  | done     |
+| [051](051-resolved-config-output.md)                    | Effective config: resolved config as a copyable document             | M14                  | done     |
+| [052](052-post-resolution-remigration.md)               | Fidelity: re-migrate the resolved config (upstream parity)           | M14                  | done     |
+| [053](053-analytics-localhost-exclusion.md)             | Analytics: CI is not an audience, not tracked on localhost           | M14                  | done     |
+| [054](054-simulator-results-readability.md)             | Simulator: results readability — the ledger is the trace             | M14                  | done     |
+| [055](055-header-project-links.md)                      | Header links to the source and the issue tracker                     | M14                  | done     |
+| [056](056-publish-engine-package.md)                    | Publish the engine as `@renovate-config-debugger/engine`             | M15                  | proposed |
+| [057](057-fork-codemirror-json-schema.md)               | Fork + publish `codemirror-json-schema`                              | M15                  | proposed |
+| [058](058-rcd-debugger-cli.md)                          | `rcd`: the debugger CLI on the shimmed engine (experimental)         | M16                  | done     |
+| [059](059-publish-cli-package.md)                       | Publish the CLI as `@renovate-config-debugger/cli` (experimental)    | M16                  | done     |
+| [060](060-mcp-server-and-agent-discovery.md)            | `rcd mcp` + pointing agents at the headless interface                | M16                  | done     |
+| [061](061-claude-plugin-marketplace.md)                 | Claude plugin marketplace for the debugger                           | M16                  | done     |
+| [062](062-results-tab-taxonomy.md)                      | Results tabs: the `Extraction` slot (rename superseded by 075)       | M17                  | proposed |
+| [063](063-custom-manager-extraction.md)                 | Custom-manager extraction simulator                                  | M17                  | proposed |
+| [064](064-extraction-fidelity-and-mismatch.md)          | Extraction fidelity: RE2 gap + unmatched comments                    | M17                  | proposed |
+| [065](065-persistent-sign-in.md)                        | Persistent sign-in: HttpOnly refresh-token cookie                    | M14                  | done     |
+| [066](066-header-account-menu.md)                       | Header session menu: account, theme and links in one corner          | M14                  | done     |
+| [067](067-semantic-release.md)                          | semantic-release: one version for every public package               | M16                  | done     |
+| [068](068-keyboard-ux.md)                               | Keyboard UX: ⌘⏎ to run, a bare-key jump layer, one Escape ladder     | M18                  | done     |
+| [069](069-description-provenance.md)                    | Per-string `description` provenance: who said what about this config | M19                  | done     |
+| [070](070-agent-payload-projection.md)                  | Agent payload projection: `keys`, config scope, collapsed diffs      | M19                  | done     |
+| [071](071-rule-index-provenance.md)                     | Rule indexes: per-layer ranges, and one number per rule              | M19                  | done     |
+| [072](072-option-docs-depth.md)                         | Option docs: where an option may go, and what the table cannot know  | M19                  | done     |
+| [073](073-focused-by-default.md)                        | Focused by default: the answer that acted, and a map of the rest     | M19                  | done     |
+| [074](074-group-simulation.md)                          | Group-level simulation: would this group actually form?              | M19                  | done     |
+| [075](075-v2-integrated-shell.md)                       | v2: the Integrated Shell                                             | M20                  | done     |
+| [076](076-hosts-credentials-and-pipeline-layers.md)     | Hosts & credentials; the layers move to their stages                 | M20                  | done     |
+| [077](077-proposal-f-parity.md)                         | Proposal F parity: Share moves to the header                         | M20                  | done     |
+| [078](078-dep-proposals-from-extraction.md)             | Dependency proposals: extract real deps from a pasted package file   | M17                  | proposed |
+| [079](079-simulator-form-redesign.md)                   | The simulator form as a sentence                                     | M20                  | done     |
+| [080](080-tests-succeed-the-simulator.md)               | Tests succeed the simulator: the A/B pin retires                     | M20                  | done     |
+| [081](081-standard-preset-names-and-hovers.md)          | One preset name, one preset hover                                    | M20                  | done     |
+| [082](082-final-tab-specs-deltas.md)                    | The final tab specs: health box, toolbar copy, paste-a-descriptor    | M20                  | done     |
+| [083](083-overview-tab.md)                              | The Overview tab: what this config does, by topic                    | M20                  | done     |
+| [084](084-post-v2-cleanup.md)                           | The post-v2 cleanup pass: primitives, layer moves, the big splits    | M20                  | done     |
+| [085](085-load-from-repo-options.md)                    | Load-from-repo options: paste any URL, or pick from your repos       | M21                  | done     |
+| [086](086-app-state-sharing.md)                         | The App.tsx state-sharing ruling: context, hooks, no store           | M21                  | done     |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live
@@ -218,7 +230,14 @@ distinguishes nothing, 063 is the feature (the first input the app has
 ever taken that is not a config), and 064 makes its claims honest — real
 Renovate compiles `matchStrings` with RE2, the browser falls back to
 native `RegExp`, and the two diverge in both directions — while answering
-the discussion's actual question.
+the discussion's actual question. 078 extends the arc to built-in
+managers — the part 063 explicitly deferred — after the 2026-08-21 survey
+([2026-08-builtin-extraction-feasibility.md](2026-08-builtin-extraction-feasibility.md))
+found the "very different bundle conversation" tractable: most extract
+functions are pure parsers, all file access flows through one shimmable
+choke point, and per-manager deep imports dodge the barrel. Pasted
+package files become extracted, clickable dependency proposals for the
+Tests tab and the simulator form.
 
 M18 — **Keyboard** — is 068, and it starts from an omission the feature
 milestones never noticed: the app is shaped like a keyboard tool — an editor
@@ -249,3 +268,36 @@ the node that wrote it, plus the three rules under which Renovate silently
 deletes one) and four UI passes that spend it: the config in English on the
 Overview, a per-string blame ledger in the Effective config, inline
 descriptions in the preset tree, and hover attribution across the two.
+
+M20 — **v2** — is the shell itself, rebuilt around the "Proposal F — Integrated
+Shell" design project. 075 is the frame, shipped in six iterations: one
+full-viewport window with an editor pane and an instruments pane that scroll
+independently, the run's digest carried as jump-links in the header, the
+simulator recast as pinned **dependency tests** in the first tab, Rewrites
+folded into Pipeline's migrate stage, and one implementation per component role
+(the "Standard Components" sheet). The rest of the milestone finishes that
+shell a surface at a time: 076 gives hosts and credentials a home and moves the
+config layers onto the pipeline stages they belong to; 077 takes the last frame
+delta (Share moves to the header); 079 rewrites the simulator form as a
+sentence; 080 rules that the Tests grammar SUCCEEDS the simulator — the A/B pin
+retires and the simulator survives as the per-dependency detail view; 081 makes
+every preset reference one token with one hover card; 082 lands the three final
+tab specs and the four deltas they still asked for; and 083 brings the Overview
+back as a real tab, the description digest regrouped by topic for a reader who
+is not an expert. 084 closes the milestone with the debt the deadlines left:
+three adversarial reviews run in parallel, ten commits of shared primitives,
+layer moves and view splits, a headless-purity guard turned from a comment into
+a test, and a "deliberately not done" ledger for everything whose fix would
+have changed behavior.
+
+M21 — **After v2** — collects what the finished shell asked for next. 085 is
+the load form's own gap: it now accepts anything actually in a clipboard — a
+branch or file URL on GitHub/GitLab/Gitea/Forgejo, `owner/repo@branch`, a raw
+URL — and, for a signed-in user, offers their own repositories with a per-row
+badge saying which config file a load would find. 086 answers the question 048
+deferred and the 2026-08-23 second cleanup pass measured (App.tsx back at the
+line count and slot count 033 was written to fix): the state-sharing mechanism
+is a run-scoped context confined to the app layer, hooks for the input
+clusters, and props for anything that changes on a keystroke — with an external
+store rejected rather than deferred, since the 032 render contract already is
+the subscription discipline one would bring.

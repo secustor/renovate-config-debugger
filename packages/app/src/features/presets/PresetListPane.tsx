@@ -1,5 +1,5 @@
 import type { PresetNode } from "@renovate-config-debugger/engine";
-import type { TreeStats } from "@/components/preset-tree-stats";
+import type { TreeStats } from "@/lib/preset-tree-stats";
 import { presetTableRowClass } from "@/lib/preset-row-dom";
 import type { NodeDescriptionFacts } from "@/lib/tree-descriptions";
 import type { Row, SortColumn, TableRow } from "./rows";
@@ -128,7 +128,7 @@ function PresetTableRow({
       onClick={() => onSelect(row.node.id)}
     >
       <span className="col-name">{row.name}</span>
-      <span className="col-source">
+      <span>
         <span className={`badge src src-${row.sourceKind}`}>{row.sourceKind}</span>
       </span>
       <span className="col-opts">{row.opts || ""}</span>

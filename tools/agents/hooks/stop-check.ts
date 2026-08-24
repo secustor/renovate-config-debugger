@@ -38,7 +38,7 @@ const ALWAYS: Check[] = [
 const TESTS: Record<PackageName, Check[]> = {
   engine: [{ id: "engine tests", args: filter("engine", "test") }],
   app: [
-    { id: "app unit/render tests", args: filter("app", "test:unit") },
+    { id: "app unit/component tests", args: filter("app", "test:unit") },
     // Cheap, and it guards a module regime (`vite dev`) that no other check
     // exercises — see the app's scripts/check-dev-module-graph.mjs.
     { id: "app dev module graph", args: filter("app", "check:dev-graph") },
@@ -115,7 +115,7 @@ if (relevant.length === 0) {
   process.exit(0);
 }
 
-const statePath = await getGitStatePath(root, "rcv-stop-check.json");
+const statePath = await getGitStatePath(root, "rcd-stop-check.json");
 const state = await readState(statePath);
 // The fingerprint is the content of the changes themselves, and the checks are
 // derived from that content — so an unchanged fingerprint means an unchanged

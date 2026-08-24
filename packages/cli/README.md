@@ -103,7 +103,7 @@ The rest belong to one command each.
 |              | `--keys <a,b,…>`             | only these options of the config delta                                  |
 |              | `--config-scope <which>`     | `package-rules` (default) \| `full`                                     |
 | `group`      | `--dep <json>` (repeatable)  | one pending update per occurrence, at least two                         |
-|              | `--deps-file <file>`         | a JSON array of the same objects                                        |
+|              | `--deps-file <file>`         | a JSON array of the same objects (strict JSON — see below)              |
 | `run`        | `--select <a,b,…>`           | `status\|errors\|warnings\|final\|events\|tree\|layers\|platform\|all`  |
 |              | `--keys <a,b,…>`             | only these options of `--select final`                                  |
 |              | `--config-scope <which>`     | `full` (default) \| `package-rules`                                     |
@@ -194,6 +194,16 @@ its own layer is `index - from`, and for the `repo` range that is the
 `packageRules[N]` you wrote. `--source repo` keeps just your own ranges (the
 indexes do not move), and `--rule <n>` prints one merged rule's body with the
 layer that wrote it.
+
+Two vocabularies name layers here, on purpose. A layer is printed by its own
+name — `defaults`, `global`, `inherited`, `repo`, `preset <name>` — wherever an
+answer says who wrote a value. `--source` (and the MCP `source` parameter)
+takes `repo | presets | all`, which is a CLASS of layer: `presets` is plural
+because it scopes to every preset at once, and it is never printed as the
+writer of anything. `repo` is the one word both use, and it means the same
+thing in both. To scope to ONE preset, drill down instead — `--rule <n>` names
+the layer that wrote a rule, and `rcd tree --node` reads that preset's own
+contribution.
 
 The same numbers travel with the answers that quote an index:
 
@@ -388,6 +398,13 @@ don't reach it", never "this group can never form". And membership is by
 custom `branchName` templates) is not modeled. The MCP `simulate_group` tool is
 the same answer over a held run.
 
+One punctuation note, since the two spellings otherwise read as the same input:
+an inline descriptor (`--dep`, `--dep-file`, `--dep-b`, `--dep-b-file`) is
+parsed as JSON5 — the superset Renovate accepts for a preset file, so unquoted
+keys, comments and trailing commas are fine — while a `--deps-file` batch is
+parsed as strict JSON. The entries themselves are finished identically either
+way, `updateType` derivation included.
+
 On a `config:best-practices` run the rule list runs to several hundred, so BOTH
 output formats answer with the rules that ACTED — `--verdict notable`: matched,
 not-simulated, and the rows the tool could not evaluate. Measured on a
@@ -557,6 +574,30 @@ $ /plugin install renovate-config-debugger@secustor
 The server holds a small number of recent runs (an LRU), so an agent can
 compare the run before an edit with the run after it. A `runId` that has been
 evicted says so, and lists the ones still held.
+
+### Working on the CLI itself
+
+Every config above runs the **published** bundle. In a checkout of this
+repository that is the wrong one: it answers from the last release while your
+`src/` differs. `bin/rcd-dev.mjs` is the same module graph served straight from
+`src/` — no build step between an edit and the next answer — but the repo's
+`.mcp.json` cannot name it, because that file doubles as the published plugin's
+server config.
+
+Claude Code takes server definitions only from `.mcp.json` (project scope) and
+`~/.claude.json` (local and user scope), never from `settings.json`, so the
+override is a one-time command rather than a file in the repo. A local-scope
+entry shadows the project one for this project alone:
+
+```console
+$ claude mcp add -s local rcd -- node packages/cli/bin/rcd-dev.mjs mcp
+$ claude mcp remove -s local rcd   # back to the published bundle
+```
+
+Other harnesses take the same swap in their own config file: replace `npx -y
+@renovate-config-debugger/cli mcp` with `node <repo>/packages/cli/bin/rcd-dev.mjs
+mcp`. For one-off questions, `pnpm --filter @renovate-config-debugger/cli rcd
+<subcommand>` already runs the dev bin and needs no configuration at all.
 
 ## Compatibility
 

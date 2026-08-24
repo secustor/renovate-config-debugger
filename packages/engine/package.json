@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./schema": "./src/schema.ts",
+    "./text-scan": "./src/text-scan.ts",
     "./vite-plugin": "./src/shims/vite-plugin-renovate-shims.ts"
   },
   "scripts": {

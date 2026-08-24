@@ -126,7 +126,7 @@ export const StepThrough = memo(function StepThrough({
       <div className="migration-nav">
         <button
           type="button"
-          className="btn"
+          className="btn-secondary"
           onClick={() => setIndex(clamped - 1)}
           disabled={clamped === 0}
         >
@@ -134,7 +134,7 @@ export const StepThrough = memo(function StepThrough({
         </button>
         <button
           type="button"
-          className="btn"
+          className="btn-secondary"
           onClick={() => setIndex(clamped + 1)}
           disabled={clamped >= steps.length - 1}
         >
@@ -142,7 +142,7 @@ export const StepThrough = memo(function StepThrough({
         </button>
         <button
           type="button"
-          className="btn"
+          className="btn-secondary"
           onClick={() => setIndex(steps.length - 1)}
           disabled={clamped >= steps.length - 1}
         >

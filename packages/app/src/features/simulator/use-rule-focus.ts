@@ -23,7 +23,7 @@ export interface RuleFocus {
  * no rule row to land on. Both are only reachable from the EXTERNAL
  * `focusRuleIndex` prop — this component's own `packageRules[N]` links exist
  * only inside a rendered simulation — and that prop is set by a click in the
- * Problems panel, which `jumpToTab("simulator")` marks `hidden` in the same
+ * Problems panel, which `jumpToTab("tests")` marks `hidden` in the same
  * commit. The browser has therefore already blurred the link the user
  * activated and dropped focus on `<body>`, so a jump that only scrolls leaves
  * the reader moved and their next Tab restarting at the top of the document.

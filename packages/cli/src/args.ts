@@ -89,7 +89,9 @@ export const OPTIONS = {
   "dep-file": { flags: "--dep-file <file>", description: "--dep, read from a file" },
   "deps-file": {
     flags: "--deps-file <file>",
-    description: "a JSON array of `--dep` objects — `group`'s batch input",
+    description:
+      "a JSON array of `--dep` objects — `group`'s batch input. Strict JSON: the inline " +
+      "forms take JSON5, a batch FILE does not",
   },
   "dep-b": { flags: "--dep-b <json>", description: "the B-side dependency to compare" },
   "dep-b-file": { flags: "--dep-b-file <file>", description: "--dep-b, read from a file" },
@@ -223,6 +225,73 @@ export function boolOption(args: ParsedArgs, name: OptionName): boolean {
 export function listOption(args: ParsedArgs, name: OptionName): string[] {
   const value = args.values[name];
   return Array.isArray(value) ? value : [];
+}
+
+/**
+ * One value out of a fixed vocabulary, or `undefined` when the flag was not
+ * passed — the caller applies its own default with `??`, so "not given" and
+ * "given wrong" stay different answers.
+ *
+ * `label` is how the message names the input, because the same vocabularies are
+ * read from a flag (`--detail`) and from an MCP parameter (`body`): quoting a
+ * flag at an agent that cannot pass one is worse than saying nothing.
+ */
+export function parseChoice<T extends string>(
+  raw: string | undefined,
+  allowed: readonly T[],
+  label: string,
+): T | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  const found = allowed.find((value) => value === raw);
+  if (!found) {
+    throw new CliError(`${label} must be one of ${allowed.join("|")} (got "${raw}")`);
+  }
+  return found;
+}
+
+/** What an integer option accepts beyond "an integer no smaller than min". */
+interface IntOptionSpec {
+  /** Smallest accepted value; the message says so in words. */
+  min: number;
+  /** A non-numeric spelling the flag also takes, e.g. `"all"` for `--depth`.
+   *  Named in the message, because a value the flag accepts and the error does
+   *  not mention is a feature nobody finds. */
+  or?: string;
+}
+
+/**
+ * `--rule 3`, `--depth 2`: the value as an integer, or `undefined` when the
+ * flag was not passed. A non-integer is an error rather than a `NaN` that
+ * would silently behave like "no filter at all".
+ */
+export function intOption(
+  args: ParsedArgs,
+  name: OptionName,
+  spec: IntOptionSpec,
+): number | undefined {
+  const raw = stringOption(args, name);
+  if (raw === undefined) {
+    return undefined;
+  }
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < spec.min) {
+    const bound = spec.min === 0 ? "a non-negative integer" : `an integer >= ${spec.min}`;
+    throw new CliError(
+      `--${name} must be ${bound}${spec.or ? ` or ${spec.or}` : ""} (got "${raw}")`,
+    );
+  }
+  return value;
+}
+
+/** {@link parseChoice} against an option, named as the user typed it. */
+export function choiceOption<T extends string>(
+  args: ParsedArgs,
+  name: OptionName,
+  allowed: readonly T[],
+): T | undefined {
+  return parseChoice(stringOption(args, name), allowed, `--${name}`);
 }
 
 export type OutputFormat = "pretty" | "json";

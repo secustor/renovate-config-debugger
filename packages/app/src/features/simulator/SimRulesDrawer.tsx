@@ -1,6 +1,6 @@
 import { memo, type RefObject } from "react";
 import type { ProvenanceLayer, RuleEvaluation } from "@renovate-config-debugger/engine";
-import { layerId } from "@/components/provenance-layer";
+import { layerId } from "@/lib/provenance-layer";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { SummaryDrawer } from "./SummaryDrawer";
 import { type LayerMatchCount, matchedLayerCounts } from "./layer-counts";

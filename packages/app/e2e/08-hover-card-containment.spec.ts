@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { must, openTab, runAndAwaitResult } from "./helpers";
+import { must, openPresetTree, runAndAwaitResult } from "./helpers";
 
 /**
  * Roadmap 025 — a badge-glossary hover card used to inherit `white-space:
@@ -18,7 +18,7 @@ test("the preset-tree 'own options' hover card wraps its text and stays on-scree
   // bundled with Renovate, so resolving it needs no network.
   await expect(page.locator(".cm-content")).toContainText("config:recommended");
   await runAndAwaitResult(page);
-  await openTab(page, "presets");
+  await openPresetTree(page);
 
   await page.getByRole("button", { name: "Expand" }).first().click();
   const badge = page.locator(".badge.contrib.opts.explained").first();

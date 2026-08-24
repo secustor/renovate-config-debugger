@@ -160,15 +160,15 @@ The two services are the app image above and the optional
 `ghcr.io/secustor/renovate-config-debugger-oauth-proxy` (token exchange, Node,
 port 8788). Both are configured at run time, not build time, so one image serves
 an OAuth-off and an OAuth-on deployment. With both required variables set the
-container writes `/rcv-config.js` at startup and the sign-in UI appears;
+container writes `/rcd-config.js` at startup and the sign-in UI appears;
 otherwise the shipped stub stays and the feature is off.
 
 | Variable                | Required for sign-in | Notes                                                               |
 | ----------------------- | -------------------- | ------------------------------------------------------------------- |
-| `RCV_GITHUB_CLIENT_ID`  | yes                  | Client id of **your own** GitHub App (public value).                |
-| `RCV_OAUTH_WORKER_URL`  | yes                  | Base URL of the token-exchange proxy **as the browser reaches it**. |
-| `RCV_GITHUB_APP_SLUG`   | no                   | The App's slug; enables a direct "install on repositories" link.    |
-| `RCV_GA_MEASUREMENT_ID` | no                   | GA4 measurement id (`G-…`); enables Google Analytics. Off unset.    |
+| `RCD_GITHUB_CLIENT_ID`  | yes                  | Client id of **your own** GitHub App (public value).                |
+| `RCD_OAUTH_WORKER_URL`  | yes                  | Base URL of the token-exchange proxy **as the browser reaches it**. |
+| `RCD_GITHUB_APP_SLUG`   | no                   | The App's slug; enables a direct "install on repositories" link.    |
+| `RCD_GA_MEASUREMENT_ID` | no                   | GA4 measurement id (`G-…`); enables Google Analytics. Off unset.    |
 
 <details>
 <summary>Sign in with GitHub, self-hosted</summary>
@@ -198,8 +198,8 @@ content fetch still goes browser → `api.github.com`.
 <summary>Building the images locally</summary>
 
 ```bash
-docker build --target app -t rcv-app .                    # the app image
-docker build --target oauth-proxy -t rcv-oauth-proxy .    # the proxy image
+docker build --target app -t rcd-app .                    # the app image
+docker build --target oauth-proxy -t rcd-oauth-proxy .    # the proxy image
 ```
 
 The build context is the repo root. TLS termination and reverse-proxy setup are
@@ -220,6 +220,29 @@ pnpm lint && pnpm format:check
 
 [docs/Architecture.md](docs/Architecture.md) covers how it all works: the shim
 plugin, the golden tests, the pinned Renovate.
+
+To develop against the signed-in state without provisioning a GitHub App and
+Worker, put a token into the gitignored `packages/app/.env`:
+
+```ini
+RCD_DEV_FAKE_OAUTH_TOKEN=ghp_xxx   # any GitHub token, e.g. a classic PAT
+RCD_DEV_FAKE_OAUTH_LOGIN=octocat   # optional: the login the session menu shows
+RCD_DEV_AUTH_SCHEME=oauth          # optional: oauth (default) | cookie | pat
+```
+
+`RCD_DEV_AUTH_SCHEME` picks which auth shape the token is seeded as: `oauth`
+is the signed-in session (tokens live for the tab), `cookie` additionally
+plants the persistent-sign-in marker so the cookie-mode code paths run, and
+`pat` skips OAuth entirely and seeds the per-host token fallback of an
+OAuth-off deployment. Seeding never overwrites tokens a tab already holds,
+so after switching schemes, sign out or use a fresh tab.
+
+`pnpm dev` then boots already signed in and sends that token on GitHub
+fetches, so the repo picker lists the token's real repositories. This is
+dev-server-only (builds never see the variable) and fakes the signed-in
+_state_, not the sign-in _flow_ — testing the flow itself takes the real
+provisioning in
+[packages/oauth-worker/README.md](packages/oauth-worker/README.md#provisioning).
 
 <details>
 <summary>Privacy, tokens & GitHub sign-in</summary>
@@ -244,7 +267,7 @@ plugin, the golden tests, the pinned Renovate.
   [docs/GitHub-App-Access.md](docs/GitHub-App-Access.md).
 - Sign-in is off by default. It turns on only when the deploy provides
   `VITE_GITHUB_CLIENT_ID` and `VITE_OAUTH_WORKER_URL` (plus optional
-  `VITE_GITHUB_APP_SLUG`) or their `RCV_*` equivalents. Otherwise a personal
+  `VITE_GITHUB_APP_SLUG`) or their `RCD_*` equivalents. Otherwise a personal
   access token under _Platform context & per-host tokens_ is the only GitHub
   auth, and it is also the fallback for GitHub Enterprise Server, orgs that
   can't approve the app install, or Worker outages.

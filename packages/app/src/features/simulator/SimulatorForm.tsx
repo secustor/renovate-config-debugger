@@ -1,10 +1,12 @@
 import type { Dispatch, KeyboardEvent, SetStateAction } from "react";
 import { mayOwnNativePopup } from "@/hooks/scroll-ergonomics";
 import { DATASOURCE_LIST_ID, MANAGER_LIST_ID, SIM_FORM_ID } from "./datalist-ids";
-import { Field } from "./Field";
-import { type FormState, QUICK_FILLS } from "./form";
-import { MoreFieldsDrawer } from "./MoreFieldsDrawer";
-import { UpdateTypeLine, UpdateTypeSelect } from "./UpdateTypeControl";
+import { DescriptorPreview, DescriptorSection } from "./DescriptorPreview";
+import { FieldGroups } from "./FieldGroups";
+import type { FormState } from "./form";
+import { QuickFillChips } from "./QuickFillChips";
+import { SentenceLine } from "./SentenceLine";
+import { UpdateTypeChip } from "./UpdateTypeChip";
 
 /**
  * Roadmap 047: `datasource` (81 entries) and `manager` (115) are backed by
@@ -36,46 +38,100 @@ function RegistryDatalist({
   );
 }
 
+/** Roadmap 079: the groups, and the descriptor. Standalone gets it as the live
+ *  card beside them; compact (the Tests tab's Add-a-test panel) is one narrow
+ *  column, so 082 gives it the same document folded away underneath instead. */
+function FormBody({
+  form,
+  setForm,
+  managerNames,
+  openGroup,
+  onOpenGroupChange,
+  effectiveUpdateType,
+  compact,
+}: {
+  form: FormState;
+  setForm: Dispatch<SetStateAction<FormState>>;
+  managerNames: readonly string[] | null;
+  openGroup: number;
+  onOpenGroupChange: (index: number) => void;
+  effectiveUpdateType: string;
+  compact: boolean;
+}) {
+  return (
+    <div className={`sim-form-body${compact ? "" : " with-preview"}`}>
+      <FieldGroups
+        form={form}
+        setForm={setForm}
+        managerNames={managerNames}
+        openGroup={openGroup}
+        onOpenGroupChange={onOpenGroupChange}
+      />
+      {compact ? (
+        <DescriptorSection form={form} effectiveUpdateType={effectiveUpdateType} />
+      ) : (
+        <DescriptorPreview form={form} effectiveUpdateType={effectiveUpdateType} />
+      )}
+    </div>
+  );
+}
+
 /**
- * Roadmap 047: the simulator's inputs — quick-fill chips, then four fields
- * before the first decision (what identifies the dependency and what
- * identifies the update), the updateType line or its manual override, and the
- * "More about this update" drawer holding everything else.
+ * Roadmap 079: the simulator's inputs, as the design's form — quick-fill chips
+ * ("Start from:"), the sentence card whose blanks ARE the four fields that
+ * identify an update, `updateType` as a derived chip inside that sentence, and
+ * everything else in three named collapsible groups.
+ *
+ * What replaced what: 047's labelled 4-field grid became the sentence, its
+ * derived-updateType one-liner became the chip, and its single "More about
+ * this update" drawer became the three groups. Nothing about the form's
+ * BEHAVIOUR moved — 015's derivation and empty-form guard, 068's Enter rules,
+ * and 021's select-on-focus are all where they were.
  */
 export function SimulatorForm({
   form,
   setForm,
-  updateTypeTouched,
   setUpdateTypeTouched,
   effectiveUpdateType,
   derivedUpdateType,
   updateTypeKeyDown,
   datasourceNames,
   managerNames,
-  moreFieldsOpen,
-  onMoreFieldsToggle,
+  openGroup,
+  onOpenGroupChange,
   onQuickFill,
   onSubmit,
+  compact = false,
+  formId = SIM_FORM_ID,
 }: {
   form: FormState;
   setForm: Dispatch<SetStateAction<FormState>>;
-  updateTypeTouched: boolean;
   setUpdateTypeTouched: Dispatch<SetStateAction<boolean>>;
   effectiveUpdateType: string;
   derivedUpdateType: string | undefined;
   updateTypeKeyDown: (e: KeyboardEvent<HTMLSelectElement>) => void;
   datasourceNames: readonly string[] | null;
   managerNames: readonly string[] | null;
-  moreFieldsOpen: boolean;
-  onMoreFieldsToggle: (open: boolean) => void;
+  /** Roadmap 079: which field group is expanded, or -1. Owned by the caller so
+   *  a re-simulation or a new pipeline result never folds it. */
+  openGroup: number;
+  onOpenGroupChange: (index: number) => void;
   onQuickFill: (fill: Partial<FormState>) => void;
   /** Roadmap 068: Enter in any field — the form owns the simulate action now,
    *  and the Simulate button submits it from the actions row. */
   onSubmit: () => void;
+  /** Roadmap 079: the design's `compact` — single column, no descriptor
+   *  preview. The Tests tab's Add-a-test panel renders this way. */
+  compact?: boolean;
+  /** Roadmap 075 (iteration 6): which form this is, for the submit button that
+   *  sits outside it (`form=`). Defaults to the simulator's own; the Tests
+   *  tab's new-pin card passes `PIN_FORM_ID`. */
+  formId?: string;
 }) {
   return (
     <form
-      id={SIM_FORM_ID}
+      id={formId}
+      className="sim-form-shell"
       aria-label="Dependency update to simulate"
       onSubmit={(e) => {
         e.preventDefault();
@@ -97,6 +153,11 @@ export function SimulatorForm({
       // because the popup's state is not observable — `mayOwnNativePopup` is
       // where that is written down. The cost is one Tab: from `datasource`,
       // Enter no longer simulates.
+      //
+      // Roadmap 079 added a THIRD claimant, and it is not handled here: a
+      // multi-value field's draft input claims bare Enter for "commit this
+      // chip" in its own handler, which runs first and prevents the default
+      // itself. This one stays about the comboboxes.
       //
       // 2026-08-11 review: does this ALSO cancel the datalist's own "take the
       // highlighted suggestion" behaviour? Checked, not assumed: in Chrome,
@@ -131,65 +192,35 @@ export function SimulatorForm({
         }
       }}
     >
-      <div className="sim-presets">
-        {QUICK_FILLS.map(({ label, fill }) => (
-          <button key={label} type="button" onClick={() => onQuickFill(fill)}>
-            {label}
-          </button>
-        ))}
-      </div>
+      <QuickFillChips form={form} onQuickFill={onQuickFill} />
       <RegistryDatalist id={DATASOURCE_LIST_ID} names={datasourceNames} />
       <RegistryDatalist id={MANAGER_LIST_ID} names={managerNames} />
-      <div className="sim-form">
-        <Field
-          label="datasource"
-          value={form.datasource}
-          onChange={(v) => setForm({ ...form, datasource: v })}
-          placeholder="(unset) — type to search"
-          datalistId={DATASOURCE_LIST_ID}
-        />
-        <Field
-          label="packageName"
-          value={form.packageName}
-          onChange={(v) => setForm({ ...form, packageName: v })}
-          placeholder="lodash"
-        />
-        <Field
-          label="currentValue"
-          value={form.currentValue}
-          onChange={(v) => setForm({ ...form, currentValue: v })}
-          placeholder="4.17.20"
-        />
-        <Field
-          label="newValue"
-          value={form.newValue}
-          onChange={(v) => setForm({ ...form, newValue: v })}
-          placeholder="4.17.21"
-        />
-      </div>
-      {updateTypeTouched ? (
-        <UpdateTypeSelect
-          value={effectiveUpdateType}
-          onChange={(value) => {
-            setUpdateTypeTouched(true);
-            setForm({ ...form, updateType: value });
-          }}
-          onKeyDown={updateTypeKeyDown}
-        />
-      ) : (
-        <UpdateTypeLine
-          effectiveUpdateType={effectiveUpdateType}
-          derivedUpdateType={derivedUpdateType}
-          currentValue={form.currentValue}
-          newValue={form.newValue}
-          onOverride={() => setUpdateTypeTouched(true)}
-        />
-      )}
-      <MoreFieldsDrawer
+      <SentenceLine
         form={form}
         setForm={setForm}
-        open={moreFieldsOpen}
-        onToggle={onMoreFieldsToggle}
+        datasourceNames={datasourceNames}
+        updateTypeChip={
+          <UpdateTypeChip
+            effectiveUpdateType={effectiveUpdateType}
+            derivedUpdateType={derivedUpdateType}
+            currentValue={form.currentValue}
+            newValue={form.newValue}
+            onChange={(value) => {
+              setUpdateTypeTouched(true);
+              setForm({ ...form, updateType: value });
+            }}
+            onKeyDown={updateTypeKeyDown}
+          />
+        }
+      />
+      <FormBody
+        form={form}
+        setForm={setForm}
+        managerNames={managerNames}
+        openGroup={openGroup}
+        onOpenGroupChange={onOpenGroupChange}
+        effectiveUpdateType={effectiveUpdateType}
+        compact={compact}
       />
     </form>
   );

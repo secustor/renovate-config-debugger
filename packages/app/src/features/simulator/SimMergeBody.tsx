@@ -1,7 +1,7 @@
 import { Fragment, useMemo, useRef } from "react";
 import type { SimulationResult } from "@renovate-config-debugger/engine";
 import { ConfigJson } from "@/components/ConfigJson";
-import { SequenceChip, SequenceSep, SequenceTimeline } from "@/components/SequenceTimeline";
+import { SequenceChip, SequenceSep, SequenceTimeline } from "./SequenceTimeline";
 import { StepThrough } from "@/components/StepThrough";
 import type { MergeStop } from "./merge-stops";
 
@@ -22,12 +22,12 @@ function SimMergeTimeline({
   onIndexChange,
 }: {
   stops: MergeStop[];
-  index?: number;
-  onIndexChange?: (index: number) => void;
+  index: number;
+  onIndexChange: (index: number) => void;
 }) {
   const timelineRef = useRef<HTMLDivElement>(null);
   const steps = useMemo(() => stops.map((s) => s.step), [stops]);
-  const selected = Math.min(Math.max(index ?? 0, 0), stops.length - 1);
+  const selected = Math.min(Math.max(index, 0), stops.length - 1);
   return (
     <div className="sim-merge-steps" ref={timelineRef}>
       <SequenceTimeline label="Merge sequence">
@@ -39,7 +39,7 @@ function SimMergeTimeline({
               dot={stop.chip.dot}
               count={stop.chip.count}
               aria-label={stop.chip.ariaLabel}
-              onClick={() => onIndexChange?.(i)}
+              onClick={() => onIndexChange(i)}
             >
               {stop.chip.label}
             </SequenceChip>
@@ -74,8 +74,8 @@ export function SimMergeBody({
   finalDependencyConfig: SimulationResult["finalDependencyConfig"];
   stops: MergeStop[];
   showTimeline: boolean;
-  mergeStepIndex?: number;
-  onMergeStepChange?: (index: number) => void;
+  mergeStepIndex: number;
+  onMergeStepChange: (index: number) => void;
 }) {
   return showTimeline ? (
     <SimMergeTimeline stops={stops} index={mergeStepIndex} onIndexChange={onMergeStepChange} />

@@ -65,10 +65,10 @@ where configs actually live.
   Serving cannot inline renovate's plain-CJS deps (they break the ESM module
   runner); a Rollup build has no such trouble, so the published package ends
   up with **no runtime dependencies at all** — one tarball, nothing resolved
-  at install time. Measured: ~0.11 s for `rcv digest` against the bundle,
+  at install time. Measured: ~0.11 s for `rcd digest` against the bundle,
   versus ~0.85 s through the dev runner.
-- **Two bins, one graph.** `bin/rcv.mjs` (published) imports `dist/main.js`;
-  `bin/rcv-dev.mjs` (in-repo) boots the SSR runner. Both build the same
+- **Two bins, one graph.** `bin/rcd.mjs` (published) imports `dist/main.js`;
+  `bin/rcd-dev.mjs` (in-repo) boots the SSR runner. Both build the same
   process-facing object in `bin/io.mjs` — the graph is transformed with
   `define: { "process.env": "{}" }`, so a bin is the only place that can read
   the real environment.

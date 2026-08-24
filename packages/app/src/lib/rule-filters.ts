@@ -3,7 +3,7 @@ import type {
   RuleAttribution,
   RuleEvaluation,
 } from "@renovate-config-debugger/engine";
-import { type LayerId, layerId, layerLabel } from "@/components/provenance-layer";
+import { type LayerId, layerId, layerLabel } from "@/lib/provenance-layer";
 import { hasEvaluationError, isNoInputNoMatch } from "./rule-verdict";
 
 /**
@@ -157,7 +157,7 @@ export type SourceFilter = "all" | "repo" | "presets";
 /** Every {@link SourceFilter}, for a CLI flag's parse + help text. */
 export const SOURCE_FILTERS: readonly SourceFilter[] = ["all", "repo", "presets"];
 
-export function matchesSourceFilter(
+function matchesSourceFilter(
   rule: RuleEvaluation,
   filter: SourceFilter,
   layerByIndex: Map<number, ProvenanceLayer>,

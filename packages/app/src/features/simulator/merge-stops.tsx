@@ -9,10 +9,11 @@ import { CopyButton } from "@/components/CopyButton";
 import { Term } from "@/components/glossary";
 import { OptionKey } from "@/components/option-docs";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
-import type { SequenceDotLevel } from "@/components/SequenceTimeline";
+import type { SequenceDotLevel } from "./SequenceTimeline";
 import type { StepThroughStep } from "@/components/StepThrough";
 import { UPDATE_TYPE_KEYS } from "@/lib/update-type-keys";
 import { ruleLabel } from "./rule-format";
+import { pluralWord } from "@/lib/format";
 
 /** Roadmap 044: the changed keys of one merge step, as inline `<code>` chips
  *  inside the stepper's explanation row. */
@@ -95,7 +96,7 @@ export function buildMergeStops(
         label: <span className="stage-chip-mono">packageRules[{ms.ruleIndex}]</span>,
         count: changed > 0 ? `+${changed}` : "±0",
         ariaLabel: `Step ${i + 1} of ${nRules}: packageRules[${ms.ruleIndex}] ${
-          changed > 0 ? `changed ${changed} key${changed === 1 ? "" : "s"}` : "changed nothing"
+          changed > 0 ? `changed ${changed} ${pluralWord(changed, "key")}` : "changed nothing"
         }`,
       },
       step: {
@@ -151,8 +152,8 @@ export function buildMergeStops(
         count: mergedUp.length > 0 ? `+${mergedUp.length}` : `⊘${blockKeys.length}`,
         ariaLabel:
           mergedUp.length > 0
-            ? `Update-type flattening: merged the ${flattenStep?.updateType} block up, ${mergedUp.length} key${mergedUp.length === 1 ? "" : "s"}`
-            : `Update-type flattening: consumed ${blockKeys.length} block${blockKeys.length === 1 ? "" : "s"}`,
+            ? `Update-type flattening: merged the ${flattenStep?.updateType} block up, ${mergedUp.length} ${pluralWord(mergedUp.length, "key")}`
+            : `Update-type flattening: consumed ${blockKeys.length} ${pluralWord(blockKeys.length, "block")}`,
       },
       step: {
         id: "flatten",
@@ -209,7 +210,7 @@ export function buildMergeStops(
       explanation:
         "What Renovate would use for this update — the base config plus everything the stops before this one applied.",
       body: (
-        <div className="sim-final-config">
+        <div>
           <div className="sim-final-config-actions">
             <CopyButton
               getText={() => `${JSON.stringify(sim.finalDependencyConfig, null, 2)}\n`}

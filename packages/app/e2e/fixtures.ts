@@ -18,7 +18,7 @@ import { configChecksum, encodeShare, type ShareSimulator, type ShareView } from
 export { configChecksum };
 
 /** The two file names the share payload accepts. */
-export type ShareFileName = "renovate.json" | "renovate.json5";
+type ShareFileName = "renovate.json" | "renovate.json5";
 
 /**
  * Roadmap 028: the view state a link carries. `tab` is the 028 addition; a
@@ -28,7 +28,7 @@ export type ShareFileName = "renovate.json" | "renovate.json5";
  * the real codec's sanitizer unchanged — including `step: 0`, which
  * round-trips (the 033 fixpoint rule).
  */
-export interface ShareViewInput {
+interface ShareViewInput {
   stage?: string;
   node?: string;
   step?: number;
@@ -38,7 +38,7 @@ export interface ShareViewInput {
   simStep?: number;
 }
 
-export interface SharePayloadInput {
+interface SharePayloadInput {
   config: string;
   fileName?: ShareFileName;
   view?: ShareViewInput;
@@ -49,6 +49,9 @@ export interface SharePayloadInput {
   platform?: string;
   endpoint?: string;
   sim?: ShareSimulator;
+  /** Roadmap 075 (iteration 6): the pinned tests a link carries — descriptor
+   *  field bags, the same shape `sim.form` has. */
+  pins?: Record<string, string>[];
 }
 
 /**
@@ -96,7 +99,7 @@ function bytesToBase64url(bytes: Uint8Array): string {
 }
 
 /** Options for shaping the encoded token (e.g. producing a pre-027 link). */
-export interface EncodeOptions {
+interface EncodeOptions {
   /** Omit the 027 integrity field, reproducing an old link. Default: include it. */
   integrity?: boolean;
 }
@@ -130,6 +133,9 @@ export async function encodeShareToken(
     if (input.sim) {
       payload.sim = input.sim;
     }
+    if (input.pins) {
+      payload.pins = input.pins;
+    }
     if (input.view) {
       payload.view = input.view;
     }
@@ -146,6 +152,7 @@ export async function encodeShareToken(
     // which is exactly what the app would do to such a link.
     view: input.view as ShareView | undefined,
     sim: input.sim,
+    pins: input.pins,
   });
 }
 

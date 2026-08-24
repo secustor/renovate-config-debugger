@@ -16,3 +16,12 @@ export const MANAGER_LIST_ID = "sim-manager-names";
  * is what implicit submission needs.
  */
 export const SIM_FORM_ID = "simulator-inputs";
+
+/**
+ * Roadmap 075 (iteration 6): the new-pin form's own id. The Tests tab's two
+ * views are mutually exclusive, so only one of the two forms is ever in the
+ * document — but a form id that says which form it is keeps the submit button's
+ * `form=` association readable, and makes it impossible for a future layout
+ * that shows both to associate the Pin button with the Simulate one's form.
+ */
+export const PIN_FORM_ID = "pinned-test-inputs";

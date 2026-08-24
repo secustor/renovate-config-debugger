@@ -1,13 +1,10 @@
-import {
-  getOptionIndex,
-  optionsSourceUrl,
-  renovateVersion,
-} from "@renovate-config-debugger/engine";
+import { optionsSourceUrl, renovateVersion } from "@renovate-config-debugger/engine";
 import { boolOption, outputFormat } from "../args";
 import type { Command } from "../command";
 import { CliError, EXIT_OK } from "../io";
 import { emitJson, emitLines } from "../output";
 import { optionDocLines } from "../projections/option-doc";
+import { askOptionDocs } from "../questions/option-docs";
 
 /**
  * Renovate's own option metadata, for the exact pinned version — so an agent
@@ -33,34 +30,29 @@ export const docsCommand: Command = {
     if (!query) {
       throw new CliError("name an option, e.g. `rcd docs packageRules`");
     }
-    const index = getOptionIndex();
+    const answer = askOptionDocs({
+      name: query,
+      search: boolOption(args, "search"),
+      transport: "cli",
+    });
 
-    if (boolOption(args, "search")) {
-      const needle = query.toLowerCase();
-      const matches = [...index.options.values()]
-        .filter((doc) => doc.name.toLowerCase().includes(needle))
-        .map((doc) => ({ name: doc.name, type: doc.type, description: doc.description }));
+    if (answer.kind === "search") {
+      const { matches, total } = answer;
       if (format === "json") {
         emitJson(io, { renovateVersion, optionsSourceUrl, query, matches });
       } else {
         emitLines(io, [
-          `${matches.length} of ${index.options.size} options in Renovate ${renovateVersion} match "${query}":`,
+          `${matches.length} of ${total} options in Renovate ${renovateVersion} match "${query}":`,
           ...matches.map((doc) => `  ${doc.name.padEnd(32)} ${doc.type}`),
         ]);
       }
       return Promise.resolve(EXIT_OK);
     }
 
-    const doc = index.options.get(query);
-    if (!doc) {
-      throw new CliError(
-        `Renovate ${renovateVersion} has no option "${query}" — try \`rcd docs ${query} --search\``,
-      );
-    }
     if (format === "json") {
-      emitJson(io, { renovateVersion, optionsSourceUrl, ...doc });
+      emitJson(io, { renovateVersion, optionsSourceUrl, ...answer.doc });
     } else {
-      emitLines(io, optionDocLines(doc, renovateVersion));
+      emitLines(io, optionDocLines(answer.doc, renovateVersion));
     }
     return Promise.resolve(EXIT_OK);
   },

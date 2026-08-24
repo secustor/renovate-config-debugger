@@ -1,4 +1,5 @@
 import type { DependencyDescriptor, SimulationResult } from "@renovate-config-debugger/engine";
+import { plural } from "@renovate-config-debugger/app/headless";
 import type { RunTransport } from "../run-input";
 
 /**
@@ -141,10 +142,6 @@ export function groupTally(simulated: readonly SimulatedUpdate[]): GroupTally {
       ),
     ],
   };
-}
-
-function plural(count: number, noun: string): string {
-  return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
 
 /** The slice of a simulation the gap notes read — structural, like

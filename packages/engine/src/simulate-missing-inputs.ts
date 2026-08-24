@@ -1,4 +1,5 @@
 import type { ClauseEvaluation, RuleEvaluation } from "./simulate-package-rules";
+import { countNoun } from "./text";
 
 /**
  * The per-clause predicates a scoped rule list would hide, and the AGGREGATES
@@ -22,8 +23,9 @@ import type { ClauseEvaluation, RuleEvaluation } from "./simulate-package-rules"
  * Every narrowing on top of this module is gated on its aggregates being
  * unconditional, so the two live side by side.
  *
- * Type-only imports, so this module is Renovate-free and unit-testable in the
- * engine's `golden` (plain node) project.
+ * Imports nothing but types and the engine's own prose helper, so this module
+ * is Renovate-free and unit-testable in the engine's `golden` (plain node)
+ * project.
  *
  * The app has a narrower cousin, `buildNoInputCaveat`
  * (`features/simulator/verdict-sentence.ts`), which counts only REPO-config
@@ -100,10 +102,6 @@ const NAMED_GROUPS = 3;
 /** Per-group `RuleEvaluation.index` samples kept, at most. */
 const SAMPLE_LIMIT = 5;
 
-function plural(count: number, noun: string): string {
-  return `${count} ${noun}${count === 1 ? "" : "s"}`;
-}
-
 function buildNote(total: number, ruleCount: number, groups: MissingInputGroup[]): string {
   const scope = `${ruleCount} of ${total} ${total === 1 ? "rule" : "rules"} could not match because `;
   const tail =
@@ -115,10 +113,10 @@ function buildNote(total: number, ruleCount: number, groups: MissingInputGroup[]
   }
   const named = groups
     .slice(0, NAMED_GROUPS)
-    .map((group) => `${group.fieldList} (${plural(group.rules, "rule")})`)
+    .map((group) => `${group.fieldList} (${countNoun(group.rules, "rule")})`)
     .join(", ");
   const more = groups.length - NAMED_GROUPS;
-  const list = more > 0 ? `${named}, and ${plural(more, "more field")}` : named;
+  const list = more > 0 ? `${named}, and ${countNoun(more, "more field")}` : named;
   return `${scope}the simulated dependency leaves fields they read unset: ${list}${tail}`;
 }
 

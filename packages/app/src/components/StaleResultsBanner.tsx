@@ -11,8 +11,10 @@ import { formatShortcut, RUN_SHORTCUT } from "@/lib/shortcuts";
  * looking at is behind the inputs above it". It lives in the tab shell's
  * run-level `banner` slot, so it shows on whichever tab the reader is on.
  *
- * Staleness is decided on the editor TEXT alone (App's `resultsStale`) — the
- * advanced-zone inputs are out of scope, so this never fires for a changed
+ * Staleness is decided on the run's CONFIG inputs (App's `resultsStale`): the
+ * editor text, and — since roadmap 076 moved them into the results pane's own
+ * pipeline stage cards — the two 008 merge layers. The advanced zone's
+ * remaining inputs stay out of scope, so this still never fires for a changed
  * token or endpoint.
  */
 export function StaleResultsBanner() {

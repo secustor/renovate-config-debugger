@@ -40,7 +40,7 @@ export function globalOnlyOptionNames(): ReadonlySet<string> {
 /**
  * Renovate's `removeGlobalConfig` (dist/config/index.js) reimplemented — the
  * upstream module also drags the full modules/manager graph (100+ Node-only
- * manager modules) into any bundle that imports it, so the visualizer keeps
+ * manager modules) into any bundle that imports it, so the debugger keeps
  * this pure 7-line getOptions() loop local instead of deep-importing it.
  *
  * `keepInherited` is upstream's carve-out for the INHERITED layer, where the

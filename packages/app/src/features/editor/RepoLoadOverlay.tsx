@@ -1,0 +1,36 @@
+import { type Props, RepoLoadForm } from "./RepoLoadForm";
+
+/**
+ * Roadmap 075 (v2, iteration 2) — the repo-load form as an overlay over the
+ * editor pane.
+ *
+ * Before v2 it was a chrome row inside the editor card (039), which worked
+ * while the card sat on a page that could grow. In the shell the pane is a
+ * fixed-height scroller with the editor filling it, so a row pushed the
+ * document it is about to REPLACE down and out of the pane. Covering it says
+ * the same thing the row said — this panel is about that document — without
+ * moving anything.
+ *
+ * The scrim is a real button, not a decorated div: click-to-dismiss must be
+ * reachable by every pointer and announce itself, and the two ways out the form
+ * already had (Cancel, Escape) are unchanged. While it is up, Run is disabled
+ * (the design's disabled-primary rule): the run would act on a document the
+ * user is in the middle of replacing.
+ *
+ * The overlay adds a scrim and forwards the form's props untouched — spread,
+ * not re-listed, so a new form prop needs no edit here.
+ */
+
+export function RepoLoadOverlay(props: Props) {
+  return (
+    <div className="repo-overlay">
+      <button
+        type="button"
+        className="repo-overlay-scrim"
+        aria-label="Cancel loading from a repository"
+        onClick={props.onClose}
+      />
+      <RepoLoadForm {...props} />
+    </div>
+  );
+}

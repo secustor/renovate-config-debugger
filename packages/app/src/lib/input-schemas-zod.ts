@@ -16,16 +16,19 @@
  */
 import * as z from "zod/mini";
 import type { StageId } from "@renovate-config-debugger/engine";
-import { RESULTS_TAB_IDS, type ResultsTabId } from "@/data/results-tabs";
+import {
+  LEGACY_RESULTS_TAB_IDS,
+  RESULTS_TAB_IDS,
+  type ShareResultsTabId,
+} from "@/data/results-tabs";
 import {
   isHttpUrl,
   isPlainObject,
   isValidConfigObject,
-  isValidOAuthParam,
   isValidPlatform,
-  isValidRepoRefPart,
   isValidShareConfigLayer,
   isValidToken,
+  MAX_PINNED_TESTS,
   STAGE_IDS,
 } from "./input-schemas";
 
@@ -76,7 +79,16 @@ export const platformSchema = z.string().check(
 );
 
 export const stageIdSchema = z.enum(STAGE_IDS);
-export const resultsTabIdSchema = z.enum(RESULTS_TAB_IDS);
+/**
+ * Roadmap 075 (v2, iteration 3): DECODE accepts the retired tab ids too. Links
+ * only ever encode a current `ResultsTabId` (App's own state), but every link
+ * shared before v2 names `overview` / `rewrites` / `simulator`, and dropping
+ * the field would land those readers on the default tab instead of the one the
+ * sender meant. The mapping itself is `resultsTabForShareTab`, applied where
+ * the view is APPLIED (App) rather than here, because one of the retired ids
+ * also implies a stage selection.
+ */
+export const resultsTabIdSchema = z.enum([...RESULTS_TAB_IDS, ...LEGACY_RESULTS_TAB_IDS]);
 const stepIndexSchema = z.int().check(z.nonnegative());
 
 /** The subset of `ShareView` this module validates; kept structurally
@@ -88,7 +100,8 @@ export interface SanitizedShareView {
   step?: number;
   /** Roadmap 044: the simulator's merge-step index. */
   simStep?: number;
-  tab?: ResultsTabId;
+  /** Roadmap 075: possibly a retired id — see `resultsTabIdSchema`. */
+  tab?: ShareResultsTabId;
 }
 
 /**
@@ -153,6 +166,63 @@ export interface SanitizedShareSimulator {
 const threadKeySchema = z.string().check(z.minLength(1), z.maxLength(128));
 
 /**
+ * A dependency-descriptor field bag — the shape `sim.form` has carried since
+ * roadmap 018 and, since 075 (iteration 6), every entry of `pins`. Keeps only
+ * non-empty string values, dropping anything else; `undefined` when nothing
+ * survives, since an empty bag pre-fills no form and pins no test.
+ *
+ * Shared by the two sanitizers below so the rule for "what a link may put in a
+ * simulator form" is stated once. The keys themselves are deliberately NOT
+ * checked against `FormState` here: this module is the security layer (a form
+ * field is neither fetched nor merged — the worst an unknown key does is fail
+ * to fill a field), and the consumers already copy only the keys they know
+ * (`useShareLinkRequest`, `pinFormFromShareFields`).
+ */
+function sanitizeFormFields(raw: unknown): Record<string, string> | undefined {
+  if (!isPlainObject(raw)) {
+    return undefined;
+  }
+  const form: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    const parsed = z.string().check(z.minLength(1)).safeParse(value);
+    if (parsed.success) {
+      form[key] = parsed.data;
+    }
+  }
+  return Object.keys(form).length > 0 ? form : undefined;
+}
+
+/**
+ * Roadmap 075 (iteration 6): a decoded payload's `pins` — the pinned tests the
+ * sender had, as descriptor field bags.
+ *
+ * Additive exactly like `sim` was: a link made before this iteration simply
+ * lacks the key and decodes as it always did, and a reader that predates it
+ * ignores one. Tolerant per ENTRY rather than per payload, for the same reason
+ * `view`/`sim` are per-field: a pin is cosmetic state (it pre-fills a form and
+ * re-runs a simulation the app would run anyway), so a malformed one is dropped
+ * on its own instead of failing a link that also carries a config. The cap is
+ * enforced here too — a hand-edited link may not hand the app 500 simulations
+ * per run.
+ */
+export function sanitizeSharePins(raw: unknown): Record<string, string>[] | undefined {
+  if (!Array.isArray(raw)) {
+    return undefined;
+  }
+  const pins: Record<string, string>[] = [];
+  for (const entry of raw) {
+    if (pins.length >= MAX_PINNED_TESTS) {
+      break;
+    }
+    const form = sanitizeFormFields(entry);
+    if (form) {
+      pins.push(form);
+    }
+  }
+  return pins.length > 0 ? pins : undefined;
+}
+
+/**
  * Sanitizes a decoded share payload's `sim` sub-object: keeps only
  * non-empty string form values (matching `share.ts`'s existing
  * `normalizeSim`), dropping anything else — an array `sim`, a non-string
@@ -162,17 +232,11 @@ const threadKeySchema = z.string().check(z.minLength(1), z.maxLength(128));
  * pre-fill a form).
  */
 export function sanitizeShareSim(raw: unknown): SanitizedShareSimulator | undefined {
-  if (!isPlainObject(raw) || !isPlainObject(raw.form)) {
+  if (!isPlainObject(raw)) {
     return undefined;
   }
-  const form: Record<string, string> = {};
-  for (const [key, value] of Object.entries(raw.form)) {
-    const parsed = z.string().check(z.minLength(1)).safeParse(value);
-    if (parsed.success) {
-      form[key] = parsed.data;
-    }
-  }
-  if (Object.keys(form).length === 0) {
+  const form = sanitizeFormFields(raw.form);
+  if (!form) {
     return undefined;
   }
   const out: SanitizedShareSimulator = { form };
@@ -224,7 +288,7 @@ export const sharePayloadStrictFieldsSchema = z.object({
 // ---------------------------------------------------------------------------
 
 /**
- * Security 2026-07-25: the `rcv.oauth.pending` stash (oauth.ts `beginSignIn`
+ * Security 2026-07-25: the `rcd.oauth.pending` stash (oauth.ts `beginSignIn`
  * writes `{ state, verifier, returnHash }`) was `JSON.parse`d and type-ASSERTED
  * on the callback path, so a hand-edited/corrupted value reached the CSRF
  * `state` comparison and the PKCE `code_verifier` sent to the Worker as
@@ -267,24 +331,3 @@ export const userApiResponseSchema = z.object({
   login: z.optional(z.string()),
   avatar_url: z.optional(z.string()),
 });
-
-/** GitHub's `code`/`state` query params — the zod view of
- *  {@link isValidOAuthParam} (the sync `readCallbackParams` boot path uses
- *  the predicate directly). */
-export const oauthCallbackParamsSchema = z.object({
-  code: z
-    .string()
-    .check(
-      z.refine(isValidOAuthParam, { message: "must be a bounded, control-character-free param" }),
-    ),
-  state: z
-    .string()
-    .check(
-      z.refine(isValidOAuthParam, { message: "must be a bounded, control-character-free param" }),
-    ),
-});
-
-/** A parsed repo reference's repo/ref, right before it becomes fetch input. */
-export const repoRefPartSchema = z
-  .string()
-  .check(z.refine(isValidRepoRefPart, { message: "must be slug-shaped path segments" }));

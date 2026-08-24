@@ -1,6 +1,13 @@
 /**
- * Shared assertion helper for the engine test suite.
- *
+ * Shared helpers for the engine test suite — used by the suites in this
+ * directory AND by the colocated `src/**\/*.test.ts` ones, which is why it is
+ * still here rather than beside a source module: `oracleFlatten` deep-imports
+ * `renovate/dist`, and the lint fence confines that to two files under `src/`.
+ */
+import { mergeChildConfig } from "renovate/dist/config/utils.js";
+import { UPDATE_TYPE_KEYS } from "../src/index";
+
+/**
  * Roadmap 041: `typescript/no-non-null-assertion` is an error everywhere, so
  * the conventional test `!` is gone. `must` does the same narrowing but fails
  * with a sentence naming what was missing, instead of an unlabelled
@@ -11,4 +18,28 @@ export function must<T>(value: T | null | undefined, what: string): T {
     throw new Error(`Expected ${what}, got ${value === null ? "null" : "undefined"}`);
   }
   return value;
+}
+
+/**
+ * The oracle for the 012 update-type flattening step: exactly upstream's two
+ * lines in `flattenUpdates` after `applyPackageRules` — merge
+ * `config[updateType]` up, then delete every update-type block.
+ *
+ * `UPDATE_TYPE_KEYS` comes from the engine on purpose: the engine exports it so
+ * consumers stop restating the list, and an oracle that restated it could agree
+ * with a wrong simulator. `mergeChildConfig` is deep-imported so the oracle uses
+ * Renovate's own merge — resolved untouched in the golden project and through
+ * the shim plugin in the shimmed one, exactly as each suite needs.
+ */
+export function oracleFlatten(raw: Record<string, unknown>): Record<string, unknown> {
+  const updateType = typeof raw.updateType === "string" ? raw.updateType : undefined;
+  const block = updateType !== undefined ? raw[updateType] : undefined;
+  const out =
+    block && typeof block === "object"
+      ? (mergeChildConfig(raw, block as Record<string, unknown>) as Record<string, unknown>)
+      : { ...raw };
+  for (const key of UPDATE_TYPE_KEYS) {
+    delete out[key];
+  }
+  return out;
 }

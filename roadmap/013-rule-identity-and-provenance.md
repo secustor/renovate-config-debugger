@@ -28,7 +28,7 @@ Milestone: M5 · Status: done 2026-07-24
 > packageRules[713]"). A simulator rule row's provenance chip reuses the
 > existing preset-tree selection wiring (`onSelectPreset`/`selectedId`) rather
 > than new plumbing. All cross-links use `scrollIntoView` + a transient
-> `rcv-flash` CSS class; the editor jump uses CodeMirror's own
+> `rcd-flash` CSS class; the editor jump uses CodeMirror's own
 > transaction/selection API (no new dependency — `@uiw/react-codemirror`
 > re-exports `EditorView`). Known gap: the editor-line locator only recognizes
 > a double-quoted top-level `packageRules` key (the overwhelming convention,

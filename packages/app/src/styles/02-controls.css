@@ -1,0 +1,508 @@
+/* Split out of index.css (roadmap 050's deferred plan, executed 2026-08-23).
+   ORDER IS LOAD-BEARING: main.tsx imports these numbered files in sequence,
+   preserving the original file's cascade byte-for-byte — two cross-file
+   equal-specificity couplings (.preset-panel, .diff-wrapper) depend on it.
+   This file: shared controls: buttons, form metrics, caret, toolbar, summary strip, preset token + hover card, chips and diff chrome (036/039/081). */
+
+/* ---------- the one button (roadmap 039, restated as a standard by 075) ----
+
+   Roadmap 039: THE button. 036 unified the chrome rows but left five button
+   dialects behind — 0.9rem toolbar buttons towering over 0.8rem copy/segment
+   buttons and a 0.78rem diff-foot button, three heights in a single row. Every
+   button derives from this base at the 036 control metrics.
+
+   Roadmap 075 (v2 "Standard Components"): the variants stop being adjectives
+   on a `.btn` base (`btn primary` / `btn quiet` / bare `btn`) and become the
+   three named roles the design sheet lists, so a role has ONE spelling and a
+   reader of the markup can see which one is meant:
+
+     `.btn-primary`   — accent fill, 600, optional inner <kbd> shortcut pill.
+                        Run, the repo-load submit, Simulate, preset-inject.
+     `.btn-secondary` — the outline button; every other textual control,
+                        including Cancel (075: a textual Cancel is never quiet).
+     `.btn-quiet`     — borderless link-style, for cross-navigation inside
+                        prose. This absorbed `.linklike` and `.sim-toggle`.
+
+   `.seg button` is listed here instead of carrying a class: its buttons are
+   unclassed children of a segmented control, and sharing this ONE declaration
+   block is exactly what "re-based onto the button" means. */
+.btn-primary,
+.btn-secondary,
+.seg button {
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 0.8rem;
+  gap: 0.35rem;
+  padding: 0.25rem 0.7rem;
+  white-space: nowrap;
+}
+
+/* Secondary is quiet at rest and gains ink on hover — the same resting weight
+   `.seg button` always had, which is why the two now agree. */
+.btn-secondary {
+  color: var(--muted);
+}
+
+.btn-secondary:hover {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+/* The selected/active state of an outline button, shared verbatim by the
+   segmented control below: an accent outline over the page's own ground, so a
+   pressed control reads as raised rather than merely tinted. */
+.btn-secondary.active,
+.btn-secondary[aria-pressed="true"] {
+  background: var(--canvas);
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.btn-primary {
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent-fill) 88%, #000);
+}
+
+/* The shortcut hint inside a primary button (the Run button's ⌘⏎). Dim against
+   the filled surface, and gone on narrow viewports, where the row is tight and
+   a physical keyboard is least likely to be there. */
+.btn-primary kbd {
+  background: color-mix(in srgb, var(--on-accent) 18%, transparent);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.72rem;
+  line-height: 1;
+  padding: 0.15rem 0.3rem;
+}
+
+@media (max-width: 55rem) {
+  .btn-primary kbd {
+    display: none;
+  }
+}
+
+/* Borderless, link-blue, underlined: a jump inside a sentence, not a control
+   in a chrome row — so it deliberately does NOT take the base metrics. */
+.btn-quiet {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
+/* Not a fourth variant: a secondary button whose LABEL is the accent — the
+   copy affordances and the diff footer's "show all", which are offers rather
+   than the row's main action. */
+.btn-secondary.accent-text {
+  color: var(--accent);
+}
+
+/* Roadmap 035: a disabled button must never be pixel-identical to an enabled
+   one — that reads as broken when clicking it does nothing. 075 makes the
+   cursor say so too; the primary keeps its identity but in a washed-out
+   accent, rather than a translucent copy of itself. */
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-quiet:disabled {
+  cursor: not-allowed;
+}
+
+.btn-secondary:disabled,
+.btn-quiet:disabled {
+  opacity: 0.55;
+}
+
+.btn-primary:disabled {
+  background: color-mix(in srgb, var(--accent-fill) 45%, var(--surface));
+  border-color: transparent;
+}
+
+.btn-primary svg,
+.btn-secondary svg {
+  fill: currentColor;
+  flex: none;
+}
+
+/* Form controls take the same metrics, so a chrome row is one height end to
+   end — the toolbar's file `<select>`, the repo-load panel's inputs. */
+.ctl {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: inherit;
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.7rem;
+}
+
+/* THE disclosure triangle (`components/Caret`). Eight near-identical rules
+   spelled this out per surface — and one surface, the Effective config's band
+   headers, had none at all despite a comment claiming it used "the same one the
+   rows use". A fixed width because the slot must not move when the triangle
+   turns: option names start on one edge whichever way it points, which is also
+   why the inert variant (`<Caret empty>`, the spacer roadmap 082's defaults
+   rows draw) needs nothing beyond this rule, and no class of its own.
+   `flex: none` because every head that holds one is a flex row.
+
+   Only genuinely different HUES are overridden per surface (the pin cards'
+   faint, the ledger health box's error red); nothing overrides the metrics
+   except the preset tree's row caret, which is a button rather than an
+   ornament and keeps its own block. */
+.caret {
+  color: var(--muted);
+  display: inline-block;
+  flex: none;
+  font-size: 0.75rem;
+  text-align: center;
+  width: 0.9rem;
+}
+
+/* Roadmap 075: the toolbar IS the editor card's title bar now (see
+   `.editor-card-title`), so it carries no margin of its own — the card's
+   chrome-row padding is its padding. */
+.toolbar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+}
+
+/* ---------- summary strip (roadmap 075) ----------
+   The first element of an instrument: the whole tab's story in one sentence,
+   with the numbers that carry it in ink. A strip, not a card — it sits ON the
+   panel rather than boxing content, which is why it keeps the card's radius
+   and border but never a title row. An optional quiet action pins right. */
+.summary-strip {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  gap: 0.35rem 0.6rem;
+  padding: 0.45rem 0.7rem;
+}
+
+.summary-strip strong {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.summary-strip > .btn-quiet:last-child {
+  margin-left: auto;
+}
+
+/* ---------- preset token (roadmap 075, standardised in 081) ----------
+   Every preset reference wears this: mono, purple-tinted, whether it is static
+   text naming a preset or a control that jumps to that preset's node. The hue
+   is the app's existing preset hue (`.badge.src-github`, `.prov-preset`), so a
+   token and the chips that point at the same thing agree.
+
+   Roadmap 081 pins the SIZE, which is the half 075 left out: the class set no
+   `font-size`, so the token was whatever its context was — 0.85rem in a ledger
+   header, 0.7rem in a digest row, 0.95rem in the detail heading — and "the
+   same token everywhere" was true of the hue only. One declaration, one size;
+   the heading below is the single deliberate exception. The class is written
+   by `components/PresetName.tsx` and nothing else. */
+.preset-token {
+  background: color-mix(in srgb, var(--accent-purple) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-purple) 25%, transparent);
+  border-radius: 4px;
+  color: var(--accent-purple);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  padding: 0.02rem 0.35rem;
+}
+
+button.preset-token {
+  cursor: pointer;
+  text-align: left;
+}
+
+/* The design's hover: the border goes to full purple. `focus-visible` too —
+   the card opens on focus, so the token has to look active when it does. */
+button.preset-token:hover,
+button.preset-token:focus-visible {
+  border-color: var(--accent-purple);
+}
+
+/* The one size variant: the preset detail panel's own title (and the editor's
+   preset tooltip, which names the preset the same way). Through the component's
+   `heading` prop, not through a context selector, so the exception is visible in
+   the call rather than hidden in a descendant rule. */
+.preset-token-heading {
+  font-size: 0.95rem;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+/* ---------- the standard preset hover card (roadmap 081) ----------
+   Behind every token: the "via" chain that reaches this preset, what it drags
+   in, and the way into the tree. Rides the shared `.option-card` popover plane
+   (surface, hairline, radius, shadow, z-index) and re-states only its own
+   metrics. */
+.option-card.preset-ref-card {
+  padding: 0.7rem 0.85rem;
+  width: 300px;
+}
+
+.preset-ref-via {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.74rem;
+  gap: 0.3rem;
+}
+
+/* The chain's chips ARE the standard pill (`.pill-accent` for the repo layer,
+   `.pill-preset` for an ancestor preset) — mono and one step down, because
+   here they carry preset NAMES inside running text rather than a one-word
+   label, and unbolded for the same reason: the chain is context, not a claim. */
+.preset-ref-via .pill {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 400;
+  padding: 0 0.4rem;
+}
+
+.preset-ref-lead,
+.preset-ref-arrow {
+  color: var(--muted);
+}
+
+/* Where the token's own name would go — and deliberately does not. */
+.preset-ref-self {
+  color: var(--accent-purple);
+  font-size: 0.72rem;
+  font-style: italic;
+}
+
+.preset-ref-counts {
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.74rem;
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+}
+
+.preset-ref-counts strong {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.preset-ref-link {
+  font-size: 0.72rem;
+  margin-top: 0.35rem;
+}
+
+.stage-timeline {
+  column-gap: 0.15rem;
+  display: flex;
+  flex-wrap: wrap;
+  margin: 1rem 0;
+  row-gap: 0.4rem;
+}
+
+/* 042: the arrow is its own flex item, so a wrap puts it at the head of the
+   continuation line — the cue that the sequence carries on. Decoration only:
+   aria-hidden, not focusable, no handler. */
+.stage-sep {
+  align-self: center;
+  color: var(--muted);
+  flex: none;
+  font-size: 0.8rem;
+  padding: 0 0.1rem;
+  user-select: none;
+}
+
+.stage-chip {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.85rem;
+  gap: 0.35rem;
+  padding: 0.3rem 0.8rem;
+}
+
+.stage-chip.selected {
+  border-color: var(--accent);
+  outline: 1px solid var(--accent);
+}
+
+/* Roadmap 024: the dot is never color-only — clean/changed/error/skipped
+   each get a distinct shape too (circle / diamond / square / hollow ring),
+   so the signal survives grayscale and color-blind viewing. */
+.stage-chip .dot {
+  border-radius: 50%;
+  flex: none;
+  height: 0.55rem;
+  width: 0.55rem;
+}
+
+.stage-chip .dot.clean {
+  background: var(--ok);
+}
+
+.stage-chip .dot.changed {
+  background: var(--warn);
+  border-radius: 2px;
+  transform: rotate(45deg);
+}
+
+.stage-chip .dot.error {
+  background: var(--error);
+  border-radius: 2px;
+}
+
+.stage-chip .dot.skipped {
+  background: transparent;
+  border: 1.5px solid var(--muted);
+}
+
+.stage-chip-count {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 046: a chip labeled by a config location (`packageRules[N]`) rather than a
+   word — the merge timeline's rule stops. */
+.stage-chip-mono {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.stage-chip .dot.changed ~ .stage-chip-count {
+  color: var(--warn);
+}
+
+.stage-chip .dot.error ~ .stage-chip-count {
+  color: var(--error);
+}
+
+.messages li.error {
+  color: var(--error);
+}
+
+.messages li.warn {
+  color: var(--warn);
+}
+
+pre.config-view {
+  background: var(--surface);
+  font-size: 0.85rem;
+  margin: 0;
+  max-height: 32rem;
+  overflow: auto;
+  padding: 0.75rem;
+}
+
+.diff-wrapper {
+  font-size: 0.8rem;
+  max-height: 32rem;
+  overflow: auto;
+}
+
+/* Roadmap 036: the diff's chrome bar — same grammar as a card title (surface
+   fill, bottom border), so the controls are anchored to the diff instead of
+   floating above it. Title · `+N −N` · spacer · segmented view control · Copy
+   result, every one of them the same height. */
+.diff-chrome {
+  align-items: center;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+}
+
+.diff-chrome-title {
+  color: var(--muted);
+}
+
+.diff-chrome-spacer {
+  flex: 1;
+}
+
+.diff-stat {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.diff-stat .plus {
+  color: var(--ok);
+}
+
+.diff-stat .minus {
+  color: var(--error);
+}
+
+/* Roadmap 036: the render-budget note was an `.empty-note` under the diff, so
+   "Show all" read as prose. As a footer bar it is chrome, with a real button
+   that names what it will do. */
+.diff-foot {
+  align-items: center;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  gap: 0.5rem;
+  justify-content: center;
+  padding: 0.4rem 0.75rem;
+}
+
+/* Roadmap 026: annotates the `$schema` removal line in preset/merge diffs so
+   it reads as expected behavior, not a rejection. */
+.diff-benign-note {
+  color: var(--muted);
+  display: inline-block;
+  font-size: 0.75rem;
+  font-style: italic;
+  padding: 0.1rem 1ch;
+}
+
+.empty-note {
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding: 0.75rem;
+}
+
+.empty-note button {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0.2rem 0.6rem;
+}
+
+.rendering-note {
+  color: var(--muted);
+  font-weight: 400;
+}

@@ -1,0 +1,57 @@
+import { SessionMenu } from "@/features/session/SessionMenu";
+import { ShareButton } from "@/components/ShareButton";
+import type { StoredUser } from "@/platform/oauth";
+
+interface Props {
+  renovateVersion: string | undefined;
+  /** Roadmap 077: the share-link build-and-copy — undefined before a run,
+   *  when there is no view worth a link yet and the control is absent. */
+  onShare: (() => Promise<void>) | undefined;
+  oauthConfigured: boolean;
+  signedIn: boolean;
+  authUser: StoredUser | null;
+  onSignIn: () => void;
+  onSignOut: () => void;
+  onShowShortcuts: () => void;
+}
+
+/**
+ * Roadmap 037 established this corner as "about this session"; 055 put the
+ * project links here; 066 collapsed all of it into one trigger and brought the
+ * GitHub session up from the config toolbar to join it — the top-right corner
+ * being where an account control is looked for, and nowhere else.
+ *
+ * What is left in the row is what a menu cannot carry: the version badge,
+ * which is a fact rather than an action, and so has to be readable without a
+ * click. It sits LEFT of the trigger because the account control is the
+ * rightmost thing in a header by convention.
+ */
+export function AppHeaderTools({
+  renovateVersion,
+  onShare,
+  oauthConfigured,
+  signedIn,
+  authUser,
+  onSignIn,
+  onSignOut,
+  onShowShortcuts,
+}: Props) {
+  return (
+    <span className="app-header-tools">
+      {renovateVersion !== undefined ? (
+        <span className="version-badge">Renovate v{renovateVersion}</span>
+      ) : null}
+      {/* Roadmap 077: Share sits with the session, not the document — the link
+          carries the whole session (config, layers, pins, view). */}
+      {onShare === undefined ? null : <ShareButton onShare={onShare} />}
+      <SessionMenu
+        oauthConfigured={oauthConfigured}
+        signedIn={signedIn}
+        authUser={authUser}
+        onSignIn={onSignIn}
+        onSignOut={onSignOut}
+        onShowShortcuts={onShowShortcuts}
+      />
+    </span>
+  );
+}

@@ -11,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 mise install && pnpm install   # node + pnpm versions come from mise.toml
 pnpm dev                       # app dev server (vite)
-pnpm test                      # all workspace tests (engine golden+shimmed, app unit+render, oauth-worker)
+pnpm test                      # all workspace tests (engine golden+shimmed, app unit+components+shimmed, cli, oauth-worker)
 pnpm typecheck                 # tsc across all packages, plus tools/ (the agent hooks)
 pnpm lint                      # oxlint --type-aware + stylelint (zero tolerance: any report fails CI)
 pnpm format                    # oxfmt (format:check to verify)
@@ -23,7 +23,7 @@ Targeted tests:
 ```bash
 pnpm --filter @renovate-config-debugger/engine test:golden    # real renovate modules, reference snapshots
 pnpm --filter @renovate-config-debugger/engine test:shimmed   # browser module graph, must match golden
-pnpm --filter @renovate-config-debugger/app test:unit         # pure-module unit tests (vitest "unit" project)
+pnpm --filter @renovate-config-debugger/app test:unit         # all three app vitest projects (unit + components + shimmed)
 pnpm --filter @renovate-config-debugger/app test:e2e          # playwright; requires `pnpm --filter …/app build` first
 pnpm --filter @renovate-config-debugger/app exec vitest run --project unit src/lib/share.test.ts   # single file
 pnpm --filter @renovate-config-debugger/app exec playwright test e2e/04-simulator.spec.ts          # single e2e
@@ -65,16 +65,50 @@ claude mcp add rcd -- npx -y @renovate-config-debugger/cli mcp
 (In Claude Code this checkout already registers the server: the repo root's
 `.mcp.json` is the plugin's server config, and the project scope picks it up.)
 
+**In this checkout that server answers from the LAST PUBLISHED release**, not
+from your working tree: `.mcp.json` resolves `rcd` through `npx`, and it has to
+— it doubles as the published plugin's server config
+(`.claude-plugin/plugin.json` names it), so it cannot point at a path inside
+the repo. While you are changing `packages/cli/src` (or anything the CLI reads
+— engine, or the app's `headless` derivations), the MCP answers describe the
+released bundle instead of your edit. Two ways out:
+
+```bash
+# per developer: a local-scope entry that shadows .mcp.json's `rcd` for THIS
+# project only (stored in ~/.claude.json under this project, never committed)
+claude mcp add -s local rcd -- node packages/cli/bin/rcd-dev.mjs mcp
+claude mcp remove -s local rcd   # back to the published bundle
+
+# or per question, no config at all:
+pnpm --filter @renovate-config-debugger/cli rcd digest renovate.json
+```
+
+MCP servers cannot be declared in `.claude/settings.json` or
+`settings.local.json` — Claude Code reads server definitions only from
+`.mcp.json` (project scope) and `~/.claude.json` (local/user scope) — which is
+why the override is a command you run once rather than a file in the repo.
+`bin/rcd-dev.mjs` is the same graph, served from `src/`, so an edit is live on
+the next call with no build step.
+
 The workflow those tools want — validate first, digest for orientation, drill
 down one node at a time, `compare` as the oracle before proposing an edit — is
 written down once, in `skills/debug-renovate-config/SKILL.md` (roadmap 061).
 Read it when you are debugging a config here; it is the same skill the
 published plugin ships to consumers.
 
-A plain Node import of the engine is NOT equivalent: the preset tree and
-provenance are reconstructed by the logger shim, so they exist only in the
-shimmed graph — which the CLI, the browser bundle and the `shimmed` test
-project all share.
+**Read it by path.** The repo root's `skills/` is the PLUGIN's skill directory
+(`.claude-plugin/plugin.json`), so in this checkout the skill auto-loads only
+for someone who has the published plugin installed — it is not a project skill.
+The two skill directories that ARE loaded here hold other things:
+`.claude/skills/` has the persona-replay skill (roadmap 019) plus symlinks into
+`.agents/skills/`, which is vendored third-party skills pinned by
+`skills-lock.json` — neither is where this repo's own skill belongs. A developer
+who wants it loaded in-checkout can symlink it
+(`ln -s ../../skills/debug-renovate-config .claude/skills/`); nothing in the
+repo does it for them, and the pointer above is why that is survivable.
+
+A plain Node import of the engine is NOT equivalent — it silently has no preset
+tree and no provenance at all. See Architecture below for why.
 
 ## Session hooks
 
@@ -94,33 +128,24 @@ two of them have to work before `pnpm install` has:
 
 ## Architecture
 
-pnpm workspace with four packages:
+**The deep description lives in [`docs/Architecture.md`](docs/Architecture.md)** — the shim plugin's resolution mechanism, the golden/shimmed proof, the three module regimes and why each has the guard it has. Read it before changing anything about how Renovate's code is loaded. What you need to find your way around:
 
-- **`packages/engine`** — deep-imports the pinned `renovate` package (`renovate/dist/config/**`, all through one adapter module, `src/renovate-adapter.ts`) and records the pipeline trace. Renovate's config code is **not a public API**: the dependency is pinned exactly, and every Renovate bump PR runs full CI. `test/migration-drift.node.test.ts` catches upstream drift.
-- **`packages/app`** — the React 19 SPA. `src/features/` (editor, presets, simulator) holds feature slices; `src/components/`, `src/hooks/`, `src/lib/` are shared. The engine is imported dynamically so the critical path stays small.
-- **`packages/cli`** — `rcd`, the headless debugger (roadmap 058, experimental). The bin boots Vite's SSR module runner with `renovateShims()` active, so the CLI is the browser module graph running under Node — one subcommand per question, `--format json` everywhere. It imports the app's DOM-free derivations through `@renovate-config-debugger/app/headless` (the run digest, preset-tree stats, the effective-config tally) so its numbers are the app's numbers, not a copy. Roadmap 059 added the published half: `vite build --ssr` bakes the same graph into a dependency-free Node bundle (`bin/rcd.mjs` → `dist/main.js`) for `pnpm dlx`, while `bin/rcd-dev.mjs` keeps serving `src/` in-repo — CI proves the two agree by re-running the engine's shimmed snapshot suite against the bundle.
-- **`packages/oauth-worker`** — stateless OAuth `code → token` exchange (a static site can't hold the `client_secret`). The handler is a pure function deployed both as a Cloudflare Worker (`wrangler`) and as a Node image (`server.mjs`). It must never see configs, presets, or API traffic.
+- **`packages/engine`** — deep-imports the pinned `renovate` package and records the pipeline trace. Two modules hold the whole `renovate/dist/**` surface: `src/renovate-adapter.ts` (engine code) and `src/shims/renovate-internals.ts` (the shims). Renovate's config code is **not a public API**: the dependency is pinned exactly, every bump PR runs full CI, and `test/migration-drift.node.test.ts` catches upstream drift.
+- **`packages/app`** — the React 19 SPA. `src/features/` holds the six feature slices (editor, effective-config, overview, presets, session, simulator), `src/app/` the shell, and `src/components/`, `src/hooks/`, `src/lib/`, `src/data/`, `src/platform/` the shared layers. Features never import `@/app` and never import each other (oxlint enforces it). The engine is loaded dynamically through one `loadEngine()` seam (`src/platform/engine-chunk.ts`) so the critical path stays small.
+- **`packages/cli`** — `rcd`, the headless debugger (roadmap 058/059/060, experimental): the browser module graph running under Node, one subcommand per question, plus `rcd mcp`. Its derivations are imported from the app through `@renovate-config-debugger/app/headless`, so its numbers are the app's numbers, not a copy.
+- **`packages/oauth-worker`** — stateless OAuth `code → token` exchange (a static site can't hold the `client_secret`), deployed both as a Cloudflare Worker and as a Node image. It must never see configs, presets, or API traffic.
 
-### The shim system (the core trick)
+Two things to have in mind on any change here:
 
-`packages/engine/src/shims/vite-plugin-renovate-shims.ts` is a Vite `resolveId` plugin that swaps Renovate's Node-only internals (OpenTelemetry, bunyan, re2, datasource lookups, preset HTTP clients) for browser-safe shims in `src/shims/`. The logger shim doubles as the trace collector — preset-tree and provenance events **only exist in the shimmed module graph**. Preset fetching becomes plain `fetch()` against CORS-enabled host APIs. Shim matching is on path _suffix_ (survives pnpm's `.pnpm/...` real paths) via `resolveId`, not `resolve.alias`, because relative extensionless imports inside dist never hit aliases — the app's `vite.config.ts` copies the same mechanism for codemirror-json-schema.
-
-### Test regimes
-
-There are three module regimes, each with its own guard:
-
-1. **Node / vitest** — engine `golden` project runs untouched Renovate modules and writes reference snapshots; the `shimmed` project runs the exact browser module graph (shim plugin + `server.deps.inline: [/renovate/]` — without the inline, Node loads `renovate/dist` natively and the plugin never sees it) and must produce **byte-identical** results. This is the proof the shims don't alter behavior.
-2. **Production build** — Playwright e2e (`packages/app/e2e/`) drives the **production build via `vite preview`**, never `vite dev` (dev cold-starts can wedge the first engine import). Build the app first locally; CI reuses its build artifact.
-3. **`vite dev`** — weakest CJS/ESM interop; `check:dev-graph` boots the dev server and fails on Node-only specifiers leaking into the graph.
-
-The app's vitest config also has a `render` project (`src/**/*.test.tsx`, jsdom + shims) that counts panel re-renders while typing — a performance regression test, hence its long timeout.
+- The preset tree and the provenance events are emitted by the **logger shim**, so they exist **only in the shimmed module graph** — the browser bundle, the CLI, and the `shimmed` vitest projects, and nowhere else.
+- Tests are assigned to projects **by filename**, and each project is globbed: engine `test/*.node.test.ts` (golden) vs `test/*.shimmed.test.ts`; app `src/**/*.test.ts` (unit) vs `src/**/*.test.tsx` (components, jsdom, no shims) vs `src/**/*.shimmed.test.tsx` (jsdom + shims, long timeout). `test/project-coverage.node.test.ts` and `src/vitest-projects.test.ts` assert every test file matches exactly one project, so name a new file for the regime it needs. The e2e suite drives the **production build via `vite preview`**, never `vite dev`.
 
 ## Enforced conventions (lint will fail otherwise)
 
 - Nothing is advisory: `.oxlintrc.json` has no warn tier — every enabled rule is an error, and CI fails on any output.
 - `react/jsx-max-depth` is 3 — it's a deliberate decomposition driver; extract components instead of nesting.
 - No default exports (`import/no-default-export`), inline type imports, no `any`, no non-null assertions (the rare honest exception carries an inline disable stating its invariant).
-- **CSS colors must go through `var()` design tokens** from the `:root` palette in `packages/app/src/index.css` — stylelint bans raw color literals and inline `light-dark()` on color-bearing properties (`color-mix()` of a token is the one allowed function shape).
+- **CSS colors must go through `var()` design tokens** from the `:root` palette in `packages/app/src/index.css` — stylelint bans raw color literals and inline `light-dark()` on color-bearing properties (`color-mix()` of a token is the one allowed function shape). `index.css` is the token block plus the element base; everything else is split into numbered files under `packages/app/src/styles/`, imported in order by `main.tsx` (the order is the cascade — see that file's header before adding one).
 - Formatting is oxfmt's job, not stylelint's or oxlint's.
 - Conventional commit format.
 
@@ -128,6 +153,6 @@ The app's vitest config also has a `render` project (`src/**/*.test.tsx`, jsdom 
 
 - `matchCurrentVersion` uses Renovate's real versioning modules for every ecosystem **except `conda`** (its ~3 MB WASM parser is excluded; such clauses report an honest error).
 - Share links carry state in the URL _fragment_ only (never reaches server logs) and must never carry tokens or manually injected presets. Tokens live in `sessionStorage`/memory only — except the OAuth refresh token, which (roadmap 065, opt-in per deployment) lives in an `HttpOnly` cookie scoped to the oauth-worker; `localStorage` never holds a secret, only the non-secret cookie-session marker.
-- `public/` is deployment payload copied verbatim, not app source; `rcv-config.js` there is a stub that the Docker entrypoint may overwrite at container start (runtime `RCV_*` config).
+- `public/` is deployment payload copied verbatim, not app source; `rcd-config.js` there is a stub that the Docker entrypoint may overwrite at container start (runtime `RCD_*` config).
 - CI must not install via mise hooks — the `postinstall` hook in `mise.toml` is local-only convenience (see the comment there before touching caching in workflows).
 - **Never hand-edit a package `version`, or add a `renovateCompatibility` field to a manifest.** semantic-release owns both (roadmap 067): a release is a manual `workflow_dispatch` of `.github/workflows/release.yml`, which derives the version from the conventional commits since the last `v*` tag, stamps it into every non-`private` package, stamps the CLI's `renovateCompatibility` field (embedded versions, keyed by full package name) and renders the compat table into the README that ships to npm (the repo copy carries only markers), publishes, and writes the GitHub release. Nothing is committed back to main: versions live in tags, the changelog is the GitHub releases, and the compat history accumulates on the npm registry. All public packages share one version by construction. Write the commit message accordingly — `fix:`/`feat:` are what cut releases, `chore:`/`docs:`/`test:` are not.

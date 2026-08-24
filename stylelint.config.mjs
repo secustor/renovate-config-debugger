@@ -41,8 +41,12 @@ export default {
       },
     ],
     // Catches var(--tyop)-style typos: every var() reference must resolve to
-    // a custom property declared somewhere in the same file (the :root token
-    // block below).
-    "csstools/value-no-unknown-custom-properties": true,
+    // a declared custom property — in the same file (component-local tokens),
+    // or in the :root token block, which lives in index.css while the
+    // consuming rules live in the split styles/ files (050's deferred split).
+    "csstools/value-no-unknown-custom-properties": [
+      true,
+      { importFrom: ["packages/app/src/index.css"] },
+    ],
   },
 };

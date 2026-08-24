@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { HoverCardCloseProvider, useHoverCard } from "@/hooks/hover-card";
-import { useMoveGatedHover } from "@/hooks/hover-gate";
+import { type HoverCardControls, HoverCardCloseProvider, useHoverCard } from "./hover-card-hooks";
+import { useMoveGatedHover } from "./hover-gate";
 import { anchoredCardStyle } from "@/lib/anchored-card";
 
 /**
@@ -44,11 +44,63 @@ export interface HoverCardHandlers {
 const DEFAULT_WIDTH = 320;
 const DEFAULT_FLIP_MARGIN = 200;
 
+/**
+ * The card half on its own: the `.option-card` plane, placed against whatever
+ * box `controls` currently holds and portalled to `<body>` (see the header for
+ * why the portal is not optional).
+ *
+ * Split out for the one card whose anchor is not an element this component
+ * could render — the diff views' option-docs hover, which finds its `"key":`
+ * token by caret hit-testing a `<pre>` full of plain text and anchors to a
+ * `Range`. It drives `useHoverCard` itself and renders this; everything else
+ * uses {@link HoverCardAnchor}, which is the two halves together. Both sit on
+ * the same hook, so the singleton holds ACROSS them: opening either takes the
+ * other down.
+ */
+export function HoverCardSurface({
+  controls,
+  className,
+  width = DEFAULT_WIDTH,
+  flipMargin = DEFAULT_FLIP_MARGIN,
+  children,
+}: {
+  controls: HoverCardControls;
+  /** Extra class on the `.option-card` surface. */
+  className?: string;
+  width?: number;
+  flipMargin?: number;
+  /** The card's body. Rendered only while the card is up. */
+  children: ReactNode;
+}) {
+  const { anchor, hide, hideNow, cancelHide } = controls;
+  if (!anchor) {
+    return null;
+  }
+  return createPortal(
+    // The card's body gets its own dismissal (`hover-card-hooks.ts`): an action
+    // inside the card that moves the page — the attribution card's tree jump —
+    // must close the card it was clicked in, and a pointer-opened card has no
+    // blur to do that for it.
+    <HoverCardCloseProvider value={hideNow}>
+      <div
+        className={className ? `option-card ${className}` : "option-card"}
+        style={anchoredCardStyle(anchor, width, flipMargin)}
+        onMouseEnter={cancelHide}
+        onMouseLeave={hide}
+      >
+        {children}
+      </div>
+    </HoverCardCloseProvider>,
+    document.body,
+  );
+}
+
 export function HoverCardAnchor({
   card,
   className,
   width = DEFAULT_WIDTH,
   flipMargin = DEFAULT_FLIP_MARGIN,
+  openDelayMs = 0,
   children,
 }: {
   /** The card's body. Rendered only while the card is up. */
@@ -57,11 +109,22 @@ export function HoverCardAnchor({
   className?: string;
   width?: number;
   flipMargin?: number;
+  /**
+   * Roadmap 081: hover-intent delay before the card opens, in ms. 0 (the
+   * default, and every anchor that predates 081) opens on the first genuine
+   * pointer move. See `useMoveGatedHover` for why this is per-anchor.
+   *
+   * Applies to the POINTER only — a focus is already an explicit act, and
+   * making a keyboard user hold a stop for four tenths of a second before the
+   * card they Tabbed to appears would be a delay with nothing to prevent.
+   */
+  openDelayMs?: number;
   /** Renders the anchor element; receives the handlers to spread. */
   children: (handlers: HoverCardHandlers) => ReactNode;
 }) {
-  const { anchor, show, hide, hideNow, cancelHide, onKeyDown } = useHoverCard();
-  const moveGate = useMoveGatedHover(show);
+  const controls = useHoverCard();
+  const { show, hide, onKeyDown } = controls;
+  const moveGate = useMoveGatedHover(show, openDelayMs);
   return (
     <>
       {children({
@@ -75,25 +138,14 @@ export function HoverCardAnchor({
         onBlur: hide,
         onKeyDown,
       })}
-      {anchor
-        ? createPortal(
-            // The card's body gets its own dismissal (`hooks/hover-card.ts`):
-            // an action inside the card that moves the page — the attribution
-            // card's tree jump — must close the card it was clicked in, and a
-            // pointer-opened card has no blur to do that for it.
-            <HoverCardCloseProvider value={hideNow}>
-              <div
-                className={className ? `option-card ${className}` : "option-card"}
-                style={anchoredCardStyle(anchor, width, flipMargin)}
-                onMouseEnter={cancelHide}
-                onMouseLeave={hide}
-              >
-                {card}
-              </div>
-            </HoverCardCloseProvider>,
-            document.body,
-          )
-        : null}
+      <HoverCardSurface
+        controls={controls}
+        className={className}
+        width={width}
+        flipMargin={flipMargin}
+      >
+        {card}
+      </HoverCardSurface>
     </>
   );
 }

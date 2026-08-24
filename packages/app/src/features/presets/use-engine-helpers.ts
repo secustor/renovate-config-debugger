@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { loadEngine } from "@/platform/engine-chunk";
 import type { InjectionKeyFn, MergeFn, ParseFn } from "./tree-shared";
 
 /** Loads the engine helpers the tree needs (merge + injection key/parse). */
@@ -12,7 +13,7 @@ export function useEngineHelpers() {
   useEffect(() => {
     let live = true;
     void (async () => {
-      const engine = await import("@renovate-config-debugger/engine");
+      const engine = await loadEngine();
       if (live) {
         setHelpers({
           merge: engine.mergeChildConfig as MergeFn,

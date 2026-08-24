@@ -19,6 +19,7 @@ import type { RefObject } from "react";
 import { renovateSchema } from "@renovate-config-debugger/engine/schema";
 import type { PresetNodeState } from "@renovate-config-debugger/engine";
 import type { PresetHoverContext, PresetHoverInfo } from "@/lib/preset-hover";
+import { pluralWord } from "@/lib/format";
 
 const STRING_RE = /"(?:[^"\\]|\\.)*"/g;
 
@@ -56,12 +57,17 @@ const STATE_LABEL: Record<PresetNodeState, string> = {
 
 function presetCard(info: PresetHoverInfo, onSelectPreset: (nodeId: string) => void): HTMLElement {
   const card = document.createElement("div");
-  card.className = "option-card preset-hover-card";
+  card.className = "option-card";
 
   const head = document.createElement("div");
   head.className = "option-card-head";
   const name = document.createElement("code");
-  name.className = "option-card-name";
+  // Roadmap 081: this card is vanilla DOM on a lazily-imported chunk, so it
+  // cannot render `PresetName` — but it can wear the same CLASS, and the design
+  // rule ("purple = preset, everywhere") is about the token, not the React
+  // tree. The heading variant, so the name reads as this card's title exactly
+  // as it does on the preset detail panel.
+  name.className = "preset-token preset-token-heading";
   name.textContent = info.name;
   head.append(name);
   const badge = document.createElement("span");
@@ -71,13 +77,12 @@ function presetCard(info: PresetHoverInfo, onSelectPreset: (nodeId: string) => v
   card.append(head);
 
   const desc = document.createElement("p");
-  desc.className = "option-card-desc";
   const contribs: string[] = [];
   if (info.optionCount > 0) {
-    contribs.push(`${info.optionCount} option${info.optionCount === 1 ? "" : "s"}`);
+    contribs.push(`${info.optionCount} ${pluralWord(info.optionCount, "option")}`);
   }
   if (info.ruleCount > 0) {
-    contribs.push(`${info.ruleCount} packageRule${info.ruleCount === 1 ? "" : "s"}`);
+    contribs.push(`${info.ruleCount} ${pluralWord(info.ruleCount, "packageRule")}`);
   }
   const summary =
     info.state === "resolved" && contribs.length > 0

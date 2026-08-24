@@ -1,4 +1,5 @@
 import type { ProvenanceLayer } from "@renovate-config-debugger/engine";
+import { Caret } from "@/components/Caret";
 import { OptionKey } from "@/components/option-docs";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { previewValue } from "./rule-format";
@@ -18,11 +19,13 @@ import type { ThreadModel } from "./verdict-threads";
  */
 
 /** The key cell: the disclosure caret plus the option name, with its docs
- *  hover card intact (`OptionKey` is a plain span, safe inside the button). */
+ *  hover card intact (`OptionKey` is a span, never a button, so it nests inside
+ *  the thread's toggle — it is focusable, so it is a tab stop of its own in
+ *  there, which is how the docs became keyboard-reachable). */
 function ThreadHeadKey({ name, open }: { name: string; open: boolean }) {
   return (
     <span className="sim-thread-key">
-      <span className="sim-thread-caret">{open ? "▾" : "▸"}</span>{" "}
+      <Caret open={open} />{" "}
       <code>
         <OptionKey name={name} flagUnknown />
       </code>

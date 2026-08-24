@@ -15,7 +15,12 @@ export default defineConfig({
       {
         test: {
           name: "golden",
-          include: ["test/*.node.test.ts"],
+          // `test/*.node.test.ts` are the suites that need the untouched
+          // renovate modules as their reference; `src/**/*.test.ts` are the
+          // colocated suites of modules that need no shims at all (roadmap
+          // 084 follow-up). Both regimes are "real renovate, no plugin", so
+          // they share this project.
+          include: ["test/*.node.test.ts", "src/**/*.test.ts"],
           environment: "node",
         },
       },
@@ -27,17 +32,12 @@ export default defineConfig({
           // config:recommended) pays the lazy vite-node transform+import of
           // renovate's preset data modules — 4-6s on 2-core CI runners
           testTimeout: 30_000,
-          include: [
-            "test/description-provenance.shimmed.test.ts",
-            "test/global-inherit.shimmed.test.ts",
-            "test/pipeline.shimmed.test.ts",
-            "test/preset-fetchers.test.ts",
-            "test/provenance.shimmed.test.ts",
-            "test/repo-config.test.ts",
-            "test/resolved-config.shimmed.test.ts",
-            "test/simulate-package-rules.shimmed.test.ts",
-            "test/version.shimmed.test.ts",
-          ],
+          // Globbed, not hand-listed: a new shimmed test that missed a stale
+          // include list would run in NO project and pass silently — the same
+          // failure class the headless walker's regex had (roadmap 084).
+          // test/project-coverage.node.test.ts asserts every test file
+          // matches exactly one of the two globs.
+          include: ["test/*.shimmed.test.ts"],
           environment: "node",
           server: {
             deps: {

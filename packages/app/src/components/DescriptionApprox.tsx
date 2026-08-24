@@ -1,4 +1,4 @@
-import { approximateTitle } from "./description-approx";
+import { approximateTitle } from "@/lib/description-approx";
 
 /**
  * Roadmap 069: the shared marks for the engine's *approximate* attribution —

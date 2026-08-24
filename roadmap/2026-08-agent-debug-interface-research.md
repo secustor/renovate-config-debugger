@@ -203,7 +203,7 @@ the file; it does **not** resolve presets, so any question about what
 from is out of its scope. The nearest upstream alternative for those,
 `renovate --dry-run`, needs a real repository, platform credentials and a
 full bot run, and emits logs rather than data. What `rcd` adds is exactly
-the visualizer's reason to exist, headless: the preset tree with per-node
+the debugger's reason to exist, headless: the preset tree with per-node
 bodies, per-key provenance, the resolved-config document, the packageRules
 simulator and the A/B compare oracle, error translations with quick fixes,
 and `--format json` everywhere. Even the overlapping `rcd validate` sees

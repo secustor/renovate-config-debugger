@@ -1,4 +1,4 @@
-import { useHoverCardClose } from "@/hooks/hover-card";
+import { HoverCardJump } from "./HoverCardJump";
 import {
   cardPathText,
   cardPositionText,
@@ -7,7 +7,7 @@ import {
 } from "@/lib/description-attribution";
 import { APPROXIMATE_NOTE } from "@/lib/tree-descriptions";
 import { HoverCardAnchor } from "./hover-card";
-import { layerClass, layerLabel } from "./provenance-layer";
+import { layerClass, layerLabel } from "@/lib/provenance-layer";
 
 /**
  * Roadmap 069 (PR 5): the attribution card on a `description` string, and the
@@ -36,12 +36,6 @@ function AttributionCard({
   // Hoisted out of the JSX: read inside the click closure, `card.nodeId`
   // re-widens to `string | undefined`.
   const nodeId = card.nodeId;
-  // The jump switches tabs, so the card must go with it. Nothing else would
-  // take it: opened by pointer it never held focus, so there is no blur, and
-  // the portalled card would sit at its old viewport coordinates over the
-  // preset tree until the pointer left its box or the reader pressed Escape —
-  // pointing, by then, at a sentence that is no longer under it.
-  const closeCard = useHoverCardClose();
   return (
     <>
       <div className="option-card-head">
@@ -55,16 +49,7 @@ function AttributionCard({
       {card.approximate ? <p className="option-card-row">{APPROXIMATE_NOTE}</p> : null}
       {nodeId && onSelectPreset ? (
         <p className="option-card-row">
-          <button
-            type="button"
-            className="linklike"
-            onClick={() => {
-              closeCard();
-              onSelectPreset(nodeId);
-            }}
-          >
-            Show in preset tree →
-          </button>
+          <HoverCardJump label="Show in preset tree →" onJump={() => onSelectPreset(nodeId)} />
         </p>
       ) : null}
     </>

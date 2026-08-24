@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
  * into the demoted replay, the popover's "open in matched rules" — are the only
  * navigation variant A has, and both land the reader somewhere the thread they
  * came from is off-screen. This pill sits on the app's existing bottom-pill
- * plane (`.back-to-top` / `.rcv-toast`) naming that thread, and returns to it:
+ * plane (`.back-to-top` / `.rcd-toast`) naming that thread, and returns to it:
  * expanded, scrolled to, flashed.
  *
  * Ephemeral by construction — a click, a new run or Escape ends it — and NEVER

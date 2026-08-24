@@ -4,36 +4,11 @@
  * renovate modules (no shims) — proving the simulator replicates upstream
  * behavior, not an artifact of the browser module graph.
  */
-import { mergeChildConfig } from "renovate/dist/config/utils.js";
 import { applyPackageRules } from "renovate/dist/util/package-rules/index.js";
 import { describe, expect, it } from "vitest";
 import type { DependencyDescriptor } from "../src/index";
 import { runPipeline, simulatePackageRules } from "../src/index";
-import { must } from "./helpers";
-
-const UPDATE_TYPE_KEYS = [
-  "major",
-  "minor",
-  "patch",
-  "pin",
-  "digest",
-  "lockFileMaintenance",
-  "replacement",
-];
-
-/** Upstream flattenUpdates' update-type merge + block deletion (roadmap 012). */
-function oracleFlatten(raw: Record<string, unknown>): Record<string, unknown> {
-  const updateType = typeof raw.updateType === "string" ? raw.updateType : undefined;
-  const block = updateType !== undefined ? raw[updateType] : undefined;
-  const out =
-    block && typeof block === "object"
-      ? (mergeChildConfig(raw, block as Record<string, unknown>) as Record<string, unknown>)
-      : { ...raw };
-  for (const key of UPDATE_TYPE_KEYS) {
-    delete out[key];
-  }
-  return out;
-}
+import { must, oracleFlatten } from "./helpers";
 
 const npmDep: DependencyDescriptor = {
   manager: "npm",
@@ -191,7 +166,7 @@ describe("simulatePackageRules (golden)", () => {
  * validator warns about (`you should not extend "group:" presets`). Preset
  * resolution leaves the rule shaped `{ packageRules: [innerGroupRule],
  * <userOptions> }`, i.e. a rule whose only matcher-carrying content sits one
- * level down, and it has been claimed that the visualizer "hoists" that inner
+ * level down, and it has been claimed that the debugger "hoists" that inner
  * body where a real run would ignore it. It does not — the flattening is
  * Renovate's own, and these tests pin both halves of why with real
  * `applyPackageRules` as the oracle:

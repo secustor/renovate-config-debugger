@@ -2,7 +2,7 @@ import type {
   DescriptionProvenance,
   RuleDescriptionAttribution,
 } from "@renovate-config-debugger/engine";
-import { layerLabel } from "@/components/provenance-layer";
+import { layerLabel } from "@/lib/provenance-layer";
 
 /**
  * Roadmap 069 (PR 5): the author's own words on a matched `packageRules` entry.

@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { resultsPanel } from "./helpers";
+import { expectRunIdle, openLayerStage, resultsPanel } from "./helpers";
 
 /**
  * Roadmap 045 — the repo-load form's inherited-config probe, end to end against
@@ -17,6 +17,13 @@ import { resultsPanel } from "./helpers";
  * "would not apply" hint when the box is (manually) on, and a link copied
  * after an auto-load carries the layer as TEXT, so reopening it fetches
  * nothing.
+ *
+ * Roadmap 076 moved both layers out of the Advanced zone and onto their own
+ * pipeline stage cards, which changes the flows here in one way: a global
+ * config can no longer be pasted BEFORE the first run, because the tab holding
+ * its editor does not exist yet. The two tests that used to start by pasting one
+ * therefore load once first — which is also a truer reproduction of what a user
+ * does, since they are now looking at the run the layer is about to change.
  */
 
 const REPO_CONFIG = JSON.stringify({ labels: ["dependencies"], prHourlyLimit: 2 });
@@ -49,59 +56,59 @@ async function stubGithub(page: Page, files: Record<string, string>): Promise<st
 
 /** The repo-load form, opened from the editor card's title bar. */
 async function openRepoForm(page: Page): Promise<void> {
-  await page.goto("/");
-  await expect(page.locator(".cm-content")).toContainText("config:recommended");
   await page.getByRole("button", { name: "Load from repo…" }).click();
   await expect(page.locator(".repo-panel")).toBeVisible();
+}
+
+/** A fresh visit with the load form open — how every test here starts. */
+async function startAtRepoForm(page: Page): Promise<void> {
+  await page.goto("/");
+  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+  await openRepoForm(page);
 }
 
 function inheritCheckbox(page: Page) {
   return page.getByRole("checkbox", { name: /Also load the org/ });
 }
 
-function inheritedLayerEditor(page: Page) {
-  return page.locator(".advanced-settings", { hasText: "Inherited config" }).locator("textarea");
+/**
+ * Fills the repo reference and loads it, waiting for the run the load ends in —
+ * which is what makes the `seen` assertions below mean anything, since the
+ * inherited-config probe happens between the repo config arriving and that run.
+ *
+ * The wait for the panel to CLOSE is load-bearing, not cosmetic: Run is
+ * disabled while the load form is open, and `expectRunIdle` reads a disabled
+ * button as "a run is in flight". Without this it could resolve on the click's
+ * own frame and every assertion after it would race the probe.
+ */
+async function loadRepo(page: Page, repo?: string): Promise<void> {
+  if (repo !== undefined) {
+    await page.getByRole("textbox", { name: "Repository", exact: true }).fill(repo);
+  }
+  await page.getByRole("button", { name: "Load", exact: true }).click();
+  await expect(page.locator(".repo-panel")).toBeHidden({ timeout: 30_000 });
+  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
+  await expectRunIdle(page);
 }
 
-/** Opens the Advanced zone and its inherited-config section by hand — what a
- *  user does when the probe found nothing and stayed quiet about it. */
-async function openInheritedSection(page: Page): Promise<void> {
-  await page.locator("details.advanced-zone > summary").click();
-  await page
-    .locator("details.advanced-settings", { hasText: "Inherited config" })
-    .locator("> summary")
-    .click();
-}
-
-/** Pastes `json` into the Global config layer, opening the Advanced zone and
- *  that section by hand first (both are collapsed `<details>` by default). */
+/** Pastes `json` into the Global config layer — the pipeline's global stage
+ *  card since 076, so this needs a run to have happened. */
 async function pasteGlobalConfig(page: Page, json: string): Promise<void> {
-  const advanced = page.locator("details.advanced-zone");
-  if (!(await advanced.evaluate((el) => (el as HTMLDetailsElement).open))) {
-    await page.locator("details.advanced-zone > summary").click();
-  }
-  const section = page.locator("details.advanced-settings", { hasText: "Global config" });
-  if (!(await section.evaluate((el) => (el as HTMLDetailsElement).open))) {
-    await section.locator("> summary").click();
-  }
-  await section.locator("textarea").fill(json);
+  const editor = await openLayerStage(page, "global");
+  await editor.fill(json);
 }
 
 test("the checkbox defaults off, and a load performs no probe at all", async ({ page }) => {
   const seen = await stubGithub(page, { [CONFIG_URL]: REPO_CONFIG, [PROBE_URL]: INHERITED_CONFIG });
-  await openRepoForm(page);
+  await startAtRepoForm(page);
 
   await expect(inheritCheckbox(page)).not.toBeChecked();
-  await page
-    .getByRole("textbox", { name: "Repository", exact: true })
-    .fill("renovate-org/backend-api");
-  await page.getByRole("button", { name: "Load", exact: true }).click();
-  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
+  await loadRepo(page, "renovate-org/backend-api");
 
   expect(seen).toContain(CONFIG_URL);
   expect(seen).not.toContain(PROBE_URL);
-  await openInheritedSection(page);
-  await expect(inheritedLayerEditor(page)).toHaveValue("");
+  const inherited = await openLayerStage(page, "inherit");
+  await expect(inherited).toHaveValue("");
   await expect(page.locator(".layer-origin")).toHaveCount(0);
 });
 
@@ -109,7 +116,7 @@ test("ticking the checkbox then loading probes, fills the layer, and labels its 
   page,
 }) => {
   const seen = await stubGithub(page, { [CONFIG_URL]: REPO_CONFIG, [PROBE_URL]: INHERITED_CONFIG });
-  await openRepoForm(page);
+  await startAtRepoForm(page);
 
   await expect(inheritCheckbox(page)).not.toBeChecked();
   await inheritCheckbox(page).check();
@@ -124,14 +131,14 @@ test("ticking the checkbox then loading probes, fills the layer, and labels its 
   await expect(targetRepo).toHaveValue("renovate-org/renovate-config");
   await expect(targetFile).toHaveValue("org-inherited-config.json");
 
-  await page.getByRole("button", { name: "Load", exact: true }).click();
-  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
+  await loadRepo(page);
 
   // The probe ran, exactly once, against exactly that file.
   expect(seen.filter((url) => url === PROBE_URL)).toHaveLength(1);
 
   // The layer holds the fetched text and says where it came from.
-  await expect(inheritedLayerEditor(page)).toHaveValue(INHERITED_CONFIG);
+  const inherited = await openLayerStage(page, "inherit");
+  await expect(inherited).toHaveValue(INHERITED_CONFIG);
   const origin = page.locator(".layer-origin");
   await expect(origin).toBeVisible();
   await expect(origin.locator(".badge.auto")).toHaveText("auto-loaded");
@@ -140,7 +147,7 @@ test("ticking the checkbox then loading probes, fills the layer, and labels its 
   await expect(origin).toContainText("editing makes it yours");
 
   // Editing it drops the origin line: from here it is an ordinary pasted layer.
-  await inheritedLayerEditor(page).fill('{ "automerge": true }');
+  await inherited.fill('{ "automerge": true }');
   await expect(page.locator(".layer-origin")).toHaveCount(0);
 });
 
@@ -148,30 +155,30 @@ test("a pasted global config with inheritConfig: true auto-checks the box, and a
   page,
 }) => {
   const seen = await stubGithub(page, { [CONFIG_URL]: REPO_CONFIG, [PROBE_URL]: INHERITED_CONFIG });
-  await openRepoForm(page);
+  await startAtRepoForm(page);
   await expect(inheritCheckbox(page)).not.toBeChecked();
 
-  // Live reactivity: pasting the global config while the form is already open
-  // checks the box immediately, no reopen needed.
+  // 076: the global layer's editor is a pipeline stage card, so there has to be
+  // a run before there is anywhere to paste one. This first load probes nothing
+  // (the box is still off), which is the same starting point as before.
+  await loadRepo(page, "renovate-org/backend-api");
+  expect(seen).not.toContain(PROBE_URL);
+
+  // Live reactivity: pasting the global config checks the box, no reopen of the
+  // load form needed for the derivation itself.
   await pasteGlobalConfig(page, JSON.stringify({ inheritConfig: true }));
+  await openRepoForm(page);
   await expect(inheritCheckbox(page)).toBeChecked();
 
-  await page
-    .getByRole("textbox", { name: "Repository", exact: true })
-    .fill("renovate-org/backend-api");
-  await page.getByRole("button", { name: "Load", exact: true }).click();
-  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
-
+  await loadRepo(page);
   expect(seen).toContain(PROBE_URL);
-  await expect(inheritedLayerEditor(page)).toHaveValue(INHERITED_CONFIG);
+  const inherited = await openLayerStage(page, "inherit");
+  await expect(inherited).toHaveValue(INHERITED_CONFIG);
 
   // A manual override sticks even after the global config that triggered the
   // auto-check is removed — the user owns the checkbox from the moment they
-  // touch it, same idiom as the probe-target fields. Reopen the form (the
-  // successful load above collapsed it) still auto-checked, since it hasn't
-  // been touched yet.
-  await page.getByRole("button", { name: "Load from repo…" }).click();
-  await expect(page.locator(".repo-panel")).toBeVisible();
+  // touch it, same idiom as the probe-target fields.
+  await openRepoForm(page);
   await expect(inheritCheckbox(page)).toBeChecked();
   await inheritCheckbox(page).uncheck();
   await pasteGlobalConfig(page, "");
@@ -182,18 +189,14 @@ test("a missing inherited config leaves the layer empty with the quiet note", as
   // Only the repo config exists — the probe's target 404s, exactly like a real
   // org that never created one.
   const seen = await stubGithub(page, { [CONFIG_URL]: REPO_CONFIG });
-  await openRepoForm(page);
+  await startAtRepoForm(page);
 
   await inheritCheckbox(page).check();
-  await page
-    .getByRole("textbox", { name: "Repository", exact: true })
-    .fill("renovate-org/backend-api");
-  await page.getByRole("button", { name: "Load", exact: true }).click();
-  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
+  await loadRepo(page, "renovate-org/backend-api");
   expect(seen).toContain(PROBE_URL);
 
-  await openInheritedSection(page);
-  await expect(inheritedLayerEditor(page)).toHaveValue("");
+  const inherited = await openLayerStage(page, "inherit");
+  await expect(inherited).toHaveValue("");
   await expect(page.locator(".layer-origin")).toHaveCount(0);
   const note = page.locator(".advanced-note", { hasText: "No org inherited config" });
   await expect(note).toBeVisible();
@@ -207,21 +210,24 @@ test("an explicit inheritConfig: false still flags a found layer, once the box i
   page,
 }) => {
   const seen = await stubGithub(page, { [CONFIG_URL]: REPO_CONFIG, [PROBE_URL]: INHERITED_CONFIG });
-  await openRepoForm(page);
+  await startAtRepoForm(page);
+
+  // Same 076 preamble: one load, so the global layer has a card to be pasted on.
+  await loadRepo(page, "renovate-org/backend-api");
+  expect(seen).not.toContain(PROBE_URL);
+
   await pasteGlobalConfig(page, JSON.stringify({ inheritConfig: false }));
+  await openRepoForm(page);
   // `inheritConfig: false` does not auto-check the box (only `true` does) — the
   // user has to opt into previewing what the layer WOULD hold.
   await expect(inheritCheckbox(page)).not.toBeChecked();
   await inheritCheckbox(page).check();
 
-  await page
-    .getByRole("textbox", { name: "Repository", exact: true })
-    .fill("renovate-org/backend-api");
-  await page.getByRole("button", { name: "Load", exact: true }).click();
-  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
+  await loadRepo(page);
   expect(seen).toContain(PROBE_URL);
 
-  await expect(inheritedLayerEditor(page)).toHaveValue(INHERITED_CONFIG);
+  const inherited = await openLayerStage(page, "inherit");
+  await expect(inherited).toHaveValue(INHERITED_CONFIG);
   const origin = page.locator(".layer-origin");
   await expect(origin).toBeVisible();
   await expect(origin).not.toContainText("editing makes it yours");
@@ -235,16 +241,12 @@ test("a link copied after an auto-load carries the layer as text and fetches not
   page,
 }) => {
   const seen = await stubGithub(page, { [CONFIG_URL]: REPO_CONFIG, [PROBE_URL]: INHERITED_CONFIG });
-  await openRepoForm(page);
+  await startAtRepoForm(page);
   await inheritCheckbox(page).check();
-  await page
-    .getByRole("textbox", { name: "Repository", exact: true })
-    .fill("renovate-org/backend-api");
-  await page.getByRole("button", { name: "Load", exact: true }).click();
-  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
-  await expect(inheritedLayerEditor(page)).toHaveValue(INHERITED_CONFIG);
+  await loadRepo(page, "renovate-org/backend-api");
+  await expect(await openLayerStage(page, "inherit")).toHaveValue(INHERITED_CONFIG);
 
-  await page.getByRole("button", { name: "Copy link" }).click();
+  await page.locator(".app-header").getByRole("button", { name: "Share" }).click();
   await expect.poll(() => page.url(), { timeout: 15_000 }).toContain("#config=");
   const url = page.url();
 
@@ -255,7 +257,7 @@ test("a link copied after an auto-load carries the layer as text and fetches not
 
   // The layer arrives as content — as a PASTED layer, with no origin line and
   // without the link touching the platform API.
-  await expect(inheritedLayerEditor(page)).toHaveValue(INHERITED_CONFIG);
+  await expect(await openLayerStage(page, "inherit")).toHaveValue(INHERITED_CONFIG);
   await expect(page.locator(".layer-origin")).toHaveCount(0);
   expect(seen).toEqual([]);
 });

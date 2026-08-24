@@ -1,4 +1,5 @@
 import type { StageId, TraceEvent, TraceResult } from "@renovate-config-debugger/engine";
+import { plural } from "./format";
 
 /**
  * Roadmap 024: what a stage chip's dot should say happened this run, on top
@@ -8,7 +9,7 @@ import type { StageId, TraceEvent, TraceResult } from "@renovate-config-debugger
  * identical to a stage that passed it through untouched.
  *
  * The per-stage rule (documented again in each stage's STAGE_EXPLAINERS
- * card in StageTimeline.tsx):
+ * card, hovered from the rail node in StageRail.tsx):
  *  - migrate/massage/validate can meaningfully do nothing, so "clean" (green)
  *    vs "changed" (amber) is worth showing: migrate steps > 0, massage
  *    actually changed the config, validate has warnings.
@@ -71,10 +72,6 @@ export function getStageActivity(result: TraceResult, stage: StageId): StageActi
   // parse/global/inherit/preset/merge: always-transform stages (see the
   // module doc above) — clean whenever they succeed, never amber.
   return { level: "clean" };
-}
-
-function plural(count: number, noun: string): string {
-  return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
 
 /** Short, human sentence for the chip's accessible name — screen readers get

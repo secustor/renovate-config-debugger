@@ -1,5 +1,12 @@
 import { describe, expect, test } from "vitest";
 import {
+  legacyTabForView,
+  RESULTS_TAB_IDS,
+  resultsTabForShareTab,
+  shareTabWantsMigrateStage,
+} from "@/data/results-tabs";
+import { MAX_PINNED_TESTS } from "./input-schemas";
+import {
   configChecksum,
   decideShareRunPolicy,
   decodeShareResult,
@@ -139,12 +146,12 @@ describe("encodeShare / decodeShareResult round trip", () => {
 describe("033: one sanitizer — encode∘decode fixpoints", () => {
   test("step: 0 (the first rewrite step) round-trips", async () => {
     const token = await encodeShare(
-      minimalState({ view: { stage: "migrate", step: 0, tab: "rewrites" } }),
+      minimalState({ view: { stage: "migrate", step: 0, tab: "pipeline" } }),
     );
     const result = await decodeShareResult(token);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.payload.view).toEqual({ stage: "migrate", step: 0, tab: "rewrites" });
+      expect(result.payload.view).toEqual({ stage: "migrate", step: 0, tab: "pipeline" });
     }
   });
 
@@ -174,7 +181,7 @@ describe("033: one sanitizer — encode∘decode fixpoints", () => {
   test("simStep (044) round-trips alongside the migrate step and the sim inputs", async () => {
     const token = await encodeShare(
       minimalState({
-        view: { stage: "merge", step: 0, simStep: 2, tab: "simulator" },
+        view: { stage: "merge", step: 0, simStep: 2, tab: "tests" },
         sim: { form: { packageName: "lodash" }, autoSimulate: true },
       }),
     );
@@ -185,7 +192,7 @@ describe("033: one sanitizer — encode∘decode fixpoints", () => {
         stage: "merge",
         step: 0,
         simStep: 2,
-        tab: "simulator",
+        tab: "tests",
       });
       expect(result.payload.sim).toEqual({
         form: { packageName: "lodash" },
@@ -652,7 +659,7 @@ describe("054: sim.simThread round-trips and stays additive", () => {
   test("a simulation link carrying an expanded thread round-trips", async () => {
     const token = await encodeShare(
       minimalState({
-        view: { stage: "merge", simStep: 2, tab: "simulator" },
+        view: { stage: "merge", simStep: 2, tab: "tests" },
         sim: { form: { packageName: "oxlint" }, autoSimulate: true, simThread: "groupName" },
       }),
     );
@@ -666,7 +673,7 @@ describe("054: sim.simThread round-trips and stays additive", () => {
       });
       // The thread rides with the SIM descriptor, not the view: it is only
       // meaningful for the simulation the form reproduces.
-      expect(result.payload.view).toEqual({ stage: "merge", simStep: 2, tab: "simulator" });
+      expect(result.payload.view).toEqual({ stage: "merge", simStep: 2, tab: "tests" });
     }
   });
 
@@ -723,6 +730,187 @@ describe("054: sim.simThread round-trips and stays additive", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.payload.sim).toBeUndefined();
+    }
+  });
+});
+
+/**
+ * Roadmap 075 (v2, iteration 3) — the five-tab model retired three tab ids that
+ * links already in the wild still carry. The compatibility contract has two
+ * halves and both are asserted here: links ENCODE only current ids, and the
+ * DECODER accepts the retired ones and says which tab each opens.
+ *
+ * Roadmap 083 un-retired one of the three. `overview` is a real tab again, so
+ * it needs no mapping at all — a v1 link naming it opens the Overview, which is
+ * what its sender was looking at.
+ */
+describe("075: retired tab ids still open the tab that replaced them", () => {
+  test("the strip is the v2 six, Overview first, and none of them is a retired id", () => {
+    expect(RESULTS_TAB_IDS).toEqual([
+      "overview",
+      "tests",
+      "pipeline",
+      "presets",
+      "effective",
+      "problems",
+    ]);
+  });
+
+  test("each retired id maps to its successor", () => {
+    // Roadmap 083: `overview` is not one of them any more — it maps to itself,
+    // through the "a current id is its own answer" branch below.
+    expect(resultsTabForShareTab("overview")).toBe("overview");
+    // The same instrument, renamed.
+    expect(resultsTabForShareTab("simulator")).toBe("tests");
+    // Folded into Pipeline's migrate stage.
+    expect(resultsTabForShareTab("rewrites")).toBe("pipeline");
+    // A current id is its own answer — the mapping is not a rename table with a
+    // default, it is total over what a link may say.
+    for (const id of RESULTS_TAB_IDS) {
+      expect(resultsTabForShareTab(id)).toBe(id);
+    }
+  });
+
+  test("only `rewrites` also asks for the migrate stage", () => {
+    // Pipeline on its default stage would put an old link's reader in front of
+    // something its sender was not looking at; the stepper lives on migrate.
+    expect(shareTabWantsMigrateStage("rewrites")).toBe(true);
+    expect(shareTabWantsMigrateStage("simulator")).toBe(false);
+    for (const id of RESULTS_TAB_IDS) {
+      expect(shareTabWantsMigrateStage(id)).toBe(false);
+    }
+  });
+
+  test("a pre-028 link's inferred tab follows the same reshuffle", () => {
+    // `step` used to infer Rewrites; the stepper moved, so the inference does.
+    expect(legacyTabForView({ stage: "migrate", step: 0 })).toBe("pipeline");
+    expect(legacyTabForView({ stage: "validate" })).toBe("pipeline");
+    // Unchanged: a selected node is still the most specific thing a link
+    // carries, and it still beats a step.
+    expect(legacyTabForView({ stage: "migrate", step: 0, node: "abc" })).toBe("presets");
+    expect(legacyTabForView({})).toBeNull();
+    // Roadmap 083: nothing infers the Overview. It selects nothing, so a
+    // pre-028 link carries no evidence that its sender was on it — App's own
+    // landing rule stays in charge rather than a guess.
+    expect(legacyTabForView({ stage: "preset" })).toBe("pipeline");
+  });
+
+  test("a retired id survives the decoder verbatim, for the opener to map", async () => {
+    // Sanitizing it away would land the reader on the default tab instead of
+    // the one the sender meant — worse than the id being unknown.
+    for (const legacy of ["simulator", "rewrites"] as const) {
+      const token = await rawEncodeToken(taggedPayload({ view: { stage: "preset", tab: legacy } }));
+      const result = await decodeShareResult(token);
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.payload.view?.tab).toBe(legacy);
+      }
+    }
+  });
+
+  test("a tab id from neither era is still dropped on its own", async () => {
+    const token = await rawEncodeToken(
+      taggedPayload({ view: { stage: "preset", tab: "extraction" } }),
+    );
+    const result = await decodeShareResult(token);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.view).toEqual({ stage: "preset" });
+    }
+  });
+});
+
+/**
+ * Roadmap 075 (iteration 6): `pins` — the pinned dependency tests a link
+ * carries. Additive within v2 exactly like `sim` before it, sanitized per entry
+ * rather than per payload, and capped on the way in.
+ */
+describe("075: pins round-trip and stay additive", () => {
+  const PINS: Record<string, string>[] = [
+    { packageName: "react", currentValue: "17.0.0", newValue: "18.0.0" },
+    { manager: "dockerfile", packageName: "node" },
+  ];
+
+  test("a link carrying pinned tests round-trips them in order", async () => {
+    const token = await encodeShare(
+      minimalState({ view: { tab: "tests" }, pins: PINS.map((pin) => ({ ...pin })) }),
+    );
+    const result = await decodeShareResult(token);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.pins).toEqual(PINS);
+      expect(result.payload.view).toEqual({ tab: "tests" });
+    }
+  });
+
+  test("re-encoding a decoded set of pins is a fixpoint", async () => {
+    const first = await decodeShareResult(
+      await encodeShare(minimalState({ pins: [{ packageName: "react", empty: "" }] })),
+    );
+    expect(first.ok).toBe(true);
+    if (!first.ok) {
+      return;
+    }
+    expect(first.payload.pins).toEqual([{ packageName: "react" }]);
+    const second = await decodeShareResult(
+      await encodeShare(minimalState({ pins: first.payload.pins })),
+    );
+    expect(second.ok).toBe(true);
+    if (second.ok) {
+      expect(second.payload.pins).toEqual(first.payload.pins);
+    }
+  });
+
+  test("a link from before this iteration decodes exactly as it did", async () => {
+    const token = await rawEncodeToken(
+      taggedPayload({ view: { tab: "tests" }, sim: { form: { depName: "react" } } }),
+    );
+    const result = await decodeShareResult(token);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.pins).toBeUndefined();
+      expect(result.payload.sim).toEqual({ form: { depName: "react" } });
+      expect(result.payload.config).toBe('{"extends":["config:recommended"]}');
+    }
+  });
+
+  test("an empty pin list is omitted rather than encoded", async () => {
+    const result = await decodeShareResult(await encodeShare(minimalState({ pins: [] })));
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.pins).toBeUndefined();
+    }
+  });
+
+  test("a malformed pins field never fails the link, and bad entries are dropped alone", async () => {
+    const notAnArray = await decodeShareResult(
+      await rawEncodeToken(taggedPayload({ pins: { packageName: "react" } })),
+    );
+    expect(notAnArray.ok).toBe(true);
+    if (notAnArray.ok) {
+      expect(notAnArray.payload.pins).toBeUndefined();
+      expect(notAnArray.payload.config).toBe('{"extends":["config:recommended"]}');
+    }
+    const mixed = await decodeShareResult(
+      await rawEncodeToken(
+        taggedPayload({ pins: [{ packageName: "react", depType: 5 }, "nope", { a: "" }] }),
+      ),
+    );
+    expect(mixed.ok).toBe(true);
+    if (mixed.ok) {
+      expect(mixed.payload.pins).toEqual([{ packageName: "react" }]);
+    }
+  });
+
+  test("a hand-edited link cannot install more pins than the cap", async () => {
+    const many = Array.from({ length: MAX_PINNED_TESTS + 7 }, (_, i) => ({
+      packageName: `pkg-${i}`,
+    }));
+    const result = await decodeShareResult(await rawEncodeToken(taggedPayload({ pins: many })));
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.pins).toHaveLength(MAX_PINNED_TESTS);
+      expect(result.payload.pins?.at(-1)).toEqual({ packageName: `pkg-${MAX_PINNED_TESTS - 1}` });
     }
   });
 });

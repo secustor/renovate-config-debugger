@@ -1,10 +1,18 @@
+import { nf, plural } from "./format";
 import type { ResultsTabId } from "@/data/results-tabs";
 
 /**
  * Roadmap 029: the run digest — the whole run narrated as a short paragraph
  * whose numbers each link into the tab that explains them. Pure and DOM-free
- * (no JSX, no React): this module decides what the paragraph says, the Overview
- * tab only renders it.
+ * (no JSX, no React): this module decides what the paragraph says, its consumer
+ * only renders it.
+ *
+ * Roadmap 075 (v2, iteration 3): the app stopped being one of those consumers —
+ * the Overview tab that rendered the paragraph retired, and the header's
+ * jump-links carry its numbers. The clause model stays: `rcd digest` (and the
+ * `run_config` MCP tool) is built from it through `lib/headless.ts`, so the
+ * WORDING here is a published surface even though nothing in the SPA renders it
+ * today. `link.tab` is kept pointing at a live tab for the same reason.
  *
  * Roadmap 029: every number the digest quotes arrives in `DigestInput` and is
  * never recomputed here — the app derives each one exactly once and feeds both
@@ -16,8 +24,6 @@ import type { ResultsTabId } from "@/data/results-tabs";
  * design — the digest orients, it does not detect change. Rule-level
  * differences are visible in the simulator and in `rcd compare`.
  */
-
-const nf = new Intl.NumberFormat();
 
 /**
  * Above this many resolved presets a bare count reads as damage rather than as
@@ -65,7 +71,7 @@ export interface DigestProblem {
 }
 
 export interface DigestMigrations {
-  /** Rewrites applied — the Rewrites tab badge. */
+  /** Rewrites applied — the header's `N rewrites` link. */
   count: number;
   /** The rewritten options, e.g. `packageNames → matchPackageNames`. Supplied
    *  only when the digest should name them (`count` ≤ 2); a longer list is
@@ -117,10 +123,6 @@ export interface DigestInput {
   presets: DigestPresets;
   effective: DigestEffective;
   layers: DigestLayers;
-}
-
-function count(n: number, word: string): string {
-  return `${nf.format(n)} ${word}${n === 1 ? "" : "s"}`;
 }
 
 /** Renders a list as English prose: "a", "a and b", "a, b and c". */
@@ -188,10 +190,10 @@ function summarizeProblem(problem: DigestProblem): string {
 function problemCounts(errors: number, warnings: number): string {
   const parts: string[] = [];
   if (errors > 0) {
-    parts.push(count(errors, "error"));
+    parts.push(plural(errors, "error"));
   }
   if (warnings > 0) {
-    parts.push(count(warnings, "warning"));
+    parts.push(plural(warnings, "warning"));
   }
   return list(parts);
 }
@@ -242,10 +244,13 @@ function rewriteClause(migrations: DigestMigrations): DigestClause | null {
     tone: "plain",
     text: "It",
     link: {
-      tab: "rewrites",
+      // Roadmap 075: the Rewrites tab retired into Pipeline's migrate stage,
+      // which is where the stepper this clause offers now lives. The clause's
+      // WORDING is unchanged — the CLI renders the same paragraph.
+      tab: "pipeline",
       label: named
         ? `rewrote ${list(migrations.labels.map(code))}`
-        : `rewrote ${count(migrations.count, "deprecated option")}`,
+        : `rewrote ${plural(migrations.count, "deprecated option")}`,
     },
     tail: " in your file.",
   };
@@ -281,7 +286,7 @@ function presetClauses(presets: DigestPresets): DigestClause[] {
       id: "presets",
       tone: "plain",
       text: `${extendsSubject(presets.entries)} expanded into`,
-      link: { tab: "presets", label: count(presets.resolved, "preset") },
+      link: { tab: "presets", label: plural(presets.resolved, "preset") },
       tail,
     });
   }
@@ -290,7 +295,7 @@ function presetClauses(presets: DigestPresets): DigestClause[] {
       id: "preset-failures",
       tone: "warn",
       text: "",
-      link: { tab: "presets", label: `${count(presets.failed, "preset")} could not be fetched` },
+      link: { tab: "presets", label: `${plural(presets.failed, "preset")} could not be fetched` },
       tail: " — provide their content by hand, or add a token for their host.",
     });
   }
@@ -301,7 +306,7 @@ function presetClauses(presets: DigestPresets): DigestClause[] {
       text: "",
       link: {
         tab: "presets",
-        label: `${count(presets.injected, "preset")} used content you supplied`,
+        label: `${plural(presets.injected, "preset")} used content you supplied`,
       },
       tail: " instead of being fetched.",
     });
@@ -323,7 +328,7 @@ function effectiveClauses(effective: DigestEffective): DigestClause[] {
       id: "effective",
       tone: "plain",
       text: "Everything merged into",
-      link: { tab: "effective", label: count(effective.options, "effective option") },
+      link: { tab: "effective", label: plural(effective.options, "effective option") },
       tail: overridden > 0 ? "," : ".",
     },
   ];

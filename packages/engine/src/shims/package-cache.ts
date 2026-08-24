@@ -1,7 +1,7 @@
 /**
  * Browser shim for renovate/dist/util/cache/package/index.js.
  * Only reached when `presetCachePersistence` is enabled (never in the
- * visualizer); the real module drags in sqlite/fs. Behaves as an empty cache.
+ * debugger); the real module drags in sqlite/fs. Behaves as an empty cache.
  */
 export function init(): Promise<void> {
   return Promise.resolve();

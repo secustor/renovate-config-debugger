@@ -3,6 +3,7 @@ import type { SimulationResult } from "@renovate-config-debugger/engine";
 import { SummaryDrawer } from "./SummaryDrawer";
 import type { MergeStop } from "./merge-stops";
 import { SimMergeBody } from "./SimMergeBody";
+import { pluralWord } from "@/lib/format";
 
 /** Roadmap 047: the merge drawer's computed abstract — the whole timeline
  *  compressed to `base → N merges → flatten ⊘7 → final · changed groupName`,
@@ -21,7 +22,7 @@ function MergeSummary({
   const rest = changedKeys.length - shown.length;
   return (
     <>
-      base → <span className="stat">{mergeCount}</span> merge{mergeCount === 1 ? "" : "s"}
+      base → <span className="stat">{mergeCount}</span> {pluralWord(mergeCount, "merge")}
       {flattenCount === undefined ? null : (
         <>
           {" → flatten "}
@@ -69,8 +70,8 @@ export const SimMergeDrawer = memo(function SimMergeDrawer({
   stops: MergeStop[];
   showTimeline: boolean;
   changedKeys: string[];
-  mergeStepIndex?: number;
-  onMergeStepChange?: (index: number) => void;
+  mergeStepIndex: number;
+  onMergeStepChange: (index: number) => void;
   open: boolean;
   onToggle: (open: boolean) => void;
   detailsRef?: RefObject<HTMLDetailsElement | null>;

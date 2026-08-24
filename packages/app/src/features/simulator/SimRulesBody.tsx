@@ -14,6 +14,7 @@ import {
 import { openPickerOnEnter } from "@/lib/select-picker";
 import type { RuleDescriptionNote } from "./rule-descriptions";
 import { RuleRow } from "./RuleRow";
+import { pluralWord } from "@/lib/format";
 
 function optionLabel(option: FilterOption): string {
   return `${option.label} (${option.count})`;
@@ -28,7 +29,7 @@ function optionLabel(option: FilterOption): string {
  * from the row above it.
  *
  * Its own component for the depth ratchet (`react/jsx-max-depth` is 3) —
- * the same reason `ProvFilters` is separate from the panel it filters.
+ * the same reason `EffectiveToolbar` is separate from the panel it filters.
  */
 function SimRulesFilters({
   filters,
@@ -45,7 +46,6 @@ function SimRulesFilters({
   shownCount: number;
   totalCount: number;
 }) {
-  const plural = totalCount === 1 ? "" : "s";
   // Stated only where it says something the rest of the drawer does not: the
   // default view's count is the summary row's own "N of M matched", and a
   // facet that hides nothing ("All verdicts") has nothing to report.
@@ -54,7 +54,7 @@ function SimRulesFilters({
     <div className="prov-filters sim-filters">
       {stateCount ? (
         <span className="sim-filter-count">
-          {shownCount} of {totalCount} rule{plural} shown
+          {shownCount} of {totalCount} {pluralWord(totalCount, "rule")} shown
         </span>
       ) : null}
       <select
@@ -106,7 +106,7 @@ function SimRulesEmpty({
         No rule matches these filters.{" "}
         <button
           type="button"
-          className="sim-toggle inline"
+          className="btn-quiet sim-toggle inline"
           onClick={() => onFiltersChange(DEFAULT_RULE_FILTERS)}
         >
           Clear them.
@@ -120,7 +120,7 @@ function SimRulesEmpty({
       {hiddenCount > 0 ? (
         <button
           type="button"
-          className="sim-toggle inline"
+          className="btn-quiet sim-toggle inline"
           onClick={() => onFiltersChange({ ...filters, verdict: "all" })}
         >
           Show all {totalRules} anyway.

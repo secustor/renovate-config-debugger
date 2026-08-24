@@ -132,7 +132,9 @@ the three `exhaustive-deps` staleness fixes above.
 - **New modules, to satisfy `react/only-export-components`** (Fast Refresh
   only replaces modules that export components and nothing else):
   - `components/provenance-layer.ts` — `LayerId`, `layerId`,
-    `layerLabel`, `layerClass` out of `ProvenanceChip.tsx`.
+    `layerLabel`, `layerClass` out of `ProvenanceChip.tsx`. — moved to
+    `lib/provenance-layer.ts` by 084's structure-conformance pass (it is
+    DOM-free and on the headless path).
   - `stage-copy.ts` — `STAGE_LABELS`, `STAGE_EXPLAINERS` out of
     `StageTimeline.tsx`.
   - `glossary-data.ts` — `GlossaryEntry`, `GLOSSARY`, `TermId` out of

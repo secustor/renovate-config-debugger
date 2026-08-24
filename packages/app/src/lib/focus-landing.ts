@@ -1,7 +1,7 @@
 /**
  * Roadmap 068: the policy behind "a programmatic jump the user asked for moves
  * focus to its target" — the part that decides, with no DOM and no React in it.
- * `hooks/use-focus-landing.ts` is the other half: the counters, the
+ * `app/use-focus-landing.ts` is the other half: the counters, the
  * `document.activeElement` reads and the animation-frame polling that feed
  * these decisions.
  *

@@ -12,7 +12,7 @@ import * as forgejo from "./forgejo";
 import * as gitea from "./gitea";
 import * as github from "./github";
 import * as gitlab from "./gitlab";
-import { getInjectedPreset } from "./injection";
+import { makeInjectableGetPreset } from "./host-transport";
 
 interface Resolver {
   getPresetFromEndpoint(
@@ -32,18 +32,7 @@ const RUN_ONLY = new Set(["azure", "bitbucket", "bitbucket-server", "gerrit"]);
 // Platforms Renovate itself declares as unable to serve local presets.
 const NO_LOCAL_PRESETS = new Set(["codecommit", "scm-manager", "local"]);
 
-export function getPreset(config: {
-  repo: string;
-  presetName?: string;
-  presetPath?: string;
-  tag?: string;
-}): Promise<Record<string, unknown> | null> {
-  const { repo, presetName = "default", presetPath, tag } = config;
-  const injected = getInjectedPreset({ presetSource: "local", repo, presetPath, presetName, tag });
-  if (injected) {
-    return Promise.resolve(injected);
-  }
-
+export const getPreset = makeInjectableGetPreset("local", (repo, presetName, presetPath, tag) => {
   const platform = (GlobalConfig.get("platform") as string | undefined) ?? "github";
   const endpoint = GlobalConfig.get("endpoint") as string | undefined;
 
@@ -66,4 +55,4 @@ export function getPreset(config: {
     );
   }
   return Promise.reject(new Error(`Unknown platform '${platform}' for local preset.`));
-}
+});

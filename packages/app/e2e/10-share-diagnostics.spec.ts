@@ -142,7 +142,7 @@ function rawPayloadJson(config: string, extra: Record<string, unknown>): string 
 /** Seeds a GitHub PAT into sessionStorage exactly where run.ts reads it. */
 async function seedToken(page: Page): Promise<void> {
   await page.addInitScript((canary) => {
-    sessionStorage.setItem("rcv.githubToken", canary);
+    sessionStorage.setItem("rcd.githubToken", canary);
   }, LEAK_CANARY);
 }
 
@@ -181,8 +181,8 @@ test("an untrusted endpoint warns, keeps the config, and is not persisted", asyn
   await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
   // … and nothing about the link outlives the tab.
   const stored = await page.evaluate(() => ({
-    platform: localStorage.getItem("rcv.platform"),
-    endpoint: localStorage.getItem("rcv.endpoint"),
+    platform: localStorage.getItem("rcd.platform"),
+    endpoint: localStorage.getItem("rcd.endpoint"),
   }));
   expect(stored.endpoint).toBeNull();
   expect(stored.platform).toBeNull();
@@ -209,7 +209,7 @@ test("hand-editing the endpoint ends the guard", async ({ page }) => {
   await page.goto(`#config=${await encodeRawShareToken(json)}`);
   await expect(page.locator(warningBanner)).toBeVisible({ timeout: 15_000 });
 
-  // The link forced Advanced options open, so the field is right there.
+  // The link forced the Advanced drawer open, so the field is right there.
   await page.getByLabel("Endpoint").fill("https://api.github.com");
 
   await expect(page.locator(warningBanner)).toHaveCount(0);
@@ -227,10 +227,12 @@ test("a link's globalConfig endpoint is caught too (it wins over the top-level o
 
   await expect(page.locator(warningBanner)).toBeVisible({ timeout: 15_000 });
   await expect(page.locator(warningBanner)).toContainText("untrusted.example");
-  // The endpoint is visible for review rather than hidden — Advanced options
-  // is opened by the link, showing the global layer that carries it.
+  // The endpoint is visible for review rather than hidden — the untrusted-
+  // endpoint policy opens the Advanced drawer and its host section (076: a link
+  // carrying 008 layers no longer opens anything, since the layers are pipeline
+  // stages now).
   await expect(page.locator("details.advanced-zone")).toHaveAttribute("open", "");
-  const storedEndpoint = await page.evaluate(() => localStorage.getItem("rcv.endpoint"));
+  const storedEndpoint = await page.evaluate(() => localStorage.getItem("rcd.endpoint"));
   expect(storedEndpoint).toBeNull();
 });
 
@@ -289,7 +291,7 @@ test("'Use my tokens with <host>' opts in explicitly: header sent, settings pers
     expect(request.authorization).toBe(`Bearer ${LEAK_CANARY}`);
   }
   // Treated like a hand-typed endpoint from here on, storage included.
-  const stored = await page.evaluate(() => localStorage.getItem("rcv.endpoint"));
+  const stored = await page.evaluate(() => localStorage.getItem("rcd.endpoint"));
   expect(stored).toBe(UNTRUSTED_ENDPOINT);
 });
 
@@ -306,7 +308,7 @@ test("a trusted endpoint keeps today's behavior: tokens sent, settings persisted
   // The control for the test above: the PAT really is wired up, so "no
   // authorization header" there is suppression, not a broken fixture.
   expect(seen[0]?.authorization).toBe(`Bearer ${LEAK_CANARY}`);
-  const stored = await page.evaluate(() => localStorage.getItem("rcv.endpoint"));
+  const stored = await page.evaluate(() => localStorage.getItem("rcd.endpoint"));
   expect(stored).toBe("https://api.github.com");
 });
 
@@ -322,8 +324,8 @@ test("a trusted non-default host (gitea) still persists and does not warn", asyn
   await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
   await expect(page.locator(warningBanner)).toHaveCount(0);
   const stored = await page.evaluate(() => ({
-    platform: localStorage.getItem("rcv.platform"),
-    endpoint: localStorage.getItem("rcv.endpoint"),
+    platform: localStorage.getItem("rcd.platform"),
+    endpoint: localStorage.getItem("rcd.endpoint"),
   }));
   expect(stored).toEqual({ platform: "gitea", endpoint: "https://gitea.com" });
 });

@@ -6,6 +6,7 @@ import {
   type PresetAuth,
   type PresetNode,
   presetInjectionKey,
+  type PresetTokenKey,
   type RepoPlatform,
   runPipeline,
   setPresetAuth,
@@ -14,6 +15,7 @@ import {
 import { parseLayerJson } from "@renovate-config-debugger/app/headless";
 import { boolOption, listOption, type OptionName, type ParsedArgs, stringOption } from "./args";
 import { CliError, type CliIo, errorMessage } from "./io";
+import { buildPipelineInput } from "./questions/pipeline";
 
 /**
  * Turning flags into a `PipelineInput` and running it. Every subcommand that
@@ -45,7 +47,7 @@ const REPO_PLATFORMS: readonly RepoPlatform[] = ["github", "gitlab", "gitea", "f
  * them. Coverage is identical to the web app's: the `npm` and `http` preset
  * fetchers have no auth at all.
  */
-const HOST_ENV: readonly { key: keyof PresetAuth; vars: readonly string[] }[] = [
+const HOST_ENV: readonly { key: PresetTokenKey; vars: readonly string[] }[] = [
   { key: "githubToken", vars: ["RCD_GITHUB_TOKEN", "GITHUB_TOKEN", "GH_TOKEN"] },
   { key: "gitlabToken", vars: ["RCD_GITLAB_TOKEN", "GITLAB_TOKEN"] },
   { key: "giteaToken", vars: ["RCD_GITEA_TOKEN"] },
@@ -190,7 +192,9 @@ export function resolveRunAuth(
   };
 }
 
-async function readTextFile(path: string, what: string): Promise<string> {
+/** A file the user named on the command line, with the flag in the error —
+ *  "cannot read a file" is only actionable when it says which flag chose it. */
+export async function readTextFile(path: string, what: string): Promise<string> {
   try {
     return await readFile(path, "utf8");
   } catch (err) {
@@ -294,16 +298,16 @@ export async function loadPipelineInput(
   }
 
   return {
-    input: {
+    input: buildPipelineInput({
       fileName,
       content,
       presetAuth: auth,
-      ...(globalConfig ? { globalConfig } : {}),
-      ...(inheritedConfig ? { inheritedConfig } : {}),
-      ...(stringOption(args, "platform") ? { platform: stringOption(args, "platform") } : {}),
-      ...(stringOption(args, "endpoint") ? { endpoint: stringOption(args, "endpoint") } : {}),
-      ...(boolOption(args, "platform-override") ? { platformOverride: true } : {}),
-    },
+      globalConfig,
+      inheritedConfig,
+      platform: stringOption(args, "platform"),
+      endpoint: stringOption(args, "endpoint"),
+      platformOverride: boolOption(args, "platform-override"),
+    }),
     notes,
   };
 }
@@ -425,18 +429,20 @@ export function wouldRefuse(result: TraceResult): boolean {
  * answer says which input caused it, in words, on the same output.
  *
  * `simulate`/`group` keep the `2` (their subject is one config, and the
- * contract is documented and hook-relied-upon). `compare` no longer uses this
- * note: replay-04 showed its `2` overruling its own "no behavioral change"
- * verdict, so it exits on the comparison and carries its own wording.
+ * contract is documented and hook-relied-upon) and take the default `tail`.
+ * `compare` names the same inputs and then says the opposite about its exit
+ * code — replay-04 showed its `2` overruling its own "no behavioral change"
+ * verdict — so it passes its own tail rather than a second copy of the
+ * sentence that names them.
  */
-export function refusalNote(refused: readonly string[]): string | undefined {
+export function refusalNote(
+  refused: readonly string[],
+  tail = "exit code 2 reflects that, not this command's answer. `rcd validate` lists the messages.",
+): string | undefined {
   if (refused.length === 0) {
     return undefined;
   }
   const subject = refused.length === 1 ? refused[0] : refused.join(" and ");
   const verb = refused.length === 1 ? "would be" : "would both be";
-  return (
-    `note: ${subject} ${verb} refused by Renovate (the parse or validate stage failed) — ` +
-    "exit code 2 reflects that, not this command's answer. `rcd validate` lists the messages."
-  );
+  return `note: ${subject} ${verb} refused by Renovate (the parse or validate stage failed) — ${tail}`;
 }

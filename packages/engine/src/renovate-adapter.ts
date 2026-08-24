@@ -1,7 +1,11 @@
 /**
- * The ONLY module (besides the browser shims in ./shims/) that deep-imports
- * renovate/dist. Renovate has no public API — when a release moves a file,
- * this is the single place to fix. CI enforces this boundary.
+ * One of the TWO modules that deep-import renovate/dist; the other is
+ * ./shims/renovate-internals.ts, which exists because a shim routing through
+ * this file would close an import cycle (this module re-exports
+ * config/presets/index.js, whose per-host children the preset shims replace).
+ *
+ * Renovate has no public API — when a release moves a file, those two are the
+ * only places to fix. Lint enforces the boundary (.oxlintrc.json).
  */
 export { parseFileConfig } from "renovate/dist/config/parse.js";
 export { migrateConfig } from "renovate/dist/config/migration.js";

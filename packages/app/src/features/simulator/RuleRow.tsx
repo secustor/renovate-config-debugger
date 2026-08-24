@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import type { MergedKey, ProvenanceLayer, RuleEvaluation } from "@renovate-config-debugger/engine";
+import { Caret } from "@/components/Caret";
 import { CopyMarkdownButton } from "@/components/CopyMarkdownButton";
-import { Explained } from "@/components/glossary";
+import { ExplainedText } from "@/components/glossary";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { GLOSSARY } from "@/data/glossary-data";
 import { isNoInputNoMatch } from "@/lib/rule-verdict";
@@ -50,13 +51,12 @@ function SimMergedApplied({ rule, merged }: { rule: RuleEvaluation; merged: Merg
 function RuleVerdictBadge({ rule }: { rule: RuleEvaluation }) {
   if (isNoInputNoMatch(rule)) {
     return (
-      <Explained entry={GLOSSARY.noInput}>
-        {(handlers) => (
-          <span className="badge sim-verdict verdict-no-input explained" tabIndex={0} {...handlers}>
-            no input
-          </span>
-        )}
-      </Explained>
+      <ExplainedText
+        entry={GLOSSARY.noInput}
+        className="badge sim-verdict verdict-no-input explained"
+      >
+        no input
+      </ExplainedText>
     );
   }
   return (
@@ -99,7 +99,7 @@ export function RuleRow({
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
       >
-        <span className="caret">{expanded ? "▾" : "▸"}</span>
+        <Caret open={expanded} />
         {/* Roadmap 013: canonical form — the SAME text a validator message and
             the editor cross-link use, so this row is unmistakably the same
             rule as "packageRules[N]" elsewhere on the page. Replay-02 R6: the

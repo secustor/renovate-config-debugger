@@ -10,7 +10,8 @@
  * this app just taught them means "activate".
  *
  * The form exception exists because the simulator's `updateType` select lives
- * inside `#simulator-inputs`, where every other field submits on Enter (that
+ * inside the simulator form (`#simulator-inputs`, or `#pinned-test-inputs` in
+ * the Add-a-test panel), where every other field submits on Enter (that
  * is the whole point of making it a real `<form>`). Opening the picker there
  * would make that select the one control in the form where Enter does not
  * submit. `select.form !== null` is the one signal that generalizes across

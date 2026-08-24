@@ -28,7 +28,7 @@ errors — as structured data.
 ## User story
 
 As an agent (or a human in a terminal) debugging a Renovate config, I want
-one command that resolves the config exactly as the visualizer does and
+one command that resolves the config exactly as the debugger does and
 answers "what did `extends` expand into", "who set this key", and "would
 this PR match", so that I don't have to drive a browser or trust a lossy
 plain-Node import.

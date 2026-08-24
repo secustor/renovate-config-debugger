@@ -21,6 +21,8 @@
  * `<noscript>` block in index.html, not by this component.
  */
 
+import { CopyButton } from "@/components/CopyButton";
+
 const PACKAGE = "@renovate-config-debugger/cli";
 const DOCS_URL = "https://github.com/secustor/renovate-config-debugger/tree/main/packages/cli";
 
@@ -28,6 +30,7 @@ const ONE_LINERS = [
   `# every answer on this page, as JSON`,
   `npx -y ${PACKAGE} digest renovate.json`,
   `npx -y ${PACKAGE} validate renovate.json    # exit 2 = Renovate would refuse it`,
+  `npx -y ${PACKAGE} compare before.json after.json --dep '{"depName":"react"}'`,
   ``,
   `# or register it once, for an agent session`,
   `claude mcp add rcd -- npx -y ${PACKAGE} mcp`,
@@ -37,10 +40,20 @@ function HeadlessNoteBody() {
   return (
     <>
       <p className="headless-note-lead">
-        If you looking for an equivalent of this running in your terminal or for agent, take a look
-        at the other distributions of this project.
+        Everything this page answers is also available headlessly — in your terminal or registered
+        as an agent tool.
       </p>
-      <pre className="headless-note-code">{ONE_LINERS}</pre>
+      {/* The code-block copy rule (Standard Components): icon-only, top-right
+          INSIDE the block — the wrapper is the positioning context. */}
+      <div className="headless-note-code-wrap">
+        <pre className="headless-note-code">{ONE_LINERS}</pre>
+        <CopyButton
+          iconOnly
+          className="headless-note-copy"
+          getText={() => ONE_LINERS}
+          label="Copy commands"
+        />
+      </div>
       <p className="headless-note-foot">
         Experimental: subcommands, flags and output shapes may change.{" "}
         <a href={DOCS_URL} target="_blank" rel="noreferrer">
@@ -56,7 +69,7 @@ export function HeadlessNote() {
     <footer className="headless-note">
       <details className="headless-note-details">
         <summary className="headless-note-summary">
-          Looking for a solution for Agents and scripts?
+          Looking for a solution for agents and scripts?
         </summary>
         <HeadlessNoteBody />
       </details>

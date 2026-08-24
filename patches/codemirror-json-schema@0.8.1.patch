@@ -7,7 +7,7 @@ index 99d7645027c28f6ec3ad4a5423cd0913d8ea76bb..4cc50cce3d486aee9be02c37d5a7532e
          subSchema.type === "undefined");
  }
 +/**
-+ * PATCHED (renovate-config-visualizer): `new Draft07(schema)` pre-processes the
++ * PATCHED (renovate-config-debugger): `new Draft07(schema)` pre-processes the
 + * whole schema — ~123ms for Renovate's 258kb schema — and upstream constructs a
 + * fresh one at every call site, up to 6x per keystroke. Memoized on the schema
 + * object's identity; schemas are already assumed immutable here (see the
@@ -63,7 +63,7 @@ index 1fd624928c71419e4ff62e76debf964b705e4448..b9fef7380360a18cb80ff7c59baf6347
      }))}`;
  }
 +/**
-+ * PATCHED (renovate-config-visualizer): `new Draft04(schema)` pre-processes the
++ * PATCHED (renovate-config-debugger): `new Draft04(schema)` pre-processes the
 + * whole schema — ~69ms for Renovate's 253kb schema — and upstream builds a fresh
 + * one on every hover, so resting the pointer over the editor stalls the main
 + * thread. Memoized on the schema object's identity, matching the Draft07 cache
@@ -99,7 +99,7 @@ index dfd96c603d4414d7a1ecfd76a4d56dd40f54b672..e635146584c6419a3d54592453036528
      "UndefinedValueError",
  ];
 +/**
-+ * PATCHED (renovate-config-visualizer): `new Draft04(schema)` pre-processes the
++ * PATCHED (renovate-config-debugger): `new Draft04(schema)` pre-processes the
 + * whole schema — ~69ms for Renovate's 253kb schema — and upstream builds a fresh
 + * one on every `doValidation` call, i.e. 750ms after every typing pause.
 + * Memoized on the schema object's identity, matching the Draft07 cache in
@@ -135,7 +135,7 @@ index f10aafb9b76663fc04bf4d48193d1b3902e05756..80501af6d9751dc70be47f5d349e00ef
          subSchema.type === "undefined");
  }
 +/**
-+ * PATCHED (renovate-config-visualizer): `new Draft07(schema)` pre-processes the
++ * PATCHED (renovate-config-debugger): `new Draft07(schema)` pre-processes the
 + * whole schema — ~123ms for Renovate's 258kb schema — and upstream constructs a
 + * fresh one at every call site, up to 6x per keystroke. Memoized on the schema
 + * object's identity; schemas are already assumed immutable here (see the
@@ -191,7 +191,7 @@ index 7634362ab0d8c39ef8e80541c2d0d1c2b129c34c..fd270790034d9dd403697bf490c7ae46
      }))}`;
  }
 +/**
-+ * PATCHED (renovate-config-visualizer): `new Draft04(schema)` pre-processes the
++ * PATCHED (renovate-config-debugger): `new Draft04(schema)` pre-processes the
 + * whole schema — ~69ms for Renovate's 253kb schema — and upstream builds a fresh
 + * one on every hover, so resting the pointer over the editor stalls the main
 + * thread. Memoized on the schema object's identity, matching the Draft07 cache
@@ -227,7 +227,7 @@ index e307501345ecbca4410bf8a2f6a6eb11569e9447..a3a86649c75e1bdc4ee18fc36dc1b310
      "UndefinedValueError",
  ];
 +/**
-+ * PATCHED (renovate-config-visualizer): `new Draft04(schema)` pre-processes the
++ * PATCHED (renovate-config-debugger): `new Draft04(schema)` pre-processes the
 + * whole schema — ~69ms for Renovate's 253kb schema — and upstream builds a fresh
 + * one on every `doValidation` call, i.e. 750ms after every typing pause.
 + * Memoized on the schema object's identity, matching the Draft07 cache in

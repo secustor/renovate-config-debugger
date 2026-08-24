@@ -125,7 +125,7 @@ export function clauseEvaluated(clause: ClauseEvaluation): ClauseEvaluated {
   return { text: "this update has", value: inputsPreview(clause) };
 }
 
-export const VERDICT_LABEL: Record<RuleEvaluation["verdict"], string> = {
+const VERDICT_LABEL: Record<RuleEvaluation["verdict"], string> = {
   matched: "matched",
   "no-match": "no match",
   "not-simulated": "not simulated",

@@ -7,6 +7,7 @@ import type { RuleEvidence } from "./rule-evidence";
 import { SimConsumedBlock } from "./SimConsumedBlock";
 import type { ThreadModel } from "./verdict-threads";
 import { type ThreadNavigation, VerdictThreads } from "./VerdictThreads";
+import { pluralWord } from "@/lib/format";
 
 /**
  * Roadmap 054 (variant A): the two full-trace links the evidence drawers
@@ -31,12 +32,12 @@ function VerdictTraceLinks({
     <span className="sim-trace-links">
       Full trace:{" "}
       <button type="button" className="sim-jump" onClick={onJumpToRules}>
-        {matchedCount} of {totalRules} rule{totalRules === 1 ? "" : "s"} matched
+        {matchedCount} of {totalRules} {pluralWord(totalRules, "rule")} matched
       </button>
       {onJumpToReplay ? " · " : null}
       {onJumpToReplay ? (
         <button type="button" className="sim-jump" onClick={onJumpToReplay}>
-          build replay, {replayStops} stop{replayStops === 1 ? "" : "s"}
+          build replay, {replayStops} {pluralWord(replayStops, "stop")}
         </button>
       ) : null}
     </span>
@@ -51,7 +52,8 @@ function VerdictTraceLinks({
  * story), the consumed-blocks aside when an AUTHORED update-type block was
  * consumed without applying (047 — default-only consumption says nothing and
  * renders nothing), and a footer with the two full-trace links and the
- * evidence-export affordances (share link, A/B pinning).
+ * evidence-export affordance (the share link — roadmap 080 retired the A/B pin
+ * that used to sit beside it).
  */
 export function SimVerdictBlock({
   matchedCount,
@@ -72,9 +74,6 @@ export function SimVerdictBlock({
   evidenceFor,
   onOpenRule,
   copySimLink,
-  pinned,
-  onUnpin,
-  onPin,
 }: {
   matchedCount: number;
   totalRules: number;
@@ -110,9 +109,6 @@ export function SimVerdictBlock({
   onOpenRule?: (ruleIndex: number) => void;
   /** null when the host gave no share-link callback — no button then. */
   copySimLink: (() => Promise<void>) | null;
-  pinned: boolean;
-  onUnpin: () => void;
-  onPin: () => void;
 }) {
   const depName = [dep?.manager, dep?.packageName].filter(Boolean).join(" / ");
   const versions = dep?.currentValue
@@ -175,26 +171,15 @@ export function SimVerdictBlock({
           onJumpToRules={onJumpToRules}
           onJumpToReplay={onJumpToReplay}
         />
-        {/* Roadmap 018: evidence-export affordances on the verdict card —
-            a reproducible link (form + auto-run encoded) and A/B pinning. */}
+        {/* Roadmap 018: the evidence-export affordance on the verdict card — a
+            reproducible link (form + auto-run encoded). Roadmap 080 retired the
+            A/B pin that used to sit beside it: keeping a descriptor across an
+            edit is what a pinned test is, and config-vs-config diffing is
+            `rcd compare`'s. */}
         <div className="sim-verdict-actions">
           {copySimLink ? (
             <CopyButton onCopy={copySimLink} label="Copy link with this simulation" />
           ) : null}
-          {pinned ? (
-            <button type="button" className="sim-verdict-action" onClick={onUnpin}>
-              Unpin comparison
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="sim-verdict-action"
-              onClick={onPin}
-              title="Pin this result as A, edit the config, then simulate again to compare"
-            >
-              Pin result for comparison
-            </button>
-          )}
         </div>
       </div>
     </div>

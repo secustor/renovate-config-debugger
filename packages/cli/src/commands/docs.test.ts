@@ -1,12 +1,9 @@
 import { describe, expect, test } from "vitest";
-import { main } from "../main";
-import { recordingIo } from "../test-harness";
+import { runCli, runJson } from "../test-harness";
 
 describe("docs", () => {
   test("an option's metadata for the pinned Renovate", async () => {
-    const io = recordingIo();
-    expect(await main(["docs", "packageRules", "--format", "json"], io)).toBe(0);
-    const doc = io.json() as {
+    const run = await runJson<{
       name: string;
       url: string;
       renovateVersion: string;
@@ -14,7 +11,9 @@ describe("docs", () => {
       isContainer: boolean;
       childOptions: string[];
       placement: { kind: string };
-    };
+    }>(["docs", "packageRules", "--format", "json"]);
+    expect(run.code).toBe(0);
+    const doc = run.payload;
     expect(doc.name).toBe("packageRules");
     expect(doc.url).toContain("docs.renovatebot.com");
     expect(doc.renovateVersion).toMatch(/^\d+\./);
@@ -26,35 +25,43 @@ describe("docs", () => {
   });
 
   test("pretty output names the version and says where the option may go", async () => {
-    const io = recordingIo();
-    expect(await main(["docs", "minimumReleaseAge"], io)).toBe(0);
-    expect(io.stdout).toContain("— Renovate ");
-    expect(io.stdout).toContain("placement: no restriction");
+    const run = await runCli(["docs", "minimumReleaseAge"]);
+    expect(run.code).toBe(0);
+    expect(run.stdout).toContain("— Renovate ");
+    expect(run.stdout).toContain("placement: no restriction");
   });
 
   test("--search lists candidates", async () => {
-    const io = recordingIo();
-    expect(await main(["docs", "matchPackage", "--search", "--format", "json"], io)).toBe(0);
-    const found = io.json() as { matches: { name: string }[]; optionsSourceUrl: string };
+    const run = await runJson<{ matches: { name: string }[]; optionsSourceUrl: string }>([
+      "docs",
+      "matchPackage",
+      "--search",
+      "--format",
+      "json",
+    ]);
+    expect(run.code).toBe(0);
+    const found = run.payload;
     expect(found.matches.map((m) => m.name)).toContain("matchPackageNames");
     expect(found.optionsSourceUrl).toContain("renovate/v/");
   });
 
   test("--search counts against the pinned version's option table", async () => {
-    const io = recordingIo();
-    expect(await main(["docs", "matchPackage", "--search"], io)).toBe(0);
-    expect(io.stdout).toMatch(/^\d+ of \d+ options in Renovate \d+\.\d+\.\d+ match "matchPackage"/);
+    const run = await runCli(["docs", "matchPackage", "--search"]);
+    expect(run.code).toBe(0);
+    expect(run.stdout).toMatch(
+      /^\d+ of \d+ options in Renovate \d+\.\d+\.\d+ match "matchPackage"/,
+    );
   });
 
   test("--help states the version-history ceiling rather than leaving a gap", async () => {
-    const io = recordingIo();
-    expect(await main(["docs", "--help"], io)).toBe(0);
-    expect(io.stdout).toContain("no per-option version history");
+    const run = await runCli(["docs", "--help"]);
+    expect(run.code).toBe(0);
+    expect(run.stdout).toContain("no per-option version history");
   });
 
   test("an option that does not exist points at --search", async () => {
-    const io = recordingIo();
-    expect(await main(["docs", "nopeNotAnOption"], io)).toBe(1);
-    expect(io.stderr).toContain("--search");
+    const run = await runCli(["docs", "nopeNotAnOption"]);
+    expect(run.code).toBe(1);
+    expect(run.stderr).toContain("--search");
   });
 });

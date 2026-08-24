@@ -1,10 +1,5 @@
 import { compare, type Operation } from "fast-json-patch";
 
-/** Deep-clone a config snapshot at a stage boundary. */
-export function snapshot<T>(value: T): T {
-  return structuredClone(value);
-}
-
 export function computeDelta(before: unknown, after: unknown): Operation[] {
   return compare(
     (before ?? {}) as Record<string, unknown>,

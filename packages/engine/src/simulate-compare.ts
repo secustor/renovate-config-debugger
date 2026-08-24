@@ -16,10 +16,12 @@
  *   2026-07 persona study.
  *
  * No Renovate imports — the `SimulationResult` reference is a `import type`,
- * erased at compile time — so this module runs (and unit-tests) with zero
- * engine/browser machinery.
+ * erased at compile time, and `lib`/`text` are dependency-free one-liners — so
+ * this module runs (and unit-tests) with zero engine/browser machinery.
  */
+import { jsonEqual } from "./lib";
 import type { RuleEvaluation, SimulationResult } from "./simulate-package-rules";
+import { countNoun } from "./text";
 
 /**
  * What the caller varied between A and B. The engine cannot derive it — a
@@ -218,10 +220,6 @@ function effectOf(rule: RuleEvaluation): string | undefined {
   return JSON.stringify(entries.toSorted((x, y) => x[0].localeCompare(y[0])));
 }
 
-function jsonEqual(a: unknown, b: unknown): boolean {
-  return a === b || JSON.stringify(a) === JSON.stringify(b);
-}
-
 /** Replay-02 N8: a key nothing in the run wrote (no rule step, no flatten
  *  step) reached the final config by inheritance — Renovate's own default or
  *  the pre-rules base — not through the user's rules. */
@@ -276,10 +274,6 @@ const SUMMARY_LINE_BUDGET = 140;
 /** A value long enough to be a document, not an annotation. */
 const SUMMARY_VALUE_BUDGET = 24;
 
-function countOf(n: number, noun: string): string {
-  return `${n} ${noun}${n === 1 ? "" : "s"}`;
-}
-
 function valueText(value: unknown): string {
   return JSON.stringify(value) ?? String(value);
 }
@@ -311,15 +305,15 @@ function churnPhrase(change: SignatureChange): string {
 function churnPhraseOfMany(kind: SelectorChangeKind, n: number): string {
   switch (kind) {
     case "clause-added":
-      return `${countOf(n, "rule")} gained a selector clause`;
+      return `${countNoun(n, "rule")} gained a selector clause`;
     case "clause-removed":
-      return `${countOf(n, "rule")} dropped a selector clause`;
+      return `${countNoun(n, "rule")} dropped a selector clause`;
     case "clause-values-changed":
-      return `${countOf(n, "rule")} changed a selector's values`;
+      return `${countNoun(n, "rule")} changed a selector's values`;
     case "different-rule":
-      return `${countOf(n, "different rule")} produced the same effects for each dependency`;
+      return `${countNoun(n, "different rule")} produced the same effects for each dependency`;
     default:
-      return `${countOf(n, "rule")} had their selectors rewritten`;
+      return `${countNoun(n, "rule")} had their selectors rewritten`;
   }
 }
 
@@ -335,7 +329,7 @@ function churnOf(changes: readonly SignatureChange[]): string {
   }
   return changes.every((change) => change.kind === first.kind)
     ? churnPhraseOfMany(first.kind, changes.length)
-    : `${countOf(changes.length, "rule")} changed selectors without changing what they do`;
+    : `${countNoun(changes.length, "rule")} changed selectors without changing what they do`;
 }
 
 /** One side of a key delta, in words: the value, whether the side has it at
@@ -401,10 +395,10 @@ function netEffectOf(
   }
   const ruleChanges = [
     ...(comparison.startedMatching.length > 0
-      ? [`${countOf(comparison.startedMatching.length, "rule")} started matching`]
+      ? [`${countNoun(comparison.startedMatching.length, "rule")} started matching`]
       : []),
     ...(comparison.stoppedMatching.length > 0
-      ? [`${countOf(comparison.stoppedMatching.length, "rule")} stopped matching`]
+      ? [`${countNoun(comparison.stoppedMatching.length, "rule")} stopped matching`]
       : []),
   ];
   const documentationTail =

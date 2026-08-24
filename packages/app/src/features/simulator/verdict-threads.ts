@@ -32,8 +32,6 @@ export interface ThreadWinner {
   clauses: ClauseEvaluation[];
   /** Position on the merge timeline, for the "step N of M →" jump. */
   stopIndex: number;
-  /** `kind: "rule"` only — the stop's position among the RULE stops. */
-  stopOrdinal?: number;
   stopLabel: string;
 }
 
@@ -52,20 +50,19 @@ export interface ThreadOverride {
  * The value the key held before any rule ran (the earliest writer's `merged`
  * entry's `before`), which terminates every cascade.
  *
- * `origin` would read `"default"` for a value that is Renovate's own default
- * rather than something the config's layers set — but no engine surface
- * carries the resolved default config into the app today (047's
- * `authoredBlocks` compares against `getDefaultConfig()` INSIDE the engine and
- * exports only the verdict, and `getOptionIndex()`'s per-option `default` is
- * documentation metadata behind the lazily-loaded engine chunk). Until one
- * exists, base values are labeled `"base"`.
+ * There is deliberately no field distinguishing "the config's layers set this"
+ * from "this is Renovate's own default": no engine surface carries the resolved
+ * default config into the app today (047's `authoredBlocks` compares against
+ * `getDefaultConfig()` INSIDE the engine and exports only the verdict, and
+ * `getOptionIndex()`'s per-option `default` is documentation metadata behind
+ * the lazily-loaded engine chunk), so every base value would answer the same
+ * way. Add one when an engine surface can tell them apart.
  */
 export interface ThreadBase {
   kind: "base";
   value: unknown;
   /** False when the key did not exist at all before the rules ran. */
   present: boolean;
-  origin: "base" | "default";
 }
 
 /** The cascade under a thread: lost writers newest first, then the base. */
@@ -163,7 +160,6 @@ function buildWinner(
     layer: layerOf(stop, layerByIndex),
     clauses: stop.kind === "rule" ? (rule?.clauses ?? []) : [],
     stopIndex,
-    stopOrdinal: label?.ordinal,
     stopLabel: label?.label ?? "merge step",
   };
 }
@@ -194,7 +190,6 @@ function buildOverrides(
       kind: "base",
       value: first.entry.before,
       present: Object.hasOwn(first.entry, "before"),
-      origin: "base",
     });
   }
   return entries;

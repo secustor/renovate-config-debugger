@@ -1,4 +1,5 @@
 import type {
+  ComparisonMode,
   ConfigKeyDelta,
   MergedKey,
   RuleAttribution,
@@ -9,7 +10,7 @@ import type {
   SimulationResult,
   ValidationMessage,
 } from "@renovate-config-debugger/engine";
-import { CliError } from "../io";
+import { parseChoice } from "../args";
 import {
   evaluationErrorsNote,
   missingInputsNote,
@@ -281,6 +282,19 @@ function notesFor(sim: SimulationResult, transport: RunTransport): string[] {
 export const COMPARE_DETAIL = ["verdict", "rules", "full"] as const;
 export type CompareDetail = (typeof COMPARE_DETAIL)[number];
 
+/**
+ * What the CALLER varied. The engine cannot see it, and a wrong guess is how
+ * the comparison came to claim a selector rewrite about one unchanged config
+ * read through two dependencies — so both surfaces derive it here, from the
+ * same two facts, instead of each spelling its own ternary.
+ */
+export function comparisonMode(twoConfigs: boolean, twoDeps: boolean): ComparisonMode {
+  if (twoConfigs && twoDeps) {
+    return "unspecified";
+  }
+  return twoDeps ? "dependency" : "config";
+}
+
 export interface ComparisonProjection {
   keys?: readonly string[];
   scope: ConfigScope;
@@ -430,23 +444,9 @@ export function comparisonPayload(
 }
 
 export function parseCompareDetail(raw: string | undefined): CompareDetail | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  const found = COMPARE_DETAIL.find((detail) => detail === raw);
-  if (!found) {
-    throw new CliError(`--detail must be one of ${COMPARE_DETAIL.join("|")} (got "${raw}")`);
-  }
-  return found;
+  return parseChoice(raw, COMPARE_DETAIL, "--detail");
 }
 
 export function parseDetail(raw: string | undefined): SimulateDetail | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  const found = SIMULATE_DETAIL.find((detail) => detail === raw);
-  if (!found) {
-    throw new CliError(`--detail must be one of ${SIMULATE_DETAIL.join("|")} (got "${raw}")`);
-  }
-  return found;
+  return parseChoice(raw, SIMULATE_DETAIL, "--detail");
 }

@@ -48,7 +48,6 @@ export function AuthFailureBanner({
   rateLimited,
   authState,
   onSignIn,
-  installUrl,
   onRunAgain,
 }: {
   failures: readonly AuthFailureSummary[];
@@ -56,7 +55,6 @@ export function AuthFailureBanner({
   rateLimited: boolean;
   authState: AuthState;
   onSignIn: () => void;
-  installUrl: string;
   /** Re-runs the pipeline with the inputs that are on screen right now. */
   onRunAgain: () => void;
 }) {
@@ -70,16 +68,11 @@ export function AuthFailureBanner({
   return (
     <div className="auth-failure-banner" role="alert">
       <p className="auth-failure-banner-line">{line}</p>
-      <GithubAuthHint
-        authState={authState}
-        rateLimited={rateLimited}
-        onSignIn={onSignIn}
-        installUrl={installUrl}
-      />
+      <GithubAuthHint authState={authState} rateLimited={rateLimited} onSignIn={onSignIn} />
       {/* The signed-in path sends the user to GitHub to install the app on the
           repo — they come back to a page whose result predates that grant, so
           the loop only closes if re-running is one click away and right here. */}
-      <button type="button" className="auth-failure-rerun" onClick={onRunAgain}>
+      <button type="button" className="btn-secondary auth-failure-rerun" onClick={onRunAgain}>
         Run again
       </button>
     </div>

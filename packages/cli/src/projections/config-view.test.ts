@@ -258,7 +258,8 @@ describe("flag parsing", () => {
   });
 
   test("--config-scope names the values that exist", () => {
-    expect(parseConfigScope("full", "--config-scope")).toBe("full");
-    expect(() => parseConfigScope("global", "--config-scope")).toThrow(/package-rules\|full/);
+    expect(parseConfigScope("full")).toBe("full");
+    expect(() => parseConfigScope("global")).toThrow(/--config-scope must be one of/);
+    expect(() => parseConfigScope("global")).toThrow(/package-rules\|full/);
   });
 });

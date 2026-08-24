@@ -1,0 +1,717 @@
+/* Split out of index.css (roadmap 050's deferred plan, executed 2026-08-23).
+   ORDER IS LOAD-BEARING: main.tsx imports these numbered files in sequence,
+   preserving the original file's cascade byte-for-byte — two cross-file
+   equal-specificity couplings (.preset-panel, .diff-wrapper) depend on it.
+   This file: pinned tests (075 it6 / Proposal F). */
+
+/* ---------- pinned tests (roadmap 075 iteration 6, rebuilt for Proposal F) ----------
+
+   The Tests tab's own view, as the design's skip-reason funnel: the summary
+   strip, one funnel card per pinned descriptor, and the always-open "Add a
+   test" panel at the foot. Nothing here is a new shape — the cards are
+   `.card`, the toned counts are `.pill`, the tabs are `.tab-bar`/`.tab`, the
+   cross-links are `.btn-quiet`, the evidence grids are the simulator's own
+   `.sim-clause-grid` — what the block adds is the funnel's rhythm: the marks,
+   the rails, and the status dot. */
+
+.pins-view,
+.tests-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+/* The cards carry the list's gap, not the shared card margin (the ledger's
+   rule, for the same reason). */
+.pin-card,
+.pin-oneoff {
+  margin-bottom: 0;
+}
+
+.pins-strip-note {
+  color: var(--muted);
+  font-size: 0.72rem;
+  margin-left: auto;
+}
+
+/* ----- the empty state: the design's dashed "No tests pinned yet" card ----- */
+
+.pin-empty-card {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 1rem 1.1rem;
+  text-align: center;
+}
+
+.pin-empty-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+}
+
+.pin-empty-copy {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  margin: 0 auto 0.6rem;
+  max-width: 30rem;
+}
+
+.pin-empty-or {
+  color: var(--faint);
+  font-size: 0.72rem;
+  margin: 0.6rem 0 0.3rem;
+}
+
+.pin-empty-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  justify-content: center;
+}
+
+.pin-empty-chips button,
+.pin-probe-chips button {
+  background: var(--canvas);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--accent);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  line-height: 1.6;
+  padding: 0 0.5rem;
+}
+
+.pin-empty-chips button:hover,
+.pin-probe-chips button:hover {
+  border-color: var(--accent);
+}
+
+/* ----- the funnel card's header ----- */
+
+.pin-head {
+  align-items: center;
+  background: var(--surface);
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.45rem 0.7rem;
+}
+
+/* The toggle takes the whole left side so the header is one target; the
+   remove × sits outside it, because controls cannot nest in a button. */
+.pin-head-toggle {
+  align-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  font: inherit;
+  font-size: 0.82rem;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+/* Hue only: the pin card's own head sits a shade back from its contents. */
+.pin-head-toggle > .caret {
+  color: var(--faint);
+}
+
+/* The status dot. Green is "this verdict is what the run says"; amber is
+   "look closer" — a failed simulation, the reader's own rule losing to an
+   unset field, or an update no rule wrote to at all (Renovate defaults). */
+.pin-dot {
+  border-radius: 999px;
+  flex: none;
+  height: 0.55rem;
+  width: 0.55rem;
+}
+
+.pin-dot.ok {
+  background: var(--ok);
+}
+
+.pin-dot.warn {
+  background: var(--warn);
+}
+
+.pin-dot.pending {
+  background: var(--border);
+}
+
+.pin-name {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pin-meta,
+.pin-pending {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+/* The design's one-line outcome sentence, right-aligned in the header. */
+.pin-summary {
+  color: var(--muted);
+  font-size: 0.75rem;
+  margin-left: auto;
+  text-align: right;
+}
+
+.pin-remove {
+  flex: none;
+  font-size: 1rem;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.pin-body {
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  font-size: 0.82rem;
+  gap: 0.15rem;
+  padding: 0.5rem 0.7rem;
+}
+
+/* ----- the funnel's section grammar: mark · pill · framing sentence ----- */
+
+.pin-section-head {
+  align-items: baseline;
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.2rem 0;
+}
+
+.pin-section-mark {
+  flex: none;
+  text-align: center;
+  width: 1rem;
+}
+
+.mark-ok {
+  color: var(--ok);
+}
+
+.mark-error {
+  color: var(--error);
+}
+
+.mark-warn {
+  color: var(--warn);
+}
+
+.mark-muted {
+  color: var(--faint);
+}
+
+.pin-section-text {
+  color: var(--muted);
+  min-width: 0;
+}
+
+/* The rail: the section's rules indented under a colored edge, the design's
+   "these lines belong to that pill" device. */
+.pin-section-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin: 0 0 0.4rem 0.45rem;
+  padding-left: 0.75rem;
+}
+
+.rail-ok {
+  border-left: 2px solid var(--ok-border);
+}
+
+.rail-accent {
+  border-left: 2px solid var(--accent-border);
+}
+
+.pin-rule-line {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.12rem 0;
+}
+
+/* The `packageRules[N]` reference — the row's expand toggle, in the app's
+   actionable-text grammar but mono like the value it names. */
+.pin-rule-index {
+  background: none;
+  border: none;
+  border-bottom: 1px dashed var(--accent);
+  color: var(--accent);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.pin-rule-from {
+  color: var(--muted);
+}
+
+.pin-rule-label {
+  color: var(--muted);
+  min-width: 0;
+}
+
+.pin-rule-wrote {
+  color: var(--faint);
+  font-size: 0.72rem;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* ----- the expandable evidence box (why it matched / matcher checklist) ----- */
+
+.pin-evidence {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.3rem 0 0.2rem;
+  padding: 0.45rem 0.6rem;
+}
+
+.pin-evidence-title {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.pin-evidence-writes {
+  border-top: 1px solid var(--border);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  line-height: 1.6;
+  margin: 0;
+  padding-top: 0.35rem;
+  white-space: pre-wrap;
+}
+
+.pin-evidence-note {
+  color: var(--faint);
+  font-size: 0.7rem;
+  margin: 0;
+}
+
+.pin-closest-miss {
+  color: var(--muted);
+  font-size: 0.75rem;
+  margin: 0;
+}
+
+.pin-closest-miss code {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+/* ----- the skip buckets: caret · count pill · reason · source ----- */
+
+.pin-buckets {
+  display: flex;
+  flex-direction: column;
+}
+
+.pin-bucket-head {
+  align-items: baseline;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 0.82rem;
+  gap: 0.5rem;
+  padding: 0.2rem 0;
+  text-align: left;
+  width: 100%;
+}
+
+.pin-bucket-head:hover .pin-bucket-reason {
+  color: var(--ink);
+}
+
+/* Hue, plus the wider slot the bucket rows line their count pills against. */
+.pin-bucket-head .caret {
+  color: var(--faint);
+  width: 1rem;
+}
+
+.pin-bucket-head .pill {
+  flex: none;
+}
+
+.pin-bucket-reason {
+  color: var(--muted);
+  min-width: 0;
+}
+
+.pin-bucket-source {
+  color: var(--faint);
+  font-size: 0.72rem;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* One line per family or sample on expand — never one per rule. */
+.pin-bucket-rows {
+  border-left: 2px solid var(--border);
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin-left: 0.45rem;
+  padding: 0.1rem 0 0.3rem 0.75rem;
+}
+
+.pin-bucket-row {
+  align-items: baseline;
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.08rem 0;
+}
+
+.pin-bucket-row-label {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.pin-bucket-row-note {
+  font-size: 0.74rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pin-bucket-probe {
+  flex: none;
+  font-size: 0.7rem;
+  margin-left: auto;
+}
+
+.pin-bucket-more {
+  font-size: 0.72rem;
+  margin: 0.15rem 0 0;
+}
+
+/* ----- the probe ----- */
+
+.pin-probe {
+  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+  margin-top: 0.4rem;
+  padding-top: 0.45rem;
+}
+
+.pin-probe-label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.72rem;
+  gap: 0.2rem;
+}
+
+.pin-probe-label > span {
+  color: var(--muted);
+}
+
+.pin-probe-label input {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: inherit;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  padding: 0.3rem 0.5rem;
+}
+
+.pin-probe-idle {
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  margin-top: 0.5rem;
+  padding: 0.45rem 0.6rem;
+}
+
+.pin-probe-idle-lead {
+  color: var(--muted);
+  font-size: 0.72rem;
+  margin: 0 0 0.35rem;
+}
+
+.pin-probe-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.pin-probe-idle-note {
+  color: var(--faint);
+  font-size: 0.7rem;
+  margin: 0.35rem 0 0;
+}
+
+.pin-probe-results {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-top: 0.5rem;
+  overflow: hidden;
+}
+
+.pin-probe-results-head {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.7rem;
+  margin: 0;
+  padding: 0.25rem 0.6rem;
+}
+
+.pin-probe-hit + .pin-probe-hit {
+  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+
+.pin-probe-hit-line {
+  align-items: baseline;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-wrap: wrap;
+  font: inherit;
+  font-size: 0.8rem;
+  gap: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  text-align: left;
+  width: 100%;
+}
+
+.pin-probe-hit-line:hover {
+  background: var(--surface);
+}
+
+.pin-probe-hit-ref {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.pin-probe-found {
+  color: var(--muted);
+  font-size: 0.72rem;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.pin-probe-found code {
+  font-family: var(--font-mono);
+}
+
+.pin-probe-context {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pin-probe-context mark {
+  background: var(--highlight);
+  border-radius: 3px;
+  color: var(--ink);
+  font-weight: 600;
+  padding: 0 0.08rem;
+}
+
+.pin-probe-hit > .pin-evidence {
+  border-left: none;
+  border-radius: 0;
+  border-right: none;
+  margin: 0;
+}
+
+.pin-probe-results-foot {
+  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+  color: var(--faint);
+  font-size: 0.7rem;
+  margin: 0;
+  padding: 0.3rem 0.6rem;
+}
+
+.pin-probe-empty {
+  color: var(--faint);
+  font-size: 0.72rem;
+  margin: 0.4rem 0 0;
+}
+
+.pin-open-sim {
+  align-self: flex-start;
+  margin-top: 0.3rem;
+}
+
+/* ----- the "Add a test" panel ----- */
+
+.pin-add-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+  padding: 0.6rem 0.7rem;
+}
+
+.pin-add-label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.pin-add-card {
+  background: var(--canvas);
+  margin-bottom: 0;
+}
+
+/* The small tab strip — the standard `.tab-bar` grammar at the card's scale. */
+.pin-add-tabs {
+  padding: 0.35rem 0.6rem 0;
+}
+
+.pin-add-tabs .tab {
+  font-size: 0.75rem;
+  padding: 0.3rem 0.8rem;
+}
+
+.pin-add-tab-hint {
+  color: var(--faint);
+  font-size: 0.68rem;
+  margin-left: 0.3rem;
+}
+
+/* Roadmap 082: the receipt a Paste-JSON import leaves on the Manual tab. A
+   green NOTE, not a banner — it reports something that went right, and the
+   form it describes is directly underneath. */
+.pin-import-note {
+  background: var(--ok-bg);
+  border: 1px solid var(--ok-border);
+  border-radius: 6px;
+  color: var(--ok);
+  /* Hugs its text: it is a note about what just happened, not a full-width
+     banner about the state of the panel. */
+  display: inline-block;
+  font-size: 0.74rem;
+  margin: 0.6rem 0.75rem 0;
+  padding: 0.2rem 0.55rem;
+}
+
+/* ----- the Paste JSON tab (roadmap 082) ----- */
+
+.pin-paste {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 34rem;
+  padding: 0.6rem 0.75rem 0.75rem;
+}
+
+.pin-paste-intro {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin: 0;
+}
+
+.pin-paste-intro code {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 0 0.25rem;
+}
+
+.pin-paste-input {
+  background: var(--canvas);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-sizing: border-box;
+  color: inherit;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  line-height: 1.5;
+  min-height: 9rem;
+  padding: 0.5rem 0.6rem;
+  resize: vertical;
+  width: 100%;
+}
+
+.pin-paste-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.pin-paste-note {
+  color: var(--faint);
+  font-size: 0.72rem;
+}
+
+.pin-new-actions {
+  align-items: center;
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem 0.75rem;
+}
+
+.pin-limit-note {
+  color: var(--warn);
+  font-size: 0.8rem;
+  margin: 0;
+  padding: 0 0.75rem 0.6rem;
+}
+
+/* ----- the one-off simulation result, in the tests grammar ----- */
+
+.pin-oneoff-body {
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8rem;
+  gap: 0.1rem;
+  padding: 0.45rem 0.65rem;
+}
+
+.pin-oneoff-note {
+  color: var(--faint);
+  font-size: 0.72rem;
+  margin: 0.3rem 0 0;
+}
+
+/* Roadmap 077 (Proposal F): pins ride in the share link — said inside the
+   Add-a-test panel where pins are made, pointing at the header's Share. */
+.pins-share-note {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin: 0;
+}

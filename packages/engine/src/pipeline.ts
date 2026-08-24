@@ -13,13 +13,16 @@ import {
 } from "./renovate-adapter";
 import { getPresetAuth, setPresetAuth } from "./auth";
 import { removeGlobalConfig } from "./config-scope";
+import { snapshot } from "./lib";
+import { defaultEndpointFor } from "./shims/presets/host-transport";
 import {
   getUsedInjectionKeys,
   resetInjectedPresets,
   setInjectedPresets,
 } from "./shims/presets/injection";
+import { countNoun } from "./text";
 import { setCurrentCollector, TraceCollector } from "./trace/collector";
-import { computeDelta, snapshot } from "./trace/delta";
+import { computeDelta } from "./trace/delta";
 import type {
   PipelineInput,
   PlatformContext,
@@ -29,14 +32,6 @@ import type {
   ValidationMessage,
 } from "./trace/model";
 import { renovateVersion } from "./version";
-
-/** Default browser endpoint per platform, for display + when none is given. */
-const ENDPOINT_DEFAULTS: Record<string, string> = {
-  github: "https://api.github.com/",
-  gitlab: "https://gitlab.com/api/v4/",
-  gitea: "https://gitea.com/",
-  forgejo: "https://codeberg.org/",
-};
 
 function resolvePlatformContext(input: PipelineInput): PlatformContext {
   const globalConfig = input.globalConfig ?? {};
@@ -60,7 +55,8 @@ function resolvePlatformContext(input: PipelineInput): PlatformContext {
       : input.endpoint;
   const endpoint =
     (overridden ? (explicitEndpoint ?? globalEndpoint) : (globalEndpoint ?? explicitEndpoint)) ??
-    ENDPOINT_DEFAULTS[platform] ??
+    // Display default; a platform with no browser fetcher simply has none.
+    defaultEndpointFor(platform) ??
     "";
   return overridden ? { platform, endpoint, overridden } : { platform, endpoint };
 }
@@ -131,17 +127,26 @@ async function withRunAuth<T>(input: PipelineInput, task: () => Promise<T>): Pro
   }
 }
 
-/**
- * "1 preset" / "2 presets" for the stage titles. The app's `plural()` helper
- * lives in the app package and the engine must not depend on it, so the two
- * regular nouns this file needs are pluralized here.
- */
-function countNoun(n: number, noun: string): string {
-  return `${n} ${noun}${n === 1 ? "" : "s"}`;
-}
-
 function execute(input: PipelineInput): Promise<TraceResult> {
   return withRunAuth(input, () => executeRun(input));
+}
+
+/** What `validateConfig` answers with — the shape both the 008 layers and the
+ *  repo-level `validate` stage feed into `errors`/`warnings`. */
+type ValidationOutcome = Awaited<ReturnType<typeof validateConfig>>;
+
+/**
+ * The prologue both 008 layers share: keep the raw input as the `before` blob
+ * of the stage-complete event, then migrate and massage a COPY of it — the
+ * order upstream applies to a global config and to an inherited one alike.
+ */
+function prepareLayer(rawInput: Record<string, unknown>): {
+  raw: Record<string, unknown>;
+  config: Record<string, unknown>;
+} {
+  const raw = snapshot(rawInput);
+  const migrated = migrateConfig(snapshot(raw)).migratedConfig;
+  return { raw, config: massageConfig(migrated) };
 }
 
 async function executeRun(input: PipelineInput): Promise<TraceResult> {
@@ -166,6 +171,23 @@ async function executeRun(input: PipelineInput): Promise<TraceResult> {
   // Assembled 008 merge layers; undefined = layer absent or failed validation.
   let globalLayer: Record<string, unknown> | undefined;
   let inheritedLayer: Record<string, unknown> | undefined;
+
+  /**
+   * Validate one config and file the outcome the one way every stage files it:
+   * onto the run's `errors`/`warnings`, and as one trace event per message.
+   * Returns the outcome, because each caller then decides for itself what an
+   * error means for its stage.
+   */
+  const recordValidation = async (
+    scope: Parameters<typeof validateConfig>[0],
+    config: Record<string, unknown>,
+  ): Promise<ValidationOutcome> => {
+    const validation = await validateConfig(scope, config);
+    errors.push(...validation.errors);
+    warnings.push(...validation.warnings);
+    emitValidationMessages(collector, validation);
+    return validation;
+  };
 
   const result = (): TraceResult => ({
     events: collector.events,
@@ -209,13 +231,10 @@ async function executeRun(input: PipelineInput): Promise<TraceResult> {
     if (input.globalConfig) {
       collector.enterStage("global");
       collector.emit({ kind: "stage-start", title: "Assemble global (self-hosted) config" });
-      const rawGlobal = snapshot(input.globalConfig);
-      let globalCfg = migrateConfig(snapshot(rawGlobal)).migratedConfig;
-      globalCfg = massageConfig(globalCfg);
-      const globalValidation = await validateConfig("global", globalCfg);
-      errors.push(...globalValidation.errors);
-      warnings.push(...globalValidation.warnings);
-      emitValidationMessages(collector, globalValidation);
+      const { raw: rawGlobal, config: massagedGlobal } = prepareLayer(input.globalConfig);
+      // reassigned below as globalExtends resolve under it
+      let globalCfg = massagedGlobal;
+      const globalValidation = await recordValidation("global", globalCfg);
       stageStatus.global = globalValidation.errors.length > 0 ? "error" : "ok";
       if (Array.isArray(globalCfg.globalExtends) && globalCfg.globalExtends.length > 0) {
         try {
@@ -257,13 +276,8 @@ async function executeRun(input: PipelineInput): Promise<TraceResult> {
     if (input.inheritedConfig) {
       collector.enterStage("inherit");
       collector.emit({ kind: "stage-start", title: "Merge inherited config (inheritConfig)" });
-      const rawInherited = snapshot(input.inheritedConfig);
-      let inheritedCfg = migrateConfig(snapshot(rawInherited)).migratedConfig;
-      inheritedCfg = massageConfig(inheritedCfg);
-      const inheritValidation = await validateConfig("inherit", inheritedCfg);
-      errors.push(...inheritValidation.errors);
-      warnings.push(...inheritValidation.warnings);
-      emitValidationMessages(collector, inheritValidation);
+      const { raw: rawInherited, config: inheritedCfg } = prepareLayer(input.inheritedConfig);
+      const inheritValidation = await recordValidation("inherit", inheritedCfg);
       if (inheritValidation.errors.length > 0) {
         stageStatus.inherit = "error";
         collector.emit({
@@ -285,10 +299,7 @@ async function executeRun(input: PipelineInput): Promise<TraceResult> {
               base,
               base.ignorePresets as string[] | undefined,
             );
-            const resolvedValidation = await validateConfig("inherit", resolved);
-            errors.push(...resolvedValidation.errors);
-            warnings.push(...resolvedValidation.warnings);
-            emitValidationMessages(collector, resolvedValidation);
+            const resolvedValidation = await recordValidation("inherit", resolved);
             if (resolvedValidation.errors.length > 0) {
               stageStatus.inherit = "error";
               collector.emit({
@@ -372,10 +383,7 @@ async function executeRun(input: PipelineInput): Promise<TraceResult> {
     // validate
     collector.enterStage("validate");
     collector.emit({ kind: "stage-start", title: "Validate config" });
-    const validation = await validateConfig("repo", config);
-    errors.push(...validation.errors);
-    warnings.push(...validation.warnings);
-    emitValidationMessages(collector, validation);
+    const validation = await recordValidation("repo", config);
     stageStatus.validate = validation.errors.length > 0 ? "error" : "ok";
     collector.emit({
       kind: "stage-complete",

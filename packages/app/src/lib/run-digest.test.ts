@@ -167,7 +167,10 @@ describe("migrations", () => {
       "rewrites",
     );
     expect(one.link?.label).toBe("rewrote `semanticCommits`");
-    expect(one.link?.tab).toBe("rewrites");
+    // Roadmap 075: the Rewrites tab folded into Pipeline's migrate stage, which
+    // is where "step through them one by one" goes now. The clause's WORDING is
+    // untouched — the CLI renders the same sentence.
+    expect(one.link?.tab).toBe("pipeline");
 
     const two = clause(
       buildRunDigest(

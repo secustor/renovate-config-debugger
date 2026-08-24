@@ -5,7 +5,11 @@ import {
   type TraceResult,
   UPDATE_TYPE_KEYS,
 } from "@renovate-config-debugger/engine";
-import { isOverridden, multiContribBadgeKind } from "@renovate-config-debugger/app/headless";
+import {
+  isOverridden,
+  multiContribBadgeKind,
+  truncate,
+} from "@renovate-config-debugger/app/headless";
 import { CliError } from "../io";
 
 /**
@@ -18,6 +22,26 @@ import { CliError } from "../io";
  * separately from the app.
  */
 
+/**
+ * The display name of ONE layer: `defaults`, `global`, `inherited`, `repo`, or
+ * `preset <name>`. Every answer that names where a value came from prints this
+ * — the override chain, the `packageRules` ranges, a matched rule's `origin`,
+ * a dropped update-type block — so a layer reads the same on every surface.
+ *
+ * There is a SECOND layer vocabulary on this CLI, and the two are deliberately
+ * not the same one. `--source` / the MCP `source` parameter takes
+ * `repo | presets | all`: that is a CLASS of layer, not a layer — `presets` is
+ * plural because it scopes to every preset at once, and it has no label
+ * because no answer ever prints it as the writer of anything. Unifying them
+ * would mean either inventing a `presets` layer that never wrote a value, or
+ * making the facet name each preset (which is the drill-down `--rule` and
+ * get_preset_node already are). `repo` is the one word both use, and it means
+ * the same thing in both. Anything the facet does not cover — `defaults`,
+ * `global`, `inherited` — is reachable only by reading the chain, which is why
+ * the facet is documented as a scope over CONTRIBUTIONS rather than a filter
+ * over layers. Ledgered rather than churned: the strings below are asserted by
+ * the CLI suites, the MCP payload tests and the app's own ledger.
+ */
 export function layerLabel(layer: ProvenanceLayer): string {
   return layer.kind === "preset" ? `preset ${layer.name}` : layer.kind;
 }
@@ -25,6 +49,10 @@ export function layerLabel(layer: ProvenanceLayer): string {
 interface ChainStepBase {
   layer: string;
   action: string;
+  /** The nested preset whose own body wrote the value, when the engine
+   *  verified one — the layer is then only the direct extend it arrived
+   *  through. */
+  writtenBy?: string;
   expandedNested?: true;
 }
 
@@ -76,6 +104,7 @@ function stepView(step: KeyProvenance["chain"][number]): ProvenanceChainStep {
   const base: ChainStepBase = {
     layer: layerLabel(step.layer),
     action: step.action,
+    ...(step.writtenBy ? { writtenBy: `preset ${step.writtenBy.name}` } : {}),
     ...(step.expandedNested ? { expandedNested: true as const } : {}),
   };
   if (step.action === "concat" && appendsTo(step.before, step.after) && Array.isArray(step.after)) {
@@ -117,10 +146,11 @@ export interface ProvenanceIndexEntry {
   preview: string;
 }
 
-/** A value, short enough to scan. */
+/** A value, short enough to scan, with what it cost to get there. The cut is
+ *  the app's surrogate-safe `truncate` — see `../output`'s `preview`. */
 export function previewValue(value: unknown, max = 60): string {
   const text = JSON.stringify(value) ?? String(value);
-  return text.length <= max ? text : `${text.slice(0, max)}… (${text.length} chars)`;
+  return text.length <= max ? text : `${truncate(text, max)} (${text.length} chars)`;
 }
 
 /**

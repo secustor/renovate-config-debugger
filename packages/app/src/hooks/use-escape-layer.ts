@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
+import { useLatestRef } from "./use-latest-ref";
 import { mayOwnNativePopup } from "@/hooks/scroll-ergonomics";
 import { type EscapePriority, handleEscape, pushEscapeLayer } from "@/lib/escape-stack";
 
@@ -146,8 +147,7 @@ export function useEscapeLayer(
   onEscape: () => void,
   priority: EscapePriority,
 ): void {
-  const handlerRef = useRef(onEscape);
-  handlerRef.current = onEscape;
+  const handlerRef = useLatestRef(onEscape);
 
   useEffect(() => {
     if (!active) {
@@ -159,5 +159,8 @@ export function useEscapeLayer(
       release();
       stopListening();
     };
-  }, [active, priority]);
+    // `handlerRef` is a stable object — listed only because `exhaustive-deps`
+    // cannot see the `useRef()` behind `useLatestRef`, so the layer still
+    // stays put across re-renders.
+  }, [active, priority, handlerRef]);
 }

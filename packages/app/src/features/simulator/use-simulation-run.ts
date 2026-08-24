@@ -8,24 +8,23 @@ import {
   useState,
 } from "react";
 import type { SimulationResult, TraceResult } from "@renovate-config-debugger/engine";
-import { type FormState, hasMeaningfulInput, toDescriptor } from "./form";
+import type { FormState } from "./form";
+import { runSimulation } from "./run-simulation";
 import { DEFAULT_RULE_FILTERS, type RuleFilters } from "@/lib/rule-filters";
 
 export type Simulate = (nextForm: FormState, touched: boolean, keepStep?: boolean) => Promise<void>;
 
 export interface SimulationRun {
   sim: SimulationResult | null;
-  /** Roadmap 021: the form (all fields) + effective updateType that produced
-   *  `sim`, kept alongside it so the comparison panel can show/diff exactly
-   *  what was simulated — never the live `form`, which may have been edited
-   *  further without a re-run (that drift is what the "stale" banner covers). */
+  /** Roadmap 021: the form (all fields) that produced `sim`, kept alongside it
+   *  so the card can name exactly what was simulated — never the live `form`,
+   *  which may have been edited further without a re-run (that drift is what
+   *  the "stale" banner covers). */
   simForm: FormState | null;
-  simEffectiveUpdateType: string;
   /** The serialized form `sim` was run against, for the staleness check. */
   ranKey: string | null;
   running: boolean;
   error: string | null;
-  emptyGuardTriggered: boolean;
   /** Roadmap 023/047: the rules drawer's two filter facets (verdict, provenance). */
   ruleFilters: RuleFilters;
   setRuleFilters: Dispatch<SetStateAction<RuleFilters>>;
@@ -46,13 +45,19 @@ export interface SimulationRun {
 export function useSimulationRun({
   result,
   onMergeStepChange,
+  guard,
+  clearGuard,
 }: {
   result: TraceResult;
-  onMergeStepChange?: (index: number) => void;
+  onMergeStepChange: (index: number) => void;
+  /** Roadmap 015's empty-form guard, owned by `useSimulatorForm` — a run and a
+   *  pin trip the same one, so there is one flag and one notice, not two. Both
+   *  are identity-stable, hence usable as effect deps. */
+  guard: (form: FormState) => boolean;
+  clearGuard: () => void;
 }): SimulationRun {
   const [sim, setSim] = useState<SimulationResult | null>(null);
   const [simForm, setSimForm] = useState<FormState | null>(null);
-  const [simEffectiveUpdateType, setSimEffectiveUpdateType] = useState("");
   const [ranKey, setRanKey] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,9 +70,6 @@ export function useSimulationRun({
   // simulation exists to render its row — kept to show a "run a simulation"
   // hint rather than the click doing nothing (the "looks broken" finding).
   const [focusHint, setFocusHint] = useState<number | null>(null);
-  // Roadmap 015: set when Simulate is clicked on a form with no identifying
-  // input; cleared reactively the moment the form has ANY meaningful field.
-  const [emptyGuardTriggered, setEmptyGuardTriggered] = useState(false);
   // Roadmap 016: re-simulating (e.g. after editing the form and clicking
   // Simulate again) resets the verdict facet to its default, which can
   // unmount rows the user was scrolled past — the browser's scroll-anchoring
@@ -88,13 +90,12 @@ export function useSimulationRun({
   useEffect(() => {
     setSim(null);
     setSimForm(null);
-    setSimEffectiveUpdateType("");
     setRanKey(null);
     setError(null);
     setRuleFilters(DEFAULT_RULE_FILTERS);
     setFocusHint(null);
-    setEmptyGuardTriggered(false);
-  }, [result]);
+    clearGuard();
+  }, [result, clearGuard]);
 
   // Roadmap 016: restore the scroll position captured in `simulate` right
   // before the DOM the browser is about to repaint — after `sim` and the
@@ -124,25 +125,17 @@ export function useSimulationRun({
     // Roadmap 015: empty-form guard — an all-blank descriptor is guaranteed
     // to match nothing, and running it just renders hundreds of "no match"
     // rows with no explanation (the study's "did I break something?" moment).
-    if (!hasMeaningfulInput(nextForm)) {
-      setEmptyGuardTriggered(true);
+    if (!guard(nextForm)) {
       return;
     }
-    setEmptyGuardTriggered(false);
     setRunning(true);
     setError(null);
     try {
-      const engine = await import("@renovate-config-debugger/engine");
-      const derived = engine.deriveUpdateType(
-        nextForm.currentValue,
-        nextForm.newValue,
-        nextForm.versioning,
-      );
-      const effectiveType = touched || derived === undefined ? nextForm.updateType : derived;
-      const simResult = await engine.simulatePackageRules({
-        config: finalConfig,
-        dep: toDescriptor(nextForm, effectiveType),
-      });
+      // Roadmap 075 (iteration 6): the engine call itself lives in
+      // `run-simulation.ts` — the pinned tests re-run the same one, and a
+      // pin's verdict has to be the verdict this panel would show for the
+      // same descriptor.
+      const { sim: simResult } = await runSimulation(finalConfig, nextForm, touched);
       // Captured right before the state updates that can shrink the results
       // list (see the layout effect above) — not at the top of `simulate`,
       // so an in-flight fetch doesn't capture a scroll position the user has
@@ -150,7 +143,6 @@ export function useSimulationRun({
       scrollYBeforeSimulate.current = window.scrollY;
       setSim(simResult);
       setSimForm(nextForm);
-      setSimEffectiveUpdateType(effectiveType);
       setRanKey(JSON.stringify(nextForm));
       // The verdict facet goes back to the default view for the new run; the
       // provenance one is left alone — a user filtered to their own rules
@@ -162,7 +154,7 @@ export function useSimulationRun({
       // exactly like the migration stepper's). `keepStep` is the share-link
       // auto-run, whose index the link itself just restored.
       if (!keepStep) {
-        onMergeStepChange?.(0);
+        onMergeStepChange(0);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -178,11 +170,9 @@ export function useSimulationRun({
   return {
     sim,
     simForm,
-    simEffectiveUpdateType,
     ranKey,
     running,
     error,
-    emptyGuardTriggered,
     ruleFilters,
     setRuleFilters,
     focusHint,

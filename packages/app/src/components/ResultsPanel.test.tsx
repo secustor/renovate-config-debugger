@@ -15,7 +15,7 @@ import { ResultsPanel, type ResultsTabDescriptor } from "./ResultsPanel";
 afterEach(cleanup);
 
 const TABS: ResultsTabDescriptor[] = [
-  { id: "overview" },
+  { id: "tests" },
   { id: "pipeline" },
   { id: "presets", count: 3 },
   { id: "problems", count: 0 },
@@ -65,7 +65,7 @@ describe("ResultsPanel keyboard navigation", () => {
 
   it("moves focus with the arrows and wraps around", () => {
     const onSelect = vi.fn();
-    const view = renderPanel("overview", onSelect);
+    const view = renderPanel("tests", onSelect);
     const strip = view.getByRole("tablist");
 
     fireEvent.keyDown(strip, { key: "ArrowRight" });
@@ -74,7 +74,7 @@ describe("ResultsPanel keyboard navigation", () => {
     // …and the NEXT arrow moves from where focus is now, not from the (still
     // unchanged) selection.
     fireEvent.keyDown(strip, { key: "ArrowLeft" });
-    expect(focusedTabId()).toBe("tab-overview");
+    expect(focusedTabId()).toBe("tab-tests");
 
     fireEvent.keyDown(strip, { key: "ArrowLeft" });
     expect(focusedTabId()).toBe("tab-problems");
@@ -83,7 +83,7 @@ describe("ResultsPanel keyboard navigation", () => {
   it("keeps the roving tabindex on the FOCUSED tab, not the selected one", () => {
     // The defect: with the stop pinned to the selection, tabbing forward out
     // of a strip whose selection sits at the end (e.g. Problems, the last of
-    // seven) after an arrow had moved focus elsewhere landed BACK on the
+    // five) after an arrow had moved focus elsewhere landed BACK on the
     // selected tab instead of leaving the widget — the roving-tabindex
     // contract (there is exactly one tabbable descendant, and it is the one
     // focus last landed on) is what makes a plain Tab actually exit the strip.
@@ -101,12 +101,12 @@ describe("ResultsPanel keyboard navigation", () => {
     // Tab keypress would land), then move away from it.
     view.getByRole("tab", { name: /^Problems/ }).focus();
     fireEvent.keyDown(strip, { key: "Home" });
-    expect(focusedTabId()).toBe("tab-overview");
+    expect(focusedTabId()).toBe("tab-tests");
 
-    // The stop must have followed focus to Overview — Problems (still
+    // The stop must have followed focus to Tests — Problems (still
     // selected) is no longer tabbable, or a forward Tab would jump back into
     // the strip instead of into the panel.
-    expect(tabbableIds()).toEqual(["tab-overview"]);
+    expect(tabbableIds()).toEqual(["tab-tests"]);
   });
 
   it("falls the roving tabindex back to the selected tab once focus leaves the strip", () => {
@@ -118,10 +118,10 @@ describe("ResultsPanel keyboard navigation", () => {
     view.getByRole("tab", { name: /^Problems/ }).focus();
     fireEvent.keyDown(strip, { key: "Home" });
     expect(view.getAllByRole("tab").find((tab) => tab.getAttribute("tabindex") === "0")?.id).toBe(
-      "tab-overview",
+      "tab-tests",
     );
 
-    fireEvent.blur(view.getByRole("tab", { name: /^Overview/ }), { relatedTarget: outside });
+    fireEvent.blur(view.getByRole("tab", { name: /^Tests/ }), { relatedTarget: outside });
     expect(view.getAllByRole("tab").find((tab) => tab.getAttribute("tabindex") === "0")?.id).toBe(
       "tab-problems",
     );
@@ -138,13 +138,13 @@ describe("ResultsPanel keyboard navigation", () => {
     expect(focusedTabId()).toBe("tab-problems");
 
     fireEvent.keyDown(strip, { key: "Home" });
-    expect(focusedTabId()).toBe("tab-overview");
+    expect(focusedTabId()).toBe("tab-tests");
   });
 
   it("opens the tab an arrow lands on (selection follows focus)", () => {
     const onSelect = vi.fn();
     const onWalk = vi.fn();
-    const view = renderPanel("overview", onSelect, null, onWalk);
+    const view = renderPanel("tests", onSelect, null, onWalk);
     const strip = view.getByRole("tablist");
 
     fireEvent.keyDown(strip, { key: "ArrowRight" });
@@ -152,7 +152,7 @@ describe("ResultsPanel keyboard navigation", () => {
     fireEvent.keyDown(strip, { key: "End" });
     expect(onWalk).toHaveBeenLastCalledWith("problems");
     fireEvent.keyDown(strip, { key: "Home" });
-    expect(onWalk).toHaveBeenLastCalledWith("overview");
+    expect(onWalk).toHaveBeenLastCalledWith("tests");
   });
 
   it("walks without spending the cross-link back trail, but a choice spends it", () => {
@@ -163,7 +163,7 @@ describe("ResultsPanel keyboard navigation", () => {
     // trail without taking the arrows away.
     const onSelect = vi.fn();
     const onWalk = vi.fn();
-    const view = renderPanel("presets", onSelect, "overview", onWalk);
+    const view = renderPanel("presets", onSelect, "tests", onWalk);
     const strip = view.getByRole("tablist");
 
     fireEvent.keyDown(strip, { key: "ArrowRight" });

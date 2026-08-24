@@ -18,11 +18,13 @@
  * When Renovate bumps, re-diff this against the upstream source — the golden
  * drift tripwire test hashes it and will fail until re-checked.
  */
-import { getOptions } from "renovate/dist/config/options/index.js";
-import { MigrationsService } from "renovate/dist/config/migrations/migrations-service.js";
-import { mergeChildConfig } from "renovate/dist/config/utils.js";
-import { clone } from "renovate/dist/util/clone.js";
-import { regEx } from "renovate/dist/util/regex.js";
+import {
+  clone,
+  getOptions,
+  mergeChildConfig,
+  MigrationsService,
+  regEx,
+} from "./renovate-internals";
 import { emitMigrationStep } from "../trace/collector";
 import {
   dequal,

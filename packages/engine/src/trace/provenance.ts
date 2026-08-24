@@ -1,5 +1,7 @@
+import { isPlainObject } from "../lib";
 import { getDefaultConfig, getOptions, mergeChildConfig } from "../renovate-adapter";
 import type { PresetNode, TraceResult } from "./model";
+import { mergingChildren, walkResolutionOrder } from "./tree";
 
 /**
  * Roadmap 005: per-key merge provenance. Computed post-hoc from the trace data
@@ -44,6 +46,16 @@ export interface ProvenanceStep {
   noop?: boolean;
   /** The key's value was further expanded by Renovate's nested-`extends` pass. */
   expandedNested?: boolean;
+  /**
+   * The preset-tree node whose OWN body wrote this step's value — a preset
+   * NESTED below the direct extend `layer` names (`docker:pinDigests` writing
+   * what `config:best-practices` carries in). Present only when the step's
+   * layer is a preset, the writer is not that direct extend itself, and the
+   * subtree replay could VERIFY the writer's own value against the extend's
+   * ground-truth `resolved` — the same honesty rule `description-provenance`
+   * follows: no confident wrong leaf, absence over a guess.
+   */
+  writtenBy?: { nodeId: string; name: string };
 }
 
 export interface KeyProvenance {
@@ -56,10 +68,6 @@ export interface KeyProvenance {
 }
 
 type Obj = Record<string, unknown>;
-
-function isPlainObject(v: unknown): v is Obj {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
-}
 
 /** Structural equality over JSON-shaped values (also used by resolved-config.ts). */
 export function deepEqual(a: unknown, b: unknown): boolean {
@@ -83,6 +91,8 @@ export function deepEqual(a: unknown, b: unknown): boolean {
 interface Layer {
   layer: ProvenanceLayer;
   config: Obj;
+  /** The tree node behind a preset layer — what the writer walk descends into. */
+  node?: PresetNode;
 }
 
 /**
@@ -98,15 +108,11 @@ function buildLayers(root: PresetNode, layerConfigs: TraceResult["layerConfigs"]
   if (layerConfigs?.inheritedResolved) {
     layers.push({ layer: { kind: "inherited" }, config: layerConfigs.inheritedResolved });
   }
-  // Same filter PresetTree's contribution replay uses: only non-nested,
-  // resolved children with a `resolved` payload participate in the top merge.
-  for (const child of root.children) {
-    if (child.nested || child.state !== "resolved" || child.resolved === undefined) {
-      continue;
-    }
+  for (const child of mergingChildren(root)) {
     layers.push({
       layer: { kind: "preset", nodeId: child.id, name: child.name },
       config: child.resolved as Obj,
+      node: child,
     });
   }
   const repo = structuredClone(root.input) as Obj;
@@ -114,6 +120,43 @@ function buildLayers(root: PresetNode, layerConfigs: TraceResult["layerConfigs"]
   delete repo.ignorePresets;
   layers.push({ layer: { kind: "repo" }, config: repo });
   return layers;
+}
+
+/** Keys consumed by preset resolution itself — never a body's own contribution. */
+const RESOLUTION_KEYS = new Set(["extends", "ignorePresets"]);
+
+interface KeyWriter {
+  /** Last node in resolution order whose own body carries the key — the
+   *  winner for a non-mergeable key. */
+  last: PresetNode;
+  /** How many bodies in the subtree carry it. */
+  count: number;
+}
+
+/**
+ * Which body wrote each key of a direct extend's subtree, by walking it in
+ * `resolveConfigPresets`' own merge order — so the LAST body to carry a key is
+ * that key's winner under `mergeChildConfig`'s overwrite semantics.
+ */
+function collectWriters(node: PresetNode, index: Map<string, KeyWriter>): void {
+  walkResolutionOrder(node, (visited) => {
+    const input = visited.input;
+    if (!isPlainObject(input)) {
+      return;
+    }
+    for (const key of Object.keys(input)) {
+      if (RESOLUTION_KEYS.has(key)) {
+        continue;
+      }
+      const existing = index.get(key);
+      if (existing) {
+        existing.last = visited;
+        existing.count += 1;
+      } else {
+        index.set(key, { last: visited, count: 1 });
+      }
+    }
+  });
 }
 
 /**
@@ -145,6 +188,37 @@ export function computeProvenance(result: TraceResult): Map<string, KeyProvenanc
   const chains = new Map<string, ProvenanceStep[]>();
   const lastLayerIndex = new Map<string, number>();
 
+  // The writer walk, one index per direct extend, built on first use. The
+  // verification is against the extend's own ground-truth `resolved` — the
+  // exact value the layer contributes to the top merge — so a migration,
+  // in-subtree merge, or force that reshapes the value simply yields no
+  // writer rather than a wrong one.
+  const writerIndexes = new Map<string, Map<string, KeyWriter>>();
+  const writtenBy = (
+    node: PresetNode,
+    key: string,
+    mergeable: boolean,
+  ): ProvenanceStep["writtenBy"] => {
+    let index = writerIndexes.get(node.id);
+    if (!index) {
+      index = new Map();
+      collectWriters(node, index);
+      writerIndexes.set(node.id, index);
+    }
+    const writer = index.get(key);
+    // The direct extend writing its own key is what the layer already says; a
+    // mergeable key with several writers has no single writer to name.
+    if (!writer || writer.last.id === node.id || (mergeable && writer.count > 1)) {
+      return undefined;
+    }
+    const own = writer.last.input;
+    const truth = node.resolved;
+    if (!isPlainObject(own) || !isPlainObject(truth) || !deepEqual(own[key], truth[key])) {
+      return undefined;
+    }
+    return { nodeId: writer.last.id, name: writer.last.name };
+  };
+
   const pushStep = (key: string, step: ProvenanceStep, layerIndex: number): void => {
     let arr = chains.get(key);
     if (!arr) {
@@ -159,7 +233,7 @@ export function computeProvenance(result: TraceResult): Map<string, KeyProvenanc
   // layer owns.
   let acc: Obj = {};
   let accBase: Obj = {};
-  for (const [layerIndex, { layer, config }] of layers.entries()) {
+  for (const [layerIndex, { layer, config, node }] of layers.entries()) {
     const before = acc;
     const after = mergeChildConfig(structuredClone(before), structuredClone(config)) as Obj;
     if (layerIndex < baseLayerCount) {
@@ -185,9 +259,17 @@ export function computeProvenance(result: TraceResult): Map<string, KeyProvenanc
       } else {
         action = parentVal === undefined ? "set" : "overwrite";
       }
+      const writer = node ? writtenBy(node, key, Boolean(opt?.mergeable)) : undefined;
       pushStep(
         key,
-        { layer, action, before: parentVal, after: after[key], ...(noop ? { noop: true } : {}) },
+        {
+          layer,
+          action,
+          before: parentVal,
+          after: after[key],
+          ...(noop ? { noop: true } : {}),
+          ...(writer ? { writtenBy: writer } : {}),
+        },
         layerIndex,
       );
     }

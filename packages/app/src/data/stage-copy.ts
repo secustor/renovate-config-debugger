@@ -3,7 +3,7 @@ import type { GlossaryEntry } from "./glossary-data";
 
 /**
  * Stage names + plain-language explainers. Data, not markup — kept out of
- * `StageTimeline.tsx` because a component module that also exports constants
+ * `StageRail.tsx` because a component module that also exports constants
  * breaks Fast Refresh (react/only-export-components), and App.tsx reads both
  * of these for the selected-stage detail panel.
  */
@@ -11,6 +11,23 @@ import type { GlossaryEntry } from "./glossary-data";
 export const STAGE_LABELS: Record<StageId, string> = {
   global: "Global config",
   inherit: "Inherited config",
+  parse: "Parse",
+  migrate: "Migrate",
+  massage: "Massage",
+  validate: "Validate",
+  preset: "Presets",
+  merge: "Merge",
+};
+
+/**
+ * Roadmap 075 (iteration 4): the rail gives every stage the same narrow
+ * column, so its nodes wear the short form of the same names — the full label
+ * stays the accessible name and the stage card's heading, so nothing a screen
+ * reader hears gets shorter.
+ */
+export const STAGE_SHORT_LABELS: Record<StageId, string> = {
+  global: "Global",
+  inherit: "Inherited",
   parse: "Parse",
   migrate: "Migrate",
   massage: "Massage",
@@ -31,13 +48,13 @@ export const STAGE_EXPLAINERS: Record<StageId, GlossaryEntry> = {
   global: {
     name: "global config stage",
     plain:
-      "Applies the bot-level settings a self-hosted administrator configured, including any globalExtends presets. Skipped unless you provide a global config under Advanced options. Assembling this layer is what the stage always does, so its dot stays green whenever it succeeds and only turns red on an outright failure.",
+      "Applies the bot-level settings a self-hosted administrator configured, including any globalExtends presets. Skipped unless you provide a global config on this stage's card in the Pipeline tab. Assembling this layer is what the stage always does, so its dot stays green whenever it succeeds and only turns red on an outright failure.",
     url: "https://docs.renovatebot.com/self-hosted-configuration/",
   },
   inherit: {
     name: "inherited config stage",
     plain:
-      "Applies org-level defaults shared across repositories (inheritConfig): validated, its presets resolved, and bot-only options stripped. Skipped unless you provide one under Advanced options. Like the global layer, assembling it is this stage's normal job — its dot stays green whenever it succeeds.",
+      "Applies org-level defaults shared across repositories (inheritConfig): validated, its presets resolved, and bot-only options stripped. Skipped unless you provide one on this stage's card in the Pipeline tab. Like the global layer, assembling it is this stage's normal job — its dot stays green whenever it succeeds.",
     url: "https://docs.renovatebot.com/self-hosted-configuration/#inheritconfig",
   },
   parse: {

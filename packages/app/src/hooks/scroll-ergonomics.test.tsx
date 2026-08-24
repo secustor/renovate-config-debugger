@@ -170,6 +170,41 @@ describe("useHomeEndPageScroll", () => {
     scrollTo.mockRestore();
   });
 
+  it("scrolls the PANE the gesture was made in, not the page (roadmap 075)", () => {
+    // The v2 shell's panes are the scrollers and the document does not move at
+    // all, so the rule 016 wrote down — Home/End move the surface the reader is
+    // reading — has to name that surface rather than always the page.
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+    render(<HomeEndHarness />);
+    const pane = document.createElement("div");
+    pane.className = "results-col";
+    const button = document.createElement("button");
+    pane.appendChild(button);
+    document.body.appendChild(pane);
+    // jsdom lays nothing out, so the "is there anything to scroll?" test has to
+    // be answered explicitly — which is also the case this asserts: a pane that
+    // overflows takes the key.
+    Object.defineProperty(pane, "scrollHeight", { configurable: true, value: 2_000 });
+    Object.defineProperty(pane, "clientHeight", { configurable: true, value: 500 });
+
+    fireEvent.keyDown(button, { key: "End" });
+    expect(pane.scrollTop).toBe(2_000);
+    expect(scrollTo).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(button, { key: "Home" });
+    expect(pane.scrollTop).toBe(0);
+    expect(scrollTo).not.toHaveBeenCalled();
+
+    // A pane with nothing to scroll is not a target: the key falls through to
+    // the document rather than doing nothing at all.
+    Object.defineProperty(pane, "scrollHeight", { configurable: true, value: 500 });
+    fireEvent.keyDown(button, { key: "End" });
+    expect(scrollTo).toHaveBeenCalledOnce();
+
+    pane.remove();
+    scrollTo.mockRestore();
+  });
+
   it("keeps scrolling under an ambient layer — the simulator's return pill", () => {
     // The rank is the whole reason this asks `overlayKeyboardOwned()` rather
     // than "is any layer open": the pill is furniture to read past and stays up

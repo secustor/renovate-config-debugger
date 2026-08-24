@@ -16,7 +16,7 @@ import {
   VERDICT_FILTERS,
   type VerdictFilter,
 } from "@renovate-config-debugger/app/headless";
-import { type ParsedArgs, stringOption } from "./args";
+import { choiceOption, intOption, type ParsedArgs } from "./args";
 import { CliError } from "./io";
 import {
   type RuleOrigin,
@@ -76,40 +76,12 @@ function ruleText(transport: RunTransport, index: number | "N"): string {
   return transport === "mcp" ? `rule: ${index}` : `--rule ${index}`;
 }
 
-function parseChoice<T extends string>(
-  raw: string | undefined,
-  allowed: readonly T[],
-  flag: string,
-  fallback: T,
-): T {
-  if (raw === undefined) {
-    return fallback;
-  }
-  const found = allowed.find((value) => value === raw);
-  if (!found) {
-    throw new CliError(`--${flag} must be one of ${allowed.join("|")} (got "${raw}")`);
-  }
-  return found;
-}
-
-/** `--rule <n>`: a non-negative integer, or nothing. */
-function parseRuleIndex(raw: string | undefined): number | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  const index = Number(raw);
-  if (!Number.isInteger(index) || index < 0) {
-    throw new CliError(`--rule must be a non-negative integer (got "${raw}")`);
-  }
-  return index;
-}
-
 /** The facets, at one default for every output format (roadmap 073). */
 export function ruleFilterSelection(args: ParsedArgs): RuleFilterSelection {
-  const rule = parseRuleIndex(stringOption(args, "rule"));
+  const rule = intOption(args, "rule", { min: 0 });
   return {
-    verdict: parseChoice(stringOption(args, "verdict"), VERDICT_FILTERS, "verdict", "notable"),
-    source: parseChoice(stringOption(args, "source"), SOURCE_FILTERS, "source", "all"),
+    verdict: choiceOption(args, "verdict", VERDICT_FILTERS) ?? "notable",
+    source: choiceOption(args, "source", SOURCE_FILTERS) ?? "all",
     ...(rule !== undefined ? { rule } : {}),
     transport: "cli",
   };

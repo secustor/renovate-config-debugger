@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useTransientFlag } from "@/hooks/use-transient-flag";
 
 /**
  * Roadmap 036 — THE copy affordance. Before it, four unrelated implementations
  * (CopyMarkdownButton, MigrationSteps' inline handler, two plain toolbar
  * buttons) each hand-rolled their own "Copied!" timeout at three different
- * sizes. One component, one size (roadmap 039: the shared `.btn` base, with
+ * sizes. One component, one size (roadmap 039: the shared button base, with
  * `.copy-btn` in index.css left holding only the accent look), one copied
  * state: clipboard icon + label, flipping to a check + "Copied" for 1.5 s.
  */
@@ -35,10 +35,22 @@ type Props = CopySource & {
    * there, copying would also toggle the surrounding `<details>` open/closed.
    */
   inSummary?: boolean;
+  /** Roadmap 077: icon-only in tight chrome (the toolbar's file-name copy).
+   *  The label becomes the accessible name; the icon still flips to the
+   *  check, which is the whole feedback there is. */
+  iconOnly?: boolean;
 };
 
-export function CopyButton({ getText, onCopy, label, title, className, inSummary }: Props) {
-  const [copied, setCopied] = useState(false);
+export function CopyButton({
+  getText,
+  onCopy,
+  label,
+  title,
+  className,
+  inSummary,
+  iconOnly,
+}: Props) {
+  const [copied, flashCopied] = useTransientFlag(1500);
 
   async function copy() {
     try {
@@ -47,18 +59,22 @@ export function CopyButton({ getText, onCopy, label, title, className, inSummary
       } else {
         await onCopy?.();
       }
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      flashCopied();
     } catch {
       // Clipboard can be unavailable (insecure context) — fail quietly.
     }
   }
 
+  // An icon-only button has no visible text, so pointer users get the
+  // accessible name as the hover tooltip too (the design's `title`).
+  const hoverTitle = title ?? (iconOnly ? label : undefined);
+
   return (
     <button
       type="button"
-      className={`btn copy-btn${copied ? " copied" : ""}${className ? ` ${className}` : ""}`}
-      title={title}
+      className={`btn-secondary copy-btn${copied ? " copied" : ""}${iconOnly ? " icon-only" : ""}${className ? ` ${className}` : ""}`}
+      title={hoverTitle}
+      aria-label={iconOnly ? label : undefined}
       onClick={(e) => {
         if (inSummary) {
           e.preventDefault();
@@ -70,7 +86,7 @@ export function CopyButton({ getText, onCopy, label, title, className, inSummary
       <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
         <path d={copied ? CHECK_PATH : COPY_PATH} />
       </svg>
-      <span>{copied ? "Copied" : label}</span>
+      {iconOnly ? null : <span>{copied ? "Copied" : label}</span>}
     </button>
   );
 }

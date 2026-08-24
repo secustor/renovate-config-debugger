@@ -1,7 +1,13 @@
-import { computeDelta, snapshot, toSerializable } from "./delta";
+import { snapshot } from "../lib";
+import { computeDelta, toSerializable } from "./delta";
 import { describeMigration } from "./migration-names";
 import type { LogLevel, PlatformContext, PresetNode, StageId, TraceEvent } from "./model";
-import { type ParsePresetFn, PresetTreeBuilder } from "./preset-tree";
+import {
+  fetchErrorMessage,
+  type ParsePresetFn,
+  PresetTreeBuilder,
+  RESOLVING_RE,
+} from "./preset-tree";
 
 /**
  * One granular migration step reported by the forked `migrateConfig` shim
@@ -101,8 +107,10 @@ export class TraceCollector {
     }
     const metaObj = (meta ?? {}) as Record<string, unknown>;
     if (msg === "Preset fetch error" && typeof metaObj.preset === "string") {
-      const err = metaObj.err;
-      const errMsg = err instanceof Error ? err.message : String(err ?? "unknown error");
+      // Same message shape — and the same ExternalHostError unwrapping — as
+      // the tree builder's primary path; this fallback only fires outside the
+      // preset stage.
+      const errMsg = fetchErrorMessage(metaObj.err);
       this.emit({
         kind: "preset-error",
         title: `Failed to fetch preset "${metaObj.preset}": ${errMsg}`,
@@ -112,7 +120,7 @@ export class TraceCollector {
       });
       return;
     }
-    const resolving = msg?.match(/^Resolving preset "(.+)"$/);
+    const resolving = msg?.match(RESOLVING_RE);
     if (resolving) {
       this.emit({
         kind: "preset-fetch",

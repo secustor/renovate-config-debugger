@@ -5,6 +5,7 @@ import { CopyMarkdownButton } from "@/components/CopyMarkdownButton";
 import { type AuthState, GithubAuthHint } from "@/components/GithubAuthHint";
 import { JsonDiff } from "@/components/JsonDiff";
 import { MigrationSteps } from "@/components/MigrationSteps";
+import { PresetName } from "@/components/PresetName";
 import { findPollutedPath } from "@/lib/input-schemas";
 import type { NodeDescriptionFacts } from "@/lib/tree-descriptions";
 import { NodeDescriptionLines } from "./NodeDescriptions";
@@ -16,6 +17,7 @@ import {
   STATE_LABELS,
 } from "./tree-shared";
 import { useEngineHelpers } from "./use-engine-helpers";
+import { pluralWord } from "@/lib/format";
 
 /**
  * Replays the parent's merge loop with renovate's real mergeChildConfig to
@@ -159,7 +161,7 @@ function PresetInjector({
       {error ? <p className="preset-node-error">{error}</p> : null}
       <button
         type="button"
-        className="preset-inject-button"
+        className="btn-primary"
         onClick={submit}
         disabled={text.trim().length === 0}
       >
@@ -181,7 +183,6 @@ export function PresetDetail({
   migrationSteps,
   authState,
   onSignIn,
-  installUrl,
 }: {
   node: PresetNode;
   parent: PresetNode | undefined;
@@ -196,7 +197,6 @@ export function PresetDetail({
   migrationSteps: TraceEvent[];
   authState: AuthState;
   onSignIn: () => void;
-  installUrl: string;
 }) {
   const contribution = useContribution(node, parent);
   const stateLabel = STATE_LABELS[node.state];
@@ -225,7 +225,10 @@ export function PresetDetail({
   return (
     <div className="preset-panel">
       <div className="preset-panel-head">
-        <code>{node.name}</code>
+        {/* The heading variant, and the one token with no hover card: this
+            panel IS what the card previews, so a card here would offer the
+            reader a summary of the page they are already reading. */}
+        <PresetName name={node.name} heading noCard />
         <button type="button" className="close" onClick={onClose} aria-label="Close panel">
           ×
         </button>
@@ -242,7 +245,6 @@ export function PresetDetail({
           authState={authState}
           rateLimited={ghFailure.rateLimited}
           onSignIn={onSignIn}
-          installUrl={installUrl}
         />
       ) : null}
       {stateLabel && !node.error ? <p className="empty-note">{stateLabel}</p> : null}
@@ -284,8 +286,8 @@ export function PresetDetail({
           {migrationSteps.length > 0 ? (
             <div className="preset-migration-steps">
               <div className="preset-migration-steps-title">
-                Step through the {migrationSteps.length} migration
-                {migrationSteps.length === 1 ? "" : "s"}
+                Step through the {migrationSteps.length}{" "}
+                {pluralWord(migrationSteps.length, "migration")}
               </div>
               <MigrationSteps key={`${node.id}-steps`} steps={migrationSteps} compact />
             </div>

@@ -8,6 +8,7 @@ import {
   isValidEndpoint,
   isValidOAuthParam,
   isValidPlatform,
+  isValidHost,
   isValidRepoHost,
   isValidRepoRefPart,
   isValidToken,
@@ -17,10 +18,8 @@ import {
 import {
   configObjectSchema,
   endpointSchema,
-  oauthCallbackParamsSchema,
   pendingSignInSchema,
   platformSchema,
-  repoRefPartSchema,
   resultsTabIdSchema,
   sanitizeShareSim,
   sanitizeShareView,
@@ -266,11 +265,6 @@ describe("repo-load ref parts", () => {
     expect(isValidRepoRefPart("owner/repo\\evil")).toBe(false);
     expect(isValidRepoRefPart("//evil.example/x")).toBe(false);
   });
-  test("repoRefPartSchema mirrors the predicate", () => {
-    expect(repoRefPartSchema.safeParse("owner/repo").success).toBe(true);
-    expect(repoRefPartSchema.safeParse("owner/repo?x=1").success).toBe(false);
-  });
-
   test("isValidRepoHost keeps dotted hosts and an explicit port", () => {
     expect(isValidRepoHost("github.com")).toBe(true);
     expect(isValidRepoHost("gitea.example.com:3000")).toBe(true);
@@ -281,6 +275,26 @@ describe("repo-load ref parts", () => {
     expect(isValidRepoHost("user@github.com")).toBe(false);
     expect(isValidRepoHost("github.com:evil")).toBe(false);
     expect(isValidRepoHost("github.com:80:80")).toBe(false);
+  });
+
+  // Roadmap 076: the custom credential row's matchHost.
+  test("isValidHost accepts bare host names, with or without a port", () => {
+    expect(isValidHost("gitea.example.com")).toBe(true);
+    expect(isValidHost("registry.npmjs.org")).toBe(true);
+    expect(isValidHost("localhost")).toBe(true);
+    expect(isValidHost("localhost:3000")).toBe(true);
+    expect(isValidHost("192.168.1.10")).toBe(true);
+  });
+  test("isValidHost rejects schemes, paths, whitespace and control characters", () => {
+    expect(isValidHost("")).toBe(false);
+    expect(isValidHost("https://gitea.example.com")).toBe(false);
+    expect(isValidHost("gitea.example.com/api")).toBe(false);
+    expect(isValidHost("gitea example.com")).toBe(false);
+    expect(isValidHost("user@gitea.example.com")).toBe(false);
+    expect(isValidHost("gitea.example.com\r\nX: y")).toBe(false);
+    expect(isValidHost("-lead.example.com")).toBe(false);
+    expect(isValidHost("gitea.example.com:99999x")).toBe(false);
+    expect(isValidHost("a".repeat(254))).toBe(false);
   });
 });
 
@@ -392,11 +406,11 @@ describe("sanitizeShareView", () => {
   });
   // Roadmap 044: the simulator's merge-step index, validated by the same rule.
   test("a valid simStep passes through; a malformed one is dropped alone", () => {
-    expect(sanitizeShareView({ tab: "simulator", simStep: 0 })).toEqual({
-      tab: "simulator",
+    expect(sanitizeShareView({ tab: "tests", simStep: 0 })).toEqual({
+      tab: "tests",
       simStep: 0,
     });
-    expect(sanitizeShareView({ tab: "simulator", simStep: "2" })).toEqual({ tab: "simulator" });
+    expect(sanitizeShareView({ tab: "tests", simStep: "2" })).toEqual({ tab: "tests" });
     expect(sanitizeShareView({ simStep: -1 })).toBeUndefined();
   });
   test("a string step is dropped, not the whole view", () => {
@@ -539,17 +553,22 @@ describe("stageIdSchema / resultsTabIdSchema", () => {
     expect(stageIdSchema.safeParse("bogus").success).toBe(false);
   });
   test("accepts every real tab id", () => {
-    for (const tab of [
-      "overview",
-      "pipeline",
-      "rewrites",
-      "presets",
-      "effective",
-      "simulator",
-      "problems",
-    ]) {
+    for (const tab of ["overview", "tests", "pipeline", "presets", "effective", "problems"]) {
       expect(resultsTabIdSchema.safeParse(tab).success).toBe(true);
     }
+  });
+  // Roadmap 075: the ids v2 retired are still ACCEPTED off the wire — the
+  // opener maps each onto the tab that replaced it (`resultsTabForShareTab`),
+  // and dropping the field here would land an old link on the default tab
+  // instead. Nothing encodes them any more. (083 un-retired `overview`, which
+  // is asserted a test up as the current id it now is.)
+  test("still accepts the retired v1 tab ids, so old links keep their tab", () => {
+    for (const tab of ["rewrites", "simulator"]) {
+      expect(resultsTabIdSchema.safeParse(tab).success).toBe(true);
+    }
+  });
+  test("rejects a tab id from neither era", () => {
+    expect(resultsTabIdSchema.safeParse("extraction").success).toBe(false);
   });
 });
 
@@ -578,23 +597,9 @@ describe("stored user (OAuth)", () => {
 });
 
 describe("OAuth callback params", () => {
-  test("accepts ordinary code/state", () => {
-    expect(oauthCallbackParamsSchema.safeParse({ code: "abc123", state: "xyz789" }).success).toBe(
-      true,
-    );
-  });
-  test("rejects control characters", () => {
-    expect(oauthCallbackParamsSchema.safeParse({ code: "abc\r\ndef", state: "xyz" }).success).toBe(
-      false,
-    );
-  });
-  test("rejects empty values", () => {
-    expect(oauthCallbackParamsSchema.safeParse({ code: "", state: "xyz" }).success).toBe(false);
-  });
-
-  // Roadmap 031: `readCallbackParams` (sync, boot path) now applies the rule
-  // through this predicate; the schema above is its zod view. Same cases.
-  test("isValidOAuthParam mirrors the schema", () => {
+  // Roadmap 031: `readCallbackParams` (sync, boot path) applies the rule
+  // through this predicate — it is the only reader of it.
+  test("isValidOAuthParam bounds the param and bars control characters", () => {
     expect(isValidOAuthParam("abc123")).toBe(true);
     expect(isValidOAuthParam("abc\r\ndef")).toBe(false);
     expect(isValidOAuthParam("")).toBe(false);

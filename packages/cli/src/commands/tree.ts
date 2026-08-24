@@ -1,8 +1,8 @@
-import { outputFormat, stringOption } from "../args";
-import type { Command } from "../command";
-import { CliError, EXIT_OK, EXIT_REFUSED } from "../io";
-import { emitJson, emitLines, json, writeNotes } from "../output";
+import { intOption, type ParsedArgs, stringOption } from "../args";
+import { CliError } from "../io";
+import { emitJson, emitLines, json } from "../output";
 import {
+  type BodyKind,
   DEFAULT_TREE_DEPTH,
   findNode,
   parseBody,
@@ -10,7 +10,8 @@ import {
   treeStatsOf,
   viewOf,
 } from "../projections/tree";
-import { INPUT_OPTIONS, runFromArgs, wouldRefuse } from "../run-input";
+import { INPUT_OPTIONS } from "../run-input";
+import { defineRunCommand } from "../run-command";
 
 /**
  * "What did `extends` expand into, and what did preset X contribute?"
@@ -21,35 +22,37 @@ import { INPUT_OPTIONS, runFromArgs, wouldRefuse } from "../run-input";
  * human or model. Same reason the tree defaults to two levels deep.
  */
 
-function parseDepth(raw: string | undefined): number {
-  if (raw === undefined) {
-    return DEFAULT_TREE_DEPTH;
-  }
-  if (raw === "all") {
+/** `--depth <n|all>` — the one spelling that is not a number is the whole
+ *  tree, so it is read before the integer reader ever sees it. */
+function parseDepth(args: ParsedArgs): number {
+  if (stringOption(args, "depth") === "all") {
     return Number.POSITIVE_INFINITY;
   }
-  const value = Number(raw);
-  if (!Number.isInteger(value) || value < 0) {
-    throw new CliError(`--depth must be a non-negative integer or "all" (got "${raw}")`);
-  }
-  return value;
+  return intOption(args, "depth", { min: 0, or: '"all"' }) ?? DEFAULT_TREE_DEPTH;
 }
 
-export const treeCommand: Command = {
+interface TreeFlags {
+  depth: number;
+  body: BodyKind | undefined;
+  nodeQuery: string | undefined;
+}
+
+export const treeCommand = defineRunCommand<TreeFlags>({
   name: "tree",
   summary: "the `extends` expansion: structure, stats, and per-node bodies",
   usage: ["tree [file] [--depth <n|all>]", "tree [file] --node <name> [--body resolved]"],
   options: [...INPUT_OPTIONS, "node", "body", "depth", "format"],
-  async run(args, io) {
-    const format = outputFormat(args);
-    const depth = parseDepth(stringOption(args, "depth"));
+  prepare(args) {
+    const depth = parseDepth(args);
     const body = parseBody(stringOption(args, "body"));
     const nodeQuery = stringOption(args, "node");
     if (body && !nodeQuery) {
       throw new CliError("--body needs --node: bodies are printed one node at a time");
     }
-    const { result, notes } = await runFromArgs(args, io);
-    writeNotes(io, notes);
+    return { depth, body, nodeQuery };
+  },
+  answer({ io, format, prepared, result }) {
+    const { depth, body, nodeQuery } = prepared;
     const { root, stats } = treeStatsOf(result);
 
     if (nodeQuery) {
@@ -72,7 +75,7 @@ export const treeCommand: Command = {
         }
         emitLines(io, lines);
       }
-      return wouldRefuse(result) ? EXIT_REFUSED : EXIT_OK;
+      return;
     }
 
     const view = viewOf(root, stats, depth);
@@ -88,6 +91,5 @@ export const treeCommand: Command = {
         ...treeLines(view, []),
       ]);
     }
-    return wouldRefuse(result) ? EXIT_REFUSED : EXIT_OK;
   },
-};
+});

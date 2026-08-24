@@ -32,10 +32,17 @@ const injectedPresets = {
   [presetInjectionKey({ presetSource: "github", repo: "test-org/nested-rule" })]: {
     enabled: false,
   },
+  // A wrapper whose value is written two levels down — the writtenBy case.
+  [presetInjectionKey({ presetSource: "github", repo: "test-org/wrapper" })]: {
+    extends: ["github>test-org/deep"],
+  },
+  [presetInjectionKey({ presetSource: "github", repo: "test-org/deep" })]: {
+    prCreation: "not-pending",
+  },
 };
 
 const repoConfig = JSON.stringify({
-  extends: ["github>test-org/preset-a", "github>test-org/preset-b"],
+  extends: ["github>test-org/preset-a", "github>test-org/preset-b", "github>test-org/wrapper"],
   automerge: false,
   packageRules: [{ matchDepTypes: ["devDependencies"], extends: ["github>test-org/nested-rule"] }],
 });
@@ -134,6 +141,25 @@ describe("computeProvenance", () => {
     expect(layerName(forced.layer)).toBe("github>test-org/preset-a");
     // forced exactly once (deduped across the later layers that re-flatten force)
     expect(rebaseWhen.chain.filter((s) => s.action === "forced")).toHaveLength(1);
+  });
+
+  it("(g) names the nested preset that actually wrote a wrapped value", async () => {
+    const prov = await provenance();
+    const prCreation = must(prov.get("prCreation"), "the 'prCreation' provenance entry");
+    const step = must(
+      prCreation.chain.find((s) => s.layer.kind === "preset"),
+      "the preset step for prCreation",
+    );
+    // The merge layer is the direct extend; the writer is the preset nested
+    // inside it whose own body carries the key.
+    expect(layerName(step.layer)).toBe("github>test-org/wrapper");
+    expect(step.writtenBy?.name).toBe("github>test-org/deep");
+    // A preset that writes its own key gets no writtenBy — the layer already
+    // names it.
+    const range = must(prov.get("rangeStrategy"), "the 'rangeStrategy' provenance entry");
+    for (const s of range.chain) {
+      expect(s.writtenBy).toBeUndefined();
+    }
   });
 
   it("holds the round-trip property: every key's last step reproduces the final value", async () => {

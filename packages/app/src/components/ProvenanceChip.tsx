@@ -1,7 +1,7 @@
 import type { ProvenanceLayer } from "@renovate-config-debugger/engine";
 import { anyModifierHeld } from "@/lib/shortcuts";
 import { Explained } from "./glossary";
-import { layerClass, layerLabel, provenanceGlossaryEntry } from "./provenance-layer";
+import { layerClass, layerLabel, provenanceGlossaryEntry } from "@/lib/provenance-layer";
 
 /**
  * Roadmap 013: the layer-provenance chip introduced by the effective config
@@ -34,6 +34,10 @@ export function ProvenanceChip({
    */
   variant?: "chip" | "dot";
 }) {
+  // A `preset` layer wearing this chip rather than 081's `PresetName` token is
+  // deliberate, not drift: 081's rule is about the "who wrote this" cell
+  // (`LayerSource`), and a caller naming the LAYER a value arrived through is
+  // answering a different question — see that file's header.
   const clickable = layer.kind === "preset" && onSelectPreset;
   const dot = variant === "dot";
   const label = layerLabel(layer);

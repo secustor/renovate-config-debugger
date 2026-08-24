@@ -100,11 +100,6 @@ export const GLOSSARY = {
       "Where Renovate looks up available versions for a dependency — the npm registry, Docker Hub, Maven Central, GitHub releases, and so on.",
     url: "https://docs.renovatebot.com/modules/datasource/",
   },
-  effectiveConfig: {
-    name: "effective config",
-    plain:
-      "The final result after defaults, presets and your own settings are merged in order — the configuration Renovate actually acts on for your repository.",
-  },
   simSourceUrl: {
     name: "sourceUrl",
     plain:
@@ -121,6 +116,79 @@ export const GLOSSARY = {
       "matchRepositories compares against. It is NOT the dependency's own source — that's " +
       "the sourceUrl field.",
     url: "https://docs.renovatebot.com/configuration-options/#matchrepositories",
+  },
+  // The rest of the simulator's descriptor fields. Every one is a real field
+  // of Renovate's per-dependency update object, and each card says which
+  // matcher (or derivation) reads it — the reason the field exists on the
+  // form at all.
+  simDepName: {
+    name: "depName",
+    plain:
+      'The name as it appears in your package file, when that differs from the registry name — e.g. a Docker image written as "node" whose packageName is "library/node". ' +
+      "Usually identical to packageName, which is why the form defaults it. matchDepNames compares against it.",
+    url: "https://docs.renovatebot.com/configuration-options/#matchdepnames",
+  },
+  simCurrentVersion: {
+    name: "currentVersion",
+    plain:
+      'The exact version currently in use, when currentValue is a range — for "^4.17.20" with 4.17.21 installed, currentVersion is "4.17.21". ' +
+      "matchCurrentVersion prefers it over the raw range.",
+    url: "https://docs.renovatebot.com/configuration-options/#matchcurrentversion",
+  },
+  simDepType: {
+    name: "depType",
+    plain:
+      'The section of the package file the dependency sits in — "dependencies" vs "devDependencies" in package.json, "project.dependencies" in pyproject.toml. ' +
+      "matchDepTypes compares against it.",
+    url: "https://docs.renovatebot.com/configuration-options/#matchdeptypes",
+  },
+  simPackageFile: {
+    name: "packageFile",
+    plain:
+      'The path of the file the dependency was found in — "package.json", "src/App.csproj". ' +
+      "matchFileNames glob-matches against it.",
+    url: "https://docs.renovatebot.com/configuration-options/#matchfilenames",
+  },
+  simVersioning: {
+    name: "versioning",
+    plain:
+      "The scheme used to compare versions — semver, pep440, docker, and friends. It decides what counts as major vs minor, so it also decides the derived updateType. " +
+      "Leave it unset to use the manager's default.",
+    url: "https://docs.renovatebot.com/modules/versioning/",
+  },
+  simLockedVersion: {
+    name: "lockedVersion",
+    plain:
+      "The exact version your lockfile currently holds. Rules and range strategies that care about lockfile state read it; without a lockfile it is simply absent.",
+  },
+  simLockFiles: {
+    name: "lockFiles",
+    plain:
+      'The lockfile(s) associated with the package file — e.g. "package-lock.json". Mostly informational in a simulation; some managers report it alongside the dependency.',
+  },
+  simRegistryUrls: {
+    name: "registryUrls",
+    plain:
+      "The registry endpoints the datasource would query for this dependency, when they differ from the default — e.g. a private npm registry.",
+    url: "https://docs.renovatebot.com/configuration-options/#registryurls",
+  },
+  simCategories: {
+    name: "categories",
+    plain:
+      'The language/tooling buckets the dependency belongs to — "js", "docker", "python". matchCategories compares against them.',
+    url: "https://docs.renovatebot.com/configuration-options/#matchcategories",
+  },
+  simBaseBranch: {
+    name: "baseBranch",
+    plain:
+      "The branch this update targets, for configs that run against several via baseBranchPatterns. matchBaseBranches compares against it.",
+    url: "https://docs.renovatebot.com/configuration-options/#matchbasebranches",
+  },
+  simCurrentVersionTimestamp: {
+    name: "currentVersionTimestamp",
+    plain:
+      "When the currently-used version was released, as an ISO timestamp. matchCurrentAge turns it into the dependency's age.",
+    url: "https://docs.renovatebot.com/configuration-options/#matchcurrentage",
   },
   // Replay-02 R3/R4: the rule row's own verdict chip. A rule that lost to an
   // empty simulator field is a different fact from one that mismatched real

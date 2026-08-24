@@ -4,9 +4,13 @@
  * failure into the likely next action: sign in (private preset / rate limit) or
  * check the app installation (signed in but still failing).
  *
- * Deliberately decoupled from oauth.ts: callers pass the current auth state, an
- * onSignIn callback, and the install URL as plain props.
+ * Callers pass the current auth state and an onSignIn callback as plain props,
+ * so nothing about the sign-in MACHINERY leaks in here. The install URL is not
+ * state, though: it is deployment config fixed before first render, so this
+ * component reads `INSTALL_URL` itself rather than having it threaded down five
+ * hops of props from `App`.
  */
+import { INSTALL_URL } from "@/platform/oauth";
 
 /** Whether sign-in is configured, and if so whether the user is signed in. */
 export type AuthState = "unconfigured" | "signed-out" | "signed-in";
@@ -15,13 +19,11 @@ export function GithubAuthHint({
   authState,
   rateLimited = false,
   onSignIn,
-  installUrl,
 }: {
   authState: AuthState;
   /** A rate-limit (vs not-found/auth) failure — tunes the signed-out copy. */
   rateLimited?: boolean;
   onSignIn: () => void;
-  installUrl: string;
 }) {
   if (authState === "unconfigured") {
     return null;
@@ -40,7 +42,7 @@ export function GithubAuthHint({
   return (
     <p className="gh-auth-hint">
       Signed in, still failing? The app may not be installed on this repository.{" "}
-      <a href={installUrl} target="_blank" rel="noreferrer">
+      <a href={INSTALL_URL} target="_blank" rel="noreferrer">
         Manage repository access
       </a>
       .

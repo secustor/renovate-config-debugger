@@ -35,9 +35,16 @@ export function must<T>(value: T | null | undefined, what: string): T {
   return value;
 }
 
-/** The primary Run button in the toolbar (label toggles Run ↔ Running…). */
+/**
+ * The Run button, wherever the shell puts it (label toggles Run ↔ Running…).
+ *
+ * Roadmap 075: there is exactly one on screen at a time, and it is a different
+ * element before and after the first run — the landing's large centered
+ * "Run the pipeline", then the editor toolbar's "Run". Both carry `.run-button`
+ * for this reason, so a helper does not have to know which screen it is on.
+ */
 export function runButton(page: Page) {
-  return page.locator(".toolbar button.primary");
+  return page.locator("button.run-button");
 }
 
 /**
@@ -81,7 +88,7 @@ export function resultsPanel(page: Page) {
 /** The tab ids of the 028 results shell — the app's own union (roadmap 033:
  *  imported, not hand-copied, so a renamed/added tab breaks these helpers at
  *  compile time instead of silently never matching). */
-export type TabId = ResultsTabId;
+type TabId = ResultsTabId;
 
 /** The tab strip button for a tab (visible whether or not it has content). */
 export function tabButton(page: Page, id: TabId) {
@@ -103,6 +110,125 @@ export async function openTab(page: Page, id: TabId): Promise<void> {
   await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
   await tabButton(page, id).click();
   await expect(tabPanel(page, id)).toBeVisible();
+}
+
+/**
+ * Roadmap 075 (v2, iteration 3): the Rewrites tab folded into Pipeline's
+ * migrate stage, so reaching the rewrite stepper (and the migrate diff) is now
+ * "open Pipeline, select Migrate". One helper, so every spec that used to say
+ * `openTab(page, "rewrites")` still says one thing.
+ */
+export async function openMigrateStage(page: Page): Promise<void> {
+  await openTab(page, "pipeline");
+  await page.locator('.stage-rail-btn[data-stage="migrate"]').click();
+  // `.first()`: since 075 the migrate stage's panel holds TWO cards — the stage
+  // itself, and the rewrite stepper folded in from the retired tab.
+  await expect(page.locator("#panel-pipeline .card-title").first()).toContainText("Stage: Migrate");
+}
+
+/**
+ * Roadmap 076 (design turn 18d): the two 008 merge layers are EDITED on the
+ * pipeline stage cards that report on them, so reaching either editor is "open
+ * Pipeline, select that stage" — and, as a consequence, a layer cannot be
+ * touched at all until a run exists. Every spec that pastes a global or
+ * inherited config goes through here, so "where the layers live" is spelled
+ * once (exactly as `openMigrateStage` spells the rewrite stepper's home).
+ *
+ * Returns the stage card's layer textarea, since every caller's next line fills
+ * it or asserts on its value.
+ */
+export async function openLayerStage(page: Page, stage: "global" | "inherit"): Promise<Locator> {
+  await openTab(page, "pipeline");
+  await page.locator(`.stage-rail-btn[data-stage="${stage}"]`).click();
+  const editor = page.locator("#panel-pipeline textarea.layer-editor");
+  await expect(editor).toBeVisible();
+  return editor;
+}
+
+/**
+ * Roadmap 075 (v2, iteration 5b): the Presets tab opens on the LEDGER — what
+ * `extends` brought in, per source — and the full resolution tree is one click
+ * away. Every spec that drives the tree itself goes through here, so "where the
+ * tree lives" is spelled once. Cross-links (a provenance chip, a share link's
+ * `node`) do NOT need it: naming a node switches the tab to the tree by itself.
+ */
+export async function openPresetTree(page: Page): Promise<void> {
+  await openTab(page, "presets");
+  await page
+    .locator("#panel-presets")
+    .getByRole("button", { name: /open the full tree/ })
+    .first()
+    .click();
+  await expect(page.locator("#panel-presets .preset-row").first()).toBeVisible();
+}
+
+/**
+ * Roadmap 082: the Effective config's clickable preset reference lives in the
+ * CASCADE now — the design's row carries a note in its third cell, not a copy
+ * of the layer chip its band header already states. So a spec that drives the
+ * reference expands a preset-decided row first, exactly as a reader does.
+ *
+ * Since the preset-token standardization (081; the cascade adopted it with the
+ * `writtenBy` attribution), the reference is the standard `PresetName` token —
+ * a `button.preset-token` — not a `ProvenanceChip`. Same jump, same landing.
+ *
+ * Assumes the tab is open and the presets band has rows (the default config
+ * extends `config:recommended`). Returns the token, since every caller's next
+ * line clicks or focuses it.
+ */
+export async function effectivePresetChip(page: Page): Promise<Locator> {
+  const band = page.locator("#panel-effective .prov-section-preset");
+  await expect(band.locator(".prov-row-head").first()).toBeVisible();
+  await band.locator(".prov-row-head").first().click();
+  const token = page.locator("#panel-effective button.preset-token").first();
+  await expect(token).toBeVisible();
+  return token;
+}
+
+/**
+ * Roadmap 075 (v2, iteration 6): the Tests tab opens on the PINNED TESTS — the
+ * descriptors re-checked on every run — and the full simulator (one dependency,
+ * every rule, the merge replay) is one quiet link away. Every spec that drives
+ * the simulator itself goes through here, so "where the simulator lives" is
+ * spelled once, exactly as `openPresetTree` spells the tree's home.
+ *
+ * A link carrying `sim` does NOT need it: naming a simulation opens the
+ * simulator by itself (see `TestsPanel`), which is what the 054 thread-link
+ * test relies on.
+ *
+ * Roadmap 080: every door into the detail view carries a SUBJECT — the strip's
+ * descriptor-less "open the simulator →" is gone. So the door a spec uses is
+ * the one a user has: simulate a one-off in the Add-a-test box (the "npm
+ * dependency" quick-fill) and follow its "open in simulator →". The simulator
+ * then arrives with that descriptor filled and run — the same state a pin's own
+ * link produces, which the specs immediately overwrite with their own quick-fill
+ * anyway.
+ *
+ * Returns the simulator card, since every caller's next line asks it something.
+ */
+export async function openSimulator(page: Page): Promise<Locator> {
+  await openTab(page, "tests");
+  const panel = tabPanel(page, "tests");
+  const card = page.locator(".card", { hasText: "Update simulator" });
+  if (!(await card.isVisible())) {
+    const addCard = panel.locator(".pin-add-card");
+    await addCard.getByRole("button", { name: "npm dependency" }).click();
+    await addCard.getByRole("button", { name: /^Simulate/ }).click();
+    await panel.locator(".pin-oneoff").getByRole("button", { name: "open in simulator →" }).click();
+  }
+  await expect(card).toBeVisible();
+  return card;
+}
+
+/**
+ * Roadmap 080: in the detail view a quick-fill chip FILLS the form and Simulate
+ * runs it — one form, one behavior, the same as the Add-a-test box's chips. The
+ * two clicks are spelled once here, since every spec that starts from an example
+ * makes them.
+ */
+export async function simulateQuickFill(simulator: Locator, label: string): Promise<void> {
+  await simulator.getByRole("button", { name: label }).click();
+  await simulator.getByRole("button", { name: /^Simulate/ }).click();
 }
 
 /**

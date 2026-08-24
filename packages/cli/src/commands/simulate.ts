@@ -1,25 +1,33 @@
 import {
+  type DependencyDescriptor,
   type RuleEvaluation,
   simulatePackageRules,
   type SimulationResult,
   type TraceResult,
 } from "@renovate-config-debugger/engine";
-import { outputFormat, stringOption } from "../args";
-import type { Command } from "../command";
-import { CliError, EXIT_OK, EXIT_REFUSED } from "../io";
+import { stringOption } from "../args";
+import { CliError } from "../io";
 import { emitJson, emitLines, writeNotes } from "../output";
-import { INPUT_OPTIONS, refusalNote, runFromArgs, wouldRefuse } from "../run-input";
+import { INPUT_OPTIONS, refusalNote, wouldRefuse } from "../run-input";
 import { readDependency } from "../dep";
 import {
   buildRuleView,
   evaluationErrorsNote,
   hiddenRulesNote,
   missingInputsNote,
+  type RuleFilterSelection,
   ruleFilterSelection,
 } from "../rule-view";
-import { collapseDiffs, mergedLine, parseConfigScope, parseKeys } from "../projections/config-view";
-import { parseDetail, simulationPayload } from "../projections/simulate";
+import {
+  collapseDiffs,
+  type ConfigScope,
+  mergedLine,
+  parseConfigScope,
+  parseKeys,
+} from "../projections/config-view";
+import { parseDetail, type SimulateDetail, simulationPayload } from "../projections/simulate";
 import { flattenedView, verdictPayload } from "../projections/verdict";
+import { defineRunCommand } from "../run-command";
 
 /**
  * "Would this PR be grouped/labeled/blocked here?" — every packageRule
@@ -69,7 +77,15 @@ export function verdictLines(
   return lines;
 }
 
-export const simulateCommand: Command = {
+interface SimulateFlags {
+  selection: RuleFilterSelection;
+  detail: SimulateDetail;
+  keys: string[] | undefined;
+  scope: ConfigScope | undefined;
+  dep: DependencyDescriptor;
+}
+
+export const simulateCommand = defineRunCommand<SimulateFlags>({
   name: "simulate",
   summary: "evaluate the packageRules against one hypothetical update",
   usage: [`simulate [file] --dep '{"depName":"react","currentValue":"17.0.0"}'`],
@@ -117,15 +133,17 @@ export const simulateCommand: Command = {
     "config-scope",
     "format",
   ],
-  async run(args, io) {
-    const format = outputFormat(args);
-    const selection = ruleFilterSelection(args);
-    const detail = parseDetail(stringOption(args, "detail")) ?? "verdict";
-    const keys = parseKeys(stringOption(args, "keys"));
-    const scope = parseConfigScope(stringOption(args, "config-scope"), "--config-scope");
-    const dep = await readDependency(args, "dep", "dep-file");
-    const { result, notes } = await runFromArgs(args, io);
-    writeNotes(io, notes);
+  async prepare(args) {
+    return {
+      selection: ruleFilterSelection(args),
+      detail: parseDetail(stringOption(args, "detail")) ?? "verdict",
+      keys: parseKeys(stringOption(args, "keys")),
+      scope: parseConfigScope(stringOption(args, "config-scope")),
+      dep: await readDependency(args, "dep", "dep-file"),
+    };
+  },
+  async answer({ io, format, prepared, result }) {
+    const { selection, detail, keys, scope, dep } = prepared;
     const sim = await simulateAgainst(result, dep);
     const view = buildRuleView(sim, result, selection);
     writeNotes(io, view.notes);
@@ -204,6 +222,5 @@ export const simulateCommand: Command = {
         ...(refusal ? ["", refusal] : []),
       ]);
     }
-    return refused ? EXIT_REFUSED : EXIT_OK;
   },
-};
+});

@@ -1,13 +1,10 @@
-import { createTwoFilesPatch } from "diff";
 import { type ReactNode, useMemo, useState, useTransition } from "react";
 import { Diff, getChangeKey, Hunk, parseDiff } from "react-diff-view";
-import { useDiffOptionHover } from "@/hooks/option-docs-hooks";
+import { useDiffOptionHover } from "./option-docs-hooks";
+import { buildJsonPatch } from "@/lib/json-patch";
 import { CopyButton } from "./CopyButton";
+import { SegmentedControl, type SegmentedOption } from "./SegmentedControl";
 import "react-diff-view/style/index.css";
-
-function pretty(value: unknown): string {
-  return `${JSON.stringify(value, null, 2) ?? ""}\n`;
-}
 
 type FileData = ReturnType<typeof parseDiff>[number];
 type HunkData = FileData["hunks"][number];
@@ -19,6 +16,14 @@ type HunkData = FileData["hunks"][number];
  * note to that specific line instead of leaving it looking like an error.
  */
 const SCHEMA_KEY_LINE_RE = /^\s*"\$schema"\s*:/;
+
+/** The diff's two renderings. */
+type DiffViewType = "unified" | "split";
+
+const VIEW_OPTIONS: readonly SegmentedOption<DiffViewType>[] = [
+  { value: "unified", label: "Unified" },
+  { value: "split", label: "Side-by-side" },
+];
 
 function schemaRemovalWidgets(files: FileData[]): Record<string, ReactNode> {
   const widgets: Record<string, ReactNode> = {};
@@ -124,7 +129,7 @@ interface Props {
  * expansion state resets.
  */
 export function JsonDiff({ before, after, names, title, benignRemovals }: Props) {
-  const [viewType, setViewType] = useState<"unified" | "split">("unified");
+  const [viewType, setViewType] = useState<DiffViewType>("unified");
   const [showAllRequested, setShowAllRequested] = useState(false);
   const [, startTransition] = useTransition();
   const hoverHandlers = useDiffOptionHover();
@@ -135,22 +140,15 @@ export function JsonDiff({ before, after, names, title, benignRemovals }: Props)
   // only recomputes when a label actually changes.
   const [nameBefore = "before", nameAfter = "after"] = names ?? [];
 
-  const diffText = useMemo(() => {
-    const patch = createTwoFilesPatch(
-      nameBefore,
-      nameAfter,
-      pretty(before),
-      pretty(after),
-      undefined,
-      undefined,
-      {
-        context: 3,
-      },
-    );
-    // drop the "===" preamble line — gitdiff-parser only understands the
-    // ---/+++/@@ unified format
-    return patch.split("\n").slice(1).join("\n");
-  }, [before, after, nameBefore, nameAfter]);
+  // Not jsdiff's `createTwoFilesPatch`: its Myers cost is proportional to the
+  // old text × the edit distance, which cost ~1.6 s of blocked main thread on
+  // the merge stage of a `config:recommended` run. `buildJsonPatch` produces
+  // the same ---/+++/@@ text by anchoring on unchanged JSON blocks — the full
+  // why, and the applyPatch contract it holds to, live in json-patch.ts.
+  const diffText = useMemo(
+    () => buildJsonPatch(nameBefore, nameAfter, before, after),
+    [before, after, nameBefore, nameAfter],
+  );
 
   const files = useMemo(() => {
     try {
@@ -218,26 +216,12 @@ export function JsonDiff({ before, after, names, title, benignRemovals }: Props)
           <span className="plus">+{stat.insert}</span> <span className="minus">−{stat.remove}</span>
         </span>
         <span className="diff-chrome-spacer" />
-        <span className="seg" role="radiogroup" aria-label="Diff view">
-          <button
-            type="button"
-            role="radio"
-            aria-checked={viewType === "unified"}
-            className={viewType === "unified" ? "active" : undefined}
-            onClick={() => startTransition(() => setViewType("unified"))}
-          >
-            Unified
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={viewType === "split"}
-            className={viewType === "split" ? "active" : undefined}
-            onClick={() => startTransition(() => setViewType("split"))}
-          >
-            Side-by-side
-          </button>
-        </span>
+        <SegmentedControl
+          label="Diff view"
+          value={viewType}
+          options={VIEW_OPTIONS}
+          onChange={(next) => startTransition(() => setViewType(next))}
+        />
         <CopyButton
           getText={() => `${JSON.stringify(after, null, 2)}\n`}
           label="Copy result"
@@ -266,7 +250,7 @@ export function JsonDiff({ before, after, names, title, benignRemovals }: Props)
           Showing the first {MAX_RENDERED_LINES} of {stat.total} diff lines
           <button
             type="button"
-            className="btn accent-text"
+            className="btn-secondary accent-text"
             onClick={() => startTransition(() => setShowAllRequested(true))}
           >
             Show all {stat.total} lines

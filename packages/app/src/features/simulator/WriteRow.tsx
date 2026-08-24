@@ -5,10 +5,11 @@ import { previewValue } from "./rule-format";
 /**
  * Roadmap 054 layer 7: THE row for "something wrote this key". Four surfaces
  * used to say the same `key: before → after` sentence in four dialects — the
- * matched-rule drawer's list, the A/B config delta, the evidence popover's
- * digest, and a thread's struck-through override line — each with its own
- * markup, its own value classes, and its own idea of whether the key deserved
- * the option-docs hover card (only two of the four gave it one).
+ * matched-rule drawer's list, the (since-retired) A/B config delta, the
+ * evidence popover's digest, and a thread's struck-through override line —
+ * each with its own markup, its own value classes, and its own idea of
+ * whether the key deserved the option-docs hover card (only two of the four
+ * gave it one).
  *
  * One component, one grammar: `mark · key · before → after · note`, on shared
  * grid columns (`.kv.sim-writes`) so a column of writes reads straight down its
@@ -21,7 +22,7 @@ import { previewValue } from "./rule-format";
  * caller already has words for — `(unset)`, `removed` — which must NOT be
  * JSON-quoted into a value that looks like a string the config carries.
  */
-export type WriteValue = { json: unknown } | { text: string };
+type WriteValue = { json: unknown } | { text: string };
 
 function valueText(value: WriteValue, max: number): string {
   return "text" in value ? value.text : previewValue(value.json, max);
@@ -56,6 +57,8 @@ export function WriteRow({
   max?: number;
 }) {
   return (
+    // `sim-write-row` styles nothing — `.kv-row` does that. It is how the e2e
+    // suite and this row's own test address a write line.
     <div className="kv-row sim-write-row">
       <span className="sim-write-mark">{mark ?? ""}</span>
       <span className="sim-write-key">

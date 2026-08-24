@@ -7,6 +7,7 @@
     "dev": "pnpm --filter @renovate-config-debugger/app dev",
     "lint": "oxlint --type-aware && pnpm lint:css",
     "lint:css": "stylelint \"packages/app/src/**/*.css\"",
+    "check:exports": "knip --include exports,types,nsExports,nsTypes",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "typecheck": "pnpm -r typecheck && tsc --noEmit -p tools/tsconfig.json",
@@ -17,6 +18,7 @@
   "devDependencies": {
     "@semantic-release/exec": "7.1.0",
     "@types/node": "26.2.0",
+    "knip": "^6.32.2",
     "oxfmt": "0.64.0",
     "oxlint": "1.78.0",
     "oxlint-tsgolint": "7.0.2001",

@@ -37,8 +37,8 @@ own property.
   property's) is used only when the page is served from a real hostname.
   Loopback names, the reserved `.localhost` TLD and the empty `file://`
   hostname never load gtag.js.
-- The runtime id (`globalThis.__RCV_ANALYTICS__`, from `RCV_GA_MEASUREMENT_ID`
-  via `/rcv-config.js`) is deliberately exempt and keeps its short-circuit
+- The runtime id (`globalThis.__RCD_ANALYTICS__`, from `RCD_GA_MEASUREMENT_ID`
+  via `/rcd-config.js`) is deliberately exempt and keeps its short-circuit
   ahead of the guard. It names the deployer's own property, and a container
   reached at `localhost:8080` is a real deployment of theirs, not our test rig.
 - Hostname matching is exact or dot-suffixed, never a substring:
@@ -48,7 +48,7 @@ own property.
 
 - CI changes. The id still ships in every build artifact; the guard is what
   makes that harmless. (Considered and rejected as the primary fix: building
-  clean and injecting the id into `dist/rcv-config.js` only for the Pages
+  clean and injecting the id into `dist/rcd-config.js` only for the Pages
   deploy. It would leave a local `vite preview` of a GA-enabled build
   reporting, which is the same class of bug.)
 - The GA-side cleanup, which cannot be done from the repo: a data filter

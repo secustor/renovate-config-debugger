@@ -38,15 +38,12 @@ export interface RuleWrite {
   /** True when no later stop wrote this key — i.e. this write is what the
    *  final per-dependency config carries. */
   survived: boolean;
-  /** The stop that took the key away, when one did. */
-  overriddenAtStopIndex?: number;
-  /** Its position among the rule stops (absent for the flatten stop). */
-  overriddenAtOrdinal?: number;
-  /** Its prose name ("step 3 of 4", "flatten step"). */
+  /** The prose name of the stop that took the key away, when one did
+   *  ("step 3 of 4", "flatten step"). */
   overriddenAtLabel?: string;
 }
 
-/** The popover's whole model. Stop fields are absent for a rule that never
+/** The popover's whole model. `stopLabel` is absent for a rule that never
  *  merged anything (no stop of its own) — the card then states the clause
  *  evidence alone. */
 export interface RuleEvidence {
@@ -57,8 +54,8 @@ export interface RuleEvidence {
    *  matched and has one — the card's answer to "why does this rule exist". */
   description?: RuleDescriptionNote;
   clauses: ClauseEvaluation[];
-  stopIndex?: number;
-  stopOrdinal?: number;
+  /** The prose name of the stop this rule merged at; absent when it never
+   *  merged (see this interface's note). */
   stopLabel?: string;
   writes: RuleWrite[];
   /** How many of `writes` reached the final config. */
@@ -115,15 +112,11 @@ export function buildRuleEvidence(
       after: entry.after,
       hadAfter: Object.hasOwn(entry, "after"),
       survived: overriddenAt === undefined,
-      overriddenAtStopIndex: overriddenAt,
-      overriddenAtOrdinal: overrider?.ordinal,
       overriddenAtLabel: overrider?.label,
     };
   });
   return {
     ...base,
-    stopIndex,
-    stopOrdinal: label?.ordinal,
     stopLabel: label?.label,
     writes,
     survivedCount: writes.filter((w) => w.survived).length,

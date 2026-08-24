@@ -16,7 +16,18 @@ export interface AnchorRect {
   bottom: number;
 }
 
-export function anchorRectOf(el: Element): AnchorRect {
+/**
+ * Anything the placement can measure. An `Element` for every anchor the app
+ * renders — and a `Range` for the one it does not: the diff views are plain
+ * text, so their option-docs hover locates the `"key":` token by caret
+ * hit-testing and has nothing but a range over it to anchor to. Both are LIVE,
+ * which is what lets a card re-read its anchor after a scroll moved it.
+ */
+export interface AnchorSource {
+  getBoundingClientRect: () => DOMRect;
+}
+
+export function anchorRectOf(el: AnchorSource): AnchorRect {
   const rect = el.getBoundingClientRect();
   return { left: rect.left, top: rect.top, bottom: rect.bottom };
 }

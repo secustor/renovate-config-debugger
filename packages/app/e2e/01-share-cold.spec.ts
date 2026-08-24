@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { encodeShareFragment, PACKAGE_RULES_CONFIG } from "./fixtures";
-import { openTab, resultsPanel } from "./helpers";
+import { openSimulator, resultsPanel } from "./helpers";
 
 /**
  * Journey 1 — cold share link. Opening a `#config=` URL directly must decode
@@ -26,8 +26,10 @@ test("cold share link decodes, auto-runs, and shows the results shell + version 
   await expect(badge).toBeVisible({ timeout: 30_000 });
   await expect(badge).toContainText(/Renovate v\d+\.\d+/);
 
-  // The simulator (which only mounts on a result with a merged config)
-  // confirms the run produced a real, rules-bearing result.
-  await openTab(page, "simulator");
-  await expect(page.getByText("Update simulator")).toBeVisible();
+  // The Tests tab's simulator (which only mounts on a result with a merged
+  // config) confirms the run produced a real, rules-bearing result. Since 075
+  // iteration 6 it is the tab's second view, one quiet link in — the pinned
+  // tests lead.
+  const simulator = await openSimulator(page);
+  await expect(simulator).toBeVisible();
 });

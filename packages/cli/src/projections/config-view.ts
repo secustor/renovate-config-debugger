@@ -1,6 +1,6 @@
 import { globalOnlyOptionNames, removeGlobalConfig } from "@renovate-config-debugger/engine";
-import { CliError } from "../io";
-import { preview } from "../output";
+import { parseChoice } from "../args";
+import { byteLength, preview } from "../output";
 
 /**
  * Roadmap 070: the projection over a CONFIG-SHAPED document — the effective
@@ -182,7 +182,7 @@ export function configKeyIndex(config: Record<string, unknown>): ConfigKeySize[]
   return Object.entries(config)
     .map(([key, value]) => ({
       key,
-      bytes: new TextEncoder().encode(JSON.stringify(value) ?? "null").length,
+      bytes: byteLength(JSON.stringify(value) ?? "null"),
     }))
     .toSorted((a, b) => b.bytes - a.bytes || a.key.localeCompare(b.key));
 }
@@ -340,15 +340,8 @@ export function mergedLine(diff: KeyDiff | CollapsedKeyDiff): string {
   return `${diff.key} = ${preview(diff.after)}`;
 }
 
-export function parseConfigScope(raw: string | undefined, flag: string): ConfigScope | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  const found = CONFIG_SCOPES.find((scope) => scope === raw);
-  if (!found) {
-    throw new CliError(`${flag} must be one of ${CONFIG_SCOPES.join("|")} (got "${raw}")`);
-  }
-  return found;
+export function parseConfigScope(raw: string | undefined): ConfigScope | undefined {
+  return parseChoice(raw, CONFIG_SCOPES, "--config-scope");
 }
 
 /** `--keys a,b,c` — `--select`'s grammar, so one comma list means one thing

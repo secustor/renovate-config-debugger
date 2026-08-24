@@ -1,5 +1,5 @@
 import type { RuleAttribution, ValidationMessage } from "@renovate-config-debugger/engine";
-import { ErrorTranslationView } from "@/components/ErrorTranslationView";
+import { ErrorTranslationView } from "./ErrorTranslationView";
 import { RuleMessage } from "@/components/RuleMessage";
 import type { ErrorTranslationLib } from "@/platform/run";
 

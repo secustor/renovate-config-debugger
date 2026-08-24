@@ -105,17 +105,16 @@ function makeHost(onRun: ShareLinkHost["onRun"]): ShareLinkHost {
     onRun,
     loadConfigText: noop,
     setFileName: noop,
-    setPlatform: noop,
-    setEndpoint: noop,
+    applyPlatformContext: noop,
     setGlobalText: noop,
     setInheritedText: noop,
     setPlatformOverride: noop,
-    setAdvancedOpen: noop,
-    setHostSectionOpen: noop,
+    openHostCredentials: noop,
     setNotice: noop,
     setSignedIn: noop,
     setAuthUser: noop,
     applyUntrustedGuard: noop,
+    setPins: noop,
     pendingViewRef: { current: null },
     // Equal, so a hashchange never has unsaved edits to confirm away.
     contentRef: { current: "" },
@@ -151,9 +150,9 @@ async function openLink(token: string) {
   });
 }
 
-function mount(onRun: ShareLinkHost["onRun"]) {
+function mount(onRun: ShareLinkHost["onRun"], overrides: Partial<ShareLinkHost> = {}) {
   const seen: { current: SimRequest | null } = { current: null };
-  render(<Harness host={makeHost(onRun)} seen={seen} />);
+  render(<Harness host={{ ...makeHost(onRun), ...overrides }} seen={seen} />);
   return seen;
 }
 
@@ -236,5 +235,51 @@ describe("useShareLink", () => {
     expect(onRun).toHaveBeenCalledTimes(2);
     expect(seen.current?.autoSimulate).toBe(true);
     expect(seen.current?.ranResult).toBeNull();
+  });
+
+  it("leaves the advanced drawer alone for a link that merely carries 008 layers", async () => {
+    // Roadmap 076: it used to force the drawer open, because the two layers
+    // lived at the bottom of it. They are pipeline stage nodes now — the link's
+    // own run lights them up, so nothing has to be unfolded on the reader's
+    // behalf, and a drawer about hosts and tokens stays shut.
+    payloads.set("A", {
+      v: 2,
+      renovate: "0.0.0",
+      config: '{"a":1}',
+      fileName: "renovate.json",
+      globalConfig: { onboarding: false },
+      inheritedConfig: { automerge: false },
+    });
+    const onRun = vi.fn<ShareLinkHost["onRun"]>().mockResolvedValue(traceResult());
+    const openHostCredentials = vi.fn();
+    history.replaceState(null, "", "/#config=A");
+
+    mount(onRun, { openHostCredentials });
+    await waitFor(() => expect(onRun).toHaveBeenCalledTimes(1));
+
+    expect(openHostCredentials).not.toHaveBeenCalled();
+  });
+
+  it("still opens the drawer and its host section when the link's endpoint is untrusted", async () => {
+    // The one reason left: the guard's banner tells the reader to review the
+    // host, so the field holding it has to be on screen.
+    payloads.set("A", {
+      v: 2,
+      renovate: "0.0.0",
+      config: '{"a":1}',
+      fileName: "renovate.json",
+      endpoint: "https://untrusted.example",
+    });
+    const onRun = vi.fn<ShareLinkHost["onRun"]>().mockResolvedValue(traceResult());
+    const openHostCredentials = vi.fn();
+    history.replaceState(null, "", "/#config=A");
+
+    mount(onRun, { openHostCredentials });
+    await waitFor(() => expect(onRun).toHaveBeenCalledTimes(1));
+
+    // The drawer and its host sub-section are one act for this hook now: it
+    // never had a reason to open one without the other, so the "called
+    // together" invariant is a single call to assert rather than two.
+    expect(openHostCredentials).toHaveBeenCalledTimes(1);
   });
 });

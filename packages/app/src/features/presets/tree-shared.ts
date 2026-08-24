@@ -179,8 +179,6 @@ export const ROW_HEIGHT = 26;
 export const INDENT = 14;
 export const OVERSCAN = 8;
 
-export const nf = new Intl.NumberFormat();
-
 /** Roadmap 016: hover-card text for a preset's `src-<kind>` badge — internal
  *  presets reuse the summary header's wording; every fetched kind gets a
  *  kind-specific explanation of where it came from. */
@@ -201,10 +199,4 @@ export function sourceKindEntry(kind: string): GlossaryEntry {
     name: `${kind} preset`,
     plain: HOST_TEXT[kind] ?? GLOSSARY.presetSourceFetched.plain,
   };
-}
-
-/** Regular English plural — every summary/badge word here happens to take a
- *  plain trailing "s", so one helper covers them all. */
-export function plural(n: number, word: string): string {
-  return n === 1 ? word : `${word}s`;
 }

@@ -1,12 +1,9 @@
-import { readFile } from "node:fs/promises";
-import {
-  type DependencyDescriptor,
-  deriveUpdateType,
-  parseInjectedPreset,
-} from "@renovate-config-debugger/engine";
+import { type DependencyDescriptor, parseInjectedPreset } from "@renovate-config-debugger/engine";
 import type { OptionName, ParsedArgs } from "./args";
 import { listOption, stringOption } from "./args";
 import { CliError, errorMessage } from "./io";
+import { finishDescriptor } from "./questions/dependency";
+import { readTextFile } from "./run-input";
 
 /**
  * The hypothetical dependency update `simulate`/`compare` evaluate the rules
@@ -15,6 +12,18 @@ import { CliError, errorMessage } from "./io";
  *
  * `group` (roadmap 074) takes SEVERAL: `--dep` repeatedly, or `--deps-file`
  * with a JSON array of the same objects.
+ *
+ * ONE asymmetry, stated because the two flags otherwise read as the same
+ * input: a single descriptor (`--dep`, `--dep-file`, `--dep-b`, `--dep-b-file`)
+ * is parsed as JSON5 — the superset the app accepts in its own paste-a-JSON
+ * fields, and the one Renovate accepts for a preset file — while `--deps-file`
+ * is parsed as strict JSON. The engine exposes exactly one JSON5 entry point
+ * (`parseInjectedPreset`) and it parses an OBJECT; there is no array shape to
+ * hand a batch file to, and giving the CLI its own JSON5 parser to close a
+ * one-flag gap costs a dependency in the package whose build is a
+ * dependency-free bundle. The ENTRIES are finished identically either way, so
+ * only the punctuation of the file itself differs; `--help` and the README say
+ * so where they name the flag.
  */
 
 /** One descriptor, parsed and finished the way a real lookup would finish it. */
@@ -28,21 +37,6 @@ function parseDescriptor(text: string, what: string): DependencyDescriptor {
     throw new CliError(`${what}: ${errorMessage(err)}`);
   }
   return finishDescriptor(parsed as DependencyDescriptor);
-}
-
-/** Every field of DependencyDescriptor is optional, so the descriptor is
- *  whatever subset the caller supplied; the matchers themselves report which
- *  fields they could not read (`no-input`), which is a better error than any
- *  shape check here could give. `updateType` is the one derived field: Renovate
- *  sets it from the version pair long before packageRules run. */
-function finishDescriptor(dep: DependencyDescriptor): DependencyDescriptor {
-  if (!dep.updateType) {
-    const derived = deriveUpdateType(dep.currentValue, dep.newValue, dep.versioning);
-    if (derived) {
-      return { ...dep, updateType: derived };
-    }
-  }
-  return dep;
 }
 
 export async function readDependency(
@@ -64,14 +58,7 @@ export async function readDependency(
   if (literal && path) {
     throw new CliError(`pass --${inline} or --${fromFile}, not both`);
   }
-  let text = literal;
-  if (path) {
-    try {
-      text = await readFile(path, "utf8");
-    } catch (err) {
-      throw new CliError(`cannot read --${fromFile} "${path}": ${errorMessage(err)}`);
-    }
-  }
+  const text = path ? await readTextFile(path, `--${fromFile}`) : literal;
   if (!text) {
     throw new CliError(
       `--${inline} is required, e.g. --${inline} '{"depName":"react","currentValue":"17.0.0","newValue":"18.0.0"}'`,
@@ -91,13 +78,9 @@ export async function readDependencies(args: ParsedArgs): Promise<DependencyDesc
   );
   const path = stringOption(args, "deps-file");
   if (path) {
-    let text: string;
-    try {
-      text = await readFile(path, "utf8");
-    } catch (err) {
-      throw new CliError(`cannot read --deps-file "${path}": ${errorMessage(err)}`);
-    }
+    const text = await readTextFile(path, "--deps-file");
     let parsed: unknown;
+    // Strict JSON, unlike the inline forms above — see this module's header.
     try {
       parsed = JSON.parse(text);
     } catch (err) {

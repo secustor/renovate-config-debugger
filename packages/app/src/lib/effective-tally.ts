@@ -55,7 +55,8 @@ export interface EffectiveTally {
   /** Options some layer beyond the defaults set — the rows shown by default. */
   keys: number;
   overridden: number;
-  /** Default-only rows, hidden until "show default-only" is ticked. */
+  /** Default-only rows — since 082 the always-present defaults band, folded
+   *  shut, and the As-JSON view's `include defaults (N)` count. */
   hiddenDefaults: number;
 }
 

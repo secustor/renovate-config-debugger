@@ -1,6 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { main } from "../main";
-import { fixture, recordingIo } from "../test-harness";
+import { fixture, runCli, runJson } from "../test-harness";
 
 /** One config, two dependencies: only `react` picks up the rule's own
  *  description, so B's array is A's plus one sentence. */
@@ -18,27 +17,22 @@ function describedArgs(...extra: string[]): string[] {
 
 describe("compare", () => {
   test("two configs, one dependency: the edit oracle", async () => {
-    const io = recordingIo();
-    expect(
-      await main(
-        [
-          "compare",
-          fixture("clean.json"),
-          fixture("grouped.json"),
-          "--dep",
-          '{"depName":"react","packageName":"react"}',
-          "--format",
-          "json",
-        ],
-        io,
-      ),
-    ).toBe(0);
-    const comparison = io.json() as {
+    const run = await runJson<{
       verdict: string;
       startedMatching: { label: string }[];
       configDelta: { key: string }[];
       configView: { scope: string };
-    };
+    }>([
+      "compare",
+      fixture("clean.json"),
+      fixture("grouped.json"),
+      "--dep",
+      '{"depName":"react","packageName":"react"}',
+      "--format",
+      "json",
+    ]);
+    expect(run.code).toBe(0);
+    const comparison = run.payload;
     expect(comparison.verdict).toBe("differs");
     expect(comparison.startedMatching[0]?.label).toBe("matchPackageNames");
     expect(comparison.configDelta.map((d) => d.key)).toContain("groupName");
@@ -47,96 +41,76 @@ describe("compare", () => {
   });
 
   test("the same config twice changes nothing", async () => {
-    const io = recordingIo();
-    expect(
-      await main(
-        [
-          "compare",
-          fixture("grouped.json"),
-          fixture("grouped.json"),
-          "--dep",
-          '{"depName":"react","packageName":"react"}',
-          "--format",
-          "json",
-        ],
-        io,
-      ),
-    ).toBe(0);
-    expect(io.json()).toMatchObject({ verdict: "identical" });
+    const run = await runCli([
+      "compare",
+      fixture("grouped.json"),
+      fixture("grouped.json"),
+      "--dep",
+      '{"depName":"react","packageName":"react"}',
+      "--format",
+      "json",
+    ]);
+    expect(run.code).toBe(0);
+    expect(run.json()).toMatchObject({ verdict: "identical" });
   });
 
   test("pretty output leads with the verdict, then the evidence", async () => {
-    const io = recordingIo();
-    expect(
-      await main(
-        [
-          "compare",
-          fixture("clean.json"),
-          fixture("grouped.json"),
-          "--dep",
-          '{"depName":"react","packageName":"react"}',
-        ],
-        io,
-      ),
-    ).toBe(0);
+    const run = await runCli([
+      "compare",
+      fixture("clean.json"),
+      fixture("grouped.json"),
+      "--dep",
+      '{"depName":"react","packageName":"react"}',
+    ]);
+    expect(run.code).toBe(0);
     // The headline is the comparison's own one-liner: the verdict AND what it
     // was about, so a reader never has to assemble it from the arrays below.
     // `description` is prose, so it is filed behind the behavioral keys rather
     // than headlining them by alphabetical accident.
-    expect(io.stdout.split("\n")[0]).toBe(
+    expect(run.stdout.split("\n")[0]).toBe(
       "Behavior differs between A and B — dependencyDashboard (A=true by default, B=false by " +
         'default), groupName (A=null by default, B="react monorepo"); description also changed ' +
         "(documentation); 1 rule started matching.",
     );
-    expect(io.stdout).toContain("Matched only in B:");
-    expect(io.stdout).toContain("groupName");
+    expect(run.stdout).toContain("Matched only in B:");
+    expect(run.stdout).toContain("groupName");
   });
 
   /** Replay-02 N8, on the CLI side: a value NO merge step wrote is a Renovate
    *  default, and printing it bare asserts a setting the config never carried. */
   test("the delta marks a side the config never set as a default", async () => {
-    const io = recordingIo();
-    expect(
-      await main(
-        [
-          "compare",
-          fixture("clean.json"),
-          fixture("grouped.json"),
-          "--dep",
-          '{"depName":"react","packageName":"react"}',
-        ],
-        io,
-      ),
-    ).toBe(0);
-    expect(io.stdout).toContain('groupName: null (default in A) → "react monorepo"');
+    const run = await runCli([
+      "compare",
+      fixture("clean.json"),
+      fixture("grouped.json"),
+      "--dep",
+      '{"depName":"react","packageName":"react"}',
+    ]);
+    expect(run.code).toBe(0);
+    expect(run.stdout).toContain('groupName: null (default in A) → "react monorepo"');
   });
 
   test("the JSON carries the same one-liner, so no consumer re-derives it", async () => {
-    const io = recordingIo();
-    expect(
-      await main(
-        [
-          "compare",
-          fixture("clean.json"),
-          fixture("grouped.json"),
-          "--dep",
-          '{"depName":"react","packageName":"react"}',
-          "--format",
-          "json",
-        ],
-        io,
-      ),
-    ).toBe(0);
-    const { summary, configDelta } = io.json() as {
+    const run = await runJson<{
       summary: string;
       configDelta: { key: string }[];
-    };
+    }>([
+      "compare",
+      fixture("clean.json"),
+      fixture("grouped.json"),
+      "--dep",
+      '{"depName":"react","packageName":"react"}',
+      "--format",
+      "json",
+    ]);
+    expect(run.code).toBe(0);
+    const { summary, configDelta } = run.payload;
     expect(summary).toBe(
       "differs: dependencyDashboard (A=true by default, B=false by default), groupName " +
         '(A=null by default, B="react monorepo"); description also changed (documentation); ' +
         "1 rule started matching",
     );
-    expect(io.stdout).toContain("summary");
+    expect(run.stdout).toContain("summary");
     // Roadmap 070: the summary is built from the delta's KEYS, and collapsing
     // a value is only safe because it never moves one. Pinned explicitly —
     // behavioral keys first, alphabetical within group, so the array reads in
@@ -153,9 +127,9 @@ describe("compare", () => {
    *  sides. An append is now stated as what it appended. */
   test("a description append renders as what it appended", async () => {
     const args = describedArgs;
-    const io = recordingIo();
-    expect(await main(args("--format", "json"), io)).toBe(0);
-    const { configDelta } = io.json() as { configDelta: Record<string, unknown>[] };
+    const run = await runJson<{ configDelta: Record<string, unknown>[] }>(args("--format", "json"));
+    expect(run.code).toBe(0);
+    const { configDelta } = run.payload;
     const description = configDelta.find((d) => d.key === "description");
     expect(description).toMatchObject({
       collapsed: "append",
@@ -164,8 +138,8 @@ describe("compare", () => {
       added: ["Group the react packages into one PR."],
     });
 
-    const pretty = recordingIo();
-    expect(await main(args(), pretty)).toBe(0);
+    const pretty = await runCli(args());
+    expect(pretty.code).toBe(0);
     expect(pretty.stdout).toContain(
       'description: 2 entries + 1 appended (now 3) — ["Group the react packages into one PR."]',
     );
@@ -185,20 +159,20 @@ describe("compare", () => {
       "--dep",
       '{"depName":"react"}',
     ];
-    const io = recordingIo();
-    expect(await main(args, io)).toBe(0);
-    expect(io.stdout).toContain("✓ No behavioral change");
-    expect(io.stdout).toContain("A — 2 of 4 rules could not match");
-    expect(io.stdout).toContain("B — 2 of 4 rules could not match");
-    expect(io.stdout).toContain("`--verdict no-input` lists them.");
+    const run = await runCli(args);
+    expect(run.code).toBe(0);
+    expect(run.stdout).toContain("✓ No behavioral change");
+    expect(run.stdout).toContain("A — 2 of 4 rules could not match");
+    expect(run.stdout).toContain("B — 2 of 4 rules could not match");
+    expect(run.stdout).toContain("`--verdict no-input` lists them.");
 
-    const json = recordingIo();
-    expect(await main([...args, "--format", "json"], json)).toBe(0);
-    const comparison = json.json() as {
+    const json = await runJson<{
       a: { missingInputs: { rules: number; groups: { fieldList: string }[] } };
       b: { missingInputs: { rules: number } };
       verdict: string;
-    };
+    }>([...args, "--format", "json"]);
+    expect(json.code).toBe(0);
+    const comparison = json.payload;
     expect(comparison.verdict).toBe("identical");
     expect(comparison.a.missingInputs.rules).toBe(2);
     expect(comparison.b.missingInputs.rules).toBe(2);
@@ -209,28 +183,23 @@ describe("compare", () => {
   });
 
   test("--keys narrows the delta without moving the verdict", async () => {
-    const io = recordingIo();
-    expect(
-      await main(
-        [
-          "compare",
-          fixture("clean.json"),
-          fixture("grouped.json"),
-          "--dep",
-          '{"depName":"react","packageName":"react"}',
-          "--keys",
-          "groupName,onboardingConfig,labels",
-          "--format",
-          "json",
-        ],
-        io,
-      ),
-    ).toBe(0);
-    const comparison = io.json() as {
+    const run = await runJson<{
       summary: string;
       configDelta: { key: string }[];
       configView: { withheld?: { key: string; reason: string }[] };
-    };
+    }>([
+      "compare",
+      fixture("clean.json"),
+      fixture("grouped.json"),
+      "--dep",
+      '{"depName":"react","packageName":"react"}',
+      "--keys",
+      "groupName,onboardingConfig,labels",
+      "--format",
+      "json",
+    ]);
+    expect(run.code).toBe(0);
+    const comparison = run.payload;
     expect(comparison.configDelta.map((d) => d.key)).toEqual(["groupName"]);
     // The verdict describes the whole comparison, not the view of it.
     expect(comparison.summary).toBe(
@@ -287,11 +256,8 @@ describe("compare separates behavior from rule identity", () => {
   const args = narrowingArgs;
 
   test("narrowing the matched array around the dependency is no behavioral change", async () => {
-    const io = recordingIo();
-    // Roadmap 073: the identity ARRAYS are one detail level down — the default
-    // answer states the churn as counts (asserted below).
-    expect(await main(args("--format", "json", "--detail", "rules"), io)).toBe(0);
-    const comparison = io.json() as Comparison;
+    const run = await runJson<Comparison>(args("--format", "json", "--detail", "rules"));
+    const comparison = run.payload;
     expect(comparison.verdict).toBe("identical");
     expect(comparison.configDelta).toEqual([]);
     expect(comparison.stoppedMatching).toEqual([]);
@@ -306,19 +272,19 @@ describe("compare separates behavior from rule identity", () => {
   });
 
   test("pretty output headlines on behavior and files the churn underneath", async () => {
-    const io = recordingIo();
-    expect(await main(args(), io)).toBe(0);
-    expect(io.stdout.split("\n")[0]).toContain("✓ No behavioral change");
-    expect(io.stdout).toContain("a rule's matchPackageNames list changed");
+    const run = await runCli(args());
+    expect(run.code).toBe(0);
+    expect(run.stdout.split("\n")[0]).toContain("✓ No behavioral change");
+    expect(run.stdout).toContain("a rule's matchPackageNames list changed");
     // Roadmap 073: at the default detail the churn is a count plus the flag
     // that lists it; the list itself is `--detail rules`.
-    expect(io.stdout).toContain(
+    expect(run.stdout).toContain(
       "Selector text changed on 1 rule, same effect (rule identity, not behavior) — " +
         "`--detail rules` lists them.",
     );
 
-    const listed = recordingIo();
-    expect(await main(args("--detail", "rules"), listed)).toBe(0);
+    const listed = await runCli(args("--detail", "rules"));
+    expect(listed.code).toBe(0);
     expect(listed.stdout).toContain(
       "Selector text changed, same effect (rule identity, not behavior)",
     );
@@ -337,14 +303,14 @@ describe("compare separates behavior from rule identity", () => {
       "--dep",
       '{"depName":"react","updateType":"minor"}',
     ];
-    const io = recordingIo();
-    expect(await main(added, io)).toBe(0);
-    expect(io.stdout).toContain("a rule gained a matchUpdateTypes clause");
-    expect(io.stdout).not.toContain("pattern text changed");
+    const run = await runCli(added);
+    expect(run.code).toBe(0);
+    expect(run.stdout).toContain("a rule gained a matchUpdateTypes clause");
+    expect(run.stdout).not.toContain("pattern text changed");
 
-    const json = recordingIo();
-    expect(await main([...added, "--format", "json", "--detail", "rules"], json)).toBe(0);
-    const comparison = json.json() as Comparison;
+    const json = await runJson<Comparison>([...added, "--format", "json", "--detail", "rules"]);
+    expect(json.code).toBe(0);
+    const comparison = json.payload;
     expect(comparison.verdict).toBe("identical");
     expect(comparison.identity.signatureChanges[0]?.kind).toBe("clause-added");
     expect(comparison.identity.signatureChanges[0]?.keys).toEqual(["matchUpdateTypes"]);
@@ -359,44 +325,34 @@ describe("compare separates behavior from rule identity", () => {
  *  and the refusal stays a named fact on the output. */
 describe("compare on a config Renovate would refuse", () => {
   test("exits 0 — the comparison ran — and names the refused side on the output", async () => {
-    const io = recordingIo();
-    expect(
-      await main(
-        [
-          "compare",
-          fixture("invalid.json"),
-          fixture("grouped.json"),
-          "--dep",
-          '{"depName":"react"}',
-        ],
-        io,
-      ),
-    ).toBe(0);
-    expect(io.stdout).toContain("note: config A would be refused by Renovate");
-    expect(io.stdout).toContain("the exit code reflects the comparison, not the refusal");
+    const run = await runCli([
+      "compare",
+      fixture("invalid.json"),
+      fixture("grouped.json"),
+      "--dep",
+      '{"depName":"react"}',
+    ]);
+    expect(run.code).toBe(0);
+    expect(run.stdout).toContain("note: config A would be refused by Renovate");
+    expect(run.stdout).toContain("the exit code reflects the comparison, not the refusal");
   });
 
   test("JSON still carries the per-side refusal facts", async () => {
-    const io = recordingIo();
-    expect(
-      await main(
-        [
-          "compare",
-          fixture("invalid.json"),
-          fixture("grouped.json"),
-          "--dep",
-          '{"depName":"react"}',
-          "--format",
-          "json",
-        ],
-        io,
-      ),
-    ).toBe(0);
-    const payload = io.json() as {
+    const run = await runJson<{
       a: { wouldRefuse: boolean };
       b: { wouldRefuse: boolean };
       exitNote: string;
-    };
+    }>([
+      "compare",
+      fixture("invalid.json"),
+      fixture("grouped.json"),
+      "--dep",
+      '{"depName":"react"}',
+      "--format",
+      "json",
+    ]);
+    expect(run.code).toBe(0);
+    const payload = run.payload;
     expect(payload.a.wouldRefuse).toBe(true);
     expect(payload.b.wouldRefuse).toBe(false);
     expect(payload.exitNote).toContain("config A would be refused");
@@ -410,9 +366,9 @@ describe("compare on a config Renovate would refuse", () => {
  */
 describe("compare --detail", () => {
   async function comparisonAt(...extra: string[]): Promise<Comparison> {
-    const io = recordingIo();
-    expect(await main(narrowingArgs("--format", "json", ...extra), io)).toBe(0);
-    return io.json() as Comparison;
+    const run = await runCli(narrowingArgs("--format", "json", ...extra));
+    expect(run.code).toBe(0);
+    return run.json() as Comparison;
   }
 
   test("the default answers with counts, and names the level that lists them", async () => {
@@ -440,8 +396,8 @@ describe("compare --detail", () => {
   });
 
   test("an unknown value names the ones that exist", async () => {
-    const io = recordingIo();
-    expect(await main(narrowingArgs("--detail", "nope"), io)).toBe(1);
-    expect(io.stderr).toContain("verdict|rules|full");
+    const run = await runCli(narrowingArgs("--detail", "nope"));
+    expect(run.code).toBe(1);
+    expect(run.stderr).toContain("verdict|rules|full");
   });
 });

@@ -1,0 +1,405 @@
+/* Split out of index.css (roadmap 050's deferred plan, executed 2026-08-23).
+   ORDER IS LOAD-BEARING: main.tsx imports these numbered files in sequence,
+   preserving the original file's cascade byte-for-byte — two cross-file
+   equal-specificity couplings (.preset-panel, .diff-wrapper) depend on it.
+   This file: the presets ledger, contribution mosaic, tile sections, grouping-rule families (075 it5b/083). */
+
+/* ---------- the presets ledger (roadmap 075, iteration 5b) ----------
+
+   The Presets tab's default view: one card per top-level `extends` entry,
+   each opening on a proportional mosaic of what that entry is made of. The
+   tab's other view — the full resolution tree — keeps every style it had; the
+   ledger adds only what a card needs, and reuses `.card`, `.summary-strip`,
+   `.pill` and `.preset-token` for the rest. */
+
+.preset-ledger {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* The cards carry the ledger's own gap, not the shared card margin. */
+.ledger-card {
+  margin-bottom: 0;
+}
+
+.ledger-head {
+  align-items: center;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.4rem 0.7rem;
+}
+
+/* The toggle takes the whole row so the header is one target; the docs link
+   sits outside it, because an anchor inside a button is not a control. */
+.ledger-head-toggle {
+  align-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  font: inherit;
+  gap: 0.4rem;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.ledger-head-counts {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.ledger-docs {
+  color: var(--accent);
+  flex: none;
+  font-size: 0.75rem;
+}
+
+.ledger-card.failed .ledger-head {
+  border-bottom-color: var(--error-border);
+}
+
+.ledger-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 0.7rem;
+}
+
+/* ---------- the contribution mosaic ---------- */
+
+.ledger-mosaic {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.ledger-mosaic-row {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.ledger-tile {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  gap: 0.1rem;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+}
+
+button.ledger-tile {
+  cursor: pointer;
+}
+
+.ledger-tile-label {
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ledger-tile-detail {
+  color: var(--muted);
+  font-size: 0.7rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Purple at three strengths: the preset hue the tokens and the `preset` layer
+   chips already wear, so a tile and the nodes it stands for agree. */
+.ledger-tile-family.s1 {
+  background: color-mix(in srgb, var(--accent-purple) 7%, transparent);
+  border-color: color-mix(in srgb, var(--accent-purple) 20%, transparent);
+}
+
+.ledger-tile-family.s2 {
+  background: color-mix(in srgb, var(--accent-purple) 14%, transparent);
+  border-color: color-mix(in srgb, var(--accent-purple) 28%, transparent);
+}
+
+.ledger-tile-family.s3 {
+  background: color-mix(in srgb, var(--accent-purple) 22%, transparent);
+  border-color: color-mix(in srgb, var(--accent-purple) 36%, transparent);
+}
+
+/* Options are the one contribution that changes BEHAVIOUR, so they wear the
+   accent rather than the preset hue — the same distinction the effective
+   config's decided-by sections make. */
+.ledger-tile-options {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.ledger-tile-rules {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+/* Not a control: pure `extends` routers contribute nothing, so there is no
+   section to open — the tile is there so the proportions add up. */
+.ledger-tile-routers {
+  background: transparent;
+  border-color: var(--border);
+  border-style: dashed;
+}
+
+.ledger-tile.active {
+  border-color: var(--accent);
+  outline: 1px solid var(--accent);
+}
+
+/* ---------- the sections a tile selects ---------- */
+
+.ledger-section {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+}
+
+.ledger-section.active {
+  border-color: var(--accent);
+}
+
+.ledger-section-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin: 0 0 0.4rem;
+}
+
+.ledger-section-hint {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.ledger-option-list,
+.ledger-family-list,
+.ledger-rule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ledger-option-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  gap: 0.35rem;
+}
+
+.ledger-option-key {
+  font-family: var(--font-mono);
+  min-width: 11rem;
+}
+
+.ledger-option-value {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ledger-option-arrow {
+  color: var(--muted);
+}
+
+.ledger-option-note {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+/* ---------- the grouping-rule families ---------- */
+
+.ledger-family-head {
+  align-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 0.8rem;
+  gap: 0.4rem;
+  padding: 0.1rem 0;
+  text-align: left;
+  width: 100%;
+}
+
+.ledger-family.highlighted .ledger-family-head {
+  color: var(--accent);
+}
+
+.ledger-family-note {
+  color: var(--muted);
+  flex: 1;
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The mini-bar: rules in this family against the biggest family's, so the row
+   says "most of the rules are here" without a second number to read. */
+.ledger-bar {
+  background: var(--surface);
+  border-radius: 999px;
+  flex: none;
+  height: 0.4rem;
+  overflow: hidden;
+  width: 6rem;
+}
+
+.ledger-bar-fill {
+  background: color-mix(in srgb, var(--accent-purple) 45%, transparent);
+  display: block;
+  height: 100%;
+}
+
+.ledger-family-count {
+  color: var(--muted);
+  flex: none;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  min-width: 4.5rem;
+  text-align: right;
+}
+
+.ledger-family-samples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.25rem 0 0.4rem 1.3rem;
+}
+
+.ledger-rule-list {
+  font-size: 0.78rem;
+}
+
+.ledger-rule-list li {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.ledger-rule-index {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.ledger-rule-selectors {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+/* The closing health line. The clean case is the common one and reads as a
+   plain strip (`.summary-strip`); a failed expansion is a BOX instead — a
+   toggle header over one row per failed preset (082), so "which of them
+   failed" is answered here rather than in the 1,100-row tree.
+
+   The tint is the shared status-tint family, not the artboard's 4%: the
+   palette states one background step and one border step per hue precisely
+   because those had drifted across 7/10/12/16%, and a health box that mixed
+   its own would re-open that. */
+.ledger-health.failed {
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Same shape as `.ledger-head`: a full-width toggle plus the docs link beside
+   it, which cannot live inside a button. */
+.ledger-health-head {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.45rem 0.7rem;
+}
+
+.ledger-health-toggle {
+  align-items: baseline;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  font: inherit;
+  font-size: 0.82rem;
+  gap: 0.4rem;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+/* Hue only: the failed-health box's caret is red like the count beside it. */
+.ledger-health-toggle .caret {
+  color: var(--error);
+}
+
+.ledger-health-count {
+  color: var(--error);
+  font-weight: 600;
+}
+
+.ledger-health-note {
+  color: var(--muted);
+}
+
+/* The rows themselves, under a divider in the box's own hue. */
+.ledger-error-rows {
+  border-top: 1px solid color-mix(in srgb, var(--error) 25%, var(--border));
+  font-size: 0.8rem;
+  padding: 0.35rem 0.7rem 0.45rem;
+}
+
+.ledger-error-row {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.2rem 0;
+}
+
+.ledger-error-message {
+  color: var(--ink);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ledger-error-via {
+  color: var(--faint);
+  font-size: 0.72rem;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+@media (max-width: 45rem) {
+  .ledger-option-key {
+    min-width: 0;
+  }
+
+  .ledger-bar {
+    display: none;
+  }
+}

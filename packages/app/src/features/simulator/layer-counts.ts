@@ -1,5 +1,5 @@
 import type { ProvenanceLayer, RuleEvaluation } from "@renovate-config-debugger/engine";
-import { layerId, layerLabel } from "@/components/provenance-layer";
+import { layerId, layerLabel } from "@/lib/provenance-layer";
 
 /** Roadmap 047: the matched rules grouped by the provenance layer that
  *  contributed them — the rules drawer's badge row ("config:recommended ×1 ·

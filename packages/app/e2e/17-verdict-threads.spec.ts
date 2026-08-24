@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { CONTESTED_KEY_CONFIG, encodeShareFragment } from "./fixtures";
-import { drawer, openTab } from "./helpers";
+import { drawer, openSimulator, openTab, simulateQuickFill } from "./helpers";
 
 /** The `npm dependency` quick-fill's own fields — what a share link has to
  *  carry to reproduce a run this suite otherwise starts by clicking. */
@@ -19,10 +19,8 @@ const NPM_QUICK_FILL: Record<string, string> = {
  *  verdict card the threads live on. */
 async function runContestedSimulation(page: Page): Promise<void> {
   await page.goto(await encodeShareFragment({ config: CONTESTED_KEY_CONFIG }));
-  await openTab(page, "simulator");
-  const simulator = page.locator(".card", { hasText: "Update simulator" });
-  await expect(simulator).toBeVisible();
-  await simulator.getByRole("button", { name: "npm dependency" }).click();
+  const simulator = await openSimulator(page);
+  await simulateQuickFill(simulator, "npm dependency");
   await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
 }
 
@@ -217,7 +215,7 @@ test("a thread's step jump leaves a return pill that re-expands and flashes the 
 
   await pill.click();
   await expect(head).toHaveAttribute("aria-expanded", "true");
-  await expect(head).toHaveClass(/rcv-flash/);
+  await expect(head).toHaveClass(/rcd-flash/);
   // Ephemeral: it answered the jump it was created for.
   await expect(pill).toHaveCount(0);
   // And the jump it undid stays undone — the drawer the reader opened is still
@@ -234,12 +232,12 @@ test("a thread's step jump leaves a return pill that re-expands and flashes the 
 test("a share link carrying a thread and a replay stop restores both", async ({ page }) => {
   const fragment = await encodeShareFragment({
     config: CONTESTED_KEY_CONFIG,
-    view: { tab: "simulator", simStep: 2 },
+    view: { tab: "tests", simStep: 2 },
     sim: { form: NPM_QUICK_FILL, autoSimulate: true, simThread: "groupName" },
   });
   await page.goto(fragment);
 
-  await openTab(page, "simulator");
+  await openTab(page, "tests");
   const verdict = page.locator(".sim-verdict-block");
   await expect(verdict).toBeVisible({ timeout: 30_000 });
 

@@ -1,65 +1,76 @@
 import { describe, expect, test } from "vitest";
-import { main } from "../main";
-import { fixture, recordingIo } from "../test-harness";
+import { fixture, runCli, runJson } from "../test-harness";
 
 describe("provenance", () => {
   test("lists the options some layer set, with the winning layer", async () => {
-    const io = recordingIo();
-    expect(await main(["provenance", fixture("clean.json"), "--format", "json"], io)).toBe(0);
-    const report = io.json() as {
+    const run = await runJson<{
       tally: { keys: number; overridden: number };
       keys: { key: string; winner: string }[];
-    };
+    }>(["provenance", fixture("clean.json"), "--format", "json"]);
+    expect(run.code).toBe(0);
+    const report = run.payload;
     expect(report.tally.keys).toBeGreaterThan(0);
     expect(report.keys.find((k) => k.key === "labels")?.winner).toBe("repo");
   });
 
   test("one key gives the whole override chain", async () => {
-    const io = recordingIo();
-    expect(
-      await main(["provenance", fixture("clean.json"), "labels", "--format", "json"], io),
-    ).toBe(0);
-    const entry = io.json() as { key: string; chain: { layer: string; action: string }[] };
+    const run = await runJson<{ key: string; chain: { layer: string; action: string }[] }>([
+      "provenance",
+      fixture("clean.json"),
+      "labels",
+      "--format",
+      "json",
+    ]);
+    expect(run.code).toBe(0);
+    const entry = run.payload;
     expect(entry.key).toBe("labels");
     expect(entry.chain.at(-1)?.layer).toBe("repo");
   });
 
   test("a key nothing set is an error, not an empty answer", async () => {
-    const io = recordingIo();
-    expect(await main(["provenance", fixture("clean.json"), "notAnOption"], io)).toBe(1);
+    const run = await runCli(["provenance", fixture("clean.json"), "notAnOption"]);
+    expect(run.code).toBe(1);
   });
 
   /** Replay-03 (3 CLI sessions): "winner: defaults" on a key a packageRule
    *  sets read as the effective value for an update the rule covers. The MCP's
    *  get_provenance carried the pointer; the CLI did not. */
   test("a key packageRules can also set carries the per-dependency note", async () => {
-    const io = recordingIo();
-    expect(
-      await main(["provenance", fixture("grouped.json"), "groupName", "--format", "json"], io),
-    ).toBe(0);
-    const entry = io.json() as { note?: string };
+    const run = await runJson<{ note?: string }>([
+      "provenance",
+      fixture("grouped.json"),
+      "groupName",
+      "--format",
+      "json",
+    ]);
+    expect(run.code).toBe(0);
+    const entry = run.payload;
     expect(entry.note).toContain("1 packageRule can set `groupName` per-dependency");
     expect(entry.note).toContain("Simulate a dependency");
 
     // Pretty output prints the same pointer…
-    const pretty = recordingIo();
-    expect(await main(["provenance", fixture("grouped.json"), "groupName"], pretty)).toBe(0);
+    const pretty = await runCli(["provenance", fixture("grouped.json"), "groupName"]);
+    expect(pretty.code).toBe(0);
     expect(pretty.stdout).toContain("Simulate a dependency");
 
     // …and a key no rule touches carries no such caveat.
-    const untouched = recordingIo();
-    expect(
-      await main(["provenance", fixture("grouped.json"), "labels", "--format", "json"], untouched),
-    ).toBe(0);
-    expect((untouched.json() as { note?: string }).note).toBeUndefined();
+    const untouched = await runJson<{ note?: string }>([
+      "provenance",
+      fixture("grouped.json"),
+      "labels",
+      "--format",
+      "json",
+    ]);
+    expect(untouched.code).toBe(0);
+    expect(untouched.payload.note).toBeUndefined();
   });
 
   /** Replay-03: a second positional key used to be silently dropped, which
    *  read as "the first key's chain is the whole answer". */
   test("two positional keys are an error, not a silently answered first one", async () => {
-    const io = recordingIo();
-    expect(await main(["provenance", fixture("clean.json"), "labels", "automerge"], io)).toBe(1);
-    expect(io.stderr).toContain("one key per call");
+    const run = await runCli(["provenance", fixture("clean.json"), "labels", "automerge"]);
+    expect(run.code).toBe(1);
+    expect(run.stderr).toContain("one key per call");
   });
 });
 
@@ -79,14 +90,16 @@ describe("provenance packageRules", () => {
   }
 
   async function report(args: string[]): Promise<RuleReport> {
-    const io = recordingIo();
-    expect(
-      await main(
-        ["provenance", fixture("mixed-rules.json"), "packageRules", "--format", "json", ...args],
-        io,
-      ),
-    ).toBe(0);
-    return io.json() as RuleReport;
+    const run = await runCli([
+      "provenance",
+      fixture("mixed-rules.json"),
+      "packageRules",
+      "--format",
+      "json",
+      ...args,
+    ]);
+    expect(run.code).toBe(0);
+    return run.json() as RuleReport;
   }
 
   test("ranges per layer, digest lines carrying the merged index", async () => {
@@ -112,45 +125,38 @@ describe("provenance packageRules", () => {
   });
 
   test("--rule prints one merged rule's body, cited in both index schemes", async () => {
-    const io = recordingIo();
-    expect(
-      await main(
-        [
-          "provenance",
-          fixture("mixed-rules.json"),
-          "packageRules",
-          "--rule",
-          "1",
-          "--format",
-          "json",
-        ],
-        io,
-      ),
-    ).toBe(0);
-    const one = io.json() as {
+    const run = await runJson<{
       layer: string;
       sourceIndex: number;
       citation: string;
       rule: unknown;
-    };
+    }>([
+      "provenance",
+      fixture("mixed-rules.json"),
+      "packageRules",
+      "--rule",
+      "1",
+      "--format",
+      "json",
+    ]);
+    expect(run.code).toBe(0);
+    const one = run.payload;
     expect(one).toMatchObject({ layer: "repo", sourceIndex: 0 });
     expect(one.citation).toContain("merged packageRules[1]");
     expect(one.rule).toEqual({ matchPackageNames: ["react"], groupName: "react monorepo" });
   });
 
   test("--rule and --source belong to the rule array, and say so elsewhere", async () => {
-    const io = recordingIo();
-    expect(
-      await main(["provenance", fixture("mixed-rules.json"), "labels", "--rule", "0"], io),
-    ).toBe(1);
-    expect(io.stderr).toContain("--rule/--source");
+    const run = await runCli(["provenance", fixture("mixed-rules.json"), "labels", "--rule", "0"]);
+    expect(run.code).toBe(1);
+    expect(run.stderr).toContain("--rule/--source");
   });
 
   test("pretty output is one header per layer, not one line per rule", async () => {
-    const io = recordingIo();
-    expect(await main(["provenance", fixture("mixed-rules.json"), "packageRules"], io)).toBe(0);
-    expect(io.stdout).toContain("4 merged rules, concatenated");
-    expect(io.stdout).toContain("repo — merged packageRules[1]–[3] (your packageRules[0]–[2])");
-    expect(io.stdout).toContain('1 matchPackageNames: ["react"] → groupName');
+    const run = await runCli(["provenance", fixture("mixed-rules.json"), "packageRules"]);
+    expect(run.code).toBe(0);
+    expect(run.stdout).toContain("4 merged rules, concatenated");
+    expect(run.stdout).toContain("repo — merged packageRules[1]–[3] (your packageRules[0]–[2])");
+    expect(run.stdout).toContain('1 matchPackageNames: ["react"] → groupName');
   });
 });

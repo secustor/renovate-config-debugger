@@ -14,7 +14,7 @@
  * A traversal segment cannot be neutralized by encoding at all: `.`/`..` are
  * unreserved, so `encodeURIComponent` leaves them untouched, AND the WHATWG
  * URL parser inside `fetch` treats `%2e`/`%2E` as a dot segment too — verified
- * in test/repo-config.test.ts (`…/repos/org/%2E%2E/%2E%2E/admin` still
+ * in test/repo-config.shimmed.test.ts (`…/repos/org/%2E%2E/%2E%2E/admin` still
  * collapses to `…/admin`). It cannot reach a different HOST, but it can aim a
  * credentialed request at an unintended path on the configured one, so such a
  * path is refused outright. Unreachable for well-formed input: repo slugs and

@@ -7,7 +7,7 @@ import { json } from "@codemirror/lang-json";
 import { forwardRef, type ReactNode, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import type { PresetHoverContext } from "@/lib/preset-hover";
 import { flashTarget, motionScrollOptions } from "@/lib/motion";
-import { useEffectiveScheme } from "@/hooks/use-effective-scheme";
+import { useEffectiveScheme } from "./use-effective-scheme";
 import { oneDarkAccessible } from "./one-dark-accessible";
 import { runKeymap } from "./run-keymap";
 
@@ -22,14 +22,13 @@ interface Props {
   /** Roadmap 023: current run's preset-string hover data + jump callback, read
    *  from a ref at hover time so a fresh run's tree updates without a remount. */
   presetHover?: PresetHoverContext | null;
-  /** Roadmap 039: controls that belong to the card rather than to the page —
-   *  today the "Load from repo…" disclosure, pushed to the end of the title
-   *  bar where the loaded file name already lands. */
-  titleAction?: ReactNode;
-  /** Roadmap 039: an optional chrome row (036 grammar) between the title bar
-   *  and the editor — the repo-load form while it is open. Absent when null,
-   *  so a closed disclosure leaves no orphan row behind (035). */
-  chromeRow?: ReactNode;
+  /** Roadmap 075: the card's title bar, when the caller has one to put there —
+   *  the config toolbar, which names the file itself. Without it the bar falls
+   *  back to the plain file name it carried before v2. */
+  titleBar?: ReactNode;
+  /** Roadmap 075: a layer over the editor's document — the repo-load panel,
+   *  which is about to replace it. Absent when nothing is covering it. */
+  overlay?: ReactNode;
 }
 
 /**
@@ -46,7 +45,7 @@ export interface ConfigEditorHandle {
 }
 
 export const ConfigEditor = forwardRef<ConfigEditorHandle, Props>(function ConfigEditor(
-  { fileName, value, onChange, onRun, presetHover, titleAction, chromeRow },
+  { fileName, value, onChange, onRun, presetHover, titleBar, overlay },
   ref,
 ) {
   // Kept current every render so the once-built hover extension reads fresh
@@ -162,28 +161,31 @@ export const ConfigEditor = forwardRef<ConfigEditorHandle, Props>(function Confi
 
   return (
     <div className="card">
-      <div className="card-title editor-card-title">
-        <span>{fileName}</span>
-        {titleAction ? <span className="card-title-actions">{titleAction}</span> : null}
+      <div className="card-title editor-card-title">{titleBar ?? <span>{fileName}</span>}</div>
+      {/* Roadmap 075: the positioning context for `overlay` — the repo-load
+          panel covers the DOCUMENT it is about to replace, and nothing else:
+          the toolbar above it stays visible and usable (its Run says why it is
+          refusing rather than disappearing). */}
+      <div className="editor-body">
+        <CodeMirror
+          ref={cmRef}
+          value={value}
+          onChange={onChange}
+          extensions={extensions}
+          theme={scheme === "dark" ? oneDarkAccessible : scheme}
+          // Roadmap 068: Tab moves focus, it does not indent. `@uiw/react-
+          // codemirror` defaults this to true, which made the editor a keyboard
+          // TRAP — CodeMirror 6 ships no way back out, so a keyboard-only user
+          // who entered this box could not leave it without a pointer (WCAG
+          // 2.1.2). Indentation keeps `Mod-]` / `Mod-[` from `basicSetup`, and
+          // this box receives pasted and fetched configs far more often than
+          // hand-indented ones.
+          indentWithTab={false}
+          minHeight="14rem"
+          maxHeight="28rem"
+        />
+        {overlay}
       </div>
-      {chromeRow}
-      <CodeMirror
-        ref={cmRef}
-        value={value}
-        onChange={onChange}
-        extensions={extensions}
-        theme={scheme === "dark" ? oneDarkAccessible : scheme}
-        // Roadmap 068: Tab moves focus, it does not indent. `@uiw/react-
-        // codemirror` defaults this to true, which made the editor a keyboard
-        // TRAP — CodeMirror 6 ships no way back out, so a keyboard-only user
-        // who entered this box could not leave it without a pointer (WCAG
-        // 2.1.2). Indentation keeps `Mod-]` / `Mod-[` from `basicSetup`, and
-        // this box receives pasted and fetched configs far more often than
-        // hand-indented ones.
-        indentWithTab={false}
-        minHeight="14rem"
-        maxHeight="28rem"
-      />
     </div>
   );
 });

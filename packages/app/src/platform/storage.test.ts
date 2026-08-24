@@ -24,7 +24,7 @@ import {
  * `createRoot()` nor ever run twice against working storage.
  */
 
-type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem" | "key" | "length">;
 
 const onlyGood = (v: string) => v === "good";
 
@@ -40,6 +40,10 @@ function memoryStorage(): StorageLike & { map: Map<string, string> } {
     removeItem: (key) => {
       map.delete(key);
     },
+    key: (index) => [...map.keys()][index] ?? null,
+    get length() {
+      return map.size;
+    },
   };
 }
 
@@ -49,7 +53,15 @@ const boom = () => {
 
 /** Storage in the disabled state: every access throws (the Safari behavior). */
 function throwingStorage(): StorageLike {
-  return { getItem: boom, setItem: boom, removeItem: boom };
+  return {
+    getItem: boom,
+    setItem: boom,
+    removeItem: boom,
+    key: boom,
+    get length(): number {
+      return boom();
+    },
+  };
 }
 
 // vitest runs these in a plain Node environment: the storage globals are
@@ -113,8 +125,8 @@ describe("storage-disabled: throwing storage degrades instead of crashing", () =
   test("the validated reads the App's useState initializers use fall back", () => {
     g.localStorage = throwingStorage();
     g.sessionStorage = throwingStorage();
-    expect(readLocal("rcv.platform", "github", () => true)).toBe("github");
-    expect(readSession("rcv.githubToken", "", () => true)).toBe("");
+    expect(readLocal("rcd.platform", "github", () => true)).toBe("github");
+    expect(readSession("rcd.githubToken", "", () => true)).toBe("");
   });
 
   test("absent storage (no global at all) behaves the same", () => {
@@ -160,28 +172,65 @@ describe("theme persistence", () => {
 });
 
 describe("runStorageMigrations", () => {
-  test("moves the 009 legacy PATs to sessionStorage and stamps rcv.v", () => {
+  test("moves the 009 legacy PATs to sessionStorage, renames to rcd., stamps rcd.v", () => {
     const local = memoryStorage();
     const session = memoryStorage();
     g.localStorage = local;
     g.sessionStorage = session;
     local.map.set("rcv.githubToken", "legacy-pat");
     runStorageMigrations();
-    expect(session.map.get("rcv.githubToken")).toBe("legacy-pat");
+    expect(session.map.get("rcd.githubToken")).toBe("legacy-pat");
     expect(local.map.has("rcv.githubToken")).toBe(false);
-    expect(local.map.get("rcv.v")).toBe("1");
+    expect(local.map.has("rcd.githubToken")).toBe(false);
+    expect(local.map.get("rcd.v")).toBe("2");
   });
 
-  test("never clobbers a token already in sessionStorage", () => {
+  test("never clobbers a value already under the current key", () => {
     const local = memoryStorage();
     const session = memoryStorage();
     g.localStorage = local;
     g.sessionStorage = session;
     local.map.set("rcv.gitlabToken", "legacy");
-    session.map.set("rcv.gitlabToken", "current");
+    session.map.set("rcd.gitlabToken", "current");
     runStorageMigrations();
-    expect(session.map.get("rcv.gitlabToken")).toBe("current");
+    expect(session.map.get("rcd.gitlabToken")).toBe("current");
+    expect(session.map.has("rcv.gitlabToken")).toBe(false);
     expect(local.map.has("rcv.gitlabToken")).toBe(false);
+  });
+
+  test("the rename sweep covers every rcv.-prefixed key in both storages", () => {
+    const local = memoryStorage();
+    const session = memoryStorage();
+    g.localStorage = local;
+    g.sessionStorage = session;
+    local.map.set("rcv.theme", "dark");
+    local.map.set("rcv.oauth.cookieSession", "12345");
+    session.map.set("rcv.oauth.token", "tok");
+    local.map.set("unrelated.key", "kept");
+    runStorageMigrations();
+    expect(local.map.get("rcd.theme")).toBe("dark");
+    expect(local.map.get("rcd.oauth.cookieSession")).toBe("12345");
+    expect(session.map.get("rcd.oauth.token")).toBe("tok");
+    expect(local.map.get("unrelated.key")).toBe("kept");
+    expect([...local.map.keys(), ...session.map.keys()].some((k) => k.startsWith("rcv."))).toBe(
+      false,
+    );
+  });
+
+  test("a pre-rename rcv.v marker is honored: applied migrations do not replay", () => {
+    const local = memoryStorage();
+    const session = memoryStorage();
+    g.localStorage = local;
+    g.sessionStorage = session;
+    local.map.set("rcv.v", "1");
+    // Under the v0 rules this localStorage PAT would move to sessionStorage;
+    // the old marker says v1 already ran, so only the rename sweep touches it.
+    local.map.set("rcv.githubToken", "stays-local");
+    runStorageMigrations();
+    expect(local.map.get("rcd.githubToken")).toBe("stays-local");
+    expect(session.map.has("rcd.githubToken")).toBe(false);
+    expect(local.map.has("rcv.v")).toBe(false);
+    expect(local.map.get("rcd.v")).toBe("2");
   });
 
   test("runs once ever: the marker stops a second pass (pre-033 it reran every load)", () => {
@@ -190,13 +239,13 @@ describe("runStorageMigrations", () => {
     g.localStorage = local;
     g.sessionStorage = session;
     runStorageMigrations();
-    expect(local.map.get("rcv.v")).toBe("1");
+    expect(local.map.get("rcd.v")).toBe("2");
     // A localStorage token appearing AFTER the migration ran (e.g. seeded by
     // hand) is not the 009 legacy state — it must be left alone.
     local.map.set("rcv.githubToken", "post-migration");
     runStorageMigrations();
     expect(local.map.get("rcv.githubToken")).toBe("post-migration");
-    expect(session.map.has("rcv.githubToken")).toBe(false);
+    expect(session.map.has("rcd.githubToken")).toBe(false);
   });
 
   test("a marker from a newer app version is left untouched", () => {
@@ -204,9 +253,41 @@ describe("runStorageMigrations", () => {
     const session = memoryStorage();
     g.localStorage = local;
     g.sessionStorage = session;
+    local.map.set("rcd.v", "7");
+    runStorageMigrations();
+    expect(local.map.get("rcd.v")).toBe("7");
+  });
+
+  test("one throwing key aborts neither the rest of the sweep nor the marker", () => {
+    const local = memoryStorage();
+    const session = memoryStorage();
+    g.localStorage = local;
+    g.sessionStorage = session;
+    local.map.set("rcv.poison", "x");
+    local.map.set("rcv.theme", "dark");
+    const plainSet = local.setItem;
+    local.setItem = (key, value) => {
+      if (key === "rcd.poison") {
+        boom();
+      }
+      plainSet(key, value);
+    };
+    runStorageMigrations();
+    // The poisoned key stays under its old name; everything else migrated.
+    expect(local.map.get("rcv.poison")).toBe("x");
+    expect(local.map.get("rcd.theme")).toBe("dark");
+    expect(local.map.get("rcd.v")).toBe("2");
+  });
+
+  test("a pre-rename marker from a newer version is carried over and the old key retired", () => {
+    const local = memoryStorage();
+    const session = memoryStorage();
+    g.localStorage = local;
+    g.sessionStorage = session;
     local.map.set("rcv.v", "7");
     runStorageMigrations();
-    expect(local.map.get("rcv.v")).toBe("7");
+    expect(local.map.get("rcd.v")).toBe("7");
+    expect(local.map.has("rcv.v")).toBe(false);
   });
 
   test("storage-disabled: does not throw (the old module-scope loop did, before createRoot)", () => {

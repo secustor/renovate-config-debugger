@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useLatestRef } from "./use-latest-ref";
 import { isTextEditingTarget } from "@/hooks/scroll-ergonomics";
 import { overlayKeyboardOwned } from "@/lib/escape-stack";
 import { matchShortcut, type Shortcut } from "@/lib/shortcuts";
@@ -32,14 +33,12 @@ export function useShortcut(
   handler: () => void,
   { enabled = true }: { enabled?: boolean } = {},
 ): void {
-  const handlerRef = useRef(handler);
-  handlerRef.current = handler;
+  const handlerRef = useLatestRef(handler);
   // Read through a ref for the same reason as `handlerRef`, plus one more:
   // the window listener must not be torn down by an `enabled` flip that
   // happens mid-hold (see `heldRef` below), so `enabled` can no longer be an
   // effect dependency that gates whether the listener exists at all.
-  const enabledRef = useRef(enabled);
-  enabledRef.current = enabled;
+  const enabledRef = useLatestRef(enabled);
   // Roadmap 068 review: `?` is the one binding that disables itself the
   // instant it fires — pressing it sets `shortcutSheetOpen`, which flips this
   // hook's own `enabled` to false. Gating listener installation on `enabled`
@@ -110,5 +109,8 @@ export function useShortcut(
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [shortcut]);
+    // The two refs are stable objects, listed only because `exhaustive-deps`
+    // cannot see the `useRef()` behind `useLatestRef`; neither ever changes
+    // identity, so this listener is still installed exactly once per shortcut.
+  }, [shortcut, handlerRef, enabledRef]);
 }

@@ -4,6 +4,7 @@ import type {
   OptionDoc,
   OptionIndex,
   PipelineInput,
+  PresetAuth,
   RepoConfigRequest,
   RepoConfigResult,
   RepoFileRequest,
@@ -11,9 +12,10 @@ import type {
   TranslatedMessage,
   ValidationMessage,
 } from "@renovate-config-debugger/engine";
-import type * as EngineModule from "@renovate-config-debugger/engine";
+import { readCustomHostRules } from "@/data/custom-host-rules";
 import { HOST_TOKENS } from "@/data/host-tokens";
 import { isValidToken } from "@/lib/input-schemas";
+import { type Engine, loadEngine } from "./engine-chunk";
 import { getValidToken } from "./oauth";
 import { sessionGet } from "./storage";
 
@@ -22,11 +24,6 @@ import { sessionGet } from "./storage";
 // Platform/endpoint (non-secrets) stay in localStorage — see App.tsx.
 // Roadmap 033: the hosts and their storage keys come from the one HOST_TOKENS
 // table instead of being restated here.
-
-// The engine is only ever loaded dynamically here (it is the heavy chunk), so
-// this names its shape without pulling it into the initial bundle — a type-only
-// import declaration rather than an inline `typeof import(…)` annotation.
-type Engine = typeof EngineModule;
 
 /** Roadmap 030: the "header injection" rule applied at the last possible
  *  moment — right before a token is handed to the engine to place into a
@@ -57,7 +54,9 @@ export interface RunOptions {
  * Pushes the per-host tokens into the engine's preset auth. Shared by every
  * entry point that fetches (pipeline runs AND repo-config loads) so both reach
  * private repos / lift rate limits identically. A GitHub OAuth token (009),
- * silently refreshed when needed, wins over the GitHub PAT fallback.
+ * silently refreshed when needed, wins over the GitHub PAT fallback. Roadmap
+ * 076's custom credential rows ride along in the same object as `hostRules`,
+ * so the `suppressTokens` overwrite below covers them too.
  */
 function applyAuth(engine: Engine, oauthToken: string | null, opts?: RunOptions): void {
   if (opts?.suppressTokens) {
@@ -67,13 +66,23 @@ function applyAuth(engine: Engine, oauthToken: string | null, opts?: RunOptions)
     engine.setPresetAuth({});
     return;
   }
-  const auth: EngineModule.PresetAuth = {};
+  const auth: PresetAuth = {};
   for (const host of HOST_TOKENS) {
     auth[host.authKey] = sessionToken(host.storageKey);
   }
   // A GitHub OAuth token (silently refreshed by the caller) wins over the
   // GitHub PAT.
   auth.githubToken = oauthToken ?? auth.githubToken;
+  // Roadmap 030, the same use-time boundary as `sessionToken`: each stored
+  // rule is re-validated here, not trusted from when it was written.
+  const hostRules = readCustomHostRules().filter((rule) => isValidToken(rule.token));
+  if (hostRules.length > 0) {
+    auth.hostRules = hostRules.map((rule) => ({
+      matchHost: rule.host,
+      hostType: rule.hostType,
+      token: rule.token,
+    }));
+  }
   engine.setPresetAuth(auth);
 }
 
@@ -89,7 +98,7 @@ function applyAuth(engine: Engine, oauthToken: string | null, opts?: RunOptions)
  */
 async function engineWithAuth(opts?: RunOptions): Promise<Engine> {
   const [engine, oauthToken] = await Promise.all([
-    import("@renovate-config-debugger/engine"),
+    loadEngine(),
     opts?.suppressTokens ? null : getValidToken(),
   ]);
   applyAuth(engine, oauthToken, opts);
@@ -97,19 +106,8 @@ async function engineWithAuth(opts?: RunOptions): Promise<Engine> {
 }
 
 /**
- * Roadmap 031: warms the engine chunk (~437 kB gz) so the download overlaps
- * idle time or hover intent instead of serializing behind the Run click.
- * Idempotent — the dynamic import is module-cached, so a Run that beats the
- * preload simply awaits the same in-flight promise. Best-effort: a network
- * failure here is swallowed, the real import on Run will surface it.
- */
-export function preloadEngine(): void {
-  void import("@renovate-config-debugger/engine").catch(() => {});
-}
-
-/**
- * Dynamic import keeps the heavy renovate chunk out of the initial page load;
- * Vite code-splits it automatically behind this call.
+ * `loadEngine` keeps the heavy renovate chunk out of the initial page load;
+ * Vite code-splits it automatically behind that call.
  */
 export async function run(input: PipelineInput, opts?: RunOptions): Promise<TraceResult> {
   const engine = await engineWithAuth(opts);
@@ -118,13 +116,13 @@ export async function run(input: PipelineInput, opts?: RunOptions): Promise<Trac
 
 /** Option metadata for hover docs; cheap once the engine chunk is loaded. */
 export async function loadOptionIndex(): Promise<OptionIndex> {
-  const engine = await import("@renovate-config-debugger/engine");
+  const engine = await loadEngine();
   return engine.getOptionIndex();
 }
 
 /** The bundled Renovate version — for the shareable-link version-drift check. */
 export async function getRenovateVersion(): Promise<string> {
-  const engine = await import("@renovate-config-debugger/engine");
+  const engine = await loadEngine();
   return engine.renovateVersion;
 }
 
@@ -145,12 +143,25 @@ export interface ErrorTranslationLib {
 }
 
 export async function loadErrorTranslationLib(): Promise<ErrorTranslationLib> {
-  const engine = await import("@renovate-config-debugger/engine");
+  const engine = await loadEngine();
   return {
     translateMessage: engine.translateMessage,
     findMentionedOption: engine.findMentionedOption,
     applyFixToText: engine.applyFixToText,
   };
+}
+
+/**
+ * The engine's own `renovate`-key extractor, reached the same lazy way as the
+ * option index and the error-translation library. Same reason as those two:
+ * the answer is Renovate's, not the app's — a pasted
+ * `…/blob/main/package.json` reference has to yield exactly what config
+ * DISCOVERY would have yielded for that file, and the engine copy is the one
+ * the pinned-Renovate CI covers.
+ */
+export async function extractPackageJsonConfig(raw: string): Promise<string | null> {
+  const engine = await loadEngine();
+  return engine.extractPackageJsonConfig(raw);
 }
 
 /** Probes a repository for its Renovate config file (roadmap 007). Takes the

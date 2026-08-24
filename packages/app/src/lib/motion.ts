@@ -10,7 +10,7 @@
 
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 
-/** Must match the `.rcv-flash` animation's own duration in index.css. */
+/** Must match the `.rcd-flash` animation's own duration in index.css. */
 const FLASH_MS = 1600;
 
 /** The OS-level "don't animate" preference, read at call time (a user can flip
@@ -51,7 +51,7 @@ const pendingRemovals = new WeakMap<Element, number>();
 
 /**
  * The transient "you are here" flash. The animation itself lives in CSS
- * (`.rcv-flash`), including its reduced-motion form — a static highlight for
+ * (`.rcd-flash`), including its reduced-motion form — a static highlight for
  * the same duration, so the target is still marked, just not animated.
  */
 export function flashTarget(el: Element): void {
@@ -60,18 +60,18 @@ export function flashTarget(el: Element): void {
     window.clearTimeout(pending);
   }
   // Adding a class an element already has is a no-op — it would not restart
-  // `.rcv-flash`'s keyframe animation, so a second landing mid-flash needs the
+  // `.rcd-flash`'s keyframe animation, so a second landing mid-flash needs the
   // class taken off and put back on to play from frame one again. Reading a
   // layout property between the two flushes the removal first; without it the
   // two `classList` calls coalesce into one style recalc and the animation
   // never restarts.
-  el.classList.remove("rcv-flash");
+  el.classList.remove("rcd-flash");
   void el.getBoundingClientRect();
-  el.classList.add("rcv-flash");
+  el.classList.add("rcd-flash");
   pendingRemovals.set(
     el,
     window.setTimeout(() => {
-      el.classList.remove("rcv-flash");
+      el.classList.remove("rcd-flash");
       pendingRemovals.delete(el);
     }, FLASH_MS),
   );

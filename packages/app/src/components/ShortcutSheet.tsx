@@ -239,7 +239,7 @@ export function ShortcutSheet({ onClose }: { onClose: () => void }) {
     >
       <div className="shortcut-sheet-head">
         <h2>Keyboard shortcuts</h2>
-        <button type="button" className="btn quiet" onClick={onClose}>
+        <button type="button" className="btn-secondary" onClick={onClose}>
           Close
         </button>
       </div>

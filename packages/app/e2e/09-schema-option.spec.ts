@@ -19,9 +19,9 @@ test("$schema renders as a known option in Effective config, not an unknown-opti
   await runAndAwaitResult(page);
   await openTab(page, "effective");
 
-  const effectiveConfig = page
-    .locator(".card")
-    .filter({ has: page.locator(".card-title", { hasText: "Effective config" }) });
+  // The card carries no title (the tab strip names it) — the tab panel is the
+  // scope.
+  const effectiveConfig = page.locator("#panel-effective");
   await expect(effectiveConfig).toBeVisible();
 
   // Narrow to just the $schema row.

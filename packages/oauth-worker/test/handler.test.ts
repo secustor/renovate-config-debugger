@@ -14,7 +14,7 @@ const env: Env = {
 /** Roadmap 065 — the same deployment with the opt-in cookie mode switched on. */
 const cookieEnv: Env = { ...env, REFRESH_COOKIE: "true" };
 
-const COOKIE_NAME = "__Secure-rcv-refresh";
+const COOKIE_NAME = "__Secure-rcd-refresh";
 
 const ACCESS_TOKEN = "ghu_thisisasecrettokenvalue";
 
@@ -132,7 +132,7 @@ describe("POST /exchange", () => {
         {
           code: "the-oauth-code",
           code_verifier: "the-pkce-verifier",
-          redirect_uri: "https://secustor.github.io/renovate-config-visualizer/",
+          redirect_uri: "https://secustor.github.io/renovate-config-debugger/",
         },
         DEV,
       ),
@@ -509,7 +509,7 @@ describe("cookie mode never engages on a *.workers.dev host", () => {
   // browser drops — capping the session at one access token. The host
   // exclusion is what makes REFRESH_COOKIE=true safe to publish ahead of the
   // switch.
-  const WORKERS_DEV = "https://rcv-oauth-worker.secustor.workers.dev";
+  const WORKERS_DEV = "https://rcd-oauth-worker.secustor.workers.dev";
 
   it("keeps the 009 protocol: refresh token in the body, no cookie", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(ghTokenResponse()));

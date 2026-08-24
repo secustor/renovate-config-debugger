@@ -1,29 +1,28 @@
 import { describe, expect, test } from "vitest";
 import { parseCommandArgs } from "./args";
-import { main } from "./main";
 import { endpointTokenPolicy, takeInputFile, tokensFromEnv } from "./run-input";
-import { fixture, recordingIo } from "./test-harness";
+import { fixture, runCli, runJson } from "./test-harness";
 
 /** Reaching the config — and what a config that cannot be read or parsed does
  *  to a run. */
 
 describe("input", () => {
   test("a config file that is not there fails the run and names the path", async () => {
-    const io = recordingIo();
-    expect(await main(["digest", fixture("nope.json")], io)).toBe(1);
-    expect(io.stderr).toContain("cannot read config file");
-    expect(io.stderr).toContain("nope.json");
-    expect(io.stdout).toBe("");
+    const run = await runCli(["digest", fixture("nope.json")]);
+    expect(run.code).toBe(1);
+    expect(run.stderr).toContain("cannot read config file");
+    expect(run.stderr).toContain("nope.json");
+    expect(run.stdout).toBe("");
   });
 
   test("a config that cannot be parsed is Renovate refusing it, not a failed run", async () => {
-    const io = recordingIo();
-    expect(await main(["validate", fixture("broken.json5"), "--format", "json"], io)).toBe(2);
-    const report = io.json() as {
+    const run = await runJson<{
       accepted: boolean;
       stageStatus: { parse: string; validate: string };
       messages: { message: string }[];
-    };
+    }>(["validate", fixture("broken.json5"), "--format", "json"]);
+    expect(run.code).toBe(2);
+    const report = run.payload;
     expect(report.accepted).toBe(false);
     expect(report.stageStatus.parse).toBe("error");
     // Nothing downstream of a failed parse ran, so the verdict is the parse.

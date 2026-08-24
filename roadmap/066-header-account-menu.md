@@ -77,6 +77,11 @@ fact behind a click is not readable.
 
 ## Scope
 
+_Paths as of 2026-08-23: `SessionMenu.tsx`, `SessionMenuItem.tsx`,
+`use-session-menu.ts` and `ProjectLinks.tsx` were promoted to
+`features/session/` (049's bar — five files with a single set of consumers).
+`SessionAvatar.tsx` stays in `components/`: the 085 repo picker consumes it too._
+
 - `components/SessionMenu.tsx` — the trigger and the panel, decomposed into
   `Identity`, `AccountGroup` and `SessionMenuPanel` for the depth ratchet (048).
 - `components/SessionMenuItem.tsx` — one row, an anchor when it has an `href`

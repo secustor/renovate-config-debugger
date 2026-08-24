@@ -1,7 +1,7 @@
-import type { TreeSummary } from "@/components/preset-tree-stats";
-import { Explained } from "@/components/glossary";
+import type { TreeSummary } from "@/lib/preset-tree-stats";
+import { ExplainedText } from "@/components/glossary";
 import { GLOSSARY } from "@/data/glossary-data";
-import { nf, plural } from "./tree-shared";
+import { nf, pluralWord } from "@/lib/format";
 
 /**
  * Roadmap 016: the counter strip gets the same hover-card treatment the stage
@@ -11,33 +11,33 @@ import { nf, plural } from "./tree-shared";
  */
 export function SummaryHeader({ summary }: { summary: TreeSummary }) {
   const bits: { key: keyof typeof GLOSSARY; label: string; value: number }[] = [
-    { key: "statPresets", label: plural(summary.resolved, "preset"), value: summary.resolved },
+    { key: "statPresets", label: pluralWord(summary.resolved, "preset"), value: summary.resolved },
     { key: "statFetched", label: "fetched", value: summary.fetched },
     { key: "statInternal", label: "internal", value: summary.internal },
     {
       key: "statOptionsSet",
-      label: `option${summary.options === 1 ? "" : "s"} set`,
+      label: `${pluralWord(summary.options, "option")} set`,
       value: summary.options,
     },
-    { key: "statRules", label: plural(summary.rules, "rule"), value: summary.rules },
+    { key: "statRules", label: pluralWord(summary.rules, "rule"), value: summary.rules },
     { key: "statDepth", label: "depth", value: summary.maxDepth },
     {
       key: "statDuplicates",
-      label: `repeat occurrence${summary.duplicates === 1 ? "" : "s"}`,
+      label: pluralWord(summary.duplicates, "repeat occurrence"),
       value: summary.duplicates,
     },
-    { key: "statErrors", label: plural(summary.errors, "error"), value: summary.errors },
+    { key: "statErrors", label: pluralWord(summary.errors, "error"), value: summary.errors },
   ];
   return (
     <div className="preset-summary">
       {bits.map((b) => (
-        <Explained key={b.key} entry={GLOSSARY[b.key]}>
-          {(handlers) => (
-            <span className="preset-summary-stat explained" tabIndex={0} {...handlers}>
-              <strong>{nf.format(b.value)}</strong> {b.label}
-            </span>
-          )}
-        </Explained>
+        <ExplainedText
+          key={b.key}
+          entry={GLOSSARY[b.key]}
+          className="preset-summary-stat explained"
+        >
+          <strong>{nf.format(b.value)}</strong> {b.label}
+        </ExplainedText>
       ))}
     </div>
   );

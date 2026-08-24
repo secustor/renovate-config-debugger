@@ -7,11 +7,21 @@
  * the platform <select> renders, with no React in the way.
  */
 
+/** The platform a fresh session starts on, and the one a share link that names
+ *  none is read against. Here rather than re-typed per consumer: the codec's
+ *  omit-the-default rule (share.ts) and the stored-settings fallbacks
+ *  (use-platform-context, use-share-link) have to agree on it by construction,
+ *  or a link round-trips onto a different host than it was made on. */
+export const DEFAULT_PLATFORM = "github";
+
+/** {@link DEFAULT_PLATFORM}'s endpoint — the same value, named once. */
+export const DEFAULT_ENDPOINT = "https://api.github.com";
+
 /** Platforms that resolve `local>` in the browser, with their default endpoint.
  *  An empty endpoint means "not fetched in the browser" (a real Renovate run
  *  reaches it; this app never does). */
 export const PLATFORM_ENDPOINTS: Record<string, string> = {
-  github: "https://api.github.com",
+  github: DEFAULT_ENDPOINT,
   gitlab: "https://gitlab.com/api/v4",
   gitea: "https://gitea.com",
   forgejo: "https://codeberg.org",
@@ -33,7 +43,7 @@ export const PLATFORMS = Object.keys(PLATFORM_ENDPOINTS);
  * and `https://api.github.com/#…` cannot smuggle a different host through the
  * fragment. Returns null for anything that is not an http(s) URL.
  */
-export function normalizeEndpoint(value: string): string | null {
+function normalizeEndpoint(value: string): string | null {
   let url: URL;
   try {
     url = new URL(value);
@@ -59,7 +69,7 @@ function buildTrustedEndpoints(): ReadonlySet<string> {
 
 /** The public hosts this app ships with — the ONLY endpoints a share link may
  *  point a run at without the token-suppression policy kicking in. */
-export const TRUSTED_ENDPOINTS = buildTrustedEndpoints();
+const TRUSTED_ENDPOINTS = buildTrustedEndpoints();
 
 /**
  * Security 2026-07-25: is this endpoint one of the shipped public hosts?

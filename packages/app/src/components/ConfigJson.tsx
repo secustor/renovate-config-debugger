@@ -6,7 +6,7 @@ import {
 } from "@/lib/description-attribution";
 import { DescriptionValue } from "./DescriptionAttribution";
 import { OptionKey } from "./option-docs";
-import { useOptionDocs } from "@/hooks/option-docs-hooks";
+import { useOptionDocs } from "./option-docs-hooks";
 
 /**
  * Pretty-prints a config value exactly like `JSON.stringify(v, null, 2)`, but

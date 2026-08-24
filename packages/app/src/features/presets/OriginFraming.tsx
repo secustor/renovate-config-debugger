@@ -1,7 +1,8 @@
 import type { PresetNode } from "@renovate-config-debugger/engine";
-import type { TreeStats } from "@/components/preset-tree-stats";
+import type { TreeStats } from "@/lib/preset-tree-stats";
 import { Term } from "@/components/glossary";
-import { nf } from "./tree-shared";
+import { PresetName } from "@/components/PresetName";
+import { nf, plural, pluralWord } from "@/lib/format";
 
 /**
  * Roadmap 016: honest origin framing for the headline preset count (persona
@@ -20,7 +21,7 @@ export function OriginFraming({ root, stats }: { root: PresetNode; stats: TreeSt
     .map((child) => {
       const st = stats.statsById.get(child.id);
       const selfResolved = child.state === "resolved" ? 1 : 0;
-      return { name: child.name, count: (st?.descResolved ?? 0) + selfResolved };
+      return { nodeId: child.id, name: child.name, count: (st?.descResolved ?? 0) + selfResolved };
     })
     .toSorted((a, b) => b.count - a.count);
   const top = contributions[0];
@@ -29,8 +30,9 @@ export function OriginFraming({ root, stats }: { root: PresetNode; stats: TreeSt
   if (roots.length === 1 && onlyRoot) {
     return (
       <p className="origin-framing">
-        Your <Term id="extends">extends</Term> entry <code>{onlyRoot.name}</code> expands to{" "}
-        {nf.format(total)} preset{total === 1 ? "" : "s"}.
+        Your <Term id="extends">extends</Term> entry{" "}
+        <PresetName name={onlyRoot.name} nodeId={onlyRoot.id} /> expands to {nf.format(total)}{" "}
+        {pluralWord(total, "preset")}.
       </p>
     );
   }
@@ -41,10 +43,11 @@ export function OriginFraming({ root, stats }: { root: PresetNode; stats: TreeSt
   return (
     <p className="origin-framing">
       Your {nf.format(roots.length)} <Term id="extends">extends</Term> entries expand to{" "}
-      {nf.format(total)} preset{total === 1 ? "" : "s"}
+      {plural(total, "preset")}
       {majority ? (
         <>
-          , mostly via <code>{majority.name}</code> ({nf.format(majority.count)})
+          , mostly via <PresetName name={majority.name} nodeId={majority.nodeId} /> (
+          {nf.format(majority.count)})
         </>
       ) : null}
       .

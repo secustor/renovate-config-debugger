@@ -53,6 +53,7 @@ the whole trace.
 | "what would I write without the presets?"               | `get_resolved_config`           |
 | "what's the whole effective config, defaults included?" | `get_final_config`              |
 | "would this dependency update match the rules?"         | `simulate`                      |
+| "would these updates land in one PR together?"          | `simulate_group`                |
 | "did my edit change behavior?"                          | `compare_simulations`           |
 
 **Preset-node bodies are large — query one node at a time.** `get_preset_tree`
@@ -77,6 +78,20 @@ to "my rule is index 713 of 713"); `source: "presets"` is what `extends`
 pulled in. `verdict` narrows by outcome — `matched`, `no-input`, `no-match`,
 or `notable` (matched + unresolved, everything but a plain non-match).
 Reach for `all`/`all` only once you know you need the whole list.
+
+`simulate` is one dependency at a time by construction, so "does this group
+actually form?" is not a question it can answer. `simulate_group` takes at
+least two updates in `deps`, simulates each exactly as `simulate` would, and
+tallies them by the `groupName` their matching rules produced: per group the
+members, `size`, the `minimumGroupSize` gate those members carry, `wouldForm`,
+and a `verdict` stating the claim in one sentence; updates no rule groups come
+back in `ungrouped`, one PR each. Two limits travel with every answer. The
+tally is over the updates YOU supplied — Renovate weighs `minimumGroupSize`
+against the repository's real pending updates, so `wouldForm: false` means
+"these updates alone don't reach it", never "this group can never form". And
+membership is by `groupName` as the rules resolved it: branch splitting
+(`separateMajorMinor`, custom `branchName` templates) is not modeled. For
+per-update rule evidence, go back to `simulate`, one dep at a time.
 
 `explain_message` says so plainly when it has no translation for a message —
 `translationKnown: false` plus a note — instead of quietly echoing the raw
@@ -123,7 +138,20 @@ npx -y @renovate-config-debugger/cli tree renovate.json --node "config:best-prac
 npx -y @renovate-config-debugger/cli provenance renovate.json minimumReleaseAge --format json
 npx -y @renovate-config-debugger/cli simulate renovate.json --dep '{"depName":"react","currentValue":"17.0.0","newValue":"18.0.0"}' --format json
 npx -y @renovate-config-debugger/cli compare before.json after.json --dep '{"depName":"react"}'
+npx -y @renovate-config-debugger/cli group renovate.json --dep '{"depName":"react","updateType":"minor"}' --dep '{"depName":"react-dom","updateType":"minor"}'
+npx -y @renovate-config-debugger/cli docs minimumReleaseAge
 ```
+
+`group` is `simulate_group`'s answer (`--dep` repeated, or `--deps-file` with a
+JSON array of the same objects — inline descriptors are parsed as JSON5, a
+`--deps-file` batch as strict JSON). `docs` is `get_option_docs`: Renovate's own
+option table for the pinned version — type, default, allowed values,
+deprecation, where the option may appear, and whether it is mergeable,
+inheritable or templated. It answers only for the version pinned, because
+Renovate ships no per-option version history at all — neither `docs` nor
+`get_option_docs` can tell you when an option appeared or last changed.
+`docs <substring> --search` lists the options whose name matches, for when you
+have the concept and not the spelling.
 
 `validate` exits **2** when Renovate would refuse the config and **1** on an
 infrastructure error, so it works as a check in CI or a hook without a wrapper.

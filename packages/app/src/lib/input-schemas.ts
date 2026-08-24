@@ -124,14 +124,6 @@ export function isValidShareConfigLayer(v: unknown): v is Record<string, unknown
   return isValidConfigObject(v) && hasValidPlatformContext(v);
 }
 
-/** Validates a config layer (already `JSON.parse`d) and returns it typed, or
- *  null when it is not a plain object or is polluted. Convenience wrapper
- *  around {@link isValidConfigObject} for call sites that want a value, not
- *  a boolean. */
-export function parseConfigObject(raw: unknown): Record<string, unknown> | null {
-  return isValidConfigObject(raw) ? raw : null;
-}
-
 // ---------------------------------------------------------------------------
 // URLs (the "dangerous URL" rule) and tokens (the "header injection" rule)
 // ---------------------------------------------------------------------------
@@ -176,6 +168,33 @@ export function isValidToken(value: string): boolean {
   return value.length <= MAX_TOKEN_LENGTH && !CONTROL_CHARS.test(value);
 }
 
+const MAX_HOST_LENGTH = 253;
+// Letters, digits, dots and hyphens — a bare host name, optionally with a
+// `:port`. No scheme, no path, no userinfo, no whitespace.
+const HOST_NAME = /^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$/;
+
+/**
+ * Roadmap 076: a custom credential row's `matchHost` — a bare host name
+ * (`gitea.example.com`, `localhost:3000`), never a URL. The string is only
+ * ever a matching key (`resolveAuthToken` compares it against a request URL's
+ * host, it never composes one), but it is kept strict anyway: a value that
+ * cannot be a host can only be a mistake, and a lax rule here would let a
+ * pasted `https://…/path` silently match nothing.
+ */
+export function isValidHost(value: string): boolean {
+  if (value.length === 0 || value.length > MAX_HOST_LENGTH) {
+    return false;
+  }
+  const [host = "", port, ...rest] = value.split(":");
+  if (rest.length > 0) {
+    return false;
+  }
+  if (port !== undefined && !/^\d{1,5}$/.test(port)) {
+    return false;
+  }
+  return HOST_NAME.test(host);
+}
+
 const MAX_PLATFORM_LENGTH = 128;
 
 /** `platform` is intentionally NOT an enum: the app's own platform <select>
@@ -205,7 +224,7 @@ export function isValidOAuthParam(value: string): boolean {
 // here and `satisfies typeof` pins it to the engine's exact tuple type
 // instead: adding, removing or reordering a stage in
 // packages/engine/src/trace/model.ts makes this line fail to compile until it
-// matches again. StageTimeline's stage order imports this constant, so the
+// matches again. StageRail's stage order imports this constant, so the
 // app has exactly one copy to keep in sync.
 // ---------------------------------------------------------------------------
 
@@ -219,6 +238,21 @@ export const STAGE_IDS = [
   "preset",
   "merge",
 ] as const satisfies typeof ENGINE_STAGE_IDS;
+
+/**
+ * Roadmap 075 (iteration 6): how many pinned tests the app keeps — and, being
+ * the same number, how many a share link is allowed to carry.
+ *
+ * It lives here, in the zod-free half, because both ends need it and only one
+ * of them may see zod: the payload sanitizer (`sanitizeSharePins`) enforces it
+ * on the way in, and the Tests tab enforces it at the "+ Pin a dependency…"
+ * row, which is entry-chunk code. A second copy of the number in either place
+ * would be a cap that disagrees with itself.
+ *
+ * The bound exists because every pin costs one engine simulation per run and
+ * one entry in the (compressed, URL-length-bound) fragment.
+ */
+export const MAX_PINNED_TESTS = 20;
 
 // ---------------------------------------------------------------------------
 // Storage reads (OAuth stored user — sync at boot, so zod-free)
@@ -327,7 +361,7 @@ export function isValidRepoRefPart(value: string): boolean {
  *  optional `:port` — a self-hosted reference like `gitea.example.com:3000/o/r`
  *  must keep reaching the "Unknown host … set its endpoint under Advanced
  *  options" guidance rather than the generic "not a repo reference" refusal.
- *  The host never composes a URL (it only looks up use-repo-load's
+ *  The host never composes a URL (it only looks up `data/host-tokens`'
  *  `HOST_PLATFORM`). */
 export function isValidRepoHost(value: string): boolean {
   if (value.length > MAX_REPO_REF_LENGTH) {

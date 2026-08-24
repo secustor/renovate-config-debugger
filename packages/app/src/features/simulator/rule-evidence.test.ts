@@ -79,9 +79,7 @@ const SIM = simFixture([matchedRule(12), matchedRule(201), matchedRule(458)]);
 describe("buildRuleEvidence", () => {
   test("classifies each write, naming the stop that overrode the lost one", () => {
     const evidence = buildRuleEvidence(201, STOPS, LAYERS, SIM);
-    expect(evidence.stopOrdinal).toBe(2);
     expect(evidence.stopLabel).toBe("step 2 of 3");
-    expect(evidence.stopIndex).toBe(2);
     expect(evidence.verdict).toBe("matched");
     expect(evidence.layer).toBe(PRESET_LAYER);
     expect(evidence.clauses).toEqual([MATCHED_CLAUSE]);
@@ -94,8 +92,6 @@ describe("buildRuleEvidence", () => {
         after: ["before 6am on monday"],
         hadAfter: true,
         survived: true,
-        overriddenAtStopIndex: undefined,
-        overriddenAtOrdinal: undefined,
         overriddenAtLabel: undefined,
       },
       {
@@ -106,8 +102,6 @@ describe("buildRuleEvidence", () => {
         after: "npm minor+patch",
         hadAfter: true,
         survived: false,
-        overriddenAtStopIndex: 3,
-        overriddenAtOrdinal: 3,
         overriddenAtLabel: "step 3 of 3",
       },
     ]);
@@ -120,7 +114,7 @@ describe("buildRuleEvidence", () => {
       ruleStop(3, [{ key: "groupName", before: "b", after: "c" }]),
     ];
     const [write] = buildRuleEvidence(1, stops, new Map(), simFixture([])).writes;
-    expect(write?.overriddenAtOrdinal).toBe(2);
+    expect(write?.overriddenAtLabel).toBe("step 2 of 3");
   });
 
   test("a flatten stop can be the overrider, and is named rather than numbered", () => {
@@ -131,7 +125,6 @@ describe("buildRuleEvidence", () => {
     const [write] = buildRuleEvidence(4, stops, new Map(), simFixture([])).writes;
     expect(write?.survived).toBe(false);
     expect(write?.overriddenAtLabel).toBe("flatten step");
-    expect(write?.overriddenAtOrdinal).toBeUndefined();
   });
 
   test("a removed key is a write like any other, and can itself be overridden", () => {

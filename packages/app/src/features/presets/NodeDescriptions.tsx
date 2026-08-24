@@ -1,5 +1,5 @@
 import { CodeText } from "@/components/CodeText";
-import { useHoverCardClose } from "@/hooks/hover-card";
+import { HoverCardJump } from "@/components/HoverCardJump";
 import {
   type DescLineWithMarker,
   type NodeDescriptionFacts,
@@ -58,10 +58,8 @@ export function NodeDescriptionLines({ facts }: { facts: NodeDescriptionFacts })
 
 /**
  * The hover card's body: the lines, plus the jump to the array they landed in
- * (App plumbing permitting). The jump switches tabs, pulling the page out from
- * under the card — and a pointer-opened card has no blur to take it down — so
- * it closes the card it lives in first (`useHoverCardClose`), exactly like the
- * attribution card's tree jump one PR up.
+ * (App plumbing permitting) — `HoverCardJump` owns the close-then-jump
+ * sequence the tab switch demands.
  */
 export function NodeDescriptionCard({
   facts,
@@ -70,21 +68,17 @@ export function NodeDescriptionCard({
   facts: NodeDescriptionFacts;
   onShowOrder?: () => void;
 }) {
-  const close = useHoverCardClose();
   return (
+    // `preset-desc-body` styles nothing — it is how `PresetTree.shimmed.test`
+    // finds this card.
     <div className="preset-desc-body">
       <NodeDescriptionLines facts={facts} />
       {onShowOrder ? (
-        <button
-          type="button"
-          className="preset-desc-order linklike"
-          onClick={() => {
-            close();
-            onShowOrder();
-          }}
-        >
-          Show the full description array →
-        </button>
+        <HoverCardJump
+          label="Show the full description array →"
+          className="preset-desc-order"
+          onJump={onShowOrder}
+        />
       ) : null}
     </div>
   );
