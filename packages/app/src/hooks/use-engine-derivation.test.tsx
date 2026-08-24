@@ -1,4 +1,5 @@
 import { cleanup, render, waitFor } from "@testing-library/react";
+import { useEffect } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import { useEngineDerivation } from "./use-engine-derivation";
 
@@ -71,7 +72,9 @@ it("settles every consumer that mounts in the same commit", async () => {
   function TwoConsumers() {
     const first = useEngineDerivation<string>(["k"], () => Promise.resolve("first"));
     const second = useEngineDerivation<string>(["k"], () => Promise.resolve("second"));
-    states = [first, second];
+    useEffect(() => {
+      states = [first, second];
+    }, [first, second]);
     return null;
   }
 

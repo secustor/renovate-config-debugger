@@ -62,7 +62,6 @@
     "react/immutability": "off",
     "react/preserve-manual-memoization": "off",
     "react/memo-dependencies": "off",
-    "react/globals": "off",
     "typescript/no-non-null-assertion": "error",
     // Named exports keep re-exports and IDE rename working; the tool-mandated
     // default exports are listed in the overrides below.
