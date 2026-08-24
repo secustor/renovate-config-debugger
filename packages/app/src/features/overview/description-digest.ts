@@ -22,10 +22,13 @@ import { ruleWrittenKeys, summarizeRuleSelectors } from "@/lib/rule-selectors";
  * `packageRules` descriptions have no top-level presence whatsoever (Renovate
  * never hoists them), so they are carried alongside the repo group — the first
  * surface in the app to show them. Duplicate strings are tracked per entry
- * (`duplicateOfIndex` → the `behaviors` count), which is how the Overview drops
+ * (`duplicateOfIndex`), which is how the Overview drops
  * repeats and the preset tree wears its `duplicate ×N` badge.
  *
- * Pure and DOM-free (`lib/`), so `packages/cli` can quote the same digest.
+ * Pure and DOM-free, but a feature module all the same: `lib/headless.ts` — the
+ * seam `packages/cli` imports through — may not re-export from `features/`
+ * (roadmap 048), so this digest is the web app's alone. A CLI consumer would
+ * cost a hoist into the shared layer first.
  */
 
 /** One string of the final top-level `description`, as the card renders it. */
@@ -74,22 +77,11 @@ export interface DigestGroup {
   entries: DigestEntry[];
   /** Repo group only — user-written `packageRules` descriptions. */
   rules: DigestRule[];
-  /** Entries that are not duplicates of an earlier string: what this layer ADDED. */
-  behaviors: number;
-}
-
-export interface DescriptionDigestTotals {
-  /** Distinct behaviors — duplicated strings counted once. */
-  behaviors: number;
-  /** Top-level `extends` entries that contributed at least one string. */
-  extendsCount: number;
-  hasUserRules: boolean;
 }
 
 export interface DescriptionDigest {
   /** Groups in merge order: the external layers, each direct extend, the repo config. */
   groups: DigestGroup[];
-  totals: DescriptionDigestTotals;
   /** At least one string needed the engine's enclosing-node fallback (069 PR 1). */
   degraded: boolean;
   /**
@@ -100,14 +92,9 @@ export interface DescriptionDigest {
    * summary titled "What this config does" quietly drop a member.
    */
   unattributed: number;
-  /** Length of the real final `description` array (069 PR 1's `finalLength`):
-   *  the strings shown across all groups PLUS {@link unattributed}. */
-  finalLength: number;
 }
 
-interface MutableGroup extends Omit<DigestGroup, "behaviors" | "key"> {
-  behaviors: number;
-}
+type MutableGroup = Omit<DigestGroup, "key">;
 
 /** The group a layer belongs to, created on first sight. Keyed by
  *  `layerNodeKey` — the node identity, so the same preset extended twice is
@@ -118,7 +105,7 @@ function groupFor(groups: Map<string, MutableGroup>, layer: ProvenanceLayer): Mu
   if (existing) {
     return existing;
   }
-  const created: MutableGroup = { layer, entries: [], rules: [], behaviors: 0 };
+  const created: MutableGroup = { layer, entries: [], rules: [] };
   groups.set(key, created);
   return created;
 }
@@ -154,9 +141,6 @@ export function buildDescriptionDigest(
       ...(entry.duplicateOfIndex === undefined ? {} : { duplicateOfIndex: entry.duplicateOfIndex }),
       ...(entry.approximate ? { approximate: true } : {}),
     });
-    if (entry.duplicateOfIndex === undefined) {
-      group.behaviors++;
-    }
   }
 
   // Only the REPO's own rules. A preset's rule descriptions are attributed to
@@ -180,15 +164,7 @@ export function buildDescriptionDigest(
 
   const built: DigestGroup[] = [];
   const keyUses = new Map<string, number>();
-  let behaviors = 0;
-  let extendsCount = 0;
-  let hasUserRules = false;
   for (const group of groups.values()) {
-    behaviors += group.behaviors;
-    if (group.layer.kind === "preset" && group.entries.length > 0) {
-      extendsCount++;
-    }
-    hasUserRules ||= group.rules.length > 0;
     built.push({
       // Name-based key, disambiguated by how many groups of that name came
       // before it in merge order — stable across runs, unlike the node id.
@@ -202,10 +178,8 @@ export function buildDescriptionDigest(
   }
   return {
     groups: built,
-    totals: { behaviors, extendsCount, hasUserRules },
     degraded: provenance.degraded,
     unattributed: provenance.unattributed.length,
-    finalLength: provenance.finalLength,
   };
 }
 

@@ -16,8 +16,6 @@ const EVIDENCE: RuleEvidence = {
   ruleIndex: 201,
   verdict: "matched",
   clauses: [],
-  stopIndex: 2,
-  stopOrdinal: 2,
   stopLabel: "step 2 of 3",
   writes: [
     {
@@ -35,8 +33,6 @@ const EVIDENCE: RuleEvidence = {
       after: "npm minor+patch",
       hadAfter: true,
       survived: false,
-      overriddenAtStopIndex: 3,
-      overriddenAtOrdinal: 3,
       overriddenAtLabel: "step 3 of 3",
     },
   ],

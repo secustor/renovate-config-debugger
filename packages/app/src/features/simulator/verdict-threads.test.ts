@@ -124,7 +124,6 @@ describe("buildVerdictThreads", () => {
         layer: REPO_LAYER,
         clauses: [MATCHED_CLAUSE],
         stopIndex: 2,
-        stopOrdinal: 2,
         stopLabel: "step 2 of 2",
       },
       overrides: [
@@ -136,7 +135,7 @@ describe("buildVerdictThreads", () => {
           stopIndex: 1,
           stopLabel: "step 1 of 2",
         },
-        { kind: "base", value: "all dependencies", present: true, origin: "base" },
+        { kind: "base", value: "all dependencies", present: true },
       ],
       writerCount: 2,
     });
@@ -187,9 +186,7 @@ describe("buildVerdictThreads", () => {
     expect(thread?.verb).toBe("removed");
     expect(thread?.present).toBe(false);
     expect(thread?.finalValue).toBeUndefined();
-    expect(thread?.overrides).toEqual([
-      { kind: "base", value: ["on monday"], present: true, origin: "base" },
-    ]);
+    expect(thread?.overrides).toEqual([{ kind: "base", value: ["on monday"], present: true }]);
   });
 
   test("a flatten stop can win, and carries no clause evidence", () => {
@@ -200,7 +197,6 @@ describe("buildVerdictThreads", () => {
       layer: undefined,
       clauses: [],
       stopIndex: 2,
-      stopOrdinal: undefined,
       stopLabel: "flatten step",
     });
     expect(thread?.writerCount).toBe(2);
@@ -225,9 +221,7 @@ describe("buildVerdictThreads", () => {
     expect(thread?.writerCount).toBe(1);
     // The key did not exist before the rules ran — `present: false` is what
     // stops the UI from striking through a value that never was.
-    expect(thread?.overrides).toEqual([
-      { kind: "base", value: undefined, present: false, origin: "base" },
-    ]);
+    expect(thread?.overrides).toEqual([{ kind: "base", value: undefined, present: false }]);
     expect(thread?.winner?.stopLabel).toBe("step 1 of 1");
   });
 

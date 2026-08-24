@@ -97,12 +97,12 @@ describe("the repo's own packageRules prose", () => {
     expect(rows[0]?.note).toBe("packageRules[0] — matchUpdateTypes → minimumReleaseAge");
   });
 
-  test("counts toward the card's total, unlike `totals.behaviors`", () => {
-    // `totals.behaviors` counts the top-level array only — a rule description
-    // never enters it, because Renovate does not hoist one. The card lists both,
-    // so the number it prints has to be the rows it printed.
+  test("counts toward the card's total, though no top-level entry exists", () => {
+    // A rule description never enters the top-level `description` array —
+    // Renovate does not hoist one — so the digest has no entry for it. The card
+    // lists it anyway, so the number it prints has to be the rows it printed.
     const digest = buildDescriptionDigest(provenance(RULE_PROVENANCE), RULES);
-    expect(digest?.totals.behaviors).toBe(0);
+    expect(digest?.groups.flatMap((g) => g.entries)).toEqual([]);
     expect(rowsOf(RULE_PROVENANCE, RULES)).toHaveLength(1);
   });
 });

@@ -148,7 +148,6 @@ describe("grouping", () => {
     );
 
     expect(digest.groups).toHaveLength(2);
-    expect(digest.groups.map((g) => g.behaviors)).toEqual([1, 0]);
     expect(digest.groups.map((g) => g.key)).toEqual([
       "preset::dependencyDashboard",
       `preset::dependencyDashboard${SEP}2`,
@@ -235,42 +234,6 @@ describe("grouping", () => {
       "inherited",
       "preset:config:best-practices",
     ]);
-    // Only real `extends` entries count as extends.
-    expect(digest.totals.extendsCount).toBe(1);
-  });
-});
-
-describe("duplicate counting", () => {
-  test("a group whose every string repeats an earlier one added no behavior", () => {
-    const digest = digestOf(
-      provenance({
-        entries: entries([
-          { value: "Dashboard.", via: BEST_PRACTICES },
-          { value: "Group monorepos.", via: BEST_PRACTICES },
-          { value: "Dashboard.", via: DASHBOARD },
-        ]),
-      }),
-    );
-
-    expect(groupAt(digest, 1)).toMatchObject({
-      key: "preset::dependencyDashboard",
-      behaviors: 0,
-    });
-    expect(groupAt(digest, 0)).toMatchObject({ behaviors: 2 });
-  });
-
-  test("one new sentence counts, however many repeats ride along", () => {
-    const digest = digestOf(
-      provenance({
-        entries: entries([
-          { value: "Dashboard.", via: BEST_PRACTICES },
-          { value: "Dashboard.", via: DASHBOARD },
-          { value: "…and label them.", via: DASHBOARD },
-        ]),
-      }),
-    );
-
-    expect(groupAt(digest, 1)).toMatchObject({ behaviors: 1 });
   });
 });
 
@@ -346,8 +309,8 @@ describe("rule descriptions", () => {
   });
 });
 
-describe("totals and empty state", () => {
-  test("counts distinct behaviors, contributing extends and user rules", () => {
+describe("the empty state", () => {
+  test("a config with top-level prose and user rules has a description row", () => {
     const digest = digestOf(
       provenance({
         entries: entries([
@@ -361,14 +324,12 @@ describe("totals and empty state", () => {
       [{ matchUpdateTypes: ["major"] }],
     );
 
-    // 4 entries, one of them a repeat.
-    expect(digest.totals).toEqual({ behaviors: 3, extendsCount: 2, hasUserRules: true });
     expect(hasTopLevelDescriptions(digest)).toBe(true);
   });
 
   test("a digest whose every entry is a repeat still has a description row", () => {
-    // `behaviors: 0` says the strings added nothing NEW — the final
-    // `description` array still holds them, so the row exists.
+    // The strings added nothing NEW, but the final `description` array still
+    // holds them, so the row exists.
     const digest = digestOf(
       provenance({
         entries: entries([
@@ -378,7 +339,6 @@ describe("totals and empty state", () => {
       }),
     );
 
-    expect(digest.totals.behaviors).toBe(1);
     expect(hasTopLevelDescriptions(digest)).toBe(true);
   });
 
@@ -394,8 +354,7 @@ describe("totals and empty state", () => {
       [{ matchManagers: ["npm"], automerge: true }],
     );
 
-    expect(digest.totals).toEqual({ behaviors: 0, extendsCount: 0, hasUserRules: true });
-    // …but no top-level `description` key at all: Renovate never hoists a
+    // No top-level `description` key at all: Renovate never hoists a
     // rule's prose, so there is no Effective config row to send a reader to.
     expect(hasTopLevelDescriptions(digest)).toBe(false);
   });
@@ -412,12 +371,9 @@ describe("totals and empty state", () => {
     );
 
     expect(digest.unattributed).toBe(1);
-    expect(digest.finalLength).toBe(2);
     expect(unattributedNoteText(digest)).toBe(
       "1 member of the description array is not text, so no preset can be credited with it.",
     );
-    // The behavior count is a count of SENTENCES, and stays one.
-    expect(digest.totals.behaviors).toBe(1);
   });
 
   test("several non-text members read as several", () => {
@@ -431,7 +387,7 @@ describe("totals and empty state", () => {
       }),
     );
 
-    expect(digest).toMatchObject({ unattributed: 2, finalLength: 3 });
+    expect(digest.unattributed).toBe(2);
     expect(unattributedNoteText(digest)).toBe(
       "2 members of the description array are not text, so no preset can be credited with them.",
     );
@@ -442,7 +398,7 @@ describe("totals and empty state", () => {
       provenance({ entries: entries([{ value: "Only prose.", via: REPO, node: "root" }]) }),
     );
 
-    expect(digest).toMatchObject({ unattributed: 0, finalLength: 1 });
+    expect(digest.unattributed).toBe(0);
     expect(unattributedNoteText(digest)).toBe("");
   });
 

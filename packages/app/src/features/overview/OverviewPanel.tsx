@@ -33,11 +33,12 @@ import { ROOT_NODE_ID } from "@/lib/preset-tree-stats";
  * The card renders them and invents nothing.
  */
 
-/** The card's own count, and the tab badge's: the sentences listed BELOW it.
- *  Not `digest.totals.behaviors`, which excludes the repo's `packageRules`
- *  prose (it never enters the top-level array) — a header quoting a number the
- *  reader cannot get by counting the rows under it is the one number in the
- *  view they cannot check (082's rule for band headers). */
+/** The card's own count, and the tab badge's: the sentences listed BELOW it —
+ *  counted from the rows, never from the digest's own tallies of the top-level
+ *  `description` array, which exclude the repo's `packageRules` prose (it never
+ *  enters that array). A header quoting a number the reader cannot get by
+ *  counting the rows under it is the one number in the view they cannot check
+ *  (082's rule for band headers). */
 function countOf(rows: readonly OverviewRow[]): number {
   return rows.length;
 }
