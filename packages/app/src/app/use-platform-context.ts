@@ -20,7 +20,7 @@
  * suppression from the new value — over-suppressing would break a legitimate
  * private repo load, under-suppressing would leak the token.
  */
-import { type RefObject, useCallback, useEffect, useMemo, useState } from "react";
+import { type RefObject, useCallback, useMemo, useState } from "react";
 import { useRef } from "react";
 import { DEFAULT_ENDPOINT, DEFAULT_PLATFORM, PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
 import {
@@ -121,11 +121,21 @@ export function usePlatformContext(): PlatformContext {
 
   // An override only exists relative to global-config values; when the global
   // config stops defining platform/endpoint, snap back to normal behavior.
-  useEffect(() => {
+  //
+  // React's "adjust state when a prop changes" idiom rather than an effect: the
+  // global config gaining or losing a platform context is the whole trigger and
+  // the snap-back reads nothing else. It is a real CLEAR and not a mask over the
+  // flag: a global config that comes back later must not resurrect an override
+  // the user set against the previous one. Done during render, the toolbar never
+  // paints a frame claiming an override against a global config that no longer
+  // states one.
+  const [globalContextOwner, setGlobalContextOwner] = useState(hasGlobalContext);
+  if (hasGlobalContext !== globalContextOwner) {
+    setGlobalContextOwner(hasGlobalContext);
     if (!hasGlobalContext) {
       setPlatformOverride(false);
     }
-  }, [hasGlobalContext]);
+  }
 
   const applyUntrustedGuard = useCallback((next: UntrustedEndpointGuard | null) => {
     untrustedGuardRef.current = next;

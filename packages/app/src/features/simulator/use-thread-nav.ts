@@ -58,22 +58,36 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
     remove: removeThread,
   } = useToggleSet();
   const [returnKey, setReturnKey] = useState<string | null>(null);
-  // The key awaiting a scroll+flash once its row has committed (same idiom as
-  // use-rule-focus's `scrollTarget`).
-  const [focusKey, setFocusKey] = useState<string | null>(null);
+  // The thread awaiting a scroll+flash once its row has committed. A fresh
+  // OBJECT per request rather than a key the landing effect clears afterwards:
+  // identity is what makes two returns to the SAME thread two landings, and it
+  // gets there without the effect writing state back into its own trigger.
+  const [focusRequest, setFocusRequest] = useState<{ key: string } | null>(null);
   const pendingThreadRef = useRef<string | null>(null);
   const returnKeyRef = useLatestRef(returnKey);
 
-  // A new run is new evidence: its threads start collapsed, and whatever jump
-  // the previous run's threads sent the reader on is over. A link's requested
-  // thread is consumed HERE, inside the same effect, so the reset can never
-  // land after it and fold the very thread the link asked for.
+  // A new run is new evidence, so whatever jump the previous run's threads sent
+  // the reader on is over. During render — React's "adjust state when a prop
+  // changes" idiom, as in `StepThrough`: `sim` is the trigger and the pill's
+  // dismissal reads nothing out of it, and the pill offering a way back into
+  // evidence that no longer exists is gone before the paint rather than one
+  // committed frame after it.
+  const [simOwner, setSimOwner] = useState(sim);
+  if (sim !== simOwner) {
+    setSimOwner(sim);
+    setReturnKey(null);
+  }
+
+  // The threads themselves start collapsed. This half stays an effect: a link's
+  // requested thread is CONSUMED here, and consuming a ref is a write React is
+  // free to replay during render. Consuming it inside the same effect as the
+  // reset is also what keeps the reset from landing after it and folding the
+  // very thread the link asked for.
   useEffect(() => {
     const pending = pendingThreadRef.current;
     pendingThreadRef.current = null;
     resetThreads(pending === null ? undefined : new Set([pending]));
-    setReturnKey(null);
-    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- `sim` is this effect's TRIGGER: "a new run is new evidence" is a statement about the run ARRIVING, and the reset reads nothing out of it (the only thing it consumes is the pending link request, held in a ref). It has to stay an effect too — consuming that ref is a write, which during render React is free to replay.
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- `sim` is this effect's TRIGGER: "a new run is new evidence" is a statement about the run ARRIVING, and the reset reads nothing out of it (the only thing it consumes is the pending link request, held in a ref).
   }, [sim, resetThreads]);
 
   // The landing itself. One pass is enough, unlike use-rule-focus: a thread's
@@ -97,19 +111,19 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
   // is App's state and nothing the simulator holds selects it (see
   // `returnToThread`).
   useEffect(() => {
-    if (focusKey === null) {
+    if (focusRequest === null) {
       return;
     }
-    setFocusKey(null);
-    const el = document.getElementById(threadHeadId(focusKey));
+    const el = document.getElementById(threadHeadId(focusRequest.key));
     if (el === null) {
       return;
     }
     landOnTarget(el, "center");
     if (document.activeElement === el) {
+      // oxlint-disable-next-line react/set-state-in-effect -- the DOM is the external system this whole effect synchronizes with, and this line is its READING: `document.activeElement` after `landOnTarget` is the only witness that the return actually happened, and nothing before the commit can answer it. Spending the pill during render or in the gesture that started the jump would spend it on the landings that silently fail — the case 068 added this check for.
       setReturnKey(null);
     }
-  }, [focusKey]);
+  }, [focusRequest]);
 
   // Where focus reached the PILL from, or null whenever the pill does not hold
   // focus — reported by the pill itself through `notePillFocus`.
@@ -236,7 +250,7 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
       return;
     }
     addThread(key);
-    setFocusKey(key);
+    setFocusRequest({ key });
     // A stable ref object — listed only because `exhaustive-deps` cannot see
     // the `useRef()` behind `useLatestRef`. The identity stays stable.
   }, [returnKeyRef, addThread]);

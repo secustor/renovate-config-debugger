@@ -129,6 +129,35 @@ export const EffectiveConfig = memo(function EffectiveConfig({
     setIncludeDefaults(false);
   }
 
+  // Roadmap 069: the description card's "show raw order" link lands on the blame
+  // ledger — the row is one of ~90, so arriving at the tab is not arriving at
+  // the answer. Filter, expand, no focus steal: the reader is here to read.
+  // …which means clearing the OTHER filter too, not just setting the query:
+  // "only overridden" left over from earlier reading would hide the very row the
+  // link promised, and the reader would land on "No keys match".
+  // …and, since 075, re-opening the decided-by bands for the same reason: a
+  // reader who folded the presets band shut earlier would otherwise land on a
+  // collapsed band instead of the ledger the link promised. The defaults band
+  // stays shut — `description` has no Renovate default, so it can never be the
+  // band this row is in.
+  //
+  // DURING RENDER for the same reason as the reset above, and BELOW it so that a
+  // commit carrying both a new provenance and a new nonce still lands: the run's
+  // reset clears the query, and the link's landing sets it afterwards. The owner
+  // starts at `undefined`, so a nonce that is already set when this view mounts
+  // (the link that switched to this tab) is honoured on the first render.
+  const [nonceOwner, setNonceOwner] = useState<number | undefined>(undefined);
+  if (nonceOwner !== focusDescriptionNonce) {
+    setNonceOwner(focusDescriptionNonce);
+    if (focusDescriptionNonce) {
+      setView("keys");
+      setQuery(DESCRIPTION_KEY);
+      setOnlyOverridden(false);
+      resetExpandedRows(new Set([DESCRIPTION_KEY]));
+      resetCollapsedSections(DEFAULT_COLLAPSED);
+    }
+  }
+
   const entries = useMemo(() => (provenance ? [...provenance.values()] : []), [provenance]);
 
   const filtered = useMemo(() => {
@@ -181,27 +210,6 @@ export const EffectiveConfig = memo(function EffectiveConfig({
     }
     onStats?.(tallies);
   }, [tallies, onStats, provenance]);
-
-  // Roadmap 069: the description card's "show raw order" link lands on the blame
-  // ledger — the row is one of ~90, so arriving at the tab is not arriving at
-  // the answer. Filter, expand, no focus steal: the reader is here to read.
-  // …which means clearing the OTHER filter too, not just setting the query:
-  // "only overridden" left over from earlier reading would hide the very row the
-  // link promised, and the reader would land on "No keys match".
-  // …and, since 075, re-opening the decided-by bands for the same reason: a
-  // reader who folded the presets band shut earlier would otherwise land on a
-  // collapsed band instead of the ledger the link promised. The defaults band
-  // stays shut — `description` has no Renovate default, so it can never be the
-  // band this row is in.
-  useEffect(() => {
-    if (focusDescriptionNonce) {
-      setView("keys");
-      setQuery(DESCRIPTION_KEY);
-      setOnlyOverridden(false);
-      resetExpandedRows(new Set([DESCRIPTION_KEY]));
-      resetCollapsedSections(DEFAULT_COLLAPSED);
-    }
-  }, [focusDescriptionNonce, resetExpandedRows, resetCollapsedSections]);
 
   if (!result.finalConfig) {
     return null;

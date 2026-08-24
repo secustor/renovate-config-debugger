@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { MergedKey, ProvenanceLayer, RuleEvaluation } from "@renovate-config-debugger/engine";
 import { Caret } from "@/components/Caret";
 import { CopyMarkdownButton } from "@/components/CopyMarkdownButton";
@@ -81,8 +81,15 @@ export function RuleRow({
   defaultExpanded?: boolean;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
-  // Re-sync when the filter toggles (re-expand my-rules rows, collapse otherwise).
-  useEffect(() => setExpanded(defaultExpanded), [defaultExpanded]);
+  // Re-sync when the filter toggles (re-expand my-rules rows, collapse
+  // otherwise). React's "adjust state when a prop changes" idiom rather than an
+  // effect: the prop is both the trigger and the whole new value, and the row
+  // re-renders in its new shape before the paint instead of one frame after it.
+  const [defaultOwner, setDefaultOwner] = useState(defaultExpanded);
+  if (defaultExpanded !== defaultOwner) {
+    setDefaultOwner(defaultExpanded);
+    setExpanded(defaultExpanded);
+  }
   const quote = rule.verdict === "matched" ? description : undefined;
   return (
     // Roadmap 068: a cross-link lands ON this row (`landOnTarget`), so it has

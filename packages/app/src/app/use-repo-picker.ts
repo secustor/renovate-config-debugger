@@ -57,6 +57,32 @@ export function useRepoPicker(host: RepoPickerHost): RepoPickerView | null {
   // settled probe reports through `badges`.
   const probing = useRef(new Set<string>());
 
+  // A sign-out invalidates the list (it was THAT account's); drop it so a later
+  // session starts fresh instead of showing someone else's repos. During render
+  // — React's "adjust state when a prop changes" idiom: the flag is the trigger
+  // and the drop reads nothing else, and the previous account's rows are gone
+  // before the paint rather than one committed frame after it. The fetch below
+  // cannot race in between: it is gated on `signedIn` too.
+  const [signedInOwner, setSignedInOwner] = useState(signedIn);
+  if (signedIn !== signedInOwner) {
+    setSignedInOwner(signedIn);
+    if (!signedIn) {
+      setRepos(null);
+      setFailed(false);
+      setBadges(new Map());
+    }
+  }
+  // The in-flight set is a ref, so its half of the same invalidation stays an
+  // effect: a ref write during render is one React is free to replay. It has to
+  // happen — a name left in here after the badges were dropped would never be
+  // re-probed — and it runs before the probe effect below, which is declared
+  // after it.
+  useEffect(() => {
+    if (!signedIn) {
+      probing.current.clear();
+    }
+  }, [signedIn]);
+
   const wanted = open && signedIn;
   useEffect(() => {
     if (!wanted || repos !== null || failed) {
@@ -79,17 +105,6 @@ export function useRepoPicker(host: RepoPickerHost): RepoPickerView | null {
       cancelled = true;
     };
   }, [wanted, repos, failed]);
-
-  // A sign-out invalidates the list (it was THAT account's); drop it so a
-  // later session starts fresh instead of showing someone else's repos.
-  useEffect(() => {
-    if (!signedIn) {
-      setRepos(null);
-      setFailed(false);
-      setBadges(new Map());
-      probing.current.clear();
-    }
-  }, [signedIn]);
 
   const filtered = useMemo(() => filterUserRepos(repos ?? [], query), [repos, query]);
   const visible = useMemo(() => filtered.slice(0, VISIBLE_ROWS), [filtered]);

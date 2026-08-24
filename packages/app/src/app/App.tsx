@@ -662,23 +662,37 @@ export function App() {
     setEditorKey((k) => k + 1);
   }
 
-  useEffect(() => {
+  // A new run invalidates what the previous run's views were pointing at. App's
+  // OWN half of that happens during render — React's "adjust state when a prop
+  // changes" idiom, the same one `StepThrough` uses: `result` is the trigger and
+  // the reset reads nothing out of it, and the selection and the two stepper
+  // indices are back at their starting points BEFORE the paint instead of one
+  // committed frame after it, where a stepper briefly showed the old step
+  // against the new run's sequence.
+  const [resultOwner, setResultOwner] = useState(result);
+  if (result !== resultOwner) {
+    setResultOwner(result);
     setSelectedNodeId(null);
     setMigrationStepIndex(0);
     setMergeStepIndex(0);
+  }
+
+  useEffect(() => {
     // Roadmap 028: a new run invalidates the previous run's async counts —
     // the effective key stats and the Overview's behavior count (083), both
     // recomputed by their views once the new derivations settle (they reset as
     // one, which is what `usePanelStats` exists for) — and any "back to where I
     // was" target from the run that just ended.
+    //
+    // This half stays an effect: `resetPanelStats` and `clearBackTab` belong to
+    // other hooks, and a cross-hook call during render is the side effect React
+    // is free to replay. Both are identity-stable (`useCallback`s with no
+    // dependencies, in `usePanelStats` and `useResultsTab`), so listing them
+    // leaves this effect firing on the result and nothing else — they are here
+    // because `exhaustive-deps` cannot see that.
     resetPanelStats();
     clearBackTab();
-    // Both are identity-stable (`useCallback`s with no dependencies, in
-    // `usePanelStats` and `useResultsTab`), so listing them leaves this effect
-    // firing on the result and nothing else — they are here because
-    // `exhaustive-deps` cannot see that.
-    //
-    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- `result` is the TRIGGER: what is invalidated here belongs to the run that just ENDED, so the body reads nothing out of the new one. It cannot move into render either — `resetPanelStats` and `clearBackTab` belong to other hooks, and a cross-hook call during render is the side effect React is free to replay.
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- `result` is the TRIGGER: what is invalidated here belongs to the run that just ENDED, so the body reads nothing out of the new one.
   }, [result, resetPanelStats, clearBackTab]);
 
   // Roadmap 028's post-Run scroll-into-view lives in ResultsColumn since 031:
@@ -799,8 +813,10 @@ export function App() {
     return skips;
   }, [globalParse.config, inheritedParse.config]);
 
-  // Apply pending link view state after the run's result exists. Declared after
-  // the reset effect so it wins over the reset for a decoded link.
+  // Apply pending link view state after the run's result exists — after the
+  // new-run invalidation above, which the link's own view state overrides: the
+  // selection and the two stepper indices are reset during the render that
+  // observed the result, and this effect runs on the commit that follows it.
   useEffect(() => {
     if (!result) {
       return;
