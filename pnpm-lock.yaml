@@ -18,7 +18,7 @@ importers:
         specifier: 26.2.0
         version: 26.2.0
       knip:
-        specifier: ^6.32.2
+        specifier: 6.32.2
         version: 6.32.2
       oxfmt:
         specifier: 0.64.0
