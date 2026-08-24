@@ -155,7 +155,8 @@
    headers, had none at all despite a comment claiming it used "the same one the
    rows use". A fixed width because the slot must not move when the triangle
    turns: option names start on one edge whichever way it points, which is also
-   why `.caret-empty` (an inert row's spacer) needs nothing beyond this rule.
+   why the inert variant (`<Caret empty>`, the spacer roadmap 082's defaults
+   rows draw) needs nothing beyond this rule, and no class of its own.
    `flex: none` because every head that holds one is a flex row.
 
    Only genuinely different HUES are overridden per surface (the pin cards'

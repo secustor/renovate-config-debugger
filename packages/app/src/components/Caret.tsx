@@ -17,7 +17,7 @@
  */
 export function Caret({ open, empty }: { open?: boolean; empty?: boolean }) {
   return (
-    <span className={`caret${empty ? " caret-empty" : ""}`} aria-hidden="true">
+    <span className="caret" aria-hidden="true">
       {empty ? "" : open ? "▾" : "▸"}
     </span>
   );
