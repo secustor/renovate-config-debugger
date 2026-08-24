@@ -48,7 +48,7 @@ const GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token";
  * the refresh token along with every GitHub Pages asset request. The cookie
  * `Path` must stay pinned to the Worker's mount (roadmap 065).
  */
-const REFRESH_COOKIE_NAME = "__Secure-rcv-refresh";
+const REFRESH_COOKIE_NAME = "__Secure-rcd-refresh";
 
 /** Fallback lifetime when GitHub omits `refresh_token_expires_in` (180 days). */
 const REFRESH_COOKIE_MAX_AGE = 15_552_000;

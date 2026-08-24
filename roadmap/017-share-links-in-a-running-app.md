@@ -50,7 +50,7 @@ results to the wrong config.
 
 ## User story
 
-As a user with the visualizer already open, I want clicking a share link to
+As a user with the debugger already open, I want clicking a share link to
 load and run that shared analysis — or ask me first if I have unsaved work —
 exactly like opening it in a fresh tab would.
 

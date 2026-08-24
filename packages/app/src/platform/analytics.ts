@@ -2,8 +2,8 @@
  * Google Analytics (GA4), opt-in per deployment. Pure logic + one injector.
  *
  * The measurement id follows the same dual-source rule as the OAuth config
- * (roadmap 043): the deployment-time `globalThis.__RCV_ANALYTICS__` (what the
- * Docker entrypoint writes into `/rcv-config.js`) wins over the build-time
+ * (roadmap 043): the deployment-time `globalThis.__RCD_ANALYTICS__` (what the
+ * Docker entrypoint writes into `/rcd-config.js`) wins over the build-time
  * `VITE_GA_MEASUREMENT_ID` var (what the Pages build inlines). With no usable
  * id from either source gtag.js is never loaded — `vite dev`, previews and
  * unconfigured self-hosts send nothing.
@@ -31,7 +31,7 @@ function toMeasurementId(value: unknown): string | null {
 }
 
 function runtimeMeasurementId(): string | null {
-  const raw = globalThis.__RCV_ANALYTICS__;
+  const raw = globalThis.__RCD_ANALYTICS__;
   if (typeof raw !== "object" || raw === null) {
     return null;
   }

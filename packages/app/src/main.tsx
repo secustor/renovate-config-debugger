@@ -40,7 +40,7 @@ runStorageMigrations();
 applyTheme(readTheme());
 
 // Google Analytics loads only when a deployment configured a measurement id
-// (rcv-config.js or the Pages build var) — dev and self-hosts stay silent.
+// (rcd-config.js or the Pages build var) — dev and self-hosts stay silent.
 initAnalytics();
 
 const root = document.getElementById("root");

@@ -215,7 +215,7 @@ test("a thread's step jump leaves a return pill that re-expands and flashes the 
 
   await pill.click();
   await expect(head).toHaveAttribute("aria-expanded", "true");
-  await expect(head).toHaveClass(/rcv-flash/);
+  await expect(head).toHaveClass(/rcd-flash/);
   // Ephemeral: it answered the jump it was created for.
   await expect(pill).toHaveCount(0);
   // And the jump it undid stays undone — the drawer the reader opened is still

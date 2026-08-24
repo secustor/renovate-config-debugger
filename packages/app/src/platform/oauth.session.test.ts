@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
  * test must not read as "already signed in" in the next.
  */
 
-const COOKIE_SESSION_KEY = "rcv.oauth.cookieSession";
+const COOKIE_SESSION_KEY = "rcd.oauth.cookieSession";
 const WORKER_URL = "https://worker.example";
 
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
@@ -215,8 +215,8 @@ describe("getValidToken (cookie-session refresh)", () => {
   /** A signed-in cookie-mode session whose access token has already expired,
    *  so the next getValidToken() must go through the cookie refresh. */
   function seedExpiredCookieSession() {
-    session.map.set("rcv.oauth.token", "gho_expired");
-    session.map.set("rcv.oauth.tokenExpiresAt", String(Date.now() - 1000));
+    session.map.set("rcd.oauth.token", "gho_expired");
+    session.map.set("rcd.oauth.tokenExpiresAt", String(Date.now() - 1000));
     local.map.set(COOKIE_SESSION_KEY, String(Date.now() + 60_000));
   }
 

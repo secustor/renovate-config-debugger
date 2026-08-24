@@ -19,7 +19,7 @@ own option metadata from `lib/config/options/index.ts`.
 ## User story
 
 As a user reading an unfamiliar option (`rangeStrategy`, `postUpdateOptions`,
-…) anywhere in the visualizer, I hover it and immediately see what it does,
+…) anywhere in the debugger, I hover it and immediately see what it does,
 its type and default, and a deep link to docs.renovatebot.com — without
 leaving the page.
 

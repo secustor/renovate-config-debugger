@@ -31,7 +31,7 @@ Milestone: M3 · Status: done 2026-07-23
 
 Extend the pipeline beyond repo config to the layers self-hosted
 administrators control: global/admin config (`config.js` / env / CLI) and
-inherited config (`inheritConfig`), so the visualizer models the full layer
+inherited config (`inheritConfig`), so the debugger models the full layer
 stack a real Renovate run uses.
 
 ## User story

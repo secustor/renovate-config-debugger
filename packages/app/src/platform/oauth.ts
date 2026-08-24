@@ -50,20 +50,20 @@ export const REVOKE_URL = "https://github.com/settings/apps/authorizations";
 const AUTHORIZE_URL = "https://github.com/login/oauth/authorize";
 const USER_API = "https://api.github.com/user";
 
-/** The `rcv.oauth.*` keys — sessionStorage, except {@link K.cookieSession}. */
+/** The `rcd.oauth.*` keys — sessionStorage, except {@link K.cookieSession}. */
 const K = {
-  pending: "rcv.oauth.pending",
-  token: "rcv.oauth.token",
-  tokenExpiresAt: "rcv.oauth.tokenExpiresAt",
-  refreshToken: "rcv.oauth.refreshToken",
-  refreshTokenExpiresAt: "rcv.oauth.refreshTokenExpiresAt",
-  user: "rcv.oauth.user",
+  pending: "rcd.oauth.pending",
+  token: "rcd.oauth.token",
+  tokenExpiresAt: "rcd.oauth.tokenExpiresAt",
+  refreshToken: "rcd.oauth.refreshToken",
+  refreshTokenExpiresAt: "rcd.oauth.refreshTokenExpiresAt",
+  user: "rcd.oauth.user",
   /** Roadmap 065 — the ONE oauth key in localStorage, and the only oauth
    *  state that outlives the tab. It holds no secret: just the refresh
    *  horizon as epoch ms, so boot knows whether a silent cookie refresh is
    *  worth a round trip. The token it refers to is in the `HttpOnly` cookie,
    *  out of JS's reach entirely. */
-  cookieSession: "rcv.oauth.cookieSession",
+  cookieSession: "rcd.oauth.cookieSession",
 } as const;
 
 /**
@@ -117,13 +117,13 @@ function toOAuthConfig(
 }
 
 /**
- * Roadmap 043 — the `globalThis.__RCV_OAUTH__` a deployment's `/rcv-config.js`
+ * Roadmap 043 — the `globalThis.__RCD_OAUTH__` a deployment's `/rcd-config.js`
  * may define. It is a served file, not a build-time constant, so every field is
  * checked; anything malformed reads as "not configured" and the build-time vars
  * get their turn.
  */
 function runtimeOAuthConfig(): OAuthConfig | null {
-  const raw = globalThis.__RCV_OAUTH__;
+  const raw = globalThis.__RCD_OAUTH__;
   if (typeof raw !== "object" || raw === null) {
     return null;
   }
@@ -140,7 +140,7 @@ function runtimeOAuthConfig(): OAuthConfig | null {
  *
  * Runtime config wins over the build-time `VITE_*` vars so ONE published image
  * (roadmap 043) serves both an OAuth-off and an OAuth-on deployment; the Pages
- * build, which has no `/rcv-config.js` content, still reads its vars.
+ * build, which has no `/rcd-config.js` content, still reads its vars.
  */
 export function getOAuthConfig(): OAuthConfig | null {
   return (
@@ -166,7 +166,7 @@ function installUrl(): string {
  * Roadmap 032 evaluated this once in `App.tsx` and threaded it down three prop
  * chains (the auth hint, the failure banner, the session menu — five hops at
  * the deepest). It is deployment config, not state: both its inputs (the
- * build-time `VITE_*` vars and the served `__RCV_OAUTH__`) are fixed before the
+ * build-time `VITE_*` vars and the served `__RCD_OAUTH__`) are fixed before the
  * app's first render, so there is nothing for a parent to own. Resolved once
  * here, at the same place and for the same reason as {@link REVOKE_URL}, and
  * imported directly by the three leaves that link to it.
@@ -671,7 +671,7 @@ export async function getValidToken(): Promise<string | null> {
 }
 
 /**
- * Drops all `rcv.oauth.*` state. Revocation itself cannot be done from the
+ * Drops all `rcd.oauth.*` state. Revocation itself cannot be done from the
  * browser — the sign-out UI links to {@link REVOKE_URL} for true revocation.
  *
  * Roadmap 065: the refresh cookie has to die with the session too, and only

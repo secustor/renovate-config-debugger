@@ -45,7 +45,7 @@ load forever because keys are unversioned.
   `satisfies`-checked instead of restated.
 - **Storage robustness**: a small `storage.ts` wrapping get/set/remove in
   try/catch (null/no-op on throw) routed through all call sites; the
-  module-scope migration moved behind a `rcv.v` version marker inside a
+  module-scope migration moved behind a `rcd.v` version marker inside a
   try, so it runs once and future migrations have a hook.
 
 ## Out of scope

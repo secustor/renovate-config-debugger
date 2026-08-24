@@ -1,4 +1,4 @@
-# Persona UX Study — Renovate Config Visualizer
+# Persona UX Study — Renovate Config Debugger
 
 **Method.** Three real, answered configuration problems were taken from the
 [renovatebot/renovate discussion board](https://github.com/renovatebot/renovate/discussions).

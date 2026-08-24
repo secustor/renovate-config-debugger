@@ -47,7 +47,7 @@ the editor is actually for, and answered it twice. Both answers shipped:
   creating a rule, so no host ever gets two rows.
 
   The rules are secrets like every other token: sessionStorage only
-  (`rcv.hostRules`, one JSON value — the rows are dynamic, so a key per host
+  (`rcd.hostRules`, one JSON value — the rows are dynamic, so a key per host
   would leave orphans), never localStorage, never in a share link, and wiped
   by the untrusted-endpoint guard along with everything else (they ride in the
   same `PresetAuth` object `suppressTokens` overwrites). Both ends re-validate:

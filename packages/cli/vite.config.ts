@@ -55,7 +55,7 @@ export default defineConfig(({ command }) => ({
     // Vite 8 runs on Rolldown; `rollupOptions` is the deprecated alias.
     rolldownOptions: {
       input: {
-        // The CLI itself: what `bin/rcv.mjs` imports.
+        // The CLI itself: what `bin/rcd.mjs` imports.
         main: fileURLToPath(new URL("./src/main.ts", import.meta.url)),
         // The parity handle — see `src/engine-surface.ts`.
         "engine-surface": fileURLToPath(new URL("./src/engine-surface.ts", import.meta.url)),

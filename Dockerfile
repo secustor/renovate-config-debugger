@@ -1,12 +1,12 @@
 # Roadmap 043 — self-host distribution. Build context is the repo root.
 #
-#   docker build --target app         -t rcv-app .
-#   docker build --target oauth-proxy -t rcv-oauth-proxy .
+#   docker build --target app         -t rcd-app .
+#   docker build --target oauth-proxy -t rcd-oauth-proxy .
 #
 # The `app` image is deliberately built WITHOUT any VITE_* variables: a
 # published image must be able to turn sign-in on at `docker run` time, and
 # Vite inlines VITE_* at build time. Configuration is therefore runtime
-# (/rcv-config.js, written by the entrypoint) — see docker/40-rcv-config.sh.
+# (/rcd-config.js, written by the entrypoint) — see docker/40-rcd-config.sh.
 
 # --- build -------------------------------------------------------------------
 # Pinned to the BUILD platform, not the target one: this stage emits static
@@ -78,10 +78,10 @@ CMD ["node", "server.mjs"]
 FROM nginx:alpine@sha256:4a73073bd557c65b759505da037898b61f1be6cbcc3c2c3aeac22d2a470c1752 AS app
 
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
-COPY docker/40-rcv-config.sh /docker-entrypoint.d/40-rcv-config.sh
+COPY docker/40-rcd-config.sh /docker-entrypoint.d/40-rcd-config.sh
 # Explicit, because a checkout on a filesystem without an exec bit would
 # otherwise have the nginx entrypoint silently skip the script.
-RUN chmod +x /docker-entrypoint.d/40-rcv-config.sh
+RUN chmod +x /docker-entrypoint.d/40-rcd-config.sh
 
 COPY --from=build /repo/packages/app/dist /usr/share/nginx/html
 

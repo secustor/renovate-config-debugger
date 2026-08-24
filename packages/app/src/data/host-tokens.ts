@@ -34,7 +34,7 @@ export const HOST_TOKENS: readonly HostTokenDescriptor[] = [
     label: "GitHub",
     host: "github.com",
     inputLabel: "GitHub personal access token (fallback)",
-    storageKey: "rcv.githubToken",
+    storageKey: "rcd.githubToken",
     authKey: "githubToken",
   },
   {
@@ -42,7 +42,7 @@ export const HOST_TOKENS: readonly HostTokenDescriptor[] = [
     label: "GitLab",
     host: "gitlab.com",
     inputLabel: "GitLab token (PRIVATE-TOKEN)",
-    storageKey: "rcv.gitlabToken",
+    storageKey: "rcd.gitlabToken",
     authKey: "gitlabToken",
   },
   {
@@ -50,7 +50,7 @@ export const HOST_TOKENS: readonly HostTokenDescriptor[] = [
     label: "Gitea",
     host: "gitea.com",
     inputLabel: "Gitea token",
-    storageKey: "rcv.giteaToken",
+    storageKey: "rcd.giteaToken",
     authKey: "giteaToken",
   },
   {
@@ -58,7 +58,7 @@ export const HOST_TOKENS: readonly HostTokenDescriptor[] = [
     label: "Forgejo",
     host: "codeberg.org",
     inputLabel: "Forgejo token",
-    storageKey: "rcv.forgejoToken",
+    storageKey: "rcd.forgejoToken",
     authKey: "forgejoToken",
   },
 ];

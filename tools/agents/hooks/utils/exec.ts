@@ -32,7 +32,7 @@ export function exec(
     const child = spawn(cmd, args, {
       cwd: opts.cwd,
       stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env, RCV_AGENT_HOOK: "1" },
+      env: { ...process.env, RCD_AGENT_HOOK: "1" },
     });
 
     let output = "";

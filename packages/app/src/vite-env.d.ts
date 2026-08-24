@@ -16,7 +16,7 @@ interface ImportMeta {
 }
 
 /**
- * Roadmap 043 — deployment-time OAuth config, set by the `/rcv-config.js`
+ * Roadmap 043 — deployment-time OAuth config, set by the `/rcd-config.js`
  * script that ships in `public/`. Expected shape:
  * `{ clientId: string, workerUrl: string, appSlug?: string }`.
  *
@@ -25,10 +25,10 @@ interface ImportMeta {
  * `getOAuthConfig` must validate it. The stub in `public/` defines nothing —
  * only the Docker entrypoint (and equivalent self-host setups) fills it in.
  */
-declare var __RCV_OAUTH__: unknown;
+declare var __RCD_OAUTH__: unknown;
 
 /**
  * Deployment-time analytics config, same mechanism and caveats as above.
  * Expected shape: `{ measurementId: string }` (a GA4 `G-…` id).
  */
-declare var __RCV_ANALYTICS__: unknown;
+declare var __RCD_ANALYTICS__: unknown;

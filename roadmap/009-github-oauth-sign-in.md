@@ -12,7 +12,7 @@ env)` + a thin default export; unit-tested with `fetch` stubbed, no wrangler
 > whole authorization-code + PKCE + `state` flow itself (`packages/app/src/
 oauth.ts`, pure logic): PKCE via `crypto.subtle`, token in memory mirrored to
 > `sessionStorage` (never `localStorage`, never a URL), silent single-flight
-> refresh, `signOut()` that clears `rcv.oauth.*` and links to GitHub's
+> refresh, `signOut()` that clears `rcd.oauth.*` and links to GitHub's
 > authorization page for true revocation. The mount effect completes an OAuth
 > callback (QUERY `?code&state`) before the 007 share-hash decode and restores
 > the pre-sign-in fragment, so a share link survives the round-trip. `run.ts`
@@ -156,7 +156,7 @@ exactly this.
 - Rate-limit niceties: surface `x-ratelimit-*` remaining quota and offer
   sign-in on 429s — secondary, since 60 req/h suffices for typical
   public-preset runs.
-- Migration: drop the `rcv.githubToken` `localStorage` key. Keep a
+- Migration: drop the `rcd.githubToken` `localStorage` key. Keep a
   low-profile "use a personal access token instead" escape hatch (advanced
   section) — it stays necessary for GHES users, Worker outages, and orgs
   where the app installation can't be approved — but stop presenting it as

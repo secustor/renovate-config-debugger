@@ -1,4 +1,4 @@
-# Findings-Validity Report — Persona Study Replay (Renovate Config Visualizer)
+# Findings-Validity Report — Persona Study Replay (Renovate Config Debugger)
 
 11 findings verified against the codebase: **10 confirmed, 1 invalid**. Ordered confirmed-first, by impact severity.
 

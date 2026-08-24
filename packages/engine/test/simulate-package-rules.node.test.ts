@@ -166,7 +166,7 @@ describe("simulatePackageRules (golden)", () => {
  * validator warns about (`you should not extend "group:" presets`). Preset
  * resolution leaves the rule shaped `{ packageRules: [innerGroupRule],
  * <userOptions> }`, i.e. a rule whose only matcher-carrying content sits one
- * level down, and it has been claimed that the visualizer "hoists" that inner
+ * level down, and it has been claimed that the debugger "hoists" that inner
  * body where a real run would ignore it. It does not — the flattening is
  * Renovate's own, and these tests pin both halves of why with real
  * `applyPackageRules` as the oracle:

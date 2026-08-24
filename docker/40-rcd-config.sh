@@ -1,5 +1,5 @@
 #!/bin/sh
-# Roadmap 043 — writes /rcv-config.js at container start so ONE published image
+# Roadmap 043 — writes /rcd-config.js at container start so ONE published image
 # serves OAuth-off and OAuth-on (and analytics-off/on) deployments.
 #
 # The official nginx image runs every executable /docker-entrypoint.d/*.sh
@@ -9,8 +9,8 @@
 # no analytics.
 set -e
 
-target=/usr/share/nginx/html/rcv-config.js
-label="40-rcv-config.sh"
+target=/usr/share/nginx/html/rcd-config.js
+label="40-rcd-config.sh"
 
 # Values are operator-supplied rather than attacker-supplied, but a stray
 # backslash, quote or newline must not emit a broken file that white-screens
@@ -20,14 +20,14 @@ js_escape() {
 }
 
 oauth=false
-if [ -n "$RCV_GITHUB_CLIENT_ID" ] && [ -n "$RCV_OAUTH_WORKER_URL" ]; then
+if [ -n "$RCD_GITHUB_CLIENT_ID" ] && [ -n "$RCD_OAUTH_WORKER_URL" ]; then
     oauth=true
 else
-    echo "$label: RCV_GITHUB_CLIENT_ID / RCV_OAUTH_WORKER_URL not both set, sign-in stays off"
+    echo "$label: RCD_GITHUB_CLIENT_ID / RCD_OAUTH_WORKER_URL not both set, sign-in stays off"
 fi
 
 analytics=false
-if [ -n "$RCV_GA_MEASUREMENT_ID" ]; then
+if [ -n "$RCD_GA_MEASUREMENT_ID" ]; then
     analytics=true
 fi
 
@@ -36,19 +36,19 @@ if ! $oauth && ! $analytics; then
 fi
 
 {
-    echo "// Generated at container start from the RCV_* environment variables."
+    echo "// Generated at container start from the RCD_* environment variables."
     if $oauth; then
-        echo "globalThis.__RCV_OAUTH__ = {"
-        echo "  clientId: \"$(js_escape "$RCV_GITHUB_CLIENT_ID")\","
-        echo "  workerUrl: \"$(js_escape "$RCV_OAUTH_WORKER_URL")\","
-        if [ -n "$RCV_GITHUB_APP_SLUG" ]; then
-            echo "  appSlug: \"$(js_escape "$RCV_GITHUB_APP_SLUG")\","
+        echo "globalThis.__RCD_OAUTH__ = {"
+        echo "  clientId: \"$(js_escape "$RCD_GITHUB_CLIENT_ID")\","
+        echo "  workerUrl: \"$(js_escape "$RCD_OAUTH_WORKER_URL")\","
+        if [ -n "$RCD_GITHUB_APP_SLUG" ]; then
+            echo "  appSlug: \"$(js_escape "$RCD_GITHUB_APP_SLUG")\","
         fi
         echo "};"
     fi
     if $analytics; then
-        echo "globalThis.__RCV_ANALYTICS__ = {"
-        echo "  measurementId: \"$(js_escape "$RCV_GA_MEASUREMENT_ID")\","
+        echo "globalThis.__RCD_ANALYTICS__ = {"
+        echo "  measurementId: \"$(js_escape "$RCD_GA_MEASUREMENT_ID")\","
         echo "};"
     fi
 } >"$target"
