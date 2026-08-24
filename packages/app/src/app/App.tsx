@@ -521,8 +521,7 @@ export function App() {
   // chip, a simulator rule, an editor preset hover) also switches to the
   // Presets tab. Identity-stable, so the preset-hover context — memoized on
   // the result so its lookup isn't rebuilt on every keystroke — never churns.
-  const selectPresetNodeRef = useRef<((nodeId: string) => void) | undefined>(undefined);
-  selectPresetNodeRef.current = (nodeId: string) => {
+  const selectPresetNodeRef = useLatestRef((nodeId: string) => {
     setSelectedNodeId(nodeId);
     jumpToTab("presets");
     // Roadmap 068: …and land on the node, like every other cross-link. For the
@@ -533,10 +532,16 @@ export function App() {
     // editor's preset hover is the third and keeps its caret — see
     // `jumpDisplacedFocus`.
     landOnPresetNode();
-  };
-  const selectPresetNode = useCallback((nodeId: string) => {
-    selectPresetNodeRef.current?.(nodeId);
-  }, []);
+  });
+  // The dependency is the REF, not the callback it holds: a ref object's
+  // identity never changes, so this wrapper is still declared once for the
+  // app's lifetime while always invoking the current render's closure.
+  const selectPresetNode = useCallback(
+    (nodeId: string) => {
+      selectPresetNodeRef.current(nodeId);
+    },
+    [selectPresetNodeRef],
+  );
 
   // Roadmap 023: preset-string hovers in the editor. Built from the current
   // run's resolution tree; the jump link selects the preset's node in the tree.
@@ -1160,11 +1165,15 @@ export function App() {
   // memoized MessagesPanel gets this stable wrapper (latest-ref idiom) — an
   // "Apply fix" click must patch the text as it is NOW, not as it was when
   // the panel last rendered.
-  const applyErrorFixRef = useRef<typeof applyErrorFix | undefined>(undefined);
-  applyErrorFixRef.current = applyErrorFix;
-  const onApplyFix = useCallback((fix: ErrorFixResult) => {
-    void applyErrorFixRef.current?.(fix);
-  }, []);
+  // The dependency is the REF, not the function it holds — its identity never
+  // changes, so the wrapper stays declared once (see `selectPresetNode`).
+  const applyErrorFixRef = useLatestRef(applyErrorFix);
+  const onApplyFix = useCallback(
+    (fix: ErrorFixResult) => {
+      void applyErrorFixRef.current(fix);
+    },
+    [applyErrorFixRef],
+  );
 
   const authState: AuthState = !OAUTH_CONFIG
     ? "unconfigured"
