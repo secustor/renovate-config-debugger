@@ -57,7 +57,6 @@
     // matching refactor first; until then "off" is the recorded decision,
     // not an oversight.
     "react/refs": "off",
-    "react/set-state-in-effect": "off",
     "typescript/no-non-null-assertion": "error",
     // Named exports keep re-exports and IDE rename working; the tool-mandated
     // default exports are listed in the overrides below.

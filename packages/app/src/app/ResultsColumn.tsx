@@ -322,12 +322,15 @@ export function ResultsColumn({
    * an applied fix clearing the banner cannot shift the control the reader is
    * about to click out from under the pointer.
    */
-  const [invalidSeen, setInvalidSeen] = useState(false);
-  useEffect(() => {
-    if (validateHasErrors) {
-      setInvalidSeen(true);
-    }
-  }, [validateHasErrors]);
+  //
+  // A latch, set during render rather than in an effect: the condition is the
+  // whole trigger, and `validateHasErrors && !invalidSeen` converges after one
+  // extra render pass and never fires again. As an effect the reserved height
+  // arrived one committed frame after the banner it reserves space for.
+  const [invalidSeen, setInvalidSeen] = useState(validateHasErrors);
+  if (validateHasErrors && !invalidSeen) {
+    setInvalidSeen(true);
+  }
 
   // Rendered by the tab shell above ALL panels rather than inside one: every
   // banner here is a property of the run, and the tab a run lands on depends on

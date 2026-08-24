@@ -282,17 +282,27 @@ export function StageRailPreview({
   // Read once, at mount: the landing lives for exactly one screen, and this is
   // an OS preference, not something worth subscribing to for that long.
   const [reducedMotion] = useState(prefersReducedMotion);
+  const stepping = running && !reducedMotion;
+  // Every walk starts at its first frame. React's "adjust state when a prop
+  // changes" idiom rather than a reset branch inside the interval effect: the
+  // walk starting or stopping is the whole trigger, and the rail shows the first
+  // frame in the render that observed it instead of a committed frame later.
+  const [steppingOwner, setSteppingOwner] = useState(stepping);
+  if (stepping !== steppingOwner) {
+    setSteppingOwner(stepping);
+    setStep(0);
+  }
+  // The interval is the external system this effect exists for — nothing else.
+  // `setStep` inside its callback fires per tick, long after the effect body.
   useEffect(() => {
-    if (!running || reducedMotion) {
-      setStep(0);
+    if (!stepping) {
       return;
     }
     const id = window.setInterval(() => {
       setStep((prev) => Math.min(prev + 1, LAST_STAGE_INDEX));
     }, RUNNING_STEP_MS);
     return () => window.clearInterval(id);
-  }, [running, reducedMotion]);
-  const stepping = running && !reducedMotion;
+  }, [stepping]);
   useEffect(() => {
     // No walk under reduced motion, so nothing to hold the results for.
     if (running && reducedMotion) {

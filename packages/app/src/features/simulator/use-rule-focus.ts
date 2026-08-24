@@ -76,23 +76,38 @@ export function useRuleFocus({
   setFocusHint: Dispatch<SetStateAction<number | null>>;
 }): RuleFocus {
   const cardRef = useRef<HTMLDivElement>(null);
-  // Roadmap 013: the merged index awaiting a scroll+flash.
-  const [scrollTarget, setScrollTarget] = useState<number | null>(null);
-
-  useEffect(() => {
+  // Roadmap 013: the merged index awaiting a scroll+flash. An index the
+  // EXTERNAL prop already carries at mount is one of them, so it is the initial
+  // value rather than something an effect copies in a commit later.
+  const [scrollTarget, setScrollTarget] = useState<number | null>(focusRuleIndex ?? null);
+  // A later external index is adopted through React's "adjust state when a prop
+  // changes" idiom rather than an effect: the prop is the whole trigger and the
+  // copy reads nothing else, so the landing below starts from the render that
+  // observed the cross-link instead of one commit after it. Null is the prop's
+  // "consumed" state (`onRuleFocused` clears it) and clears no target: the
+  // landing owns when a target is done.
+  const [focusIndexOwner, setFocusIndexOwner] = useState(focusRuleIndex);
+  if (focusRuleIndex !== focusIndexOwner) {
+    setFocusIndexOwner(focusRuleIndex);
     if (focusRuleIndex != null) {
       setScrollTarget(focusRuleIndex);
     }
-  }, [focusRuleIndex]);
+  }
 
   // Performs the actual scroll+flash once the target row is guaranteed to be
   // in the DOM: if a filter facet is currently hiding it, reveal it first and
   // let the effect re-run on the next render (checked against `sim` and the
   // list's own `ruleVisible` predicate, never a copy of its filtering).
+  //
+  // A reveal-then-land machine, and only an effect can be one: every pass asks
+  // a question about a COMMITTED DOM. `landed` is the pass's verdict, and there
+  // is exactly one place that acts on it — a reveal returns with the target
+  // still set so the next commit gets another pass, and a landing consumes it.
   useEffect(() => {
     if (scrollTarget == null) {
       return;
     }
+    let landed = true;
     if (!sim) {
       // No simulation has run yet, so the target row isn't rendered anywhere.
       // Land the user on the simulator and prompt them to run one, rather than
@@ -102,41 +117,39 @@ export function useRuleFocus({
       // form it names.
       landOnCard(cardRef.current);
       setFocusHint(scrollTarget);
-      setScrollTarget(null);
-      onRuleFocused?.();
+    } else {
+      const rule = sim.rules.find((r) => r.index === scrollTarget);
+      if (!rule) {
+        // A merged index this simulation does not contain — its rules describe
+        // the config as it was when it ran. There is no row to flash and (the
+        // hint above renders only before the first simulation) nothing to say,
+        // so the card is the whole landing: without it this exit moved neither
+        // the page nor the focus, which is exactly what a dead link looks like.
+        landOnCard(cardRef.current);
+      } else if (!rulesOpen) {
+        // Roadmap 047: the rows live inside the rules drawer now — open it
+        // first (nothing a link can reach may sit behind a closed drawer), then
+        // let the effect re-run once the row is actually in the DOM.
+        setRulesOpen(true);
+        landed = false;
+      } else if (!ruleVisible(rule, ruleFilters, layerByIndex)) {
+        // Reveal the target row if either facet is hiding it, then let the
+        // effect re-run. Both are dropped at once (rather than relaxed one at a
+        // time): the link's promise is "here is that rule", and a second re-run
+        // to get past the other facet would scroll the page twice to keep it.
+        setRuleFilters({ verdict: "all", preset: "all" });
+        landed = false;
+      } else {
+        const el = document.getElementById(`sim-rule-${scrollTarget}`);
+        if (el) {
+          landOnTarget(el, "center");
+        }
+      }
+    }
+    if (!landed) {
       return;
     }
-    const rule = sim.rules.find((r) => r.index === scrollTarget);
-    if (!rule) {
-      // A merged index this simulation does not contain — its rules describe
-      // the config as it was when it ran. There is no row to flash and (the
-      // hint above renders only before the first simulation) nothing to say, so
-      // the card is the whole landing: without it this exit moved neither the
-      // page nor the focus, which is exactly what a dead link looks like.
-      landOnCard(cardRef.current);
-      setScrollTarget(null);
-      onRuleFocused?.();
-      return;
-    }
-    // Roadmap 047: the rows live inside the rules drawer now — open it first
-    // (nothing a link can reach may sit behind a closed drawer), then let the
-    // effect re-run once the row is actually in the DOM.
-    if (!rulesOpen) {
-      setRulesOpen(true);
-      return;
-    }
-    // Reveal the target row if either facet is hiding it, then let the effect
-    // re-run. Both are dropped at once (rather than relaxed one at a time):
-    // the link's promise is "here is that rule", and a second re-run to get
-    // past the other facet would scroll the page twice to keep it.
-    if (!ruleVisible(rule, ruleFilters, layerByIndex)) {
-      setRuleFilters({ verdict: "all", preset: "all" });
-      return;
-    }
-    const el = document.getElementById(`sim-rule-${scrollTarget}`);
-    if (el) {
-      landOnTarget(el, "center");
-    }
+    // oxlint-disable-next-line react/set-state-in-effect -- the one consume point of the machine described above, and it can live nowhere else: only a pass that has read the committed DOM knows the landing HAPPENED. Leaving the target set instead would re-land the page on every later filter change; clearing it during render would end the loop before its first pass ran.
     setScrollTarget(null);
     onRuleFocused?.();
   }, [

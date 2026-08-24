@@ -86,16 +86,30 @@ export function useSimulationRun({
   // this link triggered just produced.
   const simulateRef = useRef<Simulate | null>(null);
 
-  // A new run invalidates any previous simulation (the rules may differ).
-  useEffect(() => {
+  // A new run invalidates any previous simulation (the rules may differ). This
+  // hook's OWN half of that invalidation happens during render — React's
+  // "adjust state when a prop changes" idiom, the same one `StepThrough` uses:
+  // `result` is the trigger and the reset reads nothing out of it, so as an
+  // effect the new run was a dependency the body never touched. Done here the
+  // stale verdict is also gone BEFORE the paint, where an effect left one
+  // committed frame showing the previous run's rules under the new run's config.
+  const [resultOwner, setResultOwner] = useState(result);
+  if (result !== resultOwner) {
+    setResultOwner(result);
     setSim(null);
     setSimForm(null);
     setRanKey(null);
     setError(null);
     setRuleFilters(DEFAULT_RULE_FILTERS);
     setFocusHint(null);
+  }
+
+  // The empty-form guard is the half that cannot: it belongs to
+  // `useSimulatorForm`, and a cross-hook call during render is the side effect
+  // React is free to replay.
+  useEffect(() => {
     clearGuard();
-    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- `result` is this effect's TRIGGER, not an input: the invalidation reads nothing from the new run, it only has to happen once per run. It cannot move into render (React's "adjust state when a prop changes" idiom) because `clearGuard` belongs to another hook, and a cross-hook call during render is the side effect React is free to replay.
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- `result` is this effect's TRIGGER, not an input: the guard belongs to the run that just ENDED, so the body reads nothing out of the new one — it only has to be cleared once per run.
   }, [result, clearGuard]);
 
   // Roadmap 016: restore the scroll position captured in `simulate` right
