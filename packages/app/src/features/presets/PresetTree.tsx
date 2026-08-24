@@ -13,7 +13,6 @@ import { PresetListPane } from "./PresetListPane";
 import { buildTableRows, flattenTree, type SortColumn, sortTableRows } from "./rows";
 import { SummaryHeader } from "./SummaryHeader";
 import { nf } from "@/lib/format";
-import { ROW_HEIGHT } from "./tree-shared";
 import { useEngineHelpers } from "./use-engine-helpers";
 import { useWindow } from "./use-window";
 
@@ -194,23 +193,22 @@ export const PresetTree = memo(function PresetTree({
   }, [selectedId, stats, expandAll]);
 
   // …then scroll the selected row into view once it is in the flattened list.
+  // The scroll itself is `useWindow`'s: the container is the element IT owns,
+  // and a caller writing to a value a hook handed back is what
+  // `react/immutability` forbids. `win.el` stays in the list as the signal it
+  // always was — the container (re)mounting is what makes a scroll that had no
+  // element to act on happen after all.
+  const { scrollRowIntoView } = win;
   useEffect(() => {
     if (!selectedId || view !== "tree") {
       return;
     }
     const idx = flatRows.findIndex((r) => r.node.id === selectedId);
-    const el = win.el;
-    if (idx < 0 || !el) {
+    if (idx < 0) {
       return;
     }
-    const top = idx * ROW_HEIGHT;
-    const bottom = top + ROW_HEIGHT;
-    if (top < el.scrollTop) {
-      el.scrollTop = top;
-    } else if (bottom > el.scrollTop + el.clientHeight) {
-      el.scrollTop = bottom - el.clientHeight;
-    }
-  }, [selectedId, flatRows, view, win.el]);
+    scrollRowIntoView(idx);
+  }, [selectedId, flatRows, view, win.el, scrollRowIntoView]);
 
   if (!root || root.children.length === 0 || !stats) {
     return null;

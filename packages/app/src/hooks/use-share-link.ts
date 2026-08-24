@@ -122,8 +122,11 @@ export interface ShareLinkHost {
    *  previous one are not part of it. */
   setPins: (pins: Record<string, string>[]) => void;
   /** View state pending from a decoded link, applied by App once the run
-   *  produces a result (identities → node ids need the resolved tree). */
-  pendingViewRef: { current: ShareView | null };
+   *  produces a result (identities → node ids need the resolved tree). App
+   *  holds it in a ref (consuming it must not render); this hook only ARMS it,
+   *  through a callback rather than the ref, because writing into an object
+   *  handed in here would be this hook mutating its own argument. */
+  setPendingView: (view: ShareView | null) => void;
   /** Roadmap 017: mirrors of `content`/`loadedContent` for the hashchange
    *  listener, which is registered once (empty deps) and would otherwise
    *  close over the state from that first render. */
@@ -274,7 +277,7 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
     if (policy.suppressTokens) {
       host.openHostCredentials();
     }
-    host.pendingViewRef.current = payload.view ?? null;
+    host.setPendingView(payload.view ?? null);
     // Roadmap 075 (iteration 6): the pins ride in BEFORE the run below, so the
     // result that run commits is the first thing they are checked against —
     // which is the whole promise of the tab that lists them.
