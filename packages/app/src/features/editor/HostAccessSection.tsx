@@ -121,7 +121,6 @@ export function HostAccessSection({
   hasGlobalContext,
   onUseGlobalValues,
   usesLocal,
-  platform,
 }: Pick<
   Props,
   | "hostSectionOpen"
@@ -137,7 +136,6 @@ export function HostAccessSection({
   | "hasGlobalContext"
   | "onUseGlobalValues"
   | "usesLocal"
-  | "platform"
 >) {
   return (
     <details
@@ -188,10 +186,15 @@ export function HostAccessSection({
             </button>
           </p>
         ) : null}
-        {usesLocal && !(platform in PLATFORM_ENDPOINTS && PLATFORM_ENDPOINTS[platform]) ? (
+        {/* The platform this note is about is the one the run resolves against
+            — `displayPlatform`, the same value every row above renders. Reading
+            the stored local platform here would both suppress the note (a
+            pasted global `bitbucket` over a stored `github` has an endpoint)
+            and name the wrong host when it did show. */}
+        {usesLocal && !PLATFORM_ENDPOINTS[displayPlatform] ? (
           <p className="advanced-note">
-            <code>{platform}</code> presets are not fetched in the browser — a real Renovate run
-            reaches them. You can still provide their content manually from a failed node below.
+            <code>{displayPlatform}</code> presets are not fetched in the browser — a real Renovate
+            run reaches them. You can still provide their content manually from a failed node below.
           </p>
         ) : null}
       </div>

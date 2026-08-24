@@ -1532,7 +1532,6 @@ export function App() {
       hasGlobalContext={hasGlobalContext}
       onUseGlobalValues={onUseGlobalValues}
       usesLocal={usesLocal}
-      platform={platform}
       oauthConfigured={Boolean(OAUTH_CONFIG)}
       signedIn={signedIn}
       authUser={authUser}

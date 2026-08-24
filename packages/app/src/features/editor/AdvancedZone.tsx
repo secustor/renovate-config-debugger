@@ -48,7 +48,6 @@ export interface Props {
   hasGlobalContext: boolean;
   onUseGlobalValues: () => void;
   usesLocal: boolean;
-  platform: string;
   /** Whether OAuth sign-in is configured — the github.com row is a sign-in
    *  offer where it is, and a token field where it is not (009). */
   oauthConfigured: boolean;
@@ -114,7 +113,6 @@ export function AdvancedZone({
   hasGlobalContext,
   onUseGlobalValues,
   usesLocal,
-  platform,
   oauthConfigured,
   signedIn,
   authUser,
@@ -159,7 +157,6 @@ export function AdvancedZone({
           hasGlobalContext={hasGlobalContext}
           onUseGlobalValues={onUseGlobalValues}
           usesLocal={usesLocal}
-          platform={platform}
         />
 
         <CredentialsList
