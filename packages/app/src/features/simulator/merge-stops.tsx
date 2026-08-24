@@ -210,7 +210,7 @@ export function buildMergeStops(
       explanation:
         "What Renovate would use for this update — the base config plus everything the stops before this one applied.",
       body: (
-        <div className="sim-final-config">
+        <div>
           <div className="sim-final-config-actions">
             <CopyButton
               getText={() => `${JSON.stringify(sim.finalDependencyConfig, null, 2)}\n`}

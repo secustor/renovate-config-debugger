@@ -232,6 +232,8 @@ function DroppedRow({
   onSelectPreset?: (nodeId: string) => void;
 }) {
   return (
+    // `dropped` has no style of its own — it is the modifier `BlameLedger.test`
+    // tells a dropped row from a kept one by.
     <li className="desc-ledger-row dropped">
       <span className="desc-ledger-idx" aria-hidden="true">
         ·

@@ -57,6 +57,8 @@ export function WriteRow({
   max?: number;
 }) {
   return (
+    // `sim-write-row` styles nothing — `.kv-row` does that. It is how the e2e
+    // suite and this row's own test address a write line.
     <div className="kv-row sim-write-row">
       <span className="sim-write-mark">{mark ?? ""}</span>
       <span className="sim-write-key">

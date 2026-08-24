@@ -129,13 +129,11 @@ function OptionCardBody({ name, doc }: { name: string; doc?: OptionDoc }) {
       </div>
       {doc ? (
         <>
-          <p className="option-card-desc">{md(doc.description)}</p>
+          <p>{md(doc.description)}</p>
           {doc.deprecationMsg ? (
             <p className="option-card-deprecation">{md(doc.deprecationMsg)}</p>
           ) : null}
-          {doc.experimentalDescription ? (
-            <p className="option-card-desc">{md(doc.experimentalDescription)}</p>
-          ) : null}
+          {doc.experimentalDescription ? <p>{md(doc.experimentalDescription)}</p> : null}
           {doc.default !== undefined && doc.default !== null ? (
             <p className="option-card-row">
               <strong>Default:</strong> <code>{truncate(JSON.stringify(doc.default), 100)}</code>
@@ -181,9 +179,7 @@ function OptionCardBody({ name, doc }: { name: string; doc?: OptionDoc }) {
           </p>
         </>
       ) : (
-        <p className="option-card-desc unknown-note">
-          Not a Renovate configuration option — possibly a typo.
-        </p>
+        <p className="unknown-note">Not a Renovate configuration option — possibly a typo.</p>
       )}
     </>
   );

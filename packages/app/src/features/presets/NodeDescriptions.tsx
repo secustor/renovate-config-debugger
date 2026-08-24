@@ -69,6 +69,8 @@ export function NodeDescriptionCard({
   onShowOrder?: () => void;
 }) {
   return (
+    // `preset-desc-body` styles nothing — it is how `PresetTree.shimmed.test`
+    // finds this card.
     <div className="preset-desc-body">
       <NodeDescriptionLines facts={facts} />
       {onShowOrder ? (

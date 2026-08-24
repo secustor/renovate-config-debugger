@@ -107,7 +107,7 @@ function AppBrand() {
     <div className="app-brand">
       <img src="/logo-192.png" alt="" width={26} height={26} />
       <h1>
-        <span className="app-brand-title">Renovate Config Debugger</span>
+        <span>Renovate Config Debugger</span>
       </h1>
     </div>
   );

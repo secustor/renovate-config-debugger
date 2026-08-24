@@ -153,7 +153,7 @@ function MatchedRow({
 }) {
   const [expanded, setExpanded] = useState(false);
   return (
-    <div className="pin-rule">
+    <div>
       <div className="pin-rule-line">
         <RuleRefLead
           rule={rule}
@@ -195,7 +195,7 @@ export function PinMatchedSection({
     );
   }
   return (
-    <div className="pin-section">
+    <div>
       <PinSectionHead
         mark="✓"
         tone="ok"
@@ -261,7 +261,7 @@ function FailedRow({
 }) {
   const [expanded, setExpanded] = useState(defaultOpen);
   return (
-    <div className="pin-rule">
+    <div>
       <div className="pin-rule-line">
         <RuleRefLead
           rule={rule}
@@ -295,7 +295,7 @@ export function PinFailedSection({
     return null;
   }
   return (
-    <div className="pin-section">
+    <div>
       <PinSectionHead
         mark="✗"
         tone="accent"

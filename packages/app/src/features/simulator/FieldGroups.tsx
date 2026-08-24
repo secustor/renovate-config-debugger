@@ -74,7 +74,7 @@ export function FieldGroups({
 }) {
   const toggle = (index: number) => onOpenGroupChange(openGroup === index ? -1 : index);
   return (
-    <div className="sim-groups">
+    <div>
       {FIELD_GROUPS.map((group, index) => (
         <FieldGroup
           key={group.title}

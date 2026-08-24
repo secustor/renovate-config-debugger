@@ -84,7 +84,7 @@ export function PresetReferenceCard({
   onSelect?: (nodeId: string) => void;
 }) {
   return (
-    <div className="preset-ref-body">
+    <div>
       <ViaChain via={facts.via} />
       <NestingCounts facts={facts} />
       {onSelect ? <FullTreeLink nodeId={facts.nodeId} onSelect={onSelect} /> : null}

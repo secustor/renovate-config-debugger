@@ -128,7 +128,7 @@ function PresetTableRow({
       onClick={() => onSelect(row.node.id)}
     >
       <span className="col-name">{row.name}</span>
-      <span className="col-source">
+      <span>
         <span className={`badge src src-${row.sourceKind}`}>{row.sourceKind}</span>
       </span>
       <span className="col-opts">{row.opts || ""}</span>

@@ -57,6 +57,8 @@ export function UpdateTypeChip({
       {/* The visible value, so the chip is only as wide as the type it shows —
           a `<select>` sizes itself to `lockFileMaintenance` whatever is
           selected, which would put a permanent gap in the sentence. */}
+      {/* `sim-ut-value` styles nothing — the e2e suite and the form test read
+          the effective update type back through it. */}
       <span className="sim-ut-value" aria-hidden="true">
         {effectiveUpdateType || "(unset)"}
       </span>

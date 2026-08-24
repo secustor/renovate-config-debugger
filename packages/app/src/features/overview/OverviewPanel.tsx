@@ -134,6 +134,8 @@ function OverviewHeader({ count, onShowRawOrder }: { count: number; onShowRawOrd
   return (
     <div className="card-title overview-head">
       What this config does
+      {/* `overview-count` styles nothing — it is how the e2e suite and the
+          panel test read this number back. */}
       <span className="pill pill-count overview-count">{nf.format(count)}</span>
       <span className="overview-head-note">behaviors · explained by their authors</span>
       {onShowRawOrder ? (
@@ -254,6 +256,8 @@ export function OverviewPanel({ result, onSelectPreset, onShowRawOrder, onStats 
   const tail = groups.find((group) => group.id === OTHER_TOPIC_ID) ?? null;
   const shown = tail && !showTail ? groups.filter((group) => group !== tail) : groups;
   return (
+    // `overview-card` styles nothing either — it is the handle the e2e suite
+    // and the panel test grab the card by.
     <div className="card overview-card">
       <OverviewHeader
         count={count}

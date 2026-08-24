@@ -21,6 +21,8 @@ import {
 function ContributionBadges({ stats, collapsed }: { stats: NodeStats; collapsed: boolean }) {
   return (
     <>
+      {/* `opts`/`rules` style nothing — `.badge.contrib` does. They are how the
+          e2e suite and `PresetTree.shimmed.test` tell the two counts apart. */}
       {stats.ownOptions > 0 ? (
         <ExplainedText entry={GLOSSARY.presetContribOpts} className="badge contrib opts explained">
           · {stats.ownOptions} {pluralWord(stats.ownOptions, "opt")}
@@ -143,7 +145,6 @@ export function TreeRow({
         // final `description` says so on its NAME — a hover card, so the row
         // itself stays exactly `ROW_HEIGHT`, which the windowing depends on.
         <HoverCardAnchor
-          className="preset-desc-hover"
           card={<NodeDescriptionCard facts={facts} onShowOrder={onShowDescriptionOrder} />}
         >
           {nameButton}

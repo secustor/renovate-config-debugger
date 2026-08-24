@@ -6,7 +6,7 @@ import type { FormState } from "./form";
 
 function JsonLine({ entry, comma }: { entry: DescriptorEntry; comma: boolean }) {
   return (
-    <span className="sim-json-line">
+    <span>
       {"  "}
       <span className="sim-json-key">{JSON.stringify(entry.key)}</span>
       {": "}

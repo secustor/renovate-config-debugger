@@ -26,10 +26,7 @@ function SourcePill({ source }: { source: LedgerSource }) {
     );
   }
   return (
-    <span
-      className={`pill pill-preset ledger-kind-${source.kind}`}
-      title={`Fetched: ${source.kind}`}
-    >
+    <span className="pill pill-preset" title={`Fetched: ${source.kind}`}>
       your preset
     </span>
   );

@@ -76,7 +76,7 @@ export function MultiValueInput({
   }
 
   return (
-    <div className="sim-field sim-field-multi">
+    <div className="sim-field">
       {label}
       <span className="sim-multi-box">
         {values.map((item, i) => (

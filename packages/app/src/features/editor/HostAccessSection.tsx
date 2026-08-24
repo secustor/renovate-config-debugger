@@ -85,7 +85,7 @@ function PlatformFromGlobalNote({
   globalEndpoint: string | undefined;
 }) {
   return (
-    <p className="advanced-note platform-from-global">
+    <p className="advanced-note">
       <span className="badge prov-global">from global config</span>{" "}
       {globalPlatform !== undefined ? (
         <>

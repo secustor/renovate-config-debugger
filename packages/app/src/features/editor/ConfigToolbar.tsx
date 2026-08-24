@@ -129,7 +129,7 @@ export function ConfigToolbar({
       <button
         ref={repoToggleRef}
         type="button"
-        className="btn-secondary repo-toggle"
+        className="btn-secondary"
         aria-expanded={repoFormOpen}
         onClick={onToggleRepoForm}
         title="Fetch a Renovate config from a repository into this editor"

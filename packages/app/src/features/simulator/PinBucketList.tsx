@@ -36,7 +36,7 @@ function BucketRows({ bucket, onProbe }: { bucket: PinBucket; onProbe: (query: s
 function BucketItem({ bucket, onProbe }: { bucket: PinBucket; onProbe: (query: string) => void }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="pin-bucket">
+    <div>
       <button
         type="button"
         className="pin-bucket-head"

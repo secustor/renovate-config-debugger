@@ -161,7 +161,7 @@ export function KeyRow({
     entry.key === "packageRules" && Array.isArray(entry.finalValue) ? entry.finalValue : null;
   const note = rowNote(entry, ledger ? ledgerWriterText(ledger) : null);
   return (
-    <div className={`kv-row prov-row${expanded ? " expanded" : ""}`}>
+    <div className="kv-row prov-row">
       <button
         type="button"
         className="kv-row prov-row-head"

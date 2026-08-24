@@ -57,7 +57,7 @@ const STATE_LABEL: Record<PresetNodeState, string> = {
 
 function presetCard(info: PresetHoverInfo, onSelectPreset: (nodeId: string) => void): HTMLElement {
   const card = document.createElement("div");
-  card.className = "option-card preset-hover-card";
+  card.className = "option-card";
 
   const head = document.createElement("div");
   head.className = "option-card-head";
@@ -77,7 +77,6 @@ function presetCard(info: PresetHoverInfo, onSelectPreset: (nodeId: string) => v
   card.append(head);
 
   const desc = document.createElement("p");
-  desc.className = "option-card-desc";
   const contribs: string[] = [];
   if (info.optionCount > 0) {
     contribs.push(`${info.optionCount} ${pluralWord(info.optionCount, "option")}`);

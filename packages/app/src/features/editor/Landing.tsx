@@ -59,7 +59,7 @@ export function LandingLaunch({
   return (
     <div className="landing-launch">
       <p className="landing-examples">
-        <span className="landing-examples-label">No config handy?</span>
+        <span>No config handy?</span>
         <button type="button" className="btn-secondary" onClick={onTryExample}>
           Try an example
         </button>

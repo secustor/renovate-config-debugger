@@ -16,7 +16,7 @@ function GlossaryCard({ entry }: { entry: GlossaryEntry }) {
       <div className="option-card-head">
         <code className="option-card-name">{entry.name}</code>
       </div>
-      <p className="option-card-desc">{entry.plain}</p>
+      <p>{entry.plain}</p>
       {entry.url ? (
         <p className="option-card-row">
           <a href={entry.url} target="_blank" rel="noreferrer">
