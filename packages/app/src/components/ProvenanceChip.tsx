@@ -34,6 +34,10 @@ export function ProvenanceChip({
    */
   variant?: "chip" | "dot";
 }) {
+  // A `preset` layer wearing this chip rather than 081's `PresetName` token is
+  // deliberate, not drift: 081's rule is about the "who wrote this" cell
+  // (`LayerSource`), and a caller naming the LAYER a value arrived through is
+  // answering a different question — see that file's header.
   const clickable = layer.kind === "preset" && onSelectPreset;
   const dot = variant === "dot";
   const label = layerLabel(layer);

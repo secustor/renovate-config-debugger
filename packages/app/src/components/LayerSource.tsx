@@ -13,7 +13,17 @@ import { ProvenanceChip } from "./ProvenanceChip";
  * everywhere"), and fall back to the layer's `ProvenanceChip` when the writer is
  * not a preset at all. The four agreed on the rule and drifted on the details —
  * one of them rendered a preset as a `ProvenanceChip` literal, which is the
- * single exception 081 exists to forbid.
+ * exception 081 exists to forbid on a "who wrote this" CELL.
+ *
+ * It is not a rule about `ProvenanceChip` itself. The simulator and the
+ * effective config hand a possibly-preset layer straight to a bare chip in
+ * about a dozen places — a rule row's origin, a thread's writer line, a merge
+ * stop's head, a pin's probe hit, a cascade step's attribution — and that is
+ * INTENDED, ruled so on review. Those sites name the LAYER a value arrived
+ * through, not the preset that authored a sentence; routing them through here
+ * would make each one resolve a preset it does not otherwise need, to render a
+ * token the surface never asked for. The bare chip is the simpler answer, and
+ * it already carries the glossary card and the jump to the tree.
  *
  * What the four genuinely differ about stays props, because the differences are
  * real: WHICH preset counts as the writer (the leaf node, the enclosing node,
