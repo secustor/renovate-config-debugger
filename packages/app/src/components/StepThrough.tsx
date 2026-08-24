@@ -1,4 +1,4 @@
-import { memo, type ReactNode, useEffect, useState } from "react";
+import { memo, type ReactNode, useState } from "react";
 import { type BenignRemovals, JsonDiff } from "./JsonDiff";
 
 /** One step of a sequence: what it is, and the full config on both sides. */
@@ -81,9 +81,18 @@ export const StepThrough = memo(function StepThrough({
 
   // A re-run replaces the step list; reset to the first step. When controlled,
   // the parent owns the reset (it clears its index on new results).
-  useEffect(() => {
+  //
+  // React's "adjust state when a prop changes" idiom rather than an effect on
+  // `[steps]`: the list is the TRIGGER and nothing else — the reset does not
+  // read it — so as an effect the list was a dependency the body never touched.
+  // Done during render the trigger is the comparison itself, and the reset also
+  // lands before the paint instead of one committed frame after it, where the
+  // old index was briefly shown against the new list.
+  const [stepsOwner, setStepsOwner] = useState(steps);
+  if (steps !== stepsOwner) {
+    setStepsOwner(steps);
     setInternalIndex(0);
-  }, [steps]);
+  }
 
   if (steps.length === 0) {
     return null;

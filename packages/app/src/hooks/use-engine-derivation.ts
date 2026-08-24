@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import type * as EngineModule from "@renovate-config-debugger/engine";
 import { loadEngine } from "@/platform/engine-chunk";
-import { useLatestRef } from "./use-latest-ref";
+
+/** The derivation itself: everything it reads is declared in `deps` beside it. */
+type Derive<Value> = (engine: typeof EngineModule) => Value | null | PromiseLike<Value | null>;
 
 /**
  * The one shape every post-hoc trace derivation loads through: the engine
@@ -20,9 +22,14 @@ import { useLatestRef } from "./use-latest-ref";
  * wedged on `undefined` — "still loading" — forever.
  *
  * `deps` is the FULL identity of the derivation — the values `derive` reads.
- * `derive` itself is read through a latest-ref rather than being a dependency:
- * it closes over this render's props and is therefore redeclared every render,
- * so depending on it would re-run the derivation on every keystroke.
+ * `derive` itself is never a dependency: it closes over this render's props and
+ * is therefore redeclared every render, so depending on it would re-run the
+ * derivation on every keystroke. It is CAPTURED ALONGSIDE the deps instead, in
+ * the same piece of state, so the effect's one dependency carries the closure it
+ * is going to run rather than reaching outside itself for it. Which closure that
+ * is never differs from "the latest": the capture happens in the render that
+ * observed the new deps, and by the contract above the deps are the whole
+ * identity of what `derive` reads.
  *
  * The stale state is discarded DURING RENDER, not in the effect. Effects run
  * after the commit, so a reset made there paints one frame in which the new
@@ -38,21 +45,24 @@ import { useLatestRef } from "./use-latest-ref";
  */
 export function useEngineDerivation<Value>(
   deps: readonly unknown[],
-  derive: ((engine: typeof EngineModule) => Value | null | PromiseLike<Value | null>) | null,
+  derive: Derive<Value> | null,
 ): Value | null | undefined {
   const [state, setState] = useState<Value | null | undefined>(undefined);
-  const [depsOwner, setDepsOwner] = useState(deps);
-  const fresh = sameDeps(depsOwner, deps);
+  const [owner, setOwner] = useState<{ deps: readonly unknown[]; derive: Derive<Value> | null }>({
+    deps,
+    derive,
+  });
+  const fresh = sameDeps(owner.deps, deps);
   if (!fresh) {
-    setDepsOwner(deps);
+    setOwner({ deps, derive });
     setState(undefined);
   }
-  const deriveRef = useLatestRef(derive);
-  // `depsOwner` — not `deps` — is the dependency: it is the same array identity
+  // `owner` — not `deps` — is the dependency: it is the same object identity
   // until the render-time comparison above swaps it, which makes this a literal
-  // one-element list whose churn is exactly "the derivation's inputs changed".
+  // one-element list whose churn is exactly "the derivation's inputs changed",
+  // and whose one element is also where the effect reads the derivation from.
   useEffect(() => {
-    const run = deriveRef.current;
+    const run = owner.derive;
     if (!run) {
       return;
     }
@@ -71,7 +81,7 @@ export function useEngineDerivation<Value>(
     return () => {
       live = false;
     };
-  }, [depsOwner, deriveRef]);
+  }, [owner]);
   // Guarded rather than returned raw: React discards the output of the render
   // that called `setState` above, but this component's body still RAN with the
   // pre-reset `state` in hand, and a consumer that reads the return value into

@@ -73,6 +73,7 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
     pendingThreadRef.current = null;
     resetThreads(pending === null ? undefined : new Set([pending]));
     setReturnKey(null);
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- `sim` is this effect's TRIGGER: "a new run is new evidence" is a statement about the run ARRIVING, and the reset reads nothing out of it (the only thing it consumes is the pending link request, held in a ref). It has to stay an effect too — consuming that ref is a write, which during render React is free to replay.
   }, [sim, resetThreads]);
 
   // The landing itself. One pass is enough, unlike use-rule-focus: a thread's

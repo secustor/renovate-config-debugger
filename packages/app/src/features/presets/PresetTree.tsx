@@ -208,6 +208,7 @@ export const PresetTree = memo(function PresetTree({
       return;
     }
     scrollRowIntoView(idx);
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- `win.el` is a TRIGGER, not an input: `scrollRowIntoView` reaches the container through `useWindow`'s own ref, so the body never reads the state — but a scroll attempted before the container mounted is a no-op, and the state changing is precisely the news that there is now an element to act on. Dropping it silently loses the scroll on a (re)mount.
   }, [selectedId, flatRows, view, win.el, scrollRowIntoView]);
 
   if (!root || root.children.length === 0 || !stats) {

@@ -491,6 +491,8 @@ export function useKeyboardLandings(host: KeyboardLandingsHost): KeyboardLanding
     // ⌘⇧⏎, then a digit key or a tab while the engine was still resolving, and
     // the landing fired against the run BEFORE it and was already spent by the
     // time the one it belonged to committed.
+    //
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- `result` is the TRIGGER and nothing else: the landing is aimed by the ticket (a ref), never by the run, and what this list says is "wait for the commit the run produced". That commit is the whole point — the ticket exists precisely because there is nothing in the result to read.
   }, [result, focusResultsFnRef]);
 
   /**
