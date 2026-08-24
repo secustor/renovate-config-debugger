@@ -72,9 +72,6 @@ it("settles every consumer that mounts in the same commit", async () => {
   function TwoConsumers() {
     const first = useEngineDerivation<string>(["k"], () => Promise.resolve("first"));
     const second = useEngineDerivation<string>(["k"], () => Promise.resolve("second"));
-    // Reassigning the outer binding happens in an effect, not during render —
-    // `react/globals` only permits render itself to read props/state, not write
-    // an outside variable.
     useEffect(() => {
       states = [first, second];
     }, [first, second]);
