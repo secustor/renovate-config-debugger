@@ -96,7 +96,8 @@ purpose:
   and argument shapes of hooks and view-models — the export is what makes a hook
   contract readable at its own definition, and deleting them would trade
   documentation for a smaller symbol table.
-- **Fifteen-odd classNames with no CSS rule behind them stay.** They are
+- **Fifteen-odd classNames with no CSS rule behind them stay.** [superseded
+  2026-08-24: they were told apart and removed — see the addendum] They are
   container and wrapper classes across the simulator (`sim-groups`,
   `sim-write-row`, `sim-json-line`, `sim-field-multi`, `sim-ut-value`,
   `sim-final-config`, the `pin-section`/`pin-rule`/`pin-bucket` shells), the
@@ -155,3 +156,25 @@ would start life with an allowlist as long as its findings. The second cleanup
 pass measured the premise and found it false once the engine barrel was
 trimmed: `pnpm check:exports` now gates CI, scoped to exports only, with the
 two carve-outs and the reasoning in `knip.jsonc`'s own header.
+
+## Addendum — 2026-08-24: the inert classNames went, and both directions are pinned
+
+**"Telling those apart is a design question" was half true, and the half that
+was not is now a test.** Each token on that list was checked for a CSS rule, an
+e2e locator, a test selector and a `querySelector`; the ones with none of the
+four were removed (`e01d366`), and the six that style nothing but ARE test
+selectors — `overview-card`, `overview-count`, `preset-desc-body`, `dropped`,
+`sim-ut-value`, `sim-write-row` — kept, each with a one-line comment saying so.
+`rules` and the table row's bare `src` stayed too: their twin badge is live, and
+one badge idiom keeps one spelling.
+
+What was a design question was only ever "should this become a hook?"; "is
+anything using it?" is a filesystem question, and `src/class-coverage.test.ts`
+now answers it on every run, in both directions. A className app source writes
+must be styled by `index.css`/`styles/*.css`, selected by a test, or
+allowlisted with a reason; a class selector those stylesheets declare must be
+written by app source, selected by a test, or allowlisted (two entries at head,
+both classes a third-party library writes and the app only themes). It is a
+test rather than a lint rule because the invariant spans a `.tsx` file and a
+`.css` file — neither oxlint nor stylelint can hold both halves — and because
+tests gate exactly like lint here, through the Stop hook and CI.
