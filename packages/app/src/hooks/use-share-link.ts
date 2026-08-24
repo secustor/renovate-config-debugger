@@ -12,7 +12,7 @@
  * rule — all live here; their comments moved with the statements they
  * annotate.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useInsertionEffect, useRef, useState } from "react";
 import { useLatestRef } from "./use-latest-ref";
 import type { TraceResult } from "@renovate-config-debugger/engine";
 import {
@@ -195,8 +195,14 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
   // `.current` read is not a dependency when it can see the `useRef()` call
   // itself — routed through a custom hook it demands the DEREFERENCED value in
   // the list, which is the one thing that must never be in there.
+  // The write itself is `useLatestRef`'s, inlined: an insertion effect, so it
+  // is not a render-time ref write (`react/refs`) while still landing before
+  // every effect and handler of the same commit — which is all this ref is
+  // ever read from.
   const hostRef = useRef(host);
-  hostRef.current = host;
+  useInsertionEffect(() => {
+    hostRef.current = host;
+  });
 
   /** Roadmap 017: the one path every self-initiated hash write goes through —
    *  updates the address bar and records the token (or lack of one) so the

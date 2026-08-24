@@ -5,6 +5,7 @@ import CodeMirror, {
 } from "@uiw/react-codemirror";
 import { json } from "@codemirror/lang-json";
 import { forwardRef, type ReactNode, useEffect, useImperativeHandle, useMemo, useRef } from "react";
+import { useLatestRef } from "@/hooks/use-latest-ref";
 import type { PresetHoverContext } from "@/lib/preset-hover";
 import { flashTarget, motionScrollOptions } from "@/lib/motion";
 import { useEffectiveScheme } from "./use-effective-scheme";
@@ -49,13 +50,14 @@ export const ConfigEditor = forwardRef<ConfigEditorHandle, Props>(function Confi
   ref,
 ) {
   // Kept current every render so the once-built hover extension reads fresh
-  // tree data (a Run updates it without remounting the editor).
-  const presetHoverRef = useRef<PresetHoverContext | null>(presetHover ?? null);
-  presetHoverRef.current = presetHover ?? null;
+  // tree data (a Run updates it without remounting the editor). Roadmap 032's
+  // latest-ref helper rather than a hand-rolled `useRef` + render-time write:
+  // both refs here are the idiom exactly — written per render, dereferenced
+  // only from a hover or a keypress, i.e. always after the commit.
+  const presetHoverRef = useLatestRef<PresetHoverContext | null>(presetHover ?? null);
   // Same idiom, same reason: the run keymap is built once, and reads whatever
   // `onRun` is current when the chord is actually pressed.
-  const onRunRef = useRef<(() => void) | undefined>(onRun);
-  onRunRef.current = onRun;
+  const onRunRef = useLatestRef(onRun);
   // Roadmap 031: the editor mounts with plain JSON language support only —
   // the ~160 kB gz schema layer (codemirror-json-schema + Renovate's own
   // schema JSON + its markdown/yaml stack) is `import()`ed after mount and
@@ -76,7 +78,9 @@ export const ConfigEditor = forwardRef<ConfigEditorHandle, Props>(function Confi
       // no accessible name of its own.
       EditorView.contentAttributes.of({ "aria-label": "Renovate config" }),
     ],
-    [compartment],
+    // `onRunRef` is a ref object: its identity never changes, so the extension
+    // list is still built exactly once for the editor's lifetime.
+    [compartment, onRunRef],
   );
   const cmRef = useRef<ReactCodeMirrorRef>(null);
 
@@ -112,7 +116,9 @@ export const ConfigEditor = forwardRef<ConfigEditorHandle, Props>(function Confi
     return () => {
       cancelled = true;
     };
-  }, [fileName, compartment]);
+    // `presetHoverRef` is listed for the same reason as in the memo above —
+    // an identity-pinned ref object, so this stays a per-file registration.
+  }, [fileName, compartment, presetHoverRef]);
 
   useImperativeHandle(
     ref,

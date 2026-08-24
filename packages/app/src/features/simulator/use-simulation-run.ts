@@ -3,6 +3,7 @@ import {
   type RefObject,
   type SetStateAction,
   useEffect,
+  useInsertionEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -178,10 +179,16 @@ export function useSimulationRun({
       setRunning(false);
     }
   }
-  // Assigned during render so the ref always holds the closure that sees this
-  // render's config — the share-link effect's own guard (`!result.finalConfig`)
-  // keeps it from running one against a config that doesn't exist yet.
-  simulateRef.current = simulate;
+  // The ref always holds the closure that sees this render's config — the
+  // share-link effect's own guard (`!result.finalConfig`) keeps it from running
+  // one against a config that doesn't exist yet. The write is `useLatestRef`'s,
+  // inlined because the ref is declared (and documented) above with the state
+  // it belongs to: an insertion effect, so it lands before every effect and
+  // handler of this commit — the only places it is read — without being a
+  // render-time ref write (`react/refs`).
+  useInsertionEffect(() => {
+    simulateRef.current = simulate;
+  });
 
   return {
     sim,
