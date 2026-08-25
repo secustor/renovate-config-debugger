@@ -4,6 +4,7 @@ import {
   type RuleMessageIndexKind,
   ruleIndexInMessage,
 } from "@/lib/rule-cross-index";
+import { ruleRef } from "@/lib/rule-ref";
 
 /**
  * Roadmap 013: one canonical rule presentation + cross-links. A validation
@@ -74,7 +75,7 @@ export function RuleMessage({
           }
         >
           {indexKind === "repo"
-            ? ` (= merged rule packageRules[${cross}] in the simulator)`
+            ? ` (= merged rule ${ruleRef(cross)} in the simulator)`
             : ` (repo-config index ${cross})`}
         </button>
       ) : null}

@@ -3,6 +3,7 @@ import type {
   RuleDescriptionAttribution,
 } from "@renovate-config-debugger/engine";
 import { layerLabel } from "@/lib/provenance-layer";
+import { ruleRef } from "@/lib/rule-ref";
 
 /**
  * Roadmap 069 (PR 5): the author's own words on a matched `packageRules` entry.
@@ -48,7 +49,7 @@ export interface RuleDescriptionNote {
  */
 export function ruleDescriptionAttribution(entry: RuleDescriptionAttribution): string {
   if (entry.layer.kind === "repo") {
-    return `your description, packageRules[${entry.sourceIndex}] in your repo config`;
+    return `your description, ${ruleRef(entry.sourceIndex)} in your repo config`;
   }
   if (entry.layer.kind === "preset") {
     return "author's description of this rule";

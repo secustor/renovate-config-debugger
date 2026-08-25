@@ -1,5 +1,6 @@
 import { plural } from "@/lib/format";
 import { EMPTY_FORM, type FormState, joinValues, MULTI_VALUE_KEYS } from "./form";
+import { isPlainObject } from "@/lib/input-schemas";
 
 /**
  * Roadmap 082: the Tests tab's "Paste JSON" tab, as a pure function.
@@ -79,10 +80,6 @@ export interface PasteFill {
 }
 
 export type PasteResult = { ok: true; value: PasteFill } | { ok: false; error: string };
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 export function parsePastedDescriptor(text: string): PasteResult {
   if (text.trim() === "") {

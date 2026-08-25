@@ -3,7 +3,7 @@ import type {
   RuleAttribution,
   RuleEvaluation,
 } from "@renovate-config-debugger/engine";
-import { type LayerId, layerId, layerLabel } from "@/lib/provenance-layer";
+import { type LayerId, layerId, layerLabel, tallyRulesByLayer } from "@/lib/provenance-layer";
 import { hasEvaluationError, isNoInputNoMatch } from "./rule-verdict";
 
 /**
@@ -233,24 +233,18 @@ export function presetFilterOptions(
   layerByIndex: Map<number, ProvenanceLayer>,
   selected: PresetFilter,
 ): FilterOption[] {
-  const byLayer = new Map<LayerId, FilterOption>();
-  for (const rule of rules) {
-    const layer = layerByIndex.get(rule.index);
-    if (!layer) {
-      continue;
-    }
-    const id = layerId(layer);
-    const entry = byLayer.get(id);
-    if (entry) {
-      entry.count += 1;
-    } else {
-      byLayer.set(id, { value: id, label: layerLabel(layer), count: 1 });
-    }
+  // The grouping and the ordering are shared with the drawer's badge row
+  // (`matchedLayerCounts`), which sits next to this dropdown — two spellings
+  // were two chances for the two to disagree about the same run.
+  const options: FilterOption[] = tallyRulesByLayer(rules, layerByIndex).map((tally) => ({
+    value: layerId(tally.layer),
+    label: layerLabel(tally.layer),
+    count: tally.count,
+  }));
+  if (selected !== ALL_PRESETS && !options.some((option) => option.value === selected)) {
+    // Appended rather than sorted in: its count is 0 and every real entry's is
+    // at least 1, so the shared comparator would put it last regardless.
+    options.push({ value: selected, label: selected.replace(/^preset:/, ""), count: 0 });
   }
-  if (selected !== ALL_PRESETS && !byLayer.has(selected)) {
-    byLayer.set(selected, { value: selected, label: selected.replace(/^preset:/, ""), count: 0 });
-  }
-  return [...byLayer.values()].toSorted(
-    (a, b) => b.count - a.count || a.label.localeCompare(b.label),
-  );
+  return options;
 }

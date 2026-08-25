@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useTransientFlag } from "@/hooks/use-transient-flag";
+import { useTransientValue } from "@/hooks/use-transient-value";
 
 /**
  * Proposal F parity (roadmap 077) — the header's Share control.
@@ -28,18 +29,13 @@ const COPIED_MS = 1500;
 const POPOVER_MS = 2600;
 
 export function ShareButton({ onShare }: { onShare: () => Promise<void> }) {
-  const [copied, setCopied] = useState(false);
+  // Two receipts on two clocks: the button's label reads "Copied" briefly, the
+  // popover stays up long enough to read its sentence. Both used to be
+  // hand-rolled timers held in refs here — the shared hooks own the clearing
+  // (and the unmount cleanup) now, so this component only decides WHAT to show.
+  const [copied, flashCopied] = useTransientFlag(COPIED_MS);
   // The copied URL, shown protocol-less the way a reader would say it.
-  const [popUrl, setPopUrl] = useState<string | null>(null);
-  const copiedTimer = useRef(0);
-  const popTimer = useRef(0);
-  useEffect(
-    () => () => {
-      window.clearTimeout(copiedTimer.current);
-      window.clearTimeout(popTimer.current);
-    },
-    [],
-  );
+  const [popUrl, showPopUrl] = useTransientValue<string>(POPOVER_MS);
 
   async function share() {
     try {
@@ -49,12 +45,8 @@ export function ShareButton({ onShare }: { onShare: () => Promise<void> }) {
       // still carries the link; no receipt for a copy that didn't happen.
       return;
     }
-    setCopied(true);
-    setPopUrl(window.location.href.replace(/^https?:\/\//, ""));
-    window.clearTimeout(copiedTimer.current);
-    window.clearTimeout(popTimer.current);
-    copiedTimer.current = window.setTimeout(() => setCopied(false), COPIED_MS);
-    popTimer.current = window.setTimeout(() => setPopUrl(null), POPOVER_MS);
+    flashCopied();
+    showPopUrl(window.location.href.replace(/^https?:\/\//, ""));
   }
 
   return (

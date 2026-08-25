@@ -18,6 +18,7 @@ import {
 } from "./tree-shared";
 import { useEngineHelpers } from "./use-engine-helpers";
 import { pluralWord } from "@/lib/format";
+import { errorMessage } from "@/lib/errors";
 
 /**
  * Replays the parent's merge loop with renovate's real mergeChildConfig to
@@ -139,7 +140,7 @@ function PresetInjector({
       }
       onInject(injectionTarget, parsed);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorMessage(err));
     }
   };
 

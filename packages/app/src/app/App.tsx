@@ -1200,6 +1200,12 @@ export function App() {
       return traceResult;
     } catch (err) {
       // Unstamped (see `applyFatal`): the next run's outcome supersedes this one.
+      //
+      // Deliberately NOT `errorMessage(err)`: this is the run's top-level
+      // failure banner, where the error's CLASS is part of the answer
+      // ("TypeError: …" reads very differently from "ConfigValidationError: …").
+      // Every other site wants the message alone, which is what the shared
+      // helper gives them.
       setFatal(err instanceof Error ? `${err.name}: ${err.message}` : String(err));
       // Roadmap 068: a failed run is still a FINISHED run, and ⌘⏎ deliberately
       // leaves focus where it was — so without this the user who pressed the

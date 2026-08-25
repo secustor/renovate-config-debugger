@@ -1,15 +1,23 @@
 import type { PresetNode } from "@renovate-config-debugger/engine";
 import type { NodeStats, TreeStats } from "@/lib/preset-tree-stats";
 
-/** Node ids whose subtree (self or any descendant) matches the query. */
-function computeSubtreeMatch(
-  root: PresetNode,
-  statsById: Map<string, NodeStats>,
-  q: string,
-): Set<string> {
+/**
+ * Node ids whose SUBTREE satisfies `hit` — the node itself, or any descendant.
+ *
+ * A post-order walk: a node is marked when its own test passes or when any
+ * child came back marked, so one pass marks every ancestor of every hit. Both
+ * callers below need exactly that, differing only in what counts as a hit, and
+ * both used to spell the whole traversal out. The second one's comment said so
+ * ("the same shape as `computeSubtreeMatch`, and computed for the same
+ * reason"), which is the tell that the predicate was the only real parameter.
+ *
+ * `root` itself is deliberately not tested or marked — it is the synthetic tree
+ * root, not a preset anyone can see or expand.
+ */
+function markMatchingSubtrees(root: PresetNode, hit: (node: PresetNode) => boolean): Set<string> {
   const set = new Set<string>();
   const visit = (node: PresetNode): boolean => {
-    let any = statsById.get(node.id)?.search.includes(q) ?? false;
+    let any = hit(node);
     for (const child of node.children) {
       if (visit(child)) {
         any = true;
@@ -26,33 +34,25 @@ function computeSubtreeMatch(
   return set;
 }
 
+/** Node ids whose subtree (self or any descendant) matches the query. */
+function computeSubtreeMatch(
+  root: PresetNode,
+  statsById: Map<string, NodeStats>,
+  q: string,
+): Set<string> {
+  return markMatchingSubtrees(root, (node) => statsById.get(node.id)?.search.includes(q) ?? false);
+}
+
 /**
  * Node ids with a description fact somewhere in their subtree (self included).
  *
  * Roadmap 069 (PR 4): hide-zero's caret suppression (`descContrib > 0`) counts
  * CONTRIBUTING descendants, and a wrapper preset contributes nothing — so
  * without this a described node could sit behind a caret that never renders,
- * leaving its description hover card unreachable. The same shape as
- * `computeSubtreeMatch`, and computed for the same reason.
+ * leaving its description hover card unreachable.
  */
 function computeDescribedSubtree(root: PresetNode, described: ReadonlySet<string>): Set<string> {
-  const set = new Set<string>();
-  const visit = (node: PresetNode): boolean => {
-    let any = described.has(node.id);
-    for (const child of node.children) {
-      if (visit(child)) {
-        any = true;
-      }
-    }
-    if (any) {
-      set.add(node.id);
-    }
-    return any;
-  };
-  for (const child of root.children) {
-    visit(child);
-  }
-  return set;
+  return markMatchingSubtrees(root, (node) => described.has(node.id));
 }
 
 export interface Row {

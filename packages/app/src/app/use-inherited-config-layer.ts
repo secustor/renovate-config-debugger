@@ -35,6 +35,7 @@ import {
 } from "@/lib/inherit-probe";
 import { isValidRepoRefPart, type LayerParseResult, parseLayerJson } from "@/lib/input-schemas";
 import { loadRepoFile } from "@/platform/run";
+import { causedErrorMessage } from "@/lib/errors";
 
 /** The two live values the cluster derives from, and the one way a probe says
  *  "the result of that fetch is over there". */
@@ -218,8 +219,7 @@ export function useInheritedConfigLayer(host: InheritedConfigLayerHost): Inherit
       revealInheritedStage();
       return parseLayerJson(raw).config;
     } catch (err) {
-      const e = err as { err?: { message?: string } };
-      const detail = e?.err?.message ?? (err instanceof Error ? err.message : String(err));
+      const detail = causedErrorMessage(err);
       setInheritProbe({ status: "unreachable", target, detail: `${detail}.` });
       if (inheritPolicy.strict) {
         revealInheritedStage();

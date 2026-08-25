@@ -6,6 +6,7 @@ import type {
 } from "@renovate-config-debugger/engine";
 import { layerNodeKey, stableLayerKey } from "@/lib/provenance-layer";
 import { ruleWrittenKeys, summarizeRuleSelectors } from "@/lib/rule-selectors";
+import { ruleRef } from "@/lib/rule-ref";
 
 /**
  * Roadmap 069 (PR 2): the view-model behind the Overview's "What this config
@@ -228,6 +229,6 @@ export function unattributedNoteText(digest: DescriptionDigest): string {
  * `packageRules[repoIndex]` jump).
  */
 export function ruleNoteText(rule: DigestRule): string {
-  const note = `packageRules[${rule.sourceIndex}] — ${rule.selectors}`;
+  const note = `${ruleRef(rule.sourceIndex)} — ${rule.selectors}`;
   return rule.writes.length > 0 ? `${note} → ${rule.writes.join(", ")}` : note;
 }

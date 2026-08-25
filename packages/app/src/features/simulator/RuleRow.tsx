@@ -12,6 +12,7 @@ import { RuleDescriptionQuote } from "./RuleDescriptionQuote";
 import { ruleAppliedMarkdown, ruleLabel, ruleVerdictLabel, writeMark } from "./rule-format";
 import { WriteRow } from "./WriteRow";
 import { useSyncedReset } from "@/hooks/use-synced-reset";
+import { RULE_INDEX_TITLE, ruleRef } from "@/lib/rule-ref";
 
 /** Roadmap 018/040/054: what a matching rule applied to the dependency config,
  *  as the shared write rows plus the copy-as-markdown export of the same. */
@@ -22,7 +23,7 @@ function SimMergedApplied({ rule, merged }: { rule: RuleEvaluation; merged: Merg
         Applied to the dependency config
         <CopyMarkdownButton
           className="inline"
-          header={`\`packageRules[${rule.index}]\` ${ruleLabel(rule)} — ${ruleVerdictLabel(rule)}`}
+          header={`\`${ruleRef(rule.index)}\` ${ruleLabel(rule)} — ${ruleVerdictLabel(rule)}`}
           code={ruleAppliedMarkdown(merged)}
         />
       </div>
@@ -110,11 +111,8 @@ export function RuleRow({
             the editor cross-link use, so this row is unmistakably the same
             rule as "packageRules[N]" elsewhere on the page. Replay-02 R6: the
             title says WHY it's 0-based next to the page's 1-based counts. */}
-        <span
-          className="sim-rule-index"
-          title="0-based index — the same numbering Renovate's own validator messages use; the last of N rules is packageRules[N−1]"
-        >
-          packageRules[{rule.index}]
+        <span className="sim-rule-index" title={RULE_INDEX_TITLE}>
+          {ruleRef(rule.index)}
         </span>
         <span className="sim-rule-label">{ruleLabel(rule)}</span>
         <RuleVerdictBadge rule={rule} />

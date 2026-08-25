@@ -10,7 +10,9 @@ import { nf, pluralWord } from "@/lib/format";
 import { crossRuleIndex } from "@/lib/rule-cross-index";
 import { hasEvaluationError, isNoInputNoMatch } from "@/lib/rule-verdict";
 import { buildNoInputCaveat } from "@/lib/verdict-sentence";
+import { overridingStopIndex } from "./merge-override";
 import { clauseEvaluated, previewValue, ruleLabel } from "./rule-format";
+import { ruleRef } from "@/lib/rule-ref";
 
 /**
  * One pinned test's outcome, derived from the simulation the pin produced —
@@ -119,7 +121,10 @@ export interface PinOutcome {
 /** How many rows a bucket shows before the honest tail line. */
 const MAX_BUCKET_ROWS = 3;
 
-function ruleRef(
+/** The card's own cross-link record for a rule. Named `pinRuleRef` rather than
+ *  `ruleRef` since the latter is now the shared `packageRules[N]` spelling —
+ *  this one builds the {@link PinRuleRef} OBJECT, not the label. */
+function pinRuleRef(
   rule: RuleEvaluation,
   layerByIndex: Map<number, ProvenanceLayer>,
   attribution: RuleAttribution[] | null | undefined,
@@ -167,7 +172,15 @@ function buildChips(sim: SimulationResult, matchedCount: number): PinChip[] {
 /** The step that will be blamed for overriding a write — a rule by its index,
  *  the flatten step by what it is. */
 function stepName(step: MergeStep): string {
-  return step.kind === "rule" ? `packageRules[${step.ruleIndex}]` : "the update-type flatten step";
+  // `ruleIndex` is optional on every `MergeStep` in the engine's types, so the
+  // `kind` check alone does not narrow it. A rule step always carries one; the
+  // fallback exists because the type says it might not, and "a later rule" is
+  // the honest thing to blame when the index is unknown — the previous inline
+  // template would have blamed `packageRules[undefined]`.
+  if (step.kind !== "rule") {
+    return "the update-type flatten step";
+  }
+  return step.ruleIndex === undefined ? "a later rule" : ruleRef(step.ruleIndex);
 }
 
 /**
@@ -187,9 +200,10 @@ function buildWrites(
     return { writes: [], wroteSummary: "no writes" };
   }
   const writes: PinWrite[] = step.merged.map((entry) => {
-    const overrider = mergeSteps
-      .slice(stopIndex + 1)
-      .find((later) => later.merged.some((m) => m.key === entry.key));
+    // The same walk `rule-evidence.ts` does, and now literally the same code:
+    // the popover and this card must agree on which step won a key.
+    const overriderAt = overridingStopIndex(mergeSteps, stopIndex, entry.key);
+    const overrider = overriderAt === undefined ? undefined : mergeSteps[overriderAt];
     return {
       key: entry.key,
       valueText: Object.hasOwn(entry, "after") ? previewValue(entry.after, 60) : "(removed)",
@@ -356,9 +370,9 @@ function sampleBucket(
 ): PinBucket {
   const rows: PinBucketRow[] = rules.slice(0, MAX_BUCKET_ROWS).map((rule) => ({
     key: `rule-${rule.index}`,
-    label: `packageRules[${rule.index}]`,
+    label: ruleRef(rule.index),
     note: failingClauseNote(rule),
-    probeQuery: `packageRules[${rule.index}]`,
+    probeQuery: ruleRef(rule.index),
   }));
   const hidden = rules.length - rows.length;
   return {
@@ -510,7 +524,7 @@ export function buildPinOutcome(
   for (const rule of sim.rules) {
     if (rule.verdict === "matched") {
       matched.push({
-        ...ruleRef(rule, layerByIndex, attribution),
+        ...pinRuleRef(rule, layerByIndex, attribution),
         ...buildWrites(rule.index, sim.mergeSteps),
       });
       continue;
@@ -520,7 +534,7 @@ export function buildPinOutcome(
     if (layerByIndex.get(rule.index)?.kind === "repo") {
       const miss = closestMiss(rule);
       failed.push({
-        ...ruleRef(rule, layerByIndex, attribution),
+        ...pinRuleRef(rule, layerByIndex, attribution),
         ...(miss === undefined ? {} : { closestMiss: miss }),
       });
       continue;

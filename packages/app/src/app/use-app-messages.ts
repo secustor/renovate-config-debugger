@@ -24,10 +24,10 @@ import {
   type RefObject,
   type SetStateAction,
   useCallback,
-  useEffect,
   useRef,
   useState,
 } from "react";
+import { useTransientValue } from "@/hooks/use-transient-value";
 
 const TOAST_MS = 4500;
 
@@ -68,8 +68,7 @@ export function useAppMessages(): AppMessages {
   const fatalSeqRef = useRef(0);
   const fatalSpacerRef = useRef(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
-  const toastTimer = useRef<number | undefined>(undefined);
+  const [toast, showToast] = useTransientValue<string>(TOAST_MS);
   const [runAnnouncement, setRunAnnouncement] = useState("");
   const announcementSeq = useRef(0);
   const outcomeLeadRef = useRef<string | null>(null);
@@ -83,18 +82,6 @@ export function useAppMessages(): AppMessages {
     fatalSpacerRef.current = !fatalSpacerRef.current;
     setFatal(fatalSpacerRef.current ? `${next} ` : next);
   }, []);
-
-  const showToast = useCallback((message: string) => {
-    setToast(message);
-    window.clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => setToast(null), TOAST_MS);
-  }, []);
-  useEffect(
-    () => () => {
-      window.clearTimeout(toastTimer.current);
-    },
-    [],
-  );
 
   const announceRun = useCallback((sentence: string) => {
     announcementSeq.current += 1;

@@ -1,5 +1,6 @@
 import type * as EngineModule from "@renovate-config-debugger/engine";
 import type { PresetNode } from "@renovate-config-debugger/engine";
+import { isPlainObject } from "./input-schemas";
 
 /**
  * The root node's id — the input config itself, the one node the tree has no
@@ -27,10 +28,6 @@ export const ROOT_NODE_ID: typeof EngineModule.ROOT_NODE_ID = "root";
  * DOM") all read it, and a shared derivation should not make its `lib/`
  * consumers reach up into the component layer.
  */
-
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
-}
 
 /** packageRules keys whose string contents feed the search index. */
 const RULE_MATCH_KEYS = [

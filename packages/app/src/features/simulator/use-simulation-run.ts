@@ -13,6 +13,7 @@ import type { FormState } from "./form";
 import { runSimulation } from "./run-simulation";
 import { DEFAULT_RULE_FILTERS, type RuleFilters } from "@/lib/rule-filters";
 import { useSyncedReset } from "@/hooks/use-synced-reset";
+import { errorMessage } from "@/lib/errors";
 
 export type Simulate = (nextForm: FormState, touched: boolean, keepStep?: boolean) => Promise<void>;
 
@@ -173,7 +174,7 @@ export function useSimulationRun({
         onMergeStepChange(0);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorMessage(err));
     } finally {
       setRunning(false);
     }

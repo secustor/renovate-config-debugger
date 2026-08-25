@@ -14,6 +14,7 @@ import type { StepThroughStep } from "@/components/StepThrough";
 import { UPDATE_TYPE_KEYS } from "@/lib/update-type-keys";
 import { ruleLabel } from "./rule-format";
 import { pluralWord } from "@/lib/format";
+import { ruleRef } from "@/lib/rule-ref";
 
 /** Roadmap 044: the changed keys of one merge step, as inline `<code>` chips
  *  inside the stepper's explanation row. */
@@ -84,6 +85,13 @@ export function buildMergeStops(
   for (const [i, ms] of ruleSteps.entries()) {
     const rule = sim.rules.find((r) => r.index === ms.ruleIndex);
     const layer = ms.ruleIndex === undefined ? undefined : layerByIndex.get(ms.ruleIndex);
+    // The engine declares `ruleIndex` optional on EVERY `MergeStep`, so
+    // filtering to rule steps above does not narrow it — even though a rule
+    // step always carries one. The hand-written template interpolated it
+    // regardless and would have rendered `packageRules[undefined]`; this falls
+    // back to the same "matched rule" wording the step head already uses below
+    // when the rule itself cannot be found.
+    const ref = ms.ruleIndex === undefined ? "matched rule" : ruleRef(ms.ruleIndex);
     const changed = ms.merged.length;
     stops.push({
       kind: "rule",
@@ -93,9 +101,9 @@ export function buildMergeStops(
         // The 024 dot vocabulary, meanings intact: green circle = ran and
         // changed nothing, amber diamond = changed things.
         dot: changed > 0 ? "changed" : "clean",
-        label: <span className="stage-chip-mono">packageRules[{ms.ruleIndex}]</span>,
+        label: <span className="stage-chip-mono">{ref}</span>,
         count: changed > 0 ? `+${changed}` : "±0",
-        ariaLabel: `Step ${i + 1} of ${nRules}: packageRules[${ms.ruleIndex}] ${
+        ariaLabel: `Step ${i + 1} of ${nRules}: ${ref} ${
           changed > 0 ? `changed ${changed} ${pluralWord(changed, "key")}` : "changed nothing"
         }`,
       },
@@ -106,7 +114,7 @@ export function buildMergeStops(
         counter: `Step ${i + 1} of ${nRules}`,
         head: (
           <>
-            <span className="sim-rule-index">packageRules[{ms.ruleIndex}]</span>
+            <span className="sim-rule-index">{ref}</span>
             <span className="migration-step-name">{rule ? ruleLabel(rule) : "matched rule"}</span>
             {layer ? (
               <span className="sim-rule-provenance">

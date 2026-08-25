@@ -140,3 +140,51 @@ export function provenanceGlossaryEntry(layer: ProvenanceLayer): GlossaryEntry {
     plain: `${opening} ${order}`,
   };
 }
+
+/** One layer and how many of the rules under consideration came from it. */
+export interface LayerTally {
+  layer: ProvenanceLayer;
+  count: number;
+}
+
+/**
+ * Rules grouped by the provenance layer that contributed them, most first.
+ *
+ * Two callers wanted this and each grouped by hand: the rules drawer's badge
+ * row (`features/simulator/layer-counts.ts`, matched rules only) and the
+ * preset filter's option list (`lib/rule-filters.ts`, every rule). They also
+ * repeated the same ordering rule — most-contributing first, ties broken by
+ * label — which is the part a reader would notice if the two drifted, since
+ * the badge row and the filter dropdown are read side by side.
+ *
+ * `include` is the only real difference between them, so it is the only
+ * parameter. Layers are keyed by {@link layerId}, i.e. by NAME: two `extends`
+ * entries resolving to the same preset count as one contributor, which is what
+ * both callers want ("what did `config:recommended` do here").
+ */
+export function tallyRulesByLayer<Rule extends { index: number }>(
+  rules: readonly Rule[],
+  layerByIndex: Map<number, ProvenanceLayer>,
+  include?: (rule: Rule) => boolean,
+): LayerTally[] {
+  const byLayer = new Map<LayerId, LayerTally>();
+  for (const rule of rules) {
+    if (include && !include(rule)) {
+      continue;
+    }
+    const layer = layerByIndex.get(rule.index);
+    if (!layer) {
+      continue;
+    }
+    const id = layerId(layer);
+    const entry = byLayer.get(id);
+    if (entry) {
+      entry.count += 1;
+    } else {
+      byLayer.set(id, { layer, count: 1 });
+    }
+  }
+  return [...byLayer.values()].toSorted(
+    (a, b) => b.count - a.count || layerLabel(a.layer).localeCompare(layerLabel(b.layer)),
+  );
+}

@@ -4,6 +4,7 @@ import type {
   RuleEvaluation,
   SimulationResult,
 } from "@renovate-config-debugger/engine";
+import { overridingStopIndex } from "./merge-override";
 import type { MergeStop } from "./merge-stops";
 import type { RuleDescriptionNote } from "./rule-descriptions";
 import { stopLabels } from "./verdict-threads";
@@ -63,16 +64,9 @@ export interface RuleEvidence {
 }
 
 /** The first stop AFTER `stopIndex` that names `key` — the write's killer.
- *  Later stops than that one are irrelevant here: by then the value on the
- *  table is no longer this rule's. */
-function overriderOf(mergeStops: MergeStop[], stopIndex: number, key: string): number | undefined {
-  for (let i = stopIndex + 1; i < mergeStops.length; i += 1) {
-    if (mergeStops[i]?.merged?.some((m) => m.key === key)) {
-      return i;
-    }
-  }
-  return undefined;
-}
+ *  Shared with `pin-outcome.ts`, which asks the same question about the same
+ *  run and must not be able to answer it differently. */
+const overriderOf = overridingStopIndex;
 
 export function buildRuleEvidence(
   ruleIndex: number,

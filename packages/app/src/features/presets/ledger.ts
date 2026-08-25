@@ -9,6 +9,7 @@ import {
 import { summarizeRuleSelectors } from "@/lib/rule-selectors";
 import { valuePreview } from "@/lib/value-preview";
 import { githubAuthFailure } from "./tree-shared";
+import { isPlainObject } from "@/lib/input-schemas";
 
 /**
  * Roadmap 075 (iteration 5b): the Presets LEDGER — what `extends` actually
@@ -224,10 +225,6 @@ const FAMILY_NOTES: Record<string, string> = {
 export function familyNote(name: string): string | null {
   const group = name.split(":")[0];
   return group ? (FAMILY_NOTES[group] ?? null) : null;
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function subtreePresets(node: PresetNode, stats: TreeStats): number {

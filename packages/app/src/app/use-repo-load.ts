@@ -30,6 +30,7 @@ import type { ShareFileName, UntrustedEndpointGuard } from "@/lib/share";
 import type { LoadedRepo } from "@/features/simulator/repo-deps";
 import { extractPackageJsonConfig, loadRepoConfig, loadRepoFile } from "@/platform/run";
 import type { RunInputs } from "@/lib/run-inputs";
+import { causedErrorMessage } from "@/lib/errors";
 
 /**
  * What the load needs from App.tsx. Handed in fresh every render and read
@@ -365,7 +366,7 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
           `No Renovate config found in ${parsed.repo} (tried ${count} locations). It may keep its config elsewhere, on a non-default branch, or in a private repo needing a token.`,
         );
       } else {
-        detail = e?.err?.message ?? (err instanceof Error ? err.message : String(err));
+        detail = causedErrorMessage(err);
         setFatal(
           `Could not load from ${repoEndpoint || "the default endpoint"}: ${detail}. For a private repo, sign in or add a token; some hosts block browser (CORS) requests entirely.`,
         );

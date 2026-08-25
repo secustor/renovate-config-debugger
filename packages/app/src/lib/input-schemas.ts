@@ -18,6 +18,7 @@
  * App.tsx, oauth.ts, PresetTree.tsx) replace their ad hoc checks with these.
  */
 import type { STAGE_IDS as ENGINE_STAGE_IDS } from "@renovate-config-debugger/engine";
+import { errorMessage } from "./errors";
 
 // ---------------------------------------------------------------------------
 // Deep pollution guard
@@ -314,7 +315,7 @@ export function parseLayerJson(text: string): LayerParseResult {
   try {
     parsed = JSON.parse(trimmed);
   } catch (err) {
-    return { error: err instanceof Error ? err.message : String(err) };
+    return { error: errorMessage(err) };
   }
   if (!isValidConfigObject(parsed)) {
     return { error: "must be a JSON object" };
