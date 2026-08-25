@@ -1,0 +1,25 @@
+{
+  "manager": "pip_setup",
+  "fileName": "setup.py",
+  "deps": [
+    {
+      "depName": "requests",
+      "packageName": "requests",
+      "currentValue": "==2.32.3",
+      "managerData": {
+        "lineNumber": 6
+      },
+      "datasource": "pypi",
+      "currentVersion": "2.32.3"
+    },
+    {
+      "depName": "click",
+      "packageName": "click",
+      "currentValue": ">=8.1.0",
+      "managerData": {
+        "lineNumber": 7
+      },
+      "datasource": "pypi"
+    }
+  ]
+}

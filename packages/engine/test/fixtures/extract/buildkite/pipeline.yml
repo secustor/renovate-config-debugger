@@ -1,0 +1,9 @@
+---
+steps:
+  - label: ":test_tube: test"
+    command: pnpm test
+    plugins:
+      - docker-compose#v5.2.0:
+          run: app
+      - artifacts#v1.9.3:
+          upload: coverage/**

@@ -1,0 +1,18 @@
+{
+  "manager": "typst",
+  "fileName": "main.typ",
+  "deps": [
+    {
+      "datasource": "typst",
+      "packageName": "preview/cetz",
+      "currentValue": "0.2.2",
+      "depName": "cetz"
+    },
+    {
+      "datasource": "typst",
+      "packageName": "preview/tablex",
+      "currentValue": "0.0.8",
+      "depName": "tablex"
+    }
+  ]
+}

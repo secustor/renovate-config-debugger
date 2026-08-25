@@ -1,0 +1,15 @@
+apiVersion: config.projectsveltos.io/v1beta1
+kind: ClusterProfile
+metadata:
+  name: kyverno
+spec:
+  clusterSelector:
+    matchLabels:
+      env: fv
+  helmCharts:
+    - repositoryURL: https://kyverno.github.io/kyverno/
+      repositoryName: kyverno
+      chartName: kyverno/kyverno
+      chartVersion: v3.2.4
+      releaseName: kyverno-latest
+      releaseNamespace: kyverno

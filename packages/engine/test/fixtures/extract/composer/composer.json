@@ -1,0 +1,10 @@
+{
+  "name": "demo/app",
+  "require": {
+    "php": "^8.2",
+    "monolog/monolog": "^3.6"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^11.1"
+  }
+}

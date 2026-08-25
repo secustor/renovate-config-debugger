@@ -1,0 +1,11 @@
+{
+  "manager": "runtime-version",
+  "fileName": "runtime.txt",
+  "deps": [
+    {
+      "depName": "python",
+      "currentValue": "3.12.4",
+      "datasource": "docker"
+    }
+  ]
+}

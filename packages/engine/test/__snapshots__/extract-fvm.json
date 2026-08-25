@@ -1,0 +1,12 @@
+{
+  "manager": "fvm",
+  "fileName": ".fvmrc",
+  "deps": [
+    {
+      "depName": "flutter",
+      "currentValue": "3.22.2",
+      "datasource": "flutter-version",
+      "packageName": "flutter/flutter"
+    }
+  ]
+}

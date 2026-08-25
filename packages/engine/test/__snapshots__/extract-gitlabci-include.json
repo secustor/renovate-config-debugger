@@ -1,0 +1,12 @@
+{
+  "manager": "gitlabci-include",
+  "fileName": ".gitlab-ci.yml",
+  "deps": [
+    {
+      "datasource": "gitlab-tags",
+      "depName": "my-group/ci-templates",
+      "depType": "repository",
+      "currentValue": "v1.2.0"
+    }
+  ]
+}

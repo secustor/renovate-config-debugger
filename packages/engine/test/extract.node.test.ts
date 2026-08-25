@@ -30,9 +30,13 @@ describe("extractDeps (golden)", () => {
     it(`extracts ${c.fixture} with ${c.manager}`, async () => {
       dir = await mkdtemp(join(tmpdir(), "rcd-extract-"));
       GlobalConfig.set({ localDir: dir });
+      // The manager is explicit: several managers can claim one filename
+      // (pyproject.toml is pep621's, pixi's and poetry's), and a CASE names
+      // which parser it is exercising — filename matching has its own tests.
       const outcome = await extractDeps({
         fileName: c.fileName,
         content: extractFixture(c.fixture),
+        manager: c.manager,
       });
       if (!outcome.ok) {
         throw new Error(`expected extraction to succeed: ${outcome.message}`);

@@ -1,0 +1,4 @@
+{:deps {org.clojure/clojure {:mvn/version "1.11.3"}
+        cheshire/cheshire {:mvn/version "5.13.0"}}
+ :aliases
+ {:test {:extra-deps {lambdaisland/kaocha {:mvn/version "1.88.1376"}}}}}

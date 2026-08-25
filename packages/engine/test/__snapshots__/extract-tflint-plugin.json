@@ -1,0 +1,12 @@
+{
+  "manager": "tflint-plugin",
+  "fileName": ".tflint.hcl",
+  "deps": [
+    {
+      "depType": "plugin",
+      "currentValue": "0.32.0",
+      "datasource": "github-releases",
+      "depName": "terraform-linters/tflint-ruleset-aws"
+    }
+  ]
+}

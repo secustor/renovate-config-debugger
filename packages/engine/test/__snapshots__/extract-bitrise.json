@@ -1,0 +1,26 @@
+{
+  "manager": "bitrise",
+  "fileName": "bitrise.yml",
+  "deps": [
+    {
+      "datasource": "bitrise",
+      "replaceString": "activate-ssh-key@4.1.0",
+      "packageName": "activate-ssh-key",
+      "registryUrls": [
+        "https://github.com/bitrise-io/bitrise-steplib.git"
+      ],
+      "currentValue": "4.1.0",
+      "depName": "activate-ssh-key"
+    },
+    {
+      "datasource": "bitrise",
+      "replaceString": "git-clone@8.2.0",
+      "packageName": "git-clone",
+      "registryUrls": [
+        "https://github.com/bitrise-io/bitrise-steplib.git"
+      ],
+      "currentValue": "8.2.0",
+      "depName": "git-clone"
+    }
+  ]
+}

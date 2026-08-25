@@ -1,0 +1,11 @@
+{
+  "manager": "ruby-version",
+  "fileName": ".ruby-version",
+  "deps": [
+    {
+      "depName": "ruby",
+      "currentValue": "3.3.4",
+      "datasource": "ruby-version"
+    }
+  ]
+}

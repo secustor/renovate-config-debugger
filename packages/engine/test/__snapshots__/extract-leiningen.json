@@ -1,0 +1,20 @@
+{
+  "manager": "leiningen",
+  "fileName": "project.clj",
+  "deps": [
+    {
+      "depType": "dependencies",
+      "registryUrls": [],
+      "datasource": "clojure",
+      "depName": "org.clojure:clojure",
+      "currentValue": "1.11.3"
+    },
+    {
+      "depType": "dependencies",
+      "registryUrls": [],
+      "datasource": "clojure",
+      "depName": "ring:ring-core",
+      "currentValue": "1.12.1"
+    }
+  ]
+}

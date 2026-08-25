@@ -1,0 +1,25 @@
+{
+  "manager": "ansible-galaxy",
+  "fileName": "requirements.yml",
+  "deps": [
+    {
+      "depType": "galaxy-collection",
+      "currentValue": "9.0.1",
+      "depName": "community.general",
+      "datasource": "galaxy-collection"
+    },
+    {
+      "depType": "galaxy-collection",
+      "currentValue": "1.5.4",
+      "depName": "ansible.posix",
+      "datasource": "galaxy-collection"
+    },
+    {
+      "depType": "role",
+      "currentValue": "3.1.4",
+      "datasource": "galaxy",
+      "depName": "geerlingguy.nginx",
+      "packageName": "geerlingguy.nginx"
+    }
+  ]
+}

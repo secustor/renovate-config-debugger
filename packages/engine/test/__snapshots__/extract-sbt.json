@@ -1,0 +1,29 @@
+{
+  "manager": "sbt",
+  "fileName": "build.sbt",
+  "deps": [
+    {
+      "datasource": "maven",
+      "depName": "scala",
+      "packageName": "org.scala-lang:scala-library",
+      "currentValue": "2.13.14",
+      "separateMinorPatch": true,
+      "registryUrls": []
+    },
+    {
+      "datasource": "sbt-package",
+      "depName": "org.typelevel:cats-core",
+      "packageName": "org.typelevel:cats-core_2.13",
+      "currentValue": "2.12.0",
+      "registryUrls": []
+    },
+    {
+      "datasource": "sbt-package",
+      "depName": "org.scalatest:scalatest",
+      "packageName": "org.scalatest:scalatest_2.13",
+      "currentValue": "3.2.18",
+      "depType": "Test",
+      "registryUrls": []
+    }
+  ]
+}

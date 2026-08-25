@@ -36,12 +36,23 @@ As specced: two functional shims (`shims/fs.ts`, an in-memory `util/fs`;
 the got-backed http stack and the heavy lookup-only leaves
 (`shims/http.ts`, `shims/extract-leaves.ts`); `src/extract.ts` with
 `matchManagersForFile` (the generated file patterns through upstream's own
-`getMatchingFiles`) and `extractDeps` (curated lazy deep-import map,
+`getMatchingFiles`) and `extractDeps` (lazy deep-import map,
 `massageDepNames`, memory-cache reset per run); golden/shimmed fixture pairs
-per mapped manager holding the byte-identity invariant. Launch set: cargo,
-dockerfile, github-actions, gomod, helm-values, maven, npm, nuget, pep621,
-pip_requirements — npm and maven through their internal single-file functions,
-exactly the honest single-file semantics 078 wrote down.
+per mapped manager holding the byte-identity invariant.
+
+**The map holds every browser-clean single-file manager — 102 of Renovate's
+129** (078's ten-manager launch set, then a broad sweep on the owner's ask).
+A classification pass over the pinned dist found the extractable set
+mechanically (exposes `extractPackageFile`; transitive graph clean over the
+shim cut set), and each survivor carries a fixture verified under both module
+regimes. npm and maven go through their internal single-file functions,
+exactly the honest single-file semantics 078 wrote down. The 27 absentees are
+each named, with their reason, in the `managerExtractors` ledger comment:
+no single-file function (bun, deno, gradle), Go WASM (terraform), Node
+built-ins at module scope (cocoapods, gleam, mix, flux, kustomize,
+gradle-wrapper, hermit), runtime git (git-submodules), sibling-lockfile-only
+(nix), an unshimmed `ensureLocalPath` (pipenv), and the user-config-dependent
+custom managers (regex/jsonata — 063's scope).
 
 `extractDeps` seeds files through upstream's own `writeLocalFile`, so the
 golden project (real fs under a temp `GlobalConfig.localDir`) and the shimmed
@@ -62,6 +73,12 @@ one (the in-memory store) run identical engine code.
   and once per loaded repo.
 - **No custom managers** — 063 remains unimplemented; nothing here forecloses
   it.
+- **Pattern-less managers extract only by explicit `manager`** — eleven
+  managers (argocd, kubernetes, tekton, pep723, …) ship empty
+  `managerFilePatterns`, so the repo picker's filename walk never finds them;
+  `extractDeps`' `manager` override is their door, and the fixture pairs use
+  it for every case (several managers legitimately claim one filename —
+  pyproject.toml is pep621's, pixi's and poetry's).
 - **No `rcd extract` subcommand yet** — `extractDeps` is on the engine surface,
   so the CLI gets it for free when 078's remaining scope lands.
 

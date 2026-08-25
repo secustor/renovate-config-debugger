@@ -1,0 +1,14 @@
+{
+  "manager": "argocd",
+  "fileName": "argocd/application.yaml",
+  "deps": [
+    {
+      "depName": "nginx",
+      "registryUrls": [
+        "https://charts.bitnami.com/bitnami"
+      ],
+      "currentValue": "18.1.0",
+      "datasource": "helm"
+    }
+  ]
+}

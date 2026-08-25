@@ -1,0 +1,10 @@
+---
+steps:
+  build:
+    image: golang:1.22.3
+    commands:
+      - go build ./...
+  test:
+    image: alpine:3.20.0
+    commands:
+      - echo ok

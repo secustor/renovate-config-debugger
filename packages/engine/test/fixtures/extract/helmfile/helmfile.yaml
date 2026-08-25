@@ -1,0 +1,11 @@
+repositories:
+  - name: bitnami
+    url: https://charts.bitnami.com/bitnami
+
+releases:
+  - name: redis
+    chart: bitnami/redis
+    version: 19.6.4
+  - name: postgresql
+    chart: bitnami/postgresql
+    version: 15.5.20

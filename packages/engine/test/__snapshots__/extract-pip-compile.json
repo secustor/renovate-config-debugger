@@ -1,0 +1,20 @@
+{
+  "manager": "pip-compile",
+  "fileName": "requirements.txt",
+  "deps": [
+    {
+      "depName": "click",
+      "packageName": "click",
+      "currentValue": "==8.1.7",
+      "datasource": "pypi",
+      "currentVersion": "8.1.7"
+    },
+    {
+      "depName": "flask",
+      "packageName": "flask",
+      "currentValue": "==3.0.3",
+      "datasource": "pypi",
+      "currentVersion": "3.0.3"
+    }
+  ]
+}

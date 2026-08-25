@@ -1,0 +1,28 @@
+{
+  "manager": "kubernetes",
+  "fileName": "k8s/deployment.yaml",
+  "deps": [
+    {
+      "depName": "nginx",
+      "packageName": "nginx",
+      "currentValue": "1.27.0",
+      "replaceString": "nginx:1.27.0",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker"
+    },
+    {
+      "depName": "envoyproxy/envoy",
+      "packageName": "envoyproxy/envoy",
+      "currentValue": "v1.30.4",
+      "replaceString": "envoyproxy/envoy:v1.30.4",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker"
+    },
+    {
+      "depName": "Deployment",
+      "currentValue": "apps/v1",
+      "datasource": "kubernetes-api",
+      "versioning": "kubernetes-api"
+    }
+  ]
+}

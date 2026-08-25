@@ -1,0 +1,15 @@
+---
+resources:
+  repositories:
+    - repository: templates
+      type: github
+      name: contoso/build-templates
+      ref: refs/tags/v1.2.3
+  containers:
+    - container: linux
+      image: ubuntu:24.04
+
+steps:
+  - task: UseDotNet@2
+    inputs:
+      version: 8.0.x

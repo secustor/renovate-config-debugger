@@ -1,0 +1,21 @@
+{
+  "manager": "mise",
+  "fileName": "mise.toml",
+  "deps": [
+    {
+      "depName": "node",
+      "depType": "tools",
+      "currentValue": "20.15.0",
+      "packageName": "node",
+      "datasource": "node-version"
+    },
+    {
+      "depName": "terraform",
+      "depType": "tools",
+      "currentValue": "1.9.2",
+      "datasource": "github-releases",
+      "packageName": "hashicorp/terraform",
+      "extractVersion": "^v(?<version>\\S+)"
+    }
+  ]
+}

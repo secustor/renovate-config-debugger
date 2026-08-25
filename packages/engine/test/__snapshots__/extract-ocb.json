@@ -1,0 +1,26 @@
+{
+  "manager": "ocb",
+  "fileName": "builder-config.yaml",
+  "deps": [
+    {
+      "datasource": "go",
+      "depType": "collector",
+      "depName": "go.opentelemetry.io/collector",
+      "currentValue": "0.104.0",
+      "extractVersion": "^v(?<version>\\S+)"
+    },
+    {
+      "datasource": "go",
+      "depType": "exports",
+      "depName": "go.opentelemetry.io/collector/exporter/debugexporter",
+      "currentValue": "v0.104.0"
+    },
+    {
+      "datasource": "go",
+      "depType": "receivers",
+      "depName": "go.opentelemetry.io/collector/receiver/otlpreceiver",
+      "currentValue": "v0.104.0"
+    }
+  ],
+  "packageFileVersion": "1.0.0"
+}

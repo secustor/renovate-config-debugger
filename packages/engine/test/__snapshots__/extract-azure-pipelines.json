@@ -1,0 +1,30 @@
+{
+  "manager": "azure-pipelines",
+  "fileName": "azure-pipelines.yml",
+  "deps": [
+    {
+      "autoReplaceStringTemplate": "refs/tags/{{newValue}}",
+      "currentValue": "v1.2.3",
+      "datasource": "git-tags",
+      "depName": "contoso/build-templates",
+      "depType": "gitTags",
+      "packageName": "https://github.com/contoso/build-templates.git",
+      "replaceString": "refs/tags/v1.2.3"
+    },
+    {
+      "depName": "ubuntu",
+      "packageName": "ubuntu",
+      "currentValue": "24.04",
+      "replaceString": "ubuntu:24.04",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker",
+      "versioning": "ubuntu",
+      "depType": "docker"
+    },
+    {
+      "depName": "UseDotNet",
+      "currentValue": "2",
+      "datasource": "azure-pipelines-tasks"
+    }
+  ]
+}

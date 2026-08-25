@@ -1,0 +1,16 @@
+{
+  "manager": "travis",
+  "fileName": ".travis.yml",
+  "deps": [
+    {
+      "depName": "node",
+      "datasource": "node-version",
+      "currentValue": "20.14.0"
+    },
+    {
+      "depName": "node",
+      "datasource": "node-version",
+      "currentValue": "18.20.3"
+    }
+  ]
+}

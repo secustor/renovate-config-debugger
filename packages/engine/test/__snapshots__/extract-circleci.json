@@ -1,0 +1,23 @@
+{
+  "manager": "circleci",
+  "fileName": ".circleci/config.yml",
+  "deps": [
+    {
+      "depName": "node",
+      "packageName": "circleci/node",
+      "depType": "orb",
+      "currentValue": "5.2.0",
+      "versioning": "npm",
+      "datasource": "orb"
+    },
+    {
+      "depName": "cimg/node",
+      "packageName": "cimg/node",
+      "currentValue": "20.12",
+      "replaceString": "cimg/node:20.12",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker",
+      "depType": "docker"
+    }
+  ]
+}

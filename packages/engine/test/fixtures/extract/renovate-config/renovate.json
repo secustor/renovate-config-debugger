@@ -1,0 +1,7 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["github>renovatebot/.github#v1.2.3", "config:recommended"],
+  "constraints": {
+    "python": "3.12.4"
+  }
+}

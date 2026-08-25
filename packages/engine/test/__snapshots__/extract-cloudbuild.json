@@ -1,0 +1,22 @@
+{
+  "manager": "cloudbuild",
+  "fileName": "cloudbuild.yaml",
+  "deps": [
+    {
+      "depName": "gcr.io/cloud-builders/docker",
+      "packageName": "gcr.io/cloud-builders/docker",
+      "currentValue": "latest",
+      "replaceString": "gcr.io/cloud-builders/docker:latest",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker"
+    },
+    {
+      "depName": "golang",
+      "packageName": "golang",
+      "currentValue": "1.22.3",
+      "replaceString": "golang:1.22.3",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker"
+    }
+  ]
+}

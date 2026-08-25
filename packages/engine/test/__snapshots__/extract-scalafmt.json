@@ -1,0 +1,14 @@
+{
+  "manager": "scalafmt",
+  "fileName": ".scalafmt.conf",
+  "deps": [
+    {
+      "datasource": "github-releases",
+      "depName": "scalafmt",
+      "packageName": "scalameta/scalafmt",
+      "versioning": "semver",
+      "currentValue": "3.8.1",
+      "extractVersion": "^v(?<version>\\S+)"
+    }
+  ]
+}

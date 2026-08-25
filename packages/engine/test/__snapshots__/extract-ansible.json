@@ -1,0 +1,22 @@
+{
+  "manager": "ansible",
+  "fileName": "roles/web/tasks/main.yml",
+  "deps": [
+    {
+      "depName": "nginx",
+      "packageName": "nginx",
+      "currentValue": "1.27.0",
+      "replaceString": "nginx:1.27.0",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker"
+    },
+    {
+      "depName": "redis",
+      "packageName": "redis",
+      "currentValue": "7.2.5",
+      "replaceString": "redis:7.2.5",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker"
+    }
+  ]
+}

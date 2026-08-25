@@ -17,9 +17,12 @@ describe("extractDeps (shimmed)", () => {
 
   for (const c of EXTRACT_CASES) {
     it(`extracts ${c.fixture} with ${c.manager}, byte-identical to golden`, async () => {
+      // Explicit manager, as in the golden twin: a case names the parser it
+      // exercises; several managers can claim the same filename.
       const outcome = await extractDeps({
         fileName: c.fileName,
         content: extractFixture(c.fixture),
+        manager: c.manager,
       });
       if (!outcome.ok) {
         throw new Error(`expected extraction to succeed: ${outcome.message}`);

@@ -1,0 +1,26 @@
+{
+  "manager": "bazel",
+  "fileName": "WORKSPACE",
+  "deps": [
+    {
+      "datasource": "github-releases",
+      "depType": "http_archive",
+      "depName": "rules_go",
+      "packageName": "bazelbuild/rules_go",
+      "currentValue": "v0.46.0",
+      "managerData": {
+        "idx": 0
+      }
+    },
+    {
+      "depType": "git_repository",
+      "depName": "rules_python",
+      "currentValue": "0.31.0",
+      "packageName": "bazelbuild/rules_python",
+      "datasource": "github-releases",
+      "managerData": {
+        "idx": 1
+      }
+    }
+  ]
+}

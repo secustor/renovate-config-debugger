@@ -1,0 +1,18 @@
+{
+  "manager": "unity3d",
+  "fileName": "ProjectSettings/ProjectVersion.txt",
+  "deps": [
+    {
+      "currentValue": "2022.3.36f1",
+      "datasource": "unity3d",
+      "depName": "Unity Editor",
+      "packageName": "m_EditorVersion"
+    },
+    {
+      "currentValue": "2022.3.36f1 (0bf9d4864f79)",
+      "datasource": "unity3d",
+      "depName": "Unity Editor",
+      "packageName": "m_EditorVersionWithRevision"
+    }
+  ]
+}

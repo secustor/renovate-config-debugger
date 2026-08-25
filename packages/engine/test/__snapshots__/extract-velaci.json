@@ -1,0 +1,22 @@
+{
+  "manager": "velaci",
+  "fileName": ".vela.yml",
+  "deps": [
+    {
+      "depName": "golang",
+      "packageName": "golang",
+      "currentValue": "1.22.4",
+      "replaceString": "golang:1.22.4",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker"
+    },
+    {
+      "depName": "postgres",
+      "packageName": "postgres",
+      "currentValue": "16.3",
+      "replaceString": "postgres:16.3",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker"
+    }
+  ]
+}

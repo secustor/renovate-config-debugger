@@ -1,0 +1,20 @@
+{
+  "manager": "ant",
+  "fileName": "build.xml",
+  "deps": [
+    {
+      "datasource": "maven",
+      "depName": "org.apache.commons:commons-lang3",
+      "currentValue": "3.14.0",
+      "depType": "compile",
+      "fileReplacePosition": 297
+    },
+    {
+      "datasource": "maven",
+      "depName": "com.google.guava:guava",
+      "currentValue": "33.2.1-jre",
+      "depType": "compile",
+      "fileReplacePosition": 372
+    }
+  ]
+}

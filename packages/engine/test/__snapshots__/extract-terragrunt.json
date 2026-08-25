@@ -1,0 +1,13 @@
+{
+  "manager": "terragrunt",
+  "fileName": "terragrunt.hcl",
+  "deps": [
+    {
+      "depType": "github",
+      "packageName": "gruntwork-io/terragrunt-infrastructure-modules-example",
+      "depName": "github.com/gruntwork-io/terragrunt-infrastructure-modules-example",
+      "currentValue": "v0.0.3",
+      "datasource": "github-tags"
+    }
+  ]
+}

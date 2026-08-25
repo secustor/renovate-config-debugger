@@ -1,0 +1,12 @@
+---
+image: node:20.12.2
+
+pipelines:
+  default:
+    - step:
+        name: Deploy
+        script:
+          - npm ci
+          - pipe: atlassian/aws-s3-deploy:1.1.0
+            variables:
+              AWS_DEFAULT_REGION: eu-central-1

@@ -1,0 +1,15 @@
+apiVersion: vendir.k14s.io/v1alpha1
+kind: Config
+directories:
+  - path: vendor
+    contents:
+      - path: charts/contour
+        helmChart:
+          name: contour
+          version: 12.1.0
+          repository:
+            url: https://charts.bitnami.com/bitnami
+      - path: manifests
+        githubRelease:
+          slug: kubernetes/kubernetes
+          tag: v1.30.2

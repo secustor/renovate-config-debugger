@@ -1,0 +1,14 @@
+name: Demo
+
+packages:
+  SwiftLog:
+    url: https://github.com/apple/swift-log
+    from: 1.5.4
+  Alamofire:
+    github: Alamofire/Alamofire
+    majorVersion: 5.9.1
+
+targets:
+  Demo:
+    type: application
+    platform: iOS

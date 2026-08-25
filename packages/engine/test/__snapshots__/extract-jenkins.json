@@ -1,0 +1,18 @@
+{
+  "manager": "jenkins",
+  "fileName": "plugins.yaml",
+  "deps": [
+    {
+      "datasource": "jenkins-plugins",
+      "versioning": "maven",
+      "depName": "git",
+      "currentValue": "5.2.2"
+    },
+    {
+      "datasource": "jenkins-plugins",
+      "versioning": "maven",
+      "depName": "job-dsl",
+      "currentValue": "1.87"
+    }
+  ]
+}

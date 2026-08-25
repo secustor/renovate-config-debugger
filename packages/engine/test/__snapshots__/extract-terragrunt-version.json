@@ -1,0 +1,11 @@
+{
+  "manager": "terragrunt-version",
+  "fileName": ".terragrunt-version",
+  "deps": [
+    {
+      "depName": "gruntwork-io/terragrunt",
+      "currentValue": "0.66.9",
+      "datasource": "github-releases"
+    }
+  ]
+}

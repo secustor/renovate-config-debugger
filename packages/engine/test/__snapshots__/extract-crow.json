@@ -1,0 +1,22 @@
+{
+  "manager": "crow",
+  "fileName": ".crow.yml",
+  "deps": [
+    {
+      "depName": "golang",
+      "packageName": "golang",
+      "currentValue": "1.22.3",
+      "replaceString": "golang:1.22.3",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker"
+    },
+    {
+      "depName": "alpine",
+      "packageName": "alpine",
+      "currentValue": "3.20.0",
+      "replaceString": "alpine:3.20.0",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker"
+    }
+  ]
+}

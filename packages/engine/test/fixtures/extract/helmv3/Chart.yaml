@@ -1,0 +1,10 @@
+apiVersion: v2
+name: my-app
+version: 1.0.0
+dependencies:
+  - name: redis
+    version: 19.6.4
+    repository: https://charts.bitnami.com/bitnami
+  - name: postgresql
+    version: 15.5.20
+    repository: https://charts.bitnami.com/bitnami

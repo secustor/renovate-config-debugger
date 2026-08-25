@@ -1,0 +1,22 @@
+{
+  "manager": "helmv3",
+  "fileName": "Chart.yaml",
+  "deps": [
+    {
+      "depName": "redis",
+      "currentValue": "19.6.4",
+      "registryUrls": [
+        "https://charts.bitnami.com/bitnami"
+      ]
+    },
+    {
+      "depName": "postgresql",
+      "currentValue": "15.5.20",
+      "registryUrls": [
+        "https://charts.bitnami.com/bitnami"
+      ]
+    }
+  ],
+  "datasource": "helm",
+  "packageFileVersion": "1.0.0"
+}

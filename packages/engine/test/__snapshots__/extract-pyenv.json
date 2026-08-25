@@ -1,0 +1,12 @@
+{
+  "manager": "pyenv",
+  "fileName": ".python-version",
+  "deps": [
+    {
+      "depName": "python",
+      "commitMessageTopic": "Python",
+      "currentValue": "3.12.4",
+      "datasource": "docker"
+    }
+  ]
+}

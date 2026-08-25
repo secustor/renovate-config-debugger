@@ -1,0 +1,21 @@
+{
+  "manager": "batect",
+  "fileName": "batect.yml",
+  "deps": [
+    {
+      "depName": "alpine",
+      "packageName": "alpine",
+      "currentValue": "3.20.0",
+      "replaceString": "alpine:3.20.0",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker"
+    },
+    {
+      "depName": "https://github.com/batect/hello-world-bundle.git",
+      "currentValue": "1.0.0",
+      "versioning": "semver",
+      "datasource": "git-tags",
+      "commitMessageTopic": "bundle {{depName}}"
+    }
+  ]
+}

@@ -8,8 +8,12 @@
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { EXTRACT_CASES_A } from "./extract-cases-a";
+import { EXTRACT_CASES_B } from "./extract-cases-b";
+import { EXTRACT_CASES_C } from "./extract-cases-c";
 
 export interface ExtractCase {
+  /** path under fixtures/extract/ (the broad sweep groups by manager subdir) */
   fixture: string;
   /** the repo-relative path the file is extracted AS */
   fileName: string;
@@ -18,7 +22,8 @@ export interface ExtractCase {
   expectDeps: string[];
 }
 
-export const EXTRACT_CASES: ExtractCase[] = [
+/** The original 078 launch set; the broad sweep's batches follow below. */
+const CORE_CASES: ExtractCase[] = [
   {
     fixture: "package.json",
     fileName: "package.json",
@@ -79,6 +84,13 @@ export const EXTRACT_CASES: ExtractCase[] = [
     manager: "maven",
     expectDeps: ["org.apache.commons:commons-lang3", "com.google.guava:guava"],
   },
+];
+
+export const EXTRACT_CASES: ExtractCase[] = [
+  ...CORE_CASES,
+  ...EXTRACT_CASES_A,
+  ...EXTRACT_CASES_B,
+  ...EXTRACT_CASES_C,
 ];
 
 export function extractFixture(name: string): string {

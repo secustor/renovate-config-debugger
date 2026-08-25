@@ -1,0 +1,22 @@
+{
+  "manager": "cpanfile",
+  "fileName": "cpanfile",
+  "deps": [
+    {
+      "depName": "Plack",
+      "currentValue": "1.0048",
+      "datasource": "cpan"
+    },
+    {
+      "depName": "JSON::MaybeXS",
+      "currentValue": "4.037",
+      "datasource": "cpan"
+    },
+    {
+      "depName": "Test::More",
+      "currentValue": "0.98",
+      "depType": "test",
+      "datasource": "cpan"
+    }
+  ]
+}

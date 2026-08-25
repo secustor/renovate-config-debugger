@@ -1,0 +1,18 @@
+{
+  "manager": "bazel-module",
+  "fileName": "MODULE.bazel",
+  "deps": [
+    {
+      "datasource": "bazel",
+      "depType": "bazel_dep",
+      "depName": "rules_go",
+      "currentValue": "0.46.0"
+    },
+    {
+      "datasource": "bazel",
+      "depType": "bazel_dep",
+      "depName": "gazelle",
+      "currentValue": "0.35.0"
+    }
+  ]
+}

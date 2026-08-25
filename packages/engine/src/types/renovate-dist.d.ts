@@ -295,45 +295,22 @@ declare module "renovate/dist/util/fs/index.js" {
   export function readLocalFile(fileName: string, encoding: string): Promise<string | null>;
 }
 
-declare module "renovate/dist/modules/manager/cargo/extract.js" {
+/**
+ * Every mapped manager's standard extract entry point, in one wildcard: the
+ * dist ships no types, the signature is uniform `(content, packageFile,
+ * config) → MaybePromise<PackageFileContent | null>` (managers that take
+ * fewer arguments simply ignore the rest), and per-manager declarations at
+ * this count would be 90 copies of the same shape. The nonstandard entries —
+ * maven's `extractPackage`, npm's internal single-file function — keep exact
+ * declarations below, which take precedence over this pattern.
+ */
+declare module "renovate/dist/modules/manager/*" {
   import type { ExtractConfig, PackageFileContent } from "renovate/dist/modules/manager/types.js";
   export function extractPackageFile(
     content: string,
     packageFile: string,
     config: ExtractConfig,
-  ): Promise<PackageFileContent | null>;
-}
-
-declare module "renovate/dist/modules/manager/dockerfile/extract.js" {
-  import type { ExtractConfig, PackageFileContent } from "renovate/dist/modules/manager/types.js";
-  export function extractPackageFile(
-    content: string,
-    packageFile: string,
-    config: ExtractConfig,
-  ): PackageFileContent | null;
-}
-
-declare module "renovate/dist/modules/manager/github-actions/extract.js" {
-  import type { ExtractConfig, PackageFileContent } from "renovate/dist/modules/manager/types.js";
-  export function extractPackageFile(
-    content: string,
-    packageFile: string,
-    config?: ExtractConfig,
-  ): Promise<PackageFileContent | null>;
-}
-
-declare module "renovate/dist/modules/manager/gomod/extract.js" {
-  import type { PackageFileContent } from "renovate/dist/modules/manager/types.js";
-  export function extractPackageFile(content: string): PackageFileContent | null;
-}
-
-declare module "renovate/dist/modules/manager/helm-values/extract.js" {
-  import type { ExtractConfig, PackageFileContent } from "renovate/dist/modules/manager/types.js";
-  export function extractPackageFile(
-    content: string,
-    packageFile: string,
-    config: ExtractConfig,
-  ): PackageFileContent | null;
+  ): PackageFileContent | null | Promise<PackageFileContent | null>;
 }
 
 declare module "renovate/dist/modules/manager/maven/extract.js" {
@@ -356,29 +333,6 @@ declare module "renovate/dist/modules/manager/npm/extract/index.js" {
     packageFile: string,
     config: ExtractConfig,
   ): Promise<PackageFileContent | null>;
-}
-
-declare module "renovate/dist/modules/manager/nuget/extract.js" {
-  import type { ExtractConfig, PackageFileContent } from "renovate/dist/modules/manager/types.js";
-  export function extractPackageFile(
-    content: string,
-    packageFile: string,
-    config: ExtractConfig,
-  ): Promise<PackageFileContent | null>;
-}
-
-declare module "renovate/dist/modules/manager/pep621/extract.js" {
-  import type { ExtractConfig, PackageFileContent } from "renovate/dist/modules/manager/types.js";
-  export function extractPackageFile(
-    content: string,
-    packageFile: string,
-    config: ExtractConfig,
-  ): Promise<PackageFileContent | null>;
-}
-
-declare module "renovate/dist/modules/manager/pip_requirements/extract.js" {
-  import type { PackageFileContent } from "renovate/dist/modules/manager/types.js";
-  export function extractPackageFile(content: string): PackageFileContent | null;
 }
 
 declare module "renovate/package.json" {

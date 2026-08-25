@@ -1,0 +1,16 @@
+{
+  "manager": "swift",
+  "fileName": "Package.swift",
+  "deps": [
+    {
+      "datasource": "github-tags",
+      "depName": "apple/swift-log",
+      "currentValue": "from: \"1.5.4\""
+    },
+    {
+      "datasource": "github-tags",
+      "depName": "apple/swift-argument-parser",
+      "currentValue": "1.4.0"
+    }
+  ]
+}

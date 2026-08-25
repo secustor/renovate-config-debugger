@@ -1,0 +1,6 @@
+requires 'Plack', '1.0048';
+requires 'JSON::MaybeXS', '4.037';
+
+on 'test' => sub {
+    requires 'Test::More', '0.98';
+};

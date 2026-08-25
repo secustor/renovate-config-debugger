@@ -1,0 +1,16 @@
+{
+  "manager": "meteor",
+  "fileName": "package.js",
+  "deps": [
+    {
+      "depName": "lodash",
+      "currentValue": "4.17.21",
+      "datasource": "npm"
+    },
+    {
+      "depName": "semver",
+      "currentValue": "7.6.2",
+      "datasource": "npm"
+    }
+  ]
+}

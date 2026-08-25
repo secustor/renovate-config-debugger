@@ -1,0 +1,25 @@
+{
+  "manager": "asdf",
+  "fileName": ".tool-versions",
+  "deps": [
+    {
+      "currentValue": "20.12.2",
+      "depName": "node",
+      "datasource": "node-version"
+    },
+    {
+      "currentValue": "3.12.3",
+      "depName": "python",
+      "datasource": "github-tags",
+      "packageName": "python/cpython",
+      "extractVersion": "^v(?<version>\\S+)"
+    },
+    {
+      "currentValue": "1.8.3",
+      "depName": "terraform",
+      "datasource": "github-releases",
+      "packageName": "hashicorp/terraform",
+      "extractVersion": "^v(?<version>\\S+)"
+    }
+  ]
+}

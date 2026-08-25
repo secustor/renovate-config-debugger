@@ -1,0 +1,15 @@
+{
+  "manager": "helmsman",
+  "fileName": "helmsman.yaml",
+  "deps": [
+    {
+      "depName": "redis",
+      "datasource": "helm",
+      "currentValue": "19.6.4",
+      "packageName": "redis",
+      "registryUrls": [
+        "https://charts.bitnami.com/bitnami"
+      ]
+    }
+  ]
+}

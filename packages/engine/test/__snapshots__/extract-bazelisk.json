@@ -1,0 +1,12 @@
+{
+  "manager": "bazelisk",
+  "fileName": ".bazelversion",
+  "deps": [
+    {
+      "depName": "bazel",
+      "currentValue": "7.1.2",
+      "datasource": "github-releases",
+      "packageName": "bazelbuild/bazel"
+    }
+  ]
+}

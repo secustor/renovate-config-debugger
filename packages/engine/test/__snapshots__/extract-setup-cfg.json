@@ -1,0 +1,28 @@
+{
+  "manager": "setup-cfg",
+  "fileName": "setup.cfg",
+  "deps": [
+    {
+      "depName": "requests",
+      "packageName": "requests",
+      "currentValue": ">=2.32.0",
+      "datasource": "pypi",
+      "depType": "install"
+    },
+    {
+      "depName": "flask",
+      "packageName": "flask",
+      "currentValue": "==3.0.3",
+      "datasource": "pypi",
+      "depType": "install",
+      "currentVersion": "3.0.3"
+    },
+    {
+      "depName": "pytest",
+      "packageName": "pytest",
+      "currentValue": ">=8.2.0",
+      "datasource": "pypi",
+      "depType": "extra"
+    }
+  ]
+}

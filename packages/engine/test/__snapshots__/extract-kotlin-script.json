@@ -1,0 +1,18 @@
+{
+  "manager": "kotlin-script",
+  "fileName": "build.main.kts",
+  "deps": [
+    {
+      "currentValue": "33.2.1-jre",
+      "depName": "com.google.guava:guava",
+      "replaceString": "\"com.google.guava:guava:33.2.1-jre\"",
+      "datasource": "maven"
+    },
+    {
+      "currentValue": "3.14.0",
+      "depName": "org.apache.commons:commons-lang3",
+      "replaceString": "\"org.apache.commons:commons-lang3:3.14.0\"",
+      "datasource": "maven"
+    }
+  ]
+}

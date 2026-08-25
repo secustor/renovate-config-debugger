@@ -1,0 +1,21 @@
+{
+  "manager": "helm-requirements",
+  "fileName": "requirements.yaml",
+  "deps": [
+    {
+      "depName": "redis",
+      "currentValue": "19.6.4",
+      "registryUrls": [
+        "https://charts.bitnami.com/bitnami"
+      ]
+    },
+    {
+      "depName": "postgresql",
+      "currentValue": "15.5.20",
+      "registryUrls": [
+        "https://charts.bitnami.com/bitnami"
+      ]
+    }
+  ],
+  "datasource": "helm"
+}

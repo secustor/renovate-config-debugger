@@ -1,0 +1,10 @@
+---
+collections:
+  - name: community.general
+    version: 9.0.1
+  - name: ansible.posix
+    version: 1.5.4
+
+roles:
+  - name: geerlingguy.nginx
+    version: 3.1.4

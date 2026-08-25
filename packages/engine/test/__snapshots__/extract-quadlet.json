@@ -1,0 +1,15 @@
+{
+  "manager": "quadlet",
+  "fileName": "nginx.container",
+  "deps": [
+    {
+      "depName": "docker.io/library/nginx",
+      "packageName": "docker.io/library/nginx",
+      "currentValue": "1.27.0",
+      "replaceString": "docker.io/library/nginx:1.27.0",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker",
+      "depType": "image"
+    }
+  ]
+}
