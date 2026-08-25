@@ -157,6 +157,10 @@ export function ShortcutSheet({ onClose }: { onClose: () => void }) {
   }, []);
 
   return (
+    // A modal dialog claiming Escape is the documented pattern, and the key
+    // arrives by bubbling from whatever inside holds focus. The comment on the
+    // handler itself is why it has to exist at all.
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <dialog
       className="shortcut-sheet"
       ref={dialogRef}

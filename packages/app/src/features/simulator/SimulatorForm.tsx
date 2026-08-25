@@ -129,6 +129,10 @@ export function SimulatorForm({
   formId?: string;
 }) {
   return (
+    // The keydown below is a key BUBBLING from the fields inside, not an
+    // interaction with the form element itself. Declining IMPLICIT SUBMIT is
+    // necessarily a form-level decision; the rule has no shape for that.
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <form
       id={formId}
       className="sim-form-shell"
