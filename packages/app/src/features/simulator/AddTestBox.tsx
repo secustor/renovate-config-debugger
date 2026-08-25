@@ -26,6 +26,7 @@ import { useEngineModule } from "./use-engine-module";
 // Aliased: the hook's return type and the form COMPONENT share a name, and
 // this module is the one place that holds both.
 import { type SimulatorForm as SimulatorFormApi, useSimulatorForm } from "./use-simulator-form";
+import { useSyncedReset } from "@/hooks/use-synced-reset";
 
 /**
  * The design's pin card (`Pin Options`), now in its GHOST form: a collapsed
@@ -455,11 +456,9 @@ export function AddTestBox({
   // pinning it would file A's descriptor under B's "detected because you
   // loaded this config from…" claim. The search box resets the same way,
   // through the keyed RepoDepsTab below.
-  const [draftRepo, setDraftRepo] = useState(repoDeps.repo);
-  if (draftRepo !== repoDeps.repo) {
-    setDraftRepo(repoDeps.repo);
+  useSyncedReset(repoDeps.repo, () => {
     setRepoDraft(null);
-  }
+  });
 
   // Discovery fires when (and only while) the repo tab is actually on screen —
   // including again after a NEW load reset the view to idle under an open tab.
@@ -473,18 +472,23 @@ export function AddTestBox({
 
   // The empty state's quick-start chips write into this form — synced during
   // render (the panel idiom), keyed by nonce so re-clicking the chip works.
-  const [seenSeed, setSeenSeed] = useState(0);
-  if (seedNonce !== seenSeed) {
-    setSeenSeed(seedNonce);
-    if (seed) {
-      if (Object.keys(seed).length > 0) {
-        replaceForm(seed);
+  useSyncedReset(
+    seedNonce,
+    () => {
+      if (seed) {
+        if (Object.keys(seed).length > 0) {
+          replaceForm(seed);
+        }
+        setChosenTab("manual");
+        setUserOpen(true);
+        setFocusNonce((nonce) => nonce + 1);
       }
-      setChosenTab("manual");
-      setUserOpen(true);
-      setFocusNonce((nonce) => nonce + 1);
-    }
-  }
+    },
+    // The owner starts at 0, not at the current nonce: a chip clicked BEFORE
+    // this box mounted has already bumped the nonce, and that seed must still
+    // be applied on the first render rather than adopted as "already seen".
+    () => 0,
+  );
 
   function applyPaste(value: PasteFill) {
     replaceForm(value.fill, {

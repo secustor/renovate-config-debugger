@@ -12,6 +12,7 @@ import type { SimulationResult, TraceResult } from "@renovate-config-debugger/en
 import type { FormState } from "./form";
 import { runSimulation } from "./run-simulation";
 import { DEFAULT_RULE_FILTERS, type RuleFilters } from "@/lib/rule-filters";
+import { useSyncedReset } from "@/hooks/use-synced-reset";
 
 export type Simulate = (nextForm: FormState, touched: boolean, keepStep?: boolean) => Promise<void>;
 
@@ -94,16 +95,14 @@ export function useSimulationRun({
   // effect the new run was a dependency the body never touched. Done here the
   // stale verdict is also gone BEFORE the paint, where an effect left one
   // committed frame showing the previous run's rules under the new run's config.
-  const [resultOwner, setResultOwner] = useState(result);
-  if (result !== resultOwner) {
-    setResultOwner(result);
+  useSyncedReset(result, () => {
     setSim(null);
     setSimForm(null);
     setRanKey(null);
     setError(null);
     setRuleFilters(DEFAULT_RULE_FILTERS);
     setFocusHint(null);
-  }
+  });
 
   // The empty-form guard is the half that cannot: it belongs to
   // `useSimulatorForm`, and a cross-hook call during render is the side effect

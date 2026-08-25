@@ -9,6 +9,7 @@ import {
 import type { ProvenanceLayer, SimulationResult } from "@renovate-config-debugger/engine";
 import { landOnTarget, motionScrollOptions } from "@/lib/motion";
 import { type RuleFilters, ruleVisible } from "@/lib/rule-filters";
+import { useSyncedReset } from "@/hooks/use-synced-reset";
 
 export interface RuleFocus {
   /** The simulator card itself — where a cross-link lands when no simulation
@@ -86,13 +87,11 @@ export function useRuleFocus({
   // observed the cross-link instead of one commit after it. Null is the prop's
   // "consumed" state (`onRuleFocused` clears it) and clears no target: the
   // landing owns when a target is done.
-  const [focusIndexOwner, setFocusIndexOwner] = useState(focusRuleIndex);
-  if (focusRuleIndex !== focusIndexOwner) {
-    setFocusIndexOwner(focusRuleIndex);
+  useSyncedReset(focusRuleIndex, () => {
     if (focusRuleIndex != null) {
       setScrollTarget(focusRuleIndex);
     }
-  }
+  });
 
   // Performs the actual scroll+flash once the target row is guaranteed to be
   // in the DOM: if a filter facet is currently hiding it, reveal it first and

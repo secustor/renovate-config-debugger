@@ -1,5 +1,6 @@
 import { memo, type ReactNode, useState } from "react";
 import { type BenignRemovals, JsonDiff } from "./JsonDiff";
+import { useSyncedReset } from "@/hooks/use-synced-reset";
 
 /** One step of a sequence: what it is, and the full config on both sides. */
 export interface StepThroughStep {
@@ -88,11 +89,9 @@ export const StepThrough = memo(function StepThrough({
   // Done during render the trigger is the comparison itself, and the reset also
   // lands before the paint instead of one committed frame after it, where the
   // old index was briefly shown against the new list.
-  const [stepsOwner, setStepsOwner] = useState(steps);
-  if (steps !== stepsOwner) {
-    setStepsOwner(steps);
+  useSyncedReset(steps, () => {
     setInternalIndex(0);
-  }
+  });
 
   if (steps.length === 0) {
     return null;

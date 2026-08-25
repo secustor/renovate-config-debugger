@@ -11,6 +11,7 @@ import type { RuleDescriptionNote } from "./rule-descriptions";
 import { RuleDescriptionQuote } from "./RuleDescriptionQuote";
 import { ruleAppliedMarkdown, ruleLabel, ruleVerdictLabel, writeMark } from "./rule-format";
 import { WriteRow } from "./WriteRow";
+import { useSyncedReset } from "@/hooks/use-synced-reset";
 
 /** Roadmap 018/040/054: what a matching rule applied to the dependency config,
  *  as the shared write rows plus the copy-as-markdown export of the same. */
@@ -85,11 +86,9 @@ export function RuleRow({
   // otherwise). React's "adjust state when a prop changes" idiom rather than an
   // effect: the prop is both the trigger and the whole new value, and the row
   // re-renders in its new shape before the paint instead of one frame after it.
-  const [defaultOwner, setDefaultOwner] = useState(defaultExpanded);
-  if (defaultExpanded !== defaultOwner) {
-    setDefaultOwner(defaultExpanded);
+  useSyncedReset(defaultExpanded, () => {
     setExpanded(defaultExpanded);
-  }
+  });
   const quote = rule.verdict === "matched" ? description : undefined;
   return (
     // Roadmap 068: a cross-link lands ON this row (`landOnTarget`), so it has

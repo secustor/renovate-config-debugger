@@ -16,6 +16,7 @@ import { buildDescriptionLedger, DESCRIPTION_KEY } from "./description-ledger";
 // Roadmap 069 hoisted this out of here: the description digest prints the same
 // one-line matcher summary, and one spelling of it is enough.
 import { resolvedConfigText } from "./resolved-json";
+import { useSyncedReset } from "@/hooks/use-synced-reset";
 
 /**
  * Roadmap 005: the effective config as a provenance view. Every top-level key
@@ -116,9 +117,7 @@ export const EffectiveConfig = memo(function EffectiveConfig({
   // its expansion first and then be wiped by the reset — a user's first click
   // silently undone, and the flake CI caught as "the expanded description row
   // rendered no ledger".
-  const [resetOwner, setResetOwner] = useState(provenance);
-  if (resetOwner !== provenance) {
-    setResetOwner(provenance);
+  useSyncedReset(provenance, () => {
     resetExpandedRows();
     resetCollapsedSections(DEFAULT_COLLAPSED);
     shownAllBands.reset();
@@ -127,7 +126,7 @@ export const EffectiveConfig = memo(function EffectiveConfig({
     setView("keys");
     setExpand("keep-internal");
     setIncludeDefaults(false);
-  }
+  });
 
   // Roadmap 069: the description card's "show raw order" link lands on the blame
   // ledger — the row is one of ~90, so arriving at the tab is not arriving at
@@ -146,17 +145,22 @@ export const EffectiveConfig = memo(function EffectiveConfig({
   // reset clears the query, and the link's landing sets it afterwards. The owner
   // starts at `undefined`, so a nonce that is already set when this view mounts
   // (the link that switched to this tab) is honoured on the first render.
-  const [nonceOwner, setNonceOwner] = useState<number | undefined>(undefined);
-  if (nonceOwner !== focusDescriptionNonce) {
-    setNonceOwner(focusDescriptionNonce);
-    if (focusDescriptionNonce) {
-      setView("keys");
-      setQuery(DESCRIPTION_KEY);
-      setOnlyOverridden(false);
-      resetExpandedRows(new Set([DESCRIPTION_KEY]));
-      resetCollapsedSections(DEFAULT_COLLAPSED);
-    }
-  }
+  useSyncedReset(
+    focusDescriptionNonce,
+    () => {
+      if (focusDescriptionNonce) {
+        setView("keys");
+        setQuery(DESCRIPTION_KEY);
+        setOnlyOverridden(false);
+        resetExpandedRows(new Set([DESCRIPTION_KEY]));
+        resetCollapsedSections(DEFAULT_COLLAPSED);
+      }
+    },
+    // Starts at `undefined` rather than at the current nonce, so a nonce that
+    // is ALREADY set when this view mounts — the cross-link that switched to
+    // this tab — is honoured on the first render instead of adopted as seen.
+    () => undefined,
+  );
 
   const entries = useMemo(() => (provenance ? [...provenance.values()] : []), [provenance]);
 

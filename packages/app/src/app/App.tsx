@@ -77,6 +77,7 @@ import { useShareLink } from "@/hooks/use-share-link";
 import type { RunInputs } from "@/lib/run-inputs";
 import { createRunQueue, type RunQueue } from "@/lib/run-queue";
 import { pluralWord } from "@/lib/format";
+import { useSyncedReset } from "@/hooks/use-synced-reset";
 
 const DEFAULT_CONFIG = `{
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
@@ -684,13 +685,11 @@ export function App() {
   // indices are back at their starting points BEFORE the paint instead of one
   // committed frame after it, where a stepper briefly showed the old step
   // against the new run's sequence.
-  const [resultOwner, setResultOwner] = useState(result);
-  if (result !== resultOwner) {
-    setResultOwner(result);
+  useSyncedReset(result, () => {
     setSelectedNodeId(null);
     setMigrationStepIndex(0);
     setMergeStepIndex(0);
-  }
+  });
 
   useEffect(() => {
     // Roadmap 028: a new run invalidates the previous run's async counts —
