@@ -10,7 +10,7 @@
 
 .advanced-settings {
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   margin: 0.5rem 0 0.75rem;
   padding: 0.4rem 0.75rem;
 }
@@ -55,7 +55,7 @@
 .advanced-row input {
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: inherit;
   font-size: 0.8rem;
   padding: 0.4rem 0.6rem;
@@ -66,7 +66,7 @@
 textarea.layer-editor {
   background: var(--canvas);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: inherit;
   font-family: var(--font-mono);
   font-size: 0.85rem;
@@ -142,7 +142,7 @@ textarea.layer-editor:focus {
 .preset-inject-input {
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: inherit;
   font-family: var(--font-mono);
   font-size: 0.8rem;
@@ -187,7 +187,7 @@ textarea.layer-editor:focus {
 .preset-panel-head .close {
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: inherit;
   cursor: pointer;
   line-height: 1.2;
