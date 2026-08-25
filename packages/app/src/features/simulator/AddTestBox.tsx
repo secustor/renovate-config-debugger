@@ -369,7 +369,11 @@ export function AddTestBox({
   const [simulating, setSimulating] = useState(false);
   // Roadmap 082: which door the descriptor is coming through, and the drafts
   // in the other two — held here so a tab switch does not throw them away.
-  const [tab, setTab] = useState<AddTestTab>("manual");
+  // The DEFAULT is derived, not stored (the design's rule): until the reader
+  // picks a tab, a loaded repository opens the card on From repository — the
+  // picker is the natural door when the deps are already on the table — and
+  // Manual otherwise.
+  const [chosenTab, setChosenTab] = useState<AddTestTab | null>(null);
   const [pasteDraft, setPasteDraft] = useState("");
   const [repoDraft, setRepoDraft] = useState<RepoDraft | null>(null);
   // The ghost row (082 revisited): collapsed once pins exist; the card starts
@@ -391,6 +395,14 @@ export function AddTestBox({
   }
 
   const repoAvailable = repoDeps.repo !== "";
+  // An explicit repo choice with no repo behind it (only reachable if a load
+  // could ever be undone) still lands somewhere real.
+  const tab: AddTestTab =
+    chosenTab === null || (chosenTab === "repo" && !repoAvailable)
+      ? repoAvailable
+        ? "repo"
+        : "manual"
+      : chosenTab;
 
   // Discovery fires when (and only while) the repo tab is actually on screen —
   // including again after a NEW load reset the view to idle under an open tab.
@@ -411,7 +423,7 @@ export function AddTestBox({
       if (Object.keys(seed).length > 0) {
         replaceForm(seed);
       }
-      setTab("manual");
+      setChosenTab("manual");
       setOpen(true);
       setFocusNonce((nonce) => nonce + 1);
     }
@@ -422,7 +434,7 @@ export function AddTestBox({
       updateTypeTouched: value.updateTypeGiven,
       note: pasteImportNote(value),
     });
-    setTab("manual");
+    setChosenTab("manual");
   }
 
   const atLimit = pins.length >= MAX_PINS;
@@ -478,7 +490,7 @@ export function AddTestBox({
     }
     replaceForm(draftFill(repoDraft));
     setRepoDraft(null);
-    setTab("manual");
+    setChosenTab("manual");
   }
 
   if (!open) {
@@ -497,15 +509,15 @@ export function AddTestBox({
     <div className="pin-add-panel">
       <div className="card pin-add-card">
         <AddTestTabs
-          tab={tab === "repo" && !repoAvailable ? "manual" : tab}
-          onTabChange={setTab}
+          tab={tab}
+          onTabChange={setChosenTab}
           repoAvailable={repoAvailable}
           onClose={() => setOpen(false)}
         />
         {tab === "paste" ? (
           <PasteJsonTab text={pasteDraft} onTextChange={setPasteDraft} onFill={applyPaste} />
         ) : null}
-        {tab === "repo" && repoAvailable ? (
+        {tab === "repo" ? (
           <RepoDepsTab
             view={repoDeps}
             pins={pins}
@@ -517,7 +529,7 @@ export function AddTestBox({
             onRetry={onLoadRepoDeps}
           />
         ) : null}
-        {tab === "manual" || (tab === "repo" && !repoAvailable) ? (
+        {tab === "manual" ? (
           <ManualPanel
             sim={simForm}
             importNote={importNote}

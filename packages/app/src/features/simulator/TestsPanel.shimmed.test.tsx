@@ -399,6 +399,21 @@ it("offers the loaded repo's dependencies and pins one from the picker (078)", a
   expect(rows[0]?.textContent).toContain("node");
 });
 
+it("opens on From repository when a repo is already loaded — the design's default door", async () => {
+  const result = await run();
+  const view = render(<Harness result={result} repoDeps={REPO_DEPS} />);
+
+  // No pins yet, so the card is open; with the repo's deps on the table the
+  // picker is the selected tab without a click…
+  const repoTab = view.getByRole("tab", { name: "From repository" });
+  expect(repoTab.getAttribute("aria-selected")).toBe("true");
+  expect(view.getByLabelText("Search detected dependencies")).toBeTruthy();
+
+  // …and an explicit choice still sticks.
+  fireEvent.click(view.getByRole("tab", { name: "Manual" }));
+  expect(view.getByLabelText("packageName", { exact: true })).toBeTruthy();
+});
+
 it("keeps the From-repository tab honestly disabled while no repo is loaded", async () => {
   const result = await run();
   const view = render(<Harness result={result} />);

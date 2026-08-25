@@ -98,6 +98,12 @@ one (the in-memory store) run identical engine code.
   `role="tablist"`, `aria-selected`, arrow-key roving — exactly what 082 said
   should arrive with it. While no repo is loaded the tab stays visible and
   honestly disabled ("load a repo first").
+- **The default tab is derived, not stored** — the design's
+  `combTab ?? (repoAvailable ? "repo" : "manual")`: until the reader picks a
+  tab, a loaded repository opens the card on From repository (the picker is
+  the natural door when the deps are already on the table), and Manual
+  otherwise. An explicit choice sticks; the seed channel and "refine in
+  Manual" both count as one.
 
 ## Incidental fix worth recording
 
