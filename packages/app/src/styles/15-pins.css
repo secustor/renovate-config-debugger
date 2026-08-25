@@ -758,9 +758,24 @@
   margin: 0 0 0.75rem;
 }
 
+/* The suggestion's owner/repo chip in the body sentence — the design's code
+   chip (no element-level `code` rule exists; every surface styles its own). */
+.pin-repo-connect-body code {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 0 0.25rem;
+}
+
 .pin-repo-connect-actions {
   align-items: center;
   display: flex;
+  /* .digest-link is `font: inherit` — everywhere else it sits inside sized
+     prose; here the row itself must set the design's link size or the link
+     inherits the page's base 16px. */
+  font-size: 0.75rem;
   gap: 0.6rem;
   justify-content: center;
 }
@@ -924,6 +939,8 @@
 .pin-repo-draft-actions {
   align-items: center;
   display: flex;
+  /* sizes the `font: inherit` refine link (the buttons carry their own). */
+  font-size: 0.72rem;
   gap: 0.5rem;
 }
 
