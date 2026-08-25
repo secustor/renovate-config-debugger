@@ -11,7 +11,7 @@
  * come to disagree about what a credential row looks like.
  */
 import { useState } from "react";
-import type { CustomHostRule } from "@/data/custom-host-rules";
+import type { CustomHostRule } from "@/lib/custom-host-rules";
 import type { HostTokenField } from "@/hooks/use-host-tokens";
 import { isValidToken } from "@/lib/input-schemas";
 import { SessionAvatar } from "@/components/SessionAvatar";

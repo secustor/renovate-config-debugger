@@ -5,8 +5,12 @@
  *
  * Tokens are secrets, so this lives in sessionStorage ONLY (roadmap 009/010):
  * cleared when the tab closes, never in localStorage, and never in a share
- * link. Pure data, no React — `run.ts` (which must stay engine-chunk-light)
- * imports it too, exactly like `host-tokens.ts`.
+ * link. No React — `run.ts` (which must stay engine-chunk-light) imports it too.
+ *
+ * In `lib/` rather than `data/`: it holds no data table at all. It is the
+ * validation of an untrusted sessionStorage payload plus the CRUD around it,
+ * i.e. behaviour, and its neighbours are the other validators
+ * (structure review, finding 20).
  */
 import { isValidHost, isValidToken } from "@/lib/input-schemas";
 import { sessionGet, sessionRemove, sessionSet } from "@/platform/storage";

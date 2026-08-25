@@ -309,18 +309,16 @@ function PasteJsonTab({
  */
 function ManualPanel({
   sim,
-  importNote,
-  emptyGuard,
   openGroup,
   onOpenGroupChange,
   onQuickFill,
   onSubmit,
   actions,
 }: {
+  /** Carries its own `importNote` (082's paste receipt) and `showEmptyGuard`
+   *  — they used to be passed AGAIN as separate props beside it, so the same
+   *  two facts arrived twice and could in principle disagree. */
   sim: SimulatorFormApi;
-  /** Roadmap 082: the receipt from a Paste-JSON import, or null. */
-  importNote: string | null;
-  emptyGuard: boolean;
   openGroup: number;
   onOpenGroupChange: (index: number) => void;
   onQuickFill: (fill: Partial<FormState>) => void;
@@ -331,7 +329,7 @@ function ManualPanel({
 }) {
   return (
     <>
-      {importNote ? <p className="pin-import-note">✓ {importNote}</p> : null}
+      {sim.importNote ? <p className="pin-import-note">✓ {sim.importNote}</p> : null}
       <SimulatorForm
         form={sim.form}
         setForm={sim.setForm}
@@ -348,7 +346,7 @@ function ManualPanel({
         onSubmit={onSubmit}
         formId={PIN_FORM_ID}
       />
-      {emptyGuard ? <EmptyFormGuard /> : null}
+      {sim.showEmptyGuard ? <EmptyFormGuard /> : null}
       {actions}
     </>
   );
@@ -396,8 +394,7 @@ export function AddTestBox({
   // (it renders the form), while the simulate/pin actions here read the few
   // members they act on.
   const simForm = useSimulatorForm(engineModule);
-  const { form, updateTypeTouched, importNote, replaceForm, guard, showEmptyGuard, pinDescriptor } =
-    simForm;
+  const { form, updateTypeTouched, replaceForm, guard, pinDescriptor } = simForm;
   // Roadmap 079: which field group is expanded (-1 = all closed, the state the
   // panel opens in). Held here rather than in the form so a re-render from a
   // simulation never folds what the reader opened.
@@ -605,8 +602,6 @@ export function AddTestBox({
         {tab === "manual" ? (
           <ManualPanel
             sim={simForm}
-            importNote={importNote}
-            emptyGuard={showEmptyGuard}
             openGroup={openGroup}
             onOpenGroupChange={setOpenGroup}
             onQuickFill={(fill) => replaceForm(fill)}

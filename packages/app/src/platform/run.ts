@@ -14,7 +14,7 @@ import type {
   TranslatedMessage,
   ValidationMessage,
 } from "@renovate-config-debugger/engine";
-import { readCustomHostRules } from "@/data/custom-host-rules";
+import { readCustomHostRules } from "@/lib/custom-host-rules";
 import { HOST_TOKENS } from "@/data/host-tokens";
 import { isValidToken } from "@/lib/input-schemas";
 import { type Engine, loadEngine } from "./engine-chunk";
