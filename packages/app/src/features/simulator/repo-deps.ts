@@ -174,6 +174,23 @@ export function draftFill(draft: RepoDraft): Partial<FormState> {
   return fill;
 }
 
+/** Rows the picker shows before the "… N more across …" line — the design's
+ *  cap (5 rows, then the footer counts the rest). The list never grows past
+ *  it, so the tab keeps its height and the search is the way to the tail. */
+export const REPO_DEPS_SHOWN = 5;
+
+/** The package files of the rows past the cap, distinct and in row order —
+ *  the "… N more across package.json, Dockerfile, …" footer names them. */
+export function hiddenDepFiles(hidden: readonly RepoDep[]): string[] {
+  const files: string[] = [];
+  for (const dep of hidden) {
+    if (!files.includes(dep.packageFile)) {
+      files.push(dep.packageFile);
+    }
+  }
+  return files;
+}
+
 /** Case-insensitive substring filter over name, file and manager — the search
  *  row's semantics. */
 export function filterRepoDeps(deps: readonly RepoDep[], query: string): RepoDep[] {

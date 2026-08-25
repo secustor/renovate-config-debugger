@@ -16,7 +16,12 @@ import { afterEach, beforeAll, expect, it, vi } from "vitest";
 import type { SimRequest } from "@/hooks/use-share-link";
 import type { FormState } from "./form";
 import type { PinnedTest } from "./pins";
-import { EMPTY_REPO_DEPS, type RepoConnectOffer, type RepoDepsView } from "./repo-deps";
+import {
+  EMPTY_REPO_DEPS,
+  type RepoConnectOffer,
+  type RepoDep,
+  type RepoDepsView,
+} from "./repo-deps";
 import { TestsPanel } from "./TestsPanel";
 
 afterEach(cleanup);
@@ -400,6 +405,56 @@ it("offers the loaded repo's dependencies and pins one from the picker (078)", a
   const rows = view.container.querySelectorAll(".pin-repo-row");
   expect(rows).toHaveLength(1);
   expect(rows[0]?.textContent).toContain("node");
+});
+
+function repoDep(packageFile: string, depName: string, currentValue: string): RepoDep {
+  return {
+    key: `${packageFile}:${depName}`,
+    depName,
+    meta: `${packageFile} · ${currentValue}`,
+    manager: "npm",
+    packageFile,
+    fill: { manager: "npm", packageFile, depName, packageName: depName, currentValue },
+  };
+}
+
+it("caps the list at five rows, counts the tail, and drafts inline under its row", async () => {
+  const deps = [
+    repoDep("package.json", "typescript", "^5.8.3"),
+    repoDep("package.json", "react", "^19.0.0"),
+    repoDep("Dockerfile", "node", "20-alpine"),
+    repoDep("package.json", "vite", "^7.0.0"),
+    repoDep(".github/workflows/ci.yml", "actions/checkout", "v4"),
+    repoDep("package.json", "lodash", "4.17.21"),
+    repoDep("Chart.yaml", "redis", "18.0.0"),
+  ];
+  const result = await run();
+  const view = render(<Harness result={result} repoDeps={{ ...REPO_DEPS, deps, fileCount: 4 }} />);
+  fireEvent.click(view.getByRole("tab", { name: "From repository" }));
+
+  // Five rows, then the design's tail line naming the hidden rows' files —
+  // the list itself never grows past the cap (the column must not scroll for it).
+  expect(view.container.querySelectorAll(".pin-repo-row")).toHaveLength(5);
+  expect(view.container.textContent).toContain("… 2 more across package.json, Chart.yaml");
+
+  // Quick-pin on a mid-list row: the draft card renders INSIDE the list,
+  // immediately beneath the picked row (the design's draftHere).
+  const row = view.getByText("node").closest("li");
+  if (!row) {
+    throw new Error("the node row is missing");
+  }
+  fireEvent.click(within(row).getByRole("button", { name: "patch" }));
+  const holder = row.nextElementSibling;
+  expect(holder?.className).toBe("pin-repo-draft-row");
+  expect(holder?.querySelector(".pin-repo-draft")).not.toBeNull();
+
+  // Searching the drafted row away must not lose the draft — its card falls
+  // back to the list's tail until the row is visible again.
+  fireEvent.change(view.getByLabelText("Search detected dependencies"), {
+    target: { value: "package.json" },
+  });
+  expect(view.container.querySelector(".pin-repo-list .pin-repo-draft")).toBeNull();
+  expect(view.container.querySelector(".pin-repo-draft")).not.toBeNull();
 });
 
 it("opens on From repository when a repo is already loaded — the design's default door", async () => {

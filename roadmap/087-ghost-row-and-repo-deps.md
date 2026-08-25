@@ -90,10 +90,21 @@ one (the in-memory store) run identical engine code.
   `AddTestBox` through the run-view context → `ResultsColumn` → `TestsPanel` →
   `PinsView` prop chain.
 - Rows carry patch/minor/major quick-pins — extraction cannot know the next
-  version, so the buttons name the update TYPE and the draft card beneath the
-  list is where a version may be typed; "refine any field in Manual →" hands
-  the whole descriptor to the form. A row whose dep is pinned wears
-  "pinned · type" instead, derived from the pins list, not remembered.
+  version, so the buttons name the update TYPE and the draft card is where a
+  version may be typed; "refine any field in Manual →" hands the whole
+  descriptor to the form. A row whose dep is pinned wears "pinned · type"
+  instead, derived from the pins list, not remembered.
+- **The draft renders inline, right beneath the picked row** (the design's
+  third revision — `draftOpen` became per-row `draftHere`), so the sentence
+  sits next to the row it describes. When its row is off screen (searched
+  away, or past the cap) the card falls back to the list's tail rather than
+  losing the draft.
+- **The list is capped at five rows** (`REPO_DEPS_SHOWN`, the design's own
+  ratio — its mock shows 5 of 31), applied after the search filter, so the
+  tab keeps its height instead of scrolling the whole column. The footer then
+  opens with the design's "… N more across `<files>`" (distinct package files
+  of the hidden rows, first four named) and the search is the way to the
+  tail; the totals stay in the search placeholder.
 - With the third tab live, the strip carries real tablist semantics —
   `role="tablist"`, `aria-selected`, arrow-key roving — exactly what 082 said
   should arrive with it.

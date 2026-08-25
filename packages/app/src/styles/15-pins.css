@@ -871,6 +871,12 @@
   margin: 0;
 }
 
+/* The draft rendered inline beneath its source row (the design's draftHere). */
+.pin-repo-draft-row {
+  display: block;
+  margin: 0.35rem 0;
+}
+
 /* The picked row on its way to a pin — accent-bordered, the design's draft. */
 .pin-repo-draft {
   border: 1px solid var(--accent);

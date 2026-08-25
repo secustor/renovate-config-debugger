@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ExtractedPackageFile } from "@renovate-config-debugger/engine";
-import { depToFill, filterRepoDeps, repoDepsOfFile } from "./repo-deps";
+import { depToFill, filterRepoDeps, hiddenDepFiles, repoDepsOfFile } from "./repo-deps";
 
 const FILE: ExtractedPackageFile = {
   manager: "npm",
@@ -86,5 +86,17 @@ describe("filterRepoDeps", () => {
 
   it("returns everything for a blank query", () => {
     expect(filterRepoDeps(rows, "  ")).toHaveLength(3);
+  });
+});
+
+describe("hiddenDepFiles", () => {
+  it("names each hidden row's file once, in row order", () => {
+    const rows = [
+      ...repoDepsOfFile(FILE),
+      ...repoDepsOfFile({ manager: "dockerfile", fileName: "Dockerfile", deps: FILE.deps }),
+      ...repoDepsOfFile(FILE),
+    ];
+    expect(hiddenDepFiles(rows)).toEqual(["packages/app/package.json", "Dockerfile"]);
+    expect(hiddenDepFiles([])).toEqual([]);
   });
 });

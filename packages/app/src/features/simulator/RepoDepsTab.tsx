@@ -3,6 +3,8 @@ import { nf } from "@/lib/format";
 import type { PinnedTest } from "./pins";
 import {
   filterRepoDeps,
+  hiddenDepFiles,
+  REPO_DEPS_SHOWN,
   type RepoConnectOffer,
   type RepoDep,
   type RepoDepsView,
@@ -14,10 +16,12 @@ import {
  * extraction found in the loaded repository's package files, each one click
  * from becoming a pinned test. The quick-pin buttons name the update TYPE
  * (patch/minor/major) because extraction cannot know the next version — the
- * draft card below the list is where the reader may type one, and "refine any
- * field in Manual" hands the whole descriptor to the form for anything more.
- * The draft's shapes (and what its Pin writes) live in `repo-deps.ts` — this
- * file only draws.
+ * draft card, rendered inline right under the picked row (the design's
+ * `draftHere`), is where the reader may type one, and "refine any field in
+ * Manual" hands the whole descriptor to the form for anything more. The list
+ * is capped at REPO_DEPS_SHOWN rows so the tab keeps its height; the footer
+ * counts the tail and the search reaches it. The draft's shapes (and what its
+ * Pin writes) live in `repo-deps.ts` — this file only draws.
  */
 
 /** The pin standing for this row, if any — matched on the identity fields the
@@ -146,6 +150,48 @@ function RepoDraftCard({
   );
 }
 
+/** One shown row plus, when the draft was opened from it, the draft card
+ *  inline right beneath — the design's `draftHere`. */
+function RepoDepItem({
+  dep,
+  pinned,
+  showQuickPins,
+  draft,
+  onDraftChange,
+  onPinDraft,
+  onRefineDraft,
+}: {
+  dep: RepoDep;
+  pinned: string | null;
+  showQuickPins: boolean;
+  draft: RepoDraft | null;
+  onDraftChange: (draft: RepoDraft | null) => void;
+  onPinDraft: () => void;
+  onRefineDraft: () => void;
+}) {
+  return (
+    <>
+      <RepoDepRow
+        dep={dep}
+        pinned={pinned}
+        showQuickPins={showQuickPins}
+        onQuickPin={(type) => onDraftChange({ dep, type, newValue: "" })}
+      />
+      {draft !== null && draft.dep.key === dep.key ? (
+        <li className="pin-repo-draft-row">
+          <RepoDraftCard
+            draft={draft}
+            onNewValue={(newValue) => onDraftChange({ ...draft, newValue })}
+            onPin={onPinDraft}
+            onRefine={onRefineDraft}
+            onCancel={() => onDraftChange(null)}
+          />
+        </li>
+      ) : null}
+    </>
+  );
+}
+
 /**
  * The design's connect panel — what the From-repository tab shows while no
  * repository is loaded in this session. A share link carries the config and
@@ -184,12 +230,21 @@ export function RepoConnectPanel({ offer }: { offer: RepoConnectOffer }) {
   );
 }
 
-/** The counts line under the list — what was read, and what honestly wasn't. */
-function RepoDepsFootnote({ view }: { view: RepoDepsView }) {
-  const parts = [
-    `${nf.format(view.deps.length)} dependencies across ${nf.format(view.fileCount)} package files`,
-    `detected because you loaded this config from ${view.repo}`,
-  ];
+/** The counts line under the list — what was read, and what honestly wasn't.
+ *  Past the row cap it opens with the design's "… N more across <files>"
+ *  instead of the totals (the search placeholder already carries those). */
+function RepoDepsFootnote({ view, hidden }: { view: RepoDepsView; hidden: readonly RepoDep[] }) {
+  const parts: string[] = [];
+  if (hidden.length > 0) {
+    const files = hiddenDepFiles(hidden);
+    const named = files.slice(0, 4).join(", ") + (files.length > 4 ? ", …" : "");
+    parts.push(`… ${nf.format(hidden.length)} more across ${named}`);
+  } else {
+    parts.push(
+      `${nf.format(view.deps.length)} dependencies across ${nf.format(view.fileCount)} package files`,
+    );
+  }
+  parts.push(`detected because you loaded this config from ${view.repo}`);
   if (view.skippedFiles > 0) {
     parts.push(`${nf.format(view.skippedFiles)} matched files not read`);
   }
@@ -240,11 +295,16 @@ export function RepoDepsTab({
     return (
       <div className="pin-repo-status">
         <p>No dependencies detected in the package files the browser engine can read.</p>
-        <RepoDepsFootnote view={view} />
+        <RepoDepsFootnote view={view} hidden={[]} />
       </div>
     );
   }
-  const shown = filterRepoDeps(view.deps, query);
+  const matches = filterRepoDeps(view.deps, query);
+  const shown = matches.slice(0, REPO_DEPS_SHOWN);
+  const hidden = matches.slice(REPO_DEPS_SHOWN);
+  // A draft whose row is off screen (searched away, or past the cap) still
+  // needs its card — it falls back to the list's tail.
+  const draftInline = draft !== null && shown.some((dep) => dep.key === draft.dep.key);
   return (
     <div className="pin-repo">
       <div className="pin-repo-search">
@@ -258,21 +318,24 @@ export function RepoDepsTab({
       </div>
       <ul className="pin-repo-list">
         {shown.map((dep) => (
-          <RepoDepRow
+          <RepoDepItem
             key={dep.key}
             dep={dep}
             pinned={pinnedAs(pins, dep)}
             showQuickPins={!atLimit}
-            onQuickPin={(type) => onDraftChange({ dep, type, newValue: "" })}
+            draft={draft}
+            onDraftChange={onDraftChange}
+            onPinDraft={onPinDraft}
+            onRefineDraft={onRefineDraft}
           />
         ))}
       </ul>
-      {shown.length === 0 ? (
+      {matches.length === 0 ? (
         <p className="pin-repo-note">Nothing matches “{query}”.</p>
       ) : (
-        <RepoDepsFootnote view={view} />
+        <RepoDepsFootnote view={view} hidden={hidden} />
       )}
-      {draft !== null ? (
+      {draft !== null && !draftInline ? (
         <RepoDraftCard
           draft={draft}
           onNewValue={(newValue) => onDraftChange({ ...draft, newValue })}
