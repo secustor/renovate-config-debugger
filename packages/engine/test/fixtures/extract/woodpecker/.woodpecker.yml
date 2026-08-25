@@ -1,0 +1,9 @@
+steps:
+  build:
+    image: golang:1.22.4
+    commands:
+      - go build ./...
+  test:
+    image: node:20.14.0
+    commands:
+      - npm test

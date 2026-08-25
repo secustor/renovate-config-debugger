@@ -1,0 +1,16 @@
+{
+  "manager": "sveltos",
+  "fileName": "clusterprofile.yaml",
+  "deps": [
+    {
+      "depName": "kyverno/kyverno",
+      "currentValue": "v3.2.4",
+      "datasource": "helm",
+      "packageName": "kyverno",
+      "registryUrls": [
+        "https://kyverno.github.io/kyverno/"
+      ],
+      "depType": "ClusterProfile"
+    }
+  ]
+}

@@ -74,6 +74,18 @@ export const FETCHABLE_PLATFORMS: ReadonlySet<RepoPlatform> = new Set(
   HOST_TOKENS.map((descriptor) => descriptor.id),
 );
 
+/**
+ * Roadmap 087: the platforms the engine's `fetchRepoTree` can actually LIST —
+ * its GitHub-only guard is the deep half of this gate (see
+ * engine/src/shims/repo-config.ts). The From-repository picker and the
+ * connect panel's suggestion exist only on these; a repo loaded from any
+ * other platform keeps the Manual/Paste doors, since offering a walk that
+ * can only throw would make the tab a guaranteed dead end. Kept here (not
+ * imported from the engine) because this file must stay engine-chunk-light —
+ * the engine reaches the app only through the dynamic `loadEngine()` seam.
+ */
+export const TREE_LISTING_PLATFORMS: ReadonlySet<RepoPlatform> = new Set<RepoPlatform>(["github"]);
+
 /** Known public hosts → the platform that serves their repos, from the same
  *  one table (`host` is documented there as the canonical host of that id). */
 export const HOST_PLATFORM: Readonly<Record<string, RepoPlatform>> = Object.fromEntries(

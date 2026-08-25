@@ -1,0 +1,24 @@
+{
+  "manager": "gitlabci",
+  "fileName": ".gitlab-ci.yml",
+  "deps": [
+    {
+      "depName": "node",
+      "packageName": "node",
+      "currentValue": "20.15.0-alpine",
+      "replaceString": "node:20.15.0-alpine",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker",
+      "depType": "image"
+    },
+    {
+      "depName": "golang",
+      "packageName": "golang",
+      "currentValue": "1.22.5",
+      "replaceString": "golang:1.22.5",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker",
+      "depType": "image"
+    }
+  ]
+}

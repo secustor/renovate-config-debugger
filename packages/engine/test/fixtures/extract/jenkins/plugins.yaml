@@ -1,0 +1,7 @@
+plugins:
+  - artifactId: git
+    source:
+      version: "5.2.2"
+  - artifactId: job-dsl
+    source:
+      version: "1.87"

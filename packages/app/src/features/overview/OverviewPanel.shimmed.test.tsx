@@ -148,7 +148,14 @@ it("renders the design's copy, with a source chip on every row", async () => {
   expect(repoChip?.className).toContain("explained");
 
   // The badge quotes the number the card printed, not a second derivation.
-  expect(onStats).toHaveBeenLastCalledWith(3);
+  // AWAITED, unlike the click assertions above: those run inside `fireEvent`,
+  // which flushes, while this one is reported from an effect. These projects
+  // have no setup file, so Testing Library's auto-setup never runs and React's
+  // act environment is off — `waitFor` resolving on the paint above therefore
+  // does NOT guarantee that commit's passive effects have run. Locally they
+  // always had; on a loaded CI runner they had not, and the spy was still
+  // empty (CI run 32901774216).
+  await waitFor(() => expect(onStats).toHaveBeenLastCalledWith(3));
 });
 
 it("hides the unmatched tail behind one toggle, and gives it back", async () => {

@@ -1,0 +1,21 @@
+{
+  "manager": "bitbucket-pipelines",
+  "fileName": "bitbucket-pipelines.yml",
+  "deps": [
+    {
+      "depName": "node",
+      "packageName": "node",
+      "currentValue": "20.12.2",
+      "replaceString": "node:20.12.2",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker",
+      "depType": "docker"
+    },
+    {
+      "depName": "atlassian/aws-s3-deploy",
+      "currentValue": "1.1.0",
+      "datasource": "bitbucket-tags",
+      "depType": "bitbucket-tags"
+    }
+  ]
+}

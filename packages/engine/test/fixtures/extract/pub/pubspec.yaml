@@ -1,0 +1,12 @@
+name: demo
+description: A sample Dart package.
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  http: ^1.2.1
+  collection: 1.18.0
+
+dev_dependencies:
+  test: ^1.25.2

@@ -1,0 +1,8 @@
+include:
+  - project: my-group/ci-templates
+    ref: v1.2.0
+    file: /templates/build.yml
+
+build:
+  script:
+    - echo build

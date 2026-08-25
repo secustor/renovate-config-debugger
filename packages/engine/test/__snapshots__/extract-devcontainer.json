@@ -1,0 +1,30 @@
+{
+  "manager": "devcontainer",
+  "fileName": ".devcontainer/devcontainer.json",
+  "deps": [
+    {
+      "depName": "mcr.microsoft.com/devcontainers/base",
+      "packageName": "mcr.microsoft.com/devcontainers/base",
+      "currentValue": "ubuntu-24.04",
+      "replaceString": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker",
+      "depType": "image"
+    },
+    {
+      "depName": "ghcr.io/devcontainers/features/node",
+      "packageName": "ghcr.io/devcontainers/features/node",
+      "currentValue": "1",
+      "replaceString": "ghcr.io/devcontainers/features/node:1",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker",
+      "depType": "feature",
+      "pinDigests": false
+    },
+    {
+      "depName": "node",
+      "datasource": "node-version",
+      "currentValue": "20"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+function main() {
+    VERSION="0.79.0"
+    echo "Batect $VERSION"
+}
+
+main "$@"

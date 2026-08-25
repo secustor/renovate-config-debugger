@@ -1,0 +1,16 @@
+{
+  "manager": "smithy",
+  "fileName": "smithy-build.json",
+  "deps": [
+    {
+      "depName": "software.amazon.smithy:smithy-cli",
+      "currentValue": "1.50.0",
+      "datasource": "maven"
+    },
+    {
+      "depName": "software.amazon.smithy:smithy-aws-traits",
+      "currentValue": "1.50.0",
+      "datasource": "maven"
+    }
+  ]
+}

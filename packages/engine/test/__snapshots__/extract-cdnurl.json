@@ -1,0 +1,18 @@
+{
+  "manager": "cdnurl",
+  "fileName": "index.html",
+  "deps": [
+    {
+      "datasource": "cdnjs",
+      "depName": "font-awesome",
+      "packageName": "font-awesome/css/all.min.css",
+      "currentValue": "6.5.2"
+    },
+    {
+      "datasource": "cdnjs",
+      "depName": "jquery",
+      "packageName": "jquery/jquery.min.js",
+      "currentValue": "3.7.1"
+    }
+  ]
+}

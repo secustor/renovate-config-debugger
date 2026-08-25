@@ -12,10 +12,16 @@
 import { useState } from "react";
 import { runPipeline } from "@renovate-config-debugger/engine";
 import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
-import { afterEach, beforeAll, expect, it } from "vitest";
+import { afterEach, beforeAll, expect, it, vi } from "vitest";
 import type { SimRequest } from "@/hooks/use-share-link";
 import type { FormState } from "./form";
 import type { PinnedTest } from "./pins";
+import {
+  EMPTY_REPO_DEPS,
+  type RepoConnectOffer,
+  type RepoDep,
+  type RepoDepsView,
+} from "./repo-deps";
 import { TestsPanel } from "./TestsPanel";
 
 afterEach(cleanup);
@@ -46,10 +52,14 @@ function Harness({
   result,
   initialPins = [],
   simRequest,
+  repoDeps = EMPTY_REPO_DEPS,
+  repoConnect = { suggestion: null, onConnect: () => undefined, onOpenLoad: () => undefined },
 }: {
   result: Awaited<ReturnType<typeof runPipeline>>;
   initialPins?: PinnedTest[];
   simRequest?: SimRequest | null;
+  repoDeps?: RepoDepsView;
+  repoConnect?: RepoConnectOffer;
 }) {
   const [pins, setPins] = useState<PinnedTest[]>(initialPins);
   // Every callback is required (the shell always passes all of them), so the
@@ -74,6 +84,9 @@ function Harness({
       onShare={() => Promise.resolve()}
       mergeStepIndex={mergeStepIndex}
       onMergeStepChange={setMergeStepIndex}
+      repoDeps={repoDeps}
+      onLoadRepoDeps={() => undefined}
+      repoConnect={repoConnect}
     />
   );
 }
@@ -242,11 +255,12 @@ it("fills the Manual form from a pasted descriptor, and shows the descriptor bac
   const result = await run();
   const view = render(<Harness result={result} />);
 
-  const paste = view.getByRole("button", { name: "Paste JSON" });
-  // The tab strip carries its selection in ARIA, not only in a CSS class.
-  expect(paste.getAttribute("aria-pressed")).toBe("false");
+  const paste = view.getByRole("tab", { name: "Paste JSON" });
+  // The tab strip carries its selection in ARIA, not only in a CSS class —
+  // real tablist semantics since 078 lit the third tab up.
+  expect(paste.getAttribute("aria-selected")).toBe("false");
   fireEvent.click(paste);
-  expect(paste.getAttribute("aria-pressed")).toBe("true");
+  expect(paste.getAttribute("aria-selected")).toBe("true");
   const textarea = view.getByLabelText("Dependency descriptor JSON");
 
   // A half-copied log line says so rather than doing nothing.
@@ -285,8 +299,217 @@ it("fills the Manual form from a pasted descriptor, and shows the descriptor bac
 
   // …and the draft survives the round trip, so a descriptor is never lost to a
   // glance at the form it filled.
-  fireEvent.click(view.getByRole("button", { name: "Paste JSON" }));
+  fireEvent.click(view.getByRole("tab", { name: "Paste JSON" }));
   expect((view.getByLabelText("Dependency descriptor JSON") as HTMLTextAreaElement).value).toBe(
     pasted,
   );
+});
+
+it("collapses behind the ghost row once a pin exists, and reopens from it (082 revisited)", async () => {
+  const result = await run();
+  const view = render(<Harness result={result} />);
+  // With nothing pinned yet the card starts OPEN — the empty state's CTA
+  // points at a form that is actually on screen.
+  expect(view.container.querySelector(".pin-add-card")).not.toBeNull();
+  await pinReact(view);
+
+  // The × collapses the card to the design's ghost row…
+  fireEvent.click(view.getByRole("button", { name: "Close the new-pin card" }));
+  expect(view.container.querySelector(".pin-add-card")).toBeNull();
+  const ghost = view.container.querySelector<HTMLElement>(".pin-add-ghost");
+  if (!ghost) {
+    throw new Error("collapsing left no ghost row");
+  }
+  expect(ghost.textContent).toContain("+ Pin a dependency…");
+
+  // …and the ghost row expands it again, form and all.
+  fireEvent.click(ghost);
+  expect(view.container.querySelector(".pin-add-card")).not.toBeNull();
+  expect(view.getByLabelText("packageName", { exact: true })).toBeTruthy();
+});
+
+const REPO_DEPS: RepoDepsView = {
+  status: "ready",
+  repo: "acme/webapp",
+  deps: [
+    {
+      key: "package.json:0:typescript",
+      depName: "typescript",
+      value: "^5.8.3",
+      meta: "package.json · ^5.8.3",
+      manager: "npm",
+      packageFile: "package.json",
+      fill: {
+        manager: "npm",
+        packageFile: "package.json",
+        depName: "typescript",
+        packageName: "typescript",
+        currentValue: "^5.8.3",
+        datasource: "npm",
+        depType: "devDependencies",
+      },
+    },
+    {
+      key: "Dockerfile:0:node",
+      depName: "node",
+      value: "20-alpine",
+      meta: "Dockerfile · 20-alpine",
+      manager: "dockerfile",
+      packageFile: "Dockerfile",
+      fill: {
+        manager: "dockerfile",
+        packageFile: "Dockerfile",
+        depName: "node",
+        packageName: "node",
+        currentValue: "20-alpine",
+        datasource: "docker",
+      },
+    },
+  ],
+  fileCount: 2,
+  skippedFiles: 0,
+  truncated: false,
+  error: null,
+};
+
+it("offers the loaded repo's dependencies and pins one from the picker (078)", async () => {
+  const result = await run();
+  const view = render(<Harness result={result} repoDeps={REPO_DEPS} />);
+
+  // The tab is live (a repo was loaded) and shows the extracted rows.
+  fireEvent.click(view.getByRole("tab", { name: "From repository" }));
+  expect(view.getByLabelText("Search detected dependencies")).toBeTruthy();
+  const row = view.getByText("typescript").closest("li");
+  if (!row) {
+    throw new Error("the typescript row is missing");
+  }
+
+  // Quick-pin names the update TYPE; the draft is where the next version goes.
+  fireEvent.click(within(row).getByRole("button", { name: "patch" }));
+  fireEvent.change(view.getByLabelText("newValue", { exact: true }), {
+    target: { value: "5.9.0" },
+  });
+  fireEvent.click(view.getByRole("button", { name: "Pin ⏎" }));
+
+  // The pin lands in the list above and re-checks against the run…
+  await waitFor(() => {
+    expect(view.container.querySelector(".pin-card")?.textContent).toContain("typescript");
+  });
+  // …and the row now wears the standing pin's badge instead of quick-pins.
+  expect(view.container.textContent).toContain("pinned · patch");
+  expect(within(row).queryByRole("button", { name: "patch" })).toBeNull();
+
+  // The search row narrows by file too (scoped to the list — the pin card
+  // above it now names typescript as well).
+  fireEvent.change(view.getByLabelText("Search detected dependencies"), {
+    target: { value: "Dockerfile" },
+  });
+  const rows = view.container.querySelectorAll(".pin-repo-row");
+  expect(rows).toHaveLength(1);
+  expect(rows[0]?.textContent).toContain("node");
+});
+
+function repoDep(packageFile: string, depName: string, currentValue: string): RepoDep {
+  return {
+    key: `${packageFile}:${depName}`,
+    depName,
+    value: currentValue,
+    meta: `${packageFile} · ${currentValue}`,
+    manager: "npm",
+    packageFile,
+    fill: { manager: "npm", packageFile, depName, packageName: depName, currentValue },
+  };
+}
+
+it("caps the list at five rows, counts the tail, and drafts inline under its row", async () => {
+  const deps = [
+    repoDep("package.json", "typescript", "^5.8.3"),
+    repoDep("package.json", "react", "^19.0.0"),
+    repoDep("Dockerfile", "node", "20-alpine"),
+    repoDep("package.json", "vite", "^7.0.0"),
+    repoDep(".github/workflows/ci.yml", "actions/checkout", "v4"),
+    repoDep("package.json", "lodash", "4.17.21"),
+    repoDep("Chart.yaml", "redis", "18.0.0"),
+  ];
+  const result = await run();
+  const view = render(<Harness result={result} repoDeps={{ ...REPO_DEPS, deps, fileCount: 4 }} />);
+  fireEvent.click(view.getByRole("tab", { name: "From repository" }));
+
+  // Five rows, then the design's tail line naming the hidden rows' files —
+  // the list itself never grows past the cap (the column must not scroll for it).
+  expect(view.container.querySelectorAll(".pin-repo-row")).toHaveLength(5);
+  expect(view.container.textContent).toContain("… 2 more across package.json, Chart.yaml");
+
+  // Quick-pin on a mid-list row: the draft card renders INSIDE the list,
+  // immediately beneath the picked row (the design's draftHere).
+  const row = view.getByText("node").closest("li");
+  if (!row) {
+    throw new Error("the node row is missing");
+  }
+  fireEvent.click(within(row).getByRole("button", { name: "patch" }));
+  const holder = row.nextElementSibling;
+  expect(holder?.className).toBe("pin-repo-draft-row");
+  expect(holder?.querySelector(".pin-repo-draft")).not.toBeNull();
+
+  // Searching the drafted row away must not lose the draft — its card falls
+  // back to the list's tail until the row is visible again.
+  fireEvent.change(view.getByLabelText("Search detected dependencies"), {
+    target: { value: "package.json" },
+  });
+  expect(view.container.querySelector(".pin-repo-list .pin-repo-draft")).toBeNull();
+  expect(view.container.querySelector(".pin-repo-draft")).not.toBeNull();
+});
+
+it("opens on From repository when a repo is already loaded — the design's default door", async () => {
+  const result = await run();
+  const view = render(<Harness result={result} repoDeps={REPO_DEPS} />);
+
+  // No pins yet, so the card is open; with the repo's deps on the table the
+  // picker is the selected tab without a click…
+  const repoTab = view.getByRole("tab", { name: "From repository" });
+  expect(repoTab.getAttribute("aria-selected")).toBe("true");
+  expect(view.getByLabelText("Search detected dependencies")).toBeTruthy();
+
+  // …and an explicit choice still sticks.
+  fireEvent.click(view.getByRole("tab", { name: "Manual" }));
+  expect(view.getByLabelText("packageName", { exact: true })).toBeTruthy();
+});
+
+it("offers the connect panel while no repo is loaded — with a link's suggested repo", async () => {
+  const result = await run();
+  const onConnect = vi.fn();
+  const view = render(
+    <Harness
+      result={result}
+      repoConnect={{ suggestion: "acme/webapp", onConnect, onOpenLoad: () => undefined }}
+    />,
+  );
+
+  // The tab is live (no disabled state left), wears the quiet hint…
+  const repoTab = view.getByRole("tab", { name: /From repository/ });
+  expect(repoTab).toHaveProperty("disabled", false);
+  expect(repoTab.textContent).toContain("not loaded");
+
+  // …and opens on the connect panel: the shared link named the repo, so one
+  // click asks for its dependencies.
+  fireEvent.click(repoTab);
+  expect(view.container.textContent).toContain("The repository isn’t loaded in this session");
+  expect(view.container.textContent).toContain("opened from a shared link");
+  fireEvent.click(view.getByRole("button", { name: "Reload acme/webapp" }));
+  expect(onConnect).toHaveBeenCalledTimes(1);
+});
+
+it("offers the load-a-repository door when nothing suggests a repo", async () => {
+  const result = await run();
+  const onOpenLoad = vi.fn();
+  const view = render(
+    <Harness
+      result={result}
+      repoConnect={{ suggestion: null, onConnect: () => undefined, onOpenLoad }}
+    />,
+  );
+  fireEvent.click(view.getByRole("tab", { name: /From repository/ }));
+  expect(view.queryByRole("button", { name: /Reload/ })).toBeNull();
+  fireEvent.click(view.getByRole("button", { name: "load a repository…" }));
+  expect(onOpenLoad).toHaveBeenCalledTimes(1);
 });

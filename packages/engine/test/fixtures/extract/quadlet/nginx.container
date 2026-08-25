@@ -1,0 +1,9 @@
+[Unit]
+Description=nginx container
+
+[Container]
+Image=docker.io/library/nginx:1.27.0
+PublishPort=8080:80
+
+[Install]
+WantedBy=multi-user.target

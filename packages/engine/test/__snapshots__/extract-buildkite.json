@@ -1,0 +1,18 @@
+{
+  "manager": "buildkite",
+  "fileName": ".buildkite/pipeline.yml",
+  "deps": [
+    {
+      "depName": "docker-compose",
+      "currentValue": "v5.2.0",
+      "datasource": "github-tags",
+      "packageName": "buildkite-plugins/docker-compose-buildkite-plugin"
+    },
+    {
+      "depName": "artifacts",
+      "currentValue": "v1.9.3",
+      "datasource": "github-tags",
+      "packageName": "buildkite-plugins/artifacts-buildkite-plugin"
+    }
+  ]
+}

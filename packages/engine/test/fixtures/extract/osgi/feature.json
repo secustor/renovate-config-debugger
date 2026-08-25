@@ -1,0 +1,7 @@
+{
+  "feature-resource-version": "1.0",
+  "bundles": [
+    { "id": "org.apache.sling:org.apache.sling.api:2.27.2" },
+    "com.google.guava:guava:33.2.1-jre"
+  ]
+}

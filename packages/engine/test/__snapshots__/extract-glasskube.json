@@ -1,0 +1,14 @@
+{
+  "manager": "glasskube",
+  "fileName": "packages.yaml",
+  "deps": [
+    {
+      "depName": "cert-manager",
+      "currentValue": "v1.15.1+1",
+      "datasource": "glasskube-packages",
+      "registryUrls": [
+        "https://packages.dl.glasskube.dev/packages"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "manager": "rust-toolchain",
+  "fileName": "rust-toolchain.toml",
+  "deps": [
+    {
+      "depName": "rust",
+      "depType": "toolchain",
+      "datasource": "rust-version",
+      "currentValue": "1.79.0"
+    }
+  ]
+}

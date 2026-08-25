@@ -1,0 +1,16 @@
+{
+  "manager": "cake",
+  "fileName": "build.cake",
+  "deps": [
+    {
+      "datasource": "nuget",
+      "depName": "Cake.Docker",
+      "currentValue": "1.3.0"
+    },
+    {
+      "datasource": "nuget",
+      "depName": "nunit.consolerunner",
+      "currentValue": "3.17.0"
+    }
+  ]
+}

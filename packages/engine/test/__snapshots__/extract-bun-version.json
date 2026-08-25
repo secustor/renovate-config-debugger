@@ -1,0 +1,12 @@
+{
+  "manager": "bun-version",
+  "fileName": ".bun-version",
+  "deps": [
+    {
+      "depName": "Bun",
+      "packageName": "bun",
+      "currentValue": "1.1.8",
+      "datasource": "npm"
+    }
+  ]
+}

@@ -237,6 +237,115 @@ declare module "renovate/dist/modules/manager/api.js" {
   export default managers;
 }
 
+declare module "renovate/dist/modules/manager/types.js" {
+  /**
+   * One extracted dependency (roadmap 078). Structural subset of upstream's
+   * PackageDependency — the fields the engine, snapshots and the app's
+   * descriptor mapping read; extraction output carries more, which the JSON
+   * snapshots capture without this type naming them.
+   */
+  export interface PackageDependency {
+    depName?: string;
+    packageName?: string;
+    currentValue?: string | null;
+    currentVersion?: string;
+    currentDigest?: string;
+    datasource?: string;
+    depType?: string;
+    versioning?: string;
+    registryUrls?: (string | null)[] | null;
+    lockedVersion?: string;
+    skipReason?: string;
+  }
+  export interface PackageFileContent {
+    deps: PackageDependency[];
+    packageFileVersion?: string;
+    datasource?: string;
+  }
+  /** Almost entirely optional upstream; `{}` suffices for the mapped managers. */
+  export interface ExtractConfig {
+    registryAliases?: Record<string, string>;
+    npmrc?: string;
+    repository?: string;
+  }
+}
+
+declare module "renovate/dist/manager-default-configs.generated.js" {
+  /** Every manager's default config subset — zero imports, already bundled
+   *  transitively via loadManagerOptions(). */
+  export const managerDefaultConfigs: Record<
+    string,
+    { managerFilePatterns?: string[]; enabled?: boolean }
+  >;
+}
+
+declare module "renovate/dist/workers/repository/extract/file-match.js" {
+  /** Upstream's path-only matching step — minimatch/regex/logger only. */
+  export function getMatchingFiles(
+    config: { manager: string; managerFilePatterns: string[] },
+    allFiles: string[],
+  ): string[];
+}
+
+declare module "renovate/dist/util/fs/index.js" {
+  /** The single fs door every manager extract path goes through. Replaced by
+   *  shims/fs.ts in the browser graph; real (under GlobalConfig.localDir) in
+   *  the golden project. */
+  export function writeLocalFile(fileName: string, fileContent: string): Promise<void>;
+  export function readLocalFile(fileName: string, encoding: string): Promise<string | null>;
+}
+
+/**
+ * Every mapped manager's standard extract entry point, in one wildcard: the
+ * dist ships no types, the signature is uniform `(content, packageFile,
+ * config) → MaybePromise<PackageFileContent | null>` (managers that take
+ * fewer arguments simply ignore the rest), and per-manager declarations at
+ * this count would be 90 copies of the same shape. The nonstandard entries —
+ * maven's `extractPackage`, npm's internal single-file function — keep exact
+ * declarations below, which take precedence over this pattern.
+ */
+declare module "renovate/dist/modules/manager/*" {
+  import type { ExtractConfig, PackageFileContent } from "renovate/dist/modules/manager/types.js";
+  export function extractPackageFile(
+    content: string,
+    packageFile: string,
+    config: ExtractConfig,
+  ): PackageFileContent | null | Promise<PackageFileContent | null>;
+}
+
+declare module "renovate/dist/modules/manager/maven/extract.js" {
+  import type { ExtractConfig, PackageFileContent } from "renovate/dist/modules/manager/types.js";
+  /** The pure single-file function — the api's extractAllPackageFiles wraps it
+   *  with parent-POM resolution the single-file path deliberately skips. */
+  export function extractPackage(
+    rawContent: string,
+    packageFile: string,
+    config: ExtractConfig,
+  ): PackageFileContent | null;
+}
+
+declare module "renovate/dist/modules/manager/npm/extract/common/catalogs.js" {
+  import type { PackageDependency } from "renovate/dist/modules/manager/types.js";
+  /** Pure catalog→deps mapping over plain package.json data — the one piece
+   *  of yarn.js's surface with no yarn library behind it, reused verbatim by
+   *  shims/npm-yarn.ts. */
+  export function extractCatalogDeps(
+    catalogs: { name: string; dependencies: Record<string, string> }[],
+    npmManager?: "pnpm" | "yarn",
+  ): PackageDependency[];
+}
+
+declare module "renovate/dist/modules/manager/npm/extract/index.js" {
+  import type { ExtractConfig, PackageFileContent } from "renovate/dist/modules/manager/types.js";
+  /** npm's internal single-file function — the api has only
+   *  extractAllPackageFiles, whose postExtract lockfile sweep this skips. */
+  export function extractPackageFile(
+    content: string,
+    packageFile: string,
+    config: ExtractConfig,
+  ): Promise<PackageFileContent | null>;
+}
+
 declare module "renovate/package.json" {
   const pkg: { name: string; version: string };
   export default pkg;

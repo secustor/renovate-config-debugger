@@ -1,0 +1,22 @@
+{
+  "manager": "bicep",
+  "fileName": "main.bicep",
+  "deps": [
+    {
+      "datasource": "azure-bicep-resource",
+      "versioning": "azure-rest-api",
+      "depName": "Microsoft.Storage/storageAccounts",
+      "currentValue": "2023-01-01",
+      "autoReplaceStringTemplate": "'{{depName}}@{{newValue}}'",
+      "replaceString": "'Microsoft.Storage/storageAccounts@2023-01-01'"
+    },
+    {
+      "datasource": "azure-bicep-resource",
+      "versioning": "azure-rest-api",
+      "depName": "Microsoft.Web/serverfarms",
+      "currentValue": "2022-09-01",
+      "autoReplaceStringTemplate": "'{{depName}}@{{newValue}}'",
+      "replaceString": "'Microsoft.Web/serverfarms@2022-09-01'"
+    }
+  ]
+}

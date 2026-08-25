@@ -1,0 +1,42 @@
+{
+  "manager": "pep621",
+  "fileName": "pyproject.toml",
+  "deps": [
+    {
+      "packageName": "python",
+      "depType": "requires-python",
+      "currentValue": ">=3.11",
+      "commitMessageTopic": "Python",
+      "datasource": "python-version",
+      "versioning": "pep440",
+      "depName": "python"
+    },
+    {
+      "packageName": "httpx",
+      "depName": "httpx",
+      "datasource": "pypi",
+      "depType": "project.dependencies",
+      "currentValue": "==0.27.0",
+      "currentVersion": "0.27.0"
+    },
+    {
+      "packageName": "pydantic",
+      "depName": "pydantic",
+      "datasource": "pypi",
+      "depType": "project.dependencies",
+      "currentValue": ">=2.7"
+    },
+    {
+      "packageName": "pytest",
+      "depName": "pytest",
+      "datasource": "pypi",
+      "depType": "project.optional-dependencies",
+      "currentValue": "==8.2.0",
+      "currentVersion": "8.2.0",
+      "managerData": {
+        "depGroup": "dev"
+      }
+    }
+  ],
+  "packageFileVersion": "0.1.0"
+}

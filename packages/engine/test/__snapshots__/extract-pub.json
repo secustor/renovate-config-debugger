@@ -1,0 +1,29 @@
+{
+  "manager": "pub",
+  "fileName": "pubspec.yaml",
+  "deps": [
+    {
+      "depName": "http",
+      "depType": "dependencies",
+      "currentValue": "^1.2.1",
+      "datasource": "dart"
+    },
+    {
+      "depName": "collection",
+      "depType": "dependencies",
+      "currentValue": "1.18.0",
+      "datasource": "dart"
+    },
+    {
+      "depName": "test",
+      "depType": "dev_dependencies",
+      "currentValue": "^1.25.2",
+      "datasource": "dart"
+    },
+    {
+      "depName": "dart",
+      "currentValue": ">=3.4.0 <4.0.0",
+      "datasource": "dart-version"
+    }
+  ]
+}

@@ -914,3 +914,48 @@ describe("075: pins round-trip and stay additive", () => {
     }
   });
 });
+
+/**
+ * Roadmap 087: `repo` — the repository the config was loaded from, offered by
+ * the From-repository tab's connect panel. Additive within v2 like `sim` and
+ * `pins`; a malformed value is dropped alone, never a reason to refuse the
+ * config, because the slug is printed on a button and composes a request path
+ * only after that button is clicked.
+ */
+describe("087: the provenance repo round-trips and stays additive", () => {
+  test("a link made from a repo load carries the slug", async () => {
+    const result = await decodeShareResult(
+      await encodeShare(minimalState({ repo: "acme/webapp" })),
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.repo).toBe("acme/webapp");
+    }
+  });
+
+  test("a link from before this iteration decodes with no suggestion", async () => {
+    const result = await decodeShareResult(await rawEncodeToken(taggedPayload({})));
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.repo).toBeUndefined();
+    }
+  });
+
+  test("a slug that would not pass the repo-load form is dropped, not fatal", async () => {
+    for (const bad of ["owner/../repo", "owner/repo ", "", 42, { repo: "x" }]) {
+      const result = await decodeShareResult(await rawEncodeToken(taggedPayload({ repo: bad })));
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.payload.repo).toBeUndefined();
+      }
+    }
+  });
+
+  test("an unset repo is omitted from the wire entirely", async () => {
+    const result = await decodeShareResult(await encodeShare(minimalState({})));
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.repo).toBeUndefined();
+    }
+  });
+});

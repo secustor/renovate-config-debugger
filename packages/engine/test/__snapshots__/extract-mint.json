@@ -1,0 +1,18 @@
+{
+  "manager": "mint",
+  "fileName": "Mintfile",
+  "deps": [
+    {
+      "depName": "realm/SwiftLint",
+      "currentValue": "0.55.1",
+      "datasource": "git-tags",
+      "packageName": "https://github.com/realm/SwiftLint.git"
+    },
+    {
+      "depName": "yonaskolb/XcodeGen",
+      "currentValue": "2.42.0",
+      "datasource": "git-tags",
+      "packageName": "https://github.com/yonaskolb/XcodeGen.git"
+    }
+  ]
+}

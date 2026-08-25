@@ -1,0 +1,16 @@
+{
+  "manager": "fleet",
+  "fileName": "fleet.yaml",
+  "deps": [
+    {
+      "depType": "fleet",
+      "datasource": "helm",
+      "depName": "kube-prometheus-stack",
+      "packageName": "kube-prometheus-stack",
+      "registryUrls": [
+        "https://prometheus-community.github.io/helm-charts"
+      ],
+      "currentValue": "61.3.0"
+    }
+  ]
+}

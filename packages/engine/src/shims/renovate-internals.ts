@@ -43,3 +43,7 @@ export {
  *  browser transports for a CORS/network failure and for 401/403/429, and
  *  unwrapped by the trace collector so the cause reaches the UI. */
 export { ExternalHostError } from "renovate/dist/types/errors/external-host-error.js";
+/** The pure catalog→deps mapping over plain package.json data — the one piece
+ *  of npm/extract/yarn.js's surface with no yarn library behind it, reused
+ *  verbatim by shims/npm-yarn.ts. */
+export { extractCatalogDeps } from "renovate/dist/modules/manager/npm/extract/common/catalogs.js";

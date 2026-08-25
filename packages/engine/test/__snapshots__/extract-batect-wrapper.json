@@ -1,0 +1,13 @@
+{
+  "manager": "batect-wrapper",
+  "fileName": "batect",
+  "deps": [
+    {
+      "depName": "batect/batect",
+      "commitMessageTopic": "Batect",
+      "currentValue": "0.79.0",
+      "datasource": "github-releases",
+      "versioning": "semver"
+    }
+  ]
+}

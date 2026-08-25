@@ -1,0 +1,22 @@
+{
+  "manager": "woodpecker",
+  "fileName": ".woodpecker.yml",
+  "deps": [
+    {
+      "depName": "golang",
+      "packageName": "golang",
+      "currentValue": "1.22.4",
+      "replaceString": "golang:1.22.4",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker"
+    },
+    {
+      "depName": "node",
+      "packageName": "node",
+      "currentValue": "20.14.0",
+      "replaceString": "node:20.14.0",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker"
+    }
+  ]
+}

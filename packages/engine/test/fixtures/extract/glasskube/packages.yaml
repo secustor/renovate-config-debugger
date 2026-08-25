@@ -1,0 +1,16 @@
+apiVersion: packages.glasskube.dev/v1alpha1
+kind: PackageRepository
+metadata:
+  name: glasskube
+spec:
+  url: https://packages.dl.glasskube.dev/packages
+---
+apiVersion: packages.glasskube.dev/v1alpha1
+kind: ClusterPackage
+metadata:
+  name: cert-manager
+spec:
+  packageInfo:
+    name: cert-manager
+    version: v1.15.1+1
+    repositoryName: glasskube

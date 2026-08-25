@@ -1,0 +1,9 @@
+---
+containers:
+  build-env:
+    image: alpine:3.20.0
+
+include:
+  - type: git
+    repo: https://github.com/batect/hello-world-bundle.git
+    ref: 1.0.0

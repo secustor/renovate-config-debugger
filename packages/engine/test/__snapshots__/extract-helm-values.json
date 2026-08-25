@@ -1,0 +1,24 @@
+{
+  "manager": "helm-values",
+  "fileName": "values.yaml",
+  "deps": [
+    {
+      "depName": "nginx",
+      "packageName": "nginx",
+      "currentValue": "1.27.0",
+      "datasource": "docker",
+      "replaceString": "1.27.0",
+      "versioning": "docker",
+      "autoReplaceStringTemplate": "{{newValue}}{{#if newDigest}}@{{newDigest}}{{/if}}"
+    },
+    {
+      "depName": "quay.io/prometheus/node-exporter",
+      "packageName": "quay.io/prometheus/node-exporter",
+      "currentValue": "v1.8.1",
+      "datasource": "docker",
+      "replaceString": "v1.8.1",
+      "versioning": "docker",
+      "autoReplaceStringTemplate": "{{newValue}}{{#if newDigest}}@{{newDigest}}{{/if}}"
+    }
+  ]
+}

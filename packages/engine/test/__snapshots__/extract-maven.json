@@ -1,0 +1,24 @@
+{
+  "manager": "maven",
+  "fileName": "pom.xml",
+  "deps": [
+    {
+      "datasource": "maven",
+      "depName": "org.apache.commons:commons-lang3",
+      "currentValue": "3.14.0",
+      "fileReplacePosition": 318,
+      "registryUrls": [],
+      "depType": "compile"
+    },
+    {
+      "datasource": "maven",
+      "depName": "com.google.guava:guava",
+      "currentValue": "33.2.1-jre",
+      "fileReplacePosition": 464,
+      "registryUrls": [],
+      "depType": "compile"
+    }
+  ],
+  "datasource": "maven",
+  "packageFileVersion": "1.0.0"
+}

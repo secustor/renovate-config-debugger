@@ -1,4 +1,15 @@
 export { runPipeline } from "./pipeline";
+export {
+  EXTRACTABLE_MANAGERS,
+  type ExtractedPackageFile,
+  extractDeps,
+  type ExtractFile,
+  type ExtractOutcome,
+  type ExtractRequest,
+  matchExtractablePaths,
+  matchManagersForFile,
+} from "./extract";
+export type { PackageDependency } from "./renovate-adapter";
 export { globalOnlyOptionNames, removeGlobalConfig } from "./config-scope";
 export {
   type ClauseEvaluation,
@@ -86,11 +97,14 @@ export {
   extractPackageJsonConfig,
   fetchRepoConfig,
   fetchRepoFile,
+  fetchRepoTree,
   RepoConfigNotFoundError,
   type RepoConfigRequest,
   type RepoConfigResult,
   type RepoFileRequest,
   type RepoPlatform,
+  type RepoTreeRequest,
+  type RepoTreeResult,
 } from "./shims/repo-config";
 export { ROOT_NODE_ID, STAGE_IDS } from "./trace/model";
 export type {

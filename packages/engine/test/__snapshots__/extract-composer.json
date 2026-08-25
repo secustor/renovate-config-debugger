@@ -1,0 +1,25 @@
+{
+  "manager": "composer",
+  "fileName": "composer.json",
+  "deps": [
+    {
+      "depType": "require",
+      "depName": "php",
+      "currentValue": "^8.2",
+      "datasource": "github-tags",
+      "packageName": "containerbase/php-prebuild"
+    },
+    {
+      "depType": "require",
+      "depName": "monolog/monolog",
+      "currentValue": "^3.6",
+      "datasource": "packagist"
+    },
+    {
+      "depType": "require-dev",
+      "depName": "phpunit/phpunit",
+      "currentValue": "^11.1",
+      "datasource": "packagist"
+    }
+  ]
+}

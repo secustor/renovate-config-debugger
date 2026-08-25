@@ -1,0 +1,24 @@
+{
+  "manager": "dockerfile",
+  "fileName": "Dockerfile",
+  "deps": [
+    {
+      "depName": "node",
+      "packageName": "node",
+      "currentValue": "20-alpine",
+      "replaceString": "node:20-alpine",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker",
+      "depType": "stage"
+    },
+    {
+      "depName": "golang",
+      "packageName": "golang",
+      "currentValue": "1.22.5",
+      "replaceString": "golang:1.22.5",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker",
+      "depType": "final"
+    }
+  ]
+}

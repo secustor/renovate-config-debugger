@@ -1,0 +1,15 @@
+{
+  "manager": "crossplane",
+  "fileName": "crossplane/provider.yaml",
+  "deps": [
+    {
+      "depName": "xpkg.upbound.io/upbound/provider-aws-s3",
+      "packageName": "xpkg.upbound.io/upbound/provider-aws-s3",
+      "currentValue": "v1.3.0",
+      "replaceString": "xpkg.upbound.io/upbound/provider-aws-s3:v1.3.0",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker",
+      "depType": "provider"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+kind: pipeline
+type: docker
+name: default
+
+steps:
+  - name: build
+    image: golang:1.22.5
+    commands:
+      - go build ./...
+  - name: test
+    image: node:20.15.0-alpine
+    commands:
+      - npm test

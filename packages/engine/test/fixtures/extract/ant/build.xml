@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="demo" default="resolve" xmlns:artifact="antlib:org.apache.maven.artifact.ant">
+  <target name="resolve">
+    <artifact:dependencies pathId="compile.classpath">
+      <dependency groupId="org.apache.commons" artifactId="commons-lang3" version="3.14.0" scope="compile"/>
+      <dependency coords="com.google.guava:guava:33.2.1-jre"/>
+    </artifact:dependencies>
+  </target>
+</project>

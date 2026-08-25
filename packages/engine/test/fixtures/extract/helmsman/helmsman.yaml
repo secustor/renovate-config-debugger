@@ -1,0 +1,9 @@
+helmRepos:
+  bitnami: https://charts.bitnami.com/bitnami
+
+apps:
+  redis:
+    namespace: default
+    enabled: true
+    chart: bitnami/redis
+    version: 19.6.4

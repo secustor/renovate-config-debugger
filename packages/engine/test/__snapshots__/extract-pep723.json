@@ -1,0 +1,22 @@
+{
+  "manager": "pep723",
+  "fileName": "script.py",
+  "deps": [
+    {
+      "packageName": "requests",
+      "depName": "requests",
+      "datasource": "pypi",
+      "depType": "project.dependencies",
+      "currentValue": "==2.32.3",
+      "currentVersion": "2.32.3"
+    },
+    {
+      "packageName": "rich",
+      "depName": "rich",
+      "datasource": "pypi",
+      "depType": "project.dependencies",
+      "currentValue": "==13.7.1",
+      "currentVersion": "13.7.1"
+    }
+  ]
+}

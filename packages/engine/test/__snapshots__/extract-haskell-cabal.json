@@ -1,0 +1,24 @@
+{
+  "manager": "haskell-cabal",
+  "fileName": "my-package.cabal",
+  "deps": [
+    {
+      "depName": "base",
+      "currentValue": ">=4.17 && <4.20",
+      "datasource": "hackage",
+      "packageName": "base",
+      "versioning": "pvp",
+      "replaceString": "base >=4.17 && <4.20",
+      "autoReplaceStringTemplate": "{{{depName}}} {{{newValue}}}"
+    },
+    {
+      "depName": "aeson",
+      "currentValue": ">=2.1 && <2.3",
+      "datasource": "hackage",
+      "packageName": "aeson",
+      "versioning": "pvp",
+      "replaceString": "aeson >=2.1 && <2.3",
+      "autoReplaceStringTemplate": "{{{depName}}} {{{newValue}}}"
+    }
+  ]
+}

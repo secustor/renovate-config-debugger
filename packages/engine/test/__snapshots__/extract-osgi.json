@@ -1,0 +1,16 @@
+{
+  "manager": "osgi",
+  "fileName": "src/main/features/feature.json",
+  "deps": [
+    {
+      "datasource": "maven",
+      "depName": "org.apache.sling:org.apache.sling.api",
+      "currentValue": "2.27.2"
+    },
+    {
+      "datasource": "maven",
+      "depName": "com.google.guava:guava",
+      "currentValue": "33.2.1-jre"
+    }
+  ]
+}

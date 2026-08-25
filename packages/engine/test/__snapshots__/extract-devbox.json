@@ -1,0 +1,18 @@
+{
+  "manager": "devbox",
+  "fileName": "devbox.json",
+  "deps": [
+    {
+      "datasource": "devbox",
+      "depName": "nodejs",
+      "currentValue": "20.12.2",
+      "versioning": "node"
+    },
+    {
+      "datasource": "devbox",
+      "depName": "python",
+      "currentValue": "3.12.3",
+      "versioning": "python"
+    }
+  ]
+}

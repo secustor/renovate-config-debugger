@@ -247,6 +247,52 @@ export async function fetchRepoFile(req: RepoFileRequest): Promise<string | null
   return raw === NOT_FOUND ? null : raw;
 }
 
+/** Roadmap 078 — one recursive git-tree listing, for the From-repository
+ *  dependency picker. GitHub only, deliberately: the tree API shape is
+ *  GitHub's, and the picker feature is scoped to the host the app can sign
+ *  into — other platforms keep the paste-a-reference path. */
+export interface RepoTreeRequest {
+  platform: RepoPlatform;
+  repo: string;
+  endpoint?: string;
+  ref?: string;
+}
+
+export interface RepoTreeResult {
+  /** Every blob path in the tree, in API order. */
+  paths: string[];
+  /** GitHub truncates very large trees; the listing is honest about it. */
+  truncated: boolean;
+}
+
+export async function fetchRepoTree(req: RepoTreeRequest): Promise<RepoTreeResult> {
+  if (req.platform !== "github") {
+    throw new Error("repository file listing is only implemented for GitHub");
+  }
+  const endpoint = withTrailingSlash(req.endpoint || PLATFORM_ENDPOINTS.github);
+  const url = `${endpoint}repos/${encodePathSegments(req.repo)}/git/trees/${encodeURIComponent(
+    req.ref || "HEAD",
+  )}?recursive=1`;
+  const res = await probe("github", url, endpoint);
+  if (!res.ok) {
+    throw new ExternalHostError(
+      new Error(`GitHub tree listing for ${req.repo} failed (HTTP ${res.status})`),
+      "github",
+    );
+  }
+  const body = (await res.json()) as { tree?: unknown; truncated?: boolean };
+  const paths: string[] = [];
+  if (Array.isArray(body.tree)) {
+    for (const entry of body.tree as unknown[]) {
+      const e = entry as Record<string, unknown>;
+      if (e.type === "blob" && typeof e.path === "string") {
+        paths.push(e.path);
+      }
+    }
+  }
+  return { paths, truncated: body.truncated === true };
+}
+
 /**
  * Extracts the `renovate` key from a package.json body. An object value is
  * returned pretty-printed; a string value becomes `{ "extends": [value] }`

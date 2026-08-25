@@ -44,7 +44,9 @@ export default defineConfig({
           // the first test to resolve a large internal preset pays the lazy
           // transform+import of renovate's preset data modules
           testTimeout: 60_000,
-          server: { deps: { inline: [/renovate/] } },
+          // The renovate PACKAGE's store path, not the bare word — this repo's
+          // own absolute path contains "renovate" (see the engine's config).
+          server: { deps: { inline: [/node_modules\/(\.pnpm\/)?renovate[@/]/] } },
         },
       },
       {
@@ -65,7 +67,7 @@ export default defineConfig({
           include: ["../engine/test/*.shimmed.test.ts", "test/bundle/*.test.ts"],
           environment: "node",
           testTimeout: 60_000,
-          server: { deps: { inline: [/renovate/] } },
+          server: { deps: { inline: [/node_modules\/(\.pnpm\/)?renovate[@/]/] } },
         },
       },
     ],

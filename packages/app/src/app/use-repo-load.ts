@@ -17,7 +17,7 @@
  * from it, so the two hooks would otherwise have to close over each other's
  * later-declared bindings (see `repoInput` below).
  */
-import { type RefObject, useRef, useState } from "react";
+import { type RefObject, useCallback, useRef, useState } from "react";
 import { ESCAPE_PRIORITY } from "@/lib/escape-stack";
 import { useEscapeLayer } from "@/hooks/use-escape-layer";
 import type { RepoPlatform, TraceResult } from "@renovate-config-debugger/engine";
@@ -26,6 +26,7 @@ import { FETCHABLE_PLATFORMS, HOST_PLATFORM } from "@/data/host-tokens";
 import { isValidRepoHost, isValidRepoRefPart } from "@/lib/input-schemas";
 import { configFileNameFor, parseRepoReference } from "@/lib/repo-reference";
 import type { ShareFileName, UntrustedEndpointGuard } from "@/lib/share";
+import type { LoadedRepo } from "@/features/simulator/repo-deps";
 import { extractPackageJsonConfig, loadRepoConfig, loadRepoFile } from "@/platform/run";
 import type { RunInputs } from "@/lib/run-inputs";
 
@@ -88,6 +89,10 @@ export interface RepoLoadHost {
   /** Whether OAuth is configured at all — a failure only offers the sign-in
    *  hint when signing in is actually possible (009). */
   oauthConfigured: boolean;
+  /** Roadmap 078: a SUCCESSFUL load records where the config came from — the
+   *  fact that makes "pick from your repo's detected dependencies" a
+   *  meaningful offer on the Tests tab. */
+  onRepoLoaded: (repo: LoadedRepo) => void;
 }
 
 export interface RepoLoad {
@@ -97,6 +102,13 @@ export interface RepoLoad {
   repoFormOpen: boolean;
   repoToggleRef: RefObject<HTMLButtonElement | null>;
   toggleRepoForm: () => void;
+  /** Opens the form (a no-op when already open) — the Tests tab's connect
+   *  panel reaches for the SAME overlay rather than growing its own load
+   *  form (087). The opener may pass its own element; close hands focus back
+   *  there instead of the editor's toggle (which lives in the other column).
+   *  Identity-stable, since it travels through the memoized run-view
+   *  provider. */
+  openRepoForm: (returnFocus?: HTMLElement) => void;
   closeRepoForm: () => void;
   repoRef: string;
   setRepoRef: (value: string) => void;
@@ -127,6 +139,7 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
     repoInput,
     resolveInheritedConfig,
     oauthConfigured,
+    onRepoLoaded,
   } = host;
   // Load-from-repo disclosure (039): collapsed by default — the form only
   // exists while `repoFormOpen`, and the button that opens it lives in the
@@ -139,12 +152,24 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
   // sign-in / install hint next to the failure (009). null = no hint.
   const [repoAuthHint, setRepoAuthHint] = useState<{ rateLimited: boolean } | null>(null);
 
+  /** 087: the overlay gained a second opener (the Tests tab's connect panel),
+   *  so "the button that opened it" is no longer always the editor's toggle —
+   *  an opener may hand its own element over, and close returns focus there
+   *  while it is still in the document. */
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+
   /** Roadmap 023/039: closing the repo panel — by Cancel, by Escape, or by a
    *  load that succeeded — hands focus back to the button that opened it. The
    *  panel is gone, so focus must land somewhere deliberate, and that button
    *  is both where the user came from and what describes what just closed. */
   function closeRepoForm() {
     setRepoFormOpen(false);
+    const opener = returnFocusRef.current;
+    returnFocusRef.current = null;
+    if (opener?.isConnected) {
+      opener.focus();
+      return;
+    }
     repoToggleRef.current?.focus();
   }
 
@@ -155,6 +180,11 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
       setRepoFormOpen(true);
     }
   }
+
+  const openRepoForm = useCallback((returnFocus?: HTMLElement) => {
+    returnFocusRef.current = returnFocus ?? null;
+    setRepoFormOpen(true);
+  }, []);
 
   // Roadmap 075: the form became an OVERLAY over the editor (039's chrome row
   // would push the document it is about to replace out of a fixed-height pane),
@@ -286,6 +316,15 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
       setNotice(
         `Loaded ${loaded.fileName} from ${parsed.repo}${effectiveRef ? `@${effectiveRef}` : ""}`,
       );
+      // Roadmap 078: the config on screen now demonstrably came from this
+      // repository — record it so the Tests tab can offer its dependencies.
+      onRepoLoaded({
+        platform: repoPlatform,
+        repo: parsed.repo,
+        ...(repoEndpoint === "" ? {} : { endpoint: repoEndpoint }),
+        ...(effectiveRef === "" ? {} : { ref: effectiveRef }),
+        suppressTokens,
+      });
       // Roadmap 039: the panel's job is done — it collapses so the config it
       // just fetched gets the height back. A FAILED load leaves it open: the
       // reference in it is what the user has to correct. A shortcut load never
@@ -347,6 +386,7 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
     repoFormOpen,
     repoToggleRef,
     toggleRepoForm,
+    openRepoForm,
     closeRepoForm,
     repoRef,
     setRepoRef,

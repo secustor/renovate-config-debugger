@@ -31,6 +31,7 @@ import type { ResultsTabDescriptor } from "@/components/ResultsPanel";
 import type { ResultsTabId } from "@/data/results-tabs";
 import type { FormState } from "@/features/simulator/form";
 import type { PinnedTest } from "@/features/simulator/pins";
+import type { RepoConnectOffer, RepoDepsView } from "@/features/simulator/repo-deps";
 import type { EffectiveTally } from "@/lib/effective-tally";
 import type { ShareSimulator } from "@/lib/share";
 import type { ErrorTranslationLib } from "@/platform/run";
@@ -98,6 +99,15 @@ export interface RunView {
   onShare: () => Promise<void>;
   mergeStepIndex: number;
   onMergeStepChange: (index: number) => void;
+  /** Roadmap 078: the loaded repo's extracted dependencies (identity changes
+   *  on a load and on the discovery's async report — never per keystroke),
+   *  and the stable on-demand trigger that computes them. */
+  repoDeps: RepoDepsView;
+  onLoadRepoDeps: () => void;
+  /** Roadmap 087: what the repo tab offers while NO repo is loaded — a share
+   *  link's suggested repo and the two ways to connect one. Identity moves on
+   *  a link arrival or a platform change, never per keystroke. */
+  repoConnect: RepoConnectOffer;
 
   // —— problems ——
   ruleProvenance: RuleAttribution[] | null | undefined;

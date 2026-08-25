@@ -1,0 +1,40 @@
+{
+  "manager": "poetry",
+  "fileName": "pyproject.toml",
+  "deps": [
+    {
+      "datasource": "github-releases",
+      "currentValue": "^3.12",
+      "managerData": {
+        "nestedVersion": false
+      },
+      "versioning": "poetry",
+      "depName": "python",
+      "depType": "dependencies",
+      "packageName": "containerbase/python-prebuild",
+      "commitMessageTopic": "Python",
+      "registryUrls": null
+    },
+    {
+      "datasource": "pypi",
+      "currentValue": "^2.32.3",
+      "managerData": {
+        "nestedVersion": false
+      },
+      "versioning": "poetry",
+      "depName": "requests",
+      "depType": "dependencies"
+    },
+    {
+      "datasource": "pypi",
+      "currentValue": "8.2.2",
+      "managerData": {
+        "nestedVersion": false
+      },
+      "versioning": "pep440",
+      "depName": "pytest",
+      "depType": "dev"
+    }
+  ],
+  "packageFileVersion": "0.1.0"
+}

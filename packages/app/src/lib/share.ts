@@ -12,6 +12,7 @@
  */
 import type { StageId } from "@renovate-config-debugger/engine";
 import type { ShareResultsTabId } from "@/data/results-tabs";
+import { isValidRepoRefPart } from "@/lib/input-schemas";
 import {
   DEFAULT_ENDPOINT,
   DEFAULT_PLATFORM,
@@ -100,6 +101,10 @@ export interface ShareState {
    *  Same content class as `sim.form` — dependency descriptors, never tokens
    *  and never an injected preset — and omitted entirely when there are none. */
   pins?: Record<string, string>[];
+  /** Roadmap 087: the repository the config was LOADED from, when it was — a
+   *  provenance hint the From-repository tab's connect panel offers to reload.
+   *  A slug, never credentials; nothing is fetched without a click. */
+  repo?: string;
 }
 
 /**
@@ -128,6 +133,13 @@ export interface SharePayload {
    * the version stays 2. Sanitized per entry (`sanitizeSharePins`).
    */
   pins?: Record<string, string>[];
+  /**
+   * Roadmap 087: the repository the config was loaded from. Additive within
+   * v2 exactly like `sim` and `pins`: absent on old links, ignored by old
+   * readers. Provenance only — the opener sees the slug on the connect
+   * panel's button and nothing is fetched without that click.
+   */
+  repo?: string;
   /**
    * Roadmap 027: additive integrity tag — the config's `configChecksum`. Stays
    * v2 (a decoder that predates it just ignores the extra key); when present it
@@ -240,6 +252,11 @@ export async function encodeShare(state: ShareState): Promise<string> {
   if (pins) {
     payload.pins = pins;
   }
+  // Roadmap 087: the same validator the decoder runs (and the repo-load form
+  // runs on what the user types) — what goes onto the wire is what comes off.
+  if (state.repo && isValidRepoRefPart(state.repo)) {
+    payload.repo = state.repo;
+  }
   const json = JSON.stringify(payload);
   const compressed = await deflateRaw(new TextEncoder().encode(json));
   return bytesToBase64url(compressed);
@@ -333,6 +350,13 @@ export async function decodeShareResult(token: string): Promise<DecodeResult> {
   // re-simulates, which it would do for a hand-typed pin just the same — so a
   // malformed entry is dropped, never a reason to refuse the config.
   p.pins = sanitizeSharePins(p.pins);
+  // Roadmap 087: the provenance slug is cosmetic-tier in the pins sense — a
+  // malformed value is dropped, never a reason to refuse the config. What it
+  // must not be is arbitrary text: the connect panel prints it on a button
+  // and composes a request path from it on click, so it passes the same
+  // bounded/control-character-free check every typed repo reference passes.
+  p.repo =
+    typeof p.repo === "string" && p.repo !== "" && isValidRepoRefPart(p.repo) ? p.repo : undefined;
   return { ok: true, payload: p };
 }
 

@@ -1,0 +1,40 @@
+{
+  "manager": "deps-edn",
+  "fileName": "deps.edn",
+  "deps": [
+    {
+      "depName": "org.clojure/clojure",
+      "packageName": "org.clojure:clojure",
+      "currentValue": "1.11.3",
+      "replaceString": "{:mvn/version \"1.11.3\"}",
+      "datasource": "clojure",
+      "registryUrls": [
+        "https://clojars.org/repo",
+        "https://repo.maven.apache.org/maven2"
+      ]
+    },
+    {
+      "depName": "cheshire/cheshire",
+      "packageName": "cheshire:cheshire",
+      "currentValue": "5.13.0",
+      "replaceString": "{:mvn/version \"5.13.0\"}",
+      "datasource": "clojure",
+      "registryUrls": [
+        "https://clojars.org/repo",
+        "https://repo.maven.apache.org/maven2"
+      ]
+    },
+    {
+      "depName": "lambdaisland/kaocha",
+      "packageName": "lambdaisland:kaocha",
+      "currentValue": "1.88.1376",
+      "replaceString": "{:mvn/version \"1.88.1376\"}",
+      "depType": "test",
+      "datasource": "clojure",
+      "registryUrls": [
+        "https://clojars.org/repo",
+        "https://repo.maven.apache.org/maven2"
+      ]
+    }
+  ]
+}

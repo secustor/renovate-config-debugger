@@ -1,0 +1,24 @@
+{
+  "manager": "puppet",
+  "fileName": "Puppetfile",
+  "deps": [
+    {
+      "depName": "puppetlabs/stdlib",
+      "datasource": "puppet-forge",
+      "packageName": "puppetlabs/stdlib",
+      "currentValue": "9.6.0",
+      "registryUrls": [
+        "https://forgeapi.puppetlabs.com"
+      ]
+    },
+    {
+      "depName": "puppetlabs/apt",
+      "datasource": "puppet-forge",
+      "packageName": "puppetlabs/apt",
+      "currentValue": "9.4.0",
+      "registryUrls": [
+        "https://forgeapi.puppetlabs.com"
+      ]
+    }
+  ]
+}

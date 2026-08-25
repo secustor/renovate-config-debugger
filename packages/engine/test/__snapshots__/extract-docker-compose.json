@@ -1,0 +1,22 @@
+{
+  "manager": "docker-compose",
+  "fileName": "docker-compose.yml",
+  "deps": [
+    {
+      "depName": "nginx",
+      "packageName": "nginx",
+      "currentValue": "1.27.0",
+      "replaceString": "nginx:1.27.0",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker"
+    },
+    {
+      "depName": "postgres",
+      "packageName": "postgres",
+      "currentValue": "16.3-alpine",
+      "replaceString": "postgres:16.3-alpine",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "manager": "pip_requirements",
+  "fileName": "requirements.txt",
+  "deps": [
+    {
+      "depName": "requests",
+      "packageName": "requests",
+      "currentValue": "==2.31.0",
+      "datasource": "pypi",
+      "currentVersion": "2.31.0"
+    },
+    {
+      "depName": "flask",
+      "packageName": "flask",
+      "currentValue": ">=3.0.0",
+      "datasource": "pypi"
+    },
+    {
+      "depName": "urllib3",
+      "packageName": "urllib3",
+      "currentValue": "==2.2.2",
+      "datasource": "pypi",
+      "currentVersion": "2.2.2"
+    }
+  ]
+}

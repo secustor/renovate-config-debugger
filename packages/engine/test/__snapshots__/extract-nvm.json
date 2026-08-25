@@ -1,0 +1,11 @@
+{
+  "manager": "nvm",
+  "fileName": ".nvmrc",
+  "deps": [
+    {
+      "depName": "node",
+      "currentValue": "20.15.0",
+      "datasource": "node-version"
+    }
+  ]
+}

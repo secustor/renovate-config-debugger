@@ -1,0 +1,14 @@
+{
+  "manager": "jsonnet-bundler",
+  "fileName": "jsonnetfile.json",
+  "deps": [
+    {
+      "depName": "github.com/grafana/grafonnet-lib/grafonnet",
+      "packageName": "https://github.com/grafana/grafonnet-lib.git",
+      "currentValue": "v0.4.0",
+      "managerData": {
+        "subdir": "grafonnet"
+      }
+    }
+  ]
+}

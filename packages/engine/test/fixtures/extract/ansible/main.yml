@@ -1,0 +1,12 @@
+---
+- name: Run the web container
+  community.docker.docker_container:
+    name: web
+    image: nginx:1.27.0
+    state: started
+
+- name: Run the cache container
+  community.docker.docker_container:
+    name: cache
+    image: redis:7.2.5
+    state: started

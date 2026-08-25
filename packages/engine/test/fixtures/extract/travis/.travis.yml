@@ -1,0 +1,6 @@
+language: node_js
+node_js:
+  - 20.14.0
+  - 18.20.3
+script:
+  - npm test

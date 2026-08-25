@@ -1,0 +1,29 @@
+{
+  "manager": "buildpacks",
+  "fileName": "project.toml",
+  "deps": [
+    {
+      "depName": "paketobuildpacks/builder-jammy-base",
+      "packageName": "paketobuildpacks/builder-jammy-base",
+      "currentValue": "0.4.212",
+      "replaceString": "paketobuildpacks/builder-jammy-base:0.4.212",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker",
+      "commitMessageTopic": "builder {{depName}}"
+    },
+    {
+      "depName": "docker.io/paketobuildpacks/nodejs",
+      "packageName": "docker.io/paketobuildpacks/nodejs",
+      "currentValue": "1.2.3",
+      "replaceString": "docker.io/paketobuildpacks/nodejs:1.2.3",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker"
+    },
+    {
+      "datasource": "buildpacks-registry",
+      "currentValue": "1.1.1",
+      "packageName": "paketo-buildpacks/git",
+      "depName": "paketo-buildpacks/git"
+    }
+  ]
+}

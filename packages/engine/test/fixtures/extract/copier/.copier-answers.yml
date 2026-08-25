@@ -1,0 +1,5 @@
+---
+# Changes here will be overwritten by Copier
+_commit: v1.4.0
+_src_path: https://github.com/example/copier-template.git
+project_name: demo

@@ -1,0 +1,22 @@
+{
+  "manager": "vendir",
+  "fileName": "vendir.yml",
+  "deps": [
+    {
+      "depName": "contour",
+      "currentValue": "12.1.0",
+      "depType": "HelmChart",
+      "registryUrls": [
+        "https://charts.bitnami.com/bitnami"
+      ],
+      "datasource": "helm"
+    },
+    {
+      "depName": "kubernetes/kubernetes",
+      "packageName": "kubernetes/kubernetes",
+      "depType": "GithubRelease",
+      "currentValue": "v1.30.2",
+      "datasource": "github-releases"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "manager": "copier",
+  "fileName": ".copier-answers.yml",
+  "deps": [
+    {
+      "datasource": "git-tags",
+      "depName": "https://github.com/example/copier-template.git",
+      "packageName": "https://github.com/example/copier-template.git",
+      "depType": "template",
+      "currentValue": "v1.4.0"
+    }
+  ]
+}

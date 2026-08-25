@@ -1,0 +1,20 @@
+{
+  "manager": "xcodegen",
+  "fileName": "project.yml",
+  "deps": [
+    {
+      "depName": "SwiftLog",
+      "packageName": "apple/swift-log",
+      "datasource": "github-tags",
+      "currentValue": "1.5.4",
+      "depType": "from"
+    },
+    {
+      "depName": "Alamofire",
+      "packageName": "Alamofire/Alamofire",
+      "datasource": "github-tags",
+      "currentValue": "5.9.1",
+      "depType": "majorVersion"
+    }
+  ]
+}

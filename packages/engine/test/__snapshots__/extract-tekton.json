@@ -1,0 +1,15 @@
+{
+  "manager": "tekton",
+  "fileName": ".tekton/pipeline.yaml",
+  "deps": [
+    {
+      "depName": "gcr.io/tekton-releases/catalog/upstream/git-clone",
+      "packageName": "gcr.io/tekton-releases/catalog/upstream/git-clone",
+      "currentValue": "0.9",
+      "replaceString": "gcr.io/tekton-releases/catalog/upstream/git-clone:0.9",
+      "autoReplaceStringTemplate": "{{depName}}{{#if newValue}}:{{newValue}}{{/if}}{{#if newDigest}}@{{newDigest}}{{/if}}",
+      "datasource": "docker",
+      "depType": "tekton-bundle"
+    }
+  ]
+}

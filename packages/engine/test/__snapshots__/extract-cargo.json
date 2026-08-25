@@ -1,0 +1,34 @@
+{
+  "manager": "cargo",
+  "fileName": "Cargo.toml",
+  "deps": [
+    {
+      "currentValue": "1.0.203",
+      "managerData": {
+        "nestedVersion": false
+      },
+      "datasource": "crate",
+      "depName": "serde",
+      "depType": "dependencies"
+    },
+    {
+      "currentValue": "1.38.0",
+      "managerData": {
+        "nestedVersion": true
+      },
+      "datasource": "crate",
+      "depName": "tokio",
+      "depType": "dependencies"
+    },
+    {
+      "currentValue": "1.39.0",
+      "managerData": {
+        "nestedVersion": false
+      },
+      "datasource": "crate",
+      "depName": "insta",
+      "depType": "dev-dependencies"
+    }
+  ],
+  "packageFileVersion": "0.1.0"
+}

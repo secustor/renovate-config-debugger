@@ -1,0 +1,20 @@
+{
+  "manager": "renovate-config",
+  "fileName": "renovate.json",
+  "deps": [
+    {
+      "depName": "renovatebot/.github",
+      "datasource": "github-tags",
+      "currentValue": "v1.2.3"
+    },
+    {
+      "datasource": "github-releases",
+      "packageName": "containerbase/python-prebuild",
+      "versioning": "python",
+      "depName": "python",
+      "currentValue": "3.12.4",
+      "depType": "tool-constraint",
+      "commitMessageTopic": "{{{depName}}} tool constraint"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "manager": "terraform-version",
+  "fileName": ".terraform-version",
+  "deps": [
+    {
+      "depName": "hashicorp/terraform",
+      "currentValue": "1.9.0",
+      "datasource": "github-releases"
+    }
+  ]
+}
