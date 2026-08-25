@@ -65,7 +65,11 @@ describe("snapshot", () => {
 
   it("falls back to a JSON round-trip for values structuredClone refuses", () => {
     const withFunction = { keep: 1, drop: () => "unclonable" };
-    expect(() => structuredClone(withFunction)).toThrow();
+    // Named rather than bare: the point of this test is the FALLBACK, so it
+    // matters that the throw is the un-cloneable-value one (a `DataCloneError`
+    // DOMException, "… could not be cloned") and not some unrelated failure
+    // that would make the fallback look exercised when it was not.
+    expect(() => structuredClone(withFunction)).toThrow(/could not be cloned/);
     expect(snapshot(withFunction)).toEqual({ keep: 1 });
   });
 });

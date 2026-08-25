@@ -150,9 +150,11 @@ describe("invariants over the whole option table", () => {
     for (const doc of options.values()) {
       const declaresParents = Boolean(upstream.get(doc.name)?.parents);
       expect(doc.placement.kind, doc.name).toBe(declaresParents ? "restricted" : "unrestricted");
-      if (doc.placement.kind === "restricted") {
-        expect(doc.placement.parents, doc.name).not.toContain(".");
-      }
+      // The parents list, or an empty one when the option is unrestricted —
+      // so the "no dotted paths" claim is asserted for every option rather
+      // than only for the ones that reach inside an `if`.
+      const parents = doc.placement.kind === "restricted" ? doc.placement.parents : [];
+      expect(parents, doc.name).not.toContain(".");
       expect(doc.isContainer, doc.name).toBe(containers.has(doc.name) ? true : undefined);
       expect(doc.childOptions, doc.name).toEqual(containers.get(doc.name));
     }

@@ -18,19 +18,27 @@
   // of `vitest`'s, matched by name), and `jsdoc`/`nextjs`/`vue` (nothing in
   // this codebase to check, 0 hits each).
   //
-  // NOT yet added, both real and both costed:
-  //   `vitest`   — squarely on target, every test here is vitest, but 241
-  //                violations. 69 of them are test-CORRECTNESS bugs worth
-  //                fixing on their own (no-conditional-expect, valid-expect,
-  //                expect-expect, no-standalone-expect); the other 149 are the
-  //                mechanical `vi.fn()` → `vi.fn<Sig>()` migration. Wants its
-  //                own roadmap entry, fixed first and enabled after, because
-  //                the zero-tolerance policy leaves no warn tier to park it in.
-  //   `jsx-a11y` — 22 violations, each a plausible real gap (focus management,
-  //                missing labels, role/tag mismatches). Tractable, but it is
-  //                an accessibility commitment this repo has not made
-  //                explicitly, so it is a decision rather than a cleanup.
-  "plugins": ["unicorn", "typescript", "oxc", "react", "react-perf", "import", "promise", "node"],
+  // `vitest` is on target for the obvious reason — every test in this repo is
+  // vitest — and it arrived with 247 hits. Four of its rules needed CONFIGURING
+  // rather than obeying (their defaults encode jest's API), 58 were a real
+  // test-correctness class that is now fixed, and one rule is off on cost. The
+  // whole account is in the `vitest/*` block under `rules` below.
+  //
+  // NOT added: `jsx-a11y` — 22 violations, each a plausible real gap (focus
+  // management, missing labels, role/tag mismatches). Tractable, but it is an
+  // accessibility commitment this repo has not made explicitly, so it is a
+  // decision rather than a cleanup.
+  "plugins": [
+    "unicorn",
+    "typescript",
+    "oxc",
+    "react",
+    "react-perf",
+    "import",
+    "promise",
+    "node",
+    "vitest"
+  ],
   // Roadmap 041: `suspicious` was the last thing configured at warn. Nothing is
   // advisory any more — `pnpm lint` reporting anything at all fails CI, which is
   // the point: an oxlint upgrade that adds rules to a category gets a decision
@@ -110,6 +118,39 @@
     "typescript/no-unnecessary-type-assertion": "off",
     "typescript/consistent-return": "off",
     "typescript/no-unnecessary-type-parameters": "off",
+
+    // --- the vitest plugin ---------------------------------------------------
+    // Every test in this repo is vitest, so the plugin is squarely on target.
+    // Four of its rules need configuring rather than obeying, because their
+    // DEFAULTS encode jest's API and jest is not what runs here. Each option
+    // below was verified to take the rule to zero hits.
+    //
+    //   `valid-expect` defaults to maxArgs 1, which is jest's signature.
+    //   Vitest's is `<T>(actual: T, message?: string)` — checked in
+    //   @vitest/expect's own `ExpectStatic` — and this repo uses the message
+    //   deliberately in table-driven loops, where it names WHICH row failed.
+    //   Obeying the default would have deleted 21 real diagnostics.
+    "vitest/valid-expect": ["error", { "maxArgs": 2 }],
+    //   `valid-title` wants a string literal; a table-driven `test(name, …)`
+    //   over a fixture array is idiomatic vitest and reads better than 30
+    //   hand-copied titles.
+    "vitest/valid-title": ["error", { "ignoreTypeOfTestName": true }],
+    //   `expect-expect` cannot see through a custom assertion helper.
+    //   `expectRoundTrip` is one — it asserts on both directions of a patch.
+    "vitest/expect-expect": ["error", { "assertFunctionNames": ["expect", "expectRoundTrip"] }],
+    //   `no-commented-out-tests` pattern-matches prose, so it fires on SOURCE
+    //   files whose comments happen to look like a test. Off globally, on for
+    //   test files, in the override further down.
+    "vitest/no-commented-out-tests": "off",
+    //
+    // NOT adopted, and the one rule of the plugin that is off on cost rather
+    // than on correctness: `require-mock-type-parameters`, 155 hits. Typed
+    // mocks are genuinely better — an untyped `vi.fn()` makes
+    // `toHaveBeenCalledWith` accept anything — but every one of the 155 needs
+    // the signature its call site actually expects, and a WRONG signature is
+    // worse than none: it type-checks a lie. That is a focused migration with
+    // per-site review, not a line in this change.
+    "vitest/require-mock-type-parameters": "off",
 
     // Roadmap 038: the three type-aware rules whose whole cost was one site
     // each — enabled, with that single site fixed or disabled in place.
@@ -588,6 +629,26 @@
             ]
           }
         ]
+      }
+    },
+    // ---- The vitest plugin's test-only rule ---------------------------------
+    // `no-commented-out-tests` pattern-matches prose, so on a SOURCE file it
+    // fires on any comment that happens to read like a test — measured: one hit
+    // in `engine/src/error-translations.ts`, which contains no test at all. It
+    // is off globally (see `rules`) and on here, where the question is real.
+    //
+    // This override sets a DIFFERENT rule key from the layer banks, so oxlint's
+    // REPLACE semantics never interact with them.
+    {
+      "files": [
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.node.test.ts",
+        "**/*.shimmed.test.ts",
+        "**/*.shimmed.test.tsx"
+      ],
+      "rules": {
+        "vitest/no-commented-out-tests": "error"
       }
     },
     // ---- Structure review, finding 4: the engine-root exemption -------------

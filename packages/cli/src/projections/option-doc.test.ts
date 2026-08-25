@@ -41,10 +41,10 @@ describe("optionDocLines", () => {
   test("every flag the engine forwards reaches the pretty rendering", () => {
     for (const doc of options.values()) {
       const text = optionDocLines(doc, renovateVersion).join("\n");
-      for (const { flag, contains } of FLAG_LINES) {
-        if (flag(doc)) {
-          expect(text, `${doc.name}: ${contains}`).toContain(contains);
-        }
+      // Filtered, not guarded: the rows that apply to this option are chosen
+      // first, so every `expect` that runs is one this option really owes.
+      for (const { contains } of FLAG_LINES.filter((line) => line.flag(doc))) {
+        expect(text, `${doc.name}: ${contains}`).toContain(contains);
       }
     }
   });
@@ -53,11 +53,14 @@ describe("optionDocLines", () => {
     let unrestricted = 0;
     for (const doc of options.values()) {
       const text = optionDocLines(doc, renovateVersion).join("\n");
-      expect(text, doc.name).toContain("placement:");
-      if (doc.placement.kind === "unrestricted") {
+      // One assertion, with the expected line chosen by kind — the
+      // unrestricted case simply expects MORE of the same string, so the
+      // conditional second `expect` was never needed.
+      const isUnrestricted = doc.placement.kind === "unrestricted";
+      if (isUnrestricted) {
         unrestricted += 1;
-        expect(text, doc.name).toContain("placement: no restriction");
       }
+      expect(text, doc.name).toContain(isUnrestricted ? "placement: no restriction" : "placement:");
     }
     expect(unrestricted).toBeGreaterThan(300);
   });
