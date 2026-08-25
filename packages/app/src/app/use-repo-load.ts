@@ -17,7 +17,7 @@
  * from it, so the two hooks would otherwise have to close over each other's
  * later-declared bindings (see `repoInput` below).
  */
-import { type RefObject, useRef, useState } from "react";
+import { type RefObject, useCallback, useRef, useState } from "react";
 import { ESCAPE_PRIORITY } from "@/lib/escape-stack";
 import { useEscapeLayer } from "@/hooks/use-escape-layer";
 import type { RepoPlatform, TraceResult } from "@renovate-config-debugger/engine";
@@ -102,6 +102,11 @@ export interface RepoLoad {
   repoFormOpen: boolean;
   repoToggleRef: RefObject<HTMLButtonElement | null>;
   toggleRepoForm: () => void;
+  /** Opens the form (a no-op when already open) — the Tests tab's connect
+   *  panel reaches for the SAME overlay rather than growing its own load
+   *  form (087). Identity-stable, since it travels through the memoized
+   *  run-view provider. */
+  openRepoForm: () => void;
   closeRepoForm: () => void;
   repoRef: string;
   setRepoRef: (value: string) => void;
@@ -161,6 +166,8 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
       setRepoFormOpen(true);
     }
   }
+
+  const openRepoForm = useCallback(() => setRepoFormOpen(true), []);
 
   // Roadmap 075: the form became an OVERLAY over the editor (039's chrome row
   // would push the document it is about to replace out of a fixed-height pane),
@@ -362,6 +369,7 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
     repoFormOpen,
     repoToggleRef,
     toggleRepoForm,
+    openRepoForm,
     closeRepoForm,
     repoRef,
     setRepoRef,

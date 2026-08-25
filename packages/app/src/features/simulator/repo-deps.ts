@@ -59,6 +59,20 @@ export interface RepoDepsView {
   error: string | null;
 }
 
+/**
+ * The From-repository tab's offer while NO repo is loaded (the design's
+ * connect panel): a share link may name the repository its config was loaded
+ * from — `suggestion` — and `onConnect` grants this session repository access
+ * (the load path's `LoadedRepo` record, so discovery can run) WITHOUT
+ * touching the config the link installed. `onOpenLoad` opens the editor's
+ * load-from-repo overlay for any other repository.
+ */
+export interface RepoConnectOffer {
+  suggestion: string | null;
+  onConnect: () => void;
+  onOpenLoad: () => void;
+}
+
 export const EMPTY_REPO_DEPS: RepoDepsView = {
   status: "idle",
   repo: "",

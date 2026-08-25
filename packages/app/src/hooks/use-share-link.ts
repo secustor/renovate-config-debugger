@@ -121,6 +121,12 @@ export interface ShareLinkHost {
    *  unconditional: a link installs the screen it describes, and pins from a
    *  previous one are not part of it. */
   setPins: (pins: Record<string, string>[]) => void;
+  /** Roadmap 087: the link's repo provenance — the slug the config was loaded
+   *  from, or null. Called unconditionally in the populate block for the same
+   *  reason `setPins` is: a link installs the screen it describes, and the
+   *  repository a PREVIOUS session had loaded is not part of it — App clears
+   *  its `LoadedRepo` and holds the slug as the connect panel's suggestion. */
+  applyShareRepo: (repo: string | null) => void;
   /** View state pending from a decoded link, applied by App once the run
    *  produces a result (identities → node ids need the resolved tree). App
    *  holds it in a ref (consuming it must not render); this hook only ARMS it,
@@ -294,6 +300,7 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
     // result that run commits is the first thing they are checked against —
     // which is the whole promise of the tab that lists them.
     host.setPins(payload.pins ?? []);
+    host.applyShareRepo(payload.repo ?? null);
     // Roadmap 068 review — half one of the attribution rule stated below: a
     // decode that replaces the screen replaces the simulator request with it,
     // HERE, before its own run. A link that carries no `sim` is not silent

@@ -96,8 +96,21 @@ one (the in-memory store) run identical engine code.
   "pinned · type" instead, derived from the pins list, not remembered.
 - With the third tab live, the strip carries real tablist semantics —
   `role="tablist"`, `aria-selected`, arrow-key roving — exactly what 082 said
-  should arrive with it. While no repo is loaded the tab stays visible and
-  honestly disabled ("load a repo first").
+  should arrive with it.
+- **The repo tab is always live** (the design's second revision — its
+  `repoAvailable` default flipped to false and the disabled state was
+  deleted): while no repo is loaded it wears a quiet "not loaded" hint and
+  opens the CONNECT PANEL instead of the picker. A share link now carries the
+  repository its config was loaded from (`repo` in the payload — additive
+  within v2 like `sim`/`pins`, validated with the repo-load form's own
+  `isValidRepoRefPart`, dropped alone when malformed), so the panel can offer
+  "Reload owner/repo" with one click: it grants repository ACCESS (the
+  `LoadedRepo` record discovery runs from, under the link's untrusted-endpoint
+  guard and the current platform context) without touching the config the
+  link installed — the design's mock connects, it does not replace the
+  session's subject. Without a suggestion the panel offers the editor's
+  load-from-repo overlay ("load a repository…"). A suggestion this session
+  never confirmed by a load is not re-shared as provenance.
 - **The default tab is derived, not stored** — the design's
   `combTab ?? (repoAvailable ? "repo" : "manual")`: until the reader picks a
   tab, a loaded repository opens the card on From repository (the picker is

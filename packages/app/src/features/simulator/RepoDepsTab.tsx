@@ -1,7 +1,13 @@
 import { useState } from "react";
 import { nf } from "@/lib/format";
 import type { PinnedTest } from "./pins";
-import { filterRepoDeps, type RepoDep, type RepoDepsView, type RepoDraft } from "./repo-deps";
+import {
+  filterRepoDeps,
+  type RepoConnectOffer,
+  type RepoDep,
+  type RepoDepsView,
+  type RepoDraft,
+} from "./repo-deps";
 
 /**
  * Roadmap 078 — the "From repository" tab: the dependencies Renovate's own
@@ -136,6 +142,44 @@ function RepoDraftCard({
           ×
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The design's connect panel — what the From-repository tab shows while no
+ * repository is loaded in this session. A share link carries the config and
+ * the pinned tests but not repository access; when it also names the repo the
+ * config came from, one click grants access and extraction runs. Either way
+ * the editor's load-from-repo overlay stays one link away.
+ */
+export function RepoConnectPanel({ offer }: { offer: RepoConnectOffer }) {
+  return (
+    <div className="pin-repo-connect">
+      <p className="pin-repo-connect-head">The repository isn’t loaded in this session</p>
+      {offer.suggestion === null ? (
+        <p className="pin-repo-connect-body">
+          Load the repository this config belongs to and the dependencies Renovate detects in its
+          package files appear here — each one a click from a pinned test.
+        </p>
+      ) : (
+        <p className="pin-repo-connect-body">
+          This config was opened from a shared link, which carries the config and pinned tests but
+          not repository access. Reload <code>{offer.suggestion}</code> to pick from its detected
+          dependencies.
+        </p>
+      )}
+      <div className="pin-repo-connect-actions">
+        {offer.suggestion === null ? null : (
+          <button type="button" className="btn-primary" onClick={offer.onConnect}>
+            Reload {offer.suggestion}
+          </button>
+        )}
+        <button type="button" className="digest-link" onClick={offer.onOpenLoad}>
+          {offer.suggestion === null ? "load a repository…" : "load a different repository…"}
+        </button>
+      </div>
+      <p className="pin-repo-connect-note">read-only · your pinned tests are untouched</p>
     </div>
   );
 }

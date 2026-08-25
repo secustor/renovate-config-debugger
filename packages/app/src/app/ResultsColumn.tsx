@@ -268,6 +268,7 @@ export function ResultsColumn({
     onMergeStepChange,
     repoDeps,
     onLoadRepoDeps,
+    repoConnect,
     errorCount,
     warningCount,
     ruleProvenance,
@@ -409,6 +410,7 @@ export function ResultsColumn({
           onMergeStepChange={onMergeStepChange}
           repoDeps={repoDeps}
           onLoadRepoDeps={onLoadRepoDeps}
+          repoConnect={repoConnect}
         />
       ) : (
         <EmptyNote>Nothing to test — the pipeline produced no effective config.</EmptyNote>
@@ -546,6 +548,7 @@ export function ResultsColumn({
     onMergeStepChange,
     repoDeps,
     onLoadRepoDeps,
+    repoConnect,
     errorCount,
     warningCount,
     ruleProvenance,

@@ -11,7 +11,7 @@ import { EmptyTestsCard } from "./EmptyTestsCard";
 import type { FormState } from "./form";
 import { PinCard } from "./PinCard";
 import type { PinnedTest } from "./pins";
-import type { RepoDepsView } from "./repo-deps";
+import type { RepoConnectOffer, RepoDepsView } from "./repo-deps";
 import type { RuleDescriptionNote } from "./rule-descriptions";
 import type { PinEvaluation } from "./use-pinned-tests";
 
@@ -100,6 +100,7 @@ export function PinsView({
   onShare,
   repoDeps,
   onLoadRepoDeps,
+  repoConnect,
 }: {
   result: TraceResult;
   pins: PinnedTest[];
@@ -121,6 +122,7 @@ export function PinsView({
    *  on-demand trigger that computes them — both the shell's. */
   repoDeps: RepoDepsView;
   onLoadRepoDeps: () => void;
+  repoConnect: RepoConnectOffer;
 }) {
   // A quick-start chip seeds the Add-a-test form below — nonce-versioned so
   // the same chip works twice in a row.
@@ -164,6 +166,7 @@ export function PinsView({
         seedNonce={seed.nonce}
         repoDeps={repoDeps}
         onLoadRepoDeps={onLoadRepoDeps}
+        repoConnect={repoConnect}
         onAddPin={onAddPin}
         onOpenInSimulator={onOpenInSimulator}
         footnote={onShare ? <ShareNote onShare={onShare} /> : undefined}

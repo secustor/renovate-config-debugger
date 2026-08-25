@@ -12,11 +12,11 @@
 import { useState } from "react";
 import { runPipeline } from "@renovate-config-debugger/engine";
 import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
-import { afterEach, beforeAll, expect, it } from "vitest";
+import { afterEach, beforeAll, expect, it, vi } from "vitest";
 import type { SimRequest } from "@/hooks/use-share-link";
 import type { FormState } from "./form";
 import type { PinnedTest } from "./pins";
-import { EMPTY_REPO_DEPS, type RepoDepsView } from "./repo-deps";
+import { EMPTY_REPO_DEPS, type RepoConnectOffer, type RepoDepsView } from "./repo-deps";
 import { TestsPanel } from "./TestsPanel";
 
 afterEach(cleanup);
@@ -48,11 +48,13 @@ function Harness({
   initialPins = [],
   simRequest,
   repoDeps = EMPTY_REPO_DEPS,
+  repoConnect = { suggestion: null, onConnect: () => undefined, onOpenLoad: () => undefined },
 }: {
   result: Awaited<ReturnType<typeof runPipeline>>;
   initialPins?: PinnedTest[];
   simRequest?: SimRequest | null;
   repoDeps?: RepoDepsView;
+  repoConnect?: RepoConnectOffer;
 }) {
   const [pins, setPins] = useState<PinnedTest[]>(initialPins);
   // Every callback is required (the shell always passes all of them), so the
@@ -79,6 +81,7 @@ function Harness({
       onMergeStepChange={setMergeStepIndex}
       repoDeps={repoDeps}
       onLoadRepoDeps={() => undefined}
+      repoConnect={repoConnect}
     />
   );
 }
@@ -414,10 +417,41 @@ it("opens on From repository when a repo is already loaded — the design's defa
   expect(view.getByLabelText("packageName", { exact: true })).toBeTruthy();
 });
 
-it("keeps the From-repository tab honestly disabled while no repo is loaded", async () => {
+it("offers the connect panel while no repo is loaded — with a link's suggested repo", async () => {
   const result = await run();
-  const view = render(<Harness result={result} />);
-  const repoTab = view.getByRole("button", { name: /From repository/ });
-  expect(repoTab).toHaveProperty("disabled", true);
-  expect(repoTab.textContent).toContain("load a repo first");
+  const onConnect = vi.fn();
+  const view = render(
+    <Harness
+      result={result}
+      repoConnect={{ suggestion: "acme/webapp", onConnect, onOpenLoad: () => undefined }}
+    />,
+  );
+
+  // The tab is live (no disabled state left), wears the quiet hint…
+  const repoTab = view.getByRole("tab", { name: /From repository/ });
+  expect(repoTab).toHaveProperty("disabled", false);
+  expect(repoTab.textContent).toContain("not loaded");
+
+  // …and opens on the connect panel: the shared link named the repo, so one
+  // click asks for its dependencies.
+  fireEvent.click(repoTab);
+  expect(view.container.textContent).toContain("The repository isn’t loaded in this session");
+  expect(view.container.textContent).toContain("opened from a shared link");
+  fireEvent.click(view.getByRole("button", { name: "Reload acme/webapp" }));
+  expect(onConnect).toHaveBeenCalledTimes(1);
+});
+
+it("offers the load-a-repository door when nothing suggests a repo", async () => {
+  const result = await run();
+  const onOpenLoad = vi.fn();
+  const view = render(
+    <Harness
+      result={result}
+      repoConnect={{ suggestion: null, onConnect: () => undefined, onOpenLoad }}
+    />,
+  );
+  fireEvent.click(view.getByRole("tab", { name: /From repository/ }));
+  expect(view.queryByRole("button", { name: /Reload/ })).toBeNull();
+  fireEvent.click(view.getByRole("button", { name: "load a repository…" }));
+  expect(onOpenLoad).toHaveBeenCalledTimes(1);
 });

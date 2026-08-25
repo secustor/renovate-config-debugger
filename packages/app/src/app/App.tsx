@@ -13,6 +13,7 @@ import {
 import type {
   ErrorFixResult,
   OptionIndex,
+  RepoPlatform,
   StageId,
   TraceResult,
 } from "@renovate-config-debugger/engine";
@@ -65,7 +66,8 @@ import { usePlatformContext } from "@/app/use-platform-context";
 import { useInheritedConfigLayer } from "@/app/use-inherited-config-layer";
 import { useRepoLoad } from "@/app/use-repo-load";
 import { useRepoDeps } from "@/app/use-repo-deps";
-import type { LoadedRepo } from "@/features/simulator/repo-deps";
+import type { LoadedRepo, RepoConnectOffer } from "@/features/simulator/repo-deps";
+import { FETCHABLE_PLATFORMS } from "@/data/host-tokens";
 import { useRepoPicker } from "@/app/use-repo-picker";
 import { useRunSummary } from "@/app/use-run-summary";
 import { usePanelStats } from "@/app/use-panel-stats";
@@ -463,6 +465,12 @@ export function App() {
       // Roadmap 075 (iteration 6): the link's pins, with ids minted by the
       // cluster that owns them.
       setPins: setPinsFromShare,
+      // Roadmap 087: the link's repo provenance replaces this session's — the
+      // previous LoadedRepo described a config that is no longer on screen.
+      applyShareRepo: (repo) => {
+        setLoadedRepo(null);
+        setRepoSuggestion(repo);
+      },
       setPendingView,
       contentRef,
       loadedContentRef,
@@ -722,6 +730,11 @@ export function App() {
   // successful repo load, replaced by the next one. The Tests tab's
   // From-repository picker exists only while this does.
   const [loadedRepo, setLoadedRepo] = useState<LoadedRepo | null>(null);
+  // Roadmap 087: the repo a SHARE LINK said its config was loaded from — the
+  // connect panel's one-click suggestion. Provenance the link claims, not a
+  // load this session performed; nothing is fetched until the user clicks the
+  // button that names it.
+  const [repoSuggestion, setRepoSuggestion] = useState<string | null>(null);
   // Roadmap 045/048: the inherited-config layer — its text and parse, the
   // probe-target fields, the `inheritConfig*` policy read off the global
   // config, and the probe the repo load calls between the repo config arriving
@@ -752,6 +765,7 @@ export function App() {
     repoFormOpen,
     repoToggleRef,
     toggleRepoForm,
+    openRepoForm,
     closeRepoForm,
     repoRef,
     setRepoRef,
@@ -786,6 +800,41 @@ export function App() {
   // Roadmap 078: the loaded repo's extracted dependencies — discovered on
   // demand (the first open of the From-repository tab), reset by a new load.
   const { view: repoDepsView, ensure: ensureRepoDeps } = useRepoDeps(loadedRepo);
+  // Roadmap 087: the connect panel's one-click reload — grants this session
+  // repository ACCESS (the LoadedRepo record discovery runs from) without
+  // touching the config the share link installed. It rides the current
+  // platform context (the link applied its own on arrival) and obeys the
+  // link's untrusted-endpoint guard, exactly as a typed load would. The impl
+  // closes over this render's state; the latest-ref wrapper (the
+  // `buildShareLinkAndCopy` idiom) keeps the handed-out identity stable for
+  // the run-view provider.
+  function connectSuggestedRepoImpl() {
+    if (repoSuggestion === null || !FETCHABLE_PLATFORMS.has(platform as RepoPlatform)) {
+      return;
+    }
+    setLoadedRepo({
+      platform: platform as RepoPlatform,
+      repo: repoSuggestion,
+      ...(endpoint === "" ? {} : { endpoint }),
+      suppressTokens: untrustedGuard !== null,
+    });
+  }
+  const connectSuggestedRepoRef = useLatestRef(connectSuggestedRepoImpl);
+  const connectSuggestedRepo = useCallback(
+    () => connectSuggestedRepoRef.current(),
+    // A stable ref object; see `useLatestRef` for why the list is not empty.
+    [connectSuggestedRepoRef],
+  );
+  // The suggestion is only offered while the platform context could actually
+  // fetch it — the click would otherwise lead somewhere the browser can't go.
+  const repoConnect = useMemo<RepoConnectOffer>(
+    () => ({
+      suggestion: FETCHABLE_PLATFORMS.has(platform as RepoPlatform) ? repoSuggestion : null,
+      onConnect: connectSuggestedRepo,
+      onOpenLoad: openRepoForm,
+    }),
+    [repoSuggestion, platform, connectSuggestedRepo, openRepoForm],
+  );
   // Roadmap 085: the signed-in repo picker inside the load overlay. Picking
   // only writes the reference field — Load stays the one trigger.
   const repoPicker = useRepoPicker({
@@ -1482,6 +1531,10 @@ export function App() {
       view,
       sim,
       pins: pinsAsShareFields(),
+      // Roadmap 087: where the config was loaded from, when it was — the
+      // opener's connect panel offers to reload it. A suggestion this session
+      // never confirmed by a load is not re-shared as provenance.
+      ...(loadedRepo === null ? {} : { repo: loadedRepo.repo }),
     };
   }
 
@@ -1550,6 +1603,7 @@ export function App() {
       onMergeStepChange: setMergeStepIndex,
       repoDeps: repoDepsView,
       onLoadRepoDeps: ensureRepoDeps,
+      repoConnect,
       ruleProvenance,
       onJumpToSimRule,
       onApplyFix,
@@ -1597,6 +1651,7 @@ export function App() {
       mergeStepIndex,
       repoDepsView,
       ensureRepoDeps,
+      repoConnect,
       ruleProvenance,
       onJumpToSimRule,
       onApplyFix,

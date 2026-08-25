@@ -735,6 +735,42 @@
   padding: 0.6rem 0.75rem 0.75rem;
 }
 
+/* Roadmap 087: the connect panel — the repo tab's offer while no repository
+   is loaded in this session (a share link carries the config and pins, not
+   repository access). */
+.pin-repo-connect {
+  margin: 0 auto;
+  max-width: 26rem;
+  padding: 1.1rem 0.75rem 1.25rem;
+  text-align: center;
+}
+
+.pin-repo-connect-head {
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin: 0 0 0.3rem;
+}
+
+.pin-repo-connect-body {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  margin: 0 0 0.75rem;
+}
+
+.pin-repo-connect-actions {
+  align-items: center;
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+}
+
+.pin-repo-connect-note {
+  color: var(--faint);
+  font-size: 0.7rem;
+  margin: 0.6rem 0 0;
+}
+
 .pin-repo-status p {
   margin: 0 0 0.4rem;
 }

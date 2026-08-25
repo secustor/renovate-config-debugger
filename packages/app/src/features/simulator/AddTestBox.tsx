@@ -16,8 +16,8 @@ import { pinAddFocusTarget } from "./pin-add-dom";
 import { PinHeadRow } from "./PinHeadRow";
 import { pinContext, pinName, MAX_PINS, type PinnedTest } from "./pins";
 import { PinSectionHead } from "./PinRuleSections";
-import { draftFill, type RepoDepsView, type RepoDraft } from "./repo-deps";
-import { RepoDepsTab } from "./RepoDepsTab";
+import { draftFill, type RepoConnectOffer, type RepoDepsView, type RepoDraft } from "./repo-deps";
+import { RepoConnectPanel, RepoDepsTab } from "./RepoDepsTab";
 import { runSimulation } from "./run-simulation";
 import { SimulatorForm } from "./SimulatorForm";
 import { useEngineModule } from "./use-engine-module";
@@ -121,8 +121,9 @@ type AddTestTab = "manual" | "paste" | "repo";
  * The design's Manual / Paste JSON / From repository strip — the standard
  * `.tab-bar` styling at the card's scale, and (since 078 lit the third tab up)
  * real tablist semantics: `role="tablist"`, `aria-selected`, and arrow-key
- * roving over the enabled tabs. While no repo is loaded the third tab stays
- * visible, honestly disabled, and out of the roving order.
+ * roving. The repo tab is ALWAYS live: while no repo is loaded it wears a
+ * quiet "not loaded" hint and opens the connect panel instead of the picker —
+ * a door that explains itself beats one that is locked.
  *
  * When the card was opened from the ghost row it is a "New pin" in progress:
  * the strip leads with that label and closes with the × that collapses it.
@@ -131,15 +132,19 @@ function AddTestTabs({
   tab,
   onTabChange,
   repoAvailable,
+  repoSuggested,
   onClose,
 }: {
   tab: AddTestTab;
   onTabChange: (t: AddTestTab) => void;
   repoAvailable: boolean;
+  /** A share link named the repo this config came from (the tab's title says
+   *  how to reconnect it, before the panel does). */
+  repoSuggested: boolean;
   onClose: () => void;
 }) {
   const refs = useRef(new Map<AddTestTab, HTMLButtonElement>());
-  const order: AddTestTab[] = repoAvailable ? ["manual", "paste", "repo"] : ["manual", "paste"];
+  const order: AddTestTab[] = ["manual", "paste", "repo"];
   function rove(e: KeyboardEvent<HTMLDivElement>) {
     const delta = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
     const jump = e.key === "Home" ? 0 : e.key === "End" ? order.length - 1 : null;
@@ -154,7 +159,7 @@ function AddTestTabs({
       refs.current.get(next)?.focus();
     }
   }
-  function tabButton(id: AddTestTab, label: ReactNode) {
+  function tabButton(id: AddTestTab, label: ReactNode, title?: string) {
     return (
       <button
         type="button"
@@ -162,6 +167,7 @@ function AddTestTabs({
         aria-selected={tab === id}
         tabIndex={tab === id ? 0 : -1}
         className={`tab${tab === id ? " active" : ""}`}
+        title={title}
         ref={(el) => {
           if (el) {
             refs.current.set(id, el);
@@ -173,23 +179,27 @@ function AddTestTabs({
       </button>
     );
   }
+  const repoTitle = repoAvailable
+    ? undefined
+    : repoSuggested
+      ? "Opened from a shared link — reload the repository to pick from detected dependencies"
+      : "Load the repository to pick from its detected dependencies";
   return (
     <div className="tab-bar pin-add-tabs" role="tablist" aria-label="New pin" onKeyDown={rove}>
       <span className="pin-add-newpin">New pin</span>
       {tabButton("manual", "Manual")}
       {tabButton("paste", "Paste JSON")}
-      {repoAvailable ? (
-        tabButton("repo", "From repository")
-      ) : (
-        <button
-          type="button"
-          className="tab"
-          disabled
-          title="Load a repo (or sign in and load one) to pick from its detected dependencies"
-        >
-          From repository
-          <span className="pin-add-tab-hint">load a repo first</span>
-        </button>
+      {tabButton(
+        "repo",
+        repoAvailable ? (
+          "From repository"
+        ) : (
+          <>
+            From repository
+            <span className="pin-add-tab-hint">not loaded</span>
+          </>
+        ),
+        repoTitle,
       )}
       <button
         type="button"
@@ -330,6 +340,7 @@ export function AddTestBox({
   seedNonce,
   repoDeps,
   onLoadRepoDeps,
+  repoConnect,
   onAddPin,
   onOpenInSimulator,
   footnote,
@@ -348,6 +359,9 @@ export function AddTestBox({
   repoDeps: RepoDepsView;
   /** Kicks discovery off (or retries it); fired when the repo tab opens. */
   onLoadRepoDeps: () => void;
+  /** The connect offer the repo tab makes while NO repo is loaded — a share
+   *  link's suggested repo and the two ways to get one (see repo-deps.ts). */
+  repoConnect: RepoConnectOffer;
   onAddPin: (form: FormState) => void;
   onOpenInSimulator: (form: FormState) => void;
   /** The design keeps "pins travel in the share link" inside this panel —
@@ -395,14 +409,7 @@ export function AddTestBox({
   }
 
   const repoAvailable = repoDeps.repo !== "";
-  // An explicit repo choice with no repo behind it (only reachable if a load
-  // could ever be undone) still lands somewhere real.
-  const tab: AddTestTab =
-    chosenTab === null || (chosenTab === "repo" && !repoAvailable)
-      ? repoAvailable
-        ? "repo"
-        : "manual"
-      : chosenTab;
+  const tab: AddTestTab = chosenTab ?? (repoAvailable ? "repo" : "manual");
 
   // Discovery fires when (and only while) the repo tab is actually on screen —
   // including again after a NEW load reset the view to idle under an open tab.
@@ -512,12 +519,14 @@ export function AddTestBox({
           tab={tab}
           onTabChange={setChosenTab}
           repoAvailable={repoAvailable}
+          repoSuggested={repoConnect.suggestion !== null}
           onClose={() => setOpen(false)}
         />
         {tab === "paste" ? (
           <PasteJsonTab text={pasteDraft} onTextChange={setPasteDraft} onFill={applyPaste} />
         ) : null}
-        {tab === "repo" ? (
+        {tab === "repo" && !repoAvailable ? <RepoConnectPanel offer={repoConnect} /> : null}
+        {tab === "repo" && repoAvailable ? (
           <RepoDepsTab
             view={repoDeps}
             pins={pins}
