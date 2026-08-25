@@ -1,7 +1,7 @@
 import { type ReactNode, type RefObject, useEffect, useMemo, useState } from "react";
 import type { TraceResult } from "@renovate-config-debugger/engine";
 import { AuthFailureBanner } from "@/components/AuthFailureBanner";
-import { collectGithubAuthFailures } from "@/features/presets/tree-shared";
+import { collectGithubAuthFailures } from "@/lib/github-failure";
 import { EffectiveConfig } from "@/features/effective-config/EffectiveConfig";
 import { EmptyNote } from "@/components/EmptyNote";
 import { HypotheticalBanner } from "@/components/HypotheticalBanner";

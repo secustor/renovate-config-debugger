@@ -8,6 +8,7 @@ import { type AuthState, GithubAuthHint } from "@/components/GithubAuthHint";
 import { LandingIntro, LandingLaunch, LandingSteps } from "@/features/editor/Landing";
 import { NoticeBar } from "@/features/editor/NoticeBar";
 import { RepoLoadOverlay } from "@/features/editor/RepoLoadOverlay";
+import type { RepoLoad } from "@/app/use-repo-load";
 import type { RepoPickerView } from "@/features/editor/RepoPicker";
 import { StageRailPreview } from "@/components/StageRail";
 import type { PresetHoverContext } from "@/lib/preset-hover";
@@ -31,16 +32,21 @@ interface ConfigColumnProps {
   value: string;
   onChange: (value: string) => void;
   presetHover: PresetHoverContext | null;
-  repoFormOpen: boolean;
-  repoToggleRef: RefObject<HTMLButtonElement | null>;
-  onToggleRepoForm: () => void;
+  /**
+   * Roadmap 086's treatment, applied to the config half. Nine of this column's
+   * props were `useRepoLoad`'s return object, unpacked in App, re-listed here,
+   * re-destructured below and re-assembled for `RepoLoadOverlay` — the same
+   * accretion the run-view context fixed for the results half. Handed over
+   * whole instead: the hook owns the cluster, this column only decides where
+   * it appears. Nothing is memoised on these props, so there is no render-count
+   * contract to break.
+   */
+  repoLoad: RepoLoad;
+  /** NOT part of `repoLoad`: App owns the reference field, because the
+   *  inherited-config layer derives its probe target from the same string
+   *  (see `useRepoLoad`'s own note on `repoInput`). */
   repo: string;
   onRepoChange: (value: string) => void;
-  gitRef: string;
-  onRefChange: (value: string) => void;
-  repoLoading: boolean;
-  onLoadRepo: () => void;
-  onCloseRepoForm: () => void;
   inheritAuto: boolean;
   onInheritAutoChange: (value: boolean) => void;
   inheritRepo: string;
@@ -79,7 +85,6 @@ interface ConfigColumnProps {
   advancedZone: ReactNode;
   // Fatal error / GitHub-auth hint / notice, in render order
   fatal: string | null;
-  repoAuthHint: { rateLimited: boolean } | null;
   authState: AuthState;
   notice: string | null;
   onDismissNotice: () => void;
@@ -117,16 +122,9 @@ export function ConfigColumn({
   value,
   onChange,
   presetHover,
-  repoFormOpen,
-  repoToggleRef,
-  onToggleRepoForm,
+  repoLoad,
   repo,
   onRepoChange,
-  gitRef,
-  onRefChange,
-  repoLoading,
-  onLoadRepo,
-  onCloseRepoForm,
   inheritAuto,
   onInheritAutoChange,
   inheritRepo,
@@ -149,7 +147,6 @@ export function ConfigColumn({
   previewSkippedStages,
   advancedZone,
   fatal,
-  repoAuthHint,
   authState,
   notice,
   onDismissNotice,
@@ -157,14 +154,14 @@ export function ConfigColumn({
   // Roadmap 075: the repo-load overlay covers the document Run acts on, so Run
   // says why it is refusing rather than acting on a config the user is halfway
   // through replacing.
-  const runBlockedReason = repoFormOpen ? RUN_BLOCKED_BY_REPO_FORM : null;
+  const runBlockedReason = repoLoad.repoFormOpen ? RUN_BLOCKED_BY_REPO_FORM : null;
   const toolbar = (
     <ConfigToolbar
       fileName={fileName}
       onFileNameChange={onFileNameChange}
-      repoFormOpen={repoFormOpen}
-      repoToggleRef={repoToggleRef}
-      onToggleRepoForm={onToggleRepoForm}
+      repoFormOpen={repoLoad.repoFormOpen}
+      repoToggleRef={repoLoad.repoToggleRef}
+      onToggleRepoForm={repoLoad.toggleRepoForm}
       canRevert={canRevert}
       onRevert={onRevert}
       onFormat={onFormat}
@@ -183,15 +180,15 @@ export function ConfigColumn({
       blockedReason={runBlockedReason}
     />
   );
-  const repoOverlay = repoFormOpen ? (
+  const repoOverlay = repoLoad.repoFormOpen ? (
     <RepoLoadOverlay
       repo={repo}
       onRepoChange={onRepoChange}
-      gitRef={gitRef}
-      onRefChange={onRefChange}
-      loading={repoLoading}
-      onSubmit={onLoadRepo}
-      onClose={onCloseRepoForm}
+      gitRef={repoLoad.repoRef}
+      onRefChange={repoLoad.setRepoRef}
+      loading={repoLoad.repoLoading}
+      onSubmit={() => void repoLoad.onLoadRepo()}
+      onClose={repoLoad.closeRepoForm}
       inheritAuto={inheritAuto}
       onInheritAutoChange={onInheritAutoChange}
       inheritRepo={inheritRepo}
@@ -247,10 +244,10 @@ export function ConfigColumn({
           every raise a mutation. Nothing here can do that on its own; it never
           learns the message was re-sent. */}
       <div role="alert">{fatal ? <p className="fatal-error">{fatal}</p> : null}</div>
-      {repoAuthHint ? (
+      {repoLoad.repoAuthHint ? (
         <GithubAuthHint
           authState={authState}
-          rateLimited={repoAuthHint.rateLimited}
+          rateLimited={repoLoad.repoAuthHint.rateLimited}
           onSignIn={onSignIn}
         />
       ) : null}

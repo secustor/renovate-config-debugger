@@ -1,7 +1,7 @@
 import { ProjectLinks } from "./ProjectLinks";
 import { SessionAvatar } from "@/components/SessionAvatar";
 import { SessionMenuItem } from "./SessionMenuItem";
-import { ThemeSwitch } from "@/components/ThemeSwitch";
+import { ThemeSwitch } from "./ThemeSwitch";
 import { useSessionMenu } from "./use-session-menu";
 import { INSTALL_URL, REVOKE_URL, type StoredUser } from "@/platform/oauth";
 import { formatShortcut, HELP_SHORTCUT } from "@/lib/shortcuts";

@@ -633,18 +633,7 @@ export function App() {
   // load itself. Everything the load acts on is either declared above or (for
   // the run path, the layer gate and the guard) a hoisted function declaration
   // below.
-  const {
-    repoFormOpen,
-    repoToggleRef,
-    toggleRepoForm,
-    openRepoForm,
-    closeRepoForm,
-    repoRef,
-    setRepoRef,
-    repoLoading,
-    repoAuthHint,
-    onLoadRepo,
-  } = useRepoLoad({
+  const repoLoad = useRepoLoad({
     platform,
     endpoint,
     applyPlatformContext,
@@ -704,14 +693,14 @@ export function App() {
     () => ({
       suggestion: TREE_LISTING_PLATFORMS.has(platform as RepoPlatform) ? repoSuggestion : null,
       onConnect: connectSuggestedRepo,
-      onOpenLoad: openRepoForm,
+      onOpenLoad: repoLoad.openRepoForm,
     }),
-    [repoSuggestion, platform, connectSuggestedRepo, openRepoForm],
+    [repoSuggestion, platform, connectSuggestedRepo, repoLoad.openRepoForm],
   );
   // Roadmap 085: the signed-in repo picker inside the load overlay. Picking
   // only writes the reference field — Load stays the one trigger.
   const repoPicker = useRepoPicker({
-    open: repoFormOpen,
+    open: repoLoad.repoFormOpen,
     signedIn,
     query: repoInput,
     onPick: setRepoInput,
@@ -1631,23 +1620,16 @@ export function App() {
             // The dogfood shortcut: fetch and run THIS app's own renovate.json,
             // live from its repository — a full URL, so the load pins the
             // github context instead of inheriting whatever host is selected.
-            onAnalyzeThisProject={() => void onLoadRepo(REPO_URL)}
+            onAnalyzeThisProject={() => void repoLoad.onLoadRepo(REPO_URL)}
             editorKey={editorKey}
             editorRef={configEditorRef}
             fileName={fileName}
             value={content}
             onChange={setContent}
             presetHover={presetHover}
-            repoFormOpen={repoFormOpen}
-            repoToggleRef={repoToggleRef}
-            onToggleRepoForm={toggleRepoForm}
+            repoLoad={repoLoad}
             repo={repoInput}
             onRepoChange={setRepoInput}
-            gitRef={repoRef}
-            onRefChange={setRepoRef}
-            repoLoading={repoLoading}
-            onLoadRepo={() => void onLoadRepo()}
-            onCloseRepoForm={closeRepoForm}
             inheritAuto={inheritAuto}
             onInheritAutoChange={onInheritAutoFieldChange}
             inheritRepo={inheritFields.repo}
@@ -1675,7 +1657,6 @@ export function App() {
             previewSkippedStages={previewSkippedStages}
             advancedZone={advancedZone}
             fatal={fatal}
-            repoAuthHint={repoAuthHint}
             authState={authState}
             notice={notice}
             onDismissNotice={() => setNotice(null)}

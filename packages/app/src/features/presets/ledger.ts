@@ -8,7 +8,7 @@ import {
 } from "@/lib/preset-tree-stats";
 import { summarizeRuleSelectors } from "@/lib/rule-selectors";
 import { valuePreview } from "@/lib/value-preview";
-import { githubAuthFailure } from "./tree-shared";
+import { githubAuthFailure } from "@/lib/github-failure";
 import { isPlainObject } from "@/lib/input-schemas";
 
 /**

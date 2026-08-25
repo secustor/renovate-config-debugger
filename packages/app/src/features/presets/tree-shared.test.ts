@@ -12,7 +12,8 @@
  */
 import type { PresetNode } from "@renovate-config-debugger/engine";
 import { describe, expect, test } from "vitest";
-import { collectGithubAuthFailures, githubPresetDisplayName, stateBadge } from "./tree-shared";
+import { collectGithubAuthFailures, githubPresetDisplayName } from "@/lib/github-failure";
+import { stateBadge } from "./tree-shared";
 
 const RATE_LIMIT_MESSAGE =
   "GitHub API rejected the request (HTTP 403) — rate limit or missing token";
