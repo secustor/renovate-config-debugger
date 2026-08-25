@@ -19,6 +19,14 @@
           "packages/engine/test/__snapshots__/**"
         ]
       }
+    },
+    {
+      "description": [
+        "The engine's extract fixtures are test data, not dependencies of this repo.",
+        ":ignoreModulesAndTests exempts nuget from its `**/test/**` glob (renovatebot/renovate#31146), so App.csproj escapes ignorePaths."
+      ],
+      "matchFileNames": ["packages/engine/test/fixtures/**"],
+      "enabled": false
     }
   ]
 }
