@@ -256,6 +256,22 @@ export default defineConfig(({ mode, command }) => ({
       "@renovate-config-debugger/engine > renovate > semver-stable",
       "@renovate-config-debugger/engine > renovate > semver-utils",
       "@renovate-config-debugger/engine > renovate > yaml",
+      // The manager-extraction graphs' pure-CJS deps (roadmap 087) — same
+      // reason as above, discovered by the first From-repository extraction
+      // instead of the first run. Kept in sync with the shim plugin's list.
+      "@renovate-config-debugger/engine > renovate > @pnpm/parse-overrides",
+      "@renovate-config-debugger/engine > renovate > @qnighy/marshal",
+      "@renovate-config-debugger/engine > renovate > adm-zip",
+      "@renovate-config-debugger/engine > renovate > deepmerge",
+      "@renovate-config-debugger/engine > renovate > execa",
+      "@renovate-config-debugger/engine > renovate > find-packages",
+      "@renovate-config-debugger/engine > renovate > git-url-parse",
+      "@renovate-config-debugger/engine > renovate > github-url-from-git",
+      "@renovate-config-debugger/engine > renovate > ini",
+      "@renovate-config-debugger/engine > renovate > moo",
+      "@renovate-config-debugger/engine > renovate > node-html-parser",
+      "@renovate-config-debugger/engine > renovate > validate-npm-package-name",
+      "@renovate-config-debugger/engine > renovate > xmldoc",
     ],
     // `path` is not a package here — the shim plugin aliases it to `pathe`
     // (pure ESM), and the aliased id can neither be pre-included ("Cannot

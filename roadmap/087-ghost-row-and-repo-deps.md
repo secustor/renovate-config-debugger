@@ -107,6 +107,46 @@ being inlined through the vite pipeline. Harmless for the graphs the suites
 loaded before; the npm manager's extract graph (find-packages, @pnpm/*) made
 it pathological. The pattern now names the renovate package's store path.
 
+## The browser is not Node: the follow-up fix
+
+The first real-browser run of the picker failed EVERY file
+("0 dependencies across 0 package files · 9 matched files not read") while
+the same loop was green under Node — the golden/shimmed suites and the CLI
+all run the shimmed graph under Node, where CJS interop and the built-ins
+exist natively, so an entire class of browser-only load failures had no test
+that could see it. Five layers, peeled by running the discovery loop in a
+real Chromium against `vite dev` (each error hides the next — they surface
+one module-scope throw at a time):
+
+- **Pure-CJS deps of the extract graphs** (`ini` first — it sits in
+  `util/schema-utils`, so ALL 102 managers failed on it). renovate is
+  `optimizeDeps.exclude`d, so Vite never discovers its nested deps; served
+  raw, a CJS file has no ESM `default`/named exports. Every reachable
+  pure-CJS dep is now on the shim plugin's `optimizeDeps.include` chain list
+  (mirrored in the app's cold-start list).
+- **`proxy.js`** (global-agent, Node http agents) is reached at module scope
+  via `util/http/host-rules.js` → shimmed (`shims/proxy.ts`); same for
+  **`util/http/keep-alive.js`** (agentkeepalive) → folded into `shims/http.ts`.
+- **`process.platform`/`arch`/`version`/`versions` and `global`** are read at
+  module scope (@pnpm/constants, execa's graph) — added to the plugin's
+  `define` block, which Vite injects into the prebundle pass too.
+- **The prebundler resolves on its own**: the pathe alias does not reach it,
+  and `graceful-fs` probes the fs facade with a Symbol key that Vite's
+  warning template throws on. A `rolldownOptions.plugins` resolveId hook now
+  aliases `path`→pathe and stubs `graceful-fs`/`node:util`/`node:os`
+  (`shims/*-stub.cjs`) inside the prebundle.
+- The last two interop stragglers (`xmldoc`; `merge-stream` via execa;
+  `core-js-pure` via @qnighy/marshal) fell to including their top-level
+  importers.
+
+Proof: all 102 fixture cases replayed through the dev server in a real
+Chromium reproduce the golden snapshots byte-for-byte. Reproducing THAT run
+requires a browser; the vitest suites cannot regress-guard it, which is why
+this section exists. A dev-server caveat discovered on the way: the config
+loader keeps `@renovate-config-debugger/engine/vite-plugin` in Node's module
+cache, so an edit to the shim plugin needs a full `pnpm dev` process restart
+— Vite's in-process config-change restart is not enough.
+
 ## Verification
 
 - Engine: `test/extract.node.test.ts` (golden) writes

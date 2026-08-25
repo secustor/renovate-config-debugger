@@ -96,3 +96,7 @@ export function normalize(): never {
 export function stream(): never {
   unavailable();
 }
+
+/** `util/http/keep-alive.js` builds Node keep-alive agents (agentkeepalive) at
+ *  module scope; the browser's fetch stack manages its own connections. */
+export const keepAliveAgents: Record<string, never> = {};
