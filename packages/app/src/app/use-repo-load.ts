@@ -23,6 +23,7 @@ import { useEscapeLayer } from "@/hooks/use-escape-layer";
 import type { RepoPlatform, TraceResult } from "@renovate-config-debugger/engine";
 import { PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
 import { FETCHABLE_PLATFORMS, HOST_PLATFORM } from "@/data/host-tokens";
+import { isGithubRateLimited } from "@/lib/github-failure";
 import { isValidRepoHost, isValidRepoRefPart } from "@/lib/input-schemas";
 import { configFileNameFor, parseRepoReference } from "@/lib/repo-reference";
 import type { ShareFileName, UntrustedEndpointGuard } from "@/lib/share";
@@ -372,7 +373,7 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
       // Offer the sign-in / install hint for GitHub loads that look like a
       // private-repo (not-found) or auth/rate-limit failure (009).
       if (oauthConfigured && repoPlatform === "github") {
-        const rateLimited = /rate limit or missing token/i.test(detail);
+        const rateLimited = isGithubRateLimited(detail);
         if (e?.name === "RepoConfigNotFoundError" || rateLimited) {
           setRepoAuthHint({ rateLimited });
         }

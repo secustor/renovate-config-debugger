@@ -22,10 +22,11 @@
  * package boundary and must stay byte-identical:
  *
  *   "… — rate limit or missing token"
- *      matched by /rate limit or missing token/i in the app, at
- *      packages/app/src/features/presets/tree-shared.ts and
- *      packages/app/src/app/use-repo-load.ts, to tell an auth/rate-limit
- *      failure apart from a genuinely missing preset and offer sign-in.
+ *      matched by `isGithubRateLimited`, the app's ONE reader of this contract
+ *      (packages/app/src/lib/github-failure.ts), to tell an auth/rate-limit
+ *      failure apart from a genuinely missing preset and offer sign-in. It used
+ *      to be a bare regex spelled at two call sites, which is why this note
+ *      once had to name two files and hope.
  *
  *   "… likely missing CORS headers or a network block (…)"
  *      the detail the app pastes into its "some hosts block browser (CORS)

@@ -1,5 +1,6 @@
 import type { PresetNode, PresetSourceRef } from "@renovate-config-debugger/engine";
 import { GLOSSARY, type GlossaryEntry } from "@/data/glossary-data";
+import { isGithubRateLimited } from "@/lib/github-failure";
 
 /**
  * A failed GitHub preset node whose error is the private-repo (not-found) or
@@ -10,15 +11,16 @@ import { GLOSSARY, type GlossaryEntry } from "@/data/glossary-data";
  * ("Cannot find preset's package (…)") when the preset error is thrown, and
  * the engine mirrors that rewrite onto the node (preset-tree.ts, "Throwing
  * preset error") — so by the time the app reads the node, only the rewritten
- * form remains. Rate-limit errors are rethrown by renovate WITHOUT a rewrite
- * and keep the fetcher's `rate limit or missing token` wording.
+ * form remains. Rate-limit errors are rethrown by renovate WITHOUT a rewrite,
+ * which is what `isGithubRateLimited` reads — that wording is a verbatim
+ * cross-package contract with the engine's shim, and lives in one place now.
  */
 export function githubAuthFailure(node: PresetNode): { match: boolean; rateLimited: boolean } {
   if (node.state !== "error" || node.source?.presetSource !== "github") {
     return { match: false, rateLimited: false };
   }
   const msg = node.error?.message ?? "";
-  const rateLimited = /rate limit or missing token/i.test(msg);
+  const rateLimited = isGithubRateLimited(msg);
   const notFound = /dep not found|Cannot find preset's package/i.test(msg);
   return { match: rateLimited || notFound, rateLimited };
 }
