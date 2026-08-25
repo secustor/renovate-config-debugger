@@ -1,0 +1,51 @@
+{
+  "manager": "npm",
+  "fileName": "package.json",
+  "deps": [
+    {
+      "depType": "dependencies",
+      "depName": "lodash",
+      "currentValue": "4.17.20",
+      "datasource": "npm",
+      "prettyDepType": "dependency"
+    },
+    {
+      "depType": "dependencies",
+      "depName": "react",
+      "currentValue": "^18.3.1",
+      "datasource": "npm",
+      "prettyDepType": "dependency"
+    },
+    {
+      "depType": "devDependencies",
+      "depName": "typescript",
+      "currentValue": "5.8.3",
+      "datasource": "npm",
+      "prettyDepType": "devDependency"
+    },
+    {
+      "depType": "devDependencies",
+      "depName": "vitest",
+      "currentValue": "^3.0.0",
+      "datasource": "npm",
+      "prettyDepType": "devDependency"
+    },
+    {
+      "depType": "engines",
+      "depName": "node",
+      "currentValue": "20.15.0",
+      "datasource": "node-version",
+      "commitMessageTopic": "Node.js",
+      "prettyDepType": "engine"
+    },
+    {
+      "depType": "packageManager",
+      "depName": "pnpm",
+      "currentValue": "9.6.0",
+      "datasource": "npm",
+      "commitMessageTopic": "pnpm",
+      "prettyDepType": "packageManager"
+    }
+  ],
+  "packageFileVersion": "1.0.0"
+}

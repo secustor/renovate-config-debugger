@@ -1,0 +1,37 @@
+{
+  "manager": "gomod",
+  "fileName": "go.mod",
+  "deps": [
+    {
+      "datasource": "golang-version",
+      "versioning": "go-mod-directive",
+      "depType": "golang",
+      "depName": "go",
+      "currentValue": "1.22",
+      "commitMessageTopic": "go module directive",
+      "managerData": {
+        "lineNumber": 2
+      }
+    },
+    {
+      "datasource": "go",
+      "depType": "require",
+      "depName": "github.com/pkg/errors",
+      "currentValue": "v0.9.1",
+      "managerData": {
+        "multiLine": true,
+        "lineNumber": 5
+      }
+    },
+    {
+      "datasource": "go",
+      "depType": "require",
+      "depName": "golang.org/x/mod",
+      "currentValue": "v0.17.0",
+      "managerData": {
+        "multiLine": true,
+        "lineNumber": 6
+      }
+    }
+  ]
+}

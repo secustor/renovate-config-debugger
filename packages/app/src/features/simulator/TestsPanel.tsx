@@ -8,6 +8,7 @@ import type { ErrorTranslationLib } from "@/platform/run";
 import type { FormState } from "./form";
 import { PinsView } from "./PinsView";
 import { type PinnedTest, pinShareFields } from "./pins";
+import type { RepoDepsView } from "./repo-deps";
 import { buildRuleDescriptions } from "./rule-descriptions";
 import { RuleSimulator } from "./RuleSimulator";
 import type { SimRequest } from "./use-share-link-request";
@@ -63,6 +64,8 @@ export const TestsPanel = memo(function TestsPanel({
   onShare,
   mergeStepIndex,
   onMergeStepChange,
+  repoDeps,
+  onLoadRepoDeps,
 }: {
   result: TraceResult;
   pins: PinnedTest[];
@@ -81,6 +84,10 @@ export const TestsPanel = memo(function TestsPanel({
   onShare: () => Promise<void>;
   mergeStepIndex: number;
   onMergeStepChange: (index: number) => void;
+  /** Roadmap 078: the loaded repository's extracted dependencies for the
+   *  Add-a-test card's From-repository tab, and its on-demand trigger. */
+  repoDeps: RepoDepsView;
+  onLoadRepoDeps: () => void;
 }) {
   // A link carrying a simulation, or a cross-link naming a rule, is a request
   // for the simulator — including on the very first render, since App applies
@@ -174,6 +181,8 @@ export const TestsPanel = memo(function TestsPanel({
       onRemovePin={onRemovePin}
       onOpenInSimulator={openInSimulator}
       onShare={onShare}
+      repoDeps={repoDeps}
+      onLoadRepoDeps={onLoadRepoDeps}
     />
   );
 });

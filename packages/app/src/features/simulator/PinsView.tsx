@@ -11,17 +11,20 @@ import { EmptyTestsCard } from "./EmptyTestsCard";
 import type { FormState } from "./form";
 import { PinCard } from "./PinCard";
 import type { PinnedTest } from "./pins";
+import type { RepoDepsView } from "./repo-deps";
 import type { RuleDescriptionNote } from "./rule-descriptions";
 import type { PinEvaluation } from "./use-pinned-tests";
 
 /**
  * The Tests tab's own view, as Proposal F draws it: the summary strip
  * ("N pinned · R rules evaluated per test, in merge order" — with the merge
- * law on the right), the funnel card per pin, and the always-open "Add a
- * test" box at the foot. No pin is ever created for the reader: the empty
- * state says what a pin is and seeds the form, and the detail view (one
- * dependency, the full analysis) is one quiet link away from every card that
- * HAS a dependency to hand it — roadmap 080 closed the descriptor-less door.
+ * law on the right), the funnel card per pin, and the Add-a-test card at the
+ * foot — the design's GHOST row once pins exist, open only while a pin is
+ * being made (082 revisited alongside 078). No pin is ever created for the
+ * reader: the empty state says what a pin is and seeds the form, and the
+ * detail view (one dependency, the full analysis) is one quiet link away from
+ * every card that HAS a dependency to hand it — roadmap 080 closed the
+ * descriptor-less door.
  */
 
 /** Roadmap 077 (Proposal F): pins ride in the share link, said where pins are
@@ -95,6 +98,8 @@ export function PinsView({
   onRemovePin,
   onOpenInSimulator,
   onShare,
+  repoDeps,
+  onLoadRepoDeps,
 }: {
   result: TraceResult;
   pins: PinnedTest[];
@@ -112,6 +117,10 @@ export function PinsView({
   onOpenInSimulator: (form: FormState) => void;
   /** See {@link ShareNote}; absent (embedding without a share path) = no note. */
   onShare?: () => Promise<void>;
+  /** Roadmap 078: the loaded repository's extracted dependencies, and the
+   *  on-demand trigger that computes them — both the shell's. */
+  repoDeps: RepoDepsView;
+  onLoadRepoDeps: () => void;
 }) {
   // A quick-start chip seeds the Add-a-test form below — nonce-versioned so
   // the same chip works twice in a row.
@@ -150,9 +159,11 @@ export function PinsView({
         result={result}
         layerByIndex={layerByIndex}
         attribution={attribution}
-        pinCount={pins.length}
+        pins={pins}
         seed={seed.fill}
         seedNonce={seed.nonce}
+        repoDeps={repoDeps}
+        onLoadRepoDeps={onLoadRepoDeps}
         onAddPin={onAddPin}
         onOpenInSimulator={onOpenInSimulator}
         footnote={onShare ? <ShareNote onShare={onShare} /> : undefined}

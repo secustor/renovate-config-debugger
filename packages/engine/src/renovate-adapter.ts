@@ -52,3 +52,61 @@ export {
   type VersioningApi,
 } from "renovate/dist/modules/versioning/index.js";
 export { getUpdateType } from "renovate/dist/workers/repository/process/lookup/update-type.js";
+// ---- Manager extraction (roadmap 078) --------------------------------------
+// Filename → manager detection: the generated per-manager file patterns are
+// already in the bundle transitively (loadManagerOptions), and getMatchingFiles
+// is upstream's own path-only matching step — browser-safe (minimatch + regex).
+export { managerDefaultConfigs } from "renovate/dist/manager-default-configs.generated.js";
+export { getMatchingFiles } from "renovate/dist/workers/repository/extract/file-match.js";
+// extract.ts seeds the file store through upstream's own fs module, so the
+// golden project (real fs under GlobalConfig.localDir) and the shimmed one
+// (the in-memory shims/fs.ts) run identical engine code.
+export { writeLocalFile } from "renovate/dist/util/fs/index.js";
+export type {
+  ExtractConfig,
+  PackageDependency,
+  PackageFileContent,
+} from "renovate/dist/modules/manager/types.js";
+import type { ExtractConfig, PackageFileContent } from "renovate/dist/modules/manager/types.js";
+
+type ManagerExtractFn = (
+  content: string,
+  packageFile: string,
+  config: ExtractConfig,
+) => PackageFileContent | null | Promise<PackageFileContent | null>;
+
+/**
+ * The curated lazy map of per-manager extract entry points — deep imports,
+ * never `modules/manager/api.js` (the barrel statically imports all 129
+ * managers: 2.8 MB plus got/WASM/@yarnpkg, and renovate ships no `sideEffects`
+ * flag to shake it). Each mapped manager is its own lazy chunk. npm and maven
+ * are `extractAllPackageFiles`-only on the barrel; their internal single-file
+ * functions are used instead, which deliberately skips npm's lockfile-sweeping
+ * `postExtract` and maven's parent-POM resolution (roadmap 078's single-file
+ * semantics). The map grows by demand, one entry + one golden/shimmed fixture
+ * pair at a time.
+ */
+export const managerExtractors: Record<string, () => Promise<ManagerExtractFn>> = {
+  cargo: async () =>
+    (await import("renovate/dist/modules/manager/cargo/extract.js")).extractPackageFile,
+  dockerfile: async () =>
+    (await import("renovate/dist/modules/manager/dockerfile/extract.js")).extractPackageFile,
+  "github-actions": async () =>
+    (await import("renovate/dist/modules/manager/github-actions/extract.js")).extractPackageFile,
+  gomod: async () =>
+    (await import("renovate/dist/modules/manager/gomod/extract.js")).extractPackageFile,
+  "helm-values": async () =>
+    (await import("renovate/dist/modules/manager/helm-values/extract.js")).extractPackageFile,
+  maven: async () => {
+    const { extractPackage } = await import("renovate/dist/modules/manager/maven/extract.js");
+    return (content, packageFile, config) => extractPackage(content, packageFile, config) ?? null;
+  },
+  npm: async () =>
+    (await import("renovate/dist/modules/manager/npm/extract/index.js")).extractPackageFile,
+  nuget: async () =>
+    (await import("renovate/dist/modules/manager/nuget/extract.js")).extractPackageFile,
+  pep621: async () =>
+    (await import("renovate/dist/modules/manager/pep621/extract.js")).extractPackageFile,
+  pip_requirements: async () =>
+    (await import("renovate/dist/modules/manager/pip_requirements/extract.js")).extractPackageFile,
+};

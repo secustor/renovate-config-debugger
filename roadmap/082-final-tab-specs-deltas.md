@@ -356,7 +356,9 @@ Two more calls from that pass:
 
 ## Deliberate differences kept
 
-- **The From-repository picker is still deferred, pending 063/078.** It needs
+- **The From-repository picker is still deferred, pending 063/078.**
+  _(Since lifted: [087](087-ghost-row-and-repo-deps.md) shipped the picker over
+  the loaded repository, with the tablist semantics promised below.)_ It needs
   dependencies extracted from real package files, which the browser engine does
   not do yet; the artboard's own `repoAvailable: false` state is what the app
   renders, so the tab is visible, honestly labelled and honestly inert. When 078
@@ -365,7 +367,10 @@ Two more calls from that pass:
   that isn't there — and would collide with everything that addresses the
   results strip by role).
 
-- **The ghost variant is not adopted.** `Pin Options` offers four variants and
+- **The ghost variant is not adopted.**
+  _(Reversed later: [087](087-ghost-row-and-repo-deps.md) adopted the ghost
+  row once pins exist — the ruling below stands as the record of why 082
+  didn't.)_ `Pin Options` offers four variants and
   its DEFAULT is `combined` — the always-visible tabbed card — which is exactly
   what 080 built. The `ghost` variant's collapsed "+ Pin a dependency…" button
   would put a click in front of the tab's primary action to save a card that is

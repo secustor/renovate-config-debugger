@@ -1,0 +1,11 @@
+[package]
+name = "acme"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = "1.0.203"
+tokio = { version = "1.38.0", features = ["full"] }
+
+[dev-dependencies]
+insta = "1.39.0"

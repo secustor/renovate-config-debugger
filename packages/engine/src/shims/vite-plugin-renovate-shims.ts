@@ -41,6 +41,22 @@ export function renovateShims(): Plugin {
       // conda's version parser is a ~3.9 MB inlined WASM blob (rattler) —
       // over half the bundle for one niche scheme; see shims/versioning-conda.ts
       "modules/versioning/conda/index.js": "versioning-conda.ts",
+      // ---- the manager-extraction graph (roadmap 078) ----------------------
+      // The single fs choke point every extract file reads through:
+      "util/fs/index.js": "fs.ts",
+      // The got-backed http stack, reached at module scope via the datasource
+      // classes managers import for their `.id`:
+      "util/http/got.js": "http.ts",
+      "util/http/http.js": "http.ts",
+      "util/http/index.js": "http.ts",
+      "util/http/gitlab.js": "http.ts",
+      // Heavy lookup-only leaves (@aws-sdk, google-auth-library, simple-git):
+      "modules/datasource/docker/ecr.js": "extract-leaves.ts",
+      "modules/datasource/maven/util.js": "extract-leaves.ts",
+      "modules/datasource/util.js": "extract-leaves.ts",
+      "util/git/index.js": "extract-leaves.ts",
+      // @yarnpkg/core; the two live entry points return "no yarn context":
+      "modules/manager/npm/extract/yarn.js": "npm-yarn.ts",
     }).map(([dist, shim]) => [path.join(renovateDist, dist), path.join(shimDir, shim)]),
   );
 

@@ -211,6 +211,12 @@ export async function openSimulator(page: Page): Promise<Locator> {
   const panel = tabPanel(page, "tests");
   const card = page.locator(".card", { hasText: "Update simulator" });
   if (!(await card.isVisible())) {
+    // With pins on screen the Add-a-test card sits collapsed behind the ghost
+    // row (082 revisited) — expand it first.
+    const ghost = panel.locator(".pin-add-ghost");
+    if (await ghost.isVisible()) {
+      await ghost.click();
+    }
     const addCard = panel.locator(".pin-add-card");
     await addCard.getByRole("button", { name: "npm dependency" }).click();
     await addCard.getByRole("button", { name: /^Simulate/ }).click();

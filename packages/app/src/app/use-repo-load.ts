@@ -26,6 +26,7 @@ import { FETCHABLE_PLATFORMS, HOST_PLATFORM } from "@/data/host-tokens";
 import { isValidRepoHost, isValidRepoRefPart } from "@/lib/input-schemas";
 import { configFileNameFor, parseRepoReference } from "@/lib/repo-reference";
 import type { ShareFileName, UntrustedEndpointGuard } from "@/lib/share";
+import type { LoadedRepo } from "@/features/simulator/repo-deps";
 import { extractPackageJsonConfig, loadRepoConfig, loadRepoFile } from "@/platform/run";
 import type { RunInputs } from "@/lib/run-inputs";
 
@@ -88,6 +89,10 @@ export interface RepoLoadHost {
   /** Whether OAuth is configured at all — a failure only offers the sign-in
    *  hint when signing in is actually possible (009). */
   oauthConfigured: boolean;
+  /** Roadmap 078: a SUCCESSFUL load records where the config came from — the
+   *  fact that makes "pick from your repo's detected dependencies" a
+   *  meaningful offer on the Tests tab. */
+  onRepoLoaded: (repo: LoadedRepo) => void;
 }
 
 export interface RepoLoad {
@@ -127,6 +132,7 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
     repoInput,
     resolveInheritedConfig,
     oauthConfigured,
+    onRepoLoaded,
   } = host;
   // Load-from-repo disclosure (039): collapsed by default — the form only
   // exists while `repoFormOpen`, and the button that opens it lives in the
@@ -286,6 +292,15 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
       setNotice(
         `Loaded ${loaded.fileName} from ${parsed.repo}${effectiveRef ? `@${effectiveRef}` : ""}`,
       );
+      // Roadmap 078: the config on screen now demonstrably came from this
+      // repository — record it so the Tests tab can offer its dependencies.
+      onRepoLoaded({
+        platform: repoPlatform,
+        repo: parsed.repo,
+        ...(repoEndpoint === "" ? {} : { endpoint: repoEndpoint }),
+        ...(effectiveRef === "" ? {} : { ref: effectiveRef }),
+        suppressTokens,
+      });
       // Roadmap 039: the panel's job is done — it collapses so the config it
       // just fetched gets the height back. A FAILED load leaves it open: the
       // reference in it is what the user has to correct. A shortcut load never

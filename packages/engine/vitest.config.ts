@@ -42,8 +42,13 @@ export default defineConfig({
           server: {
             deps: {
               // without this, Node loads renovate/dist natively and the shim
-              // plugin never sees its imports
-              inline: [/renovate/],
+              // plugin never sees its imports. The pattern matches the
+              // RENOVATE PACKAGE's store path, not the bare word: this repo's
+              // own absolute path contains "renovate", so a bare /renovate/
+              // inlines every node_modules dep — which ground the manager-
+              // extraction graph's CJS deps (find-packages, @pnpm/*) through
+              // the vite pipeline for minutes (078).
+              inline: [/node_modules\/(\.pnpm\/)?renovate[@/]/],
             },
           },
         },

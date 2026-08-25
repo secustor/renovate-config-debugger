@@ -1,0 +1,8 @@
+image:
+  repository: nginx
+  tag: 1.27.0
+sidecar:
+  image:
+    registry: quay.io
+    repository: prometheus/node-exporter
+    tag: v1.8.1

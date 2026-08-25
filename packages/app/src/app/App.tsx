@@ -64,6 +64,8 @@ import { useAppMessages } from "@/app/use-app-messages";
 import { usePlatformContext } from "@/app/use-platform-context";
 import { useInheritedConfigLayer } from "@/app/use-inherited-config-layer";
 import { useRepoLoad } from "@/app/use-repo-load";
+import { useRepoDeps } from "@/app/use-repo-deps";
+import type { LoadedRepo } from "@/features/simulator/repo-deps";
 import { useRepoPicker } from "@/app/use-repo-picker";
 import { useRunSummary } from "@/app/use-run-summary";
 import { usePanelStats } from "@/app/use-panel-stats";
@@ -716,6 +718,10 @@ export function App() {
   // a value React Compiler must treat as "may change later", which costs the
   // memoization of everything downstream of the layer's parse.
   const [repoInput, setRepoInput] = useState("");
+  // Roadmap 078: where the config on screen was loaded FROM — set by a
+  // successful repo load, replaced by the next one. The Tests tab's
+  // From-repository picker exists only while this does.
+  const [loadedRepo, setLoadedRepo] = useState<LoadedRepo | null>(null);
   // Roadmap 045/048: the inherited-config layer — its text and parse, the
   // probe-target fields, the `inheritConfig*` policy read off the global
   // config, and the probe the repo load calls between the repo config arriving
@@ -775,7 +781,11 @@ export function App() {
     // real `inheritConfig` run resolves it.
     resolveInheritedConfig: async (args) =>
       inheritAuto ? await probeInheritedConfig(args) : inheritedParse.config,
+    onRepoLoaded: setLoadedRepo,
   });
+  // Roadmap 078: the loaded repo's extracted dependencies — discovered on
+  // demand (the first open of the From-repository tab), reset by a new load.
+  const { view: repoDepsView, ensure: ensureRepoDeps } = useRepoDeps(loadedRepo);
   // Roadmap 085: the signed-in repo picker inside the load overlay. Picking
   // only writes the reference field — Load stays the one trigger.
   const repoPicker = useRepoPicker({
@@ -1538,6 +1548,8 @@ export function App() {
       onShare: onCopyLink,
       mergeStepIndex,
       onMergeStepChange: setMergeStepIndex,
+      repoDeps: repoDepsView,
+      onLoadRepoDeps: ensureRepoDeps,
       ruleProvenance,
       onJumpToSimRule,
       onApplyFix,
@@ -1583,6 +1595,8 @@ export function App() {
       buildShareLinkAndCopy,
       onCopyLink,
       mergeStepIndex,
+      repoDepsView,
+      ensureRepoDeps,
       ruleProvenance,
       onJumpToSimRule,
       onApplyFix,

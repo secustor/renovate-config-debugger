@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from "react";
+import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import type {
   ProvenanceLayer,
   RuleAttribution,
@@ -7,14 +7,17 @@ import type {
 import { nf } from "@/lib/format";
 import { PIN_FORM_ID } from "./datalist-ids";
 import { DescriptorActions } from "./DescriptorActions";
-import type { FormState } from "./form";
+import { EMPTY_FORM, type FormState } from "./form";
 import { EmptyFormGuard, PinLimitNote } from "./FormNotes";
 import { OpenInSimulatorLink } from "./OpenInSimulatorLink";
 import { type PasteFill, parsePastedDescriptor, pasteImportNote } from "./paste-descriptor";
 import { buildPinOutcome, type PinCheck, type PinOutcome } from "./pin-outcome";
+import { pinAddFocusTarget } from "./pin-add-dom";
 import { PinHeadRow } from "./PinHeadRow";
-import { pinContext, pinName, MAX_PINS } from "./pins";
+import { pinContext, pinName, MAX_PINS, type PinnedTest } from "./pins";
 import { PinSectionHead } from "./PinRuleSections";
+import { draftFill, type RepoDepsView, type RepoDraft } from "./repo-deps";
+import { RepoDepsTab } from "./RepoDepsTab";
 import { runSimulation } from "./run-simulation";
 import { SimulatorForm } from "./SimulatorForm";
 import { useEngineModule } from "./use-engine-module";
@@ -23,13 +26,19 @@ import { useEngineModule } from "./use-engine-module";
 import { type SimulatorForm as SimulatorFormApi, useSimulatorForm } from "./use-simulator-form";
 
 /**
- * The design's "Add a test" box (Proposal F): always open at the foot of the
- * pins list, a tab strip offering the two ways a descriptor can arrive —
- * Manual (the simulator's own form, never a simplified copy that would drift
- * from it) and, one day, "From repository". The repository tab is the 078
- * surface: it needs extraction (dependencies detected from real package
- * files), which the browser engine does not run yet — so the tab is visible
- * and honestly disabled, exactly the design's `repoAvailable: false` state.
+ * The design's pin card (`Pin Options`), now in its GHOST form: a collapsed
+ * "+ Pin a dependency…" row at the foot of the pins list that expands into the
+ * "New pin" card. 082 originally kept the card always open; the ghost variant
+ * was adopted later — the pins list is the tab's subject, and the entry form
+ * only takes its height while a pin is being made. The card starts OPEN when
+ * there are no pins yet (the empty state points straight at it).
+ *
+ * Three tabs carry the ways a descriptor arrives: Manual (the simulator's own
+ * form, never a simplified copy that would drift from it), Paste JSON (082),
+ * and From repository (078) — the dependencies Renovate's own extraction found
+ * in the loaded repository, enabled only once a repo load makes that offer
+ * meaningful. With the third tab live, the strip carries real tablist
+ * semantics: `role="tablist"`, `aria-selected`, and arrow-key roving.
  *
  * The form's primary action is the design's: Simulate runs the descriptor
  * once and shows the verdict in the tests grammar right here — "simulation ·
@@ -105,55 +114,90 @@ function OneOffResult({
   );
 }
 
-/** Which way a descriptor is arriving. "repo" is the 078 surface and is not
- *  selectable yet, so it is not one of these. */
-type AddTestTab = "manual" | "paste";
+/** Which way a descriptor is arriving. */
+type AddTestTab = "manual" | "paste" | "repo";
 
 /**
- * The design's Manual / Paste JSON / "From repository" strip. It borrows the
- * shell's tab STYLING (`.tab-bar`/`.tab` — one tab grammar in the app) but
- * deliberately not its tablist ARIA: there is no arrow-key roving here, so
- * `role="tablist"` would promise keyboard behavior that isn't there — and
- * would collide with everything that addresses the results strip by role.
- * When 078 lights the repository tab up, real tablist semantics come with it.
+ * The design's Manual / Paste JSON / From repository strip — the standard
+ * `.tab-bar` styling at the card's scale, and (since 078 lit the third tab up)
+ * real tablist semantics: `role="tablist"`, `aria-selected`, and arrow-key
+ * roving over the enabled tabs. While no repo is loaded the third tab stays
+ * visible, honestly disabled, and out of the roving order.
  *
- * `aria-pressed` is what carries the selection instead. Without it the two
- * live tabs differ only by a CSS class, and a screen reader reads two
- * identical buttons with no way to tell which panel is on screen.
+ * When the card was opened from the ghost row it is a "New pin" in progress:
+ * the strip leads with that label and closes with the × that collapses it.
  */
 function AddTestTabs({
   tab,
   onTabChange,
+  repoAvailable,
+  onClose,
 }: {
   tab: AddTestTab;
   onTabChange: (t: AddTestTab) => void;
+  repoAvailable: boolean;
+  onClose: () => void;
 }) {
+  const refs = useRef(new Map<AddTestTab, HTMLButtonElement>());
+  const order: AddTestTab[] = repoAvailable ? ["manual", "paste", "repo"] : ["manual", "paste"];
+  function rove(e: KeyboardEvent<HTMLDivElement>) {
+    const delta = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+    const jump = e.key === "Home" ? 0 : e.key === "End" ? order.length - 1 : null;
+    if (delta === 0 && jump === null) {
+      return;
+    }
+    e.preventDefault();
+    const at = order.indexOf(tab);
+    const next = order[jump ?? (at + delta + order.length) % order.length];
+    if (next !== undefined) {
+      onTabChange(next);
+      refs.current.get(next)?.focus();
+    }
+  }
+  function tabButton(id: AddTestTab, label: ReactNode) {
+    return (
+      <button
+        type="button"
+        role="tab"
+        aria-selected={tab === id}
+        tabIndex={tab === id ? 0 : -1}
+        className={`tab${tab === id ? " active" : ""}`}
+        ref={(el) => {
+          if (el) {
+            refs.current.set(id, el);
+          }
+        }}
+        onClick={() => onTabChange(id)}
+      >
+        {label}
+      </button>
+    );
+  }
   return (
-    <div className="tab-bar pin-add-tabs">
+    <div className="tab-bar pin-add-tabs" role="tablist" aria-label="New pin" onKeyDown={rove}>
+      <span className="pin-add-newpin">New pin</span>
+      {tabButton("manual", "Manual")}
+      {tabButton("paste", "Paste JSON")}
+      {repoAvailable ? (
+        tabButton("repo", "From repository")
+      ) : (
+        <button
+          type="button"
+          className="tab"
+          disabled
+          title="Load a repo (or sign in and load one) to pick from its detected dependencies"
+        >
+          From repository
+          <span className="pin-add-tab-hint">load a repo first</span>
+        </button>
+      )}
       <button
         type="button"
-        className={`tab${tab === "manual" ? " active" : ""}`}
-        aria-pressed={tab === "manual"}
-        onClick={() => onTabChange("manual")}
+        className="pin-add-close"
+        aria-label="Close the new-pin card"
+        onClick={onClose}
       >
-        Manual
-      </button>
-      <button
-        type="button"
-        className={`tab${tab === "paste" ? " active" : ""}`}
-        aria-pressed={tab === "paste"}
-        onClick={() => onTabChange("paste")}
-      >
-        Paste JSON
-      </button>
-      <button
-        type="button"
-        className="tab"
-        disabled
-        title="Sign in with GitHub or load a repo to pick from detected dependencies"
-      >
-        From repository
-        <span className="pin-add-tab-hint">sign in required</span>
+        ×
       </button>
     </div>
   );
@@ -226,8 +270,9 @@ function PasteJsonTab({
 
 /**
  * The Manual tab's own body: the form, the 015 empty guard, and the actions
- * row — one component because the tab strip now switches between two of these
- * and the alternative is five sibling `{tab === "manual" ? … : null}` lines.
+ * row — one component because the tab strip now switches between three of
+ * these and the alternative is five sibling `{tab === "manual" ? … : null}`
+ * lines.
  */
 function ManualPanel({
   sim,
@@ -280,9 +325,11 @@ export function AddTestBox({
   result,
   layerByIndex,
   attribution,
-  pinCount,
+  pins,
   seed,
   seedNonce,
+  repoDeps,
+  onLoadRepoDeps,
   onAddPin,
   onOpenInSimulator,
   footnote,
@@ -290,11 +337,17 @@ export function AddTestBox({
   result: TraceResult;
   layerByIndex: Map<number, ProvenanceLayer>;
   attribution: RuleAttribution[] | null | undefined;
-  pinCount: number;
+  /** The standing pins — for the cap, and for the repo tab's "pinned" badges. */
+  pins: PinnedTest[];
   /** A quick-start chip's fill from the empty state, versioned by nonce so
    *  the same chip can be applied twice. */
   seed: Partial<FormState> | null;
   seedNonce: number;
+  /** Roadmap 078: the loaded repository's extracted dependencies — the shell
+   *  computes this view; `""` for `repo` means no repo was loaded. */
+  repoDeps: RepoDepsView;
+  /** Kicks discovery off (or retries it); fired when the repo tab opens. */
+  onLoadRepoDeps: () => void;
   onAddPin: (form: FormState) => void;
   onOpenInSimulator: (form: FormState) => void;
   /** The design keeps "pins travel in the share link" inside this panel —
@@ -314,10 +367,40 @@ export function AddTestBox({
   const [openGroup, setOpenGroup] = useState(-1);
   const [oneOff, setOneOff] = useState<OneOff | null>(null);
   const [simulating, setSimulating] = useState(false);
-  // Roadmap 082: which door the descriptor is coming through, and the draft in
-  // the other one — held here so a tab switch does not throw it away.
+  // Roadmap 082: which door the descriptor is coming through, and the drafts
+  // in the other two — held here so a tab switch does not throw them away.
   const [tab, setTab] = useState<AddTestTab>("manual");
   const [pasteDraft, setPasteDraft] = useState("");
+  const [repoDraft, setRepoDraft] = useState<RepoDraft | null>(null);
+  // The ghost row (082 revisited): collapsed once pins exist; the card starts
+  // open only while there is nothing pinned yet, so the empty state's CTA
+  // points at a form that is actually on screen.
+  const [open, setOpen] = useState(pins.length === 0);
+  // Focus moves into the form only on a USER-initiated open (the nonce) —
+  // never on mount: a tab switch must not steal focus.
+  const [focusNonce, setFocusNonce] = useState(0);
+  useEffect(() => {
+    if (focusNonce > 0) {
+      pinAddFocusTarget()?.focus({ preventScroll: true });
+    }
+  }, [focusNonce]);
+
+  function openCard() {
+    setOpen(true);
+    setFocusNonce((nonce) => nonce + 1);
+  }
+
+  const repoAvailable = repoDeps.repo !== "";
+
+  // Discovery fires when (and only while) the repo tab is actually on screen —
+  // including again after a NEW load reset the view to idle under an open tab.
+  // `onLoadRepoDeps` is idempotent per loaded repo, so this cannot loop.
+  const wantRepoDeps = open && tab === "repo" && repoAvailable && repoDeps.status === "idle";
+  useEffect(() => {
+    if (wantRepoDeps) {
+      onLoadRepoDeps();
+    }
+  }, [wantRepoDeps, onLoadRepoDeps]);
 
   // The empty state's quick-start chips write into this form — synced during
   // render (the panel idiom), keyed by nonce so re-clicking the chip works.
@@ -325,8 +408,12 @@ export function AddTestBox({
   if (seedNonce !== seenSeed) {
     setSeenSeed(seedNonce);
     if (seed) {
-      replaceForm(seed);
+      if (Object.keys(seed).length > 0) {
+        replaceForm(seed);
+      }
       setTab("manual");
+      setOpen(true);
+      setFocusNonce((nonce) => nonce + 1);
     }
   }
 
@@ -338,7 +425,7 @@ export function AddTestBox({
     setTab("manual");
   }
 
-  const atLimit = pinCount >= MAX_PINS;
+  const atLimit = pins.length >= MAX_PINS;
 
   function simulate() {
     const finalConfig = result.finalConfig;
@@ -372,15 +459,65 @@ export function AddTestBox({
     setOneOff(null);
   }
 
+  /** A repo-tab draft pins DIRECTLY — its fields came from extraction, not the
+   *  form, so the form (and whatever the reader had half-typed there) is left
+   *  alone. The row's badge flips to "pinned · type" from the pins list. */
+  function pinRepoDraft() {
+    if (repoDraft === null) {
+      return;
+    }
+    onAddPin({ ...EMPTY_FORM, ...draftFill(repoDraft) });
+    setRepoDraft(null);
+  }
+
+  /** "refine any field in Manual →" — the draft's whole descriptor lands in
+   *  the form, and the Manual tab shows it. */
+  function refineRepoDraft() {
+    if (repoDraft === null) {
+      return;
+    }
+    replaceForm(draftFill(repoDraft));
+    setRepoDraft(null);
+    setTab("manual");
+  }
+
+  if (!open) {
+    return (
+      <div className="pin-add-panel">
+        <button type="button" className="pin-add-ghost" onClick={openCard}>
+          + Pin a dependency…{" "}
+          <span className="pin-add-ghost-hint">it is re-tested against the rules on every run</span>
+        </button>
+        {footnote}
+      </div>
+    );
+  }
+
   return (
     <div className="pin-add-panel">
-      <p className="pin-add-label">Add a test</p>
       <div className="card pin-add-card">
-        <AddTestTabs tab={tab} onTabChange={setTab} />
+        <AddTestTabs
+          tab={tab === "repo" && !repoAvailable ? "manual" : tab}
+          onTabChange={setTab}
+          repoAvailable={repoAvailable}
+          onClose={() => setOpen(false)}
+        />
         {tab === "paste" ? (
           <PasteJsonTab text={pasteDraft} onTextChange={setPasteDraft} onFill={applyPaste} />
         ) : null}
-        {tab === "manual" ? (
+        {tab === "repo" && repoAvailable ? (
+          <RepoDepsTab
+            view={repoDeps}
+            pins={pins}
+            atLimit={atLimit}
+            draft={repoDraft}
+            onDraftChange={setRepoDraft}
+            onPinDraft={pinRepoDraft}
+            onRefineDraft={refineRepoDraft}
+            onRetry={onLoadRepoDeps}
+          />
+        ) : null}
+        {tab === "manual" || (tab === "repo" && !repoAvailable) ? (
           <ManualPanel
             sim={simForm}
             importNote={importNote}

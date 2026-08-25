@@ -1,0 +1,18 @@
+{
+  "manager": "nuget",
+  "fileName": "src/App/App.csproj",
+  "deps": [
+    {
+      "datasource": "nuget",
+      "depType": "nuget",
+      "depName": "Serilog",
+      "currentValue": "4.0.0"
+    },
+    {
+      "datasource": "nuget",
+      "depType": "nuget",
+      "depName": "Newtonsoft.Json",
+      "currentValue": "13.0.3"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "acme-webapp",
+  "version": "1.0.0",
+  "packageManager": "pnpm@9.6.0",
+  "engines": {
+    "node": "20.15.0"
+  },
+  "dependencies": {
+    "lodash": "4.17.20",
+    "react": "^18.3.1"
+  },
+  "devDependencies": {
+    "typescript": "5.8.3",
+    "vitest": "^3.0.0"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "manager": "github-actions",
+  "fileName": ".github/workflows/ci.yml",
+  "deps": [
+    {
+      "depName": "actions/checkout",
+      "commitMessageTopic": "{{{depName}}} action",
+      "versioning": "github-actions",
+      "depType": "action",
+      "replaceString": "actions/checkout@v4",
+      "autoReplaceStringTemplate": "{{depName}}@{{#if newDigest}}{{newDigest}}{{#if newValue}} # {{newValue}}{{/if}}{{/if}}{{#unless newDigest}}{{newValue}}{{/unless}}",
+      "currentValue": "v4",
+      "datasource": "github-tags"
+    },
+    {
+      "depName": "actions/setup-node",
+      "commitMessageTopic": "{{{depName}}} action",
+      "versioning": "github-actions",
+      "depType": "action",
+      "replaceString": "actions/setup-node@1e60f620b9541d16bece96c5465dc8ee9832be0b # v4.0.3",
+      "autoReplaceStringTemplate": "{{depName}}@{{#if newDigest}}{{newDigest}}{{#if newValue}} # {{newValue}}{{/if}}{{/if}}{{#unless newDigest}}{{newValue}}{{/unless}}",
+      "currentValue": "v4.0.3",
+      "currentDigest": "1e60f620b9541d16bece96c5465dc8ee9832be0b",
+      "datasource": "github-tags"
+    },
+    {
+      "depName": "ubuntu",
+      "currentValue": "24.04",
+      "replaceString": "ubuntu-24.04",
+      "depType": "github-runner",
+      "datasource": "github-runners",
+      "autoReplaceStringTemplate": "{{depName}}-{{newValue}}"
+    },
+    {
+      "datasource": "github-releases",
+      "depName": "node",
+      "packageName": "actions/node-versions",
+      "versioning": "node",
+      "extractVersion": "^(?<version>\\d+\\.\\d+\\.\\d+)(-\\d+)?$",
+      "currentValue": "20",
+      "depType": "uses-with"
+    }
+  ]
+}

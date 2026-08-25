@@ -90,6 +90,14 @@ test("a share link carries the pinned tests, and they are checked on arrival", a
   // automerges, react's major update gets nothing from this config.
   await expect(cards.first().locator(".pin-summary")).toContainText("automerge ✓");
   await expect(cards.nth(1).locator(".pin-summary")).toContainText("0 matched — defaults apply");
+
+  // With pins on screen the Add-a-test card is collapsed to the design's ghost
+  // row (082 revisited): the pins are the tab's subject, the entry form takes
+  // its height only while a pin is being made.
+  await expect(page.locator(".pin-add-ghost")).toBeVisible();
+  await expect(page.locator(".pin-add-card")).toHaveCount(0);
+  await page.locator(".pin-add-ghost").click();
+  await expect(page.locator(".pin-add-card")).toBeVisible();
 });
 
 test("a pin opens in the full simulator, pre-filled, and the way back is one click", async ({

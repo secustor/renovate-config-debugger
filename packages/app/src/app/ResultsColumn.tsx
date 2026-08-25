@@ -266,6 +266,8 @@ export function ResultsColumn({
     onShare,
     mergeStepIndex,
     onMergeStepChange,
+    repoDeps,
+    onLoadRepoDeps,
     errorCount,
     warningCount,
     ruleProvenance,
@@ -405,6 +407,8 @@ export function ResultsColumn({
           onShare={onShare}
           mergeStepIndex={mergeStepIndex}
           onMergeStepChange={onMergeStepChange}
+          repoDeps={repoDeps}
+          onLoadRepoDeps={onLoadRepoDeps}
         />
       ) : (
         <EmptyNote>Nothing to test — the pipeline produced no effective config.</EmptyNote>
@@ -540,6 +544,8 @@ export function ResultsColumn({
     onShare,
     mergeStepIndex,
     onMergeStepChange,
+    repoDeps,
+    onLoadRepoDeps,
     errorCount,
     warningCount,
     ruleProvenance,

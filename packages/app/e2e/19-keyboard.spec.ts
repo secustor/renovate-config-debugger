@@ -190,7 +190,7 @@ test("arrowing across the strip keeps the cross-link back affordance", async ({ 
   const back = page.locator(".tab-back");
   await expect(back).toBeVisible();
 
-  await page.locator('.tab-bar [role="tab"][aria-selected="true"]').focus();
+  await page.locator('.tab-bar[aria-label="Results"] [role="tab"][aria-selected="true"]').focus();
   // LEFT, and the direction is load-bearing: the chip lands on Presets, whose
   // right-hand neighbour is Effective config — the origin itself, where the
   // trail is supposed to end (the test below). Walking AWAY from the origin is
@@ -223,7 +223,7 @@ test("walking onto the tab a cross-link came from ends the trail", async ({ page
     if ((await tabButton(page, "effective").getAttribute("aria-selected")) === "true") {
       break;
     }
-    await page.locator('.tab-bar [role="tab"][aria-selected="true"]').focus();
+    await page.locator('.tab-bar[aria-label="Results"] [role="tab"][aria-selected="true"]').focus();
     await page.keyboard.press("ArrowRight");
   }
 

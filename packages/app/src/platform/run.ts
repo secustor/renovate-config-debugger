@@ -8,6 +8,8 @@ import type {
   RepoConfigRequest,
   RepoConfigResult,
   RepoFileRequest,
+  RepoTreeRequest,
+  RepoTreeResult,
   TraceResult,
   TranslatedMessage,
   ValidationMessage,
@@ -185,4 +187,16 @@ export async function loadRepoFile(
 ): Promise<string | null> {
   const engine = await engineWithAuth(opts);
   return engine.fetchRepoFile(req);
+}
+
+/** Roadmap 078: one recursive git-tree listing (GitHub only) — the
+ *  From-repository dependency picker's file walk. Same auth/`suppressTokens`
+ *  seam as the loads above: the walk rides exactly the credentials the repo
+ *  load it follows did. */
+export async function loadRepoTree(
+  req: RepoTreeRequest,
+  opts?: RunOptions,
+): Promise<RepoTreeResult> {
+  const engine = await engineWithAuth(opts);
+  return engine.fetchRepoTree(req);
 }
