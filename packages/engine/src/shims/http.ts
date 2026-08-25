@@ -22,9 +22,63 @@ export class RequestError extends Error {
 
 export class HttpBase {
   protected hostType: string;
+  /** The real base class stores its options; unshimmed subclasses
+   *  (GithubHttp, GiteaHttp, …) read them through `this`. */
+  protected options: unknown;
 
-  constructor(hostType: string, _options?: unknown) {
+  constructor(hostType: string, options?: unknown) {
     this.hostType = hostType;
+    this.options = options ?? {};
+  }
+
+  // The members the real HttpBase exposes beyond the leaf verbs — unshimmed
+  // subclasses load over this class and call them via `super`/`this` at
+  // request time. Each fails with the stub's diagnosable message instead of
+  // an opaque "not a function".
+  protected get baseUrl(): string | undefined {
+    return undefined;
+  }
+  extraOptions(): never {
+    unavailable();
+  }
+  protected processOptions(): never {
+    unavailable();
+  }
+  protected _normalizeOptions(): never {
+    unavailable();
+  }
+  protected handleError(): never {
+    unavailable();
+  }
+  protected resolveUrl(): never {
+    unavailable();
+  }
+  protected calculateRetryDelay(): never {
+    unavailable();
+  }
+  protected resolveArgs(): never {
+    unavailable();
+  }
+  request(): never {
+    unavailable();
+  }
+  requestJson(): never {
+    unavailable();
+  }
+  requestJsonUnsafe(): never {
+    unavailable();
+  }
+  getBuffer(): never {
+    unavailable();
+  }
+  getJsonSafe(): never {
+    unavailable();
+  }
+  getYamlUnchecked(): never {
+    unavailable();
+  }
+  headJson(): never {
+    unavailable();
   }
 
   get(): never {

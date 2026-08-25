@@ -23,9 +23,18 @@ function keyOf(fileName: string): string {
   return normalize(fileName).replace(/^\.\//, "");
 }
 
-/** Replicates upstream `isValidPath`: relative, no null bytes, no escape. */
+/** Replicates upstream `isValidPath`: relative, no null bytes, no escape.
+ *  The escape test must match whole segments — upstream resolves against
+ *  `localDir` and checks containment, so a name that merely BEGINS with two
+ *  dots (`..build/x`) is valid there, and only a real `..` segment escapes. */
 export function isValidLocalPath(path: string): boolean {
-  return !path.startsWith("/") && !path.includes("\0") && !normalize(path).startsWith("..");
+  const normalized = normalize(path);
+  return (
+    !path.startsWith("/") &&
+    !path.includes("\0") &&
+    normalized !== ".." &&
+    !normalized.startsWith("../")
+  );
 }
 
 export function resetLocalFiles(): void {
@@ -134,11 +143,15 @@ export async function getLocalFiles(fileNames: string[]): Promise<Record<string,
 }
 
 export function readLocalDirectory(path: string): Promise<string[]> {
-  const prefix = `${keyOf(path)}/`;
+  // Root spellings ("", ".", "./") all normalize to keys that are never a
+  // prefix of the bare keys the store uses for top-level files — the root
+  // listing is the zero-length prefix instead.
+  const key = keyOf(path);
+  const prefix = key === "." || key === "" ? "" : `${key}/`;
   const names = new Set<string>();
-  for (const key of files.keys()) {
-    if (key.startsWith(prefix)) {
-      const name = key.slice(prefix.length).split("/")[0];
+  for (const storedKey of files.keys()) {
+    if (storedKey.startsWith(prefix)) {
+      const name = storedKey.slice(prefix.length).split("/")[0];
       if (name !== undefined && name !== "") {
         names.add(name);
       }

@@ -21,8 +21,12 @@ function unavailable(): never {
 
 // ---- modules/datasource/docker/ecr.js --------------------------------------
 
-export const ecrRegex = /\d+\.dkr\.ecr(-fips)?\.([-a-z0-9]+)\.amazonaws\.com/;
-export const ecrPublicRegex = /public\.ecr\.aws/;
+// Verbatim from the pinned dist (regEx() there is just a caching RegExp
+// factory): the fips group must stay NON-capturing — both consumers
+// destructure group 1 as the region (`const [, region] = ecrRegex.exec(…)`).
+export const ecrRegex =
+  /\d+\.(?:dkr\.ecr|dkr-ecr)(?:-fips)?\.([-a-z0-9]+)\.(?:amazonaws\.com|on\.aws|amazonaws\.com\.cn|on\.amazonwebservices\.com\.cn|amazonaws\.eu|on\.amazonwebservices\.eu|c2s\.ic\.gov|on\.aws\.ic\.gov|sc2s\.sgov\.gov|on\.aws\.scloud|scloud\.adc-e\.uk|on\.cloud-aws\.adc-e\.uk|csp\.hci\.ic\.gov|on\.aws\.hci\.ic\.gov|)/;
+export const ecrPublicRegex = /public\.ecr\.aws|ecr-public\.aws\.com/;
 
 export function getECRAuthToken(): Promise<null> {
   return Promise.resolve(null);

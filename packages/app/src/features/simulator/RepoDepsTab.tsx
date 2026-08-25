@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { nf } from "@/lib/format";
 import type { PinnedTest } from "./pins";
 import {
@@ -25,12 +25,17 @@ import {
  */
 
 /** The pin standing for this row, if any — matched on the identity fields the
- *  extraction filled, so a pin refined in Manual still claims its row. */
+ *  extraction filled, so a pin refined in Manual still claims its row. The
+ *  extracted VALUE is the tiebreak: same-file rows can share a name (two FROM
+ *  stages, a repeated action), and a name-only match would badge them all. A
+ *  refine leaves currentValue alone, so the claim survives it; a pin whose
+ *  value was edited away honestly stops claiming the row. */
 function pinnedAs(pins: readonly PinnedTest[], dep: RepoDep): string | null {
   const hit = pins.find(
     (pin) =>
       pin.form.packageFile === dep.packageFile &&
-      (pin.form.packageName === dep.depName || pin.form.depName === dep.depName),
+      (pin.form.packageName === dep.depName || pin.form.depName === dep.depName) &&
+      (dep.value === "" || pin.form.currentValue === "" || pin.form.currentValue === dep.value),
   );
   if (!hit) {
     return null;
@@ -81,7 +86,7 @@ function RepoDraftSentence({
   /** Enter in the next-version input pins — the button says ⏎. */
   onSubmit: () => void;
 }) {
-  const cur = draft.dep.fill.currentValue ?? draft.dep.fill.currentVersion ?? "";
+  const cur = draft.dep.value;
   return (
     <p className="pin-repo-draft-sentence">
       <span>A</span>
@@ -112,12 +117,16 @@ function RepoDraftSentence({
 
 function RepoDraftCard({
   draft,
+  showPin,
   onNewValue,
   onPin,
   onRefine,
   onCancel,
 }: {
   draft: RepoDraft;
+  /** Hidden at MAX_PINS — same rule as the form's quiet Pin; the PinLimitNote
+   *  under the card says why. The draft itself survives the cap. */
+  showPin: boolean;
   onNewValue: (value: string) => void;
   onPin: () => void;
   onRefine: () => void;
@@ -131,9 +140,11 @@ function RepoDraftCard({
         along; the next version is yours to name (extraction cannot know it)
       </p>
       <div className="pin-repo-draft-actions">
-        <button type="button" className="btn-primary" onClick={onPin}>
-          Pin ⏎
-        </button>
+        {showPin ? (
+          <button type="button" className="btn-primary" onClick={onPin}>
+            Pin ⏎
+          </button>
+        ) : null}
         <button type="button" className="digest-link" onClick={onRefine}>
           refine any field in Manual →
         </button>
@@ -151,43 +162,28 @@ function RepoDraftCard({
 }
 
 /** One shown row plus, when the draft was opened from it, the draft card
- *  inline right beneath — the design's `draftHere`. */
+ *  inline right beneath — the design's `draftHere`. The card element itself
+ *  is built ONCE by the caller (it also renders at the list's tail when the
+ *  drafted row is off screen); this only places it. */
 function RepoDepItem({
   dep,
   pinned,
   showQuickPins,
-  draft,
-  onDraftChange,
-  onPinDraft,
-  onRefineDraft,
+  draftHere,
+  draftCard,
+  onQuickPin,
 }: {
   dep: RepoDep;
   pinned: string | null;
   showQuickPins: boolean;
-  draft: RepoDraft | null;
-  onDraftChange: (draft: RepoDraft | null) => void;
-  onPinDraft: () => void;
-  onRefineDraft: () => void;
+  draftHere: boolean;
+  draftCard: ReactNode;
+  onQuickPin: (type: (typeof QUICK_TYPES)[number]) => void;
 }) {
   return (
     <>
-      <RepoDepRow
-        dep={dep}
-        pinned={pinned}
-        showQuickPins={showQuickPins}
-        onQuickPin={(type) => onDraftChange({ dep, type, newValue: "" })}
-      />
-      {draft !== null && draft.dep.key === dep.key ? (
-        <li className="pin-repo-draft-row">
-          <RepoDraftCard
-            draft={draft}
-            onNewValue={(newValue) => onDraftChange({ ...draft, newValue })}
-            onPin={onPinDraft}
-            onRefine={onRefineDraft}
-            onCancel={() => onDraftChange(null)}
-          />
-        </li>
-      ) : null}
+      <RepoDepRow dep={dep} pinned={pinned} showQuickPins={showQuickPins} onQuickPin={onQuickPin} />
+      {draftHere ? <li className="pin-repo-draft-row">{draftCard}</li> : null}
     </>
   );
 }
@@ -221,7 +217,11 @@ export function RepoConnectPanel({ offer }: { offer: RepoConnectOffer }) {
             Reload {offer.suggestion}
           </button>
         )}
-        <button type="button" className="digest-link" onClick={offer.onOpenLoad}>
+        <button
+          type="button"
+          className="digest-link"
+          onClick={(e) => offer.onOpenLoad(e.currentTarget)}
+        >
           {offer.suggestion === null ? "load a repository…" : "load a different repository…"}
         </button>
       </div>
@@ -303,8 +303,20 @@ export function RepoDepsTab({
   const shown = matches.slice(0, REPO_DEPS_SHOWN);
   const hidden = matches.slice(REPO_DEPS_SHOWN);
   // A draft whose row is off screen (searched away, or past the cap) still
-  // needs its card — it falls back to the list's tail.
+  // needs its card — it falls back to the list's tail. Built once, placed by
+  // whichever site owns it this render.
   const draftInline = draft !== null && shown.some((dep) => dep.key === draft.dep.key);
+  const draftCard =
+    draft === null ? null : (
+      <RepoDraftCard
+        draft={draft}
+        showPin={!atLimit}
+        onNewValue={(newValue) => onDraftChange({ ...draft, newValue })}
+        onPin={onPinDraft}
+        onRefine={onRefineDraft}
+        onCancel={() => onDraftChange(null)}
+      />
+    );
   return (
     <div className="pin-repo">
       <div className="pin-repo-search">
@@ -323,10 +335,9 @@ export function RepoDepsTab({
             dep={dep}
             pinned={pinnedAs(pins, dep)}
             showQuickPins={!atLimit}
-            draft={draft}
-            onDraftChange={onDraftChange}
-            onPinDraft={onPinDraft}
-            onRefineDraft={onRefineDraft}
+            draftHere={draft !== null && draft.dep.key === dep.key}
+            draftCard={draftCard}
+            onQuickPin={(type) => onDraftChange({ dep, type, newValue: "" })}
           />
         ))}
       </ul>
@@ -335,15 +346,7 @@ export function RepoDepsTab({
       ) : (
         <RepoDepsFootnote view={view} hidden={hidden} />
       )}
-      {draft !== null && !draftInline ? (
-        <RepoDraftCard
-          draft={draft}
-          onNewValue={(newValue) => onDraftChange({ ...draft, newValue })}
-          onPin={onPinDraft}
-          onRefine={onRefineDraft}
-          onCancel={() => onDraftChange(null)}
-        />
-      ) : null}
+      {draft !== null && !draftInline ? draftCard : null}
     </div>
   );
 }

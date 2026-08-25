@@ -12,6 +12,7 @@
  * (gradle, sbt, …) report `unsupported-manager` — the conda precedent: an
  * honest gap, not a wrong answer.
  */
+import { enqueueEngineTask } from "./pipeline";
 import {
   getMatchingFiles,
   managerDefaultConfigs,
@@ -21,6 +22,7 @@ import {
   writeLocalFile,
 } from "./renovate-adapter";
 import { resetLocalFiles } from "./shims/fs";
+import { withCollectorSuppressed } from "./trace/collector";
 
 export interface ExtractFile {
   /** repo-relative path, e.g. `packages/app/package.json` */
@@ -74,22 +76,61 @@ export function matchManagersForFile(
   fileName: string,
   opts?: { among?: readonly string[] },
 ): string[] {
-  const matched: string[] = [];
-  const among = opts?.among === undefined ? null : new Set(opts.among);
-  for (const [manager, config] of Object.entries(managerDefaultConfigs)) {
-    if (among !== null && !among.has(manager)) {
-      continue;
+  // Suppressed: getMatchingFiles logs one debug line PER PATTERN, and this
+  // runs outside any engine run — those lines must not land in a
+  // concurrently active run's trace.
+  return withCollectorSuppressed(() => {
+    const matched: string[] = [];
+    const among = opts?.among === undefined ? null : new Set(opts.among);
+    for (const [manager, config] of Object.entries(managerDefaultConfigs)) {
+      if (among !== null && !among.has(manager)) {
+        continue;
+      }
+      const patterns = config.managerFilePatterns;
+      if (!patterns || patterns.length === 0) {
+        continue;
+      }
+      const files = getMatchingFiles({ manager, managerFilePatterns: patterns }, [fileName]);
+      if (files.length > 0) {
+        matched.push(manager);
+      }
     }
-    const patterns = config.managerFilePatterns;
-    if (!patterns || patterns.length === 0) {
-      continue;
+    return matched;
+  });
+}
+
+/**
+ * The repo walk's bulk form of the same question: which of these paths does
+ * at least one EXTRACTABLE manager claim? One `getMatchingFiles` pass per
+ * manager over the whole list — per-path calls would rebuild the manager
+ * table, the subset Set and the per-pattern debug strings tens of thousands
+ * of times on a large tree. Input order is preserved.
+ */
+export function matchExtractablePaths(paths: readonly string[]): string[] {
+  return withCollectorSuppressed(() => {
+    const all = [...paths];
+    const matched = new Set<string>();
+    for (const [manager, config] of Object.entries(managerDefaultConfigs)) {
+      if (!(manager in managerExtractors)) {
+        continue;
+      }
+      // Default-disabled managers (azure-pipelines, pre-commit) stay out of
+      // the WALK: production Renovate never runs them without an explicit
+      // opt-in, so their files must not claim "detected" rows or spend the
+      // fetch cap. An explicit `extractDeps({ manager })` still reaches them.
+      if (config.enabled === false) {
+        continue;
+      }
+      const patterns = config.managerFilePatterns;
+      if (!patterns || patterns.length === 0) {
+        continue;
+      }
+      for (const file of getMatchingFiles({ manager, managerFilePatterns: patterns }, all)) {
+        matched.add(file);
+      }
     }
-    const files = getMatchingFiles({ manager, managerFilePatterns: patterns }, [fileName]);
-    if (files.length > 0) {
-      matched.push(manager);
-    }
-  }
-  return matched;
+    return paths.filter((path) => matched.has(path));
+  });
 }
 
 /**
@@ -105,23 +146,41 @@ function massageDepNames(deps: PackageDependency[]): void {
   }
 }
 
-export async function extractDeps(request: ExtractRequest): Promise<ExtractOutcome> {
-  const matchedManagers = matchManagersForFile(request.fileName);
-  const manager = request.manager ?? matchedManagers.find((m) => m in managerExtractors);
+/**
+ * Queued like `runPipeline`/`simulatePackageRules`: extraction touches the
+ * same module-level renovate state (memCache, the fs store, the logger's
+ * collector), so it must never overlap another engine task — an unqueued
+ * extraction finishing mid-run would leave the run's memCache disabled, and
+ * two overlapping discoveries would wipe each other's file store.
+ */
+export function extractDeps(
+  request: ExtractRequest,
+  signal?: AbortSignal,
+): Promise<ExtractOutcome> {
+  return enqueueEngineTask(() => runExtract(request), signal);
+}
+
+async function runExtract(request: ExtractRequest): Promise<ExtractOutcome> {
+  // Lazy: the full-manager scan only runs when the outcome needs it — manager
+  // selection, or the honest matched-list on a failure report. An explicit
+  // `request.manager` success path skips it entirely.
+  let matchedCache: string[] | null = null;
+  const matched = (): string[] => (matchedCache ??= matchManagersForFile(request.fileName));
+  const manager = request.manager ?? matched().find((m) => m in managerExtractors);
   if (manager === undefined) {
-    return matchedManagers.length === 0
+    return matched().length === 0
       ? {
           ok: false,
           reason: "no-manager",
-          matchedManagers,
+          matchedManagers: matched(),
           message: `no manager's file patterns match ${request.fileName}`,
         }
       : {
           ok: false,
           reason: "unsupported-manager",
-          matchedManagers,
+          matchedManagers: matched(),
           message:
-            `${request.fileName} matches ${matchedManagers.join(", ")} — ` +
+            `${request.fileName} matches ${matched().join(", ")} — ` +
             "not supported in the browser engine",
         };
   }
@@ -130,7 +189,7 @@ export async function extractDeps(request: ExtractRequest): Promise<ExtractOutco
     return {
       ok: false,
       reason: "unsupported-manager",
-      matchedManagers,
+      matchedManagers: matched(),
       message: `${manager} is not supported in the browser engine`,
     };
   }
@@ -151,29 +210,28 @@ export async function extractDeps(request: ExtractRequest): Promise<ExtractOutco
       return {
         ok: false,
         reason: "no-deps",
-        matchedManagers,
+        matchedManagers: matched(),
         message: `${manager} found no dependencies in ${request.fileName}`,
       };
     }
     massageDepNames(result.deps);
-    const fileLevel = result as { datasource?: string; packageFileVersion?: string };
     return {
       ok: true,
       file: {
         manager,
         fileName: request.fileName,
         deps: result.deps,
-        ...(fileLevel.datasource === undefined ? {} : { datasource: fileLevel.datasource }),
-        ...(fileLevel.packageFileVersion === undefined
+        ...(result.datasource === undefined ? {} : { datasource: result.datasource }),
+        ...(result.packageFileVersion === undefined
           ? {}
-          : { packageFileVersion: fileLevel.packageFileVersion }),
+          : { packageFileVersion: result.packageFileVersion }),
       },
     };
   } catch (err) {
     return {
       ok: false,
       reason: "extract-error",
-      matchedManagers,
+      matchedManagers: matched(),
       message: err instanceof Error ? err.message : String(err),
     };
   } finally {

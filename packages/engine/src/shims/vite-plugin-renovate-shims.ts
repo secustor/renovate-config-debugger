@@ -177,6 +177,27 @@ export function renovateShims(): Plugin {
       };
     },
     resolveId(source, importer) {
+      // The same three Node stand-ins the prebundle hook above installs,
+      // answered for the MAIN pipeline too: `vite build` never runs the
+      // prebundler, so without this the production bundle resolves
+      // graceful-fs/node:util/node:os to Vite's browser-external `{}` module
+      // and the npm-extraction chunk throws at module init (graceful-fs's
+      // polyfills read the bare `process.cwd`, fast-glob calls `os.cpus()`)
+      // — the exact crashes the stubs exist to prevent in dev. Scoped by
+      // importer to third-party code, matching the prebundle's blast radius:
+      // first-party sources and the Node regimes' externalized deps keep the
+      // real modules.
+      if (importer !== undefined && importer.includes("node_modules")) {
+        if (source === "graceful-fs") {
+          return path.join(shimDir, "graceful-fs-stub.cjs");
+        }
+        if (/^(node:)?util$/.test(source)) {
+          return path.join(shimDir, "node-util-stub.cjs");
+        }
+        if (/^(node:)?os$/.test(source)) {
+          return path.join(shimDir, "node-os-stub.cjs");
+        }
+      }
       if (source.startsWith(".")) {
         if (!importer?.includes(renovateDist)) {
           return null;

@@ -67,7 +67,7 @@ import { useInheritedConfigLayer } from "@/app/use-inherited-config-layer";
 import { useRepoLoad } from "@/app/use-repo-load";
 import { useRepoDeps } from "@/app/use-repo-deps";
 import type { LoadedRepo, RepoConnectOffer } from "@/features/simulator/repo-deps";
-import { FETCHABLE_PLATFORMS } from "@/data/host-tokens";
+import { TREE_LISTING_PLATFORMS } from "@/data/host-tokens";
 import { useRepoPicker } from "@/app/use-repo-picker";
 import { useRunSummary } from "@/app/use-run-summary";
 import { usePanelStats } from "@/app/use-panel-stats";
@@ -809,7 +809,7 @@ export function App() {
   // `buildShareLinkAndCopy` idiom) keeps the handed-out identity stable for
   // the run-view provider.
   function connectSuggestedRepoImpl() {
-    if (repoSuggestion === null || !FETCHABLE_PLATFORMS.has(platform as RepoPlatform)) {
+    if (repoSuggestion === null || !TREE_LISTING_PLATFORMS.has(platform as RepoPlatform)) {
       return;
     }
     setLoadedRepo({
@@ -826,10 +826,11 @@ export function App() {
     [connectSuggestedRepoRef],
   );
   // The suggestion is only offered while the platform context could actually
-  // fetch it — the click would otherwise lead somewhere the browser can't go.
+  // LIST it (the picker's walk is GitHub-only) — the click would otherwise
+  // lead to a discovery that can only error.
   const repoConnect = useMemo<RepoConnectOffer>(
     () => ({
-      suggestion: FETCHABLE_PLATFORMS.has(platform as RepoPlatform) ? repoSuggestion : null,
+      suggestion: TREE_LISTING_PLATFORMS.has(platform as RepoPlatform) ? repoSuggestion : null,
       onConnect: connectSuggestedRepo,
       onOpenLoad: openRepoForm,
     }),
@@ -1748,7 +1749,15 @@ export function App() {
           <ConfigColumn
             columnRef={configColRef}
             hasResult={Boolean(result)}
-            onTryExample={() => loadConfigText(EXAMPLE_CONFIG)}
+            onTryExample={() => {
+              loadConfigText(EXAMPLE_CONFIG);
+              // Roadmap 087 review: the example is nobody's repository — the
+              // wholesale replacement ends the previous load's provenance
+              // (the footnote's claim, and the share link's `repo`), exactly
+              // as a share-link arrival does.
+              setLoadedRepo(null);
+              setRepoSuggestion(null);
+            }}
             // The dogfood shortcut: fetch and run THIS app's own renovate.json,
             // live from its repository — a full URL, so the load pins the
             // github context instead of inheriting whatever host is selected.

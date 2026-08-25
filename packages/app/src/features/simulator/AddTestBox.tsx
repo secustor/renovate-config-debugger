@@ -5,6 +5,7 @@ import type {
   TraceResult,
 } from "@renovate-config-debugger/engine";
 import { nf } from "@/lib/format";
+import { nextTabIndex } from "@/lib/roving-tabs";
 import { PIN_FORM_ID } from "./datalist-ids";
 import { DescriptorActions } from "./DescriptorActions";
 import { EMPTY_FORM, type FormState } from "./form";
@@ -133,6 +134,7 @@ function AddTestTabs({
   onTabChange,
   repoAvailable,
   repoSuggested,
+  closable,
   onClose,
 }: {
   tab: AddTestTab;
@@ -141,19 +143,25 @@ function AddTestTabs({
   /** A share link named the repo this config came from (the tab's title says
    *  how to reconnect it, before the panel does). */
   repoSuggested: boolean;
+  /** With nothing pinned the card is the tab's whole subject and stays open —
+   *  the collapse × only exists once pins hold the ground behind it. */
+  closable: boolean;
   onClose: () => void;
 }) {
   const refs = useRef(new Map<AddTestTab, HTMLButtonElement>());
   const order: AddTestTab[] = ["manual", "paste", "repo"];
   function rove(e: KeyboardEvent<HTMLDivElement>) {
-    const delta = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
-    const jump = e.key === "Home" ? 0 : e.key === "End" ? order.length - 1 : null;
-    if (delta === 0 && jump === null) {
+    // Only the tabs rove — the close × shares the strip but not the pattern,
+    // and an arrow pressed on it must not switch tabs or yank focus.
+    if (!(e.target instanceof HTMLElement) || e.target.getAttribute("role") !== "tab") {
+      return;
+    }
+    const nextAt = nextTabIndex(e.key, order.indexOf(tab), order.length);
+    if (nextAt === null) {
       return;
     }
     e.preventDefault();
-    const at = order.indexOf(tab);
-    const next = order[jump ?? (at + delta + order.length) % order.length];
+    const next = order[nextAt];
     if (next !== undefined) {
       onTabChange(next);
       refs.current.get(next)?.focus();
@@ -201,14 +209,16 @@ function AddTestTabs({
         ),
         repoTitle,
       )}
-      <button
-        type="button"
-        className="pin-add-close"
-        aria-label="Close the new-pin card"
-        onClick={onClose}
-      >
-        ×
-      </button>
+      {closable ? (
+        <button
+          type="button"
+          className="pin-add-close"
+          aria-label="Close the new-pin card"
+          onClick={onClose}
+        >
+          ×
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -390,26 +400,56 @@ export function AddTestBox({
   const [chosenTab, setChosenTab] = useState<AddTestTab | null>(null);
   const [pasteDraft, setPasteDraft] = useState("");
   const [repoDraft, setRepoDraft] = useState<RepoDraft | null>(null);
-  // The ghost row (082 revisited): collapsed once pins exist; the card starts
-  // open only while there is nothing pinned yet, so the empty state's CTA
-  // points at a form that is actually on screen.
-  const [open, setOpen] = useState(pins.length === 0);
-  // Focus moves into the form only on a USER-initiated open (the nonce) —
-  // never on mount: a tab switch must not steal focus.
+  // The ghost row (082 revisited): with nothing pinned the card is FORCED
+  // open — the empty state's CTA must point at a form that is on screen —
+  // and once pins exist it is open only while the reader HOLDS it open. A
+  // derived `open` keeps the invariant across prop changes, not just at
+  // mount: a share link's pins arriving over a live session collapse the
+  // card back to the ghost, and removing the last pin brings it back.
+  const [userOpen, setUserOpen] = useState(false);
+  const open = pins.length === 0 || userOpen;
+  // Focus moves into the card only on a USER-initiated open (the nonce) —
+  // never on mount: a tab switch must not steal focus. On the Manual tab the
+  // target is the form's first input (which pinAddFocusTarget also scrolls
+  // to); on the other tabs it falls back to the card's first input, else the
+  // active tab — the ghost button is unmounting, and focus must not drop to
+  // the body.
   const [focusNonce, setFocusNonce] = useState(0);
+  const cardRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    if (focusNonce > 0) {
-      pinAddFocusTarget()?.focus({ preventScroll: true });
+    if (focusNonce === 0) {
+      return;
     }
+    const manual = pinAddFocusTarget();
+    if (manual === null) {
+      cardRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+    const target =
+      manual ??
+      cardRef.current?.querySelector<HTMLElement>(".pin-repo-search input") ??
+      cardRef.current?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]') ??
+      null;
+    target?.focus({ preventScroll: true });
   }, [focusNonce]);
 
   function openCard() {
-    setOpen(true);
+    setUserOpen(true);
     setFocusNonce((nonce) => nonce + 1);
   }
 
   const repoAvailable = repoDeps.repo !== "";
   const tab: AddTestTab = chosenTab ?? (repoAvailable ? "repo" : "manual");
+
+  // Per-repo UI state dies with its repo (the panel's sync-during-render
+  // idiom): a draft built from repo A must not survive into repo B, where
+  // pinning it would file A's descriptor under B's "detected because you
+  // loaded this config from…" claim. The search box resets the same way,
+  // through the keyed RepoDepsTab below.
+  const [draftRepo, setDraftRepo] = useState(repoDeps.repo);
+  if (draftRepo !== repoDeps.repo) {
+    setDraftRepo(repoDeps.repo);
+    setRepoDraft(null);
+  }
 
   // Discovery fires when (and only while) the repo tab is actually on screen —
   // including again after a NEW load reset the view to idle under an open tab.
@@ -431,7 +471,7 @@ export function AddTestBox({
         replaceForm(seed);
       }
       setChosenTab("manual");
-      setOpen(true);
+      setUserOpen(true);
       setFocusNonce((nonce) => nonce + 1);
     }
   }
@@ -474,6 +514,9 @@ export function AddTestBox({
     if (!pinDescriptor(onAddPin, source, updateType)) {
       return;
     }
+    // Pinning from the card is holding it open — the collapse belongs to the
+    // × (or a link's arrival), never to one's own first pin.
+    setUserOpen(true);
     replaceForm({});
     setOneOff(null);
   }
@@ -482,9 +525,12 @@ export function AddTestBox({
    *  form, so the form (and whatever the reader had half-typed there) is left
    *  alone. The row's badge flips to "pinned · type" from the pins list. */
   function pinRepoDraft() {
-    if (repoDraft === null) {
+    if (repoDraft === null || atLimit) {
+      // At the cap the sink would refuse silently — the draft stays put, and
+      // the PinLimitNote under the card says why nothing happened.
       return;
     }
+    setUserOpen(true);
     onAddPin({ ...EMPTY_FORM, ...draftFill(repoDraft) });
     setRepoDraft(null);
   }
@@ -514,13 +560,14 @@ export function AddTestBox({
 
   return (
     <div className="pin-add-panel">
-      <div className="card pin-add-card">
+      <div className="card pin-add-card" ref={cardRef}>
         <AddTestTabs
           tab={tab}
           onTabChange={setChosenTab}
           repoAvailable={repoAvailable}
           repoSuggested={repoConnect.suggestion !== null}
-          onClose={() => setOpen(false)}
+          closable={pins.length > 0}
+          onClose={() => setUserOpen(false)}
         />
         {tab === "paste" ? (
           <PasteJsonTab text={pasteDraft} onTextChange={setPasteDraft} onFill={applyPaste} />
@@ -528,6 +575,7 @@ export function AddTestBox({
         {tab === "repo" && !repoAvailable ? <RepoConnectPanel offer={repoConnect} /> : null}
         {tab === "repo" && repoAvailable ? (
           <RepoDepsTab
+            key={repoDeps.repo}
             view={repoDeps}
             pins={pins}
             atLimit={atLimit}

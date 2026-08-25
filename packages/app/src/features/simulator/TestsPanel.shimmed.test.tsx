@@ -335,6 +335,7 @@ const REPO_DEPS: RepoDepsView = {
     {
       key: "package.json:0:typescript",
       depName: "typescript",
+      value: "^5.8.3",
       meta: "package.json · ^5.8.3",
       manager: "npm",
       packageFile: "package.json",
@@ -351,6 +352,7 @@ const REPO_DEPS: RepoDepsView = {
     {
       key: "Dockerfile:0:node",
       depName: "node",
+      value: "20-alpine",
       meta: "Dockerfile · 20-alpine",
       manager: "dockerfile",
       packageFile: "Dockerfile",
@@ -411,6 +413,7 @@ function repoDep(packageFile: string, depName: string, currentValue: string): Re
   return {
     key: `${packageFile}:${depName}`,
     depName,
+    value: currentValue,
     meta: `${packageFile} · ${currentValue}`,
     manager: "npm",
     packageFile,

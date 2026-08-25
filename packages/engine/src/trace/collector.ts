@@ -145,6 +145,23 @@ export function setCurrentCollector(collector: TraceCollector | null): void {
   current = collector;
 }
 
+/**
+ * Runs `fn` with no collector on duty, so renovate code borrowed OUTSIDE a
+ * pipeline run (the extraction path's per-pattern `logger.debug` flood —
+ * roadmap 087 review) cannot write into a concurrently active run's trace.
+ * Safe ONLY for synchronous `fn`: single-threaded, so no pipeline code can
+ * observe the window.
+ */
+export function withCollectorSuppressed<T>(fn: () => T): T {
+  const previous = current;
+  current = null;
+  try {
+    return fn();
+  } finally {
+    current = previous;
+  }
+}
+
 /** Called by the logger shim; a no-op when no pipeline run is active. */
 export function emitLog(level: LogLevel, meta: unknown, msg: string | undefined): void {
   current?.onLog(level, meta, msg);

@@ -34,6 +34,10 @@ export interface RepoDep {
   /** stable list key: packageFile + depName + index */
   key: string;
   depName: string;
+  /** The extracted value — `currentValue`, else `currentVersion`, else `""`.
+   *  One derivation for the row's meta, the draft sentence's "from", and the
+   *  pinned-badge tiebreak. */
+  value: string;
   /** `package.json · ^5.8.3` — the row's muted note. */
   meta: string;
   manager: string;
@@ -70,7 +74,9 @@ export interface RepoDepsView {
 export interface RepoConnectOffer {
   suggestion: string | null;
   onConnect: () => void;
-  onOpenLoad: () => void;
+  /** Opens the editor's load-from-repo overlay; the panel passes its own
+   *  button so a dismissal returns focus HERE, not to the editor column. */
+  onOpenLoad: (returnFocus?: HTMLElement) => void;
 }
 
 export const EMPTY_REPO_DEPS: RepoDepsView = {
@@ -131,12 +137,16 @@ export function depToFill(file: ExtractedPackageFile, dep: PackageDependency): P
 }
 
 /** Builds the picker rows for one extracted file: named deps only (a dep
- *  without a name cannot be pinned or matched by any rule), in file order. */
+ *  without a name cannot be pinned or matched by any rule), minus the ones
+ *  extraction itself marked `skipReason` (file:/workspace: links, unpinned
+ *  `*` ranges, engines Renovate refuses) — production Renovate never
+ *  generates an update for those, so offering them as pinnable tests would
+ *  be an unearned claim. In file order. */
 export function repoDepsOfFile(file: ExtractedPackageFile): RepoDep[] {
   const rows: RepoDep[] = [];
   for (const [index, dep] of file.deps.entries()) {
     const name = dep.depName ?? dep.packageName;
-    if (!name) {
+    if (!name || dep.skipReason) {
       continue;
     }
     const value =
@@ -146,6 +156,7 @@ export function repoDepsOfFile(file: ExtractedPackageFile): RepoDep[] {
     rows.push({
       key: `${file.fileName}:${index}:${name}`,
       depName: name,
+      value,
       meta: value === "" ? file.fileName : `${file.fileName} · ${value}`,
       manager: file.manager,
       packageFile: file.fileName,

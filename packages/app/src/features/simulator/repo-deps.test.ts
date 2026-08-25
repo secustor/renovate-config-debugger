@@ -20,6 +20,9 @@ const FILE: ExtractedPackageFile = {
     { currentValue: "1.0.0" },
     // digest-only: no currentValue, currentVersion carries the value
     { depName: "node", currentVersion: "20.15.0", datasource: "node-version" },
+    // skipped by extraction itself — Renovate never updates a file: link, so
+    // the picker must not offer it as a pinnable test
+    { depName: "my-lib", currentValue: "file:../my-lib", datasource: "npm", skipReason: "file" },
   ],
 };
 

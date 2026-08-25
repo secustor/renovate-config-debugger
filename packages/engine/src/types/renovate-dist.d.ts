@@ -324,6 +324,17 @@ declare module "renovate/dist/modules/manager/maven/extract.js" {
   ): PackageFileContent | null;
 }
 
+declare module "renovate/dist/modules/manager/npm/extract/common/catalogs.js" {
+  import type { PackageDependency } from "renovate/dist/modules/manager/types.js";
+  /** Pure catalog→deps mapping over plain package.json data — the one piece
+   *  of yarn.js's surface with no yarn library behind it, reused verbatim by
+   *  shims/npm-yarn.ts. */
+  export function extractCatalogDeps(
+    catalogs: { name: string; dependencies: Record<string, string> }[],
+    npmManager?: "pnpm" | "yarn",
+  ): PackageDependency[];
+}
+
 declare module "renovate/dist/modules/manager/npm/extract/index.js" {
   import type { ExtractConfig, PackageFileContent } from "renovate/dist/modules/manager/types.js";
   /** npm's internal single-file function — the api has only

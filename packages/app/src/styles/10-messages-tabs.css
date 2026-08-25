@@ -746,15 +746,6 @@
   color: var(--ink);
 }
 
-/* A disabled tab (the "From repository" tab until a repo is loaded) must not
-   be pixel-identical to a live inactive tab — one gray step fainter, and the
-   cursor says why a click does nothing. Placed after :hover so hovering it
-   does not promise the ink it will not give. */
-.tab:disabled {
-  color: var(--faint);
-  cursor: not-allowed;
-}
-
 /* Roadmap 075, the attached tab: the selected tab is a card of the BODY's
    ground, bordered on three sides, with its fourth side painted out in that
    same ground so the seam between tab and panel disappears. */

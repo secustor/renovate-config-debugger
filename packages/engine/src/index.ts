@@ -6,6 +6,7 @@ export {
   type ExtractFile,
   type ExtractOutcome,
   type ExtractRequest,
+  matchExtractablePaths,
   matchManagersForFile,
 } from "./extract";
 export type { PackageDependency } from "./renovate-adapter";

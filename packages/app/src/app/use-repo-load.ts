@@ -104,9 +104,11 @@ export interface RepoLoad {
   toggleRepoForm: () => void;
   /** Opens the form (a no-op when already open) — the Tests tab's connect
    *  panel reaches for the SAME overlay rather than growing its own load
-   *  form (087). Identity-stable, since it travels through the memoized
-   *  run-view provider. */
-  openRepoForm: () => void;
+   *  form (087). The opener may pass its own element; close hands focus back
+   *  there instead of the editor's toggle (which lives in the other column).
+   *  Identity-stable, since it travels through the memoized run-view
+   *  provider. */
+  openRepoForm: (returnFocus?: HTMLElement) => void;
   closeRepoForm: () => void;
   repoRef: string;
   setRepoRef: (value: string) => void;
@@ -150,12 +152,24 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
   // sign-in / install hint next to the failure (009). null = no hint.
   const [repoAuthHint, setRepoAuthHint] = useState<{ rateLimited: boolean } | null>(null);
 
+  /** 087: the overlay gained a second opener (the Tests tab's connect panel),
+   *  so "the button that opened it" is no longer always the editor's toggle —
+   *  an opener may hand its own element over, and close returns focus there
+   *  while it is still in the document. */
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+
   /** Roadmap 023/039: closing the repo panel — by Cancel, by Escape, or by a
    *  load that succeeded — hands focus back to the button that opened it. The
    *  panel is gone, so focus must land somewhere deliberate, and that button
    *  is both where the user came from and what describes what just closed. */
   function closeRepoForm() {
     setRepoFormOpen(false);
+    const opener = returnFocusRef.current;
+    returnFocusRef.current = null;
+    if (opener?.isConnected) {
+      opener.focus();
+      return;
+    }
     repoToggleRef.current?.focus();
   }
 
@@ -167,7 +181,10 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
     }
   }
 
-  const openRepoForm = useCallback(() => setRepoFormOpen(true), []);
+  const openRepoForm = useCallback((returnFocus?: HTMLElement) => {
+    returnFocusRef.current = returnFocus ?? null;
+    setRepoFormOpen(true);
+  }, []);
 
   // Roadmap 075: the form became an OVERLAY over the editor (039's chrome row
   // would push the document it is about to replace out of a fixed-height pane),
