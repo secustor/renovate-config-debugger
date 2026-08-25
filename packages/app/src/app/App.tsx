@@ -1,6 +1,4 @@
 import {
-  lazy,
-  Suspense,
   useCallback,
   useDeferredValue,
   useEffect,
@@ -21,11 +19,8 @@ import { AdvancedZone } from "@/features/editor/AdvancedZone";
 import { AppShellHeader } from "@/app/AppShellHeader";
 import type { ConfigEditorHandle } from "@/features/editor/ConfigEditor";
 import { ConfigColumn } from "@/app/ConfigColumn";
-import type { AuthState } from "@/components/GithubAuthHint";
 import { HeadlessNote } from "@/components/HeadlessNote";
 import { identityForNodeId, nodeIdForIdentity } from "@/lib/preset-tree-stats";
-import type { ResultsColumnProps } from "@/app/ResultsColumn";
-import { UntrustedHostBanner } from "@/app/UntrustedHostBanner";
 import {
   legacyTabForView,
   resultsTabForShareTab,
@@ -38,14 +33,8 @@ import { buildPresetLookup, type PresetHoverContext } from "@/lib/preset-hover";
 import { motionScrollToOptions, prefersReducedMotion } from "@/lib/motion";
 import { findPackageRuleOffsets } from "@/lib/rule-locate";
 import { useRuleProvenance } from "@/hooks/rule-provenance";
-import {
-  beginSignIn,
-  getOAuthConfig,
-  getStoredUser,
-  isSignedIn,
-  signOut,
-  type StoredUser,
-} from "@/platform/oauth";
+import { OAUTH_CONFIG, useOAuthSession } from "@/app/use-oauth-session";
+import { beginSignIn } from "@/platform/oauth";
 import {
   type ErrorTranslationLib,
   getRenovateVersion,
@@ -53,8 +42,7 @@ import {
   loadOptionIndex,
   run,
 } from "@/platform/run";
-import { preloadEngine } from "@/platform/engine-chunk";
-import type { ShareSimulator, ShareState, ShareView, UntrustedEndpointGuard } from "@/lib/share";
+import type { ShareSimulator, ShareState, ShareView } from "@/lib/share";
 import { useBackToTopVisible, useHomeEndPageScroll } from "@/hooks/scroll-ergonomics";
 import { useLatestRef } from "@/hooks/use-latest-ref";
 import { useKeyboardLandings } from "@/app/use-keyboard-landings";
@@ -78,128 +66,10 @@ import type { RunInputs } from "@/lib/run-inputs";
 import { createRunQueue, type RunQueue } from "@/lib/run-queue";
 import { pluralWord } from "@/lib/format";
 import { useSyncedReset } from "@/hooks/use-synced-reset";
-
-const DEFAULT_CONFIG = `{
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"]
-}
-`;
-
-// A richer starter config that gives every part of the app something to show:
-// a deprecated option (migrate), string shorthand (massage), presets and
-// packageRules for the simulator.
-const EXAMPLE_CONFIG = `{
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended", ":dependencyDashboard"],
-  "schedule": "before 6am on monday",
-  "semanticCommits": true,
-  "packageRules": [
-    {
-      "matchDepTypes": ["devDependencies"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "automerge": true
-    },
-    {
-      "matchPackageNames": ["react", "react-dom"],
-      "groupName": "react"
-    }
-  ]
-}
-`;
-
-/** OAuth sign-in (009). Configured only when both build-time vars are present
- *  (or the deployment's runtime `__RCD_OAUTH__` supplies them); otherwise the
- *  whole feature stays hidden and the PAT fallback remains. Module scope for
- *  the same reason `oauth.ts` resolves `INSTALL_URL` at module scope: neither
- *  input can change after the page loads, so there is nothing for a render to
- *  re-read. */
-const OAUTH_CONFIG = getOAuthConfig();
-
-/** Roadmap 031: the whole results half (react-diff-view + diff + every
- *  result-only component) rides one lazy chunk — nothing behind this can
- *  render before a run, and a run downloads the far larger engine chunk
- *  first. Mounted once the first result exists and never unmounted again
- *  (`result` never returns to null and a resolved `lazy` never re-suspends),
- *  so the 028 always-mounted tab-shell state is untouched by the boundary. */
-const ResultsColumn = lazy(() =>
-  import("@/app/ResultsColumn").then((m) => ({ default: m.ResultsColumn })),
-);
-
-/**
- * Roadmap 031/040: the results half — its column wrapper, the lazy boundary
- * and the column itself. One component since 040's depth ratchet: the split's
- * right-hand pane has one level left, and these are three. Props are the
- * column's own, forwarded unchanged.
- */
-function ResultsPane(props: ResultsColumnProps) {
-  // Destructured rather than `ref={props.resultsColRef}`: handing a MEMBER of
-  // an object to `ref=` makes `react/refs` read the whole object as a ref, and
-  // the spread below then counts as dereferencing it during render. Pulled out
-  // by name it is what it always was — the column's own ref, forwarded.
-  const { resultsColRef } = props;
-  return (
-    // Roadmap 068: `id`/`tabIndex` are the skip link's target — see the
-    // config column's matching pair.
-    <div className="results-col" id="results-column" tabIndex={-1} ref={resultsColRef}>
-      {/* Roadmap 031: the results chunk is preloaded at idle and on Run
-          intent, so this fallback is a formality — and once the lazy module
-          has resolved, re-renders never suspend, so the mounted shell (and all
-          its per-tab state) is never torn down by the boundary. */}
-      <Suspense fallback={null}>
-        <ResultsColumn {...props} />
-      </Suspense>
-    </div>
-  );
-}
-
-/**
- * Roadmap 075 (v2, iteration 2): the two page-level banners, as one row between
- * the header and the panes. They used to be the first things in `<main>`, above
- * a page that scrolled; in the shell nothing above the content scrolls, so they
- * need a home of their own — the row simply is not there when neither has
- * anything to say. Their markup, roles and semantics are unchanged.
- */
-function AppBanners({
-  shareError,
-  untrustedGuard,
-  onAcknowledgeUntrusted,
-  onTrustUntrustedHost,
-}: {
-  shareError: string | null;
-  untrustedGuard: UntrustedEndpointGuard | null;
-  onAcknowledgeUntrusted: () => void;
-  onTrustUntrustedHost: () => void;
-}) {
-  const showUntrusted = untrustedGuard !== null && !untrustedGuard.acknowledged;
-  if (shareError === null && !showUntrusted) {
-    return null;
-  }
-  return (
-    <div className="app-banners">
-      {shareError ? (
-        <div className="share-error-banner" role="alert">
-          <strong className="share-error-banner-title">Shared link couldn’t be opened</strong>
-          <span>{shareError}</span>
-        </div>
-      ) : null}
-      {showUntrusted && untrustedGuard ? (
-        <UntrustedHostBanner
-          untrustedGuard={untrustedGuard}
-          onAcknowledge={onAcknowledgeUntrusted}
-          onTrust={onTrustUntrustedHost}
-        />
-      ) : null}
-    </div>
-  );
-}
-
-/** Roadmap 031: warms the two chunks a Run needs — the engine, and the
- *  results column that renders its output — so neither download serializes
- *  behind the click. Both dynamic imports are module-cached (idempotent). */
-function preloadRunChunks(): void {
-  preloadEngine();
-  void import("@/app/ResultsColumn").catch(() => {});
-}
+import { DEFAULT_CONFIG, EXAMPLE_CONFIG } from "@/data/starter-configs";
+import { AppBanners } from "@/app/AppBanners";
+import { ResultsPane } from "@/app/ResultsPane";
+import { preloadRunChunks } from "@/app/preload-run-chunks";
 
 /** What a caller may ask of a run. Every request reaches the queue except one
  *  refused before it starts, by layers that would not parse — see `onRun`. */
@@ -306,10 +176,13 @@ export function App() {
   // the field holding it has to be actually on screen, not one more
   // disclosure deep. Mirrored back on toggle so the user still owns it.
   const [hostSectionOpen, setHostSectionOpen] = useState(false);
-  const [signedIn, setSignedIn] = useState(() => (OAUTH_CONFIG ? isSignedIn() : false));
-  const [authUser, setAuthUser] = useState<StoredUser | null>(() =>
-    OAUTH_CONFIG ? getStoredUser() : null,
-  );
+  /**
+   * Roadmap 009 (auth-failure surfacing): the sign-in session — who is signed
+   * in, whether signing in is possible at all, and sign-out. The sign-in VERB
+   * stays below, next to the state it has to read; the hook's header says why.
+   */
+  const { oauthConfigured, signedIn, authUser, authState, onSignOut, setSignedIn, setAuthUser } =
+    useOAuthSession();
   const [injected, setInjected] = useState<InjectionMap>({});
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<TraceResult | null>(null);
@@ -788,7 +661,7 @@ export function App() {
     globalConfig: globalParse.config,
     platformOverride: platformOverride && hasGlobalContext,
     repoInput,
-    oauthConfigured: Boolean(OAUTH_CONFIG),
+    oauthConfigured: oauthConfigured,
     // Roadmap 045: the org probe when auto-load is on, otherwise the layer as
     // it already stands — resolved at the one point in the load's sequence a
     // real `inheritConfig` run resolves it.
@@ -1281,12 +1154,6 @@ export function App() {
   // The stable `onApplyFix` wrapper this function is reached through is
   // registered after the keyboard-landing cluster below — see it for why.
 
-  const authState: AuthState = !OAUTH_CONFIG
-    ? "unconfigured"
-    : signedIn
-      ? "signed-in"
-      : "signed-out";
-
   /**
    * Roadmap 009 (auth-failure surfacing): starts the redirect sign-in — and
    * decides what the user comes BACK to. Signing in is a full-page navigation
@@ -1310,6 +1177,10 @@ export function App() {
    * set lives in the tree this redirect is about to destroy, and a sign-in
    * that quietly threw away a clean run's config would be the same bug in a
    * case that is merely less annoying.
+   *
+   * This is the half of the OAuth cluster that could NOT move into
+   * `useOAuthSession`: it reads `result` and the share hook's return-hash
+   * builder, and the share hook in turn takes that hook's setters.
    */
   const signInRef = useLatestRef(async () => {
     let returnHash = window.location.hash;
@@ -1341,12 +1212,6 @@ export function App() {
     void onRun(undefined, undefined, { preserveScroll: true, keepTab: true });
   });
   const onRunAgain = useCallback(() => onRunAgainRef.current(), [onRunAgainRef]);
-
-  function onSignOut() {
-    signOut();
-    setSignedIn(false);
-    setAuthUser(null);
-  }
 
   // Roadmap 032: `onInject` reads `injected` and so is redeclared with it —
   // handed out directly it was the one unstable prop defeating PresetTree's
@@ -1685,7 +1550,7 @@ export function App() {
       hasGlobalContext={hasGlobalContext}
       onUseGlobalValues={onUseGlobalValues}
       usesLocal={usesLocal}
-      oauthConfigured={Boolean(OAUTH_CONFIG)}
+      oauthConfigured={oauthConfigured}
       signedIn={signedIn}
       authUser={authUser}
       onSignIn={onSignIn}
@@ -1731,7 +1596,7 @@ export function App() {
             run-view context; only the session half stays props (086). */}
         <AppShellHeader
           onShare={result ? onCopyLink : undefined}
-          oauthConfigured={Boolean(OAUTH_CONFIG)}
+          oauthConfigured={oauthConfigured}
           signedIn={signedIn}
           authUser={authUser}
           onSignOut={onSignOut}
