@@ -29,9 +29,13 @@
      link blue above is too light under white text (3.1:1), so fills keep a
      deeper blue per theme (5.2:1 / 4.6:1 with #fff). */
   --accent-fill: light-dark(#0969da, #1f6feb);
-  --ok: #1a7f37;
-  --error: #cf222e;
-  --warn: #9a6700;
+  /* The design sheet's dark palette gives each status hue a dark half — the
+     light hues sink toward 3:1 on the dark canvas (worst on the warn/ok text
+     roles), so these were the last single-literal accents here. The tints and
+     borders below mix FROM these, so they brighten with the theme too. */
+  --ok: light-dark(#1a7f37, #3fb950);
+  --error: light-dark(#cf222e, #f85149);
+  --warn: light-dark(#9a6700, #d29922);
   --muted: light-dark(#59636e, #9198a1);
   /* One step fainter than --muted — the design's tertiary gray for source
      attributions, tail lines and idle hints (Proposal F funnel). */

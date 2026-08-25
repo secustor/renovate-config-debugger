@@ -54,8 +54,9 @@ function PinCardHead({
       </button>
       <button
         type="button"
-        className="btn-quiet pin-remove"
+        className="pin-remove"
         onClick={onRemove}
+        title="Remove this test"
         aria-label={`Remove the pinned test for ${name}`}
       >
         ×

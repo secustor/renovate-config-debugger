@@ -167,11 +167,23 @@
   text-align: right;
 }
 
+/* The component standard's remove-×: the same bare glyph that CLOSES a panel,
+   but hovering danger instead of dark — removal is immediate, no confirm, and
+   the hover tone is the only warning it gets (host rows and matcher chips wear
+   the identical pair). */
 .pin-remove {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
   flex: none;
   font-size: 1rem;
   line-height: 1;
-  text-decoration: none;
+  padding: 0 0.2rem;
+}
+
+.pin-remove:hover {
+  color: var(--error);
 }
 
 .pin-body {
