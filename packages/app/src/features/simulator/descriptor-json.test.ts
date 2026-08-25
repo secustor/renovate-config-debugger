@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { descriptorEntries, descriptorJsonText } from "./descriptor-json";
-import { EMPTY_FORM, type FormState } from "./form";
+import { EMPTY_FORM } from "./form";
+import type { FormState } from "@/types/simulator";
 
 /**
  * Roadmap 082: the document must be the descriptor — every field the

@@ -1,6 +1,7 @@
 import { plural } from "@/lib/format";
-import { EMPTY_FORM, type FormState, joinValues, MULTI_VALUE_KEYS } from "./form";
+import { EMPTY_FORM, joinValues, MULTI_VALUE_KEYS } from "./form";
 import { isPlainObject } from "@/lib/input-schemas";
+import type { FormState } from "@/types/simulator";
 
 /**
  * Roadmap 082: the Tests tab's "Paste JSON" tab, as a pure function.

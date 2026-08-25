@@ -9,16 +9,16 @@ import { nextTabIndex } from "@/lib/roving-tabs";
 import { anyModifierHeld } from "@/lib/shortcuts";
 import { PIN_FORM_ID } from "./datalist-ids";
 import { DescriptorActions } from "./DescriptorActions";
-import { EMPTY_FORM, type FormState } from "./form";
+import { EMPTY_FORM } from "./form";
 import { EmptyFormGuard, PinLimitNote } from "./FormNotes";
 import { OpenInSimulatorLink } from "./OpenInSimulatorLink";
 import { type PasteFill, parsePastedDescriptor, pasteImportNote } from "./paste-descriptor";
 import { buildPinOutcome, type PinCheck, type PinOutcome } from "./pin-outcome";
 import { pinAddFocusTarget } from "./pin-add-dom";
 import { PinHeadRow } from "./PinHeadRow";
-import { pinContext, pinName, MAX_PINS, type PinnedTest } from "./pins";
+import { pinContext, pinName, MAX_PINS } from "./pins";
 import { PinSectionHead } from "./PinRuleSections";
-import { draftFill, type RepoConnectOffer, type RepoDepsView, type RepoDraft } from "./repo-deps";
+import { draftFill, type RepoDraft } from "./repo-deps";
 import { RepoConnectPanel, RepoDepsTab } from "./RepoDepsTab";
 import { runSimulation } from "./run-simulation";
 import { SimulatorForm } from "./SimulatorForm";
@@ -27,6 +27,8 @@ import { useEngineModule } from "./use-engine-module";
 // this module is the one place that holds both.
 import { type SimulatorForm as SimulatorFormApi, useSimulatorForm } from "./use-simulator-form";
 import { useSyncedReset } from "@/hooks/use-synced-reset";
+import type { FormState, PinnedTest } from "@/types/simulator";
+import type { RepoConnectOffer, RepoDepsView } from "@/types/repo";
 
 /**
  * The design's pin card (`Pin Options`), now in its GHOST form: a collapsed

@@ -1,4 +1,5 @@
-import { type FormState, toDescriptor } from "./form";
+import { toDescriptor } from "./form";
+import type { FormState } from "@/types/simulator";
 
 /**
  * Roadmap 079/082: what the descriptor LOOKS like, in one place.

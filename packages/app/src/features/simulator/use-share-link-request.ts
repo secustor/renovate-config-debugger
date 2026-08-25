@@ -1,8 +1,9 @@
 import { type Dispatch, type RefObject, type SetStateAction, useEffect, useRef } from "react";
 import type { TraceResult } from "@renovate-config-debugger/engine";
 import type { SimRequest } from "@/hooks/use-share-link";
-import { EMPTY_FORM, type FormState } from "./form";
+import { EMPTY_FORM } from "./form";
 import type { Simulate } from "./use-simulation-run";
+import type { FormState } from "@/types/simulator";
 
 // Roadmap 018/048: `SimRequest` is declared once, in hooks/use-share-link.ts
 // (the module that actually produces one, from a decoded share link) — this

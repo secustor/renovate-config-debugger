@@ -2,9 +2,9 @@ import { cleanup, render } from "@testing-library/react";
 import { type Dispatch, type SetStateAction, useRef } from "react";
 import type { TraceResult } from "@renovate-config-debugger/engine";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { FormState } from "./form";
 import { type SimRequest, useShareLinkRequest } from "./use-share-link-request";
 import type { Simulate } from "./use-simulation-run";
+import type { FormState } from "@/types/simulator";
 
 /**
  * Roadmap 068 review — the consuming half of the attribution invariant stated

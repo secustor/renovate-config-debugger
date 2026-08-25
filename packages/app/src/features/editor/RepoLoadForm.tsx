@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
 import { Term } from "@/components/glossary";
 import type { StoredUser } from "@/platform/oauth";
-import { RepoPicker, type RepoPickerView } from "./RepoPicker";
+import { RepoPicker } from "./RepoPicker";
+import type { RepoPickerView } from "@/types/repo";
 
 /**
  * Roadmap 039 — the repo-load disclosure's open state: one chrome row (036

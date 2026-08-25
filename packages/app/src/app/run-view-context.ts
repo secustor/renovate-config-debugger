@@ -29,13 +29,12 @@ import type {
 import type { AuthState } from "@/components/GithubAuthHint";
 import type { ResultsTabDescriptor } from "@/components/ResultsPanel";
 import type { ResultsTabId } from "@/data/results-tabs";
-import type { FormState } from "@/features/simulator/form";
-import type { PinnedTest } from "@/features/simulator/pins";
-import type { RepoConnectOffer, RepoDepsView } from "@/features/simulator/repo-deps";
 import type { EffectiveTally } from "@/lib/effective-tally";
 import type { ShareSimulator } from "@/lib/share";
 import type { ErrorTranslationLib } from "@/platform/run";
 import type { SimRequest } from "@/hooks/use-share-link";
+import type { FormState, PinnedTest } from "@/types/simulator";
+import type { RepoConnectOffer, RepoDepsView } from "@/types/repo";
 
 export interface RunView {
   /** The committed run, or null before the first one (the header renders its

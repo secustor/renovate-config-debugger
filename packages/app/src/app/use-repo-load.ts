@@ -27,10 +27,10 @@ import { isGithubRateLimited } from "@/lib/github-failure";
 import { isValidRepoHost, isValidRepoRefPart } from "@/lib/input-schemas";
 import { configFileNameFor, parseRepoReference } from "@/lib/repo-reference";
 import type { ShareFileName, UntrustedEndpointGuard } from "@/lib/share";
-import type { LoadedRepo } from "@/features/simulator/repo-deps";
 import { extractPackageJsonConfig, loadRepoConfig, loadRepoFile } from "@/platform/run";
 import type { RunInputs } from "@/lib/run-inputs";
 import { causedErrorMessage } from "@/lib/errors";
+import type { LoadedRepo } from "@/types/repo";
 
 /**
  * What the load needs from App.tsx. Handed in fresh every render and read

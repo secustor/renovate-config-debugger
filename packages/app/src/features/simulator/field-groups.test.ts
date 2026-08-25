@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { countSet, GROUP_KEYS } from "./field-groups";
-import { EMPTY_FORM, type FormState } from "./form";
+import { EMPTY_FORM } from "./form";
+import type { FormState } from "@/types/simulator";
 
 /**
  * The groups and the sentence line between them have to cover `FormState`

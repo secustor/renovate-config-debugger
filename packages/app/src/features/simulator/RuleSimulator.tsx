@@ -14,7 +14,6 @@ import { buildNoInputCaveat, buildVerdictSegments } from "@/lib/verdict-sentence
 import type { ErrorTranslationLib } from "@/platform/run";
 import { SIM_FORM_ID } from "./datalist-ids";
 import { DescriptorActions } from "./DescriptorActions";
-import type { FormState } from "./form";
 import { buildMergeStops } from "./merge-stops";
 import { EmptyFormGuard, PinLimitNote } from "./FormNotes";
 import { MAX_PINS } from "./pins";
@@ -35,6 +34,7 @@ import { useSimulatorForm } from "./use-simulator-form";
 import { useThreadNav } from "./use-thread-nav";
 import { buildVerdictThreads } from "./verdict-threads";
 import { ruleRef } from "@/lib/rule-ref";
+import type { FormState } from "@/types/simulator";
 
 /**
  * Roadmap 006: the packageRules simulator. Describe a hypothetical dependency

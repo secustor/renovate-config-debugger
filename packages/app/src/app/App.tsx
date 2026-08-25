@@ -53,8 +53,7 @@ import { useAppMessages } from "@/app/use-app-messages";
 import { usePlatformContext } from "@/app/use-platform-context";
 import { useInheritedConfigLayer } from "@/app/use-inherited-config-layer";
 import { useRepoLoad } from "@/app/use-repo-load";
-import { useRepoDeps } from "@/app/use-repo-deps";
-import type { LoadedRepo, RepoConnectOffer } from "@/features/simulator/repo-deps";
+import { useRepoDeps } from "@/features/simulator/use-repo-deps";
 import { TREE_LISTING_PLATFORMS } from "@/data/host-tokens";
 import { useRepoPicker } from "@/app/use-repo-picker";
 import { useRunSummary } from "@/app/use-run-summary";
@@ -70,6 +69,7 @@ import { DEFAULT_CONFIG, EXAMPLE_CONFIG } from "@/data/starter-configs";
 import { AppBanners } from "@/app/AppBanners";
 import { ResultsPane } from "@/app/ResultsPane";
 import { preloadRunChunks } from "@/app/preload-run-chunks";
+import type { LoadedRepo, RepoConnectOffer } from "@/types/repo";
 
 /** What a caller may ask of a run. Every request reaches the queue except one
  *  refused before it starts, by layers that would not parse — see `onRun`. */

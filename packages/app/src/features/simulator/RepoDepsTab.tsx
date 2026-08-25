@@ -1,15 +1,8 @@
 import { type ReactNode, useState } from "react";
 import { nf } from "@/lib/format";
-import type { PinnedTest } from "./pins";
-import {
-  filterRepoDeps,
-  hiddenDepFiles,
-  REPO_DEPS_SHOWN,
-  type RepoConnectOffer,
-  type RepoDep,
-  type RepoDepsView,
-  type RepoDraft,
-} from "./repo-deps";
+import { filterRepoDeps, hiddenDepFiles, REPO_DEPS_SHOWN, type RepoDraft } from "./repo-deps";
+import type { PinnedTest } from "@/types/simulator";
+import type { RepoConnectOffer, RepoDep, RepoDepsView } from "@/types/repo";
 
 /**
  * Roadmap 078 — the "From repository" tab: the dependencies Renovate's own

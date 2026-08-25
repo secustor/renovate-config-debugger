@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Caret } from "@/components/Caret";
 import { CopyButton } from "@/components/CopyButton";
 import { type DescriptorEntry, descriptorEntries, descriptorJsonText } from "./descriptor-json";
-import type { FormState } from "./form";
+import type { FormState } from "@/types/simulator";
 
 function JsonLine({ entry, comma }: { entry: DescriptorEntry; comma: boolean }) {
   return (

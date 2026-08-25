@@ -9,11 +9,11 @@ import {
   useState,
 } from "react";
 import type { SimulationResult, TraceResult } from "@renovate-config-debugger/engine";
-import type { FormState } from "./form";
 import { runSimulation } from "./run-simulation";
 import { DEFAULT_RULE_FILTERS, type RuleFilters } from "@/lib/rule-filters";
 import { useSyncedReset } from "@/hooks/use-synced-reset";
 import { errorMessage } from "@/lib/errors";
+import type { FormState } from "@/types/simulator";
 
 export type Simulate = (nextForm: FormState, touched: boolean, keepStep?: boolean) => Promise<void>;
 

@@ -9,9 +9,9 @@ import { LandingIntro, LandingLaunch, LandingSteps } from "@/features/editor/Lan
 import { NoticeBar } from "@/features/editor/NoticeBar";
 import { RepoLoadOverlay } from "@/features/editor/RepoLoadOverlay";
 import type { RepoLoad } from "@/app/use-repo-load";
-import type { RepoPickerView } from "@/features/editor/RepoPicker";
 import { StageRailPreview } from "@/components/StageRail";
 import type { PresetHoverContext } from "@/lib/preset-hover";
+import type { RepoPickerView } from "@/types/repo";
 
 /** Roadmap 075: what Run refuses while the repo-load overlay is up — the
  *  design's disabled-primary rule, spelled once for both Run buttons. */

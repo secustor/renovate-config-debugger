@@ -3,10 +3,10 @@ import { mayOwnNativePopup } from "@/hooks/scroll-ergonomics";
 import { DATASOURCE_LIST_ID, MANAGER_LIST_ID, SIM_FORM_ID } from "./datalist-ids";
 import { DescriptorPreview, DescriptorSection } from "./DescriptorPreview";
 import { FieldGroups } from "./FieldGroups";
-import type { FormState } from "./form";
 import { QuickFillChips } from "./QuickFillChips";
 import { SentenceLine } from "./SentenceLine";
 import { UpdateTypeChip } from "./UpdateTypeChip";
+import type { FormState } from "@/types/simulator";
 
 /**
  * Roadmap 047: `datasource` (81 entries) and `manager` (115) are backed by

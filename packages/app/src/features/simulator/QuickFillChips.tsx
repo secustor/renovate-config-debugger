@@ -1,4 +1,5 @@
-import { activeQuickFill, type FormState, QUICK_FILLS } from "./form";
+import { activeQuickFill, QUICK_FILLS } from "./form";
+import type { FormState } from "@/types/simulator";
 
 /**
  * Roadmap 079: the design's "Start from:" row — the quick-fills as pills, with

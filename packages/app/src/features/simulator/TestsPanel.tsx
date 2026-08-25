@@ -5,15 +5,15 @@ import { useRuleProvenance } from "@/hooks/rule-provenance";
 import { ruleLayerIndex } from "@/lib/rule-filters";
 import type { ShareSimulator } from "@/lib/share";
 import type { ErrorTranslationLib } from "@/platform/run";
-import type { FormState } from "./form";
 import { PinsView } from "./PinsView";
-import { type PinnedTest, pinShareFields } from "./pins";
-import type { RepoConnectOffer, RepoDepsView } from "./repo-deps";
+import { pinShareFields } from "./pins";
 import { buildRuleDescriptions } from "./rule-descriptions";
 import { RuleSimulator } from "./RuleSimulator";
 import type { SimRequest } from "./use-share-link-request";
 import { usePinnedTests } from "./use-pinned-tests";
 import { useSyncedReset } from "@/hooks/use-synced-reset";
+import type { FormState, PinnedTest } from "@/types/simulator";
+import type { RepoConnectOffer, RepoDepsView } from "@/types/repo";
 
 /**
  * Roadmap 075 (iteration 6): the Tests tab, which now has two views — the same

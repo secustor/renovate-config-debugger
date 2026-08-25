@@ -10,8 +10,8 @@ import {
   type GroupedKey,
   isMultiValue,
 } from "./field-groups";
-import type { FormState } from "./form";
 import { MultiValueInput } from "./MultiValueInput";
+import type { FormState } from "@/types/simulator";
 
 /**
  * One descriptor field, rendered from its spec — the text field and the chip

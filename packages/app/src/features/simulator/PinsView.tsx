@@ -8,12 +8,11 @@ import type {
 import { nf } from "@/lib/format";
 import { AddTestBox } from "./AddTestBox";
 import { EmptyTestsCard } from "./EmptyTestsCard";
-import type { FormState } from "./form";
 import { PinCard } from "./PinCard";
-import type { PinnedTest } from "./pins";
-import type { RepoConnectOffer, RepoDepsView } from "./repo-deps";
 import type { RuleDescriptionNote } from "./rule-descriptions";
 import type { PinEvaluation } from "./use-pinned-tests";
+import type { FormState, PinnedTest } from "@/types/simulator";
+import type { RepoConnectOffer, RepoDepsView } from "@/types/repo";
 
 /**
  * The Tests tab's own view, as Proposal F draws it: the summary strip

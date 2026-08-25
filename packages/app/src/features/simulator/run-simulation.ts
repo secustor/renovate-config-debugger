@@ -1,6 +1,7 @@
 import type { SimulationResult } from "@renovate-config-debugger/engine";
 import { loadEngine } from "@/platform/engine-chunk";
-import { type FormState, toDescriptor } from "./form";
+import { toDescriptor } from "./form";
+import type { FormState } from "@/types/simulator";
 
 /**
  * The engine call a simulation IS: derive the updateType when the form did not

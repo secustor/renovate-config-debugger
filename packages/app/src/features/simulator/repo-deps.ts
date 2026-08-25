@@ -6,13 +6,10 @@
  * declares its types and draws it — features never import `@/app`, so the
  * types live here and the shell imports them.
  */
-import type {
-  ExtractedPackageFile,
-  PackageDependency,
-  RepoPlatform,
-} from "@renovate-config-debugger/engine";
+import type { ExtractedPackageFile, PackageDependency } from "@renovate-config-debugger/engine";
 import { joinValues } from "./form";
-import type { FormState } from "./form";
+import type { FormState } from "@/types/simulator";
+import type { RepoDep, RepoDepsView } from "@/types/repo";
 
 /**
  * Where the config on screen was loaded from — recorded by App on a
@@ -20,65 +17,6 @@ import type { FormState } from "./form";
  * repo" a meaningful offer). `suppressTokens` rides along so the discovery
  * fetches obey the same untrusted-endpoint guard the load itself did.
  */
-export interface LoadedRepo {
-  platform: RepoPlatform;
-  /** `owner/repo` — also the label the tab shows. */
-  repo: string;
-  endpoint?: string;
-  ref?: string;
-  suppressTokens: boolean;
-}
-
-/** One pinnable row of the repository picker. */
-export interface RepoDep {
-  /** stable list key: packageFile + depName + index */
-  key: string;
-  depName: string;
-  /** The extracted value — `currentValue`, else `currentVersion`, else `""`.
-   *  One derivation for the row's meta, the draft sentence's "from", and the
-   *  pinned-badge tiebreak. */
-  value: string;
-  /** `package.json · ^5.8.3` — the row's muted note. */
-  meta: string;
-  manager: string;
-  packageFile: string;
-  /** What quick-pin and "refine in Manual" write into the form. */
-  fill: Partial<FormState>;
-}
-
-export type RepoDepsStatus = "idle" | "loading" | "ready" | "error";
-
-/** What the tab renders — computed by the shell, drawn by the feature. */
-export interface RepoDepsView {
-  status: RepoDepsStatus;
-  /** `owner/repo` of the loaded repository. */
-  repo: string;
-  deps: RepoDep[];
-  /** Package files actually extracted. */
-  fileCount: number;
-  /** Matched files past the fetch cap, or claimed only by unmapped managers. */
-  skippedFiles: number;
-  /** GitHub truncates very large trees; the listing says so. */
-  truncated: boolean;
-  error: string | null;
-}
-
-/**
- * The From-repository tab's offer while NO repo is loaded (the design's
- * connect panel): a share link may name the repository its config was loaded
- * from — `suggestion` — and `onConnect` grants this session repository access
- * (the load path's `LoadedRepo` record, so discovery can run) WITHOUT
- * touching the config the link installed. `onOpenLoad` opens the editor's
- * load-from-repo overlay for any other repository.
- */
-export interface RepoConnectOffer {
-  suggestion: string | null;
-  onConnect: () => void;
-  /** Opens the editor's load-from-repo overlay; the panel passes its own
-   *  button so a dismissal returns focus HERE, not to the editor column. */
-  onOpenLoad: (returnFocus?: HTMLElement) => void;
-}
-
 export const EMPTY_REPO_DEPS: RepoDepsView = {
   status: "idle",
   repo: "",

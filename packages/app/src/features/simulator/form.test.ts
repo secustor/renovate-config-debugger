@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   activeQuickFill,
   EMPTY_FORM,
-  type FormState,
   joinValues,
   QUICK_FILLS,
   splitValues,
   toDescriptor,
 } from "./form";
+import type { FormState } from "@/types/simulator";
 
 /**
  * Roadmap 079: the two derivations the redesigned form added — which quick-fill

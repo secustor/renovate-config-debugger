@@ -1,8 +1,8 @@
 import { useEffect, useInsertionEffect, useRef, useState } from "react";
 import type { SimulationResult, TraceResult } from "@renovate-config-debugger/engine";
-import type { PinnedTest } from "./pins";
 import { runSimulation } from "./run-simulation";
 import { errorMessage } from "@/lib/errors";
+import type { PinnedTest } from "@/types/simulator";
 
 /**
  * Roadmap 075 (iteration 6): every pinned descriptor, re-simulated against the
