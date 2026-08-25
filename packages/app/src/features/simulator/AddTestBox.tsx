@@ -6,6 +6,7 @@ import type {
 } from "@renovate-config-debugger/engine";
 import { nf } from "@/lib/format";
 import { nextTabIndex } from "@/lib/roving-tabs";
+import { anyModifierHeld } from "@/lib/shortcuts";
 import { PIN_FORM_ID } from "./datalist-ids";
 import { DescriptorActions } from "./DescriptorActions";
 import { EMPTY_FORM, type FormState } from "./form";
@@ -154,6 +155,15 @@ function AddTestTabs({
     // Only the tabs rove — the close × shares the strip but not the pattern,
     // and an arrow pressed on it must not switch tabs or yank focus.
     if (!(e.target instanceof HTMLElement) || e.target.getAttribute("role") !== "tab") {
+      return;
+    }
+    // A modified chord belongs to the browser or the OS, not to this strip:
+    // ⌘←/Alt+← is Back, Ctrl+Home/End is page scroll, Shift+Home extends a
+    // selection. `ResultsPanel`'s tab strip asks the same question for the same
+    // reason and documents it at length — these are named keys, so Shift counts.
+    // Without this the `preventDefault()` below swallows all three gestures
+    // whenever focus sits on Manual / Paste JSON / From repository.
+    if (anyModifierHeld(e)) {
       return;
     }
     const nextAt = nextTabIndex(e.key, order.indexOf(tab), order.length);

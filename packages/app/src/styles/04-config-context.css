@@ -1,7 +1,9 @@
 /* Split out of index.css (roadmap 050's deferred plan, executed 2026-08-23).
    ORDER IS LOAD-BEARING: main.tsx imports these numbered files in sequence,
-   preserving the original file's cascade byte-for-byte — two cross-file
-   equal-specificity couplings (.preset-panel, .diff-wrapper) depend on it.
+   preserving the original file's cascade byte-for-byte — one cross-file
+   equal-specificity coupling (.diff-wrapper) depends on it. `.preset-panel`
+   used to be a second: it was a latent bug, not a coupling, and 03 now wins it
+   on specificity instead of on load order.
    This file: platform context, per-host tokens, global + inherited config layers (008/010/045). */
 
 /* ---------- platform context / per-host tokens (010) ---------- */

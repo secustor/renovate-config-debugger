@@ -1,7 +1,9 @@
 /* Split out of index.css (roadmap 050's deferred plan, executed 2026-08-23).
    ORDER IS LOAD-BEARING: main.tsx imports these numbered files in sequence,
-   preserving the original file's cascade byte-for-byte — two cross-file
-   equal-specificity couplings (.preset-panel, .diff-wrapper) depend on it.
+   preserving the original file's cascade byte-for-byte — one cross-file
+   equal-specificity coupling (.diff-wrapper) depends on it. `.preset-panel`
+   used to be a second: it was a latent bug, not a coupling, and the stacked
+   override below now wins on specificity instead of on load order.
    This file: the preset resolution tree, its legibility at scale, preset descriptions (002/011/069). */
 
 /* ---------- preset resolution tree (002) ---------- */
@@ -36,7 +38,14 @@
     grid-template-columns: 1fr;
   }
 
-  .preset-panel {
+  /* Specificity, not file order, is what makes this win. `04-config-context`
+     sets the unconditional `border-left` on a bare `.preset-panel` — equal
+     specificity (0,1,0), and a container query adds none — and it loads after
+     this file, so the bare form here lost and the stacked panel kept a stray
+     left border. The compound selector matches every `.preset-panel` there is
+     (`PresetTree` renders the panel only under `.with-panel`), so this is the
+     same rule with the cascade accident removed. */
+  .preset-tree-layout.with-panel .preset-panel {
     border-left: none;
     border-top: 1px solid var(--border);
   }
