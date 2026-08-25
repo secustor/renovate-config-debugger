@@ -1,12 +1,13 @@
 import { type ReactNode, type RefObject, useEffect, useMemo, useState } from "react";
-import type { StageId, TraceEvent, TraceResult } from "@renovate-config-debugger/engine";
+import type { TraceResult } from "@renovate-config-debugger/engine";
 import { AuthFailureBanner } from "@/components/AuthFailureBanner";
 import { collectGithubAuthFailures } from "@/features/presets/tree-shared";
 import { EffectiveConfig } from "@/features/effective-config/EffectiveConfig";
+import { EmptyNote } from "@/components/EmptyNote";
 import { HypotheticalBanner } from "@/components/HypotheticalBanner";
 import { MessagesPanel } from "@/components/MessagesPanel";
-import { MigrationSteps } from "@/components/MigrationSteps";
 import { OverviewPanel } from "@/features/overview/OverviewPanel";
+import { PipelinePanel, type StageLayersProps } from "@/features/pipeline/PipelinePanel";
 import {
   PresetReferenceProvider,
   type PresetReferenceValue,
@@ -14,19 +15,10 @@ import {
 import { PresetsPanel } from "@/features/presets/PresetsPanel";
 import { ResultsPanel } from "@/components/ResultsPanel";
 import { TestsPanel } from "@/features/simulator/TestsPanel";
-import { StageDiff } from "@/components/StageDiff";
-import { StageLayerEditor } from "@/features/editor/StageLayerEditor";
-import { StageRail } from "@/components/StageRail";
 import { useRunView } from "@/app/run-view-context";
 import { StaleResultsBanner } from "@/components/StaleResultsBanner";
 import type { ResultsTabId } from "@/data/results-tabs";
-import type { InheritLayerState } from "@/lib/inherit-probe";
-import type { LayerParseResult } from "@/lib/input-schemas";
 import { motionScrollOptions } from "@/lib/motion";
-import { STAGE_LABELS } from "@/data/stage-copy";
-import { getStageActivity } from "@/lib/stage-activity";
-import { stageHint } from "@/lib/stage-delta";
-import { presetTreeSummary } from "@/lib/preset-tree-stats";
 
 /**
  * The keystroke-scoped remainder (roadmap 086). Everything RUN-scoped that
@@ -36,7 +28,7 @@ import { presetTreeSummary } from "@/lib/preset-tree-stats";
  * parses), plus the run result itself (non-null by this column's mount
  * condition) and the two refs App owns.
  */
-export interface ResultsColumnProps {
+export interface ResultsColumnProps extends StageLayersProps {
   result: TraceResult;
   /** The `.results-col` wrapper (owned by App), measured by the stacked-
    *  viewport scroll-into-view effect below. */
@@ -49,22 +41,6 @@ export interface ResultsColumnProps {
    *  memo and nothing else, deliberately not the `panels` memo below, whose
    *  032 contract is that typing reconciles none of the six panels. */
   resultsStale: boolean;
-  /**
-   * Roadmap 076 (design turn 18d): the two 008 merge layers are EDITED on the
-   * stage nodes that report on them — the `global` and `inherit` stage cards
-   * carry a `StageLayerEditor` above their diff. App owns the text (a share
-   * link carries it, the repo load's probe fills it), and the two callbacks it
-   * hands down are identity-stable per the 032 contract, so the `panels` memo
-   * below still keeps its element tree across keystrokes.
-   */
-  globalText: string;
-  onGlobalTextChange: (value: string) => void;
-  inheritedText: string;
-  onInheritedTextChange: (value: string) => void;
-  globalParse: LayerParseResult;
-  inheritedParse: LayerParseResult;
-  /** Roadmap 045: what the last inherited-config probe did, or null. */
-  inheritState: InheritLayerState | null;
 }
 
 /**
@@ -87,128 +63,6 @@ const STACKED_VIEWPORT_QUERY = "(max-width: 60rem)";
 /** Roadmap 028: how much of the stacked results pane has to be on screen for a
  *  Run to have visibly produced something. Below this, the run is landed on. */
 const MIN_VISIBLE_RESULTS_PX = 200;
-
-function EmptyNote({ children }: { children: ReactNode }) {
-  return <p className="empty-note">{children}</p>;
-}
-
-/**
- * Roadmap 028/075: the Rewrites tab's card, now the migrate stage's own — the
- * deprecated options Renovate rewrote, one at a time. Mounted only while that
- * stage is selected; the index it steps through is App's (`migrationStepIndex`,
- * what a share link's `step` field carries), so leaving the stage and coming
- * back returns to the step the reader was on.
- */
-function RewriteSteps({
-  steps,
-  finalConfig,
-  index,
-  onIndexChange,
-}: {
-  steps: TraceEvent[];
-  finalConfig: unknown;
-  index: number;
-  onIndexChange: (index: number) => void;
-}) {
-  return (
-    <div className="card">
-      <div className="card-title">
-        Rewrites
-        <span className="card-title-hint">
-          {" "}
-          — the deprecated options Renovate rewrote, one at a time
-        </span>
-      </div>
-      <MigrationSteps
-        steps={steps}
-        finalConfig={finalConfig}
-        index={index}
-        onIndexChange={onIndexChange}
-      />
-    </div>
-  );
-}
-
-/**
- * Roadmap 075 (iteration 4): the stage card's header strip — the stage's name
- * and, muted beside it, what it DID this run (`stageHint`, the same derivation
- * the rail's delta renders as a number). What the stage IS stays in
- * `STAGE_EXPLAINERS`, one hover away on the rail node above.
- */
-function StageCardHeader({
-  result,
-  stage,
-  effectiveKeys,
-  rendering,
-}: {
-  result: TraceResult;
-  stage: StageId;
-  effectiveKeys: number | null;
-  rendering: boolean;
-}) {
-  const presetCount = presetTreeSummary(result.presetTree)?.resolved ?? 0;
-  const hint = stageHint(stage, getStageActivity(result, stage), { presetCount, effectiveKeys });
-  return (
-    <div className="card-title">
-      Stage: {STAGE_LABELS[stage]}
-      <span className="card-title-hint"> — {hint}</span>
-      {rendering ? <span className="rendering-note"> rendering…</span> : null}
-    </div>
-  );
-}
-
-/**
- * Roadmap 076: the layer editor a `global` / `inherit` stage card carries,
- * picked by stage. Its own component so the card's JSX stays a flat list —
- * and so the choice of which layer is being edited is made once, in one
- * place, rather than three times over in three ternaries.
- *
- * Driven by the SELECTED stage, not the deferred one: this is an input, and an
- * input that lags a click by a frame is an input that eats the first keystroke
- * typed into it.
- */
-function StageLayerSlot({
-  stage,
-  globalText,
-  onGlobalTextChange,
-  inheritedText,
-  onInheritedTextChange,
-  globalParse,
-  inheritedParse,
-  inheritState,
-}: Pick<
-  ResultsColumnProps,
-  | "globalText"
-  | "onGlobalTextChange"
-  | "inheritedText"
-  | "onInheritedTextChange"
-  | "globalParse"
-  | "inheritedParse"
-  | "inheritState"
-> & { stage: StageId }) {
-  if (stage === "global") {
-    return (
-      <StageLayerEditor
-        kind="global"
-        value={globalText}
-        onChange={onGlobalTextChange}
-        parse={globalParse}
-      />
-    );
-  }
-  if (stage === "inherit") {
-    return (
-      <StageLayerEditor
-        kind="inherit"
-        value={inheritedText}
-        onChange={onInheritedTextChange}
-        parse={inheritedParse}
-        inheritState={inheritState}
-      />
-    );
-  }
-  return null;
-}
 
 export function ResultsColumn({
   result,
@@ -416,49 +270,25 @@ export function ResultsColumn({
         <EmptyNote>Nothing to test — the pipeline produced no effective config.</EmptyNote>
       ),
       pipeline: (
-        <>
-          <StageRail
-            result={result}
-            selected={selectedStage}
-            onSelect={onSelectStage}
-            effectiveKeys={effectiveKeys}
-          />
-          <div className="card">
-            <StageCardHeader
-              result={result}
-              stage={selectedStage}
-              effectiveKeys={effectiveKeys}
-              rendering={deferredStage !== selectedStage}
-            />
-            <StageLayerSlot
-              stage={selectedStage}
-              globalText={globalText}
-              onGlobalTextChange={onGlobalTextChange}
-              inheritedText={inheritedText}
-              onInheritedTextChange={onInheritedTextChange}
-              globalParse={globalParse}
-              inheritedParse={inheritedParse}
-              inheritState={inheritState}
-            />
-            <StageDiff result={result} stage={deferredStage} />
-          </div>
-          {/* Roadmap 075 (iteration 3): the Rewrites tab, folded in. The
-              whole-stage diff above says WHAT migrate changed; the stepper says
-              which rewrite did which part of it, which is the same question the
-              retired tab existed to answer — one stage down, not one tab
-              across. */}
-          {deferredStage === "migrate" && migrateStepperMounted ? (
-            <RewriteSteps
-              steps={migrateSteps}
-              finalConfig={finalMigrated}
-              index={migrationStepIndex}
-              onIndexChange={onMigrationStepChange}
-            />
-          ) : null}
-          {deferredStage === "migrate" && !migrateStepperMounted ? (
-            <EmptyNote>No rewrites — this config already uses current option names.</EmptyNote>
-          ) : null}
-        </>
+        <PipelinePanel
+          result={result}
+          selectedStage={selectedStage}
+          onSelectStage={onSelectStage}
+          deferredStage={deferredStage}
+          effectiveKeys={effectiveKeys}
+          migrateSteps={migrateSteps}
+          migrateStepperMounted={migrateStepperMounted}
+          finalMigrated={finalMigrated}
+          migrationStepIndex={migrationStepIndex}
+          onMigrationStepChange={onMigrationStepChange}
+          globalText={globalText}
+          onGlobalTextChange={onGlobalTextChange}
+          inheritedText={inheritedText}
+          onInheritedTextChange={onInheritedTextChange}
+          globalParse={globalParse}
+          inheritedParse={inheritedParse}
+          inheritState={inheritState}
+        />
       ),
       presets: result.presetTree?.children.length ? (
         <PresetsPanel
