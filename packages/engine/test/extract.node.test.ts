@@ -47,12 +47,12 @@ describe("extractDeps (golden)", () => {
       for (const name of c.expectDeps) {
         expect(depNames).toContain(name);
       }
-      // every dep is nameable — massageDepNames ran
-      for (const dep of outcome.file.deps) {
-        if (dep.packageName !== undefined) {
-          expect(dep.depName).toBeDefined();
-        }
-      }
+      // every dep is nameable — massageDepNames ran. Filtered rather than
+      // guarded so the assertion runs unconditionally: an `expect` inside an
+      // `if` silently does nothing when no row reaches it, which for a
+      // whole-collection claim is indistinguishable from passing.
+      const named = outcome.file.deps.filter((dep) => dep.packageName !== undefined);
+      expect(named.map((dep) => dep.depName)).not.toContain(undefined);
       await expect(JSON.stringify(outcome.file, null, 2)).toMatchFileSnapshot(
         extractSnapshotPath(c.manager),
       );

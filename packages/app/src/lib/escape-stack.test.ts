@@ -33,6 +33,13 @@ function modal(): () => void {
   return release;
 }
 
+/* oxlint-disable vitest/no-standalone-expect -- asserting the teardown
+   invariant is the POINT of this hook, not an escaped assertion. The escape
+   stack is module-level state shared by every test in this file: a leaked
+   claim makes every LATER test's `handleEscape()` a silent no-op, so the test
+   that leaked has to be the one that fails. Moving these into each test would
+   be the same three assertions copied a dozen times, and would still not cover
+   a test that forgot them. */
 afterEach(() => {
   while (releases.length > 0) {
     releases.pop()?.();
@@ -44,6 +51,7 @@ afterEach(() => {
   expect(modalKeyboardOwned()).toBe(false);
   expect(handleEscape()).toBe(false);
 });
+/* oxlint-enable vitest/no-standalone-expect */
 
 describe("escape stack", () => {
   it("runs only the topmost layer of a rank", () => {

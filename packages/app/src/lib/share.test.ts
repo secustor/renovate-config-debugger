@@ -88,11 +88,12 @@ describe("encodeShare / decodeShareResult round trip", () => {
     const token = await encodeShare(minimalState());
     const result = await decodeShareResult(token);
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.payload.config).toBe('{"extends":["config:recommended"]}');
-      expect(result.payload.fileName).toBe("renovate.json");
-      expect(result.payload.v).toBe(2);
+    if (!result.ok) {
+      return;
     }
+    expect(result.payload.config).toBe('{"extends":["config:recommended"]}');
+    expect(result.payload.fileName).toBe("renovate.json");
+    expect(result.payload.v).toBe(2);
   });
 
   test("a full state (layers, view, sim) round-trips", async () => {
@@ -109,30 +110,32 @@ describe("encodeShare / decodeShareResult round trip", () => {
     );
     const result = await decodeShareResult(token);
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.payload.globalConfig).toEqual({ platform: "gitlab" });
-      expect(result.payload.inheritedConfig).toEqual({ automerge: false });
-      expect(result.payload.platformOverride).toBe(true);
-      expect(result.payload.platform).toBe("gitlab");
-      expect(result.payload.endpoint).toBe("https://gitlab.example.com/api/v4");
-      expect(result.payload.view).toEqual({
-        stage: "preset",
-        node: "abc",
-        step: 2,
-        tab: "presets",
-      });
-      expect(result.payload.sim).toEqual({ form: { name: "left-pad" }, autoSimulate: true });
+    if (!result.ok) {
+      return;
     }
+    expect(result.payload.globalConfig).toEqual({ platform: "gitlab" });
+    expect(result.payload.inheritedConfig).toEqual({ automerge: false });
+    expect(result.payload.platformOverride).toBe(true);
+    expect(result.payload.platform).toBe("gitlab");
+    expect(result.payload.endpoint).toBe("https://gitlab.example.com/api/v4");
+    expect(result.payload.view).toEqual({
+      stage: "preset",
+      node: "abc",
+      step: 2,
+      tab: "presets",
+    });
+    expect(result.payload.sim).toEqual({ form: { name: "left-pad" }, autoSimulate: true });
   });
 
   test("platform/endpoint at their defaults are omitted and default back on decode", async () => {
     const token = await encodeShare(minimalState());
     const result = await decodeShareResult(token);
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.payload.platform).toBeUndefined();
-      expect(result.payload.endpoint).toBeUndefined();
+    if (!result.ok) {
+      return;
     }
+    expect(result.payload.platform).toBeUndefined();
+    expect(result.payload.endpoint).toBeUndefined();
   });
 });
 
@@ -150,9 +153,10 @@ describe("033: one sanitizer — encode∘decode fixpoints", () => {
     );
     const result = await decodeShareResult(token);
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.payload.view).toEqual({ stage: "migrate", step: 0, tab: "pipeline" });
+    if (!result.ok) {
+      return;
     }
+    expect(result.payload.view).toEqual({ stage: "migrate", step: 0, tab: "pipeline" });
   });
 
   test("re-encoding a decoded view/sim is a fixpoint (nothing changes on the second pass)", async () => {
@@ -172,10 +176,11 @@ describe("033: one sanitizer — encode∘decode fixpoints", () => {
       await encodeShare(minimalState({ view: first.payload.view, sim: first.payload.sim })),
     );
     expect(second.ok).toBe(true);
-    if (second.ok) {
-      expect(second.payload.view).toEqual(first.payload.view);
-      expect(second.payload.sim).toEqual(first.payload.sim);
+    if (!second.ok) {
+      return;
     }
+    expect(second.payload.view).toEqual(first.payload.view);
+    expect(second.payload.sim).toEqual(first.payload.sim);
   });
 
   test("simStep (044) round-trips alongside the migrate step and the sim inputs", async () => {
@@ -187,27 +192,29 @@ describe("033: one sanitizer — encode∘decode fixpoints", () => {
     );
     const result = await decodeShareResult(token);
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.payload.view).toEqual({
-        stage: "merge",
-        step: 0,
-        simStep: 2,
-        tab: "tests",
-      });
-      expect(result.payload.sim).toEqual({
-        form: { packageName: "lodash" },
-        autoSimulate: true,
-      });
+    if (!result.ok) {
+      return;
     }
+    expect(result.payload.view).toEqual({
+      stage: "merge",
+      step: 0,
+      simStep: 2,
+      tab: "tests",
+    });
+    expect(result.payload.sim).toEqual({
+      form: { packageName: "lodash" },
+      autoSimulate: true,
+    });
   });
 
   test("an all-empty view is still omitted from the payload", async () => {
     const token = await encodeShare(minimalState({ view: {} }));
     const result = await decodeShareResult(token);
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.payload.view).toBeUndefined();
+    if (!result.ok) {
+      return;
     }
+    expect(result.payload.view).toBeUndefined();
   });
 });
 
@@ -338,9 +345,10 @@ describe("030: schema-validated fields -> damaged", () => {
     const token = await rawEncodeToken(taggedPayload({ endpoint: "http://localhost:3000" }));
     const result = await decodeShareResult(token);
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.payload.endpoint).toBe("http://localhost:3000");
+    if (!result.ok) {
+      return;
     }
+    expect(result.payload.endpoint).toBe("http://localhost:3000");
   });
 });
 
@@ -349,9 +357,10 @@ describe("030: view/sim are sanitized per-field, never hard-fail the payload", (
     const token = await rawEncodeToken(taggedPayload({ view: { stage: "preset", step: "2" } }));
     const result = await decodeShareResult(token);
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.payload.view).toEqual({ stage: "preset" });
+    if (!result.ok) {
+      return;
     }
+    expect(result.payload.view).toEqual({ stage: "preset" });
   });
 
   // Roadmap 044: the new field is additive within v2 in BOTH directions — a
@@ -363,28 +372,31 @@ describe("030: view/sim are sanitized per-field, never hard-fail the payload", (
     );
     const oldResult = await decodeShareResult(old);
     expect(oldResult.ok).toBe(true);
-    if (oldResult.ok) {
-      expect(oldResult.payload.view).toEqual({ stage: "preset", step: 1, tab: "rewrites" });
-      expect(oldResult.payload.view?.simStep).toBeUndefined();
+    if (!oldResult.ok) {
+      return;
     }
+    expect(oldResult.payload.view).toEqual({ stage: "preset", step: 1, tab: "rewrites" });
+    expect(oldResult.payload.view?.simStep).toBeUndefined();
 
     const mangled = await rawEncodeToken(
       taggedPayload({ view: { tab: "simulator", simStep: -3 } }),
     );
     const mangledResult = await decodeShareResult(mangled);
     expect(mangledResult.ok).toBe(true);
-    if (mangledResult.ok) {
-      expect(mangledResult.payload.view).toEqual({ tab: "simulator" });
+    if (!mangledResult.ok) {
+      return;
     }
+    expect(mangledResult.payload.view).toEqual({ tab: "simulator" });
   });
 
   test("an array sim still loads the config; sim is dropped", async () => {
     const token = await rawEncodeToken(taggedPayload({ sim: ["a", "b"] }));
     const result = await decodeShareResult(token);
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.payload.sim).toBeUndefined();
+    if (!result.ok) {
+      return;
     }
+    expect(result.payload.sim).toBeUndefined();
   });
 
   test("an unrecognized (future-version) tab still loads the config; tab is dropped", async () => {
@@ -393,18 +405,20 @@ describe("030: view/sim are sanitized per-field, never hard-fail the payload", (
     );
     const result = await decodeShareResult(token);
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.payload.view).toEqual({ stage: "preset" });
+    if (!result.ok) {
+      return;
     }
+    expect(result.payload.view).toEqual({ stage: "preset" });
   });
 
   test("a mixed-type sim.form keeps the valid entries and drops the rest", async () => {
     const token = await rawEncodeToken(taggedPayload({ sim: { form: { a: "x", b: 5 } } }));
     const result = await decodeShareResult(token);
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.payload.sim).toEqual({ form: { a: "x" } });
+    if (!result.ok) {
+      return;
     }
+    expect(result.payload.sim).toEqual({ form: { a: "x" } });
   });
 });
 
@@ -420,9 +434,10 @@ describe("030: fileName keeps its lenient normalize-not-reject behavior", () => 
     });
     const result = await decodeShareResult(token);
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.payload.fileName).toBe("renovate.json");
+    if (!result.ok) {
+      return;
     }
+    expect(result.payload.fileName).toBe("renovate.json");
   });
 
   test("renovate.json5 is preserved", async () => {
@@ -436,9 +451,10 @@ describe("030: fileName keeps its lenient normalize-not-reject behavior", () => 
     });
     const result = await decodeShareResult(token);
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.payload.fileName).toBe("renovate.json5");
+    if (!result.ok) {
+      return;
     }
+    expect(result.payload.fileName).toBe("renovate.json5");
   });
 });
 
@@ -665,16 +681,17 @@ describe("054: sim.simThread round-trips and stays additive", () => {
     );
     const result = await decodeShareResult(token);
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.payload.sim).toEqual({
-        form: { packageName: "oxlint" },
-        autoSimulate: true,
-        simThread: "groupName",
-      });
-      // The thread rides with the SIM descriptor, not the view: it is only
-      // meaningful for the simulation the form reproduces.
-      expect(result.payload.view).toEqual({ stage: "merge", simStep: 2, tab: "tests" });
+    if (!result.ok) {
+      return;
     }
+    expect(result.payload.sim).toEqual({
+      form: { packageName: "oxlint" },
+      autoSimulate: true,
+      simThread: "groupName",
+    });
+    // The thread rides with the SIM descriptor, not the view: it is only
+    // meaningful for the simulation the form reproduces.
+    expect(result.payload.view).toEqual({ stage: "merge", simStep: 2, tab: "tests" });
   });
 
   test("re-encoding a decoded sim with a thread is a fixpoint", async () => {
@@ -692,9 +709,10 @@ describe("054: sim.simThread round-trips and stays additive", () => {
       await encodeShare(minimalState({ sim: first.payload.sim })),
     );
     expect(second.ok).toBe(true);
-    if (second.ok) {
-      expect(second.payload.sim).toEqual(first.payload.sim);
+    if (!second.ok) {
+      return;
     }
+    expect(second.payload.sim).toEqual(first.payload.sim);
   });
 
   test("a pre-054 link (no simThread) decodes exactly as before", async () => {
@@ -703,10 +721,11 @@ describe("054: sim.simThread round-trips and stays additive", () => {
     );
     const result = await decodeShareResult(token);
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.payload.sim).toEqual({ form: { packageName: "lodash" }, autoSimulate: true });
-      expect(result.payload.sim?.simThread).toBeUndefined();
+    if (!result.ok) {
+      return;
     }
+    expect(result.payload.sim).toEqual({ form: { packageName: "lodash" }, autoSimulate: true });
+    expect(result.payload.sim?.simThread).toBeUndefined();
   });
 
   test("a malformed simThread is dropped alone — the link still opens and runs", async () => {
@@ -716,9 +735,10 @@ describe("054: sim.simThread round-trips and stays additive", () => {
       );
       const result = await decodeShareResult(token);
       expect(result.ok).toBe(true);
-      if (result.ok) {
-        expect(result.payload.sim).toEqual({ form: { packageName: "lodash" }, autoSimulate: true });
+      if (!result.ok) {
+        return;
       }
+      expect(result.payload.sim).toEqual({ form: { packageName: "lodash" }, autoSimulate: true });
     }
   });
 
@@ -728,9 +748,10 @@ describe("054: sim.simThread round-trips and stays additive", () => {
     );
     const result = await decodeShareResult(token);
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.payload.sim).toBeUndefined();
+    if (!result.ok) {
+      return;
     }
+    expect(result.payload.sim).toBeUndefined();
   });
 });
 
@@ -802,9 +823,10 @@ describe("075: retired tab ids still open the tab that replaced them", () => {
       const token = await rawEncodeToken(taggedPayload({ view: { stage: "preset", tab: legacy } }));
       const result = await decodeShareResult(token);
       expect(result.ok).toBe(true);
-      if (result.ok) {
-        expect(result.payload.view?.tab).toBe(legacy);
+      if (!result.ok) {
+        return;
       }
+      expect(result.payload.view?.tab).toBe(legacy);
     }
   });
 
@@ -814,9 +836,10 @@ describe("075: retired tab ids still open the tab that replaced them", () => {
     );
     const result = await decodeShareResult(token);
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.payload.view).toEqual({ stage: "preset" });
+    if (!result.ok) {
+      return;
     }
+    expect(result.payload.view).toEqual({ stage: "preset" });
   });
 });
 
@@ -837,10 +860,11 @@ describe("075: pins round-trip and stay additive", () => {
     );
     const result = await decodeShareResult(token);
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.payload.pins).toEqual(PINS);
-      expect(result.payload.view).toEqual({ tab: "tests" });
+    if (!result.ok) {
+      return;
     }
+    expect(result.payload.pins).toEqual(PINS);
+    expect(result.payload.view).toEqual({ tab: "tests" });
   });
 
   test("re-encoding a decoded set of pins is a fixpoint", async () => {
@@ -856,9 +880,10 @@ describe("075: pins round-trip and stay additive", () => {
       await encodeShare(minimalState({ pins: first.payload.pins })),
     );
     expect(second.ok).toBe(true);
-    if (second.ok) {
-      expect(second.payload.pins).toEqual(first.payload.pins);
+    if (!second.ok) {
+      return;
     }
+    expect(second.payload.pins).toEqual(first.payload.pins);
   });
 
   test("a link from before this iteration decodes exactly as it did", async () => {
@@ -867,19 +892,21 @@ describe("075: pins round-trip and stay additive", () => {
     );
     const result = await decodeShareResult(token);
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.payload.pins).toBeUndefined();
-      expect(result.payload.sim).toEqual({ form: { depName: "react" } });
-      expect(result.payload.config).toBe('{"extends":["config:recommended"]}');
+    if (!result.ok) {
+      return;
     }
+    expect(result.payload.pins).toBeUndefined();
+    expect(result.payload.sim).toEqual({ form: { depName: "react" } });
+    expect(result.payload.config).toBe('{"extends":["config:recommended"]}');
   });
 
   test("an empty pin list is omitted rather than encoded", async () => {
     const result = await decodeShareResult(await encodeShare(minimalState({ pins: [] })));
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.payload.pins).toBeUndefined();
+    if (!result.ok) {
+      return;
     }
+    expect(result.payload.pins).toBeUndefined();
   });
 
   test("a malformed pins field never fails the link, and bad entries are dropped alone", async () => {
@@ -887,19 +914,21 @@ describe("075: pins round-trip and stay additive", () => {
       await rawEncodeToken(taggedPayload({ pins: { packageName: "react" } })),
     );
     expect(notAnArray.ok).toBe(true);
-    if (notAnArray.ok) {
-      expect(notAnArray.payload.pins).toBeUndefined();
-      expect(notAnArray.payload.config).toBe('{"extends":["config:recommended"]}');
+    if (!notAnArray.ok) {
+      return;
     }
+    expect(notAnArray.payload.pins).toBeUndefined();
+    expect(notAnArray.payload.config).toBe('{"extends":["config:recommended"]}');
     const mixed = await decodeShareResult(
       await rawEncodeToken(
         taggedPayload({ pins: [{ packageName: "react", depType: 5 }, "nope", { a: "" }] }),
       ),
     );
     expect(mixed.ok).toBe(true);
-    if (mixed.ok) {
-      expect(mixed.payload.pins).toEqual([{ packageName: "react" }]);
+    if (!mixed.ok) {
+      return;
     }
+    expect(mixed.payload.pins).toEqual([{ packageName: "react" }]);
   });
 
   test("a hand-edited link cannot install more pins than the cap", async () => {
@@ -908,10 +937,11 @@ describe("075: pins round-trip and stay additive", () => {
     }));
     const result = await decodeShareResult(await rawEncodeToken(taggedPayload({ pins: many })));
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.payload.pins).toHaveLength(MAX_PINNED_TESTS);
-      expect(result.payload.pins?.at(-1)).toEqual({ packageName: `pkg-${MAX_PINNED_TESTS - 1}` });
+    if (!result.ok) {
+      return;
     }
+    expect(result.payload.pins).toHaveLength(MAX_PINNED_TESTS);
+    expect(result.payload.pins?.at(-1)).toEqual({ packageName: `pkg-${MAX_PINNED_TESTS - 1}` });
   });
 });
 
@@ -928,34 +958,38 @@ describe("087: the provenance repo round-trips and stays additive", () => {
       await encodeShare(minimalState({ repo: "acme/webapp" })),
     );
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.payload.repo).toBe("acme/webapp");
+    if (!result.ok) {
+      return;
     }
+    expect(result.payload.repo).toBe("acme/webapp");
   });
 
   test("a link from before this iteration decodes with no suggestion", async () => {
     const result = await decodeShareResult(await rawEncodeToken(taggedPayload({})));
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.payload.repo).toBeUndefined();
+    if (!result.ok) {
+      return;
     }
+    expect(result.payload.repo).toBeUndefined();
   });
 
   test("a slug that would not pass the repo-load form is dropped, not fatal", async () => {
     for (const bad of ["owner/../repo", "owner/repo ", "", 42, { repo: "x" }]) {
       const result = await decodeShareResult(await rawEncodeToken(taggedPayload({ repo: bad })));
       expect(result.ok).toBe(true);
-      if (result.ok) {
-        expect(result.payload.repo).toBeUndefined();
+      if (!result.ok) {
+        return;
       }
+      expect(result.payload.repo).toBeUndefined();
     }
   });
 
   test("an unset repo is omitted from the wire entirely", async () => {
     const result = await decodeShareResult(await encodeShare(minimalState({})));
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.payload.repo).toBeUndefined();
+    if (!result.ok) {
+      return;
     }
+    expect(result.payload.repo).toBeUndefined();
   });
 });

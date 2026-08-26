@@ -57,10 +57,8 @@ describe("simulationPayload", () => {
       const payload = simulationPayload(SIM, options) as Record<string, unknown>;
       // Identity, member by member and by REFERENCE — including the two the
       // default projection drops. `flattened` is the one wrapper, checked next.
-      for (const [key, value] of Object.entries(SIM)) {
-        if (key !== "flattened") {
-          expect(payload[key], key).toBe(value);
-        }
+      for (const [key, value] of Object.entries(SIM).filter(([k]) => k !== "flattened")) {
+        expect(payload[key], key).toBe(value);
       }
       // …plus the two additions, and `verdict` first.
       expect(Object.keys(payload)[0]).toBe("verdict");
