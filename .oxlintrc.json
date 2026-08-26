@@ -48,21 +48,30 @@
   // advisory any more — `pnpm lint` reporting anything at all fails CI, which is
   // the point: an oxlint upgrade that adds rules to a category gets a decision
   // at upgrade time (an explicit renovate PR) instead of drifting silently.
-  //
-  // The same zero-tolerance now applies to the ESCAPE HATCHES. `pnpm lint`
-  // passes `--report-unused-disable-directives-severity=error`, so an
-  // `oxlint-disable-next-line` that has stopped suppressing anything is itself
-  // an error. This is what makes a disable-at-the-site a bounded exception
-  // rather than a permanent one: refactor the code out from under it and the
-  // build tells you the comment is now a lie, instead of leaving a stale
-  // waiver nobody dares remove. Switching it on found three immediately — a
-  // directive on a line whose rule only fires on the NEXT statement, and two
-  // `eslint-disable` lines naming rules oxlint does not implement, which had
-  // therefore never done anything at all. A blanket `"off"` has no equivalent
-  // of this check, which is the other half of why the jsx-a11y offs went.
   "categories": {
     "correctness": "error",
     "suspicious": "error"
+  },
+  // The same zero-tolerance applies to the ESCAPE HATCHES: an
+  // `oxlint-disable-next-line` that has stopped suppressing anything is itself
+  // an error. This is what makes a disable-at-the-site a bounded exception
+  // rather than a permanent one — refactor the code out from under it and the
+  // build tells you the comment is now a lie, instead of leaving a stale waiver
+  // nobody dares remove. A blanket `"off"` has no equivalent of this check,
+  // which is the other half of why the jsx-a11y offs went.
+  //
+  // Switching it on found three dead waivers immediately: a directive on a line
+  // whose rule only fires on the NEXT statement, and two naming rules oxlint
+  // does not implement, which had therefore never suppressed anything at all.
+  //
+  // It lives HERE rather than as a `pnpm lint` flag so that every way of
+  // running the linter agrees — the editor extension and a bare `oxlint` get
+  // the same verdict CI does, which a flag in one package script cannot give
+  // them. Only the ROOT config is read for this option; a CLI flag still wins
+  // over it, so `--report-unused-disable-directives-severity` remains
+  // available for a one-off run.
+  "options": {
+    "reportUnusedDisableDirectives": "error"
   },
   // `public/` is copied into the bundle verbatim — it is deployment payload,
   // not app source (roadmap 043's `rcd-config.js` stub is a comment and

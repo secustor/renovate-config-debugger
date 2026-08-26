@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @renovate-config-debugger/app dev",
-    "lint": "oxlint --type-aware --report-unused-disable-directives-severity=error && pnpm lint:css",
+    "lint": "oxlint --type-aware && pnpm lint:css",
     "lint:css": "stylelint \"packages/app/src/**/*.css\"",
     "check:exports": "knip --include exports,types,nsExports,nsTypes",
     "format": "oxfmt",
