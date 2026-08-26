@@ -301,8 +301,6 @@ export function App() {
       // Roadmap 075 (iteration 6): the link's pins, with ids minted by the
       // cluster that owns them.
       setPins: setPinsFromShare,
-      // Roadmap 087: the link's repo provenance replaces this session's — the
-      // previous LoadedRepo described a config that is no longer on screen.
       // An arrow, not the bare method: this host object is built during render
       // and `repoProvenance` is declared further down. The arrow only runs on a
       // link arrival, which is the same deferred-capture rule this object's
@@ -320,9 +318,6 @@ export function App() {
   // owned by `useResultsTab` because arriving at a rule is a tab switch.)
   const configEditorRef = useRef<ConfigEditorHandle>(null);
   const ruleProvenance = useRuleProvenance(result);
-  // The raw text is re-scanned only when it changes, not on every keystroke's
-  // render of something unrelated — this is a plain bracket-depth scan, not a
-  // full parse, so it stays cheap even for large configs.
   /**
    * Roadmap 075 (iteration 3): the header's `N rewrites` link. The Rewrites tab
    * retired into Pipeline's migrate stage, so "show me the rewrites" is two
@@ -449,13 +444,6 @@ export function App() {
     [focusEditorRepoIndexRef],
   );
 
-  // A new run invalidates what the previous run's views were pointing at. App's
-  // OWN half of that happens during render — React's "adjust state when a prop
-  // changes" idiom, the same one `StepThrough` uses: `result` is the trigger and
-  // the reset reads nothing out of it, and the selection and the two stepper
-  // indices are back at their starting points BEFORE the paint instead of one
-  // committed frame after it, where a stepper briefly showed the old step
-  // against the new run's sequence.
   useEffect(() => {
     // Roadmap 028: a new run invalidates the previous run's async counts —
     // the effective key stats and the Overview's behavior count (083), both
@@ -561,7 +549,6 @@ export function App() {
   // link's untrusted-endpoint guard, exactly as a typed load would. The impl
   // closes over this render's state; the latest-ref wrapper (the
   // `buildShareLinkAndCopy` idiom) keeps the handed-out identity stable for
-  // the run-view provider.
   // Joins the two clusters this offer is made of — the provenance claim and
   // the editor's load overlay — which is the shell's own job.
   // Destructured so the dependency list is plain identifiers: React Compiler
