@@ -63,11 +63,6 @@ export interface RuleEvidence {
   survivedCount: number;
 }
 
-/** The first stop AFTER `stopIndex` that names `key` — the write's killer.
- *  Shared with `pin-outcome.ts`, which asks the same question about the same
- *  run and must not be able to answer it differently. */
-const overriderOf = overridingStopIndex;
-
 export function buildRuleEvidence(
   ruleIndex: number,
   mergeStops: MergeStop[],
@@ -97,7 +92,7 @@ export function buildRuleEvidence(
   }
   const label = labels[stopIndex];
   const writes: RuleWrite[] = (mergeStops[stopIndex]?.merged ?? []).map((entry) => {
-    const overriddenAt = overriderOf(mergeStops, stopIndex, entry.key);
+    const overriddenAt = overridingStopIndex(mergeStops, stopIndex, entry.key);
     const overrider = overriddenAt === undefined ? undefined : labels[overriddenAt];
     return {
       key: entry.key,
