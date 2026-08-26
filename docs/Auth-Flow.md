@@ -89,17 +89,75 @@ sequenceDiagram
 ```
 
 GitHub rotates the refresh token on every use, which is why the restore and
-refresh paths are single-flight: a second concurrent `/refresh` would post the
-cookie the first one already burned.
+refresh paths are single-flight within a tab — and serialized ACROSS tabs by a
+Web Lock (`rcd.oauth.refresh`): a second concurrent `/refresh`, from a
+StrictMode remount or from a sibling tab booting at the same moment, would
+post the cookie the first one already burned and end the whole session. After
+waiting on the lock, a tab re-checks its state before posting: a sibling's
+refresh may already have handed it a fresh token (below), and then there is
+nothing left to do.
 
 Only a definitive 4xx ends the session; a transient failure never destroys
 state, because signing out fires `/logout` and could burn a still-good cookie
 over a network blip.
 
+## Cross-tab coordination (cookie mode)
+
+In cookie mode every tab shares ONE grant — the cookie — while each tab keeps
+its own access token in per-tab `sessionStorage`. GitHub revokes the old
+access token whenever the grant is refreshed ("that refresh token and the old
+user access token will no longer work"), so any tab's refresh invalidates the
+token every sibling tab still holds, hours before its recorded expiry — and
+the sibling cannot tell locally: its stored horizon still looks fine, so the
+silent-refresh machinery never fires.
+
+Two mechanisms close the gap:
+
+- **Token broadcast.** After a cookie-mode refresh, the new access token goes
+  out on a `BroadcastChannel` (`rcd.oauth`) and sibling tabs adopt it. A tab
+  adopts only when the shared-grant marker is live (the sender re-set it
+  before broadcasting) and never over an in-JS refresh token (that tab has its
+  own 009 grant); the message is validated like any stored value before it can
+  reach a request header. Sign-out broadcasts too, so siblings stop believing
+  in tokens the teardown just orphaned.
+- **401 recovery.** If a revoked token is sent anyway (the broadcast raced the
+  run, or the revocation came from outside — a revoked app grant), the engine
+  transport gives the 401 one recovery attempt: a registered
+  `AuthRefreshHandler` (engine `auth.ts`, registered per entry point in the
+  app's `run.ts`) forces the refresh past the trusted local expiry, pushes the
+  renewed auth state, and the request retries once with re-resolved headers.
+  If the grant is dead, the session ends cleanly and the retry — and the rest
+  of the run — goes out anonymously instead of failing on the dead token. The
+  CLI registers no handler, so the headless graph keeps the plain
+  throw-on-401.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant A as Tab A
+    participant B as Tab B (booting)
+    participant Worker as oauth-worker
+    participant GitHub as api.github.com
+    B->>Worker: POST /refresh {} (shared cookie)
+    Worker-->>B: new access token + rotated cookie
+    Note over A: GitHub revoked A's access token just now
+    B--)A: BroadcastChannel: replacement token
+    A->>GitHub: content fetch (revoked token — broadcast raced the run)
+    GitHub-->>A: 401 Bad credentials
+    A->>A: AuthRefreshHandler: adopt the replacement<br/>(or refresh under the Web Lock)
+    A->>GitHub: retry once with the new token
+    GitHub-->>A: 200
+```
+
+A rejected personal access token or credentials-row token is not renewable
+here — nothing in the app manages those lifecycles — so its 401 surfaces
+unchanged.
+
 ## Sign-out
 
 `signOut()` clears memory, every `rcd.oauth.*` storage key, and the marker,
-then fires a best-effort `POST /logout`, since only the worker can clear the
-`HttpOnly` cookie (the answer carries a clearing `Max-Age=0`). True revocation of the GitHub
-grant can only be done on
+broadcasts the sign-out to sibling tabs, then fires a best-effort
+`POST /logout`, since only the worker can clear the `HttpOnly` cookie (the
+answer carries a clearing `Max-Age=0`). True revocation of the GitHub grant
+can only be done on
 [github.com/settings/apps/authorizations](https://github.com/settings/apps/authorizations).
