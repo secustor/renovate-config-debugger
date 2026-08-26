@@ -1,5 +1,5 @@
 import { type ReactNode, useState } from "react";
-import { ProvenanceChip } from "@/components/ProvenanceChip";
+import { PresetName } from "@/components/PresetName";
 import { nf } from "@/lib/format";
 import { ClauseGrid } from "./ClauseGrid";
 import type { PinFailedRule, PinMatchedRule, PinRuleRef } from "./pin-outcome";
@@ -61,7 +61,9 @@ export function PinSectionHead({
 }
 
 /** The row's lead: the `packageRules[N]` reference as the expand toggle, then
- *  the preset chip when a preset contributed the rule. */
+ *  the preset that declared the rule. The standard `PresetName` token (081),
+ *  not `RuleRow`'s bare chip: "from ⟨X⟩" names a preset inside a sentence,
+ *  where the chip answers which LAYER a value arrived through. */
 function RuleRefLead({
   rule,
   expanded,
@@ -73,15 +75,20 @@ function RuleRefLead({
   onToggle: () => void;
   onSelectPreset?: (nodeId: string) => void;
 }) {
+  const layer = rule.layer;
   return (
     <>
       <button type="button" className="pin-rule-index" aria-expanded={expanded} onClick={onToggle}>
         {ruleRef(rule.index)}
       </button>
-      {rule.layer?.kind === "preset" ? (
+      {layer?.kind === "preset" ? (
         <>
           <span className="pin-rule-from">from</span>
-          <ProvenanceChip layer={rule.layer} onSelectPreset={onSelectPreset} />
+          <PresetName
+            name={layer.name}
+            nodeId={layer.nodeId}
+            onClick={onSelectPreset ? () => onSelectPreset(layer.nodeId) : undefined}
+          />
         </>
       ) : null}
     </>
