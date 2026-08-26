@@ -10,5 +10,5 @@
     // which requires the import specifiers to carry the real `.ts` extension.
     "allowImportingTsExtensions": true
   },
-  "include": ["agents/**/*.ts", "release/**/*.ts"]
+  "include": ["agents/**/*.ts", "release/**/*.ts", "lint/**/*.ts"]
 }

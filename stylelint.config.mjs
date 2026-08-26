@@ -17,10 +17,26 @@ export default {
     // the one legitimate function shape (color-mix of a var() token) is
     // allowed explicitly below instead.
     "scale-unlimited/declaration-strict-value": [
-      ["/color$/", "background", "fill", "stroke"],
+      // `border-radius` joined the colour properties once the radius scale was
+      // tokenized: four values accounted for 88 of the stylesheet's radius
+      // declarations, and nothing guarded them — this rule's enforcement was
+      // colour-only, which is exactly how they drifted to four in the first
+      // place. The genuine one-offs are allow-listed below rather than
+      // tokenized, so they read as a short, deliberate exception list instead
+      // of as silent drift.
+      ["/color$/", "background", "fill", "stroke", "border-radius"],
       {
         ignoreFunctions: false,
         ignoreValues: [
+          // Radius values that are not part of the scale and should not be:
+          // `0` and `50%` are geometry (a square corner, a circle), and the
+          // four pixel one-offs each serve a single element.
+          "0",
+          "50%",
+          "2px",
+          "3px",
+          "5px",
+          "10px",
           // Non-color keywords every color-bearing property may legitimately
           // carry.
           "transparent",
@@ -37,7 +53,7 @@ export default {
           "/^color-mix\\(/",
         ],
         message:
-          'Use a var() design token instead of a raw color value for "${property}" — see the :root token block in packages/app/src/index.css.',
+          'Use a var() design token instead of a raw value for "${property}" — see the :root token block in packages/app/src/index.css.',
       },
     ],
     // Catches var(--tyop)-style typos: every var() reference must resolve to

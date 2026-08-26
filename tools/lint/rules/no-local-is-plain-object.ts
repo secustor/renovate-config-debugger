@@ -1,0 +1,44 @@
+import { defineRule } from "@oxlint/plugins";
+
+/**
+ * `isPlainObject` existed four times, byte-identical, three of them private
+ * copies (structure review, finding 13). `lib/input-schemas.ts` exports the
+ * one the repo has decided to own.
+ *
+ * The cheapest rule of the set and the most generalisable: ban a LOCAL
+ * declaration of a name the repo owns centrally. The designated file is
+ * exempted by path in `.oxlintrc.json`, which is the same shape as the
+ * single-import-site exemptions already there for zod, the schema stack and the
+ * engine root.
+ */
+
+/** Helpers this repo owns in exactly one place, each mapped to the specifier
+ *  that exports it. The module is DATA rather than message prose so a helper
+ *  cannot be added without saying where it lives — a diagnostic that names the
+ *  offence without naming the import is a rule the reader still has to go
+ *  research, and the five sibling rules all name theirs.
+ *
+ *  Add sparingly: a name belongs here once a second copy has actually
+ *  appeared, not in anticipation. */
+const OWNED_HELPERS = new Map([["isPlainObject", "@/lib/input-schemas"]]);
+
+export default defineRule({
+  meta: {
+    type: "suggestion",
+    messages: {
+      ownedElsewhere:
+        "Import `{{name}}` from `{{from}}` instead of declaring a local copy — byte-identical private copies of this helper are exactly what the shared one replaced.",
+    },
+  },
+  createOnce(context) {
+    return {
+      FunctionDeclaration(node) {
+        const name = node.id?.name;
+        const from = name === undefined ? undefined : OWNED_HELPERS.get(name);
+        if (name !== undefined && from !== undefined) {
+          context.report({ node, messageId: "ownedElsewhere", data: { name, from } });
+        }
+      },
+    };
+  },
+});
