@@ -15,12 +15,12 @@ them as one uniform verdict — "these rules do not understand the patterns this
 app uses" — and wrote four `"off"` lines. Re-running them and reading every
 site individually gives a different split:
 
-| rule | hits | what they actually were |
-| --- | --- | --- |
-| `prefer-tag-over-role` | 9 | 1 real defect, 8 widget-specific exceptions |
-| `no-noninteractive-tabindex` | 4 | 1 real defect (4 copies of it) |
-| `control-has-associated-label` | 3 | 3 hits of a rule that ships the option for them |
-| `interactive-supports-focus` | 2 | 2 exceptions, no option that expresses them |
+| rule                           | hits | what they actually were                         |
+| ------------------------------ | ---- | ----------------------------------------------- |
+| `prefer-tag-over-role`         | 9    | 1 real defect, 8 widget-specific exceptions     |
+| `no-noninteractive-tabindex`   | 4    | 1 real defect (4 copies of it)                  |
+| `control-has-associated-label` | 3    | 3 hits of a rule that ships the option for them |
+| `interactive-supports-focus`   | 2    | 2 exceptions, no option that expresses them     |
 
 So of the four offs: one was suppressing a real bug, one was suppressing a real
 gap, one was a config line that had not been written, and only one was what all
@@ -151,7 +151,7 @@ checkable:
   positioned by, and brings its own Escape protocol that would race the app's
   shared Escape ladder rather than join it.
 - **`role="group"`** (`SequenceTimeline`). The rule offers `address, details,
-  fieldset, hgroup, optgroup`; every one means something this is not.
+fieldset, hgroup, optgroup`; every one means something this is not.
 - **2 × tablist** (`ResultsPanel`, `AddTestBox`). The composite-widget pattern:
   roving tabindex on the tabs, container out of the tab order so Tab moves past
   the bar rather than into it. The container's keydown handler — the thing that
