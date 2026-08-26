@@ -549,6 +549,7 @@ export function App() {
   // link's untrusted-endpoint guard, exactly as a typed load would. The impl
   // closes over this render's state; the latest-ref wrapper (the
   // `buildShareLinkAndCopy` idiom) keeps the handed-out identity stable for
+  // the run-view provider.
   // Joins the two clusters this offer is made of — the provenance claim and
   // the editor's load overlay — which is the shell's own job.
   // Destructured so the dependency list is plain identifiers: React Compiler
