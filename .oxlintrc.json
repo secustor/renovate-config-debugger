@@ -41,6 +41,9 @@
     "vitest",
     "jsx-a11y"
   ],
+  // This repo's own rules — see tools/lint/rules.ts. Every one is derived
+  // from duplication that was actually in the tree, not from a preference.
+  "jsPlugins": ["./tools/lint/rules.ts"],
   // Roadmap 041: `suspicious` was the last thing configured at warn. Nothing is
   // advisory any more — `pnpm lint` reporting anything at all fails CI, which is
   // the point: an oxlint upgrade that adds rules to a category gets a decision
@@ -211,7 +214,13 @@
         "packages/*/playwright.config.ts",
         "packages/oauth-worker/src/index.ts",
         "stylelint.config.mjs",
-        "release.config.mjs"
+        "release.config.mjs",
+        // The root vitest config, and the house-rule plugin: `definePlugin` and
+        // `defineRule` are default-export APIs, and oxlint loads `rules.ts` by
+        // path expecting one.
+        "vitest.config.ts",
+        "tools/lint/rules.ts",
+        "tools/lint/rules/*.ts"
       ],
       "rules": {
         "import/no-default-export": "off"
@@ -709,6 +718,63 @@
       "rules": {
         "vitest/no-commented-out-tests": "error"
       }
+    },
+    // ---- The house rules (tools/lint) ---------------------------------------
+    // Scoped to the APP's source, because that is where the helpers they point
+    // at live. `packages/engine` and `packages/cli` have their own
+    // `isPlainObject` and their own error-to-string, and must: the app's
+    // `@/lib/*` is across a package boundary they cannot import. Enabling the
+    // rules there would be telling them to import something that does not
+    // resolve.
+    //
+    // Test files are excluded. A test that spells `packageRules[0]` out is a
+    // GOLDEN assertion — building it from `ruleRef` would make it tautological
+    // and assert nothing — and a fixture is not production code the helper is
+    // trying to keep honest.
+    {
+      "files": ["packages/app/src/**"],
+      "excludeFiles": [
+        "packages/app/src/**/*.test.ts",
+        "packages/app/src/**/*.test.tsx",
+        "packages/app/src/**/*.shimmed.test.tsx"
+      ],
+      "rules": {
+        "rcd/use-error-message": "error",
+        "rcd/use-rule-ref": "error",
+        "rcd/use-synced-reset": "error",
+        "rcd/use-transient-value": "error",
+        "rcd/use-truncate": "error",
+        "rcd/no-local-is-plain-object": "error"
+      }
+    },
+    // ---- …and the files that ARE the helper ---------------------------------
+    // Same shape as the single-import-site exemptions below: the one place the
+    // thing may be spelled out is the place that defines it. Each override
+    // names ONE rule, so no REPLACE interaction with the layer banks — those
+    // are a different rule key entirely.
+    {
+      "files": ["packages/app/src/lib/errors.ts"],
+      "rules": { "rcd/use-error-message": "off" }
+    },
+    {
+      "files": ["packages/app/src/lib/rule-ref.ts"],
+      "rules": { "rcd/use-rule-ref": "off" }
+    },
+    {
+      "files": ["packages/app/src/lib/input-schemas.ts"],
+      "rules": { "rcd/no-local-is-plain-object": "off" }
+    },
+    {
+      "files": ["packages/app/src/hooks/use-transient-value.ts"],
+      "rules": { "rcd/use-transient-value": "off" }
+    },
+    {
+      "files": ["packages/app/src/hooks/use-synced-reset.ts"],
+      "rules": { "rcd/use-synced-reset": "off" }
+    },
+    {
+      "files": ["packages/app/src/lib/truncate.ts"],
+      "rules": { "rcd/use-truncate": "off" }
     },
     // ---- Structure review, finding 4: the engine-root exemption -------------
     // The shimmed component tests drive the REAL pipeline — `runPipeline` and
