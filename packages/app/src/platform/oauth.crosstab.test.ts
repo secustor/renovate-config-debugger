@@ -1,4 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import {
+  COOKIE_SESSION_KEY,
+  jsonResponse,
+  makeWorkerFetch,
+  memoryStorage,
+  type StorageLike,
+  WORKER_URL,
+} from "./oauth-test-harness";
 
 /**
  * The cross-tab half of oauth.ts: in cookie mode every tab shares one grant,
@@ -16,53 +24,16 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
  * not leak between tests.
  */
 
-const COOKIE_SESSION_KEY = "rcd.oauth.cookieSession";
 const TOKEN_KEY = "rcd.oauth.token";
 const TOKEN_EXPIRES_KEY = "rcd.oauth.tokenExpiresAt";
-const WORKER_URL = "https://worker.example";
-
-type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
-
-function memoryStorage(): StorageLike & { map: Map<string, string> } {
-  const map = new Map<string, string>();
-  return {
-    map,
-    getItem: (key) => map.get(key) ?? null,
-    setItem: (key, value) => {
-      map.set(key, value);
-    },
-    removeItem: (key) => {
-      map.delete(key);
-    },
-  };
-}
+const REFRESH_TOKEN_KEY = "rcd.oauth.refreshToken";
 
 const g = globalThis as { localStorage?: StorageLike; sessionStorage?: StorageLike };
 let local = memoryStorage();
 let session = memoryStorage();
 
 let refreshResponse: () => Response = () => jsonResponse({});
-
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
-}
-
-function baseFetch(input: unknown, init?: RequestInit): Promise<Response> {
-  const url = String(input);
-  if (url === `${WORKER_URL}/refresh`) {
-    return Promise.resolve(refreshResponse());
-  }
-  if (url === `${WORKER_URL}/logout`) {
-    return Promise.resolve(new Response(null, { status: 204 }));
-  }
-  if (url === "https://api.github.com/user") {
-    return Promise.resolve(jsonResponse({ login: "octocat", avatar_url: "https://ex.test/a.png" }));
-  }
-  return Promise.reject(new Error(`unexpected fetch: ${url} ${String(init?.method)}`));
-}
+const baseFetch = makeWorkerFetch(() => refreshResponse());
 
 const fetchMock = vi.fn(baseFetch);
 
@@ -238,6 +209,22 @@ describe("token broadcast", () => {
     });
     expect(fetchCalls(`${WORKER_URL}/logout`)).toHaveLength(0);
   });
+
+  test("a sibling's sign-out leaves an independent in-JS (009) grant alone", async () => {
+    // No cookie marker, an own refresh token: this tab's grant is nobody
+    // else's to tear down.
+    session.map.set(TOKEN_KEY, "ghu_mine");
+    session.map.set(TOKEN_EXPIRES_KEY, String(Date.now() + 7_200_000));
+    session.map.set(REFRESH_TOKEN_KEY, "ghr_mine");
+    const { isSignedIn } = await freshOAuth();
+    expect(isSignedIn()).toBe(true);
+
+    siblingPosts({ type: "signout" });
+    await new Promise((resolve) => {
+      setTimeout(resolve, 20);
+    });
+    expect(isSignedIn()).toBe(true);
+  });
 });
 
 describe("refresh lock", () => {
@@ -273,5 +260,22 @@ describe("refresh lock", () => {
     expect(await pending).toBe("ghu_from_sibling");
     // The whole point: no second /refresh with the already-rotated cookie.
     expect(fetchCalls(`${WORKER_URL}/refresh`)).toHaveLength(0);
+  });
+
+  test("a lock manager that refuses does not wedge the refresh single-flight", async () => {
+    seedCookieTab("ghu_stale", 0);
+    refreshResponse = () =>
+      jsonResponse({ access_token: "ghu_renewed", expires_in: 28_800, refresh_token_cookie: true });
+    vi.stubGlobal("navigator", {
+      locks: {
+        request: () => Promise.reject(new Error("document is not fully active")),
+      },
+    });
+    const { getValidToken } = await freshOAuth();
+
+    // The refresh still runs (unserialized), and the in-flight slot clears.
+    expect(await getValidToken()).toBe("ghu_renewed");
+    expect(await getValidToken()).toBe("ghu_renewed");
+    expect(fetchCalls(`${WORKER_URL}/refresh`)).toHaveLength(1);
   });
 });

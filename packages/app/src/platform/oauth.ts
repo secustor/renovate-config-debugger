@@ -330,7 +330,12 @@ function receiveBroadcast(data: unknown): void {
   }
   const msg = data as Partial<Omit<TokenBroadcast, "type">> & { type?: string };
   if (msg.type === "signout") {
-    clearLocalSession();
+    // A tab holding its own in-JS refresh token (009) has its own grant — a
+    // sibling's sign-out tears down the SHARED grant only, not this one.
+    if (!currentToken()?.refreshToken) {
+      clearLocalSession();
+      notifySessionChanged();
+    }
     return;
   }
   if (msg.type !== "token") {
@@ -356,14 +361,50 @@ function receiveBroadcast(data: unknown): void {
         ? msg.refreshTokenExpiresAt
         : undefined,
   });
+  notifySessionChanged();
+}
+
+const sessionListeners = new Set<() => void>();
+
+/** Cross-tab session changes land outside any React event (a sibling's
+ *  refresh signing this tab in, its sign-out tearing this tab down), so the
+ *  UI layer subscribes here and re-reads `isSignedIn()`/`getStoredUser()`.
+ *  Returns the unsubscribe. */
+export function onSessionBroadcast(listener: () => void): () => void {
+  sessionListeners.add(listener);
+  return () => {
+    sessionListeners.delete(listener);
+  };
+}
+
+function notifySessionChanged(): void {
+  for (const listener of sessionListeners) {
+    listener();
+  }
 }
 
 /** GitHub rotates the grant on every use, so cross-tab refreshes must not
  *  interleave. Best-effort: without Web Locks (old browser, tests) the
  *  per-tab single-flight still holds. */
-function withRefreshLock<T>(task: () => Promise<T>): Promise<T> {
+async function withRefreshLock<T>(task: () => Promise<T>): Promise<T> {
   const locks = typeof navigator === "undefined" ? undefined : navigator.locks;
-  return locks ? locks.request("rcd.oauth.refresh", task) : task();
+  if (!locks) {
+    return task();
+  }
+  let started = false;
+  try {
+    return await locks.request("rcd.oauth.refresh", () => {
+      started = true;
+      return task();
+    });
+  } catch (err) {
+    if (started) {
+      throw err; // the task's own failure — its callers classify it
+    }
+    // The lock MANAGER refused (inactive document, denied API): run
+    // unserialized rather than wedging every later caller on this rejection.
+    return task();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -703,7 +744,12 @@ async function restoreSessionImpl(): Promise<StoredUser | null> {
       }
       // Empty body: the refresh token is the cookie `credentials: "include"`
       // sends, and the SPA has no copy of it to offer.
-      return postWorker("/refresh", {});
+      const fresh = await postWorker("/refresh", {});
+      // Stored (and broadcast) BEFORE the lock releases: a sibling waiting on
+      // it must find this token on its own re-check, not a gap it would fill
+      // by posting the just-rotated cookie.
+      applyTokenResponse(fresh);
+      return fresh;
     });
   } catch (err) {
     // A definitive rejection (a 4xx: the cookie is gone, expired, or was
@@ -718,9 +764,12 @@ async function restoreSessionImpl(): Promise<StoredUser | null> {
     return null;
   }
   if (data === null) {
-    return getStoredUser();
+    // Signed in while we waited. A broadcast-adopted token carries no stored
+    // profile in THIS tab's sessionStorage, so the chip's user is fetched —
+    // cosmetic, same never-rejects contract as below.
+    const adopted = currentToken();
+    return getStoredUser() ?? (adopted ? await fetchUser(adopted.token).catch(() => null) : null);
   }
-  applyTokenResponse(data);
   return fetchUser(data.access_token as string).catch(() => null);
 }
 
@@ -756,12 +805,16 @@ export async function getValidToken(): Promise<string | null> {
   // per session, and a second concurrent cookie refresh would post the
   // already-rotated (burned) cookie and kill the session it is renewing.
   if (!refreshInFlight) {
-    refreshInFlight = withRefreshLock(async () => {
+    const refresh = async (): Promise<string | null> => {
       try {
         // Re-check under the cross-tab lock: a sibling's refresh (delivered
-        // by broadcast) may have renewed the token while we waited.
+        // by broadcast) may have renewed the token — or its sign-out torn
+        // the session down — while we waited.
         const renewed = currentToken();
-        if (renewed && Date.now() < renewed.tokenExpiresAt - skewMs) {
+        if (!renewed) {
+          return null;
+        }
+        if (Date.now() < renewed.tokenExpiresAt - skewMs) {
           return renewed.token;
         }
         const data = await postWorker(
@@ -784,7 +837,10 @@ export async function getValidToken(): Promise<string | null> {
       } finally {
         refreshInFlight = null;
       }
-    });
+    };
+    // Only the shared (cookie) grant needs cross-tab serialization; a 009
+    // tab's in-JS grant is its own, and the per-tab single-flight suffices.
+    refreshInFlight = viaCookie ? withRefreshLock(refresh) : refresh();
   }
   return refreshInFlight;
 }

@@ -152,6 +152,34 @@ describe("hostFetch 401 recovery", () => {
     expect(handler).toHaveBeenCalledTimes(1);
   });
 
+  it("hands the handler the token the attempt actually sent, not the current state", async () => {
+    setPresetAuth({ githubToken: "stale" });
+    const headers = authHeadersFor("github", request.url);
+    // A parallel request's recovery already replaced the state: the handler
+    // must still be told about "stale" (what THIS request sent), never
+    // "fresh" — reporting the live token as rejected would rotate it for
+    // nothing.
+    setPresetAuth({ githubToken: "fresh" });
+    const seen: Array<string | undefined> = [];
+    globalThis.fetch = vi.fn((_url: unknown, init?: { headers?: Record<string, string> }) => {
+      seen.push(init?.headers?.authorization);
+      return Promise.resolve(
+        seen.length === 1
+          ? new Response("nope", { status: 401 })
+          : new Response("{}", { status: 200 }),
+      );
+    }) as unknown as typeof fetch;
+    const handler = vi.fn((_h: string, _u: string, rejected: string) => {
+      expect(rejected).toBe("stale");
+      return Promise.resolve(true);
+    });
+    setAuthRefreshHandler(handler);
+
+    const res = await hostFetch({ ...request, headers });
+    expect(res.status).toBe(200);
+    expect(seen).toEqual(["Bearer stale", "Bearer fresh"]);
+  });
+
   it("retries anonymously when the handler dropped the dead token", async () => {
     setPresetAuth({ githubToken: "revoked" });
     const seen: Array<string | undefined> = [];

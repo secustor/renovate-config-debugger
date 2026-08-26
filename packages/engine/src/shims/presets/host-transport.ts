@@ -135,7 +135,7 @@ export async function hostFetch(request: HostRequest): Promise<Response> {
         request.platform,
       );
     }
-    if (res.status === 401 && attempt === 0 && (await refreshRejectedAuth(request))) {
+    if (res.status === 401 && attempt === 0 && (await refreshRejectedAuth(request, headers))) {
       headers = authHeadersFor(request.platform, request.url);
       continue;
     }
@@ -151,12 +151,24 @@ export async function hostFetch(request: HostRequest): Promise<Response> {
   }
 }
 
+/** The credential the 401'd attempt actually SENT, parsed back out of its own
+ *  headers — never re-resolved from the auth state, which a parallel request's
+ *  recovery may already have replaced (the handler would then be told a live
+ *  token was rejected and rotate it for nothing). */
+function sentToken(headers: Record<string, string>): string | undefined {
+  const raw = headers["PRIVATE-TOKEN"] ?? headers.authorization;
+  return raw?.replace(/^(?:Bearer|token) /, "");
+}
+
 /** True when the handler replaced the rejected credential in the auth state
  *  and the 401'd request should be retried. A missing handler, an anonymous
  *  request, or a handler failure all read as "no retry" — the plain throw. */
-async function refreshRejectedAuth(request: HostRequest): Promise<boolean> {
+async function refreshRejectedAuth(
+  request: HostRequest,
+  headers: Record<string, string>,
+): Promise<boolean> {
   const handler = getAuthRefreshHandler();
-  const rejected = resolveAuthToken(request.platform, request.url);
+  const rejected = sentToken(headers);
   if (!handler || rejected === undefined) {
     return false;
   }

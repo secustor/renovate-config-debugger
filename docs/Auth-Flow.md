@@ -119,7 +119,8 @@ Two mechanisms close the gap:
   before broadcasting) and never over an in-JS refresh token (that tab has its
   own 009 grant); the message is validated like any stored value before it can
   reach a request header. Sign-out broadcasts too, so siblings stop believing
-  in tokens the teardown just orphaned.
+  in tokens the teardown just orphaned — a tab holding its own in-JS grant
+  ignores it, since that grant is nobody else's to tear down.
 - **401 recovery.** If a revoked token is sent anyway (the broadcast raced the
   run, or the revocation came from outside — a revoked app grant), the engine
   transport gives the 401 one recovery attempt: a registered

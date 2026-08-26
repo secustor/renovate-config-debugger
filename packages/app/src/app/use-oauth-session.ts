@@ -1,9 +1,10 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { AuthState } from "@/components/GithubAuthHint";
 import {
   getOAuthConfig,
   getStoredUser,
   isSignedIn,
+  onSessionBroadcast,
   signOut,
   type StoredUser,
 } from "@/platform/oauth";
@@ -70,6 +71,19 @@ export function useOAuthSession(): OAuthSession {
     signOut();
     setSignedIn(false);
     setAuthUser(null);
+  }, []);
+
+  // A sibling tab's broadcast changes the session outside any React event —
+  // its refresh signs this tab in, its sign-out tears this tab down — so the
+  // chip re-reads the module state when one lands.
+  useEffect(() => {
+    if (!OAUTH_CONFIG) {
+      return;
+    }
+    return onSessionBroadcast(() => {
+      setSignedIn(isSignedIn());
+      setAuthUser(getStoredUser());
+    });
   }, []);
 
   return {
