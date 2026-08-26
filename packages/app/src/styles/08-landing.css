@@ -199,9 +199,7 @@
 /* Selected: the accent ring sits OUTSIDE the canvas halo, so the node keeps
    hiding the line while wearing it. */
 .stage-rail-btn.selected .stage-rail-glyph {
-  box-shadow:
-    0 0 0 3px var(--canvas),
-    0 0 0 6px color-mix(in srgb, var(--accent) 30%, transparent);
+  box-shadow: var(--shadow-ring);
 }
 
 .stage-rail-btn.selected .stage-rail-label {
@@ -210,7 +208,7 @@
 }
 
 .stage-rail-btn:focus-visible {
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -240,13 +238,11 @@
   gap: 0.35rem;
 }
 
-/* The stage the narration is on. Same ring as the live rail's selected node
-   (and outside the canvas halo for the same reason), so "where the run is" and
-   "where you are" read as one vocabulary. */
+/* The stage the narration is on. Literally the same ring as the live rail's
+   selected node — one token, so "where the run is" and "where you are" cannot
+   drift apart. */
 .stage-rail.preview .stage-rail-node.current .stage-rail-glyph {
-  box-shadow:
-    0 0 0 3px var(--canvas),
-    0 0 0 6px color-mix(in srgb, var(--accent) 30%, transparent);
+  box-shadow: var(--shadow-ring);
 }
 
 .stage-rail.preview .stage-rail-node.current .stage-rail-label {

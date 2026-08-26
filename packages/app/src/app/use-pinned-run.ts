@@ -21,14 +21,13 @@
  * owns the tab.
  */
 import { useCallback, useRef, useState } from "react";
-import type { FormState } from "@/features/simulator/form";
 import {
   MAX_PINS,
-  type PinnedTest,
   pinShareFields,
   pinsFromShareFields,
   samePinForm,
 } from "@/features/simulator/pins";
+import type { FormState, PinnedTest } from "@/types/simulator";
 
 export interface PinnedRun {
   pins: PinnedTest[];

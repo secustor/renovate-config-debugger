@@ -9,6 +9,7 @@ import { prefersReducedMotion } from "@/lib/motion";
 import { describeStageActivity, getStageActivity, type StageActivity } from "@/lib/stage-activity";
 import { stageDelta, type StageDelta, type StageDeltaFacts } from "@/lib/stage-delta";
 import type { TermId } from "@/data/glossary-data";
+import { useSyncedReset } from "@/hooks/use-synced-reset";
 
 /**
  * Roadmap 075 (v2, iteration 4) — the pipeline rail: one node per stage on a
@@ -287,11 +288,9 @@ export function StageRailPreview({
   // changes" idiom rather than a reset branch inside the interval effect: the
   // walk starting or stopping is the whole trigger, and the rail shows the first
   // frame in the render that observed it instead of a committed frame later.
-  const [steppingOwner, setSteppingOwner] = useState(stepping);
-  if (stepping !== steppingOwner) {
-    setSteppingOwner(stepping);
+  useSyncedReset(stepping, () => {
     setStep(0);
-  }
+  });
   // The interval is the external system this effect exists for — nothing else.
   // `setStep` inside its callback fires per tick, long after the effect body.
   useEffect(() => {

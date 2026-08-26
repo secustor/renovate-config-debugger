@@ -1,5 +1,5 @@
-import type { FormState } from "./form";
 import { QUICK_FILLS } from "./form";
+import type { FormState } from "@/types/simulator";
 
 /**
  * The design's empty state (Proposal F / "Skip Reason Funnel", `state:

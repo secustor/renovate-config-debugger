@@ -94,15 +94,10 @@ export interface KeyboardLandings {
   shortcutSheetOpen: boolean;
   showShortcuts: () => void;
   hideShortcuts: () => void;
-  /** False while the sheet is open — App passes it on to any binding of its
-   *  own, for the reason the flag's declaration below spells out. */
-  keysLive: boolean;
   /** The landing machinery itself, for the one caller outside this cluster:
    *  `applyErrorFix` arms its ticket before an await and lands with `focusTab`
    *  seconds later. */
   landing: FocusLanding;
-  focusEditor: () => void;
-  focusResults: (ticket?: LandingTicket) => void;
   focusTab: (id: ResultsTabId, ticket?: LandingTicket) => void;
   landOnPresetNode: () => void;
   skipToConfig: (event: MouseEvent<HTMLAnchorElement>) => void;
@@ -560,10 +555,7 @@ export function useKeyboardLandings(host: KeyboardLandingsHost): KeyboardLanding
     shortcutSheetOpen,
     showShortcuts,
     hideShortcuts,
-    keysLive,
     landing,
-    focusEditor,
-    focusResults,
     focusTab,
     landOnPresetNode,
     skipToConfig,

@@ -84,6 +84,34 @@
      — dark mode is already dark, so the same alpha would read as near-black. */
   --backdrop: light-dark(rgba(31, 35, 40, 0.35), rgba(0, 0, 0, 0.6));
 
+  /* The selected/current ring on a stage-rail glyph: the accent halo sits
+     OUTSIDE a canvas-coloured one, so the node keeps hiding the rail line while
+     wearing it. Two sites repeat it — the live rail's selected node and the
+     landing preview's current node — and a comment at the second admitted the
+     duplication was intentional "so they read as one vocabulary", with nothing
+     backing that but discipline. This token is the backing. */
+  --shadow-ring:
+    0 0 0 3px var(--canvas), 0 0 0 6px color-mix(in srgb, var(--accent) 30%, transparent);
+
+  /* Corner radii. Consolidated for the same reason the shadow family above was
+     (structure review, finding 22): four values accounted for 85 of the
+     stylesheet's radius declarations, spread across nearly every file in
+     styles/, and stylelint's enforcement is COLOUR-only — so nothing was
+     stopping a fifth from appearing next to them.
+
+     The scale is by ROLE, not by size, which is what makes it usable: a chip
+     and a card differ in what they are, and the radius follows. Genuine
+     one-offs (2px, 3px, 5px, 10px, and the `50%` circles) are deliberately NOT
+     tokenized — a token per occurrence is a rename, not a system. */
+  /* Inline marks: code spans, small badges, the caret hit-boxes. */
+  --radius-sm: 4px;
+  /* The default: inputs, buttons, rows, most bordered boxes. */
+  --radius-md: 6px;
+  /* Raised planes: cards, panels, overlays, hover cards. */
+  --radius-lg: 8px;
+  /* Fully round ends: pills, chips, toggles, the dot glyphs. */
+  --radius-pill: 999px;
+
   /* The stacking ladder, stated in ONE place and in the order the app means:
      a floating pill hovers over the PAGE, a popover hovers over what the
      reader is reading right now (so it must clear the pills — 054's evidence

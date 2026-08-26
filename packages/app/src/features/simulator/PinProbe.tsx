@@ -9,6 +9,7 @@ import { nf } from "@/lib/format";
 import { ClauseGrid } from "./ClauseGrid";
 import { MAX_PROBE_HITS, type ProbeHit, probeRules, probeSuggestions } from "./pin-probe";
 import type { RuleDescriptionNote } from "./rule-descriptions";
+import { ruleRef } from "@/lib/rule-ref";
 
 /**
  * The funnel's probe input (Proposal F / "Skip Reason Funnel") — "why didn't a
@@ -60,7 +61,7 @@ function ProbeHitSummary({
       <span className={`pin-section-mark ${hit.matched ? "mark-ok" : "mark-error"}`}>
         {hit.matched ? "✓" : "✗"}
       </span>
-      <code className="pin-probe-hit-ref">packageRules[{hit.index}]</code>
+      <code className="pin-probe-hit-ref">{ruleRef(hit.index)}</code>
       {hit.layer?.kind === "preset" ? (
         <ProvenanceChip layer={hit.layer} onSelectPreset={onSelectPreset} />
       ) : null}

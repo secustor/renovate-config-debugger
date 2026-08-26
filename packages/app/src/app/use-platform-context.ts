@@ -37,6 +37,7 @@ import {
   PLATFORM_KEY,
   readLocal,
 } from "@/platform/storage";
+import { useSyncedReset } from "@/hooks/use-synced-reset";
 
 export interface PlatformContext {
   /** The stored/typed platform — what `buildInputs` runs with. */
@@ -129,13 +130,11 @@ export function usePlatformContext(): PlatformContext {
   // the user set against the previous one. Done during render, the toolbar never
   // paints a frame claiming an override against a global config that no longer
   // states one.
-  const [globalContextOwner, setGlobalContextOwner] = useState(hasGlobalContext);
-  if (hasGlobalContext !== globalContextOwner) {
-    setGlobalContextOwner(hasGlobalContext);
+  useSyncedReset(hasGlobalContext, () => {
     if (!hasGlobalContext) {
       setPlatformOverride(false);
     }
-  }
+  });
 
   const applyUntrustedGuard = useCallback((next: UntrustedEndpointGuard | null) => {
     untrustedGuardRef.current = next;

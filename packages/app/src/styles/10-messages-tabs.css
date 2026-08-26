@@ -106,7 +106,7 @@
 .error-translation {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 0.85rem;
   margin: 0.4rem 0 0.15rem;
   padding: 0.5rem 0.65rem;
@@ -198,7 +198,7 @@
    severity classes stay on the item for everything else that reads them. */
 .messages li.problem-card {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--ink);
   overflow: hidden;
 }
@@ -281,7 +281,7 @@
    object. */
 .problem-diff {
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   flex: 1;
   font-family: var(--font-mono);
   font-size: 0.78rem;
@@ -330,7 +330,7 @@
 .stale-banner {
   background: var(--warn-bg);
   border: 1px solid var(--warn-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--warn);
   font-size: 0.85rem;
   margin: 0 0 0.6rem;
@@ -364,7 +364,7 @@
 .sim-results-body.stale::after {
   background: var(--warn-bg);
   border: 1px solid var(--warn-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--warn);
   content: "Stale — inputs changed, simulate again";
   font-size: 0.9rem;
@@ -437,7 +437,7 @@
 .card .cm-editor .cm-tooltip:has(.cm6-json-schema-hover) {
   background: var(--surface-raised);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-popover);
   color: var(--ink);
   font-size: 0.8rem;
@@ -480,7 +480,7 @@
 .back-to-top {
   background: var(--accent-fill);
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   bottom: 1.25rem;
   box-shadow: var(--shadow-float);
   color: var(--on-accent);
@@ -506,7 +506,7 @@
   align-items: center;
   background: var(--surface-raised);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   bottom: 1.25rem;
   box-shadow: var(--shadow-float);
   color: var(--accent);
@@ -538,7 +538,7 @@
   background: var(--error-bg);
   border: 1px solid var(--error-border);
   border-left: 3px solid var(--error);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: inherit;
   font-size: 0.85rem;
   margin: 0 0 0.6rem;
@@ -549,7 +549,7 @@
    consequence without moving their scroll. */
 .rcd-toast {
   background: var(--accent-fill);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   bottom: 1.25rem;
   box-shadow: var(--shadow-float);
   color: var(--on-accent);
@@ -567,7 +567,7 @@
 .sim-focus-hint {
   background: var(--accent-bg);
   border: 1px solid var(--accent-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 0.85rem;
   margin: 0 0 0.6rem;
   padding: 0.5rem 0.7rem;
@@ -702,100 +702,8 @@
 
 .results-panel {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
-}
-
-/* Wraps rather than overflowing: the strip must never push the page sideways.
-   Roadmap 075: a rail, so the active tab has something to be attached TO — its
-   top padding is the gap the raised card needs above it. */
-.tab-bar {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.1rem;
-  padding: 0.3rem 0.3rem 0;
-}
-
-.tab {
-  align-items: center;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 6px 6px 0 0;
-  color: var(--muted);
-  cursor: pointer;
-  display: inline-flex;
-  font-family: inherit;
-  font-size: 0.85rem;
-  gap: 0.25rem;
-  /* Overlaps the rail's own bottom border, which is what lets the active tab
-     paint over it and read as one surface with the body below. */
-  margin-bottom: -1px;
-  /* 083 made the strip six tabs; at the previous 0.8rem sides the sixth
-     wrapped onto its own row at a 1280px viewport. The strip must hold one
-     row at the standard desktop width (guarded in 12-layout-regressions) — and
-     not just under macOS's system font: Linux renders `system-ui` as DejaVu
-     Sans, whose wider glyphs ate all the slack the 0.55rem sides left, so the
-     strip wrapped on every Linux desktop (and in CI). Sized for the widest
-     common `system-ui`, not the narrowest. */
-  padding: 0.45rem 0.4rem;
-}
-
-.tab:hover {
-  color: var(--ink);
-}
-
-/* Roadmap 075, the attached tab: the selected tab is a card of the BODY's
-   ground, bordered on three sides, with its fourth side painted out in that
-   same ground so the seam between tab and panel disappears. */
-.tab.active {
-  background: var(--canvas);
-  border-color: var(--border);
-  border-bottom-color: var(--canvas);
-  color: var(--ink);
-  font-weight: 600;
-}
-
-/* A tab with nothing to show stays visible and clickable — dimmed, not gone,
-   so the strip's geometry is stable across runs. Not while SELECTED, though:
-   the reader is on that tab, and dimming its label made Tests/Problems read
-   fainter than every other selected tab (the two are routinely empty). */
-.tab.empty:not(.active) {
-  opacity: 0.55;
-}
-
-/* The count is a `.pill` (see the pill standard); `.tab-count` is kept as the
-   stable hook the e2e specs and the keystroke render test address it by. */
-.tab-count {
-  flex: none;
-}
-
-.tab-body {
-  padding: 0.75rem;
-}
-
-.tab-panel > .card:last-child,
-.tab-panel > .empty-note:last-child {
-  margin-bottom: 0;
-}
-
-/* One-step "back to where I was" after an automatic tab switch. Quiet by
-   design — it is a way back, not a call to action. */
-.tab-back {
-  background: none;
-  border: none;
-  color: var(--muted);
-  cursor: pointer;
-  display: block;
-  font: inherit;
-  font-size: 0.8rem;
-  margin: 0 0 0.5rem;
-  padding: 0;
-}
-
-.tab-back:hover {
-  color: var(--accent);
 }
 
 /* --- roadmap 029/075: the run digest --------------------------------------

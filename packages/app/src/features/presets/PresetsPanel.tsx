@@ -3,6 +3,7 @@ import type { TraceResult } from "@renovate-config-debugger/engine";
 import type { AuthState } from "@/components/GithubAuthHint";
 import { PresetLedger } from "./PresetLedger";
 import { PresetTree } from "./PresetTree";
+import { useSyncedReset } from "@/hooks/use-synced-reset";
 
 /**
  * Roadmap 075 (iteration 5b): the Presets tab, which now has two views.
@@ -61,13 +62,11 @@ export const PresetsPanel = memo(function PresetsPanel({
   // Later selections are synced DURING RENDER (the `EffectiveConfig` idiom): an
   // effect would put the tree one commit later than the selection, and App's
   // landing is already polling the DOM for the selected row by then.
-  const [lastSelected, setLastSelected] = useState(selectedId);
-  if (lastSelected !== selectedId) {
-    setLastSelected(selectedId);
+  useSyncedReset(selectedId, () => {
     if (selectedId) {
       setView("tree");
     }
-  }
+  });
 
   const root = result.presetTree;
   if (view === "ledger" && root) {

@@ -5,11 +5,12 @@ import { Caret } from "@/components/Caret";
 import { OpenInSimulatorLink } from "./OpenInSimulatorLink";
 import { PinBucketList } from "./PinBucketList";
 import { PinHeadRow } from "./PinHeadRow";
-import { pinContext, pinName, type PinnedTest } from "./pins";
+import { pinContext, pinName } from "./pins";
 import { PinProbe } from "./PinProbe";
 import { type CrossLinks, PinFailedSection, PinMatchedSection } from "./PinRuleSections";
 import type { RuleDescriptionNote } from "./rule-descriptions";
 import type { PinEvaluation } from "./use-pinned-tests";
+import type { PinnedTest } from "@/types/simulator";
 
 /**
  * One pinned test as the design's funnel card (Proposal F / "Skip Reason

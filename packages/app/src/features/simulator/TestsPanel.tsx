@@ -5,14 +5,15 @@ import { useRuleProvenance } from "@/hooks/rule-provenance";
 import { ruleLayerIndex } from "@/lib/rule-filters";
 import type { ShareSimulator } from "@/lib/share";
 import type { ErrorTranslationLib } from "@/platform/run";
-import type { FormState } from "./form";
 import { PinsView } from "./PinsView";
-import { type PinnedTest, pinShareFields } from "./pins";
-import type { RepoConnectOffer, RepoDepsView } from "./repo-deps";
+import { pinShareFields } from "./pins";
 import { buildRuleDescriptions } from "./rule-descriptions";
 import { RuleSimulator } from "./RuleSimulator";
 import type { SimRequest } from "./use-share-link-request";
 import { usePinnedTests } from "./use-pinned-tests";
+import { useSyncedReset } from "@/hooks/use-synced-reset";
+import type { FormState, PinnedTest } from "@/types/simulator";
+import type { RepoConnectOffer, RepoDepsView } from "@/types/repo";
 
 /**
  * Roadmap 075 (iteration 6): the Tests tab, which now has two views — the same
@@ -99,8 +100,6 @@ export const TestsPanel = memo(function TestsPanel({
   // Later requests are synced DURING RENDER (the `PresetsPanel` idiom): an
   // effect would put the view one commit behind the request, and the simulator's
   // own auto-run is already reacting to it by then.
-  const [seenSimNonce, setSeenSimNonce] = useState(simRequest?.nonce ?? null);
-  const [seenFocus, setSeenFocus] = useState(focusRuleIndex);
   /** The request a pin's "open in simulator →" makes: the same descriptor
    *  channel a share link uses, so the form is filled and re-simulated by the
    *  one mechanism that already does exactly that (`useShareLinkRequest`).
@@ -108,20 +107,18 @@ export const TestsPanel = memo(function TestsPanel({
    *  hook's own counter and swallow a link's request. */
   const pinNonce = useRef(0);
   const [pinRequest, setPinRequest] = useState<SimRequest | null>(null);
-  if ((simRequest?.nonce ?? null) !== seenSimNonce) {
-    setSeenSimNonce(simRequest?.nonce ?? null);
+  useSyncedReset(simRequest?.nonce ?? null, () => {
     // A link replaces the screen, and with it any pin the reader had opened.
     setPinRequest(null);
     if (simRequest) {
       setView("simulator");
     }
-  }
-  if (focusRuleIndex !== seenFocus) {
-    setSeenFocus(focusRuleIndex);
+  });
+  useSyncedReset(focusRuleIndex, () => {
     if (focusRuleIndex !== null) {
       setView("simulator");
     }
-  }
+  });
 
   const attribution = useRuleProvenance(result);
   const layerByIndex = useMemo(() => ruleLayerIndex(attribution), [attribution]);

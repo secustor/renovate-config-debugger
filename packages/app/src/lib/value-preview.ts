@@ -22,3 +22,28 @@ export function valuePreview(value: unknown): string {
   }
   return truncate(JSON.stringify(value) ?? String(value), 80);
 }
+
+/**
+ * The other half of the same job, for the two fix diffs — `ProblemCard`'s
+ * unified −/+ strip and `ErrorTranslationView`'s before/after pair. Unlike
+ * `valuePreview` a diff line must show the value's SHAPE (that is the whole
+ * point of the diff), so containers are dumped rather than counted, and the
+ * budget is a line's worth rather than a cell's.
+ *
+ * Both callers had spelled this inline with a bare `slice(0, 140)`, which is
+ * exactly the surrogate split `truncate` exists to prevent: a config value
+ * carrying an emoji rendered a replacement glyph in the diff.
+ */
+export function fixSnippet(value: unknown): string {
+  return truncate(JSON.stringify(value) ?? String(value), 140);
+}
+
+/**
+ * Whether a fix actually changes the value, i.e. whether there is a diff to
+ * draw at all. Compared as JSON because `before`/`after` are arbitrary config
+ * values, so reference equality says nothing and the two objects are usually
+ * distinct instances of the same shape.
+ */
+export function fixChangesValue(before: unknown, after: unknown): boolean {
+  return JSON.stringify(before) !== JSON.stringify(after);
+}

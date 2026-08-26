@@ -8,6 +8,7 @@ import { layerLabel } from "@/lib/provenance-layer";
 import { crossRuleIndex } from "@/lib/rule-cross-index";
 import { fullValue } from "./rule-format";
 import type { RuleDescriptionNote } from "./rule-descriptions";
+import { ruleRef } from "@/lib/rule-ref";
 
 /**
  * The funnel's probe (Proposal F / "Skip Reason Funnel"): "why didn't a rule
@@ -86,7 +87,7 @@ function ruleFields(
   description: RuleDescriptionNote | undefined,
   body: unknown,
 ): [string, string][] {
-  const fields: [string, string][] = [["index", `packageRules[${ruleIndex}]`]];
+  const fields: [string, string][] = [["index", ruleRef(ruleIndex)]];
   if (layer) {
     fields.push(["preset", layerLabel(layer)]);
   }
@@ -191,7 +192,7 @@ export function probeSuggestions(
   }
   const firstSkipped = sim.rules.find((rule) => rule.verdict !== "matched");
   if (firstSkipped) {
-    suggestions.push(`packageRules[${firstSkipped.index}]`);
+    suggestions.push(ruleRef(firstSkipped.index));
   }
   return suggestions;
 }

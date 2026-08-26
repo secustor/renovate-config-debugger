@@ -1,6 +1,6 @@
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { DATASOURCE_LIST_ID } from "./datalist-ids";
-import type { FormState } from "./form";
+import type { FormState } from "@/types/simulator";
 
 /**
  * One blank in the sentence: a borderless mono input on a dashed accent

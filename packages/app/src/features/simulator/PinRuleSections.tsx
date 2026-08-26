@@ -5,6 +5,7 @@ import { ClauseGrid } from "./ClauseGrid";
 import type { PinFailedRule, PinMatchedRule, PinRuleRef } from "./pin-outcome";
 import type { RuleDescriptionNote } from "./rule-descriptions";
 import { RuleDescriptionQuote } from "./RuleDescriptionQuote";
+import { ruleRef } from "@/lib/rule-ref";
 
 /**
  * The funnel's two named-rule sections (Proposal F / "Skip Reason Funnel"):
@@ -75,7 +76,7 @@ function RuleRefLead({
   return (
     <>
       <button type="button" className="pin-rule-index" aria-expanded={expanded} onClick={onToggle}>
-        packageRules[{rule.index}]
+        {ruleRef(rule.index)}
       </button>
       {rule.layer?.kind === "preset" ? (
         <>
@@ -110,7 +111,7 @@ function EditorJumpLink({
   const repoIndex = rule.repoIndex;
   return (
     <button type="button" className="btn-quiet" onClick={() => onJumpToEditor(repoIndex)}>
-      edit packageRules[{repoIndex}] in your config →
+      edit {ruleRef(repoIndex)} in your config →
     </button>
   );
 }

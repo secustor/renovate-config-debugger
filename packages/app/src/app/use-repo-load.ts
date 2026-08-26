@@ -23,12 +23,14 @@ import { useEscapeLayer } from "@/hooks/use-escape-layer";
 import type { RepoPlatform, TraceResult } from "@renovate-config-debugger/engine";
 import { PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
 import { FETCHABLE_PLATFORMS, HOST_PLATFORM } from "@/data/host-tokens";
+import { isGithubRateLimited } from "@/lib/github-failure";
 import { isValidRepoHost, isValidRepoRefPart } from "@/lib/input-schemas";
 import { configFileNameFor, parseRepoReference } from "@/lib/repo-reference";
 import type { ShareFileName, UntrustedEndpointGuard } from "@/lib/share";
-import type { LoadedRepo } from "@/features/simulator/repo-deps";
 import { extractPackageJsonConfig, loadRepoConfig, loadRepoFile } from "@/platform/run";
 import type { RunInputs } from "@/lib/run-inputs";
+import { causedErrorMessage } from "@/lib/errors";
+import type { LoadedRepo } from "@/types/repo";
 
 /**
  * What the load needs from App.tsx. Handed in fresh every render and read
@@ -364,7 +366,7 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
           `No Renovate config found in ${parsed.repo} (tried ${count} locations). It may keep its config elsewhere, on a non-default branch, or in a private repo needing a token.`,
         );
       } else {
-        detail = e?.err?.message ?? (err instanceof Error ? err.message : String(err));
+        detail = causedErrorMessage(err);
         setFatal(
           `Could not load from ${repoEndpoint || "the default endpoint"}: ${detail}. For a private repo, sign in or add a token; some hosts block browser (CORS) requests entirely.`,
         );
@@ -372,7 +374,7 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
       // Offer the sign-in / install hint for GitHub loads that look like a
       // private-repo (not-found) or auth/rate-limit failure (009).
       if (oauthConfigured && repoPlatform === "github") {
-        const rateLimited = /rate limit or missing token/i.test(detail);
+        const rateLimited = isGithubRateLimited(detail);
         if (e?.name === "RepoConfigNotFoundError" || rateLimited) {
           setRepoAuthHint({ rateLimited });
         }

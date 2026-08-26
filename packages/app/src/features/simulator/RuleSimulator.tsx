@@ -1,10 +1,11 @@
 import { nf } from "@/lib/format";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import type { TraceResult } from "@renovate-config-debugger/engine";
 import { Term } from "@/components/glossary";
 import { RuleFramingAside } from "@/components/rule-framing";
 import { useDescriptionProvenance } from "@/hooks/description-provenance";
 import { useRuleProvenance } from "@/hooks/rule-provenance";
+import { useTransientFlag } from "@/hooks/use-transient-flag";
 import { consumedAuthoredBlocks } from "@/lib/consumed-blocks";
 import { ruleLayerIndex } from "@/lib/rule-filters";
 import type { ShareSimulator } from "@/lib/share";
@@ -13,7 +14,6 @@ import { buildNoInputCaveat, buildVerdictSegments } from "@/lib/verdict-sentence
 import type { ErrorTranslationLib } from "@/platform/run";
 import { SIM_FORM_ID } from "./datalist-ids";
 import { DescriptorActions } from "./DescriptorActions";
-import type { FormState } from "./form";
 import { buildMergeStops } from "./merge-stops";
 import { EmptyFormGuard, PinLimitNote } from "./FormNotes";
 import { MAX_PINS } from "./pins";
@@ -33,6 +33,8 @@ import { useSimulatorDrawers } from "./use-simulator-drawers";
 import { useSimulatorForm } from "./use-simulator-form";
 import { useThreadNav } from "./use-thread-nav";
 import { buildVerdictThreads } from "./verdict-threads";
+import { ruleRef } from "@/lib/rule-ref";
+import type { FormState } from "@/types/simulator";
 
 /**
  * Roadmap 006: the packageRules simulator. Describe a hypothetical dependency
@@ -48,6 +50,9 @@ import { buildVerdictThreads } from "./verdict-threads";
 // Roadmap 032: memoized — the simulator renders the full merged rule list and
 // reads nothing from the editor; its callback props are identity-stable in
 // App (useCallback / the latest-ref idiom), so typing never re-renders it.
+/** How long "Pinned ✓" stays up — the click answering itself, no longer. */
+const PIN_RECEIPT_MS = 2000;
+
 /** Replay-02 R1: the stale banner names the run it describes, so a cropped
  *  screenshot of a stale card is self-labelling instead of actively wrong. */
 function SimStaleBanner({ ranLabel }: { ranLabel: string }) {
@@ -225,11 +230,10 @@ export const RuleSimulator = memo(function RuleSimulator({
   }, [running, simulateRef]);
   // Roadmap 080: the pin's own receipt — the pins list is behind "← Back to
   // tests", so the click has to answer itself here. Transient, like the pins
-  // view's own Share receipt — but unlike that view, this one unmounts on the
-  // very next click ("← Back to tests"), so the timer is held and cleared.
-  const [justPinned, setJustPinned] = useState(false);
-  const pinReceiptTimer = useRef<number | undefined>(undefined);
-  useEffect(() => () => window.clearTimeout(pinReceiptTimer.current), []);
+  // view's own Share receipt — and unlike that view this one unmounts on the
+  // very next click ("← Back to tests"), so the timer MUST be cleared. Holding
+  // it by hand is exactly what `useTransientFlag` was written to stop doing.
+  const [justPinned, flashPinned] = useTransientFlag(PIN_RECEIPT_MS);
 
   const finalConfig = result.finalConfig;
   const packageRules = useMemo(
@@ -387,9 +391,7 @@ export const RuleSimulator = memo(function RuleSimulator({
     if (!pinDescriptor(onAddPin)) {
       return;
     }
-    setJustPinned(true);
-    window.clearTimeout(pinReceiptTimer.current);
-    pinReceiptTimer.current = window.setTimeout(() => setJustPinned(false), 2000);
+    flashPinned();
   }
 
   if (packageRules.length === 0) {
@@ -437,8 +439,8 @@ export const RuleSimulator = memo(function RuleSimulator({
       </div>
       {focusHint !== null && !sim ? (
         <p className="sim-focus-hint">
-          <code>packageRules[{focusHint}]</code> is evaluated here once you run a simulation —
-          describe a dependency below and click Simulate to see how it matches.
+          <code>{ruleRef(focusHint)}</code> is evaluated here once you run a simulation — describe a
+          dependency below and click Simulate to see how it matches.
         </p>
       ) : null}
       <SimulatorForm

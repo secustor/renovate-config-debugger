@@ -1,26 +1,5 @@
 import type { DependencyDescriptor } from "@renovate-config-debugger/engine";
-
-export interface FormState {
-  manager: string;
-  datasource: string;
-  packageName: string;
-  depName: string;
-  depType: string;
-  packageFile: string;
-  currentValue: string;
-  currentVersion: string;
-  newValue: string;
-  updateType: string;
-  lockedVersion: string;
-  lockFiles: string;
-  versioning: string;
-  sourceUrl: string;
-  registryUrls: string;
-  categories: string;
-  repository: string;
-  baseBranch: string;
-  currentVersionTimestamp: string;
-}
+import type { FormState } from "@/types/simulator";
 
 export const EMPTY_FORM: FormState = {
   manager: "",

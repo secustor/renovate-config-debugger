@@ -1,4 +1,5 @@
 import type { ValidationMessage } from "@renovate-config-debugger/engine";
+import { fixChangesValue, fixSnippet } from "@/lib/value-preview";
 import type { ErrorTranslationLib } from "@/platform/run";
 
 /**
@@ -50,7 +51,7 @@ export function ErrorTranslationView({
     );
   }
   const { explanation, fix, docsUrl } = translated;
-  const showDiff = fix && JSON.stringify(fix.before) !== JSON.stringify(fix.after);
+  const showDiff = fix && fixChangesValue(fix.before, fix.after);
   return (
     <div className="error-translation">
       <p className="error-translation-explain">{explanation}</p>
@@ -58,12 +59,12 @@ export function ErrorTranslationView({
         <div className="error-translation-fix">
           {showDiff ? (
             <div className="error-translation-diff">
-              <code className="before">{formatSnippet(fix.before)}</code>
+              <code className="before">{fixSnippet(fix.before)}</code>
               <span className="error-translation-arrow" aria-hidden="true">
                 →
               </span>
               <code className="after">
-                {fix.after === undefined ? "(removed)" : formatSnippet(fix.after)}
+                {fix.after === undefined ? "(removed)" : fixSnippet(fix.after)}
               </code>
             </div>
           ) : (
@@ -78,9 +79,4 @@ export function ErrorTranslationView({
       ) : null}
     </div>
   );
-}
-
-function formatSnippet(value: unknown): string {
-  const text = JSON.stringify(value);
-  return text.length > 140 ? `${text.slice(0, 140)}…` : text;
 }

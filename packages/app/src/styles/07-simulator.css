@@ -43,7 +43,7 @@
 .sim-quickfill {
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--muted);
   cursor: pointer;
   font: inherit;
@@ -117,7 +117,7 @@
   align-items: center;
   background: var(--warn-bg);
   border: 1.5px dashed var(--warn-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--warn);
   display: inline-flex;
   font-size: 0.85rem;
@@ -170,7 +170,7 @@
 
 .sim-group {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   margin-bottom: 0.45rem;
   overflow: hidden;
 }
@@ -209,7 +209,7 @@
 .sim-group-count {
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--faint);
   flex: none;
   font-size: 0.66rem;
@@ -255,7 +255,7 @@
 .sim-field > input {
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: inherit;
   font-family: var(--font-mono);
   font-size: 0.78rem;
@@ -268,7 +268,7 @@
 .sim-multi-box {
   align-items: center;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem;
@@ -284,7 +284,7 @@
   align-items: center;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   display: inline-flex;
   font-family: var(--font-mono);
   font-size: 0.7rem;
@@ -324,7 +324,7 @@
   align-self: start;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   /* Since 082 the document prints every set descriptor field, not a capped
      eight — a sticky box taller than the viewport would hide its own tail. */
   max-height: calc(100vh - 1rem);
@@ -374,7 +374,7 @@
 .sim-descriptor-section {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   margin-top: 0.45rem;
   overflow: hidden;
 }
@@ -451,7 +451,7 @@
 
 .sim-rules {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
@@ -560,7 +560,7 @@
 
 .sim-merged {
   background: var(--surface);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 0.82rem;
   margin-top: 0.5rem;
   padding: 0.5rem 0.7rem;
@@ -637,7 +637,7 @@
 
 .sim-verdict-block {
   border: 1px solid var(--ok-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   margin-bottom: 0.75rem;
   overflow: hidden;
 }
@@ -732,7 +732,7 @@
 .sim-thread-head {
   background: none;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: inherit;
   cursor: pointer;
   font: inherit;

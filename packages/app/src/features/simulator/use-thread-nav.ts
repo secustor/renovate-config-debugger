@@ -5,6 +5,7 @@ import type { SimulationResult } from "@renovate-config-debugger/engine";
 import { ESCAPE_PRIORITY } from "@/lib/escape-stack";
 import { landOnTarget } from "@/lib/motion";
 import { useEscapeLayer } from "@/hooks/use-escape-layer";
+import { useSyncedReset } from "@/hooks/use-synced-reset";
 
 /**
  * Roadmap 054 (layer 4): thread expansion and the way back from a jump, as one
@@ -72,11 +73,9 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
   // dismissal reads nothing out of it, and the pill offering a way back into
   // evidence that no longer exists is gone before the paint rather than one
   // committed frame after it.
-  const [simOwner, setSimOwner] = useState(sim);
-  if (sim !== simOwner) {
-    setSimOwner(sim);
+  useSyncedReset(sim, () => {
     setReturnKey(null);
-  }
+  });
 
   // The threads themselves start collapsed. This half stays an effect: a link's
   // requested thread is CONSUMED here, and consuming a ref is a write React is

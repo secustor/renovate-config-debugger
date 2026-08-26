@@ -1,7 +1,9 @@
 /* Split out of index.css (roadmap 050's deferred plan, executed 2026-08-23).
    ORDER IS LOAD-BEARING: main.tsx imports these numbered files in sequence,
-   preserving the original file's cascade byte-for-byte — two cross-file
-   equal-specificity couplings (.preset-panel, .diff-wrapper) depend on it.
+   preserving the original file's cascade byte-for-byte — one cross-file
+   equal-specificity coupling (.diff-wrapper) depends on it. `.preset-panel`
+   used to be a second: it was a latent bug, not a coupling, and the stacked
+   override below now wins on specificity instead of on load order.
    This file: the preset resolution tree, its legibility at scale, preset descriptions (002/011/069). */
 
 /* ---------- preset resolution tree (002) ---------- */
@@ -36,7 +38,14 @@
     grid-template-columns: 1fr;
   }
 
-  .preset-panel {
+  /* Specificity, not file order, is what makes this win. `04-config-context`
+     sets the unconditional `border-left` on a bare `.preset-panel` — equal
+     specificity (0,1,0), and a container query adds none — and it loads after
+     this file, so the bare form here lost and the stacked panel kept a stray
+     left border. The compound selector matches every `.preset-panel` there is
+     (`PresetTree` renders the panel only under `.with-panel`), so this is the
+     same rule with the cascade accident removed. */
+  .preset-tree-layout.with-panel .preset-panel {
     border-left: none;
     border-top: 1px solid var(--border);
   }
@@ -98,7 +107,7 @@
 .preset-row .preset-name {
   background: transparent;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: inherit;
   cursor: pointer;
   font-family: var(--font-mono);
@@ -150,7 +159,7 @@
 .badge {
   background: var(--chip-fill);
   border: 1px solid var(--chip-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 0.7rem;
   line-height: 1.4;
   padding: 0 0.45rem;
@@ -303,7 +312,7 @@
 .preset-search {
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: inherit;
   flex: 1;
   font-size: 0.85rem;
@@ -337,7 +346,7 @@
 }
 
 .seg button:first-child {
-  border-radius: 6px 0 0 6px;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
 }
 
 .seg button + button {
@@ -345,7 +354,7 @@
 }
 
 .seg button:last-child {
-  border-radius: 0 6px 6px 0;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
 }
 
 /* Roadmap 075: the selected segment wears `.btn-secondary`'s active state —

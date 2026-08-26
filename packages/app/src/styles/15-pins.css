@@ -39,7 +39,7 @@
 
 .pin-empty-card {
   border: 1px dashed var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 1rem 1.1rem;
   text-align: center;
 }
@@ -75,7 +75,7 @@
 .pin-probe-chips button {
   background: var(--canvas);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--accent);
   cursor: pointer;
   font-family: var(--font-mono);
@@ -127,7 +127,7 @@
    "look closer" — a failed simulation, the reader's own rule losing to an
    unset field, or an update no rule wrote to at all (Renovate defaults). */
 .pin-dot {
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   flex: none;
   height: 0.55rem;
   width: 0.55rem;
@@ -292,7 +292,7 @@
 .pin-evidence {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -448,7 +448,7 @@
 .pin-probe-label input {
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: inherit;
   font-family: var(--font-mono);
   font-size: 0.8rem;
@@ -457,7 +457,7 @@
 
 .pin-probe-idle {
   border: 1px dashed var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   margin-top: 0.5rem;
   padding: 0.45rem 0.6rem;
 }
@@ -482,7 +482,7 @@
 
 .pin-probe-results {
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   margin-top: 0.5rem;
   overflow: hidden;
 }
@@ -584,7 +584,7 @@
 .pin-add-panel {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -597,7 +597,7 @@
 .pin-add-ghost {
   background: transparent;
   border: 1px dashed var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--muted);
   cursor: pointer;
   display: block;
@@ -669,7 +669,7 @@
 .pin-import-note {
   background: var(--ok-bg);
   border: 1px solid var(--ok-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--ok);
   /* Hugs its text: it is a note about what just happened, not a full-width
      banner about the state of the panel. */
@@ -698,7 +698,7 @@
 .pin-paste-intro code {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: var(--font-mono);
   font-size: 0.72rem;
   padding: 0 0.25rem;
@@ -707,7 +707,7 @@
 .pin-paste-input {
   background: var(--canvas);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-sizing: border-box;
   color: inherit;
   font-family: var(--font-mono);
@@ -775,7 +775,7 @@
 .pin-repo-connect-body code {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: var(--font-mono);
   font-size: 0.72rem;
   padding: 0 0.25rem;
@@ -867,7 +867,7 @@
 .pin-repo-quick button {
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--muted);
   cursor: pointer;
   font-family: inherit;
@@ -884,7 +884,7 @@
 .pin-repo-pinned {
   background: var(--ok-bg);
   border: 1px solid var(--ok-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--ok);
   font-size: 0.7rem;
   line-height: 1.4;
@@ -907,7 +907,7 @@
 /* The picked row on its way to a pin — accent-bordered, the design's draft. */
 .pin-repo-draft {
   border: 1px solid var(--accent);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 0.5rem 0.65rem;
 }
 

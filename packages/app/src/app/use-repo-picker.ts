@@ -10,8 +10,9 @@
  * inherited-config probe — stays in `use-repo-load`, untouched.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { RepoPickerView } from "@/features/editor/RepoPicker";
 import { listUserRepos, probeConfigFile, repoNote, type UserRepo } from "@/platform/github-repos";
+import { useSyncedReset } from "@/hooks/use-synced-reset";
+import type { RepoPickerView } from "@/types/repo";
 
 /** Rows shown (and probed) at once — the picker surfaces recent work, and
  *  every probe behind it is a real API request. Type to narrow. */
@@ -63,15 +64,13 @@ export function useRepoPicker(host: RepoPickerHost): RepoPickerView | null {
   // and the drop reads nothing else, and the previous account's rows are gone
   // before the paint rather than one committed frame after it. The fetch below
   // cannot race in between: it is gated on `signedIn` too.
-  const [signedInOwner, setSignedInOwner] = useState(signedIn);
-  if (signedIn !== signedInOwner) {
-    setSignedInOwner(signedIn);
+  useSyncedReset(signedIn, () => {
     if (!signedIn) {
       setRepos(null);
       setFailed(false);
       setBadges(new Map());
     }
-  }
+  });
   // The in-flight set is a ref, so its half of the same invalidation stays an
   // effect: a ref write during render is one React is free to replay. It has to
   // happen — a name left in here after the badges were dropped would never be

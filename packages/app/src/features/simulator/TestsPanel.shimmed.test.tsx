@@ -14,15 +14,10 @@ import { runPipeline } from "@renovate-config-debugger/engine";
 import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, expect, it, vi } from "vitest";
 import type { SimRequest } from "@/hooks/use-share-link";
-import type { FormState } from "./form";
-import type { PinnedTest } from "./pins";
-import {
-  EMPTY_REPO_DEPS,
-  type RepoConnectOffer,
-  type RepoDep,
-  type RepoDepsView,
-} from "./repo-deps";
+import { EMPTY_REPO_DEPS } from "./repo-deps";
 import { TestsPanel } from "./TestsPanel";
+import type { FormState, PinnedTest } from "@/types/simulator";
+import type { RepoConnectOffer, RepoDep, RepoDepsView } from "@/types/repo";
 
 afterEach(cleanup);
 

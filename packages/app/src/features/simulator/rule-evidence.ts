@@ -4,6 +4,7 @@ import type {
   RuleEvaluation,
   SimulationResult,
 } from "@renovate-config-debugger/engine";
+import { overridingStopIndex } from "./merge-override";
 import type { MergeStop } from "./merge-stops";
 import type { RuleDescriptionNote } from "./rule-descriptions";
 import { stopLabels } from "./verdict-threads";
@@ -62,18 +63,6 @@ export interface RuleEvidence {
   survivedCount: number;
 }
 
-/** The first stop AFTER `stopIndex` that names `key` — the write's killer.
- *  Later stops than that one are irrelevant here: by then the value on the
- *  table is no longer this rule's. */
-function overriderOf(mergeStops: MergeStop[], stopIndex: number, key: string): number | undefined {
-  for (let i = stopIndex + 1; i < mergeStops.length; i += 1) {
-    if (mergeStops[i]?.merged?.some((m) => m.key === key)) {
-      return i;
-    }
-  }
-  return undefined;
-}
-
 export function buildRuleEvidence(
   ruleIndex: number,
   mergeStops: MergeStop[],
@@ -103,7 +92,7 @@ export function buildRuleEvidence(
   }
   const label = labels[stopIndex];
   const writes: RuleWrite[] = (mergeStops[stopIndex]?.merged ?? []).map((entry) => {
-    const overriddenAt = overriderOf(mergeStops, stopIndex, entry.key);
+    const overriddenAt = overridingStopIndex(mergeStops, stopIndex, entry.key);
     const overrider = overriddenAt === undefined ? undefined : labels[overriddenAt];
     return {
       key: entry.key,

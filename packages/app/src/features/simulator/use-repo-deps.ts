@@ -14,16 +14,12 @@
  */
 import { useCallback, useMemo, useRef, useState } from "react";
 import { TREE_LISTING_PLATFORMS } from "@/data/host-tokens";
-import {
-  EMPTY_REPO_DEPS,
-  type LoadedRepo,
-  type RepoDep,
-  type RepoDepsView,
-  repoDepsOfFile,
-} from "@/features/simulator/repo-deps";
+import { EMPTY_REPO_DEPS, repoDepsOfFile } from "./repo-deps";
 import { useLatestRef } from "@/hooks/use-latest-ref";
 import { loadEngine } from "@/platform/engine-chunk";
 import { loadRepoFile, loadRepoTree } from "@/platform/run";
+import { causedErrorMessage } from "@/lib/errors";
+import type { LoadedRepo, RepoDep, RepoDepsView } from "@/types/repo";
 
 /** Fetch cap: each package file is one request. The commonest repos fit; the
  *  view counts what the cap dropped rather than pretending it covered all. */
@@ -148,14 +144,13 @@ export function useRepoDeps(loadedRepo: LoadedRepo | null): RepoDeps {
         // ExternalHostError's own message is the constant
         // "external-host-error"; the cause rides on `.err` — unwrapped here
         // exactly as the load path does.
-        const cause = (err as { err?: { message?: string } } | null)?.err?.message;
         setState({
           key,
           view: {
             ...EMPTY_REPO_DEPS,
             status: "error",
             repo: repo.repo,
-            error: cause ?? (err instanceof Error ? err.message : String(err)),
+            error: causedErrorMessage(err),
           },
         });
       });

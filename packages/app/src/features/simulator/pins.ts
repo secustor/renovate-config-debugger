@@ -1,5 +1,6 @@
 import { MAX_PINNED_TESTS } from "@/lib/input-schemas";
-import { EMPTY_FORM, type FormState, hasMeaningfulInput } from "./form";
+import { EMPTY_FORM, hasMeaningfulInput } from "./form";
+import type { FormState, PinnedTest } from "@/types/simulator";
 
 /**
  * Roadmap 075 (iteration 6) — a PIN: a saved dependency descriptor that is
@@ -14,16 +15,6 @@ import { EMPTY_FORM, type FormState, hasMeaningfulInput } from "./form";
  *
  * Pure and DOM-free — the share codec, the panel and the tests all read these.
  */
-
-export interface PinnedTest {
-  /**
-   * Identity within the session, minted by App. Deliberately NOT shared: a link
-   * carries descriptors, and the opener mints its own ids — an id from someone
-   * else's session would collide with the reader's own the moment they pin.
-   */
-  id: string;
-  form: FormState;
-}
 
 /** The cap — one number for the list and for the link that carries it (see
  *  `MAX_PINNED_TESTS`), enforced visibly here and again in the sanitizer. */

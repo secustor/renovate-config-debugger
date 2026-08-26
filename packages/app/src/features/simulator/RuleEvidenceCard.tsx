@@ -14,6 +14,7 @@ import { ruleAppliedMarkdown, ruleVerdictLabel, writeMark } from "./rule-format"
 import type { RuleEvidence, RuleWrite } from "./rule-evidence";
 import { WriteRow } from "./WriteRow";
 import { pluralWord } from "@/lib/format";
+import { RULE_INDEX_TITLE, ruleRef } from "@/lib/rule-ref";
 
 /**
  * Roadmap 054 (variant A), layer 3: the second — and last — disclosure level.
@@ -120,11 +121,8 @@ function RuleEvidenceHead({
   const verdict = verdictLabel ? ` — ${verdictLabel}` : "";
   return (
     <p className="sim-rule-pop-head">
-      <code
-        className="sim-rule-pop-id"
-        title="0-based index — the same numbering Renovate's own validator messages use; the last of N rules is packageRules[N−1]"
-      >
-        packageRules[{evidence.ruleIndex}]
+      <code className="sim-rule-pop-id" title={RULE_INDEX_TITLE}>
+        {ruleRef(evidence.ruleIndex)}
       </code>
       {verdictLabel && evidence.verdict ? (
         <span className={`badge sim-verdict verdict-${evidence.verdict}`}>{verdictLabel}</span>
@@ -135,7 +133,7 @@ function RuleEvidenceHead({
       {evidence.writes.length > 0 ? (
         <CopyMarkdownButton
           className="inline"
-          header={`\`packageRules[${evidence.ruleIndex}]\`${verdict}${evidence.stopLabel ? ` — merged in ${evidence.stopLabel}` : ""}`}
+          header={`\`${ruleRef(evidence.ruleIndex)}\`${verdict}${evidence.stopLabel ? ` — merged in ${evidence.stopLabel}` : ""}`}
           code={ruleAppliedMarkdown(asMergedKeys(evidence.writes))}
         />
       ) : null}
@@ -212,7 +210,7 @@ export function RuleEvidenceCard({
     <div
       className={`option-card ${RULE_POP_CLASS}`}
       role="dialog"
-      aria-label={`packageRules[${evidence.ruleIndex}] — rule evidence`}
+      aria-label={`${ruleRef(evidence.ruleIndex)} — rule evidence`}
       tabIndex={-1}
       ref={cardRef}
       style={anchoredCardStyle(anchor, CARD_WIDTH, CARD_FLIP_MARGIN)}
@@ -415,7 +413,7 @@ export function RuleEvidenceAnchor({
           setAnchor(anchorRectOf(button));
         }}
       >
-        packageRules[{ruleIndex}]
+        {ruleRef(ruleIndex)}
       </button>
       {anchor ? (
         <RuleEvidenceCard

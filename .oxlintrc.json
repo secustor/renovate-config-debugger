@@ -4,7 +4,33 @@
   // Enabling a plugin activates its `correctness`/`suspicious` rules too, so
   // `import` and `promise` are here for the rules named below PLUS whatever
   // those two categories cover — which since roadmap 041 is an error.
-  "plugins": ["unicorn", "typescript", "oxc", "react", "import", "promise"],
+  //
+  // `unicorn`, `typescript` and `oxc` are on by default (`oxlint --help`, the
+  // "Enable/Disable Plugins" section, labels those three); they stay listed as
+  // a pin, so a future oxlint that changes its defaults does not quietly
+  // shrink this repo's rule set.
+  //
+  // `react-perf` and `node` were added after auditing the full plugin list
+  // against this repo's shape. Both measured ZERO violations at the
+  // correctness+suspicious tier, so neither costs a backlog, and both are
+  // on-topic: a React 19 SPA, and a Node CLI plus the oauth-worker's Node image
+  // target. Skipped deliberately: `jest` (wrong runner — its hits are a subset
+  // of `vitest`'s, matched by name), and `jsdoc`/`nextjs`/`vue` (nothing in
+  // this codebase to check, 0 hits each).
+  //
+  // NOT yet added, both real and both costed:
+  //   `vitest`   — squarely on target, every test here is vitest, but 241
+  //                violations. 69 of them are test-CORRECTNESS bugs worth
+  //                fixing on their own (no-conditional-expect, valid-expect,
+  //                expect-expect, no-standalone-expect); the other 149 are the
+  //                mechanical `vi.fn()` → `vi.fn<Sig>()` migration. Wants its
+  //                own roadmap entry, fixed first and enabled after, because
+  //                the zero-tolerance policy leaves no warn tier to park it in.
+  //   `jsx-a11y` — 22 violations, each a plausible real gap (focus management,
+  //                missing labels, role/tag mismatches). Tractable, but it is
+  //                an accessibility commitment this repo has not made
+  //                explicitly, so it is a decision rather than a cleanup.
+  "plugins": ["unicorn", "typescript", "oxc", "react", "react-perf", "import", "promise", "node"],
   // Roadmap 041: `suspicious` was the last thing configured at warn. Nothing is
   // advisory any more — `pnpm lint` reporting anything at all fails CI, which is
   // the point: an oxlint upgrade that adds rules to a category gets a decision
@@ -161,6 +187,26 @@
     {
       "files": ["packages/app/src/**"],
       "rules": {
+        // Roadmap 048 follow-up (structure review, finding 6): the relative
+        // escape hatch, closed depth-independently.
+        //
+        // The layer bans below are SPECIFIER-based, so they only catch a
+        // spelling they can name. From `features/simulator/X.ts` the cross-
+        // feature ban catches `@/features/presets/rows` (alias) and
+        // `../../features/presets/rows` (has a `features` segment), but NOT
+        // `../presets/rows` — three segments, so the `../*` patterns miss it
+        // (minimatch `*` does not cross `/`), and no `features` segment, so
+        // `**/features/**` misses it too. That is exactly the spelling an
+        // editor's auto-import emits.
+        //
+        // This rule bans reaching out of a folder at all, so the whole class is
+        // closed at every depth. It is also a DISTINCT rule key, which is why
+        // it belongs here rather than in a pattern bank: the REPLACE semantics
+        // that dropped a group in the two exemption overrides below cannot
+        // touch it, and one declaration covers every file under app/src.
+        // Measured at zero hits — this codebase already imports its own layer
+        // relatively (`./`) and everything else through `@/`.
+        "import/no-relative-parent-imports": "error",
         "no-restricted-imports": [
           "error",
           {
@@ -168,6 +214,24 @@
               {
                 "group": ["renovate/dist", "renovate/dist/**"],
                 "message": "Deep renovate/dist imports belong in renovate-adapter.ts, shims/ or types/ — go through the adapter instead."
+              },
+              {
+                // Structure review, finding 4. `platform/engine-chunk.ts` states
+                // that the ~437 kB gz Renovate graph is reached only through
+                // `loadEngine()`; a static VALUE import of the root barrel
+                // silently breaks that, and one had — `lib/rule-verdict.ts`
+                // re-exported two predicates from the root, welding the whole
+                // graph onto `ResultsColumn`'s static chunk via
+                // `ResultsColumn → TestsPanel → rule-filters → rule-verdict`.
+                //
+                // Types are free (erased before a bundler sees them), and they
+                // are how the app names the engine's shapes in ~150 files —
+                // hence `allowTypeImports`. Runtime access goes through the
+                // narrow subpaths (`/text-scan`, `/schema`,
+                // `/simulate-missing-inputs`) or through `loadEngine()`.
+                "group": ["@renovate-config-debugger/engine"],
+                "allowTypeImports": true,
+                "message": "Value-importing the engine ROOT statically pulls the whole Renovate graph into this chunk — use a narrow subpath export, or load it at runtime through platform/engine-chunk.ts (`loadEngine()`). Type-only imports are fine."
               },
               {
                 // "zod" itself is included alongside "zod/**": the module's
@@ -249,6 +313,13 @@
                 "message": "Deep renovate/dist imports belong in renovate-adapter.ts, shims/ or types/ — go through the adapter instead."
               },
               {
+                // Structure review, finding 4 — restated per the REPLACE rule;
+                // the reasoning is on the first copy, in the override above.
+                "group": ["@renovate-config-debugger/engine"],
+                "allowTypeImports": true,
+                "message": "Value-importing the engine ROOT statically pulls the whole Renovate graph into this chunk — use a narrow subpath export, or load it at runtime through platform/engine-chunk.ts (`loadEngine()`). Type-only imports are fine."
+              },
+              {
                 // The `**/features/**` variants are belt-and-braces: the `@/`
                 // alias is the only spelling in use today, but a `../` escape
                 // out of a nested folder would resolve just as well.
@@ -265,38 +336,23 @@
                 // Closes the upward arrow: nothing previously forbade shared
                 // modules from reaching UP into the app shell. `@/*` matches
                 // a bare `@/App` but not `@/components/glossary` (confirmed
-                // empirically — minimatch `*` does not cross `/`); the three
-                // `../` variants cover every nesting depth actually present
-                // under the shared folders today (all are one level below
-                // `src/`, so `../*` alone would suffice, but the extra two
-                // are cheap insurance against a future subfolder) without
-                // catching a legal same-folder `./x` or a legal
-                // shared-to-shared `../lib/foo` (measured: zero existing `../`
-                // imports anywhere in the shared or feature layers today, so
-                // this starts and stays at zero hits).
+                // empirically — minimatch `*` does not cross `/`).
                 //
                 // The shell now lives in `src/app/`, one segment further down,
-                // which `*` by definition cannot reach — so the `@/app…` and
-                // `…/app/…` spellings are listed explicitly. Without them the
-                // upward arrow would have quietly reopened the moment the
-                // shell got a folder. `@/app/**` is safe to ban outright
-                // because no shared or feature module may name the shell at
-                // all; the shell itself is excluded from this override.
-                "group": [
-                  "@/*",
-                  "@/app",
-                  "@/app/*",
-                  "@/app/**",
-                  "../*",
-                  "../../*",
-                  "../../../*",
-                  "../app/*",
-                  "../app/**",
-                  "../../app/*",
-                  "../../app/**",
-                  "../../../app/*",
-                  "../../../app/**"
-                ],
+                // which `*` by definition cannot reach — so the `@/app…`
+                // spellings are listed explicitly. Without them the upward
+                // arrow would have quietly reopened the moment the shell got a
+                // folder. `@/app/**` is safe to ban outright because no shared
+                // or feature module may name the shell at all; the shell itself
+                // is excluded from this override.
+                //
+                // This group used to carry nine `../…` spellings alongside the
+                // alias ones. `import/no-relative-parent-imports` (declared once
+                // in the app-wide override at the top) now bans reaching out of
+                // a folder AT ALL, at every depth, so enumerating escape depths
+                // here is both redundant and — as finding 6 showed — incomplete:
+                // `../presets/rows` matched none of them.
+                "group": ["@/*", "@/app", "@/app/*", "@/app/**"],
                 "message": "Shared modules must not import the app shell — compose downward: the app shell composes features, features compose the shared layer (roadmap 048)."
               },
               {
@@ -343,27 +399,20 @@
                 "message": "No cross-feature imports — inside a feature import relatively (`./`); features are composed at the app level (roadmap 048)."
               },
               {
+                // Structure review, finding 4 — restated per the REPLACE rule;
+                // the reasoning is on the first copy, two overrides above.
+                "group": ["@renovate-config-debugger/engine"],
+                "allowTypeImports": true,
+                "message": "Value-importing the engine ROOT statically pulls the whole Renovate graph into this chunk — use a narrow subpath export, or load it at runtime through platform/engine-chunk.ts (`loadEngine()`). Type-only imports are fine."
+              },
+              {
                 // Same upward-arrow closure as the shared-layer override
-                // above, restated per the REPLACE rule. `features/simulator/`
-                // is one folder deeper than the shared layer's folders, so
-                // `../../app/*` (not just `../app/*`) is the one that actually
-                // matters here — reaching `src/app/App` from
-                // `features/simulator/*.ts` takes two `../` hops.
-                "group": [
-                  "@/*",
-                  "@/app",
-                  "@/app/*",
-                  "@/app/**",
-                  "../*",
-                  "../../*",
-                  "../../../*",
-                  "../app/*",
-                  "../app/**",
-                  "../../app/*",
-                  "../../app/**",
-                  "../../../app/*",
-                  "../../../app/**"
-                ],
+                // above, restated per the REPLACE rule. The depth that used to
+                // matter here — `features/simulator/` is one folder deeper than
+                // the shared layer's folders, so reaching `src/app/App` takes
+                // two `../` hops — is no longer this group's problem:
+                // `import/no-relative-parent-imports` is depth-independent.
+                "group": ["@/*", "@/app", "@/app/*", "@/app/**"],
                 "message": "Features must not import the app shell — compose downward: the app shell composes features (roadmap 048)."
               },
               {
@@ -384,16 +433,24 @@
         ]
       }
     },
-    // ---- Roadmap 048: the two single-import-site exemptions ---------------
-    // One override per file, not one override for both: input-schemas-zod.ts
+    // ---- Roadmap 048: the three single-import-site exemptions -------------
+    // One override per file, not one override for all three: input-schemas-zod
     // is the designated zod site but is NOT the designated schema-stack site
     // (and vice versa for editor-schema.ts), so each exemption restates the
-    // OTHER file's ban alongside the shared-layer boundary (both files live
-    // under a shared folder — lib/ and platform/ respectively) plus the
-    // renovate/dist group. Placed last so they win per the REPLACE/last-match
-    // rule (confirmed empirically against a throwaway config: when two
-    // overrides in the array match the same file, the LAST one's rule value
-    // is what applies, not a merge of both).
+    // OTHER files' bans alongside the shared-layer boundary (all three live
+    // under a shared folder — lib/ and platform/) plus the renovate/dist group.
+    // Placed last so they win per the REPLACE/last-match rule (confirmed
+    // empirically against a throwaway config: when two overrides in the array
+    // match the same file, the LAST one's rule value is what applies, not a
+    // merge of both).
+    //
+    // engine-chunk.ts joined the family with the structure review's finding 4:
+    // it is the designated site for the engine ROOT, exactly as the other two
+    // are for zod and the schema stack. Its `loadEngine()` is a DYNAMIC import,
+    // which oxlint's no-restricted-imports does see (measured against a
+    // throwaway probe — so `await import(…)` is not the escape hatch finding 8
+    // asked about, in either direction: it cannot smuggle a banned specifier
+    // past the rule, and it cannot escape one either).
     {
       "files": ["packages/app/src/lib/input-schemas-zod.ts"],
       "rules": {
@@ -406,22 +463,30 @@
                 "message": "Deep renovate/dist imports belong in renovate-adapter.ts, shims/ or types/ — go through the adapter instead."
               },
               {
-                "group": [
-                  "@/*",
-                  "@/app",
-                  "@/app/*",
-                  "@/app/**",
-                  "../*",
-                  "../../*",
-                  "../../../*",
-                  "../app/*",
-                  "../app/**",
-                  "../../app/*",
-                  "../../app/**",
-                  "../../../app/*",
-                  "../../../app/**"
-                ],
+                "group": ["@/*", "@/app", "@/app/*", "@/app/**"],
                 "message": "Shared modules must not import the app shell — compose downward: the app shell composes features, features compose the shared layer (roadmap 048)."
+              },
+              {
+                // Structure review, finding 5: this group was MISSING here and
+                // in the override below. Both files are shared-layer and both
+                // are last-match, so for those two files the shared → feature
+                // ban was simply absent — the REPLACE semantics eating a
+                // boundary nobody noticed was gone. Zero hits either way; the
+                // point is that the rule now exists to have zero hits of.
+                "group": [
+                  "@/features",
+                  "@/features/*",
+                  "@/features/**",
+                  "**/features/*",
+                  "**/features/**"
+                ],
+                "message": "Shared modules must not import a feature — compose features at the app level (roadmap 048)."
+              },
+              {
+                // Structure review, finding 4 — restated per the REPLACE rule.
+                "group": ["@renovate-config-debugger/engine"],
+                "allowTypeImports": true,
+                "message": "Value-importing the engine ROOT statically pulls the whole Renovate graph into this chunk — use a narrow subpath export, or load it at runtime through platform/engine-chunk.ts (`loadEngine()`). Type-only imports are fine."
               },
               {
                 "group": [
@@ -449,26 +514,140 @@
                 "message": "Deep renovate/dist imports belong in renovate-adapter.ts, shims/ or types/ — go through the adapter instead."
               },
               {
+                "group": ["@/*", "@/app", "@/app/*", "@/app/**"],
+                "message": "Shared modules must not import the app shell — compose downward: the app shell composes features, features compose the shared layer (roadmap 048)."
+              },
+              {
+                // Structure review, finding 5 — see the note on the copy in the
+                // override above; this file was the other half of that gap.
                 "group": [
-                  "@/*",
-                  "@/app",
-                  "@/app/*",
-                  "@/app/**",
-                  "../*",
-                  "../../*",
-                  "../../../*",
-                  "../app/*",
-                  "../app/**",
-                  "../../app/*",
-                  "../../app/**",
-                  "../../../app/*",
-                  "../../../app/**"
+                  "@/features",
+                  "@/features/*",
+                  "@/features/**",
+                  "**/features/*",
+                  "**/features/**"
                 ],
+                "message": "Shared modules must not import a feature — compose features at the app level (roadmap 048)."
+              },
+              {
+                // Structure review, finding 4 — restated per the REPLACE rule.
+                "group": ["@renovate-config-debugger/engine"],
+                "allowTypeImports": true,
+                "message": "Value-importing the engine ROOT statically pulls the whole Renovate graph into this chunk — use a narrow subpath export, or load it at runtime through platform/engine-chunk.ts (`loadEngine()`). Type-only imports are fine."
+              },
+              {
+                "group": ["zod", "zod/**"],
+                "message": "zod may only be imported statically from lib/input-schemas-zod.ts (via zod/mini) — a static import anywhere else pulls the zod chunk back into the entry bundle (roadmap 030/031)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      // The engine root's one legal site: `loadEngine()`'s dynamic import is
+      // the seam the whole lazy-loading design rests on. Everything EXCEPT the
+      // engine-root group is restated, per REPLACE.
+      "files": ["packages/app/src/platform/engine-chunk.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["renovate/dist", "renovate/dist/**"],
+                "message": "Deep renovate/dist imports belong in renovate-adapter.ts, shims/ or types/ — go through the adapter instead."
+              },
+              {
+                "group": [
+                  "@/features",
+                  "@/features/*",
+                  "@/features/**",
+                  "**/features/*",
+                  "**/features/**"
+                ],
+                "message": "Shared modules must not import a feature — compose features at the app level (roadmap 048)."
+              },
+              {
+                "group": ["@/*", "@/app", "@/app/*", "@/app/**"],
                 "message": "Shared modules must not import the app shell — compose downward: the app shell composes features, features compose the shared layer (roadmap 048)."
               },
               {
                 "group": ["zod", "zod/**"],
                 "message": "zod may only be imported statically from lib/input-schemas-zod.ts (via zod/mini) — a static import anywhere else pulls the zod chunk back into the entry bundle (roadmap 030/031)."
+              },
+              {
+                "group": [
+                  "codemirror-json-schema",
+                  "codemirror-json-schema/**",
+                  "@renovate-config-debugger/engine/schema",
+                  "@renovate-config-debugger/engine/schema/**"
+                ],
+                "message": "codemirror-json-schema and the engine's schema export may only be imported statically from platform/editor-schema.ts — that's the one place the ~160 kB gz schema stack is allowed into a chunk (roadmap 031)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    // ---- Structure review, finding 4: the engine-root exemption -------------
+    // The shimmed component tests drive the REAL pipeline — `runPipeline` and
+    // friends off the root barrel is the whole point of the `shimmed` vitest
+    // project, and there is no narrower subpath that could serve them. They are
+    // also not production code, and the ban they are exempt from is a
+    // chunk-hygiene rule about what ships.
+    //
+    // Placed last so it wins per the REPLACE/last-match rule, and restating
+    // every other group for the same reason — these files live under both the
+    // shared layer (components/) and the feature layer (features/), whose two
+    // banks differ only in the WORDING of the features message, not its
+    // patterns. `packages/app/src/vitest-projects.test.ts` pins the filename
+    // convention this glob relies on, and the config-sync test pins the
+    // restatement.
+    //
+    // The SHELL's shimmed test is excluded rather than covered: it composes
+    // five feature panels (that is what it tests) and is legally allowed to,
+    // being shell — so the cross-slice ban below must not reach it. It does not
+    // value-import the engine root, so it needs no exemption; excluding it
+    // leaves it on the app-wide bank, engine ban included.
+    {
+      "files": ["packages/app/src/**/*.shimmed.test.tsx"],
+      "excludeFiles": ["packages/app/src/app/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["renovate/dist", "renovate/dist/**"],
+                "message": "Deep renovate/dist imports belong in renovate-adapter.ts, shims/ or types/ — go through the adapter instead."
+              },
+              {
+                "group": [
+                  "@/features",
+                  "@/features/*",
+                  "@/features/**",
+                  "**/features/*",
+                  "**/features/**"
+                ],
+                "message": "A test may drive the engine, but not reach across slices — import the slice under test relatively (`./`), the way its own modules do (roadmap 048)."
+              },
+              {
+                "group": ["@/*", "@/app", "@/app/*", "@/app/**"],
+                "message": "Tests of a feature or shared module must not import the app shell — the shell's own tests live beside it (roadmap 048)."
+              },
+              {
+                "group": ["zod", "zod/**"],
+                "message": "zod may only be imported statically from lib/input-schemas-zod.ts (via zod/mini) — a static import anywhere else pulls the zod chunk back into the entry bundle (roadmap 030/031)."
+              },
+              {
+                "group": [
+                  "codemirror-json-schema",
+                  "codemirror-json-schema/**",
+                  "@renovate-config-debugger/engine/schema",
+                  "@renovate-config-debugger/engine/schema/**"
+                ],
+                "message": "codemirror-json-schema and the engine's schema export may only be imported statically from platform/editor-schema.ts — that's the one place the ~160 kB gz schema stack is allowed into a chunk (roadmap 031)."
               }
             ]
           }

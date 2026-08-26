@@ -3,6 +3,7 @@ import type {
   RuleAttribution,
   ValidationMessage,
 } from "@renovate-config-debugger/engine";
+import { fixChangesValue, fixSnippet } from "@/lib/value-preview";
 import type { ErrorTranslationLib } from "@/platform/run";
 import { RuleMessage } from "./RuleMessage";
 
@@ -61,11 +62,6 @@ function ProblemHead({
   );
 }
 
-function formatSnippet(value: unknown): string {
-  const text = JSON.stringify(value);
-  return text.length > 140 ? `${text.slice(0, 140)}…` : text;
-}
-
 /** One line of the unified fix diff. */
 function DiffLine({ sign, tone, text }: { sign: string; tone: string; text: string }) {
   return (
@@ -88,11 +84,11 @@ function DiffLine({ sign, tone, text }: { sign: string; tone: string; text: stri
 function FixDiff({ before, after }: { before: unknown; after: unknown }) {
   return (
     <div className="problem-diff">
-      <DiffLine sign="−" tone="removed" text={formatSnippet(before)} />
+      <DiffLine sign="−" tone="removed" text={fixSnippet(before)} />
       <DiffLine
         sign="+"
         tone="added"
-        text={after === undefined ? "(removed)" : formatSnippet(after)}
+        text={after === undefined ? "(removed)" : fixSnippet(after)}
       />
     </div>
   );
@@ -111,7 +107,7 @@ function ProblemFix({
   fix: ErrorFixResult;
   onApplyFix?: (fix: ErrorFixResult) => void;
 }) {
-  const showDiff = JSON.stringify(fix.before) !== JSON.stringify(fix.after);
+  const showDiff = fixChangesValue(fix.before, fix.after);
   return (
     <div className="problem-fix">
       {showDiff ? (

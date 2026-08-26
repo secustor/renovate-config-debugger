@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import { motionScrollOptions } from "@/lib/motion";
+import { useSyncedReset } from "@/hooks/use-synced-reset";
 
 export interface SimulatorDrawers {
   /** Roadmap 079: which of the form's three field groups is expanded, or -1. */
@@ -53,13 +54,11 @@ export function useSimulatorDrawers({
   // and nothing here reads it afterwards, so as an effect it was a dependency
   // whose value the body only compared against zero. One-way either way: a
   // re-simulation resetting the index to 0 never folds the drawer.
-  const [mergeStepOwner, setMergeStepOwner] = useState(mergeStepIndex);
-  if (mergeStepIndex !== mergeStepOwner) {
-    setMergeStepOwner(mergeStepIndex);
+  useSyncedReset(mergeStepIndex, () => {
     if (mergeStepIndex > 0) {
       setMergeOpen(true);
     }
-  }
+  });
 
   // Roadmap 047: cross-links OPEN what they target. The drawer's <details>
   // element exists whether or not its body is mounted, but SummaryDrawer only

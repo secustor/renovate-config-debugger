@@ -1,0 +1,111 @@
+/* The tab primitive: `.tab-bar`, `.tab`, `.tab-count`, `.tab-body`,
+   `.tab-panel` and `.tab-back`.
+
+   This is app chrome, not messages chrome, and it lived in
+   `10-messages-tabs.css` only because the results tab strip is where it was
+   first needed. The proof it had outgrown that home: `15-pins.css` reaches
+   across the cascade for it (`.pin-add-tabs .tab`) — a second, unrelated
+   surface styling a primitive out of a feature's stylesheet.
+
+   WHY THIS FILE IS LAST, not up with 01-shell / 02-controls where a primitive
+   belongs by rights: the numbering encodes the pre-split `index.css` cascade
+   byte-for-byte (see main.tsx), so renumbering thirteen files to slot this in
+   would put two documented equal-specificity couplings at risk for a purely
+   cosmetic gain. Appending is the move main.tsx's own header sanctions.
+
+   Verified safe before moving: the ONLY rule outside this block that targets
+   `.tab` is `15-pins.css`'s `.pin-add-tabs .tab`, whose specificity (0,2,0)
+   beats a bare `.tab` (0,1,0) whatever the file order — so nothing here
+   depends on loading before or after anything else. */
+
+/* Wraps rather than overflowing: the strip must never push the page sideways.
+   Roadmap 075: a rail, so the active tab has something to be attached TO — its
+   top padding is the gap the raised card needs above it. */
+.tab-bar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.1rem;
+  padding: 0.3rem 0.3rem 0;
+}
+
+.tab {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  font-family: inherit;
+  font-size: 0.85rem;
+  gap: 0.25rem;
+  /* Overlaps the rail's own bottom border, which is what lets the active tab
+     paint over it and read as one surface with the body below. */
+  margin-bottom: -1px;
+  /* 083 made the strip six tabs; at the previous 0.8rem sides the sixth
+     wrapped onto its own row at a 1280px viewport. The strip must hold one
+     row at the standard desktop width (guarded in 12-layout-regressions) — and
+     not just under macOS's system font: Linux renders `system-ui` as DejaVu
+     Sans, whose wider glyphs ate all the slack the 0.55rem sides left, so the
+     strip wrapped on every Linux desktop (and in CI). Sized for the widest
+     common `system-ui`, not the narrowest. */
+  padding: 0.45rem 0.4rem;
+}
+
+.tab:hover {
+  color: var(--ink);
+}
+
+/* Roadmap 075, the attached tab: the selected tab is a card of the BODY's
+   ground, bordered on three sides, with its fourth side painted out in that
+   same ground so the seam between tab and panel disappears. */
+.tab.active {
+  background: var(--canvas);
+  border-color: var(--border);
+  border-bottom-color: var(--canvas);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* A tab with nothing to show stays visible and clickable — dimmed, not gone,
+   so the strip's geometry is stable across runs. Not while SELECTED, though:
+   the reader is on that tab, and dimming its label made Tests/Problems read
+   fainter than every other selected tab (the two are routinely empty). */
+.tab.empty:not(.active) {
+  opacity: 0.55;
+}
+
+/* The count is a `.pill` (see the pill standard); `.tab-count` is kept as the
+   stable hook the e2e specs and the keystroke render test address it by. */
+.tab-count {
+  flex: none;
+}
+
+.tab-body {
+  padding: 0.75rem;
+}
+
+.tab-panel > .card:last-child,
+.tab-panel > .empty-note:last-child {
+  margin-bottom: 0;
+}
+
+/* One-step "back to where I was" after an automatic tab switch. Quiet by
+   design — it is a way back, not a call to action. */
+.tab-back {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  display: block;
+  font: inherit;
+  font-size: 0.8rem;
+  margin: 0 0 0.5rem;
+  padding: 0;
+}
+
+.tab-back:hover {
+  color: var(--accent);
+}

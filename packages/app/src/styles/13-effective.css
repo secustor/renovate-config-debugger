@@ -286,7 +286,7 @@
 .headless-note-code {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-family: var(--font-mono);
   font-size: 0.78rem;
   margin: 0;

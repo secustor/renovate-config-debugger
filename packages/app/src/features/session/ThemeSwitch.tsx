@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { applyTheme, getTheme, persistTheme, subscribeTheme, type Theme } from "@/platform/storage";
-import { SegmentedControl, type SegmentedOption } from "./SegmentedControl";
+import { SegmentedControl, type SegmentedOption } from "@/components/SegmentedControl";
 
 /**
  * Roadmap 037 — the Auto / Light / Dark override, in the header beside the

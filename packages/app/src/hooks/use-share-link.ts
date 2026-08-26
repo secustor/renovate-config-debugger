@@ -41,6 +41,7 @@ import {
   type UntrustedEndpointGuard,
   untrustedGuardForPolicy,
 } from "@/lib/share";
+import { errorMessage } from "@/lib/errors";
 
 /** Roadmap 018: a share link's simulator inputs, applied once by nonce. */
 export interface SimRequest {
@@ -454,7 +455,7 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
             return;
           }
           hostRef.current.setNotice(
-            `GitHub sign-in failed: ${err instanceof Error ? err.message : String(err)}. You can still use the app signed out.`,
+            `GitHub sign-in failed: ${errorMessage(err)}. You can still use the app signed out.`,
           );
           writeHash(window.location.pathname, null);
           return;

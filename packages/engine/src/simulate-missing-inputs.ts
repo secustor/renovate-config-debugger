@@ -27,6 +27,12 @@ import { countNoun } from "./text";
  * is Renovate-free and unit-testable in the engine's `golden` (plain node)
  * project.
  *
+ * That property is why it also has its own `exports` subpath. The app's
+ * `lib/rule-verdict.ts` re-exports the two predicates below, and reaching them
+ * through the root barrel put the entire Renovate graph on the static path of
+ * the app's results chunk. Keep the import list above as it is — a value import
+ * of anything Renovate-touching here would silently re-weld it.
+ *
  * The app has a narrower cousin, `buildNoInputCaveat`
  * (`features/simulator/verdict-sentence.ts`), which counts only REPO-config
  * rules via `ruleAttribution`. It is deliberately not the same number — a

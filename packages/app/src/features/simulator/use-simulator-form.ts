@@ -8,7 +8,8 @@ import {
 } from "react";
 import type * as EngineModule from "@renovate-config-debugger/engine";
 import { openPickerOnEnter } from "@/lib/select-picker";
-import { EMPTY_FORM, type FormState, hasMeaningfulInput, UPDATE_TYPES } from "./form";
+import { EMPTY_FORM, hasMeaningfulInput, UPDATE_TYPES } from "./form";
+import type { FormState } from "@/types/simulator";
 
 /** What a fill states about itself beyond the fields it carries. */
 export interface ReplaceOptions {

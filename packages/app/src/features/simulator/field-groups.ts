@@ -1,6 +1,7 @@
 import type { TermId } from "@/data/glossary-data";
 import { MANAGER_LIST_ID } from "./datalist-ids";
-import { type FormState, MULTI_VALUE_KEYS } from "./form";
+import { MULTI_VALUE_KEYS } from "./form";
+import type { FormState } from "@/types/simulator";
 
 /**
  * Roadmap 079: the three named field groups, and the fields each one holds.

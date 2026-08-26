@@ -213,7 +213,7 @@ header.app-header {
 .share-pop {
   background: var(--surface-raised);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-popover);
   padding: 0.6rem 0.7rem;
   position: absolute;
@@ -281,7 +281,7 @@ header.app-header {
   align-items: center;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--muted);
   cursor: pointer;
   display: inline-flex;
@@ -326,7 +326,7 @@ header.app-header {
 .session-menu-panel {
   background: var(--surface-raised);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-popover);
   /* Right-anchored, and capped against the viewport rather than the trigger:
      a panel hanging off a control this close to the edge has nowhere to go
@@ -494,7 +494,7 @@ h1 {
 
 .card {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   margin-bottom: 1rem;
   overflow: hidden;
 }

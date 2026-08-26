@@ -1,39 +1,20 @@
 import { SessionAvatar } from "@/components/SessionAvatar";
 import type { StoredUser } from "@/platform/oauth";
+import type { RepoPickerRow, RepoPickerView } from "@/types/repo";
 
 /**
  * Roadmap 085 — the "Your repositories" section of the repo-load overlay,
  * shown between the reference row and the inherited-config row while a GitHub
  * session is live. All state and behavior live in `useRepoPicker` (the app
- * shell, which composes this feature and hands the view model down — the
- * model types live HERE so the dependency only points that way); this file
- * only draws it.
+ * shell, which composes this feature and hands the view model down); this file
+ * only draws it. The model TYPES live in `src/types/repo.ts` — they used to sit
+ * here, so that the shell would not have to import the shell, which inverted
+ * the very dependency the layer rule protects (structure review, finding 18).
  *
  * A row is a button that WRITES the reference field — the one Load button
  * stays the only thing that loads, so the branch field and the inherit row
  * apply to a picked repo exactly as they do to a pasted one.
  */
-
-export interface RepoPickerRow {
-  /** `owner/repo`. */
-  name: string;
-  /** `TypeScript · 2d ago`. */
-  note: string;
-  /** The config file a load would find: a name, null after a probe found
-   *  nothing, undefined while unknown (probe pending or failed). */
-  configFile: string | null | undefined;
-  /** Whether the reference field currently names this repo. */
-  selected: boolean;
-}
-
-/** The whole picker as the shell computes it. */
-export interface RepoPickerView {
-  status: "loading" | "error" | "ready";
-  rows: RepoPickerRow[];
-  /** Matches beyond the rows shown — the "and N more" line. */
-  hiddenMatches: number;
-  onPick: (name: string) => void;
-}
 
 function ConfigBadge({ configFile }: { configFile: string | null | undefined }) {
   // Unknown (probe pending or failed) shows nothing: no badge is a shrug,

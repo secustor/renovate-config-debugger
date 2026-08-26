@@ -4,6 +4,7 @@ import type { RuleEvidence } from "./rule-evidence";
 import { RuleEvidenceAnchor } from "./RuleEvidenceCard";
 import type { ThreadEntry, ThreadModel, ThreadVerb, ThreadWinner } from "./verdict-threads";
 import { WriteRow } from "./WriteRow";
+import { ruleRef } from "@/lib/rule-ref";
 
 /**
  * Roadmap 054 (variant A): the expanded thread — the causal story of ONE
@@ -61,7 +62,7 @@ function WriterRef({
       />
     );
   }
-  return <code className="sim-thread-rule">packageRules[{ruleIndex}]</code>;
+  return <code className="sim-thread-rule">{ruleRef(ruleIndex)}</code>;
 }
 
 /** The line that says who had the last word, and how. */

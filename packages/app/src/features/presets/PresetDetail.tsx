@@ -9,15 +9,11 @@ import { PresetName } from "@/components/PresetName";
 import { findPollutedPath } from "@/lib/input-schemas";
 import type { NodeDescriptionFacts } from "@/lib/tree-descriptions";
 import { NodeDescriptionLines } from "./NodeDescriptions";
-import {
-  githubAuthFailure,
-  type InjectionKeyFn,
-  nodeInjectionKey,
-  type ParseFn,
-  STATE_LABELS,
-} from "./tree-shared";
+import { githubAuthFailure } from "@/lib/github-failure";
+import { type InjectionKeyFn, nodeInjectionKey, type ParseFn, STATE_LABELS } from "./tree-shared";
 import { useEngineHelpers } from "./use-engine-helpers";
 import { pluralWord } from "@/lib/format";
+import { errorMessage } from "@/lib/errors";
 
 /**
  * Replays the parent's merge loop with renovate's real mergeChildConfig to
@@ -139,7 +135,7 @@ function PresetInjector({
       }
       onInject(injectionTarget, parsed);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorMessage(err));
     }
   };
 

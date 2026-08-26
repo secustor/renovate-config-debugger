@@ -7,14 +7,14 @@
  *
  * Roadmap 076 adds its sibling, `useCustomHostRules` — the same cluster for
  * the hosts that table does NOT name, which are a list rather than four fixed
- * slots and therefore persist as one JSON value (see data/custom-host-rules).
+ * slots and therefore persist as one JSON value (see lib/custom-host-rules).
  */
 import { useCallback, useState } from "react";
 import {
   type CustomHostRule,
   persistCustomHostRules,
   readCustomHostRules,
-} from "@/data/custom-host-rules";
+} from "@/lib/custom-host-rules";
 import { HOST_TOKENS, type HostTokenDescriptor, type HostTokenId } from "@/data/host-tokens";
 import { isValidHost, isValidToken } from "@/lib/input-schemas";
 import { persistSession, readSession, sessionRemove } from "@/platform/storage";

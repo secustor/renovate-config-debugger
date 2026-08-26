@@ -6,6 +6,7 @@ import { computePresetLedger, CONFIG_PRESETS_DOCS, type LedgerErrorRow } from ".
 import { LedgerCard } from "./LedgerCard";
 import { PresetName } from "@/components/PresetName";
 import { nf, plural, pluralWord } from "@/lib/format";
+import { useSyncedReset } from "@/hooks/use-synced-reset";
 
 /**
  * Roadmap 075 (iteration 5b): the Presets tab's DEFAULT view — the ledger.
@@ -230,11 +231,9 @@ export const PresetLedger = memo(function PresetLedger({
   // has to start over. During render, not in an effect: the same reason
   // `EffectiveConfig` resets that way (a click landing between the commit and
   // the passive flush would otherwise be wiped).
-  const [owner, setOwner] = useState(model);
-  if (owner !== model) {
-    setOwner(model);
+  useSyncedReset(model, () => {
     openCards.reset();
-  }
+  });
 
   return (
     <div className="preset-ledger">

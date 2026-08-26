@@ -6,18 +6,19 @@ import type {
 } from "@renovate-config-debugger/engine";
 import { nf } from "@/lib/format";
 import { nextTabIndex } from "@/lib/roving-tabs";
+import { anyModifierHeld } from "@/lib/shortcuts";
 import { PIN_FORM_ID } from "./datalist-ids";
 import { DescriptorActions } from "./DescriptorActions";
-import { EMPTY_FORM, type FormState } from "./form";
+import { EMPTY_FORM } from "./form";
 import { EmptyFormGuard, PinLimitNote } from "./FormNotes";
 import { OpenInSimulatorLink } from "./OpenInSimulatorLink";
 import { type PasteFill, parsePastedDescriptor, pasteImportNote } from "./paste-descriptor";
 import { buildPinOutcome, type PinCheck, type PinOutcome } from "./pin-outcome";
 import { pinAddFocusTarget } from "./pin-add-dom";
 import { PinHeadRow } from "./PinHeadRow";
-import { pinContext, pinName, MAX_PINS, type PinnedTest } from "./pins";
+import { pinContext, pinName, MAX_PINS } from "./pins";
 import { PinSectionHead } from "./PinRuleSections";
-import { draftFill, type RepoConnectOffer, type RepoDepsView, type RepoDraft } from "./repo-deps";
+import { draftFill, type RepoDraft } from "./repo-deps";
 import { RepoConnectPanel, RepoDepsTab } from "./RepoDepsTab";
 import { runSimulation } from "./run-simulation";
 import { SimulatorForm } from "./SimulatorForm";
@@ -25,6 +26,9 @@ import { useEngineModule } from "./use-engine-module";
 // Aliased: the hook's return type and the form COMPONENT share a name, and
 // this module is the one place that holds both.
 import { type SimulatorForm as SimulatorFormApi, useSimulatorForm } from "./use-simulator-form";
+import { useSyncedReset } from "@/hooks/use-synced-reset";
+import type { FormState, PinnedTest } from "@/types/simulator";
+import type { RepoConnectOffer, RepoDepsView } from "@/types/repo";
 
 /**
  * The design's pin card (`Pin Options`), now in its GHOST form: a collapsed
@@ -154,6 +158,15 @@ function AddTestTabs({
     // Only the tabs rove — the close × shares the strip but not the pattern,
     // and an arrow pressed on it must not switch tabs or yank focus.
     if (!(e.target instanceof HTMLElement) || e.target.getAttribute("role") !== "tab") {
+      return;
+    }
+    // A modified chord belongs to the browser or the OS, not to this strip:
+    // ⌘←/Alt+← is Back, Ctrl+Home/End is page scroll, Shift+Home extends a
+    // selection. `ResultsPanel`'s tab strip asks the same question for the same
+    // reason and documents it at length — these are named keys, so Shift counts.
+    // Without this the `preventDefault()` below swallows all three gestures
+    // whenever focus sits on Manual / Paste JSON / From repository.
+    if (anyModifierHeld(e)) {
       return;
     }
     const nextAt = nextTabIndex(e.key, order.indexOf(tab), order.length);
@@ -296,18 +309,16 @@ function PasteJsonTab({
  */
 function ManualPanel({
   sim,
-  importNote,
-  emptyGuard,
   openGroup,
   onOpenGroupChange,
   onQuickFill,
   onSubmit,
   actions,
 }: {
+  /** Carries its own `importNote` (082's paste receipt) and `showEmptyGuard`
+   *  — they used to be passed AGAIN as separate props beside it, so the same
+   *  two facts arrived twice and could in principle disagree. */
   sim: SimulatorFormApi;
-  /** Roadmap 082: the receipt from a Paste-JSON import, or null. */
-  importNote: string | null;
-  emptyGuard: boolean;
   openGroup: number;
   onOpenGroupChange: (index: number) => void;
   onQuickFill: (fill: Partial<FormState>) => void;
@@ -318,7 +329,7 @@ function ManualPanel({
 }) {
   return (
     <>
-      {importNote ? <p className="pin-import-note">✓ {importNote}</p> : null}
+      {sim.importNote ? <p className="pin-import-note">✓ {sim.importNote}</p> : null}
       <SimulatorForm
         form={sim.form}
         setForm={sim.setForm}
@@ -335,7 +346,7 @@ function ManualPanel({
         onSubmit={onSubmit}
         formId={PIN_FORM_ID}
       />
-      {emptyGuard ? <EmptyFormGuard /> : null}
+      {sim.showEmptyGuard ? <EmptyFormGuard /> : null}
       {actions}
     </>
   );
@@ -383,8 +394,7 @@ export function AddTestBox({
   // (it renders the form), while the simulate/pin actions here read the few
   // members they act on.
   const simForm = useSimulatorForm(engineModule);
-  const { form, updateTypeTouched, importNote, replaceForm, guard, showEmptyGuard, pinDescriptor } =
-    simForm;
+  const { form, updateTypeTouched, replaceForm, guard, pinDescriptor } = simForm;
   // Roadmap 079: which field group is expanded (-1 = all closed, the state the
   // panel opens in). Held here rather than in the form so a re-render from a
   // simulation never folds what the reader opened.
@@ -445,11 +455,9 @@ export function AddTestBox({
   // pinning it would file A's descriptor under B's "detected because you
   // loaded this config from…" claim. The search box resets the same way,
   // through the keyed RepoDepsTab below.
-  const [draftRepo, setDraftRepo] = useState(repoDeps.repo);
-  if (draftRepo !== repoDeps.repo) {
-    setDraftRepo(repoDeps.repo);
+  useSyncedReset(repoDeps.repo, () => {
     setRepoDraft(null);
-  }
+  });
 
   // Discovery fires when (and only while) the repo tab is actually on screen —
   // including again after a NEW load reset the view to idle under an open tab.
@@ -463,18 +471,23 @@ export function AddTestBox({
 
   // The empty state's quick-start chips write into this form — synced during
   // render (the panel idiom), keyed by nonce so re-clicking the chip works.
-  const [seenSeed, setSeenSeed] = useState(0);
-  if (seedNonce !== seenSeed) {
-    setSeenSeed(seedNonce);
-    if (seed) {
-      if (Object.keys(seed).length > 0) {
-        replaceForm(seed);
+  useSyncedReset(
+    seedNonce,
+    () => {
+      if (seed) {
+        if (Object.keys(seed).length > 0) {
+          replaceForm(seed);
+        }
+        setChosenTab("manual");
+        setUserOpen(true);
+        setFocusNonce((nonce) => nonce + 1);
       }
-      setChosenTab("manual");
-      setUserOpen(true);
-      setFocusNonce((nonce) => nonce + 1);
-    }
-  }
+    },
+    // The owner starts at 0, not at the current nonce: a chip clicked BEFORE
+    // this box mounted has already bumped the nonce, and that seed must still
+    // be applied on the first render rather than adopted as "already seen".
+    () => 0,
+  );
 
   function applyPaste(value: PasteFill) {
     replaceForm(value.fill, {
@@ -589,8 +602,6 @@ export function AddTestBox({
         {tab === "manual" ? (
           <ManualPanel
             sim={simForm}
-            importNote={importNote}
-            emptyGuard={showEmptyGuard}
             openGroup={openGroup}
             onOpenGroupChange={setOpenGroup}
             onQuickFill={(fill) => replaceForm(fill)}

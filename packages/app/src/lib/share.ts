@@ -13,12 +13,8 @@
 import type { StageId } from "@renovate-config-debugger/engine";
 import type { ShareResultsTabId } from "@/data/results-tabs";
 import { isValidRepoRefPart } from "@/lib/input-schemas";
-import {
-  DEFAULT_ENDPOINT,
-  DEFAULT_PLATFORM,
-  isTrustedEndpoint,
-  PLATFORM_ENDPOINTS,
-} from "@/data/platform-endpoints";
+import { DEFAULT_ENDPOINT, DEFAULT_PLATFORM, PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
+import { isTrustedEndpoint } from "@/lib/trusted-endpoint";
 
 // Roadmap 031: the payload schemas (and with them zod) load with the first
 // encode/decode — both call sites are already async — via this module-cached
