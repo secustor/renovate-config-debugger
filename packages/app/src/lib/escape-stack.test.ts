@@ -33,7 +33,7 @@ function modal(): () => void {
   return release;
 }
 
-/* eslint-disable vitest/no-standalone-expect -- asserting the teardown
+/* oxlint-disable vitest/no-standalone-expect -- asserting the teardown
    invariant is the POINT of this hook, not an escaped assertion. The escape
    stack is module-level state shared by every test in this file: a leaked
    claim makes every LATER test's `handleEscape()` a silent no-op, so the test
@@ -51,7 +51,7 @@ afterEach(() => {
   expect(modalKeyboardOwned()).toBe(false);
   expect(handleEscape()).toBe(false);
 });
-/* eslint-enable vitest/no-standalone-expect */
+/* oxlint-enable vitest/no-standalone-expect */
 
 describe("escape stack", () => {
   it("runs only the topmost layer of a rank", () => {
