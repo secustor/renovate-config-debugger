@@ -1,11 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useInsertionEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useInsertionEffect, useMemo, useRef, useState } from "react";
 import type {
   ErrorFixResult,
   OptionIndex,

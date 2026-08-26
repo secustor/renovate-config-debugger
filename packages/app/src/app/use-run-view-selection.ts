@@ -1,4 +1,12 @@
-import { type Dispatch, type SetStateAction, useCallback, useDeferredValue, useEffect, useRef, useState } from "react";
+import {
+  type Dispatch,
+  type SetStateAction,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import type { StageId, TraceResult } from "@renovate-config-debugger/engine";
 import {
   legacyTabForView,
