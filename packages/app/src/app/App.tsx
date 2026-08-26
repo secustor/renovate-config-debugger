@@ -1,6 +1,5 @@
 import {
   useCallback,
-  useDeferredValue,
   useEffect,
   useInsertionEffect,
   useMemo,
@@ -10,7 +9,6 @@ import {
 import type {
   ErrorFixResult,
   OptionIndex,
-  RepoPlatform,
   StageId,
   TraceResult,
 } from "@renovate-config-debugger/engine";
@@ -19,12 +17,6 @@ import { AppShellHeader } from "@/app/AppShellHeader";
 import type { ConfigEditorHandle } from "@/features/editor/ConfigEditor";
 import { ConfigColumn } from "@/app/ConfigColumn";
 import { HeadlessNote } from "@/components/HeadlessNote";
-import { identityForNodeId, nodeIdForIdentity } from "@/lib/preset-tree-stats";
-import {
-  legacyTabForView,
-  resultsTabForShareTab,
-  shareTabWantsMigrateStage,
-} from "@/data/results-tabs";
 import { AppProviders } from "@/app/AppProviders";
 import type { RunView } from "@/app/run-view-context";
 import { REPO_URL } from "@/data/project-repo";
@@ -35,6 +27,8 @@ import { OAUTH_CONFIG, useOAuthSession } from "@/app/use-oauth-session";
 import { useLandingWalk } from "@/app/use-landing-walk";
 import { usePreservedScroll } from "@/app/use-preserved-scroll";
 import { type ConfigFileName, useConfigDocument } from "@/app/use-config-document";
+import { useRepoProvenance } from "@/app/use-repo-provenance";
+import { useRunViewSelection } from "@/app/use-run-view-selection";
 import { beginSignIn } from "@/platform/oauth";
 import {
   type ErrorTranslationLib,
@@ -43,7 +37,7 @@ import {
   loadOptionIndex,
   run,
 } from "@/platform/run";
-import type { ShareSimulator, ShareState, ShareView } from "@/lib/share";
+import type { ShareSimulator, ShareState } from "@/lib/share";
 import { useBackToTopVisible, useHomeEndPageScroll } from "@/hooks/scroll-ergonomics";
 import { useLatestRef } from "@/hooks/use-latest-ref";
 import { useKeyboardLandings } from "@/app/use-keyboard-landings";
@@ -55,7 +49,6 @@ import { usePlatformContext } from "@/app/use-platform-context";
 import { useInheritedConfigLayer } from "@/app/use-inherited-config-layer";
 import { useRepoLoad } from "@/app/use-repo-load";
 import { useRepoDeps } from "@/features/simulator/use-repo-deps";
-import { TREE_LISTING_PLATFORMS } from "@/data/host-tokens";
 import { useRepoPicker } from "@/app/use-repo-picker";
 import { useRunSummary } from "@/app/use-run-summary";
 import { usePanelStats } from "@/app/use-panel-stats";
@@ -65,12 +58,11 @@ import { useShareLink } from "@/hooks/use-share-link";
 import type { RunInputs } from "@/lib/run-inputs";
 import { createRunQueue, type RunQueue } from "@/lib/run-queue";
 import { pluralWord } from "@/lib/format";
-import { useSyncedReset } from "@/hooks/use-synced-reset";
 import { EXAMPLE_CONFIG } from "@/data/starter-configs";
 import { AppBanners } from "@/app/AppBanners";
 import { ResultsPane } from "@/app/ResultsPane";
 import { preloadRunChunks } from "@/app/preload-run-chunks";
-import type { LoadedRepo, RepoConnectOffer } from "@/types/repo";
+import type { RepoConnectOffer } from "@/types/repo";
 
 /** What a caller may ask of a run. Every request reaches the queue except one
  *  refused before it starts, by layers that would not parse — see `onRun`. */
@@ -189,36 +181,6 @@ export function App() {
   const [injected, setInjected] = useState<InjectionMap>({});
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<TraceResult | null>(null);
-  const [selectedStage, setSelectedStage] = useState<StageId>("preset");
-  // Large stage diffs (preset, merge) take a while to render; deferring the
-  // stage keeps chip clicks responsive and makes the diff render
-  // interruptible instead of blocking the main thread.
-  const deferredStage = useDeferredValue(selectedStage);
-  const [optionIndex, setOptionIndex] = useState<OptionIndex | null>(null);
-  // Roadmap 014: curated validator-message translations + suggested fixes,
-  // loaded lazily alongside the option index (same engine chunk).
-  const [errorLib, setErrorLib] = useState<ErrorTranslationLib | null>(null);
-  // Preset-tree selection is owned here so a provenance chain (005) can select
-  // a preset node in the tree. Node ids restart every run, so reset on result.
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  // Migration stepper index, owned here so a shareable link (007) can restore
-  // the step; reset to 0 on a new result just like the uncontrolled stepper.
-  const [migrationStepIndex, setMigrationStepIndex] = useState(0);
-  // Roadmap 044: the simulator's merge-stepper index, owned here for the same
-  // reason — a shareable link restores it. The simulator itself resets it when
-  // a new simulation runs (a new merge sequence), and the reset effect below
-  // clears it on a new pipeline result.
-  const [mergeStepIndex, setMergeStepIndex] = useState(0);
-  /**
-   * Roadmap 075 (iteration 6): the pinned tests — dependency descriptors the
-   * Tests tab re-simulates against every run.
-   *
-   * Owned here for the two reasons every other cross-cutting piece of state is:
-   * a share link carries them (`buildShareState` / the decode path below), and
-   * the tab strip's count is one of the numbers `useRunSummary` assembles. The
-   * evaluation itself is the panel's (`usePinnedTests`), keyed on the run.
-   */
-  const { pins, addPin, removePin, setPinsFromShare, pinsAsShareFields } = usePinnedRun();
   // Roadmap 028: which results tab the reader is on, the one-step "back to
   // where I was" trail, and the rule-focus jump that is a tab switch too — as
   // one hook. Every COMPOSITION of a tab switch with other App state is still
@@ -237,6 +199,37 @@ export function App() {
     onRuleFocused,
     onJumpToSimRule,
   } = useResultsTab();
+  // Roadmap 086 follow-up: what the reader is looking AT within a run — the
+  // stage, the preset node, the two stepper indices — plus the three behaviours
+  // that only make sense together: the new-run reset, a decoded link's override
+  // of it, and the encode back into a link.
+  const runViewSelection = useRunViewSelection({ result, setTab });
+  const {
+    selectedStage,
+    setSelectedStage,
+    deferredStage,
+    selectedNodeId,
+    setSelectedNodeId,
+    migrationStepIndex,
+    setMigrationStepIndex,
+    mergeStepIndex,
+    setMergeStepIndex,
+    setPendingView,
+  } = runViewSelection;
+  const [optionIndex, setOptionIndex] = useState<OptionIndex | null>(null);
+  // Roadmap 014: curated validator-message translations + suggested fixes,
+  // loaded lazily alongside the option index (same engine chunk).
+  const [errorLib, setErrorLib] = useState<ErrorTranslationLib | null>(null);
+  /**
+   * Roadmap 075 (iteration 6): the pinned tests — dependency descriptors the
+   * Tests tab re-simulates against every run.
+   *
+   * Owned here for the two reasons every other cross-cutting piece of state is:
+   * a share link carries them (`buildShareState` / the decode path below), and
+   * the tab strip's count is one of the numbers `useRunSummary` assembles. The
+   * evaluation itself is the panel's (`usePinnedTests`), keyed on the run.
+   */
+  const { pins, addPin, removePin, setPinsFromShare, pinsAsShareFields } = usePinnedRun();
   // Roadmap 028/069/083: the counts the results panels report back up (the
   // Effective tab's key tally, the Overview tab's behavior count) and the
   // ledger signal that goes the other way — as one hook, because a new run
@@ -278,16 +271,6 @@ export function App() {
     const id = window.setTimeout(preloadRunChunks, 1_000);
     return () => window.clearTimeout(id);
   }, []);
-  // View state pending from a decoded link, applied once the run produces a
-  // result (identities → node ids need the resolved tree). A ref, not state, so
-  // consuming it does not trigger a render.
-  const pendingViewRef = useRef<ShareView | null>(null);
-  // …and the one way the share cluster arms it. A callback rather than the ref
-  // itself: the ref is App's, and a hook writing through an object handed to it
-  // is a hook mutating its own argument (`react/immutability`).
-  const setPendingView = useCallback((view: ShareView | null) => {
-    pendingViewRef.current = view;
-  }, []);
   // Roadmap 017: mirrors of `content`/`loadedContent` for the hashchange
   // listener (inside `useShareLink`), which is registered once (empty deps)
   // and would otherwise close over the state from that first render.
@@ -327,10 +310,11 @@ export function App() {
       setPins: setPinsFromShare,
       // Roadmap 087: the link's repo provenance replaces this session's — the
       // previous LoadedRepo described a config that is no longer on screen.
-      applyShareRepo: (repo) => {
-        setLoadedRepo(null);
-        setRepoSuggestion(repo);
-      },
+      // An arrow, not the bare method: this host object is built during render
+      // and `repoProvenance` is declared further down. The arrow only runs on a
+      // link arrival, which is the same deferred-capture rule this object's
+      // header states for everything else declared later in the body.
+      applyShareRepo: (repo) => repoProvenance.adoptShareClaim(repo),
       setPendingView,
       contentRef,
       loadedContentRef,
@@ -356,7 +340,7 @@ export function App() {
   const onShowRewrites = useCallback(() => {
     setSelectedStage("migrate");
     jumpToTab("pipeline");
-  }, [jumpToTab]);
+  }, [jumpToTab, setSelectedStage]);
 
   /**
    * Roadmap 076 (design turn 18d): the Advanced zone's cross-link to the two
@@ -368,7 +352,7 @@ export function App() {
   const onShowPipelineLayers = useCallback(() => {
     setSelectedStage("global");
     jumpToTab("pipeline");
-  }, [jumpToTab]);
+  }, [jumpToTab, setSelectedStage]);
 
   /** Roadmap 045/076: where a probe that just filled (or failed to fill) the
    *  inherited layer points. It used to unfold two disclosures; the layer's
@@ -385,7 +369,7 @@ export function App() {
   const revealInheritedStage = useCallback(() => {
     pendingLayerStageRef.current = "inherit";
     setSelectedStage("inherit");
-  }, []);
+  }, [setSelectedStage]);
 
   /** Roadmap 069: the description card's "show raw order" link — lands on the
    *  `description` row's blame ledger. Roadmap 083 moved the card to its own
@@ -479,12 +463,6 @@ export function App() {
   // indices are back at their starting points BEFORE the paint instead of one
   // committed frame after it, where a stepper briefly showed the old step
   // against the new run's sequence.
-  useSyncedReset(result, () => {
-    setSelectedNodeId(null);
-    setMigrationStepIndex(0);
-    setMergeStepIndex(0);
-  });
-
   useEffect(() => {
     // Roadmap 028: a new run invalidates the previous run's async counts —
     // the effective key stats and the Overview's behavior count (083), both
@@ -519,15 +497,16 @@ export function App() {
   // a value React Compiler must treat as "may change later", which costs the
   // memoization of everything downstream of the layer's parse.
   const [repoInput, setRepoInput] = useState("");
-  // Roadmap 078: where the config on screen was loaded FROM — set by a
-  // successful repo load, replaced by the next one. The Tests tab's
-  // From-repository picker exists only while this does.
-  const [loadedRepo, setLoadedRepo] = useState<LoadedRepo | null>(null);
-  // Roadmap 087: the repo a SHARE LINK said its config was loaded from — the
-  // connect panel's one-click suggestion. Provenance the link claims, not a
-  // load this session performed; nothing is fetched until the user clicks the
-  // button that names it.
-  const [repoSuggestion, setRepoSuggestion] = useState<string | null>(null);
+  // Roadmap 078/087: where the config on screen came from — a load this
+  // session performed, or a claim a share link made. See the hook for why
+  // "replace the provenance" and "discard it" are two named writers rather
+  // than the same pair of setter calls twice.
+  const repoProvenance = useRepoProvenance({
+    platform,
+    endpoint,
+    suppressTokens: untrustedGuard !== null,
+  });
+  const loadedRepo = repoProvenance.loadedRepo;
   // Roadmap 045/048: the inherited-config layer — its text and parse, the
   // probe-target fields, the `inheritConfig*` policy read off the global
   // config, and the probe the repo load calls between the repo config arriving
@@ -577,7 +556,7 @@ export function App() {
     // real `inheritConfig` run resolves it.
     resolveInheritedConfig: async (args) =>
       inheritAuto ? await probeInheritedConfig(args) : inheritedParse.config,
-    onRepoLoaded: setLoadedRepo,
+    onRepoLoaded: repoProvenance.recordLoad,
   });
   // Roadmap 078: the loaded repo's extracted dependencies — discovered on
   // demand (the first open of the From-repository tab), reset by a new load.
@@ -590,33 +569,20 @@ export function App() {
   // closes over this render's state; the latest-ref wrapper (the
   // `buildShareLinkAndCopy` idiom) keeps the handed-out identity stable for
   // the run-view provider.
-  function connectSuggestedRepoImpl() {
-    if (repoSuggestion === null || !TREE_LISTING_PLATFORMS.has(platform as RepoPlatform)) {
-      return;
-    }
-    setLoadedRepo({
-      platform: platform as RepoPlatform,
-      repo: repoSuggestion,
-      ...(endpoint === "" ? {} : { endpoint }),
-      suppressTokens: untrustedGuard !== null,
-    });
-  }
-  const connectSuggestedRepoRef = useLatestRef(connectSuggestedRepoImpl);
-  const connectSuggestedRepo = useCallback(
-    () => connectSuggestedRepoRef.current(),
-    // A stable ref object; see `useLatestRef` for why the list is not empty.
-    [connectSuggestedRepoRef],
-  );
-  // The suggestion is only offered while the platform context could actually
-  // LIST it (the picker's walk is GitHub-only) — the click would otherwise
-  // lead to a discovery that can only error.
+  // Joins the two clusters this offer is made of — the provenance claim and
+  // the editor's load overlay — which is the shell's own job.
+  // Destructured so the dependency list is plain identifiers: React Compiler
+  // cannot preserve a manual memo whose deps are member expressions off a value
+  // it must assume may be mutated (react/preserve-manual-memoization).
+  const { suggestion: repoSuggestion, connect: connectSuggestedRepo } = repoProvenance;
+  const { openRepoForm } = repoLoad;
   const repoConnect = useMemo<RepoConnectOffer>(
     () => ({
-      suggestion: TREE_LISTING_PLATFORMS.has(platform as RepoPlatform) ? repoSuggestion : null,
+      suggestion: repoSuggestion,
       onConnect: connectSuggestedRepo,
-      onOpenLoad: repoLoad.openRepoForm,
+      onOpenLoad: openRepoForm,
     }),
-    [repoSuggestion, platform, connectSuggestedRepo, repoLoad.openRepoForm],
+    [repoSuggestion, connectSuggestedRepo, openRepoForm],
   );
   // Roadmap 085: the signed-in repo picker inside the load overlay. Picking
   // only writes the reference field — Load stays the one trigger.
@@ -659,61 +625,6 @@ export function App() {
     }
     return skips;
   }, [globalParse.config, inheritedParse.config]);
-
-  // Apply pending link view state after the run's result exists — after the
-  // new-run invalidation above, which the link's own view state overrides: the
-  // selection and the two stepper indices are reset during the render that
-  // observed the result, and this effect runs on the commit that follows it.
-  useEffect(() => {
-    if (!result) {
-      return;
-    }
-    const pending = pendingViewRef.current;
-    if (!pending) {
-      return;
-    }
-    pendingViewRef.current = null;
-    if (pending.stage) {
-      setSelectedStage(pending.stage);
-    }
-    if (typeof pending.step === "number") {
-      setMigrationStepIndex(pending.step);
-    }
-    // Roadmap 075 (iteration 3): a link that named the Rewrites tab — or a
-    // pre-028 one that carried a migration step, which is the same intent
-    // spelled differently — is asking for the stepper, and the stepper is the
-    // migrate stage's now. Applied AFTER `pending.stage` on purpose: the stage
-    // such a link carries is whatever the sender's pipeline rail happened to be
-    // on, and it is not what they were pointing at.
-    const wantsMigrateStage =
-      pending.tab === undefined
-        ? typeof pending.step === "number"
-        : shareTabWantsMigrateStage(pending.tab);
-    if (wantsMigrateStage) {
-      setSelectedStage("migrate");
-    }
-    // Roadmap 044: applied BEFORE the simulator's auto-run (a `sim` link's
-    // simulation starts from the simulator's own effect, which deliberately
-    // keeps this index instead of resetting to step 0).
-    if (typeof pending.simStep === "number") {
-      setMergeStepIndex(pending.simStep);
-    }
-    if (pending.node && result.presetTree) {
-      const id = nodeIdForIdentity(result.presetTree, pending.node);
-      if (id) {
-        setSelectedNodeId(id);
-      }
-    }
-    // Roadmap 028: an explicit tab wins; a pre-028 link infers one from the
-    // view state it does carry. Roadmap 075: and a v1 tab id is mapped onto the
-    // tab that replaced it — links naming `simulator` / `rewrites` are already
-    // out there (`overview` needs no mapping since 083 made it a real tab again).
-    const linkTab =
-      pending.tab === undefined ? legacyTabForView(pending) : resultsTabForShareTab(pending.tab);
-    if (linkTab) {
-      setTab(linkTab);
-    }
-  }, [result, setTab]);
 
   // An unparseable 008 layer never silently runs without it — block instead.
   // Roadmap 030: the same gate gets a matching case for the endpoint field
@@ -1254,24 +1165,7 @@ export function App() {
   // descriptor form fields (roadmap 018).
   async function buildShareState(sim?: ShareSimulator): Promise<ShareState> {
     const renovate = result?.renovateVersion ?? (await getRenovateVersion());
-    const view: ShareView = { stage: selectedStage, tab };
-    if (selectedNodeId && result?.presetTree) {
-      const identity = identityForNodeId(result.presetTree, selectedNodeId);
-      if (identity) {
-        view.node = identity;
-      }
-    }
-    if (migrateStepperMounted) {
-      view.step = migrationStepIndex;
-    }
-    // Roadmap 044: the simulator's merge step. Omitted at 0 (its default on
-    // both sides) — unlike `step`, nothing infers a tab from it (028's
-    // `legacyTabForView` predates it and every link that can carry it also
-    // carries an explicit `tab`), so an absent field costs nothing and old
-    // links keep decoding unchanged.
-    if (mergeStepIndex > 0) {
-      view.simStep = mergeStepIndex;
-    }
+    const view = runViewSelection.toShareView(tab, migrateStepperMounted);
     return {
       config: content,
       fileName,
@@ -1408,6 +1302,14 @@ export function App() {
       ruleProvenance,
       onJumpToSimRule,
       onApplyFix,
+      // The four setters now arrive through `useRunViewSelection` rather than
+      // straight from `useState`, so the rule can no longer prove they are
+      // stable. They are — same setters, one hop further — and listing them
+      // costs nothing, since a stable identity never invalidates the memo.
+      setSelectedStage,
+      setSelectedNodeId,
+      setMigrationStepIndex,
+      setMergeStepIndex,
     ],
   );
 
@@ -1507,8 +1409,7 @@ export function App() {
               // wholesale replacement ends the previous load's provenance
               // (the footnote's claim, and the share link's `repo`), exactly
               // as a share-link arrival does.
-              setLoadedRepo(null);
-              setRepoSuggestion(null);
+              repoProvenance.clear();
             }}
             // The dogfood shortcut: fetch and run THIS app's own renovate.json,
             // live from its repository — a full URL, so the load pins the
