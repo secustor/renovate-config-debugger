@@ -13,14 +13,14 @@ import { EMPTY_FORM } from "./form";
 import { EmptyFormGuard, PinLimitNote } from "./FormNotes";
 import { OpenInSimulatorLink } from "./OpenInSimulatorLink";
 import { type PasteFill, parsePastedDescriptor, pasteImportNote } from "./paste-descriptor";
-import { buildPinOutcome, type PinCheck, type PinOutcome } from "./pin-outcome";
-import { pinAddFocusTarget } from "./pin-add-dom";
+import type { PinCheck } from "./pin-outcome";
 import { PinHeadRow } from "./PinHeadRow";
 import { pinContext, pinName, MAX_PINS } from "./pins";
 import { PinSectionHead } from "./PinRuleSections";
 import { draftFill, type RepoDraft } from "./repo-deps";
 import { RepoConnectPanel, RepoDepsTab } from "./RepoDepsTab";
-import { runSimulation } from "./run-simulation";
+import { type OneOff, useOneOffSimulation } from "./use-one-off-simulation";
+import { usePinCardOpen } from "./use-pin-card-open";
 import { SimulatorForm } from "./SimulatorForm";
 import { useEngineModule } from "./use-engine-module";
 // Aliased: the hook's return type and the form COMPONENT share a name, and
@@ -51,14 +51,6 @@ import type { RepoConnectOffer, RepoDepsView } from "@/types/repo";
  * call a pinned test uses (`runSimulation`), so a one-off verdict and the
  * pinned one can never disagree.
  */
-
-interface OneOff {
-  /** The run the verdict belongs to — anything else on screen makes it stale. */
-  result: TraceResult;
-  form: FormState;
-  outcome: PinOutcome;
-  effectiveUpdateType: string;
-}
 
 function OneOffResult({
   oneOff,
@@ -399,8 +391,18 @@ export function AddTestBox({
   // panel opens in). Held here rather than in the form so a re-render from a
   // simulation never folds what the reader opened.
   const [openGroup, setOpenGroup] = useState(-1);
-  const [oneOff, setOneOff] = useState<OneOff | null>(null);
-  const [simulating, setSimulating] = useState(false);
+  // The card's own "check this once, without pinning it" run.
+  const {
+    oneOff,
+    simulating,
+    simulate,
+    clear: clearOneOff,
+  } = useOneOffSimulation({
+    result,
+    layerByIndex,
+    attribution,
+    guard,
+  });
   // Roadmap 082: which door the descriptor is coming through, and the drafts
   // in the other two — held here so a tab switch does not throw them away.
   // The DEFAULT is derived, not stored (the design's rule): until the reader
@@ -410,43 +412,8 @@ export function AddTestBox({
   const [chosenTab, setChosenTab] = useState<AddTestTab | null>(null);
   const [pasteDraft, setPasteDraft] = useState("");
   const [repoDraft, setRepoDraft] = useState<RepoDraft | null>(null);
-  // The ghost row (082 revisited): with nothing pinned the card is FORCED
-  // open — the empty state's CTA must point at a form that is on screen —
-  // and once pins exist it is open only while the reader HOLDS it open. A
-  // derived `open` keeps the invariant across prop changes, not just at
-  // mount: a share link's pins arriving over a live session collapse the
-  // card back to the ghost, and removing the last pin brings it back.
-  const [userOpen, setUserOpen] = useState(false);
-  const open = pins.length === 0 || userOpen;
-  // Focus moves into the card only on a USER-initiated open (the nonce) —
-  // never on mount: a tab switch must not steal focus. On the Manual tab the
-  // target is the form's first input (which pinAddFocusTarget also scrolls
-  // to); on the other tabs it falls back to the card's first input, else the
-  // active tab — the ghost button is unmounting, and focus must not drop to
-  // the body.
-  const [focusNonce, setFocusNonce] = useState(0);
-  const cardRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (focusNonce === 0) {
-      return;
-    }
-    const manual = pinAddFocusTarget();
-    if (manual === null) {
-      cardRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    }
-    const target =
-      manual ??
-      cardRef.current?.querySelector<HTMLElement>(".pin-repo-search input") ??
-      cardRef.current?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]') ??
-      null;
-    target?.focus({ preventScroll: true });
-  }, [focusNonce]);
-
-  function openCard() {
-    setUserOpen(true);
-    setFocusNonce((nonce) => nonce + 1);
-  }
-
+  // The ghost row (082 revisited) and where focus lands when the card opens.
+  const { open, cardRef, openCard, closeCard } = usePinCardOpen(pins.length);
   const repoAvailable = repoDeps.repo !== "";
   const tab: AddTestTab = chosenTab ?? (repoAvailable ? "repo" : "manual");
 
@@ -479,8 +446,7 @@ export function AddTestBox({
           replaceForm(seed);
         }
         setChosenTab("manual");
-        setUserOpen(true);
-        setFocusNonce((nonce) => nonce + 1);
+        openCard();
       }
     },
     // The owner starts at 0, not at the current nonce: a chip clicked BEFORE
@@ -499,22 +465,6 @@ export function AddTestBox({
 
   const atLimit = pins.length >= MAX_PINS;
 
-  function simulate() {
-    const finalConfig = result.finalConfig;
-    if (!guard(form) || !finalConfig || simulating) {
-      return;
-    }
-    setSimulating(true);
-    const snapshot = { ...form };
-    void runSimulation(finalConfig, snapshot, updateTypeTouched)
-      .then(({ sim, effectiveUpdateType: ranType }) => {
-        const outcome = buildPinOutcome(sim, layerByIndex, attribution, pinName(snapshot));
-        setOneOff({ result, form: snapshot, outcome, effectiveUpdateType: ranType });
-        return undefined;
-      })
-      .finally(() => setSimulating(false));
-  }
-
   /** The pin itself is the form hook's (the guard, then the EFFECTIVE
    *  updateType baked in); what follows is this panel's alone — the form is
    *  cleared for the next test, and the one-off it may have been pinned from
@@ -529,9 +479,9 @@ export function AddTestBox({
     }
     // Pinning from the card is holding it open — the collapse belongs to the
     // × (or a link's arrival), never to one's own first pin.
-    setUserOpen(true);
+    openCard();
     replaceForm({});
-    setOneOff(null);
+    clearOneOff();
   }
 
   /** A repo-tab draft pins DIRECTLY — its fields came from extraction, not the
@@ -543,7 +493,7 @@ export function AddTestBox({
       // the PinLimitNote under the card says why nothing happened.
       return;
     }
-    setUserOpen(true);
+    openCard();
     onAddPin({ ...EMPTY_FORM, ...draftFill(repoDraft) });
     setRepoDraft(null);
   }
@@ -580,7 +530,7 @@ export function AddTestBox({
           repoAvailable={repoAvailable}
           repoSuggested={repoConnect.suggestion !== null}
           closable={pins.length > 0}
-          onClose={() => setUserOpen(false)}
+          onClose={closeCard}
         />
         {tab === "paste" ? (
           <PasteJsonTab text={pasteDraft} onTextChange={setPasteDraft} onFill={applyPaste} />
@@ -605,7 +555,7 @@ export function AddTestBox({
             openGroup={openGroup}
             onOpenGroupChange={setOpenGroup}
             onQuickFill={(fill) => replaceForm(fill)}
-            onSubmit={simulate}
+            onSubmit={() => simulate(form, updateTypeTouched)}
             actions={
               <DescriptorActions
                 className="pin-new-actions"
