@@ -7,7 +7,7 @@ import type {
 import { nf } from "@/lib/format";
 import { nextTabIndex } from "@/lib/roving-tabs";
 import { anyModifierHeld } from "@/lib/shortcuts";
-import { PIN_FORM_ID } from "./datalist-ids";
+import { PIN_FORM_ID, PIN_TAB_PANEL_ID, pinTabId } from "./datalist-ids";
 import { DescriptorActions } from "./DescriptorActions";
 import { EMPTY_FORM } from "./form";
 import { EmptyFormGuard, PinLimitNote } from "./FormNotes";
@@ -177,7 +177,9 @@ function AddTestTabs({
       <button
         type="button"
         role="tab"
+        id={pinTabId(id)}
         aria-selected={tab === id}
+        aria-controls={PIN_TAB_PANEL_ID}
         tabIndex={tab === id ? 0 : -1}
         className={`tab${tab === id ? " active" : ""}`}
         title={title}
@@ -198,6 +200,7 @@ function AddTestTabs({
       ? "Opened from a shared link — reload the repository to pick from detected dependencies"
       : "Load the repository to pick from its detected dependencies";
   return (
+    // oxlint-disable-next-line jsx-a11y/interactive-supports-focus -- the composite-tablist pattern, same as `ResultsPanel`'s bar: the roving tabindex lives on the `<button role="tab">`s that `tabButton` renders, and the container stays out of the tab order so Tab leaves the bar rather than entering it. `rove` is here because the arrow keys are handled by delegation — the other half of that same pattern, not a sign the container should be focusable.
     <div className="tab-bar pin-add-tabs" role="tablist" aria-label="New pin" onKeyDown={rove}>
       <span className="pin-add-newpin">New pin</span>
       {tabButton("manual", "Manual")}
@@ -521,6 +524,21 @@ export function AddTestBox({
     );
   }
 
+  // Hoisted out of the JSX rather than written inline on `ManualPanel`'s
+  // `actions` prop: the tabpanel wrapper below added the level that put this
+  // element at depth 4, and lifting the leaf is what the depth ratchet asks
+  // for (`TreeRow`'s `nameButton` is the same move).
+  const manualActions = (
+    <DescriptorActions
+      className="pin-new-actions"
+      formId={PIN_FORM_ID}
+      submitLabel="Simulate"
+      submitDisabled={simulating || !result.finalConfig}
+      atLimit={atLimit}
+      onPin={() => pin()}
+    />
+  );
+
   return (
     <div className="pin-add-panel">
       <div className="card pin-add-card" ref={cardRef}>
@@ -532,42 +550,39 @@ export function AddTestBox({
           closable={pins.length > 0}
           onClose={closeCard}
         />
-        {tab === "paste" ? (
-          <PasteJsonTab text={pasteDraft} onTextChange={setPasteDraft} onFill={applyPaste} />
-        ) : null}
-        {tab === "repo" && !repoAvailable ? <RepoConnectPanel offer={repoConnect} /> : null}
-        {tab === "repo" && repoAvailable ? (
-          <RepoDepsTab
-            key={repoDeps.repo}
-            view={repoDeps}
-            pins={pins}
-            atLimit={atLimit}
-            draft={repoDraft}
-            onDraftChange={setRepoDraft}
-            onPinDraft={pinRepoDraft}
-            onRefineDraft={refineRepoDraft}
-            onRetry={onLoadRepoDeps}
-          />
-        ) : null}
-        {tab === "manual" ? (
-          <ManualPanel
-            sim={simForm}
-            openGroup={openGroup}
-            onOpenGroupChange={setOpenGroup}
-            onQuickFill={(fill) => replaceForm(fill)}
-            onSubmit={() => simulate(form, updateTypeTouched)}
-            actions={
-              <DescriptorActions
-                className="pin-new-actions"
-                formId={PIN_FORM_ID}
-                submitLabel="Simulate"
-                submitDisabled={simulating || !result.finalConfig}
-                atLimit={atLimit}
-                onPin={() => pin()}
-              />
-            }
-          />
-        ) : null}
+        {/* No className: it would style nothing (the card is block flow, so
+            this wrapper is layout-transparent) and `class-coverage.test.ts`
+            is right that an unstyled, unselected class should not exist. What
+            the element is for is the three ARIA attributes. */}
+        <div role="tabpanel" id={PIN_TAB_PANEL_ID} aria-labelledby={pinTabId(tab)}>
+          {tab === "paste" ? (
+            <PasteJsonTab text={pasteDraft} onTextChange={setPasteDraft} onFill={applyPaste} />
+          ) : null}
+          {tab === "repo" && !repoAvailable ? <RepoConnectPanel offer={repoConnect} /> : null}
+          {tab === "repo" && repoAvailable ? (
+            <RepoDepsTab
+              key={repoDeps.repo}
+              view={repoDeps}
+              pins={pins}
+              atLimit={atLimit}
+              draft={repoDraft}
+              onDraftChange={setRepoDraft}
+              onPinDraft={pinRepoDraft}
+              onRefineDraft={refineRepoDraft}
+              onRetry={onLoadRepoDeps}
+            />
+          ) : null}
+          {tab === "manual" ? (
+            <ManualPanel
+              sim={simForm}
+              openGroup={openGroup}
+              onOpenGroupChange={setOpenGroup}
+              onQuickFill={(fill) => replaceForm(fill)}
+              onSubmit={() => simulate(form, updateTypeTouched)}
+              actions={manualActions}
+            />
+          ) : null}
+        </div>
         {atLimit ? <PinLimitNote /> : null}
       </div>
       {oneOff !== null && oneOff.result === result ? (

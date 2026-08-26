@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { HoverCardAnchor } from "./hover-card";
+import { HoverCardAnchor, HoverCardTextAnchor } from "./hover-card";
 import { SHOW_SCROLL_GRACE_MS } from "./hover-card-hooks";
 
 /**
@@ -42,11 +42,7 @@ function Scene() {
   return (
     <div data-testid="scroller">
       <HoverCardAnchor className="probe-card" card={<p>who wrote this</p>}>
-        {(handlers) => (
-          <span tabIndex={0} {...handlers}>
-            an anchor
-          </span>
-        )}
+        {(handlers) => <HoverCardTextAnchor handlers={handlers}>an anchor</HoverCardTextAnchor>}
       </HoverCardAnchor>
     </div>
   );

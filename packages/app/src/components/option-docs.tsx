@@ -1,6 +1,6 @@
 import { type ReactNode, useCallback, useMemo, useState } from "react";
 import type { OptionDoc, OptionIndex, OptionPlacement } from "@renovate-config-debugger/engine";
-import { HoverCardAnchor, HoverCardSurface } from "./hover-card";
+import { HoverCardAnchor, HoverCardSurface, HoverCardTextAnchor } from "./hover-card";
 import { useHoverCard } from "./hover-card-hooks";
 import { OptionDocsContext, useOptionDocs } from "./option-docs-hooks";
 import type { AnchorSource } from "@/lib/anchored-card";
@@ -229,9 +229,9 @@ export function OptionKey({ name, flagUnknown }: OptionKeyProps) {
       card={<OptionCardBody name={name} doc={doc} />}
     >
       {(handlers) => (
-        <span className={className} tabIndex={0} {...handlers}>
+        <HoverCardTextAnchor className={className} handlers={handlers}>
           {name}
-        </span>
+        </HoverCardTextAnchor>
       )}
     </HoverCardAnchor>
   );

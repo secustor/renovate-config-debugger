@@ -209,6 +209,7 @@ export function RuleEvidenceCard({
   return createPortal(
     <div
       className={`option-card ${RULE_POP_CLASS}`}
+      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- `<dialog>` is not a drop-in for `role="dialog"`: shown modally it moves the element to the TOP LAYER, which discards the viewport-coordinate placement this card is positioned by (`anchoredCardStyle`), and it brings its own Escape-to-close and `::backdrop`, which would sit alongside — and race — the app's shared Escape ladder (`lib/escape-stack.ts`) rather than joining it. The role gives the semantics; the behaviour here is deliberately the app's, not the platform's.
       role="dialog"
       aria-label={`${ruleRef(evidence.ruleIndex)} — rule evidence`}
       tabIndex={-1}

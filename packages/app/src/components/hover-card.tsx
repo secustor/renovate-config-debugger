@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useId } from "react";
 import { createPortal } from "react-dom";
 import { type HoverCardControls, HoverCardCloseProvider, useHoverCard } from "./hover-card-hooks";
 import { useMoveGatedHover } from "./hover-gate";
@@ -37,6 +37,52 @@ export interface HoverCardHandlers {
    * and it would otherwise trade its Enter/Space for this or this for it.
    */
   onKeyDown: (e: React.KeyboardEvent) => void;
+  /**
+   * The open card's id, so the anchor NAMES the thing it just revealed.
+   * `undefined` while no card is up — the element it would point at is not
+   * rendered then, and a dangling reference is worse than none.
+   *
+   * Without this the anchors were focusable elements with no role and no
+   * relationship to anything: a screen reader landed on "npmToken", announced
+   * that and stopped, while the card explaining it sat in a portal at the end
+   * of `<body>` with nothing tying the two together. The card's text is a
+   * DESCRIPTION of the anchor, which is precisely what this attribute is for.
+   *
+   * `aria-describedby` rather than `role="tooltip"` on the card: several of
+   * these cards hold interactive content (the attribution card's tree jump,
+   * links inside option docs), and a `tooltip` is specified as non-interactive
+   * — claiming the role would promise a keyboard contract the widget does not
+   * implement. `aria-details` would be the richer fit, but its AT support is
+   * still thin where `aria-describedby` is universal.
+   */
+  "aria-describedby"?: string;
+}
+
+/**
+ * The anchor half for the common case: a focusable run of text that reveals
+ * its card on hover or focus.
+ *
+ * One component rather than the four hand-written copies this replaces
+ * (`ExplainedText`, the JSON description span, the option-name span, and the
+ * hover-card test's own fixture) — they were the same six attributes each
+ * time, which is how three of them came to be focusable with no description
+ * while the fourth was the one under test.
+ */
+export function HoverCardTextAnchor({
+  className,
+  handlers,
+  children,
+}: {
+  className?: string;
+  handlers: HoverCardHandlers;
+  children: ReactNode;
+}) {
+  return (
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- the rule's remedy is "drop the tabIndex", which would take these cards away from keyboard users entirely: hover is the ONLY other way to open one. The honest fix it is reaching for is a role, and there is no right one — the anchor activates nothing on click (`tooltip`/`button` both promise a contract this does not implement), so what it owes the reader is a DESCRIPTION, which `aria-describedby` above now gives it. This is the single site in the app that makes text focusable; every other one is a real control.
+    <span className={className} tabIndex={0} {...handlers}>
+      {children}
+    </span>
+  );
 }
 
 /** The card's preferred width, and how much room it wants below the anchor
@@ -60,6 +106,7 @@ const DEFAULT_FLIP_MARGIN = 200;
 export function HoverCardSurface({
   controls,
   className,
+  id,
   width = DEFAULT_WIDTH,
   flipMargin = DEFAULT_FLIP_MARGIN,
   children,
@@ -67,6 +114,10 @@ export function HoverCardSurface({
   controls: HoverCardControls;
   /** Extra class on the `.option-card` surface. */
   className?: string;
+  /** What the anchor's `aria-describedby` points at — see {@link
+   *  HoverCardHandlers}. Optional for the one caller that has no anchor
+   *  ELEMENT to carry the reference (the diff views' caret hit-testing). */
+  id?: string;
   width?: number;
   flipMargin?: number;
   /** The card's body. Rendered only while the card is up. */
@@ -83,6 +134,7 @@ export function HoverCardSurface({
     // blur to do that for it.
     <HoverCardCloseProvider value={hideNow}>
       <div
+        id={id}
         className={className ? `option-card ${className}` : "option-card"}
         style={anchoredCardStyle(anchor, width, flipMargin)}
         onMouseEnter={cancelHide}
@@ -123,8 +175,9 @@ export function HoverCardAnchor({
   children: (handlers: HoverCardHandlers) => ReactNode;
 }) {
   const controls = useHoverCard();
-  const { show, hide, onKeyDown } = controls;
+  const { show, hide, onKeyDown, anchor } = controls;
   const moveGate = useMoveGatedHover(show, openDelayMs);
+  const cardId = useId();
   return (
     <>
       {children({
@@ -137,10 +190,15 @@ export function HoverCardAnchor({
         onFocus: (e) => show(e.currentTarget),
         onBlur: hide,
         onKeyDown,
+        // Gated on the card actually being up: `HoverCardSurface` renders
+        // nothing while `anchor` is null, so pointing at `cardId` then would
+        // reference an element that does not exist.
+        "aria-describedby": anchor ? cardId : undefined,
       })}
       <HoverCardSurface
         controls={controls}
         className={className}
+        id={cardId}
         width={width}
         flipMargin={flipMargin}
       >

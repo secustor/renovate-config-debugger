@@ -6,7 +6,7 @@ import {
   WROTE_THIS,
 } from "@/lib/description-attribution";
 import { APPROXIMATE_NOTE } from "@/lib/tree-descriptions";
-import { HoverCardAnchor } from "./hover-card";
+import { HoverCardAnchor, HoverCardTextAnchor } from "./hover-card";
 import { layerClass, layerLabel } from "@/lib/provenance-layer";
 
 /**
@@ -83,9 +83,9 @@ export function DescriptionValue({
       card={<AttributionCard card={card} onSelectPreset={onSelectPreset} />}
     >
       {(handlers) => (
-        <span className="json-desc" tabIndex={0} {...handlers}>
+        <HoverCardTextAnchor className="json-desc" handlers={handlers}>
           {JSON.stringify(card.value)}
-        </span>
+        </HoverCardTextAnchor>
       )}
     </HoverCardAnchor>
   );

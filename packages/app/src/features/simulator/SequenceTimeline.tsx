@@ -25,6 +25,7 @@ export type SequenceDotLevel = "clean" | "changed" | "error" | "skipped";
 
 export function SequenceTimeline({ label, children }: { label: string; children: ReactNode }) {
   return (
+    // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- the rule offers `address, details, fieldset, hgroup, optgroup` for `group`, and every one of them means something this is not: `<fieldset>` is form controls (and draws a border box), `<details>` is a disclosure, `<address>` is contact information, `<hgroup>` is headings, `<optgroup>` is select options. A labelled `role="group"` is the generic grouping ARIA provides precisely because HTML has no neutral tag for it.
     <div className="stage-timeline" role="group" aria-label={label}>
       {children}
     </div>

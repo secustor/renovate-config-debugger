@@ -246,6 +246,30 @@ it("lands on the simulator when the link that opened the app carried a simulatio
   });
 });
 
+it("points the new-pin tabs at the panel they control, and the panel back at the open tab", async () => {
+  const result = await run();
+  const view = render(<Harness result={result} />);
+
+  // The half of tablist semantics the strip was MISSING: `aria-selected` said
+  // which tab was open, but nothing on either side named the other, so a
+  // screen reader had no way from the tab to the region it had just switched.
+  // No jsx-a11y rule reports an absent relationship — this test is the guard.
+  const panel = view.container.querySelector('[role="tabpanel"]');
+  expect(panel).not.toBeNull();
+
+  const manual = view.getByRole("tab", { name: "Manual" });
+  expect(manual.getAttribute("aria-controls")).toBe(panel?.id);
+  // …and the panel names whichever tab is currently open, so the pairing
+  // survives a switch rather than being true only at mount.
+  expect(panel?.getAttribute("aria-labelledby")).toBe(manual.id);
+
+  const paste = view.getByRole("tab", { name: "Paste JSON" });
+  expect(paste.getAttribute("aria-controls")).toBe(panel?.id);
+  fireEvent.click(paste);
+  expect(panel?.getAttribute("aria-labelledby")).toBe(paste.id);
+  expect(manual.id).not.toBe(paste.id);
+});
+
 it("fills the Manual form from a pasted descriptor, and shows the descriptor back (082)", async () => {
   const result = await run();
   const view = render(<Harness result={result} />);

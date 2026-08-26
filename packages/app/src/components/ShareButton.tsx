@@ -67,6 +67,7 @@ export function ShareButton({ onShare }: { onShare: () => Promise<void> }) {
         <span>{copied ? "Copied" : "Share"}</span>
       </button>
       {popUrl === null ? null : (
+        // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- `<output>`'s content model is PHRASING content, and this card holds two `<p>`s and a `<code>` block; the swap would be invalid HTML before it was anything else. The live-region-support argument on `StaleResultsBanner` applies here too.
         <div className="share-pop" role="status">
           <p className="share-pop-ok">✓ Link copied</p>
           <code className="share-pop-url">{popUrl}</code>

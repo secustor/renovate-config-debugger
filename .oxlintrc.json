@@ -24,11 +24,11 @@
   // test-correctness class that is now fixed, and one rule is off on cost. The
   // whole account is in the `vitest/*` block under `rules` below.
   //
-  // `jsx-a11y` is on, with four of its rules off and the reasons recorded in
-  // the `jsx-a11y/*` block under `rules`. Read that before assuming the four
-  // are a backlog: three of them are wrong ABOUT THIS CODEBASE rather than
-  // unfixed, and the fourth names a real open question whose own suggested fix
-  // would make the app less accessible, not more.
+  // `jsx-a11y` is on with NO rule of it disabled — the four that arrived with
+  // hits were briefly `"off"` and are not any more. The `jsx-a11y/*` block
+  // under `rules` is the account of what replaced each blanket off (a fix, an
+  // option, or a disable at the one site it is a fact about) and why that
+  // shape rather than the off.
   "plugins": [
     "unicorn",
     "typescript",
@@ -48,6 +48,18 @@
   // advisory any more — `pnpm lint` reporting anything at all fails CI, which is
   // the point: an oxlint upgrade that adds rules to a category gets a decision
   // at upgrade time (an explicit renovate PR) instead of drifting silently.
+  //
+  // The same zero-tolerance now applies to the ESCAPE HATCHES. `pnpm lint`
+  // passes `--report-unused-disable-directives-severity=error`, so an
+  // `oxlint-disable-next-line` that has stopped suppressing anything is itself
+  // an error. This is what makes a disable-at-the-site a bounded exception
+  // rather than a permanent one: refactor the code out from under it and the
+  // build tells you the comment is now a lie, instead of leaving a stale
+  // waiver nobody dares remove. Switching it on found three immediately — a
+  // directive on a line whose rule only fires on the NEXT statement, and two
+  // `eslint-disable` lines naming rules oxlint does not implement, which had
+  // therefore never done anything at all. A blanket `"off"` has no equivalent
+  // of this check, which is the other half of why the jsx-a11y offs went.
   "categories": {
     "correctness": "error",
     "suspicious": "error"
@@ -158,44 +170,75 @@
     "vitest/require-mock-type-parameters": "off",
 
     // --- the jsx-a11y plugin -------------------------------------------------
-    // The app is a real user-facing SPA, so the plugin belongs on. Most of its
-    // rules were already at zero and now guard every new component: alt text,
-    // aria prop validity, label association, autofocus, required aria props.
+    // The app is a real user-facing SPA, so the plugin belongs on. EVERY rule
+    // of it is on, including the four that arrived with hits — those four used
+    // to be `"off"` here, and this block is what replaced that.
     //
-    // Four rules are off. Three because they are wrong about the patterns this
-    // app deliberately uses — each checked at the call site, not assumed:
+    // Why the blanket offs went. A global `"off"` is unbounded in three
+    // directions at once: every file, every FUTURE file, and no record at the
+    // site that would explain the exception to whoever meets it. The four
+    // rules' 18 hits were not one uniform judgement — they were 2 real defects,
+    // 3 hits of a rule that takes an OPTION, and 13 sites each carrying its own
+    // widget-specific reason. Four `"off"`s flattened all of that into "we do
+    // not check this", and the flattening is what let the preset table's
+    // broken `role="table"` sit inside a rule that had been dismissed as
+    // "wrong about this codebase". So each of the three shapes now gets the
+    // narrowest mechanism that fits it:
     //
-    //   `prefer-tag-over-role` (9 hits) prescribes a semantic tag whose
-    //   BEHAVIOUR differs from the ARIA-on-div the widget needs: `<dialog>`
-    //   brings the top layer and its own close protocol (the evidence card is a
-    //   portal with its own Escape ladder), `<input type=radio>` brings native
-    //   rendering the segmented control replaces, `<tr>` requires a real
-    //   `<table>` the virtualized preset tree is not, and `<output>` is
-    //   form-associated. Taking its advice means rewriting working widgets.
+    //   FIXED (the rule was right, 2 sites + a third finding it led to):
+    //   `PresetListPane`'s `role="table"` had no `row` or `cell` under it and
+    //   its header row sat outside it entirely — AT announced "table, 0 rows"
+    //   over a list of hundreds. Both roles are gone. Auditing it also turned
+    //   up the windowed tree's missing `aria-level`, which no lint rule can
+    //   see (it is conditionally required) and which `TreeRow` now sets. And
+    //   the hover-card anchors got the `aria-describedby` they always owed the
+    //   reader — see `HoverCardTextAnchor`.
     //
-    //   `interactive-supports-focus` (2 hits) wants `tabIndex` on a
-    //   `role="tablist"`. A tablist is a COMPOSITE widget: the ARIA practices
-    //   put the roving tabindex on the tabs and leave the container unfocusable,
-    //   which is exactly what `ResultsPanel` and `AddTestBox` implement.
+    //   CONFIGURED (the rule ships the knob): `control-has-associated-label`'s
+    //   3 hits were all `<option value=…/>` inside a `<datalist>`, where the
+    //   value IS the label and adding text content changes what the browser
+    //   renders. `ignoreElements` already exists for exactly this — the list
+    //   below is the rule's own default plus `option`, so the rule keeps
+    //   working on every control that is not one.
     //
-    //   `control-has-associated-label` (3 hits) fires on `<option value=…/>`
-    //   inside a `<datalist>`. A datalist option's value IS its label — adding
-    //   text content changes what browsers render.
+    //   DISABLED AT THE SITE (13 → 10 hits, each its own fact): the remaining
+    //   ones carry `oxlint-disable-next-line … -- <invariant>`, the same
+    //   convention `react/no-array-index-key` and `no-non-null-assertion` use
+    //   here. `prefer-tag-over-role` takes no options, so this is the only
+    //   bounded mechanism it has; `interactive-supports-focus`'s `tabbable`
+    //   option decides 0-vs-−1 and cannot express "the handlers are delegated
+    //   to the container, the focus lives on the children", which is the
+    //   composite-tablist pattern `ResultsPanel` and `AddTestBox` implement
+    //   straight out of the ARIA practices.
     //
-    // And one because its remedy is worse than the finding:
-    //
-    //   `no-noninteractive-tabindex` (4 hits) is the only one naming a REAL
-    //   question: the hover-card anchors are `<span tabIndex={0}>`, focusable
-    //   with no role, so a screen reader reaches them and is told nothing. But
-    //   the rule's fix is "remove the tabIndex", which would delete keyboard
-    //   access to those cards outright. The right answer is a role and a
-    //   described-by relationship — a deliberate a11y pass on the hover-card
-    //   abstraction, not a lint edit. Left ON the record here rather than
-    //   silently fixed the wrong way.
-    "jsx-a11y/prefer-tag-over-role": "off",
-    "jsx-a11y/interactive-supports-focus": "off",
-    "jsx-a11y/control-has-associated-label": "off",
-    "jsx-a11y/no-noninteractive-tabindex": "off",
+    // The trade is deliberate: 10 one-line exceptions that a reader meets in
+    // context, in exchange for four rules that now fire on anything NEW.
+    "jsx-a11y/prefer-tag-over-role": "error",
+    "jsx-a11y/interactive-supports-focus": "error",
+    "jsx-a11y/no-noninteractive-tabindex": "error",
+    "jsx-a11y/control-has-associated-label": [
+      "error",
+      {
+        "ignoreElements": [
+          "audio",
+          "canvas",
+          "embed",
+          "input",
+          "textarea",
+          "tr",
+          "video",
+          // …and the two additions: see the CONFIGURED note above. `option`
+          // for a `datalist`'s options, whose `value` IS the label, and
+          // `datalist` for the element holding them — it is a data SOURCE
+          // referenced by an input's `list` attribute, never a control a
+          // reader labels or operates, so there is nothing for a label to
+          // name. (The rule's own default list already carries `input` and
+          // `textarea` on the same reasoning: labelled elsewhere.)
+          "option",
+          "datalist"
+        ]
+      }
+    ],
 
     // Roadmap 038: the three type-aware rules whose whole cost was one site
     // each — enabled, with that single site fixed or disabled in place.

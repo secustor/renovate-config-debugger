@@ -109,6 +109,13 @@ export function TreeRow({
     <div
       className={`preset-row state-${node.state}${stats.zero ? " zero" : ""}${row.dimmed ? " dimmed" : ""}`}
       role="treeitem"
+      // The rows are WINDOWED, so the tree is a flat list of siblings in the
+      // DOM — there are no nested `role="group"` elements for AT to infer
+      // depth from, and the only thing that carried the hierarchy was the
+      // `paddingLeft` above, which a screen reader cannot see. The APG's
+      // answer for exactly this shape is to state the level explicitly.
+      // 1-based: `aria-level` counts from 1, `row.depth` from 0.
+      aria-level={row.depth + 1}
       aria-expanded={row.hasChildren ? row.expanded : undefined}
       style={style}
     >
