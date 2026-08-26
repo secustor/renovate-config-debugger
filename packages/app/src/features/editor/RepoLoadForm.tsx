@@ -75,11 +75,7 @@ export function RepoLoadForm({
   }, []);
 
   return (
-    // The keydown below listens for a key BUBBLING from the inputs inside,
-    // which is what a panel-level Escape has to do; the form itself is never the
-    // focus target. The rule's remedy — move the handler to an interactive
-    // element — would mean one Escape handler per field.
-    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- the keydown below listens for a key BUBBLING from the inputs inside, which is what a panel-level Escape has to do; the form itself is never the focus target. The rule's remedy — move the handler to an interactive element — would mean one Escape handler per field.
     <form
       aria-label="Load from repository"
       onSubmit={(e) => {
