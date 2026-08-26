@@ -24,9 +24,18 @@ ruleTester.run("no-local-is-plain-object", rule, {
     "const isPlainObject = (v: unknown) => typeof v === 'object';",
   ],
   invalid: [
+    // The rendered message is asserted, not just the id: the whole point of the
+    // owned-helper map is that the diagnostic NAMES the import, and a
+    // `messageId`-only expectation passes just as happily when `{{from}}`
+    // interpolates to nothing.
     {
       code: "function isPlainObject(value: unknown): value is Record<string, unknown> { return true; }",
-      errors: [{ messageId: "ownedElsewhere" }],
+      errors: [
+        {
+          message:
+            "Import `isPlainObject` from `@/lib/input-schemas` instead of declaring a local copy — byte-identical private copies of this helper are exactly what the shared one replaced.",
+        },
+      ],
     },
     // exported copies are no better — this is about ownership, not visibility
     {

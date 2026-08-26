@@ -12,24 +12,31 @@ import { defineRule } from "@oxlint/plugins";
  * engine root.
  */
 
-/** Helpers this repo owns in exactly one place. Add sparingly: a name belongs
- *  here once a second copy has actually appeared, not in anticipation. */
-const OWNED_HELPERS = new Set(["isPlainObject"]);
+/** Helpers this repo owns in exactly one place, each mapped to the specifier
+ *  that exports it. The module is DATA rather than message prose so a helper
+ *  cannot be added without saying where it lives — a diagnostic that names the
+ *  offence without naming the import is a rule the reader still has to go
+ *  research, and the five sibling rules all name theirs.
+ *
+ *  Add sparingly: a name belongs here once a second copy has actually
+ *  appeared, not in anticipation. */
+const OWNED_HELPERS = new Map([["isPlainObject", "@/lib/input-schemas"]]);
 
 export default defineRule({
   meta: {
     type: "suggestion",
     messages: {
       ownedElsewhere:
-        "`{{name}}` is owned centrally — import it rather than declaring a local copy. Byte-identical private copies of this helper are what the shared one replaced.",
+        "Import `{{name}}` from `{{from}}` instead of declaring a local copy — byte-identical private copies of this helper are exactly what the shared one replaced.",
     },
   },
   createOnce(context) {
     return {
       FunctionDeclaration(node) {
         const name = node.id?.name;
-        if (name !== undefined && OWNED_HELPERS.has(name)) {
-          context.report({ node, messageId: "ownedElsewhere", data: { name } });
+        const from = name === undefined ? undefined : OWNED_HELPERS.get(name);
+        if (name !== undefined && from !== undefined) {
+          context.report({ node, messageId: "ownedElsewhere", data: { name, from } });
         }
       },
     };
