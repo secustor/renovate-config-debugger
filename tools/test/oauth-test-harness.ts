@@ -3,7 +3,8 @@
  * doubles, the Worker/GitHub fetch surface, and the constants both suites
  * address. oauth.session.test.ts and oauth.crosstab.test.ts stub the same
  * module the same way — one copy here keeps their mocks from drifting apart
- * when the Worker surface changes.
+ * when the Worker surface changes. It lives under tools/test rather than in
+ * the app's src/ so test scaffolding can never ride into the production build.
  */
 
 export const COOKIE_SESSION_KEY = "rcd.oauth.cookieSession";

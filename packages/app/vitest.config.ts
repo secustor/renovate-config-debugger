@@ -2,7 +2,11 @@ import { fileURLToPath } from "node:url";
 import { renovateShims } from "@renovate-config-debugger/engine/vite-plugin";
 import { defineConfig } from "vitest/config";
 
-const srcAlias = { "@": fileURLToPath(new URL("./src", import.meta.url)) };
+const srcAlias = {
+  "@": fileURLToPath(new URL("./src", import.meta.url)),
+  // test-only scaffolding lives outside the package so it can't ship
+  "@tools": fileURLToPath(new URL("../../tools", import.meta.url)),
+};
 
 /**
  * Three projects, assigned purely by filename (`vitest-projects.test.ts` pins

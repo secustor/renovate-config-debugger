@@ -6,7 +6,7 @@ import {
   memoryStorage,
   type StorageLike,
   WORKER_URL,
-} from "./oauth-test-harness";
+} from "@tools/test/oauth-test-harness";
 
 /**
  * Roadmap 065 — the cookie-session half of oauth.ts: the localStorage marker

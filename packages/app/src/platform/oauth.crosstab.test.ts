@@ -6,7 +6,7 @@ import {
   memoryStorage,
   type StorageLike,
   WORKER_URL,
-} from "./oauth-test-harness";
+} from "@tools/test/oauth-test-harness";
 
 /**
  * The cross-tab half of oauth.ts: in cookie mode every tab shares one grant,
