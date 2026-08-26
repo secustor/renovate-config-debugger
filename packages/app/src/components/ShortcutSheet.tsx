@@ -157,6 +157,7 @@ export function ShortcutSheet({ onClose }: { onClose: () => void }) {
   }, []);
 
   return (
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- a modal dialog claiming Escape is the documented pattern, and the key arrives by BUBBLING from whatever inside holds focus, not by an interaction with the dialog element itself. The comment on the handler below is why it has to exist at all.
     <dialog
       className="shortcut-sheet"
       ref={dialogRef}

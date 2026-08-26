@@ -24,10 +24,11 @@
   // test-correctness class that is now fixed, and one rule is off on cost. The
   // whole account is in the `vitest/*` block under `rules` below.
   //
-  // NOT added: `jsx-a11y` — 22 violations, each a plausible real gap (focus
-  // management, missing labels, role/tag mismatches). Tractable, but it is an
-  // accessibility commitment this repo has not made explicitly, so it is a
-  // decision rather than a cleanup.
+  // `jsx-a11y` is on, with four of its rules off and the reasons recorded in
+  // the `jsx-a11y/*` block under `rules`. Read that before assuming the four
+  // are a backlog: three of them are wrong ABOUT THIS CODEBASE rather than
+  // unfixed, and the fourth names a real open question whose own suggested fix
+  // would make the app less accessible, not more.
   "plugins": [
     "unicorn",
     "typescript",
@@ -37,7 +38,8 @@
     "import",
     "promise",
     "node",
-    "vitest"
+    "vitest",
+    "jsx-a11y"
   ],
   // Roadmap 041: `suspicious` was the last thing configured at warn. Nothing is
   // advisory any more — `pnpm lint` reporting anything at all fails CI, which is
@@ -151,6 +153,46 @@
     // worse than none: it type-checks a lie. That is a focused migration with
     // per-site review, not a line in this change.
     "vitest/require-mock-type-parameters": "off",
+
+    // --- the jsx-a11y plugin -------------------------------------------------
+    // The app is a real user-facing SPA, so the plugin belongs on. Most of its
+    // rules were already at zero and now guard every new component: alt text,
+    // aria prop validity, label association, autofocus, required aria props.
+    //
+    // Four rules are off. Three because they are wrong about the patterns this
+    // app deliberately uses — each checked at the call site, not assumed:
+    //
+    //   `prefer-tag-over-role` (9 hits) prescribes a semantic tag whose
+    //   BEHAVIOUR differs from the ARIA-on-div the widget needs: `<dialog>`
+    //   brings the top layer and its own close protocol (the evidence card is a
+    //   portal with its own Escape ladder), `<input type=radio>` brings native
+    //   rendering the segmented control replaces, `<tr>` requires a real
+    //   `<table>` the virtualized preset tree is not, and `<output>` is
+    //   form-associated. Taking its advice means rewriting working widgets.
+    //
+    //   `interactive-supports-focus` (2 hits) wants `tabIndex` on a
+    //   `role="tablist"`. A tablist is a COMPOSITE widget: the ARIA practices
+    //   put the roving tabindex on the tabs and leave the container unfocusable,
+    //   which is exactly what `ResultsPanel` and `AddTestBox` implement.
+    //
+    //   `control-has-associated-label` (3 hits) fires on `<option value=…/>`
+    //   inside a `<datalist>`. A datalist option's value IS its label — adding
+    //   text content changes what browsers render.
+    //
+    // And one because its remedy is worse than the finding:
+    //
+    //   `no-noninteractive-tabindex` (4 hits) is the only one naming a REAL
+    //   question: the hover-card anchors are `<span tabIndex={0}>`, focusable
+    //   with no role, so a screen reader reaches them and is told nothing. But
+    //   the rule's fix is "remove the tabIndex", which would delete keyboard
+    //   access to those cards outright. The right answer is a role and a
+    //   described-by relationship — a deliberate a11y pass on the hover-card
+    //   abstraction, not a lint edit. Left ON the record here rather than
+    //   silently fixed the wrong way.
+    "jsx-a11y/prefer-tag-over-role": "off",
+    "jsx-a11y/interactive-supports-focus": "off",
+    "jsx-a11y/control-has-associated-label": "off",
+    "jsx-a11y/no-noninteractive-tabindex": "off",
 
     // Roadmap 038: the three type-aware rules whose whole cost was one site
     // each — enabled, with that single site fixed or disabled in place.
@@ -629,6 +671,23 @@
             ]
           }
         ]
+      }
+    },
+    // ---- jsx-a11y does not apply to test fixtures ---------------------------
+    // A test builds the smallest DOM that exercises the thing under test — a
+    // bare div with a handler, an unlabelled control. Those are stand-ins, not
+    // UI anybody navigates, and holding them to the app's accessibility bar
+    // makes the fixture longer without making the product better.
+    {
+      "files": [
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.node.test.ts",
+        "**/*.shimmed.test.ts",
+        "**/*.shimmed.test.tsx"
+      ],
+      "rules": {
+        "jsx-a11y/no-noninteractive-element-interactions": "off"
       }
     },
     // ---- The vitest plugin's test-only rule ---------------------------------
