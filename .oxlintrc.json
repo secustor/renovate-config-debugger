@@ -215,10 +215,15 @@
         "packages/oauth-worker/src/index.ts",
         "stylelint.config.mjs",
         "release.config.mjs",
-        // The root vitest config, and the house-rule plugin: `definePlugin` and
-        // `defineRule` are default-export APIs, and oxlint loads `rules.ts` by
-        // path expecting one.
-        "vitest.config.ts",
+        // The house rules' vitest config, and the plugin itself: `definePlugin`
+        // and `defineRule` are default-export APIs, and oxlint loads `rules.ts`
+        // by path expecting one. Vitest configs must default-export too.
+        //
+        // The filename is `vitest.tools.config.ts`, NOT `vitest.config.ts`:
+        // vitest walks up from a package looking for the latter, and
+        // `packages/oauth-worker` has no config of its own, so a root file by
+        // that name gets adopted by it and then finds no tests there.
+        "vitest.tools.config.ts",
         "tools/lint/rules.ts",
         "tools/lint/rules/*.ts"
       ],
