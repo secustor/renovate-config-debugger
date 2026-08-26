@@ -6,9 +6,9 @@
  * (upstream's `writeLocalFile`) materializes each fixture on disk here, the
  * same call that fills the in-memory store in the browser graph.
  */
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { extractDeps, matchManagersForFile } from "../src/index";
 import { GlobalConfig } from "../src/renovate-adapter";
@@ -58,6 +58,19 @@ describe("extractDeps (golden)", () => {
       );
     });
   }
+
+  it("stores every fixture under a name no dependency scanner reads", async () => {
+    // A fixture named `go.mod` / `pom.xml` / `Cargo.lock` is indistinguishable
+    // from one of THIS repo's own manifests to a scanner walking the tree —
+    // osv-scanner reported CVEs against the pinned versions in them. The bytes
+    // stay real, the on-disk name carries `.fixture`; extractFixture appends it.
+    const root = join(import.meta.dirname, "fixtures", "extract");
+    const entries = await readdir(root, { recursive: true, withFileTypes: true });
+    const offenders = entries
+      .filter((entry) => entry.isFile() && !entry.name.endsWith(".fixture"))
+      .map((entry) => relative(root, join(entry.parentPath, entry.name)));
+    expect(offenders).toEqual([]);
+  });
 
   it("matches managers by file pattern, in upstream's order", () => {
     expect(matchManagersForFile("Dockerfile")).toContain("dockerfile");
