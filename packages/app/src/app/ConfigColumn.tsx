@@ -4,6 +4,7 @@ import type { StoredUser } from "@/platform/oauth";
 import type { ConfigEditorHandle } from "@/features/editor/ConfigEditor";
 import { ConfigEditorCard } from "@/features/editor/ConfigEditorCard";
 import { ConfigToolbar } from "@/features/editor/ConfigToolbar";
+import { BuildStamp, BuildVerifyLine } from "@/components/BuildInfo";
 import { type AuthState, GithubAuthHint } from "@/components/GithubAuthHint";
 import { LandingIntro, LandingLaunch, LandingSteps } from "@/features/editor/Landing";
 import { NoticeBar } from "@/features/editor/NoticeBar";
@@ -275,6 +276,8 @@ export function ConfigColumn({
             skippedStages={previewSkippedStages}
           />
           <LandingSteps />
+          {/* Roadmap 088: which build this is, and the way to verify it. */}
+          <BuildVerifyLine />
         </>
       )}
 
@@ -291,10 +294,13 @@ export function ConfigColumn({
       {hasResult ? (
         // Roadmap 075 (iteration 6): the second half is a true statement about
         // what an edit DOES — the Tests tab re-checks every pinned descriptor
-        // against each run — rather than only where it happens.
-        <p className="pane-foot">
-          Everything runs in your browser · edits re-check your pinned tests on Run.
-        </p>
+        // against each run — rather than only where it happens. 088 adds the
+        // build stamp at the right edge: the shell reader's way to "verify
+        // this build", mirroring the landing's line.
+        <div className="pane-foot">
+          <p>Everything runs in your browser · edits re-check your pinned tests on Run.</p>
+          <BuildStamp />
+        </div>
       ) : null}
     </div>
   );

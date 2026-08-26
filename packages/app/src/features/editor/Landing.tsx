@@ -1,3 +1,4 @@
+import { AboutBuildButton } from "@/components/BuildInfo";
 import { formatShortcut, RUN_SHORTCUT } from "@/lib/shortcuts";
 
 /**
@@ -24,6 +25,8 @@ export function LandingIntro() {
       <h2 className="landing-title">What does your Renovate config actually do?</h2>
       <p className="landing-subtitle">
         Renovate&apos;s own code processes it right here — nothing leaves your browser.
+        {/* Roadmap 088: the promise's receipt — which build, and how to check. */}
+        <AboutBuildButton />
       </p>
     </div>
   );
