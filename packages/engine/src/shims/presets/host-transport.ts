@@ -6,10 +6,10 @@
  *
  * Why it is shared rather than written per host: the four call sites used to
  * spell out the same six steps, and the messages they produce are CONSUMED —
- * the app regexes them (see the verbatim note below), the trace collector
- * unwraps them, and `repo-config` decides whether to keep probing by their
- * type. Four independent producers behind one consumer is how the wording
- * drifts and the UI silently stops recognising an auth failure.
+ * the app matches one of them (`../../contracts`), the trace collector unwraps
+ * them, and `repo-config` decides whether to keep probing by their type. Four
+ * independent producers behind one consumer is how the wording drifts and the
+ * UI silently stops recognising an auth failure.
  *
  * What is deliberately NOT here: everything past the response. The preset
  * fetchers hand a non-ok response to Renovate's own `fetchPreset` candidate
@@ -17,27 +17,16 @@
  * "this candidate is absent, try the next" — the same status, two different
  * meanings, so each keeps its own tail.
  *
- * ─────────────────────────────────────────────────────────────────────────
- * VERBATIM STRINGS. Two message fragments below are load-bearing across the
- * package boundary and must stay byte-identical:
- *
- *   "… — rate limit or missing token"
- *      matched by `isGithubRateLimited`, the app's ONE reader of this contract
- *      (packages/app/src/lib/github-failure.ts), to tell an auth/rate-limit
- *      failure apart from a genuinely missing preset and offer sign-in. It used
- *      to be a bare regex spelled at two call sites, which is why this note
- *      once had to name two files and hope.
- *
- *   "… likely missing CORS headers or a network block (…)"
- *      the detail the app pastes into its "some hosts block browser (CORS)
- *      requests entirely" advice.
- *
- * Change either and the app degrades silently — it stops offering the fix,
- * with nothing failing. `packages/engine/test/repo-config.shimmed.test.ts` and
- * `packages/app/src/features/presets/tree-shared.test.ts` pin them.
- * ─────────────────────────────────────────────────────────────────────────
+ * The two message tails the app depends on come from `../../contracts` rather
+ * than being spelled here. This banner used to say instead that they were
+ * "VERBATIM STRINGS … must stay byte-identical", name the app files that read
+ * them, and warn that changing one degrades the app silently. All of that was
+ * true, and none of it was checkable: a warning in a comment is not a
+ * mechanism. Sharing the constant means there is no second copy to keep in
+ * step, so the instruction is unnecessary.
  */
 import { resolveAuthToken } from "../../auth";
+import { AUTH_OR_RATE_LIMIT_HINT, NETWORK_OR_CORS_HINT } from "../../contracts";
 import { ExternalHostError, fetchPreset } from "../renovate-internals";
 import { encodePathSegments } from "../url-path";
 import { getInjectedPreset } from "./injection";
@@ -133,7 +122,7 @@ export async function hostFetch(request: HostRequest): Promise<Response> {
     throw new ExternalHostError(
       new Error(
         `Could not reach the ${request.label} endpoint ${request.shownEndpoint} from the browser — ` +
-          `likely missing CORS headers or a network block (${err instanceof Error ? err.message : String(err)})`,
+          `${NETWORK_OR_CORS_HINT} (${err instanceof Error ? err.message : String(err)})`,
       ),
       request.platform,
     );
@@ -141,7 +130,7 @@ export async function hostFetch(request: HostRequest): Promise<Response> {
   if (res.status === 401 || res.status === 403 || res.status === 429) {
     throw new ExternalHostError(
       new Error(
-        `${request.label} API rejected the request (HTTP ${res.status}) — rate limit or missing token`,
+        `${request.label} API rejected the request (HTTP ${res.status}) — ${AUTH_OR_RATE_LIMIT_HINT}`,
       ),
       request.platform,
     );

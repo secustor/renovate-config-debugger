@@ -1,18 +1,23 @@
 import type { PresetNode } from "@renovate-config-debugger/engine";
+import { AUTH_OR_RATE_LIMIT_HINT } from "@renovate-config-debugger/engine/contracts";
 
 /**
- * The app's half of a VERBATIM cross-package string contract.
+ * The app's reader of the engine's failure messages.
  *
- * `packages/engine/src/shims/presets/host-transport.ts` ends its 401/403/429
- * message with the words "rate limit or missing token", and says in its header
- * that the wording is load-bearing: the app matches it to tell an auth or
- * rate-limit failure apart from a genuinely missing preset, and to decide
- * whether offering sign-in would help. Changing either side degrades the app
- * SILENTLY — it simply stops offering the fix, and nothing fails.
+ * Renovate rethrows a plain `Error` through its preset machinery, so the only
+ * thing that survives the trip from the shim to here is the message string —
+ * which makes the wording an API. It is DECLARED once, in
+ * `engine/src/contracts.ts`, and imported by both sides: the shim builds its
+ * message with the constant, this file builds its matcher from the same one.
  *
- * That contract used to be spelled as a bare regex literal in two places, so
- * the engine's note had to name two files by path and hope. It is one function
- * now, which is the file the engine comment points at.
+ * The engine used to carry a "VERBATIM STRINGS … must stay byte-identical"
+ * banner naming this file by path, because the phrase was written out at both
+ * ends and nothing could check that they agreed. There is no second copy now,
+ * so there is nothing to keep in step and no instruction to obey.
+ *
+ * `./contracts` is a leaf subpath with no imports of its own — reaching the
+ * engine ROOT for a value would pull the whole Renovate graph onto a static
+ * path, which is what `.oxlintrc.json`'s engine-root ban exists to stop.
  */
 
 /**
@@ -20,9 +25,13 @@ import type { PresetNode } from "@renovate-config-debugger/engine";
  * to a preset that genuinely is not there. Renovate rethrows these WITHOUT the
  * rewrite it applies to `dep not found`, which is why the fetcher's own wording
  * survives all the way to the app.
+ *
+ * Compared case-insensitively by lowering both sides rather than by building a
+ * `RegExp` from the constant: a shared string needs no escaping this way, and
+ * cannot become a pattern by accident if the phrase ever gains punctuation.
  */
 export function isGithubRateLimited(message: string | undefined): boolean {
-  return /rate limit or missing token/i.test(message ?? "");
+  return (message ?? "").toLowerCase().includes(AUTH_OR_RATE_LIMIT_HINT.toLowerCase());
 }
 
 /**
