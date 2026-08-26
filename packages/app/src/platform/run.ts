@@ -1,5 +1,6 @@
 import type {
   AppliedTextFix,
+  AuthRefreshHandler,
   ErrorFixResult,
   OptionDoc,
   OptionIndex,
@@ -18,7 +19,7 @@ import { readCustomHostRules } from "@/lib/custom-host-rules";
 import { HOST_TOKENS } from "@/data/host-tokens";
 import { isValidToken } from "@/lib/input-schemas";
 import { type Engine, loadEngine } from "./engine-chunk";
-import { getValidToken } from "./oauth";
+import { getValidToken, recoverRejectedToken } from "./oauth";
 import { sessionGet } from "./storage";
 
 // Per-host PATs live in sessionStorage (roadmap 009/010 storage rules): they
@@ -89,6 +90,30 @@ function applyAuth(engine: Engine, oauthToken: string | null, opts?: RunOptions)
 }
 
 /**
+ * A GitHub 401 mid-run means the attached token was revoked before its
+ * recorded expiry (another tab's refresh of the shared cookie grant rotates
+ * it and revokes this tab's access token). The engine asks this handler once
+ * per rejected request: recover a usable token — or drop the dead one — push
+ * the new auth state, and let the transport retry. A rejected PAT or
+ * credentials row is not renewable here, so the 401 surfaces as before.
+ */
+function makeAuthRefreshHandler(engine: Engine): AuthRefreshHandler {
+  return async (hostType, _url, rejected) => {
+    if (hostType !== "github") {
+      return false;
+    }
+    const recovery = await recoverRejectedToken(rejected);
+    if (!recovery.recovered || recovery.token === rejected) {
+      return false;
+    }
+    // token: the sibling/refreshed replacement; null: the session ended, so
+    // the retry (and the rest of the run) goes out without the dead token.
+    applyAuth(engine, recovery.token);
+    return true;
+  };
+}
+
+/**
  * Roadmap 031: the engine chunk download and the OAuth token refresh (a
  * Worker round-trip when the token is stale) are independent, so they run
  * concurrently instead of back-to-back. Every ordering invariant holds:
@@ -96,7 +121,7 @@ function applyAuth(engine: Engine, oauthToken: string | null, opts?: RunOptions)
  * still carries the refreshed token; while the untrusted-endpoint guard
  * stands (`suppressTokens`), the token machinery is never even touched —
  * exactly as before, no refresh request leaves the browser for a run that
- * must not use credentials.
+ * must not use credentials, and no revoked-token recovery may re-attach one.
  */
 async function engineWithAuth(opts?: RunOptions): Promise<Engine> {
   const [engine, oauthToken] = await Promise.all([
@@ -104,6 +129,7 @@ async function engineWithAuth(opts?: RunOptions): Promise<Engine> {
     opts?.suppressTokens ? null : getValidToken(),
   ]);
   applyAuth(engine, oauthToken, opts);
+  engine.setAuthRefreshHandler(opts?.suppressTokens ? null : makeAuthRefreshHandler(engine));
   return engine;
 }
 

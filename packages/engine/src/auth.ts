@@ -56,6 +56,32 @@ export function setPresetAuth(next: PresetAuth): void {
   auth = { ...next };
 }
 
+/**
+ * Called by the transport when a host answers 401 for `rejectedToken` — the
+ * host revoked it before its recorded expiry (e.g. another tab's refresh
+ * rotated a shared OAuth grant, which revokes the old access token). The
+ * handler owns the credential lifecycle the engine cannot see: it may refresh
+ * the token and push the new auth state via {@link setPresetAuth}. Returns
+ * true when auth state changed and the request is worth retrying once.
+ */
+export type AuthRefreshHandler = (
+  hostType: PresetHostType,
+  url: string,
+  rejectedToken: string,
+) => Promise<boolean>;
+
+let refreshHandler: AuthRefreshHandler | null = null;
+
+/** Registered by the app per entry point; the CLI never registers one, so the
+ *  headless graph keeps the plain throw-on-401 behavior. */
+export function setAuthRefreshHandler(handler: AuthRefreshHandler | null): void {
+  refreshHandler = handler;
+}
+
+export function getAuthRefreshHandler(): AuthRefreshHandler | null {
+  return refreshHandler;
+}
+
 export function getPresetAuth(): PresetAuth {
   return auth;
 }

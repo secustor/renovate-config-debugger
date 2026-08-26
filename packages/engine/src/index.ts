@@ -37,10 +37,12 @@ export {
   type SimulationComparison,
 } from "./simulate-compare";
 export {
+  type AuthRefreshHandler,
   getPresetAuth,
   type PresetAuth,
   type PresetTokenKey,
   resolveAuthToken,
+  setAuthRefreshHandler,
   setPresetAuth,
 } from "./auth";
 export { deriveUpdateType, renovateVersion } from "./version";

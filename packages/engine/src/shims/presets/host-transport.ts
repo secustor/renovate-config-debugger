@@ -25,7 +25,7 @@
  * mechanism. Sharing the constant means there is no second copy to keep in
  * step, so the instruction is unnecessary.
  */
-import { resolveAuthToken } from "../../auth";
+import { getAuthRefreshHandler, resolveAuthToken } from "../../auth";
 import { AUTH_OR_RATE_LIMIT_HINT, NETWORK_OR_CORS_HINT } from "../../contracts";
 import { ExternalHostError, fetchPreset } from "../renovate-internals";
 import { encodePathSegments } from "../url-path";
@@ -112,30 +112,59 @@ export interface HostRequest {
  * - 401 / 403 / 429 — the host refused us, which is never "the file is
  *   missing" and must not be swallowed by a candidate chain.
  *
+ * A 401 with a token attached gets one recovery attempt first: the host
+ * revoked the credential before its recorded expiry (GitHub does this to the
+ * old access token whenever a shared OAuth grant is refreshed, e.g. by
+ * another tab), so the registered {@link AuthRefreshHandler} is asked to
+ * renew it and the request is retried once with re-resolved headers.
+ *
  * Every other response is returned as-is for the caller to classify.
  */
 export async function hostFetch(request: HostRequest): Promise<Response> {
-  let res: Response;
+  let headers = request.headers;
+  for (let attempt = 0; ; attempt++) {
+    let res: Response;
+    try {
+      res = await fetch(request.url, { headers });
+    } catch (err) {
+      throw new ExternalHostError(
+        new Error(
+          `Could not reach the ${request.label} endpoint ${request.shownEndpoint} from the browser — ` +
+            `${NETWORK_OR_CORS_HINT} (${err instanceof Error ? err.message : String(err)})`,
+        ),
+        request.platform,
+      );
+    }
+    if (res.status === 401 && attempt === 0 && (await refreshRejectedAuth(request))) {
+      headers = authHeadersFor(request.platform, request.url);
+      continue;
+    }
+    if (res.status === 401 || res.status === 403 || res.status === 429) {
+      throw new ExternalHostError(
+        new Error(
+          `${request.label} API rejected the request (HTTP ${res.status}) — ${AUTH_OR_RATE_LIMIT_HINT}`,
+        ),
+        request.platform,
+      );
+    }
+    return res;
+  }
+}
+
+/** True when the handler replaced the rejected credential in the auth state
+ *  and the 401'd request should be retried. A missing handler, an anonymous
+ *  request, or a handler failure all read as "no retry" — the plain throw. */
+async function refreshRejectedAuth(request: HostRequest): Promise<boolean> {
+  const handler = getAuthRefreshHandler();
+  const rejected = resolveAuthToken(request.platform, request.url);
+  if (!handler || rejected === undefined) {
+    return false;
+  }
   try {
-    res = await fetch(request.url, { headers: request.headers });
-  } catch (err) {
-    throw new ExternalHostError(
-      new Error(
-        `Could not reach the ${request.label} endpoint ${request.shownEndpoint} from the browser — ` +
-          `${NETWORK_OR_CORS_HINT} (${err instanceof Error ? err.message : String(err)})`,
-      ),
-      request.platform,
-    );
+    return await handler(request.platform, request.url, rejected);
+  } catch {
+    return false;
   }
-  if (res.status === 401 || res.status === 403 || res.status === 429) {
-    throw new ExternalHostError(
-      new Error(
-        `${request.label} API rejected the request (HTTP ${res.status}) — ${AUTH_OR_RATE_LIMIT_HINT}`,
-      ),
-      request.platform,
-    );
-  }
-  return res;
 }
 
 /** `?ref=…`, or nothing when the caller has no ref to pin. */
