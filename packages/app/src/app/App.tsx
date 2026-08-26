@@ -3,7 +3,6 @@ import {
   useDeferredValue,
   useEffect,
   useInsertionEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -30,10 +29,12 @@ import { AppProviders } from "@/app/AppProviders";
 import type { RunView } from "@/app/run-view-context";
 import { REPO_URL } from "@/data/project-repo";
 import { buildPresetLookup, type PresetHoverContext } from "@/lib/preset-hover";
-import { motionScrollToOptions, prefersReducedMotion } from "@/lib/motion";
-import { findPackageRuleOffsets } from "@/lib/rule-locate";
+import { motionScrollToOptions } from "@/lib/motion";
 import { useRuleProvenance } from "@/hooks/rule-provenance";
 import { OAUTH_CONFIG, useOAuthSession } from "@/app/use-oauth-session";
+import { useLandingWalk } from "@/app/use-landing-walk";
+import { usePreservedScroll } from "@/app/use-preserved-scroll";
+import { type ConfigFileName, useConfigDocument } from "@/app/use-config-document";
 import { beginSignIn } from "@/platform/oauth";
 import {
   type ErrorTranslationLib,
@@ -65,7 +66,7 @@ import type { RunInputs } from "@/lib/run-inputs";
 import { createRunQueue, type RunQueue } from "@/lib/run-queue";
 import { pluralWord } from "@/lib/format";
 import { useSyncedReset } from "@/hooks/use-synced-reset";
-import { DEFAULT_CONFIG, EXAMPLE_CONFIG } from "@/data/starter-configs";
+import { EXAMPLE_CONFIG } from "@/data/starter-configs";
 import { AppBanners } from "@/app/AppBanners";
 import { ResultsPane } from "@/app/ResultsPane";
 import { preloadRunChunks } from "@/app/preload-run-chunks";
@@ -88,13 +89,6 @@ interface RunOptions {
 
 type InjectionMap = Record<string, Record<string, unknown>>;
 
-/** Roadmap 076 review: the safety cap on the landing walk-end handshake in
- *  `executeRun`. The uninterrupted walk takes ~1.3 s (StageRailPreview's
- *  `RUNNING_STEP_MS` × eight stages) and the engine's first import can stall
- *  it a while longer, so this only fires when the signal is genuinely lost —
- *  and then it delays the first result, never withholds it. */
-const LANDING_WALK_CAP_MS = 4_000;
-
 /** Roadmap 076: the two 008 merge layers as one comparable value — what
  *  `resultsStale` asks about them. Spelled once so the key a run RECORDS and
  *  the key the editor derives can never be two different serializations of the
@@ -107,12 +101,30 @@ function layerKey(
 }
 
 export function App() {
-  const [content, setContent] = useState(DEFAULT_CONFIG);
-  // Roadmap 016: the text last loaded from an authoritative source (the
-  // default, an example, a share link, a repo fetch, or an applied error
-  // fix) — as opposed to whatever the user has typed since. The "revert to
-  // loaded config" button restores this; it never changes on a plain edit.
-  const [loadedContent, setLoadedContent] = useState(DEFAULT_CONFIG);
+  // Roadmap 086: the four message surfaces — fatal banner (with the 068
+  // stamp/expiry rule), notice, toast, and the run-outcome live region — as
+  // one hook. `applyFatal` is the stamped raise; `setFatal` the unstamped
+  // run-failure write; both alternating-space devices live there, spelled once.
+  const {
+    fatal,
+    setFatal,
+    applyFatal,
+    fatalSeqRef,
+    notice,
+    setNotice,
+    toast,
+    showToast,
+    runAnnouncement,
+    announceRun,
+    outcomeLeadRef,
+  } = useAppMessages();
+  // Roadmap 086 follow-up: the document the app is about — its text, where
+  // that text came from, the CodeMirror remount key, the filename, and the
+  // two ways the text is replaced wholesale. Declared after the message
+  // surfaces because `formatConfig` explains a refusal through them.
+  const configDoc = useConfigDocument({ setNotice, showToast });
+  const { content, setContent, fileName, editorKey, packageRuleOffsets, loadConfigText } =
+    configDoc;
   // The config text the displayed result was actually computed from. Compared
   // against `content` to tell the reader that what they are looking at no
   // longer describes what is in the editor — see `resultsStale` below.
@@ -124,15 +136,6 @@ export function App() {
   // global config with the merge diff on screen beside it, so the banner has to
   // cover them or it is lying in the one place it is most visible.
   const [lastRunLayerKey, setLastRunLayerKey] = useState<string | null>(null);
-  // Roadmap 016: bumped by `loadConfigText` to force the CodeMirror instance
-  // to remount. The editor's own prop→doc sync defers to a ~200ms "typing
-  // latch" that can be starved by browser timer throttling (backgrounded
-  // tabs) long enough that a load right after a fast edit never visibly
-  // applies, even though `content` state (and everything downstream of it,
-  // like Run) is correct — a fresh mount always initializes from `value`
-  // directly, sidestepping that debounce entirely.
-  const [editorKey, setEditorKey] = useState(0);
-  const [fileName, setFileName] = useState<"renovate.json" | "renovate.json5">("renovate.json");
   // Roadmap 033: the four per-host PATs (state, validated storage reads and
   // change handlers) as one table-driven hook — the inputs and the invalid-
   // token error rows below map over the same rows.
@@ -191,23 +194,6 @@ export function App() {
   // stage keeps chip clicks responsive and makes the diff render
   // interruptible instead of blocking the main thread.
   const deferredStage = useDeferredValue(selectedStage);
-  // Roadmap 086: the four message surfaces — fatal banner (with the 068
-  // stamp/expiry rule), notice, toast, and the run-outcome live region — as
-  // one hook. `applyFatal` is the stamped raise; `setFatal` the unstamped
-  // run-failure write; both alternating-space devices live there, spelled once.
-  const {
-    fatal,
-    setFatal,
-    applyFatal,
-    fatalSeqRef,
-    notice,
-    setNotice,
-    toast,
-    showToast,
-    runAnnouncement,
-    announceRun,
-    outcomeLeadRef,
-  } = useAppMessages();
   const [optionIndex, setOptionIndex] = useState<OptionIndex | null>(null);
   // Roadmap 014: curated validator-message translations + suggested fixes,
   // loaded lazily alongside the option index (same engine chunk).
@@ -306,7 +292,7 @@ export function App() {
   // listener (inside `useShareLink`), which is registered once (empty deps)
   // and would otherwise close over the state from that first render.
   const contentRef = useLatestRef(content);
-  const loadedContentRef = useLatestRef(loadedContent);
+  const loadedContentRef = useLatestRef(configDoc.loadedContent);
   // Roadmap 033: the whole share/hash/decode cluster — `shareError` feeds the
   // prominent, top-of-page banner below (not the dismissable notice), so a
   // broken link never reads as "nothing happened"; `simRequest` is handed to
@@ -320,7 +306,7 @@ export function App() {
     {
       onRun: (inputs, opts) => onRun(undefined, inputs, opts),
       loadConfigText,
-      setFileName,
+      setFileName: configDoc.setFileName,
       applyPlatformContext,
       setGlobalText,
       setInheritedText: (text) => applyInheritedText(text),
@@ -360,7 +346,6 @@ export function App() {
   // The raw text is re-scanned only when it changes, not on every keystroke's
   // render of something unrelated — this is a plain bracket-depth scan, not a
   // full parse, so it stays cheap even for large configs.
-  const packageRuleOffsets = useMemo(() => findPackageRuleOffsets(content), [content]);
   /**
    * Roadmap 075 (iteration 3): the header's `N rewrites` link. The Rewrites tab
    * retired into Pipeline's migrate stage, so "show me the rewrites" is two
@@ -466,31 +451,10 @@ export function App() {
   // hypothetical — a real Renovate run would refuse the config outright.
   const validateHasErrors = result?.stageStatus.validate === "error";
 
-  // Roadmap 023: the reader's scroll position captured just before a
-  // scroll-preserving re-run's result commits, restored once the new DOM has
-  // painted (016 did this for re-simulations; full pipeline re-runs still reset
-  // scroll). null = this run should NOT preserve it (a fresh config, a share
-  // link, or the first run).
-  //
-  // Roadmap 075: BOTH positions, because which one is "the reader's" now
-  // depends on the viewport. In the shell the page does not scroll at all and
-  // the results pane is its own scroller; stacked (below ~60rem) the pane is
-  // `overflow: visible` and the page scrolls exactly as it used to. Capturing
-  // and restoring both costs two property reads and makes the answer
-  // independent of the breakpoint — the inapplicable half is 0 either way, and
-  // restoring 0 to a container that cannot scroll is a no-op.
-  const preserveScrollRef = useRef<{ page: number; results: number } | null>(null);
-  useLayoutEffect(() => {
-    const saved = preserveScrollRef.current;
-    if (saved !== null) {
-      preserveScrollRef.current = null;
-      window.scrollTo({ top: saved.page, behavior: "auto" });
-      if (resultsColRef.current) {
-        resultsColRef.current.scrollTop = saved.results;
-      }
-    }
-    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- `result` is the TRIGGER: the positions come from a ref captured before the run committed, and the run's commit is the layout this restore has to run against. Nothing is read out of the result, and there is nothing in it to read.
-  }, [result]);
+  // Roadmap 023/075: the reader's scroll across a scroll-preserving re-run —
+  // captured a statement before the result commits, restored once the new DOM
+  // has painted. Both halves live in the hook; `result` is the trigger.
+  const preservedScroll = usePreservedScroll(resultsColRef, result);
 
   // A validation message's REPO-config `packageRules[repoIndex]` → the editor
   // line. Reads `packageRuleOffsets`, which is rescanned on every edit — so
@@ -507,49 +471,6 @@ export function App() {
     (repoIndex: number) => focusEditorRepoIndexRef.current(repoIndex),
     [focusEditorRepoIndexRef],
   );
-
-  /** Roadmap 016: the one path every authoritative content load goes
-   *  through — sets the text, moves the "revert to loaded config" baseline
-   *  to match, and remounts the editor (see `editorKey`'s comment). */
-  function loadConfigText(text: string) {
-    setContent(text);
-    setLoadedContent(text);
-    setEditorKey((k) => k + 1);
-  }
-
-  /**
-   * Design review: a pasted config arrives as one long line and the app had no
-   * way to make it readable. Two-space indentation, in place.
-   *
-   * The parse happens HERE, on the click — never per keystroke, which roadmap
-   * 032 measures and this must not make more expensive. Deliberately NOT
-   * `loadConfigText`: formatting is an edit, not a load, and moving the revert
-   * baseline would quietly retire "Revert to loaded config". Strict JSON only —
-   * a `.json5` document that is also valid JSON reformats, and one using
-   * JSON5's own syntax says so rather than being silently rewritten into JSON
-   * with its comments discarded.
-   */
-  function formatConfig() {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(content);
-    } catch {
-      setNotice(
-        fileName.endsWith(".json5")
-          ? "Can't format: this reformats strict JSON, and this document is either invalid or uses JSON5 syntax (comments, unquoted keys, trailing commas) that reformatting would discard."
-          : "Can't format: fix the JSON syntax first — the editor's markers show where.",
-      );
-      return;
-    }
-    const formatted = `${JSON.stringify(parsed, null, 2)}\n`;
-    if (formatted === content) {
-      showToast("Already formatted");
-      return;
-    }
-    setNotice(null);
-    setContent(formatted);
-    setEditorKey((k) => k + 1);
-  }
 
   // A new run invalidates what the previous run's views were pointing at. App's
   // OWN half of that happens during render — React's "adjust state when a prop
@@ -638,7 +559,7 @@ export function App() {
     endpoint,
     applyPlatformContext,
     loadConfigText,
-    setFileName,
+    setFileName: configDoc.setFileName,
     setNotice,
     // A load that failed is a message about something that never ran, so it is
     // stamped and a run already in flight leaves it alone (see `applyFatal`).
@@ -844,24 +765,9 @@ export function App() {
   const runQueueRef = useRef<RunQueue<TraceResult | null> | null>(null);
   const runQueue = (runQueueRef.current ??= createRunQueue<TraceResult | null>(setRunning));
 
-  /** Roadmap 076 review: false until the first result commits — i.e. while the
-   *  landing (and its stage-walk narration) is still on screen. A ref, not
-   *  `result === null`, because `executeRun` runs from the queue with the
-   *  closure it was enqueued under: a second run queued behind the first would
-   *  still read the stale null and sit out a second walk. A failed first run
-   *  leaves it false on purpose — the landing is still up, so the next run
-   *  narrates again. */
-  const shellDockedRef = useRef(false);
-
-  /** The resolver of the walk-end promise the first commit is holding for —
-   *  armed by `executeRun`, fired by `StageRailPreview` via the callback
-   *  below. Nulled after firing so a late signal (the timeout the preview
-   *  schedules survives one render past the walk) resolves nothing twice. */
-  const landingWalkResolveRef = useRef<(() => void) | null>(null);
-  const onLandingWalkEnd = useCallback(() => {
-    landingWalkResolveRef.current?.();
-    landingWalkResolveRef.current = null;
-  }, []);
+  // Roadmap 076 review: the landing → shell handshake — the walk-end signal,
+  // the docked flag and the wait that holds the unmounting commit for it.
+  const { onLandingWalkEnd, awaitLandingWalk, markShellDocked } = useLandingWalk();
 
   /**
    * Roadmap 068: the ONE place a run is started — and, since the 2026-08-11
@@ -992,25 +898,12 @@ export function App() {
       // the mechanism: a signal that never comes (the one known path is a
       // second run queued behind a failed first, whose walk never restarts)
       // must delay the answer, never withhold it.
-      if (!shellDockedRef.current && !prefersReducedMotion()) {
-        const walkEnd = new Promise<void>((resolve) => {
-          landingWalkResolveRef.current = resolve;
-        });
-        await Promise.all([
-          runPromise,
-          Promise.race([
-            walkEnd,
-            new Promise((resolve) => window.setTimeout(resolve, LANDING_WALK_CAP_MS)),
-          ]),
-        ]);
-      }
+      await awaitLandingWalk(runPromise);
       const traceResult = await runPromise;
       // Roadmap 023: hold the current scroll so re-running an edited config
       // doesn't jump the user back to the top (captured right before the result
       // state commits, so an abandoned in-flight run can't pin a stale offset).
-      preserveScrollRef.current = opts?.preserveScroll
-        ? { page: window.scrollY, results: resultsColRef.current?.scrollTop ?? 0 }
-        : null;
+      preservedScroll.capture(Boolean(opts?.preserveScroll));
       // Roadmap 068, ninth review: set HERE, one statement before the commit it
       // belongs to, rather than by the caller before its `await`: runs are
       // serial, so the run that commits next is always this one, and a lead
@@ -1019,7 +912,7 @@ export function App() {
       // sentence inherits the lead of the run before it.
       outcomeLeadRef.current = opts?.outcomeLead ?? null;
       setResult(traceResult);
-      shellDockedRef.current = true;
+      markShellDocked();
       // Committed WITH the result, never before it: a run that threw or was
       // abandoned must not mark the previous run's output fresh. Roadmap 076:
       // and the layers this run actually carried, for the same reason and with
@@ -1638,10 +1531,10 @@ export function App() {
             onInheritFileChange={onInheritFileFieldChange}
             repoPicker={repoPicker}
             authUser={authUser}
-            onFileNameChange={(value) => setFileName(value as typeof fileName)}
-            canRevert={content !== loadedContent}
-            onRevert={() => loadConfigText(loadedContent)}
-            onFormat={formatConfig}
+            onFileNameChange={(value) => configDoc.setFileName(value as ConfigFileName)}
+            canRevert={configDoc.canRevert}
+            onRevert={configDoc.revert}
+            onFormat={configDoc.formatConfig}
             onSignIn={onSignIn}
             untrustedHost={untrustedGuard ? untrustedGuard.host : null}
             onTrustUntrustedHost={onTrustUntrustedHost}
