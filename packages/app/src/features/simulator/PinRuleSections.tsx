@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { nf } from "@/lib/format";
 import { ClauseGrid } from "./ClauseGrid";
@@ -143,6 +143,59 @@ function MatchedDetail({
   );
 }
 
+/**
+ * One expandable rule row: the reference lead, its note, an optional trailing
+ * fact, and the evidence the caret reveals.
+ *
+ * `MatchedRow` and `FailedRow` were the same nine lines of skeleton differing
+ * only in their small print — one extra span, and what the body is (structure
+ * review, finding 21). The disclosure state and the markup are shared here;
+ * each caller keeps only what it actually says.
+ *
+ * `body` is a plain node. An earlier draft made it a function to avoid "paying"
+ * for collapsed rows, which was simply wrong: JSX builds a descriptor, not a
+ * render, so the child component never runs until it is mounted. The function
+ * form also read as a component definition to `no-unstable-nested-components`.
+ *
+ * `RuleRow` (the simulator's own list) deliberately does NOT use this. It looks
+ * similar and is not: it carries an id, a tabIndex and a flash class because a
+ * cross-link LANDS on it, and folding those affordances in here would push a
+ * concern that belongs to one caller into all of them.
+ */
+function PinDisclosureRow({
+  rule,
+  note,
+  trailing,
+  defaultExpanded,
+  onSelectPreset,
+  body,
+}: {
+  rule: PinRuleRef;
+  note: string;
+  /** The right-hand fact, when the row has one (matched rows say what they wrote). */
+  trailing?: string;
+  defaultExpanded: boolean;
+  onSelectPreset?: (nodeId: string) => void;
+  body: ReactNode;
+}) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  return (
+    <div>
+      <div className="pin-rule-line">
+        <RuleRefLead
+          rule={rule}
+          expanded={expanded}
+          onToggle={() => setExpanded(!expanded)}
+          onSelectPreset={onSelectPreset}
+        />
+        <span className="pin-rule-label">{note}</span>
+        {trailing === undefined ? null : <span className="pin-rule-wrote">{trailing}</span>}
+      </div>
+      {expanded ? body : null}
+    </div>
+  );
+}
+
 function MatchedRow({
   rule,
   description,
@@ -152,27 +205,21 @@ function MatchedRow({
   description: RuleDescriptionNote | undefined;
   links: CrossLinks;
 }) {
-  const [expanded, setExpanded] = useState(false);
   return (
-    <div>
-      <div className="pin-rule-line">
-        <RuleRefLead
-          rule={rule}
-          expanded={expanded}
-          onToggle={() => setExpanded(!expanded)}
-          onSelectPreset={links.onSelectPreset}
-        />
-        <span className="pin-rule-label">{ruleNote(rule, description)}</span>
-        <span className="pin-rule-wrote">{rule.wroteSummary}</span>
-      </div>
-      {expanded ? (
+    <PinDisclosureRow
+      rule={rule}
+      note={ruleNote(rule, description)}
+      trailing={rule.wroteSummary}
+      defaultExpanded={false}
+      onSelectPreset={links.onSelectPreset}
+      body={
         <MatchedDetail
           rule={rule}
           description={description}
           onJumpToEditor={links.onJumpToEditor}
         />
-      ) : null}
-    </div>
+      }
+    />
   );
 }
 
@@ -260,26 +307,20 @@ function FailedRow({
    *  the likeliest reason the tab is open at all. */
   defaultOpen: boolean;
 }) {
-  const [expanded, setExpanded] = useState(defaultOpen);
   return (
-    <div>
-      <div className="pin-rule-line">
-        <RuleRefLead
-          rule={rule}
-          expanded={expanded}
-          onToggle={() => setExpanded(!expanded)}
-          onSelectPreset={links.onSelectPreset}
-        />
-        <span className="pin-rule-label">{ruleNote(rule, description)}</span>
-      </div>
-      {expanded ? (
+    <PinDisclosureRow
+      rule={rule}
+      note={ruleNote(rule, description)}
+      defaultExpanded={defaultOpen}
+      onSelectPreset={links.onSelectPreset}
+      body={
         <div className="pin-evidence">
           <p className="pin-evidence-title">Matcher checklist — first failure stops the rule</p>
           <ClauseGrid clauses={rule.clauses} />
           <ClosestMissNote rule={rule} onJumpToEditor={links.onJumpToEditor} />
         </div>
-      ) : null}
-    </div>
+      }
+    />
   );
 }
 
