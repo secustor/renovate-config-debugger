@@ -1,17 +1,7 @@
-import {
-  useCallback,
-  useDeferredValue,
-  useEffect,
-  useInsertionEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useInsertionEffect, useMemo, useRef, useState } from "react";
 import type {
   ErrorFixResult,
   OptionIndex,
-  RepoPlatform,
   StageId,
   TraceResult,
 } from "@renovate-config-debugger/engine";
@@ -20,20 +10,18 @@ import { AppShellHeader } from "@/app/AppShellHeader";
 import type { ConfigEditorHandle } from "@/features/editor/ConfigEditor";
 import { ConfigColumn } from "@/app/ConfigColumn";
 import { HeadlessNote } from "@/components/HeadlessNote";
-import { identityForNodeId, nodeIdForIdentity } from "@/lib/preset-tree-stats";
-import {
-  legacyTabForView,
-  resultsTabForShareTab,
-  shareTabWantsMigrateStage,
-} from "@/data/results-tabs";
 import { AppProviders } from "@/app/AppProviders";
 import type { RunView } from "@/app/run-view-context";
 import { REPO_URL } from "@/data/project-repo";
 import { buildPresetLookup, type PresetHoverContext } from "@/lib/preset-hover";
-import { motionScrollToOptions, prefersReducedMotion } from "@/lib/motion";
-import { findPackageRuleOffsets } from "@/lib/rule-locate";
+import { motionScrollToOptions } from "@/lib/motion";
 import { useRuleProvenance } from "@/hooks/rule-provenance";
 import { OAUTH_CONFIG, useOAuthSession } from "@/app/use-oauth-session";
+import { useLandingWalk } from "@/app/use-landing-walk";
+import { usePreservedScroll } from "@/app/use-preserved-scroll";
+import { type ConfigFileName, useConfigDocument } from "@/app/use-config-document";
+import { useRepoProvenance } from "@/app/use-repo-provenance";
+import { useRunViewSelection } from "@/app/use-run-view-selection";
 import { beginSignIn } from "@/platform/oauth";
 import {
   type ErrorTranslationLib,
@@ -42,7 +30,7 @@ import {
   loadOptionIndex,
   run,
 } from "@/platform/run";
-import type { ShareSimulator, ShareState, ShareView } from "@/lib/share";
+import type { ShareSimulator, ShareState } from "@/lib/share";
 import { useBackToTopVisible, useHomeEndPageScroll } from "@/hooks/scroll-ergonomics";
 import { useLatestRef } from "@/hooks/use-latest-ref";
 import { useKeyboardLandings } from "@/app/use-keyboard-landings";
@@ -54,7 +42,6 @@ import { usePlatformContext } from "@/app/use-platform-context";
 import { useInheritedConfigLayer } from "@/app/use-inherited-config-layer";
 import { useRepoLoad } from "@/app/use-repo-load";
 import { useRepoDeps } from "@/features/simulator/use-repo-deps";
-import { TREE_LISTING_PLATFORMS } from "@/data/host-tokens";
 import { useRepoPicker } from "@/app/use-repo-picker";
 import { useRunSummary } from "@/app/use-run-summary";
 import { usePanelStats } from "@/app/use-panel-stats";
@@ -64,12 +51,11 @@ import { useShareLink } from "@/hooks/use-share-link";
 import type { RunInputs } from "@/lib/run-inputs";
 import { createRunQueue, type RunQueue } from "@/lib/run-queue";
 import { pluralWord } from "@/lib/format";
-import { useSyncedReset } from "@/hooks/use-synced-reset";
-import { DEFAULT_CONFIG, EXAMPLE_CONFIG } from "@/data/starter-configs";
+import { EXAMPLE_CONFIG } from "@/data/starter-configs";
 import { AppBanners } from "@/app/AppBanners";
 import { ResultsPane } from "@/app/ResultsPane";
 import { preloadRunChunks } from "@/app/preload-run-chunks";
-import type { LoadedRepo, RepoConnectOffer } from "@/types/repo";
+import type { RepoConnectOffer } from "@/types/repo";
 
 /** What a caller may ask of a run. Every request reaches the queue except one
  *  refused before it starts, by layers that would not parse — see `onRun`. */
@@ -88,13 +74,6 @@ interface RunOptions {
 
 type InjectionMap = Record<string, Record<string, unknown>>;
 
-/** Roadmap 076 review: the safety cap on the landing walk-end handshake in
- *  `executeRun`. The uninterrupted walk takes ~1.3 s (StageRailPreview's
- *  `RUNNING_STEP_MS` × eight stages) and the engine's first import can stall
- *  it a while longer, so this only fires when the signal is genuinely lost —
- *  and then it delays the first result, never withholds it. */
-const LANDING_WALK_CAP_MS = 4_000;
-
 /** Roadmap 076: the two 008 merge layers as one comparable value — what
  *  `resultsStale` asks about them. Spelled once so the key a run RECORDS and
  *  the key the editor derives can never be two different serializations of the
@@ -107,12 +86,30 @@ function layerKey(
 }
 
 export function App() {
-  const [content, setContent] = useState(DEFAULT_CONFIG);
-  // Roadmap 016: the text last loaded from an authoritative source (the
-  // default, an example, a share link, a repo fetch, or an applied error
-  // fix) — as opposed to whatever the user has typed since. The "revert to
-  // loaded config" button restores this; it never changes on a plain edit.
-  const [loadedContent, setLoadedContent] = useState(DEFAULT_CONFIG);
+  // Roadmap 086: the four message surfaces — fatal banner (with the 068
+  // stamp/expiry rule), notice, toast, and the run-outcome live region — as
+  // one hook. `applyFatal` is the stamped raise; `setFatal` the unstamped
+  // run-failure write; both alternating-space devices live there, spelled once.
+  const {
+    fatal,
+    setFatal,
+    applyFatal,
+    fatalSeqRef,
+    notice,
+    setNotice,
+    toast,
+    showToast,
+    runAnnouncement,
+    announceRun,
+    outcomeLeadRef,
+  } = useAppMessages();
+  // Roadmap 086 follow-up: the document the app is about — its text, where
+  // that text came from, the CodeMirror remount key, the filename, and the
+  // two ways the text is replaced wholesale. Declared after the message
+  // surfaces because `formatConfig` explains a refusal through them.
+  const configDoc = useConfigDocument({ setNotice, showToast });
+  const { content, setContent, fileName, editorKey, packageRuleOffsets, loadConfigText } =
+    configDoc;
   // The config text the displayed result was actually computed from. Compared
   // against `content` to tell the reader that what they are looking at no
   // longer describes what is in the editor — see `resultsStale` below.
@@ -124,15 +121,6 @@ export function App() {
   // global config with the merge diff on screen beside it, so the banner has to
   // cover them or it is lying in the one place it is most visible.
   const [lastRunLayerKey, setLastRunLayerKey] = useState<string | null>(null);
-  // Roadmap 016: bumped by `loadConfigText` to force the CodeMirror instance
-  // to remount. The editor's own prop→doc sync defers to a ~200ms "typing
-  // latch" that can be starved by browser timer throttling (backgrounded
-  // tabs) long enough that a load right after a fast edit never visibly
-  // applies, even though `content` state (and everything downstream of it,
-  // like Run) is correct — a fresh mount always initializes from `value`
-  // directly, sidestepping that debounce entirely.
-  const [editorKey, setEditorKey] = useState(0);
-  const [fileName, setFileName] = useState<"renovate.json" | "renovate.json5">("renovate.json");
   // Roadmap 033: the four per-host PATs (state, validated storage reads and
   // change handlers) as one table-driven hook — the inputs and the invalid-
   // token error rows below map over the same rows.
@@ -186,53 +174,6 @@ export function App() {
   const [injected, setInjected] = useState<InjectionMap>({});
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<TraceResult | null>(null);
-  const [selectedStage, setSelectedStage] = useState<StageId>("preset");
-  // Large stage diffs (preset, merge) take a while to render; deferring the
-  // stage keeps chip clicks responsive and makes the diff render
-  // interruptible instead of blocking the main thread.
-  const deferredStage = useDeferredValue(selectedStage);
-  // Roadmap 086: the four message surfaces — fatal banner (with the 068
-  // stamp/expiry rule), notice, toast, and the run-outcome live region — as
-  // one hook. `applyFatal` is the stamped raise; `setFatal` the unstamped
-  // run-failure write; both alternating-space devices live there, spelled once.
-  const {
-    fatal,
-    setFatal,
-    applyFatal,
-    fatalSeqRef,
-    notice,
-    setNotice,
-    toast,
-    showToast,
-    runAnnouncement,
-    announceRun,
-    outcomeLeadRef,
-  } = useAppMessages();
-  const [optionIndex, setOptionIndex] = useState<OptionIndex | null>(null);
-  // Roadmap 014: curated validator-message translations + suggested fixes,
-  // loaded lazily alongside the option index (same engine chunk).
-  const [errorLib, setErrorLib] = useState<ErrorTranslationLib | null>(null);
-  // Preset-tree selection is owned here so a provenance chain (005) can select
-  // a preset node in the tree. Node ids restart every run, so reset on result.
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  // Migration stepper index, owned here so a shareable link (007) can restore
-  // the step; reset to 0 on a new result just like the uncontrolled stepper.
-  const [migrationStepIndex, setMigrationStepIndex] = useState(0);
-  // Roadmap 044: the simulator's merge-stepper index, owned here for the same
-  // reason — a shareable link restores it. The simulator itself resets it when
-  // a new simulation runs (a new merge sequence), and the reset effect below
-  // clears it on a new pipeline result.
-  const [mergeStepIndex, setMergeStepIndex] = useState(0);
-  /**
-   * Roadmap 075 (iteration 6): the pinned tests — dependency descriptors the
-   * Tests tab re-simulates against every run.
-   *
-   * Owned here for the two reasons every other cross-cutting piece of state is:
-   * a share link carries them (`buildShareState` / the decode path below), and
-   * the tab strip's count is one of the numbers `useRunSummary` assembles. The
-   * evaluation itself is the panel's (`usePinnedTests`), keyed on the run.
-   */
-  const { pins, addPin, removePin, setPinsFromShare, pinsAsShareFields } = usePinnedRun();
   // Roadmap 028: which results tab the reader is on, the one-step "back to
   // where I was" trail, and the rule-focus jump that is a tab switch too — as
   // one hook. Every COMPOSITION of a tab switch with other App state is still
@@ -251,6 +192,37 @@ export function App() {
     onRuleFocused,
     onJumpToSimRule,
   } = useResultsTab();
+  // Roadmap 086 follow-up: what the reader is looking AT within a run — the
+  // stage, the preset node, the two stepper indices — plus the three behaviours
+  // that only make sense together: the new-run reset, a decoded link's override
+  // of it, and the encode back into a link.
+  const runViewSelection = useRunViewSelection({ result, setTab });
+  const {
+    selectedStage,
+    setSelectedStage,
+    deferredStage,
+    selectedNodeId,
+    setSelectedNodeId,
+    migrationStepIndex,
+    setMigrationStepIndex,
+    mergeStepIndex,
+    setMergeStepIndex,
+    setPendingView,
+  } = runViewSelection;
+  const [optionIndex, setOptionIndex] = useState<OptionIndex | null>(null);
+  // Roadmap 014: curated validator-message translations + suggested fixes,
+  // loaded lazily alongside the option index (same engine chunk).
+  const [errorLib, setErrorLib] = useState<ErrorTranslationLib | null>(null);
+  /**
+   * Roadmap 075 (iteration 6): the pinned tests — dependency descriptors the
+   * Tests tab re-simulates against every run.
+   *
+   * Owned here for the two reasons every other cross-cutting piece of state is:
+   * a share link carries them (`buildShareState` / the decode path below), and
+   * the tab strip's count is one of the numbers `useRunSummary` assembles. The
+   * evaluation itself is the panel's (`usePinnedTests`), keyed on the run.
+   */
+  const { pins, addPin, removePin, setPinsFromShare, pinsAsShareFields } = usePinnedRun();
   // Roadmap 028/069/083: the counts the results panels report back up (the
   // Effective tab's key tally, the Overview tab's behavior count) and the
   // ledger signal that goes the other way — as one hook, because a new run
@@ -292,21 +264,11 @@ export function App() {
     const id = window.setTimeout(preloadRunChunks, 1_000);
     return () => window.clearTimeout(id);
   }, []);
-  // View state pending from a decoded link, applied once the run produces a
-  // result (identities → node ids need the resolved tree). A ref, not state, so
-  // consuming it does not trigger a render.
-  const pendingViewRef = useRef<ShareView | null>(null);
-  // …and the one way the share cluster arms it. A callback rather than the ref
-  // itself: the ref is App's, and a hook writing through an object handed to it
-  // is a hook mutating its own argument (`react/immutability`).
-  const setPendingView = useCallback((view: ShareView | null) => {
-    pendingViewRef.current = view;
-  }, []);
   // Roadmap 017: mirrors of `content`/`loadedContent` for the hashchange
   // listener (inside `useShareLink`), which is registered once (empty deps)
   // and would otherwise close over the state from that first render.
   const contentRef = useLatestRef(content);
-  const loadedContentRef = useLatestRef(loadedContent);
+  const loadedContentRef = useLatestRef(configDoc.loadedContent);
   // Roadmap 033: the whole share/hash/decode cluster — `shareError` feeds the
   // prominent, top-of-page banner below (not the dismissable notice), so a
   // broken link never reads as "nothing happened"; `simRequest` is handed to
@@ -320,7 +282,7 @@ export function App() {
     {
       onRun: (inputs, opts) => onRun(undefined, inputs, opts),
       loadConfigText,
-      setFileName,
+      setFileName: configDoc.setFileName,
       applyPlatformContext,
       setGlobalText,
       setInheritedText: (text) => applyInheritedText(text),
@@ -339,12 +301,11 @@ export function App() {
       // Roadmap 075 (iteration 6): the link's pins, with ids minted by the
       // cluster that owns them.
       setPins: setPinsFromShare,
-      // Roadmap 087: the link's repo provenance replaces this session's — the
-      // previous LoadedRepo described a config that is no longer on screen.
-      applyShareRepo: (repo) => {
-        setLoadedRepo(null);
-        setRepoSuggestion(repo);
-      },
+      // An arrow, not the bare method: this host object is built during render
+      // and `repoProvenance` is declared further down. The arrow only runs on a
+      // link arrival, which is the same deferred-capture rule this object's
+      // header states for everything else declared later in the body.
+      applyShareRepo: (repo) => repoProvenance.adoptShareClaim(repo),
       setPendingView,
       contentRef,
       loadedContentRef,
@@ -357,10 +318,6 @@ export function App() {
   // owned by `useResultsTab` because arriving at a rule is a tab switch.)
   const configEditorRef = useRef<ConfigEditorHandle>(null);
   const ruleProvenance = useRuleProvenance(result);
-  // The raw text is re-scanned only when it changes, not on every keystroke's
-  // render of something unrelated — this is a plain bracket-depth scan, not a
-  // full parse, so it stays cheap even for large configs.
-  const packageRuleOffsets = useMemo(() => findPackageRuleOffsets(content), [content]);
   /**
    * Roadmap 075 (iteration 3): the header's `N rewrites` link. The Rewrites tab
    * retired into Pipeline's migrate stage, so "show me the rewrites" is two
@@ -371,7 +328,7 @@ export function App() {
   const onShowRewrites = useCallback(() => {
     setSelectedStage("migrate");
     jumpToTab("pipeline");
-  }, [jumpToTab]);
+  }, [jumpToTab, setSelectedStage]);
 
   /**
    * Roadmap 076 (design turn 18d): the Advanced zone's cross-link to the two
@@ -383,7 +340,7 @@ export function App() {
   const onShowPipelineLayers = useCallback(() => {
     setSelectedStage("global");
     jumpToTab("pipeline");
-  }, [jumpToTab]);
+  }, [jumpToTab, setSelectedStage]);
 
   /** Roadmap 045/076: where a probe that just filled (or failed to fill) the
    *  inherited layer points. It used to unfold two disclosures; the layer's
@@ -400,7 +357,7 @@ export function App() {
   const revealInheritedStage = useCallback(() => {
     pendingLayerStageRef.current = "inherit";
     setSelectedStage("inherit");
-  }, []);
+  }, [setSelectedStage]);
 
   /** Roadmap 069: the description card's "show raw order" link — lands on the
    *  `description` row's blame ledger. Roadmap 083 moved the card to its own
@@ -466,31 +423,10 @@ export function App() {
   // hypothetical — a real Renovate run would refuse the config outright.
   const validateHasErrors = result?.stageStatus.validate === "error";
 
-  // Roadmap 023: the reader's scroll position captured just before a
-  // scroll-preserving re-run's result commits, restored once the new DOM has
-  // painted (016 did this for re-simulations; full pipeline re-runs still reset
-  // scroll). null = this run should NOT preserve it (a fresh config, a share
-  // link, or the first run).
-  //
-  // Roadmap 075: BOTH positions, because which one is "the reader's" now
-  // depends on the viewport. In the shell the page does not scroll at all and
-  // the results pane is its own scroller; stacked (below ~60rem) the pane is
-  // `overflow: visible` and the page scrolls exactly as it used to. Capturing
-  // and restoring both costs two property reads and makes the answer
-  // independent of the breakpoint — the inapplicable half is 0 either way, and
-  // restoring 0 to a container that cannot scroll is a no-op.
-  const preserveScrollRef = useRef<{ page: number; results: number } | null>(null);
-  useLayoutEffect(() => {
-    const saved = preserveScrollRef.current;
-    if (saved !== null) {
-      preserveScrollRef.current = null;
-      window.scrollTo({ top: saved.page, behavior: "auto" });
-      if (resultsColRef.current) {
-        resultsColRef.current.scrollTop = saved.results;
-      }
-    }
-    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- `result` is the TRIGGER: the positions come from a ref captured before the run committed, and the run's commit is the layout this restore has to run against. Nothing is read out of the result, and there is nothing in it to read.
-  }, [result]);
+  // Roadmap 023/075: the reader's scroll across a scroll-preserving re-run —
+  // captured a statement before the result commits, restored once the new DOM
+  // has painted. Both halves live in the hook; `result` is the trigger.
+  const preservedScroll = usePreservedScroll(resultsColRef, result);
 
   // A validation message's REPO-config `packageRules[repoIndex]` → the editor
   // line. Reads `packageRuleOffsets`, which is rescanned on every edit — so
@@ -507,62 +443,6 @@ export function App() {
     (repoIndex: number) => focusEditorRepoIndexRef.current(repoIndex),
     [focusEditorRepoIndexRef],
   );
-
-  /** Roadmap 016: the one path every authoritative content load goes
-   *  through — sets the text, moves the "revert to loaded config" baseline
-   *  to match, and remounts the editor (see `editorKey`'s comment). */
-  function loadConfigText(text: string) {
-    setContent(text);
-    setLoadedContent(text);
-    setEditorKey((k) => k + 1);
-  }
-
-  /**
-   * Design review: a pasted config arrives as one long line and the app had no
-   * way to make it readable. Two-space indentation, in place.
-   *
-   * The parse happens HERE, on the click — never per keystroke, which roadmap
-   * 032 measures and this must not make more expensive. Deliberately NOT
-   * `loadConfigText`: formatting is an edit, not a load, and moving the revert
-   * baseline would quietly retire "Revert to loaded config". Strict JSON only —
-   * a `.json5` document that is also valid JSON reformats, and one using
-   * JSON5's own syntax says so rather than being silently rewritten into JSON
-   * with its comments discarded.
-   */
-  function formatConfig() {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(content);
-    } catch {
-      setNotice(
-        fileName.endsWith(".json5")
-          ? "Can't format: this reformats strict JSON, and this document is either invalid or uses JSON5 syntax (comments, unquoted keys, trailing commas) that reformatting would discard."
-          : "Can't format: fix the JSON syntax first — the editor's markers show where.",
-      );
-      return;
-    }
-    const formatted = `${JSON.stringify(parsed, null, 2)}\n`;
-    if (formatted === content) {
-      showToast("Already formatted");
-      return;
-    }
-    setNotice(null);
-    setContent(formatted);
-    setEditorKey((k) => k + 1);
-  }
-
-  // A new run invalidates what the previous run's views were pointing at. App's
-  // OWN half of that happens during render — React's "adjust state when a prop
-  // changes" idiom, the same one `StepThrough` uses: `result` is the trigger and
-  // the reset reads nothing out of it, and the selection and the two stepper
-  // indices are back at their starting points BEFORE the paint instead of one
-  // committed frame after it, where a stepper briefly showed the old step
-  // against the new run's sequence.
-  useSyncedReset(result, () => {
-    setSelectedNodeId(null);
-    setMigrationStepIndex(0);
-    setMergeStepIndex(0);
-  });
 
   useEffect(() => {
     // Roadmap 028: a new run invalidates the previous run's async counts —
@@ -598,15 +478,16 @@ export function App() {
   // a value React Compiler must treat as "may change later", which costs the
   // memoization of everything downstream of the layer's parse.
   const [repoInput, setRepoInput] = useState("");
-  // Roadmap 078: where the config on screen was loaded FROM — set by a
-  // successful repo load, replaced by the next one. The Tests tab's
-  // From-repository picker exists only while this does.
-  const [loadedRepo, setLoadedRepo] = useState<LoadedRepo | null>(null);
-  // Roadmap 087: the repo a SHARE LINK said its config was loaded from — the
-  // connect panel's one-click suggestion. Provenance the link claims, not a
-  // load this session performed; nothing is fetched until the user clicks the
-  // button that names it.
-  const [repoSuggestion, setRepoSuggestion] = useState<string | null>(null);
+  // Roadmap 078/087: where the config on screen came from — a load this
+  // session performed, or a claim a share link made. See the hook for why
+  // "replace the provenance" and "discard it" are two named writers rather
+  // than the same pair of setter calls twice.
+  const repoProvenance = useRepoProvenance({
+    platform,
+    endpoint,
+    suppressTokens: untrustedGuard !== null,
+  });
+  const loadedRepo = repoProvenance.loadedRepo;
   // Roadmap 045/048: the inherited-config layer — its text and parse, the
   // probe-target fields, the `inheritConfig*` policy read off the global
   // config, and the probe the repo load calls between the repo config arriving
@@ -638,7 +519,7 @@ export function App() {
     endpoint,
     applyPlatformContext,
     loadConfigText,
-    setFileName,
+    setFileName: configDoc.setFileName,
     setNotice,
     // A load that failed is a message about something that never ran, so it is
     // stamped and a run already in flight leaves it alone (see `applyFatal`).
@@ -656,7 +537,7 @@ export function App() {
     // real `inheritConfig` run resolves it.
     resolveInheritedConfig: async (args) =>
       inheritAuto ? await probeInheritedConfig(args) : inheritedParse.config,
-    onRepoLoaded: setLoadedRepo,
+    onRepoLoaded: repoProvenance.recordLoad,
   });
   // Roadmap 078: the loaded repo's extracted dependencies — discovered on
   // demand (the first open of the From-repository tab), reset by a new load.
@@ -669,33 +550,20 @@ export function App() {
   // closes over this render's state; the latest-ref wrapper (the
   // `buildShareLinkAndCopy` idiom) keeps the handed-out identity stable for
   // the run-view provider.
-  function connectSuggestedRepoImpl() {
-    if (repoSuggestion === null || !TREE_LISTING_PLATFORMS.has(platform as RepoPlatform)) {
-      return;
-    }
-    setLoadedRepo({
-      platform: platform as RepoPlatform,
-      repo: repoSuggestion,
-      ...(endpoint === "" ? {} : { endpoint }),
-      suppressTokens: untrustedGuard !== null,
-    });
-  }
-  const connectSuggestedRepoRef = useLatestRef(connectSuggestedRepoImpl);
-  const connectSuggestedRepo = useCallback(
-    () => connectSuggestedRepoRef.current(),
-    // A stable ref object; see `useLatestRef` for why the list is not empty.
-    [connectSuggestedRepoRef],
-  );
-  // The suggestion is only offered while the platform context could actually
-  // LIST it (the picker's walk is GitHub-only) — the click would otherwise
-  // lead to a discovery that can only error.
+  // Joins the two clusters this offer is made of — the provenance claim and
+  // the editor's load overlay — which is the shell's own job.
+  // Destructured so the dependency list is plain identifiers: React Compiler
+  // cannot preserve a manual memo whose deps are member expressions off a value
+  // it must assume may be mutated (react/preserve-manual-memoization).
+  const { suggestion: repoSuggestion, connect: connectSuggestedRepo } = repoProvenance;
+  const { openRepoForm } = repoLoad;
   const repoConnect = useMemo<RepoConnectOffer>(
     () => ({
-      suggestion: TREE_LISTING_PLATFORMS.has(platform as RepoPlatform) ? repoSuggestion : null,
+      suggestion: repoSuggestion,
       onConnect: connectSuggestedRepo,
-      onOpenLoad: repoLoad.openRepoForm,
+      onOpenLoad: openRepoForm,
     }),
-    [repoSuggestion, platform, connectSuggestedRepo, repoLoad.openRepoForm],
+    [repoSuggestion, connectSuggestedRepo, openRepoForm],
   );
   // Roadmap 085: the signed-in repo picker inside the load overlay. Picking
   // only writes the reference field — Load stays the one trigger.
@@ -738,61 +606,6 @@ export function App() {
     }
     return skips;
   }, [globalParse.config, inheritedParse.config]);
-
-  // Apply pending link view state after the run's result exists — after the
-  // new-run invalidation above, which the link's own view state overrides: the
-  // selection and the two stepper indices are reset during the render that
-  // observed the result, and this effect runs on the commit that follows it.
-  useEffect(() => {
-    if (!result) {
-      return;
-    }
-    const pending = pendingViewRef.current;
-    if (!pending) {
-      return;
-    }
-    pendingViewRef.current = null;
-    if (pending.stage) {
-      setSelectedStage(pending.stage);
-    }
-    if (typeof pending.step === "number") {
-      setMigrationStepIndex(pending.step);
-    }
-    // Roadmap 075 (iteration 3): a link that named the Rewrites tab — or a
-    // pre-028 one that carried a migration step, which is the same intent
-    // spelled differently — is asking for the stepper, and the stepper is the
-    // migrate stage's now. Applied AFTER `pending.stage` on purpose: the stage
-    // such a link carries is whatever the sender's pipeline rail happened to be
-    // on, and it is not what they were pointing at.
-    const wantsMigrateStage =
-      pending.tab === undefined
-        ? typeof pending.step === "number"
-        : shareTabWantsMigrateStage(pending.tab);
-    if (wantsMigrateStage) {
-      setSelectedStage("migrate");
-    }
-    // Roadmap 044: applied BEFORE the simulator's auto-run (a `sim` link's
-    // simulation starts from the simulator's own effect, which deliberately
-    // keeps this index instead of resetting to step 0).
-    if (typeof pending.simStep === "number") {
-      setMergeStepIndex(pending.simStep);
-    }
-    if (pending.node && result.presetTree) {
-      const id = nodeIdForIdentity(result.presetTree, pending.node);
-      if (id) {
-        setSelectedNodeId(id);
-      }
-    }
-    // Roadmap 028: an explicit tab wins; a pre-028 link infers one from the
-    // view state it does carry. Roadmap 075: and a v1 tab id is mapped onto the
-    // tab that replaced it — links naming `simulator` / `rewrites` are already
-    // out there (`overview` needs no mapping since 083 made it a real tab again).
-    const linkTab =
-      pending.tab === undefined ? legacyTabForView(pending) : resultsTabForShareTab(pending.tab);
-    if (linkTab) {
-      setTab(linkTab);
-    }
-  }, [result, setTab]);
 
   // An unparseable 008 layer never silently runs without it — block instead.
   // Roadmap 030: the same gate gets a matching case for the endpoint field
@@ -844,24 +657,9 @@ export function App() {
   const runQueueRef = useRef<RunQueue<TraceResult | null> | null>(null);
   const runQueue = (runQueueRef.current ??= createRunQueue<TraceResult | null>(setRunning));
 
-  /** Roadmap 076 review: false until the first result commits — i.e. while the
-   *  landing (and its stage-walk narration) is still on screen. A ref, not
-   *  `result === null`, because `executeRun` runs from the queue with the
-   *  closure it was enqueued under: a second run queued behind the first would
-   *  still read the stale null and sit out a second walk. A failed first run
-   *  leaves it false on purpose — the landing is still up, so the next run
-   *  narrates again. */
-  const shellDockedRef = useRef(false);
-
-  /** The resolver of the walk-end promise the first commit is holding for —
-   *  armed by `executeRun`, fired by `StageRailPreview` via the callback
-   *  below. Nulled after firing so a late signal (the timeout the preview
-   *  schedules survives one render past the walk) resolves nothing twice. */
-  const landingWalkResolveRef = useRef<(() => void) | null>(null);
-  const onLandingWalkEnd = useCallback(() => {
-    landingWalkResolveRef.current?.();
-    landingWalkResolveRef.current = null;
-  }, []);
+  // Roadmap 076 review: the landing → shell handshake — the walk-end signal,
+  // the docked flag and the wait that holds the unmounting commit for it.
+  const { onLandingWalkEnd, awaitLandingWalk, markShellDocked } = useLandingWalk();
 
   /**
    * Roadmap 068: the ONE place a run is started — and, since the 2026-08-11
@@ -992,25 +790,12 @@ export function App() {
       // the mechanism: a signal that never comes (the one known path is a
       // second run queued behind a failed first, whose walk never restarts)
       // must delay the answer, never withhold it.
-      if (!shellDockedRef.current && !prefersReducedMotion()) {
-        const walkEnd = new Promise<void>((resolve) => {
-          landingWalkResolveRef.current = resolve;
-        });
-        await Promise.all([
-          runPromise,
-          Promise.race([
-            walkEnd,
-            new Promise((resolve) => window.setTimeout(resolve, LANDING_WALK_CAP_MS)),
-          ]),
-        ]);
-      }
+      await awaitLandingWalk(runPromise);
       const traceResult = await runPromise;
       // Roadmap 023: hold the current scroll so re-running an edited config
       // doesn't jump the user back to the top (captured right before the result
       // state commits, so an abandoned in-flight run can't pin a stale offset).
-      preserveScrollRef.current = opts?.preserveScroll
-        ? { page: window.scrollY, results: resultsColRef.current?.scrollTop ?? 0 }
-        : null;
+      preservedScroll.capture(Boolean(opts?.preserveScroll));
       // Roadmap 068, ninth review: set HERE, one statement before the commit it
       // belongs to, rather than by the caller before its `await`: runs are
       // serial, so the run that commits next is always this one, and a lead
@@ -1019,7 +804,7 @@ export function App() {
       // sentence inherits the lead of the run before it.
       outcomeLeadRef.current = opts?.outcomeLead ?? null;
       setResult(traceResult);
-      shellDockedRef.current = true;
+      markShellDocked();
       // Committed WITH the result, never before it: a run that threw or was
       // abandoned must not mark the previous run's output fresh. Roadmap 076:
       // and the layers this run actually carried, for the same reason and with
@@ -1361,24 +1146,7 @@ export function App() {
   // descriptor form fields (roadmap 018).
   async function buildShareState(sim?: ShareSimulator): Promise<ShareState> {
     const renovate = result?.renovateVersion ?? (await getRenovateVersion());
-    const view: ShareView = { stage: selectedStage, tab };
-    if (selectedNodeId && result?.presetTree) {
-      const identity = identityForNodeId(result.presetTree, selectedNodeId);
-      if (identity) {
-        view.node = identity;
-      }
-    }
-    if (migrateStepperMounted) {
-      view.step = migrationStepIndex;
-    }
-    // Roadmap 044: the simulator's merge step. Omitted at 0 (its default on
-    // both sides) — unlike `step`, nothing infers a tab from it (028's
-    // `legacyTabForView` predates it and every link that can carry it also
-    // carries an explicit `tab`), so an absent field costs nothing and old
-    // links keep decoding unchanged.
-    if (mergeStepIndex > 0) {
-      view.simStep = mergeStepIndex;
-    }
+    const view = runViewSelection.toShareView(tab, migrateStepperMounted);
     return {
       config: content,
       fileName,
@@ -1515,6 +1283,14 @@ export function App() {
       ruleProvenance,
       onJumpToSimRule,
       onApplyFix,
+      // The four setters now arrive through `useRunViewSelection` rather than
+      // straight from `useState`, so the rule can no longer prove they are
+      // stable. They are — same setters, one hop further — and listing them
+      // costs nothing, since a stable identity never invalidates the memo.
+      setSelectedStage,
+      setSelectedNodeId,
+      setMigrationStepIndex,
+      setMergeStepIndex,
     ],
   );
 
@@ -1614,8 +1390,7 @@ export function App() {
               // wholesale replacement ends the previous load's provenance
               // (the footnote's claim, and the share link's `repo`), exactly
               // as a share-link arrival does.
-              setLoadedRepo(null);
-              setRepoSuggestion(null);
+              repoProvenance.clear();
             }}
             // The dogfood shortcut: fetch and run THIS app's own renovate.json,
             // live from its repository — a full URL, so the load pins the
@@ -1638,10 +1413,10 @@ export function App() {
             onInheritFileChange={onInheritFileFieldChange}
             repoPicker={repoPicker}
             authUser={authUser}
-            onFileNameChange={(value) => setFileName(value as typeof fileName)}
-            canRevert={content !== loadedContent}
-            onRevert={() => loadConfigText(loadedContent)}
-            onFormat={formatConfig}
+            onFileNameChange={(value) => configDoc.setFileName(value as ConfigFileName)}
+            canRevert={configDoc.canRevert}
+            onRevert={configDoc.revert}
+            onFormat={configDoc.formatConfig}
             onSignIn={onSignIn}
             untrustedHost={untrustedGuard ? untrustedGuard.host : null}
             onTrustUntrustedHost={onTrustUntrustedHost}
