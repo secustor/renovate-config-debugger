@@ -155,6 +155,7 @@ export function ResultsPanel({
 
   return (
     <div className="results-panel">
+      {/* oxlint-disable-next-line jsx-a11y/interactive-supports-focus -- a tablist is a COMPOSITE widget: the ARIA practices put a roving tabindex on the tabs (the real role=tab buttons below, natively focusable) and leave the container itself out of the tab order, so Tab moves PAST the whole bar rather than into it. The rule only sees a container with a keydown handler that is unfocusable; that handler is here because arrow-key navigation is DELEGATED, which is the same pattern's other half. */}
       <div
         className="tab-bar"
         role="tablist"

@@ -81,7 +81,6 @@ export function initAnalytics(): void {
   // gtag.js dispatches on `arguments` objects, not arrays — pushing an array
   // is silently ignored, hence no rest parameters here.
   function gtag(..._args: unknown[]): void {
-    // eslint-disable-next-line prefer-rest-params
     dataLayer.push(arguments);
   }
   gtag("js", new Date());

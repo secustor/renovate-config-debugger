@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { GLOSSARY, type GlossaryEntry, type TermId } from "@/data/glossary-data";
-import { HoverCardAnchor, type HoverCardHandlers } from "./hover-card";
+import { HoverCardAnchor, type HoverCardHandlers, HoverCardTextAnchor } from "./hover-card";
 
 /**
  * The hover/focus card UI for the glossary. The entries themselves live in
@@ -73,9 +73,9 @@ export function ExplainedText({
   return (
     <Explained entry={entry}>
       {(handlers) => (
-        <span className={className} tabIndex={0} {...handlers}>
+        <HoverCardTextAnchor className={className} handlers={handlers}>
           {children}
-        </span>
+        </HoverCardTextAnchor>
       )}
     </Explained>
   );

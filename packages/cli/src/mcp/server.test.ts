@@ -1700,7 +1700,7 @@ describe("held runs carry only what the tools read", () => {
 describe("RunStore", () => {
   test("evicts the oldest run, and keeps the one being drilled into", () => {
     const store = new RunStore(2);
-    // eslint-disable-next-line — the store only ever reads `result`/`input` back out
+    // The store only ever reads `result`/`input` back out.
     const fake = { events: [], errors: [], warnings: [] } as unknown as Parameters<
       RunStore["put"]
     >[0];

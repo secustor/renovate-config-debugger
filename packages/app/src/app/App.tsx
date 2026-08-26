@@ -1500,6 +1500,7 @@ export function App() {
       {/* Roadmap 068: the run's outcome for anyone not watching the screen.
           Always mounted — a live region has to exist BEFORE its text changes
           or the change is not announced. */}
+      {/* oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- the app's ONE announcement channel for a run's outcome, and the aria-live spelled out beside the role is the belt-and-braces that exists because IMPLICIT live regions are the part AT disagrees about. An `output` element would replace both with an implicit one, which is the trade this line was written to avoid. */}
       <p className="visually-hidden" role="status" aria-live="polite">
         {runAnnouncement}
       </p>

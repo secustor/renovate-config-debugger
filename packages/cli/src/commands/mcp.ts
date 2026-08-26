@@ -63,7 +63,6 @@ export const mcpCommand: Command = {
         // MCP's Transport is not an EventTarget: `onclose` is the SDK's own
         // callback property, and `serveStdio` already installed the entry's
         // own handler on it — hence the chain rather than an assignment.
-        // oxlint-disable-next-line unicorn/prefer-add-event-listener -- see above
         const closeEntry = transport.onclose;
         // oxlint-disable-next-line unicorn/prefer-add-event-listener -- see above
         transport.onclose = () => {

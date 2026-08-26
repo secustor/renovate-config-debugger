@@ -60,7 +60,13 @@ export function PresetListPane({
   return (
     <div>
       {view === "table" ? (
-        <div className="preset-table-head" role="row">
+        // Deliberately NO `role="row"`. It used to carry one, and that was an
+        // orphan: this header sits OUTSIDE the scroll container below (it must
+        // not scroll away), so its row had no table to belong to — and
+        // `role="row"` requires an owning table/grid/rowgroup. A row with no
+        // table is dropped from the accessibility tree by some AT and reported
+        // as a stray row by others. Five sort buttons announce themselves.
+        <div className="preset-table-head">
           {columns.map((c) => (
             <button
               key={c.key}
@@ -74,7 +80,15 @@ export function PresetListPane({
           ))}
         </div>
       ) : null}
-      <div className="preset-tree" role={view === "tree" ? "tree" : "table"} ref={containerRef}>
+      {/* `role="tree"` for the tree view only. The table view used to claim
+          `role="table"` and it was not one: its children are the two virtual
+          padding spacers and a flat list of `<button>`s, none of them a `row`
+          or a `cell`, and the header row was not even inside it. AT therefore
+          announced "table, 0 rows" over a list that visibly had hundreds —
+          worse than no role at all. A real grid here means cells, roving
+          keyboard nav, and `aria-rowcount`/`aria-rowindex` to undo the
+          windowing; until that exists the buttons speak for themselves. */}
+      <div className="preset-tree" role={view === "tree" ? "tree" : undefined} ref={containerRef}>
         {activeCount === 0 ? (
           <p className="empty-note">No presets match the filter.</p>
         ) : (

@@ -46,6 +46,7 @@ export function SegmentedControl<T extends string>({
         <button
           key={option.value}
           type="button"
+          // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- `<input type="radio">` is a REPLACED element: it renders the platform's own dot-and-ring, which is exactly the rendering a segmented control exists to replace, and the usual escape (visually hide it, style a sibling `<label>`) trades one native affordance for a second element and a `for`/`id` pair per option. A `<button role="radio">` inside the `role="radiogroup"` above carries the same semantics — checked state, group membership, group label — with the button's own focus and activation behaviour intact.
           role="radio"
           aria-checked={option.value === value}
           aria-label={option.ariaLabel}

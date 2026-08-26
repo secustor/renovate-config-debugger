@@ -476,6 +476,7 @@ export const RuleSimulator = memo(function RuleSimulator({
             to be ANNOUNCED, and a live region only reliably announces content
             that arrives after the region itself exists. Last in the row so its
             empty state contributes only a trailing (invisible) flex gap. */}
+        {/* oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- see StaleResultsBanner: the `output` element the rule wants is form-associated, and its implicit live region is less reliably announced. This one is a PERSISTENT empty region (the comment above says why), which is the case where announcement support is the entire feature. */}
         <span className="host-ok" role="status">
           {justPinned ? "Pinned ✓" : null}
         </span>
