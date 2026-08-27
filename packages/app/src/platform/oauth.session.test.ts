@@ -1,4 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import {
+  COOKIE_SESSION_KEY,
+  jsonResponse,
+  makeWorkerFetch,
+  memoryStorage,
+  type StorageLike,
+  WORKER_URL,
+} from "@tools/test/oauth-test-harness";
 
 /**
  * Roadmap 065 — the cookie-session half of oauth.ts: the localStorage marker
@@ -14,53 +22,14 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
  * test must not read as "already signed in" in the next.
  */
 
-const COOKIE_SESSION_KEY = "rcd.oauth.cookieSession";
-const WORKER_URL = "https://worker.example";
-
-type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
-
-function memoryStorage(): StorageLike & { map: Map<string, string> } {
-  const map = new Map<string, string>();
-  return {
-    map,
-    getItem: (key) => map.get(key) ?? null,
-    setItem: (key, value) => {
-      map.set(key, value);
-    },
-    removeItem: (key) => {
-      map.delete(key);
-    },
-  };
-}
-
 const g = globalThis as { localStorage?: StorageLike; sessionStorage?: StorageLike };
 let local = memoryStorage();
 let session = memoryStorage();
 
-/** The Worker + GitHub responses the paths below reach for. `refresh` decides
- *  what `POST /refresh` answers; everything else is fixed. */
+/** What `POST /refresh` answers; the rest of the Worker/GitHub surface is
+ *  fixed in the shared harness. */
 let refreshResponse: () => Response = () => jsonResponse({});
-
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
-}
-
-function baseFetch(input: unknown, init?: RequestInit): Promise<Response> {
-  const url = String(input);
-  if (url === `${WORKER_URL}/refresh`) {
-    return Promise.resolve(refreshResponse());
-  }
-  if (url === `${WORKER_URL}/logout`) {
-    return Promise.resolve(new Response(null, { status: 204 }));
-  }
-  if (url === "https://api.github.com/user") {
-    return Promise.resolve(jsonResponse({ login: "octocat", avatar_url: "https://ex.test/a.png" }));
-  }
-  return Promise.reject(new Error(`unexpected fetch: ${url} ${String(init?.method)}`));
-}
+const baseFetch = makeWorkerFetch(() => refreshResponse());
 
 const fetchMock = vi.fn(baseFetch);
 

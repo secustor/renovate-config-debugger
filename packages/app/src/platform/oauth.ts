@@ -273,6 +273,141 @@ function storeTokenState(state: TokenState): void {
 }
 
 // ---------------------------------------------------------------------------
+// Cross-tab coordination (cookie mode)
+// ---------------------------------------------------------------------------
+//
+// In cookie mode every tab shares ONE grant (the `HttpOnly` refresh cookie),
+// and GitHub revokes the old access token whenever that grant is refreshed —
+// so any tab's refresh silently kills the token every sibling tab still
+// holds, hours before its recorded expiry. Two mechanisms close the gap:
+// a BroadcastChannel hands the replacement token to the siblings, and a Web
+// Lock serializes cross-tab refreshes so a racing boot can never post the
+// already-rotated (burned) cookie and end the whole session.
+
+interface TokenBroadcast {
+  type: "token";
+  token: string;
+  tokenExpiresAt: number;
+  refreshTokenExpiresAt?: number;
+}
+
+type OAuthBroadcast = TokenBroadcast | { type: "signout" };
+
+function openChannel(): BroadcastChannel | null {
+  if (typeof BroadcastChannel === "undefined") {
+    return null;
+  }
+  try {
+    const ch = new BroadcastChannel("rcd.oauth");
+    ch.addEventListener("message", (event: MessageEvent<unknown>) => {
+      receiveBroadcast(event.data);
+    });
+    // Node's BroadcastChannel (vitest) holds the process open unless unref'd;
+    // the browser one has no unref.
+    (ch as { unref?: () => void }).unref?.();
+    return ch;
+  } catch {
+    return null;
+  }
+}
+
+const channel = openChannel();
+
+function broadcast(message: OAuthBroadcast): void {
+  try {
+    // oxlint-disable-next-line unicorn/require-post-message-target-origin -- BroadcastChannel.postMessage has no targetOrigin parameter
+    channel?.postMessage(message);
+  } catch {
+    // a closed/failed channel only costs the siblings a silent refresh
+  }
+}
+
+/** A sibling tab's message. Same-origin by construction, but validated like
+ *  every stored value (roadmap 030) — the token goes into a request header. */
+function receiveBroadcast(data: unknown): void {
+  if (typeof data !== "object" || data === null) {
+    return;
+  }
+  const msg = data as Partial<Omit<TokenBroadcast, "type">> & { type?: string };
+  if (msg.type === "signout") {
+    // A tab holding its own in-JS refresh token (009) has its own grant — a
+    // sibling's sign-out tears down the SHARED grant only, not this one.
+    if (!currentToken()?.refreshToken) {
+      clearLocalSession();
+      notifySessionChanged();
+    }
+    return;
+  }
+  if (msg.type !== "token") {
+    return;
+  }
+  if (typeof msg.token !== "string" || !isValidToken(msg.token)) {
+    return;
+  }
+  if (typeof msg.tokenExpiresAt !== "number" || !Number.isFinite(msg.tokenExpiresAt)) {
+    return;
+  }
+  // Only a tab on the shared cookie grant may adopt the token: the live
+  // marker is the evidence (the sender re-set it before broadcasting), and a
+  // tab holding its own in-JS refresh token has its own grant.
+  if (currentToken()?.refreshToken || !hasLiveCookieSession()) {
+    return;
+  }
+  storeTokenState({
+    token: msg.token,
+    tokenExpiresAt: msg.tokenExpiresAt,
+    refreshTokenExpiresAt:
+      typeof msg.refreshTokenExpiresAt === "number" && Number.isFinite(msg.refreshTokenExpiresAt)
+        ? msg.refreshTokenExpiresAt
+        : undefined,
+  });
+  notifySessionChanged();
+}
+
+const sessionListeners = new Set<() => void>();
+
+/** Cross-tab session changes land outside any React event (a sibling's
+ *  refresh signing this tab in, its sign-out tearing this tab down), so the
+ *  UI layer subscribes here and re-reads `isSignedIn()`/`getStoredUser()`.
+ *  Returns the unsubscribe. */
+export function onSessionBroadcast(listener: () => void): () => void {
+  sessionListeners.add(listener);
+  return () => {
+    sessionListeners.delete(listener);
+  };
+}
+
+function notifySessionChanged(): void {
+  for (const listener of sessionListeners) {
+    listener();
+  }
+}
+
+/** GitHub rotates the grant on every use, so cross-tab refreshes must not
+ *  interleave. Best-effort: without Web Locks (old browser, tests) the
+ *  per-tab single-flight still holds. */
+async function withRefreshLock<T>(task: () => Promise<T>): Promise<T> {
+  const locks = typeof navigator === "undefined" ? undefined : navigator.locks;
+  if (!locks) {
+    return task();
+  }
+  let started = false;
+  try {
+    return await locks.request("rcd.oauth.refresh", () => {
+      started = true;
+      return task();
+    });
+  } catch (err) {
+    if (started) {
+      throw err; // the task's own failure — its callers classify it
+    }
+    // The lock MANAGER refused (inactive document, denied API): run
+    // unserialized rather than wedging every later caller on this rejection.
+    return task();
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Worker exchange
 // ---------------------------------------------------------------------------
 
@@ -372,6 +507,14 @@ function applyTokenResponse(data: TokenResponse): void {
   });
   if (data.refresh_token_cookie) {
     localSet(K.cookieSession, String(refreshExpiresAt ?? Number.MAX_SAFE_INTEGER));
+    // This refresh revoked the access token every sibling tab on the shared
+    // grant still holds (GitHub rotates) — hand them the replacement.
+    broadcast({
+      type: "token",
+      token: data.access_token as string,
+      tokenExpiresAt,
+      ...(refreshExpiresAt === undefined ? {} : { refreshTokenExpiresAt: refreshExpiresAt }),
+    });
   } else {
     // Mode-switch hygiene: a deployment that turned cookie mode back off (or
     // a 009 Worker answering a browser that still carries a marker) must not
@@ -590,11 +733,24 @@ async function restoreSessionImpl(): Promise<StoredUser | null> {
   if (!hasLiveCookieSession()) {
     return null;
   }
-  let data: TokenResponse;
+  let data: TokenResponse | null;
   try {
-    // Empty body: the refresh token is the cookie `credentials: "include"`
-    // sends, and the SPA has no copy of it to offer.
-    data = await postWorker("/refresh", {});
+    data = await withRefreshLock(async () => {
+      // A sibling tab's boot may have refreshed while we waited on the lock —
+      // its broadcast already signed this tab in, and posting again would
+      // burn the freshly rotated cookie.
+      if (currentToken()) {
+        return null;
+      }
+      // Empty body: the refresh token is the cookie `credentials: "include"`
+      // sends, and the SPA has no copy of it to offer.
+      const fresh = await postWorker("/refresh", {});
+      // Stored (and broadcast) BEFORE the lock releases: a sibling waiting on
+      // it must find this token on its own re-check, not a gap it would fill
+      // by posting the just-rotated cookie.
+      applyTokenResponse(fresh);
+      return fresh;
+    });
   } catch (err) {
     // A definitive rejection (a 4xx: the cookie is gone, expired, or was
     // already rotated away) drops the marker so later boots stop probing. A
@@ -607,7 +763,13 @@ async function restoreSessionImpl(): Promise<StoredUser | null> {
     }
     return null;
   }
-  applyTokenResponse(data);
+  if (data === null) {
+    // Signed in while we waited. A broadcast-adopted token carries no stored
+    // profile in THIS tab's sessionStorage, so the chip's user is fetched —
+    // cosmetic, same never-rejects contract as below.
+    const adopted = currentToken();
+    return getStoredUser() ?? (adopted ? await fetchUser(adopted.token).catch(() => null) : null);
+  }
   return fetchUser(data.access_token as string).catch(() => null);
 }
 
@@ -643,8 +805,18 @@ export async function getValidToken(): Promise<string | null> {
   // per session, and a second concurrent cookie refresh would post the
   // already-rotated (burned) cookie and kill the session it is renewing.
   if (!refreshInFlight) {
-    refreshInFlight = (async () => {
+    const refresh = async (): Promise<string | null> => {
       try {
+        // Re-check under the cross-tab lock: a sibling's refresh (delivered
+        // by broadcast) may have renewed the token — or its sign-out torn
+        // the session down — while we waited.
+        const renewed = currentToken();
+        if (!renewed) {
+          return null;
+        }
+        if (Date.now() < renewed.tokenExpiresAt - skewMs) {
+          return renewed.token;
+        }
         const data = await postWorker(
           "/refresh",
           viaCookie ? {} : { refresh_token: state.refreshToken },
@@ -665,7 +837,10 @@ export async function getValidToken(): Promise<string | null> {
       } finally {
         refreshInFlight = null;
       }
-    })();
+    };
+    // Only the shared (cookie) grant needs cross-tab serialization; a 009
+    // tab's in-JS grant is its own, and the per-tab single-flight suffices.
+    refreshInFlight = viaCookie ? withRefreshLock(refresh) : refresh();
   }
   return refreshInFlight;
 }
@@ -684,6 +859,21 @@ export async function getValidToken(): Promise<string | null> {
  * body and throws on anything that isn't one.
  */
 export function signOut(): void {
+  clearLocalSession();
+  // The grant is being torn down (the /logout below clears the shared
+  // cookie), so sibling tabs must not keep believing in their tokens either.
+  broadcast({ type: "signout" });
+  const cfg = getOAuthConfig();
+  if (cfg) {
+    void fetch(`${cfg.workerUrl}/logout`, { method: "POST", credentials: "include" }).catch(
+      () => {},
+    );
+  }
+}
+
+/** This tab's session teardown alone — what a sibling's "signout" broadcast
+ *  applies. No re-broadcast (loop) and no /logout (the sender fired it). */
+function clearLocalSession(): void {
   memToken = null;
   memLoaded = true;
   for (const key of Object.values(K)) {
@@ -691,10 +881,30 @@ export function signOut(): void {
   }
   // The one localStorage key: the loop above is a no-op for it.
   localRemove(K.cookieSession);
-  const cfg = getOAuthConfig();
-  if (cfg) {
-    void fetch(`${cfg.workerUrl}/logout`, { method: "POST", credentials: "include" }).catch(
-      () => {},
-    );
+}
+
+/** The outcome of {@link recoverRejectedToken}: `recovered: false` means the
+ *  rejected credential is not the OAuth token (a PAT or credentials row —
+ *  nothing here can renew those); `token: null` means the session ended. */
+export type TokenRecovery = { recovered: false } | { recovered: true; token: string | null };
+
+/**
+ * A host answered 401 for `rejected` mid-run: the token was revoked before
+ * its recorded expiry — locally that looks valid, so the silent-refresh
+ * machinery never fired. Typical cause: another tab refreshed the shared
+ * cookie grant, which rotates it and revokes this tab's access token. If a
+ * sibling's broadcast already delivered the replacement, answer that;
+ * otherwise force the expiry and refresh (single-flight, cross-tab lock,
+ * sign-out on a definitive failure).
+ */
+export async function recoverRejectedToken(rejected: string): Promise<TokenRecovery> {
+  const state = currentToken();
+  if (!state) {
+    return { recovered: false };
   }
+  if (state.token !== rejected) {
+    return { recovered: true, token: state.token };
+  }
+  storeTokenState({ ...state, tokenExpiresAt: 0 });
+  return { recovered: true, token: await getValidToken() };
 }
