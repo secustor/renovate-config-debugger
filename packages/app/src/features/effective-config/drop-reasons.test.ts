@@ -24,7 +24,7 @@ const packageList: DroppedDescription = {
 const muted: DroppedDescription = {
   value: "Group Jest packages.",
   node: { nodeId: "n5", name: "group:jestPlusTypes" },
-  reason: "ignore-deps-quirk",
+  reason: "description-override",
   droppedBy: { nodeId: "n6", name: "group:recommended" },
 };
 
@@ -35,7 +35,7 @@ describe("dropReasonText", () => {
     // The mute names the extending config, because that is the config the
     // reader can change.
     expect(dropReasonText(muted)).toBe(
-      "muted by `group:recommended` — its empty `ignoreDeps` deletes every description it extends",
+      "muted by `group:recommended` — its `overrideDescription` replaces every description it resolved",
     );
   });
 
@@ -63,7 +63,7 @@ test("every reason the engine can report has wording", () => {
   const reasons: DroppedDescriptionReason[] = [
     "wrapper-preset",
     "package-list-preset",
-    "ignore-deps-quirk",
+    "description-override",
   ];
 
   expect(Object.keys(DROP_REASONS).toSorted()).toEqual(reasons.toSorted());

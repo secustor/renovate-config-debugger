@@ -30,23 +30,29 @@ interface NodeSpec {
 
 let counter = 0;
 
-function descriptionsOf(body: Record<string, unknown> | undefined): string[] {
-  const value = body?.description;
+function membersOf(value: unknown): unknown[] {
   if (typeof value === "string") {
     return [value];
   }
-  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+  return Array.isArray(value) ? value : [];
+}
+
+function descriptionsOf(body: Record<string, unknown> | undefined): string[] {
+  return membersOf(body?.description).filter((v): v is string => typeof v === "string");
 }
 
 function build(spec: NodeSpec, id: string): PresetNode {
   const children = (spec.children ?? []).map((child) => build(child, `p${++counter}`));
-  const quirk = Array.isArray(spec.input.ignoreDeps) && spec.input.ignoreDeps.length === 0;
-  const replayed = [
-    ...(quirk
-      ? []
-      : children.flatMap((c) => descriptionsOf(c.resolved as Record<string, unknown>))),
-    ...descriptionsOf(spec.input),
-  ];
+  // Renovate's own order: children then own body, then `overrideDescription`
+  // replacing the lot (members, so a non-string override member survives too).
+  const override = membersOf(spec.input.overrideDescription);
+  const replayed =
+    override.length > 0
+      ? override
+      : [
+          ...children.flatMap((c) => descriptionsOf(c.resolved as Record<string, unknown>)),
+          ...descriptionsOf(spec.input),
+        ];
   return {
     id,
     name: spec.name,
@@ -287,14 +293,14 @@ describe("computeDescriptionProvenance: the drop rules", () => {
     expect(prov.dropped).toEqual([]);
   });
 
-  it("reports every description an extending `ignoreDeps: []` deleted, per authoring node", () => {
+  it("reports every description an `overrideDescription` replaced, per authoring node", () => {
     const prov = provenance({
       name: "(input config)",
       input: {},
       children: [
         {
-          name: "quirky",
-          input: { description: ["quirky-own"], ignoreDeps: [] },
+          name: "muter",
+          input: { description: ["muter-own"], overrideDescription: ["one line"] },
           children: [
             {
               name: "a",
@@ -305,33 +311,59 @@ describe("computeDescriptionProvenance: the drop rules", () => {
         },
       ],
     });
-    // only the extending node's OWN description survives
-    expect(shape(prov)).toEqual([["quirky-own", "quirky", "quirky"]]);
+    // the override replaces the WHOLE resolved description — the subtree's
+    // sentences and the overriding node's own — and is owned by that node
+    expect(shape(prov)).toEqual([["one line", "muter", "muter"]]);
     expect(prov.dropped).toEqual([
       {
         value: "a-child-own",
         node: { nodeId: "p3", name: "a-child" },
-        reason: "ignore-deps-quirk",
-        droppedBy: { nodeId: "p1", name: "quirky" },
+        reason: "description-override",
+        droppedBy: { nodeId: "p1", name: "muter" },
       },
       {
         value: "a-own",
         node: { nodeId: "p2", name: "a" },
-        reason: "ignore-deps-quirk",
-        droppedBy: { nodeId: "p1", name: "quirky" },
+        reason: "description-override",
+        droppedBy: { nodeId: "p1", name: "muter" },
+      },
+      {
+        value: "muter-own",
+        node: { nodeId: "p1", name: "muter" },
+        reason: "description-override",
+        droppedBy: { nodeId: "p1", name: "muter" },
       },
     ]);
     expect(prov.degraded).toBe(false);
   });
 
-  it("keeps a muted subtree's guessed author labelled as a guess", () => {
+  it("ignores an empty `overrideDescription`, as Renovate's length guard does", () => {
     const prov = provenance({
       name: "(input config)",
       input: {},
       children: [
         {
-          name: "quirky",
-          input: { ignoreDeps: [] },
+          name: "not-a-muter",
+          input: { description: ["own"], overrideDescription: [] },
+          children: [{ name: "a", input: { description: ["a-own"] } }],
+        },
+      ],
+    });
+    expect(shape(prov)).toEqual([
+      ["a-own", "a", "not-a-muter"],
+      ["own", "not-a-muter", "not-a-muter"],
+    ]);
+    expect(prov.dropped).toEqual([]);
+  });
+
+  it("keeps an overridden subtree's guessed author labelled as a guess", () => {
+    const prov = provenance({
+      name: "(input config)",
+      input: {},
+      children: [
+        {
+          name: "muter",
+          input: { overrideDescription: ["one line"] },
           children: [
             {
               name: "a",
@@ -344,28 +376,50 @@ describe("computeDescriptionProvenance: the drop rules", () => {
         },
       ],
     });
-    // … and the quirk then diverts that guess into `dropped`, still labelled
+    // … and the override then diverts that guess into `dropped`, still labelled
     expect(prov.dropped).toEqual([
       {
         value: "surprise",
         node: { nodeId: "p2", name: "a" },
-        reason: "ignore-deps-quirk",
-        droppedBy: { nodeId: "p1", name: "quirky" },
+        reason: "description-override",
+        droppedBy: { nodeId: "p1", name: "muter" },
         approximate: true,
       },
     ]);
-    expect(prov.entries).toEqual([]);
+    expect(shape(prov)).toEqual([["one line", "muter", "muter"]]);
     expect(prov.degraded).toBe(true);
   });
 
-  it("applies the `ignoreDeps: []` quirk at the repo level too", () => {
+  it("applies an `overrideDescription` at the repo level too, in its `allowString` form", () => {
     const prov = provenance({
       name: "(input config)",
-      input: { description: ["mine"], ignoreDeps: [] },
+      input: { description: ["mine"], overrideDescription: "what this config does" },
       children: [{ name: "a", input: { description: ["a-own"] } }],
     });
-    expect(shape(prov)).toEqual([["mine", "(input config)", "repo"]]);
-    expect(prov.dropped.map((d) => [d.value, d.droppedBy?.nodeId])).toEqual([["a-own", "root"]]);
+    // the root wrote the override, so it arrives through the `repo` layer
+    expect(shape(prov)).toEqual([["what this config does", "(input config)", "repo"]]);
+    expect(prov.dropped.map((d) => [d.value, d.node.name, d.droppedBy?.nodeId])).toEqual([
+      ["a-own", "a", "root"],
+      ["mine", "(input config)", "root"],
+    ]);
+  });
+
+  it("counts a non-string override member as a real position, attributed to nobody", () => {
+    // `overrideDescription` is `subType: "string"`, but a wrong-typed member is
+    // a warning, not a refusal — and it becomes a member of `description`.
+    const result = traceResult(
+      {
+        name: "(input config)",
+        input: { overrideDescription: ["kept", 42] },
+        children: [{ name: "a", input: { description: ["a-own"] } }],
+      },
+      ["kept", 42],
+    );
+    const prov = must(computeDescriptionProvenance(result), "the description provenance");
+    expect(shape(prov)).toEqual([["kept", "(input config)", "repo"]]);
+    expect(prov.unattributed).toEqual([{ index: 1, value: 42 }]);
+    expect(prov.finalLength).toBe(2);
+    expect(prov.degraded).toBe(false);
   });
 });
 

@@ -87,7 +87,7 @@ test("marks an approximate drop and hedges its reason", () => {
       {
         value: "Group Jest packages.",
         node: { nodeId: "n5", name: "group:recommended" },
-        reason: "ignore-deps-quirk",
+        reason: "description-override",
         droppedBy: { nodeId: "n6", name: "group:jestPlusTypes" },
         approximate: true,
       },

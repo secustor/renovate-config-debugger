@@ -25,6 +25,7 @@ const repoConfig = JSON.stringify({
 const DEPENDENCY_DASHBOARD = "Enable Renovate Dependency Dashboard creation.";
 const MONOREPOS = "Group known monorepo packages together.";
 const PIN_DOCKER = "Pin Docker digests.";
+const CURATED_GROUPS = "Use curated list of recommended non-monorepo package groupings.";
 const SEMANTIC_COMMITS =
   "Use semantic commit type `fix` for dependencies and `chore` for all others if semantic commits are in use.";
 
@@ -120,22 +121,44 @@ describe("computeDescriptionProvenance (069)", () => {
     expect(prov.dropped.some((d) => values.has(d.value))).toBe(false);
   });
 
-  it("reports the descriptions group:recommended's `ignoreDeps: []` silently deletes", async () => {
+  it("reports the descriptions an `overrideDescription` replaced, per authoring node", async () => {
     const { prov } = await attribution();
-    const quirk = prov.dropped.filter((d) => d.reason === "ignore-deps-quirk");
-    // group:recommended carries `ignoreDeps: []`, which deletes the resolved
+    const overridden = prov.dropped.filter((d) => d.reason === "description-override");
+    // group:recommended's one-line `overrideDescription` replaces the resolved
     // description of every one of its ~130 sub-groups — and it is not alone:
-    // `replacements:all` and `workarounds:all` use the same trick to keep
+    // `replacements:all` and `workarounds:all` use the same option to keep
     // their hundreds of member presets out of the top-level description.
-    expect(quirk.length).toBeGreaterThan(100);
-    expect(new Set(quirk.map((d) => d.droppedBy?.name))).toEqual(
+    expect(overridden.length).toBeGreaterThan(100);
+    expect(new Set(overridden.map((d) => d.droppedBy?.name))).toEqual(
       new Set(["group:recommended", "replacements:all", "workarounds:all"]),
     );
     const nodeJs = must(
-      quirk.find((d) => d.node.name === "group:nodeJs"),
+      overridden.find((d) => d.node.name === "group:nodeJs"),
       "the group:nodeJs drop",
     );
     expect(nodeJs.value).toContain("Node.js");
+    expect(nodeJs.droppedBy?.name).toBe("group:recommended");
+    expect(nodeJs.approximate).toBeUndefined();
+  });
+
+  it("attributes the surviving override to the node that wrote it", async () => {
+    const { prov } = await attribution();
+    // the sentence that replaced those ~130: group:recommended's own, arriving
+    // through the top-level extend that pulled the preset in
+    const curated = must(
+      prov.entries.find((e) => e.value === CURATED_GROUPS),
+      `the "${CURATED_GROUPS}" entry`,
+    );
+    expect(curated.node?.name).toBe("group:recommended");
+    expect(via(curated)).toBe("config:best-practices");
+    expect(curated.approximate).toBeUndefined();
+    // group:monorepos is the same shape one level up: an override on a preset
+    // extended directly, where the writing node IS the top-level layer
+    const monorepos = must(
+      prov.entries.find((e) => e.value === MONOREPOS),
+      "the monorepos entry",
+    );
+    expect(monorepos.node?.name).toBe("group:monorepos");
   });
 
   it("finds the same drops on a repeated run, despite Renovate mutating its own preset table", async () => {
@@ -180,6 +203,30 @@ describe("computeDescriptionProvenance (069)", () => {
       ["Our house rules.", "repo"],
     ]);
     expect(prov.entries[1]?.node?.nodeId).toBe("root");
+  });
+
+  it("replaces a repo config's whole resolved description with its own override", async () => {
+    const result = await runResult(
+      JSON.stringify({
+        extends: [":dependencyDashboard"],
+        description: "Our house rules.",
+        overrideDescription: "What this config does, in one line.",
+      }),
+    );
+    const prov = must(computeDescriptionProvenance(result), "the description provenance");
+    // Renovate replaces the resolved array — the preset's sentence AND the
+    // repo's own — with the override, and deletes `overrideDescription` itself
+    expect(result.finalConfig?.description).toEqual(["What this config does, in one line."]);
+    expect(prov.entries.map((e) => [e.value, via(e)])).toEqual([
+      ["What this config does, in one line.", "repo"],
+    ]);
+    expect(prov.entries[0]?.node?.nodeId).toBe("root");
+    expect(prov.degraded).toBe(false);
+    // both replaced sentences are accounted for, each still credited to its author
+    expect(prov.dropped.map((d) => [d.value, d.node.name, d.reason, d.droppedBy?.name])).toEqual([
+      [DEPENDENCY_DASHBOARD, ":dependencyDashboard", "description-override", "(input config)"],
+      ["Our house rules.", "(input config)", "description-override", "(input config)"],
+    ]);
   });
 
   it("indexes against a final array Renovate let a non-string into", async () => {

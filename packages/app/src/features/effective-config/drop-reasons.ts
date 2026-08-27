@@ -49,10 +49,10 @@ export const DROP_REASONS: Record<DroppedDescriptionReason, DropReasonWording> =
     label: () => "package-name list",
     why: "Renovate drops the description of a preset that only lists `matchPackageNames`",
   },
-  "ignore-deps-quirk": {
+  "description-override": {
     label: (drop) =>
       `muted by ${drop.droppedBy ? `\`${drop.droppedBy.name}\`` : "the extending config"}`,
-    why: "its empty `ignoreDeps` deletes every description it extends",
+    why: "its `overrideDescription` replaces every description it resolved",
   },
 };
 

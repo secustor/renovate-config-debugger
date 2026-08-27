@@ -113,13 +113,13 @@ desynchronise the indices of everything after it. The UI is expected to render
 
 ## The drop rules
 
-Three places delete a description before it can merge. All three are reported in
+Three places remove a description before it can merge. All three are reported in
 `dropped` (`{ value, node, reason, droppedBy?, approximate? }`) rather than left
 as an unexplained absence, because "why isn't my preset's description showing
 up" is one of the questions this feature exists to answer. `approximate` carries
 the same meaning it has on an entry, and for the same reason: a subtree that had
-already degraded to its enclosing node can then be muted by the quirk below, and
-the guessed author must stay labelled as a guess once it becomes a drop. The two
+already degraded to its enclosing node can then be muted by the override below,
+and the guessed author must stay labelled as a guess once it becomes a drop. The two
 `getPreset` drops are read off a pristine body and are never approximate.
 
 - **`wrapper-preset`** — `getPreset` deletes the description of any preset whose
@@ -128,13 +128,17 @@ the guessed author must stay labelled as a guess once it becomes a drop. The two
   own one-line summaries never reach the config that extends them.
 - **`package-list-preset`** — same, for a preset whose keys are a subset of
   `{description, matchPackageNames}`. This is most of the `packages:` group.
-- **`ignore-deps-quirk`** — `resolveConfigPresets` deletes the ENTIRE resolved
-  description of a preset when the extending config carries `ignoreDeps: []`
-  (length zero). Three internal presets use this deliberately, as a mute button:
-  `group:recommended`, `replacements:all` and `workarounds:all` would otherwise
-  each contribute a hundred-plus sentences. `droppedBy` names the extending
-  node; the `node` on each entry is still the preset that authored the sentence,
-  because the walk attributes the subtree first and diverts it afterwards.
+- **`description-override`** — `resolveConfigPresets` REPLACES the entire
+  resolved description of a config — its subtree's sentences and its own — with
+  its `overrideDescription`, when that option is non-empty. Three internal
+  presets use it deliberately, as a mute button: `group:recommended`,
+  `replacements:all` and `workarounds:all` would otherwise each contribute a
+  hundred-plus sentences, and `group:monorepos` collapses its own. `droppedBy`
+  names the overriding node; the `node` on each entry is still the preset that
+  authored the sentence, because the walk attributes the subtree first and
+  diverts it afterwards. The override itself is an ordinary contribution of the
+  node that wrote it (Renovate deletes the key, so only the `description` it
+  became reaches the final config).
 
 The first two happen inside `getPreset`, i.e. **before** the body the trace
 records as `input`, so they are detected — not predicted — by comparing the raw
@@ -206,7 +210,7 @@ offline (internal presets need no network):
   case value matching would get wrong, and it is not exotic: it is what happens
   whenever someone adds a preset that `config:recommended` already contains.
 - 2 wrapper-preset drops (`config:best-practices`, `config:recommended`) and
-  135 `ignore-deps-quirk` drops from the three mute-button presets.
+  140 `description-override` drops from the three mute-button presets.
 
 ## The 5-PR plan
 
@@ -240,7 +244,8 @@ offline (internal presets need no network):
 - `test/description-provenance.shimmed.test.ts` — the real fixture above:
   full-array attribution and ordering, the two known leaf attributions, both
   duplicates with their `viaTopLevel` and `duplicateOfIndex`, the wrapper-preset
-  drops, the `ignoreDeps: []` drops with their three `droppedBy` presets, a
+  drops, the `overrideDescription` drops with their three `droppedBy` presets
+  and the surviving override attributed to the node that wrote it, a
   repo-config's own description landing last on the root node, a config whose
   `description` holds a number (Renovate warns and keeps it) proving the reported
   indices are positions in the real array, and — the regression guard for the
@@ -340,6 +345,33 @@ the wrong file would be worse than naming none.
 - `src/features/simulator/RuleRow.test.tsx`, `RuleEvidenceCard.test.tsx` and
   `rule-evidence.test.ts` — the quote where it belongs (outside the head button,
   above the clause evidence), and only on a matched, described rule.
+
+## Addendum — 2026-08-27: the mute button is `overrideDescription` now
+
+Renovate 44.41.0 ([#45400](https://github.com/renovatebot/renovate/pull/45400))
+added an `overrideDescription` option and moved the three mute-button presets
+onto it, deleting the `ignoreDeps: []` branch from `resolveConfigPresets`. The
+third drop rule is that option, not the quirk, and `ignore-deps-quirk` is gone
+rather than kept: the quirk no longer fires upstream, so detecting it would
+report drops Renovate does not make.
+
+The shape of the feature is unchanged — the final array of the reference fixture
+is byte-identical, the counts are the same, and `droppedBy` still names the node
+that pressed the button. Two things the swap does change: an override replaces
+the overriding node's OWN description too (the quirk kept it), so a node can
+appear as both the author and the `droppedBy` of one drop; and the surviving
+sentence is a contribution like any other, attributed to the node whose
+`overrideDescription` wrote it.
+
+The KEY provenance (005) needed the option too, in two places. It is consumed by
+`resolveConfigPresets` and deleted, like `extends` and `ignorePresets`, so it
+joins `RESOLUTION_KEYS` — a chain saying "your repo set `overrideDescription:
+[…]`" would name a winner the final `[]` contradicts. And a repo-level override
+does reach the final config, as `description`: the repo layer contributes it as
+an OVERWRITE of a normally-appending key (`Layer.replaces`), which is both what
+Renovate did and the surprising part worth naming. The round-trip invariant —
+every key's last step reproduces its final value — is what catches either half
+being missing.
 
 ## Addendum — 2026-08-23: `writtenBy`, the same honesty rule for a KEY
 

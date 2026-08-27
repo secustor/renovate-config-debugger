@@ -276,11 +276,11 @@ function DroppedList({
 }
 
 /**
- * The quiet footer. Three Renovate quirks delete a description before it can
+ * The quiet footer. Three Renovate rules remove a description before it can
  * merge (069 PR 1) — including `config:best-practices`' own one-liner — and
  * "my preset's description is missing" is otherwise an unanswerable question.
  * A footnote, so it stays out of the way until the ledger's one reveal asks for
- * it: on a real config the `ignoreDeps: []` mute alone drops 135 sentences.
+ * it: on a real config the `overrideDescription` mute alone drops 140 sentences.
  */
 function DroppedSection({
   dropped,

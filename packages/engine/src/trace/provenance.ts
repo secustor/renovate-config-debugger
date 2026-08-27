@@ -1,4 +1,4 @@
-import { isPlainObject } from "../lib";
+import { allowStringMembers, isPlainObject } from "../lib";
 import { getDefaultConfig, getOptions, mergeChildConfig } from "../renovate-adapter";
 import type { PresetNode, TraceResult } from "./model";
 import { mergingChildren, walkResolutionOrder } from "./tree";
@@ -93,6 +93,9 @@ interface Layer {
   config: Obj;
   /** The tree node behind a preset layer — what the writer walk descends into. */
   node?: PresetNode;
+  /** Keys this layer REPLACES rather than merges, whatever the option's
+   *  `mergeable` flag says — `overrideDescription` is the only one. */
+  replaces?: ReadonlySet<string>;
 }
 
 /**
@@ -116,14 +119,30 @@ function buildLayers(root: PresetNode, layerConfigs: TraceResult["layerConfigs"]
     });
   }
   const repo = structuredClone(root.input) as Obj;
-  delete repo.extends;
-  delete repo.ignorePresets;
-  layers.push({ layer: { kind: "repo" }, config: repo });
+  // `overrideDescription` is consumed into `description`, replacing everything
+  // the presets appended — so the repo layer contributes it as the OVERWRITE it
+  // is, not as the append `description` normally gets. (Which sentence each
+  // preset lost is 069's ledger, not this chain's.)
+  const override = allowStringMembers(repo.overrideDescription);
+  const replaces = override.length > 0 ? new Set(["description"]) : undefined;
+  if (replaces) {
+    repo.description = override;
+  }
+  for (const key of RESOLUTION_KEYS) {
+    delete repo[key];
+  }
+  layers.push({ layer: { kind: "repo" }, config: repo, ...(replaces ? { replaces } : {}) });
   return layers;
 }
 
-/** Keys consumed by preset resolution itself — never a body's own contribution. */
-const RESOLUTION_KEYS = new Set(["extends", "ignorePresets"]);
+/**
+ * Keys `resolveConfigPresets` consumes and deletes — never a body's own
+ * contribution to a final value, so a chain that showed one would claim a
+ * winner the final config contradicts. `overrideDescription` is consumed into
+ * `description`; where its sentences went is the description ledger's story
+ * (069), not this key's.
+ */
+const RESOLUTION_KEYS = new Set(["extends", "ignorePresets", "overrideDescription"]);
 
 interface KeyWriter {
   /** Last node in resolution order whose own body carries the key — the
@@ -233,9 +252,12 @@ export function computeProvenance(result: TraceResult): Map<string, KeyProvenanc
   // layer owns.
   let acc: Obj = {};
   let accBase: Obj = {};
-  for (const [layerIndex, { layer, config, node }] of layers.entries()) {
+  for (const [layerIndex, { layer, config, node, replaces }] of layers.entries()) {
     const before = acc;
     const after = mergeChildConfig(structuredClone(before), structuredClone(config)) as Obj;
+    for (const key of replaces ?? []) {
+      after[key] = structuredClone(config[key]);
+    }
     if (layerIndex < baseLayerCount) {
       accBase = after;
     }
@@ -244,7 +266,8 @@ export function computeProvenance(result: TraceResult): Map<string, KeyProvenanc
       const opt = optionMap.get(key);
       const parentVal = before[key];
       const childVal = config[key];
-      const mergeableBranch = Boolean(opt?.mergeable) && Boolean(parentVal) && Boolean(childVal);
+      const mergeableBranch =
+        !replaces?.has(key) && Boolean(opt?.mergeable) && Boolean(parentVal) && Boolean(childVal);
       let action: ProvenanceAction;
       let noop = false;
       if (mergeableBranch) {
