@@ -70,8 +70,11 @@ describe("placement", () => {
     expect(placement.topLevel).toBe(true);
     expect(placement.parents).not.toContain(".");
     expect(placement.parents).toContain("packageRules");
-    // 129 upstream entries, one of which is "."
-    expect(placement.parents).toHaveLength(128);
+    // exactly upstream's list minus the one "." entry, counted from upstream
+    // rather than pinned: a bump that adds a manager grows this list.
+    const upstreamParents = getOptions().find((option) => option.name === "enabled")?.parents ?? [];
+    expect(upstreamParents).toContain(".");
+    expect(placement.parents).toHaveLength(upstreamParents.length - 1);
   });
 });
 
@@ -144,7 +147,10 @@ describe("invariants over the whole option table", () => {
   it("states a placement for every option, restricted exactly when upstream says so", () => {
     const { options, containers } = getOptionIndex();
     const upstream = new Map(getOptions().map((option) => [option.name, option]));
-    expect(upstream.size).toBe(485);
+    // a floor, not a pin: upstream adds options in ordinary minor releases, and
+    // a pinned count would fail the `renovate` bump's snapshot refresh (an
+    // artifact error on the bump PR) for a change this suite does not care about
+    expect(upstream.size).toBeGreaterThan(400);
     expect(options.size).toBe(upstream.size + 1); // + the hand-modeled $schema
 
     for (const doc of options.values()) {
