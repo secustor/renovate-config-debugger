@@ -74,7 +74,7 @@ function VerifyCommand({
   const note =
     tab === "attest"
       ? `Checks GitHub's signed attestation that CI built this from ${shortCommit(info)}. Every served file is an attested subject — the same command verifies any downloaded asset.`
-      : `From a checkout of ${shortCommit(info)}: rebuilds it and diffs every served asset hash against this deployment.`;
+      : `Clones the source, rebuilds ${shortCommit(info)} (needs Node + pnpm), and diffs every served asset hash against this deployment.`;
   return (
     <div className="build-info-cmd-wrap">
       <pre className="build-info-cmd">
@@ -106,7 +106,11 @@ function BuildInfoPanel({ info, panelId, panelRef, placement }: PanelProps) {
   const [tab, setTab] = useState<VerifyTab>("attest");
   const commands = verifyCommands(info, window.location.origin);
   return (
-    <div className={`build-info-panel ${placement}`} id={panelId} ref={panelRef}>
+    // tabIndex: a click on non-interactive panel content must settle focus ON
+    // the panel — without it, focus falls to the nearest focusable ancestor
+    // (the config column is a tabindex=-1 skip-link target), and the hook's
+    // focus-left close fires for a click INSIDE the panel.
+    <div className={`build-info-panel ${placement}`} id={panelId} ref={panelRef} tabIndex={-1}>
       <BuildIdentityLine info={info} />
       <VerifyTabs tab={tab} onPick={setTab} />
       <VerifyCommand

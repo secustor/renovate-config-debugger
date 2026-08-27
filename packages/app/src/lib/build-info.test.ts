@@ -58,6 +58,13 @@ describe("verifyCommands", () => {
     expect(commands.attest).toContain(
       "gh attestation verify build-manifest.json -R secustor/renovate-config-debugger",
     );
-    expect(commands.rebuild).toBe("node tools/verify-deployment.ts https://renovate.secustor.dev");
+    expect(commands.rebuild).toBe(
+      [
+        "git clone https://github.com/secustor/renovate-config-debugger && cd renovate-config-debugger",
+        `git checkout ${IDENTITY.commit}`,
+        "pnpm install && pnpm --filter @renovate-config-debugger/app build",
+        "node tools/verify-deployment.ts https://renovate.secustor.dev",
+      ].join("\n"),
+    );
   });
 });

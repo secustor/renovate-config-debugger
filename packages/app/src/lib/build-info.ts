@@ -63,13 +63,19 @@ export function formatCommitTime(iso: string): string | null {
 export interface VerifyCommands {
   /** Fetch the served manifest, check GitHub's signed CI attestation on it. */
   attest: string;
-  /** From a checkout: rebuild the manifest's commit and diff every asset. */
+  /** Clone, rebuild the served commit, and diff every asset hash — the whole
+   *  recipe, so the block is runnable as shown from an empty directory. */
   rebuild: string;
 }
 
 export function verifyCommands(info: BuildIdentity, origin: string): VerifyCommands {
+  const dir = info.repo.split("/")[1] ?? info.repo;
   return {
     attest: `curl -sO ${origin}/build-manifest.json\ngh attestation verify build-manifest.json -R ${info.repo}`,
-    rebuild: `node tools/verify-deployment.ts ${origin}`,
+    rebuild:
+      `git clone https://github.com/${info.repo} && cd ${dir}\n` +
+      `git checkout ${info.commit}\n` +
+      `pnpm install && pnpm --filter @renovate-config-debugger/app build\n` +
+      `node tools/verify-deployment.ts ${origin}`,
   };
 }
