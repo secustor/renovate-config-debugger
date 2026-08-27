@@ -12,6 +12,16 @@ postinstall = '''
 [ -n "$CI" ] || pnpm install
 '''
 
+# The "rebuild & diff" half of "verify this build" (roadmap 088) — what the
+# app's popover tells a verifier to run after clone + checkout + mise install.
+[tasks.verify-build]
+description = "Rebuild the app from this checkout and diff it against a deployment"
+run = '''
+pnpm install
+pnpm --filter @renovate-config-debugger/app build
+node tools/verify-deployment.ts "$@"
+'''
+
 [settings]
 # needed for hooks
 experimental = true

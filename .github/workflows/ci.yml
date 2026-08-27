@@ -67,8 +67,17 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      # Roadmap 088: what signs the build-manifest attestation on main.
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Roadmap 088: the baked build identity derives its version from
+          # `git describe --tags`, which needs the tag history, not the tip.
+          fetch-depth: 0
       - uses: ./.github/actions/setup
 
       - name: Browser bundle build
@@ -96,6 +105,26 @@ jobs:
         # entry script + its modulepreload graph + the stylesheet), so a chunk
         # sliding back into the entry set is visible next to the build.
         run: node packages/app/scripts/report-entry-size.mjs
+
+      # Roadmap 088: dist/build-manifest.json — the sha256 of every served
+      # file, keyed to the commit. Generated before the uploads so both the
+      # Pages artifact and the e2e dist carry it.
+      - name: Build manifest (roadmap 088)
+        run: pnpm --filter @renovate-config-debugger/app build:manifest
+
+      # The signed statement "this workflow built these files from this
+      # commit" — what `gh attestation verify` (and the app's "verify this
+      # build" popover) checks. The subjects are EVERY served file plus the
+      # manifest (build-checksums.txt, written by build:manifest), so any
+      # downloaded asset verifies individually. Main-only, and only where a
+      # public deployment exists to verify. (actions/attest with no predicate
+      # inputs emits SLSA build provenance — attest-build-provenance v4 is
+      # just this wrapper, and points new uses here.)
+      - name: Attest build provenance (roadmap 088)
+        if: github.ref == 'refs/heads/main' && vars.DEPLOY_PAGES == 'true'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-checksums: packages/app/build-checksums.txt
 
       # Handed over to the e2e job, which drives this dist via `vite preview`
       # and never rebuilds.

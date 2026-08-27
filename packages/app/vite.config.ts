@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -184,11 +185,67 @@ function devFakeOAuth(env: Record<string, string>): Plugin | null {
   };
 }
 
+interface BuildIdentity {
+  repo: string;
+  commit: string | null;
+  version: string | null;
+  commitTime: string | null;
+}
+
+function git(...args: string[]): string | null {
+  try {
+    return execFileSync("git", args, { encoding: "utf8" }).trim() || null;
+  } catch {
+    // No git / no history (e.g. the Docker build context excludes .git) —
+    // the UI hides its build line rather than showing a made-up identity.
+    return null;
+  }
+}
+
+/**
+ * Roadmap 088 — the build identity baked into the bundle (`__BUILD_INFO__`)
+ * and echoed to `dist/build-info.json`. Only commit-derived facts, so a
+ * verifier rebuilding the same commit gets byte-identical output: no branch
+ * name, no wall-clock build time — "built" is the committer date.
+ */
+function collectBuildIdentity(): BuildIdentity {
+  const commit = process.env.GITHUB_SHA ?? git("rev-parse", "HEAD");
+  return {
+    repo: process.env.GITHUB_REPOSITORY ?? "secustor/renovate-config-debugger",
+    commit,
+    // The latest release tag reachable from this commit (CI fetches the full
+    // history for this — see ci.yml's build job).
+    version: git("describe", "--tags", "--abbrev=0")?.replace(/^v/, "") ?? null,
+    commitTime: commit ? git("show", "-s", "--format=%cI", commit) : null,
+  };
+}
+
+function emitBuildInfo(identity: BuildIdentity): Plugin {
+  return {
+    name: "rcd-build-info",
+    apply: "build",
+    generateBundle() {
+      this.emitFile({
+        type: "asset",
+        fileName: "build-info.json",
+        source: `${JSON.stringify(identity, null, 2)}\n`,
+      });
+    },
+  };
+}
+
+const buildIdentity = collectBuildIdentity();
+
 export default defineConfig(({ mode, command }) => ({
   // Served from the domain root everywhere: renovate.secustor.dev in
   // production (custom domains host at "/", and a repo-prefixed base 404s
   // every asset there), localhost + the self-host images elsewhere.
   base: "/",
+  define: {
+    // Read through src/lib/build-info.ts, never directly — vitest applies no
+    // define, so consumers must survive the identifier being absent.
+    __BUILD_INFO__: JSON.stringify(buildIdentity),
+  },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
@@ -198,6 +255,7 @@ export default defineConfig(({ mode, command }) => ({
     react(),
     renovateShims(),
     codemirrorJsonSchemaShims(),
+    emitBuildInfo(buildIdentity),
     // Guarded here, not just by the plugin's own `apply: "serve"`: the
     // factory VALIDATES the dev-only vars and throws on a bad value, and the
     // config callback runs for `vite build` too — a typo'd .env entry must

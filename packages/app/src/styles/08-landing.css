@@ -288,8 +288,18 @@
 /* The shell's counterpart to the landing's subtitle: the same promise, for a
    reader who arrived through a share link and never saw the landing. */
 .pane-foot {
+  align-items: baseline;
   color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
   font-size: 0.78rem;
+  gap: 0.3rem;
+  margin: 0;
+  /* The build stamp's popover (088, 17-build-info.css) anchors here. */
+  position: relative;
+}
+
+.pane-foot p {
   margin: 0;
 }
 

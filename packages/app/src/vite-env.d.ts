@@ -32,3 +32,10 @@ declare var __RCD_OAUTH__: unknown;
  * Expected shape: `{ measurementId: string }` (a GA4 `G-…` id).
  */
 declare var __RCD_ANALYTICS__: unknown;
+
+/**
+ * Roadmap 088 — the build identity injected by vite.config.ts's `define`.
+ * Typed `unknown` and validated in `lib/build-info.ts`: vitest applies no
+ * define, so the identifier can be entirely absent (guard with `typeof`).
+ */
+declare const __BUILD_INFO__: unknown;

@@ -84,6 +84,13 @@
      — dark mode is already dark, so the same alpha would read as near-black. */
   --backdrop: light-dark(rgba(31, 35, 40, 0.35), rgba(0, 0, 0, 0.6));
 
+  /* Roadmap 088: the verify-build command block reads as a terminal in BOTH
+     themes — dark ground on the light theme too (Build Provenance artboard),
+     one step deeper than the dark surfaces so it still reads raised there. */
+  --terminal: light-dark(#1f2328, #010409);
+  --on-terminal: #d1d9e0;
+  --terminal-accent: #7ee787;
+
   /* The selected/current ring on a stage-rail glyph: the accent halo sits
      OUTSIDE a canvas-coloured one, so the node keeps hiding the rail line while
      wearing it. Two sites repeat it — the live rail's selected node and the

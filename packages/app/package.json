@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:manifest": "node scripts/build-manifest.mjs",
     "check:dev-graph": "node scripts/check-dev-module-graph.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.e2e.json",

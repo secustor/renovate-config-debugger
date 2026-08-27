@@ -100,8 +100,12 @@
     "unicorn/no-array-for-each": "error",
     // Roadmap 043: the `__RCD_*__` globals are the injected deployment config —
     // the dangling underscores are the convention that says "written by a
-    // deployment, not by this codebase". Everything else keeps the rule.
-    "no-underscore-dangle": ["error", { "allow": ["__RCD_OAUTH__", "__RCD_ANALYTICS__"] }],
+    // deployment, not by this codebase" — or, for __BUILD_INFO__, "injected
+    // by the build". Everything else keeps the rule.
+    "no-underscore-dangle": [
+      "error",
+      { "allow": ["__RCD_OAUTH__", "__RCD_ANALYTICS__", "__BUILD_INFO__"] }
+    ],
 
     // --- Type-aware tier (needs `--type-aware` + oxlint-tsgolint) -----------
     "typescript/no-misused-promises": "error",
