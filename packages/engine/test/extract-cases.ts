@@ -16,7 +16,8 @@ export interface ExtractCase {
   /**
    * path under fixtures/extract/, written as the file is NAMED in a real repo
    * (the broad sweep groups by manager subdir); on disk every fixture carries
-   * an extra `.fixture` suffix, which `extractFixture` appends.
+   * an extra `.fixture` suffix, which `extractFixture` appends — plus, where a
+   * scanner globs the name rather than reads it, a name it does not glob.
    */
   fixture: string;
   /** the repo-relative path the file is extracted AS */
@@ -35,7 +36,9 @@ const CORE_CASES: ExtractCase[] = [
     expectDeps: ["lodash", "react", "typescript", "vitest"],
   },
   {
-    fixture: "Dockerfile",
+    // on disk it is `container`: the `.fixture` suffix does not hide a
+    // `Dockerfile.fixture` (or a `Containerfile.fixture`) from a name glob.
+    fixture: "container",
     fileName: "Dockerfile",
     manager: "dockerfile",
     expectDeps: ["node", "golang"],
@@ -103,7 +106,8 @@ export const EXTRACT_CASES: ExtractCase[] = [
  * `pom.xml`, `Cargo.lock` or `requirements.txt` sitting in the tree is read as
  * one of THIS repo's manifests (osv-scanner reported CVEs against the pinned
  * versions here), so the bytes stay real while the file name is not a manifest
- * name. Keep the suffix when adding a fixture.
+ * name. Keep the suffix when adding a fixture — and where a scanner matches the
+ * name by glob rather than by content (`*Dockerfile*`), rename past that too.
  */
 export function extractFixture(name: string): string {
   return readFileSync(join(import.meta.dirname, "fixtures", "extract", `${name}.fixture`), "utf8");

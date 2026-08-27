@@ -70,6 +70,14 @@ describe("extractDeps (golden)", () => {
       .filter((entry) => entry.isFile() && !entry.name.endsWith(".fixture"))
       .map((entry) => relative(root, join(entry.parentPath, entry.name)));
     expect(offenders).toEqual([]);
+    // A suffix only helps a scanner that reads the file. Container scanners
+    // glob the NAME, so `Dockerfile.fixture` still warned that its image is
+    // unpinned — that one is stored as `container.fixture`, and neither
+    // spelling of the name may come back.
+    const globbed = entries
+      .map((entry) => relative(root, join(entry.parentPath, entry.name)))
+      .filter((path) => /(docker|container)file/i.test(path));
+    expect(globbed).toEqual([]);
   });
 
   it("matches managers by file pattern, in upstream's order", () => {
