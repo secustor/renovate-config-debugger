@@ -26,7 +26,7 @@
     "oxlint-tsgolint": "7.0.2001",
     "semantic-release": "25.0.9",
     "stylelint": "17.14.1",
-    "stylelint-declaration-strict-value": "1.11.1",
+    "stylelint-declaration-strict-value": "1.12.1",
     "stylelint-value-no-unknown-custom-properties": "6.1.1",
     "typescript": "7.0.2",
     "vitest": "4.1.11"
