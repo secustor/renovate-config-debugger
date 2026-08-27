@@ -62,8 +62,7 @@ describe("verifyCommands", () => {
       [
         "git clone https://github.com/secustor/renovate-config-debugger && cd renovate-config-debugger",
         `git checkout ${IDENTITY.commit}`,
-        "pnpm install && pnpm --filter @renovate-config-debugger/app build",
-        "node tools/verify-deployment.ts https://renovate.secustor.dev",
+        "mise install && mise run verify-build https://renovate.secustor.dev",
       ].join("\n"),
     );
   });

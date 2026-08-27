@@ -10,11 +10,10 @@
  * 2. Prints the `gh attestation verify` command — GitHub's signed statement
  *    that CI built that manifest from the named commit.
  * 3. If packages/app/dist exists locally, diffs its hashes against the
- *    manifest — run from a checkout of the manifest's commit after
- *    `pnpm --filter @renovate-config-debugger/app build && pnpm --filter
- *    @renovate-config-debugger/app build:manifest`, this is the independent
- *    rebuild proof (the baked identity is commit-derived, so the same commit
- *    reproduces the same bytes).
+ *    manifest — run from a checkout of the manifest's commit, this is the
+ *    independent rebuild proof (the baked identity is commit-derived, so the
+ *    same commit reproduces the same bytes). `mise run verify-build <origin>`
+ *    is the one-command wrapper: install, build, then this script.
  *
  * Exit codes: 0 verified, 1 mismatch, 2 could not check.
  */
@@ -138,10 +137,9 @@ console.log(`Served files: all ${entries.length} match the manifest.`);
 const dist = fileURLToPath(new URL("../packages/app/dist", import.meta.url));
 if (!existsSync(dist)) {
   console.log(
-    `\nNo local build to diff. For the independent proof, from a checkout of ${shortCommit}:\n` +
+    `\nNo local build to diff. For the independent proof, from a checkout:\n` +
       `  git checkout ${manifest.commit}\n` +
-      `  pnpm install && pnpm --filter @renovate-config-debugger/app build\n` +
-      `then re-run this script.`,
+      `  mise install && mise run verify-build ${origin}`,
   );
   process.exit(0);
 }

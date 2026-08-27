@@ -30,7 +30,7 @@ test.describe("build-info popover (088)", () => {
     await panel.getByRole("button", { name: "rebuild & diff" }).click();
     await expect(panel).toBeVisible();
     await expect(panel.locator(".build-info-cmd")).toContainText("git clone");
-    await expect(panel.locator(".build-info-cmd")).toContainText("node tools/verify-deployment.ts");
+    await expect(panel.locator(".build-info-cmd")).toContainText("mise run verify-build");
 
     // A click outside still closes.
     await page.locator(".landing-title").click();

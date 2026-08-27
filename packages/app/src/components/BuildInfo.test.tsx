@@ -57,7 +57,7 @@ describe("BuildStamp", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "rebuild & diff" }));
     expect(panel.textContent).toContain(
-      `node tools/verify-deployment.ts ${window.location.origin}`,
+      `mise install && mise run verify-build ${window.location.origin}`,
     );
     expect(panel.textContent).not.toContain("gh attestation verify");
   });

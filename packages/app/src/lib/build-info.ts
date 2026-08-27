@@ -64,7 +64,8 @@ export interface VerifyCommands {
   /** Fetch the served manifest, check GitHub's signed CI attestation on it. */
   attest: string;
   /** Clone, rebuild the served commit, and diff every asset hash — the whole
-   *  recipe, so the block is runnable as shown from an empty directory. */
+   *  recipe, runnable as shown from an empty directory. `mise run
+   *  verify-build` (mise.toml) is install + build + diff, pinned toolchain. */
   rebuild: string;
 }
 
@@ -75,7 +76,6 @@ export function verifyCommands(info: BuildIdentity, origin: string): VerifyComma
     rebuild:
       `git clone https://github.com/${info.repo} && cd ${dir}\n` +
       `git checkout ${info.commit}\n` +
-      `pnpm install && pnpm --filter @renovate-config-debugger/app build\n` +
-      `node tools/verify-deployment.ts ${origin}`,
+      `mise install && mise run verify-build ${origin}`,
   };
 }

@@ -83,6 +83,10 @@ copy says "build" and "verify".
 - **`node tools/verify-deployment.ts`**, not the artboard's `npx tsx`: tools/
   scripts run under Node's native type stripping everywhere else in this
   repo, and the verifier has a checkout (they need one to rebuild anyway).
+  The popover shows it wrapped as `mise run verify-build <origin>`
+  (mise.toml): install + build + diff in one command, with the toolchain
+  pinned to what CI built with — which is what byte-reproducibility
+  depends on.
 - **Docker deployments show nothing** rather than something unverifiable: the
   build context excludes `.git`, `collectBuildIdentity()` returns a null
   commit, and every anchor hides. A self-host that wants the line can pass
