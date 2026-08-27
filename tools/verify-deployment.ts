@@ -104,7 +104,10 @@ console.log(
   `Claims: ${manifest.version ? `v${manifest.version} · ` : ""}${shortCommit}` +
     `${manifest.branch ? ` · ${manifest.branch}` : ""}${manifest.commitTime ? ` · ${manifest.commitTime}` : ""}`,
 );
-console.log(`Attestation check: gh attestation verify build-manifest.json -R ${manifest.repo}\n`);
+console.log(
+  `Attestation check: gh attestation verify build-manifest.json -R ${manifest.repo}\n` +
+    `  (every served file is an attested subject — the same command verifies any downloaded asset)\n`,
+);
 
 // 1 — the served files against the manifest they were served with.
 const entries = Object.entries(manifest.files);

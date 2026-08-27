@@ -6,6 +6,9 @@ node_modules/
 dist/
 coverage/
 
+# Attestation input written by `build:manifest` (roadmap 088)
+build-checksums.txt
+
 # Copied into every public package by tools/release/prepare.ts so the AGPL text
 # travels with each npm tarball — the tree keeps exactly one copy, at the root.
 packages/*/LICENSE

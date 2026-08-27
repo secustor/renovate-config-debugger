@@ -30,15 +30,20 @@ Three layers, each independently checkable:
    absent (vitest applies no define) or the build had no git (the Docker
    image excludes `.git`) — every UI anchor then renders nothing, rather than
    an identity nothing can verify.
-2. **The attested manifest.** `scripts/build-manifest.mjs` hashes every file
+2. **The attested files.** `scripts/build-manifest.mjs` hashes every file
    in `dist/` into `build-manifest.json` (excluding itself, and
    `rcd-config.js`, which the Docker entrypoint may rewrite at container
-   start). CI generates it before the Pages upload and signs it with
-   `actions/attest-build-provenance` on main — GitHub's statement that this
-   workflow built this manifest from this commit, checkable with
-   `gh attestation verify build-manifest.json -R secustor/renovate-config-debugger`.
-   The build job fetches the full history (`fetch-depth: 0`) so
-   `git describe` can name the release tag.
+   start), and writes the same digests — manifest included — to
+   `build-checksums.txt` (next to `dist/`, gitignored: attestation input,
+   not deployment payload). CI generates both before the Pages upload and,
+   on main, signs the checksums with `actions/attest`
+   (`subject-checksums`) — GitHub's statement that this workflow built
+   these files from this commit. So EVERY served file is an attested
+   subject: `gh attestation verify build-manifest.json -R
+secustor/renovate-config-debugger` is the entry point, but the same
+   command verifies any downloaded asset individually. The build job
+   fetches the full history (`fetch-depth: 0`) so `git describe` can name
+   the release tag.
 3. **The rebuild proof.** `tools/verify-deployment.ts` (plain `node`, like
    every tools/ script) fetches the served manifest, re-fetches and re-hashes
    every file it lists (served ≡ manifest), and — when a local
@@ -86,3 +91,9 @@ copy says "build" and "verify".
 - **Attestation is main-only and gated on `DEPLOY_PAGES`** — the same switch
   that decides whether a public deployment exists to verify; fork PRs never
   hold the `id-token` permission the signature needs.
+- **`actions/attest`, not `actions/attest-build-provenance`**: v4 of the
+  latter is a wrapper that points new uses at the former, and only the
+  former takes `subject-checksums` (all served files as subjects of one
+  SLSA-provenance attestation — no predicate inputs means it emits build
+  provenance). One invocation caps at 1024 subjects; the manifest script
+  warns at 1000 (a build today has ~475).

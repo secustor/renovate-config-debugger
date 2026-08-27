@@ -1,8 +1,9 @@
 // Roadmap 088 — writes dist/build-manifest.json: the sha256 of every file the
 // deployment serves, plus the build identity vite emitted to build-info.json.
-// CI attests THIS file (attest-build-provenance), so verifying the manifest's
-// signature and then the served files against it proves the deployment is
-// CI's build of the named commit. Run after `pnpm build`.
+// Also writes build-checksums.txt (next to dist, not in it): the same digests
+// in sha256sum format, manifest included — CI's attestation input, so EVERY
+// served file is an attested subject and `gh attestation verify` works on any
+// downloaded asset, not only the manifest. Run after `pnpm build`.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readdir, readFile, writeFile } from "node:fs/promises";
@@ -67,5 +68,21 @@ const manifest = {
   files,
 };
 
-await writeFile(path.join(dist, MANIFEST), `${JSON.stringify(manifest, null, 2)}\n`);
-console.log(`${MANIFEST}: ${paths.length} files hashed for ${identity.commit.slice(0, 7)}`);
+const manifestBody = `${JSON.stringify(manifest, null, 2)}\n`;
+await writeFile(path.join(dist, MANIFEST), manifestBody);
+
+// The attestation subjects: every served file plus the manifest itself.
+// actions/attest caps one invocation at 1024 subjects — warn well before the
+// main-only attest step starts failing.
+const checksums = [
+  ...paths.map((rel) => `${files[rel].sha256}  ${rel}`),
+  `${createHash("sha256").update(manifestBody).digest("hex")}  ${MANIFEST}`,
+];
+if (checksums.length > 1000) {
+  console.warn(`${checksums.length} subjects — actions/attest refuses more than 1024.`);
+}
+await writeFile(path.join(dist, "..", "build-checksums.txt"), `${checksums.join("\n")}\n`);
+console.log(
+  `${MANIFEST}: ${paths.length} files hashed for ${identity.commit.slice(0, 7)}; ` +
+    `build-checksums.txt: ${checksums.length} attestation subjects`,
+);

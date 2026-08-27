@@ -73,7 +73,7 @@ function VerifyCommand({
 }) {
   const note =
     tab === "attest"
-      ? `Checks GitHub's signed attestation that CI built the served bundle from ${shortCommit(info)}.`
+      ? `Checks GitHub's signed attestation that CI built this from ${shortCommit(info)}. Every served file is an attested subject — the same command verifies any downloaded asset.`
       : `From a checkout of ${shortCommit(info)}: rebuilds it and diffs every served asset hash against this deployment.`;
   return (
     <div className="build-info-cmd-wrap">
