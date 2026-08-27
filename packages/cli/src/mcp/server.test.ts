@@ -473,8 +473,13 @@ describe("drill-down", () => {
    * Roadmap 071: the two narrowings the ranges point at. The ranges answer
    * "which layer", `rule` answers "what does rule N say" without shipping 714
    * bodies, and `source` answers "just mine".
+   *
+   * `rule` names the WRITING body, not the extend the rule arrived through:
+   * `config:recommended` writes none of its ~730 rules itself, and citing it
+   * as `packageRules[300]` of a preset whose own body has no rule 300 is two
+   * wrong halves of one citation.
    */
-  test("`rule` returns one merged rule's body, its layer and its index there", async () => {
+  test("`rule` returns one merged rule's body, its writer and its index there", async () => {
     const runId = await runConfig(RECOMMENDED_PLUS_RULE);
     const mid = (await call("get_provenance", { runId, key: "packageRules", rule: 300 })) as {
       index: number;
@@ -484,8 +489,12 @@ describe("drill-down", () => {
       rule: Record<string, unknown>;
     };
     expect(mid.index).toBe(300);
-    expect(mid.layer).toContain("preset config:recommended");
-    expect(mid.sourceIndex).toBe(300);
+    // A nested preset of `config:recommended`, and rule 300 is inside its own
+    // (much shorter) body — the two halves name the same config.
+    expect(mid.layer).toMatch(/^preset \S/);
+    expect(mid.layer).not.toBe("preset config:recommended");
+    expect(mid.sourceIndex).toBeLessThan(300);
+    expect(mid.citation).toContain(`packageRules[${mid.sourceIndex}] of ${mid.layer}`);
     expect(mid.rule).toBeTypeOf("object");
 
     // The caller's own rule, cited in the index scheme they wrote it in.

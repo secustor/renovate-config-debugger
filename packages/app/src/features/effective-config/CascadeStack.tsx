@@ -4,6 +4,7 @@ import { ConfigJson } from "@/components/ConfigJson";
 import { plural, pluralWord } from "@/lib/format";
 import { LayerSource } from "@/components/LayerSource";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
+import { ruleOriginLayer } from "@/lib/rule-filters";
 import { summarizeRuleSelectors } from "@/lib/rule-selectors";
 
 const VERBS: Record<ProvenanceStep["action"], string> = {
@@ -73,9 +74,11 @@ export function Step({
   );
 }
 
-/** Roadmap 013: per-entry provenance for `packageRules` — which layer (repo /
- *  global / inherited / preset) contributed each merged rule, reusing the
- *  same chip the effective config's top-level keys already show. */
+/** Roadmap 013: per-entry provenance for `packageRules` — which config (repo /
+ *  global / inherited / preset) wrote each merged rule, reusing the same chip
+ *  the effective config's top-level keys already show. Like the cascade steps
+ *  above, the chip names the ORIGINATING preset when the engine verified one
+ *  ({@link ruleOriginLayer}), not the direct extend it arrived through. */
 function PackageRulesProvenance({
   rules,
   attribution,
@@ -104,7 +107,7 @@ function PackageRulesProvenance({
             <li key={i}>
               <span className="prov-rule-index">#{i + 1}</span>
               {attr ? (
-                <ProvenanceChip layer={attr.layer} onSelectPreset={onSelectPreset} />
+                <ProvenanceChip layer={ruleOriginLayer(attr)} onSelectPreset={onSelectPreset} />
               ) : (
                 <span className="badge prov-layer">source unknown</span>
               )}

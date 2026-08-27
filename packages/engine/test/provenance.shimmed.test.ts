@@ -252,3 +252,100 @@ describe("computeRuleProvenance (013)", () => {
     expect(computeRuleProvenance(result)).toBeUndefined();
   });
 });
+
+/**
+ * The nested half of 013: which BODY inside a direct extend's subtree wrote a
+ * merged rule. `config:best-practices` contributes all ~730 rules of a real run
+ * and authors none of them, so a layer-only attribution names a preset that
+ * wrote nothing — the asymmetry `ProvenanceStep.writtenBy` already fixed for
+ * scalar keys.
+ */
+const leafTwoRules = [
+  { matchPackageNames: ["two-a"], automerge: true },
+  { matchPackageNames: ["two-b"], automerge: true },
+];
+
+const nestedPresets = {
+  // The direct extend: two nested bodies, then two rules of its own.
+  [presetInjectionKey({ presetSource: "github", repo: "test-org/umbrella" })]: {
+    extends: ["github>test-org/leaf-one", "github>test-org/leaf-two"],
+    packageRules: [
+      { matchPackageNames: ["own-a"], enabled: false },
+      { matchPackageNames: ["own-b"], enabled: false },
+    ],
+  },
+  [presetInjectionKey({ presetSource: "github", repo: "test-org/leaf-one" })]: {
+    packageRules: [{ matchPackageNames: ["one-a"], automerge: true }],
+  },
+  [presetInjectionKey({ presetSource: "github", repo: "test-org/leaf-two" })]: {
+    packageRules: leafTwoRules,
+  },
+};
+
+async function nestedAttribution(content: string): Promise<RuleAttribution[]> {
+  const result = await runPipeline({
+    fileName: "renovate.json",
+    content,
+    injectedPresets: nestedPresets,
+  });
+  expect(result.stageStatus.preset).toBe("ok");
+  return must(computeRuleProvenance(result), "the rule attribution");
+}
+
+/** `<writer>[<index in that writer>]`, or `-` for a rule with no nested writer. */
+function writerRef(attr: RuleAttribution): string {
+  return attr.writtenBy ? `${attr.writtenBy.name}[${attr.writtenBy.sourceIndex}]` : "-";
+}
+
+describe("computeRuleProvenance nested writers", () => {
+  it("names the nested body that wrote each rule, with the index it has THERE", async () => {
+    const attribution = await nestedAttribution(
+      JSON.stringify({
+        extends: ["github>test-org/umbrella"],
+        packageRules: [{ matchPackageNames: ["mine"], enabled: false }],
+      }),
+    );
+    // Resolution order is children first, the node's own body last — the order
+    // `mergeChildConfig` concatenates in — so the merged array tiles as
+    // leaf-one, leaf-two, umbrella's own, then the repo's own.
+    expect(
+      attribution.map((a) => [a.index, attrLayerName(a), a.sourceIndex, writerRef(a)]),
+    ).toEqual([
+      [0, "github>test-org/umbrella", 0, "github>test-org/leaf-one[0]"],
+      [1, "github>test-org/umbrella", 1, "github>test-org/leaf-two[0]"],
+      [2, "github>test-org/umbrella", 2, "github>test-org/leaf-two[1]"],
+      // The direct extend's own rules carry no writer: naming it again is
+      // exactly what `layer` already says.
+      [3, "github>test-org/umbrella", 3, "-"],
+      [4, "github>test-org/umbrella", 4, "-"],
+      [5, "repo", 0, "-"],
+    ]);
+  });
+
+  it("the writer's own index points at the rule a reader would find in that preset", async () => {
+    const attribution = await nestedAttribution(
+      JSON.stringify({ extends: ["github>test-org/umbrella"] }),
+    );
+    const twoB = must(
+      attribution.find((a) => writerRef(a) === "github>test-org/leaf-two[1]"),
+      "the leaf-two[1] attribution",
+    );
+    expect(leafTwoRules[twoB.writtenBy?.sourceIndex ?? -1]).toMatchObject({
+      matchPackageNames: ["two-b"],
+    });
+  });
+
+  it("reports no writer when the extend's own rules are all it has", async () => {
+    const attribution = await nestedAttribution(
+      JSON.stringify({ extends: ["github>test-org/leaf-one"] }),
+    );
+    expect(attribution.map(writerRef)).toEqual(["-"]);
+  });
+
+  it("leaves the repo layer alone — it has no subtree to descend into", async () => {
+    const attribution = await nestedAttribution(
+      JSON.stringify({ packageRules: [{ matchPackageNames: ["mine"], enabled: false }] }),
+    );
+    expect(attribution).toEqual([{ index: 0, layer: { kind: "repo" }, sourceIndex: 0 }]);
+  });
+});

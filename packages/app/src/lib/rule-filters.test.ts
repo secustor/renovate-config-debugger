@@ -22,6 +22,7 @@ import {
   presetFilterOptions,
   REPO_RULES,
   ruleLayerIndex,
+  ruleOriginLayer,
   ruleVisible,
   verdictFilterOptions,
 } from "./rule-filters";
@@ -147,6 +148,29 @@ test("ruleLayerIndex turns the engine's attribution into the map the filters tak
     [1, PRESET_LAYER],
   ]);
   expect(ruleLayerIndex(null).size).toBe(0);
+});
+
+test("ruleLayerIndex names the nested body that wrote a rule, not the extend it arrived through", () => {
+  // The `config:best-practices` shape: the direct extend contributes every
+  // rule and writes none of them. A map keyed on `layer` answers all four of
+  // its consumers with one bucket named after a preset with no rules of its
+  // own.
+  const written = { nodeId: "p9", name: "security:minimumReleaseAgeNpm", sourceIndex: 0 };
+  const attribution: RuleAttribution[] = [
+    { index: 0, layer: PRESET_LAYER, sourceIndex: 0, writtenBy: written },
+    { index: 1, layer: PRESET_LAYER, sourceIndex: 1 },
+    { index: 2, layer: REPO_LAYER, sourceIndex: 0 },
+  ];
+  expect([...ruleLayerIndex(attribution).entries()]).toEqual([
+    [0, { kind: "preset", nodeId: "p9", name: "security:minimumReleaseAgeNpm" }],
+    // No writer: the extend wrote this one itself.
+    [1, PRESET_LAYER],
+    [2, REPO_LAYER],
+  ]);
+  expect(ruleOriginLayer(attribution[0] as RuleAttribution)).toMatchObject({
+    name: "security:minimumReleaseAgeNpm",
+  });
+  expect(ruleOriginLayer(attribution[2] as RuleAttribution)).toEqual(REPO_LAYER);
 });
 
 test("the verdict options state what each would leave", () => {
