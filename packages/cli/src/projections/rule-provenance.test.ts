@@ -22,14 +22,19 @@ function attr(
   index: number,
   layer: RuleAttribution["layer"],
   sourceIndex: number,
+  writtenBy?: RuleAttribution["writtenBy"],
 ): RuleAttribution {
-  return { index, layer, sourceIndex };
+  return { index, layer, sourceIndex, ...(writtenBy ? { writtenBy } : {}) };
 }
+
+/** The nested body that wrote merged rule 1 — `config:recommended` carries it
+ *  in, `npm:unpublishSafe` is what a reader would have to open to find it. */
+const NESTED = { nodeId: "n3", name: "npm:unpublishSafe", sourceIndex: 0 } as const;
 
 /** One preset, the SAME preset a second time, then two repo-authored rules. */
 const ATTRIBUTION: RuleAttribution[] = [
   attr(0, PRESET_A, 0),
-  attr(1, PRESET_A, 1),
+  attr(1, PRESET_A, 1, NESTED),
   attr(2, PRESET_B, 0),
   attr(3, { kind: "repo" }, 0),
   attr(4, { kind: "repo" }, 1),
@@ -54,7 +59,7 @@ const ENTRY: KeyProvenance = {
   ],
 };
 
-const [RICHEST, SHAPED, COUNTED] = RULE_DIGEST_PLANS;
+const [RICHEST, SHAPED, SHAPED_NO_WRITERS, COUNTED] = RULE_DIGEST_PLANS;
 
 describe("ruleSourceRanges", () => {
   test("one contiguous range per contributing layer", () => {
@@ -101,6 +106,15 @@ describe("ruleOrigin", () => {
     });
   });
 
+  test("a rule written by a nested preset cites THAT preset, and its index there", () => {
+    // Both halves from one body: `config:recommended packageRules[1]` would
+    // send the reader to a preset whose own body has no rule 1.
+    expect(ruleOrigin(1, ATTRIBUTION)).toEqual({
+      layer: "preset npm:unpublishSafe",
+      sourceIndex: 0,
+    });
+  });
+
   test("an unattributable run links nothing", () => {
     expect(ruleOrigin(0, undefined)).toBeUndefined();
     expect(ruleOrigin(99, ATTRIBUTION)).toBeUndefined();
@@ -132,10 +146,27 @@ describe("ruleProvenanceView", () => {
     expect(preset?.rules?.[1]).toContain("+1 → automerge");
   });
 
+  test("a digest line names the nested body that wrote its rule", () => {
+    const view = ruleProvenanceView(ENTRY, ATTRIBUTION, RULES, RICHEST);
+    // The range head says `config:recommended` for both of its rules; only the
+    // line can say that the second one came from two levels down.
+    expect(view.contributions?.[0]?.rules?.[0]).not.toContain("[from ");
+    expect(view.contributions?.[0]?.rules?.[1]).toContain("[from npm:unpublishSafe]");
+  });
+
+  test("the writer is the first thing dropped under the budget — before any line is", () => {
+    const lean = ruleProvenanceView(ENTRY, ATTRIBUTION, RULES, SHAPED_NO_WRITERS);
+    const lines = lean.contributions?.flatMap((c) => c.rules ?? []) ?? [];
+    // Still one line per merged rule — completeness outranks the writer.
+    expect(lines).toHaveLength(lean.total);
+    expect(lines.some((line) => line.includes("[from "))).toBe(false);
+    expect(lean.detailNote).toContain("size budget");
+  });
+
   test("`shape` drops the values but keeps every line, `counts` drops the lines", () => {
     const shaped = ruleProvenanceView(ENTRY, ATTRIBUTION, RULES, SHAPED);
     expect(shaped.contributions?.[0]?.rules?.[1]).toBe(
-      "1 matchDepTypes + matchUpdateTypes → automerge",
+      "1 matchDepTypes + matchUpdateTypes → automerge [from npm:unpublishSafe]",
     );
     // The authored layers keep their values at every level — they are a
     // handful of rules at any scale, and they are the ones the reader wrote.

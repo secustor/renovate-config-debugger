@@ -1,7 +1,7 @@
 import { isPlainObject } from "../lib";
 import { getDefaultConfig, internalPresetGroups } from "../renovate-adapter";
 import type { PresetNode, TraceResult } from "./model";
-import { computeRuleProvenance, type ProvenanceLayer } from "./provenance";
+import { computeRuleProvenance, type ProvenanceLayer, type RuleAttribution } from "./provenance";
 import { mergingChildren } from "./tree";
 
 /**
@@ -114,8 +114,9 @@ export interface UnattributedDescription {
 
 /**
  * `packageRules[n].description` is never hoisted to the top level, so it is
- * attributed separately — and only to the LAYER that contributed the rule
- * (which is all `computeRuleProvenance` knows), not to the exact node.
+ * attributed separately — from `computeRuleProvenance` rather than from this
+ * module's own replay, hence the arrival LAYER plus the nested node that wrote
+ * the rule, when that walk could verify one.
  */
 export interface RuleDescriptionAttribution {
   /** 0-based index into the final merged `packageRules` array. */
@@ -123,6 +124,9 @@ export interface RuleDescriptionAttribution {
   /** 0-based index within the contributing layer's own `packageRules` array. */
   sourceIndex: number;
   layer: ProvenanceLayer;
+  /** The nested preset whose own body wrote the rule — see
+   *  {@link RuleAttribution.writtenBy}. */
+  writtenBy?: RuleAttribution["writtenBy"];
   values: string[];
 }
 
@@ -396,10 +400,16 @@ function ruleDescriptions(result: TraceResult): RuleDescriptionAttribution[] {
     return [];
   }
   const out: RuleDescriptionAttribution[] = [];
-  for (const { index, layer, sourceIndex } of attribution) {
+  for (const { index, layer, sourceIndex, writtenBy } of attribution) {
     const values = descriptionsOf(rules[index]);
     if (values.length > 0) {
-      out.push({ ruleIndex: index, sourceIndex, layer, values });
+      out.push({
+        ruleIndex: index,
+        sourceIndex,
+        layer,
+        ...(writtenBy ? { writtenBy } : {}),
+        values,
+      });
     }
   }
   return out;

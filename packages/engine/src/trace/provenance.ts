@@ -373,10 +373,54 @@ export interface RuleAttribution {
   /** 0-based index of this entry within that layer's OWN `packageRules` array — e.g. the
    *  repo-config index a validator message like `packageRules[1]` refers to, when `layer.kind === "repo"`. */
   sourceIndex: number;
+  /**
+   * The preset NESTED below the direct extend `layer` names whose own body
+   * wrote this rule (`security:minimumReleaseAgeNpm` writing what
+   * `config:best-practices` carries in), with the index the rule has in THAT
+   * body. Present only when the layer is a preset, the writer is not that
+   * direct extend itself, and the subtree replay tiled the extend's
+   * ground-truth array exactly — the same honesty rule
+   * {@link ProvenanceStep.writtenBy} follows: absence over a guess.
+   */
+  writtenBy?: { nodeId: string; name: string; sourceIndex: number };
 }
 
 function ownRuleCount(config: Obj): number {
   return Array.isArray(config.packageRules) ? config.packageRules.length : 0;
+}
+
+/**
+ * Which nested body wrote each rule of a direct extend's slice, by walking the
+ * subtree in `resolveConfigPresets`' own merge order — children first, the
+ * node's own body last, exactly the order `mergeChildConfig` concatenates in.
+ * The visited bodies' `packageRules` therefore tile the extend's resolved
+ * array, and position alone identifies the writer; no value matching involved.
+ *
+ * `undefined` when the tiles don't sum to the extend's ground-truth length (a
+ * `packageRules[n].extends` expanded later would do it) — the layer then keeps
+ * its coarse attribution rather than gaining a wrong leaf.
+ */
+function ruleWriters(
+  node: PresetNode,
+  expected: number,
+): (RuleAttribution["writtenBy"] | undefined)[] | undefined {
+  const writers: (RuleAttribution["writtenBy"] | undefined)[] = [];
+  walkResolutionOrder(node, (visited) => {
+    const input = visited.input;
+    const own = isPlainObject(input) ? input.packageRules : undefined;
+    if (!Array.isArray(own)) {
+      return;
+    }
+    for (let sourceIndex = 0; sourceIndex < own.length; sourceIndex++) {
+      // The direct extend writing its own rule is what the layer already says.
+      writers.push(
+        visited.id === node.id
+          ? undefined
+          : { nodeId: visited.id, name: visited.name, sourceIndex },
+      );
+    }
+  });
+  return writers.length === expected ? writers : undefined;
 }
 
 /**
@@ -408,10 +452,17 @@ export function computeRuleProvenance(result: TraceResult): RuleAttribution[] | 
 
   const attribution: RuleAttribution[] = [];
   let offset = 0;
-  for (const { layer, config } of layers) {
+  for (const { layer, config, node } of layers) {
     const count = ownRuleCount(config);
+    const writers = node ? ruleWriters(node, count) : undefined;
     for (let sourceIndex = 0; sourceIndex < count; sourceIndex++) {
-      attribution.push({ index: offset + sourceIndex, layer, sourceIndex });
+      const writtenBy = writers?.[sourceIndex];
+      attribution.push({
+        index: offset + sourceIndex,
+        layer,
+        sourceIndex,
+        ...(writtenBy ? { writtenBy } : {}),
+      });
     }
     offset += count;
   }

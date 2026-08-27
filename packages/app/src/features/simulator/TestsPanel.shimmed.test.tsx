@@ -10,7 +10,7 @@
  * wiring and not the verdict.
  */
 import { useState } from "react";
-import { runPipeline } from "@renovate-config-debugger/engine";
+import { presetInjectionKey, runPipeline } from "@renovate-config-debugger/engine";
 import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, expect, it, vi } from "vitest";
 import type { SimRequest } from "@/hooks/use-share-link";
@@ -99,6 +99,40 @@ async function pinReact(view: ReturnType<typeof render>): Promise<void> {
   fireEvent.click(view.getByRole("button", { name: "Pin as a standing test" }));
   await waitFor(() => expect(view.container.querySelector(".pin-card")).not.toBeNull());
 }
+
+/**
+ * The Tests tab names the preset a rule COMES FROM, and a rule almost never
+ * comes from the preset the config extends: `config:best-practices` writes
+ * none of the ~730 rules it contributes. Injected presets stand in for that
+ * shape — an umbrella whose nested leaf writes the rule that fires.
+ */
+const NESTED_PRESETS = {
+  [presetInjectionKey({ presetSource: "github", repo: "test-org/umbrella" })]: {
+    extends: ["github>test-org/leaf"],
+  },
+  [presetInjectionKey({ presetSource: "github", repo: "test-org/leaf" })]: {
+    packageRules: [{ matchPackageNames: ["react"], groupName: "react" }],
+  },
+};
+
+it("names the nested preset that wrote a matched rule, not the extend it arrived through", async () => {
+  const result = await runPipeline({
+    fileName: "renovate.json",
+    content: JSON.stringify({ extends: ["github>test-org/umbrella"] }),
+    injectedPresets: NESTED_PRESETS,
+  });
+  const view = render(<Harness result={result} />);
+  await pinReact(view);
+
+  const card = view.container.querySelector<HTMLElement>(".pin-card");
+  if (!card) {
+    throw new Error("pinning produced no card");
+  }
+  await waitFor(() => expect(card.textContent).toContain("grouped as “react”"));
+  fireEvent.click(within(card).getByRole("button", { expanded: false }));
+  expect(card.textContent).toContain("github>test-org/leaf");
+  expect(card.textContent).not.toContain("github>test-org/umbrella");
+});
 
 it("opens on the pins list, pins a dependency from the Add-a-test form, and checks it against the run", async () => {
   const result = await run();

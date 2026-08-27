@@ -1,6 +1,31 @@
 # 013 — Rule identity: one numbering, provenance chips, cross-links
 
-Milestone: M5 · Status: done 2026-07-24
+Milestone: M5 · Status: done 2026-07-24 · amended 2026-08-27
+
+> **Amendment (2026-08-27): the chips named the wrong preset.** The
+> attribution below stops at the DIRECT extend, so every one of a
+> `config:best-practices` run's 731 rules wore a `config:best-practices` chip —
+> a preset that writes none of them. The Effective Config tab had not had this
+> problem for scalar keys since `ProvenanceStep.writtenBy`; its own per-rule
+> list had, and the Tests tab had it everywhere (rule rows, merge stops, pin
+> buckets, the preset facet whose one option covered all 731).
+>
+> `RuleAttribution` now carries `writtenBy` — the nested body that wrote the
+> rule, plus the index it has THERE — found by walking the extend's subtree in
+> `walkResolutionOrder` (children first, own body last: the order
+> `mergeChildConfig` concatenates in), so the visited bodies tile the extend's
+> resolved array and position alone identifies the writer. Same honesty rule as
+> the rest of this module: when the tiles don't sum to the ground-truth length,
+> the layer keeps its coarse attribution rather than gaining a wrong leaf.
+>
+> `ruleLayerIndex` resolves to that writer, which is what every "which preset
+> is this rule from" surface reads. The CLI's per-rule citation (`ruleOrigin`)
+> takes both halves from the writing body — `packageRules[0]` of
+> `security:minimumReleaseAgeNpm`, not `packageRules[726]` of an extend whose
+> own body has no rule 726. `ruleSourceRanges` deliberately stays per top-level
+> layer: those ranges are the ~200 bytes of every MCP answer that must survive
+> the byte budget whole, and there are ~700 writing bodies. The writer reaches
+> that view as `[from X]` on the digest lines, which already degrade.
 
 > Implemented as specified. Engine: `computeRuleProvenance` (013) attributes
 > every entry of the merged `finalConfig.packageRules` to its contributing

@@ -37,6 +37,7 @@ export {
   filterRulesBySource,
   matchesVerdictFilter,
   ruleLayerIndex,
+  ruleOriginLayer,
   SOURCE_FILTERS,
   type SourceFilter,
   VERDICT_FILTERS,

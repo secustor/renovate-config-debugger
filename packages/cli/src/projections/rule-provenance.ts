@@ -6,6 +6,7 @@ import type {
 import {
   isOverridden,
   multiContribBadgeKind,
+  ruleOriginLayer,
   ruleWrittenKeys,
   type SourceFilter,
   summarizeRuleSelectors,
@@ -56,18 +57,24 @@ export type RuleDigestDetail = "values" | "shape" | "counts";
 export interface RuleDigestPlan {
   authored: RuleDigestDetail;
   presets: RuleDigestDetail;
+  /** Whether a preset's digest lines name the nested body that wrote each rule
+   *  (`[from X]`). Dropped BEFORE any line is: naming the writer is an addition
+   *  to an answer whose completeness — one line per merged rule — is the older
+   *  promise, and the writer of one rule stays a `rule: <index>` away. */
+  writers: boolean;
 }
 
 /**
  * The plans a budget-limited caller walks, richest first (measured on
- * `config:best-practices` + one own rule, 727 merged rules: 61 kB, 47 kB,
- * <2 kB). The sentence a reader needs — "your `packageRules[0]` is merged rule
- * 726, matching `matchSourceUrls: […]`" — survives all three.
+ * `config:best-practices` + one own rule, ~730 merged rules: 96 kB, 53 kB,
+ * 33 kB, <2 kB). The sentence a reader needs — "your `packageRules[0]` is
+ * merged rule 730, matching `matchSourceUrls: […]`" — survives all four.
  */
 export const RULE_DIGEST_PLANS = [
-  { authored: "values", presets: "values" },
-  { authored: "values", presets: "shape" },
-  { authored: "values", presets: "counts" },
+  { authored: "values", presets: "values", writers: true },
+  { authored: "values", presets: "shape", writers: true },
+  { authored: "values", presets: "shape", writers: false },
+  { authored: "values", presets: "counts", writers: false },
 ] as const satisfies readonly RuleDigestPlan[];
 
 export interface RuleContribution extends RuleSourceRange {
@@ -123,13 +130,16 @@ const NOTE =
   "overrides another, so a rule's merged index is its position in one array built end to end — " +
   "the index `simulate` and Renovate's own validator messages cite. A rule's index inside its " +
   "own layer is `index - from`; for the `repo` contribution that is the `packageRules[N]` you " +
-  "wrote. Rule BODIES are not included here: ask for one with `rule: <index>` (`--rule <n>` on " +
+  "wrote. A preset range names the extend the rules ARRIVED through; `[from X]` on a digest " +
+  "line names the nested preset that actually wrote that one rule, which is also what " +
+  "`rule: <index>` cites. Rule BODIES are not included here: ask for one with `rule: <index>` (`--rule <n>` on " +
   'the CLI), or for all of them with get_final_config `keys: ["packageRules"]`.';
 
 const DEGRADED_NOTE =
-  "the per-rule digest lines were reduced to fit this answer's size budget — the ranges above " +
-  'are complete regardless. Narrow with `source: "repo"` for the rules you wrote, or ask for ' +
-  "one rule's body with `rule: <index>`.";
+  "the per-rule digest lines were reduced to fit this answer's size budget — shorter lines, or " +
+  "no `[from X]` writer, or no lines at all; the ranges above are complete regardless. Narrow " +
+  'with `source: "repo"` for the rules you wrote, or ask for one rule\'s body and its exact ' +
+  "writer with `rule: <index>`.";
 
 /** Layer identity, not layer KIND: the same preset extended twice contributes
  *  two separate blocks, and reporting them as one range would invent a
@@ -150,11 +160,18 @@ function rangeOf(attr: RuleAttribution): RuleSourceRange {
 }
 
 /**
- * The attribution, compressed to one range per contributing layer.
+ * The attribution, compressed to one range per contributing TOP-LEVEL layer.
  *
  * `computeRuleProvenance` emits the merged indexes in order, one contiguous
  * block per layer, so a new range starts exactly where the layer identity
  * changes — the ranges are exact, not inferred.
+ *
+ * Per top-level layer, not per writing body, and that is the whole point: the
+ * ranges are the part of every answer here that must survive a byte budget
+ * whole (~200 bytes, immune to the elider), and a `config:best-practices` run
+ * has ~700 distinct writing bodies. Which nested preset wrote ONE rule is a
+ * per-rule question, answered per-rule by {@link ruleOrigin} — where it costs
+ * nothing — and by the digest lines below.
  */
 export function ruleSourceRanges(
   attribution: readonly RuleAttribution[] | null | undefined,
@@ -175,13 +192,25 @@ export function ruleSourceRanges(
   return ranges;
 }
 
-/** Which layer contributed one merged rule, and its index inside that layer. */
+/**
+ * Which config wrote one merged rule, and its index inside THAT config — the
+ * nested preset when the engine verified one (`writtenBy`), else the direct
+ * extend it arrived through. Both halves come from the same body: citing
+ * `config:best-practices packageRules[726]` for a rule the reader will find at
+ * `packageRules[3]` of `security:minimumReleaseAgeNpm` is two wrong answers.
+ */
 export function ruleOrigin(
   index: number,
   attribution: readonly RuleAttribution[] | null | undefined,
 ): RuleOrigin | undefined {
   const found = attribution?.find((attr) => attr.index === index);
-  return found ? { layer: layerLabel(found.layer), sourceIndex: found.sourceIndex } : undefined;
+  if (!found) {
+    return undefined;
+  }
+  return {
+    layer: layerLabel(ruleOriginLayer(found)),
+    sourceIndex: found.writtenBy?.sourceIndex ?? found.sourceIndex,
+  };
 }
 
 /** The selector keys of a rule, read off the app's own one-line summary so
@@ -192,17 +221,29 @@ function selectorKeys(rule: unknown): string[] {
   return summary.startsWith("(") ? [] : summary.split(" + ");
 }
 
-function digestLine(index: number, rule: unknown, detail: RuleDigestDetail): string {
+/**
+ * One rule's line. `writer` is appended when the rule came from a preset
+ * NESTED below the range's own extend — the range head says
+ * `config:best-practices` for all 731 of them, and this is the only place a
+ * whole-key answer can say which body actually wrote each one.
+ */
+function digestLine(
+  index: number,
+  rule: unknown,
+  detail: RuleDigestDetail,
+  writer: string | undefined,
+): string {
   const writes = ruleWrittenKeys(rule);
   const written = writes.length > 0 ? writes.join(", ") : "(sets nothing)";
+  const from = writer ? ` [from ${writer}]` : "";
   const selectors = selectorKeys(rule);
   const first = selectors[0];
   if (detail === "shape" || first === undefined) {
-    return `${index} ${summarizeRuleSelectors(rule)} → ${written}`;
+    return `${index} ${summarizeRuleSelectors(rule)} → ${written}${from}`;
   }
   const value = previewValue((rule as Record<string, unknown>)[first], 48);
   const more = selectors.length - 1;
-  return `${index} ${first}: ${value}${more > 0 ? ` +${more}` : ""} → ${written}`;
+  return `${index} ${first}: ${value}${more > 0 ? ` +${more}` : ""} → ${written}${from}`;
 }
 
 /** Global, inherited and the repo's own config — the layers a person WROTE,
@@ -257,6 +298,11 @@ export function ruleProvenanceView(
   if (!attribution) {
     return { ...base, attributionNote: ATTRIBUTION_NOTE };
   }
+  const writerByIndex = plan.writers
+    ? new Map(
+        attribution.flatMap((attr) => (attr.writtenBy ? [[attr.index, attr.writtenBy.name]] : [])),
+      )
+    : new Map<number, string>();
   const contributions = ruleSourceRanges(attribution)
     .filter((range) => keepRange(range.kind, source))
     .map((range) => {
@@ -266,13 +312,13 @@ export function ruleProvenanceView(
       }
       const lines: string[] = [];
       for (let index = range.from; index <= range.to; index += 1) {
-        lines.push(digestLine(index, rules[index], detail));
+        lines.push(digestLine(index, rules[index], detail, writerByIndex.get(index)));
       }
       return { ...range, rules: lines };
     });
-  const degraded = contributions.some(
-    (range) => detailFor(range.kind, plan) !== "values" && range.count > 0,
-  );
+  const degraded =
+    contributions.some((range) => detailFor(range.kind, plan) !== "values" && range.count > 0) ||
+    (!plan.writers && attribution.some((attr) => attr.writtenBy));
   return {
     ...base,
     contributions,

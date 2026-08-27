@@ -184,15 +184,37 @@ export function filterRulesBySource(
  * `computeRuleProvenance`'s array as the index → layer lookup every filter
  * here takes. Shared so the simulator's memo and the CLI build the map the
  * same way (and so "provenance unavailable" is one empty map, not two shapes).
+ *
+ * The layer is the ORIGINATING preset when the engine verified one — the
+ * nested body that actually wrote the rule (`security:minimumReleaseAgeNpm`,
+ * not the `config:best-practices` it arrived through) — falling back to the
+ * direct extend. Every consumer of this map asks "which preset is this rule
+ * from": the rule rows, the merge stops, the pin buckets, and the drawer's
+ * preset facet, whose options are these same values. A `config:best-practices`
+ * config otherwise answers all four with one 731-rule bucket named after an
+ * extend that wrote none of them — the same asymmetry the effective config's
+ * cascade already avoids by preferring `ProvenanceStep.writtenBy`.
+ *
+ * `sourceIndex` stays layer-relative (see {@link RuleAttribution}); a surface
+ * that prints an index beside the name must read it off `writtenBy` too, or
+ * the two halves of the citation name different bodies.
  */
 export function ruleLayerIndex(
   attribution: readonly RuleAttribution[] | null | undefined,
 ): Map<number, ProvenanceLayer> {
   const map = new Map<number, ProvenanceLayer>();
   for (const attr of attribution ?? []) {
-    map.set(attr.index, attr.layer);
+    map.set(attr.index, ruleOriginLayer(attr));
   }
   return map;
+}
+
+/** One entry's originating layer — {@link ruleLayerIndex}'s rule, for a caller
+ *  holding the attribution itself rather than the map. */
+export function ruleOriginLayer(attr: RuleAttribution): ProvenanceLayer {
+  return attr.writtenBy
+    ? { kind: "preset", nodeId: attr.writtenBy.nodeId, name: attr.writtenBy.name }
+    : attr.layer;
 }
 
 export interface FilterOption {
