@@ -3,11 +3,13 @@
  * GitHub repositories as pickable rows under the reference field, each probed
  * (lazily, only the visible few) for the config file a load would find.
  *
- * The picker is a shortcut, not a second load path: picking a row only WRITES
- * the reference field (as `github.com/owner/repo`, so the load pins the GitHub
- * context whatever platform is selected) and the one Load button remains the
- * only trigger. Everything the load does — validation, endpoint choice, the
- * inherited-config probe — stays in `use-repo-load`, untouched.
+ * The picker is a shortcut, not a second load path: a row WRITES the reference
+ * field (as `github.com/owner/repo`, so the load pins the GitHub context
+ * whatever platform is selected), and CONFIRMING one — Enter, or a
+ * double-click — then does what pressing Load does, through the very same
+ * `onLoadRepo`. Everything the load does — validation, endpoint choice, the
+ * branch field, the inherited-config probe — stays in `use-repo-load`,
+ * untouched; this hook never learns what loading involves.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { listUserRepos, probeConfigFile, repoNote, type UserRepo } from "@/platform/github-repos";
@@ -27,6 +29,9 @@ export interface RepoPickerHost {
   query: string;
   /** Receives the picked reference (`github.com/owner/repo`). */
   onPick: (reference: string) => void;
+  /** Loads that same reference — the form's Load, with the reference passed
+   *  explicitly, since `onPick`'s state write lands a render too late. */
+  onLoad: (reference: string) => void;
 }
 
 /** The reference a picked row writes: host-qualified, so the load pins the
@@ -50,7 +55,7 @@ export function filterUserRepos(repos: UserRepo[], query: string): UserRepo[] {
 }
 
 export function useRepoPicker(host: RepoPickerHost): RepoPickerView | null {
-  const { open, signedIn, query, onPick } = host;
+  const { open, signedIn, query, onPick, onLoad } = host;
   const [repos, setRepos] = useState<UserRepo[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [badges, setBadges] = useState<ReadonlyMap<string, string | null>>(new Map());
@@ -147,5 +152,13 @@ export function useRepoPicker(host: RepoPickerHost): RepoPickerView | null {
     })),
     hiddenMatches: Math.max(0, filtered.length - VISIBLE_ROWS),
     onPick: (name) => onPick(pickerReference(name)),
+    onActivate: (name) => {
+      const reference = pickerReference(name);
+      // Both, in this order: the field ends up holding what was loaded, so a
+      // failed load leaves the reference there to correct (the load path's
+      // own rule) instead of an empty field.
+      onPick(reference);
+      onLoad(reference);
+    },
   };
 }

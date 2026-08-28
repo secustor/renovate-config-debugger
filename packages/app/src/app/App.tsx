@@ -566,12 +566,22 @@ export function App() {
     [repoSuggestion, connectSuggestedRepo, openRepoForm],
   );
   // Roadmap 085: the signed-in repo picker inside the load overlay. Picking
-  // only writes the reference field — Load stays the one trigger.
+  // only writes the reference field; confirming a row (Enter, double-click)
+  // calls the SAME load the button calls, with the reference passed
+  // explicitly — the field write above lands a render too late for it to read.
   const repoPicker = useRepoPicker({
     open: repoLoad.repoFormOpen,
     signedIn,
     query: repoInput,
     onPick: setRepoInput,
+    onLoad: (reference) => {
+      // The button is disabled while a load is in flight; a row has to refuse
+      // the same way, or a second confirm starts a concurrent load.
+      if (repoLoad.repoLoading) {
+        return;
+      }
+      void repoLoad.onLoadRepo(reference, { fromForm: true });
+    },
   });
   // Roadmap 032/076: the inherited layer's editor lives INSIDE the memoized
   // results pane now, so its change handler has to be identity-stable or the

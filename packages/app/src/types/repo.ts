@@ -103,5 +103,9 @@ export interface RepoPickerView {
   rows: RepoPickerRow[];
   /** Matches beyond the rows shown — the "and N more" line. */
   hiddenMatches: number;
+  /** Selecting a row: writes the reference field, loads nothing. */
   onPick: (name: string) => void;
+  /** Confirming a row (Enter, or a double-click): writes the reference field
+   *  AND loads it, exactly as picking and then pressing Load would. */
+  onActivate: (name: string) => void;
 }

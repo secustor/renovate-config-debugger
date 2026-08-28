@@ -76,9 +76,9 @@
 
 /* Roadmap 085: the signed-in "Your repositories" picker between the reference
    row and the inherit row (the design's "combined" variant). Rows are buttons
-   that WRITE the reference field — the one Load button stays the only
-   trigger, so branch and inherit fields apply to a picked repo exactly as to
-   a pasted one. */
+   that WRITE the reference field; confirming one (Enter, double-click) calls
+   the same one Load, so branch and inherit fields apply to a picked repo
+   exactly as to a pasted one. */
 .repo-picker {
   border-bottom: 1px solid var(--border);
   padding: 0.25rem 0.75rem 0.4rem;
@@ -94,6 +94,15 @@
   letter-spacing: 0.04em;
   margin: 0.25rem 0;
   text-transform: uppercase;
+}
+
+/* The row gesture is invisible otherwise: a click fills the field, Enter or a
+   double-click loads. Sits at the end of the label row. */
+.repo-picker-hint {
+  font-weight: 400;
+  letter-spacing: 0;
+  margin-left: auto;
+  text-transform: none;
 }
 
 .repo-picker-list {

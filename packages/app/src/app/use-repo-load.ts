@@ -119,8 +119,10 @@ export interface RepoLoad {
    *  the sign-in / install hint next to the failure (009). null = no hint. */
   repoAuthHint: { rateLimited: boolean } | null;
   /** Loads `reference` when given (a welcome-panel shortcut), else the typed
-   *  `repoInput` (the form's submit). */
-  onLoadRepo: (reference?: string) => Promise<void>;
+   *  `repoInput` (the form's submit). `fromForm` marks a reference the FORM
+   *  supplied — the repo picker's activate (085) is the reference field plus
+   *  Load, not a shortcut past it, so the branch/tag field still applies. */
+  onLoadRepo: (reference?: string, opts?: { fromForm?: boolean }) => Promise<void>;
 }
 
 export function useRepoLoad(host: RepoLoadHost): RepoLoad {
@@ -201,13 +203,16 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
   // Fetches a repo's Renovate config file and runs it. Derives the platform
   // from a known host (and sets the platform context so a later run resolves
   // `local>` correctly); a bare slug uses the current platform context.
-  async function onLoadRepo(reference?: string) {
+  async function onLoadRepo(reference?: string, opts?: { fromForm?: boolean }) {
     const parsed = parseRepoReference(reference ?? repoInput);
     // Roadmap 085: the reference itself may pin a branch (`@ref`, a /tree/
     // URL) or an exact file (a /blob/ URL). The form's own ref field wins when
     // BOTH name one — it is the more deliberate gesture — and an explicit
-    // `reference` argument is a shortcut whose ref, if any, is its own.
-    const trimmedRef = reference !== undefined ? "" : repoRef.trim();
+    // `reference` argument is a shortcut whose ref, if any, is its own. A
+    // reference the FORM supplied (a picker row activated with Enter or a
+    // double-click) is not a shortcut: it is what the field would hold, so the
+    // ref beside it still applies.
+    const trimmedRef = reference !== undefined && !opts?.fromForm ? "" : repoRef.trim();
     const effectiveRef = trimmedRef || parsed?.ref || "";
     // Roadmap 030: the parsed host/repo/ref/path are bounded and control-
     // character free before they compose a request URL/path — the same "Enter
