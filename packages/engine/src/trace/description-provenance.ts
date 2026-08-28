@@ -1,4 +1,4 @@
-import { isPlainObject } from "../lib";
+import { allowStringMembers, isPlainObject } from "../lib";
 import { getDefaultConfig, internalPresetGroups } from "../renovate-adapter";
 import type { PresetNode, TraceResult } from "./model";
 import { computeRuleProvenance, type ProvenanceLayer, type RuleAttribution } from "./provenance";
@@ -20,16 +20,17 @@ import { mergingChildren } from "./tree";
  * tree therefore reproduces the exact index of every string, so two nodes that
  * happen to write the same sentence still attribute to their own node.
  *
- * Three Renovate quirks silently delete descriptions before they ever reach
+ * Three Renovate rules silently remove descriptions before they ever reach
  * the merge — all three are reported in `dropped` rather than left unexplained:
  *
  * - **wrapper-preset** — `getPreset` deletes the description of a preset whose
  *   keys are exactly `{description, extends}` (e.g. `config:best-practices`).
  * - **package-list-preset** — same, for a preset whose keys are a subset of
  *   `{description, matchPackageNames}`.
- * - **ignore-deps-quirk** — a config carrying `ignoreDeps: []` (length zero)
- *   makes `resolveConfigPresets` delete the WHOLE resolved description of every
- *   preset it extends.
+ * - **description-override** — a config carrying a non-empty
+ *   `overrideDescription` makes `resolveConfigPresets` REPLACE the whole
+ *   description it resolved — its subtree's sentences and its own — with that
+ *   override, which the overriding node then owns.
  *
  * The first two happen inside `getPreset`, i.e. before the node's `input` is
  * captured, so they are detected from the node's raw pre-migration body — not
@@ -83,14 +84,14 @@ export interface DescriptionAttribution {
 export type DroppedDescriptionReason =
   | "wrapper-preset"
   | "package-list-preset"
-  | "ignore-deps-quirk";
+  | "description-override";
 
 export interface DroppedDescription {
   value: string;
   /** The node that authored the string. */
   node: DescriptionSource;
   reason: DroppedDescriptionReason;
-  /** `ignore-deps-quirk` only: the extending node whose `ignoreDeps: []` deleted it. */
+  /** `description-override` only: the node whose `overrideDescription` replaced it. */
   droppedBy?: DescriptionSource;
   /**
    * The authoring node is a guess: the drop came out of a subtree that had
@@ -149,21 +150,11 @@ export interface DescriptionProvenance {
 }
 
 /**
- * A config body's `description` as the array Renovate holds. `input`/`resolved`
- * are already massaged (so `allowString` has coerced `"x"` to `["x"]`), but raw
- * `fetched` bodies are not — and a hand-injected preset may be anything — so
- * the string form is still coerced here. Members are returned untouched,
- * non-strings included: they are real positions in the array.
+ * A config body's `description` as the array Renovate holds — members
+ * untouched, non-strings included: they are real positions in the array.
  */
 function descriptionMembersOf(body: unknown): unknown[] {
-  if (!isPlainObject(body)) {
-    return [];
-  }
-  const value = body.description;
-  if (typeof value === "string") {
-    return [value];
-  }
-  return Array.isArray(value) ? value : [];
+  return isPlainObject(body) ? allowStringMembers(body.description) : [];
 }
 
 /**
@@ -180,10 +171,22 @@ function sourceOf(node: PresetNode): DescriptionSource {
   return { nodeId: node.id, name: node.name };
 }
 
-/** Renovate's `inputConfig?.ignoreDeps?.length === 0` guard, on a node's own body. */
-function dropsChildDescriptions(node: PresetNode): boolean {
-  const input = node.input;
-  return isPlainObject(input) && Array.isArray(input.ignoreDeps) && input.ignoreDeps.length === 0;
+/**
+ * A node's own `overrideDescription` members, or undefined when it has none —
+ * Renovate's `config.overrideDescription?.length` guard, read off the node's own
+ * body because a child's override is consumed (and deleted) at the child's own
+ * level and never reaches its parent.
+ *
+ * Members, not strings: the guard is upstream's length check on the raw value,
+ * so `overrideDescription: [42]` overrides too (with a member no preset can be
+ * held responsible for), while `[]` does not.
+ */
+function overrideMembersOf(node: PresetNode): unknown[] | undefined {
+  if (!isPlainObject(node.input)) {
+    return undefined;
+  }
+  const members = allowStringMembers(node.input.overrideDescription);
+  return members.length > 0 ? members : undefined;
 }
 
 /**
@@ -307,34 +310,70 @@ function valuesMatch(contributions: Contribution[], truth: string[]): boolean {
 }
 
 /**
+ * Contributions an `overrideDescription` replaced, recorded as drops rather
+ * than left as an unexplained absence. `fallbackAuthor` names the writer for a
+ * string the walk could not attribute to a node of its own; `overriddenBy` is
+ * the node whose override did it.
+ */
+function divertOverridden(
+  contributions: Contribution[],
+  fallbackAuthor: PresetNode,
+  overriddenBy: PresetNode,
+  dropped: DroppedDescription[],
+): void {
+  for (const contribution of contributions) {
+    dropped.push({
+      value: contribution.value,
+      node: contribution.node ?? sourceOf(fallbackAuthor),
+      reason: "description-override",
+      droppedBy: sourceOf(overriddenBy),
+      // a guessed author stays labelled as a guess once it is a drop
+      ...(contribution.approximate ? { approximate: true } : {}),
+    });
+  }
+}
+
+/**
  * Everything one merging child of `parent` contributes: its own `getPreset`
- * drop, its subtree, and — when `quirk` says the parent carries
- * `ignoreDeps: []` — the diversion of that whole subtree into `dropped`,
+ * drop, its subtree, and — when `overridden` says the parent carries an
+ * `overrideDescription` — the diversion of that whole subtree into `dropped`,
  * leaving nothing to merge. Shared by `walk` and the root level, which differ
  * only in what they do with the returned contributions.
  */
 function processChild(
   parent: PresetNode,
   child: PresetNode,
-  quirk: boolean,
+  overridden: boolean,
   dropped: DroppedDescription[],
 ): WalkResult {
   recordOwnDrop(child, dropped);
   const sub = walk(child, dropped);
-  if (!quirk) {
+  if (!overridden) {
     return sub;
   }
-  for (const contribution of sub.contributions) {
-    dropped.push({
-      value: contribution.value,
-      node: contribution.node ?? sourceOf(child),
-      reason: "ignore-deps-quirk",
-      droppedBy: sourceOf(parent),
-      // a guessed author stays labelled as a guess once it is a drop
-      ...(contribution.approximate ? { approximate: true } : {}),
-    });
-  }
+  divertOverridden(sub.contributions, child, parent, dropped);
   return { contributions: [], degraded: sub.degraded };
+}
+
+/**
+ * The node's OWN contribution: its `description` strings, or — when it carries
+ * an `overrideDescription` — that override, with the description it replaces
+ * (the node's own sentence, on top of the subtree `processChild` already
+ * diverted) recorded as a drop the node itself caused.
+ */
+function ownContributionsOf(
+  node: PresetNode,
+  override: unknown[] | undefined,
+  dropped: DroppedDescription[],
+): Contribution[] {
+  const own = descriptionsOf(node.input).map((value) => ({ value, node: sourceOf(node) }));
+  if (!override) {
+    return own;
+  }
+  divertOverridden(own, node, node, dropped);
+  return override
+    .filter((member): member is string => typeof member === "string")
+    .map((value) => ({ value, node: sourceOf(node) }));
 }
 
 /**
@@ -345,17 +384,15 @@ function processChild(
 function walk(node: PresetNode, dropped: DroppedDescription[]): WalkResult {
   const contributions: Contribution[] = [];
   let degraded = false;
-  const quirk = dropsChildDescriptions(node);
+  const override = overrideMembersOf(node);
 
   for (const child of mergingChildren(node)) {
-    const sub = processChild(node, child, quirk, dropped);
+    const sub = processChild(node, child, override !== undefined, dropped);
     degraded ||= sub.degraded;
     contributions.push(...sub.contributions);
   }
 
-  for (const value of descriptionsOf(node.input)) {
-    contributions.push({ value, node: sourceOf(node) });
-  }
+  contributions.push(...ownContributionsOf(node, override, dropped));
 
   if (node.resolved === undefined) {
     return { contributions, degraded };
@@ -456,12 +493,12 @@ export function computeDescriptionProvenance(
 
   // The root level is walked here rather than through `walk` so that each
   // string keeps the direct-extend layer it arrived through.
-  const rootQuirk = dropsChildDescriptions(root);
+  const rootOverride = overrideMembersOf(root);
   const rootContributions: Contribution[] = [];
   for (const child of mergingChildren(root)) {
-    const sub = processChild(root, child, rootQuirk, dropped);
+    const sub = processChild(root, child, rootOverride !== undefined, dropped);
     degraded ||= sub.degraded;
-    if (rootQuirk) {
+    if (rootOverride) {
       continue;
     }
     layered.push({
@@ -470,10 +507,9 @@ export function computeDescriptionProvenance(
     });
     rootContributions.push(...sub.contributions);
   }
-  const ownContributions: Contribution[] = descriptionsOf(root.input).map((value) => ({
-    value,
-    node: sourceOf(root),
-  }));
+  // A repo-level override owns its strings, so they arrive through the `repo`
+  // layer like any other sentence the root wrote.
+  const ownContributions = ownContributionsOf(root, rootOverride, dropped);
   rootContributions.push(...ownContributions);
   layered.push({ layer: { kind: "repo" }, contributions: ownContributions });
 

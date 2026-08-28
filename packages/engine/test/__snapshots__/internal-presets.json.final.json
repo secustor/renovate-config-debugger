@@ -79,6 +79,7 @@
     "Provide a link to octochangelog's improved breakdown for Renovate's changelogs",
     "Disable Renovate Dependency Dashboard creation."
   ],
+  "overrideDescription": [],
   "enabled": true,
   "constraintsFiltering": "none",
   "repositoryCache": "disabled",
@@ -103,7 +104,7 @@
   "customDatasources": {},
   "dockerChildPrefix": "renovate_",
   "dockerCliOptions": null,
-  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.89.1",
+  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.89.3",
   "dockerUser": "12021",
   "composerIgnorePlatformReqs": [],
   "goGetDirs": [

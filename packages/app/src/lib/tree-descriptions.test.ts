@@ -247,7 +247,7 @@ describe("buildTreeDescriptions — drops", () => {
   const MUTED: DroppedDescription = {
     value: "Group known monorepo packages together.",
     node: { nodeId: "p5", name: "group:monorepos" },
-    reason: "ignore-deps-quirk",
+    reason: "description-override",
     droppedBy: { nodeId: "p4", name: "group:recommended" },
   };
 
@@ -295,6 +295,22 @@ describe("buildTreeDescriptions — drops", () => {
     ]);
     expect(tree.byNodeId.get("p4")?.lines[1]?.note).toBe(muteNoteText(2));
     expect(tree.byNodeId.get("p5")?.lines[0]?.kind).toBe("dropped");
+  });
+
+  test("lets one node be both the author and the muter of the same sentence", () => {
+    // An `overrideDescription` replaces the resolved description of the whole
+    // subtree INCLUDING the overriding node's own sentence, so the node that
+    // pressed the button can be the author of one of the drops.
+    const own: DroppedDescription = {
+      value: "Group known monorepo packages together.",
+      node: { nodeId: "p4", name: "group:recommended" },
+      reason: "description-override",
+      droppedBy: { nodeId: "p4", name: "group:recommended" },
+    };
+    const tree = built(provenance({ entries: [], dropped: [own] }));
+
+    expect(tree.byNodeId.get("p4")?.lines.map((line) => line.kind)).toEqual(["dropped", "mute"]);
+    expect(tree.byNodeId.get("p4")?.lines[1]?.note).toBe(muteNoteText(1));
   });
 
   test("does not attach a mute note to the repo config, which renders no row", () => {
@@ -381,8 +397,8 @@ describe("wording", () => {
   });
 
   test("the mute note and the title count agree with English", () => {
-    expect(muteNoteText(1)).toBe("mutes 1 description below (empty `ignoreDeps`)");
-    expect(muteNoteText(135)).toBe("mutes 135 descriptions below (empty `ignoreDeps`)");
+    expect(muteNoteText(1)).toBe("mutes 1 description below (`overrideDescription`)");
+    expect(muteNoteText(135)).toBe("mutes 135 descriptions below (`overrideDescription`)");
 
     expect(countText(0)).toBe("none contribute descriptions");
     expect(countText(1)).toBe("1 contributes a description");

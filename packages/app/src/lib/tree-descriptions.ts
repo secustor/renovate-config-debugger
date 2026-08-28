@@ -50,7 +50,7 @@ export interface PositionMarker {
  * preset's best self-description — so it renders plainly (it simply carries no
  * slot marker), and the drop mechanics stay on the blame ledger's footer,
  * where "where did my description go in the final array" is the question.
- * `mute` — the note on the node that CAUSED such drops (`ignoreDeps: []`).
+ * `mute` — the note on the node that CAUSED such drops (`overrideDescription`).
  */
 export type DescLineKind = "contribution" | "dropped" | "mute";
 
@@ -179,8 +179,10 @@ export function buildTreeDescriptions(provenance: DescriptionProvenance): TreeDe
         ),
       );
     }
-    // …and the mute button that pressed it, which is a different node and the
-    // one a reader would actually remove.
+    // …and the mute button that pressed it — usually a different node, and the
+    // one a reader would actually remove. An `overrideDescription` replaces the
+    // overriding node's OWN sentence too, so the two can be the same node: it
+    // then carries both its dropped line and the note.
     const by = drop.droppedBy;
     if (by && by.nodeId !== ROOT_NODE_ID) {
       mutes.set(by.nodeId, (mutes.get(by.nodeId) ?? 0) + 1);
@@ -265,7 +267,7 @@ export function zipDescLines(facts: NodeDescriptionFacts): DescLineWithMarker[] 
  * lists drops, never their causes, so there is no twin to drift from.
  */
 export function muteNoteText(count: number): string {
-  return `mutes ${plural(count, "description")} below (empty \`ignoreDeps\`)`;
+  return `mutes ${plural(count, "description")} below (\`overrideDescription\`)`;
 }
 
 /** The card title's count — the cue that the tree has descriptions to show. */

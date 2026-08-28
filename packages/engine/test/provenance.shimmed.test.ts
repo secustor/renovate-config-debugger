@@ -20,6 +20,7 @@ import { must } from "./helpers";
 
 const injectedPresets = {
   [presetInjectionKey({ presetSource: "github", repo: "test-org/preset-a" })]: {
+    description: "Preset A bumps ranges.",
     rangeStrategy: "bump",
     addLabels: ["a"],
     packageRules: [{ matchPackageNames: ["left-pad"], enabled: false }],
@@ -43,6 +44,7 @@ const injectedPresets = {
 
 const repoConfig = JSON.stringify({
   extends: ["github>test-org/preset-a", "github>test-org/preset-b", "github>test-org/wrapper"],
+  overrideDescription: "What this config does.",
   automerge: false,
   packageRules: [{ matchDepTypes: ["devDependencies"], extends: ["github>test-org/nested-rule"] }],
 });
@@ -160,6 +162,40 @@ describe("computeProvenance", () => {
     for (const s of range.chain) {
       expect(s.writtenBy).toBeUndefined();
     }
+  });
+
+  it("(h) leaves out a key preset resolution consumes rather than merges", async () => {
+    // `overrideDescription` is folded into `description` and deleted, so the
+    // repo body carries a value the final config does not: a repo step here
+    // would name a winner the final value contradicts — the round-trip
+    // invariant below is the general form of that claim. Where the sentences
+    // went is `computeDescriptionProvenance`'s answer, not this one's.
+    const prov = await provenance();
+    const override = must(
+      prov.get("overrideDescription"),
+      "the 'overrideDescription' provenance entry",
+    );
+    expect(override.finalValue).toEqual([]);
+    expect(override.isDefaultOnly).toBe(true);
+    expect(override.chain.map((s) => layerName(s.layer))).toEqual(["defaults"]);
+  });
+
+  it("(i) records a repo `overrideDescription` as the overwrite of `description` it is", async () => {
+    const prov = await provenance();
+    const description = must(prov.get("description"), "the 'description' provenance entry");
+    expect(description.finalValue).toEqual(["What this config does."]);
+    expect(description.isDefaultOnly).toBe(false);
+    // `description` is a mergeable array — every other layer APPENDS to it —
+    // but the override replaces the lot, so the verb has to be the honest one
+    // and the preset's sentence has to read as the losing value it is.
+    expect(
+      description.chain
+        .filter((s) => s.layer.kind !== "defaults")
+        .map((s) => [layerName(s.layer), s.action, s.after]),
+    ).toEqual([
+      ["github>test-org/preset-a", "set", ["Preset A bumps ranges."]],
+      ["repo", "overwrite", ["What this config does."]],
+    ]);
   });
 
   it("holds the round-trip property: every key's last step reproduces the final value", async () => {

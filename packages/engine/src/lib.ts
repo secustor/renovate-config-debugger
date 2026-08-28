@@ -16,6 +16,19 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
 }
 
 /**
+ * The members of an `allowString` array option, in the form Renovate holds
+ * them: `massageConfig` coerces `"x"` to `["x"]`, but a raw `fetched` preset
+ * body has not been through it. Members are returned untouched, non-strings
+ * included — Renovate only warns about those and keeps them.
+ */
+export function allowStringMembers(value: unknown): unknown[] {
+  if (typeof value === "string") {
+    return [value];
+  }
+  return Array.isArray(value) ? value : [];
+}
+
+/**
  * Equality by JSON text. Cheap and exact for the JSON-shaped config values the
  * simulator compares, but ORDER-SENSITIVE: `{a:1,b:2}` and `{b:2,a:1}` compare
  * unequal. Callers that need structural equality use `deepEqual` in

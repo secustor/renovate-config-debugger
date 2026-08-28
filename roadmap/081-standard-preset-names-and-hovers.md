@@ -237,8 +237,8 @@ tree's origin framing), and a descendant-selector size override
   the section's rows carry the tokens.
 
 - **`drop-reasons.ts` keeps its embedded `<code>`.** One of its three reasons
-  reads "muted by \`X\` — its empty `ignoreDeps` deletes every description it
-  extends": a preset name mid-clause in an explanatory sentence assembled by a
+  reads "muted by \`X\` — its `overrideDescription` replaces every description
+  it resolved": a preset name mid-clause in an explanatory sentence assembled by a
   wording module (which also owns the `≈` hedge and the label/why split, and is
   rendered through `CodeText`). Splitting that sentence into JSX to tokenise one
   name would move presentation into the wording layer — the opposite of the
