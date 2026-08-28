@@ -31,9 +31,10 @@ Three layers, each independently checkable:
    image excludes `.git`) — every UI anchor then renders nothing, rather than
    an identity nothing can verify.
 2. **The attested files.** `scripts/build-manifest.mjs` hashes every file
-   in `dist/` into `build-manifest.json` (excluding itself, and
-   `rcd-config.js`, which the Docker entrypoint may rewrite at container
-   start), and writes the same digests — manifest included — to
+   in `dist/` into `build-manifest.json` (excluding itself and the
+   edge/runtime-mutable files: `rcd-config.js`, which the Docker entrypoint
+   may rewrite at container start, and `robots.txt`, which Cloudflare's
+   managed content signals rewrite at the edge), and writes the same digests — manifest included — to
    `build-checksums.txt` (next to `dist/`, gitignored: attestation input,
    not deployment payload). CI generates both before the Pages upload and,
    on main, signs the checksums with `actions/attest`

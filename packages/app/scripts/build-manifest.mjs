@@ -12,9 +12,10 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 const MANIFEST = "build-manifest.json";
-// rcd-config.js is runtime deployment config — the Docker entrypoint may
-// overwrite it at container start — so it is deliberately not attested.
-const EXCLUDED = new Set([MANIFEST, "rcd-config.js"]);
+// Edge/runtime-mutable files are deliberately not attested: the Docker
+// entrypoint may overwrite rcd-config.js at container start, and Cloudflare's
+// managed content signals rewrite robots.txt at the edge.
+const EXCLUDED = new Set([MANIFEST, "rcd-config.js", "robots.txt"]);
 
 const dist = fileURLToPath(new URL("../dist", import.meta.url));
 
