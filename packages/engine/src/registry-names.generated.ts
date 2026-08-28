@@ -1,7 +1,7 @@
 /**
  * GENERATED FILE — do not hand-edit.
  *
- * Produced by `scripts/generate-registry-names.mjs` from renovate@44.41.0's
+ * Produced by `scripts/generate-registry-names.mjs` from renovate@44.42.1's
  * own datasource/manager registries (`renovate/dist/modules/{datasource,manager}/api.js`).
  * Regenerate with `pnpm --filter @renovate-config-debugger/engine generate:registries`
  * after bumping the `renovate` dependency — see that script's header for why
