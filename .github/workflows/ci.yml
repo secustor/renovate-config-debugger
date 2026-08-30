@@ -323,6 +323,10 @@ jobs:
           target: ${{ matrix.target }}
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
+          # BuildKit's in-registry SLSA provenance (roadmap 089), max so the
+          # full build args and materials are recorded. `imagetools create`
+          # carries the attestation manifests into the merged list.
+          provenance: mode=max
           outputs: type=image,name=${{ matrix.image }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=registry,ref=${{ matrix.image }}:buildcache-${{ steps.platform.outputs.pair }}
           cache-to: type=registry,ref=${{ matrix.image }}:buildcache-${{ steps.platform.outputs.pair }},mode=max,image-manifest=true,oci-mediatypes=true
@@ -352,6 +356,10 @@ jobs:
     permissions:
       contents: read
       packages: write
+      # Roadmap 089: what signs the image attestation, like roadmap 088's for
+      # the Pages bundle.
+      id-token: write
+      attestations: write
     strategy:
       fail-fast: false
       matrix:
@@ -375,22 +383,42 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # No `latest` here any more (roadmap 089): `latest` follows releases, and
+      # release.yml moves it. A main push gets the rolling `main` plus its
+      # immutable `sha-` tag — the handle the release promotes.
       - id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ${{ matrix.image }}
           tags: |
-            type=raw,value=latest
+            type=raw,value=main
             type=sha,prefix=sha-,format=short
 
-      - name: Create the manifest list and push
+      - id: push
+        name: Create the manifest list and push
         working-directory: ${{ runner.temp }}/digests
         env:
           IMAGE: ${{ matrix.image }}
+          VERSION: ${{ steps.meta.outputs.version }}
         run: |
           docker buildx imagetools create \
             $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf "${IMAGE}@sha256:%s " *)
+          echo "digest=$(docker buildx imagetools inspect "${IMAGE}:${VERSION}" --format '{{.Manifest.Digest}}')" >> "$GITHUB_OUTPUT"
+
+      # The signed statement "this workflow built this image from this commit",
+      # on the digest of the merged manifest list — the digest every tag
+      # (including the release's version tag and `latest`, which are retags of
+      # it) resolves to. `gh attestation verify oci://<image>:<tag> -R
+      # secustor/renovate-config-debugger` checks it, and release.yml does
+      # exactly that before promoting. (actions/attest with no predicate inputs
+      # emits SLSA build provenance — see the roadmap 088 step above.)
+      - name: Attest build provenance (roadmap 089)
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ matrix.image }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
 
       # Fails loudly if a platform is missing from the published list — the one
       # failure mode of this split that a green build job would otherwise hide.
