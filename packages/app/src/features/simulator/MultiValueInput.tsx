@@ -1,5 +1,18 @@
-import { type KeyboardEvent, type ReactNode, useState } from "react";
+import { type ClipboardEvent, type KeyboardEvent, type ReactNode, useState } from "react";
 import { joinValues, splitValues } from "./form";
+
+// Roadmap 079 follow-up: a paste containing any of these reads as several
+// values, not one — comma/semicolon-separated lists and newline- or
+// whitespace-separated lists are both things a user's clipboard holds.
+const PASTE_SEPARATOR = /[,;\s]/;
+const PASTE_SEPARATOR_RUN = /[,;\s]+/;
+
+function splitPastedText(text: string): string[] {
+  return text
+    .split(PASTE_SEPARATOR_RUN)
+    .map((s) => s.trim())
+    .filter((s) => s !== "");
+}
 
 function ValueChip({ value, onRemove }: { value: string; onRemove: () => void }) {
   return (
@@ -62,6 +75,31 @@ export function MultiValueInput({
     setDraft("");
   }
 
+  // The draft is left untouched either way: merging it into a multi-value
+  // paste would need to know whether the paste replaced a selection or landed
+  // mid-word, and a chip editor has no reason to guess at that. A paste with
+  // no separator falls through to the browser's own insertion, which already
+  // does the right thing with a cursor position and a selection; a paste with
+  // one just adds its pieces as chips and leaves whatever was mid-typed alone.
+  function paste(e: ClipboardEvent<HTMLInputElement>) {
+    const text = e.clipboardData.getData("text");
+    if (!PASTE_SEPARATOR.test(text)) {
+      return;
+    }
+    e.preventDefault();
+    const pieces = splitPastedText(text);
+    if (pieces.length === 0) {
+      return;
+    }
+    const next = [...values];
+    for (const piece of pieces) {
+      if (!next.includes(piece)) {
+        next.push(piece);
+      }
+    }
+    onChange(joinValues(next));
+  }
+
   function keyDown(e: KeyboardEvent<HTMLInputElement>) {
     // Roadmap 068's rule, third consumer: ⌘/Ctrl+⏎ is the app's Run chord and
     // must reach the page listener, so only a BARE Enter is claimed here. That
@@ -94,6 +132,7 @@ export function MultiValueInput({
           placeholder={placeholder}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={keyDown}
+          onPaste={paste}
           // Committing on blur would silently turn an abandoned half-typed
           // value into a matcher input; the draft simply stays visible instead.
           spellCheck={false}
