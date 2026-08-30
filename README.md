@@ -147,10 +147,9 @@ personal-access-token fallback for GitHub Enterprise Server.
 > [!WARNING]
 > Docker setups are experimental at the moment.
 
-Image tags: `latest` and the bare version tags (`0.3.0`, …) are releases —
-`latest` moves only when a release is cut, and both are the exact digests CI
-built and attested for that commit. `main` tracks every merge, and `sha-<short>`
-pins one. Every published digest carries a signed build attestation:
+Images are created for each commit using `sha-<short>` as the tag, on release semver versioned tags are too released with `latest` pointing on the newest semver release. 
+
+To verify the attestation of a semver release use: 
 
 ```bash
 gh attestation verify oci://ghcr.io/secustor/renovate-config-debugger:latest -R secustor/renovate-config-debugger
