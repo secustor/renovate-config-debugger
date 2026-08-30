@@ -39,7 +39,7 @@
   cursor: pointer;
   display: inline-flex;
   font-family: inherit;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   gap: 0.2rem;
   /* Overlaps the rail's own bottom border, which is what lets the active tab
      paint over it and read as one surface with the body below. */
@@ -54,10 +54,11 @@
 
      089 added the seventh (Dependencies) — the longest label in the strip —
      and the same measurement wrapped again at 1280px. The sides came down to
-     0.3rem, the type to 0.8rem and the label/count gap to 0.2rem: the row is
-     what the strip is FOR, and 083's note stands, so this is again sized
-     against the wider glyphs rather than macOS's. */
-  padding: 0.45rem 0.3rem;
+     0.28rem, the type to 0.78rem (the Final artboard's own tab size) and the
+     label/count gap to 0.2rem: the row is what the strip is FOR, and 083's
+     note stands, so this is again sized against the wider glyphs rather than
+     macOS's. */
+  padding: 0.45rem 0.28rem;
 }
 
 .tab:hover {
@@ -86,18 +87,15 @@
 /* The count is a `.pill` (see the pill standard); `.tab-count` is kept as the
    stable hook the e2e specs and the keystroke render test address it by.
 
-   089: it rides beside its label as a plain NUMBER rather than as a second
-   chip. The seventh tab made the strip's one-row budget (guarded in
-   12-layout-regressions, measured against the widest common `system-ui`) too
-   tight to spend ~16px per badge on an outline and its padding — and a count
-   sitting against the word it counts was never making the kind of claim that
-   outline is there to fence off. The TONES stay: a Problems count still reads
-   in the error hue, which is the part that says something. */
+   089 briefly flattened it to a plain number to buy the seventh tab's row
+   back; the owner reversed that — the bubble IS the design's count grammar
+   (the Final artboard draws every tab count as a pill). The room comes from a
+   compact cut of the pill instead: smaller type and tighter sides than the
+   standard, which a strip-height count can afford where a body chip cannot. */
 .tab-count {
-  background: none;
-  border-color: transparent;
   flex: none;
-  padding: 0;
+  font-size: 0.66rem;
+  padding: 0 0.3rem;
 }
 
 .tab-body {
