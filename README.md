@@ -147,9 +147,9 @@ personal-access-token fallback for GitHub Enterprise Server.
 > [!WARNING]
 > Docker setups are experimental at the moment.
 
-Images are created for each commit using `sha-<short>` as the tag, on release semver versioned tags are too released with `latest` pointing on the newest semver release. 
+Images are created for each commit using `sha-<short>` as the tag, on release semver versioned tags are too released with `latest` pointing on the newest semver release.
 
-To verify the attestation of a semver release use: 
+To verify the attestation of a semver release use:
 
 ```bash
 gh attestation verify oci://ghcr.io/secustor/renovate-config-debugger:latest -R secustor/renovate-config-debugger
