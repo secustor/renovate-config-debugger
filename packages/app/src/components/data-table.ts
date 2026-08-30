@@ -25,6 +25,12 @@ export interface DataTableColumn {
   /** Rendered in the mono face — values that are literally code (a version
    *  range, a file path) rather than prose. */
   mono?: boolean;
+  /** This column's share of the row, as a CSS length: the flex basis BOTH the
+   *  header cell and every data cell take, so they cannot disagree. Absent =
+   *  the table's own `--dt-cell`, which is right until a consumer's columns
+   *  differ in kind — an option's value is wide, the layer that decided it is
+   *  one short phrase. */
+  width?: string;
 }
 
 /** One way to group the rows. The TITLES come off the rows themselves (see
@@ -126,8 +132,19 @@ export interface DataTableRow {
   key: string;
   /** The lead cell, always shown, always mono (it is the row's subject). */
   lead: string;
+  /**
+   * What the lead cell DRAWS, when the row's subject is more than its text —
+   * an option key carrying its docs hover card. `lead` stays the string the
+   * filter matches, so a decorated subject can never hide a row from the
+   * search box; this replaces only what is painted inside the cell.
+   */
+  leadNode?: ReactNode;
   /** Column id → cell text. `""` (or a missing key) renders as "not set". */
   cells: Record<string, string>;
+  /** The same rule for a cell: column id → what to draw in place of
+   *  `cells[id]`. The STRING is still what the filter searches and what the
+   *  cell quotes in its `title`. */
+  cellNodes?: Record<string, ReactNode>;
   /** Grouping id → where this row lands under it. A grouping a row has no
    *  entry for puts it under {@link UNGROUPED_TITLE}. */
   groups: Record<string, DataTableRowGroup>;

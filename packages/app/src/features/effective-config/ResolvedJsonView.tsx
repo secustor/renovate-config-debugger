@@ -5,8 +5,9 @@ import type { DescriptionCards } from "@/lib/description-attribution";
 import { openPickerOnEnter } from "@/lib/select-picker";
 import { resolvedConfigText } from "./resolved-json";
 
-/** The JSON view's options row — the same chrome-row grammar as EffectiveToolbar,
- *  its own component for the same depth-ratchet reason. */
+/** The JSON view's options row — the tab's one remaining chrome row of its own
+ *  since 092 put the rest in the data table's toolbar and gear. Its own
+ *  component for the depth ratchet (`react/jsx-max-depth` is 3). */
 function ResolvedOptionsRow({
   expand,
   onExpandChange,

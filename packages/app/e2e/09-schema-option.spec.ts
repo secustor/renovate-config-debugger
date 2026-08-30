@@ -26,7 +26,9 @@ test("$schema renders as a known option in Effective config, not an unknown-opti
 
   // Narrow to just the $schema row.
   await effectiveConfig.getByPlaceholder("Filter keys…").fill("schema");
-  const schemaKey = effectiveConfig.locator(".prov-row .opt-key", { hasText: "$schema" }).first();
+  const schemaKey = effectiveConfig
+    .locator(".data-table-row .opt-key", { hasText: "$schema" })
+    .first();
   await expect(schemaKey).toBeVisible();
 
   const className = await schemaKey.getAttribute("class");

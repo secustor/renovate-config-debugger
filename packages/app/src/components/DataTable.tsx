@@ -1,5 +1,6 @@
 import { type ReactNode, type RefObject, useState } from "react";
 import { nf } from "@/lib/format";
+import { useSyncedReset } from "@/hooks/use-synced-reset";
 import { useToggleSet } from "@/hooks/use-toggle-set";
 import {
   activeColumns,
@@ -40,7 +41,9 @@ import { DataTableToolbar } from "./DataTableToolbar";
  * view when a new run lands, and a cross-tab link arrives asking for one
  * particular query. Passing neither the value nor its handler keeps the
  * self-owned behaviour, which is what every consumer that has no such state
- * should do.
+ * should do. `openKeys` is the same idea one step weaker — an assignment
+ * applied when its identity changes, after which the reader's own carets win
+ * again.
  */
 
 /**
@@ -80,7 +83,7 @@ function DataTableHead({
       <span className="data-table-head-caret" aria-hidden="true" />
       <span className="data-table-head-lead">{leadLabel}</span>
       {columns.map((column) => (
-        <span key={column.id} className="data-table-head-cell">
+        <span key={column.id} className="data-table-head-cell" style={{ flexBasis: column.width }}>
           {column.label}
         </span>
       ))}
@@ -219,6 +222,7 @@ export function DataTable({
   onQuickFilter,
   query,
   onQuery,
+  openKeys,
 }: {
   rows: readonly RowModel[];
   columns: readonly DataTableColumn[];
@@ -256,6 +260,15 @@ export function DataTable({
   /** Controlled filter text; omit for the table's own. */
   query?: string;
   onQuery?: (value: string) => void;
+  /**
+   * Which rows the CONSUMER wants open. Not a controlled value — the reader
+   * takes over the moment they click a caret — but an assignment applied
+   * whenever this set's IDENTITY changes: a cross-tab link landing on one
+   * particular record, and a new run closing everything that was open on the
+   * last one. A consumer with no such state omits it and the table owns the
+   * whole affair.
+   */
+  openKeys?: ReadonlySet<string>;
 }) {
   const [text, setText] = useOptionallyControlled(query, onQuery, "");
   const [viewId, setViewId] = useOptionallyControlled(view, onViewChange, views[0]?.id ?? "");
@@ -263,6 +276,15 @@ export function DataTable({
   const [grouping, setGrouping] = useState<string | null>(defaultGroupingId);
   const visibleColumns = useToggleSet(defaultVisibleColumns(columns));
   const openRows = useToggleSet();
+  // Starts at `undefined` rather than at the incoming set, so a consumer that
+  // mounts this table already asking for a row open — the cross-tab link that
+  // switched to the tab — is honoured on the first render instead of adopted
+  // as seen. A consumer that passes nothing never fires it.
+  useSyncedReset<ReadonlySet<string> | undefined>(
+    openKeys,
+    () => openRows.reset(openKeys),
+    () => undefined,
+  );
   const showTable = isTableView(views, viewId);
   // Filtering and grouping rows nobody is looking at is pure waste — while an
   // alternate view is up, the body is not rendered at all.

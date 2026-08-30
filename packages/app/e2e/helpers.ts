@@ -165,21 +165,26 @@ export async function openPresetTree(page: Page): Promise<void> {
 /**
  * Roadmap 082: the Effective config's clickable preset reference lives in the
  * CASCADE now — the design's row carries a note in its third cell, not a copy
- * of the layer chip its band header already states. So a spec that drives the
+ * of the layer chip its group header already states. So a spec that drives the
  * reference expands a preset-decided row first, exactly as a reader does.
  *
  * Since the preset-token standardization (081; the cascade adopted it with the
  * `writtenBy` attribution), the reference is the standard `PresetName` token —
  * a `button.preset-token` — not a `ProvenanceChip`. Same jump, same landing.
  *
- * Assumes the tab is open and the presets band has rows (the default config
+ * Roadmap 092: the bands are the standard data table's groups, so the
+ * preset-decided rows are the ones under the group wearing the `presets` pill.
+ *
+ * Assumes the tab is open and the presets group has rows (the default config
  * extends `config:recommended`). Returns the token, since every caller's next
  * line clicks or focuses it.
  */
 export async function effectivePresetChip(page: Page): Promise<Locator> {
-  const band = page.locator("#panel-effective .prov-section-preset");
-  await expect(band.locator(".prov-row-head").first()).toBeVisible();
-  await band.locator(".prov-row-head").first().click();
+  const group = page
+    .locator("#panel-effective .data-table-group")
+    .filter({ has: page.locator(".data-table-group-pills .pill-preset") });
+  await expect(group.locator(".data-table-row-head").first()).toBeVisible();
+  await group.locator(".data-table-row-head").first().click();
   const token = page.locator("#panel-effective button.preset-token").first();
   await expect(token).toBeVisible();
   return token;

@@ -477,6 +477,9 @@ test("a bare key still works with a filter checkbox focused", async ({ page }) =
   await runAndAwaitResult(page);
   await openTab(page, "effective");
 
+  // Roadmap 092: "only overridden" is the data table's quick filter, so the
+  // checkbox lives in the gear's popover rather than in a toolbar row.
+  await page.locator("#panel-effective").getByRole("button", { name: "Display options" }).click();
   const checkbox = page.locator("#panel-effective input[type='checkbox']").first();
   await checkbox.focus();
   // A checkbox has no cursor and no type-ahead, so it must not count as

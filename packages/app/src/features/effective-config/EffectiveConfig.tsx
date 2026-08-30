@@ -1,14 +1,20 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import type { DeciderId } from "./decider-groups";
 import { groupByDecider, presetDeciderName, topLevelPresetNames } from "./decider-groups";
 import type { ResolvedConfigMode, TraceResult } from "@renovate-config-debugger/engine";
-import { type EffectiveTally, effectiveTally, isOverridden } from "@/lib/effective-tally";
-import { type BandRowContext, EffectiveBands } from "./Bands";
+import { type EffectiveTally, effectiveTally } from "@/lib/effective-tally";
 import { ConfigJson } from "@/components/ConfigJson";
-import { type EffectiveView, EffectiveToolbar } from "./EffectiveToolbar";
+import { DataTable } from "@/components/DataTable";
+import {
+  DECIDED_BY,
+  EFFECTIVE_COLUMNS,
+  EFFECTIVE_GROUPINGS,
+  EFFECTIVE_NOUN,
+  EFFECTIVE_VIEWS,
+  effectiveTableRows,
+} from "./effective-rows";
+import { nf } from "@/lib/format";
 import { ResolvedJsonView } from "./ResolvedJsonView";
 import { useProvenance, useResolvedConfig } from "./use-effective-derivations";
-import { useToggleSet } from "@/hooks/use-toggle-set";
 import { useRuleProvenance } from "@/hooks/rule-provenance";
 import { useDescriptionProvenance } from "@/hooks/description-provenance";
 import { buildDescriptionCards } from "@/lib/description-attribution";
@@ -20,20 +26,28 @@ import { useSyncedReset } from "@/hooks/use-synced-reset";
 
 /**
  * Roadmap 005: the effective config as a provenance view. Every top-level key
- * carries a colour-coded badge for its winning source layer (default / a
- * preset / the repo config) and expands to the full override chain — who set
- * it, who overrode it, and the losing values. Provenance is computed post-hoc
- * from the trace via the engine's `computeProvenance`, loaded through the same
- * dynamic import that keeps the renovate chunk out of the initial bundle.
+ * expands to the full override chain — who set it, who overrode it, and the
+ * losing values. Provenance is computed post-hoc from the trace via the
+ * engine's `computeProvenance`, loaded through the same dynamic import that
+ * keeps the renovate chunk out of the initial bundle.
+ *
+ * Roadmap 092: the whole tab is ONE standard data table
+ * (`components/DataTable`) plus a footer line. The bespoke toolbar row and the
+ * decided-by bands are gone — the filter, the "only overridden" gate, the
+ * By-key/As-JSON switch and the copy button are the table's own toolbar and
+ * gear, and the bands are its grouping. The three pieces of state this view
+ * still owns are the three the table cannot: a run resets them, and the
+ * description digest's link lands on one particular row.
  */
 
-/**
- * Roadmap 075 (iteration 5): the decided-by sections that start closed. Only
- * the defaults group does — it is the "nothing in your run touched them" pile,
- * routinely the largest, and the one a reader opens deliberately. Frozen at
- * module scope so every reset assigns the same set rather than minting one.
- */
-const DEFAULT_COLLAPSED: ReadonlySet<DeciderId> = new Set<DeciderId>(["defaults"]);
+/** Roadmap 051: the card's two renderings — provenance rows / a standalone JSON
+ *  document. A MODE, not a filter: the JSON view is a different document (and a
+ *  different computation), which is why the table treats it as an alternate
+ *  VIEW and lets the row filters go inert while it is up. */
+type EffectiveView = "keys" | "json";
+
+const FILTERS_INERT_TITLE =
+  "Key filters narrow the By key rows — the JSON document is always the whole config";
 
 // Roadmap 032: memoized — this view renders ~100 provenance rows and reads
 // nothing that changes while the user types in the editor, so a keystroke
@@ -71,19 +85,14 @@ export const EffectiveConfig = memo(function EffectiveConfig({
   const filterInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [onlyOverridden, setOnlyOverridden] = useState(false);
-  const expandedRows = useToggleSet();
-  // Roadmap 075 (iteration 5): which decided-by sections are folded shut.
-  const collapsedSections = useToggleSet<DeciderId>(DEFAULT_COLLAPSED);
-  // Roadmap 082 (GAP-7): the bands whose row cap the reader has lifted.
-  const shownAllBands = useToggleSet<DeciderId>();
-  // Destructured so `exhaustive-deps` can see what the effects below depend on:
-  // the hook's callbacks are identity-stable, but the rule reads the object.
-  const { reset: resetExpandedRows } = expandedRows;
-  const { reset: resetCollapsedSections } = collapsedSections;
   // Roadmap 051: the As-JSON rendering and its output options
   const [view, setView] = useState<EffectiveView>("keys");
   const [expand, setExpand] = useState<ResolvedConfigMode>("keep-internal");
   const [includeDefaults, setIncludeDefaults] = useState(false);
+  // The rows the table should open — always a fresh set, because its IDENTITY
+  // is what the table applies (a run that assigned the same frozen empty set
+  // twice would leave the last run's rows open).
+  const [openKeys, setOpenKeys] = useState<ReadonlySet<string>>(() => new Set());
   // Roadmap 069 (PR 5): the same walk again, read the other way round — one
   // card per string for the As-JSON document, where the sentences are already
   // on screen and the attribution has nowhere else to live. Gated on the view
@@ -118,9 +127,7 @@ export const EffectiveConfig = memo(function EffectiveConfig({
   // silently undone, and the flake CI caught as "the expanded description row
   // rendered no ledger".
   useSyncedReset(provenance, () => {
-    resetExpandedRows();
-    resetCollapsedSections(DEFAULT_COLLAPSED);
-    shownAllBands.reset();
+    setOpenKeys(new Set());
     setQuery("");
     setOnlyOverridden(false);
     setView("keys");
@@ -133,12 +140,7 @@ export const EffectiveConfig = memo(function EffectiveConfig({
   // the answer. Filter, expand, no focus steal: the reader is here to read.
   // …which means clearing the OTHER filter too, not just setting the query:
   // "only overridden" left over from earlier reading would hide the very row the
-  // link promised, and the reader would land on "No keys match".
-  // …and, since 075, re-opening the decided-by bands for the same reason: a
-  // reader who folded the presets band shut earlier would otherwise land on a
-  // collapsed band instead of the ledger the link promised. The defaults band
-  // stays shut — `description` has no Renovate default, so it can never be the
-  // band this row is in.
+  // link promised, and the reader would land on "Nothing matches".
   //
   // DURING RENDER for the same reason as the reset above, and BELOW it so that a
   // commit carrying both a new provenance and a new nonce still lands: the run's
@@ -152,8 +154,7 @@ export const EffectiveConfig = memo(function EffectiveConfig({
         setView("keys");
         setQuery(DESCRIPTION_KEY);
         setOnlyOverridden(false);
-        resetExpandedRows(new Set([DESCRIPTION_KEY]));
-        resetCollapsedSections(DEFAULT_COLLAPSED);
+        setOpenKeys(new Set([DESCRIPTION_KEY]));
       }
     },
     // Starts at `undefined` rather than at the current nonce, so a nonce that
@@ -164,19 +165,6 @@ export const EffectiveConfig = memo(function EffectiveConfig({
 
   const entries = useMemo(() => (provenance ? [...provenance.values()] : []), [provenance]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return entries.filter((entry) => {
-      if (q && !entry.key.toLowerCase().includes(q)) {
-        return false;
-      }
-      if (onlyOverridden && !isOverridden(entry)) {
-        return false;
-      }
-      return true;
-    });
-  }, [entries, query, onlyOverridden]);
-
   /**
    * Roadmap 075 (iteration 5): the rows, cut by WHO DECIDED each key's final
    * value (`features/effective-config/decider-groups.ts` reads that off the
@@ -185,22 +173,26 @@ export const EffectiveConfig = memo(function EffectiveConfig({
    * Roadmap 082: the default-only rows are in here now. They used to be
    * filtered out of the view entirely until a checkbox asked for them, which
    * meant the tab's headline count and the config Renovate actually runs were
-   * two different documents; they are the defaults band, folded shut.
+   * two different documents.
+   *
+   * Roadmap 092: grouped BEFORE filtering, because the table does the filtering
+   * now — this is only the order the rows arrive in.
    */
-  const sections = useMemo(() => groupByDecider(filtered), [filtered]);
+  const sections = useMemo(() => groupByDecider(entries), [entries]);
 
-  /** Roadmap 082 (GAP-3): the band is named after the reader's own `extends`. */
+  /** Roadmap 082 (GAP-3): the group is named after the reader's own `extends`. */
   const presetName = useMemo(
     () => presetDeciderName(topLevelPresetNames(result.presetTree)),
     [result.presetTree],
   );
 
+  const rows = useMemo(
+    () => effectiveTableRows(sections, { ruleAttribution, ledger, presetName, onSelectPreset }),
+    [sections, ruleAttribution, ledger, presetName, onSelectPreset],
+  );
+
   // Roadmap 032: the view's headline numbers — decided keys, default-only
-  // rows (the folded defaults band), really-overridden rows — in ONE pass
-  // over the entries (they were
-  // three separate filter passes: the stats effect made two and the render
-  // counted the defaults again). `filtered` above stays its own memo since it
-  // additionally depends on the interactive filters.
+  // rows, really-overridden rows — in ONE pass over the entries.
   const tallies = useMemo(() => effectiveTally(entries), [entries]);
 
   useEffect(() => {
@@ -235,54 +227,61 @@ export const EffectiveConfig = memo(function EffectiveConfig({
     );
   }
 
-  const rowContext: BandRowContext = {
-    expanded: expandedRows.set,
-    onToggleRow: expandedRows.toggle,
-    onSelectPreset,
-    ruleAttribution,
-    ledger,
-  };
+  if (provenance === undefined) {
+    return <p className="empty-note">Computing provenance…</p>;
+  }
+
+  const jsonView = (
+    <ResolvedJsonView
+      output={resolvedOutput}
+      expand={expand}
+      onExpandChange={setExpand}
+      includeDefaults={includeDefaults}
+      onIncludeDefaultsChange={setIncludeDefaults}
+      defaultsCount={tallies.hiddenDefaults}
+      descriptions={descriptionCards}
+      onSelectPreset={onSelectPreset}
+    />
+  );
 
   return (
-    // No card and no title: the tab strip already says "Effective config",
-    // and the toolbar row plus the bordered band boxes frame themselves.
+    // No card and no title: the tab strip already says "Effective config", and
+    // the table frames itself.
     <>
-      {provenance === undefined ? <p className="empty-note">Computing provenance…</p> : null}
-      {provenance !== undefined ? (
-        <EffectiveToolbar
-          filterInputRef={filterInputRef}
-          query={query}
-          onQueryChange={setQuery}
-          onlyOverridden={onlyOverridden}
-          onOnlyOverriddenChange={setOnlyOverridden}
-          filtersApply={view === "keys"}
-          view={view}
-          onViewChange={setView}
-          getText={resolvedOutput ? () => resolvedConfigText(resolvedOutput) : null}
-        />
-      ) : null}
-      {provenance !== undefined && view === "json" ? (
-        <ResolvedJsonView
-          output={resolvedOutput}
-          expand={expand}
-          onExpandChange={setExpand}
-          includeDefaults={includeDefaults}
-          onIncludeDefaultsChange={setIncludeDefaults}
-          defaultsCount={tallies.hiddenDefaults}
-          descriptions={descriptionCards}
-          onSelectPreset={onSelectPreset}
-        />
-      ) : null}
-      {provenance !== undefined && view === "keys" ? (
-        <EffectiveBands
-          sections={sections}
-          presetName={presetName}
-          collapsed={collapsedSections.set}
-          onToggleSection={collapsedSections.toggle}
-          shownAll={shownAllBands.set}
-          onShowAll={shownAllBands.add}
-          rows={rowContext}
-        />
+      <DataTable
+        rows={rows}
+        columns={EFFECTIVE_COLUMNS}
+        groupings={EFFECTIVE_GROUPINGS}
+        defaultGroupingId={DECIDED_BY}
+        leadLabel="Option"
+        rowNoun={EFFECTIVE_NOUN}
+        filterPlaceholder="Filter keys…"
+        filterRef={filterInputRef}
+        copy={
+          resolvedOutput
+            ? {
+                getText: () => resolvedConfigText(resolvedOutput),
+                label: "Copy effective config as JSON",
+              }
+            : null
+        }
+        views={EFFECTIVE_VIEWS}
+        view={view}
+        onViewChange={(id) => setView(id === "json" ? "json" : "keys")}
+        altView={jsonView}
+        filtersInertTitle={FILTERS_INERT_TITLE}
+        quickFilterLabel="only overridden"
+        quickFilterOn={onlyOverridden}
+        onQuickFilter={setOnlyOverridden}
+        query={query}
+        onQuery={setQuery}
+        openKeys={openKeys}
+      />
+      {view === "keys" ? (
+        <p className="data-table-note">
+          {nf.format(entries.length)} effective options · hover any key for Renovate’s docs ·
+          defaults have no cascade — only the default ever touched them
+        </p>
       ) : null}
     </>
   );

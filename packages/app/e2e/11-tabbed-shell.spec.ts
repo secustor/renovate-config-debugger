@@ -323,7 +323,7 @@ test("the Overview tab is the description digest, and lands on the raw row", asy
   await card.getByRole("button", { name: "show raw order" }).click();
   // A cross-tab jump now, so it records the one-step way back.
   await expect(tabButton(page, "effective")).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator("#panel-effective .prov-filter-input")).toHaveValue("description");
+  await expect(page.locator("#panel-effective .data-table-filter")).toHaveValue("description");
   await expect(page.locator(".tab-back")).toHaveText(/Back to Overview/);
 });
 

@@ -21,8 +21,8 @@ import { anyModifierHeld } from "@/lib/shortcuts";
 // `<input>` types that do NOT accept free text — a checkbox, radio or button
 // input has no cursor and no type-ahead, so it must not count as "typing".
 // Roadmap 068 reuses this predicate as the bare-key guard for `useShortcut`
-// and `useTabDigits`: without this list, a focused filter checkbox
-// (EffectiveToolbar.tsx, PresetTree.tsx) silently swallowed `?`, `1`-`7` and
+// and `useTabDigits`: without this list, a focused filter checkbox (the data
+// table's quick filter, PresetTree.tsx) silently swallowed `?`, `1`-`7` and
 // `e`/`r` with no visible cause.
 const NON_TEXT_INPUT_TYPES = new Set([
   "button",

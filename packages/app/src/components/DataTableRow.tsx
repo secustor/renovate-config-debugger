@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Caret } from "@/components/Caret";
 import { OptionKey } from "@/components/option-docs";
 import { Term } from "@/components/glossary";
@@ -25,14 +26,27 @@ import type {
  * toggle too — and each opened part is a full-width line of the row's flex box.
  */
 
-function DataTableCell({ column, value }: { column: DataTableColumn; value: string }) {
-  const empty = value === "";
+/** One cell: the column's width, the row's text — or, when the row prepared
+ *  one, the node it wants drawn there instead. The text still fills the
+ *  `title`, so a rich cell the column is too narrow for is readable the same
+ *  way a plain one is. */
+function DataTableCell({
+  column,
+  value,
+  node,
+}: {
+  column: DataTableColumn;
+  value: string;
+  node: ReactNode;
+}) {
+  const empty = value === "" && node === undefined;
   return (
     <span
       className={`data-table-cell${column.mono ? " mono" : ""}${empty ? " empty" : ""}`}
-      title={empty ? undefined : value}
+      title={value === "" ? undefined : value}
+      style={{ flexBasis: column.width }}
     >
-      {empty ? "—" : value}
+      {node ?? (empty ? "—" : value)}
     </span>
   );
 }
@@ -99,14 +113,19 @@ function DataTableRowHead({
   return (
     <button type="button" className="data-table-row-head" aria-expanded={open} onClick={onToggle}>
       <Caret open={open} />
-      <code className="data-table-lead">{row.lead}</code>
+      <code className="data-table-lead">{row.leadNode ?? row.lead}</code>
       {row.badge === undefined ? null : (
         <span className="pill pill-warn data-table-badge" title={row.badge.title}>
           {row.badge.text}
         </span>
       )}
       {columns.map((column) => (
-        <DataTableCell key={column.id} column={column} value={row.cells[column.id] ?? ""} />
+        <DataTableCell
+          key={column.id}
+          column={column}
+          value={row.cells[column.id] ?? ""}
+          node={row.cellNodes?.[column.id]}
+        />
       ))}
     </button>
   );

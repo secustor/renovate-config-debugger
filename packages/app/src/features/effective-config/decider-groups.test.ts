@@ -6,7 +6,7 @@ import type {
 } from "@renovate-config-debugger/engine";
 import { expect, it } from "vitest";
 import {
-  deciderHeadline,
+  deciderHead,
   decidedBy,
   groupByDecider,
   presetDeciderName,
@@ -122,28 +122,30 @@ it("names one extend, counts the rest, and stays generic with none", () => {
   expect(presetDeciderName([])).toBeNull();
 });
 
-it("heads each band with what the group means, not just its size", () => {
-  expect(deciderHeadline("preset", 24, "config:recommended")).toEqual({
-    lead: "config:recommended decided",
-    count: "24 options",
-    note: null,
+/**
+ * Roadmap 092: the group header is a PROSE title and one toned pill; the count
+ * beside it is the standard table's own, off the rows it is showing. The tones
+ * are the app's existing `.pill-*` suffixes, so a header and the layer chips on
+ * its rows cannot disagree about the hue a level wears.
+ */
+it("heads each group with prose and its layer's own pill", () => {
+  expect(deciderHead("preset", "config:recommended")).toEqual({
+    title: "config:recommended",
+    pill: { label: "presets", tone: "preset" },
   });
   // No resolved top-level preset to name — the generic wording, not a blank.
-  expect(deciderHeadline("preset", 1, null)).toEqual({
-    lead: "Presets decided",
-    count: "1 option",
-    note: null,
+  expect(deciderHead("preset", null)).toEqual({
+    title: "Presets",
+    pill: { label: "presets", tone: "preset" },
   });
-  expect(deciderHeadline("repo", 4)).toEqual({
-    lead: "Your repo config decided",
-    count: "4 options",
-    note: "— the ones you can edit directly",
+  expect(deciderHead("repo")).toEqual({
+    title: "Your repo config",
+    pill: { label: "repo config", tone: "accent" },
   });
-  // The defaults header carries its count in the lead — the design paints the
-  // whole line muted, so there is nothing for the hued count span to hold.
-  expect(deciderHeadline("defaults", 34)).toEqual({
-    lead: "Renovate defaults filled the remaining 34",
-    count: null,
-    note: "— nothing in your run touched them",
+  expect(deciderHead("defaults")).toEqual({
+    title: "Renovate defaults",
+    pill: { label: "defaults", tone: "muted" },
   });
+  // Only the presets group takes a name from the run.
+  expect(deciderHead("global", "config:recommended").title).toBe("The global config");
 });

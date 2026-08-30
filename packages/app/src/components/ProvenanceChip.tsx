@@ -58,7 +58,7 @@ export function ProvenanceChip({
           // own row-toggle button, and buttons cannot nest — stopPropagation
           // keeps the row from toggling too.
           <span
-            // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- the one hit of this rule naming a tag the app would otherwise want, and it cannot have it: the comment above is the reason, and the ledger's `KeyRow` header describes the same arrangement for `OptionKey`. A button has no content model that admits another button, so the browser would break the nesting apart and the row would lose its toggle. The Enter/Space handling a real button gives for free is implemented below precisely because of this.
+            // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- the one hit of this rule naming a tag the app would otherwise want, and it cannot have it: the comment above is the reason, and the effective config's row lead describes the same arrangement for `OptionKey`. A button has no content model that admits another button, so the browser would break the nesting apart and the row would lose its toggle. The Enter/Space handling a real button gives for free is implemented below precisely because of this.
             role="button"
             tabIndex={0}
             className={className}

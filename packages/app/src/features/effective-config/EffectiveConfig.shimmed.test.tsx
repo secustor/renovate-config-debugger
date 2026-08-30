@@ -5,6 +5,11 @@
  * options" next to the tab badge's 0 on first paint, self-correcting only
  * once provenance resolved. The contract this locks: silence until real
  * numbers exist, and the first report already carries them.
+ *
+ * Roadmap 092 moved this tab onto the standard data table, so the locators are
+ * the table's (`.data-table-row-head`, `.data-table-lead`, `.data-table-group`)
+ * and everything that used to be a control in the tab's own toolbar row — the
+ * view switch, "only overridden" — is now behind the gear.
  */
 import { runPipeline } from "@renovate-config-debugger/engine";
 import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
@@ -13,15 +18,25 @@ import { EffectiveConfig } from "./EffectiveConfig";
 
 afterEach(cleanup);
 
+/** Open the display options, which is where the view, the quick filter, the
+ *  grouping and the columns live. Idempotent enough for a test: it opens the
+ *  popover if it is shut and leaves it open. */
+function openGear(view: { getByRole: (role: string, options: { name: string }) => HTMLElement }) {
+  const gear = view.getByRole("button", { name: "Display options" });
+  if (gear.getAttribute("aria-expanded") !== "true") {
+    fireEvent.click(gear);
+  }
+}
+
 /** The `description` row's head button, whatever else the run produced. */
 function descriptionRow(container: HTMLElement): HTMLElement {
-  const rows = [...container.querySelectorAll<HTMLElement>(".prov-row-head")];
+  const rows = [...container.querySelectorAll<HTMLElement>(".data-table-row-head")];
   const row = rows.find((head) =>
-    head.querySelector(".prov-key-name")?.textContent?.includes("description"),
+    head.querySelector(".data-table-lead")?.textContent?.includes("description"),
   );
   if (!row) {
     throw new Error(
-      `no description row among: ${rows.map((head) => head.querySelector(".prov-key-name")?.textContent).join(", ")}`,
+      `no description row among: ${rows.map((head) => head.querySelector(".data-table-lead")?.textContent).join(", ")}`,
     );
   }
   return row;
@@ -135,7 +150,7 @@ it("gives a non-string member of the description array its own ledger line", asy
 
   const view = render(<EffectiveConfig result={result} />);
 
-  await waitFor(() => expect(view.container.querySelector(".prov-row")).not.toBeNull());
+  await waitFor(() => expect(view.container.querySelector(".data-table-row")).not.toBeNull());
   const head = descriptionRow(view.container);
   // Counted apart rather than summed: "2 entries" would credit prose the array
   // does not contain, and the generic preview said only `[ 2 items ]`.
@@ -178,15 +193,19 @@ it("keeps the chain on every other key, winner first", async () => {
   });
 
   const view = render(<EffectiveConfig result={result} />);
-  await waitFor(() => expect(view.container.querySelector(".prov-row")).not.toBeNull());
+  await waitFor(() => expect(view.container.querySelector(".data-table-row")).not.toBeNull());
 
-  const rows = [...view.container.querySelectorAll<HTMLElement>(".prov-row-head")];
+  const rows = [...view.container.querySelectorAll<HTMLElement>(".data-table-row-head")];
   const rules = rows.find((head) =>
-    head.querySelector(".prov-key-name")?.textContent?.includes("packageRules"),
+    head.querySelector(".data-table-lead")?.textContent?.includes("packageRules"),
   );
   if (!rules) {
     throw new Error("no packageRules row");
   }
+  // Roadmap 016: the value cell frames the count rather than printing a bare
+  // `[ 1 item ]` — the one cell in this table that is prose, not a literal.
+  expect(rules.textContent).toContain("from your config");
+
   fireEvent.click(rules);
   expect(view.container.textContent).toContain("The cascade, bottom to top");
   expect(view.container.textContent).not.toContain("Override chain");
@@ -222,7 +241,8 @@ it("keeps the chain on every other key, winner first", async () => {
  * Roadmap 069 (PR 3): the digest card's "show raw order" link promises the
  * description row. Landing has to CLEAR the filters, not just set the query —
  * "only overridden" left from earlier reading would hide the one row the link
- * exists to show.
+ * exists to show — and OPEN the row, which since 092 is the table's own
+ * expansion set, assigned from here through `openKeys`.
  */
 it("clears the other filters when the digest card lands on the description row", async () => {
   const result = await runPipeline({
@@ -234,9 +254,10 @@ it("clears the other filters when the digest card lands on the description row",
   });
 
   const view = render(<EffectiveConfig result={result} />);
-  await waitFor(() => expect(view.container.querySelector(".prov-row")).not.toBeNull());
+  await waitFor(() => expect(view.container.querySelector(".data-table-row")).not.toBeNull());
 
   // Reading state a user can easily be in, and one that can never show this row.
+  openGear(view);
   const onlyOverridden = view.getByLabelText("only overridden");
   fireEvent.click(onlyOverridden);
   expect(view.container.querySelector(".desc-ledger")).toBeNull();
@@ -245,39 +266,35 @@ it("clears the other filters when the digest card lands on the description row",
 
   await waitFor(() => expect(view.container.querySelector(".desc-ledger")).not.toBeNull());
   expect(descriptionRow(view.container).textContent).toContain("strings");
-  expect((onlyOverridden as HTMLInputElement).checked).toBe(false);
+  expect((view.getByLabelText("only overridden") as HTMLInputElement).checked).toBe(false);
+  expect((view.getByPlaceholderText("Filter keys…") as HTMLInputElement).value).toBe("description");
 });
 
 /**
  * Roadmap 075 (iteration 5): the rows are cut by WHO DECIDED each key's final
  * value. The rule itself is unit tested (decider-groups.test.ts) against
- * hand-built chains; what this covers is the wiring against a REAL run — that
- * a key the repo config wrote, a key a preset wrote and a key only Renovate's
- * defaults set each land in their own section, that the defaults section is
- * folded shut until asked for, and that the filter narrows a section while its
- * header keeps reporting the group's honest size.
+ * hand-built chains; what this covers is the wiring against a REAL run — that a
+ * key the repo config wrote, a key a preset wrote and a key only Renovate's
+ * defaults set each land in their own group, in that order, each headed by the
+ * design's prose title and its layer's pill.
  */
-function sectionOf(container: HTMLElement, id: string): HTMLElement {
-  const section = container.querySelector<HTMLElement>(`.prov-section-${id}`);
-  if (!section) {
+function groupOf(container: HTMLElement, title: string): HTMLElement {
+  const groups = [...container.querySelectorAll<HTMLElement>(".data-table-group")];
+  const group = groups.find(
+    (candidate) => candidate.querySelector(".data-table-group-title")?.textContent === title,
+  );
+  if (!group) {
     throw new Error(
-      `no ${id} section among: ${[...container.querySelectorAll(".prov-section")]
-        .map((s) => s.className)
+      `no “${title}” group among: ${groups
+        .map((candidate) => candidate.querySelector(".data-table-group-title")?.textContent)
         .join(", ")}`,
     );
   }
-  return section;
+  return group;
 }
 
-function keysIn(section: HTMLElement): string[] {
-  return [...section.querySelectorAll(".prov-row-head .prov-key-name")].map((el) =>
-    (el.textContent ?? "").replace(/[▾▸]/g, "").trim(),
-  );
-}
-
-/** The rows of a band, including the defaults band's inert ones. */
-function defaultKeysIn(section: HTMLElement): string[] {
-  return [...section.querySelectorAll(".prov-row-default .prov-key-name")].map((el) =>
+function keysIn(group: HTMLElement): string[] {
+  return [...group.querySelectorAll(".data-table-row-head .data-table-lead")].map((el) =>
     (el.textContent ?? "").trim(),
   );
 }
@@ -295,62 +312,90 @@ it("groups the rows by the layer that decided each key", async () => {
   });
 
   const view = render(<EffectiveConfig result={result} />);
-  await waitFor(() => expect(view.container.querySelector(".prov-row")).not.toBeNull());
+  await waitFor(() => expect(view.container.querySelector(".data-table-row")).not.toBeNull());
 
-  expect(keysIn(sectionOf(view.container, "repo"))).toContain("labels");
-  expect(keysIn(sectionOf(view.container, "preset"))).toContain("dependencyDashboard");
-  // Each key is in exactly one section — the sections partition the rows.
-  expect(keysIn(sectionOf(view.container, "preset"))).not.toContain("labels");
-  // Roadmap 082 (GAP-3): the presets band is named after the reader's extends.
-  expect(sectionOf(view.container, "preset").textContent).toContain(":dependencyDashboard decided");
+  // Roadmap 082 (GAP-3): the presets group is named after the reader's extends.
+  const titles = [...view.container.querySelectorAll(".data-table-group-title")].map(
+    (el) => el.textContent,
+  );
+  expect(titles).toEqual(["Your repo config", ":dependencyDashboard", "Renovate defaults"]);
 
-  // Roadmap 082 (GAP-4): the defaults band is ALWAYS here — folded shut, not
-  // filtered away behind a checkbox that had to be found first.
-  const defaults = sectionOf(view.container, "defaults");
-  expect(defaults.getAttribute("open")).toBeNull();
-  expect(defaults.textContent).toContain("nothing in your run touched them");
+  expect(keysIn(groupOf(view.container, "Your repo config"))).toContain("labels");
+  expect(keysIn(groupOf(view.container, ":dependencyDashboard"))).toContain("dependencyDashboard");
+  // Each key is in exactly one group — the groups partition the rows.
+  expect(keysIn(groupOf(view.container, ":dependencyDashboard"))).not.toContain("labels");
+
+  // Each group wears its layer's own pill, in the app's existing tones.
+  expect(
+    groupOf(view.container, "Your repo config").querySelector(".pill-accent")?.textContent,
+  ).toBe("repo config");
+  expect(
+    groupOf(view.container, ":dependencyDashboard").querySelector(".pill-preset")?.textContent,
+  ).toBe("presets");
+
+  // Roadmap 082 (GAP-4)/092: the defaults are ALWAYS here — a group of the same
+  // table, never filtered away behind a checkbox, and never capped.
+  const defaults = groupOf(view.container, "Renovate defaults");
+  expect(defaults.querySelector(".pill-muted")?.textContent).toBe("defaults");
+  expect(keysIn(defaults)).toContain("rangeStrategy");
+  expect(keysIn(defaults).length).toBeGreaterThan(8);
   expect(view.queryByLabelText(/show default-only/)).toBeNull();
 
-  fireEvent.click(view.getByText(/Renovate defaults filled the remaining/));
-  await waitFor(() => expect(sectionOf(view.container, "defaults").getAttribute("open")).toBe(""));
-  const opened = sectionOf(view.container, "defaults");
-  // GAP-6: the rows are inert — no caret, no button, no cascade to open.
-  expect(opened.querySelector(".prov-row-head")).toBeNull();
-  // GAP-5/GAP-7: the band stops at the cap and says so, under the one honest
-  // note that covers every row above it.
-  expect(opened.querySelectorAll(".prov-row-default")).toHaveLength(8);
-  expect(opened.textContent).toContain("more defaults — show all");
-  expect(opened.textContent).toContain("only the default ever touched these");
-
-  fireEvent.click(view.getByRole("button", { name: /more defaults — show all/ }));
-  const shown = sectionOf(view.container, "defaults");
-  expect(shown.querySelectorAll(".prov-row-default").length).toBeGreaterThan(8);
-  expect(defaultKeysIn(shown)).toContain("rangeStrategy");
+  // …and the footer accounts for every row in the table, defaults included.
+  expect(view.container.textContent).toContain("effective options · hover any key");
+  expect(view.container.textContent).toContain("only the default ever touched them");
 });
 
-it("heads each band with the rows it is showing", async () => {
+it("heads each group with the rows it is showing", async () => {
   const result = await runPipeline({
     fileName: "renovate.json",
     content: JSON.stringify({ labels: ["dependencies"], automerge: true, rebaseWhen: "auto" }),
   });
 
   const view = render(<EffectiveConfig result={result} />);
-  await waitFor(() => expect(view.container.querySelector(".prov-row")).not.toBeNull());
+  await waitFor(() => expect(view.container.querySelector(".data-table-row")).not.toBeNull());
 
-  const repo = sectionOf(view.container, "repo");
+  const repo = groupOf(view.container, "Your repo config");
   const total = keysIn(repo).length;
   expect(total).toBeGreaterThan(1);
-  expect(repo.textContent).toContain(`Your repo config decided ${total} options`);
+  expect(repo.querySelector(".data-table-group-count")?.textContent).toBe(`${total} options`);
 
-  // Roadmap 082 (GAP-20): the "N of M shown" pill is gone with the layer
-  // filters — a narrowed band simply reports what it is showing, which is the
-  // only number the reader can check.
+  // A narrowed group reports what it is SHOWING — the only number the reader
+  // can check against the rows under the header.
   fireEvent.change(view.getByPlaceholderText("Filter keys…"), { target: { value: "labels" } });
-  await waitFor(() => expect(keysIn(sectionOf(view.container, "repo"))).toEqual(["labels"]));
-  expect(sectionOf(view.container, "repo").textContent).toContain(
-    "Your repo config decided 1 option",
+  await waitFor(() =>
+    expect(keysIn(groupOf(view.container, "Your repo config"))).toEqual(["labels"]),
   );
-  expect(view.container.querySelector(".prov-section-shown")).toBeNull();
+  expect(
+    groupOf(view.container, "Your repo config").querySelector(".data-table-group-count")
+      ?.textContent,
+  ).toBe("1 option");
+});
+
+/**
+ * Roadmap 092: "only overridden" is the table's quick filter now — a checkbox
+ * in the gear's Filter section rather than a control in a toolbar row of this
+ * tab's own, composed with the text filter as AND.
+ */
+it("narrows to the overridden rows from the gear's quick filter", async () => {
+  const result = await runPipeline({
+    fileName: "renovate.json",
+    content: JSON.stringify({
+      extends: [":dependencyDashboard"],
+      labels: ["dependencies"],
+    }),
+  });
+
+  const view = render(<EffectiveConfig result={result} />);
+  await waitFor(() => expect(view.container.querySelector(".data-table-row")).not.toBeNull());
+  const all = view.container.querySelectorAll(".data-table-row").length;
+
+  openGear(view);
+  fireEvent.click(view.getByLabelText("only overridden"));
+  const narrowed = view.container.querySelectorAll(".data-table-row").length;
+  expect(narrowed).toBeLessThan(all);
+  // The defaults are the first thing it drops: nothing in the run touched them.
+  expect(view.container.textContent).not.toContain("Renovate defaults");
 });
 
 /**
@@ -372,8 +417,9 @@ it("attributes the description strings of the As-JSON document", async () => {
 
   const onSelectPreset = vi.fn();
   const view = render(<EffectiveConfig result={result} onSelectPreset={onSelectPreset} />);
-  await waitFor(() => expect(view.getByRole("radio", { name: "As JSON" })).toBeTruthy());
-  fireEvent.click(view.getByRole("radio", { name: "As JSON" }));
+  await waitFor(() => expect(view.container.querySelector(".data-table-row")).not.toBeNull());
+  openGear(view);
+  fireEvent.click(view.getByRole("button", { name: "As JSON" }));
   await waitFor(() => expect(view.container.querySelector(".config-view")).toBeTruthy());
 
   // Default mode keeps `:dependencyDashboard` as an `extends` reference, so the
@@ -421,7 +467,8 @@ it("attributes the description strings of the As-JSON document", async () => {
 /**
  * Roadmap 082: the toolbar's copy. It is the design's one-click way to the
  * resolved document, and it must be reachable from the row view — which is
- * where a reader spends the tab — not only from As JSON.
+ * where a reader spends the tab — not only from As JSON. Since 092 it is the
+ * standard table's `copy` slot, which draws nothing until the payload exists.
  */
 it("offers the resolved document from the toolbar in both views", async () => {
   const result = await runPipeline({
@@ -434,11 +481,12 @@ it("offers the resolved document from the toolbar in both views", async () => {
     view.getByRole("button", { name: "Copy effective config as JSON" }),
   );
   // …while the By-key view is still the one on screen.
-  expect(view.getByRole("radio", { name: "By key" }).getAttribute("aria-checked")).toBe("true");
-  expect(copy.title).toBe("Copy effective config as JSON");
+  expect(view.container.querySelector(".data-table-head")).not.toBeNull();
+  expect(copy.className).toContain("data-table-copy");
 
   // And it stays put in As JSON, beside that view's own labelled copy.
-  fireEvent.click(view.getByRole("radio", { name: "As JSON" }));
+  openGear(view);
+  fireEvent.click(view.getByRole("button", { name: "As JSON" }));
   await waitFor(() =>
     expect(view.getByRole("button", { name: "Copy resolved config" })).toBeTruthy(),
   );
@@ -446,11 +494,11 @@ it("offers the resolved document from the toolbar in both views", async () => {
 });
 
 /**
- * Roadmap 082 (GAP-1/GAP-2): ONE toolbar row, in both views — filter, "only
- * overridden", the view switch, the copy. The two controls the design does not
- * have (the layer `<select>`, the "show default-only" checkbox) are gone, and
- * the two that survive stay on screen in the As-JSON view, where they are inert
- * rather than absent: they narrow ROWS, and that document is copied whole.
+ * Roadmap 092 (was 082's GAP-1/GAP-2): ONE toolbar row, the table's own, in
+ * both views. The row filters stay on screen in the As-JSON view, where they
+ * are inert rather than absent: they narrow ROWS, and that document is copied
+ * whole. The two controls the design never had (the layer `<select>`, the "show
+ * default-only" checkbox) are still gone.
  */
 it("keeps one toolbar in both views, with the row filters inert over the document", async () => {
   const result = await runPipeline({
@@ -459,21 +507,23 @@ it("keeps one toolbar in both views, with the row filters inert over the documen
   });
 
   const view = render(<EffectiveConfig result={result} />);
-  await waitFor(() => expect(view.container.querySelector(".prov-row")).not.toBeNull());
+  await waitFor(() => expect(view.container.querySelector(".data-table-row")).not.toBeNull());
 
-  expect(view.container.querySelectorAll(".prov-toolbar")).toHaveLength(1);
+  expect(view.container.querySelectorAll(".data-table-toolbar")).toHaveLength(1);
   expect(view.queryByLabelText("Filter keys by layer")).toBeNull();
   expect(view.queryByLabelText(/show default-only/)).toBeNull();
 
   const filter = view.getByPlaceholderText("Filter keys…");
-  const onlyOverridden = view.getByLabelText("only overridden");
   expect((filter as HTMLInputElement).disabled).toBe(false);
 
-  fireEvent.click(view.getByRole("radio", { name: "As JSON" }));
+  openGear(view);
+  fireEvent.click(view.getByRole("button", { name: "As JSON" }));
   await waitFor(() => expect(view.getByLabelText("Expand presets:")).toBeTruthy());
-  expect(view.getByPlaceholderText("Filter keys…")).toBeTruthy();
   expect((view.getByPlaceholderText("Filter keys…") as HTMLInputElement).disabled).toBe(true);
-  expect((onlyOverridden as HTMLInputElement).disabled).toBe(true);
+  openGear(view);
+  expect((view.getByLabelText("only overridden") as HTMLInputElement).disabled).toBe(true);
+  // The footer belongs to the rows; the document has its own trailing notes.
+  expect(view.container.textContent).not.toContain("hover any key for Renovate’s docs");
 });
 
 /**
@@ -492,12 +542,12 @@ it("calls out a repo line that repeats what a preset already set", async () => {
   });
 
   const view = render(<EffectiveConfig result={result} />);
-  await waitFor(() => expect(view.container.querySelector(".prov-row")).not.toBeNull());
+  await waitFor(() => expect(view.container.querySelector(".data-table-row")).not.toBeNull());
 
   const note = view.getByText("also set by :dependencyDashboard — same value");
   expect(note.className).toContain("warn");
-  // The band header names the deciding layer, so the row's third cell no longer
-  // repeats it as a chip (GAP-19).
-  const row = note.closest(".prov-row-head");
+  // The group header names the deciding layer, so the row's third cell no
+  // longer repeats it as a chip (GAP-19).
+  const row = note.closest(".data-table-row-head");
   expect(row?.querySelector(".badge.prov-layer")).toBeNull();
 });
