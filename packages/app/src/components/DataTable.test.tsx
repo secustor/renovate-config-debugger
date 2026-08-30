@@ -1,4 +1,5 @@
-import { cleanup, fireEvent, render, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, within } from "@testing-library/react";
+import { createRef } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DataTable } from "./DataTable";
 import type { DataTableColumn, DataTableGrouping, DataTableRow } from "./data-table";
@@ -171,5 +172,240 @@ describe("DataTable", () => {
     const view = renderTable();
     const badge = view.getByText("custom.regex");
     expect(badge.getAttribute("title")).toBe("a user-defined rule");
+  });
+
+  it("shows neither a View section, a Filter section nor a copy button unasked", () => {
+    const view = renderTable();
+    openOptions(view);
+    expect(view.queryByRole("group", { name: "View" })).toBeNull();
+    expect(view.queryByRole("group", { name: "Filter" })).toBeNull();
+    expect(view.container.querySelector(".copy-btn")).toBeNull();
+  });
+});
+
+/**
+ * The optional capabilities the artboard specifies and the first consumer had
+ * no use for: a view picker with an alternate rendering, a copy button, a quick
+ * filter, toned group headers, and a prepared block inside the open row.
+ */
+
+const VIEWS = [
+  { id: "table", label: "By key" },
+  { id: "json", label: "As JSON" },
+];
+
+function renderExtras(props: Partial<Parameters<typeof DataTable>[0]> = {}) {
+  return render(
+    <DataTable
+      rows={ROWS}
+      columns={COLUMNS}
+      groupings={[]}
+      leadLabel="Dependency"
+      rowNoun={{ one: "dependency", many: "dependencies" }}
+      filterPlaceholder="Filter 2 dependencies…"
+      {...props}
+    />,
+  );
+}
+
+describe("DataTable — the view picker", () => {
+  it("renders as the FIRST section of the gear, and switches to the alt view", () => {
+    const view = renderExtras({
+      views: VIEWS,
+      altView: <pre>{"{}"}</pre>,
+      filtersInertTitle: "The JSON view is the whole document",
+      quickFilterLabel: "Only changed",
+    });
+    openOptions(view);
+
+    const labels = [...view.container.querySelectorAll(".data-table-option-label")];
+    expect(labels.map((el) => el.textContent)).toEqual(["View", "Filter", "Columns"]);
+
+    // The first view is the table, and it is the one that opens on.
+    const picker = view.getByRole("group", { name: "View" });
+    expect(
+      within(picker).getByRole("button", { name: "By key" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(view.container.querySelector(".data-table-head")).toBeTruthy();
+
+    fireEvent.click(within(picker).getByRole("button", { name: "As JSON" }));
+    // Header and rows are GONE — replaced by what the consumer supplied.
+    expect(view.container.querySelector(".data-table-head")).toBeNull();
+    expect(view.container.querySelectorAll(".data-table-row")).toHaveLength(0);
+    expect(view.container.querySelector("pre")?.textContent).toBe("{}");
+  });
+
+  it("makes both filters inert while the alt view is up, and says why", () => {
+    const view = renderExtras({
+      views: VIEWS,
+      altView: <pre>{"{}"}</pre>,
+      filtersInertTitle: "The JSON view is the whole document",
+      quickFilterLabel: "Only changed",
+    });
+    openOptions(view);
+    fireEvent.click(
+      within(view.getByRole("group", { name: "View" })).getByRole("button", { name: "As JSON" }),
+    );
+
+    const filter = view.getByRole("textbox", { name: "Filter 2 dependencies…" });
+    expect(filter.hasAttribute("disabled")).toBe(true);
+    expect(filter.getAttribute("title")).toBe("The JSON view is the whole document");
+    expect(view.getByRole("checkbox").hasAttribute("disabled")).toBe(true);
+  });
+
+  it("is controllable, and a stale id falls back to the table rather than blanking", () => {
+    const onViewChange = vi.fn();
+    const view = renderExtras({
+      views: VIEWS,
+      view: "gone",
+      onViewChange,
+      altView: <pre>{"{}"}</pre>,
+    });
+    // The controlled value names no view; the table is what is drawn.
+    expect(view.container.querySelector(".data-table-head")).toBeTruthy();
+
+    openOptions(view);
+    fireEvent.click(
+      within(view.getByRole("group", { name: "View" })).getByRole("button", { name: "As JSON" }),
+    );
+    // Controlled: the owner is told, and nothing moves until it says so.
+    expect(onViewChange).toHaveBeenCalledExactlyOnceWith("json");
+    expect(view.container.querySelector(".data-table-head")).toBeTruthy();
+  });
+});
+
+describe("DataTable — the copy button", () => {
+  it("appears only when a payload is given, and copies it lazily", async () => {
+    const writes: string[] = [];
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: async (text: string) => {
+          writes.push(text);
+        },
+      },
+    });
+    const getText = vi.fn(() => "the whole table");
+    const view = renderExtras({ copy: { getText, label: "Copy as JSON" } });
+
+    // Lazy: nothing is serialized until the reader asks.
+    expect(getText).not.toHaveBeenCalled();
+    await act(async () => {
+      fireEvent.click(view.getByRole("button", { name: "Copy as JSON" }));
+    });
+    expect(writes).toEqual(["the whole table"]);
+  });
+
+  it("draws nothing for a slot that is reserved but not ready", () => {
+    const view = renderExtras({ copy: null });
+    expect(view.container.querySelector(".copy-btn")).toBeNull();
+  });
+});
+
+describe("DataTable — the quick filter", () => {
+  const QF_ROWS: DataTableRow[] = [
+    { key: "a", lead: "react", cells: {}, groups: {}, fields: [], qf: true },
+    { key: "b", lead: "node", cells: {}, groups: {}, fields: [] },
+  ];
+
+  it("keeps only the opted-in rows, together with the text filter", () => {
+    const view = renderExtras({ rows: QF_ROWS, quickFilterLabel: "Only pinned" });
+    expect(view.container.querySelectorAll(".data-table-row")).toHaveLength(2);
+
+    openOptions(view);
+    fireEvent.click(view.getByRole("checkbox", { name: "Only pinned" }));
+    expect(view.container.querySelectorAll(".data-table-row")).toHaveLength(1);
+    expect(view.getByText("react")).toBeTruthy();
+
+    // AND, not either: the text filter still narrows what is left.
+    fireEvent.change(view.getByRole("textbox", { name: "Filter 2 dependencies…" }), {
+      target: { value: "node" },
+    });
+    expect(view.container.querySelectorAll(".data-table-row")).toHaveLength(0);
+  });
+
+  it("is controllable, so an owner can reset it", () => {
+    const onQuickFilter = vi.fn();
+    const view = renderExtras({
+      rows: QF_ROWS,
+      quickFilterLabel: "Only pinned",
+      quickFilterOn: false,
+      onQuickFilter,
+    });
+    openOptions(view);
+    fireEvent.click(view.getByRole("checkbox", { name: "Only pinned" }));
+    expect(onQuickFilter).toHaveBeenCalledExactlyOnceWith(true);
+    // Controlled: the table did not narrow itself.
+    expect(view.container.querySelectorAll(".data-table-row")).toHaveLength(2);
+  });
+});
+
+describe("DataTable — the controlled filter", () => {
+  it("shows the owner's query, reports edits, and hands over the field", () => {
+    const onQuery = vi.fn();
+    const filterRef = createRef<HTMLInputElement>();
+    const view = renderExtras({ query: "node", onQuery, filterRef });
+
+    const filter = view.getByRole("textbox", { name: "Filter 2 dependencies…" });
+    expect((filter as HTMLInputElement).value).toBe("node");
+    expect(view.container.querySelectorAll(".data-table-row")).toHaveLength(1);
+    // The ref is the field itself — a consumer that sets the query focuses it.
+    expect(filterRef.current).toBe(filter);
+
+    fireEvent.change(filter, { target: { value: "react" } });
+    expect(onQuery).toHaveBeenCalledExactlyOnceWith("react");
+    expect((filter as HTMLInputElement).value).toBe("node");
+  });
+});
+
+describe("DataTable — toned group heads and the row's detail block", () => {
+  const LAYER_ROWS: DataTableRow[] = [
+    {
+      key: "labels",
+      lead: "labels",
+      cells: { value: "[dependencies]" },
+      groups: {
+        layer: {
+          title: "Your repo config",
+          plainTitle: true,
+          pills: [{ label: "repo", tone: "accent" }],
+        },
+      },
+      detail: <div className="cascade">renovate.json → config:recommended</div>,
+      fields: [{ label: "type", value: "array" }],
+    },
+  ];
+
+  it("draws a plain title and the pills in the app's existing tones", () => {
+    const view = renderExtras({
+      rows: LAYER_ROWS,
+      groupings: [{ id: "layer", label: "Layer" }],
+      defaultGroupingId: "layer",
+    });
+
+    const title = view.container.querySelector(".data-table-group-title");
+    expect(title?.textContent).toBe("Your repo config");
+    expect(title?.className).toContain("plain");
+
+    const pill = view.container.querySelector(".data-table-group-pills .pill");
+    expect(pill?.textContent).toBe("repo");
+    // An existing tone class, not a color of the table's own.
+    expect(pill?.className).toBe("pill pill-accent");
+  });
+
+  it("renders the prepared detail block ABOVE the fields, only while open", () => {
+    const view = renderExtras({
+      rows: LAYER_ROWS,
+      groupings: [{ id: "layer", label: "Layer" }],
+      defaultGroupingId: "layer",
+    });
+    expect(view.container.querySelector(".cascade")).toBeNull();
+
+    fireEvent.click(view.getByRole("button", { name: /labels/ }));
+    const row = view.container.querySelector(".data-table-row.open");
+    expect(row?.querySelector(".cascade")?.textContent).toBe("renovate.json → config:recommended");
+    // Order is the design's: the block, then the definition list.
+    const parts = [...(row?.children ?? [])].map((el) => el.className);
+    expect(parts.indexOf("data-table-row-detail")).toBeLessThan(parts.indexOf("data-table-fields"));
   });
 });

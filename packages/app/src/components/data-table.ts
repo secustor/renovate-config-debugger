@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 /**
  * Roadmap 089 — the standard data table's SHAPES and the three pure decisions
  * it makes (what a filter keeps, how rows fall into groups, which columns are
@@ -32,12 +34,54 @@ export interface DataTableGrouping {
   label: string;
 }
 
-/** The group a row falls into under one grouping, and the token it contributes
- *  to that group's header pills (the design's manager pills on a package-file
- *  header). Distinct pills, in row order; absent = this grouping has none. */
+/**
+ * One alternate rendering of the same records. The FIRST view is always the
+ * table itself; every other one replaces the table's body with the node the
+ * consumer hands over (`DataTable`'s `altView`), because an alternate view of a
+ * record set is the consumer's document, not something a shared table could
+ * derive.
+ */
+export interface DataTableView {
+  id: string;
+  label: string;
+}
+
+/** The tones a group-header pill may wear — the SUFFIXES of the app's existing
+ *  `.pill-*` classes (`03-presets.css`), so a pill here can only ever be one of
+ *  the hues the rest of the app already uses. Absent = `muted`. */
+export type DataTablePillTone =
+  | "accent"
+  | "preset"
+  | "inherited"
+  | "global"
+  | "muted"
+  | "ok"
+  | "warn"
+  | "error"
+  | "count";
+
+/** A pill on a group header: what it says, and in which of the app's tones. */
+export interface DataTableGroupPill {
+  label: string;
+  tone?: DataTablePillTone;
+}
+
+/** The group a row falls into under one grouping, and the pills it contributes
+ *  to that group's header (the design's manager pills on a package-file header,
+ *  the layer pills on a decided-by header). Distinct pills, in row order;
+ *  absent = this grouping has none. */
 export interface DataTableRowGroup {
   title: string;
+  /** The plain, untoned pill — the first consumer's shape, kept because a
+   *  manager name is not making a claim that wants a hue. */
   pill?: string;
+  /** Toned pills, for a grouping whose headers mean something (a config
+   *  layer). Collected alongside `pill`, deduplicated by label. */
+  pills?: readonly DataTableGroupPill[];
+  /** Draw the title in the regular UI font rather than the mono face: a group
+   *  headed "Your repo config" is prose, a group headed `package.json` is a
+   *  path. Any row of the group asking for it decides for the group. */
+  plainTitle?: boolean;
 }
 
 /** A key/value line of the expanded row's definition list. */
@@ -57,6 +101,18 @@ export interface DataTableAction {
   onClick: () => void;
 }
 
+/**
+ * The toolbar's copy affordance. `getText` is LAZY, the rule roadmap 018 set:
+ * a table listing hundreds of rows must not serialize its payload on every
+ * render just in case somebody clicks. Handing `null` instead reserves the slot
+ * for a payload that is not ready yet and draws nothing.
+ */
+export interface DataTableCopy {
+  getText: () => string;
+  /** The accessible name — the button is icon-only in the toolbar's chrome. */
+  label: string;
+}
+
 /** The amber note a row wears beside its name: what it says, and why. */
 export interface DataTableBadge {
   text: string;
@@ -74,9 +130,19 @@ export interface DataTableRow {
    *  entry for puts it under {@link UNGROUPED_TITLE}. */
   groups: Record<string, DataTableRowGroup>;
   badge?: DataTableBadge;
+  /**
+   * A prepared block the open row draws ABOVE its fields — the design's slot
+   * for a record that has more to say than a definition list (the effective
+   * config's cascade stack). A NODE rather than a callback: the table stays
+   * data-driven, and a consumer that has nothing to add simply omits it.
+   */
+  detail?: ReactNode;
   /** The expanded body's definition list, in the order it should read. */
   fields: DataTableField[];
   actions?: DataTableAction[];
+  /** Opted in to the quick filter: when the gear's checkbox is on, only rows
+   *  with this set survive. Absent = out. */
+  qf?: boolean;
 }
 
 /** How a group header counts its rows. Both spellings, because `pluralWord`'s
@@ -99,22 +165,58 @@ export const UNGROUPED_TITLE = "—";
 export interface DataTableGroup {
   /** null = not grouped at all; the table then draws no header. */
   title: string | null;
-  pills: string[];
+  /** Normalized: both the plain `pill` and the toned `pills` a row declares
+   *  arrive here in one shape, so the header renders one list. */
+  pills: DataTableGroupPill[];
+  /** The title wants the regular UI font rather than the mono face. */
+  plainTitle: boolean;
   rows: DataTableRow[];
 }
 
 /**
- * Case-insensitive substring search over everything the row can SAY — its
- * lead, every cell (including the columns currently switched off, because a
- * reader searching for a manager name should find it whether or not that
- * column is on), and its group titles.
+ * The two filters, composed: the gear's quick filter first (it is a claim about
+ * the rows themselves — "only the ones I touched"), then the case-insensitive
+ * substring search over everything the row can SAY — its lead, every cell
+ * (including the columns currently switched off, because a reader searching for
+ * a manager name should find it whether or not that column is on), and its
+ * group titles.
+ *
+ * They compose with AND rather than either winning: a reader who has both on is
+ * asking for the intersection, and the toolbar shows both states at once.
  */
-export function filterDataRows(rows: readonly DataTableRow[], query: string): DataTableRow[] {
+export function filterDataRows(
+  rows: readonly DataTableRow[],
+  query: string,
+  quickFilterOn = false,
+): DataTableRow[] {
   const q = query.trim().toLowerCase();
-  if (q === "") {
-    return [...rows];
+  return rows.filter(
+    (row) => (!quickFilterOn || row.qf === true) && (q === "" || rowHaystack(row).includes(q)),
+  );
+}
+
+/**
+ * The view actually in force. A consumer that resets the view per run — or a
+ * stale id from anywhere — must not blank the table, so an id no list member
+ * carries falls back to the FIRST view, which is by definition the table
+ * itself. No views at all = nothing to pick, and the table is all there is.
+ */
+export function activeView(
+  views: readonly DataTableView[],
+  requested: string | null,
+): DataTableView | null {
+  const first = views[0];
+  if (first === undefined) {
+    return null;
   }
-  return rows.filter((row) => rowHaystack(row).includes(q));
+  return views.find((view) => view.id === requested) ?? first;
+}
+
+/** Whether the table body is what should be drawn — true whenever the active
+ *  view is the first one, and true when there are no views at all. */
+export function isTableView(views: readonly DataTableView[], requested: string | null): boolean {
+  const active = activeView(views, requested);
+  return active === null || active.id === views[0]?.id;
 }
 
 function rowHaystack(row: DataTableRow): string {
@@ -139,7 +241,7 @@ export function groupDataRows(
   groupingId: string | null,
 ): DataTableGroup[] {
   if (groupingId === null) {
-    return [{ title: null, pills: [], rows: [...rows] }];
+    return [{ title: null, pills: [], plainTitle: false, rows: [...rows] }];
   }
   const groups = new Map<string, DataTableGroup>();
   for (const row of rows) {
@@ -147,15 +249,42 @@ export function groupDataRows(
     const title = entry?.title ?? UNGROUPED_TITLE;
     let group = groups.get(title);
     if (!group) {
-      group = { title, pills: [], rows: [] };
+      group = { title, pills: [], plainTitle: entry?.plainTitle === true, rows: [] };
       groups.set(title, group);
     }
     group.rows.push(row);
-    if (entry?.pill !== undefined && entry.pill !== "" && !group.pills.includes(entry.pill)) {
-      group.pills.push(entry.pill);
+    for (const pill of rowGroupPills(entry)) {
+      if (!group.pills.some((seen) => seen.label === pill.label)) {
+        group.pills.push(pill);
+      }
     }
   }
   return [...groups.values()];
+}
+
+/** A row's contribution to its group header, in one shape: the untoned `pill`
+ *  first (it is the older, terser spelling of the same thing), then the toned
+ *  ones. Deduplication is the caller's, by label. */
+function rowGroupPills(entry: DataTableRowGroup | undefined): DataTableGroupPill[] {
+  if (entry === undefined) {
+    return [];
+  }
+  const pills: DataTableGroupPill[] = [];
+  if (entry.pill !== undefined && entry.pill !== "") {
+    pills.push({ label: entry.pill });
+  }
+  for (const pill of entry.pills ?? []) {
+    if (pill.label !== "") {
+      pills.push(pill);
+    }
+  }
+  return pills;
+}
+
+/** The class list a group-header pill wears: the app's `.pill` plus one of its
+ *  existing tones, never a color of this table's own. */
+export function groupPillClass(pill: DataTableGroupPill): string {
+  return `pill pill-${pill.tone ?? "muted"}`;
 }
 
 /** The columns currently on, in the order they were declared — the header row

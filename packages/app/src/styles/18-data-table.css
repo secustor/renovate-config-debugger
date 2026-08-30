@@ -46,10 +46,23 @@
   padding: 0.25rem 0.5rem;
 }
 
+/* Inert while an alternate view is on screen: the view is a whole document,
+   and narrowing rows says nothing about it. */
+.data-table-filter:disabled {
+  color: var(--faint);
+  cursor: not-allowed;
+}
+
 .data-table-context {
   color: var(--muted);
   font-size: 0.75rem;
   white-space: nowrap;
+}
+
+/* The design's copy affordance, left of the gear — the app's own CopyButton in
+   its icon-only mode, so only its place in the row is this table's business. */
+.copy-btn.data-table-copy {
+  flex: none;
 }
 
 /* The gear and its popover. The popover's mechanics are the app's one
@@ -145,6 +158,22 @@
   font-weight: 600;
 }
 
+/* The quick filter: a checkbox rather than a pill, because it is one claim
+   about the rows being made or not, not one of a set. */
+.data-table-quick-filter {
+  align-items: center;
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  font-size: 0.72rem;
+  gap: 0.35rem;
+}
+
+.data-table-quick-filter:has(input:disabled) {
+  color: var(--faint);
+  cursor: not-allowed;
+}
+
 /* The column header row, and every row below it, share one grid-less flex
    rhythm: the lead takes the slack, each cell a fixed share. A cell that is
    too narrow for its value keeps the value in its `title`. */
@@ -197,6 +226,13 @@
   font-family: var(--font-mono);
   font-size: 0.76rem;
   font-weight: 600;
+}
+
+/* A title that is prose ("Your repo config") rather than a path — the mono
+   face would be claiming it is code. */
+.data-table-group-title.plain {
+  font-family: inherit;
+  font-size: 0.78rem;
 }
 
 .data-table-group-pills {
@@ -293,6 +329,14 @@
 .data-table-action:hover {
   border-color: var(--accent-border);
   color: var(--accent);
+}
+
+/* The open row's prepared block, above the fields — whatever the consumer has
+   to say that a definition list cannot. Full-width, like the fields, because
+   the row is a flex container and each opened part claims its own line. */
+.data-table-row-detail {
+  flex: 1 0 100%;
+  padding: 0.35rem 0 0 1.5rem;
 }
 
 /* The open row's record: the descriptor, field by field. */
