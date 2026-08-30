@@ -157,15 +157,36 @@ describe("DataTable", () => {
     expect(view.queryByText("datasource")).toBeNull();
   });
 
-  it("fires a row action without also toggling the row", () => {
+  it("keeps the row actions for the OPEN row, under its record", () => {
     const view = renderTable();
+    // A list of two hundred rows each wearing two buttons is chrome nobody
+    // asked for — and a row that ends in buttons is a row whose cells stop
+    // short of the header's columns.
+    expect(view.queryByRole("button", { name: "Pin as test" })).toBeNull();
+
     const head = view.getByRole("button", { name: /react/ });
+    fireEvent.click(head);
+    const row = view.container.querySelector(".data-table-row.open");
+    const parts = [...(row?.children ?? [])].map((el) => el.className);
+    expect(parts.indexOf("data-table-fields")).toBeLessThan(
+      parts.indexOf("data-table-row-actions"),
+    );
 
     fireEvent.click(view.getByRole("button", { name: "Pin as test" }));
     expect(onPin).toHaveBeenCalledExactlyOnceWith("react");
     // The action is a SIBLING of the row button, not a child of it — nesting
-    // them would make every action click a disclosure toggle too.
-    expect(head.getAttribute("aria-expanded")).toBe("false");
+    // them would make every action click a disclosure toggle too, and the row
+    // would have closed under the click.
+    expect(head.getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("opens the header with an empty slot the width of a row's caret", () => {
+    // The header and the rows below it start on the same edge, which is what
+    // puts every column label over its own cells.
+    const view = renderTable();
+    const head = view.container.querySelector(".data-table-head");
+    expect(head?.firstElementChild?.className).toBe("data-table-head-caret");
+    expect(head?.firstElementChild?.getAttribute("aria-hidden")).toBe("true");
   });
 
   it("wears a row's badge with the explanation in its title", () => {

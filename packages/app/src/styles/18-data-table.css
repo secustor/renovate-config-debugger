@@ -10,6 +10,19 @@
    is here is only the table's own geometry. */
 
 .data-table {
+  /* ONE source for the geometry the header row and the data rows must agree
+     on. They are separate elements at different nesting depths, so the only
+     way "Current value" stays over the current values is for both to read the
+     same numbers. `--dt-caret` MUST equal `.caret`'s width (02-controls.css):
+     it is the empty slot the header opens with, standing in for the triangle
+     every row's disclosure button starts with. */
+  --dt-pad-x: 0.6rem;
+  --dt-gap: 0.5rem;
+  --dt-caret: 0.9rem;
+  --dt-cell: 8rem;
+  /* Where the open row's parts start: past the caret slot, under the lead. */
+  --dt-indent: calc(var(--dt-caret) + var(--dt-gap));
+
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
 }
@@ -69,24 +82,35 @@
    anchored-popover contract; only its box is here. */
 .data-table-options {
   display: inline-block;
+  flex: none;
   position: relative;
 }
 
+/* The gear is a BUTTON and has to look like one: a bare glyph on the toolbar's
+   ground read as decoration, and nobody clicked it. Same grammar as the
+   icon-only copy button standing next to it — the outline button's border,
+   radius and hover (02-controls.css `.btn-secondary`), at the icon-only
+   padding — so the two controls in this row are visibly the same kind of
+   thing. Not `.btn-secondary` itself: this one is square and centered on a
+   glyph rather than sized to a label. */
 .data-table-gear {
-  background: none;
-  border: 1px solid transparent;
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--muted);
   cursor: pointer;
+  display: inline-flex;
   font: inherit;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  justify-content: center;
   line-height: 1;
-  padding: 0.2rem 0.35rem;
+  padding: 0.25rem 0.4rem;
 }
 
 .data-table-gear:hover,
 .data-table-gear[aria-expanded="true"] {
-  border-color: var(--border);
+  border-color: var(--accent);
   color: var(--ink);
 }
 
@@ -175,13 +199,18 @@
 }
 
 /* The column header row, and every row below it, share one grid-less flex
-   rhythm: the lead takes the slack, each cell a fixed share. A cell that is
-   too narrow for its value keeps the value in its `title`. */
+   rhythm: a caret slot, the lead taking the slack, each cell a fixed share. A
+   cell that is too narrow for its value keeps the value in its `title`.
+
+   Every metric below comes from the `--dt-*` block at the top of this file, so
+   the header cannot line up with anything but the cells underneath it — the
+   header used to fake the caret with a left padding of its own, which drifted
+   the moment the gap or the caret changed. */
 .data-table-head,
 .data-table-row-head {
   align-items: center;
   display: flex;
-  gap: 0.5rem;
+  gap: var(--dt-gap);
   width: 100%;
 }
 
@@ -190,8 +219,14 @@
   color: var(--muted);
   font-size: 0.7rem;
   letter-spacing: 0.04em;
-  padding: 0.3rem 0.6rem 0.3rem 1.5rem;
+  padding: 0.3rem var(--dt-pad-x);
   text-transform: uppercase;
+}
+
+/* The empty slot standing where every row draws its triangle. */
+.data-table-head-caret {
+  flex: none;
+  width: var(--dt-caret);
 }
 
 .data-table-head-lead {
@@ -201,7 +236,7 @@
 
 .data-table-head-cell,
 .data-table-cell {
-  flex: 0 1 8rem;
+  flex: 0 1 var(--dt-cell);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -249,13 +284,14 @@
   white-space: nowrap;
 }
 
-/* A row is a disclosure button with its actions beside it, not inside it. */
+/* A row is a full-width disclosure button; everything else it has appears on
+   its own line once it is open. */
 .data-table-row {
   align-items: center;
   border-bottom: 1px solid var(--border);
   display: flex;
   flex-wrap: wrap;
-  padding: 0 0.6rem;
+  padding: 0 var(--dt-pad-x);
 }
 
 .data-table-row:last-child {
@@ -271,7 +307,7 @@
   border: none;
   color: inherit;
   cursor: pointer;
-  flex: 1 1 18rem;
+  flex: 1 1 100%;
   font: inherit;
   font-size: 0.8rem;
   padding: 0.3rem 0;
@@ -308,10 +344,14 @@
   flex: none;
 }
 
+/* The open row's acts, on their own line under the record — indented onto the
+   lead's edge, like everything else the row opens onto. */
 .data-table-row-actions {
   display: flex;
-  flex: none;
+  flex: 1 0 100%;
+  flex-wrap: wrap;
   gap: 0.3rem;
+  padding: 0 0 0.5rem var(--dt-indent);
 }
 
 .data-table-action {
@@ -336,7 +376,7 @@
    the row is a flex container and each opened part claims its own line. */
 .data-table-row-detail {
   flex: 1 0 100%;
-  padding: 0.35rem 0 0 1.5rem;
+  padding: 0.35rem 0 0 var(--dt-indent);
 }
 
 /* The open row's record: the descriptor, field by field. */
@@ -346,8 +386,14 @@
   font-size: 0.75rem;
   gap: 0.1rem 0.6rem;
   grid-template-columns: max-content minmax(0, 1fr);
-  margin: 0 0 0.5rem;
-  padding: 0.25rem 0 0 1.5rem;
+  margin: 0 0 0.4rem;
+  padding: 0.25rem 0 0 var(--dt-indent);
+}
+
+/* With no actions under them the fields ARE the bottom of the open row, and
+   they carry its bottom margin themselves. */
+.data-table-fields:last-child {
+  margin-bottom: 0.5rem;
 }
 
 .data-table-fields dt {

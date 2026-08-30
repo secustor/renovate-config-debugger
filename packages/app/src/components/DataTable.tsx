@@ -63,6 +63,11 @@ function useOptionallyControlled<T>(
   return [value ?? own, set];
 }
 
+/** The column header. It opens with an empty slot exactly the width of a row's
+ *  caret, so the header and the rows below it start on the same edge and every
+ *  cell lines up with the label above it — the metrics themselves are one set
+ *  of custom properties in `18-data-table.css`, shared by both, so they cannot
+ *  drift apart again. */
 function DataTableHead({
   leadLabel,
   columns,
@@ -72,6 +77,7 @@ function DataTableHead({
 }) {
   return (
     <div className="data-table-head">
+      <span className="data-table-head-caret" aria-hidden="true" />
       <span className="data-table-head-lead">{leadLabel}</span>
       {columns.map((column) => (
         <span key={column.id} className="data-table-head-cell">

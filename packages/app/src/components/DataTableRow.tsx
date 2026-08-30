@@ -11,16 +11,18 @@ import type {
 /**
  * Roadmap 089 — one row of the standard data table, and what it opens into.
  *
- * The row is a disclosure BUTTON carrying the lead and the active cells, with
- * the action buttons as its siblings rather than its children: nesting a
- * "Pin as test" button inside the row button would be invalid markup and would
- * make every action click also toggle the row.
+ * The row is a full-width disclosure BUTTON carrying the lead and the active
+ * cells, and everything else the row has is what OPENING it reveals, in the
+ * design's order: the prepared `detail` block (a record with more to say than
+ * key/value lines), the fields, then the actions.
  *
- * What the open row shows is the row model's, in the design's order: the
- * prepared `detail` block first (a record with more to say than key/value
- * lines), then the fields. Both are siblings of the head rather than children
- * of a wrapper, because the row is a flex container and each full-width part
- * claims its own line.
+ * The actions live in the open row rather than beside every collapsed one for
+ * two reasons: a list of two hundred rows each wearing two buttons is a wall of
+ * chrome nobody asked for, and a row that ends in buttons is a row whose cells
+ * stop short of the header's columns. They are still SIBLINGS of the head
+ * button, never its children — nesting a "Pin as test" button inside the
+ * disclosure would be invalid markup and would make every action click a row
+ * toggle too — and each opened part is a full-width line of the row's flex box.
  */
 
 function DataTableCell({ column, value }: { column: DataTableColumn; value: string }) {
@@ -126,11 +128,11 @@ export function DataTableRow({
   return (
     <div className={open ? "data-table-row open" : "data-table-row"}>
       <DataTableRowHead row={row} columns={columns} open={open} onToggle={onToggle} />
-      {actions.length === 0 ? null : <DataTableActions actions={actions} />}
       {open && row.detail !== undefined ? (
         <div className="data-table-row-detail">{row.detail}</div>
       ) : null}
       {open && row.fields.length > 0 ? <DataTableRowBody fields={row.fields} /> : null}
+      {open && actions.length > 0 ? <DataTableActions actions={actions} /> : null}
     </div>
   );
 }

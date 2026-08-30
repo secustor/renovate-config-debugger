@@ -93,7 +93,9 @@ export interface DataTableField {
   term?: TermId;
 }
 
-/** A button at the row's right — "Pin as test", "Open in simulator". */
+/** A button the OPEN row offers, below its fields — "Pin as test", "Open in
+ *  simulator". They belong to the open state: a collapsed row is a line in a
+ *  list the reader is scanning, not a place to act. */
 export interface DataTableAction {
   id: string;
   label: string;
