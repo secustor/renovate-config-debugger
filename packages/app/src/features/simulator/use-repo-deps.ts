@@ -19,12 +19,20 @@ import { useLatestRef } from "@/hooks/use-latest-ref";
 import { loadEngine } from "@/platform/engine-chunk";
 import { loadRepoFile, loadRepoTree } from "@/platform/run";
 import { causedErrorMessage } from "@/lib/errors";
-import type { LoadedRepo, RepoDep, RepoDepsView } from "@/types/repo";
+import type { LoadedRepo, RepoDep, RepoDepFile, RepoDepsView } from "@/types/repo";
 
 /** Every matched file is fetched by default; this is only a runaway backstop
  *  for pathological monorepos (each file is one request, and an anonymous
  *  GitHub session has 60 an hour). The view counts anything it drops. */
 const MAX_REPO_DEP_FILES = 500;
+
+/** A matched file the cap dropped: claimed, never fetched, so nothing at all
+ *  is known about what is inside it. */
+const NOT_READ: Pick<RepoDepFile, "outcome" | "extractedBy" | "depCount"> = {
+  outcome: "not-read",
+  extractedBy: null,
+  depCount: 0,
+};
 
 /** Renovate's own default ignorePaths, applied to the walk. */
 const IGNORED_PATH = /(^|\/)(node_modules|bower_components)\//;
@@ -51,30 +59,36 @@ async function discover(repo: LoadedRepo): Promise<RepoDepsView> {
   const tree = await loadRepoTree(request, opts);
   // One bulk pass over the tree (per-manager, inside the engine) — a
   // per-path scan would rebuild the manager table and its per-pattern debug
-  // strings tens of thousands of times on a large tree.
-  const candidates = engine.matchExtractablePaths(
+  // strings tens of thousands of times on a large tree. It hands back the
+  // ATTRIBUTION (which managers claim each path), which is what the Extract
+  // phase's first node reports on.
+  const walk = engine.matchExtractableManagers(
     tree.paths.filter((path) => !IGNORED_PATH.test(path)),
   );
   // Shallowest first (tree order as the tiebreak) before the cap: GitHub
   // lists the tree lexicographically, so ten `.github/workflows/*.yml`
   // files would otherwise spend the whole budget before `package.json` is
   // even reached.
-  const taken = candidates
-    .map((path, index) => ({ path, index, depth: path.split("/").length }))
+  const taken = walk.files
+    .map((match, index) => ({ path: match.path, index, depth: match.path.split("/").length }))
     .toSorted((a, b) => a.depth - b.depth || a.index - b.index)
     .slice(0, MAX_REPO_DEP_FILES)
     .map((entry) => entry.path);
-  let skippedFiles = candidates.length - taken.length;
+  let skippedFiles = walk.files.length - taken.length;
   // The file fetches are independent GETs — issued together. Extraction
   // stays sequential below: the engine serializes it (module-level renovate
   // state) against every other engine task.
   const contents = await Promise.all(taken.map((path) => loadRepoFile({ ...request, path }, opts)));
   const deps: RepoDep[] = [];
+  // What each READ file turned into, keyed by path; the files nothing is
+  // recorded for are the ones the cap dropped (`not-read` below).
+  const read = new Map<string, Pick<RepoDepFile, "outcome" | "extractedBy" | "depCount">>();
   let fileCount = 0;
   for (const [index, path] of taken.entries()) {
     const content = contents[index] ?? null;
     if (content === null) {
       skippedFiles += 1;
+      read.set(path, { outcome: "unreadable", extractedBy: null, depCount: 0 });
       continue;
     }
     const outcome = await engine.extractDeps({ fileName: path, content });
@@ -83,17 +97,35 @@ async function discover(repo: LoadedRepo): Promise<RepoDepsView> {
       if (outcome.reason !== "no-deps") {
         skippedFiles += 1;
       }
+      read.set(path, {
+        outcome: outcome.reason === "no-deps" ? "no-deps" : "error",
+        extractedBy: null,
+        depCount: 0,
+      });
       continue;
     }
     fileCount += 1;
-    deps.push(...repoDepsOfFile(outcome.file));
+    const rows = repoDepsOfFile(outcome.file);
+    deps.push(...rows);
+    read.set(path, {
+      outcome: "extracted",
+      extractedBy: outcome.file.manager,
+      depCount: rows.length,
+    });
   }
+  const files: RepoDepFile[] = walk.files.map((match) => ({
+    path: match.path,
+    managers: match.managers,
+    ...(read.get(match.path) ?? NOT_READ),
+  }));
   return {
     status: "ready",
     repo: repo.repo,
     deps,
     fileCount,
     skippedFiles,
+    files,
+    managersConsidered: walk.managersConsidered,
     truncated: tree.truncated,
     error: null,
   };

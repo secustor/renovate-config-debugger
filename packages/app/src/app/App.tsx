@@ -42,6 +42,7 @@ import { usePlatformContext } from "@/app/use-platform-context";
 import { useInheritedConfigLayer } from "@/app/use-inherited-config-layer";
 import { useRepoLoad } from "@/app/use-repo-load";
 import { useRepoDeps } from "@/features/simulator/use-repo-deps";
+import type { PipelinePhase } from "@/features/pipeline/phases";
 import { EMPTY_FORM } from "@/features/simulator/form";
 import { pinShareFields } from "@/features/simulator/pins";
 import { useRepoPicker } from "@/app/use-repo-picker";
@@ -553,18 +554,26 @@ export function App() {
   // Roadmap 078: the loaded repo's extracted dependencies — discovered on
   // demand (the first open of the From-repository tab), reset by a new load.
   const { view: repoDepsView, ensure: ensureRepoDeps } = useRepoDeps(loadedRepo);
-  // Roadmap 089: …and the Dependencies tab is the second door onto the same
-  // discovery. Opening it is what starts one, exactly as opening the
-  // From-repository tab is — the trigger lives HERE rather than in the panel
-  // because every results panel stays MOUNTED (028), so a panel-side effect
-  // would fire for a tab nobody has looked at and spend the rate limit on it.
-  // `ensure` is idempotent per loaded repo, so the two doors never discover
-  // twice.
+  /**
+   * Roadmap 090: which phase the Pipeline tab is showing. Here rather than in
+   * the panel because the phase is half of a discovery trigger (below), and
+   * because a phase the reader picked must survive a re-run — extraction is a
+   * fact about the REPOSITORY, so a new run of the config pipeline does not
+   * invalidate it.
+   */
+  const [pipelinePhase, setPipelinePhase] = useState<PipelinePhase>("config");
+  // Roadmap 089/090: …and the Dependencies tab and the Pipeline tab's Extract
+  // phase are the second and third doors onto the same discovery. Opening one
+  // is what starts it, exactly as opening the From-repository tab is — the
+  // trigger lives HERE rather than in the panel because every results panel
+  // stays MOUNTED (028), so a panel-side effect would fire for a tab nobody has
+  // looked at and spend the rate limit on it. `ensure` is idempotent per loaded
+  // repo, so the three doors never discover twice.
   useEffect(() => {
-    if (tab === "deps") {
+    if (tab === "deps" || (tab === "pipeline" && pipelinePhase === "extract")) {
       ensureRepoDeps();
     }
-  }, [tab, ensureRepoDeps]);
+  }, [tab, pipelinePhase, ensureRepoDeps]);
   // Roadmap 087: the connect panel's one-click reload — grants this session
   // repository ACCESS (the LoadedRepo record discovery runs from) without
   // touching the config the share link installed. It rides the current
@@ -1290,6 +1299,8 @@ export function App() {
       presetCount,
       effectiveKeys: effectiveStats?.keys ?? null,
       onShowRewrites,
+      pipelinePhase,
+      onSelectPipelinePhase: setPipelinePhase,
       selectedStage,
       onSelectStage: setSelectedStage,
       deferredStage,
@@ -1344,6 +1355,7 @@ export function App() {
       presetCount,
       effectiveStats,
       onShowRewrites,
+      pipelinePhase,
       selectedStage,
       deferredStage,
       migrateSteps,
@@ -1387,6 +1399,7 @@ export function App() {
       setSelectedNodeId,
       setMigrationStepIndex,
       setMergeStepIndex,
+      setPipelinePhase,
     ],
   );
 

@@ -88,7 +88,10 @@ export function ResultsColumn({
     onWalkTab,
     backTab,
     onBack,
+    onJumpToTab,
     validateHasErrors,
+    pipelinePhase,
+    onSelectPipelinePhase,
     selectPresetNode,
     focusEditorRepoIndex,
     errorLib,
@@ -272,8 +275,18 @@ export function ResultsColumn({
       ) : (
         <EmptyNote>Nothing to test — the pipeline produced no effective config.</EmptyNote>
       ),
+      // Roadmap 090: the tab leads with the phase picker now. The Config phase
+      // is exactly what this panel always was; the Extract phase draws 087's
+      // repository discovery — the same view the Dependencies tab renders as a
+      // table, here as the three steps that produced it.
       pipeline: (
         <PipelinePanel
+          phase={pipelinePhase}
+          onSelectPhase={onSelectPipelinePhase}
+          extract={repoDeps}
+          repoConnect={repoConnect}
+          onRetryExtract={onLoadRepoDeps}
+          onOpenDependencies={() => onJumpToTab("deps")}
           result={result}
           selectedStage={selectedStage}
           onSelectStage={onSelectStage}
@@ -357,6 +370,9 @@ export function ResultsColumn({
     selectPresetNode,
     focusEditorRepoIndex,
     errorLib,
+    onJumpToTab,
+    pipelinePhase,
+    onSelectPipelinePhase,
     selectedStage,
     onSelectStage,
     deferredStage,

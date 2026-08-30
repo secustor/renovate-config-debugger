@@ -421,6 +421,23 @@ const REPO_DEPS: RepoDepsView = {
   ],
   fileCount: 2,
   skippedFiles: 0,
+  files: [
+    {
+      path: "package.json",
+      managers: ["npm"],
+      extractedBy: "npm",
+      depCount: 1,
+      outcome: "extracted",
+    },
+    {
+      path: "Dockerfile",
+      managers: ["dockerfile"],
+      extractedBy: "dockerfile",
+      depCount: 1,
+      outcome: "extracted",
+    },
+  ],
+  managersConsidered: 100,
   truncated: false,
   error: null,
 };

@@ -10,7 +10,12 @@ import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { extractDeps, matchManagersForFile } from "../src/index";
+import {
+  EXTRACTABLE_MANAGERS,
+  extractDeps,
+  matchExtractableManagers,
+  matchManagersForFile,
+} from "../src/index";
 import { GlobalConfig } from "../src/renovate-adapter";
 import { EXTRACT_CASES, extractFixture, extractSnapshotPath } from "./extract-cases";
 import { must } from "./helpers";
@@ -84,6 +89,31 @@ describe("extractDeps (golden)", () => {
     expect(matchManagersForFile("Dockerfile")).toContain("dockerfile");
     expect(matchManagersForFile(".github/workflows/ci.yml")).toContain("github-actions");
     expect(matchManagersForFile("renovate.json")).not.toContain("npm");
+  });
+
+  it("attributes a repo walk's paths to the managers that claim them", () => {
+    const walk = matchExtractableManagers([
+      "README.md",
+      "package.json",
+      "node_modules/left-pad/package.json",
+      ".github/workflows/ci.yml",
+      "build.gradle",
+    ]);
+    // Input order, and only the paths an EXTRACTABLE manager claims — gradle
+    // matches but is not in the ledger, so `build.gradle` is not walked. The
+    // ignorePaths filter is the caller's, so a vendored manifest still matches.
+    expect(walk.files.map((file) => file.path)).toEqual([
+      "package.json",
+      "node_modules/left-pad/package.json",
+      ".github/workflows/ci.yml",
+    ]);
+    expect(walk.files[0]?.managers).toContain("npm");
+    expect(walk.files[2]?.managers).toContain("github-actions");
+    // The denominator the Extract phase's "K of N managers" quotes: every
+    // manager the walk actually asked, which is more than one and no more
+    // than the ledger.
+    expect(walk.managersConsidered).toBeGreaterThan(1);
+    expect(walk.managersConsidered).toBeLessThanOrEqual(EXTRACTABLE_MANAGERS.length);
   });
 
   it("reports an honest gap for a matched-but-unmapped manager", async () => {
