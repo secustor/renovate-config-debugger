@@ -60,11 +60,14 @@
   margin: 0;
 }
 
-/* The rows a card opens onto: a disclosure head, and a sublist under it. */
+/* The rows a card opens onto: a disclosure head, and a sublist under it.
+   `.card` is an unpadded shell (only its title pads itself), so each body
+   piece here carries the title's own 0.75rem side inset — without it the
+   text sits flush against the card border. */
 .extract-rows {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0.35rem 0.75rem;
 }
 
 .extract-row {
@@ -163,11 +166,12 @@
   color: var(--ok);
 }
 
-/* The card's small print: what this walk is not. One line per note. */
+/* The card's small print: what this walk is not. One line per note. The
+   rows' own bottom padding supplies part of the 0.5rem gap above. */
 .extract-notes {
   color: var(--muted);
   font-size: 0.7rem;
-  margin: 0.5rem 0 0;
+  margin: 0.15rem 0.75rem 0.6rem;
 }
 
 .extract-note-line {
@@ -179,5 +183,5 @@
 .extract-jump {
   display: inline-block;
   font-size: 0.75rem;
-  margin-top: 0.5rem;
+  margin: 0.15rem 0.75rem 0.6rem;
 }
