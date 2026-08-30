@@ -106,6 +106,11 @@ export default {
           "RCD_RELEASE=1 pnpm --filter @renovate-config-debugger/cli build",
         ].join(" && "),
         publishCmd: "node tools/release/publish.ts",
+        // Hands the published version to release.yml's docker-promotion step
+        // (roadmap 089). `success` only runs when a release actually shipped;
+        // the guard keeps a local run from tripping over the unset variable.
+        successCmd:
+          'test -z "$GITHUB_OUTPUT" || echo "version=${nextRelease.version}" >> "$GITHUB_OUTPUT"',
       },
     ],
     "@semantic-release/github",

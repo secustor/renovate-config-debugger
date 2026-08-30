@@ -147,6 +147,15 @@ personal-access-token fallback for GitHub Enterprise Server.
 > [!WARNING]
 > Docker setups are experimental at the moment.
 
+Image tags: `latest` and the bare version tags (`0.3.0`, …) are releases —
+`latest` moves only when a release is cut, and both are the exact digests CI
+built and attested for that commit. `main` tracks every merge, and `sha-<short>`
+pins one. Every published digest carries a signed build attestation:
+
+```bash
+gh attestation verify oci://ghcr.io/secustor/renovate-config-debugger:latest -R secustor/renovate-config-debugger
+```
+
 The app is a static bundle, so hosting it is the one container above. There is
 also [`docker-compose.yml`](docker-compose.yml), a worked example of both
 services with every optional variable present but commented out:
