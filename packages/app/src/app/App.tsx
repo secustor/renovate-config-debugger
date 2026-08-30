@@ -50,6 +50,7 @@ import { useRunSummary } from "@/app/use-run-summary";
 import { usePanelStats } from "@/app/use-panel-stats";
 import { usePinnedRun } from "@/app/use-pinned-run";
 import { useResultsTab } from "@/app/use-results-tab";
+import { useStarterPins } from "@/app/use-starter-pins";
 import { useShareLink } from "@/hooks/use-share-link";
 import type { RunInputs } from "@/lib/run-inputs";
 import { createRunQueue, type RunQueue } from "@/lib/run-queue";
@@ -234,7 +235,8 @@ export function App() {
    * the tab strip's count is one of the numbers `useRunSummary` assembles. The
    * evaluation itself is the panel's (`usePinnedTests`), keyed on the run.
    */
-  const { pins, addPin, removePin, setPinsFromShare, pinsAsShareFields } = usePinnedRun();
+  const { pins, addPin, removePin, seedStarterPins, setPinsFromShare, pinsAsShareFields } =
+    usePinnedRun();
   // Roadmap 028/069/083: the counts the results panels report back up (the
   // Effective tab's key tally, the Overview tab's behavior count) and the
   // ledger signal that goes the other way — as one hook, because a new run
@@ -330,6 +332,12 @@ export function App() {
   // owned by `useResultsTab` because arriving at a rule is a tab switch.)
   const configEditorRef = useRef<ConfigEditorHandle>(null);
   const ruleProvenance = useRuleProvenance(result);
+  // Roadmap 091: the first settled run seeds up to two starter pins from the
+  // reader's OWN rules (provenance is what makes "own" a fact), so the Tests
+  // pane the landing transition docks in has something to answer with. Once,
+  // and never over a reader who has pinned anything themselves — the latch is
+  // `usePinnedRun`'s.
+  useStarterPins({ result, ruleProvenance, seedStarterPins });
   /**
    * Roadmap 075 (iteration 3): the header's `N rewrites` link. The Rewrites tab
    * retired into Pipeline's migrate stage, so "show me the rewrites" is two

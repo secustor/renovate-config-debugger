@@ -51,6 +51,7 @@ function PinCardHead({
           context={pinContext(pin.form, outcome?.updateType ?? "")}
           summary={outcome ? headSummary(outcome) : null}
           pending={evaluation ? "not checked" : "checking…"}
+          starter={pin.starter === true}
         />
       </button>
       <button

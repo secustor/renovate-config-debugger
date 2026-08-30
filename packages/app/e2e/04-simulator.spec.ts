@@ -5,7 +5,14 @@ import {
   MERGE_STEPS_CONFIG,
   PACKAGE_RULES_CONFIG,
 } from "./fixtures";
-import { drawer, openSimulator, simulateQuickFill, tabButton } from "./helpers";
+import {
+  clearStarterPins,
+  drawer,
+  openSimulator,
+  openTab,
+  simulateQuickFill,
+  tabButton,
+} from "./helpers";
 
 /**
  * Journey 4 — the packageRules simulator. After a run whose config has a
@@ -101,6 +108,10 @@ test("focusing a pre-filled simulator field selects its content so typing replac
  */
 test("pinning from the detail view adds a standing test without leaving it", async ({ page }) => {
   await page.goto(await encodeShareFragment({ config: PACKAGE_RULES_CONFIG }));
+  // Roadmap 091: this config's own rule seeds a starter pin, and the count
+  // below is about the pin this test makes — so the starter goes first.
+  await openTab(page, "tests");
+  await clearStarterPins(page);
 
   const simulator = await openSimulator(page);
   await simulateQuickFill(simulator, "GitHub Action");

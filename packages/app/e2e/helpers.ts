@@ -206,6 +206,27 @@ export async function effectivePresetChip(page: Page): Promise<Locator> {
  *
  * Returns the simulator card, since every caller's next line asks it something.
  */
+/**
+ * Roadmap 091: removes the STARTER pins the shell seeds into an otherwise
+ * empty Tests tab (up to two, derived from the config's own `packageRules`),
+ * so a spec whose subject is the empty list — or its own pin, counted — sees
+ * the list it was written for.
+ *
+ * Waits for at least one starter first: seeding lands a beat after the run
+ * (it waits on the rule provenance), and a `toHaveCount(0)` that ran before it
+ * would pass and then be falsified. Every caller's config has own rules that
+ * derive one, which is why the wait is safe to make unconditional. Removal
+ * sticks for the session — the seeding latch — so one call is enough.
+ */
+export async function clearStarterPins(page: Page): Promise<void> {
+  const starters = page.locator(".pin-card", { has: page.locator(".pin-starter") });
+  await expect(starters.first()).toBeVisible();
+  for (let remaining = await starters.count(); remaining > 0; remaining--) {
+    await starters.first().locator(".pin-remove").click();
+  }
+  await expect(starters).toHaveCount(0);
+}
+
 export async function openSimulator(page: Page): Promise<Locator> {
   await openTab(page, "tests");
   const panel = tabPanel(page, "tests");
