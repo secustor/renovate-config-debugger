@@ -335,7 +335,10 @@ test("? opens the shortcut sheet, listing every global binding", async ({ page }
   await expect(sheet).toBeVisible();
   await expect(sheet).toContainText("Run the pipeline");
   await expect(sheet).toContainText("Jump to the config editor");
-  await expect(sheet).toContainText("1 – 6");
+  // Derived from the live tab count, never written out — 089's seventh tab
+  // (Dependencies) moved this range on its own, which is the property
+  // `shortcutSheet` was built for.
+  await expect(sheet).toContainText("1 – 7");
 
   // Escape stays out of the ladder — but the sheet claims it rather than
   // letting the dialog's default action close it (see the test below).
