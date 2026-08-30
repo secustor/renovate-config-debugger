@@ -6,6 +6,7 @@ import type { Command } from "./command";
 import { compareCommand } from "./commands/compare";
 import { digestCommand } from "./commands/digest";
 import { docsCommand } from "./commands/docs";
+import { extractCommand } from "./commands/extract";
 import { groupCommand } from "./commands/group";
 import { mcpCommand } from "./commands/mcp";
 import { provenanceCommand } from "./commands/provenance";
@@ -46,6 +47,7 @@ export const COMMANDS: readonly Command[] = [
   compareCommand,
   groupCommand,
   docsCommand,
+  extractCommand,
   mcpCommand,
 ];
 

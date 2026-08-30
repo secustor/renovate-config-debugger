@@ -31,19 +31,20 @@ rules. Everything merged into 34 effective options, 6 of them overridden along
 the way.
 ```
 
-| command      | question it answers                                  |
-| ------------ | ---------------------------------------------------- |
-| `digest`     | what happened in this run, in one paragraph          |
-| `validate`   | would Renovate refuse this config? (exit `2` if so)  |
-| `tree`       | which presets did the config pull in                 |
-| `provenance` | which preset set this option                         |
-| `resolved`   | the merged config Renovate would run with            |
-| `simulate`   | which `packageRules` match a hypothetical dependency |
-| `compare`    | did an edit change behavior                          |
-| `group`      | which groups form from several updates               |
-| `run`        | the whole trace                                      |
-| `docs`       | what an option means, and where it may go            |
-| `mcp`        | all of the above over MCP stdio                      |
+| command      | question it answers                                   |
+| ------------ | ----------------------------------------------------- |
+| `digest`     | what happened in this run, in one paragraph           |
+| `validate`   | would Renovate refuse this config? (exit `2` if so)   |
+| `tree`       | which presets did the config pull in                  |
+| `provenance` | which preset set this option                          |
+| `resolved`   | the merged config Renovate would run with             |
+| `simulate`   | which `packageRules` match a hypothetical dependency  |
+| `compare`    | did an edit change behavior                           |
+| `group`      | which groups form from several updates                |
+| `run`        | the whole trace                                       |
+| `docs`       | what an option means, and where it may go             |
+| `extract`    | which dependencies Renovate would extract from a file |
+| `mcp`        | all of the above over MCP stdio                       |
 
 ```console
 $ rcd validate renovate.json
@@ -54,6 +55,7 @@ $ rcd simulate renovate.json --dep '{"depName":"react","currentValue":"17.0.0","
 $ rcd compare before.json after.json --dep '{"depName":"react"}'
 $ rcd group renovate.json --dep '{"depName":"react","updateType":"minor"}' --dep '{"depName":"react-dom","updateType":"minor"}'
 $ rcd docs minimumReleaseAge
+$ rcd extract package.json
 $ echo '{"extends":["config:recommended"]}' | rcd run --stdin --format json --select status
 ```
 
@@ -108,6 +110,7 @@ The rest belong to one command each.
 |              | `--keys <a,b,…>`             | only these options of `--select final`                                  |
 |              | `--config-scope <which>`     | `full` (default) \| `package-rules`                                     |
 | `docs`       | `--search`                   | list options whose name matches                                         |
+| `extract`    | `--manager <name>`           | force this manager — the only door for a pattern-less manager           |
 
 ### What `docs` answers
 
@@ -518,6 +521,8 @@ inspection chooses the endpoint, the CLI withholds tokens and says so on stderr.
 `rcd mcp` speaks MCP over stdio — the same answers as the subcommands, better
 economics for a session. It takes no arguments and writes nothing but the
 protocol to stdout, so point any MCP-capable client at it as a stdio server.
+`extract` has no MCP tool of its own: the server describes one held config
+run, and file extraction is a different question from any of those tools.
 It speaks the 2026-07-28 protocol and the legacy 2025-era `initialize`
 handshake, chosen per connection.
 
