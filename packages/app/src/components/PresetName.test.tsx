@@ -1,5 +1,5 @@
 import type { PresetNode } from "@renovate-config-debugger/engine";
-import { act, cleanup, fireEvent, render } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ROOT_NODE_ID } from "@/lib/preset-tree-stats";
 import { HOVER_INTENT_DELAY_MS } from "./hover-gate";
@@ -37,7 +37,12 @@ const GROUP = node("p3", "group:monorepos", [DEEP]);
 const RECOMMENDED = node("p1", "config:recommended", [node("p2", ":dependencyDashboard"), GROUP]);
 const TREE = node(ROOT_NODE_ID, "(your config)", [RECOMMENDED]);
 
-function renderToken(props: { name: string; nodeId?: string; onClick?: () => void }) {
+function renderToken(props: {
+  name: string;
+  nodeId?: string;
+  onClick?: () => void;
+  showCopy?: boolean;
+}) {
   const onSelectPreset = vi.fn();
   const view = render(
     <PresetReferenceProvider value={{ root: TREE, onSelectPreset }}>
@@ -45,6 +50,19 @@ function renderToken(props: { name: string; nodeId?: string; onClick?: () => voi
     </PresetReferenceProvider>,
   );
   return { ...view, onSelectPreset };
+}
+
+function stubClipboard(): string[] {
+  const writes: string[] = [];
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: {
+      writeText: async (text: string) => {
+        writes.push(text);
+      },
+    },
+  });
+  return writes;
 }
 
 /** A genuine pointer hover: the move gate wants a `mousemove`, and 081's
@@ -174,5 +192,56 @@ describe("the standard hover card", () => {
     fireEvent.focus(getByRole("button", { name: "github>acme/private" }));
 
     expect(card()).toBeNull();
+  });
+});
+
+describe("the hover-copy affordance", () => {
+  // Real timers here: the shared `CopyButton`'s own copied-state timing is
+  // already pinned in `CopyButton.test.tsx`, and driving its async clipboard
+  // write plus its transient-state flush through fake timers (needed by the
+  // hover-intent tests above) would fight `waitFor`'s own polling.
+  beforeEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("copies the full name and flips to the shared copied state for 1.5s", async () => {
+    const writes = stubClipboard();
+    const { getByRole } = renderToken({ name: "github>acme/renovate-config:security" });
+
+    await act(async () => {
+      fireEvent.click(getByRole("button", { name: "Copy preset name" }));
+    });
+
+    expect(writes).toEqual(["github>acme/renovate-config:security"]);
+    await waitFor(() => {
+      expect(getByRole("button", { name: "Copy preset name" }).className).toContain("copied");
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1600));
+    });
+    expect(getByRole("button", { name: "Copy preset name" }).className).not.toContain("copied");
+  });
+
+  it("does not trigger the token's own click behavior", async () => {
+    stubClipboard();
+    const onClick = vi.fn();
+    const { getByRole } = renderToken({ name: "config:recommended", nodeId: "p1", onClick });
+
+    await act(async () => {
+      fireEvent.click(getByRole("button", { name: "Copy preset name" }));
+    });
+
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("is off where the caller says the token sits inside another button", () => {
+    const { queryByRole } = renderToken({
+      name: "config:recommended",
+      nodeId: "p1",
+      showCopy: false,
+    });
+
+    expect(queryByRole("button", { name: "Copy preset name" })).toBeNull();
   });
 });

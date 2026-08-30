@@ -1,5 +1,6 @@
 import { useMemo, type ReactNode } from "react";
 import { presetReferenceFacts } from "@/lib/preset-reference";
+import { CopyButton } from "./CopyButton";
 import { HoverCardAnchor, type HoverCardHandlers } from "./hover-card";
 import { HOVER_INTENT_DELAY_MS } from "./hover-gate";
 import { usePresetReference } from "./preset-reference-context";
@@ -50,6 +51,15 @@ export interface PresetNameProps {
    * previews (the detail panel's own heading).
    */
   noCard?: boolean;
+  /**
+   * The shell-wide hover-copy affordance (Review-steps turn 17, variant 17a):
+   * one copy icon, on every inline value, everywhere. On by default; a caller
+   * turns it off only where the token renders INSIDE another element's own
+   * `<button>` — the ledger card header's toggle, a family row's toggle —
+   * where a second button would be invalid HTML nested inside the first, and
+   * the click would double as that button's whole-surface activation.
+   */
+  showCopy?: boolean;
 }
 
 /**
@@ -85,7 +95,41 @@ function PresetToken({
   );
 }
 
-export function PresetName({ name, nodeId, onClick, heading, noCard }: PresetNameProps) {
+/**
+ * The hover-revealed copy icon beside a token. Absolutely positioned (CSS) so
+ * it reserves no layout space while hidden — a dense ledger or tree row must
+ * not reflow when the pointer arrives — and stays in the tab order so a
+ * keyboard user who focuses it sees it too, via `:focus-within` on the wrap
+ * rather than `:hover` alone.
+ *
+ * It copies the FULL `name` — the string the config actually writes, never a
+ * truncated display form — and the click is stopped from bubbling past this
+ * slot: the token's own `onClick` is a sibling, not a parent, so it is never
+ * at risk here, but a caller that goes on to embed the pair inside some other
+ * clickable row stays safe by construction rather than by convention.
+ */
+function PresetNameCopy({ name }: { name: string }) {
+  return (
+    // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- not a control itself, just a stop on the one real button inside it: it keeps a copy click from bubbling into some future ancestor row's own `onClick`, which is exactly why it carries no role or keyboard contract of its own.
+    <span className="preset-name-copy-slot" onClick={(e) => e.stopPropagation()}>
+      <CopyButton
+        className="preset-name-copy"
+        iconOnly
+        label="Copy preset name"
+        getText={() => name}
+      />
+    </span>
+  );
+}
+
+export function PresetName({
+  name,
+  nodeId,
+  onClick,
+  heading,
+  noCard,
+  showCopy = true,
+}: PresetNameProps) {
   const { root, onSelectPreset } = usePresetReference();
   // Cheap (the walk behind it is cached on the tree object), but it runs on
   // every render of every token on screen, and the ledger puts dozens on one
@@ -99,10 +143,20 @@ export function PresetName({ name, nodeId, onClick, heading, noCard }: PresetNam
     <PresetToken name={name} onClick={onClick} heading={heading} handlers={handlers} />
   );
 
+  const wrap = (inner: ReactNode): ReactNode =>
+    showCopy ? (
+      <span className="preset-name-wrap">
+        {inner}
+        <PresetNameCopy name={name} />
+      </span>
+    ) : (
+      inner
+    );
+
   if (!facts) {
-    return token();
+    return wrap(token());
   }
-  return (
+  return wrap(
     <HoverCardAnchor
       className="preset-ref-card"
       width={CARD_WIDTH}
@@ -111,6 +165,6 @@ export function PresetName({ name, nodeId, onClick, heading, noCard }: PresetNam
       card={<PresetReferenceCard facts={facts} onSelect={onSelectPreset} />}
     >
       {token}
-    </HoverCardAnchor>
+    </HoverCardAnchor>,
   );
 }

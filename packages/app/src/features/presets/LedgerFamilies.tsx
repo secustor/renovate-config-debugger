@@ -78,8 +78,9 @@ function FamilyRow({
       >
         <Caret open={expanded} />
         {/* Inert inside the row's own toggle — a nested button is invalid
-            HTML, and the row already activates on click. */}
-        <PresetName name={family.name} nodeId={family.nodeId} />
+            HTML, and the row already activates on click. Same reason the
+            copy affordance is off: a second button here nests just the same. */}
+        <PresetName name={family.name} nodeId={family.nodeId} showCopy={false} />
         <span className="ledger-family-note">{family.note ?? ""}</span>
         <FamilyBar rules={family.rules} max={max} />
         <span className="ledger-family-count">{plural(family.rules, "rule")}</span>

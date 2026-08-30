@@ -291,3 +291,15 @@ and click-through included — and nothing else. Non-preset writers keep their
 `ProvenanceChip`. `viaNoteRef` and its test died with the note;
 `duplicateNoteText`'s "X resolves it again" stays, because a repeat's cell has
 no writer token whose hover could carry that fact.
+
+## Addendum — 2026-08-31: the token grew the shell-wide hover-copy affordance
+
+Review-steps turn 17 (variant 17a) put one copy affordance on every inline
+value shell-wide; the preset token was the one still missing it. `PresetName`
+now renders the shared `CopyButton` beside the token, hover/focus-revealed and
+positioned absolutely so it costs no layout in a dense ledger or tree row, and
+it always copies the full `extends` string rather than whatever the token
+displays. A `showCopy` prop (default on) turns it off at the two sites where
+the token already sits inside another element's own `<button>` — the ledger
+card header's toggle and a family row's toggle — where a second button would
+nest invalid HTML inside the first.

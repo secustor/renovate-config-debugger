@@ -46,8 +46,9 @@ function LedgerCardToggle({
   return (
     <button type="button" className="ledger-head-toggle" aria-expanded={open} onClick={onToggle}>
       <Caret open={open} />
-      {/* Inert: this token lives inside the header's own toggle button. */}
-      <PresetName name={source.name} nodeId={source.nodeId} />
+      {/* Inert: this token lives inside the header's own toggle button — a
+          nested button would be invalid HTML, so the copy affordance is off. */}
+      <PresetName name={source.name} nodeId={source.nodeId} showCopy={false} />
       <SourcePill source={source} />
       <span className="ledger-head-counts">
         {source.failed
