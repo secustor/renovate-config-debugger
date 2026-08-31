@@ -14,6 +14,8 @@ const IDENTITY = vi.hoisted(() => ({
   repo: "secustor/renovate-config-debugger",
   commit: "d58538fab3a0000000000000000000000000000f",
   version: "0.2.0",
+  // The tag points at the commit — the one case that gets a version at all.
+  versionDistance: 0,
   commitTime: "2026-08-25T14:02:33+02:00",
 }));
 
@@ -45,6 +47,20 @@ describe("BuildStamp", () => {
       `https://github.com/${IDENTITY.repo}/commit/${IDENTITY.commit}`,
     );
     expect(panel.textContent).toContain("2026-08-25 12:02 UTC");
+    // The identity line names the version because the tag points at this
+    // commit; formatVersion's own tests prove any other build drops it.
+    expect(panel.querySelector(".build-info-id")?.textContent).toContain("v0.2.0 · d58538f");
+  });
+
+  it("drops the separator dot along with the version on a non-release build", () => {
+    IDENTITY.versionDistance = 3;
+    try {
+      render(<BuildStamp />);
+      const trigger = screen.getByRole("button", { name: "d58538f" });
+      expect(trigger.textContent?.trim()).toBe("d58538f");
+    } finally {
+      IDENTITY.versionDistance = 0;
+    }
   });
 
   it("defaults to the attestation command and switches to rebuild & diff", () => {

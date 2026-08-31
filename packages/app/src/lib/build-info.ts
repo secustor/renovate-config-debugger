@@ -15,14 +15,21 @@ export interface BuildIdentity {
   repo: string;
   /** Full commit SHA the bundle was built from. */
   commit: string;
-  /** Latest release tag at that commit (without the `v`), if any. */
+  /** Latest release tag reachable from that commit (without the `v`), if any. */
   version: string | null;
+  /** Commits between that tag and this commit — 0 means the build IS the
+   *  tagged release; null means the distance is unknown. */
+  versionDistance: number | null;
   /** The commit's committer date (ISO 8601) — shown as "built". */
   commitTime: string | null;
 }
 
 function str(v: unknown): string | null {
   return typeof v === "string" && v !== "" ? v : null;
+}
+
+function count(v: unknown): number | null {
+  return typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : null;
 }
 
 /** Validated read of the injected value — exported for its tests. */
@@ -35,7 +42,13 @@ export function parseBuildIdentity(raw: unknown): BuildIdentity | null {
   if (!repo || !commit) {
     return null;
   }
-  return { repo, commit, version: str(raw.version), commitTime: str(raw.commitTime) };
+  return {
+    repo,
+    commit,
+    version: str(raw.version),
+    versionDistance: count(raw.versionDistance),
+    commitTime: str(raw.commitTime),
+  };
 }
 
 export const BUILD_INFO: BuildIdentity | null =
@@ -43,6 +56,14 @@ export const BUILD_INFO: BuildIdentity | null =
 
 export function shortCommit(info: BuildIdentity): string {
   return info.commit.slice(0, 7);
+}
+
+/** "v0.5.0" only when the tag points AT the built commit; any other build —
+ *  a commit after the tag, or an unknown distance — has no version at all
+ *  and is identified by its sha. A version must never dress up a commit
+ *  that is not the release. */
+export function formatVersion(info: BuildIdentity): string | null {
+  return info.version !== null && info.versionDistance === 0 ? `v${info.version}` : null;
 }
 
 export function commitUrl(info: BuildIdentity): string {

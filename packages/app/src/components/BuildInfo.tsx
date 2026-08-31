@@ -4,6 +4,7 @@ import {
   type BuildIdentity,
   commitUrl,
   formatCommitTime,
+  formatVersion,
   shortCommit,
   verifyCommands,
 } from "@/lib/build-info";
@@ -33,9 +34,12 @@ type VerifyTab = (typeof TABS)[number]["id"];
 
 function BuildIdentityLine({ info }: { info: BuildIdentity }) {
   const time = info.commitTime ? formatCommitTime(info.commitTime) : null;
+  // Only a build the tag points at wears a version (formatVersion); any
+  // other commit is identified by its sha alone.
+  const version = formatVersion(info);
   return (
     <p className="build-info-id">
-      {info.version ? `v${info.version} · ` : null}
+      {version ? `${version} · ` : null}
       <a href={commitUrl(info)} target="_blank" rel="noreferrer">
         {shortCommit(info)}
       </a>
@@ -170,10 +174,13 @@ function BuildVerifyLineInner({ info }: { info: BuildIdentity }) {
   const panelId = useId();
   // The committer date's day, as the committer wrote it — %cI's ISO prefix.
   const built = info.commitTime?.slice(0, 10) ?? null;
+  // Every surface names the version through formatVersion: only a build the
+  // tag points at wears one, everything else is its sha.
+  const version = formatVersion(info);
   return (
     <div className="build-info-line">
       <span>
-        debugger {info.version ? `v${info.version} · ` : ""}
+        debugger {version ? `${version} · ` : ""}
         <a href={commitUrl(info)} target="_blank" rel="noreferrer">
           {shortCommit(info)}
         </a>
@@ -209,6 +216,7 @@ export function BuildVerifyLine() {
 function BuildStampInner({ info }: { info: BuildIdentity }) {
   const { open, triggerRef, panelRef, toggle } = useAnchoredPopover(ESCAPE_PRIORITY.popover);
   const panelId = useId();
+  const version = formatVersion(info);
   return (
     <span className="build-info-anchor build-info-stamp-anchor">
       <button
@@ -220,7 +228,7 @@ function BuildStampInner({ info }: { info: BuildIdentity }) {
         aria-controls={open ? panelId : undefined}
         onClick={toggle}
       >
-        · {info.version ? `v${info.version} ` : ""}
+        {version ? `· ${version} ` : ""}
         {shortCommit(info)}
       </button>
       {open ? (
