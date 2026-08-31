@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import type { DescriptionProvenance, ProvenanceLayer } from "@renovate-config-debugger/engine";
 import { buildDescriptionDigest } from "./description-digest";
 import { overviewRows } from "./rows";
+import { descriptionProvenance } from "@tools/test/description-provenance";
 
 /**
  * Roadmap 083: the flattening, and the one thing it decides — what the card's
@@ -21,20 +22,8 @@ const DASHBOARD: ProvenanceLayer = {
   name: ":dependencyDashboard",
 };
 
-function provenance(partial: Partial<DescriptionProvenance>): DescriptionProvenance {
-  return {
-    entries: [],
-    ruleDescriptions: [],
-    dropped: [],
-    unattributed: [],
-    degraded: false,
-    finalLength: 0,
-    ...partial,
-  };
-}
-
 function rowsOf(partial: Partial<DescriptionProvenance>, rules?: readonly unknown[]) {
-  const digest = buildDescriptionDigest(provenance(partial), rules ?? null);
+  const digest = buildDescriptionDigest(descriptionProvenance(partial), rules ?? null);
   if (!digest) {
     throw new Error("expected a digest");
   }
@@ -57,7 +46,6 @@ test("a sentence a later extend repeats is listed once", () => {
         duplicateOfIndex: 0,
       },
     ],
-    finalLength: 2,
   });
   expect(rows.map((row) => row.text)).toEqual(["Enable Renovate Dependency Dashboard creation."]);
   expect(rows[0]?.layer).toBe(DASHBOARD);
@@ -69,7 +57,6 @@ test("the rows arrive in Renovate's merge order, the repo's own last", () => {
       { index: 0, value: "From the preset.", viaTopLevel: RECOMMENDED },
       { index: 1, value: "From me.", viaTopLevel: REPO },
     ],
-    finalLength: 2,
   });
   expect(rows.map((row) => row.text)).toEqual(["From the preset.", "From me."]);
 });
@@ -101,7 +88,7 @@ describe("the repo's own packageRules prose", () => {
     // A rule description never enters the top-level `description` array —
     // Renovate does not hoist one — so the digest has no entry for it. The card
     // lists it anyway, so the number it prints has to be the rows it printed.
-    const digest = buildDescriptionDigest(provenance(RULE_PROVENANCE), RULES);
+    const digest = buildDescriptionDigest(descriptionProvenance(RULE_PROVENANCE), RULES);
     expect(digest?.groups.flatMap((g) => g.entries)).toEqual([]);
     expect(rowsOf(RULE_PROVENANCE, RULES)).toHaveLength(1);
   });
@@ -119,7 +106,6 @@ test("an approximate attribution survives the flattening", () => {
       },
     ],
     degraded: true,
-    finalLength: 1,
   });
   expect(rows[0]?.approximate).toBe(true);
   expect(rows[0]?.node?.name).toBe("docker:pinDigests");

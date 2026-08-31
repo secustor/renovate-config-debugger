@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PhasePicker } from "./PhasePicker";
-import { EMPTY_VIEW as EMPTY } from "@tools/test/repo-deps";
+import { EMPTY_VIEW as EMPTY, repoDep } from "@tools/test/repo-deps";
 
 /**
  * Roadmap 090 — the phase picker: Renovate's four phases, the two this app
@@ -66,15 +66,10 @@ describe("PhasePicker", () => {
         status: "ready",
         repo: "acme/webapp",
         deps: [
-          {
-            key: "package.json:0:react",
-            depName: "react",
+          repoDep("react", "package.json", "npm", {
             value: "17.0.0",
             meta: "package.json · 17.0.0",
-            manager: "npm",
-            packageFile: "package.json",
-            fill: {},
-          },
+          }),
         ],
       },
     });

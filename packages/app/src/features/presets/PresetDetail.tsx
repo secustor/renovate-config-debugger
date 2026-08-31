@@ -10,7 +10,13 @@ import { findPollutedPath } from "@/lib/input-schemas";
 import type { NodeDescriptionFacts } from "@/lib/tree-descriptions";
 import { NodeDescriptionLines } from "./NodeDescriptions";
 import { githubAuthFailure } from "@/lib/github-failure";
-import { type InjectionKeyFn, nodeInjectionKey, type ParseFn, STATE_LABELS } from "./tree-shared";
+import {
+  type InjectionKeyFn,
+  type MergeFn,
+  nodeInjectionKey,
+  type ParseFn,
+  STATE_LABELS,
+} from "./tree-shared";
 import { useEngineHelpers } from "./use-engine-helpers";
 import { pluralWord } from "@/lib/format";
 import { errorMessage } from "@/lib/errors";
@@ -21,9 +27,7 @@ import { errorMessage } from "@/lib/errors";
  * already loaded at this point, so the dynamic import (which keeps renovate
  * out of the app's initial bundle) resolves instantly.
  */
-function useContribution(node: PresetNode, parent: PresetNode | undefined) {
-  const merge = useEngineHelpers()?.merge ?? null;
-
+function useContribution(node: PresetNode, parent: PresetNode | undefined, merge: MergeFn | null) {
   return useMemo(() => {
     if (!merge || !parent || node.nested || node.state !== "resolved" || !node.resolved) {
       return null;
@@ -172,8 +176,6 @@ export function PresetDetail({
   parent,
   descriptionFacts,
   onClose,
-  injectionKey,
-  parse,
   usedInjections,
   onInject,
   migrationSteps,
@@ -186,15 +188,18 @@ export function PresetDetail({
    *  entry of the source details — `undefined` when it has none. */
   descriptionFacts?: NodeDescriptionFacts;
   onClose: () => void;
-  injectionKey: InjectionKeyFn | null;
-  parse: ParseFn | null;
   usedInjections: ReadonlySet<string>;
   onInject: (key: string, content: Record<string, unknown>) => void;
   migrationSteps: TraceEvent[];
   authState: AuthState;
   onSignIn: () => void;
 }) {
-  const contribution = useContribution(node, parent);
+  // The injection key and the parser come from the same hook as `merge`, so
+  // the panel reads them here rather than taking them a second time as props.
+  const helpers = useEngineHelpers();
+  const injectionKey = helpers?.injectionKey ?? null;
+  const parse = helpers?.parse ?? null;
+  const contribution = useContribution(node, parent, helpers?.merge ?? null);
   const stateLabel = STATE_LABELS[node.state];
   const key = nodeInjectionKey(node.source, injectionKey);
   const userSupplied = key !== null && usedInjections.has(key);

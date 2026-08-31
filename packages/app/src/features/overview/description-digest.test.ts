@@ -13,6 +13,7 @@ import {
   ruleNoteText,
   unattributedNoteText,
 } from "./description-digest";
+import { descriptionProvenance as provenance } from "@tools/test/description-provenance";
 
 /** The ordinal separator `stableLayerKey` uses (U+241F). Spelled out here
  *  because a key that silently became `#`-separated again would re-open the
@@ -57,22 +58,6 @@ function entries(specs: EntrySpec[]): DescriptionAttribution[] {
       ...(spec.approximate ? { approximate: true } : {}),
     };
   });
-}
-
-function provenance(overrides: Partial<DescriptionProvenance> = {}): DescriptionProvenance {
-  const attributed = overrides.entries ?? [];
-  const nonText = overrides.unattributed ?? [];
-  return {
-    dropped: [],
-    ruleDescriptions: [],
-    degraded: false,
-    // The engine guarantees `entries.length + unattributed.length ===
-    // finalLength`; the fixtures keep that invariant unless a test overrides it.
-    finalLength: attributed.length + nonText.length,
-    ...overrides,
-    entries: attributed,
-    unattributed: nonText,
-  };
 }
 
 // The three lookups below throw rather than assert-and-narrow: that fails the
@@ -237,6 +222,15 @@ describe("grouping", () => {
   });
 });
 
+/** Provenance carrying one `packageRules` description, from `layer`. */
+function withRule(layer: ProvenanceLayer, ruleIndex = 0, sourceIndex = 0): DescriptionProvenance {
+  return provenance({
+    ruleDescriptions: [
+      { ruleIndex, sourceIndex, layer, values: ["Slow down risky major updates"] },
+    ],
+  });
+}
+
 describe("rule descriptions", () => {
   const RULES = [
     {
@@ -246,14 +240,6 @@ describe("rule descriptions", () => {
     },
     { description: ["From a preset"], matchManagers: ["npm"] },
   ];
-
-  function withRule(layer: ProvenanceLayer, ruleIndex = 0, sourceIndex = 0): DescriptionProvenance {
-    return provenance({
-      ruleDescriptions: [
-        { ruleIndex, sourceIndex, layer, values: ["Slow down risky major updates"] },
-      ],
-    });
-  }
 
   test("pairs a repo rule with its matcher and write summary", () => {
     const digest = digestOf(withRule(REPO), RULES);

@@ -19,6 +19,7 @@ import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { OverviewPanel } from "./OverviewPanel";
 import { ROOT_NODE_ID } from "@/lib/preset-tree-stats";
+import { descriptionProvenance } from "@tools/test/description-provenance";
 
 /**
  * The engine's degraded fallback cannot be provoked from a real config — it
@@ -45,18 +46,8 @@ vi.mock("@/hooks/description-provenance", async (importOriginal) => {
 
 /** Renders the panel over hand-built provenance, with no run behind it. */
 function renderStubbed(provenance: Partial<DescriptionProvenance>) {
-  const entries = provenance.entries ?? [];
-  const unattributed = provenance.unattributed ?? [];
   stub.active = true;
-  stub.value = {
-    dropped: [],
-    ruleDescriptions: [],
-    degraded: false,
-    finalLength: entries.length + unattributed.length,
-    ...provenance,
-    entries,
-    unattributed,
-  };
+  stub.value = descriptionProvenance(provenance);
   return render(<OverviewPanel result={{} as TraceResult} />);
 }
 
