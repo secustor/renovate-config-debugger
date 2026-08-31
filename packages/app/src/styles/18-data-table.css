@@ -87,8 +87,10 @@
   right: 0;
   text-align: left;
   top: calc(100% + 0.35rem);
-  width: max-content;
-  max-width: min(22rem, calc(100vw - 2rem));
+  /* One fixed width for every consumer: sized to content, each table's panel
+     came out a different size, and the same gear opening two different boxes
+     read as two different controls. Pills wrap inside it. */
+  width: min(22rem, calc(100vw - 2rem));
   z-index: var(--z-popover);
 }
 
