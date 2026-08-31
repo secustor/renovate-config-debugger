@@ -30,6 +30,16 @@ beforeAll(() => {
   };
   Element.prototype.scrollIntoView = () => undefined;
   window.scrollTo = () => undefined;
+  // jsdom has no `matchMedia`, and the card's scroll asks `prefersReducedMotion`.
+  window.matchMedia = (query: string) =>
+    ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }) as unknown as MediaQueryList;
 });
 
 const CONFIG = {

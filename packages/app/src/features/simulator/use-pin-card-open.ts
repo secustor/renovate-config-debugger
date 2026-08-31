@@ -1,5 +1,6 @@
 import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
 import { pinAddFocusTarget } from "./pin-add-dom";
+import { motionScrollOptions } from "@/lib/motion";
 
 /**
  * Whether the new-pin card is open, and where focus lands when it opens.
@@ -56,7 +57,7 @@ export function usePinCardOpen(pinCount: number): PinCardOpen {
     // unmounting, and focus must not drop to the body.
     const manual = pinAddFocusTarget();
     if (manual === null) {
-      cardRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      cardRef.current?.scrollIntoView(motionScrollOptions("nearest"));
     }
     const target =
       manual ??
