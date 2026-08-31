@@ -84,10 +84,12 @@ const DEP_FIELD_ORDER: readonly (keyof FormState)[] = [
 ];
 
 /** The glossary entry explaining each field — the same cards the manual form's
- *  labels carry (`field-groups.ts`). The unmapped fields (packageName,
- *  currentValue, newValue) have no entry and stay plain. */
+ *  labels carry (`field-groups.ts`). Only newValue has no entry and stays
+ *  plain. */
 const DEP_FIELD_TERMS: Partial<Record<keyof FormState, TermId>> = {
   depName: "simDepName",
+  packageName: "simPackageName",
+  currentValue: "simCurrentValue",
   currentVersion: "simCurrentVersion",
   lockedVersion: "simLockedVersion",
   datasource: "datasource",

@@ -80,7 +80,7 @@ describe("depFields", () => {
 
   it("hands each label its glossary term — the manual form's cards", () => {
     const fields = depFields({ depName: "react", packageName: "react", versioning: "semver" });
-    expect(fields.map((f) => f.term)).toEqual(["simDepName", undefined, "simVersioning"]);
+    expect(fields.map((f) => f.term)).toEqual(["simDepName", "simPackageName", "simVersioning"]);
   });
 });
 
