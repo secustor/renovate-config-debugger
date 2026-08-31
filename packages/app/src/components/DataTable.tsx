@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { useSyncedReset } from "@/hooks/use-synced-reset";
 import { useToggleSet } from "@/hooks/use-toggle-set";
 import {
@@ -152,7 +152,7 @@ function DataTableGroupBlock({
           row={row}
           columns={columns}
           open={isOpen(row.key)}
-          onToggle={() => onToggleRow(row.key)}
+          onToggle={onToggleRow}
         />
       ))}
     </div>
@@ -288,8 +288,18 @@ export function DataTable({
   );
   const showTable = isTableView(views, viewId);
   // Filtering and grouping rows nobody is looking at is pure waste — while an
-  // alternate view is up, the body is not rendered at all.
-  const groups = showTable ? groupDataRows(filterDataRows(rows, text, quick), grouping) : [];
+  // alternate view is up, the body is not rendered at all. Memoized because a
+  // caret toggle re-renders this component without touching any of the inputs,
+  // and because stable group/row identities are what lets `DataTableRow`'s memo
+  // hold for the two hundred rows the click did not open.
+  const groups = useMemo(
+    () => (showTable ? groupDataRows(filterDataRows(rows, text, quick), grouping) : []),
+    [showTable, rows, text, quick, grouping],
+  );
+  const shownColumns = useMemo(
+    () => activeColumns(columns, visibleColumns.set),
+    [columns, visibleColumns.set],
+  );
   return (
     <div className="data-table">
       <DataTableToolbar
@@ -320,7 +330,7 @@ export function DataTable({
         {showTable ? (
           <DataTableBody
             groups={groups}
-            columns={activeColumns(columns, visibleColumns.set)}
+            columns={shownColumns}
             leadLabel={leadLabel}
             rowNoun={rowNoun}
             query={text}
