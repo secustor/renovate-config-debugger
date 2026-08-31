@@ -159,7 +159,7 @@ describe("DependenciesPanel", () => {
     const onPin = vi.fn();
     const view = render(
       <DependenciesPanel
-        view={{ ...EMPTY, status: "ready", repo: "acme/webapp", deps: [DEP], fileCount: 1 }}
+        view={{ ...EMPTY, status: "ready", repo: "acme/webapp", deps: [DEP] }}
         connect={CONNECT}
         onRetry={vi.fn()}
         onPin={onPin}
