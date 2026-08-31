@@ -21,8 +21,13 @@ interface Check {
   args: string[];
 }
 
-const PACKAGES = ["engine", "app", "oauth-worker"] as const;
+const PACKAGES = ["engine", "app", "cli", "oauth-worker"] as const;
 type PackageName = (typeof PACKAGES)[number];
+
+/** `tools/` is deliberately not a workspace package, so its specs run from the
+ *  root's `test:tools` rather than through a filter (see vitest.tools.config). */
+const GROUPS = [...PACKAGES, "tools"] as const;
+type CheckGroup = (typeof GROUPS)[number];
 
 function filter(pkg: PackageName, script: string): string[] {
   return ["--filter", `@renovate-config-debugger/${pkg}`, script];
@@ -35,7 +40,7 @@ const ALWAYS: Check[] = [
   { id: "typecheck", args: ["typecheck"] },
 ];
 
-const TESTS: Record<PackageName, Check[]> = {
+const TESTS: Record<CheckGroup, Check[]> = {
   engine: [{ id: "engine tests", args: filter("engine", "test") }],
   app: [
     { id: "app unit/component tests", args: filter("app", "test:unit") },
@@ -43,7 +48,9 @@ const TESTS: Record<PackageName, Check[]> = {
     // exercises — see the app's scripts/check-dev-module-graph.mjs.
     { id: "app dev module graph", args: filter("app", "check:dev-graph") },
   ],
+  cli: [{ id: "cli tests", args: filter("cli", "test") }],
   "oauth-worker": [{ id: "oauth-worker tests", args: filter("oauth-worker", "test") }],
+  tools: [{ id: "tools specs", args: ["test:tools"] }],
 };
 
 /** Files no check here reads — prose only, so a docs edit shouldn't cost 30s. */
@@ -51,21 +58,25 @@ function isCovered(file: string): boolean {
   return !(file.endsWith(".md") || file.startsWith("docs/") || file.startsWith("roadmap/"));
 }
 
-function affectedPackages(files: string[]): Set<PackageName> {
-  const affected = new Set<PackageName>();
+/** The consumers of a change, not just the package holding it: the app imports
+ *  the engine, and the CLI imports both (`@…/app/headless`). */
+function affectedGroups(files: string[]): Set<CheckGroup> {
+  const affected = new Set<CheckGroup>();
   for (const file of files) {
     if (file.startsWith("packages/engine/")) {
-      // The app imports the engine, so an engine edit has to re-run both.
-      affected.add("engine");
-      affected.add("app");
+      affected.add("engine").add("app").add("cli");
     } else if (file.startsWith("packages/app/")) {
-      affected.add("app");
+      affected.add("app").add("cli");
+    } else if (file.startsWith("packages/cli/")) {
+      affected.add("cli");
     } else if (file.startsWith("packages/oauth-worker/")) {
       affected.add("oauth-worker");
+    } else if (file.startsWith("tools/")) {
+      affected.add("tools");
     } else {
-      // Root-level: a lockfile, a tsconfig, the lint config, these hooks —
-      // anything that can change what every package compiles or resolves to.
-      return new Set(PACKAGES);
+      // Root-level: a lockfile, a tsconfig, the lint config — anything that
+      // can change what every package compiles or resolves to.
+      return new Set(GROUPS);
     }
   }
   return affected;
@@ -124,7 +135,7 @@ if (state.green === fingerprint) {
   process.exit(0);
 }
 
-const checks = [...ALWAYS, ...[...affectedPackages(relevant)].flatMap((pkg) => TESTS[pkg])];
+const checks = [...ALWAYS, ...[...affectedGroups(relevant)].flatMap((group) => TESTS[group])];
 
 const failures: string[] = [];
 for (const check of checks) {

@@ -12,13 +12,16 @@
  * not change; at 0.x, against a repository this size, that is cheaper than a
  * compatibility matrix.
  *
- * The build is NOT run here — `.releaserc.json` chains it after this script,
- * because `packages/cli`'s `check-compat.ts` has to see the stamped version
- * and the freshly stamped compat row.
+ * The build is NOT run here — `release.config.mjs` chains it after this script
+ * (and after `stamp-compat.ts`), because `packages/cli`'s `check-compat.ts`
+ * has to see the stamped version and the freshly stamped compat row.
+ *
+ * Nothing commits the stamp: 067's amendment made a release change no tracked
+ * file, so this tree lives for the length of the job and is thrown away.
  */
 import { copyFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { publicPackages, repoRoot, setVersion } from "./workspace.ts";
+import { releasablePackages, repoRoot, setVersion } from "./workspace.ts";
 
 const version = process.argv[2];
 
@@ -28,13 +31,7 @@ if (!version || !/^\d+\.\d+\.\d+(?:-[\w.]+)?$/.test(version)) {
   );
 }
 
-const packages = publicPackages();
-
-if (packages.length === 0) {
-  throw new Error(
-    "no public workspace packages — every manifest is `private: true`, so there is nothing to release",
-  );
-}
+const packages = releasablePackages();
 
 const rootLicense = join(repoRoot, "LICENSE");
 

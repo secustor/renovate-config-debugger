@@ -37,7 +37,7 @@ interface PnpmListEntry {
 export const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
 
 /** Every workspace package that is not `private` — the release's payload. */
-export function publicPackages(): WorkspacePackage[] {
+function publicPackages(): WorkspacePackage[] {
   const raw = execFileSync("pnpm", ["list", "--recursive", "--depth", "-1", "--json"], {
     cwd: repoRoot,
     encoding: "utf8",
@@ -57,13 +57,28 @@ export function publicPackages(): WorkspacePackage[] {
     .toSorted((a, b) => a.name.localeCompare(b.name));
 }
 
+/** The release's payload, or the reason there isn't one — both release scripts
+ *  refuse the same way rather than publishing nothing. */
+export function releasablePackages(): WorkspacePackage[] {
+  const packages = publicPackages();
+
+  if (packages.length === 0) {
+    throw new Error(
+      "no public workspace packages — every manifest is `private: true`, so there is nothing to release",
+    );
+  }
+
+  return packages;
+}
+
 /**
  * Rewrites the `version` field in place, touching nothing else.
  *
  * A parse/serialize round-trip would reorder nothing but would still reflow
  * the file to whatever `JSON.stringify` feels like; these manifests are
- * formatted by oxfmt and committed back to `main` by @semantic-release/git,
- * so the edit has to be surgical enough that the diff is one line.
+ * formatted by oxfmt, and the stamped tree is thrown away with the job (067's
+ * amendment: a release commits nothing back), so keeping the edit surgical is
+ * what makes a `git diff` in the job readable at all.
  */
 export function setVersion(pkg: WorkspacePackage, version: string): boolean {
   const before = readFileSync(pkg.manifest, "utf8");
