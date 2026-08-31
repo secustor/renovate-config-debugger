@@ -13,7 +13,7 @@ import {
   ledgerPreviewText,
   ledgerWriterText,
 } from "./description-ledger";
-import { fixSnippet, valuePreview } from "@/lib/value-preview";
+import { valuePreview } from "@/lib/value-preview";
 import { isOverridden } from "@/lib/effective-tally";
 import { KeyDetail, NoteCell } from "./KeyRowParts";
 import { layerLabel } from "@/lib/provenance-layer";
@@ -104,12 +104,6 @@ function effectiveRow(
   const note = rowNote(entry, ledger ? ledgerWriterText(ledger) : null);
   const head = deciderHead(id, context.presetName);
   const winner = winningStep(entry);
-  // The defaults group is the pile nothing in the run touched: exactly one
-  // layer ever set these, so there is no cascade to open onto — which is what
-  // the table's footer says in words. The value in FULL is what the open row
-  // has to add instead, since the cell counts a container's members rather
-  // than showing them.
-  const bare = id === "defaults";
   return {
     key: entry.key,
     lead: entry.key,
@@ -125,8 +119,11 @@ function effectiveRow(
     },
     groups: { [DECIDED_BY]: { title: head.title, pills: [head.pill], plainTitle: true } },
     qf: isOverridden(entry),
-    fields: bare ? [{ label: "Renovate default", value: fixSnippet(entry.finalValue) }] : [],
-    detail: bare ? undefined : (
+    fields: [],
+    // Every group's rows open onto the same body, the defaults included: their
+    // one-step chain draws the standard step card ("defaults to", value in
+    // full), where a bespoke fields entry used to print a plain snippet.
+    detail: (
       <KeyDetail
         entry={entry}
         rules={rules}

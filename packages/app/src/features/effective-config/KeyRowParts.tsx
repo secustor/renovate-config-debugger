@@ -67,7 +67,12 @@ function KeyCascade({
   const winner = winningStep(entry);
   return (
     <>
-      <div className="prov-chain-title">The cascade, bottom to top</div>
+      {/* One card is not a cascade: a single-step chain — every defaults row,
+          and a key only the repo ever set — shows its card without a heading
+          claiming there is a stack to read. */}
+      {entry.chain.length > 1 ? (
+        <div className="prov-chain-title">The cascade, bottom to top</div>
+      ) : null}
       {/* Each layer contributes at most one step to a key's chain, so the
           layer's NODE identity is a genuine key here (roadmap 041) — and
           the rows are rebuilt per run, so per-run node ids are fine. */}

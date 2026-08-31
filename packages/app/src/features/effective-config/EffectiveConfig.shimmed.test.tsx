@@ -344,6 +344,23 @@ it("groups the rows by the layer that decided each key", async () => {
   // …and the footer accounts for every row in the table, defaults included.
   expect(view.container.textContent).toContain("effective options · hover any key");
   expect(view.container.textContent).toContain("only the default ever touched them");
+
+  // A defaults row opens onto the SAME body every other group gets — its
+  // one-step chain as the standard step card ("defaults to", value in full),
+  // not a bespoke fields entry. One card is no cascade, so no heading claims
+  // there is a stack to read.
+  const rangeStrategy = [...defaults.querySelectorAll<HTMLElement>(".data-table-row-head")].find(
+    (head) => head.querySelector(".data-table-lead")?.textContent?.includes("rangeStrategy"),
+  );
+  if (!rangeStrategy) {
+    throw new Error("no rangeStrategy row");
+  }
+  fireEvent.click(rangeStrategy);
+  const card = defaults.querySelector<HTMLElement>(".prov-step");
+  expect(card?.className).toContain("winning");
+  expect(card?.textContent).toContain("defaults to");
+  expect(defaults.querySelector(".data-table-fields")).toBeNull();
+  expect(view.container.textContent).not.toContain("The cascade, bottom to top");
 });
 
 it("heads each group with the rows it is showing", async () => {
