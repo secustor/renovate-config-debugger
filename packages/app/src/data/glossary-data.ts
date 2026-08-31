@@ -128,6 +128,20 @@ export const GLOSSARY = {
       "Usually identical to packageName, which is why the form defaults it. matchDepNames compares against it.",
     url: "https://docs.renovatebot.com/configuration-options/#matchdepnames",
   },
+  simPackageName: {
+    name: "packageName",
+    plain:
+      'The name the datasource looks up on the registry, when that differs from what the package file says — "library/node" for a Docker image written as "node". ' +
+      "matchPackageNames compares against it.",
+    url: "https://docs.renovatebot.com/configuration-options/#matchpackagenames",
+  },
+  simCurrentValue: {
+    name: "currentValue",
+    plain:
+      'The raw constraint exactly as the package file declares it — a range like "^17.0.0", or an exact pin. ' +
+      "matchCurrentValue tests it as written; matchCurrentVersion resolves it to a version first.",
+    url: "https://docs.renovatebot.com/configuration-options/#matchcurrentvalue",
+  },
   simCurrentVersion: {
     name: "currentVersion",
     plain:

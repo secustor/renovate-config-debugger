@@ -54,15 +54,17 @@ test("a run lands on the Tests tab, not on an expanded instrument", async ({ pag
   await expect(tabPanel(page, "effective")).toBeHidden();
   await expect(tabPanel(page, "pipeline")).toBeHidden();
   await expect(tabPanel(page, "overview")).toBeHidden();
-  // Six tabs, in the v2 order with 083's Overview at the head — scoped to the
-  // results tablist, because the Add-a-test box reuses the same tab grammar
-  // inside the Tests panel.
+  await expect(tabPanel(page, "deps")).toBeHidden();
+  // Seven tabs, in the v2 order with 083's Overview at the head and 089's
+  // Dependencies before Problems — scoped to the results tablist, because the
+  // Add-a-test box reuses the same tab grammar inside the Tests panel.
   await expect(page.getByRole("tablist", { name: "Results" }).locator(".tab")).toHaveText([
     /^Overview/,
     /^Tests/,
     /^Pipeline/,
     /^Presets/,
     /^Effective config/,
+    /^Dependencies/,
     /^Problems/,
   ]);
 });

@@ -39,19 +39,28 @@
   cursor: pointer;
   display: inline-flex;
   font-family: inherit;
-  font-size: 0.85rem;
-  gap: 0.25rem;
+  font-size: 0.78rem;
+  gap: 0.2rem;
   /* Overlaps the rail's own bottom border, which is what lets the active tab
      paint over it and read as one surface with the body below. */
   margin-bottom: -1px;
-  /* 083 made the strip six tabs; at the previous 0.8rem sides the sixth
-     wrapped onto its own row at a 1280px viewport. The strip must hold one
-     row at the standard desktop width (guarded in 12-layout-regressions) — and
-     not just under macOS's system font: Linux renders `system-ui` as DejaVu
-     Sans, whose wider glyphs ate all the slack the 0.55rem sides left, so the
-     strip wrapped on every Linux desktop (and in CI). Sized for the widest
-     common `system-ui`, not the narrowest. */
-  padding: 0.45rem 0.4rem;
+  /* The artboard's 0.8rem sides and the one-row rule (guarded in
+     12-layout-regressions) cannot both hold at a 1280px viewport: seven tabs
+     at design spacing measure ~805px against the ~670px the results pane has
+     there — and that's before Linux's wider `system-ui` glyphs (DejaVu), which
+     wrapped the strip twice in this file's history (083 at 0.8rem sides, 089's
+     seventh tab at 0.55rem). So the sides SCALE with the bar instead of
+     picking one loser: the % resolves against the bar's width, the floor is
+     the 0.28rem that measurably holds the row at the guarded width, and the
+     room the bar gains past a 30px reserve (700px ≈ the 1280px bar + reserve)
+     goes into the sides, capped at the artboard's 0.8rem. /14 (7 tabs × 2
+     sides) would spend exactly what the bar gains; /12 spends a little of the
+     reserve too, because the shell's 92rem max-width stops the bar at ~775px
+     and the steeper ramp is what gets a wide desktop to ~0.62rem instead of
+     ~0.55rem (~35px of wide-glyph slack left at that cap, measured under
+     Verdana). The stacked layout's full-width bar reaches 0.8rem outright. */
+  padding-block: 0.45rem;
+  padding-inline: clamp(0.28rem, calc(0.28rem + (100% - 700px) / 12), 0.8rem);
 }
 
 .tab:hover {
@@ -78,9 +87,17 @@
 }
 
 /* The count is a `.pill` (see the pill standard); `.tab-count` is kept as the
-   stable hook the e2e specs and the keystroke render test address it by. */
+   stable hook the e2e specs and the keystroke render test address it by.
+
+   089 briefly flattened it to a plain number to buy the seventh tab's row
+   back; the owner reversed that — the bubble IS the design's count grammar
+   (the Final artboard draws every tab count as a pill). The room comes from a
+   compact cut of the pill instead: smaller type and tighter sides than the
+   standard, which a strip-height count can afford where a body chip cannot. */
 .tab-count {
   flex: none;
+  font-size: 0.66rem;
+  padding: 0 0.3rem;
 }
 
 .tab-body {

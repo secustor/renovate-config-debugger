@@ -1,4 +1,3 @@
-import type { TermId } from "@/data/glossary-data";
 import { MANAGER_LIST_ID } from "./datalist-ids";
 import { MULTI_VALUE_KEYS } from "./form";
 import type { FormState } from "@/types/simulator";
@@ -46,18 +45,15 @@ export interface FieldContext {
 }
 
 /**
- * Everything the form needs to render one field BESIDES its group and its
- * order, both of which `GROUP_KEYS` above already states.
+ * Everything the form needs to render one field BESIDES its group, its order
+ * (both of which `GROUP_KEYS` above already states) and its glossary card,
+ * which every label wears via the shared `DESCRIPTOR_TERMS` table — the same
+ * cards the dependency row's labels carry, so the two surfaces cannot drift.
  *
  * The field's own name is the label text and the `FormState` key alike, so it
- * is the record's key rather than a third copy of the same string. Every
- * label wears the glossary hover (`term`): these are Renovate's own descriptor
- * fields, and the card is where "which matcher reads this" is answered without
- * leaving the form. It is the app's richer form of the design's `title`
- * tooltips, and it is keyboard-reachable, which a title is not.
+ * is the record's key rather than a third copy of the same string.
  */
 export interface FieldSpec {
-  term: TermId;
   placeholder?: string | ((ctx: FieldContext) => string);
   /** Roadmap 047: a `<datalist>` id — turns the field into a native
    *  type-to-search combobox without changing anything else about it. */
@@ -73,31 +69,29 @@ export interface FieldSpec {
  */
 export const FIELD_SPECS: Record<GroupedKey, FieldSpec> = {
   manager: {
-    term: "manager",
     placeholder: ({ managerNames }) =>
       managerNames === null
         ? "(unset) — type to search"
         : `(unset) — type to search ${managerNames.length} managers`,
     datalist: MANAGER_LIST_ID,
   },
-  packageFile: { term: "simPackageFile", placeholder: "package.json" },
-  depType: { term: "simDepType", placeholder: "dependencies" },
-  depName: { term: "simDepName", placeholder: "= packageName" },
+  packageFile: { placeholder: "package.json" },
+  depType: { placeholder: "dependencies" },
+  depName: { placeholder: "= packageName" },
   // Roadmap 015/047: sourceUrl was the decisive matcher in two of the persona
   // study's three problems, so it leads its group — and the group's own
   // question ("where it comes from") is the scent the old drawer's summary line
   // had to spell out.
-  sourceUrl: { term: "simSourceUrl", placeholder: "https://github.com/lodash/lodash" },
-  registryUrls: { term: "simRegistryUrls", placeholder: "add URL, press ⏎" },
-  repository: { term: "simRepository", placeholder: "your-org/your-repo" },
-  baseBranch: { term: "simBaseBranch", placeholder: "main" },
-  versioning: { term: "simVersioning", placeholder: "semver" },
-  currentVersion: { term: "simCurrentVersion" },
-  lockedVersion: { term: "simLockedVersion" },
-  lockFiles: { term: "simLockFiles", placeholder: "add file, press ⏎" },
-  categories: { term: "simCategories", placeholder: "add category, press ⏎" },
+  sourceUrl: { placeholder: "https://github.com/lodash/lodash" },
+  registryUrls: { placeholder: "add URL, press ⏎" },
+  repository: { placeholder: "your-org/your-repo" },
+  baseBranch: { placeholder: "main" },
+  versioning: { placeholder: "semver" },
+  currentVersion: {},
+  lockedVersion: {},
+  lockFiles: { placeholder: "add file, press ⏎" },
+  categories: { placeholder: "add category, press ⏎" },
   currentVersionTimestamp: {
-    term: "simCurrentVersionTimestamp",
     placeholder: "2024-01-01T00:00:00.000Z",
   },
 };

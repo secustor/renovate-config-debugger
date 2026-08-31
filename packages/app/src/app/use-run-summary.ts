@@ -51,6 +51,12 @@ export function useRunSummary(
    *  exactly like `effectiveStats`: both are engine derivations the panel
    *  reports back, and neither may be guessed at as a zero. */
   overviewBehaviors: number | null,
+  /** Roadmap 089: how many dependencies the loaded repository's extraction
+   *  found — the Dependencies tab's badge. `undefined` until discovery has
+   *  actually reported (no repo, not run yet, or it failed), for the same
+   *  reason the two above are null before their panel reports: a zero here
+   *  would claim the repository has no dependencies. */
+  depCount: number | undefined,
 ): RunSummary {
   // One pass over the event stream per RESULT for every count below: the
   // migrate steps and the stage's final snapshot (004), the preset-resolution
@@ -96,6 +102,11 @@ export function useRunSummary(
     // Provenance is computed asynchronously by the effective-config view; no
     // badge until it reports, rather than a wrong zero.
     effective: { count: effectiveStats?.keys },
+    // Roadmap 089: the extracted dependencies. Unlike every other badge here
+    // this one is not a fact about the RUN — it describes the repository the
+    // config was loaded from, and it appears once discovery has run (the first
+    // time the reader opens the tab).
+    deps: { count: depCount },
     problems: {
       count: facts.errorCount + facts.warningCount,
       tone: facts.errorCount > 0 ? "error" : facts.warningCount > 0 ? "warn" : undefined,

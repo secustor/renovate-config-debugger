@@ -2,6 +2,7 @@ import { type ReactNode, type RefObject, useEffect, useMemo, useState } from "re
 import type { TraceResult } from "@renovate-config-debugger/engine";
 import { AuthFailureBanner } from "@/components/AuthFailureBanner";
 import { collectGithubAuthFailures } from "@/lib/github-failure";
+import { DependenciesPanel } from "@/features/dependencies/DependenciesPanel";
 import { EffectiveConfig } from "@/features/effective-config/EffectiveConfig";
 import { EmptyNote } from "@/components/EmptyNote";
 import { HypotheticalBanner } from "@/components/HypotheticalBanner";
@@ -123,6 +124,8 @@ export function ResultsColumn({
     repoDeps,
     onLoadRepoDeps,
     repoConnect,
+    onPinDep,
+    onOpenDepInSimulator,
     errorCount,
     warningCount,
     ruleProvenance,
@@ -320,6 +323,19 @@ export function ResultsColumn({
           No effective config — the pipeline did not get far enough to merge one.
         </EmptyNote>
       ),
+      // Roadmap 089: the loaded repository's dependencies as the standard data
+      // table. Not gated on `result.finalConfig` like its neighbours — what it
+      // lists is a fact about the REPOSITORY, and a config the pipeline could
+      // not merge does not make the repo's package files unreadable.
+      deps: (
+        <DependenciesPanel
+          view={repoDeps}
+          connect={repoConnect}
+          onRetry={onLoadRepoDeps}
+          onPin={onPinDep}
+          onOpenInSimulator={onOpenDepInSimulator}
+        />
+      ),
       // Roadmap 075 (iteration 5): the panel owns BOTH states now — its summary
       // strip is the tab's lead sentence whether or not there is anything to
       // list, so the clean run no longer needs an empty note of its own.
@@ -379,6 +395,8 @@ export function ResultsColumn({
     repoDeps,
     onLoadRepoDeps,
     repoConnect,
+    onPinDep,
+    onOpenDepInSimulator,
     errorCount,
     warningCount,
     ruleProvenance,

@@ -42,6 +42,8 @@ import { usePlatformContext } from "@/app/use-platform-context";
 import { useInheritedConfigLayer } from "@/app/use-inherited-config-layer";
 import { useRepoLoad } from "@/app/use-repo-load";
 import { useRepoDeps } from "@/features/simulator/use-repo-deps";
+import { EMPTY_FORM } from "@/features/simulator/form";
+import { pinShareFields } from "@/features/simulator/pins";
 import { useRepoPicker } from "@/app/use-repo-picker";
 import { useRunSummary } from "@/app/use-run-summary";
 import { usePanelStats } from "@/app/use-panel-stats";
@@ -56,6 +58,8 @@ import { AppBanners } from "@/app/AppBanners";
 import { ResultsPane } from "@/app/ResultsPane";
 import { preloadRunChunks } from "@/app/preload-run-chunks";
 import type { RepoConnectOffer } from "@/types/repo";
+import type { FormState } from "@/types/simulator";
+import type { SimRequest } from "@/hooks/use-share-link";
 
 /** What a caller may ask of a run. Every request reaches the queue except one
  *  refused before it starts, by layers that would not parse — see `onRun`. */
@@ -73,6 +77,13 @@ interface RunOptions {
 }
 
 type InjectionMap = Record<string, Record<string, unknown>>;
+
+/** Roadmap 089: where a Dependencies row's simulator request starts counting
+ *  DOWN from. Three channels mint into one `SimRequest` slot — the share hook
+ *  (0, 1, 2 …), `TestsPanel`'s pin link (-1, -2 …) and this one — and
+ *  `useShareLinkRequest` applies a request once by nonce, so the ranges must
+ *  not meet. */
+const DEP_SIM_NONCE_BASE = -1_000_000;
 
 /** Roadmap 076: the two 008 merge layers as one comparable value — what
  *  `resultsStale` asks about them. Spelled once so the key a run RECORDS and
@@ -542,6 +553,18 @@ export function App() {
   // Roadmap 078: the loaded repo's extracted dependencies — discovered on
   // demand (the first open of the From-repository tab), reset by a new load.
   const { view: repoDepsView, ensure: ensureRepoDeps } = useRepoDeps(loadedRepo);
+  // Roadmap 089: …and the Dependencies tab is the second door onto the same
+  // discovery. Opening it is what starts one, exactly as opening the
+  // From-repository tab is — the trigger lives HERE rather than in the panel
+  // because every results panel stays MOUNTED (028), so a panel-side effect
+  // would fire for a tab nobody has looked at and spend the rate limit on it.
+  // `ensure` is idempotent per loaded repo, so the two doors never discover
+  // twice.
+  useEffect(() => {
+    if (tab === "deps") {
+      ensureRepoDeps();
+    }
+  }, [tab, ensureRepoDeps]);
   // Roadmap 087: the connect panel's one-click reload — grants this session
   // repository ACCESS (the LoadedRepo record discovery runs from) without
   // touching the config the share link installed. It rides the current
@@ -565,6 +588,66 @@ export function App() {
     }),
     [repoSuggestion, connectSuggestedRepo, openRepoForm],
   );
+  /**
+   * Roadmap 089: the Dependencies tab's two row actions, which are the
+   * SHELL's — a pin joins the list this component owns, and the simulator is
+   * another tab. Both complete the extracted descriptor into a full form
+   * (`EMPTY_FORM` is the simulator slice's, which only the shell may reach)
+   * and then move the reader to the Tests tab, where the answer is.
+   *
+   * `jumpToTab` rather than `setTab`: the reader is being sent somewhere by a
+   * click on a row, so the one-step way back to the Dependencies tab is
+   * recorded — the same rule every other cross-tab link in the app follows.
+   */
+  const onPinDepRef = useLatestRef((fill: Partial<FormState>) => {
+    addPin({ ...EMPTY_FORM, ...fill });
+    jumpToTab("tests");
+  });
+  const onPinDep = useCallback(
+    (fill: Partial<FormState>) => onPinDepRef.current(fill),
+    [onPinDepRef],
+  );
+  /**
+   * "Open in simulator" from a dependency row: the same descriptor channel a
+   * share link uses (`SimRequest`), so the form is filled and re-simulated by
+   * the one mechanism that already does exactly that — and `TestsPanel` shows
+   * its simulator view for it without a second switch of its own.
+   *
+   * It rides in the SAME slot as the link's request, and the pair below is why
+   * that is safe: a dep request records the share nonce it was minted under,
+   * and stops being the current request the moment a NEW link arrives. So a
+   * link can never be masked by a row somebody clicked ten minutes ago.
+   *
+   * The nonce range is far below `TestsPanel`'s own negative pin nonces, which
+   * share this slot too: `useShareLinkRequest` applies a request once BY
+   * nonce, so two channels minting the same number would let one swallow the
+   * other's request.
+   */
+  const [depSim, setDepSim] = useState<{ after: number | null; request: SimRequest } | null>(null);
+  const depSimNonce = useRef(DEP_SIM_NONCE_BASE);
+  const onOpenDepInSimulatorRef = useLatestRef((fill: Partial<FormState>) => {
+    const form: FormState = { ...EMPTY_FORM, ...fill };
+    setDepSim({
+      after: simRequest?.nonce ?? null,
+      request: {
+        form: pinShareFields(form),
+        autoSimulate: true,
+        // The result on screen IS the one this request belongs to — the
+        // attribution rule `useShareLinkRequest` asks of every request.
+        ranResult: result,
+        nonce: --depSimNonce.current,
+      },
+    });
+    jumpToTab("tests");
+  });
+  const onOpenDepInSimulator = useCallback(
+    (fill: Partial<FormState>) => onOpenDepInSimulatorRef.current(fill),
+    [onOpenDepInSimulatorRef],
+  );
+  /** The request the Tests tab acts on: a dependency row's while it is still
+   *  the newest thing asked for, the link's otherwise. */
+  const activeSimRequest =
+    depSim !== null && depSim.after === (simRequest?.nonce ?? null) ? depSim.request : simRequest;
   // Roadmap 085: the signed-in repo picker inside the load overlay. Picking
   // only writes the reference field — Load stays the one trigger.
   const repoPicker = useRepoPicker({
@@ -1014,7 +1097,16 @@ export function App() {
     errorCount,
     warningCount,
     resultsTabs,
-  } = useRunSummary(result, effectiveStats, pins.length, overviewBehaviors);
+  } = useRunSummary(
+    result,
+    effectiveStats,
+    pins.length,
+    overviewBehaviors,
+    // Roadmap 089: only a discovery that actually REPORTED gives the
+    // Dependencies tab a badge — before that (no repo, not opened yet, or a
+    // failed walk) a zero would claim the repository has no dependencies.
+    repoDepsView.status === "ready" ? repoDepsView.deps.length : undefined,
+  );
 
   /**
    * Roadmap 068/078: where a keystroke takes you — the `?` sheet every global
@@ -1224,7 +1316,7 @@ export function App() {
       onRemovePin: removePin,
       pendingRuleFocus,
       onRuleFocused,
-      simRequest,
+      simRequest: activeSimRequest,
       onCopySimLink: buildShareLinkAndCopy,
       onShare: onCopyLink,
       mergeStepIndex,
@@ -1232,6 +1324,8 @@ export function App() {
       repoDeps: repoDepsView,
       onLoadRepoDeps: ensureRepoDeps,
       repoConnect,
+      onPinDep,
+      onOpenDepInSimulator,
       ruleProvenance,
       onJumpToSimRule,
       onApplyFix,
@@ -1273,13 +1367,15 @@ export function App() {
       removePin,
       pendingRuleFocus,
       onRuleFocused,
-      simRequest,
+      activeSimRequest,
       buildShareLinkAndCopy,
       onCopyLink,
       mergeStepIndex,
       repoDepsView,
       ensureRepoDeps,
       repoConnect,
+      onPinDep,
+      onOpenDepInSimulator,
       ruleProvenance,
       onJumpToSimRule,
       onApplyFix,

@@ -766,15 +766,33 @@ describe("054: sim.simThread round-trips and stays additive", () => {
  * what its sender was looking at.
  */
 describe("075: retired tab ids still open the tab that replaced them", () => {
-  test("the strip is the v2 six, Overview first, and none of them is a retired id", () => {
+  test("the strip is the current seven, Overview first, and none of them is a retired id", () => {
+    // Roadmap 089 inserted `deps` between Effective config and Problems. It
+    // needs no compatibility entry of its own — no link in the wild says it —
+    // but it must round-trip like every other current id, which the loop in
+    // the next test covers.
     expect(RESULTS_TAB_IDS).toEqual([
       "overview",
       "tests",
       "pipeline",
       "presets",
       "effective",
+      "deps",
       "problems",
     ]);
+  });
+
+  test("089: a link naming the Dependencies tab round-trips it", async () => {
+    // The new id needed no codec change — the `tab` field is validated against
+    // whatever `RESULTS_TAB_IDS` currently says — and this is the assertion
+    // that the claim is true rather than merely plausible.
+    const token = await encodeShare(minimalState({ view: { tab: "deps" } }));
+    const result = await decodeShareResult(token);
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    expect(result.payload.view).toEqual({ tab: "deps" });
   });
 
   test("each retired id maps to its successor", () => {

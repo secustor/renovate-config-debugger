@@ -1,0 +1,338 @@
+/* Roadmap 089 — the standard data table (`components/DataTable.tsx`) and the
+   Dependencies tab that is its first consumer.
+
+   Appended at the end of the cascade, which is what main.tsx's header
+   sanctions for a new surface: nothing above styles a `.data-table*` selector,
+   so this file has no equal-specificity coupling with anything and its
+   position is not load-bearing. It reuses the app's own primitives rather than
+   redeclaring them — `.pill`/`.pill-muted` for the group header's manager
+   chips, `.btn-quiet` for the retry, `.caret` for the row's triangle — so what
+   is here is only the table's own geometry. */
+
+.data-table {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+/* The rounded-corner clip, on the body rather than the root: the gear's
+   popover hangs below the toolbar, and clipping at the root cut it off at a
+   short table's bottom edge. The toolbar rounds its own top corners; this
+   wrapper clips the bottom pair and every square background inside it. */
+.data-table-body {
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  overflow: hidden;
+}
+
+/* The toolbar row: filter, an optional "from owner/repo", the gear. */
+.data-table-toolbar {
+  align-items: center;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.45rem 0.55rem;
+}
+
+.data-table-filter {
+  background: var(--canvas);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: inherit;
+  flex: 1 1 auto;
+  font: inherit;
+  font-size: 0.8rem;
+  min-width: 8rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.data-table-context {
+  color: var(--muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+/* The gear and its popover. The popover's mechanics are the app's one
+   anchored-popover contract; only its box is here. */
+.data-table-options {
+  display: inline-block;
+  position: relative;
+}
+
+.data-table-gear {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0.2rem 0.35rem;
+}
+
+.data-table-gear:hover,
+.data-table-gear[aria-expanded="true"] {
+  border-color: var(--border);
+  color: var(--ink);
+}
+
+.data-table-options-panel {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popover);
+  padding: 0.6rem 0.7rem;
+  position: absolute;
+  right: 0;
+  text-align: left;
+  top: calc(100% + 0.35rem);
+  /* One fixed width for every consumer: sized to content, each table's panel
+     came out a different size, and the same gear opening two different boxes
+     read as two different controls. Pills wrap inside it. */
+  width: min(22rem, calc(100vw - 2rem));
+  z-index: var(--z-popover);
+}
+
+/* A `<fieldset>`, so the section's name is the platform's own; the chrome it
+   arrives with is not wanted. */
+.data-table-option-section {
+  border: 0;
+  margin: 0;
+  min-inline-size: 0;
+  padding: 0;
+}
+
+.data-table-option-section + .data-table-option-section {
+  border-top: 1px solid var(--border);
+  margin-top: 0.55rem;
+  padding-top: 0.55rem;
+}
+
+.data-table-option-label {
+  color: var(--muted);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  margin: 0 0 0.35rem;
+  text-transform: uppercase;
+}
+
+.data-table-option-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.data-table-option {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 0.1rem 0.55rem;
+}
+
+.data-table-option:hover {
+  color: var(--ink);
+}
+
+.data-table-option.on {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* The column header row, and every row below it, share one grid-less flex
+   rhythm: the lead takes the slack, each cell a fixed share. A cell that is
+   too narrow for its value keeps the value in its `title`. */
+.data-table-head,
+.data-table-row-head {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.data-table-head {
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  padding: 0.3rem 0.6rem 0.3rem 1.5rem;
+  text-transform: uppercase;
+}
+
+.data-table-head-lead {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.data-table-head-cell,
+.data-table-cell {
+  flex: 0 1 8rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The group header: title, the pills its rows contributed, the count. */
+.data-table-group-head {
+  align-items: center;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.3rem 0.6rem;
+}
+
+.data-table-group + .data-table-group .data-table-group-head {
+  border-top: 1px solid var(--border);
+}
+
+.data-table-group-title {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.data-table-group-pills {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.data-table-group-count {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* A row is a disclosure button with its actions beside it, not inside it. */
+.data-table-row {
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  padding: 0 0.6rem;
+}
+
+.data-table-row:last-child {
+  border-bottom: none;
+}
+
+.data-table-row.open {
+  background: var(--surface);
+}
+
+.data-table-row-head {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  flex: 1 1 18rem;
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.3rem 0;
+  text-align: left;
+}
+
+.data-table-lead {
+  flex: 1 1 auto;
+  font-family: var(--font-mono);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.data-table-cell {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.data-table-cell.mono {
+  font-family: var(--font-mono);
+}
+
+.data-table-cell.empty {
+  color: var(--faint);
+}
+
+/* The amber note a row wears when its manager is a custom (user-defined) one:
+   what extracted it is a rule the reader wrote, not a known file format. */
+/* The badge IS the app's `.pill pill-warn` (03-presets.css); this adds only
+   what a pill inside the row-head's flexbox needs. */
+.data-table-badge {
+  flex: none;
+}
+
+.data-table-row-actions {
+  display: flex;
+  flex: none;
+  gap: 0.3rem;
+}
+
+.data-table-action {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.7rem;
+  padding: 0.1rem 0.5rem;
+  white-space: nowrap;
+}
+
+.data-table-action:hover {
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+
+/* The open row's record: the descriptor, field by field. */
+.data-table-fields {
+  display: grid;
+  flex: 1 0 100%;
+  font-size: 0.75rem;
+  gap: 0.1rem 0.6rem;
+  grid-template-columns: max-content minmax(0, 1fr);
+  margin: 0 0 0.5rem;
+  padding: 0.25rem 0 0 1.5rem;
+}
+
+.data-table-fields dt {
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+
+.data-table-fields dd {
+  font-family: var(--font-mono);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.data-table-none,
+.data-table-note,
+.data-table-status {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.data-table-none {
+  margin: 0;
+  padding: 0.6rem;
+}
+
+.data-table-note {
+  margin: 0.4rem 0 0;
+}
+
+.data-table-status {
+  margin: 0;
+}

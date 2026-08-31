@@ -108,6 +108,16 @@ export interface RunView {
    *  a link arrival or a platform change, never per keystroke. */
   repoConnect: RepoConnectOffer;
 
+  // —— dependencies ——
+  /** Roadmap 089: the Dependencies tab's two row actions. Both are the SHELL's
+   *  acts, not the tab's — a pin joins App's list and the simulator is another
+   *  tab — so the panel is handed them and performs neither itself. Each takes
+   *  the extracted descriptor and completes it into a form (`EMPTY_FORM` lives
+   *  in the simulator slice, which only the shell may reach). Identity-stable,
+   *  like every other handler admitted here. */
+  onPinDep: (fill: Partial<FormState>) => void;
+  onOpenDepInSimulator: (fill: Partial<FormState>) => void;
+
   // —— problems ——
   ruleProvenance: RuleAttribution[] | null | undefined;
   onJumpToSimRule: (index: number) => void;

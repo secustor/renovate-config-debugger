@@ -700,10 +700,17 @@
   }
 }
 
+/* No `overflow: hidden` here: the data table's gear popover hangs below its
+   toolbar, and this card was the second clipper to cut it off over a short
+   table (after `.data-table` itself). The tab strip — the one square-cornered
+   background touching this card's corners — rounds itself instead. */
 .results-panel {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  overflow: hidden;
+}
+
+.results-panel > .tab-bar {
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
 /* --- roadmap 029/075: the run digest --------------------------------------

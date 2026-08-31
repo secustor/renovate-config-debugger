@@ -17,6 +17,13 @@
  * becomes a current id again — which needs no compatibility machinery at all,
  * because a link that says `tab=overview` now opens the tab it named. The two
  * ids still retired are `rewrites` and `simulator`.
+ *
+ * Roadmap 089 adds **Dependencies** (`deps`), between Effective config and
+ * Problems — the strip order of the design's Integrated Shell artboard. It
+ * lists what 087's extraction found in the loaded repository, which until now
+ * was reachable only as a five-row picker inside the Add-a-test card. A new id
+ * needs no compatibility machinery either: no link in the wild says `deps`, and
+ * one that will is made by the app that has the tab.
  */
 
 export const RESULTS_TAB_IDS = [
@@ -25,6 +32,7 @@ export const RESULTS_TAB_IDS = [
   "pipeline",
   "presets",
   "effective",
+  "deps",
   "problems",
 ] as const;
 
@@ -36,6 +44,7 @@ export const RESULTS_TAB_LABELS: Record<ResultsTabId, string> = {
   pipeline: "Pipeline",
   presets: "Presets",
   effective: "Effective config",
+  deps: "Dependencies",
   problems: "Problems",
 };
 
