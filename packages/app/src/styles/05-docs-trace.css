@@ -2,7 +2,7 @@
    ORDER IS LOAD-BEARING: main.tsx imports these numbered files in sequence,
    preserving the original file's cascade byte-for-byte — two cross-file
    equal-specificity couplings (.preset-panel, .diff-wrapper) depend on it.
-   This file: inline option docs, migration step-through, the shared key/value grid, merge provenance, decided-by sections (003/004/005/054/075). */
+   This file: inline option docs, migration step-through, the shared key/value grid, merge provenance (003/004/005/054). The Effective tab's decided-by sections that lived here moved onto the standard data table (092) — 18-data-table.css. */
 
 /* ---------- inline option docs (003) ---------- */
 

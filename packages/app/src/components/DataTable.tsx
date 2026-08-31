@@ -1,10 +1,10 @@
-import { type ReactNode, type RefObject, useState } from "react";
-import { nf } from "@/lib/format";
+import { type ReactNode, useMemo, useState } from "react";
 import { useSyncedReset } from "@/hooks/use-synced-reset";
 import { useToggleSet } from "@/hooks/use-toggle-set";
 import {
   activeColumns,
   activeView,
+  countNoun,
   type DataTableColumn,
   type DataTableCopy,
   type DataTableGroup,
@@ -123,9 +123,7 @@ function DataTableGroupHead({
         {group.title}
       </span>
       <DataTableGroupPills pills={group.pills} />
-      <span className="data-table-group-count">
-        {nf.format(group.rows.length)} {group.rows.length === 1 ? rowNoun.one : rowNoun.many}
-      </span>
+      <span className="data-table-group-count">{countNoun(group.rows.length, rowNoun)}</span>
     </div>
   );
 }
@@ -154,7 +152,7 @@ function DataTableGroupBlock({
           row={row}
           columns={columns}
           open={isOpen(row.key)}
-          onToggle={() => onToggleRow(row.key)}
+          onToggle={onToggleRow}
         />
       ))}
     </div>
@@ -184,7 +182,13 @@ function DataTableBody({
     <>
       <DataTableHead leadLabel={leadLabel} columns={columns} />
       {matches === 0 ? (
-        <p className="data-table-none">Nothing matches “{query}”.</p>
+        // The quick filter can empty the table on its own, and blaming a query
+        // nobody typed (“Nothing matches “”.”) reads as a bug in the table.
+        <p className="data-table-none">
+          {query.trim() === ""
+            ? "Nothing matches the current filter."
+            : `Nothing matches “${query}”.`}
+        </p>
       ) : (
         groups.map((group) => (
           <DataTableGroupBlock
@@ -209,7 +213,6 @@ export function DataTable({
   leadLabel,
   rowNoun,
   filterPlaceholder,
-  filterRef,
   contextNote,
   copy,
   views = [],
@@ -235,8 +238,6 @@ export function DataTable({
   /** What the group headers count ("32 dependencies"). */
   rowNoun: DataTableNoun;
   filterPlaceholder: string;
-  /** Forwarded to the filter field, for a consumer that focuses it. */
-  filterRef?: RefObject<HTMLInputElement | null>;
   contextNote?: string;
   /** The toolbar's copy button, left of the gear; `null` = slot reserved, no
    *  payload yet, nothing drawn. */
@@ -287,14 +288,23 @@ export function DataTable({
   );
   const showTable = isTableView(views, viewId);
   // Filtering and grouping rows nobody is looking at is pure waste — while an
-  // alternate view is up, the body is not rendered at all.
-  const groups = showTable ? groupDataRows(filterDataRows(rows, text, quick), grouping) : [];
+  // alternate view is up, the body is not rendered at all. Memoized because a
+  // caret toggle re-renders this component without touching any of the inputs,
+  // and because stable group/row identities are what lets `DataTableRow`'s memo
+  // hold for the two hundred rows the click did not open.
+  const groups = useMemo(
+    () => (showTable ? groupDataRows(filterDataRows(rows, text, quick), grouping) : []),
+    [showTable, rows, text, quick, grouping],
+  );
+  const shownColumns = useMemo(
+    () => activeColumns(columns, visibleColumns.set),
+    [columns, visibleColumns.set],
+  );
   return (
     <div className="data-table">
       <DataTableToolbar
         query={text}
         onQuery={setText}
-        filterRef={filterRef}
         filterPlaceholder={filterPlaceholder}
         contextNote={contextNote}
         copy={copy}
@@ -320,7 +330,7 @@ export function DataTable({
         {showTable ? (
           <DataTableBody
             groups={groups}
-            columns={activeColumns(columns, visibleColumns.set)}
+            columns={shownColumns}
             leadLabel={leadLabel}
             rowNoun={rowNoun}
             query={text}

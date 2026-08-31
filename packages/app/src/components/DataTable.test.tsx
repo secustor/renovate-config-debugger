@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, within } from "@testing-library/react";
-import { createRef } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { recordClipboardWrites } from "@tools/test/clipboard";
 import { DataTable } from "./DataTable";
 import type { DataTableColumn, DataTableGrouping, DataTableRow } from "./data-table";
 
@@ -14,8 +14,13 @@ import type { DataTableColumn, DataTableGrouping, DataTableRow } from "./data-ta
  * citizen.
  */
 
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
+// vitest runs without `globals`, so RTL's automatic cleanup never registers —
+// and neither does mock reset, so the shared `onPin` spy below is cleared here
+// rather than silently accumulating calls across tests.
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
 
 const COLUMNS: readonly DataTableColumn[] = [
   { id: "value", label: "Current value", defaultOn: true, mono: true },
@@ -34,7 +39,10 @@ const ROWS: readonly DataTableRow[] = [
     key: "a",
     lead: "react",
     cells: { value: "17.0.0", manager: "npm" },
-    groups: { file: { title: "package.json", pill: "npm" }, manager: { title: "npm" } },
+    groups: {
+      file: { title: "package.json", pills: [{ label: "npm" }] },
+      manager: { title: "npm" },
+    },
     fields: [
       { label: "depName", value: "react" },
       { label: "datasource", value: "npm" },
@@ -45,7 +53,10 @@ const ROWS: readonly DataTableRow[] = [
     key: "b",
     lead: "node",
     cells: { value: "20", manager: "dockerfile" },
-    groups: { file: { title: "Dockerfile", pill: "dockerfile" }, manager: { title: "dockerfile" } },
+    groups: {
+      file: { title: "Dockerfile", pills: [{ label: "dockerfile" }] },
+      manager: { title: "dockerfile" },
+    },
     badge: { text: "custom.regex", title: "a user-defined rule" },
     fields: [{ label: "depName", value: "node" }],
   },
@@ -297,15 +308,7 @@ describe("DataTable — the view picker", () => {
 
 describe("DataTable — the copy button", () => {
   it("appears only when a payload is given, and copies it lazily", async () => {
-    const writes: string[] = [];
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: {
-        writeText: async (text: string) => {
-          writes.push(text);
-        },
-      },
-    });
+    const writes = recordClipboardWrites();
     const getText = vi.fn(() => "the whole table");
     const view = renderExtras({ copy: { getText, label: "Copy as JSON" } });
 
@@ -362,16 +365,13 @@ describe("DataTable — the quick filter", () => {
 });
 
 describe("DataTable — the controlled filter", () => {
-  it("shows the owner's query, reports edits, and hands over the field", () => {
+  it("shows the owner's query and reports edits without adopting them", () => {
     const onQuery = vi.fn();
-    const filterRef = createRef<HTMLInputElement>();
-    const view = renderExtras({ query: "node", onQuery, filterRef });
+    const view = renderExtras({ query: "node", onQuery });
 
     const filter = view.getByRole("textbox", { name: "Filter 2 dependencies…" });
     expect((filter as HTMLInputElement).value).toBe("node");
     expect(view.container.querySelectorAll(".data-table-row")).toHaveLength(1);
-    // The ref is the field itself — a consumer that sets the query focuses it.
-    expect(filterRef.current).toBe(filter);
 
     fireEvent.change(filter, { target: { value: "react" } });
     expect(onQuery).toHaveBeenCalledExactlyOnceWith("react");
@@ -410,8 +410,9 @@ describe("DataTable — toned group heads and the row's detail block", () => {
 
     const pill = view.container.querySelector(".data-table-group-pills .pill");
     expect(pill?.textContent).toBe("repo");
-    // An existing tone class, not a color of the table's own.
-    expect(pill?.className).toBe("pill pill-accent");
+    // An existing tone class, not a color of the table's own. (The exact class
+    // list is `groupPillClass`'s own claim, in `data-table.test.ts`.)
+    expect(pill?.className).toContain("pill-accent");
   });
 
   it("renders the prepared detail block ABOVE the fields, only while open", () => {

@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PhasePicker } from "./PhasePicker";
-import type { RepoDepsView } from "@/types/repo";
+import { EMPTY_VIEW as EMPTY } from "@tools/test/repo-deps";
 
 /**
  * Roadmap 090 — the phase picker: Renovate's four phases, the two this app
@@ -13,16 +13,6 @@ import type { RepoDepsView } from "@/types/repo";
  */
 
 afterEach(cleanup);
-
-const EMPTY: RepoDepsView = {
-  status: "idle",
-  repo: "",
-  deps: [],
-  files: [],
-  managersConsidered: 0,
-  truncated: false,
-  error: null,
-};
 
 function renderPicker(
   over: Partial<Parameters<typeof PhasePicker>[0]> = {},

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { EmptyNote } from "@/components/EmptyNote";
-import { RepoConnectPanel } from "@/components/RepoConnectPanel";
+import { RepoDiscoveryGate } from "@/components/RepoDiscoveryGate";
 import { ExtractDepsCard } from "./ExtractDepsCard";
 import { ExtractFilesCard } from "./ExtractFilesCard";
 import { ExtractManagersCard } from "./ExtractManagersCard";
@@ -13,9 +13,9 @@ import type { RepoConnectOffer, RepoDepsView } from "@/types/repo";
  * did to the loaded repository, as the three steps it actually performs.
  *
  * The states before the walk has anything to report are the Dependencies tab's
- * (089), and for the same reason: "no repository" is an offer, "reading" and
- * "failed" are statuses, and none of them may be drawn as a track of zeros —
- * three green nodes reading 0/0/+0 would claim a walk that never ran.
+ * (089) — literally, through the shared `RepoDiscoveryGate`: none of them may
+ * be drawn as a track of zeros, since three green nodes reading 0/0/+0 would
+ * claim a walk that never ran.
  *
  * The Extract-deps node is selected first because it is the phase's RESULT;
  * the two before it explain how it was arrived at, which is a question a
@@ -60,19 +60,6 @@ function ExtractCardBody({
   return <ExtractDepsCard view={view} onOpenDependencies={onOpenDependencies} />;
 }
 
-function ExtractFailure({ view, onRetry }: { view: RepoDepsView; onRetry: () => void }) {
-  return (
-    <div className="extract-status">
-      <p className="sim-empty-guard">
-        Could not read {view.repo}: {view.error}
-      </p>
-      <button type="button" className="btn-quiet" onClick={onRetry}>
-        Try again
-      </button>
-    </div>
-  );
-}
-
 function ExtractReport({
   view,
   onOpenDependencies,
@@ -98,22 +85,16 @@ function ExtractReport({
 }
 
 export function ExtractPhase({ view, connect, onRetry, onOpenDependencies }: ExtractPhaseProps) {
-  if (view.repo === "") {
-    return <RepoConnectPanel offer={connect} />;
-  }
-  if (view.status === "idle" || view.status === "loading") {
-    return <p className="extract-status">Reading {view.repo}’s package files…</p>;
-  }
-  if (view.status === "error") {
-    return <ExtractFailure view={view} onRetry={onRetry} />;
-  }
-  if (view.files.length === 0) {
-    return (
-      <EmptyNote>
-        No package files matched in {view.repo} — none of the managers the browser engine can run
-        claims a file in this repository.
-      </EmptyNote>
-    );
-  }
-  return <ExtractReport view={view} onOpenDependencies={onOpenDependencies} />;
+  return (
+    <RepoDiscoveryGate view={view} connect={connect} onRetry={onRetry}>
+      {view.files.length === 0 ? (
+        <EmptyNote>
+          No package files matched in {view.repo} — none of the managers the browser engine can run
+          claims a file in this repository.
+        </EmptyNote>
+      ) : (
+        <ExtractReport view={view} onOpenDependencies={onOpenDependencies} />
+      )}
+    </RepoDiscoveryGate>
+  );
 }

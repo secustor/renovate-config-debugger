@@ -1,18 +1,5 @@
 import { type ClipboardEvent, type KeyboardEvent, type ReactNode, useState } from "react";
-import { joinValues, splitValues } from "./form";
-
-// Roadmap 079 follow-up: a paste containing any of these reads as several
-// values, not one — comma/semicolon-separated lists and newline- or
-// whitespace-separated lists are both things a user's clipboard holds.
-const PASTE_SEPARATOR = /[,;\s]/;
-const PASTE_SEPARATOR_RUN = /[,;\s]+/;
-
-function splitPastedText(text: string): string[] {
-  return text
-    .split(PASTE_SEPARATOR_RUN)
-    .map((s) => s.trim())
-    .filter((s) => s !== "");
-}
+import { joinValues, splitPastedValues, splitValues } from "./form";
 
 function ValueChip({ value, onRemove }: { value: string; onRemove: () => void }) {
   return (
@@ -77,17 +64,15 @@ export function MultiValueInput({
 
   // The draft is left untouched either way: merging it into a multi-value
   // paste would need to know whether the paste replaced a selection or landed
-  // mid-word, and a chip editor has no reason to guess at that. A paste with
-  // no separator falls through to the browser's own insertion, which already
-  // does the right thing with a cursor position and a selection; a paste with
-  // one just adds its pieces as chips and leaves whatever was mid-typed alone.
+  // mid-word, and a chip editor has no reason to guess at that. A paste that
+  // carries a list just adds its pieces as chips and leaves whatever was
+  // mid-typed alone.
   function paste(e: ClipboardEvent<HTMLInputElement>) {
-    const text = e.clipboardData.getData("text");
-    if (!PASTE_SEPARATOR.test(text)) {
+    const pieces = splitPastedValues(e.clipboardData.getData("text"));
+    if (pieces === null) {
       return;
     }
     e.preventDefault();
-    const pieces = splitPastedText(text);
     if (pieces.length === 0) {
       return;
     }

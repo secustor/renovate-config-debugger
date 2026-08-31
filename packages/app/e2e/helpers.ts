@@ -191,27 +191,6 @@ export async function effectivePresetChip(page: Page): Promise<Locator> {
 }
 
 /**
- * Roadmap 075 (v2, iteration 6): the Tests tab opens on the PINNED TESTS — the
- * descriptors re-checked on every run — and the full simulator (one dependency,
- * every rule, the merge replay) is one quiet link away. Every spec that drives
- * the simulator itself goes through here, so "where the simulator lives" is
- * spelled once, exactly as `openPresetTree` spells the tree's home.
- *
- * A link carrying `sim` does NOT need it: naming a simulation opens the
- * simulator by itself (see `TestsPanel`), which is what the 054 thread-link
- * test relies on.
- *
- * Roadmap 080: every door into the detail view carries a SUBJECT — the strip's
- * descriptor-less "open the simulator →" is gone. So the door a spec uses is
- * the one a user has: simulate a one-off in the Add-a-test box (the "npm
- * dependency" quick-fill) and follow its "open in simulator →". The simulator
- * then arrives with that descriptor filled and run — the same state a pin's own
- * link produces, which the specs immediately overwrite with their own quick-fill
- * anyway.
- *
- * Returns the simulator card, since every caller's next line asks it something.
- */
-/**
  * Roadmap 091: removes the STARTER pins the shell seeds into an otherwise
  * empty Tests tab (up to two, derived from the config's own `packageRules`),
  * so a spec whose subject is the empty list — or its own pin, counted — sees
@@ -232,6 +211,27 @@ export async function clearStarterPins(page: Page): Promise<void> {
   await expect(starters).toHaveCount(0);
 }
 
+/**
+ * Roadmap 075 (v2, iteration 6): the Tests tab opens on the PINNED TESTS — the
+ * descriptors re-checked on every run — and the full simulator (one dependency,
+ * every rule, the merge replay) is one quiet link away. Every spec that drives
+ * the simulator itself goes through here, so "where the simulator lives" is
+ * spelled once, exactly as `openPresetTree` spells the tree's home.
+ *
+ * A link carrying `sim` does NOT need it: naming a simulation opens the
+ * simulator by itself (see `TestsPanel`), which is what the 054 thread-link
+ * test relies on.
+ *
+ * Roadmap 080: every door into the detail view carries a SUBJECT — the strip's
+ * descriptor-less "open the simulator →" is gone. So the door a spec uses is
+ * the one a user has: simulate a one-off in the Add-a-test box (the "npm
+ * dependency" quick-fill) and follow its "open in simulator →". The simulator
+ * then arrives with that descriptor filled and run — the same state a pin's own
+ * link produces, which the specs immediately overwrite with their own quick-fill
+ * anyway.
+ *
+ * Returns the simulator card, since every caller's next line asks it something.
+ */
 export async function openSimulator(page: Page): Promise<Locator> {
   await openTab(page, "tests");
   const panel = tabPanel(page, "tests");

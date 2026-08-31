@@ -4,6 +4,7 @@ import {
   EMPTY_FORM,
   joinValues,
   QUICK_FILLS,
+  splitPastedValues,
   splitValues,
   toDescriptor,
 } from "./form";
@@ -57,5 +58,28 @@ describe("multi-value fields", () => {
     // always sent, which is what the share link encodes.
     const form: FormState = { ...EMPTY_FORM, registryUrls: joinValues(["https://a", "https://b"]) };
     expect(toDescriptor(form).registryUrls).toEqual(["https://a", "https://b"]);
+  });
+});
+
+describe("splitPastedValues", () => {
+  it("splits a pasted list on commas, semicolons and whitespace runs alike", () => {
+    expect(splitPastedValues("https://a, https://b, https://c")).toEqual([
+      "https://a",
+      "https://b",
+      "https://c",
+    ]);
+    expect(splitPastedValues("a\nb; c   d")).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("drops the empties a trailing or doubled separator leaves behind", () => {
+    expect(splitPastedValues("a, b,")).toEqual(["a", "b"]);
+    expect(splitPastedValues("a,, b")).toEqual(["a", "b"]);
+    // A list of nothing is still a list — claimed, not inserted as text.
+    expect(splitPastedValues("  ")).toEqual([]);
+  });
+
+  it("declines a paste that carries a single value", () => {
+    expect(splitPastedValues("https://a.example")).toBeNull();
+    expect(splitPastedValues("")).toBeNull();
   });
 });

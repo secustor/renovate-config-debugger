@@ -146,6 +146,31 @@ export function joinValues(values: readonly string[]): string {
   return values.join(", ");
 }
 
+// Roadmap 079 follow-up: a paste containing any of these reads as several
+// values, not one — comma/semicolon-separated lists and newline- or
+// whitespace-separated lists are both things a user's clipboard holds.
+const PASTE_SEPARATOR = /[,;\s]/;
+const PASTE_SEPARATOR_RUN = /[,;\s]+/;
+
+/**
+ * The values a pasted blob carries, or `null` when it carries only one.
+ *
+ * `null` is the "not ours" answer: a paste with no separator falls through to
+ * the browser's own insertion, which already handles a cursor position and a
+ * selection correctly. An empty array is a different answer — the paste WAS a
+ * list, of nothing (a lone comma, a run of whitespace) — and the chip editor
+ * claims it rather than inserting the separators as text.
+ */
+export function splitPastedValues(text: string): string[] | null {
+  if (!PASTE_SEPARATOR.test(text)) {
+    return null;
+  }
+  return text
+    .split(PASTE_SEPARATOR_RUN)
+    .map((s) => s.trim())
+    .filter((s) => s !== "");
+}
+
 /** The fields this form keeps as ONE comma-separated string but Renovate — and
  *  so a pasted descriptor — carries as an array. `list()` below is what turns
  *  them back into one. */

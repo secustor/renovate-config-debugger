@@ -213,7 +213,6 @@ function DataTableOptions(props: OptionsProps) {
 export function DataTableToolbar({
   query,
   onQuery,
-  filterRef,
   filterPlaceholder,
   contextNote,
   copy,
@@ -221,9 +220,6 @@ export function DataTableToolbar({
 }: OptionsProps & {
   query: string;
   onQuery: (value: string) => void;
-  /** The consumer's handle on the field — it focuses it when an external link
-   *  sets the query, which is the one thing a controlled value cannot do. */
-  filterRef?: RefObject<HTMLInputElement | null>;
   /** Doubles as the field's accessible name — it states the totals, which is
    *  the only place they appear once the list is grouped. */
   filterPlaceholder: string;
@@ -237,7 +233,6 @@ export function DataTableToolbar({
     <div className="data-table-toolbar">
       <input
         className="data-table-filter"
-        ref={filterRef}
         aria-label={filterPlaceholder}
         placeholder={filterPlaceholder}
         value={query}

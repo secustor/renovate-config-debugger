@@ -1,5 +1,5 @@
 import type { KeyProvenance, PresetNode, ProvenanceStep } from "@renovate-config-debugger/engine";
-import type { DataTablePillTone } from "@/components/data-table";
+import type { DataTableGroupPill, DataTablePillTone } from "@/components/data-table";
 
 /**
  * Roadmap 075 (iteration 5): the effective config, grouped by WHO DECIDED each
@@ -113,7 +113,9 @@ export function presetDeciderName(names: readonly string[]): string | null {
  */
 export interface DeciderHead {
   title: string;
-  pill: { label: string; tone: DataTablePillTone };
+  /** The table's own pill shape, with the tone made REQUIRED: every layer here
+   *  has a hue, and a head that forgot one would silently render muted. */
+  pill: DataTableGroupPill & { tone: DataTablePillTone };
 }
 
 const DECIDER_HEADS: Record<DeciderId, DeciderHead> = {

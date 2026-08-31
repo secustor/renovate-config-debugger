@@ -40,19 +40,22 @@ const ROWS: readonly DataTableRow[] = [
     "a",
     "react",
     { value: "17.0.0", datasource: "npm", manager: "npm" },
-    { file: { title: "package.json", pill: "npm" }, manager: { title: "npm" } },
+    { file: { title: "package.json", pills: [{ label: "npm" }] }, manager: { title: "npm" } },
   ),
   row(
     "b",
     "lodash",
     { value: "4.0.0", datasource: "npm", manager: "npm" },
-    { file: { title: "package.json", pill: "npm" }, manager: { title: "npm" } },
+    { file: { title: "package.json", pills: [{ label: "npm" }] }, manager: { title: "npm" } },
   ),
   row(
     "c",
     "node",
     { value: "20", datasource: "docker", manager: "dockerfile" },
-    { file: { title: "Dockerfile", pill: "dockerfile" }, manager: { title: "dockerfile" } },
+    {
+      file: { title: "Dockerfile", pills: [{ label: "dockerfile" }] },
+      manager: { title: "dockerfile" },
+    },
   ),
 ];
 
@@ -130,8 +133,7 @@ describe("groupDataRows", () => {
     const groups = groupDataRows(ROWS, "file");
     expect(groups.map((g) => g.title)).toEqual(["package.json", "Dockerfile"]);
     expect(groups[0]?.rows.map((r) => r.key)).toEqual(["a", "b"]);
-    // Two npm rows contribute ONE pill, and the untoned spelling normalizes
-    // into the same shape the toned one arrives in.
+    // Two npm rows contribute ONE pill.
     expect(groups[0]?.pills).toEqual([{ label: "npm" }]);
     expect(groups[1]?.pills).toEqual([{ label: "dockerfile" }]);
   });
@@ -182,7 +184,9 @@ describe("groupDataRows", () => {
   });
 
   it("a mono grouping stays mono, and an ungrouped run has no plain title either", () => {
-    expect(groupDataRows(ROWS, "file").every((g) => g.plainTitle)).toBe(false);
+    // `some`, not `every`: `every` would still pass with one of the two groups
+    // wrongly plain.
+    expect(groupDataRows(ROWS, "file").some((g) => g.plainTitle)).toBe(false);
     expect(groupDataRows(ROWS, null)[0]?.plainTitle).toBe(false);
   });
 

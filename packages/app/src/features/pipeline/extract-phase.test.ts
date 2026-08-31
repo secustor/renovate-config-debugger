@@ -10,7 +10,8 @@ import {
   matchedManagerNames,
   scannedFiles,
 } from "./extract-phase";
-import type { RepoDep, RepoDepFile, RepoDepsView } from "@/types/repo";
+import { EMPTY_VIEW, repoDep as dep, walkFile } from "@tools/test/repo-deps";
+import type { RepoDepsView } from "@/types/repo";
 
 /**
  * Roadmap 090 — what the Extract phase is allowed to SAY about a walk.
@@ -21,23 +22,8 @@ import type { RepoDep, RepoDepFile, RepoDepsView } from "@/types/repo";
  * does not apply.
  */
 
-function dep(name: string, file: string, manager: string): RepoDep {
-  return {
-    key: `${file}:0:${name}`,
-    depName: name,
-    value: "1.0.0",
-    meta: `${file} · 1.0.0`,
-    manager,
-    packageFile: file,
-    fill: { depName: name, manager, packageFile: file },
-  };
-}
-
-function walkFile(path: string, managers: string[], over: Partial<RepoDepFile> = {}): RepoDepFile {
-  return { path, managers, extractedBy: null, depCount: 0, outcome: "not-read", ...over };
-}
-
 const VIEW: RepoDepsView = {
+  ...EMPTY_VIEW,
   status: "ready",
   repo: "acme/webapp",
   deps: [
@@ -56,8 +42,6 @@ const VIEW: RepoDepsView = {
     walkFile(".github/workflows/ci.yml", ["github-actions"], { outcome: "no-deps" }),
   ],
   managersConsidered: 100,
-  truncated: false,
-  error: null,
 };
 
 describe("extractNodes", () => {

@@ -51,7 +51,7 @@ drawing in `.tsx`.
 
 The table is **data-driven rather than generic over a row type**: a consumer
 reduces its records to `DataTableRow` once (cells keyed by column id, a group
-title and pill keyed by grouping id, the fields the open row lists), and the
+title and its pills keyed by grouping id, the fields the open row lists), and the
 component then needs no callbacks to render, group or search them. That is
 what keeps it in `components/` while its first consumer is a feature — the
 shared layer may not import a feature to find out what a row is.
@@ -110,8 +110,14 @@ Two consequences worth recording:
   results panel stays MOUNTED (028), so a panel-side effect would fire for a
   tab nobody has looked at and spend the rate limit on it. App runs
   `ensureRepoDeps()` when `tab === "deps"`; `ensure` is idempotent per loaded
-  repo, so the two doors onto the same discovery (this tab and the Tests tab's
-  From-repository view) never discover twice.
+  repo, so the doors onto the same discovery never discover twice. (Two at the
+  time of writing — this tab and the Tests tab's From-repository view; 090's
+  Extract phase is the third, and App's effect gained its condition there.)
+
+The two row actions and the request slot they share are `app/use-dep-actions.ts`,
+not App's body: they are one cluster (a pin, a simulator request, and which of
+the two request channels is current), and every other such cluster in the shell
+is already a hook of its own.
 
 ### The nonce range
 
@@ -150,13 +156,16 @@ and 083 had already fought once. Measured in a real Chromium against the
 production build, across `system-ui` and three deliberately wider fallbacks
 (Verdana is the worst case at ~4% over macOS's SF), the row was ~12px short.
 
-What paid for it: the tab type down to 0.8rem, the sides to 0.3rem, and — the
-part that actually bought the room — **the count badge is a plain number
-beside its label rather than a second chip**. The outline and its padding cost
-~16px per badge on five tabs; a count sitting against the word it counts was
-never making the kind of claim that outline is there to fence off. The TONES
-stay, so a Problems count still reads in the error hue. The strip now measures
-600px of 660 under macOS's own font, 626 under Verdana.
+What paid for it, as this shipped: the tab type down to 0.8rem, the sides to
+0.3rem, and — the part that actually bought the room — the count badge
+flattened to a plain number beside its label rather than a second chip.
+
+**Reversed, and this is what is in the tree**: the bubble IS the design's count
+grammar (the Final artboard draws every tab count as a pill), so it stays. The
+row's budget comes instead from a compact cut of the pill — 0.66rem type,
+0.3rem sides, which a strip-height count can afford where a body chip cannot —
+plus the artboard's own 0.78rem tab type and 0.28rem sides. One row verified at
+1280px under `system-ui` and Verdana.
 
 ## Verification
 
@@ -205,6 +214,12 @@ tab was read on a real screen.
 - **The gear looks like a button.** A bare `⚙` on the toolbar's ground read as
   decoration. It now wears the outline button's border, radius and hover at the
   icon-only padding — the same grammar as the CopyButton beside it.
+- **The three pre-report states are a shared component.** 090 grew a second
+  surface over the same discovery, so the connect offer / "reading…" / failure
+  triple became `components/RepoDiscoveryGate` — the promotion rule again, the
+  same one that moved `RepoConnectPanel` down here. What "nothing was found"
+  MEANS stays each consumer's: no dependencies is not the fact no matched files
+  is.
 - **The row actions moved into the OPEN row**, under the fields, which reverses
   the "one set is enough, drawn on every row" delta above. Two hundred rows
   each wearing two buttons is a wall of chrome, and a row that ends in buttons

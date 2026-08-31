@@ -92,6 +92,13 @@ function firstLiteral(values: string[] | null): string | null {
   return values.find((v) => v !== "" && !/[*?[\]{}]/.test(v) && !/^[!/]/.test(v)) ?? null;
 }
 
+/** The one value a matcher can be satisfied with — null both when the rule
+ *  does not carry that matcher at all and when nothing on it is a literal. The
+ *  caller tells the two apart with `key in rule`. */
+function ruleLiteral(rule: Record<string, unknown>, key: string): string | null {
+  return key in rule ? firstLiteral(matcherValues(rule[key])) : null;
+}
+
 /** The quick-fill that already describes this ecosystem — the samples are the
  *  app's, not a second table that could drift from them. */
 function sampleFor(manager: string | null, datasource: string | null): Partial<FormState> | null {
@@ -150,30 +157,19 @@ export function starterFormForRule(value: unknown): FormState | null {
     return null;
   }
 
-  const manager = "matchManagers" in rule ? firstLiteral(matcherValues(rule.matchManagers)) : null;
-  const datasource =
-    "matchDatasources" in rule ? firstLiteral(matcherValues(rule.matchDatasources)) : null;
-  if (
-    ("matchManagers" in rule && manager === null) ||
-    ("matchDatasources" in rule && datasource === null)
-  ) {
-    return null;
-  }
-  const sample = sampleFor(manager, datasource);
-  // A datasource with no manager we can pair it with is the case the doc names
-  // explicitly: a descriptor naming only a datasource is not an update anyone
-  // recognizes, and guessing the manager would guess the match.
-  if (sample === null && manager === null && datasource !== null) {
-    return null;
-  }
-  const base = sample ?? (manager === null ? defaultSample() : NEUTRAL_SAMPLE);
-
-  const packageName =
-    ("matchPackageNames" in rule ? firstLiteral(matcherValues(rule.matchPackageNames)) : null) ??
-    ("matchDepNames" in rule ? firstLiteral(matcherValues(rule.matchDepNames)) : null);
-  const depName = "matchDepNames" in rule ? firstLiteral(matcherValues(rule.matchDepNames)) : null;
-  const depType = "matchDepTypes" in rule ? firstLiteral(matcherValues(rule.matchDepTypes)) : null;
+  const manager = ruleLiteral(rule, "matchManagers");
+  const datasource = ruleLiteral(rule, "matchDatasources");
+  const depName = ruleLiteral(rule, "matchDepNames");
+  const depType = ruleLiteral(rule, "matchDepTypes");
+  // Falls back to the dep name, so a rule naming only dep names still puts a
+  // package on the descriptor.
+  const packageName = ruleLiteral(rule, "matchPackageNames") ?? depName;
+  // The "never guess" rule: a matcher the rule DOES carry but nothing literal
+  // could satisfy skips the rule rather than pinning something it won't fire
+  // on.
   for (const [key, named] of [
+    ["matchManagers", manager],
+    ["matchDatasources", datasource],
     ["matchPackageNames", packageName],
     ["matchDepNames", depName],
     ["matchDepTypes", depType],
@@ -183,11 +179,21 @@ export function starterFormForRule(value: unknown): FormState | null {
     }
   }
 
-  const asked = "matchUpdateTypes" in rule ? matcherValues(rule.matchUpdateTypes) : null;
-  const updateType =
-    "matchUpdateTypes" in rule
-      ? (asked?.find((type) => SYNTHESIZABLE_UPDATE_TYPES.includes(type)) ?? null)
-      : (base.updateType ?? null);
+  const sample = sampleFor(manager, datasource);
+  // A datasource with no manager we can pair it with is the case the doc names
+  // explicitly: a descriptor naming only a datasource is not an update anyone
+  // recognizes, and guessing the manager would guess the match.
+  if (sample === null && manager === null && datasource !== null) {
+    return null;
+  }
+  const base = sample ?? (manager === null ? defaultSample() : NEUTRAL_SAMPLE);
+
+  // null = the rule does not ask for an update type at all, and the sample's
+  // own kind stands; a list (even an unreadable one, as []) has to be met.
+  const asked = "matchUpdateTypes" in rule ? (matcherValues(rule.matchUpdateTypes) ?? []) : null;
+  const updateType = asked
+    ? (asked.find((type) => SYNTHESIZABLE_UPDATE_TYPES.includes(type)) ?? null)
+    : (base.updateType ?? null);
   if (updateType === null) {
     return null;
   }

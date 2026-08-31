@@ -43,8 +43,7 @@ import { useInheritedConfigLayer } from "@/app/use-inherited-config-layer";
 import { useRepoLoad } from "@/app/use-repo-load";
 import { useRepoDeps } from "@/features/simulator/use-repo-deps";
 import type { PipelinePhase } from "@/features/pipeline/phases";
-import { EMPTY_FORM } from "@/features/simulator/form";
-import { pinShareFields } from "@/features/simulator/pins";
+import { useDepActions } from "@/app/use-dep-actions";
 import { useRepoPicker } from "@/app/use-repo-picker";
 import { useRunSummary } from "@/app/use-run-summary";
 import { usePanelStats } from "@/app/use-panel-stats";
@@ -60,8 +59,6 @@ import { AppBanners } from "@/app/AppBanners";
 import { ResultsPane } from "@/app/ResultsPane";
 import { preloadRunChunks } from "@/app/preload-run-chunks";
 import type { RepoConnectOffer } from "@/types/repo";
-import type { FormState } from "@/types/simulator";
-import type { SimRequest } from "@/hooks/use-share-link";
 
 /** What a caller may ask of a run. Every request reaches the queue except one
  *  refused before it starts, by layers that would not parse — see `onRun`. */
@@ -79,13 +76,6 @@ interface RunOptions {
 }
 
 type InjectionMap = Record<string, Record<string, unknown>>;
-
-/** Roadmap 089: where a Dependencies row's simulator request starts counting
- *  DOWN from. Three channels mint into one `SimRequest` slot — the share hook
- *  (0, 1, 2 …), `TestsPanel`'s pin link (-1, -2 …) and this one — and
- *  `useShareLinkRequest` applies a request once by nonce, so the ranges must
- *  not meet. */
-const DEP_SIM_NONCE_BASE = -1_000_000;
 
 /** Roadmap 076: the two 008 merge layers as one comparable value — what
  *  `resultsStale` asks about them. Spelled once so the key a run RECORDS and
@@ -605,66 +595,13 @@ export function App() {
     }),
     [repoSuggestion, connectSuggestedRepo, openRepoForm],
   );
-  /**
-   * Roadmap 089: the Dependencies tab's two row actions, which are the
-   * SHELL's — a pin joins the list this component owns, and the simulator is
-   * another tab. Both complete the extracted descriptor into a full form
-   * (`EMPTY_FORM` is the simulator slice's, which only the shell may reach)
-   * and then move the reader to the Tests tab, where the answer is.
-   *
-   * `jumpToTab` rather than `setTab`: the reader is being sent somewhere by a
-   * click on a row, so the one-step way back to the Dependencies tab is
-   * recorded — the same rule every other cross-tab link in the app follows.
-   */
-  const onPinDepRef = useLatestRef((fill: Partial<FormState>) => {
-    addPin({ ...EMPTY_FORM, ...fill });
-    jumpToTab("tests");
-  });
-  const onPinDep = useCallback(
-    (fill: Partial<FormState>) => onPinDepRef.current(fill),
-    [onPinDepRef],
-  );
-  /**
-   * "Open in simulator" from a dependency row: the same descriptor channel a
-   * share link uses (`SimRequest`), so the form is filled and re-simulated by
-   * the one mechanism that already does exactly that — and `TestsPanel` shows
-   * its simulator view for it without a second switch of its own.
-   *
-   * It rides in the SAME slot as the link's request, and the pair below is why
-   * that is safe: a dep request records the share nonce it was minted under,
-   * and stops being the current request the moment a NEW link arrives. So a
-   * link can never be masked by a row somebody clicked ten minutes ago.
-   *
-   * The nonce range is far below `TestsPanel`'s own negative pin nonces, which
-   * share this slot too: `useShareLinkRequest` applies a request once BY
-   * nonce, so two channels minting the same number would let one swallow the
-   * other's request.
-   */
-  const [depSim, setDepSim] = useState<{ after: number | null; request: SimRequest } | null>(null);
-  const depSimNonce = useRef(DEP_SIM_NONCE_BASE);
-  const onOpenDepInSimulatorRef = useLatestRef((fill: Partial<FormState>) => {
-    const form: FormState = { ...EMPTY_FORM, ...fill };
-    setDepSim({
-      after: simRequest?.nonce ?? null,
-      request: {
-        form: pinShareFields(form),
-        autoSimulate: true,
-        // The result on screen IS the one this request belongs to — the
-        // attribution rule `useShareLinkRequest` asks of every request.
-        ranResult: result,
-        nonce: --depSimNonce.current,
-      },
-    });
-    jumpToTab("tests");
-  });
-  const onOpenDepInSimulator = useCallback(
-    (fill: Partial<FormState>) => onOpenDepInSimulatorRef.current(fill),
-    [onOpenDepInSimulatorRef],
-  );
-  /** The request the Tests tab acts on: a dependency row's while it is still
-   *  the newest thing asked for, the link's otherwise. */
-  const activeSimRequest =
-    depSim !== null && depSim.after === (simRequest?.nonce ?? null) ? depSim.request : simRequest;
+  // Roadmap 089: the Dependencies tab's two row actions, and the simulator
+  // request slot they share with the share link — one cluster, in its own hook.
+  const {
+    onPinDep,
+    onOpenDepInSimulator,
+    simRequest: activeSimRequest,
+  } = useDepActions({ addPin, jumpToTab, shareRequest: simRequest, result });
   // Roadmap 085: the signed-in repo picker inside the load overlay. Picking
   // only writes the reference field — Load stays the one trigger.
   const repoPicker = useRepoPicker({

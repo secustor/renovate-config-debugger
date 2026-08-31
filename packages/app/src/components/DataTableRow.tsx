@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import { Caret } from "@/components/Caret";
 import { OptionKey } from "@/components/option-docs";
 import { Term } from "@/components/glossary";
@@ -29,7 +29,12 @@ import type {
 /** One cell: the column's width, the row's text — or, when the row prepared
  *  one, the node it wants drawn there instead. The text still fills the
  *  `title`, so a rich cell the column is too narrow for is readable the same
- *  way a plain one is. */
+ *  way a plain one is.
+ *
+ *  A row that declares a cell node CONDITIONALLY hands over `null` for the rows
+ *  that get none (`note ? <NoteCell/> : null`), so "no node" has to mean null
+ *  as well as undefined — otherwise those rows lose the "—" and the `empty`
+ *  class that a consumer declaring no nodes at all still gets. */
 function DataTableCell({
   column,
   value,
@@ -39,14 +44,15 @@ function DataTableCell({
   value: string;
   node: ReactNode;
 }) {
-  const empty = value === "" && node === undefined;
+  const content = node ?? null;
+  const empty = value === "" && content === null;
   return (
     <span
       className={`data-table-cell${column.mono ? " mono" : ""}${empty ? " empty" : ""}`}
       title={value === "" ? undefined : value}
       style={{ flexBasis: column.width }}
     >
-      {node ?? (empty ? "—" : value)}
+      {content ?? (empty ? "—" : value)}
     </span>
   );
 }
@@ -108,10 +114,15 @@ function DataTableRowHead({
   row: RowModel;
   columns: readonly DataTableColumn[];
   open: boolean;
-  onToggle: () => void;
+  onToggle: (key: string) => void;
 }) {
   return (
-    <button type="button" className="data-table-row-head" aria-expanded={open} onClick={onToggle}>
+    <button
+      type="button"
+      className="data-table-row-head"
+      aria-expanded={open}
+      onClick={() => onToggle(row.key)}
+    >
       <Caret open={open} />
       <code className="data-table-lead">{row.leadNode ?? row.lead}</code>
       {row.badge === undefined ? null : (
@@ -131,7 +142,11 @@ function DataTableRowHead({
   );
 }
 
-export function DataTableRow({
+/** Memoized: one caret toggle re-renders the table, and a two-hundred-row list
+ *  must not rebuild the 199 rows that did not change. The table keeps `row`,
+ *  `columns` and `onToggle` identity-stable for exactly this reason — the
+ *  handler takes the KEY rather than closing over the row. */
+export const DataTableRow = memo(function DataTableRow({
   row,
   columns,
   open,
@@ -141,7 +156,7 @@ export function DataTableRow({
   /** The columns currently switched on, in declaration order. */
   columns: readonly DataTableColumn[];
   open: boolean;
-  onToggle: () => void;
+  onToggle: (key: string) => void;
 }) {
   const actions = row.actions ?? [];
   return (
@@ -154,4 +169,4 @@ export function DataTableRow({
       {open && actions.length > 0 ? <DataTableActions actions={actions} /> : null}
     </div>
   );
-}
+});

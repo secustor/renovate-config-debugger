@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { cleanup, fireEvent, render, type RenderResult } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { MultiValueInput } from "./MultiValueInput";
 
@@ -7,6 +7,11 @@ import { MultiValueInput } from "./MultiValueInput";
  * Roadmap 079 follow-up: paste auto-split. Pasting several values at once
  * (registry URLs, categories, …) should commit one chip per value instead of
  * dumping the whole blob into the draft as one unsplittable token.
+ *
+ * WHICH values a blob splits into is `splitPastedValues`' own question, asked
+ * in `form.test.ts`; what is under test here is the editor around it — whether
+ * the event is claimed, what reaches the committed list, and what the draft is
+ * left holding.
  */
 
 // vitest runs without `globals`, so RTL's automatic cleanup never registers.
@@ -23,31 +28,25 @@ function paste(input: HTMLElement, text: string) {
   return fireEvent.paste(input, { clipboardData: { getData: () => text } });
 }
 
+/** The committed chips, in order. Read off each chip's remove button, whose
+ *  accessible name IS the value it would remove — the chip's own claim, rather
+ *  than whichever DOM node its label happens to be. */
+function chips(view: RenderResult): string[] {
+  return view
+    .queryAllByRole("button", { name: /^Remove / })
+    .map((button) => button.getAttribute("aria-label")?.replace(/^Remove /, "") ?? "");
+}
+
 describe("MultiValueInput — paste auto-split", () => {
-  it("splits a comma-separated paste into one chip per value", () => {
+  it("commits one chip per pasted value instead of inserting the blob", () => {
     const view = render(<Harness />);
     const input = view.getByLabelText("registryUrls");
 
     paste(input, "https://a.example, https://b.example, https://c.example");
 
-    const chips = [...view.container.querySelectorAll(".sim-chip")].map((c) =>
-      c.firstChild?.textContent?.trim(),
-    );
-    expect(chips).toEqual(["https://a.example", "https://b.example", "https://c.example"]);
+    expect(chips(view)).toEqual(["https://a.example", "https://b.example", "https://c.example"]);
     // The paste was claimed, not inserted as text.
     expect((input as HTMLInputElement).value).toBe("");
-  });
-
-  it("splits on newlines, semicolons and whitespace runs alike", () => {
-    const view = render(<Harness />);
-    const input = view.getByLabelText("registryUrls");
-
-    paste(input, "a\nb; c   d");
-
-    const chips = [...view.container.querySelectorAll(".sim-chip")].map((c) =>
-      c.firstChild?.textContent?.trim(),
-    );
-    expect(chips).toEqual(["a", "b", "c", "d"]);
   });
 
   it("lets a single-token paste fall through to default insertion", () => {
@@ -58,7 +57,7 @@ describe("MultiValueInput — paste auto-split", () => {
 
     // Not claimed: fireEvent reports true when the default wasn't prevented.
     expect(dispatched).toBe(true);
-    expect(view.container.querySelectorAll(".sim-chip")).toHaveLength(0);
+    expect(chips(view)).toEqual([]);
   });
 
   it("drops empties from a trailing separator without leaving a stray chip", () => {
@@ -67,10 +66,7 @@ describe("MultiValueInput — paste auto-split", () => {
 
     paste(input, "a, b,");
 
-    const chips = [...view.container.querySelectorAll(".sim-chip")].map((c) =>
-      c.firstChild?.textContent?.trim(),
-    );
-    expect(chips).toEqual(["a", "b"]);
+    expect(chips(view)).toEqual(["a", "b"]);
   });
 
   it("dedupes within the pasted batch and against already-committed chips", () => {
@@ -79,10 +75,7 @@ describe("MultiValueInput — paste auto-split", () => {
 
     paste(input, "a, b, b, c");
 
-    const chips = [...view.container.querySelectorAll(".sim-chip")].map((c) =>
-      c.firstChild?.textContent?.trim(),
-    );
-    expect(chips).toEqual(["a", "b", "c"]);
+    expect(chips(view)).toEqual(["a", "b", "c"]);
   });
 
   it("leaves a partially typed draft untouched by a multi-value paste", () => {
@@ -93,9 +86,6 @@ describe("MultiValueInput — paste auto-split", () => {
     paste(input, "a, b");
 
     expect(input.value).toBe("still-typing");
-    const chips = [...view.container.querySelectorAll(".sim-chip")].map((c) =>
-      c.firstChild?.textContent?.trim(),
-    );
-    expect(chips).toEqual(["a", "b"]);
+    expect(chips(view)).toEqual(["a", "b"]);
   });
 });

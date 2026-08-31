@@ -53,13 +53,6 @@
   color: var(--ok);
 }
 
-/* The states before the walk has anything to report. */
-.extract-status {
-  color: var(--muted);
-  font-size: 0.75rem;
-  margin: 0;
-}
-
 /* The rows a card opens onto: a disclosure head, and a sublist under it.
    `.card` is an unpadded shell (only its title pads itself), so each body
    piece here carries the title's own 0.75rem side inset — without it the

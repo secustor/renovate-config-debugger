@@ -210,8 +210,9 @@ export function RepoDepsTab({
   onDraftChange,
   onPinDraft,
   onRefineDraft,
-  onRetry,
 }: {
+  /** Always a READY view: not-loaded, reading and failed are the shared
+   *  `RepoDiscoveryGate`'s, which this tab renders behind. */
   view: RepoDepsView;
   pins: PinnedTest[];
   atLimit: boolean;
@@ -221,24 +222,8 @@ export function RepoDepsTab({
   onDraftChange: (draft: RepoDraft | null) => void;
   onPinDraft: () => void;
   onRefineDraft: () => void;
-  onRetry: () => void;
 }) {
   const [query, setQuery] = useState("");
-  if (view.status === "loading" || view.status === "idle") {
-    return <p className="pin-repo-status">Reading {view.repo}’s package files…</p>;
-  }
-  if (view.status === "error") {
-    return (
-      <div className="pin-repo-status">
-        <p className="sim-empty-guard">
-          Could not read {view.repo}: {view.error}
-        </p>
-        <button type="button" className="btn-quiet" onClick={onRetry}>
-          Try again
-        </button>
-      </div>
-    );
-  }
   if (view.deps.length === 0) {
     return (
       <div className="pin-repo-status">

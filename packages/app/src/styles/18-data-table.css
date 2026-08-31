@@ -396,8 +396,7 @@
 }
 
 .data-table-none,
-.data-table-note,
-.data-table-status {
+.data-table-note {
   color: var(--muted);
   font-size: 0.75rem;
 }
@@ -409,8 +408,4 @@
 
 .data-table-note {
   margin: 0.4rem 0 0;
-}
-
-.data-table-status {
-  margin: 0;
 }

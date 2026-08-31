@@ -44,7 +44,7 @@ describe("depTableRow", () => {
 
   it("groups by package file with the manager as the header's pill, and by manager", () => {
     const row = depTableRow(DEP, NOOP);
-    expect(row.groups.packageFile).toEqual({ title: "package.json", pill: "npm" });
+    expect(row.groups.packageFile).toEqual({ title: "package.json", pills: [{ label: "npm" }] });
     expect(row.groups.manager).toEqual({ title: "npm" });
   });
 

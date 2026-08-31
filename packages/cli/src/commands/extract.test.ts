@@ -50,11 +50,11 @@ describe("extract", () => {
     const path = await materialize("package.json", "package.json");
     const run = await runCli(["extract", path]);
     expect(run.code).toBe(0);
-    expect(run.stdout).toContain("npm —");
-    expect(run.stdout).toContain("react");
-    expect(run.stdout).toContain("17.0.0");
-    expect(run.stdout).toContain("npm");
-    expect(run.stdout).toContain("dependencies");
+    expect(run.stdout).toContain("npm — 2 dependencies in ");
+    // One ROW, all four columns in order — `toContain("npm")` would be
+    // satisfied by the manager heading alone and prove nothing about the row.
+    expect(run.stdout).toMatch(/^\s+react\s+17\.0\.0\s+npm\s+dependencies$/m);
+    expect(run.stdout).toMatch(/^\s+vitest\s+1\.0\.0\s+npm\s+devDependencies$/m);
   });
 
   test("several managers claiming one filename all run and are all reported", async () => {
