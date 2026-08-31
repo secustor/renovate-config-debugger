@@ -95,7 +95,7 @@ function subcommandOf(
   command: Command,
   io: CliIo,
   report: ExitSink,
-): CommanderCommand {
+): void {
   const sub = program
     .command(command.name)
     .summary(command.summary)
@@ -116,7 +116,6 @@ function subcommandOf(
   sub.action(async (positionals: string[], _options: unknown, self: CommanderCommand) => {
     report(await command.run(collectArgs(self.opts(), positionals, command.options), io));
   });
-  return sub;
 }
 
 /**

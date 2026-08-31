@@ -56,10 +56,19 @@ export function byteLength(text: string): number {
  * pair leaves an orphan half — an emoji in a `groupName` rendered as U+FFFD by
  * the very code meant to make the row readable. One truncation for the app and
  * the CLI, and the safe one.
+ *
+ * `withLength` states what the cut hid — "how much more is there" is the
+ * question a provenance chain's reader asks next.
  */
-export function preview(value: unknown, max = 80): string {
+export function preview(
+  value: unknown,
+  max = 80,
+  { withLength = false }: { withLength?: boolean } = {},
+): string {
   if (value === undefined) {
     return "(unset)";
   }
-  return truncate(JSON.stringify(value) ?? String(value), max);
+  const text = JSON.stringify(value) ?? String(value);
+  const cut = truncate(text, max);
+  return withLength && cut !== text ? `${cut} (${text.length} chars)` : cut;
 }

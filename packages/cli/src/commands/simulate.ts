@@ -1,12 +1,5 @@
-import {
-  type DependencyDescriptor,
-  type RuleEvaluation,
-  simulatePackageRules,
-  type SimulationResult,
-  type TraceResult,
-} from "@renovate-config-debugger/engine";
+import type { DependencyDescriptor, RuleEvaluation } from "@renovate-config-debugger/engine";
 import { stringOption } from "../args";
-import { CliError } from "../io";
 import { emitJson, emitLines, writeNotes } from "../output";
 import { INPUT_OPTIONS, refusalNote, wouldRefuse } from "../run-input";
 import { readDependency } from "../dep";
@@ -27,6 +20,7 @@ import {
 } from "../projections/config-view";
 import { parseDetail, type SimulateDetail, simulationPayload } from "../projections/simulate";
 import { flattenedView, verdictPayload } from "../projections/verdict";
+import { askSimulation } from "../questions/simulate";
 import { defineRunCommand } from "../run-command";
 
 /**
@@ -34,16 +28,6 @@ import { defineRunCommand } from "../run-command";
  * evaluated against a hypothetical update, with clause-level evidence for why
  * each one did or didn't fire.
  */
-
-export async function simulateAgainst(
-  result: TraceResult,
-  dep: Parameters<typeof simulatePackageRules>[0]["dep"],
-): Promise<SimulationResult> {
-  if (!result.finalConfig) {
-    throw new CliError("nothing to simulate — the run produced no effective config");
-  }
-  return simulatePackageRules({ config: result.finalConfig, dep });
-}
 
 /**
  * The rule list, one line each. A MATCHED line names the layer that wrote the
@@ -144,7 +128,7 @@ export const simulateCommand = defineRunCommand<SimulateFlags>({
   },
   async answer({ io, format, prepared, result }) {
     const { selection, detail, keys, scope, dep } = prepared;
-    const sim = await simulateAgainst(result, dep);
+    const sim = await askSimulation({ finalConfig: result.finalConfig, dep, transport: "cli" });
     const view = buildRuleView(sim, result, selection);
     writeNotes(io, view.notes);
     const matched = sim.rules.filter((r) => r.verdict === "matched");

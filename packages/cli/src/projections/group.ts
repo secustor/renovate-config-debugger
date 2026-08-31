@@ -193,6 +193,14 @@ export function blindTallyNote(tally: GroupTally, gapCount: number): string | un
   );
 }
 
+/** One member row, the same shape whether it grouped or not. */
+function memberLine(member: GroupMember): string {
+  return (
+    `      ${member.depName ?? "(unnamed dependency)"}` +
+    (member.updateType ? ` (${member.updateType})` : "")
+  );
+}
+
 /** The tally as pretty output prints it; `gaps` is {@link inputGaps}'s answer,
  *  so a blind tally can correct itself right under the headline instead of in
  *  a footnote nobody reads before concluding "these updates don't group". */
@@ -204,23 +212,15 @@ export function groupTallyLines(tally: GroupTally, gaps: readonly string[] = [])
     ".";
   const lines = [headline, ...(blind ? ["", `⚠ ${blind}`] : [])];
   for (const group of tally.groups) {
-    lines.push("", `  ${group.verdict}`);
-    for (const member of group.members) {
-      lines.push(
-        `      ${member.depName ?? "(unnamed dependency)"}` +
-          (member.updateType ? ` (${member.updateType})` : ""),
-      );
-    }
+    lines.push("", `  ${group.verdict}`, ...group.members.map(memberLine));
   }
   if (tally.ungrouped.length > 0) {
-    lines.push("", "  Ungrouped — each update gets its own PR:");
-    for (const member of tally.ungrouped) {
-      lines.push(
-        `      ${member.depName ?? "(unnamed dependency)"}` +
-          (member.updateType ? ` (${member.updateType})` : ""),
-      );
-    }
+    lines.push(
+      "",
+      "  Ungrouped — each update gets its own PR:",
+      ...tally.ungrouped.map(memberLine),
+    );
   }
-  lines.push("", ...tally.notes.map((note) => note));
+  lines.push("", ...tally.notes);
   return lines;
 }

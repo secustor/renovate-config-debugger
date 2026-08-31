@@ -5,12 +5,12 @@ import {
   type TraceResult,
   UPDATE_TYPE_KEYS,
 } from "@renovate-config-debugger/engine";
-import {
-  isOverridden,
-  multiContribBadgeKind,
-  truncate,
-} from "@renovate-config-debugger/app/headless";
+import { isOverridden, multiContribBadgeKind } from "@renovate-config-debugger/app/headless";
 import { CliError } from "../io";
+import { preview } from "../output";
+
+/** A provenance value states what the cut hid; the chain is one call away. */
+const WITH_LENGTH = { withLength: true } as const;
 
 /**
  * Per-key provenance, projected — shared by `rcd provenance` and the MCP
@@ -132,8 +132,8 @@ export function entryView(entry: KeyProvenance): ProvenanceView {
  *  it appended, everything else the value it left behind. */
 export function chainStepText(step: ProvenanceChainStep, max = 80): string {
   return "added" in step
-    ? `+${step.addedCount} → ${step.totalCount} total ${previewValue(step.added, max)}`
-    : previewValue(step.after, max);
+    ? `+${step.addedCount} → ${step.totalCount} total ${preview(step.added, max, WITH_LENGTH)}`
+    : preview(step.after, max, WITH_LENGTH);
 }
 
 export interface ProvenanceIndexEntry {
@@ -144,13 +144,6 @@ export interface ProvenanceIndexEntry {
   contributors: number;
   /** Enough of the final value to recognise it; the chain is one call away. */
   preview: string;
-}
-
-/** A value, short enough to scan, with what it cost to get there. The cut is
- *  the app's surrogate-safe `truncate` — see `../output`'s `preview`. */
-export function previewValue(value: unknown, max = 60): string {
-  const text = JSON.stringify(value) ?? String(value);
-  return text.length <= max ? text : `${truncate(text, max)} (${text.length} chars)`;
 }
 
 /**
@@ -168,7 +161,7 @@ export function indexView(entry: KeyProvenance): ProvenanceIndexEntry {
     winner: view.winner,
     badge: view.badge,
     contributors: view.chain.length,
-    preview: previewValue(entry.finalValue),
+    preview: preview(entry.finalValue, 60, WITH_LENGTH),
   };
 }
 

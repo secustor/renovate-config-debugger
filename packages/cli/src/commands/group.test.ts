@@ -1,4 +1,7 @@
-import { describe, expect, test } from "vitest";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, test } from "vitest";
 import { fixture, runCli, runJson } from "../test-harness";
 
 /**
@@ -144,14 +147,20 @@ describe("group", () => {
   });
 });
 
+let scratch: string | null = null;
+
+afterEach(async () => {
+  if (scratch !== null) {
+    await rm(scratch, { recursive: true, force: true });
+    scratch = null;
+  }
+});
+
 /** A batch file in a scratch directory, since the flag's whole point is
  *  reading one. */
 async function depsFile(name: string, content: string): Promise<string> {
-  const { writeFile, mkdtemp } = await import("node:fs/promises");
-  const { tmpdir } = await import("node:os");
-  const { join } = await import("node:path");
-  const dir = await mkdtemp(join(tmpdir(), "rcd-group-"));
-  const path = join(dir, name);
+  scratch = await mkdtemp(join(tmpdir(), "rcd-group-"));
+  const path = join(scratch, name);
   await writeFile(path, content, "utf8");
   return path;
 }

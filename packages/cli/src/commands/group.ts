@@ -1,10 +1,11 @@
-import type { DependencyDescriptor, SimulationResult } from "@renovate-config-debugger/engine";
+import type { DependencyDescriptor } from "@renovate-config-debugger/engine";
 import { emitJson, emitLines } from "../output";
 import { INPUT_OPTIONS, refusalNote, wouldRefuse } from "../run-input";
 import { readDependencies } from "../dep";
-import { blindTallyNote, groupTally, groupTallyLines, inputGaps } from "../projections/group";
+import { groupTallyLines } from "../projections/group";
+import { askGroup, type GroupQuestion } from "../questions/group";
+import { askSimulation } from "../questions/simulate";
 import { defineRunCommand } from "../run-command";
-import { simulateAgainst } from "./simulate";
 
 /**
  * Roadmap 074: "given these pending updates, which groups form, and would each
@@ -37,19 +38,20 @@ export const groupCommand = defineRunCommand<DependencyDescriptor[]>({
   options: [...INPUT_OPTIONS, "dep", "deps-file", "format"],
   prepare: (args) => readDependencies(args),
   async answer({ io, format, prepared: deps, result }) {
-    const simulated: { dep: DependencyDescriptor; sim: SimulationResult }[] = [];
+    const simulated: GroupQuestion[] = [];
     for (const dep of deps) {
-      simulated.push({ dep, sim: await simulateAgainst(result, dep) });
+      simulated.push({
+        dep,
+        sim: await askSimulation({ finalConfig: result.finalConfig, dep, transport: "cli" }),
+      });
     }
-    const tally = groupTally(simulated);
-    const gaps = inputGaps(simulated, "cli");
-    const blind = blindTallyNote(tally, gaps.length);
+    const { tally, gaps, notes } = askGroup(simulated, "cli");
     const refused = wouldRefuse(result);
     const refusal = refusalNote(refused ? ["the config"] : []);
     if (format === "json") {
       emitJson(io, {
         ...tally,
-        notes: [...(blind ? [blind] : []), ...tally.notes, ...gaps],
+        notes,
         wouldRefuse: refused,
         ...(refusal ? { exitNote: refusal } : {}),
       });
