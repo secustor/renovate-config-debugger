@@ -11,9 +11,9 @@ import {
 import type { RepoDepsView } from "@/types/repo";
 
 /**
- * Roadmap 090 — the Extract phase as it is rendered: its four pre-report
- * states (none of which may be a track of zeros), the node that is selected
- * first, and what each node's card opens onto.
+ * Roadmap 090 — the Extract phase as it is rendered: that its pre-report
+ * states go through the shared gate (none of which may be a track of zeros),
+ * the node that is selected first, and what each node's card opens onto.
  *
  * What the nodes SAY is `extract-phase.ts`' own question, asked in
  * `extract-phase.test.ts`; the sentences are read from that derivation here
@@ -54,31 +54,13 @@ function renderPhase(view: RepoDepsView, over: Partial<Parameters<typeof Extract
 }
 
 describe("ExtractPhase states", () => {
-  it("offers to connect a repository when none is loaded", () => {
-    const onOpenLoad = vi.fn();
-    const view = renderPhase(EMPTY, { connect: { ...CONNECT, onOpenLoad } });
-
+  // What the three pre-report states SAY is `RepoDiscoveryGate.test.tsx`'s;
+  // what is this phase's is that they go through the gate at all — above all,
+  // that none of them leaves a track of zeros claiming a walk that never ran.
+  it("answers the pre-report states through the shared discovery gate", () => {
+    const view = renderPhase(EMPTY);
     expect(view.container.textContent).toContain("The repository isn’t loaded in this session");
-    // Above all: no track of zeros claiming a walk that never ran.
     expect(view.container.querySelector(".stage-rail")).toBeNull();
-  });
-
-  it("says it is reading while discovery runs", () => {
-    const view = renderPhase({ ...EMPTY, status: "loading", repo: "acme/webapp" });
-    expect(view.container.textContent).toContain("Reading acme/webapp’s package files…");
-    expect(view.container.querySelector(".stage-rail")).toBeNull();
-  });
-
-  it("states a failure and offers the retry", () => {
-    const onRetry = vi.fn();
-    const view = renderPhase(
-      { ...EMPTY, status: "error", repo: "acme/webapp", error: "rate limited" },
-      { onRetry },
-    );
-
-    expect(view.container.textContent).toContain("Could not read acme/webapp: rate limited");
-    fireEvent.click(view.getByRole("button", { name: "Try again" }));
-    expect(onRetry).toHaveBeenCalledOnce();
   });
 
   it("says nothing matched rather than drawing an empty track", () => {

@@ -5,10 +5,11 @@ import { CONNECT_OFFER as CONNECT, EMPTY_VIEW as EMPTY, repoDep } from "@tools/t
 import type { RepoDepsView } from "@/types/repo";
 
 /**
- * Roadmap 089 — the Dependencies tab's four states. Each one is a different
- * honest answer, and the panel must never show a table for any of them: "not
- * loaded" is an offer, "loading" and "failed" are statuses, and "nothing
- * found" is a fact about the repository rather than an empty list.
+ * Roadmap 089 — the Dependencies tab. The three pre-report states are the
+ * shared `RepoDiscoveryGate`'s and are proved in its own suite; what is the
+ * panel's own is that it routes through the gate, that "nothing found" is a
+ * fact about the repository rather than an empty list, and what the table says
+ * once discovery reports.
  */
 
 // vitest runs without `globals`, so RTL's automatic cleanup never registers.
@@ -37,32 +38,13 @@ function renderPanel(
 }
 
 describe("DependenciesPanel", () => {
-  it("offers to connect a repository when none is loaded", () => {
-    const onOpenLoad = vi.fn();
-    const view = renderPanel(EMPTY, { connect: { ...CONNECT, onOpenLoad } });
-
+  // What the three pre-report states SAY is `RepoDiscoveryGate.test.tsx`'s;
+  // what is this panel's is that they go through the gate at all, and that none
+  // of them can leave a table claiming "0 dependencies" behind.
+  it("answers the pre-report states through the shared discovery gate", () => {
+    const view = renderPanel(EMPTY);
     expect(view.container.textContent).toContain("The repository isn’t loaded in this session");
-    fireEvent.click(view.getByRole("button", { name: "load a repository…" }));
-    expect(onOpenLoad).toHaveBeenCalledOnce();
-    // No table, and above all no "0 dependencies" — nothing has been read.
     expect(view.container.querySelector(".data-table")).toBeNull();
-  });
-
-  it("says it is reading while discovery runs", () => {
-    const view = renderPanel({ ...EMPTY, status: "loading", repo: "acme/webapp" });
-    expect(view.container.textContent).toContain("Reading acme/webapp’s package files…");
-  });
-
-  it("states a failure and offers the retry", () => {
-    const onRetry = vi.fn();
-    const view = renderPanel(
-      { ...EMPTY, status: "error", repo: "acme/webapp", error: "rate limited" },
-      { onRetry },
-    );
-
-    expect(view.container.textContent).toContain("Could not read acme/webapp: rate limited");
-    fireEvent.click(view.getByRole("button", { name: "Try again" }));
-    expect(onRetry).toHaveBeenCalledOnce();
   });
 
   it("says nothing was found rather than drawing an empty table", () => {

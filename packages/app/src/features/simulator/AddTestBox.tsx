@@ -18,7 +18,7 @@ import { PinHeadRow } from "./PinHeadRow";
 import { pinContext, pinName, MAX_PINS } from "./pins";
 import { PinSectionHead } from "./PinRuleSections";
 import { draftFill, type RepoDraft } from "./repo-deps";
-import { RepoConnectPanel } from "@/components/RepoConnectPanel";
+import { RepoDiscoveryGate } from "@/components/RepoDiscoveryGate";
 import { RepoDepsTab } from "./RepoDepsTab";
 import { type OneOff, useOneOffSimulation } from "./use-one-off-simulation";
 import { usePinCardOpen } from "./use-pin-card-open";
@@ -298,6 +298,51 @@ function PasteJsonTab({
 }
 
 /**
+ * The From-repository tab behind the SHARED discovery gate (roadmap 089/090) —
+ * not-loaded, reading and failed are answered here exactly as the Dependencies
+ * tab and the Extract phase answer them, so three doors onto one discovery can
+ * never disagree. A leaf component because the gate is a JSX level and the
+ * tabpanel wrapper already spends the depth budget.
+ */
+function RepoTabPanel({
+  view,
+  connect,
+  onRetry,
+  pins,
+  atLimit,
+  draft,
+  onDraftChange,
+  onPinDraft,
+  onRefineDraft,
+}: {
+  view: RepoDepsView;
+  connect: RepoConnectOffer;
+  onRetry: () => void;
+  pins: PinnedTest[];
+  atLimit: boolean;
+  draft: RepoDraft | null;
+  onDraftChange: (draft: RepoDraft | null) => void;
+  onPinDraft: () => void;
+  onRefineDraft: () => void;
+}) {
+  return (
+    <RepoDiscoveryGate view={view} connect={connect} onRetry={onRetry}>
+      {/* Keyed: the search box is per-repo state and must not survive a new load. */}
+      <RepoDepsTab
+        key={view.repo}
+        view={view}
+        pins={pins}
+        atLimit={atLimit}
+        draft={draft}
+        onDraftChange={onDraftChange}
+        onPinDraft={onPinDraft}
+        onRefineDraft={onRefineDraft}
+      />
+    </RepoDiscoveryGate>
+  );
+}
+
+/**
  * The Manual tab's own body: the form, the 015 empty guard, and the actions
  * row — one component because the tab strip now switches between three of
  * these and the alternative is five sibling `{tab === "manual" ? … : null}`
@@ -425,7 +470,7 @@ export function AddTestBox({
   // idiom): a draft built from repo A must not survive into repo B, where
   // pinning it would file A's descriptor under B's "detected because you
   // loaded this config from…" claim. The search box resets the same way,
-  // through the keyed RepoDepsTab below.
+  // through the keyed RepoDepsTab inside `RepoTabPanel`.
   useSyncedReset(repoDeps.repo, () => {
     setRepoDraft(null);
   });
@@ -559,18 +604,17 @@ export function AddTestBox({
           {tab === "paste" ? (
             <PasteJsonTab text={pasteDraft} onTextChange={setPasteDraft} onFill={applyPaste} />
           ) : null}
-          {tab === "repo" && !repoAvailable ? <RepoConnectPanel offer={repoConnect} /> : null}
-          {tab === "repo" && repoAvailable ? (
-            <RepoDepsTab
-              key={repoDeps.repo}
+          {tab === "repo" ? (
+            <RepoTabPanel
               view={repoDeps}
+              connect={repoConnect}
+              onRetry={onLoadRepoDeps}
               pins={pins}
               atLimit={atLimit}
               draft={repoDraft}
               onDraftChange={setRepoDraft}
               onPinDraft={pinRepoDraft}
               onRefineDraft={refineRepoDraft}
-              onRetry={onLoadRepoDeps}
             />
           ) : null}
           {tab === "manual" ? (
