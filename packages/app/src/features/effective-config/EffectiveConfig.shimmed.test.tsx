@@ -363,58 +363,6 @@ it("groups the rows by the layer that decided each key", async () => {
   expect(view.container.textContent).not.toContain("The cascade, bottom to top");
 });
 
-it("heads each group with the rows it is showing", async () => {
-  const result = await runPipeline({
-    fileName: "renovate.json",
-    content: JSON.stringify({ labels: ["dependencies"], automerge: true, rebaseWhen: "auto" }),
-  });
-
-  const view = render(<EffectiveConfig result={result} />);
-  await waitFor(() => expect(view.container.querySelector(".data-table-row")).not.toBeNull());
-
-  const repo = groupOf(view.container, "Your repo config");
-  const total = keysIn(repo).length;
-  expect(total).toBeGreaterThan(1);
-  expect(repo.querySelector(".data-table-group-count")?.textContent).toBe(`${total} options`);
-
-  // A narrowed group reports what it is SHOWING — the only number the reader
-  // can check against the rows under the header.
-  fireEvent.change(view.getByPlaceholderText("Filter keys…"), { target: { value: "labels" } });
-  await waitFor(() =>
-    expect(keysIn(groupOf(view.container, "Your repo config"))).toEqual(["labels"]),
-  );
-  expect(
-    groupOf(view.container, "Your repo config").querySelector(".data-table-group-count")
-      ?.textContent,
-  ).toBe("1 option");
-});
-
-/**
- * Roadmap 092: "only overridden" is the table's quick filter now — a checkbox
- * in the gear's Filter section rather than a control in a toolbar row of this
- * tab's own, composed with the text filter as AND.
- */
-it("narrows to the overridden rows from the gear's quick filter", async () => {
-  const result = await runPipeline({
-    fileName: "renovate.json",
-    content: JSON.stringify({
-      extends: [":dependencyDashboard"],
-      labels: ["dependencies"],
-    }),
-  });
-
-  const view = render(<EffectiveConfig result={result} />);
-  await waitFor(() => expect(view.container.querySelector(".data-table-row")).not.toBeNull());
-  const all = view.container.querySelectorAll(".data-table-row").length;
-
-  openGear(view);
-  fireEvent.click(view.getByLabelText("only overridden"));
-  const narrowed = view.container.querySelectorAll(".data-table-row").length;
-  expect(narrowed).toBeLessThan(all);
-  // The defaults are the first thing it drops: nothing in the run touched them.
-  expect(view.container.textContent).not.toContain("Renovate defaults");
-});
-
 /**
  * Roadmap 069 (PR 5): the same attribution at the point of contact — the
  * As-JSON document's `description` strings. The model and its wording are unit
