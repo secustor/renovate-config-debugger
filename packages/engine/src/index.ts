@@ -1,8 +1,13 @@
 export { runPipeline } from "./pipeline";
 export {
+  type CustomManagerInput,
+  customManagerName,
   EXTRACTABLE_MANAGERS,
   type ExtractableMatch,
   type ExtractableWalk,
+  type ExtractableWalkOptions,
+  type ExtractCustomRequest,
+  extractCustomDeps,
   type ExtractedPackageFile,
   extractDeps,
   type ExtractFile,
@@ -11,7 +16,7 @@ export {
   matchExtractableManagers,
   matchManagersForFile,
 } from "./extract";
-export type { PackageDependency } from "./renovate-adapter";
+export type { CustomManagerType, PackageDependency } from "./renovate-adapter";
 export { globalOnlyOptionNames, removeGlobalConfig } from "./config-scope";
 export {
   type ClauseEvaluation,
