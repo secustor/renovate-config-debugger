@@ -133,6 +133,12 @@ export const OPTIONS = {
       "which config keys to report: package-rules (drop the globalOnly options a rule " +
       "cannot reach) | full",
   },
+  manager: {
+    flags: "--manager <name>",
+    description:
+      "force this manager, instead of matching by filename — the only door for a " +
+      "pattern-less manager, and how to pick among several that claim one filename",
+  },
 } as const satisfies Record<string, OptionSpec>;
 
 export type OptionName = keyof typeof OPTIONS;

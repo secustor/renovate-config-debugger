@@ -1,15 +1,15 @@
 # 078 — Dependency proposals: extract real deps from a pasted package file
 
-Milestone: M17 · Status: **app scope shipped; CLI scope in flight.**
+Milestone: M17 · Status: **app and CLI scope shipped.**
 [087](087-ghost-row-and-repo-deps.md) built the shims and the engine
 (`extractDeps` over 102 managers) and made the input the LOADED REPOSITORY
 rather than a pasted file-set — read its "Deltas from 078's spec" before this
 document's Scope, which is written against the original plan.
 [089](089-dependencies-tab-and-data-table.md) gave the extracted list its own
-tab, and [090](090-pipeline-extract-phase.md) gave the extraction itself the
-Pipeline tab's Extract phase. **Remaining: `rcd extract`** (the CLI bullet
-below — in flight as the next layer), the pasted `{ path, content }` file-set
-input (still 063's), and custom managers (063 too).
+tab, [090](090-pipeline-extract-phase.md) gave the extraction itself the
+Pipeline tab's Extract phase, and `rcd extract <file>` (the CLI bullet below)
+shipped as the next layer. **Remaining:** the pasted `{ path, content }`
+file-set input (still 063's) and custom managers (063 too).
 Feasibility surveyed:
 [2026-08-builtin-extraction-feasibility.md](2026-08-builtin-extraction-feasibility.md)
 
