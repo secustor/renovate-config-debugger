@@ -31,17 +31,22 @@ import type { RepoConnectOffer, RepoDepsView } from "@/types/repo";
 
 const DEP_NOUN: DataTableNoun = { one: "dependency", many: "dependencies" };
 
-/** What was read, and what honestly was not — the same accounting the
- *  From-repository picker's footnote gives, said once under the table. */
+/** The footnotes the table cannot say itself — matched files that turned out
+ *  to hold nothing, and what honestly was not read at all. Silent when there
+ *  is nothing to report; where the rows came from is the toolbar's note. */
 function DependenciesNote({ view }: { view: RepoDepsView }) {
-  const parts = [`detected because you loaded this config from ${view.repo}`];
+  const emptyFiles = view.files.filter((file) => file.outcome === "no-deps").length;
+  const parts: string[] = [];
+  if (emptyFiles > 0) {
+    parts.push(`${plural(emptyFiles, "matched file")} did not contain any dependencies`);
+  }
   if (view.skippedFiles > 0) {
     parts.push(`${nf.format(view.skippedFiles)} matched files not read`);
   }
   if (view.truncated) {
     parts.push("the repository’s file listing was truncated");
   }
-  return <p className="data-table-note">{parts.join(" · ")}</p>;
+  return parts.length === 0 ? null : <p className="data-table-note">{parts.join(" · ")}</p>;
 }
 
 function DependenciesError({ view, onRetry }: { view: RepoDepsView; onRetry: () => void }) {
