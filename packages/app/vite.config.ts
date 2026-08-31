@@ -189,6 +189,7 @@ interface BuildIdentity {
   repo: string;
   commit: string | null;
   version: string | null;
+  versionDistance: number | null;
   commitTime: string | null;
 }
 
@@ -210,12 +211,16 @@ function git(...args: string[]): string | null {
  */
 function collectBuildIdentity(): BuildIdentity {
   const commit = process.env.GITHUB_SHA ?? git("rev-parse", "HEAD");
+  // The latest release tag reachable from this commit, plus how many commits
+  // sit between them — `--long` always yields `<tag>-<distance>-g<sha>`, so 0
+  // means the build IS the tagged release. (CI fetches the full history for
+  // this — see ci.yml's build job.)
+  const described = git("describe", "--tags", "--long")?.match(/^(.+)-(\d+)-g[0-9a-f]+$/);
   return {
     repo: process.env.GITHUB_REPOSITORY ?? "secustor/renovate-config-debugger",
     commit,
-    // The latest release tag reachable from this commit (CI fetches the full
-    // history for this — see ci.yml's build job).
-    version: git("describe", "--tags", "--abbrev=0")?.replace(/^v/, "") ?? null,
+    version: described?.[1]?.replace(/^v/, "") ?? null,
+    versionDistance: described?.[2] === undefined ? null : Number(described[2]),
     commitTime: commit ? git("show", "-s", "--format=%cI", commit) : null,
   };
 }

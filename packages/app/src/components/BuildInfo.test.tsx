@@ -14,6 +14,8 @@ const IDENTITY = vi.hoisted(() => ({
   repo: "secustor/renovate-config-debugger",
   commit: "d58538fab3a0000000000000000000000000000f",
   version: "0.2.0",
+  // Deliberately AFTER the tag: the panel's identity line must say so.
+  versionDistance: 3,
   commitTime: "2026-08-25T14:02:33+02:00",
 }));
 
@@ -45,6 +47,9 @@ describe("BuildStamp", () => {
       `https://github.com/${IDENTITY.repo}/commit/${IDENTITY.commit}`,
     );
     expect(panel.textContent).toContain("2026-08-25 12:02 UTC");
+    // The identity line owns exactness: this build sits after the tag, and
+    // the line says so instead of dressing the commit up as the release.
+    expect(panel.querySelector(".build-info-id")?.textContent).toContain("v0.2.0 + 3 commits");
   });
 
   it("defaults to the attestation command and switches to rebuild & diff", () => {

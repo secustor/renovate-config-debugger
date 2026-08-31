@@ -1,4 +1,5 @@
 import { isPlainObject } from "@/lib/input-schemas";
+import { plural } from "@/lib/format";
 
 /**
  * Roadmap 088 — the build identity behind "verify this build".
@@ -15,14 +16,21 @@ export interface BuildIdentity {
   repo: string;
   /** Full commit SHA the bundle was built from. */
   commit: string;
-  /** Latest release tag at that commit (without the `v`), if any. */
+  /** Latest release tag reachable from that commit (without the `v`), if any. */
   version: string | null;
+  /** Commits between that tag and this commit — 0 means the build IS the
+   *  tagged release; null means the distance is unknown. */
+  versionDistance: number | null;
   /** The commit's committer date (ISO 8601) — shown as "built". */
   commitTime: string | null;
 }
 
 function str(v: unknown): string | null {
   return typeof v === "string" && v !== "" ? v : null;
+}
+
+function count(v: unknown): number | null {
+  return typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : null;
 }
 
 /** Validated read of the injected value — exported for its tests. */
@@ -35,7 +43,13 @@ export function parseBuildIdentity(raw: unknown): BuildIdentity | null {
   if (!repo || !commit) {
     return null;
   }
-  return { repo, commit, version: str(raw.version), commitTime: str(raw.commitTime) };
+  return {
+    repo,
+    commit,
+    version: str(raw.version),
+    versionDistance: count(raw.versionDistance),
+    commitTime: str(raw.commitTime),
+  };
 }
 
 export const BUILD_INFO: BuildIdentity | null =
@@ -43,6 +57,19 @@ export const BUILD_INFO: BuildIdentity | null =
 
 export function shortCommit(info: BuildIdentity): string {
   return info.commit.slice(0, 7);
+}
+
+/** "v0.5.0" only when the commit IS the tagged release, "v0.5.0 + 3 commits"
+ *  when it sits after it — a bare tag must never dress up a later commit as
+ *  the release. An unknown distance shows the bare tag (nothing to count). */
+export function formatVersion(info: BuildIdentity): string | null {
+  if (info.version === null) {
+    return null;
+  }
+  const tag = `v${info.version}`;
+  return info.versionDistance !== null && info.versionDistance > 0
+    ? `${tag} + ${plural(info.versionDistance, "commit")}`
+    : tag;
 }
 
 export function commitUrl(info: BuildIdentity): string {

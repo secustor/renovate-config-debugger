@@ -4,6 +4,7 @@ import {
   type BuildIdentity,
   commitUrl,
   formatCommitTime,
+  formatVersion,
   shortCommit,
   verifyCommands,
 } from "@/lib/build-info";
@@ -33,9 +34,12 @@ type VerifyTab = (typeof TABS)[number]["id"];
 
 function BuildIdentityLine({ info }: { info: BuildIdentity }) {
   const time = info.commitTime ? formatCommitTime(info.commitTime) : null;
+  // formatVersion says whether this commit IS the tagged release or sits
+  // after it ("v0.5.0" vs "v0.5.0 + 3 commits").
+  const version = formatVersion(info);
   return (
     <p className="build-info-id">
-      {info.version ? `v${info.version} · ` : null}
+      {version ? `${version} · ` : null}
       <a href={commitUrl(info)} target="_blank" rel="noreferrer">
         {shortCommit(info)}
       </a>
