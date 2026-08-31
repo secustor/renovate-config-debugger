@@ -53,13 +53,12 @@ describe("the derived display values", () => {
     expect(formatCommitTime("not a date")).toBeNull();
   });
 
-  it("says whether the build IS the tagged release or sits after it", () => {
+  it("names a version only for the build the tag points at", () => {
     expect(formatVersion(IDENTITY)).toBe("v0.2.0");
-    expect(formatVersion({ ...IDENTITY, versionDistance: 3 })).toBe("v0.2.0 + 3 commits");
-    expect(formatVersion({ ...IDENTITY, versionDistance: 1 })).toBe("v0.2.0 + 1 commit");
-    // An unknown distance must not claim exactness IN WORDS — the bare tag is
-    // today's display, no better and no worse.
-    expect(formatVersion({ ...IDENTITY, versionDistance: null })).toBe("v0.2.0");
+    // A commit after the tag — or one whose distance is unknown — is not the
+    // release, and wears no version at all: its sha is its identity.
+    expect(formatVersion({ ...IDENTITY, versionDistance: 3 })).toBeNull();
+    expect(formatVersion({ ...IDENTITY, versionDistance: null })).toBeNull();
     expect(formatVersion({ ...IDENTITY, version: null })).toBeNull();
   });
 });

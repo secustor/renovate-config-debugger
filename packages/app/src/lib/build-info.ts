@@ -1,5 +1,4 @@
 import { isPlainObject } from "@/lib/input-schemas";
-import { plural } from "@/lib/format";
 
 /**
  * Roadmap 088 — the build identity behind "verify this build".
@@ -59,17 +58,12 @@ export function shortCommit(info: BuildIdentity): string {
   return info.commit.slice(0, 7);
 }
 
-/** "v0.5.0" only when the commit IS the tagged release, "v0.5.0 + 3 commits"
- *  when it sits after it — a bare tag must never dress up a later commit as
- *  the release. An unknown distance shows the bare tag (nothing to count). */
+/** "v0.5.0" only when the tag points AT the built commit; any other build —
+ *  a commit after the tag, or an unknown distance — has no version at all
+ *  and is identified by its sha. A version must never dress up a commit
+ *  that is not the release. */
 export function formatVersion(info: BuildIdentity): string | null {
-  if (info.version === null) {
-    return null;
-  }
-  const tag = `v${info.version}`;
-  return info.versionDistance !== null && info.versionDistance > 0
-    ? `${tag} + ${plural(info.versionDistance, "commit")}`
-    : tag;
+  return info.version !== null && info.versionDistance === 0 ? `v${info.version}` : null;
 }
 
 export function commitUrl(info: BuildIdentity): string {
