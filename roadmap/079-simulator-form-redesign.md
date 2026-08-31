@@ -164,3 +164,24 @@ owns the flag, and `setUpdateTypeTouched` is still what the override sets.
   live descriptor); `19-keyboard.spec.ts` addresses `packageName`/`datasource`
   by label instead of by `.sim-field`. Not run in this pass — the suite needs a
   production build.
+
+## Addendum — 2026-08-31: a pasted list becomes chips
+
+Design turn 12 (the chips variant): pasting several registry URLs or categories
+at once dumped the whole blob into the draft as one unsplittable token, which
+is a value no matcher will ever see. A paste carrying any of
+comma, semicolon or whitespace is now read as a LIST — `splitPastedValues` in
+`form.ts`, beside the `splitValues`/`joinValues` the chips already are a view
+through — and its pieces are committed as chips, deduplicated against each
+other and against what is already committed.
+
+Two rulings the shape encodes. A paste with no separator is declined (`null`,
+not an empty list) so the browser's own insertion handles the cursor position
+and the selection, which a chip editor has no business re-deriving. And the
+draft is never merged into the paste: knowing whether the paste replaced a
+selection or landed mid-word is exactly what an editor cannot see, so whatever
+was mid-typed is simply left alone.
+
+`form.test.ts` owns which values a blob splits into; `MultiValueInput.test.tsx`
+owns the editor around it — whether the event is claimed, what reaches the
+committed list, what the draft is left holding.

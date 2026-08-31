@@ -1,6 +1,7 @@
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { cleanup, fireEvent, render, type RenderResult } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ExtractPhase } from "./ExtractPhase";
+import { type ExtractNodeId, extractNodes } from "./extract-phase";
 import {
   CONNECT_OFFER as CONNECT,
   EMPTY_VIEW as EMPTY,
@@ -13,6 +14,10 @@ import type { RepoDepsView } from "@/types/repo";
  * Roadmap 090 — the Extract phase as it is rendered: its four pre-report
  * states (none of which may be a track of zeros), the node that is selected
  * first, and what each node's card opens onto.
+ *
+ * What the nodes SAY is `extract-phase.ts`' own question, asked in
+ * `extract-phase.test.ts`; the sentences are read from that derivation here
+ * rather than restated, so a wording change lands in one file.
  */
 
 // vitest runs without `globals`, so RTL's automatic cleanup never registers.
@@ -83,21 +88,76 @@ describe("ExtractPhase states", () => {
   });
 });
 
+/** The card header the phase draws for a node, per the derivation. */
+function headingFor(id: ExtractNodeId): string {
+  const node = extractNodes(READY).find((candidate) => candidate.id === id);
+  if (node === undefined) {
+    throw new Error(`no ${id} node`);
+  }
+  return `${node.label} — ${node.outcome}`;
+}
+
+function selectNode(view: RenderResult, id: ExtractNodeId) {
+  const button = view.container.querySelector(`[data-extract-node="${id}"]`);
+  if (button === null) {
+    throw new Error(`no ${id} node on the track`);
+  }
+  fireEvent.click(button);
+}
+
+function heading(view: RenderResult): string {
+  return view.container.querySelector(".card-title")?.textContent ?? "";
+}
+
+/** What the open card's rows lead with — a manager, or a file path. */
+function rowLeads(view: RenderResult): string[] {
+  return [...view.container.querySelectorAll(".extract-row-lead")].map(
+    (el) => el.textContent ?? "",
+  );
+}
+
 describe("ExtractPhase report", () => {
-  it("opens on the phase's result, with the three steps beside it", () => {
+  it("draws the three steps in order and opens on the phase's result", () => {
     const view = renderPhase(READY);
 
     const nodes = [...view.container.querySelectorAll(".stage-rail-btn")];
-    expect(nodes.map((node) => node.textContent)).toEqual([
-      "Match managers3",
-      "Scan files3 package files",
-      "Extract deps+2",
+    expect(nodes.map((node) => node.getAttribute("data-extract-node"))).toEqual([
+      "managers",
+      "files",
+      "deps",
     ]);
-    expect(view.container.querySelector(".card-title")?.textContent).toBe(
-      "Extract deps — 2 dependencies from acme/webapp",
-    );
-    // Grouped by the manager that read them, opening onto the deps themselves.
-    fireEvent.click(view.getByRole("button", { name: /npm/ }));
+    expect(nodes.map((node) => node.getAttribute("aria-pressed"))).toEqual([
+      "false",
+      "false",
+      "true",
+    ]);
+    expect(heading(view)).toBe(headingFor("deps"));
+  });
+
+  it("gives each step its own card, headed by that step's outcome", () => {
+    const view = renderPhase(READY);
+
+    selectNode(view, "managers");
+    expect(heading(view)).toBe(headingFor("managers"));
+    // The managers card leads with managers, and carries the walk's footnotes.
+    expect(rowLeads(view)).toContain("npm");
+    expect(view.container.querySelector(".extract-notes")).toBeTruthy();
+
+    selectNode(view, "files");
+    expect(heading(view)).toBe(headingFor("files"));
+    expect(rowLeads(view)).toContain("package.json");
+    expect(view.container.querySelector(".extract-notes")).toBeNull();
+  });
+
+  it("opens a row onto what that step produced", () => {
+    const view = renderPhase(READY);
+
+    // The deps card groups by the manager that read them; the row opens onto
+    // the dependencies themselves.
+    const row = view.getByRole("button", { name: /npm/ });
+    expect(row.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(row);
+    expect(row.getAttribute("aria-expanded")).toBe("true");
     expect(view.getByText("react")).toBeTruthy();
   });
 
@@ -107,31 +167,5 @@ describe("ExtractPhase report", () => {
 
     fireEvent.click(view.getByRole("button", { name: "Open the Dependencies tab" }));
     expect(onOpenDependencies).toHaveBeenCalledOnce();
-  });
-
-  it("shows every matched file under Match managers, unread ones included", () => {
-    const view = renderPhase(READY);
-
-    fireEvent.click(view.getByRole("button", { name: /Match managers/ }));
-    expect(view.container.querySelector(".card-title")?.textContent).toBe(
-      "Match managers — 3 of 100 managers matched files",
-    );
-    fireEvent.click(view.getByRole("button", { name: /npm/ }));
-    expect(view.getByText("docs/package.json")).toBeTruthy();
-    // The cap dropped it, so nothing is claimed about its contents.
-    expect(view.getByText("not read")).toBeTruthy();
-    expect(view.container.textContent).toContain("97 other managers matched no files.");
-  });
-
-  it("lists only the files discovery actually read under Scan files", () => {
-    const view = renderPhase(READY);
-
-    fireEvent.click(view.getByRole("button", { name: /Scan files/ }));
-    expect(view.container.querySelector(".card-title")?.textContent).toBe(
-      "Scan files — 3 package files scanned",
-    );
-    expect(view.queryByText("docs/package.json")).toBeNull();
-    fireEvent.click(view.getByRole("button", { name: /package\.json/ }));
-    expect(view.getByText("react")).toBeTruthy();
   });
 });

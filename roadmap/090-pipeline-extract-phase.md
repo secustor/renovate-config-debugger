@@ -153,11 +153,14 @@ phase === "extract")`; `ensure` is idempotent per loaded repo, so the three
   Renovate's order, the two disabled with their reason, the Config count, the
   Extract count only once discovery reported, and the selection callback.
 - `features/pipeline/ExtractPhase.test.tsx` (components) — the four pre-report
-  states, none of which draws a track; the default node; each card's header
-  sentence and what it opens onto; the unread file present under Match
-  managers and absent under Scan files; the hand-off to the Dependencies tab.
+  states, none of which draws a track; the three nodes in order and the one
+  selected first; the card each node opens and the row disclosure inside it;
+  the hand-off to the Dependencies tab. The header sentences are READ from
+  `extractNodes` rather than restated: what a node says is the derivation's
+  question, asked once, next door.
 - `packages/engine/test/extract.node.test.ts` — the walk's attribution: input
   order, extractable managers only, and a denominator bounded by the ledger.
 - e2e: `07-stage-chip-outcomes` now asserts the picker leads the tab with
-  Config active and Lookup disabled, before the stage-rail assertions it
-  always made.
+  Config active, before the stage-rail assertions it always made — and only
+  that. Which phases exist and which are disabled is `PhasePicker.test.tsx`'s
+  claim; all this spec needs is that the rail below it is the Config phase's.

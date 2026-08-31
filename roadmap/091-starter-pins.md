@@ -161,8 +161,10 @@ carries no `pins` — which the opener's own seeding fills in.
   still counts as the one attempt.
 - `features/simulator/PinHeadRow.test.tsx` — the chip and its title on a
   starter, nothing on a pin the reader made.
-- The existing `TestsPanel.shimmed.test.tsx` is untouched: it drives the panel
-  with App's pins as props, and seeding is above it.
+- The existing `TestsPanel.shimmed.test.tsx` needed nothing FROM THIS ROADMAP:
+  it drives the panel with App's pins as props, and seeding is above it. (Its
+  `RepoDepsView` fixture did move, for the walk record 089/090 added to that
+  type — a different change in the same stack.)
 - e2e `21-pinned-tests.spec.ts` gains the whole loop in a real browser: the
   starter appears for `PACKAGE_RULES_CONFIG`, wears the chip, carries the
   run's own verdict (`automerge ✓`), survives a re-run, and does NOT come back
