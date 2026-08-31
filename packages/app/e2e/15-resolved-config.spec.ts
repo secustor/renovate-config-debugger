@@ -29,6 +29,10 @@ test("the As JSON view keeps internal presets referenced, expands fully on deman
   await openTab(page, "effective");
   const panel = tabPanel(page, "effective");
   const gear = panel.getByRole("button", { name: "Display options" });
+  // Scoped to the gear's View fieldset, not the whole panel: the copy button
+  // beside the gear is named "Copy effective config as JSON", which contains
+  // "As JSON" and makes the bare name ambiguous.
+  const views = panel.getByRole("group", { name: "View" });
 
   // The provenance rows are the default rendering — since 075 (iteration 5)
   // cut into one group per layer that DECIDED a key, the reader's own config
@@ -38,7 +42,7 @@ test("the As JSON view keeps internal presets referenced, expands fully on deman
   await expect(panel.locator(".data-table-group-pills .pill-preset")).toBeVisible();
 
   await openGear(gear);
-  await panel.getByRole("button", { name: "As JSON" }).click();
+  await views.getByRole("button", { name: "As JSON" }).click();
   // ONE toolbar row in both views, so the key filter stays on screen — inert,
   // because it narrows rows and this document is copied whole. The output
   // options are what this view adds under it.
@@ -66,7 +70,7 @@ test("the As JSON view keeps internal presets referenced, expands fully on deman
 
   // Switching back restores the provenance rows, and the filters go live again.
   await openGear(gear);
-  await panel.getByRole("button", { name: "By key" }).click();
+  await views.getByRole("button", { name: "By key" }).click();
   await expect(panel.locator(".data-table-row").first()).toBeVisible();
   await expect(panel.locator(".data-table-group-title").first()).toHaveText("Your repo config");
   await expect(panel.locator(".data-table-filter")).toBeEnabled();
