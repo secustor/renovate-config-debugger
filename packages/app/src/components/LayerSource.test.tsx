@@ -103,7 +103,9 @@ test("wraps the cell only when the caller asks for one", () => {
   cleanup();
 
   // The cascade step spreads its token, the verb and its badges across one head
-  // row, so there is no cell to wrap.
+  // row, so there is no cell to wrap — only `PresetName`'s own hover-copy wrap
+  // sits around the token, not a second cell of `LayerSource`'s own.
   const bare = render(<LayerSource preset={{ name: "a", nodeId: "n1" }} />);
-  expect(bare.container.firstElementChild?.className).toBe("preset-token");
+  expect(bare.container.firstElementChild?.className).toBe("preset-name-wrap");
+  expect(bare.container.querySelector(".preset-token")).not.toBeNull();
 });

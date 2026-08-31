@@ -86,6 +86,10 @@ export function LayerSource({
           onClick={
             nodeId !== undefined && onSelectPreset ? () => onSelectPreset(nodeId) : undefined
           }
+          // The root node's "(input config)" label is not a preset — nothing
+          // extends it, so there is nothing sensible to paste from a copy of
+          // it. Same gate the jump above already uses for the same reason.
+          showCopy={nodeId !== undefined}
         />
       ) : layer ? (
         <ProvenanceChip layer={layer} onSelectPreset={onSelectPreset} />

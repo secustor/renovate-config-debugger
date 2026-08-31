@@ -255,6 +255,38 @@ button.preset-token:focus-visible {
   word-break: break-all;
 }
 
+/* The shell-wide hover-copy affordance (Review-steps turn 17, variant 17a),
+   on the one inline value that was still missing it. Absolutely positioned so
+   it reserves no space while hidden — a ledger or tree row must not reflow
+   when the pointer arrives — and revealed on `:focus-within` as well as
+   `:hover`, so a keyboard user tabbing onto the icon finds it visible rather
+   than an invisible control with a name. */
+.preset-name-wrap {
+  display: inline-flex;
+  position: relative;
+}
+
+.preset-name-copy-slot {
+  display: inline-flex;
+  left: 100%;
+  margin-left: 0.15rem;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.preset-name-wrap:hover .preset-name-copy-slot,
+.preset-name-wrap:focus-within .preset-name-copy-slot {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.copy-btn.preset-name-copy {
+  padding: 0.1rem 0.3rem;
+}
+
 /* ---------- the standard preset hover card (roadmap 081) ----------
    Behind every token: the "via" chain that reaches this preset, what it drags
    in, and the way into the tree. Rides the shared `.option-card` popover plane
