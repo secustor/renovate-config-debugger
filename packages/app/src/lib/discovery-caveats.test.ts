@@ -18,6 +18,7 @@ function view(files: RepoDepFile[], truncated = false): RepoDepsView {
     deps: [],
     files,
     managersConsidered: 10,
+    customManagersConsidered: 0,
     truncated,
     error: null,
   };

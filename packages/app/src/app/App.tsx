@@ -36,7 +36,7 @@ import { useLatestRef } from "@/hooks/use-latest-ref";
 import { useStableCallback } from "@/hooks/use-stable-callback";
 import { useKeyboardLandings } from "@/app/use-keyboard-landings";
 import { ShortcutSheet } from "@/components/ShortcutSheet";
-import { isValidEndpoint } from "@/lib/input-schemas";
+import { isPlainObject, isValidEndpoint } from "@/lib/input-schemas";
 import { useCustomHostRules, useHostTokens } from "@/hooks/use-host-tokens";
 import { useAppMessages } from "@/app/use-app-messages";
 import { usePlatformContext } from "@/app/use-platform-context";
@@ -87,6 +87,23 @@ function layerKey(
   inheritedConfig: Record<string, unknown> | undefined,
 ): string {
   return JSON.stringify([globalConfig ?? null, inheritedConfig ?? null]);
+}
+
+/** Roadmap 093: the run's own `customManagers`, as discovery takes them —
+ *  plain objects out of the EFFECTIVE config, so the walk claims the files the
+ *  user's blocks claim. No run (or a refused one) means built-ins only. */
+function customManagerBlocks(result: TraceResult | null): Record<string, unknown>[] {
+  const blocks: unknown = result?.finalConfig?.customManagers;
+  if (!Array.isArray(blocks)) {
+    return [];
+  }
+  const kept: Record<string, unknown>[] = [];
+  for (const block of blocks) {
+    if (isPlainObject(block)) {
+      kept.push(block);
+    }
+  }
+  return kept;
 }
 
 export function App() {
@@ -539,13 +556,17 @@ export function App() {
   });
   // Roadmap 078: the loaded repo's extracted dependencies — discovered on
   // demand (the first open of the From-repository tab), reset by a new load.
-  const { view: repoDepsView, ensure: ensureRepoDeps } = useRepoDeps(loadedRepo);
+  // Roadmap 093: the walk also runs the run's own customManagers, so the blocks
+  // ride in memoized — a re-run that changes them is what re-discovers.
+  const customManagers = useMemo(() => customManagerBlocks(result), [result]);
+  const { view: repoDepsView, ensure: ensureRepoDeps } = useRepoDeps(loadedRepo, customManagers);
   /**
    * Roadmap 090: which phase the Pipeline tab is showing. Here rather than in
    * the panel because the phase is half of a discovery trigger (below), and
    * because a phase the reader picked must survive a re-run — extraction is a
    * fact about the REPOSITORY, so a new run of the config pipeline does not
-   * invalidate it.
+   * invalidate it. True up to the custom managers (093): a run whose
+   * `customManagers` differ walks a different repository, and re-discovers.
    */
   const [pipelinePhase, setPipelinePhase] = useState<PipelinePhase>("config");
   // Roadmap 089/090: …and the Dependencies tab and the Pipeline tab's Extract

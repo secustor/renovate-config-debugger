@@ -11,14 +11,21 @@
  * project. Multi-file managers without an internal single-file function
  * (gradle, sbt, …) report `unsupported-manager` — the conda precedent: an
  * honest gap, not a wrong answer.
+ *
+ * Roadmap 063 adds the user's own `customManagers` blocks alongside: the walk
+ * matches their `managerFilePatterns` too, and `extractCustomDeps` runs one
+ * block over one file with the block itself as the extractor's config.
  */
 import { enqueueEngineTask } from "./pipeline";
 import {
+  customManagerExtractors,
+  type CustomManagerType,
   getMatchingFiles,
   managerDefaultConfigs,
   managerExtractors,
   memCache,
   type PackageDependency,
+  type PackageFileContent,
   writeLocalFile,
 } from "./renovate-adapter";
 import { resetLocalFiles } from "./shims/fs";
@@ -64,6 +71,44 @@ export type ExtractOutcome =
 export const EXTRACTABLE_MANAGERS: readonly string[] = Object.keys(managerExtractors);
 
 /**
+ * One `customManagers[]` block, as it arrives from a RESOLVED config: data,
+ * not a validated shape — the three fields the engine reads are declared, the
+ * rest (matchStrings, fileFormat, the `*Template` keys) rides along untouched
+ * because upstream's extractor reads them off the block itself.
+ */
+export interface CustomManagerInput {
+  customType?: unknown;
+  managerFilePatterns?: unknown;
+  enabled?: unknown;
+  [field: string]: unknown;
+}
+
+/** The manager label a custom block extracts under, as upstream names it. */
+export function customManagerName(type: CustomManagerType): string {
+  return `custom.${type}`;
+}
+
+// One line to extend if upstream adds a third customType — `customManagerExtractors`
+// is the ledger; this narrows the untrusted `customType` value onto its keys.
+function customManagerType(block: CustomManagerInput): CustomManagerType | null {
+  const type = block.customType;
+  if (type === "regex" || type === "jsonata") {
+    return type;
+  }
+  return null;
+}
+
+/** `managerFilePatterns` as `getMatchingFiles` wants it: minimatch-or-`/regex/`
+ *  strings, defensively filtered — a resolved config can hold anything. */
+function customFilePatterns(block: CustomManagerInput): string[] {
+  const patterns = block.managerFilePatterns;
+  if (!Array.isArray(patterns)) {
+    return [];
+  }
+  return patterns.filter((pattern): pattern is string => typeof pattern === "string");
+}
+
+/**
  * Upstream's cheap path-only step: which managers' `managerFilePatterns`
  * match this path? Iterates the generated default configs (already bundled)
  * through renovate's own `getMatchingFiles`, in upstream's manager order.
@@ -103,8 +148,12 @@ export function matchManagersForFile(
  *  several managers legitimately claim one filename. */
 export interface ExtractableMatch {
   path: string;
-  /** In upstream's manager order; never empty. */
+  /** In upstream's manager order, then the custom ones (`custom.regex`,
+   *  `custom.jsonata`, deduped per path); never empty. */
   managers: string[];
+  /** Indexes into `opts.customManagers` of the blocks that claim this path —
+   *  which blocks the caller must run over it. Absent when none do. */
+  customBlocks?: number[];
 }
 
 /** What one walk over a repository's file listing found. */
@@ -114,8 +163,17 @@ export interface ExtractableWalk {
    *  walk can ever match. The honest denominator for "K of N managers matched
    *  files". */
   managersConsidered: number;
+  /** How many of `opts.customManagers` cleared the same bar: enabled, a
+   *  supported customType, at least one file pattern. 0 when none were given. */
+  customManagersConsidered: number;
   /** The claimed paths, in input order. */
   files: ExtractableMatch[];
+}
+
+export interface ExtractableWalkOptions {
+  /** The resolved config's `customManagers` blocks, in config order — the
+   *  order `customBlocks` indexes into. */
+  customManagers?: readonly CustomManagerInput[];
 }
 
 /**
@@ -130,11 +188,16 @@ export interface ExtractableWalk {
  * file, and recovering that per path afterwards is exactly the per-path scan
  * this shape exists to avoid.
  */
-export function matchExtractableManagers(paths: readonly string[]): ExtractableWalk {
+export function matchExtractableManagers(
+  paths: readonly string[],
+  opts?: ExtractableWalkOptions,
+): ExtractableWalk {
   return withCollectorSuppressed(() => {
     const all = [...paths];
     const claims = new Map<string, string[]>();
+    const blockClaims = new Map<string, number[]>();
     let managersConsidered = 0;
+    let customManagersConsidered = 0;
     for (const [manager, config] of Object.entries(managerDefaultConfigs)) {
       if (!(manager in managerExtractors)) {
         continue;
@@ -160,14 +223,45 @@ export function matchExtractableManagers(paths: readonly string[]): ExtractableW
         }
       }
     }
+    // The user's own managers, after the built-ins so each path's list stays
+    // upstream-order-then-custom. Same one-pass-per-manager shape.
+    for (const [index, block] of (opts?.customManagers ?? []).entries()) {
+      const type = customManagerType(block);
+      if (type === null || block.enabled === false) {
+        continue;
+      }
+      const patterns = customFilePatterns(block);
+      if (patterns.length === 0) {
+        continue;
+      }
+      customManagersConsidered += 1;
+      const manager = customManagerName(type);
+      for (const file of getMatchingFiles({ manager, managerFilePatterns: patterns }, all)) {
+        const claimed = claims.get(file);
+        if (claimed === undefined) {
+          claims.set(file, [manager]);
+        } else if (!claimed.includes(manager)) {
+          // One label per custom TYPE per path — two regex blocks claiming one
+          // file are two entries in `customBlocks`, not two `custom.regex`.
+          claimed.push(manager);
+        }
+        const blocks = blockClaims.get(file);
+        if (blocks === undefined) {
+          blockClaims.set(file, [index]);
+        } else {
+          blocks.push(index);
+        }
+      }
+    }
     const files: ExtractableMatch[] = [];
     for (const path of paths) {
       const managers = claims.get(path);
       if (managers !== undefined) {
-        files.push({ path, managers });
+        const blocks = blockClaims.get(path);
+        files.push({ path, managers, ...(blocks === undefined ? {} : { customBlocks: blocks }) });
       }
     }
-    return { managersConsidered, files };
+    return { managersConsidered, customManagersConsidered, files };
   });
 }
 
@@ -181,6 +275,47 @@ function massageDepNames(deps: PackageDependency[]): void {
     if (dep.packageName && !dep.depName) {
       dep.depName = dep.packageName;
     }
+  }
+}
+
+/** The success shape both extraction paths return, massaged as upstream does. */
+function extractedFile(
+  manager: string,
+  fileName: string,
+  result: PackageFileContent,
+): ExtractedPackageFile {
+  massageDepNames(result.deps);
+  return {
+    manager,
+    fileName,
+    deps: result.deps,
+    ...(result.datasource === undefined ? {} : { datasource: result.datasource }),
+    ...(result.packageFileVersion === undefined
+      ? {}
+      : { packageFileVersion: result.packageFileVersion }),
+  };
+}
+
+/**
+ * A fresh store and a fresh memory cache per extraction: github-actions
+ * memoizes a lockfile-read PROMISE under a fixed cache key, so a stale cache
+ * would let one extraction see another's files. Seeds through upstream's own
+ * `writeLocalFile`, the door every manager reads back through.
+ */
+async function withSeededFiles<T>(
+  files: readonly ExtractFile[],
+  run: () => Promise<T>,
+): Promise<T> {
+  resetLocalFiles();
+  memCache.init();
+  try {
+    for (const file of files) {
+      await writeLocalFile(file.fileName, file.content);
+    }
+    return await run();
+  } finally {
+    memCache.reset();
+    resetLocalFiles();
   }
 }
 
@@ -232,39 +367,24 @@ async function runExtract(request: ExtractRequest): Promise<ExtractOutcome> {
     };
   }
 
-  // A fresh store and a fresh memory cache per run: github-actions memoizes a
-  // lockfile-read PROMISE under a fixed cache key, so a stale cache would let
-  // one extraction see another's files.
-  resetLocalFiles();
-  memCache.init();
+  const files = [
+    { fileName: request.fileName, content: request.content },
+    ...(request.supportFiles ?? []),
+  ];
   try {
-    await writeLocalFile(request.fileName, request.content);
-    for (const support of request.supportFiles ?? []) {
-      await writeLocalFile(support.fileName, support.content);
-    }
-    const extract = await loadExtractor();
-    const result = await extract(request.content, request.fileName, {});
-    if (!result || !Array.isArray(result.deps) || result.deps.length === 0) {
-      return {
-        ok: false,
-        reason: "no-deps",
-        matchedManagers: matched(),
-        message: `${manager} found no dependencies in ${request.fileName}`,
-      };
-    }
-    massageDepNames(result.deps);
-    return {
-      ok: true,
-      file: {
-        manager,
-        fileName: request.fileName,
-        deps: result.deps,
-        ...(result.datasource === undefined ? {} : { datasource: result.datasource }),
-        ...(result.packageFileVersion === undefined
-          ? {}
-          : { packageFileVersion: result.packageFileVersion }),
-      },
-    };
+    return await withSeededFiles<ExtractOutcome>(files, async () => {
+      const extract = await loadExtractor();
+      const result = await extract(request.content, request.fileName, {});
+      if (!result || !Array.isArray(result.deps) || result.deps.length === 0) {
+        return {
+          ok: false,
+          reason: "no-deps",
+          matchedManagers: matched(),
+          message: `${manager} found no dependencies in ${request.fileName}`,
+        };
+      }
+      return { ok: true, file: extractedFile(manager, request.fileName, result) };
+    });
   } catch (err) {
     return {
       ok: false,
@@ -272,8 +392,66 @@ async function runExtract(request: ExtractRequest): Promise<ExtractOutcome> {
       matchedManagers: matched(),
       message: err instanceof Error ? err.message : String(err),
     };
-  } finally {
-    memCache.reset();
-    resetLocalFiles();
+  }
+}
+
+export interface ExtractCustomRequest extends ExtractFile {
+  /** The `customManagers[]` block to run: it IS the extractor's config —
+   *  matchStrings, fileFormat and the `*Template` fields are read off it. */
+  block: CustomManagerInput;
+}
+
+/**
+ * `extractDeps` for ONE custom-manager block. Queued on the same engine lane
+ * for the same reason: extraction touches module-level renovate state.
+ * The caller decides which blocks claim the file (`matchExtractableManagers`);
+ * this runs the one it is handed, patterns and all, and never re-matches.
+ */
+export function extractCustomDeps(
+  request: ExtractCustomRequest,
+  signal?: AbortSignal,
+): Promise<ExtractOutcome> {
+  return enqueueEngineTask(() => runCustomExtract(request), signal);
+}
+
+async function runCustomExtract(request: ExtractCustomRequest): Promise<ExtractOutcome> {
+  const type = customManagerType(request.block);
+  if (type === null) {
+    const raw = request.block.customType;
+    return {
+      ok: false,
+      reason: "unsupported-manager",
+      matchedManagers: [],
+      message:
+        typeof raw === "string"
+          ? `customType "${raw}" is not a custom manager this engine can run`
+          : "custom manager block has no customType",
+    };
+  }
+  const manager = customManagerName(type);
+  const files = [{ fileName: request.fileName, content: request.content }];
+  try {
+    return await withSeededFiles<ExtractOutcome>(files, async () => {
+      const extract = await customManagerExtractors[type]();
+      // The block itself is the config — that is the whole point of a custom
+      // manager. A bad matchStrings pattern THROWS; the catch below owns it.
+      const result = await extract(request.content, request.fileName, request.block);
+      if (!result || !Array.isArray(result.deps) || result.deps.length === 0) {
+        return {
+          ok: false,
+          reason: "no-deps",
+          matchedManagers: [manager],
+          message: `${manager} found no dependencies in ${request.fileName}`,
+        };
+      }
+      return { ok: true, file: extractedFile(manager, request.fileName, result) };
+    });
+  } catch (err) {
+    return {
+      ok: false,
+      reason: "extract-error",
+      matchedManagers: [manager],
+      message: err instanceof Error ? err.message : String(err),
+    };
   }
 }

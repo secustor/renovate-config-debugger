@@ -66,12 +66,35 @@ export type {
   PackageFileContent,
 } from "renovate/dist/modules/manager/types.js";
 import type { ExtractConfig, PackageFileContent } from "renovate/dist/modules/manager/types.js";
+import type { CustomExtractConfig } from "renovate/dist/modules/manager/custom/regex/index.js";
 
 type ManagerExtractFn = (
   content: string,
   packageFile: string,
   config: ExtractConfig,
 ) => PackageFileContent | null | Promise<PackageFileContent | null>;
+
+/** Upstream's two user-authored manager types (`customType`). */
+export type CustomManagerType = "regex" | "jsonata";
+
+type CustomExtractFn = (
+  content: string,
+  packageFile: string,
+  config: CustomExtractConfig,
+) => PackageFileContent | null | Promise<PackageFileContent | null>;
+
+/**
+ * The custom managers (roadmap 063), lazy like the map below but deliberately
+ * NOT part of it: `managerExtractors`' keys are the built-in ledger
+ * (EXTRACTABLE_MANAGERS), while these run only from a user's own config block —
+ * their patterns and matchStrings ARE the block.
+ */
+export const customManagerExtractors: Record<CustomManagerType, () => Promise<CustomExtractFn>> = {
+  regex: async () =>
+    (await import("renovate/dist/modules/manager/custom/regex/index.js")).extractPackageFile,
+  jsonata: async () =>
+    (await import("renovate/dist/modules/manager/custom/jsonata/index.js")).extractPackageFile,
+};
 
 /**
  * The lazy map of per-manager extract entry points — deep imports, never
@@ -96,8 +119,10 @@ type ManagerExtractFn = (
  * - `nix` — reads only the sibling `flake.lock`, never the flake itself, and
  *   the picker fetches one file at a time (also enabled:false upstream);
  * - `pipenv` — calls `ensureLocalPath` (util/fs/util.js, unshimmed), which
- *   resolves against a `GlobalConfig.localDir` the browser never sets;
- * - `regex`/`jsonata` custom managers — need user-authored matchStrings (063).
+ *   resolves against a `GlobalConfig.localDir` the browser never sets.
+ *
+ * The `regex`/`jsonata` custom managers are supported too, but out of this map
+ * by design — see `customManagerExtractors` above.
  */
 export const managerExtractors: Record<string, () => Promise<ManagerExtractFn>> = {
   ansible: async () =>

@@ -23,6 +23,7 @@ export const EMPTY_REPO_DEPS: RepoDepsView = {
   deps: [],
   files: [],
   managersConsidered: 0,
+  customManagersConsidered: 0,
   truncated: false,
   error: null,
 };

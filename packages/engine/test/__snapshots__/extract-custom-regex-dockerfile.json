@@ -1,0 +1,12 @@
+{
+  "manager": "custom.regex",
+  "fileName": "Dockerfile",
+  "deps": [
+    {
+      "depName": "jqlang/jq",
+      "currentValue": "1.7.1",
+      "datasource": "github-releases",
+      "replaceString": "# renovate: datasource=github-releases depName=jqlang/jq\nARG JQ_VERSION=1.7.1\n"
+    }
+  ]
+}

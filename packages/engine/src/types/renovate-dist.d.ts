@@ -313,6 +313,37 @@ declare module "renovate/dist/modules/manager/*" {
   ): PackageFileContent | null | Promise<PackageFileContent | null>;
 }
 
+/**
+ * The two custom managers (roadmap 063). Their config argument is the user's
+ * own `customManagers[]` block — matchStrings, fileFormat and the `*Template`
+ * fields are read straight off it, so it is modelled as open data.
+ */
+declare module "renovate/dist/modules/manager/custom/regex/index.js" {
+  import type { PackageFileContent } from "renovate/dist/modules/manager/types.js";
+  export interface CustomExtractConfig {
+    customType?: unknown;
+    matchStrings?: unknown;
+    matchStringsStrategy?: unknown;
+    fileFormat?: unknown;
+    [field: string]: unknown;
+  }
+  export function extractPackageFile(
+    content: string,
+    packageFile: string,
+    config: CustomExtractConfig,
+  ): PackageFileContent | null;
+}
+
+declare module "renovate/dist/modules/manager/custom/jsonata/index.js" {
+  import type { CustomExtractConfig } from "renovate/dist/modules/manager/custom/regex/index.js";
+  import type { PackageFileContent } from "renovate/dist/modules/manager/types.js";
+  export function extractPackageFile(
+    content: string,
+    packageFile: string,
+    config: CustomExtractConfig,
+  ): Promise<PackageFileContent | null>;
+}
+
 declare module "renovate/dist/modules/manager/maven/extract.js" {
   import type { ExtractConfig, PackageFileContent } from "renovate/dist/modules/manager/types.js";
   /** The pure single-file function — the api's extractAllPackageFiles wraps it

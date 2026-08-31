@@ -426,6 +426,7 @@ const REPO_DEPS: RepoDepsView = {
     }),
   ],
   managersConsidered: 100,
+  customManagersConsidered: 0,
 };
 
 it("offers the loaded repo's dependencies and pins one from the picker (078)", async () => {
