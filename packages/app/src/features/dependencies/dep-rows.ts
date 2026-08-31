@@ -91,9 +91,9 @@ export function depBadge(manager: string): { text: string; title: string } | und
   };
 }
 
-/** What the two row actions do. The shell performs both (a pin is App's list,
- *  the simulator is another tab), so the panel is handed them and this only
- *  names them. */
+/** What the two row actions do — the acts the OPEN row offers, under its
+ *  record. The shell performs both (a pin is App's list, the simulator is
+ *  another tab), so the panel is handed them and this only names them. */
 export interface DepRowActions {
   onPin: (fill: Partial<FormState>) => void;
   onOpenInSimulator: (fill: Partial<FormState>) => void;

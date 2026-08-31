@@ -154,4 +154,23 @@ describe("DependenciesPanel", () => {
     });
     expect(view.container.querySelector(".data-table-note")).toBeNull();
   });
+
+  it("offers the two acts on the OPENED row, not on every line of the list", () => {
+    const onPin = vi.fn();
+    const view = render(
+      <DependenciesPanel
+        view={{ ...EMPTY, status: "ready", repo: "acme/webapp", deps: [DEP] }}
+        connect={CONNECT}
+        onRetry={vi.fn()}
+        onPin={onPin}
+        onOpenInSimulator={vi.fn()}
+      />,
+    );
+    expect(view.queryByRole("button", { name: "Pin as test" })).toBeNull();
+
+    fireEvent.click(view.getByRole("button", { name: /react/ }));
+    expect(view.getByRole("button", { name: "Open in simulator" })).toBeTruthy();
+    fireEvent.click(view.getByRole("button", { name: "Pin as test" }));
+    expect(onPin).toHaveBeenCalledExactlyOnceWith(DEP.fill);
+  });
 });

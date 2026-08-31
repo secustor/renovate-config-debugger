@@ -181,3 +181,33 @@ stay, so a Problems count still reads in the error hue. The strip now measures
 - e2e: `11-tabbed-shell` (the seven tabs, in order, with the new panel mounted
   and hidden on arrival) and `12-layout-regressions` (the one-row strip, now
   seven).
+
+## Addendum — the deltas that closed, and three defects
+
+Recorded here rather than rewritten above, because the reasoning that shipped
+this tab was sound at the time; what changed is that the artboard's remaining
+capabilities acquired a consumer (the Effective-config tab's migration) and the
+tab was read on a real screen.
+
+- **The view switcher and the quick-filter section exist.** Both are the shared
+  component's, optional and consumer-agnostic: `views` + `altView` (the first
+  view is the table; any other replaces its body, and the filters go inert
+  while it is up) and `quickFilterLabel` (its own Filter section, composed with
+  the text filter as AND). With them, an optional toolbar copy button, a
+  `detail` node the open row draws above its fields, and toned group pills plus
+  `plainTitle` for a grouping whose headers are prose rather than paths. The
+  tones are the app's existing `.pill-*` classes; no new colors.
+- **The header row now mirrors the rows' geometry.** It faked the caret with a
+  left padding of its own, which never accounted for the flex gap, so every
+  column label sat off its cells. The metrics are one `--dt-*` block in
+  `18-data-table.css` read by both the header and the rows, and the header
+  opens with an empty slot exactly `.caret`'s width.
+- **The gear looks like a button.** A bare `⚙` on the toolbar's ground read as
+  decoration. It now wears the outline button's border, radius and hover at the
+  icon-only padding — the same grammar as the CopyButton beside it.
+- **The row actions moved into the OPEN row**, under the fields, which reverses
+  the "one set is enough, drawn on every row" delta above. Two hundred rows
+  each wearing two buttons is a wall of chrome, and a row that ends in buttons
+  is a row whose cells stop short of the header's columns — the same defect as
+  the header's, from the other end. They are still siblings of the disclosure
+  button, never its children.
