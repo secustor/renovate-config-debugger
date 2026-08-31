@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import { Term } from "@/components/glossary";
+import { DESCRIPTOR_TERMS } from "@/data/descriptor-fields";
 import { Field } from "./Field";
 import { FieldGroup } from "./FieldGroup";
 import {
@@ -31,7 +32,7 @@ function SpecField({
   managerNames: readonly string[] | null;
 }) {
   const spec = FIELD_SPECS[name];
-  const label = <Term id={spec.term}>{name}</Term>;
+  const label = <Term id={DESCRIPTOR_TERMS[name]}>{name}</Term>;
   const placeholder = fieldPlaceholder(spec, { managerNames });
   const onChange = (value: string) => setForm({ ...form, [name]: value });
   if (isMultiValue(name)) {

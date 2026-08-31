@@ -16,7 +16,7 @@ import type {
   DataTableRow,
 } from "@/components/data-table";
 import type { RepoDep } from "@/types/repo";
-import type { TermId } from "@/data/glossary-data";
+import { DESCRIPTOR_FIELD_ORDER, DESCRIPTOR_TERMS } from "@/data/descriptor-fields";
 import type { FormState } from "@/types/simulator";
 
 export const DEP_COLUMN_IDS = {
@@ -52,68 +52,23 @@ export const DEP_GROUPINGS: readonly DataTableGrouping[] = [
 export const DEP_DEFAULT_GROUPING: string = DEP_COLUMN_IDS.packageFile;
 
 /**
- * The expanded row's definition list, in reading order: what the dependency
- * IS, then what it currently resolves to, then where it was found, then the
- * lookup details. Fields the descriptor left empty are dropped — a list of
- * blanks says nothing, and extraction fills only what the file states.
+ * The expanded row's definition list, in `DESCRIPTOR_FIELD_ORDER`'s reading
+ * order. Fields the descriptor left empty are dropped — a list of blanks says
+ * nothing, and extraction fills only what the file states.
  *
  * The labels are Renovate's own field names, deliberately: this row IS the
  * descriptor a pinned test would carry, and a reader who takes it to the
  * simulator (or to a `packageRules` clause) needs the name the config uses.
+ * Each label's glossary card comes from the same shared table the manual
+ * form's labels read, so the two surfaces cannot drift.
  */
-const DEP_FIELD_ORDER: readonly (keyof FormState)[] = [
-  "depName",
-  "packageName",
-  "currentValue",
-  "currentVersion",
-  "lockedVersion",
-  "datasource",
-  "depType",
-  "versioning",
-  "manager",
-  "packageFile",
-  "registryUrls",
-  "sourceUrl",
-  "categories",
-  "lockFiles",
-  "repository",
-  "baseBranch",
-  "currentVersionTimestamp",
-  "newValue",
-  "updateType",
-];
-
-/** The glossary entry explaining each field — the same cards the manual form's
- *  labels carry (`field-groups.ts`). Only newValue has no entry and stays
- *  plain. */
-const DEP_FIELD_TERMS: Partial<Record<keyof FormState, TermId>> = {
-  depName: "simDepName",
-  packageName: "simPackageName",
-  currentValue: "simCurrentValue",
-  currentVersion: "simCurrentVersion",
-  lockedVersion: "simLockedVersion",
-  datasource: "datasource",
-  depType: "simDepType",
-  versioning: "simVersioning",
-  manager: "manager",
-  packageFile: "simPackageFile",
-  registryUrls: "simRegistryUrls",
-  sourceUrl: "simSourceUrl",
-  categories: "simCategories",
-  lockFiles: "simLockFiles",
-  repository: "simRepository",
-  baseBranch: "simBaseBranch",
-  currentVersionTimestamp: "simCurrentVersionTimestamp",
-  updateType: "updateType",
-};
-
 export function depFields(fill: Partial<FormState>): DataTableField[] {
   const fields: DataTableField[] = [];
-  for (const key of DEP_FIELD_ORDER) {
+  for (const key of DESCRIPTOR_FIELD_ORDER) {
     const value = fill[key];
-    const term = DEP_FIELD_TERMS[key];
+    const term = DESCRIPTOR_TERMS[key];
     if (typeof value === "string" && value !== "") {
-      fields.push({ label: key, value, ...(term === undefined ? {} : { term }) });
+      fields.push({ label: key, value, ...(term === null ? {} : { term }) });
     }
   }
   return fields;
