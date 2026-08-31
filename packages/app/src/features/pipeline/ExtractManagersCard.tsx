@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useToggleSet } from "@/hooks/use-toggle-set";
 import { plural } from "@/lib/format";
 import { ExtractNotes, ExtractRow } from "./ExtractRows";
@@ -57,7 +58,9 @@ function ManagerRow({
 
 export function ExtractManagersCard({ view }: { view: RepoDepsView }) {
   const open = useToggleSet();
-  const rows = managerRows(view);
+  // Derived once per discovery, not once per row toggle (see ExtractDepsCard).
+  const rows = useMemo(() => managerRows(view), [view]);
+  const notes = useMemo(() => managerNotes(view), [view]);
   return (
     <>
       <ul className="extract-rows">
@@ -70,7 +73,7 @@ export function ExtractManagersCard({ view }: { view: RepoDepsView }) {
           />
         ))}
       </ul>
-      <ExtractNotes notes={managerNotes(view)} />
+      <ExtractNotes notes={notes} />
     </>
   );
 }

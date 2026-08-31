@@ -82,13 +82,10 @@ export interface RepoDepsView {
   /** `owner/repo` of the loaded repository. */
   repo: string;
   deps: RepoDep[];
-  /** Package files actually extracted. */
-  fileCount: number;
-  /** Matched files past the fetch cap, or claimed only by unmapped managers. */
-  skippedFiles: number;
   /** Roadmap 090: every matched file, in walk order — the Extract phase's
-   *  ledger. Matching is the cheap path-only step, so this covers the whole
-   *  walk; the fetch cap only decides which of them were READ. */
+   *  ledger, and the ONE source every count is derived from
+   *  (`lib/discovery-caveats.ts`). Matching is the cheap path-only step, so
+   *  this covers the whole walk; the fetch cap only decides which were READ. */
   files: RepoDepFile[];
   /** Roadmap 090: how many managers the walk asked — the honest denominator
    *  for "K of N managers matched files". */

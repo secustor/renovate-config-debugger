@@ -2,6 +2,7 @@ import { DataTable } from "@/components/DataTable";
 import type { DataTableNoun } from "@/components/data-table";
 import { EmptyNote } from "@/components/EmptyNote";
 import { nf, plural } from "@/lib/format";
+import { discoveryCaveats, tallyDiscovery } from "@/lib/discovery-caveats";
 import { RepoConnectPanel } from "@/components/RepoConnectPanel";
 import {
   DEP_COLUMNS,
@@ -32,20 +33,16 @@ import type { RepoConnectOffer, RepoDepsView } from "@/types/repo";
 const DEP_NOUN: DataTableNoun = { one: "dependency", many: "dependencies" };
 
 /** The footnotes the table cannot say itself — matched files that turned out
- *  to hold nothing, and what honestly was not read at all. Silent when there
- *  is nothing to report; where the rows came from is the toolbar's note. */
+ *  to hold nothing, and the shared caveat clauses every discovery surface
+ *  prints from the same ledger. Silent when there is nothing to report; where
+ *  the rows came from is the toolbar's note. */
 function DependenciesNote({ view }: { view: RepoDepsView }) {
-  const emptyFiles = view.files.filter((file) => file.outcome === "no-deps").length;
+  const empty = tallyDiscovery(view).empty;
   const parts: string[] = [];
-  if (emptyFiles > 0) {
-    parts.push(`${plural(emptyFiles, "matched file")} did not contain any dependencies`);
+  if (empty > 0) {
+    parts.push(`${plural(empty, "matched file")} did not contain any dependencies`);
   }
-  if (view.skippedFiles > 0) {
-    parts.push(`${nf.format(view.skippedFiles)} matched files not read`);
-  }
-  if (view.truncated) {
-    parts.push("the repository’s file listing was truncated");
-  }
+  parts.push(...discoveryCaveats(view));
   return parts.length === 0 ? null : <p className="data-table-note">{parts.join(" · ")}</p>;
 }
 
@@ -104,7 +101,7 @@ export function DependenciesPanel({
         rowNoun={DEP_NOUN}
         filterPlaceholder={`Filter ${nf.format(view.deps.length)} ${
           view.deps.length === 1 ? DEP_NOUN.one : DEP_NOUN.many
-        } across ${plural(view.fileCount, "package file")}…`}
+        } across ${plural(tallyDiscovery(view).extracted, "package file")}…`}
         contextNote={`from ${view.repo}`}
       />
       <DependenciesNote view={view} />

@@ -34,8 +34,6 @@ const EMPTY: RepoDepsView = {
   status: "idle",
   repo: "",
   deps: [],
-  fileCount: 0,
-  skippedFiles: 0,
   files: [],
   managersConsidered: 0,
   truncated: false,
@@ -47,8 +45,6 @@ const READY: RepoDepsView = {
   status: "ready",
   repo: "acme/webapp",
   deps: [dep("react", "package.json", "npm"), dep("node", "Dockerfile", "dockerfile")],
-  fileCount: 2,
-  skippedFiles: 1,
   files: [
     {
       path: "package.json",

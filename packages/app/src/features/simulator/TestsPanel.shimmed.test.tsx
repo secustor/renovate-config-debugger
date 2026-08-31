@@ -419,8 +419,6 @@ const REPO_DEPS: RepoDepsView = {
       },
     },
   ],
-  fileCount: 2,
-  skippedFiles: 0,
   files: [
     {
       path: "package.json",
@@ -502,7 +500,7 @@ it("caps the list at five rows, counts the tail, and drafts inline under its row
     repoDep("Chart.yaml", "redis", "18.0.0"),
   ];
   const result = await run();
-  const view = render(<Harness result={result} repoDeps={{ ...REPO_DEPS, deps, fileCount: 4 }} />);
+  const view = render(<Harness result={result} repoDeps={{ ...REPO_DEPS, deps }} />);
   fireEvent.click(view.getByRole("tab", { name: "From repository" }));
 
   // Five rows, then the design's tail line naming the hidden rows' files —

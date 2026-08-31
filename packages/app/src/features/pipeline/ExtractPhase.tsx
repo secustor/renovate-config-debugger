@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { EmptyNote } from "@/components/EmptyNote";
 import { RepoConnectPanel } from "@/components/RepoConnectPanel";
 import { ExtractDepsCard } from "./ExtractDepsCard";
@@ -81,7 +81,7 @@ function ExtractReport({
   onOpenDependencies: () => void;
 }) {
   const [selected, setSelected] = useState<ExtractNodeId>("deps");
-  const nodes = extractNodes(view);
+  const nodes = useMemo(() => extractNodes(view), [view]);
   const node = nodes.find((candidate) => candidate.id === selected) ?? nodes[0];
   if (node === undefined) {
     return null;

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useToggleSet } from "@/hooks/use-toggle-set";
 import { ExtractDepList, ExtractRow } from "./ExtractRows";
 import { type ExtractFileRow, fileDepNote, fileRows } from "./extract-phase";
@@ -41,7 +42,8 @@ function FileRow({
 
 export function ExtractFilesCard({ view }: { view: RepoDepsView }) {
   const open = useToggleSet();
-  const rows = fileRows(view);
+  // Derived once per discovery, not once per row toggle (see ExtractDepsCard).
+  const rows = useMemo(() => fileRows(view), [view]);
   return (
     <ul className="extract-rows">
       {rows.map((row) => (

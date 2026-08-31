@@ -74,29 +74,24 @@ async function discover(repo: LoadedRepo): Promise<RepoDepsView> {
     .toSorted((a, b) => a.depth - b.depth || a.index - b.index)
     .slice(0, MAX_REPO_DEP_FILES)
     .map((entry) => entry.path);
-  let skippedFiles = walk.files.length - taken.length;
   // The file fetches are independent GETs — issued together. Extraction
   // stays sequential below: the engine serializes it (module-level renovate
   // state) against every other engine task.
   const contents = await Promise.all(taken.map((path) => loadRepoFile({ ...request, path }, opts)));
   const deps: RepoDep[] = [];
   // What each READ file turned into, keyed by path; the files nothing is
-  // recorded for are the ones the cap dropped (`not-read` below).
+  // recorded for are the ones the cap dropped (`not-read` below). Every count
+  // a surface prints is derived from this ledger (`lib/discovery-caveats.ts`),
+  // never accumulated beside it.
   const read = new Map<string, Pick<RepoDepFile, "outcome" | "extractedBy" | "depCount">>();
-  let fileCount = 0;
   for (const [index, path] of taken.entries()) {
     const content = contents[index] ?? null;
     if (content === null) {
-      skippedFiles += 1;
       read.set(path, { outcome: "unreadable", extractedBy: null, depCount: 0 });
       continue;
     }
     const outcome = await engine.extractDeps({ fileName: path, content });
     if (!outcome.ok) {
-      // "no deps in this file" is not a skipped file; a real failure is.
-      if (outcome.reason !== "no-deps") {
-        skippedFiles += 1;
-      }
       read.set(path, {
         outcome: outcome.reason === "no-deps" ? "no-deps" : "error",
         extractedBy: null,
@@ -104,7 +99,6 @@ async function discover(repo: LoadedRepo): Promise<RepoDepsView> {
       });
       continue;
     }
-    fileCount += 1;
     const rows = repoDepsOfFile(outcome.file);
     deps.push(...rows);
     read.set(path, {
@@ -122,8 +116,6 @@ async function discover(repo: LoadedRepo): Promise<RepoDepsView> {
     status: "ready",
     repo: repo.repo,
     deps,
-    fileCount,
-    skippedFiles,
     files,
     managersConsidered: walk.managersConsidered,
     truncated: tree.truncated,

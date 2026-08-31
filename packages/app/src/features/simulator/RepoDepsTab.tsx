@@ -1,5 +1,6 @@
 import { type ReactNode, useState } from "react";
 import { nf } from "@/lib/format";
+import { discoveryCaveats, tallyDiscovery } from "@/lib/discovery-caveats";
 import { filterRepoDeps, hiddenDepFiles, REPO_DEPS_SHOWN, type RepoDraft } from "./repo-deps";
 import type { PinnedTest } from "@/types/simulator";
 import type { RepoDep, RepoDepsView } from "@/types/repo";
@@ -191,17 +192,13 @@ function RepoDepsFootnote({ view, hidden }: { view: RepoDepsView; hidden: readon
     const named = files.slice(0, 4).join(", ") + (files.length > 4 ? ", …" : "");
     parts.push(`… ${nf.format(hidden.length)} more across ${named}`);
   } else {
+    const files = tallyDiscovery(view).extracted;
     parts.push(
-      `${nf.format(view.deps.length)} dependencies across ${nf.format(view.fileCount)} package files`,
+      `${nf.format(view.deps.length)} dependencies across ${nf.format(files)} package files`,
     );
   }
   parts.push(`detected because you loaded this config from ${view.repo}`);
-  if (view.skippedFiles > 0) {
-    parts.push(`${nf.format(view.skippedFiles)} matched files not read`);
-  }
-  if (view.truncated) {
-    parts.push("the repository's file listing was truncated");
-  }
+  parts.push(...discoveryCaveats(view));
   return <p className="pin-repo-note">{parts.join(" · ")}</p>;
 }
 
@@ -273,7 +270,7 @@ export function RepoDepsTab({
       <div className="pin-repo-search">
         <input
           aria-label="Search detected dependencies"
-          placeholder={`Search the ${nf.format(view.deps.length)} dependencies detected across ${nf.format(view.fileCount)} package files…`}
+          placeholder={`Search the ${nf.format(view.deps.length)} dependencies detected across ${nf.format(tallyDiscovery(view).extracted)} package files…`}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />

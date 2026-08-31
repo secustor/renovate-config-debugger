@@ -14,7 +14,8 @@
  * Pure and DOM-free, so the counts, the ordering and every sentence under a
  * card are unit-testable without a renderer.
  */
-import { nf, plural, pluralWord } from "@/lib/format";
+import { nf, plural } from "@/lib/format";
+import { discoveryCaveats } from "@/lib/discovery-caveats";
 import type { RepoDep, RepoDepFile, RepoDepsView } from "@/types/repo";
 
 export type ExtractNodeId = "managers" | "files" | "deps";
@@ -39,17 +40,28 @@ function dependencies(n: number): string {
   return `${nf.format(n)} ${n === 1 ? "dependency" : "dependencies"}`;
 }
 
-/** Managers that claimed at least one file, in walk order of first claim. */
-export function matchedManagerNames(view: RepoDepsView): string[] {
-  const names: string[] = [];
+/** Every manager's claimed files, keyed in walk order of first claim — the
+ *  ONE pass the manager card's rows, names and notes all read, instead of a
+ *  files×managers rescan per question (the fetch cap admits hundreds of
+ *  files, so the quadratic spellings stopped being free). */
+function filesByManager(view: RepoDepsView): Map<string, RepoDepFile[]> {
+  const claimed = new Map<string, RepoDepFile[]>();
   for (const file of view.files) {
     for (const manager of file.managers) {
-      if (!names.includes(manager)) {
-        names.push(manager);
+      const files = claimed.get(manager);
+      if (files === undefined) {
+        claimed.set(manager, [file]);
+      } else {
+        files.push(file);
       }
     }
   }
-  return names;
+  return claimed;
+}
+
+/** Managers that claimed at least one file, in walk order of first claim. */
+export function matchedManagerNames(view: RepoDepsView): string[] {
+  return [...filesByManager(view).keys()];
 }
 
 /** The files the walk actually READ — everything the cap did not drop. */
@@ -108,8 +120,7 @@ export interface ExtractManagerRow {
 /** Managers that claimed a file, most files first (name as the tiebreak, so
  *  the order is stable across runs). */
 export function managerRows(view: RepoDepsView): ExtractManagerRow[] {
-  const rows = matchedManagerNames(view).map((manager) => {
-    const files = view.files.filter((file) => file.managers.includes(manager));
+  const rows = [...filesByManager(view)].map(([manager, files]) => {
     return { manager, files, preview: files.map((file) => file.path).join(", ") };
   });
   return rows.toSorted(
@@ -144,9 +155,20 @@ export interface ExtractFileRow {
 }
 
 export function fileRows(view: RepoDepsView): ExtractFileRow[] {
+  // One pass over the deps, not one filter per file — same cap arithmetic as
+  // `filesByManager` above.
+  const depsByFile = new Map<string, RepoDep[]>();
+  for (const dep of view.deps) {
+    const deps = depsByFile.get(dep.packageFile);
+    if (deps === undefined) {
+      depsByFile.set(dep.packageFile, [dep]);
+    } else {
+      deps.push(dep);
+    }
+  }
   return scannedFiles(view).map((file) => ({
     file,
-    deps: view.deps.filter((dep) => dep.packageFile === file.path),
+    deps: depsByFile.get(file.path) ?? [],
   }));
 }
 
@@ -189,19 +211,17 @@ export function managerNotes(view: RepoDepsView): string[] {
   if (others > 0) {
     notes.push(`${plural(others, "other manager")} matched no files.`);
   }
-  const notRead = view.files.length - scannedFiles(view).length;
-  if (notRead > 0) {
-    notes.push(
-      `${nf.format(notRead)} matched ${pluralWord(notRead, "file")} ` +
-        `${notRead === 1 ? "was" : "were"} not read — discovery caps how many files it fetches.`,
-    );
-  }
-  if (view.truncated) {
-    notes.push("The repository’s file listing was truncated, so the walk did not see every file.");
-  }
+  // The shared clauses every discovery surface prints (`lib/discovery-caveats`)
+  // — this card only sentence-cases them, so its counts and the footnotes'
+  // are one arithmetic.
+  notes.push(...discoveryCaveats(view).map((clause) => `${sentenceCase(clause)}.`));
   notes.push(
     "Renovate’s default ignorePaths (node_modules, bower_components) were applied; " +
       "enabledManagers and ignorePaths from your merged config were not.",
   );
   return notes;
+}
+
+function sentenceCase(clause: string): string {
+  return clause.charAt(0).toUpperCase() + clause.slice(1);
 }

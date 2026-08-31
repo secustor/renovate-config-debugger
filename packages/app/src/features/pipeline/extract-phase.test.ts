@@ -45,8 +45,6 @@ const VIEW: RepoDepsView = {
     dep("typescript", "package.json", "npm"),
     dep("node", "Dockerfile", "dockerfile"),
   ],
-  fileCount: 2,
-  skippedFiles: 1,
   files: [
     walkFile("package.json", ["npm"], { extractedBy: "npm", depCount: 2, outcome: "extracted" }),
     walkFile("Dockerfile", ["dockerfile"], {
@@ -142,7 +140,8 @@ describe("managerNotes", () => {
     const notes = managerNotes(VIEW);
 
     expect(notes[0]).toBe("97 other managers matched no files.");
-    expect(notes[1]).toContain("1 matched file was not read");
+    // The shared clause (`lib/discovery-caveats`), sentence-cased by this card.
+    expect(notes[1]).toContain("1 matched file not read");
     // The permanent one: this walk is not config-aware, and says so.
     expect(notes.at(-1)).toContain("enabledManagers and ignorePaths from your merged config");
   });

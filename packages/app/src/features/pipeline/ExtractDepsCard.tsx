@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useToggleSet } from "@/hooks/use-toggle-set";
 import { plural } from "@/lib/format";
 import { ExtractDepList, ExtractRow } from "./ExtractRows";
@@ -47,7 +48,9 @@ export function ExtractDepsCard({
   onOpenDependencies: () => void;
 }) {
   const open = useToggleSet();
-  const groups = depGroups(view);
+  // Derived once per discovery, not once per row toggle — the cap admits
+  // hundreds of files, and expansion state lives in this same component.
+  const groups = useMemo(() => depGroups(view), [view]);
   return (
     <>
       <ul className="extract-rows">
