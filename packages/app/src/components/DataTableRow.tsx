@@ -94,7 +94,7 @@ function DataTableActions({ actions }: { actions: readonly DataTableAction[] }) 
         <button
           key={action.id}
           type="button"
-          className="data-table-action"
+          className="btn-chip data-table-action"
           title={action.title}
           onClick={action.onClick}
         >

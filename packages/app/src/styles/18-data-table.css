@@ -6,8 +6,9 @@
    so this file has no equal-specificity coupling with anything and its
    position is not load-bearing. It reuses the app's own primitives rather than
    redeclaring them — `.pill`/`.pill-muted` for the group header's manager
-   chips, `.btn-quiet` for the retry, `.caret` for the row's triangle — so what
-   is here is only the table's own geometry. */
+   chips, `.btn-quiet` for the retry, `.btn-chip` for the column options and
+   the row's acts, `.caret` for the row's triangle — so what is here is only
+   the table's own geometry. */
 
 .data-table {
   /* ONE source for the geometry the header row and the data rows must agree
@@ -141,19 +142,9 @@
   gap: 0.3rem;
 }
 
+/* `.btn-chip` at the panel's tighter inset. */
 .data-table-option {
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
-  color: var(--muted);
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.72rem;
   padding: 0.1rem 0.55rem;
-}
-
-.data-table-option:hover {
-  color: var(--ink);
 }
 
 .data-table-option.on {
@@ -335,21 +326,11 @@
   padding: 0 0 0.5rem var(--dt-indent);
 }
 
+/* `.btn-chip`, a step smaller and unwrappable: an act is a verb phrase. */
 .data-table-action {
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
-  color: var(--muted);
-  cursor: pointer;
-  font: inherit;
   font-size: 0.7rem;
   padding: 0.1rem 0.5rem;
   white-space: nowrap;
-}
-
-.data-table-action:hover {
-  border-color: var(--accent-border);
-  color: var(--accent);
 }
 
 /* The open row's prepared block, above the fields — whatever the consumer has

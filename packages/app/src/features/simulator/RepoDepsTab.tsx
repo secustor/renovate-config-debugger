@@ -60,7 +60,7 @@ function RepoDepRow({
       ) : showQuickPins ? (
         <span className="pin-repo-quick">
           {QUICK_TYPES.map((type) => (
-            <button key={type} type="button" onClick={() => onQuickPin(type)}>
+            <button key={type} type="button" className="btn-chip" onClick={() => onQuickPin(type)}>
               {type}
             </button>
           ))}

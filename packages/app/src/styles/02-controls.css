@@ -13,8 +13,8 @@
 
    Roadmap 075 (v2 "Standard Components"): the variants stop being adjectives
    on a `.btn` base (`btn primary` / `btn quiet` / bare `btn`) and become the
-   three named roles the design sheet lists, so a role has ONE spelling and a
-   reader of the markup can see which one is meant:
+   named roles the design sheet lists, so a role has ONE spelling and a reader
+   of the markup can see which one is meant:
 
      `.btn-primary`   — accent fill, 600, optional inner <kbd> shortcut pill.
                         Run, the repo-load submit, Simulate, preset-inject.
@@ -22,6 +22,8 @@
                         including Cancel (075: a textual Cancel is never quiet).
      `.btn-quiet`     — borderless link-style, for cross-navigation inside
                         prose. This absorbed `.linklike` and `.sim-toggle`.
+     `.btn-chip`      — the small pill-outline chip, for one of a wrapping SET
+                        of offers (quick-fills, column options, row acts).
 
    `.seg button` is listed here instead of carrying a class: its buttons are
    unclassed children of a segmented control, and sharing this ONE declaration
@@ -105,7 +107,26 @@
   text-decoration: underline;
 }
 
-/* Not a fourth variant: a secondary button whose LABEL is the accent — the
+/* The fourth rung. Not a shrunk `.btn-secondary`: a chip is one of a wrapping
+   SET, sized to that row rather than to a chrome row's height. Sites
+   specialize the metrics on top, as `.copy-btn` does. */
+.btn-chip {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 0.15rem 0.6rem;
+}
+
+.btn-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Not a rung of its own: a secondary button whose LABEL is the accent — the
    copy affordances and the diff footer's "show all", which are offers rather
    than the row's main action. */
 .btn-secondary.accent-text {

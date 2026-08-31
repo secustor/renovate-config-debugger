@@ -71,22 +71,16 @@
   justify-content: center;
 }
 
-.pin-empty-chips button,
-.pin-probe-chips button {
+/* `.btn-chip` in mono over the CANVAS, and accent already at rest: the label
+   IS the value the chip fills in, so it reads as the code it will type. */
+.pin-empty-chips .btn-chip,
+.pin-probe-chips .btn-chip {
   background: var(--canvas);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
   color: var(--accent);
-  cursor: pointer;
   font-family: var(--font-mono);
   font-size: 0.7rem;
   line-height: 1.6;
   padding: 0 0.5rem;
-}
-
-.pin-empty-chips button:hover,
-.pin-probe-chips button:hover {
-  border-color: var(--accent);
 }
 
 /* ----- the funnel card's header ----- */
@@ -706,15 +700,6 @@
   margin: 0;
 }
 
-.pin-paste-intro code {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  padding: 0 0.25rem;
-}
-
 .pin-paste-input {
   background: var(--canvas);
   border: 1px solid var(--border);
@@ -781,8 +766,10 @@
   margin: 0 0 0.75rem;
 }
 
-/* The suggestion's owner/repo chip in the body sentence — the design's code
-   chip (no element-level `code` rule exists; every surface styles its own). */
+/* The design's code chip (no element-level `code` rule exists; every surface
+   styles its own): the suggestion's owner/repo chip in the connect body, and
+   the log phrase the paste card tells you to look for. */
+.pin-paste-intro code,
 .pin-repo-connect-body code {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -875,21 +862,12 @@
   margin-left: auto;
 }
 
-.pin-repo-quick button {
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
-  color: var(--muted);
-  cursor: pointer;
-  font-family: inherit;
+/* `.btn-chip` on one line of the row — no vertical padding, so a quick-pin
+   verb cannot make the dependency row taller than its neighbours. */
+.pin-repo-quick .btn-chip {
   font-size: 0.7rem;
   line-height: 1.4;
   padding: 0 0.45rem;
-}
-
-.pin-repo-quick button:hover {
-  border-color: var(--accent);
-  color: var(--accent);
 }
 
 .pin-repo-pinned {

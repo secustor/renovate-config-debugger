@@ -69,7 +69,9 @@ function DataTableOptionSection({
           <button
             key={option.id}
             type="button"
-            className={isOn(option.id) ? "data-table-option on" : "data-table-option"}
+            className={
+              isOn(option.id) ? "btn-chip data-table-option on" : "btn-chip data-table-option"
+            }
             aria-pressed={isOn(option.id)}
             onClick={() => onPick(option.id)}
           >

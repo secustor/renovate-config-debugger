@@ -40,7 +40,7 @@ export function EmptyTestsCard({
       <p className="pin-empty-or">or start from a common case:</p>
       <div className="pin-empty-chips">
         {QUICK_FILLS.slice(0, 3).map(({ label, fill }) => (
-          <button key={label} type="button" onClick={() => onStartFrom(fill)}>
+          <button key={label} type="button" className="btn-chip" onClick={() => onStartFrom(fill)}>
             {chipLabel(fill)}
           </button>
         ))}

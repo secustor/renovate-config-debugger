@@ -226,10 +226,6 @@
   max-width: 46rem;
 }
 
-.headless-note-summary {
-  text-align: center;
-}
-
 /* Collapsed by default behind the question (review on #134): a native
    disclosure whose summary is the note's one visible line. The marker is the
    ::before chevron in both engines — the UA marker is suppressed so the
@@ -239,6 +235,7 @@
   cursor: pointer;
   font-size: 0.9rem;
   list-style: none;
+  text-align: center;
 }
 
 .headless-note-summary::-webkit-details-marker {

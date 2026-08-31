@@ -40,21 +40,7 @@
   font-size: 0.72rem;
 }
 
-.sim-quickfill {
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
-  color: var(--muted);
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.72rem;
-  padding: 0.15rem 0.6rem;
-}
-
-.sim-quickfill:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
+/* `.btn-chip` unmodified — the chip rung's own metrics are this row's. */
 
 /* The example the form still agrees with — accent-tinted over the CANVAS, not
    over --surface: this row sits on the card's own background. */
@@ -888,11 +874,10 @@
 
 /* The losing writer's reference IS the link — same mono reference text the
    thread uses elsewhere, marked as actionable rather than restated.
-   Deliberately the app's ACTIONABLE-text grammar (`.btn-quiet`,
-   `.preset-hover-jump`: accent, solid underline at rest, brightened on hover)
-   and not `.term`'s: a dotted accent underline at rest is exactly what a
-   glossary term looks like while HOVERED, so this one read as "there is a
-   definition here" when what it does is open a dialog. */
+   Deliberately the app's ACTIONABLE-text grammar (`.btn-quiet`: accent, solid
+   underline at rest) and not `.term`'s: a dotted accent underline at rest is
+   exactly what a glossary term looks like while HOVERED, so this one read as
+   "there is a definition here" when what it does is open a dialog. */
 .sim-rule-pop-link {
   background: none;
   border: none;
