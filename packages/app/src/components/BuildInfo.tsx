@@ -228,7 +228,7 @@ function BuildStampInner({ info }: { info: BuildIdentity }) {
         aria-controls={open ? panelId : undefined}
         onClick={toggle}
       >
-        · {version ? `${version} ` : ""}
+        {version ? `· ${version} ` : ""}
         {shortCommit(info)}
       </button>
       {open ? (

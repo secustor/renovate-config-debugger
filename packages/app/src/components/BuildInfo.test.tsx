@@ -52,6 +52,17 @@ describe("BuildStamp", () => {
     expect(panel.querySelector(".build-info-id")?.textContent).toContain("v0.2.0 · d58538f");
   });
 
+  it("drops the separator dot along with the version on a non-release build", () => {
+    IDENTITY.versionDistance = 3;
+    try {
+      render(<BuildStamp />);
+      const trigger = screen.getByRole("button", { name: "d58538f" });
+      expect(trigger.textContent?.trim()).toBe("d58538f");
+    } finally {
+      IDENTITY.versionDistance = 0;
+    }
+  });
+
   it("defaults to the attestation command and switches to rebuild & diff", () => {
     render(<BuildStamp />);
     const panel = openPanel(screen.getByRole("button", { name: /d58538f/ }));
