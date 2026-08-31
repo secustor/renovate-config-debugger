@@ -30,6 +30,7 @@ import "./styles/15-pins.css";
 import "./styles/16-tabs.css";
 import "./styles/17-build-info.css";
 import "./styles/18-data-table.css";
+import "./styles/19-pipeline-extract.css";
 
 // Roadmap 033: one-time storage migrations run before the App's `useState`
 // initializers read storage — and, unlike their old module-scope home, they

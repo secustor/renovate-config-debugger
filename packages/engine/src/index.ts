@@ -1,12 +1,14 @@
 export { runPipeline } from "./pipeline";
 export {
   EXTRACTABLE_MANAGERS,
+  type ExtractableMatch,
+  type ExtractableWalk,
   type ExtractedPackageFile,
   extractDeps,
   type ExtractFile,
   type ExtractOutcome,
   type ExtractRequest,
-  matchExtractablePaths,
+  matchExtractableManagers,
   matchManagersForFile,
 } from "./extract";
 export type { PackageDependency } from "./renovate-adapter";

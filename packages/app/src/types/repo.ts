@@ -53,16 +53,43 @@ export interface RepoDep {
   fill: Partial<FormState>;
 }
 
+/**
+ * Roadmap 090: what became of ONE file the discovery walk matched.
+ *
+ * `not-read` is the fetch cap (and only the cap): the file was claimed and
+ * never fetched, so nothing whatever is known about its contents — which is
+ * exactly what the Extract phase's rows must say instead of "no deps".
+ */
+export type RepoDepFileOutcome = "extracted" | "no-deps" | "not-read" | "unreadable" | "error";
+
+/** One file of the walk: who claimed it, and what came back. */
+export interface RepoDepFile {
+  path: string;
+  /** The extractable managers whose file patterns claim this path — several
+   *  managers legitimately claim one filename. */
+  managers: string[];
+  /** The manager that actually ran (the first extractable match), or null when
+   *  the file was never read or produced nothing. */
+  extractedBy: string | null;
+  /** Named, pinnable dependencies this file contributed. */
+  depCount: number;
+  outcome: RepoDepFileOutcome;
+}
+
 /** What the tab renders — computed by the shell, drawn by the feature. */
 export interface RepoDepsView {
   status: RepoDepsStatus;
   /** `owner/repo` of the loaded repository. */
   repo: string;
   deps: RepoDep[];
-  /** Package files actually extracted. */
-  fileCount: number;
-  /** Matched files past the fetch cap, or claimed only by unmapped managers. */
-  skippedFiles: number;
+  /** Roadmap 090: every matched file, in walk order — the Extract phase's
+   *  ledger, and the ONE source every count is derived from
+   *  (`lib/discovery-caveats.ts`). Matching is the cheap path-only step, so
+   *  this covers the whole walk; the fetch cap only decides which were READ. */
+  files: RepoDepFile[];
+  /** Roadmap 090: how many managers the walk asked — the honest denominator
+   *  for "K of N managers matched files". */
+  managersConsidered: number;
   /** GitHub truncates very large trees; the listing says so. */
   truncated: boolean;
   error: string | null;

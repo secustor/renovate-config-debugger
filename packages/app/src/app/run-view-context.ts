@@ -30,6 +30,7 @@ import type { AuthState } from "@/components/GithubAuthHint";
 import type { ResultsTabDescriptor } from "@/components/ResultsPanel";
 import type { ResultsTabId } from "@/data/results-tabs";
 import type { EffectiveTally } from "@/lib/effective-tally";
+import type { PipelinePhase } from "@/features/pipeline/phases";
 import type { ShareSimulator } from "@/lib/share";
 import type { ErrorTranslationLib } from "@/platform/run";
 import type { SimRequest } from "@/hooks/use-share-link";
@@ -59,6 +60,11 @@ export interface RunView {
   onShowRewrites: () => void;
 
   // —— pipeline ——
+  /** Roadmap 090: which of Renovate's phases the Pipeline tab is showing.
+   *  App's, because opening the Extract phase is what triggers repository
+   *  discovery — and a mounted-but-unseen panel must never trigger it. */
+  pipelinePhase: PipelinePhase;
+  onSelectPipelinePhase: (phase: PipelinePhase) => void;
   selectedStage: StageId;
   onSelectStage: (stage: StageId) => void;
   deferredStage: StageId;

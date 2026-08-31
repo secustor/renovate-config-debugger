@@ -8,8 +8,12 @@ import type { LayerParseResult } from "@/lib/input-schemas";
 import { presetTreeSummary } from "@/lib/preset-tree-stats";
 import { getStageActivity } from "@/lib/stage-activity";
 import { stageHint } from "@/lib/stage-delta";
+import { ExtractPhase } from "./ExtractPhase";
+import { PhasePicker } from "./PhasePicker";
+import type { PipelinePhase } from "./phases";
 import { StageDiff } from "./StageDiff";
 import { StageLayerEditor } from "./StageLayerEditor";
+import type { RepoConnectOffer, RepoDepsView } from "@/types/repo";
 
 /**
  * The Pipeline tab, as a slice.
@@ -164,33 +168,13 @@ export interface StageLayersProps {
   inheritState: InheritLayerState | null;
 }
 
-export interface PipelinePanelProps extends StageLayersProps {
-  result: TraceResult;
-  /**
-   * The two stage identities are NOT interchangeable, and the split is the
-   * point of this panel's wiring:
-   *
-   * `selectedStage` is what the user just clicked — it drives the rail's
-   * selection and the layer editor, both of which are inputs, and an input that
-   * lags a click by a frame eats the first keystroke typed into it.
-   *
-   * `deferredStage` lags under load (`useDeferredValue` in App) and drives the
-   * expensive renders — the whole-stage diff and the rewrite stepper — so a
-   * click paints the new selection immediately and the heavy body catches up.
-   * `rendering` is exactly the window where the two disagree.
-   */
-  selectedStage: StageId;
-  onSelectStage: (stage: StageId) => void;
-  deferredStage: StageId;
-  effectiveKeys: number | null;
-  migrateSteps: TraceEvent[];
-  migrateStepperMounted: boolean;
-  finalMigrated: unknown;
-  migrationStepIndex: number;
-  onMigrationStepChange: (index: number) => void;
-}
-
-export function PipelinePanel({
+/**
+ * Roadmap 090: the Config phase — everything this tab was before the picker
+ * existed, unchanged and now behind the first segment. Its own component so
+ * `PipelinePanel` is the phase switch and nothing else (and so the card's JSX
+ * keeps its depth under the ratchet).
+ */
+function ConfigPhase({
   result,
   selectedStage,
   onSelectStage,
@@ -208,7 +192,7 @@ export function PipelinePanel({
   globalParse,
   inheritedParse,
   inheritState,
-}: PipelinePanelProps) {
+}: ConfigPhaseProps) {
   return (
     <>
       <StageRail
@@ -252,6 +236,80 @@ export function PipelinePanel({
       {deferredStage === "migrate" && !migrateStepperMounted ? (
         <EmptyNote>No rewrites — this config already uses current option names.</EmptyNote>
       ) : null}
+    </>
+  );
+}
+
+interface ConfigPhaseProps extends StageLayersProps {
+  result: TraceResult;
+  /**
+   * The two stage identities are NOT interchangeable, and the split is the
+   * point of this panel's wiring:
+   *
+   * `selectedStage` is what the user just clicked — it drives the rail's
+   * selection and the layer editor, both of which are inputs, and an input that
+   * lags a click by a frame eats the first keystroke typed into it.
+   *
+   * `deferredStage` lags under load (`useDeferredValue` in App) and drives the
+   * expensive renders — the whole-stage diff and the rewrite stepper — so a
+   * click paints the new selection immediately and the heavy body catches up.
+   * `rendering` is exactly the window where the two disagree.
+   */
+  selectedStage: StageId;
+  onSelectStage: (stage: StageId) => void;
+  deferredStage: StageId;
+  effectiveKeys: number | null;
+  migrateSteps: TraceEvent[];
+  migrateStepperMounted: boolean;
+  finalMigrated: unknown;
+  migrationStepIndex: number;
+  onMigrationStepChange: (index: number) => void;
+}
+
+export interface PipelinePanelProps extends ConfigPhaseProps {
+  /**
+   * Roadmap 090: which of Renovate's phases is on screen. App's state rather
+   * than this panel's, for one reason: opening the Extract phase is what
+   * TRIGGERS repository discovery, and every results panel stays mounted (028)
+   * — a panel-side trigger would fire for a tab nobody has looked at.
+   */
+  phase: PipelinePhase;
+  onSelectPhase: (phase: PipelinePhase) => void;
+  /** The loaded repository's extracted dependencies, and the three things the
+   *  Extract phase does with them that are the shell's, not this tab's. */
+  extract: RepoDepsView;
+  repoConnect: RepoConnectOffer;
+  onRetryExtract: () => void;
+  onOpenDependencies: () => void;
+}
+
+export function PipelinePanel({
+  phase,
+  onSelectPhase,
+  extract,
+  repoConnect,
+  onRetryExtract,
+  onOpenDependencies,
+  ...config
+}: PipelinePanelProps) {
+  return (
+    <>
+      <PhasePicker
+        phase={phase}
+        onSelectPhase={onSelectPhase}
+        effectiveKeys={config.effectiveKeys}
+        extract={extract}
+      />
+      {phase === "extract" ? (
+        <ExtractPhase
+          view={extract}
+          connect={repoConnect}
+          onRetry={onRetryExtract}
+          onOpenDependencies={onOpenDependencies}
+        />
+      ) : (
+        <ConfigPhase {...config} />
+      )}
     </>
   );
 }

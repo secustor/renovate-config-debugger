@@ -8,6 +8,11 @@ export interface SegmentedOption<T extends string> {
   label: ReactNode;
   title?: string;
   ariaLabel?: string;
+  /** Roadmap 090: a segment that names a state this app cannot enter — the
+   *  pipeline's Lookup and Update phases, which need the datasource network
+   *  calls the engine deliberately severs. Rendered, because the picker is
+   *  what teaches the sequence, and disabled because nothing is behind it. */
+  disabled?: boolean;
 }
 
 /**
@@ -52,6 +57,7 @@ export function SegmentedControl<T extends string>({
           aria-label={option.ariaLabel}
           title={option.title}
           className={option.value === value ? "active" : undefined}
+          disabled={option.disabled}
           onClick={() => onChange(option.value)}
         >
           {option.label}

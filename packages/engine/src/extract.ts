@@ -99,17 +99,42 @@ export function matchManagersForFile(
   });
 }
 
+/** One path a repo walk kept, and the extractable managers that claim it —
+ *  several managers legitimately claim one filename. */
+export interface ExtractableMatch {
+  path: string;
+  /** In upstream's manager order; never empty. */
+  managers: string[];
+}
+
+/** What one walk over a repository's file listing found. */
+export interface ExtractableWalk {
+  /** How many managers the walk ASKED: the extractable ledger minus the
+   *  default-disabled and the pattern-less ones, neither of which a filename
+   *  walk can ever match. The honest denominator for "K of N managers matched
+   *  files". */
+  managersConsidered: number;
+  /** The claimed paths, in input order. */
+  files: ExtractableMatch[];
+}
+
 /**
- * The repo walk's bulk form of the same question: which of these paths does
- * at least one EXTRACTABLE manager claim? One `getMatchingFiles` pass per
- * manager over the whole list — per-path calls would rebuild the manager
- * table, the subset Set and the per-pattern debug strings tens of thousands
- * of times on a large tree. Input order is preserved.
+ * The repo walk's bulk form of `matchManagersForFile`: which EXTRACTABLE
+ * managers claim each of these paths? One `getMatchingFiles` pass per manager
+ * over the whole list — per-path calls would rebuild the manager table, the
+ * subset Set and the per-pattern debug strings tens of thousands of times on a
+ * large tree. Input order is preserved.
+ *
+ * Returns the attribution rather than the bare path list: the walk's own
+ * accounting (roadmap 090's Extract phase) has to say WHICH manager claimed a
+ * file, and recovering that per path afterwards is exactly the per-path scan
+ * this shape exists to avoid.
  */
-export function matchExtractablePaths(paths: readonly string[]): string[] {
+export function matchExtractableManagers(paths: readonly string[]): ExtractableWalk {
   return withCollectorSuppressed(() => {
     const all = [...paths];
-    const matched = new Set<string>();
+    const claims = new Map<string, string[]>();
+    let managersConsidered = 0;
     for (const [manager, config] of Object.entries(managerDefaultConfigs)) {
       if (!(manager in managerExtractors)) {
         continue;
@@ -125,11 +150,24 @@ export function matchExtractablePaths(paths: readonly string[]): string[] {
       if (!patterns || patterns.length === 0) {
         continue;
       }
+      managersConsidered += 1;
       for (const file of getMatchingFiles({ manager, managerFilePatterns: patterns }, all)) {
-        matched.add(file);
+        const claimed = claims.get(file);
+        if (claimed === undefined) {
+          claims.set(file, [manager]);
+        } else {
+          claimed.push(manager);
+        }
       }
     }
-    return paths.filter((path) => matched.has(path));
+    const files: ExtractableMatch[] = [];
+    for (const path of paths) {
+      const managers = claims.get(path);
+      if (managers !== undefined) {
+        files.push({ path, managers });
+      }
+    }
+    return { managersConsidered, files };
   });
 }
 

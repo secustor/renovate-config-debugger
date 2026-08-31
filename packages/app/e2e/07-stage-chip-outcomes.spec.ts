@@ -21,6 +21,13 @@ test("the Migrate node shows amber with a delta when it rewrote the config", asy
   // Roadmap 028: the stage rail is the Pipeline tab's stage selector.
   await openTab(page, "pipeline");
 
+  // Roadmap 090: the tab leads with the phase picker, and the stage rail is
+  // what the Config phase — the one selected on arrival — shows.
+  const picker = page.getByRole("radiogroup", { name: "Pipeline phase" });
+  await expect(picker.getByRole("radio")).toHaveCount(4);
+  await expect(picker.locator("button.active .phase-seg-name")).toHaveText("Config");
+  await expect(picker.getByRole("radio", { name: /^Lookup/ })).toBeDisabled();
+
   const migrateNode = page.locator('.stage-rail-btn[data-stage="migrate"]');
   await expect(migrateNode).toBeVisible();
   await expect(migrateNode.locator(".stage-rail-glyph.changed")).toBeVisible();

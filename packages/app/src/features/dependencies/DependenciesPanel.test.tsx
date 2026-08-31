@@ -23,8 +23,8 @@ const EMPTY: RepoDepsView = {
   status: "idle",
   repo: "",
   deps: [],
-  fileCount: 0,
-  skippedFiles: 0,
+  files: [],
+  managersConsidered: 0,
   truncated: false,
   error: null,
 };
@@ -93,8 +93,36 @@ describe("DependenciesPanel", () => {
       status: "ready",
       repo: "acme/webapp",
       deps: [DEP],
-      fileCount: 1,
-      skippedFiles: 2,
+      files: [
+        {
+          path: "package.json",
+          managers: ["npm"],
+          extractedBy: "npm",
+          depCount: 1,
+          outcome: "extracted",
+        },
+        {
+          path: "Dockerfile",
+          managers: ["dockerfile"],
+          extractedBy: null,
+          depCount: 0,
+          outcome: "no-deps",
+        },
+        {
+          path: "a/Chart.yaml",
+          managers: ["helmv3"],
+          extractedBy: null,
+          depCount: 0,
+          outcome: "not-read",
+        },
+        {
+          path: "b/Chart.yaml",
+          managers: ["helmv3"],
+          extractedBy: null,
+          depCount: 0,
+          outcome: "not-read",
+        },
+      ],
     });
 
     expect(
@@ -102,7 +130,28 @@ describe("DependenciesPanel", () => {
     ).toBeTruthy();
     expect(view.getByText("react")).toBeTruthy();
     expect(view.getByText("from acme/webapp")).toBeTruthy();
-    // The honest accounting rides under the table, cap and all.
+    // The honest accounting rides under the table: the files that held nothing,
+    // and the ones the cap left unread — every count off the same ledger.
+    expect(view.container.textContent).toContain("1 matched file did not contain any dependencies");
     expect(view.container.textContent).toContain("2 matched files not read");
+  });
+
+  it("draws no footnote when every matched file was read and contributed", () => {
+    const view = renderPanel({
+      ...EMPTY,
+      status: "ready",
+      repo: "acme/webapp",
+      deps: [DEP],
+      files: [
+        {
+          path: "package.json",
+          managers: ["npm"],
+          extractedBy: "npm",
+          depCount: 1,
+          outcome: "extracted",
+        },
+      ],
+    });
+    expect(view.container.querySelector(".data-table-note")).toBeNull();
   });
 });

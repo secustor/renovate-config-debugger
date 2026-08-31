@@ -1,0 +1,187 @@
+/* Roadmap 090 — the Pipeline tab's phase picker and its Extract phase.
+
+   Appended at the end of the cascade, which is what main.tsx's header
+   sanctions for a new surface: the only selectors here that another file also
+   writes are `.seg button` variants, and those are DELIBERATE overrides of the
+   shared segment metrics (a two-line segment), which have to come after the
+   base to work at equal specificity.
+
+   The track itself has no rules here at all — it wears the stage rail's own
+   classes (08-landing.css), so the two cannot drift apart. What is here is the
+   picker's second line and the phase's rows. */
+
+/* The picker sits above the tab's content and spans it: four phases, one line,
+   each carrying a name and the count behind it. */
+.phase-picker {
+  display: flex;
+  margin: 0 0 0.9rem;
+}
+
+.phase-picker button {
+  flex: 1;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.3rem 0.5rem;
+}
+
+/* A phase this app cannot run (Lookup, Update). Dimmed rather than hidden:
+   the picker is what teaches Renovate's real order, and a gap in the sequence
+   would teach it wrong. */
+.phase-picker button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.phase-seg-name {
+  font-size: 0.8rem;
+}
+
+/* Always rendered, empty or not, so a phase whose count has not arrived does
+   not make the strip jump when it does. */
+.phase-seg-note {
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  min-height: 0.85rem;
+}
+
+.phase-seg-note.muted {
+  color: var(--muted);
+}
+
+.phase-seg-note.ok {
+  color: var(--ok);
+}
+
+/* The states before the walk has anything to report. */
+.extract-status {
+  color: var(--muted);
+  font-size: 0.75rem;
+  margin: 0;
+}
+
+/* The rows a card opens onto: a disclosure head, and a sublist under it.
+   `.card` is an unpadded shell (only its title pads itself), so each body
+   piece here carries the title's own 0.75rem side inset — without it the
+   text sits flush against the card border. */
+.extract-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem 0.75rem;
+}
+
+.extract-row {
+  border-bottom: 1px solid var(--border);
+}
+
+.extract-row:last-child {
+  border-bottom: none;
+}
+
+.extract-row.open {
+  background: var(--surface);
+}
+
+.extract-row-head {
+  align-items: baseline;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 0.8rem;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+  text-align: left;
+  width: 100%;
+}
+
+.extract-row-lead {
+  flex: none;
+  font-family: var(--font-mono);
+}
+
+.extract-row-count {
+  color: var(--muted);
+  flex: none;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The collapsed row's preview of what is inside it. It takes the slack and
+   elides — every path is in the DOM, the width decides how much is read. */
+.extract-row-note {
+  color: var(--faint);
+  flex: 1 1 auto;
+  font-size: 0.72rem;
+  min-width: 0;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.extract-sublist {
+  list-style: none;
+  margin: 0 0 0.4rem;
+  padding: 0 0 0 1.4rem;
+}
+
+.extract-subrow {
+  align-items: baseline;
+  display: flex;
+  font-size: 0.75rem;
+  gap: 0.5rem;
+  padding: 0.1rem 0;
+}
+
+.extract-subrow-lead {
+  font-family: var(--font-mono);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.extract-subrow-value {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.extract-subrow-trail {
+  color: var(--muted);
+  flex: 1 1 auto;
+  font-size: 0.72rem;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A per-file count that IS a result reads in the verdict green; an absence
+   ("no deps", "not read") stays muted, because it is not one. */
+.extract-subrow-trail.ok {
+  color: var(--ok);
+}
+
+/* The card's small print: what this walk is not. One line per note. The
+   rows' own bottom padding supplies part of the 0.5rem gap above. */
+.extract-notes {
+  color: var(--muted);
+  font-size: 0.7rem;
+  margin: 0.15rem 0.75rem 0.6rem;
+}
+
+.extract-note-line {
+  display: block;
+}
+
+/* `.btn-quiet` is a link inside a sentence and takes no box metrics of its
+   own, so the one that stands alone under the card says so here. */
+.extract-jump {
+  display: inline-block;
+  font-size: 0.75rem;
+  margin: 0.15rem 0.75rem 0.6rem;
+}
