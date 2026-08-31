@@ -1,4 +1,4 @@
-import { type ReactNode, type RefObject, useState } from "react";
+import { type ReactNode, useState } from "react";
 import { nf } from "@/lib/format";
 import { useSyncedReset } from "@/hooks/use-synced-reset";
 import { useToggleSet } from "@/hooks/use-toggle-set";
@@ -209,7 +209,6 @@ export function DataTable({
   leadLabel,
   rowNoun,
   filterPlaceholder,
-  filterRef,
   contextNote,
   copy,
   views = [],
@@ -235,8 +234,6 @@ export function DataTable({
   /** What the group headers count ("32 dependencies"). */
   rowNoun: DataTableNoun;
   filterPlaceholder: string;
-  /** Forwarded to the filter field, for a consumer that focuses it. */
-  filterRef?: RefObject<HTMLInputElement | null>;
   contextNote?: string;
   /** The toolbar's copy button, left of the gear; `null` = slot reserved, no
    *  payload yet, nothing drawn. */
@@ -294,7 +291,6 @@ export function DataTable({
       <DataTableToolbar
         query={text}
         onQuery={setText}
-        filterRef={filterRef}
         filterPlaceholder={filterPlaceholder}
         contextNote={contextNote}
         copy={copy}

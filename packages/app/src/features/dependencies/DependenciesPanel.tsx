@@ -3,7 +3,7 @@ import type { DataTableNoun } from "@/components/data-table";
 import { EmptyNote } from "@/components/EmptyNote";
 import { nf, plural } from "@/lib/format";
 import { discoveryCaveats, tallyDiscovery } from "@/lib/discovery-caveats";
-import { RepoConnectPanel } from "@/components/RepoConnectPanel";
+import { RepoDiscoveryGate } from "@/components/RepoDiscoveryGate";
 import {
   DEP_COLUMNS,
   DEP_DEFAULT_GROUPING,
@@ -27,7 +27,8 @@ import type { RepoConnectOffer, RepoDepsView } from "@/types/repo";
  *
  * Everything the two row actions do belongs to the shell (a pin is App's list;
  * the simulator is another tab), so they arrive as props. The panel decides
- * only what to draw for each state of the discovery.
+ * only what to draw once discovery has reported — the states before that are
+ * the shared `RepoDiscoveryGate`'s, which the Extract phase answers with too.
  */
 
 const DEP_NOUN: DataTableNoun = { one: "dependency", many: "dependencies" };
@@ -46,50 +47,11 @@ function DependenciesNote({ view }: { view: RepoDepsView }) {
   return parts.length === 0 ? null : <p className="data-table-note">{parts.join(" · ")}</p>;
 }
 
-function DependenciesError({ view, onRetry }: { view: RepoDepsView; onRetry: () => void }) {
-  return (
-    <div className="data-table-status">
-      <p className="sim-empty-guard">
-        Could not read {view.repo}: {view.error}
-      </p>
-      <button type="button" className="btn-quiet" onClick={onRetry}>
-        Try again
-      </button>
-    </div>
-  );
-}
-
-export function DependenciesPanel({
+function DependenciesTable({
   view,
-  connect,
-  onRetry,
   onPin,
   onOpenInSimulator,
-}: {
-  view: RepoDepsView;
-  /** What to offer while no repository is loaded — the shell's. */
-  connect: RepoConnectOffer;
-  /** Re-runs discovery after a failure; the FIRST run is the shell's own
-   *  (it fires when this tab becomes the active one, never on the load). */
-  onRetry: () => void;
-} & DepRowActions) {
-  if (view.repo === "") {
-    return <RepoConnectPanel offer={connect} />;
-  }
-  if (view.status === "idle" || view.status === "loading") {
-    return <p className="data-table-status">Reading {view.repo}’s package files…</p>;
-  }
-  if (view.status === "error") {
-    return <DependenciesError view={view} onRetry={onRetry} />;
-  }
-  if (view.deps.length === 0) {
-    return (
-      <EmptyNote>
-        No dependencies detected in {view.repo}’s package files — nothing the browser engine can
-        read declared one.
-      </EmptyNote>
-    );
-  }
+}: { view: RepoDepsView } & DepRowActions) {
   return (
     <>
       <DataTable
@@ -106,5 +68,30 @@ export function DependenciesPanel({
       />
       <DependenciesNote view={view} />
     </>
+  );
+}
+
+export function DependenciesPanel({
+  view,
+  connect,
+  onRetry,
+  onPin,
+  onOpenInSimulator,
+}: {
+  view: RepoDepsView;
+  connect: RepoConnectOffer;
+  onRetry: () => void;
+} & DepRowActions) {
+  return (
+    <RepoDiscoveryGate view={view} connect={connect} onRetry={onRetry}>
+      {view.deps.length === 0 ? (
+        <EmptyNote>
+          No dependencies detected in {view.repo}’s package files — nothing the browser engine can
+          read declared one.
+        </EmptyNote>
+      ) : (
+        <DependenciesTable view={view} onPin={onPin} onOpenInSimulator={onOpenInSimulator} />
+      )}
+    </RepoDiscoveryGate>
   );
 }

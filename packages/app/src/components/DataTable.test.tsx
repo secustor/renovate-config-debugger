@@ -1,5 +1,4 @@
 import { act, cleanup, fireEvent, render, within } from "@testing-library/react";
-import { createRef } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DataTable } from "./DataTable";
 import type { DataTableColumn, DataTableGrouping, DataTableRow } from "./data-table";
@@ -362,16 +361,13 @@ describe("DataTable — the quick filter", () => {
 });
 
 describe("DataTable — the controlled filter", () => {
-  it("shows the owner's query, reports edits, and hands over the field", () => {
+  it("shows the owner's query and reports edits without adopting them", () => {
     const onQuery = vi.fn();
-    const filterRef = createRef<HTMLInputElement>();
-    const view = renderExtras({ query: "node", onQuery, filterRef });
+    const view = renderExtras({ query: "node", onQuery });
 
     const filter = view.getByRole("textbox", { name: "Filter 2 dependencies…" });
     expect((filter as HTMLInputElement).value).toBe("node");
     expect(view.container.querySelectorAll(".data-table-row")).toHaveLength(1);
-    // The ref is the field itself — a consumer that sets the query focuses it.
-    expect(filterRef.current).toBe(filter);
 
     fireEvent.change(filter, { target: { value: "react" } });
     expect(onQuery).toHaveBeenCalledExactlyOnceWith("react");

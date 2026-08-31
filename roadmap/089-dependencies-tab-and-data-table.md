@@ -150,13 +150,16 @@ and 083 had already fought once. Measured in a real Chromium against the
 production build, across `system-ui` and three deliberately wider fallbacks
 (Verdana is the worst case at ~4% over macOS's SF), the row was ~12px short.
 
-What paid for it: the tab type down to 0.8rem, the sides to 0.3rem, and — the
-part that actually bought the room — **the count badge is a plain number
-beside its label rather than a second chip**. The outline and its padding cost
-~16px per badge on five tabs; a count sitting against the word it counts was
-never making the kind of claim that outline is there to fence off. The TONES
-stay, so a Problems count still reads in the error hue. The strip now measures
-600px of 660 under macOS's own font, 626 under Verdana.
+What paid for it, as this shipped: the tab type down to 0.8rem, the sides to
+0.3rem, and — the part that actually bought the room — the count badge
+flattened to a plain number beside its label rather than a second chip.
+
+**Reversed, and this is what is in the tree**: the bubble IS the design's count
+grammar (the Final artboard draws every tab count as a pill), so it stays. The
+row's budget comes instead from a compact cut of the pill — 0.66rem type,
+0.3rem sides, which a strip-height count can afford where a body chip cannot —
+plus the artboard's own 0.78rem tab type and 0.28rem sides. One row verified at
+1280px under `system-ui` and Verdana.
 
 ## Verification
 
@@ -205,6 +208,12 @@ tab was read on a real screen.
 - **The gear looks like a button.** A bare `⚙` on the toolbar's ground read as
   decoration. It now wears the outline button's border, radius and hover at the
   icon-only padding — the same grammar as the CopyButton beside it.
+- **The three pre-report states are a shared component.** 090 grew a second
+  surface over the same discovery, so the connect offer / "reading…" / failure
+  triple became `components/RepoDiscoveryGate` — the promotion rule again, the
+  same one that moved `RepoConnectPanel` down here. What "nothing was found"
+  MEANS stays each consumer's: no dependencies is not the fact no matched files
+  is.
 - **The row actions moved into the OPEN row**, under the fields, which reverses
   the "one set is enough, drawn on every row" delta above. Two hundred rows
   each wearing two buttons is a wall of chrome, and a row that ends in buttons

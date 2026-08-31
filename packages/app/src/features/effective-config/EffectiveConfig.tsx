@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { groupByDecider, presetDeciderName, topLevelPresetNames } from "./decider-groups";
 import type { ResolvedConfigMode, TraceResult } from "@renovate-config-debugger/engine";
 import { type EffectiveTally, effectiveTally } from "@/lib/effective-tally";
@@ -82,7 +82,6 @@ export const EffectiveConfig = memo(function EffectiveConfig({
     () => (descriptionProvenance ? buildDescriptionLedger(descriptionProvenance) : null),
     [descriptionProvenance],
   );
-  const filterInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [onlyOverridden, setOnlyOverridden] = useState(false);
   // Roadmap 051: the As-JSON rendering and its output options
@@ -256,7 +255,6 @@ export const EffectiveConfig = memo(function EffectiveConfig({
         leadLabel="Option"
         rowNoun={EFFECTIVE_NOUN}
         filterPlaceholder="Filter keys…"
-        filterRef={filterInputRef}
         copy={
           resolvedOutput
             ? {

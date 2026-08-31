@@ -538,3 +538,12 @@ pre.config-view {
   color: var(--muted);
   font-weight: 400;
 }
+
+/* Roadmap 089/090: the shared discovery gate's status line — "reading…", and
+   the box holding a failure with its retry. Here beside `.empty-note` because
+   it belongs to a `components/` piece two feature slices draw. */
+.repo-status {
+  color: var(--muted);
+  font-size: 0.75rem;
+  margin: 0;
+}

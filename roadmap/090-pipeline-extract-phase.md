@@ -91,9 +91,11 @@ record grew exactly what the view needs to be honest:
   whose `enabledManagers` is narrow must not conclude Renovate is ignoring it.
 
 The four states before a report are the Dependencies tab's, for the same
-reason: no repository is an offer (`RepoConnectPanel`), reading and failed are
-statuses, and nothing found is a fact. None of them may be drawn as a track of
-zeros.
+reason: no repository is an offer, reading and failed are statuses, and nothing
+found is a fact. None of them may be drawn as a track of zeros. The first three
+are literally shared — `components/RepoDiscoveryGate`, which wraps both
+surfaces; the fourth is not, because "no dependencies" and "no matched files"
+are different facts.
 
 ### The engine hand-off
 
