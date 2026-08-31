@@ -25,6 +25,7 @@ import {
 } from "react";
 import { act, fireEvent, render, waitFor } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { stubMatchMedia, stubResizeObserver, stubScrollApis } from "@tools/test/jsdom-stubs";
 import type { ConfigEditorHandle } from "@/features/editor/ConfigEditor";
 import type * as PresetsPanelModule from "@/features/presets/PresetsPanel";
 import type * as EffectiveConfigModule from "@/features/effective-config/EffectiveConfig";
@@ -136,22 +137,9 @@ const KEYSTROKES = 20;
 
 beforeAll(() => {
   // jsdom lacks these; the app only needs them to answer "no" / do nothing.
-  window.matchMedia = (query: string): MediaQueryList =>
-    ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addEventListener: () => undefined,
-      removeEventListener: () => undefined,
-      dispatchEvent: () => false,
-    }) as unknown as MediaQueryList;
-  window.ResizeObserver = class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  };
-  window.scrollTo = () => undefined;
-  Element.prototype.scrollIntoView = () => undefined;
+  stubMatchMedia();
+  stubResizeObserver();
+  stubScrollApis();
 });
 
 /** Waits until no commit has changed any counter for a settle window — the

@@ -33,16 +33,6 @@ import { ROOT_NODE_ID } from "@/lib/preset-tree-stats";
  * The card renders them and invents nothing.
  */
 
-/** The tab badge's count: the sentences listed in the card — counted from the
- *  rows, never from the digest's own tallies of the top-level `description`
- *  array, which exclude the repo's `packageRules` prose (it never enters that
- *  array). A badge quoting a number the reader cannot get by counting the rows
- *  under it is the one number in the view they cannot check (082's rule for
- *  band headers). */
-function countOf(rows: readonly OverviewRow[]): number {
-  return rows.length;
-}
-
 /** The right-hand end of a row: who wrote this sentence.
  *
  *  Preset sentences wear the standard `PresetName` token — purple mono, the
@@ -232,7 +222,11 @@ export function OverviewPanel({ result, onSelectPreset, onShowRawOrder, onStats 
   const groups = useMemo(() => groupByTopic(rows), [rows]);
 
   const settled = provenance !== undefined;
-  const count = countOf(rows);
+  // The tab badge's count: counted from the ROWS listed in the card, never
+  // from the digest's own tallies of the top-level `description` array, which
+  // exclude the repo's `packageRules` prose (082 — a badge quoting a number
+  // the reader cannot get by counting the rows under it is uncheckable).
+  const count = rows.length;
   useEffect(() => {
     if (settled) {
       onStats?.(count);

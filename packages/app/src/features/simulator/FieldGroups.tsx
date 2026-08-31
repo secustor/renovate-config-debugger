@@ -9,8 +9,8 @@ import {
   FIELD_SPECS,
   fieldPlaceholder,
   type GroupedKey,
-  isMultiValue,
 } from "./field-groups";
+import { isMultiValueKey } from "./form";
 import { MultiValueInput } from "./MultiValueInput";
 import type { FormState } from "@/types/simulator";
 
@@ -35,7 +35,7 @@ function SpecField({
   const label = <Term id={DESCRIPTOR_TERMS[name]}>{name}</Term>;
   const placeholder = fieldPlaceholder(spec, { managerNames });
   const onChange = (value: string) => setForm({ ...form, [name]: value });
-  if (isMultiValue(name)) {
+  if (isMultiValueKey(name)) {
     return (
       <MultiValueInput
         name={name}

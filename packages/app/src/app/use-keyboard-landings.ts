@@ -537,7 +537,7 @@ export function useKeyboardLandings(host: KeyboardLandingsHost): KeyboardLanding
     { enabled: keysLive },
   );
 
-  /** `1`–`5` — straight to that results tab, by position in the strip. */
+  /** `1`–`7` — straight to that results tab, by position in the strip. */
   useTabDigits(
     resultsTabs.length,
     (index) => {

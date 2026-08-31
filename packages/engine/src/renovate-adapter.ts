@@ -9,10 +9,8 @@
  */
 export { parseFileConfig } from "renovate/dist/config/parse.js";
 export { migrateConfig } from "renovate/dist/config/migration.js";
-export {
-  type Migration,
-  MigrationsService,
-} from "renovate/dist/config/migrations/migrations-service.js";
+// `migrations-service.js` is deep-imported by ./shims/renovate-internals.ts
+// instead — the instrumented migration fork is its only reader.
 export { massageConfig } from "renovate/dist/config/massage.js";
 export { validateConfig } from "renovate/dist/config/validation.js";
 export { resolveConfigPresets } from "renovate/dist/config/presets/index.js";

@@ -27,7 +27,7 @@ export function QuickFillChips({
         <button
           key={label}
           type="button"
-          className={`sim-quickfill${label === active ? " active" : ""}`}
+          className={`btn-chip sim-quickfill${label === active ? " active" : ""}`}
           aria-pressed={label === active}
           onClick={() => onQuickFill(fill)}
         >

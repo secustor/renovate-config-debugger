@@ -1,9 +1,5 @@
 import { describe, expect, test } from "vitest";
-import type {
-  DescriptionAttribution,
-  DescriptionProvenance,
-  ProvenanceLayer,
-} from "@renovate-config-debugger/engine";
+import type { DescriptionProvenance, ProvenanceLayer } from "@renovate-config-debugger/engine";
 import {
   buildDescriptionDigest,
   type DescriptionDigest,
@@ -13,6 +9,13 @@ import {
   ruleNoteText,
   unattributedNoteText,
 } from "./description-digest";
+import {
+  descriptionEntries as entries,
+  type DescriptionEntrySpec as EntrySpec,
+  descriptionProvenance as provenance,
+  presetLayer as preset,
+  REPO_LAYER as REPO,
+} from "@tools/test/description-provenance";
 
 /** The ordinal separator `stableLayerKey` uses (U+241F). Spelled out here
  *  because a key that silently became `#`-separated again would re-open the
@@ -25,55 +28,6 @@ const SEP = "␟";
  * (069 PR 1, against the real 1,088-preset tree); everything here is about what
  * the card makes of it, so nothing needs the real pipeline.
  */
-
-const REPO: ProvenanceLayer = { kind: "repo" };
-
-function preset(nodeId: string, name = nodeId): ProvenanceLayer {
-  return { kind: "preset", nodeId, name };
-}
-
-interface EntrySpec {
-  value: string;
-  via: ProvenanceLayer;
-  node?: string;
-  approximate?: boolean;
-}
-
-/** Builds `entries` with the indices and duplicate markers the engine would
- *  assign, from a compact per-entry spec. */
-function entries(specs: EntrySpec[]): DescriptionAttribution[] {
-  const firstByValue = new Map<string, number>();
-  return specs.map((spec, index) => {
-    const duplicateOfIndex = firstByValue.get(spec.value);
-    if (duplicateOfIndex === undefined) {
-      firstByValue.set(spec.value, index);
-    }
-    return {
-      index,
-      value: spec.value,
-      viaTopLevel: spec.via,
-      ...(spec.node ? { node: { nodeId: spec.node, name: spec.node } } : {}),
-      ...(duplicateOfIndex === undefined ? {} : { duplicateOfIndex }),
-      ...(spec.approximate ? { approximate: true } : {}),
-    };
-  });
-}
-
-function provenance(overrides: Partial<DescriptionProvenance> = {}): DescriptionProvenance {
-  const attributed = overrides.entries ?? [];
-  const nonText = overrides.unattributed ?? [];
-  return {
-    dropped: [],
-    ruleDescriptions: [],
-    degraded: false,
-    // The engine guarantees `entries.length + unattributed.length ===
-    // finalLength`; the fixtures keep that invariant unless a test overrides it.
-    finalLength: attributed.length + nonText.length,
-    ...overrides,
-    entries: attributed,
-    unattributed: nonText,
-  };
-}
 
 // The three lookups below throw rather than assert-and-narrow: that fails the
 // test with a message naming what WAS there, and keeps the file free of the
@@ -237,6 +191,15 @@ describe("grouping", () => {
   });
 });
 
+/** Provenance carrying one `packageRules` description, from `layer`. */
+function withRule(layer: ProvenanceLayer, ruleIndex = 0, sourceIndex = 0): DescriptionProvenance {
+  return provenance({
+    ruleDescriptions: [
+      { ruleIndex, sourceIndex, layer, values: ["Slow down risky major updates"] },
+    ],
+  });
+}
+
 describe("rule descriptions", () => {
   const RULES = [
     {
@@ -246,14 +209,6 @@ describe("rule descriptions", () => {
     },
     { description: ["From a preset"], matchManagers: ["npm"] },
   ];
-
-  function withRule(layer: ProvenanceLayer, ruleIndex = 0, sourceIndex = 0): DescriptionProvenance {
-    return provenance({
-      ruleDescriptions: [
-        { ruleIndex, sourceIndex, layer, values: ["Slow down risky major updates"] },
-      ],
-    });
-  }
 
   test("pairs a repo rule with its matcher and write summary", () => {
     const digest = digestOf(withRule(REPO), RULES);

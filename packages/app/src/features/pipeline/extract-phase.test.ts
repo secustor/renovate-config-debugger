@@ -10,7 +10,7 @@ import {
   matchedManagerNames,
   scannedFiles,
 } from "./extract-phase";
-import { EMPTY_VIEW, repoDep as dep, walkFile } from "@tools/test/repo-deps";
+import { readyView, repoDep as dep, walkFile } from "@tools/test/repo-deps";
 import type { RepoDepsView } from "@/types/repo";
 
 /**
@@ -22,27 +22,11 @@ import type { RepoDepsView } from "@/types/repo";
  * does not apply.
  */
 
-const VIEW: RepoDepsView = {
-  ...EMPTY_VIEW,
-  status: "ready",
-  repo: "acme/webapp",
-  deps: [
-    dep("react", "package.json", "npm"),
-    dep("typescript", "package.json", "npm"),
-    dep("node", "Dockerfile", "dockerfile"),
-  ],
-  files: [
-    walkFile("package.json", ["npm"], { extractedBy: "npm", depCount: 2, outcome: "extracted" }),
-    walkFile("Dockerfile", ["dockerfile"], {
-      extractedBy: "dockerfile",
-      depCount: 1,
-      outcome: "extracted",
-    }),
-    walkFile("docs/package.json", ["npm"]),
-    walkFile(".github/workflows/ci.yml", ["github-actions"], { outcome: "no-deps" }),
-  ],
-  managersConsidered: 100,
-};
+const VIEW: RepoDepsView = readyView([
+  dep("react", "package.json", "npm"),
+  dep("typescript", "package.json", "npm"),
+  dep("node", "Dockerfile", "dockerfile"),
+]);
 
 describe("extractNodes", () => {
   it("counts managers, scanned files and deps, each against what the walk did", () => {

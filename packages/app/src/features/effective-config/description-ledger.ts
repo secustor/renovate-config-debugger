@@ -94,16 +94,6 @@ export interface DescriptionLedger {
   degraded: boolean;
 }
 
-/** The shared cap, applied to the ledger's lines. Counted across the whole
- *  ledger rather than per run: the design closes the list with a single
- *  affordance (`N more lines · M dropped before merging →`), so a per-run cap
- *  would have several buttons competing with the one that is meant to be the
- *  end of the list. */
-export const LEDGER_COLLAPSE_AFTER = COLLAPSE_AFTER;
-
-/** The same cap again, applied to the footer's dropped-description list. */
-export const DROPPED_COLLAPSE_AFTER = COLLAPSE_AFTER;
-
 /**
  * The array's members in index order, strings and non-strings interleaved.
  * Both engine lists are already ascending and disjoint (`entries.length +
@@ -371,12 +361,15 @@ export function unattributedNoteText(): string {
 /**
  * The rows a collapsed ledger renders, and how many it is holding back.
  *
- * The cap is global (see {@link LEDGER_COLLAPSE_AFTER}), so it is applied by
- * walking the runs in order and cutting at whichever row crosses it — a run
- * that falls entirely past the cap disappears rather than rendering as an empty
- * hairline. Nothing is reordered: what is shown is always a PREFIX of the final
- * array, which is the one property the ledger's "this is that array" claim
- * rests on.
+ * The cap is the shared {@link COLLAPSE_AFTER}, counted across the whole ledger
+ * rather than per run — the design closes the list with a single affordance
+ * (`N more lines · M dropped before merging →`), so a per-run cap would have
+ * several buttons competing with the one that is meant to end the list. It is
+ * applied by walking the runs in order and cutting at whichever row crosses it
+ * — a run that falls entirely past the cap disappears rather than rendering as
+ * an empty hairline. Nothing is reordered: what is shown is always a PREFIX of
+ * the final array, which is the one property the ledger's "this is that array"
+ * claim rests on.
  */
 export interface LedgerView {
   groups: LedgerGroup[];
@@ -389,7 +382,7 @@ export function ledgerView(ledger: DescriptionLedger, revealed: boolean): Ledger
     return { groups: ledger.groups, hiddenRows: 0 };
   }
   const groups: LedgerGroup[] = [];
-  let budget = LEDGER_COLLAPSE_AFTER;
+  let budget = COLLAPSE_AFTER;
   let hiddenRows = 0;
   for (const group of ledger.groups) {
     if (budget <= 0) {
@@ -428,10 +421,4 @@ export function ledgerRevealText(hiddenRows: number, dropped: number): string | 
 export function droppedSummaryText(dropped: readonly DroppedDescription[]): string {
   const count = dropped.length;
   return `Not included: ${plural(count, "description")} Renovate dropped`;
-}
-
-/** Rows hidden by a collapsed list — shared by the runs and the dropped
- *  footer, which collapse the same way at different thresholds. */
-export function hiddenCount(total: number, after: number, expanded: boolean): number {
-  return expanded ? 0 : Math.max(0, total - after);
 }

@@ -10,12 +10,18 @@
  */
 import type {
   ClauseEvaluation,
-  MergedKey,
   ProvenanceLayer,
   RuleEvaluation,
-  SimulationResult,
 } from "@renovate-config-debugger/engine";
 import { describe, expect, test } from "vitest";
+import {
+  baseStop,
+  finalStop,
+  flattenStop,
+  ruleEval,
+  ruleStop,
+  simResult,
+} from "@tools/test/simulation";
 import type { MergeStop } from "./merge-stops";
 import { buildVerdictThreads } from "./verdict-threads";
 
@@ -30,54 +36,15 @@ const MATCHED_CLAUSE: ClauseEvaluation = {
   readFields: ["packageName"],
 };
 
-/** The chip/step halves of a `MergeStop` are the timeline's rendering payload;
- *  the derivation reads only `kind`/`ruleIndex`/`merged`. */
-function stopChrome(id: string): Pick<MergeStop, "chip" | "step"> {
-  return {
-    chip: { label: id, ariaLabel: id },
-    step: { id, before: {}, after: {}, head: id },
-  };
-}
-
-function baseStop(): MergeStop {
-  return { kind: "base", ...stopChrome("base") };
-}
-
-function ruleStop(ruleIndex: number, merged: MergedKey[]): MergeStop {
-  return { kind: "rule", ruleIndex, merged, ...stopChrome(`rule-${ruleIndex}`) };
-}
-
-function flattenStop(merged: MergedKey[]): MergeStop {
-  return { kind: "flatten", merged, ...stopChrome("flatten") };
-}
-
-function finalStop(): MergeStop {
-  return { kind: "final", ...stopChrome("final") };
-}
-
 function matchedRule(
   index: number,
   clauses: ClauseEvaluation[] = [MATCHED_CLAUSE],
 ): RuleEvaluation {
-  return { index, verdict: "matched", clauses, notes: [] };
+  return ruleEval(index, "matched", clauses);
 }
 
-function simFixture(
-  finalDependencyConfig: Record<string, unknown>,
-  rules: RuleEvaluation[] = [],
-): SimulationResult {
-  return {
-    rules,
-    rawFinalConfig: finalDependencyConfig,
-    finalDependencyConfig,
-    flattened: { merged: [], blocks: {}, authoredBlocks: [] },
-    missingInputs: { rules: 0, groups: [] },
-    evaluationErrors: { rules: 0, selectors: [], messages: [], sampleRuleIndexes: [] },
-    mergeSteps: [],
-    errors: [],
-    warnings: [],
-    notes: [],
-  };
+function simFixture(finalDependencyConfig: Record<string, unknown>, rules: RuleEvaluation[] = []) {
+  return simResult({ rules, rawFinalConfig: finalDependencyConfig, finalDependencyConfig });
 }
 
 /** Contested `groupName`: a preset rule sets it, a repo rule later overwrites

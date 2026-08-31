@@ -65,13 +65,8 @@
   margin-top: 0.5rem;
 }
 
-.prov-rules-title {
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-  margin: 0.5rem 0 0.3rem;
-  text-transform: uppercase;
-}
+/* `.prov-rules-title` is the same eyebrow as `.prov-chain-title` and shares
+   its rule in 05-docs-trace.css. */
 
 .prov-rules-list {
   list-style: none;
@@ -573,20 +568,9 @@
   padding: 0.5rem 0.7rem;
 }
 
-/* Preset-string hover card in the editor (extends the shared .option-card). */
-.preset-hover-jump {
-  background: none;
-  border: none;
-  color: var(--accent);
-  cursor: pointer;
-  font: inherit;
-  padding: 0;
-  text-decoration: underline;
-}
-
-.preset-hover-jump:hover {
-  filter: brightness(1.1);
-}
+/* The preset-string hover card in the editor extends the shared .option-card,
+   and its "Show in resolution tree →" is `.btn-quiet` — the same way out that
+   `components/HoverCardJump` renders. Nothing surface-specific is left. */
 
 /* ---------- tabbed results shell (028) ---------- */
 

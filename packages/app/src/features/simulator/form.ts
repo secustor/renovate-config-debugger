@@ -148,8 +148,8 @@ export function joinValues(values: readonly string[]): string {
 
 // Roadmap 079 follow-up: a paste containing any of these reads as several
 // values, not one — comma/semicolon-separated lists and newline- or
-// whitespace-separated lists are both things a user's clipboard holds.
-const PASTE_SEPARATOR = /[,;\s]/;
+// whitespace-separated lists are both things a user's clipboard holds. One
+// regex: a run matches exactly the strings a single separator does.
 const PASTE_SEPARATOR_RUN = /[,;\s]+/;
 
 /**
@@ -162,7 +162,7 @@ const PASTE_SEPARATOR_RUN = /[,;\s]+/;
  * claims it rather than inserting the separators as text.
  */
 export function splitPastedValues(text: string): string[] | null {
-  if (!PASTE_SEPARATOR.test(text)) {
+  if (!PASTE_SEPARATOR_RUN.test(text)) {
     return null;
   }
   return text
@@ -179,6 +179,13 @@ export const MULTI_VALUE_KEYS = [
   "registryUrls",
   "categories",
 ] as const satisfies readonly (keyof FormState)[];
+
+/** Whether a field is one of those — read from `MULTI_VALUE_KEYS` rather than
+ *  restated, so the editor a field gets and the shape a pasted descriptor
+ *  takes can never disagree. */
+export function isMultiValueKey(key: string): boolean {
+  return (MULTI_VALUE_KEYS as readonly string[]).includes(key);
+}
 
 function list(value: string): string[] | undefined {
   const items = splitValues(value);

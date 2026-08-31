@@ -47,6 +47,16 @@ const VIEW_OPTIONS: readonly SegmentedOption<PresetTreeView>[] = [
   { value: "table", label: "table" },
 ];
 
+/** The table view's columns. Static, so it lives out of a body that re-runs on
+ *  every scroll tick and filter keystroke. */
+const COLUMNS: readonly { key: SortColumn; label: string }[] = [
+  { key: "name", label: "preset" },
+  { key: "source", label: "source" },
+  { key: "opts", label: "opts" },
+  { key: "rules", label: "rules" },
+  { key: "count", label: "count" },
+];
+
 export const PresetTree = memo(function PresetTree({
   result,
   onInject,
@@ -240,14 +250,6 @@ export const PresetTree = memo(function PresetTree({
   const treeSlice = flatRows.slice(win.start, win.end);
   const tableSlice = tableRows.slice(win.start, win.end);
 
-  const columns: { key: SortColumn; label: string }[] = [
-    { key: "name", label: "preset" },
-    { key: "source", label: "source" },
-    { key: "opts", label: "opts" },
-    { key: "rules", label: "rules" },
-    { key: "count", label: "count" },
-  ];
-
   return (
     <div className="card">
       <div className="card-title">
@@ -291,7 +293,7 @@ export const PresetTree = memo(function PresetTree({
         <div className={`preset-tree-layout${selected ? " with-panel" : ""}`}>
           <PresetListPane
             view={view}
-            columns={columns}
+            columns={COLUMNS}
             sortColumn={sortColumn}
             sortDir={sortDir}
             onToggleSort={toggleSort}
@@ -315,8 +317,6 @@ export const PresetTree = memo(function PresetTree({
               parent={stats.parents.get(selected.id)}
               descriptionFacts={descFacts?.get(selected.id)}
               onClose={() => onSelectNode(null)}
-              injectionKey={injectionKey}
-              parse={helpers?.parse ?? null}
               usedInjections={usedInjections}
               onInject={onInject}
               migrationSteps={migrationStepsByPreset.get(selected.name) ?? []}

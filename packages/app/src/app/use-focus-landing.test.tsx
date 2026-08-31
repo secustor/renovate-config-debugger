@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { fireEvent, render } from "@testing-library/react";
 import { useEffect } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type FocusLanding, useFocusLanding } from "./use-focus-landing";
@@ -10,9 +10,6 @@ import { type FocusLanding, useFocusLanding } from "./use-focus-landing";
  * document listener that feeds them, which needs real elements (`instanceof
  * Element`, `.closest`) and so lands in the jsdom `render` project.
  */
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
 
 /** The hook's API, hoisted out of the render so a test can drive it. */
 let landing: FocusLanding | null = null;

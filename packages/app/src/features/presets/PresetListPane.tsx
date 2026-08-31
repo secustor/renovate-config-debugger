@@ -31,7 +31,7 @@ export function PresetListPane({
   onShowDescriptionOrder,
 }: {
   view: "tree" | "table";
-  columns: { key: SortColumn; label: string }[];
+  columns: readonly { key: SortColumn; label: string }[];
   sortColumn: SortColumn;
   sortDir: 1 | -1;
   onToggleSort: (column: SortColumn) => void;

@@ -1,5 +1,4 @@
 import { MANAGER_LIST_ID } from "./datalist-ids";
-import { MULTI_VALUE_KEYS } from "./form";
 import type { FormState } from "@/types/simulator";
 
 /**
@@ -103,13 +102,6 @@ export const FIELD_GROUPS = [
   { title: "Where it comes from", keys: GROUP_KEYS.source },
   { title: "Versioning details", keys: GROUP_KEYS.versioning },
 ] as const;
-
-/** Whether a field is one of the chip editors — read from `MULTI_VALUE_KEYS`
- *  rather than restated, so the editor a field gets and the shape
- *  `toDescriptor` sends can never disagree. */
-export function isMultiValue(key: GroupedKey): boolean {
-  return (MULTI_VALUE_KEYS as readonly string[]).includes(key);
-}
 
 /** The placeholder a field shows, resolved against what the app knows now. */
 export function fieldPlaceholder(spec: FieldSpec, ctx: FieldContext): string | undefined {

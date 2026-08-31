@@ -1,5 +1,5 @@
-import { cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { render } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import type { RuleEvaluation } from "@renovate-config-debugger/engine";
 import type { RuleDescriptionNote } from "./rule-descriptions";
 import { RuleRow } from "./RuleRow";
@@ -11,9 +11,6 @@ import { RuleRow } from "./RuleRow";
  * the head button (prose in a button is neither selectable nor announced as
  * prose) and only on a row that matched.
  */
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
 
 const NOTE: RuleDescriptionNote = {
   ruleIndex: 3,

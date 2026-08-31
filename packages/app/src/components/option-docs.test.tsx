@@ -1,6 +1,6 @@
 import type { OptionDoc, OptionIndex } from "@renovate-config-debugger/engine";
-import { cleanup, fireEvent, render } from "@testing-library/react";
-import { afterEach, expect, test } from "vitest";
+import { fireEvent, render } from "@testing-library/react";
+import { expect, test } from "vitest";
 import { OptionDocsProvider, OptionKey } from "./option-docs";
 
 /**
@@ -15,8 +15,6 @@ import { OptionDocsProvider, OptionKey } from "./option-docs";
  * a second card replaces the first rather than joining it, and a key the index
  * has nothing to say about is not an affordance at all.
  */
-
-afterEach(cleanup);
 
 function optionDoc(name: string, over: Partial<OptionDoc> = {}): OptionDoc {
   return {

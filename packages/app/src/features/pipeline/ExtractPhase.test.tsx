@@ -1,12 +1,12 @@
-import { cleanup, fireEvent, render, type RenderResult } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, type RenderResult } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { ExtractPhase } from "./ExtractPhase";
 import { type ExtractNodeId, extractNodes } from "./extract-phase";
 import {
   CONNECT_OFFER as CONNECT,
   EMPTY_VIEW as EMPTY,
+  readyView,
   repoDep as dep,
-  walkFile,
 } from "@tools/test/repo-deps";
 import type { RepoDepsView } from "@/types/repo";
 
@@ -20,26 +20,10 @@ import type { RepoDepsView } from "@/types/repo";
  * rather than restated, so a wording change lands in one file.
  */
 
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
-
-const READY: RepoDepsView = {
-  ...EMPTY,
-  status: "ready",
-  repo: "acme/webapp",
-  deps: [dep("react", "package.json", "npm"), dep("node", "Dockerfile", "dockerfile")],
-  files: [
-    walkFile("package.json", ["npm"], { extractedBy: "npm", depCount: 1, outcome: "extracted" }),
-    walkFile("Dockerfile", ["dockerfile"], {
-      extractedBy: "dockerfile",
-      depCount: 1,
-      outcome: "extracted",
-    }),
-    walkFile("docs/package.json", ["npm"]),
-    walkFile(".github/workflows/ci.yml", ["github-actions"], { outcome: "no-deps" }),
-  ],
-  managersConsidered: 100,
-};
+const READY: RepoDepsView = readyView([
+  dep("react", "package.json", "npm"),
+  dep("node", "Dockerfile", "dockerfile"),
+]);
 
 function renderPhase(view: RepoDepsView, over: Partial<Parameters<typeof ExtractPhase>[0]> = {}) {
   return render(

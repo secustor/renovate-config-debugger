@@ -1,4 +1,5 @@
 import { PIN_FORM_ID } from "./datalist-ids";
+import { motionScrollOptions } from "@/lib/motion";
 
 /**
  * The Add-a-test form's first input, or null while the card is collapsed (the
@@ -13,6 +14,6 @@ export function pinAddFocusTarget(): HTMLInputElement | null {
   if (!(form instanceof HTMLElement)) {
     return null;
   }
-  form.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  form.scrollIntoView(motionScrollOptions("nearest"));
   return form.querySelector("input");
 }

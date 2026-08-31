@@ -1,5 +1,5 @@
-import { cleanup, fireEvent, render } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { ESCAPE_PRIORITY, type EscapePriority } from "@/lib/escape-stack";
 import { useEscapeLayer } from "./use-escape-layer";
 
@@ -8,9 +8,6 @@ import { useEscapeLayer } from "./use-escape-layer";
  * yields to. The ordering itself is `escape-stack.test.ts`'s (pure); what needs
  * a DOM is which PRESS reaches the stack at all.
  */
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
 
 function Pill({
   onEscape,

@@ -1,5 +1,5 @@
-import { cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { render } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { HostAccessSection } from "./HostAccessSection";
 
 /**
@@ -11,9 +11,6 @@ import { HostAccessSection } from "./HostAccessSection";
  * `bitbucket` over a stored `github` suppressed the note entirely — the case
  * this file pins, alongside the two it must stay quiet for.
  */
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
 
 function section(props: { displayPlatform: string; usesLocal: boolean; reflectGlobal?: boolean }) {
   const view = render(

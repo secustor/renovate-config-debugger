@@ -8,6 +8,7 @@ import {
   tileFractions,
   tileStrength,
 } from "./ledger";
+import { presetNode as node, presetRoot as root } from "@tools/test/preset-nodes";
 
 /**
  * Roadmap 075 (iteration 5b): the ledger's whole model, over hand-built trees.
@@ -17,34 +18,6 @@ import {
  * module's arithmetic. The shapes mirror the real ones: a big internal source
  * with a dozen children, a small fetched one, a failed one.
  */
-
-let nextId = 0;
-
-function node(
-  name: string,
-  opts: {
-    input?: Record<string, unknown>;
-    children?: PresetNode[];
-    kind?: string;
-    state?: PresetNode["state"];
-    error?: string;
-  } = {},
-): PresetNode {
-  nextId++;
-  return {
-    id: `p${nextId}`,
-    name,
-    state: opts.state ?? "resolved",
-    source: { presetSource: opts.kind ?? "internal" } as PresetNode["source"],
-    input: opts.input ?? {},
-    children: opts.children ?? [],
-    ...(opts.error ? { error: { topic: "preset", message: opts.error } } : {}),
-  };
-}
-
-function root(children: PresetNode[]): PresetNode {
-  return { id: "root", name: "(input config)", state: "resolved", input: {}, children };
-}
 
 function tinyFamily(name: string, size: number): PresetNode {
   const kids = Array.from({ length: size }, (_, i) =>

@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { useShortcut } from "@/hooks/use-shortcut";
 import { RUN_SHORTCUT } from "@/lib/shortcuts";
 import { EMPTY_FORM } from "./form";
@@ -23,9 +23,6 @@ import { SimulatorForm } from "./SimulatorForm";
  * multi-value field's draft input, where bare Enter commits a chip and must
  * never also fire a verdict.
  */
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
 
 function Harness({
   onRun,

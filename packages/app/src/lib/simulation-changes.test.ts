@@ -1,5 +1,6 @@
 import type { SimulationResult } from "@renovate-config-debugger/engine";
 import { describe, expect, test } from "vitest";
+import { simResult } from "@tools/test/simulation";
 import { changedDependencyKeys } from "./simulation-changes";
 
 /**
@@ -10,18 +11,7 @@ import { changedDependencyKeys } from "./simulation-changes";
  * genuine change, because it lands top-level where the base never had it.
  */
 function simFixture(finalDependencyConfig: Record<string, unknown>): SimulationResult {
-  return {
-    rules: [],
-    rawFinalConfig: finalDependencyConfig,
-    finalDependencyConfig,
-    flattened: { merged: [], blocks: {}, authoredBlocks: [] },
-    missingInputs: { rules: 0, groups: [] },
-    evaluationErrors: { rules: 0, selectors: [], messages: [], sampleRuleIndexes: [] },
-    mergeSteps: [],
-    errors: [],
-    warnings: [],
-    notes: [],
-  };
+  return simResult({ rawFinalConfig: finalDependencyConfig, finalDependencyConfig });
 }
 
 describe("changedDependencyKeys", () => {

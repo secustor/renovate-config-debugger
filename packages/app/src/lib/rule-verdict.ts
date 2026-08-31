@@ -39,5 +39,6 @@
  */
 export {
   hasEvaluationError,
+  isFailingClause,
   isNoInputNoMatch,
 } from "@renovate-config-debugger/engine/simulate-missing-inputs";

@@ -16,7 +16,7 @@ import { SIM_FORM_ID } from "./datalist-ids";
 import { DescriptorActions } from "./DescriptorActions";
 import { buildMergeStops } from "./merge-stops";
 import { EmptyFormGuard, PinLimitNote } from "./FormNotes";
-import { MAX_PINS } from "./pins";
+import { MAX_PINS, pinShareFields } from "./pins";
 import { ReturnPill } from "./ReturnPill";
 import { buildRuleDescriptions } from "./rule-descriptions";
 import { buildRuleEvidence } from "./rule-evidence";
@@ -325,12 +325,7 @@ export const RuleSimulator = memo(function RuleSimulator({
     if (!onCopySimLink) {
       return;
     }
-    const shareForm: Record<string, string> = {};
-    for (const [key, value] of Object.entries(form)) {
-      if (typeof value === "string" && value.trim() !== "") {
-        shareForm[key] = value;
-      }
-    }
+    const shareForm = pinShareFields(form);
     if (effectiveUpdateType && effectiveUpdateType.trim() !== "") {
       shareForm.updateType = effectiveUpdateType;
     }

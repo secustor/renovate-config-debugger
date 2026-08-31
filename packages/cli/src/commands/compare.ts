@@ -8,7 +8,7 @@ import { readDependency } from "../dep";
 import { deltaLine, parseConfigScope, parseKeys } from "../projections/config-view";
 import { parseCompareDetail, type ProjectedComparison } from "../projections/simulate";
 import { askCompare } from "../questions/compare";
-import { simulateAgainst } from "./simulate";
+import { askSimulation } from "../questions/simulate";
 
 /**
  * Roadmap 018's A/B oracle, and the reason the debugger can stay read-only:
@@ -161,8 +161,16 @@ export const compareCommand: Command = {
       writeNotes(io, b.notes);
     }
 
-    const simA = await simulateAgainst(a.result, depA);
-    const simB = await simulateAgainst(b.result, depB);
+    const simA = await askSimulation({
+      finalConfig: a.result.finalConfig,
+      dep: depA,
+      transport: "cli",
+    });
+    const simB = await askSimulation({
+      finalConfig: b.result.finalConfig,
+      dep: depB,
+      transport: "cli",
+    });
     const { comparison, sideNotes, notes } = askCompare({
       simA,
       simB,

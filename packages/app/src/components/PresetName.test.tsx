@@ -1,7 +1,7 @@
-import type { PresetNode } from "@renovate-config-debugger/engine";
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { recordClipboardWrites } from "@tools/test/clipboard";
+import { presetNodeById as node } from "@tools/test/preset-nodes";
 import { ROOT_NODE_ID } from "@/lib/preset-tree-stats";
 import { HOVER_INTENT_DELAY_MS } from "./hover-gate";
 import { PresetName } from "./PresetName";
@@ -18,19 +18,12 @@ import { PresetReferenceProvider } from "./preset-reference-context";
  * after closing the card it was clicked in.
  */
 
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
-
 beforeEach(() => {
   vi.useFakeTimers();
 });
 afterEach(() => {
   vi.useRealTimers();
 });
-
-function node(id: string, name: string, children: PresetNode[] = []): PresetNode {
-  return { id, name, state: "resolved", children };
-}
 
 /** root → config:recommended → group:monorepos → monorepo:react */
 const DEEP = node("p4", "monorepo:react");

@@ -1,7 +1,8 @@
 import type { PresetNode } from "@renovate-config-debugger/engine";
-import { cleanup, fireEvent, render, within } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
+import { fireEvent, render, within } from "@testing-library/react";
+import { expect, it, vi } from "vitest";
 import { PresetLedger } from "./PresetLedger";
+import { presetNode as node, presetRoot as root } from "@tools/test/preset-nodes";
 
 /**
  * Roadmap 082: the ledger's health box in its FAILED state — the one shape a
@@ -11,35 +12,6 @@ import { PresetLedger } from "./PresetLedger";
  * shut, the rows appear on the caret, and the 009 auth hint is on the header
  * line rather than buried in the expansion.
  */
-
-afterEach(cleanup);
-
-let nextId = 0;
-
-function node(
-  name: string,
-  opts: {
-    kind?: string;
-    state?: PresetNode["state"];
-    error?: string;
-    children?: PresetNode[];
-  } = {},
-): PresetNode {
-  nextId++;
-  return {
-    id: `p${nextId}`,
-    name,
-    state: opts.state ?? "resolved",
-    source: { presetSource: opts.kind ?? "internal" } as PresetNode["source"],
-    input: {},
-    children: opts.children ?? [],
-    ...(opts.error ? { error: { topic: "preset", message: opts.error } } : {}),
-  };
-}
-
-function root(children: PresetNode[]): PresetNode {
-  return { id: "root", name: "(input config)", state: "resolved", input: {}, children };
-}
 
 function ledger(tree: PresetNode, onOpenNode = vi.fn()) {
   return {

@@ -69,7 +69,7 @@ export function ResultsPanel({
    * Roadmap 068: the ARIA tablist keyboard pattern this shell has claimed since
    * 028 by rendering `role="tablist"` — arrows move along the strip, Home/End
    * go to the ends — paired with the roving `tabindex` below, so the whole
-   * strip is ONE tab stop instead of eight on the way to the panel.
+   * strip is ONE tab stop instead of seven on the way to the panel.
    *
    * **Selection follows focus**: an arrow moves focus AND opens that tab. The
    * APG permits either model and recommends this one wherever showing a panel
@@ -90,7 +90,7 @@ export function ResultsPanel({
    *
    * What manual activation cost, meanwhile, was the pattern users actually
    * expect from a tab strip: every look required a second key to commit, in a
-   * widget whose whole purpose is glancing between five views of one run.
+   * widget whose whole purpose is glancing between seven views of one run.
    *
    * Enter and Space still work — they are a focused `<button>`'s own behavior,
    * so nothing here handles them — and now mean "choose this tab", ending the

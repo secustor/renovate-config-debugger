@@ -232,10 +232,7 @@ function findKeyInObject(text: string, objStart: number, key: string): EntryLoca
       i = skipTrivia(text, i + 1);
       continue;
     }
-    if (text[i] === "}") {
-      return null;
-    }
-    return null; // malformed
+    return null; // end of the object, or malformed
   }
   return null;
 }
@@ -269,10 +266,7 @@ function findArrayElement(
       i = skipTrivia(text, i + 1);
       continue;
     }
-    if (text[i] === "]") {
-      return null;
-    }
-    return null;
+    return null; // end of the array, or malformed
   }
   return null;
 }

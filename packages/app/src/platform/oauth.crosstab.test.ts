@@ -1,10 +1,8 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import {
   COOKIE_SESSION_KEY,
+  installOAuthHarness,
   jsonResponse,
-  makeWorkerFetch,
-  memoryStorage,
-  type StorageLike,
   WORKER_URL,
 } from "@tools/test/oauth-test-harness";
 
@@ -28,23 +26,8 @@ const TOKEN_KEY = "rcd.oauth.token";
 const TOKEN_EXPIRES_KEY = "rcd.oauth.tokenExpiresAt";
 const REFRESH_TOKEN_KEY = "rcd.oauth.refreshToken";
 
-const g = globalThis as { localStorage?: StorageLike; sessionStorage?: StorageLike };
-let local = memoryStorage();
-let session = memoryStorage();
-
-let refreshResponse: () => Response = () => jsonResponse({});
-const baseFetch = makeWorkerFetch(() => refreshResponse());
-
-const fetchMock = vi.fn(baseFetch);
-
-function fetchCalls(path: string) {
-  return fetchMock.mock.calls.filter(([input]) => String(input) === path);
-}
-
-async function freshOAuth() {
-  vi.resetModules();
-  return import("./oauth");
-}
+const { local, session, fetchMock, fetchCalls, freshOAuth, setRefreshResponse } =
+  installOAuthHarness();
 
 /** The signed-in state a cookie-mode tab holds: an access token in its own
  *  sessionStorage, no in-JS refresh token, the shared marker in localStorage. */
@@ -69,28 +52,10 @@ function siblingPosts(message: unknown): void {
   siblingChannel().postMessage(message);
 }
 
-beforeEach(() => {
-  local = memoryStorage();
-  g.localStorage = local;
-  session = memoryStorage();
-  g.sessionStorage = session;
-  vi.stubEnv("VITE_GITHUB_CLIENT_ID", "client");
-  vi.stubEnv("VITE_OAUTH_WORKER_URL", WORKER_URL);
-  vi.stubEnv("VITE_GITHUB_APP_SLUG", undefined);
-  vi.stubGlobal("fetch", fetchMock);
-  fetchMock.mockReset();
-  fetchMock.mockImplementation(baseFetch);
-  refreshResponse = () => jsonResponse({});
-});
-
 afterEach(() => {
   for (const ch of siblings.splice(0)) {
     ch.close();
   }
-  delete g.localStorage;
-  delete g.sessionStorage;
-  vi.unstubAllEnvs();
-  vi.unstubAllGlobals();
 });
 
 describe("recoverRejectedToken", () => {
@@ -110,8 +75,9 @@ describe("recoverRejectedToken", () => {
   test("the current token 401ing forces a refresh despite a future recorded expiry", async () => {
     // The whole bug: the local clock says 7 h left, but the host revoked it.
     seedCookieTab("ghu_dead", Date.now() + 25_200_000);
-    refreshResponse = () =>
-      jsonResponse({ access_token: "ghu_renewed", expires_in: 28_800, refresh_token_cookie: true });
+    setRefreshResponse(() =>
+      jsonResponse({ access_token: "ghu_renewed", expires_in: 28_800, refresh_token_cookie: true }),
+    );
     const { recoverRejectedToken, isSignedIn } = await freshOAuth();
 
     expect(await recoverRejectedToken("ghu_dead")).toEqual({
@@ -137,8 +103,9 @@ describe("recoverRejectedToken", () => {
 describe("token broadcast", () => {
   test("a cookie-mode refresh hands the replacement to sibling tabs", async () => {
     seedCookieTab("ghu_dead", 0);
-    refreshResponse = () =>
-      jsonResponse({ access_token: "ghu_renewed", expires_in: 28_800, refresh_token_cookie: true });
+    setRefreshResponse(() =>
+      jsonResponse({ access_token: "ghu_renewed", expires_in: 28_800, refresh_token_cookie: true }),
+    );
     const heard: unknown[] = [];
     siblingChannel().addEventListener("message", (event) => {
       heard.push((event as MessageEvent<unknown>).data);
@@ -264,8 +231,9 @@ describe("refresh lock", () => {
 
   test("a lock manager that refuses does not wedge the refresh single-flight", async () => {
     seedCookieTab("ghu_stale", 0);
-    refreshResponse = () =>
-      jsonResponse({ access_token: "ghu_renewed", expires_in: 28_800, refresh_token_cookie: true });
+    setRefreshResponse(() =>
+      jsonResponse({ access_token: "ghu_renewed", expires_in: 28_800, refresh_token_cookie: true }),
+    );
     vi.stubGlobal("navigator", {
       locks: {
         request: () => Promise.reject(new Error("document is not fully active")),

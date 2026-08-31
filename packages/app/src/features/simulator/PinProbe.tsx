@@ -37,7 +37,7 @@ function ProbeIdle({
       </p>
       <div className="pin-probe-chips">
         {suggestions.map((label) => (
-          <button key={label} type="button" onClick={() => onFill(label)}>
+          <button key={label} type="button" className="btn-chip" onClick={() => onFill(label)}>
             {label}
           </button>
         ))}

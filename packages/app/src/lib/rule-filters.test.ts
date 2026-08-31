@@ -8,12 +8,12 @@
  * here.
  */
 import type {
-  ClauseEvaluation,
   ProvenanceLayer,
   RuleAttribution,
   RuleEvaluation,
 } from "@renovate-config-debugger/engine";
 import { describe, expect, test } from "vitest";
+import { clauseEval as clause, ruleEval as rule } from "@tools/test/simulation";
 import {
   ALL_PRESETS,
   DEFAULT_RULE_FILTERS,
@@ -26,24 +26,6 @@ import {
   ruleVisible,
   verdictFilterOptions,
 } from "./rule-filters";
-
-function clause(state: ClauseEvaluation["state"]): ClauseEvaluation {
-  return {
-    key: "matchSourceUrls",
-    value: ["x"],
-    state,
-    inputValues: {},
-    readFields: ["sourceUrl"],
-  };
-}
-
-function rule(
-  index: number,
-  verdict: RuleEvaluation["verdict"],
-  clauses: ClauseEvaluation[] = [],
-): RuleEvaluation {
-  return { index, verdict, clauses, notes: [] };
-}
 
 const REPO_LAYER: ProvenanceLayer = { kind: "repo" };
 const PRESET_LAYER: ProvenanceLayer = { kind: "preset", name: "config:recommended", nodeId: "n1" };

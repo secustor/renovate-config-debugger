@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { IGNORED_PRESET_CONFIG, SEMANTIC_COMMITS_CONFIG } from "./fixtures";
 import {
+  luminance,
   must,
   openMigrateStage,
   openSessionMenu,
@@ -26,23 +27,6 @@ const DARK_BG = "rgb(13, 17, 23)";
 
 function bodyBackground(page: Page): Promise<string> {
   return page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-}
-
-/** The WCAG 2.1 per-channel linearization an 8-bit sRGB value goes through. */
-function channel(v: number): number {
-  const s = v / 255;
-  return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-}
-
-/** WCAG 2.1 relative luminance of an `rgb()`/`rgba()` string — "is this
- *  surface light or dark?", asked without pinning a library's exact hex. */
-function luminance(css: string): number {
-  const [r = 0, g = 0, b = 0] = css
-    .replace(/^rgba?\(|\)$/g, "")
-    .split(/[\s,/]+/)
-    .slice(0, 3)
-    .map(Number);
-  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
 }
 
 test.describe("theme switcher (037)", () => {

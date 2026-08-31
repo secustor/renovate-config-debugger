@@ -18,7 +18,7 @@ import {
 } from "../src/index";
 import { GlobalConfig } from "../src/renovate-adapter";
 import { EXTRACT_CASES, extractFixture, extractSnapshotPath } from "./extract-cases";
-import { must } from "./helpers";
+import { must, mustExtract } from "./helpers";
 
 describe("extractDeps (golden)", () => {
   let dir: string | null = null;
@@ -38,14 +38,13 @@ describe("extractDeps (golden)", () => {
       // The manager is explicit: several managers can claim one filename
       // (pyproject.toml is pep621's, pixi's and poetry's), and a CASE names
       // which parser it is exercising — filename matching has its own tests.
-      const outcome = await extractDeps({
-        fileName: c.fileName,
-        content: extractFixture(c.fixture),
-        manager: c.manager,
-      });
-      if (!outcome.ok) {
-        throw new Error(`expected extraction to succeed: ${outcome.message}`);
-      }
+      const outcome = mustExtract(
+        await extractDeps({
+          fileName: c.fileName,
+          content: extractFixture(c.fixture),
+          manager: c.manager,
+        }),
+      );
       expect(outcome.file.manager).toBe(c.manager);
       expect(outcome.file.fileName).toBe(c.fileName);
       const depNames = outcome.file.deps.map((dep) => dep.depName);
@@ -146,14 +145,13 @@ describe("extractDeps (golden)", () => {
   it("resolves support files through the same fs the manager reads", async () => {
     dir = await mkdtemp(join(tmpdir(), "rcd-extract-"));
     GlobalConfig.set({ localDir: dir });
-    const outcome = await extractDeps({
-      fileName: "Cargo.toml",
-      content: extractFixture("Cargo.toml"),
-      supportFiles: [{ fileName: "Cargo.lock", content: extractFixture("Cargo.lock") }],
-    });
-    if (!outcome.ok) {
-      throw new Error(`expected extraction to succeed: ${outcome.message}`);
-    }
+    const outcome = mustExtract(
+      await extractDeps({
+        fileName: "Cargo.toml",
+        content: extractFixture("Cargo.toml"),
+        supportFiles: [{ fileName: "Cargo.lock", content: extractFixture("Cargo.lock") }],
+      }),
+    );
     const serde = must(
       outcome.file.deps.find((dep) => dep.depName === "serde"),
       "a serde dep",

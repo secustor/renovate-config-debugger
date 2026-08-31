@@ -1,5 +1,6 @@
 import type { RuleAttribution, SimulationResult } from "@renovate-config-debugger/engine";
 import { pluralWord } from "./format";
+import { isFailingClause } from "./rule-verdict";
 
 /** A config value in a plain-language sentence: `[a, b]`, `"x"`, `42`. */
 function plainValue(value: unknown): string {
@@ -193,9 +194,7 @@ export function buildNoInputCaveat(
     if (rule.verdict !== "no-match" || !repoRules.has(rule.index)) {
       continue;
     }
-    const failing = rule.clauses.filter(
-      (c) => c.state === "no-match" || c.state === "no-input" || c.state === "error",
-    );
+    const failing = rule.clauses.filter(isFailingClause);
     if (failing.length === 0 || !failing.every((c) => c.state === "no-input")) {
       continue;
     }

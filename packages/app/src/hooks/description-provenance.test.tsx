@@ -1,6 +1,6 @@
 import type { DescriptionProvenance, TraceResult } from "@renovate-config-debugger/engine";
 import { cleanup, render, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
 import { useDescriptionProvenance } from "./description-provenance";
 
 /**
@@ -21,8 +21,6 @@ vi.mock("@renovate-config-debugger/engine", () => engine);
 beforeEach(() => {
   engine.computeDescriptionProvenance.mockReset();
 });
-
-afterEach(cleanup);
 
 // The hook only ever hands the result to the engine (mocked) and uses it as a
 // WeakMap key, so an empty object is the whole fixture this needs.

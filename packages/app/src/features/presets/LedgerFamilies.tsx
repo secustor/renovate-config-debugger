@@ -3,7 +3,7 @@ import type { LedgerFamily, LedgerRule } from "./ledger";
 import { Caret } from "@/components/Caret";
 import { PresetName } from "@/components/PresetName";
 import { useToggleSet } from "@/hooks/use-toggle-set";
-import { nf, plural, pluralWord } from "@/lib/format";
+import { nf, plural } from "@/lib/format";
 
 /**
  * Roadmap 075 (iteration 5b): the "Grouping rules" section — the other half of
@@ -133,7 +133,7 @@ export function LedgerFamilies({
         Grouping rules
         <span className="ledger-section-hint">
           {" "}
-          — {nf.format(totalRules)} packageRules {pluralWord(totalRules, "rule")} in this expansion
+          — {nf.format(totalRules)} packageRules in this expansion
         </span>
       </h4>
       <ul className="ledger-family-list">

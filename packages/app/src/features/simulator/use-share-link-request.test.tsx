@@ -1,7 +1,8 @@
-import { cleanup, render } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import { type Dispatch, type SetStateAction, useRef } from "react";
 import type { TraceResult } from "@renovate-config-debugger/engine";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { traceResult } from "@tools/test/trace-result";
 import { type SimRequest, useShareLinkRequest } from "./use-share-link-request";
 import type { Simulate } from "./use-simulation-run";
 import type { FormState } from "@/types/simulator";
@@ -13,33 +14,6 @@ import type { FormState } from "@/types/simulator";
  * screen when the link arrived. Both branches of that rule are here; which
  * entry path decoded the link is deliberately not a factor in either.
  */
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
-
-/** A distinct run per call — identity is the whole point of these tests. */
-function traceResult(): TraceResult {
-  return {
-    events: [],
-    finalConfig: { packageRules: [] },
-    errors: [],
-    warnings: [],
-    renovateVersion: "0.0.0",
-    stageStatus: {
-      global: "ok",
-      inherit: "ok",
-      parse: "ok",
-      migrate: "ok",
-      massage: "ok",
-      validate: "ok",
-      preset: "ok",
-      merge: "ok",
-    },
-    visitedPresets: { merged: [], unmerged: [] },
-    platformContext: { platform: "github", endpoint: "https://api.github.com" },
-    usedInjections: [],
-  };
-}
 
 function request(ranResult: TraceResult | null): SimRequest {
   return {

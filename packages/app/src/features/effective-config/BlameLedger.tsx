@@ -6,11 +6,9 @@ import type {
 } from "@renovate-config-debugger/engine";
 import {
   type DescriptionLedger,
-  DROPPED_COLLAPSE_AFTER,
   droppedSummaryText,
   duplicateNoteText,
   duplicatePillText,
-  hiddenCount,
   ledgerCountText,
   type LedgerGroup,
   ledgerRevealText,
@@ -21,6 +19,7 @@ import {
   unattributedValueText,
 } from "./description-ledger";
 import { dropReasonText } from "./drop-reasons";
+import { COLLAPSE_AFTER } from "@/lib/collapse";
 import { ShowAllMore } from "@/components/ShowAllMore";
 import { CodeText } from "@/components/CodeText";
 import { ApproximateMark, DegradedCaveat } from "@/components/DescriptionApprox";
@@ -254,8 +253,9 @@ function DroppedList({
   onSelectPreset?: (nodeId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const hidden = hiddenCount(dropped.length, DROPPED_COLLAPSE_AFTER, expanded);
-  const shown = hidden > 0 ? dropped.slice(0, DROPPED_COLLAPSE_AFTER) : dropped;
+  // The same shared cap the ledger's own lines collapse at.
+  const hidden = expanded ? 0 : Math.max(0, dropped.length - COLLAPSE_AFTER);
+  const shown = hidden > 0 ? dropped.slice(0, COLLAPSE_AFTER) : dropped;
   return (
     <ul className="desc-ledger-list">
       {shown.map((drop, i) => (

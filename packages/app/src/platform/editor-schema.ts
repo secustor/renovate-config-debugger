@@ -95,7 +95,7 @@ function presetCard(info: PresetHoverInfo, onSelectPreset: (nodeId: string) => v
   row.className = "option-card-row";
   const jump = document.createElement("button");
   jump.type = "button";
-  jump.className = "preset-hover-jump";
+  jump.className = "btn-quiet";
   jump.textContent = "Show in resolution tree →";
   jump.addEventListener("mousedown", (e) => {
     // mousedown, not click: the tooltip is torn down as the pointer moves, and

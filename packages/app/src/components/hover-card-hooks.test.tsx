@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render } from "@testing-library/react";
+import { act, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HoverCardAnchor, HoverCardTextAnchor } from "./hover-card";
 import { SHOW_SCROLL_GRACE_MS } from "./hover-card-hooks";
@@ -16,9 +16,6 @@ import { SHOW_SCROLL_GRACE_MS } from "./hover-card-hooks";
  * The other direction, which the review after it found: the scroll a browser
  * fires to bring a Tab-focused anchor into view must NOT be one of them.
  */
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
 
 // The hide-on-scroll now has a wall-clock grace, so every test in this file has
 // to say which side of it its scroll falls on.

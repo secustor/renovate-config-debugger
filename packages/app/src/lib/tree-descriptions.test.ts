@@ -1,10 +1,5 @@
 import { describe, expect, test } from "vitest";
-import type {
-  DescriptionAttribution,
-  DescriptionProvenance,
-  DroppedDescription,
-  ProvenanceLayer,
-} from "@renovate-config-debugger/engine";
+import type { DescriptionProvenance, DroppedDescription } from "@renovate-config-debugger/engine";
 import { approximateTitle } from "@/lib/description-approx";
 import {
   APPROXIMATE_NOTE,
@@ -17,6 +12,11 @@ import {
   type TreeDescriptions,
   zipDescLines,
 } from "./tree-descriptions";
+import {
+  descriptionEntries as entries,
+  descriptionProvenance as provenance,
+  presetLayer as preset,
+} from "@tools/test/description-provenance";
 
 /**
  * Roadmap 069 (PR 4): the per-node index the name hover cards and the detail
@@ -29,61 +29,8 @@ import {
  * surface's whole performance story.
  */
 
-const REPO: ProvenanceLayer = { kind: "repo" };
-
-function preset(nodeId: string, name = nodeId): ProvenanceLayer {
-  return { kind: "preset", nodeId, name };
-}
-
 const DASHBOARD = preset("p1", ":dependencyDashboard");
 const BEST_PRACTICES = preset("p2", "config:best-practices");
-
-interface EntrySpec {
-  value: string;
-  /** The writing node's id; `undefined` = a layer with no preset tree. */
-  node?: string;
-  nodeName?: string;
-  via?: ProvenanceLayer;
-  approximate?: boolean;
-  /** The engine's REAL index, when a non-string member sits earlier in the
-   *  array and the string's position is therefore not its ordinal here. */
-  index?: number;
-}
-
-/** Builds `entries` with the indices and duplicate markers the engine assigns. */
-function entries(specs: EntrySpec[]): DescriptionAttribution[] {
-  const firstByValue = new Map<string, number>();
-  return specs.map((spec, ordinal) => {
-    const index = spec.index ?? ordinal;
-    const duplicateOfIndex = firstByValue.get(spec.value);
-    if (duplicateOfIndex === undefined) {
-      firstByValue.set(spec.value, index);
-    }
-    return {
-      index,
-      value: spec.value,
-      node: spec.node ? { nodeId: spec.node, name: spec.nodeName ?? spec.node } : undefined,
-      viaTopLevel: spec.via ?? REPO,
-      duplicateOfIndex,
-      approximate: spec.approximate,
-    };
-  });
-}
-
-function provenance(
-  parts: Partial<DescriptionProvenance> & Pick<DescriptionProvenance, "entries">,
-): DescriptionProvenance {
-  return {
-    dropped: [],
-    ruleDescriptions: [],
-    degraded: false,
-    unattributed: [],
-    // What the engine reports: every member of the final array, the ones no
-    // preset can be credited for included.
-    finalLength: parts.entries.length + (parts.unattributed?.length ?? 0),
-    ...parts,
-  };
-}
 
 function built(source: DescriptionProvenance): TreeDescriptions {
   const tree = buildTreeDescriptions(source);

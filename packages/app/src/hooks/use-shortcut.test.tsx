@@ -1,6 +1,6 @@
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { fireEvent, render } from "@testing-library/react";
 import { useState } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ESCAPE_PRIORITY, pushEscapeLayer } from "@/lib/escape-stack";
 import { FOCUS_RESULTS_SHORTCUT, HELP_SHORTCUT, type Shortcut } from "@/lib/shortcuts";
 import { useShortcut } from "./use-shortcut";
@@ -11,9 +11,6 @@ import { useShortcut } from "./use-shortcut";
  * time" row, so a gate that suppressed it while that menu was open made the app
  * break a promise printed one line above the key.
  */
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
 
 function Harness({ shortcut, onFire }: { shortcut: Shortcut; onFire: () => void }) {
   useShortcut(shortcut, onFire);

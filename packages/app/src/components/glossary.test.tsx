@@ -1,5 +1,5 @@
-import { cleanup, fireEvent, render } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { useEscapeLayer } from "@/hooks/use-escape-layer";
 import { type EscapePriority, ESCAPE_PRIORITY } from "@/lib/escape-stack";
 import { Term } from "./glossary";
@@ -11,9 +11,6 @@ import { Term } from "./glossary";
  * unconditionally therefore made the layer UNDERNEATH undismissable, which is
  * the case this file pins from both sides.
  */
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
 
 function Scene({ onEscape, priority }: { onEscape: () => void; priority: EscapePriority }) {
   useEscapeLayer(true, onEscape, priority);

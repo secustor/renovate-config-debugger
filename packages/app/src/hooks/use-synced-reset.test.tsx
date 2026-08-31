@@ -1,9 +1,7 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { useSyncedReset } from "./use-synced-reset";
-
-afterEach(cleanup);
 
 /** A nonce consumer whose owner starts at 0 rather than at the current value —
  *  `AddTestBox`'s quick-start chip shape. */

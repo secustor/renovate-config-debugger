@@ -5,12 +5,10 @@
  * covering everything (either a preset or your own config), and a genuine mix.
  */
 import type { RuleAttribution } from "@renovate-config-debugger/engine";
-import { cleanup, render } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import type { ReactElement } from "react";
-import { afterEach, expect, it } from "vitest";
+import { expect, it } from "vitest";
 import { RuleFramingAside, RuleFramingText } from "./rule-framing";
-
-afterEach(cleanup);
 
 function repo(index: number): RuleAttribution {
   return { index, layer: { kind: "repo" }, sourceIndex: index };

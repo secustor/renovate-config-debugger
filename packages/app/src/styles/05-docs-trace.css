@@ -505,8 +505,12 @@
 }
 
 /* The expanded detail has no box of its own since 092: it is the standard
-   table's `.data-table-row-detail`, already indented onto the lead's edge. */
-.prov-chain-title {
+   table's `.data-table-row-detail`, already indented onto the lead's edge.
+   ONE eyebrow for both of the things an expanded row titles — the cascade
+   (`KeyRowParts`, `BlameLedger`) and the packageRules list (`CascadeStack`,
+   styled in 10) — which were byte-identical rules in two files. */
+.prov-chain-title,
+.prov-rules-title {
   color: var(--muted);
   font-size: 0.75rem;
   font-weight: 600;

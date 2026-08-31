@@ -14,8 +14,15 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { configChecksum, encodeShare, type ShareSimulator, type ShareView } from "../src/lib/share";
+// Relative, not `@tools/*`: the alias is the app's vitest/tsconfig mapping, and
+// the Playwright graph resolves this file on its own.
+import { encodeRawShareToken } from "../../../tools/test/share-wire";
 
 export { configChecksum };
+/** Roadmap 030 — a share token built from raw JSON text, for the adversarial
+ *  fixtures the real codec would never produce. Re-exported so the specs keep
+ *  reaching every fixture through this one module. */
+export { encodeRawShareToken };
 
 /** The two file names the share payload accepts. */
 type ShareFileName = "renovate.json" | "renovate.json5";
@@ -73,29 +80,6 @@ function readInstalledRenovateVersion(): string {
     throw new Error(`no "version" field in ${pkgPath}`);
   }
   return version;
-}
-
-async function pipeThrough(bytes: Uint8Array, stream: GenericTransformStream): Promise<Uint8Array> {
-  // Type the stream as GenericTransformStream (writable: WritableStream) so the
-  // writer accepts a plain Uint8Array — same pattern as src/lib/share.ts, which
-  // works around TextEncoder outputs being typed as ArrayBufferLike.
-  const writer = stream.writable.getWriter();
-  void writer.write(new Uint8Array(bytes));
-  void writer.close();
-  const buf = await new Response(stream.readable).arrayBuffer();
-  return new Uint8Array(buf);
-}
-
-function deflateRaw(bytes: Uint8Array): Promise<Uint8Array> {
-  return pipeThrough(bytes, new CompressionStream("deflate-raw"));
-}
-
-function bytesToBase64url(bytes: Uint8Array): string {
-  let bin = "";
-  for (const b of bytes) {
-    bin += String.fromCharCode(b);
-  }
-  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 /** Options for shaping the encoded token (e.g. producing a pre-027 link). */
@@ -162,22 +146,6 @@ export async function encodeShareFragment(
   opts: EncodeOptions = {},
 ): Promise<string> {
   return `#config=${await encodeShareToken(input, opts)}`;
-}
-
-/**
- * Roadmap 030 — encodes a raw JSON STRING directly into a share token,
- * bypassing the real codec entirely. Needed for adversarial fixtures that
- * must express a key no ordinary JS object literal can: writing
- * `{ __proto__: ... }` (or even `{ "__proto__": ... }`) as object-literal
- * syntax sets the object's prototype instead of creating an own property, so
- * it would vanish before `JSON.stringify` ever put it on the wire. Building
- * the JSON text by hand instead guarantees the bytes really contain
- * `"__proto__":`, which the app's `JSON.parse` on decode turns into a
- * genuine own property — reproducing the real attack.
- */
-export async function encodeRawShareToken(json: string): Promise<string> {
-  const compressed = await deflateRaw(new TextEncoder().encode(json));
-  return bytesToBase64url(compressed);
 }
 
 /** Simulates a link cut short in transit: drops the token's trailing chars.

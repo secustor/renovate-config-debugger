@@ -15,20 +15,7 @@
  * available yet" and a title saying the same thing.
  */
 
-export const PIPELINE_PHASE_IDS = ["config", "extract", "lookup", "update"] as const;
-
-export type PipelinePhase = (typeof PIPELINE_PHASE_IDS)[number];
-
-export interface PipelinePhaseDescriptor {
-  id: PipelinePhase;
-  label: string;
-  /** What the phase does, for the segment's `title`. */
-  title: string;
-  /** Whether this app can run it at all. */
-  available: boolean;
-}
-
-export const PIPELINE_PHASES: readonly PipelinePhaseDescriptor[] = [
+export const PIPELINE_PHASES = [
   {
     id: "config",
     label: "Config",
@@ -53,7 +40,19 @@ export const PIPELINE_PHASES: readonly PipelinePhaseDescriptor[] = [
     title: "Not available today",
     available: false,
   },
-];
+] as const;
+
+/** The phase ids, derived from the descriptors — one list, not two. */
+export type PipelinePhase = (typeof PIPELINE_PHASES)[number]["id"];
+
+export interface PipelinePhaseDescriptor {
+  id: PipelinePhase;
+  label: string;
+  /** What the phase does, for the segment's `title`. */
+  title: string;
+  /** Whether this app can run it at all. */
+  available: boolean;
+}
 
 /** What an unavailable segment says instead of a count. Stated once so the
  *  picker and its test cannot disagree about the promise being made. */

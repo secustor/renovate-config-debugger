@@ -1,7 +1,8 @@
-import { act, cleanup, render, waitFor } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import { useEffect } from "react";
 import type { TraceResult } from "@renovate-config-debugger/engine";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { traceResult } from "@tools/test/trace-result";
 import type * as ShareModule from "@/lib/share";
 import type { DecodeResult, SharePayload } from "@/lib/share";
 import { type ShareLinkHost, type SimRequest, useShareLink } from "./use-share-link";
@@ -41,35 +42,10 @@ vi.mock("@/platform/run", () => ({
   getRenovateVersion: () => Promise.resolve("0.0.0"),
 }));
 
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
 afterEach(() => {
-  cleanup();
   payloads.clear();
   history.replaceState(null, "", "/");
 });
-
-function traceResult(): TraceResult {
-  return {
-    events: [],
-    finalConfig: { packageRules: [] },
-    errors: [],
-    warnings: [],
-    renovateVersion: "0.0.0",
-    stageStatus: {
-      global: "ok",
-      inherit: "ok",
-      parse: "ok",
-      migrate: "ok",
-      massage: "ok",
-      validate: "ok",
-      preset: "ok",
-      merge: "ok",
-    },
-    visitedPresets: { merged: [], unmerged: [] },
-    platformContext: { platform: "github", endpoint: "https://api.github.com" },
-    usedInjections: [],
-  };
-}
 
 /** What the pipeline returns for a config the parser refuses (engine
  *  `pipeline.ts`): a real, resolved `TraceResult` — `run()` does not throw —

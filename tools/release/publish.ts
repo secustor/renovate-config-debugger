@@ -12,8 +12,9 @@
  * install nobody notices until someone runs it.
  *
  * `--no-git-checks` because the working tree is legitimately dirty here:
- * `prepare.ts` has just stamped the version, and @semantic-release/git commits
- * it only after publishing succeeds.
+ * `prepare.ts` and `stamp-compat.ts` have just written the version and the
+ * compat facts into the tree. Nothing commits them — 067's amendment made a
+ * release change no tracked file — so the dirt is expected and discarded.
  *
  * No credential is passed or read. pnpm performs the npm trusted-publishing
  * exchange itself — it asks GitHub for an OIDC token and trades it with the
@@ -29,11 +30,11 @@
  * a token that does not exist.
  */
 import { execFileSync } from "node:child_process";
-import { publicPackages, repoRoot } from "./workspace.ts";
+import { releasablePackages, repoRoot } from "./workspace.ts";
 
 const dryRun = process.argv.includes("--dry-run");
 
-for (const pkg of publicPackages()) {
+for (const pkg of releasablePackages()) {
   const args = ["--filter", pkg.name, "publish", "--access", "public", "--no-git-checks"];
 
   if (dryRun) {

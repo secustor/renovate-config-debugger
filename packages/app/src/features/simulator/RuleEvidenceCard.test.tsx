@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { claimModalKeyboard, overlayKeyboardOwned } from "@/lib/escape-stack";
 import type { RuleEvidence } from "./rule-evidence";
 import { RuleEvidenceAnchor } from "./RuleEvidenceCard";
@@ -38,9 +38,6 @@ const EVIDENCE: RuleEvidence = {
   ],
   survivedCount: 1,
 };
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
 
 function open(onOpenRule?: (ruleIndex: number) => void) {
   const view = render(

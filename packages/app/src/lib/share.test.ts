@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { encodeRawShareToken as rawEncodeJsonText } from "@tools/test/share-wire";
 import {
   legacyTabForView,
   RESULTS_TAB_IDS,
@@ -24,52 +25,17 @@ import {
  * "damaged" classification for a decodable-but-hostile/type-confused
  * payload, and the per-field tolerant sanitization of `view`/`sim`.
  *
- * Tokens are built independently of `encodeShare` (a small local codec
- * mirroring share.ts's own deflate-raw/base64url wire format, the same
- * approach the e2e fixtures use) so a "hand-tampered" payload — one
- * `encodeShare` itself would never produce — can be expressed directly.
+ * Tokens are built independently of `encodeShare` (`@tools/test/share-wire`,
+ * the same raw deflate-raw/base64url codec the e2e fixtures encode with) so a
+ * "hand-tampered" payload — one `encodeShare` itself would never produce — can
+ * be expressed directly.
  */
-
-async function pipeThrough(bytes: Uint8Array, stream: GenericTransformStream): Promise<Uint8Array> {
-  const writer = stream.writable.getWriter();
-  void writer.write(new Uint8Array(bytes));
-  void writer.close();
-  const buf = await new Response(stream.readable).arrayBuffer();
-  return new Uint8Array(buf);
-}
-
-function bytesToBase64url(bytes: Uint8Array): string {
-  let bin = "";
-  for (const b of bytes) {
-    bin += String.fromCharCode(b);
-  }
-  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
 
 /** Encodes an arbitrary (possibly hand-tampered) payload object into a share
- *  token, bypassing `encodeShare`'s own normalization entirely. */
+ *  token, bypassing `encodeShare`'s own normalization entirely. A `__proto__`
+ *  payload has to go through `rawEncodeJsonText` instead — see its comment. */
 async function rawEncodeToken(payload: unknown): Promise<string> {
   return rawEncodeJsonText(JSON.stringify(payload));
-}
-
-/**
- * Encodes a raw JSON STRING directly (skipping `JSON.stringify` on a JS
- * object). Required for a `__proto__`-keyed payload: writing `{ __proto__:
- * ... }` (or even `{ "__proto__": ... }`) as a JS object LITERAL in this
- * test file does not create an own property at all — object-literal syntax
- * special-cases that exact key to set the prototype instead (the very
- * gotcha `findPollutedPath`'s doc comment warns about), so `JSON.stringify`
- * would silently drop it before it ever reached the wire. Building the JSON
- * text by hand instead guarantees the bytes actually contain `"__proto__":`,
- * which `JSON.parse` on the decode side turns into a genuine own property —
- * reproducing the real attack instead of a JS-syntax artifact of the test.
- */
-async function rawEncodeJsonText(json: string): Promise<string> {
-  const compressed = await pipeThrough(
-    new TextEncoder().encode(json),
-    new CompressionStream("deflate-raw"),
-  );
-  return bytesToBase64url(compressed);
 }
 
 function minimalState(overrides: Partial<ShareState> = {}): ShareState {

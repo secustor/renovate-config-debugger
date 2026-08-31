@@ -36,9 +36,10 @@ blocks the stop if any fail, handing back the tail of the failing output.
 - **Always** (when anything changed): `pnpm lint`, `pnpm format:check`,
   `pnpm typecheck`.
 - **Per changed package**: engine tests, app unit/render tests plus the dev
-  module-graph guard, oauth-worker tests. An engine change runs the app's tests
-  too (the app imports the engine); a change outside `packages/` runs all of
-  them.
+  module-graph guard, cli tests, oauth-worker tests, and `pnpm test:tools` for
+  a `tools/` change. Consumers run too, not just the package that changed: an
+  engine edit re-runs the app and the CLI, an app edit re-runs the CLI (it
+  imports `@…/app/headless`). A root-level change runs all of them.
 - **Never**: the Playwright e2e suite. It needs a production build first and
   takes minutes — running it stays a deliberate step
   (`pnpm --filter @renovate-config-debugger/app build` then `… test:e2e`).

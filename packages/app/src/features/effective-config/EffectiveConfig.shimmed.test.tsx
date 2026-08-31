@@ -12,11 +12,9 @@
  * view switch, "only overridden" — is now behind the gear.
  */
 import { runPipeline } from "@renovate-config-debugger/engine";
-import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
+import { fireEvent, render, waitFor, within } from "@testing-library/react";
+import { expect, it, vi } from "vitest";
 import { EffectiveConfig } from "./EffectiveConfig";
-
-afterEach(cleanup);
 
 /** Open the display options, which is where the view, the quick filter, the
  *  grouping and the columns live. Idempotent enough for a test: it opens the

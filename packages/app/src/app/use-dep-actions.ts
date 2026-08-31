@@ -1,6 +1,6 @@
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { TraceResult } from "@renovate-config-debugger/engine";
-import { useLatestRef } from "@/hooks/use-latest-ref";
+import { useStableCallback } from "@/hooks/use-stable-callback";
 import type { SimRequest } from "@/hooks/use-share-link";
 import { EMPTY_FORM } from "@/features/simulator/form";
 import { pinShareFields } from "@/features/simulator/pins";
@@ -48,17 +48,12 @@ export function useDepActions({
   /** The run on screen — a dep request is attributed to it. */
   result: TraceResult | null;
 }): DepActions {
-  const onPinDepRef = useLatestRef((fill: Partial<FormState>) => {
+  // Identity-stable for the panels; every call still runs this render's
+  // closure (`useStableCallback`).
+  const onPinDep = useStableCallback((fill: Partial<FormState>) => {
     addPin({ ...EMPTY_FORM, ...fill });
     jumpToTab("tests");
   });
-  // The dependency is the REF, not the callback it holds — a ref object's
-  // identity never changes, so the wrapper handed to the panels is declared
-  // once for the app's lifetime while always invoking the current closure.
-  const onPinDep = useCallback(
-    (fill: Partial<FormState>) => onPinDepRef.current(fill),
-    [onPinDepRef],
-  );
   /**
    * "Open in simulator" from a dependency row: the same descriptor channel a
    * share link uses (`SimRequest`), so the form is filled and re-simulated by
@@ -72,7 +67,7 @@ export function useDepActions({
    */
   const [depSim, setDepSim] = useState<{ after: number | null; request: SimRequest } | null>(null);
   const depSimNonce = useRef(DEP_SIM_NONCE_BASE);
-  const onOpenDepInSimulatorRef = useLatestRef((fill: Partial<FormState>) => {
+  const onOpenDepInSimulator = useStableCallback((fill: Partial<FormState>) => {
     const form: FormState = { ...EMPTY_FORM, ...fill };
     setDepSim({
       after: shareRequest?.nonce ?? null,
@@ -87,10 +82,6 @@ export function useDepActions({
     });
     jumpToTab("tests");
   });
-  const onOpenDepInSimulator = useCallback(
-    (fill: Partial<FormState>) => onOpenDepInSimulatorRef.current(fill),
-    [onOpenDepInSimulatorRef],
-  );
 
   return {
     onPinDep,

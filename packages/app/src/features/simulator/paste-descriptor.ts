@@ -1,5 +1,5 @@
 import { plural } from "@/lib/format";
-import { EMPTY_FORM, joinValues, MULTI_VALUE_KEYS } from "./form";
+import { EMPTY_FORM, isMultiValueKey, joinValues } from "./form";
 import { isPlainObject } from "@/lib/input-schemas";
 import type { FormState } from "@/types/simulator";
 
@@ -35,10 +35,6 @@ import type { FormState } from "@/types/simulator";
  */
 function isKnownKey(key: string): key is keyof FormState {
   return Object.hasOwn(EMPTY_FORM, key);
-}
-
-function isMultiValueKey(key: keyof FormState): boolean {
-  return (MULTI_VALUE_KEYS as readonly string[]).includes(key);
 }
 
 /**

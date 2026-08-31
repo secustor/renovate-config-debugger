@@ -1,5 +1,6 @@
-import { cleanup, fireEvent, render } from "@testing-library/react";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { fireEvent, render } from "@testing-library/react";
+import { beforeAll, describe, expect, it } from "vitest";
+import { stubMatchMedia, stubScrollApis } from "@tools/test/jsdom-stubs";
 import { ReturnPill } from "./ReturnPill";
 import { threadHeadId, useThreadNav } from "./use-thread-nav";
 
@@ -17,21 +18,10 @@ import { threadHeadId, useThreadNav } from "./use-thread-nav";
  * keyboard user would have Tabbed from and a thread head to land on.
  */
 
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
-
 beforeAll(() => {
   // jsdom implements neither, and `landOnTarget` calls both.
-  Element.prototype.scrollIntoView = () => undefined;
-  window.matchMedia = (query: string) =>
-    ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addEventListener: () => undefined,
-      removeEventListener: () => undefined,
-      dispatchEvent: () => false,
-    }) as unknown as MediaQueryList;
+  stubScrollApis();
+  stubMatchMedia();
 });
 
 /** The thread head as it really sits: inside a results panel that a tab switch

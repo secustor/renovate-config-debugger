@@ -12,7 +12,8 @@ import {
   summarizeRuleSelectors,
 } from "@renovate-config-debugger/app/headless";
 import { CliError } from "../io";
-import { layerLabel, previewValue } from "./provenance";
+import { preview } from "../output";
+import { layerLabel } from "./provenance";
 
 /**
  * Roadmap 071: `packageRules` provenance as per-layer RANGES, shared by
@@ -241,7 +242,7 @@ function digestLine(
   if (detail === "shape" || first === undefined) {
     return `${index} ${summarizeRuleSelectors(rule)} → ${written}${from}`;
   }
-  const value = previewValue((rule as Record<string, unknown>)[first], 48);
+  const value = preview((rule as Record<string, unknown>)[first], 48, { withLength: true });
   const more = selectors.length - 1;
   return `${index} ${first}: ${value}${more > 0 ? ` +${more}` : ""} → ${written}${from}`;
 }

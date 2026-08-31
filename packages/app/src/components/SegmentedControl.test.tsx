@@ -1,5 +1,5 @@
-import { cleanup, fireEvent, render } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { SegmentedControl, type SegmentedOption } from "./SegmentedControl";
 
 /**
@@ -10,9 +10,6 @@ import { SegmentedControl, type SegmentedOption } from "./SegmentedControl";
  * nothing else), and the `.seg` / `.active` class names, which the CSS and two
  * e2e specs select on.
  */
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
 
 type View = "tree" | "table";
 

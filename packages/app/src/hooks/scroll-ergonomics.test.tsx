@@ -1,5 +1,5 @@
-import { cleanup, fireEvent, render } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { claimModalKeyboard, ESCAPE_PRIORITY, pushEscapeLayer } from "@/lib/escape-stack";
 import { isTextEditingTarget, mayOwnNativePopup, useHomeEndPageScroll } from "./scroll-ergonomics";
 
@@ -14,9 +14,6 @@ import { isTextEditingTarget, mayOwnNativePopup, useHomeEndPageScroll } from "./
  * The editor half is module-private and is exercised through
  * `isTextEditingTarget`, its only caller — see the note on it.
  */
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
 
 function input(type?: string): HTMLInputElement {
   const el = document.createElement("input");

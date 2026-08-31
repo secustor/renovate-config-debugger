@@ -27,17 +27,11 @@
  * it through the environment keeps it readable at both ends.
  */
 import { execFileSync } from "node:child_process";
-import { publicPackages, repoRoot } from "./workspace.ts";
+import { releasablePackages, repoRoot } from "./workspace.ts";
 
 const dryRun = process.env.RELEASE_DRY_RUN === "true";
 
-const packages = publicPackages();
-
-if (packages.length === 0) {
-  throw new Error(
-    "no public workspace packages — every manifest is `private: true`, so there is nothing to release",
-  );
-}
+const packages = releasablePackages();
 
 const tags = execFileSync("git", ["tag", "--list", "v[0-9]*"], {
   cwd: repoRoot,

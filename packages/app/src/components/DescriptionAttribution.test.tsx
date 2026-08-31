@@ -1,5 +1,5 @@
-import { cleanup, fireEvent, render } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
+import { fireEvent, render } from "@testing-library/react";
+import { expect, it, vi } from "vitest";
 import type { DescriptionCard } from "@/lib/description-attribution";
 import { DescriptionValue } from "./DescriptionAttribution";
 
@@ -10,9 +10,6 @@ import { DescriptionValue } from "./DescriptionAttribution";
  * switches tabs, and the portalled card outlived the view it was explaining,
  * fixed at its old coordinates over the preset tree.
  */
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
 
 const CARD: DescriptionCard = {
   index: 0,

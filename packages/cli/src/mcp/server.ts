@@ -8,7 +8,6 @@ import {
   type ResolvedConfigMode,
   renovateVersion,
   runPipeline,
-  simulatePackageRules,
   type SimulationResult,
   type TraceResult,
   type ValidationMessage,
@@ -20,6 +19,7 @@ import {
 } from "@renovate-config-debugger/app/headless";
 import pkg from "../../package.json";
 import { errorMessage, type CliIo } from "../io";
+import { preview } from "../output";
 import { buildRuleView } from "../rule-view";
 import { digestPayload } from "../projections/digest";
 import {
@@ -36,15 +36,16 @@ import {
   repoStageMessage,
 } from "../projections/messages";
 import { COMPARE_DETAIL, SIMULATE_DETAIL, simulationPayload } from "../projections/simulate";
-import { entryView, indexView, previewValue } from "../projections/provenance";
-import { blindTallyNote, groupTally, inputGaps } from "../projections/group";
+import { entryView, indexView } from "../projections/provenance";
 import { RULE_DIGEST_PLANS } from "../projections/rule-provenance";
 import { askCompare } from "../questions/compare";
 import { finishDescriptor } from "../questions/dependency";
+import { askGroup, type GroupQuestion } from "../questions/group";
 import { askOptionDocs } from "../questions/option-docs";
 import { buildPipelineInput } from "../questions/pipeline";
 import { askProvenance } from "../questions/provenance";
 import { askResolved } from "../questions/resolved";
+import { askSimulation, requireFinalConfig } from "../questions/simulate";
 import {
   BODIES,
   type BodyKind,
@@ -293,23 +294,21 @@ function toDependency(dep: DepInput): DependencyDescriptor {
   return finishDescriptor(dep);
 }
 
-/** The run's effective config, or the reason there is none — an empty object
- *  would read as "Renovate set nothing", which is never what happened. */
+/** The run's effective config, or the reason there is none — the guard and
+ *  both its spellings live in `questions/simulate`. */
 function finalConfigOf(run: HeldRun): Record<string, unknown> {
-  const config = run.result.finalConfig;
-  if (!config) {
-    throw new Error(
-      `${run.runId} produced no effective config — the run stopped before the merge stage. ` +
-        "Check `accepted`, `errors` and `stageStatus` from run_config.",
-    );
-  }
-  return config;
+  return requireFinalConfig(run.result.finalConfig, "mcp", run.runId);
 }
 
 function simulateRun(run: HeldRun, dep: DepInput, ctx: ToolContext): Promise<SimulationResult> {
-  const input = { config: finalConfigOf(run), dep: toDependency(dep) };
+  const finalConfig = finalConfigOf(run);
   throwIfCancelled(ctx);
-  return simulatePackageRules(input, ctx.mcpReq.signal);
+  return askSimulation({
+    finalConfig,
+    dep: toDependency(dep),
+    transport: "mcp",
+    signal: ctx.mcpReq.signal,
+  });
 }
 
 /**
@@ -788,7 +787,7 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         ? view
         : {
             ...view,
-            finalValue: previewValue(answered.entry.finalValue, 200),
+            finalValue: preview(answered.entry.finalValue, 200, { withLength: true }),
             finalValueNote:
               "`finalValue` is a preview — the whole value did not fit this answer's budget. " +
               `get_final_config with \`keys: ["${answered.entry.key}"]\` returns it in full.`,
@@ -952,21 +951,14 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
     },
     answer(async ({ runId, deps }, ctx) => {
       const run = store.get(runId);
-      const simulated: { dep: DependencyDescriptor; sim: SimulationResult }[] = [];
+      const simulated: GroupQuestion[] = [];
       // Sequential on purpose: the engine serializes its queue anyway, and a
       // cancelled call must stop enqueuing (see throwIfCancelled).
       for (const dep of deps) {
         simulated.push({ dep: toDependency(dep), sim: await simulateRun(run, dep, ctx) });
       }
-      const tally = groupTally(simulated);
-      // A member whose descriptor left rule inputs unset can be mis-tallied —
-      // a rule that would put it in a group reported a plain `no-match`. Named
-      // per member (fields included), and when the whole tally came out empty
-      // over blind members, the correction leads the notes — same text the CLI
-      // headline carries.
-      const gaps = inputGaps(simulated, "mcp");
-      const blind = blindTallyNote(tally, gaps.length);
-      return { ...tally, notes: [...(blind ? [blind] : []), ...tally.notes, ...gaps] };
+      const { tally, notes } = askGroup(simulated, "mcp");
+      return { ...tally, notes };
     }, HINTS.simulate),
   );
 

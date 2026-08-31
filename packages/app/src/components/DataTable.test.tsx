@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, within } from "@testing-library/react";
+import { act, fireEvent, render, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { recordClipboardWrites } from "@tools/test/clipboard";
 import { DataTable } from "./DataTable";
@@ -14,11 +14,10 @@ import type { DataTableColumn, DataTableGrouping, DataTableRow } from "./data-ta
  * citizen.
  */
 
-// vitest runs without `globals`, so RTL's automatic cleanup never registers —
-// and neither does mock reset, so the shared `onPin` spy below is cleared here
-// rather than silently accumulating calls across tests.
+// vitest runs without `globals`, so mock reset never registers itself: the
+// shared `onPin` spy below is cleared here rather than silently accumulating
+// calls across tests. (The DOM is unmounted by the projects' setup file.)
 afterEach(() => {
-  cleanup();
   vi.clearAllMocks();
 });
 

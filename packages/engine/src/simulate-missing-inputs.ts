@@ -28,7 +28,7 @@ import { countNoun } from "./text";
  * project.
  *
  * That property is why it also has its own `exports` subpath. The app's
- * `lib/rule-verdict.ts` re-exports the two predicates below, and reaching them
+ * `lib/rule-verdict.ts` re-exports the predicates below, and reaching them
  * through the root barrel put the entire Renovate graph on the static path of
  * the app's results chunk. Keep the import list above as it is — a value import
  * of anything Renovate-touching here would silently re-weld it.
@@ -40,12 +40,15 @@ import { countNoun } from "./text";
  * scoping and is not folded in here.
  */
 
-/** The clause states that fail a rule (as opposed to the neutral
- *  not-applicable / not-simulated, which decide nothing). */
+/** Whether a clause fails its rule (as opposed to the neutral
+ *  not-applicable / not-simulated, which decide nothing). Exported because the
+ *  app spells this same disjunction wherever it names the deciding clause. */
+export function isFailingClause(clause: Pick<ClauseEvaluation, "state">): boolean {
+  return clause.state === "no-match" || clause.state === "no-input" || clause.state === "error";
+}
+
 function failingClauses(clauses: readonly ClauseEvaluation[]): ClauseEvaluation[] {
-  return clauses.filter(
-    (c) => c.state === "no-match" || c.state === "no-input" || c.state === "error",
-  );
+  return clauses.filter(isFailingClause);
 }
 
 /**

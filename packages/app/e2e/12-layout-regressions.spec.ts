@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { INVALID_RULES_CONFIG, PACKAGE_RULES_CONFIG, SEMANTIC_COMMITS_CONFIG } from "./fixtures";
 import {
+  luminance,
   must,
   openLayerStage,
   openMigrateStage,
@@ -21,30 +22,14 @@ import {
  * throughout — only its rendered size, order or color was wrong).
  */
 
-/** The WCAG 2.1 per-channel linearization an 8-bit sRGB value goes through. */
-function channel(v: number): number {
-  const s = v / 255;
-  return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-}
-
-/** sRGB relative luminance per WCAG 2.1, from an `rgb()`/`rgba()` string. */
-function luminanceOf(css: string): number {
-  const [r = 0, g = 0, b = 0] = css
-    .replace(/^rgba?\(|\)$/g, "")
-    .split(/[\s,/]+/)
-    .slice(0, 3)
-    .map(Number);
-  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
-}
-
 /** Vertical midpoint of a Playwright bounding box. */
 function centerOf(box: { y: number; height: number }): number {
   return box.y + box.height / 2;
 }
 
 function contrastRatio(fg: string, bg: string): number {
-  const a = luminanceOf(fg);
-  const b = luminanceOf(bg);
+  const a = luminance(fg);
+  const b = luminance(bg);
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 }
 

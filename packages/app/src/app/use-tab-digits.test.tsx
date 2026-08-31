@@ -1,5 +1,5 @@
-import { cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { render } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { useTabDigits } from "./use-tab-digits";
 
 /**
@@ -13,8 +13,6 @@ import { useTabDigits } from "./use-tab-digits";
  * into the way `?` does. Fixed by reading `enabled` through a ref and keeping
  * one listener installed for the component's lifetime.
  */
-
-afterEach(cleanup);
 
 function Harness({ enabled }: { enabled: boolean }) {
   useTabDigits(7, () => undefined, { enabled });

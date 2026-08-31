@@ -1,5 +1,5 @@
-import { cleanup, fireEvent, render } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import type { ProvenanceLayer } from "@renovate-config-debugger/engine";
 import { ProvenanceChip } from "./ProvenanceChip";
 
@@ -10,9 +10,6 @@ import { ProvenanceChip } from "./ProvenanceChip";
  * ⌘⏎ to re-run then got a tab switch and a selected preset node instead: a
  * WRONG action, with the results they were reading replaced.
  */
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
 
 const PRESET_LAYER: ProvenanceLayer = {
   kind: "preset",

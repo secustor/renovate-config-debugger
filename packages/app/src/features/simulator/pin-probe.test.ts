@@ -10,37 +10,20 @@ import type {
   MergeStep,
   ProvenanceLayer,
   RuleEvaluation,
-  SimulationResult,
 } from "@renovate-config-debugger/engine";
 import { describe, expect, test } from "vitest";
+import { clauseEval, ruleEval as rule, simResult } from "@tools/test/simulation";
 import { MAX_PROBE_HITS, probeRules, probeSuggestions } from "./pin-probe";
 import type { RuleDescriptionNote } from "./rule-descriptions";
 
+/** A matcher clause the probe scans by key and value; the probe never reads
+ *  `readFields`, so the shared default is left in place. */
 function clause(key: string, value: unknown): ClauseEvaluation {
-  return { key, value, state: "no-match", inputValues: {}, readFields: [] };
+  return clauseEval("no-match", { key, value });
 }
 
-function rule(
-  index: number,
-  verdict: RuleEvaluation["verdict"],
-  clauses: ClauseEvaluation[],
-): RuleEvaluation {
-  return { index, verdict, clauses, notes: [] };
-}
-
-function simulation(rules: RuleEvaluation[], mergeSteps: MergeStep[] = []): SimulationResult {
-  return {
-    rules,
-    missingInputs: { rules: 0, groups: [] },
-    evaluationErrors: { rules: 0, selectors: [], messages: [], sampleRuleIndexes: [] },
-    rawFinalConfig: {},
-    finalDependencyConfig: {},
-    flattened: { merged: [], blocks: {}, authoredBlocks: [] },
-    mergeSteps,
-    errors: [],
-    warnings: [],
-    notes: [],
-  };
+function simulation(rules: RuleEvaluation[], mergeSteps: MergeStep[] = []) {
+  return simResult({ rules, mergeSteps });
 }
 
 const ANGULAR: ProvenanceLayer = { kind: "preset", name: "monorepo:angular", nodeId: "n1" };
