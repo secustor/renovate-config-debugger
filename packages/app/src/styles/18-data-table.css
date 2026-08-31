@@ -266,15 +266,10 @@
 
 /* The amber note a row wears when its manager is a custom (user-defined) one:
    what extracted it is a rule the reader wrote, not a known file format. */
+/* The badge IS the app's `.pill pill-warn` (03-presets.css); this adds only
+   what a pill inside the row-head's flexbox needs. */
 .data-table-badge {
-  background: var(--warn-bg);
-  border: 1px solid var(--warn-border);
-  border-radius: var(--radius-pill);
-  color: var(--warn);
   flex: none;
-  font-size: 0.68rem;
-  font-weight: 600;
-  padding: 0 0.4rem;
 }
 
 .data-table-row-actions {

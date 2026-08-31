@@ -93,7 +93,7 @@ function DataTableRowHead({
       <Caret open={open} />
       <code className="data-table-lead">{row.lead}</code>
       {row.badge === undefined ? null : (
-        <span className="data-table-badge" title={row.badge.title}>
+        <span className="pill pill-warn data-table-badge" title={row.badge.title}>
           {row.badge.text}
         </span>
       )}
