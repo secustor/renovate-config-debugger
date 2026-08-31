@@ -196,7 +196,7 @@ function DataTableOptions(props: OptionsProps) {
       <button
         type="button"
         ref={triggerRef}
-        className="data-table-gear"
+        className="btn-secondary icon-only data-table-gear"
         aria-label="Display options"
         title="Display options"
         aria-expanded={open}

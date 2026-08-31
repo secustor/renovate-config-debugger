@@ -86,32 +86,10 @@
   position: relative;
 }
 
-/* The gear is a BUTTON and has to look like one: a bare glyph on the toolbar's
-   ground read as decoration, and nobody clicked it. Same grammar as the
-   icon-only copy button standing next to it — the outline button's border,
-   radius and hover (02-controls.css `.btn-secondary`), at the icon-only
-   padding, the same 14px icon — so the two controls in this row are visibly
-   the same kind of thing. Not `.btn-secondary` itself: this one is square and
-   centered on an icon rather than sized to a label. */
-.data-table-gear {
-  align-items: center;
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  color: var(--muted);
-  cursor: pointer;
-  display: inline-flex;
-  font: inherit;
-  justify-content: center;
-  padding: 0.25rem 0.4rem;
-}
-
-.data-table-gear svg {
-  fill: currentColor;
-  flex: none;
-}
-
-.data-table-gear:hover,
+/* The gear IS the app's `.btn-secondary icon-only` — the same composition the
+   copy button beside it wears, so the two controls in this row are visibly the
+   same kind of thing. This adds only the open state, which the outline button
+   has no word for: an anchored popover's trigger stays lit while it is open. */
 .data-table-gear[aria-expanded="true"] {
   border-color: var(--accent);
   color: var(--ink);

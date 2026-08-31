@@ -1083,7 +1083,8 @@
 
 /* Roadmap 077: icon-only (the toolbar's file-name copy) — square-ish, the
    label lives in `aria-label`/`title` and the name it copies sits beside it. */
-.copy-btn.icon-only {
+.copy-btn.icon-only,
+.btn-secondary.icon-only {
   padding-inline: 0.4rem;
 }
 
