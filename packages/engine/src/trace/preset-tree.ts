@@ -51,14 +51,19 @@ export const RESOLVING_RE = /^Resolving preset "(.+)"$/;
  * "external-host-error" — the descriptive message (the one the app's 009
  * auth-failure detection reads, e.g. "… rate limit or missing token") lives on
  * its `.err`. Unwrapped structurally, not by class: the instance comes from
- * renovate's bundle, not our import graph. Shared with the collector's
- * outside-the-preset-stage fallback, which used to read `.message` directly
- * and surface the useless constant.
+ * renovate's bundle, not our import graph.
  */
-export function fetchErrorMessage(raw: unknown): string {
+function fetchErrorMessage(raw: unknown): string {
   const inner = (raw as { err?: unknown } | undefined)?.err;
   const err = inner instanceof Error ? inner : raw;
   return err instanceof Error ? err.message : String(err ?? "unknown error");
+}
+
+/** The one wording for a failed preset fetch — the tree builder's primary path
+ *  and the collector's outside-the-preset-stage fallback both emit it, so there
+ *  is no second copy to keep in step. */
+export function presetFetchErrorMessage(preset: string, err: unknown): string {
+  return `Failed to fetch preset "${preset}": ${fetchErrorMessage(err)}`;
 }
 
 const ALREADY_SEEN_RE = /^Already seen preset (.+) in \[.*\]$/;
@@ -237,7 +242,6 @@ export class PresetTreeBuilder {
 
   private onFetchError(meta: Record<string, unknown>): void {
     const preset = typeof meta.preset === "string" ? meta.preset : "(unknown)";
-    const errMsg = fetchErrorMessage(meta.err);
     const top = this.top();
     let node = top?.pendingChild;
     if (node?.name !== preset) {
@@ -249,7 +253,7 @@ export class PresetTreeBuilder {
     }
     const error: ValidationMessage = {
       topic: "Preset fetch error",
-      message: `Failed to fetch preset "${preset}": ${errMsg}`,
+      message: presetFetchErrorMessage(preset, meta.err),
     };
     if (node) {
       node.state = "error";

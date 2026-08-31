@@ -65,8 +65,10 @@ function resolvePlatformContext(input: PipelineInput): PlatformContext {
 // the active trace collector), so runs must never overlap.
 let queue: Promise<unknown> = Promise.resolve();
 
-/** A task whose caller went away before the queue reached it. */
-export class EngineTaskCancelled extends Error {
+/** A task whose caller went away before the queue reached it. Not exported:
+ *  nothing outside this module can reach it (the barrel does not list it), and
+ *  callers recognize the cancellation by its message. */
+class EngineTaskCancelled extends Error {
   constructor() {
     super("cancelled before the engine ran it");
     this.name = "EngineTaskCancelled";

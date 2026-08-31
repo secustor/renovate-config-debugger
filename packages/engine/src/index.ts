@@ -68,10 +68,9 @@ export {
   type TranslatedMessage,
 } from "./error-translations";
 export { applyFixToText, type AppliedTextFix } from "./error-fix-text";
-/** Also reachable as `@renovate-config-debugger/engine/text-scan` — the import
- *  the app's first-paint modules must use, since this barrel pulls the Renovate
- *  graph in with it. */
-export { isSpaceAt, skipComment, skipString } from "./text-scan";
+// `./text-scan` is deliberately NOT on the barrel: its readers are first-paint
+// modules, and this barrel pulls the whole Renovate graph in with it. They take
+// it from the `@renovate-config-debugger/engine/text-scan` subpath instead.
 export {
   computeDescriptionProvenance,
   type DescriptionAttribution,

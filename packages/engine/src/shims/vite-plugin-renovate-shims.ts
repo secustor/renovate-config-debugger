@@ -74,6 +74,23 @@ export function renovateShims(): Plugin {
     return undefined;
   }
 
+  /** The three Node stand-ins both resolve hooks below answer with. graceful-fs
+   *  PATCHES fs at require time, probing it with a Symbol key that Vite's
+   *  browser-external fs facade throws on (see graceful-fs-stub.cjs); node:util
+   *  and node:os are reached at module scope by the npm-extraction graph. */
+  function nodeStub(source: string): string | null {
+    if (source === "graceful-fs") {
+      return path.join(shimDir, "graceful-fs-stub.cjs");
+    }
+    if (/^(node:)?util$/.test(source)) {
+      return path.join(shimDir, "node-util-stub.cjs");
+    }
+    if (/^(node:)?os$/.test(source)) {
+      return path.join(shimDir, "node-os-stub.cjs");
+    }
+    return null;
+  }
+
   return {
     name: "renovate-shims",
     enforce: "pre",
@@ -104,10 +121,8 @@ export function renovateShims(): Plugin {
           // The prebundler is a separate rolldown pass; it inherits `define`
           // but NOT the pathe alias below — without this resolveId hook it
           // externalizes `path` into a throwing facade, which find-packages
-          // (npm extraction, roadmap 087) touches at module scope. graceful-fs
-          // is worse: it PATCHES fs at require time, probing it with a Symbol
-          // key that Vite's browser-external fs facade throws on — see
-          // graceful-fs-stub.cjs.
+          // (npm extraction, roadmap 087) touches at module scope. The rest is
+          // the shared `nodeStub` set.
           rolldownOptions: {
             plugins: [
               {
@@ -116,16 +131,7 @@ export function renovateShims(): Plugin {
                   if (/^(node:)?path$/.test(source)) {
                     return require.resolve("pathe");
                   }
-                  if (source === "graceful-fs") {
-                    return path.join(shimDir, "graceful-fs-stub.cjs");
-                  }
-                  if (/^(node:)?util$/.test(source)) {
-                    return path.join(shimDir, "node-util-stub.cjs");
-                  }
-                  if (/^(node:)?os$/.test(source)) {
-                    return path.join(shimDir, "node-os-stub.cjs");
-                  }
-                  return null;
+                  return nodeStub(source);
                 },
               },
             ],
@@ -177,8 +183,7 @@ export function renovateShims(): Plugin {
       };
     },
     resolveId(source, importer) {
-      // The same three Node stand-ins the prebundle hook above installs,
-      // answered for the MAIN pipeline too: `vite build` never runs the
+      // `nodeStub` answers the MAIN pipeline too: `vite build` never runs the
       // prebundler, so without this the production bundle resolves
       // graceful-fs/node:util/node:os to Vite's browser-external `{}` module
       // and the npm-extraction chunk throws at module init (graceful-fs's
@@ -188,14 +193,9 @@ export function renovateShims(): Plugin {
       // first-party sources and the Node regimes' externalized deps keep the
       // real modules.
       if (importer !== undefined && importer.includes("node_modules")) {
-        if (source === "graceful-fs") {
-          return path.join(shimDir, "graceful-fs-stub.cjs");
-        }
-        if (/^(node:)?util$/.test(source)) {
-          return path.join(shimDir, "node-util-stub.cjs");
-        }
-        if (/^(node:)?os$/.test(source)) {
-          return path.join(shimDir, "node-os-stub.cjs");
+        const stub = nodeStub(source);
+        if (stub) {
+          return stub;
         }
       }
       if (source.startsWith(".")) {

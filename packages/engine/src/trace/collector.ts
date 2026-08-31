@@ -3,8 +3,8 @@ import { computeDelta, toSerializable } from "./delta";
 import { describeMigration } from "./migration-names";
 import type { LogLevel, PlatformContext, PresetNode, StageId, TraceEvent } from "./model";
 import {
-  fetchErrorMessage,
   type ParsePresetFn,
+  presetFetchErrorMessage,
   PresetTreeBuilder,
   RESOLVING_RE,
 } from "./preset-tree";
@@ -107,13 +107,10 @@ export class TraceCollector {
     }
     const metaObj = (meta ?? {}) as Record<string, unknown>;
     if (msg === "Preset fetch error" && typeof metaObj.preset === "string") {
-      // Same message shape — and the same ExternalHostError unwrapping — as
-      // the tree builder's primary path; this fallback only fires outside the
-      // preset stage.
-      const errMsg = fetchErrorMessage(metaObj.err);
+      // This fallback only fires outside the preset stage.
       this.emit({
         kind: "preset-error",
-        title: `Failed to fetch preset "${metaObj.preset}": ${errMsg}`,
+        title: presetFetchErrorMessage(metaObj.preset, metaObj.err),
         source: { raw: metaObj.preset },
         level,
         meta: toSerializable(meta),
