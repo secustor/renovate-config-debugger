@@ -12,6 +12,14 @@
 .data-table {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
+}
+
+/* The rounded-corner clip, on the body rather than the root: the gear's
+   popover hangs below the toolbar, and clipping at the root cut it off at a
+   short table's bottom edge. The toolbar rounds its own top corners; this
+   wrapper clips the bottom pair and every square background inside it. */
+.data-table-body {
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
   overflow: hidden;
 }
 
@@ -20,6 +28,7 @@
   align-items: center;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
   display: flex;
   gap: 0.5rem;
   padding: 0.45rem 0.55rem;

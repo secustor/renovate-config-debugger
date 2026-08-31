@@ -149,21 +149,26 @@ export function DataTable({
         visible={visibleColumns.set}
         onToggleColumn={visibleColumns.toggle}
       />
-      <DataTableHead leadLabel={leadLabel} columns={shown} />
-      {matches === 0 ? (
-        <p className="data-table-none">Nothing matches “{query}”.</p>
-      ) : (
-        groups.map((group) => (
-          <DataTableGroupBlock
-            key={group.title ?? ""}
-            group={group}
-            columns={shown}
-            rowNoun={rowNoun}
-            isOpen={(key) => openRows.set.has(key)}
-            onToggleRow={openRows.toggle}
-          />
-        ))
-      )}
+      {/* The corner clip lives HERE, not on `.data-table`: the gear's popover
+          hangs off the toolbar, and a root-level `overflow: hidden` cut it off
+          at a short table's bottom edge. */}
+      <div className="data-table-body">
+        <DataTableHead leadLabel={leadLabel} columns={shown} />
+        {matches === 0 ? (
+          <p className="data-table-none">Nothing matches “{query}”.</p>
+        ) : (
+          groups.map((group) => (
+            <DataTableGroupBlock
+              key={group.title ?? ""}
+              group={group}
+              columns={shown}
+              rowNoun={rowNoun}
+              isOpen={(key) => openRows.set.has(key)}
+              onToggleRow={openRows.toggle}
+            />
+          ))
+        )}
+      </div>
     </div>
   );
 }
