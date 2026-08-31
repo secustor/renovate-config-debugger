@@ -29,6 +29,7 @@ import {
   unattributedNoteText,
   unattributedValueText,
 } from "./description-ledger";
+import { provEntry } from "@tools/test/key-provenance";
 
 /**
  * Roadmap 069 (PR 3): the blame ledger's view-model — the run grouping, the
@@ -396,10 +397,10 @@ describe("ledgerMatchesFinalValue", () => {
   });
 });
 
-/** A provenance row with a given key and final value; the chain is beside the
- *  point here — `ledgerForRow` reads the key and the value and nothing else. */
+/** The chain is beside the point here — `ledgerForRow` reads the row's key and
+ *  its final value and nothing else. */
 function provRow(key: string, finalValue: unknown): KeyProvenance {
-  return { key, finalValue, isDefaultOnly: false, chain: [] };
+  return provEntry(key, [], finalValue);
 }
 
 describe("ledgerForRow", () => {

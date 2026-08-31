@@ -1,10 +1,7 @@
-import type {
-  KeyProvenance,
-  ProvenanceLayer,
-  ProvenanceStep,
-} from "@renovate-config-debugger/engine";
+import type { ProvenanceLayer, ProvenanceStep } from "@renovate-config-debugger/engine";
 import { expect, it } from "vitest";
 import { rowNote, sameValueLayers } from "./row-notes";
+import { presetLayer, provEntry, provStep } from "@tools/test/key-provenance";
 
 /**
  * Roadmap 082: the third cell's note. The same-value overlap is the one fact
@@ -15,41 +12,21 @@ import { rowNote, sameValueLayers } from "./row-notes";
 
 const DEFAULTS: ProvenanceLayer = { kind: "defaults" };
 const REPO: ProvenanceLayer = { kind: "repo" };
-const DASHBOARD: ProvenanceLayer = {
-  kind: "preset",
-  nodeId: "p1",
-  name: ":dependencyDashboard",
-};
-const RECOMMENDED: ProvenanceLayer = {
-  kind: "preset",
-  nodeId: "p2",
-  name: "config:recommended",
-};
+const DASHBOARD: ProvenanceLayer = presetLayer(":dependencyDashboard", "p1");
+const RECOMMENDED: ProvenanceLayer = presetLayer("config:recommended", "p2");
 
-function step(
-  layer: ProvenanceLayer,
-  after: unknown,
-  extra: Partial<ProvenanceStep> = {},
-): ProvenanceStep {
-  return { layer, action: "set", before: undefined, after, ...extra };
-}
-
-function entry(chain: ProvenanceStep[], finalValue: unknown = chain.at(-1)?.after): KeyProvenance {
-  return {
-    key: "dependencyDashboard",
-    finalValue,
-    isDefaultOnly: chain.every((s) => s.layer.kind === "defaults"),
-    chain,
-  };
+/** Every chain here is one key's, so the name is fixed. */
+function entry(chain: ProvenanceStep[]) {
+  return provEntry("dependencyDashboard", chain);
 }
 
 it("names the layer that set the winner's value first, in the warn tone", () => {
   // The design's own example: a preset already turned the dashboard on, and the
   // repo config says so again — the line changes nothing.
   const dashboard = entry([
-    step(DEFAULTS, false, { noop: true }),
-    step(DASHBOARD, true),
-    step(REPO, true, { action: "overwrite", before: true }),
+    provStep(DEFAULTS, false, { noop: true }),
+    provStep(DASHBOARD, true),
+    provStep(REPO, true, { action: "overwrite", before: true }),
   ]);
 
   expect(sameValueLayers(dashboard).map((l) => l.kind)).toEqual(["preset"]);
@@ -61,9 +38,9 @@ it("names the layer that set the winner's value first, in the warn tone", () => 
 
 it("counts the rest when more than one layer said the same thing", () => {
   const twice = entry([
-    step(RECOMMENDED, "replace"),
-    step(DASHBOARD, "replace"),
-    step(REPO, "replace", { action: "overwrite", before: "replace" }),
+    provStep(RECOMMENDED, "replace"),
+    provStep(DASHBOARD, "replace"),
+    provStep(REPO, "replace", { action: "overwrite", before: "replace" }),
   ]);
 
   expect(rowNote(twice)?.text).toBe("also set by config:recommended +1 more — same value");
@@ -71,9 +48,9 @@ it("counts the rest when more than one layer said the same thing", () => {
 
 it("says nothing when the layers genuinely disagreed", () => {
   const overridden = entry([
-    step(DEFAULTS, "auto", { noop: true }),
-    step(RECOMMENDED, "replace"),
-    step(REPO, "bump", { action: "overwrite", before: "replace" }),
+    provStep(DEFAULTS, "auto", { noop: true }),
+    provStep(RECOMMENDED, "replace"),
+    provStep(REPO, "bump", { action: "overwrite", before: "replace" }),
   ]);
 
   expect(sameValueLayers(overridden)).toEqual([]);
@@ -82,8 +59,8 @@ it("says nothing when the layers genuinely disagreed", () => {
 
 it("compares values structurally, not by reference", () => {
   const arrays = entry([
-    step(RECOMMENDED, ["**/node_modules/**"]),
-    step(REPO, ["**/node_modules/**"], { action: "overwrite", before: [] }),
+    provStep(RECOMMENDED, ["**/node_modules/**"]),
+    provStep(REPO, ["**/node_modules/**"], { action: "overwrite", before: [] }),
   ]);
 
   expect(sameValueLayers(arrays)).toHaveLength(1);
@@ -94,19 +71,19 @@ it("compares values structurally, not by reference", () => {
  *  two words are opposites. */
 it("spells out an append rather than badging it", () => {
   const rules = entry([
-    step(RECOMMENDED, [1, 2], { action: "concat" }),
-    step(REPO, [1, 2, 3], { action: "concat" }),
+    provStep(RECOMMENDED, [1, 2], { action: "concat" }),
+    provStep(REPO, [1, 2, 3], { action: "concat" }),
   ]);
 
   expect(rowNote(rules)).toEqual({ text: "appended, not overridden", badge: "appended" });
 });
 
 it("gives the description row its writer count", () => {
-  const description = entry([step(RECOMMENDED, ["a"], { action: "concat" })]);
+  const description = entry([provStep(RECOMMENDED, ["a"], { action: "concat" })]);
 
   expect(rowNote(description, "5 presets")).toEqual({ text: "5 presets wrote these" });
 });
 
 it("has nothing to say about a key one layer simply set", () => {
-  expect(rowNote(entry([step(REPO, ["dependencies"])]))).toBeNull();
+  expect(rowNote(entry([provStep(REPO, ["dependencies"])]))).toBeNull();
 });

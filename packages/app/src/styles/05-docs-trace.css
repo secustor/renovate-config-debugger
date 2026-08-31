@@ -340,7 +340,9 @@
 .kv {
   column-gap: var(--kv-gap, 0.45rem);
   display: grid;
-  grid-template-columns: var(--kv-cols);
+  /* Key then value is the shape the name promises; every current surface names
+     its own tracks, and the fallback is what a surface that does not gets. */
+  grid-template-columns: var(--kv-cols, max-content minmax(0, 1fr));
   row-gap: var(--kv-row-gap, 0);
 }
 
@@ -371,7 +373,6 @@
   padding: 0.5rem 0.75rem;
 }
 
-.prov-filters input.prov-filter-input,
 .prov-filters select {
   background: transparent;
   border: 1px solid var(--border);
@@ -381,36 +382,6 @@
   padding: 0.3rem 0.5rem;
 }
 
-.prov-filters input.prov-filter-input {
-  flex: 1;
-  /* The design's cap (082): a filter box that grew to the panel width read as
-     the view's main input rather than a way to narrow the list. */
-  max-width: 16rem;
-  min-width: 10rem;
-}
-
-/* Roadmap 082: ONE toolbar row for the whole tab — filter, "only overridden",
-   the view switch pushed right, then the copy. Same chrome-row grammar as the
-   filter bar it replaces (036), plus the design's right-hand grouping. The
-   design's row is borderless — the bordered band boxes right below it carry
-   the separation, and the chrome border doubled it. */
-.prov-toolbar {
-  border-bottom: none;
-}
-
-.prov-toolbar-switch {
-  margin-left: auto;
-}
-
-/* The filters narrow ROWS, so they are inert while the As-JSON document is on
-   screen — visible (the design's row is one row in both views), and saying so
-   rather than silently doing nothing. */
-.prov-toolbar input:disabled,
-.prov-toolbar label:has(input:disabled) {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
 .prov-check {
   color: var(--muted);
   font-size: 0.85rem;
@@ -418,7 +389,8 @@
 }
 
 /* Roadmap 051: the As-JSON view's options row shares the .prov-filters chrome;
-   only its own pieces live here. */
+   only its own pieces live here. Since 092 it is the one surviving chrome row
+   in this tab — the tab's own toolbar is the standard table's. */
 .resolved-label {
   color: var(--muted);
   font-size: 0.85rem;
@@ -438,199 +410,17 @@
   padding: 0.5rem 0.75rem;
 }
 
-/* 054 layer 8: the key list is a `.kv` ledger — key · value preview · origin,
-   on ONE set of columns, so previews start on a common edge instead of
-   wherever each option name happens to end (this list had the ragged-column
-   problem the simulator's thread ledger was built to fix).
+/* The design's NOTE (082), now a cell of the standard data table (092): the
+   table owns the column's ink and metrics, so what is left here is only what
+   the note ADDS to a cell — the redundancy tone, and the 016 glossary
+   affordance the one-word badge used to carry.
 
-   The key track is `minmax(0, max-content)` rather than the thread ledger's
-   bare `max-content`: this list is filtered, not curated, so it can hold every
-   option Renovate has, and the longest of those must be allowed to wrap in a
-   narrow panel instead of pushing the preview column off the edge.
-
-   Roadmap 082 removed the scroll cap this list used to carry: a band stops
-   after `COLLAPSE_AFTER` rows (`lib/collapse.ts`) and says how many it is
-   holding back, which
-   is the same protection stated in words — where a scrollbar inside a scrolling
-   page hid the rest without ever admitting to it. */
-.prov-list {
-  --kv-cols: minmax(0, max-content) minmax(0, 1fr) auto;
-  --kv-gap: 0.5rem;
-}
-
-/* ---------- decided-by sections (075, iteration 5) ----------
-   The key list is cut into one section per layer that DECIDED a key's final
-   value (see `features/effective-config/decider-groups.ts`). A section is a
-   card in its group's own tone: the hue says which layer without the reader
-   having to read the pill, and the tint is deliberately faint (6%) because the
-   rows inside already carry the same hue on their origin chips — the section
-   must frame them, not compete with them. Each group's edge/tint pair is set
-   once, below; the shared shape reads them through `--prov-section-*`. */
-.prov-section {
-  border: 1px solid var(--prov-section-edge, var(--border));
-  border-radius: var(--radius-lg);
-  margin: 0.6rem 0.75rem;
-  overflow: hidden;
-}
-
-.prov-section-head {
-  align-items: center;
-  background: var(--prov-section-tint, var(--surface));
-  cursor: pointer;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  list-style: none;
-  padding: 0.4rem 0.6rem;
-}
-
-/* The disclosure triangle is drawn by the summary's own `Caret` (the same one
-   the rows use — which, until the shared `.caret` rule existed, it only
-   claimed to be), so the UA marker would be a second one. */
-.prov-section-head::marker {
-  content: "";
-}
-
-.prov-section-head::-webkit-details-marker {
-  display: none;
-}
-
-/* The design's three header emphases: the sentence in the header's own ink at
-   heading weight, the count in the band's hue, the trailing clause muted and
-   regular. The defaults band is the exception — its whole header is muted,
-   only the clause dropping the weight. */
-.prov-section-headline {
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-.prov-headline-count {
-  color: var(--prov-section-hue, var(--muted));
-}
-
-.prov-headline-note {
-  color: var(--muted);
-  font-weight: 400;
-}
-
-.prov-section-defaults .prov-section-headline {
-  color: var(--muted);
-}
-
-.prov-section-repo {
-  --prov-section-hue: var(--accent);
-  --prov-section-edge: color-mix(in srgb, var(--accent) 40%, var(--border));
-  --prov-section-tint: color-mix(in srgb, var(--accent) 6%, var(--surface));
-}
-
-.prov-section-preset {
-  --prov-section-hue: var(--accent-purple);
-  --prov-section-edge: color-mix(in srgb, var(--accent-purple) 40%, var(--border));
-  --prov-section-tint: color-mix(in srgb, var(--accent-purple) 6%, var(--surface));
-}
-
-.prov-section-global {
-  --prov-section-hue: var(--accent-teal);
-  --prov-section-edge: color-mix(in srgb, var(--accent-teal) 40%, var(--border));
-  --prov-section-tint: color-mix(in srgb, var(--accent-teal) 6%, var(--surface));
-}
-
-.prov-section-inherited {
-  --prov-section-hue: var(--accent-pink);
-  --prov-section-edge: color-mix(in srgb, var(--accent-pink) 40%, var(--border));
-  --prov-section-tint: color-mix(in srgb, var(--accent-pink) 6%, var(--surface));
-}
-
-/* The defaults group is the neutral one on purpose: it is the pile nothing in
-   the run touched, and a tint would make it look like a finding. */
-.prov-section-defaults {
-  --prov-section-edge: var(--border);
-  --prov-section-tint: var(--surface);
-}
-
-/* A band's truncation line and, in the defaults band, the one sentence that
-   covers every row above it (082). Sits inside the list's grid, so it spans the
-   ledger's tracks rather than starting in the key column. */
-.prov-band-more {
-  font-size: 0.75rem;
-  grid-column: 1 / -1;
-  margin: 0;
-  padding: 0.3rem 0.75rem 0.4rem;
-}
-
-.prov-band-note {
-  color: var(--muted);
-}
-
-/* The row wrapper carries the separator and passes the ledger's tracks down to
-   the head button, which is the cell-bearing row. */
-.prov-row {
-  border-bottom: 1px solid var(--border);
-}
-
-.prov-row:last-child {
-  border-bottom: none;
-}
-
-.prov-row-head {
-  background: transparent;
-  border: none;
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-  padding: 0.4rem 0.75rem;
-  text-align: left;
-  width: 100%;
-}
-
-.prov-row-head:hover {
-  background: var(--surface);
-}
-
-.prov-key-name {
-  font-family: var(--font-mono);
-  font-size: 0.85rem;
-  overflow-wrap: anywhere;
-}
-
-/* The preview is already truncated in JS (80 chars), so the ellipsis this used
-   to need was a second truncation; what is left wraps like every other value
-   column in the app rather than being clipped mid-token. The design sets the
-   preview in the running sans — much of it is prose ("463 rules — 2 yours");
-   only the defaults band's value cell, a bare literal, is code. */
-.prov-key-preview {
-  color: var(--muted);
-  font-size: 0.8rem;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.prov-row-default .prov-key-preview {
-  font-family: var(--font-mono);
-}
-
-/* The third cell is the design's NOTE (082): prose, not chips — the band
-   header already names the deciding layer, so the column that used to repeat it
-   says the one thing the row alone knows. Always rendered, empty or not, so the
-   ledger's third track holds on the rows that have nothing to say. */
-.prov-row-note {
-  color: var(--muted);
-  font-size: 0.72rem;
-  justify-self: end;
-  text-align: right;
-  /* The design's note never wraps — a two-line note would change the row's
-     height and break the ledger's rhythm. */
-  white-space: nowrap;
-}
-
-/* The redundancy tone: some other layer already set exactly this value, which
+   The redundancy tone: some other layer already set exactly this value, which
    is the one thing in this column a reader can act on. */
 .prov-row-note.warn {
   color: var(--warn);
 }
 
-/* The 016 glossary affordance the one-word badge used to carry, kept on the
-   notes that are prose for a merge behaviour. */
 .prov-row-note.explained {
   cursor: help;
   text-decoration: underline dotted;
@@ -640,13 +430,6 @@
 .prov-row-note.explained:hover,
 .prov-row-note.explained:focus-visible {
   color: var(--accent);
-}
-
-/* Roadmap 082: a defaults row is INERT — nothing to expand, so it is not a
-   button. It keeps the caret's width as an empty spacer so the option names
-   line up with every other band's. */
-.prov-row-default {
-  padding: 0.3rem 0.75rem;
 }
 
 .badge.prov-layer {
@@ -721,13 +504,8 @@
   cursor: pointer;
 }
 
-/* The expanded detail is a block, not a row: it spans the ledger's columns
-   rather than sharing them. */
-.prov-detail {
-  grid-column: 1 / -1;
-  padding: 0 0.75rem 0.75rem 1.65rem;
-}
-
+/* The expanded detail has no box of its own since 092: it is the standard
+   table's `.data-table-row-detail`, already indented onto the lead's edge. */
 .prov-chain-title {
   color: var(--muted);
   font-size: 0.75rem;

@@ -4,6 +4,7 @@ import {
   effectivePresetChip,
   expectRunIdle,
   openLayerStage,
+  openPresetTree,
   openSessionMenu,
   openSimulator,
   openTab,
@@ -475,9 +476,16 @@ test("closing the sheet with Escape hands focus back the same way", async ({ pag
 test("a bare key still works with a filter checkbox focused", async ({ page }) => {
   await page.goto("/");
   await runAndAwaitResult(page);
-  await openTab(page, "effective");
+  // The preset tree's `hide zero-contribution`. It used to be the Effective
+  // tab's `only overridden`, but 092 made that one the data table's quick
+  // filter, which lives in the gear's POPOVER — and a bare key is deliberately
+  // inert under an overlay (`overlayKeyboardOwned`, asserted below for the
+  // session menu), so that checkbox can no longer answer this question. This
+  // one is the other site `NON_TEXT_INPUT_TYPES` was written for, and it is
+  // still a plain control in a plain toolbar row.
+  await openPresetTree(page);
 
-  const checkbox = page.locator("#panel-effective input[type='checkbox']").first();
+  const checkbox = page.locator("#panel-presets input[type='checkbox']").first();
   await checkbox.focus();
   // A checkbox has no cursor and no type-ahead, so it must not count as
   // "typing" and swallow the jump layer.

@@ -499,3 +499,19 @@ Two more calls from that pass:
   `e2e/20-presets-ledger.spec.ts` updated for the strip: it counts the sources
   and no longer tokenises them, and the folded built-in opens from its own
   header rather than from a strip token.
+
+## Addendum — the Effective tab's toolbar and bands are superseded
+
+[092](092-effective-tab-on-the-data-table.md) moves this tab onto the shared
+data table 089 built, on the owner's directive that "EffectiveToolbar should be
+part of the DataTable of EffectiveConfig". What the artboard asks for is that
+component's list item for item; what this roadmap built was a hand-rolled copy
+of it, because in August there was no component to read the artboard against.
+
+Four rulings above are withdrawn there and nowhere else — the one toolbar ROW
+(the goal survives, the `.prov-filters.prov-toolbar` implementation does not),
+the folded band of inert defaults rows, the eight-row cap per band, and the band
+headline sentence. Everything else this roadmap decided about the tab still
+stands and is still tested: the winner-first cascade, the deferred per-rule
+table, the same-value warn note, the prose third cell, and the two controls the
+design never had. 092's "What this reverses in 082" is the full account.

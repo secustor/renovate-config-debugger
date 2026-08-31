@@ -1,18 +1,14 @@
-import type {
-  KeyProvenance,
-  PresetNode,
-  ProvenanceLayer,
-  ProvenanceStep,
-} from "@renovate-config-debugger/engine";
+import type { PresetNode, ProvenanceLayer } from "@renovate-config-debugger/engine";
 import { expect, it } from "vitest";
 import {
-  deciderHeadline,
+  deciderHead,
   decidedBy,
   groupByDecider,
   presetDeciderName,
   topLevelPresetNames,
   winningStep,
 } from "./decider-groups";
+import { presetLayer, provEntry, provStep } from "@tools/test/key-provenance";
 
 /**
  * Roadmap 075 (iteration 5): the effective config's rows are cut by WHO DECIDED
@@ -22,27 +18,16 @@ import {
  * component (which can only reach the shapes a real run happens to produce).
  */
 
-function step(layer: ProvenanceLayer, extra: Partial<ProvenanceStep> = {}): ProvenanceStep {
-  return { layer, action: "set", before: undefined, after: 1, ...extra };
-}
-
-function entry(key: string, chain: ProvenanceStep[]): KeyProvenance {
-  return {
-    key,
-    finalValue: 1,
-    isDefaultOnly: chain.every((s) => s.layer.kind === "defaults"),
-    chain,
-  };
-}
-
 const DEFAULTS: ProvenanceLayer = { kind: "defaults" };
 const REPO: ProvenanceLayer = { kind: "repo" };
-const PRESET: ProvenanceLayer = { kind: "preset", nodeId: "p1", name: "config:recommended" };
+const PRESET: ProvenanceLayer = presetLayer("config:recommended");
 
 it("credits the last layer that actually changed the value", () => {
-  expect(decidedBy(entry("a", [step(DEFAULTS), step(PRESET), step(REPO)]))).toBe("repo");
-  expect(decidedBy(entry("b", [step(DEFAULTS), step(PRESET)]))).toBe("preset");
-  expect(decidedBy(entry("c", [step(DEFAULTS)]))).toBe("defaults");
+  expect(decidedBy(provEntry("a", [provStep(DEFAULTS), provStep(PRESET), provStep(REPO)]))).toBe(
+    "repo",
+  );
+  expect(decidedBy(provEntry("b", [provStep(DEFAULTS), provStep(PRESET)]))).toBe("preset");
+  expect(decidedBy(provEntry("c", [provStep(DEFAULTS)]))).toBe("defaults");
 });
 
 /**
@@ -53,7 +38,11 @@ it("credits the last layer that actually changed the value", () => {
  * origin chip and the override chain have always skipped.
  */
 it("skips no-op contributions", () => {
-  const e = entry("labels", [step(DEFAULTS), step(REPO), step(PRESET, { noop: true })]);
+  const e = provEntry("labels", [
+    provStep(DEFAULTS),
+    provStep(REPO),
+    provStep(PRESET, 1, { noop: true }),
+  ]);
   expect(decidedBy(e)).toBe("repo");
   expect(winningStep(e)?.layer.kind).toBe("repo");
 });
@@ -61,15 +50,15 @@ it("skips no-op contributions", () => {
 /** A chain of nothing but no-ops still has to answer: the last step is the
  *  honest fallback, exactly as the origin chip renders it. */
 it("falls back to the last step when every step is a no-op", () => {
-  expect(decidedBy(entry("x", [step(DEFAULTS, { noop: true })]))).toBe("defaults");
+  expect(decidedBy(provEntry("x", [provStep(DEFAULTS, 1, { noop: true })]))).toBe("defaults");
 });
 
 it("orders the groups from the reader's own config outwards, omitting empty ones", () => {
   const groups = groupByDecider([
-    entry("fromDefault", [step(DEFAULTS)]),
-    entry("fromRepo", [step(REPO)]),
-    entry("fromPreset", [step(PRESET)]),
-    entry("alsoRepo", [step(REPO)]),
+    provEntry("fromDefault", [provStep(DEFAULTS)]),
+    provEntry("fromRepo", [provStep(REPO)]),
+    provEntry("fromPreset", [provStep(PRESET)]),
+    provEntry("alsoRepo", [provStep(REPO)]),
   ]);
   expect(groups.map((g) => g.id)).toEqual(["repo", "preset", "defaults"]);
   // …and the rows keep the order they arrived in within their group.
@@ -80,9 +69,9 @@ it("orders the groups from the reader's own config outwards, omitting empty ones
  *  vocabulary, and a run without them simply produces no such group. */
 it("gives the global and inherited layers groups of their own", () => {
   const groups = groupByDecider([
-    entry("g", [step({ kind: "global" })]),
-    entry("i", [step({ kind: "inherited" })]),
-    entry("r", [step(REPO)]),
+    provEntry("g", [provStep({ kind: "global" })]),
+    provEntry("i", [provStep({ kind: "inherited" })]),
+    provEntry("r", [provStep(REPO)]),
   ]);
   expect(groups.map((g) => g.id)).toEqual(["repo", "inherited", "global"]);
 });
@@ -122,28 +111,30 @@ it("names one extend, counts the rest, and stays generic with none", () => {
   expect(presetDeciderName([])).toBeNull();
 });
 
-it("heads each band with what the group means, not just its size", () => {
-  expect(deciderHeadline("preset", 24, "config:recommended")).toEqual({
-    lead: "config:recommended decided",
-    count: "24 options",
-    note: null,
+/**
+ * Roadmap 092: the group header is a PROSE title and one toned pill; the count
+ * beside it is the standard table's own, off the rows it is showing. The tones
+ * are the app's existing `.pill-*` suffixes, so a header and the layer chips on
+ * its rows cannot disagree about the hue a level wears.
+ */
+it("heads each group with prose and its layer's own pill", () => {
+  expect(deciderHead("preset", "config:recommended")).toEqual({
+    title: "config:recommended",
+    pill: { label: "presets", tone: "preset" },
   });
   // No resolved top-level preset to name — the generic wording, not a blank.
-  expect(deciderHeadline("preset", 1, null)).toEqual({
-    lead: "Presets decided",
-    count: "1 option",
-    note: null,
+  expect(deciderHead("preset", null)).toEqual({
+    title: "Presets",
+    pill: { label: "presets", tone: "preset" },
   });
-  expect(deciderHeadline("repo", 4)).toEqual({
-    lead: "Your repo config decided",
-    count: "4 options",
-    note: "— the ones you can edit directly",
+  expect(deciderHead("repo")).toEqual({
+    title: "Your repo config",
+    pill: { label: "repo config", tone: "accent" },
   });
-  // The defaults header carries its count in the lead — the design paints the
-  // whole line muted, so there is nothing for the hued count span to hold.
-  expect(deciderHeadline("defaults", 34)).toEqual({
-    lead: "Renovate defaults filled the remaining 34",
-    count: null,
-    note: "— nothing in your run touched them",
+  expect(deciderHead("defaults")).toEqual({
+    title: "Renovate defaults",
+    pill: { label: "defaults", tone: "muted" },
   });
+  // Only the presets group takes a name from the run.
+  expect(deciderHead("global", "config:recommended").title).toBe("The global config");
 });

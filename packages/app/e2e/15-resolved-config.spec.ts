@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Locator, test } from "@playwright/test";
 import { openTab, runAndAwaitResult, tabPanel } from "./helpers";
 
 /**
@@ -8,7 +8,18 @@ import { openTab, runAndAwaitResult, tabPanel } from "./helpers";
  * with the defaults). The default editor config extends `config:recommended`
  * — an internal preset — so the keep-internal document must keep it
  * referenced while the full document must consume it.
+ *
+ * Roadmap 092: the view is picked in the standard data table's GEAR, not in a
+ * segmented control of this tab's own.
  */
+
+/** The gear is a toggle, and a click anywhere outside its panel closes it — so
+ *  asking for it to be open is a check, never a second click. */
+async function openGear(gear: Locator): Promise<void> {
+  if ((await gear.getAttribute("aria-expanded")) !== "true") {
+    await gear.click();
+  }
+}
 
 test("the As JSON view keeps internal presets referenced, expands fully on demand, and hydrates defaults", async ({
   page,
@@ -17,20 +28,30 @@ test("the As JSON view keeps internal presets referenced, expands fully on deman
   await runAndAwaitResult(page);
   await openTab(page, "effective");
   const panel = tabPanel(page, "effective");
+  const gear = panel.getByRole("button", { name: "Display options" });
+  // Scoped to the gear's View fieldset, not the whole panel: the copy button
+  // beside the gear is named "Copy effective config as JSON", which contains
+  // "As JSON" and makes the bare name ambiguous.
+  const views = panel.getByRole("group", { name: "View" });
 
   // The provenance rows are the default rendering — since 075 (iteration 5)
-  // cut into one section per layer that DECIDED a key, the reader's own config
-  // first.
-  await expect(panel.locator(".prov-row").first()).toBeVisible({ timeout: 30_000 });
-  await expect(panel.locator(".prov-section-repo")).toBeVisible();
-  await expect(panel.locator(".prov-section-preset")).toBeVisible();
+  // cut into one group per layer that DECIDED a key, the reader's own config
+  // first, and since 092 those groups are the data table's.
+  await expect(panel.locator(".data-table-row").first()).toBeVisible({ timeout: 30_000 });
+  await expect(panel.locator(".data-table-group-title").first()).toHaveText("Your repo config");
+  await expect(panel.locator(".data-table-group-pills .pill-preset")).toBeVisible();
 
-  await panel.getByRole("radio", { name: "As JSON" }).click();
-  // Roadmap 082: ONE toolbar row in both views, so the key filter stays on
-  // screen — inert, because it narrows rows and this document is copied whole.
-  // The output options are what this view adds under it.
+  await openGear(gear);
+  await views.getByRole("button", { name: "As JSON" }).click();
+  // Picking a view keeps the panel open (clicks inside never close it), and
+  // the fixed-width panel covers the output-options row beneath — close it
+  // the way a reader would before reaching under it.
+  await page.keyboard.press("Escape");
+  // ONE toolbar row in both views, so the key filter stays on screen — inert,
+  // because it narrows rows and this document is copied whole. The output
+  // options are what this view adds under it.
   await expect(panel.locator("#resolved-expand")).toBeVisible();
-  await expect(panel.locator(".prov-filter-input")).toBeDisabled();
+  await expect(panel.locator(".data-table-filter")).toBeDisabled();
 
   // keep-internal (the default): config:recommended stays a reference.
   const doc = panel.locator("pre.config-view");
@@ -52,8 +73,9 @@ test("the As JSON view keeps internal presets referenced, expands fully on deman
   await expect(doc).toContainText('"branchPrefix"');
 
   // Switching back restores the provenance rows, and the filters go live again.
-  await panel.getByRole("radio", { name: "By key" }).click();
-  await expect(panel.locator(".prov-row").first()).toBeVisible();
-  await expect(panel.locator(".prov-section-repo")).toBeVisible();
-  await expect(panel.locator(".prov-filter-input")).toBeEnabled();
+  await openGear(gear);
+  await views.getByRole("button", { name: "By key" }).click();
+  await expect(panel.locator(".data-table-row").first()).toBeVisible();
+  await expect(panel.locator(".data-table-group-title").first()).toHaveText("Your repo config");
+  await expect(panel.locator(".data-table-filter")).toBeEnabled();
 });

@@ -21,15 +21,16 @@ function optionLabel(option: FilterOption): string {
 }
 
 /**
- * Roadmap 023/047: the rules drawer's filter row — the Effective Config tab's
- * `.prov-filters` chrome, one `<select>` per facet. The controls sit on the
+ * Roadmap 023/047: the rules drawer's filter row — the `.prov-filters` chrome
+ * the Effective Config tab's As-JSON options row also wears, one `<select>` per
+ * facet. The controls sit on the
  * right edge because the drawer's own summary row already carries the headline
  * count on the left, and the shown-count is stated only while the filters are
  * actually narrowing the list: unfiltered it would repeat "N of M matched"
  * from the row above it.
  *
  * Its own component for the depth ratchet (`react/jsx-max-depth` is 3) —
- * the same reason `EffectiveToolbar` is separate from the panel it filters.
+ * the same reason `ResolvedOptionsRow` is separate from the view it configures.
  */
 function SimRulesFilters({
   filters,

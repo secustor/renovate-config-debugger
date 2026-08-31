@@ -360,6 +360,13 @@
   padding: 0.35rem 0 0 var(--dt-indent);
 }
 
+/* With no fields under it the detail IS the bottom of the open row, and carries
+   its bottom padding itself — the same rule the fields have from the other
+   end. */
+.data-table-row-detail:last-child {
+  padding-bottom: 0.5rem;
+}
+
 /* The open row's record: the descriptor, field by field. */
 .data-table-fields {
   display: grid;

@@ -430,3 +430,84 @@ describe("DataTable — toned group heads and the row's detail block", () => {
     expect(parts.indexOf("data-table-row-detail")).toBeLessThan(parts.indexOf("data-table-fields"));
   });
 });
+
+/**
+ * Roadmap 092 — what the Effective-config tab needed the row model to gain, and
+ * the rule all three follow: the STRINGS stay the table's (the filter searches
+ * them, a cell quotes them in its title), and the nodes only change what is
+ * painted. A consumer that passes none of them is unaffected.
+ */
+describe("DataTable — rich cells and consumer-driven expansion", () => {
+  const RICH: readonly DataTableRow[] = [
+    {
+      key: "labels",
+      lead: "labels",
+      leadNode: <em className="opt">labels</em>,
+      cells: { value: "2 rules", manager: "" },
+      cellNodes: { value: <strong className="framed">2 rules — 1 yours</strong> },
+      groups: {},
+      fields: [],
+    },
+    { key: "plain", lead: "plain", cells: { value: "17.0.0" }, groups: {}, fields: [] },
+  ];
+
+  const WIDE: readonly DataTableColumn[] = [
+    { id: "value", label: "Current value", defaultOn: true, mono: true, width: "16rem" },
+    { id: "manager", label: "Manager", defaultOn: false },
+  ];
+
+  function renderOpenKeys(openKeys: ReadonlySet<string>) {
+    return (
+      <DataTable
+        rows={ROWS}
+        columns={COLUMNS}
+        groupings={[]}
+        leadLabel="Dependency"
+        rowNoun={{ one: "dependency", many: "dependencies" }}
+        filterPlaceholder="Filter 2 dependencies…"
+        openKeys={openKeys}
+      />
+    );
+  }
+
+  it("draws the prepared lead and cell nodes, keeping the text searchable", () => {
+    const view = renderExtras({ rows: RICH });
+
+    expect(view.container.querySelector(".data-table-lead .opt")?.textContent).toBe("labels");
+    const cell = view.container.querySelector(".data-table-cell");
+    expect(cell?.querySelector(".framed")?.textContent).toBe("2 rules — 1 yours");
+    // The string is what the cell quotes, and what the filter matches.
+    expect(cell?.getAttribute("title")).toBe("2 rules");
+
+    fireEvent.change(view.getByRole("textbox", { name: "Filter 2 dependencies…" }), {
+      target: { value: "2 rules" },
+    });
+    expect(view.container.querySelectorAll(".data-table-row")).toHaveLength(1);
+  });
+
+  it("gives a column its own width, in the header and in every cell", () => {
+    const view = renderExtras({ rows: RICH, columns: WIDE });
+
+    const head = view.container.querySelector<HTMLElement>(".data-table-head-cell");
+    expect(head?.style.flexBasis).toBe("16rem");
+    const cells = [...view.container.querySelectorAll<HTMLElement>(".data-table-cell")];
+    expect(cells.map((cell) => cell.style.flexBasis)).toEqual(["16rem", "16rem"]);
+  });
+
+  it("opens the rows the consumer asks for, then hands the carets back", () => {
+    const view = render(renderOpenKeys(new Set(["a"])));
+    // Honoured on the FIRST render — the cross-tab link that arrives with the
+    // table rather than after it.
+    expect(view.container.querySelectorAll(".data-table-row.open")).toHaveLength(1);
+    expect(view.getByRole("button", { name: /react/ }).getAttribute("aria-expanded")).toBe("true");
+
+    // The reader's own click wins from there.
+    fireEvent.click(view.getByRole("button", { name: /react/ }));
+    expect(view.container.querySelectorAll(".data-table-row.open")).toHaveLength(0);
+
+    // …and a NEW set is a new assignment (a run landing, a second link).
+    view.rerender(renderOpenKeys(new Set(["b"])));
+    const open = view.container.querySelector(".data-table-row.open");
+    expect(open?.querySelector(".data-table-lead")?.textContent).toBe("node");
+  });
+});

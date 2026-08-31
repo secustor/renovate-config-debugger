@@ -1,5 +1,5 @@
 import type { KeyProvenance, PresetNode, ProvenanceStep } from "@renovate-config-debugger/engine";
-import { nf, plural } from "@/lib/format";
+import type { DataTablePillTone } from "@/components/data-table";
 
 /**
  * Roadmap 075 (iteration 5): the effective config, grouped by WHO DECIDED each
@@ -101,60 +101,36 @@ export function presetDeciderName(names: readonly string[]): string | null {
 }
 
 /**
- * The one sentence a band is headed with, in the design's three emphases: the
- * `lead` in the header's own ink and weight, the `count` in the band's hue, and
- * the trailing `note` muted and regular-weight. The defaults band folds its
- * count into the lead — its whole header is the muted one, and only the
- * trailing clause drops the weight.
+ * Roadmap 092: the header of a decided-by group in the standard data table —
+ * the title the design writes in PROSE (a group headed "Your repo config" is a
+ * sentence, not a path) and the one toned pill beside it, in the layer's own
+ * hue from the app's existing pill set. The count is the table's own, off the
+ * rows it is actually showing.
+ *
+ * This replaces 082's three-emphasis band headline: the table states the count
+ * itself, so a header that also spelled it ("decided 4 options") would be
+ * saying the same number twice in one line.
  */
-export interface DeciderHeadline {
-  lead: string;
-  /** The counted phrase (`4 options`) the design paints in the band's hue;
-   *  null where the design leaves the count unhued (defaults). */
-  count: string | null;
-  note: string | null;
+export interface DeciderHead {
+  title: string;
+  pill: { label: string; tone: DataTablePillTone };
 }
 
-/**
- * Says what the group MEANS for the reader, not just how big it is: the repo
- * rows are the editable ones, the defaults rows are the ones this run never
- * touched.
- *
- * The count is the band's OWN rows — what is on screen under the header. Since
- * 082 removed the "N of M shown" pill (the layer filters that made it necessary
- * went with it), a header quoting a number the reader cannot count in the band
- * below it would be the only unverifiable claim in the view.
- */
-export function deciderHeadline(
-  id: DeciderId,
-  count: number,
-  presetName?: string | null,
-): DeciderHeadline {
-  const n = nf.format(count);
-  const options = plural(count, "option");
-  if (id === "repo") {
-    return {
-      lead: "Your repo config decided",
-      count: options,
-      note: "— the ones you can edit directly",
-    };
-  }
-  if (id === "preset") {
-    return {
-      lead: presetName ? `${presetName} decided` : "Presets decided",
-      count: options,
-      note: null,
-    };
-  }
-  if (id === "inherited") {
-    return { lead: "The inherited config decided", count: options, note: null };
-  }
-  if (id === "global") {
-    return { lead: "The global config decided", count: options, note: null };
-  }
-  return {
-    lead: `Renovate defaults filled the remaining ${n}`,
-    count: null,
-    note: "— nothing in your run touched them",
-  };
+const DECIDER_HEADS: Record<DeciderId, DeciderHead> = {
+  repo: { title: "Your repo config", pill: { label: "repo config", tone: "accent" } },
+  preset: { title: "Presets", pill: { label: "presets", tone: "preset" } },
+  inherited: {
+    title: "The inherited config",
+    pill: { label: "inherited config", tone: "inherited" },
+  },
+  global: { title: "The global config", pill: { label: "global config", tone: "global" } },
+  defaults: { title: "Renovate defaults", pill: { label: "defaults", tone: "muted" } },
+};
+
+/** …with the presets group named after the reader's own `extends` when the run
+ *  has one (082 GAP-3), so the group is headed by the line they would delete to
+ *  undo it. */
+export function deciderHead(id: DeciderId, presetName?: string | null): DeciderHead {
+  const head = DECIDER_HEADS[id];
+  return id === "preset" && presetName ? { ...head, title: presetName } : head;
 }
