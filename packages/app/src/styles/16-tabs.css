@@ -44,21 +44,23 @@
   /* Overlaps the rail's own bottom border, which is what lets the active tab
      paint over it and read as one surface with the body below. */
   margin-bottom: -1px;
-  /* 083 made the strip six tabs; at the previous 0.8rem sides the sixth
-     wrapped onto its own row at a 1280px viewport. The strip must hold one
-     row at the standard desktop width (guarded in 12-layout-regressions) — and
-     not just under macOS's system font: Linux renders `system-ui` as DejaVu
-     Sans, whose wider glyphs ate all the slack the 0.55rem sides left, so the
-     strip wrapped on every Linux desktop (and in CI). Sized for the widest
-     common `system-ui`, not the narrowest.
-
-     089 added the seventh (Dependencies) — the longest label in the strip —
-     and the same measurement wrapped again at 1280px. The sides came down to
-     0.28rem, the type to 0.78rem (the Final artboard's own tab size) and the
-     label/count gap to 0.2rem: the row is what the strip is FOR, and 083's
-     note stands, so this is again sized against the wider glyphs rather than
-     macOS's. */
-  padding: 0.45rem 0.28rem;
+  /* The artboard's 0.8rem sides and the one-row rule (guarded in
+     12-layout-regressions) cannot both hold at a 1280px viewport: seven tabs
+     at design spacing measure ~805px against the ~670px the results pane has
+     there — and that's before Linux's wider `system-ui` glyphs (DejaVu), which
+     wrapped the strip twice in this file's history (083 at 0.8rem sides, 089's
+     seventh tab at 0.55rem). So the sides SCALE with the bar instead of
+     picking one loser: the % resolves against the bar's width, the floor is
+     the 0.28rem that measurably holds the row at the guarded width, and the
+     room the bar gains past a 30px reserve (700px ≈ the 1280px bar + reserve)
+     goes into the sides, capped at the artboard's 0.8rem. /14 (7 tabs × 2
+     sides) would spend exactly what the bar gains; /12 spends a little of the
+     reserve too, because the shell's 92rem max-width stops the bar at ~775px
+     and the steeper ramp is what gets a wide desktop to ~0.62rem instead of
+     ~0.55rem (~35px of wide-glyph slack left at that cap, measured under
+     Verdana). The stacked layout's full-width bar reaches 0.8rem outright. */
+  padding-block: 0.45rem;
+  padding-inline: clamp(0.28rem, calc(0.28rem + (100% - 700px) / 12), 0.8rem);
 }
 
 .tab:hover {
