@@ -156,14 +156,11 @@
 /* Roadmap 091: the seeded pin's own chip. Muted and outlined — a starter is a
    suggestion the app made, so it must never read as a status the run
    reported (the dot beside it is the only thing on this row that does). */
+/* The chip IS the app's `.pill pill-count` (03-presets.css); this adds only
+   the quieter ink and the row-flexbox behavior. */
 .pin-starter {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
   color: var(--faint);
   flex: none;
-  font-size: 0.65rem;
-  line-height: 1.5;
-  padding: 0 0.35rem;
   text-transform: lowercase;
 }
 

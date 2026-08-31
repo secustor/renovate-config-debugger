@@ -37,7 +37,10 @@ export function PinHeadRow({
       <span className={`pin-dot ${dotTone(check)}`} title={dotTitle(check)} />
       <span className="pin-name">{name}</span>
       {starter ? (
-        <span className="pin-starter" title="Derived from your packageRules — swap in a real one">
+        <span
+          className="pill pill-count pin-starter"
+          title="Derived from your packageRules — swap in a real one"
+        >
           starter
         </span>
       ) : null}
