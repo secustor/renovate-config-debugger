@@ -40,7 +40,7 @@ export interface ResultsColumnProps extends StageLayersProps {
   /** The editor's text has diverged from the text `result` was computed from.
    *  The ONE prop here that changes on a keystroke — it feeds the `banner`
    *  memo and nothing else, deliberately not the `panels` memo below, whose
-   *  032 contract is that typing reconciles none of the six panels. */
+   *  032 contract is that typing reconciles none of the seven panels. */
   resultsStale: boolean;
 }
 
@@ -228,14 +228,14 @@ export function ResultsColumn({
     [result.presetTree, selectPresetNode],
   );
 
-  // Roadmap 032: the six tab panels render RUN RESULTS — they change when a
+  // Roadmap 032: the seven tab panels render RUN RESULTS — they change when a
   // run completes or a view-state jump lands, never while the user types. So
   // `content` (and every other per-keystroke value: `injected`,
   // `packageRuleOffsets`, the live share state) is deliberately absent from
   // these deps: every callback that needs such state reads it through the
   // latest-ref idiom in App.tsx (`onInject`, `focusEditorRepoIndex`,
   // `onApplyFix`, `onCopySimLink`). The element tree here keeps its identity
-  // across keystrokes, so React bails out of reconciling all six panels —
+  // across keystrokes, so React bails out of reconciling all seven panels —
   // typing re-renders App (and this shell) and nothing below it.
   const panels = useMemo<Record<ResultsTabId, ReactNode>>(() => {
     return {

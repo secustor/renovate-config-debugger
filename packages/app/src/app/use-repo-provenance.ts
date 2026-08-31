@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import type { RepoPlatform } from "@renovate-config-debugger/engine";
 import { TREE_LISTING_PLATFORMS } from "@/data/host-tokens";
-import { useLatestRef } from "@/hooks/use-latest-ref";
+import { useStableCallback } from "@/hooks/use-stable-callback";
 import type { LoadedRepo } from "@/types/repo";
 
 /**
@@ -78,9 +78,9 @@ export function useRepoProvenance(host: RepoProvenanceHost): RepoProvenance {
 
   const canList = TREE_LISTING_PLATFORMS.has(host.platform as RepoPlatform);
 
-  // The impl closes over THIS render's context; the latest-ref wrapper (the
-  // `buildShareLinkAndCopy` idiom) keeps the handed-out identity stable.
-  const connectRef = useLatestRef(() => {
+  // The impl closes over THIS render's context; `useStableCallback` keeps the
+  // handed-out identity stable.
+  const connect = useStableCallback(() => {
     if (claimedRepo === null || !canList) {
       return;
     }
@@ -91,11 +91,6 @@ export function useRepoProvenance(host: RepoProvenanceHost): RepoProvenance {
       suppressTokens: host.suppressTokens,
     });
   });
-  const connect = useCallback(
-    () => connectRef.current(),
-    // A stable ref object; see `useLatestRef` for why the list is not empty.
-    [connectRef],
-  );
 
   return {
     loadedRepo,

@@ -5,8 +5,9 @@
  * concern: what the app is SAYING, on which channel, and when a later event
  * may take it back.
  *
- * The two alternating-space devices live here spelled once. Both exist for
- * the same reason: a live region (and a `role="alert"` banner) speaks only
+ * The alternating-space device lives here spelled once (`useAlternatingText`,
+ * one instance per surface). It exists because a live region (and a
+ * `role="alert"` banner) speaks only
  * when its text CHANGES, so raising the identical message twice — the same
  * run outcome, the same unfixed load failure — was silent, and React does not
  * even re-render for it. An invisible trailing space alternates to make every
@@ -30,6 +31,17 @@ import {
 import { useTransientValue } from "@/hooks/use-transient-value";
 
 const TOAST_MS = 4500;
+
+/** The alternating trailing space, spelled once for both surfaces that need
+ *  it (see this file's header): the returned function stamps a text so two
+ *  consecutive raises of the same sentence are still a state MUTATION. */
+function useAlternatingText(): (text: string) => string {
+  const spacerRef = useRef(false);
+  return useCallback((text: string) => {
+    spacerRef.current = !spacerRef.current;
+    return spacerRef.current ? `${text} ` : text;
+  }, []);
+}
 
 export interface AppMessages {
   /** The fatal-error banner (`role="alert"` in ConfigColumn). */
@@ -66,27 +78,31 @@ export function useAppMessages(): AppMessages {
   // Roadmap 068: the banner carries two kinds of message and they expire
   // differently — this counter stamps the kind a passing run may NOT clear.
   const fatalSeqRef = useRef(0);
-  const fatalSpacerRef = useRef(false);
+  const alternateFatal = useAlternatingText();
   const [notice, setNotice] = useState<string | null>(null);
   const [toast, showToast] = useTransientValue<string>(TOAST_MS);
   const [runAnnouncement, setRunAnnouncement] = useState("");
-  const announcementSeq = useRef(0);
+  const alternateAnnouncement = useAlternatingText();
   const outcomeLeadRef = useRef<string | null>(null);
 
-  const applyFatal = useCallback((next: string | null) => {
-    if (next === null) {
-      setFatal(null);
-      return;
-    }
-    fatalSeqRef.current += 1;
-    fatalSpacerRef.current = !fatalSpacerRef.current;
-    setFatal(fatalSpacerRef.current ? `${next} ` : next);
-  }, []);
+  const applyFatal = useCallback(
+    (next: string | null) => {
+      if (next === null) {
+        setFatal(null);
+        return;
+      }
+      fatalSeqRef.current += 1;
+      setFatal(alternateFatal(next));
+    },
+    [alternateFatal],
+  );
 
-  const announceRun = useCallback((sentence: string) => {
-    announcementSeq.current += 1;
-    setRunAnnouncement(announcementSeq.current % 2 === 0 ? `${sentence} ` : sentence);
-  }, []);
+  const announceRun = useCallback(
+    (sentence: string) => {
+      setRunAnnouncement(alternateAnnouncement(sentence));
+    },
+    [alternateAnnouncement],
+  );
 
   return {
     fatal,

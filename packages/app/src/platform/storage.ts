@@ -16,103 +16,89 @@ export const ENDPOINT_KEY = "rcd.endpoint";
 /** Roadmap 037 — the explicit color-theme override. */
 export const THEME_KEY = "rcd.theme";
 
-export function localGet(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
+interface SafeStorage {
+  get: (key: string) => string | null;
+  set: (key: string, value: string) => void;
+  remove: (key: string) => void;
+  read: (key: string, fallback: string, isValid: (v: string) => boolean) => string;
+  persist: (key: string, value: string) => void;
 }
 
-export function localSet(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // Storage disabled/full: the value simply doesn't persist.
-  }
+/**
+ * The five safe operations over ONE Storage object. The `pick` thunk defers the
+ * `localStorage`/`sessionStorage` property access into the try, because on a
+ * storage-disabled browser reading the property is itself what throws.
+ *
+ * Which storage a value lives in is the security decision (see the two
+ * instances below); everything about HOW it is touched is the same either way.
+ */
+function safeStorage(pick: () => Storage): SafeStorage {
+  const get = (key: string): string | null => {
+    try {
+      return pick().getItem(key);
+    } catch {
+      return null;
+    }
+  };
+  const set = (key: string, value: string): void => {
+    try {
+      pick().setItem(key, value);
+    } catch {
+      // Storage disabled/full: the value simply doesn't persist.
+    }
+  };
+  const remove = (key: string): void => {
+    try {
+      pick().removeItem(key);
+    } catch {
+      // Storage disabled: nothing was stored to remove.
+    }
+  };
+  return {
+    get,
+    set,
+    remove,
+    // Roadmap 030: a value that fails `isValid` is silently reset to the
+    // default and the bad stored value is removed — storage can drift across
+    // app versions or be hand-edited, and it must never poison every later run.
+    read: (key, fallback, isValid) => {
+      const raw = get(key);
+      if (raw === null) {
+        return fallback;
+      }
+      if (isValid(raw)) {
+        return raw;
+      }
+      remove(key);
+      return fallback;
+    },
+    persist: (key, value) => {
+      if (value) {
+        set(key, value);
+      } else {
+        remove(key);
+      }
+    },
+  };
 }
 
-export function localRemove(key: string): void {
-  try {
-    localStorage.removeItem(key);
-  } catch {
-    // Storage disabled: nothing was stored to remove.
-  }
-}
+/** Non-secret settings (platform/endpoint, the theme) persist across tabs →
+ *  localStorage. A SECRET must never be written here (see `session` below). */
+const local = safeStorage(() => localStorage);
+/** Per-host tokens are secrets → sessionStorage (cleared when the tab closes). */
+const session = safeStorage(() => sessionStorage);
 
-export function sessionGet(key: string): string | null {
-  try {
-    return sessionStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
+export const localGet = local.get;
+export const localSet = local.set;
+export const localRemove = local.remove;
+export const readLocal = local.read;
+export const persistLocal = local.persist;
 
-export function sessionSet(key: string, value: string): void {
-  try {
-    sessionStorage.setItem(key, value);
-  } catch {
-    // Storage disabled/full: the value simply doesn't persist.
-  }
-}
-
-export function sessionRemove(key: string): void {
-  try {
-    sessionStorage.removeItem(key);
-  } catch {
-    // Storage disabled: nothing was stored to remove.
-  }
-}
-
-/** Non-secret settings (platform/endpoint) persist across tabs → localStorage.
- *  Roadmap 030: a value that fails `isValid` is silently reset to the
- *  default and the bad stored value is removed — storage can drift across
- *  app versions or be hand-edited, and it must never poison every later run. */
-export function readLocal(key: string, fallback: string, isValid: (v: string) => boolean): string {
-  const raw = localGet(key);
-  if (raw === null) {
-    return fallback;
-  }
-  if (isValid(raw)) {
-    return raw;
-  }
-  localRemove(key);
-  return fallback;
-}
-
-export function persistLocal(key: string, value: string): void {
-  if (value) {
-    localSet(key, value);
-  } else {
-    localRemove(key);
-  }
-}
-
-/** Per-host tokens are secrets → sessionStorage (cleared when the tab closes).
- *  Roadmap 030: same silent-fallback-and-remove rule as {@link readLocal}. */
-export function readSession(
-  key: string,
-  fallback: string,
-  isValid: (v: string) => boolean,
-): string {
-  const raw = sessionGet(key);
-  if (raw === null) {
-    return fallback;
-  }
-  if (isValid(raw)) {
-    return raw;
-  }
-  sessionRemove(key);
-  return fallback;
-}
-
-export function persistSession(key: string, value: string): void {
-  if (value) {
-    sessionSet(key, value);
-  } else {
-    sessionRemove(key);
-  }
-}
+export const sessionGet = session.get;
+export const sessionSet = session.set;
+export const sessionRemove = session.remove;
+export const readSession = session.read;
+export const persistSession = session.persist;
 
 // ---------------------------------------------------------------------------
 // Color theme (roadmap 037)

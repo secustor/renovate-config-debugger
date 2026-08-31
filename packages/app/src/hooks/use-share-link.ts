@@ -14,6 +14,7 @@
  */
 import { useCallback, useEffect, useInsertionEffect, useRef, useState } from "react";
 import { useLatestRef } from "./use-latest-ref";
+import { useStableCallback } from "./use-stable-callback";
 import type { TraceResult } from "@renovate-config-debugger/engine";
 import {
   completeCallback,
@@ -554,15 +555,9 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
   // Roadmap 032: the impl closes over this render's `host` (it must — the
   // share state IS the current app state), so it is redeclared every render.
   // Handing that closure out directly would defeat the memoized RuleSimulator
-  // (its `onCopySimLink` prop); the latest-ref idiom (as with
-  // `loadShareTokenRef` above) keeps the returned identity stable while every
-  // call still encodes the current state.
-  const buildShareLinkAndCopyRef = useLatestRef(buildShareLinkAndCopyImpl);
-  const buildShareLinkAndCopy = useCallback(
-    (sim?: ShareSimulator) => buildShareLinkAndCopyRef.current(sim),
-    // A stable ref object; see `useLatestRef` for why the list is not empty.
-    [buildShareLinkAndCopyRef],
-  );
+  // (its `onCopySimLink` prop); `useStableCallback` keeps the returned identity
+  // stable while every call still encodes the current state.
+  const buildShareLinkAndCopy = useStableCallback(buildShareLinkAndCopyImpl);
 
   /**
    * Roadmap 009 (auth-failure surfacing): the same encode, WITHOUT the copy or
@@ -574,14 +569,10 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
   async function buildSignInReturnHashImpl(): Promise<string> {
     return new URL(buildShareUrl(await encodeShare(await host.buildShareState()))).hash;
   }
-  // Same latest-ref reason as above: the impl closes over this render's `host`
-  // (it must — the return hash IS the current state), and the identity handed
-  // out reaches App's own stable `onSignIn`.
-  const buildSignInReturnHashRef = useLatestRef(buildSignInReturnHashImpl);
-  const buildSignInReturnHash = useCallback(
-    () => buildSignInReturnHashRef.current(),
-    [buildSignInReturnHashRef],
-  );
+  // Same reason as above: the impl closes over this render's `host` (it must —
+  // the return hash IS the current state), and the identity handed out reaches
+  // App's own stable `onSignIn`.
+  const buildSignInReturnHash = useStableCallback(buildSignInReturnHashImpl);
 
   return { shareError, simRequest, buildShareLinkAndCopy, buildSignInReturnHash };
 }

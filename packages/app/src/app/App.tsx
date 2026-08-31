@@ -33,6 +33,7 @@ import {
 import type { ShareSimulator, ShareState } from "@/lib/share";
 import { useBackToTopVisible, useHomeEndPageScroll } from "@/hooks/scroll-ergonomics";
 import { useLatestRef } from "@/hooks/use-latest-ref";
+import { useStableCallback } from "@/hooks/use-stable-callback";
 import { useKeyboardLandings } from "@/app/use-keyboard-landings";
 import { ShortcutSheet } from "@/components/ShortcutSheet";
 import { isValidEndpoint } from "@/lib/input-schemas";
@@ -398,7 +399,7 @@ export function App() {
   // chip, a simulator rule, an editor preset hover) also switches to the
   // Presets tab. Identity-stable, so the preset-hover context — memoized on
   // the result so its lookup isn't rebuilt on every keystroke — never churns.
-  const selectPresetNodeRef = useLatestRef((nodeId: string) => {
+  const selectPresetNode = useStableCallback((nodeId: string) => {
     setSelectedNodeId(nodeId);
     jumpToTab("presets");
     // Roadmap 068: …and land on the node, like every other cross-link. For the
@@ -410,15 +411,6 @@ export function App() {
     // `jumpDisplacedFocus`.
     landOnPresetNodeRef.current();
   });
-  // The dependency is the REF, not the callback it holds: a ref object's
-  // identity never changes, so this wrapper is still declared once for the
-  // app's lifetime while always invoking the current render's closure.
-  const selectPresetNode = useCallback(
-    (nodeId: string) => {
-      selectPresetNodeRef.current(nodeId);
-    },
-    [selectPresetNodeRef],
-  );
 
   // Roadmap 023: preset-string hovers in the editor. Built from the current
   // run's resolution tree; the jump link selects the preset's node in the tree.
@@ -443,16 +435,12 @@ export function App() {
   // the memoized panels get the stable wrapper below (032, latest-ref idiom)
   // and a click always jumps against offsets from the CURRENT text, never a
   // closure over stale one.
-  const focusEditorRepoIndexRef = useLatestRef((repoIndex: number) => {
+  const focusEditorRepoIndex = useStableCallback((repoIndex: number) => {
     const offset = packageRuleOffsets?.[repoIndex];
     if (offset !== undefined) {
       configEditorRef.current?.highlightOffset(offset);
     }
   });
-  const focusEditorRepoIndex = useCallback(
-    (repoIndex: number) => focusEditorRepoIndexRef.current(repoIndex),
-    [focusEditorRepoIndexRef],
-  );
 
   useEffect(() => {
     // Roadmap 028: a new run invalidates the previous run's async counts —
@@ -612,17 +600,13 @@ export function App() {
   });
   // Roadmap 032/076: the inherited layer's editor lives INSIDE the memoized
   // results pane now, so its change handler has to be identity-stable or the
-  // `panels` memo reconciles all five panels on every keystroke. The hook
+  // `panels` memo reconciles all seven panels on every keystroke. The hook
   // redeclares `applyInheritedText` every render (it closes over the probe
   // metadata that any hand edit clears), hence the latest-ref idiom.
   // `setGlobalText` is a plain setter and is already stable.
-  const applyInheritedTextRef = useLatestRef(applyInheritedText);
-  const onInheritedTextChange = useCallback(
-    (text: string) => {
-      applyInheritedTextRef.current(text);
-    },
-    [applyInheritedTextRef],
-  );
+  const onInheritedTextChange = useStableCallback((text: string) => {
+    applyInheritedText(text);
+  });
   // Roadmap 076: the layer pair the CURRENT inputs would run with, against the
   // pair the displayed result was computed from (`lastRunLayerKey`).
   const currentLayerKey = useMemo(
@@ -993,7 +977,7 @@ export function App() {
    * `useOAuthSession`: it reads `result` and the share hook's return-hash
    * builder, and the share hook in turn takes that hook's setters.
    */
-  const signInRef = useLatestRef(async () => {
+  async function signInCarryingState() {
     let returnHash = window.location.hash;
     if (result) {
       try {
@@ -1004,12 +988,12 @@ export function App() {
       }
     }
     await beginSignIn(returnHash);
-  });
+  }
   // Roadmap 032: identity-stable (latest-ref idiom) — this prop reaches the
   // memoized results panels, and it reads `result`, which changes per run.
-  const onSignIn = useCallback(() => {
-    void signInRef.current();
-  }, [signInRef]);
+  const onSignIn = useStableCallback(() => {
+    void signInCarryingState();
+  });
 
   /**
    * Roadmap 009 (auth-failure surfacing): the banner's "Run again" — the same
@@ -1019,25 +1003,20 @@ export function App() {
    * panel: the user is looking at the thing they just acted on, and a run that
    * bounced them to another tab would hide its own answer.
    */
-  const onRunAgainRef = useLatestRef(() => {
+  const onRunAgain = useStableCallback(() => {
     void onRun(undefined, undefined, { preserveScroll: true, keepTab: true });
   });
-  const onRunAgain = useCallback(() => onRunAgainRef.current(), [onRunAgainRef]);
 
   // Roadmap 032: `onInject` reads `injected` and so is redeclared with it —
   // handed out directly it was the one unstable prop defeating PresetTree's
-  // memo on every keystroke. Latest-ref idiom, as with `selectPresetNodeRef`.
-  const onInjectRef = useLatestRef((key: string, contentObj: Record<string, unknown>) => {
+  // memo on every keystroke. Latest-ref idiom, as with `selectPresetNode`.
+  const onInject = useStableCallback((key: string, contentObj: Record<string, unknown>) => {
     const next = { ...injected, [key]: contentObj };
     setInjected(next);
     // Injecting preset content is done FROM the preset tree — keep the user
     // there rather than bouncing them to the landing tab (028).
     void onRun(next, undefined, { preserveScroll: true, keepTab: true });
   });
-  const onInject = useCallback(
-    (key: string, contentObj: Record<string, unknown>) => onInjectRef.current(key, contentObj),
-    [onInjectRef],
-  );
 
   // Roadmap 048: every number derived from a finished run — the tab-strip
   // counts, the migration-stepper inputs and the header digest links they must
@@ -1109,9 +1088,6 @@ export function App() {
    * "Apply fix" click must patch the text as it is NOW, not as it was when
    * the panel last rendered.
    *
-   * The dependency is the REF, not the function it holds — its identity never
-   * changes, so the wrapper stays declared once (see `selectPresetNode`).
-   *
    * Registered HERE rather than beside `applyErrorFix` itself: that function
    * arms and lands through `landing`/`focusTab`, which the destructure above
    * declares, and handing it to a hook any earlier reads those bindings while
@@ -1119,13 +1095,9 @@ export function App() {
    * function declaration is hoisted, so only the registration had to move, and
    * `onApplyFix` is consumed by the panel props memos further below.
    */
-  const applyErrorFixRef = useLatestRef(applyErrorFix);
-  const onApplyFix = useCallback(
-    (fix: ErrorFixResult) => {
-      void applyErrorFixRef.current(fix);
-    },
-    [applyErrorFixRef],
-  );
+  const onApplyFix = useStableCallback((fix: ErrorFixResult) => {
+    void applyErrorFix(fix);
+  });
 
   /**
    * Roadmap 068: what "the user asked for a run" means, in the one place its
