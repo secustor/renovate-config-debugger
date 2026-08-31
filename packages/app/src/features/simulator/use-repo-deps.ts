@@ -21,9 +21,10 @@ import { loadRepoFile, loadRepoTree } from "@/platform/run";
 import { causedErrorMessage } from "@/lib/errors";
 import type { LoadedRepo, RepoDep, RepoDepsView } from "@/types/repo";
 
-/** Fetch cap: each package file is one request. The commonest repos fit; the
- *  view counts what the cap dropped rather than pretending it covered all. */
-const MAX_REPO_DEP_FILES = 10;
+/** Every matched file is fetched by default; this is only a runaway backstop
+ *  for pathological monorepos (each file is one request, and an anonymous
+ *  GitHub session has 60 an hour). The view counts anything it drops. */
+const MAX_REPO_DEP_FILES = 500;
 
 /** Renovate's own default ignorePaths, applied to the walk. */
 const IGNORED_PATH = /(^|\/)(node_modules|bower_components)\//;
