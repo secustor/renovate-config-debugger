@@ -11,12 +11,9 @@ import {
   buildDescriptionLedger,
   DESCRIPTION_KEY,
   type DescriptionLedger,
-  DROPPED_COLLAPSE_AFTER,
   droppedSummaryText,
   duplicateNoteText,
   duplicatePillText,
-  hiddenCount,
-  LEDGER_COLLAPSE_AFTER,
   ledgerCountText,
   ledgerForRow,
   type LedgerGroup,
@@ -30,6 +27,7 @@ import {
   unattributedValueText,
 } from "./description-ledger";
 import { provEntry } from "@tools/test/key-provenance";
+import { COLLAPSE_AFTER } from "@/lib/collapse";
 
 /**
  * Roadmap 069 (PR 3): the blame ledger's view-model — the run grouping, the
@@ -565,13 +563,6 @@ describe("the per-row notes", () => {
 });
 
 describe("collapsing", () => {
-  test("hides nothing until the threshold is passed, and nothing once expanded", () => {
-    expect(hiddenCount(LEDGER_COLLAPSE_AFTER, LEDGER_COLLAPSE_AFTER, false)).toBe(0);
-    expect(hiddenCount(LEDGER_COLLAPSE_AFTER + 3, LEDGER_COLLAPSE_AFTER, false)).toBe(3);
-    expect(hiddenCount(LEDGER_COLLAPSE_AFTER + 3, LEDGER_COLLAPSE_AFTER, true)).toBe(0);
-    expect(hiddenCount(2, DROPPED_COLLAPSE_AFTER, false)).toBe(0);
-  });
-
   /**
    * Roadmap 082 (GAP-16): the cap is the LEDGER's, applied across the runs in
    * order, so what a collapsed ledger shows is always a prefix of the final
@@ -582,7 +573,7 @@ describe("collapsing", () => {
     const ledger = ledgerOf(
       provenance({
         entries: entries(
-          Array.from({ length: LEDGER_COLLAPSE_AFTER + 4 }, (_, i) => ({
+          Array.from({ length: COLLAPSE_AFTER + 4 }, (_, i) => ({
             value: `line ${i}`,
             via: i < 2 ? REPO : BEST_PRACTICES,
             node: "p1",
@@ -592,7 +583,7 @@ describe("collapsing", () => {
     );
 
     const collapsed = ledgerView(ledger, false);
-    expect(collapsed.groups.flatMap((g) => g.rows).length).toBe(LEDGER_COLLAPSE_AFTER);
+    expect(collapsed.groups.flatMap((g) => g.rows).length).toBe(COLLAPSE_AFTER);
     expect(collapsed.hiddenRows).toBe(4);
     // The first run survives whole, the second is cut — nothing is reordered.
     expect(collapsed.groups[0]?.rows).toHaveLength(2);

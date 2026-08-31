@@ -1,5 +1,5 @@
 import type { ClauseEvaluation, MergedKey, RuleEvaluation } from "@renovate-config-debugger/engine";
-import { isNoInputNoMatch } from "@/lib/rule-verdict";
+import { isFailingClause, isNoInputNoMatch } from "@/lib/rule-verdict";
 
 export function previewValue(value: unknown, max = 60): string {
   const text = JSON.stringify(value) ?? "undefined";
@@ -46,6 +46,8 @@ export function clauseIcon(state: ClauseEvaluation["state"]): string {
   if (state === "matched") {
     return "✓";
   }
+  // Deliberately narrower than `isFailingClause`: no-input fails the rule too,
+  // but gets its own glyph below.
   if (state === "no-match" || state === "error") {
     return "✗";
   }
@@ -160,9 +162,7 @@ export function ruleLabel(rule: RuleEvaluation): string {
   const joined = rule.clauses.map((c) => c.key).join(" + ");
   // no-input (fail-closed: the dependency lacks the field) fails the rule just
   // like a genuine no-match, so it counts as the deciding clause here too.
-  const failing = rule.clauses.find(
-    (c) => c.state === "no-match" || c.state === "no-input" || c.state === "error",
-  );
+  const failing = rule.clauses.find(isFailingClause);
   if (!failing) {
     return joined;
   }

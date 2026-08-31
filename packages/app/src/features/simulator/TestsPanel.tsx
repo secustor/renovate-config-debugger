@@ -35,7 +35,7 @@ import type { RepoConnectOffer, RepoDepsView } from "@/types/repo";
  * tree.
  */
 
-export type TestsView = "pins" | "simulator";
+type TestsView = "pins" | "simulator";
 
 function SimulatorViewStrip({ onBack }: { onBack: () => void }) {
   return (

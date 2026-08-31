@@ -8,7 +8,7 @@ import type {
 } from "@renovate-config-debugger/engine";
 import { nf, pluralWord } from "@/lib/format";
 import { crossRuleIndex } from "@/lib/rule-cross-index";
-import { hasEvaluationError, isNoInputNoMatch } from "@/lib/rule-verdict";
+import { hasEvaluationError, isFailingClause, isNoInputNoMatch } from "@/lib/rule-verdict";
 import { buildNoInputCaveat } from "@/lib/verdict-sentence";
 import { overridingStopIndex } from "./merge-override";
 import { clauseEvaluated, previewValue, ruleLabel } from "./rule-format";
@@ -250,9 +250,7 @@ function buildWrites(
  * because "and this rule matches" would be a false promise there.
  */
 function closestMiss(rule: RuleEvaluation): PinFailedRule["closestMiss"] {
-  const failing = rule.clauses.filter(
-    (c) => c.state === "no-match" || c.state === "no-input" || c.state === "error",
-  );
+  const failing = rule.clauses.filter(isFailingClause);
   const only = failing[0];
   if (failing.length !== 1 || !only || only.state !== "no-match") {
     return undefined;
@@ -275,9 +273,7 @@ function closestMiss(rule: RuleEvaluation): PinFailedRule["closestMiss"] {
 /** The clause that decided a no-match, spelled the way a bucket row cites it:
  *  `matchManagers: ["dockerfile"] — no match against manager = "npm"`. */
 function failingClauseNote(rule: RuleEvaluation): string {
-  const failing = rule.clauses.find(
-    (c) => c.state === "no-match" || c.state === "no-input" || c.state === "error",
-  );
+  const failing = rule.clauses.find(isFailingClause);
   if (!failing) {
     return ruleLabel(rule);
   }
@@ -296,6 +292,8 @@ function clauseAxis(key: string): string {
 }
 
 function failingAxis(rule: RuleEvaluation): string | undefined {
+  // Deliberately narrower than `isFailingClause`: a no-input clause names a
+  // field the simulation left unset, not an axis the update mismatched on.
   const failing = rule.clauses.find((c) => c.state === "no-match" || c.state === "error");
   return failing ? clauseAxis(failing.key) : undefined;
 }
