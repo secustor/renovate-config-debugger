@@ -159,6 +159,7 @@ describe("tool surface", () => {
     expect(tools.map((t) => t.name).toSorted()).toEqual([
       "compare_simulations",
       "explain_message",
+      "extract_deps",
       "get_final_config",
       "get_option_docs",
       "get_preset_node",
@@ -182,8 +183,9 @@ describe("tool surface", () => {
     const instructions = client.getInstructions() ?? "";
     expect(instructions).toContain("run_config FIRST");
     expect(instructions).toContain("compare_simulations");
+    expect(instructions).toContain("extract_deps");
     // A paragraph, not a manual.
-    expect(instructions.length).toBeLessThan(1_200);
+    expect(instructions.length).toBeLessThan(1_350);
   });
 
   test("every tool declares itself read-only; only run_config reaches the network", async () => {
@@ -213,6 +215,7 @@ describe("tool surface", () => {
     expect(tools.map((t) => t.name).toSorted()).toEqual([
       "compare_simulations",
       "explain_message",
+      "extract_deps",
       "get_final_config",
       "get_option_docs",
       "get_preset_node",
@@ -1649,6 +1652,64 @@ describe("explain_message and get_option_docs", () => {
   });
 });
 
+describe("extract_deps", () => {
+  const PACKAGE_JSON = JSON.stringify({
+    dependencies: { react: "17.0.0" },
+    devDependencies: { vitest: "1.0.0" },
+  });
+
+  test("extracts a manifest from filename plus contents, no runId involved", async () => {
+    const report = (await call("extract_deps", {
+      fileName: "package.json",
+      content: PACKAGE_JSON,
+    })) as {
+      renovateVersion: string;
+      matchedManagers: string[];
+      results: {
+        ok: boolean;
+        file?: { manager: string; deps: { depName?: string; currentValue?: string }[] };
+      }[];
+    };
+    expect(report.renovateVersion).toMatch(/^\d+\./);
+    expect(report.matchedManagers).toContain("npm");
+    const [result] = report.results;
+    expect(result?.ok).toBe(true);
+    expect(result?.file?.manager).toBe("npm");
+    expect(result?.file?.deps.map((dep) => dep.depName)).toContain("react");
+  });
+
+  test("`manager` forces one — the door for a pattern-less manager", async () => {
+    const report = (await call("extract_deps", {
+      fileName: "k8s-deployment.yaml",
+      content:
+        "apiVersion: apps/v1\nkind: Deployment\nspec:\n  template:\n    spec:\n      containers:\n        - name: nginx\n          image: nginx:1.25.0\n",
+      manager: "kubernetes",
+    })) as {
+      requestedManager: string;
+      results: { ok: boolean; file?: { manager: string; deps: { depName?: string }[] } }[];
+    };
+    expect(report.requestedManager).toBe("kubernetes");
+    expect(report.results[0]?.ok).toBe(true);
+    expect(report.results[0]?.file?.deps.map((dep) => dep.depName)).toContain("nginx");
+  });
+
+  test("a filename no manager claims reports the engine's own words, not an error", async () => {
+    const report = (await call("extract_deps", {
+      fileName: "notes.md",
+      content: "# nothing to see",
+    })) as { matchedManagers: string[]; results: { ok: boolean; message?: string }[] };
+    expect(report.matchedManagers).toEqual([]);
+    expect(report.results[0]?.ok).toBe(false);
+    expect(report.results[0]?.message).toContain("no manager");
+  });
+
+  test("a typo'd argument is a schema rejection naming the key", async () => {
+    await expect(
+      call("extract_deps", { fileName: "package.json", content: "{}", mangaer: "npm" }),
+    ).rejects.toThrow(/mangaer/);
+  });
+});
+
 /**
  * H2 (roadmap 068): a held `config:recommended` trace measured ~165 MB, 76 MB
  * of it events and 75 MB of THAT the logger shim's raw `log` records — which
@@ -1771,6 +1832,10 @@ describe("focused by default", () => {
       ["simulate", { runId, dep: DEP }],
       ["compare_simulations", { runId, dep: DEP }],
       ["get_option_docs", { name: "minimumReleaseAge" }],
+      [
+        "extract_deps",
+        { fileName: "package.json", content: '{"dependencies":{"react":"17.0.0"}}' },
+      ],
     ];
     for (const [name, args] of calls) {
       const payload = (await call(name, args)) as { truncated?: boolean; hint?: string };

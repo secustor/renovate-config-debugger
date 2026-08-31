@@ -1,64 +1,18 @@
-import {
-  EXTRACTABLE_MANAGERS,
-  type ExtractOutcome,
-  extractDeps,
-  matchManagersForFile,
-  type PackageDependency,
-} from "@renovate-config-debugger/engine";
+import type { ExtractOutcome, PackageDependency } from "@renovate-config-debugger/engine";
 import { outputFormat, stringOption } from "../args";
 import type { Command } from "../command";
 import { CliError, EXIT_ERROR, EXIT_OK } from "../io";
 import { emitJson, emitLines } from "../output";
+import { anySucceeded, askExtraction, type ExtractReport } from "../questions/extract";
 import { readTextFile } from "../run-input";
 
 /**
  * Roadmap 078's CLI half: "what would Renovate extract from this file?",
- * headless. Mirrors 087's engine surface exactly — `matchManagersForFile` for
- * filename detection, `extractDeps` per matched manager — so this command adds
- * no logic of its own beyond running one over the other and reporting both.
- *
- * Several managers can legitimately claim one filename (`pyproject.toml` is
- * pep621's, pixi's and poetry's): with no `--manager`, every EXTRACTABLE match
- * runs and gets its own section. `--manager` forces one — the only door for a
- * pattern-less manager (empty `managerFilePatterns`), and how to pick among
- * several claimants.
+ * headless. The extraction itself — manager matching, the multi-claimant
+ * fan-out, the `--manager` door — lives in `questions/extract`, shared with
+ * the MCP server's `extract_deps`; this command only reads the file and
+ * renders the report.
  */
-
-interface ExtractReport {
-  fileName: string;
-  /** Every manager whose file patterns matched, extractable or not. */
-  matchedManagers: string[];
-  requestedManager?: string;
-  results: ExtractOutcome[];
-}
-
-async function runExtraction(
-  fileName: string,
-  content: string,
-  manager?: string,
-): Promise<ExtractReport> {
-  const matchedManagers = matchManagersForFile(fileName);
-  if (manager) {
-    return {
-      fileName,
-      matchedManagers,
-      requestedManager: manager,
-      results: [await extractDeps({ fileName, content, manager })],
-    };
-  }
-  const extractable = matchedManagers.filter((m) => EXTRACTABLE_MANAGERS.includes(m));
-  if (extractable.length === 0) {
-    // Either nothing matched (`no-manager`) or everything that did is
-    // unmapped (`unsupported-manager`) — one call with no override reports
-    // exactly which, in the engine's own words.
-    return { fileName, matchedManagers, results: [await extractDeps({ fileName, content })] };
-  }
-  const results: ExtractOutcome[] = [];
-  for (const candidate of extractable) {
-    results.push(await extractDeps({ fileName, content, manager: candidate }));
-  }
-  return { fileName, matchedManagers, results };
-}
 
 function depLine(dep: PackageDependency, fileDatasource: string | undefined): string {
   const name = dep.depName ?? dep.packageName ?? "(unnamed)";
@@ -92,11 +46,6 @@ function reportLines(report: ExtractReport): string[] {
   ]);
 }
 
-/** Whether at least one section actually produced dependencies. */
-function anySucceeded(report: ExtractReport): boolean {
-  return report.results.some((outcome) => outcome.ok);
-}
-
 export const extractCommand: Command = {
   name: "extract",
   summary: "which dependencies would Renovate extract from this file?",
@@ -124,7 +73,7 @@ export const extractCommand: Command = {
     }
     const content = await readTextFile(file, "file");
     const manager = stringOption(args, "manager");
-    const report = await runExtraction(file, content, manager);
+    const report = await askExtraction({ fileName: file, content, manager });
     const ok = anySucceeded(report);
 
     if (format === "json") {
