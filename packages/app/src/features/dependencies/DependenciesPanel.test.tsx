@@ -1,5 +1,5 @@
-import { cleanup, fireEvent, render } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { DependenciesPanel } from "./DependenciesPanel";
 import { CONNECT_OFFER as CONNECT, EMPTY_VIEW as EMPTY, repoDep } from "@tools/test/repo-deps";
 import type { RepoDepsView } from "@/types/repo";
@@ -11,9 +11,6 @@ import type { RepoDepsView } from "@/types/repo";
  * fact about the repository rather than an empty list, and what the table says
  * once discovery reports.
  */
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
 
 const DEP = repoDep("react", "package.json", "npm", {
   value: "^17.0.0",

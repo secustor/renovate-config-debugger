@@ -1,5 +1,5 @@
-import { cleanup, fireEvent, render, type RenderResult } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, type RenderResult } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { ExtractPhase } from "./ExtractPhase";
 import { type ExtractNodeId, extractNodes } from "./extract-phase";
 import {
@@ -19,9 +19,6 @@ import type { RepoDepsView } from "@/types/repo";
  * `extract-phase.test.ts`; the sentences are read from that derivation here
  * rather than restated, so a wording change lands in one file.
  */
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
 
 const READY: RepoDepsView = readyView([
   dep("react", "package.json", "npm"),

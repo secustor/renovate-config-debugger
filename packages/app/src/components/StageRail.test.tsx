@@ -1,5 +1,7 @@
-import { act, cleanup, render } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+// jsdom has no `matchMedia`, and `prefersReducedMotion` calls it on mount.
+import { stubMatchMedia } from "@tools/test/jsdom-stubs";
 import { StageRailPreview } from "./StageRail";
 
 /**
@@ -13,22 +15,6 @@ import { StageRailPreview } from "./StageRail";
  * the inputs do state, an absent layer (076 review) — and it may never keep
  * a timer alive past the landing it belongs to.
  */
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
-
-/** jsdom has no `matchMedia`, and `prefersReducedMotion` calls it on mount. */
-function stubMatchMedia(reduced: boolean) {
-  window.matchMedia = (query: string) =>
-    ({
-      matches: reduced,
-      media: query,
-      onchange: null,
-      addEventListener: () => undefined,
-      removeEventListener: () => undefined,
-      dispatchEvent: () => false,
-    }) as unknown as MediaQueryList;
-}
 
 /** The interval's period — see `RUNNING_STEP_MS` in StageRail.tsx. */
 const STEP_MS = 160;

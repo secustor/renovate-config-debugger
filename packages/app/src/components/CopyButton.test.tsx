@@ -1,5 +1,5 @@
-import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { CopyButton } from "./CopyButton";
 
 /**
@@ -16,10 +16,6 @@ function stubClipboard(writeText: (text: string) => Promise<void>): void {
     value: { writeText },
   });
 }
-
-// vitest runs without `globals`, so RTL's automatic per-test cleanup never
-// registers itself — without this the previous test's buttons stay mounted.
-afterEach(cleanup);
 
 describe("CopyButton", () => {
   it("copies lazily, flips to Copied, and reverts after 1.5s", async () => {

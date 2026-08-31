@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { cleanup, fireEvent, render, type RenderResult } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { fireEvent, render, type RenderResult } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import { MultiValueInput } from "./MultiValueInput";
 
 /**
@@ -13,9 +13,6 @@ import { MultiValueInput } from "./MultiValueInput";
  * the event is claimed, what reaches the committed list, and what the draft is
  * left holding.
  */
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
 
 function Harness({ initial = "" }: { initial?: string }) {
   const [value, setValue] = useState(initial);

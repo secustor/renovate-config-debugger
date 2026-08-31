@@ -35,6 +35,27 @@ export function must<T>(value: T | null | undefined, what: string): T {
   return value;
 }
 
+/** The WCAG 2.1 per-channel linearization an 8-bit sRGB value goes through. */
+function channel(v: number): number {
+  const s = v / 255;
+  return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+}
+
+/**
+ * WCAG 2.1 relative luminance of an `rgb()`/`rgba()` string — "is this surface
+ * light or dark?", and the input to a contrast ratio, asked without pinning a
+ * palette's exact hex. Two specs had their own copy under different names,
+ * which is the drift this file exists to prevent.
+ */
+export function luminance(css: string): number {
+  const [r = 0, g = 0, b = 0] = css
+    .replace(/^rgba?\(|\)$/g, "")
+    .split(/[\s,/]+/)
+    .slice(0, 3)
+    .map(Number);
+  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+}
+
 /**
  * The Run button, wherever the shell puts it (label toggles Run ↔ Running…).
  *

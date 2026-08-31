@@ -1,6 +1,6 @@
 import type { ProvenanceLayer } from "@renovate-config-debugger/engine";
 import { cleanup, fireEvent, render } from "@testing-library/react";
-import { afterEach, expect, test, vi } from "vitest";
+import { expect, test, vi } from "vitest";
 import { LayerSource } from "./LayerSource";
 
 /**
@@ -15,8 +15,6 @@ import { LayerSource } from "./LayerSource";
  * callback existing, and the cascade step's wrapper-less shape stays
  * wrapper-less.
  */
-
-afterEach(cleanup);
 
 const REPO: ProvenanceLayer = { kind: "repo" };
 const PRESET: ProvenanceLayer = { kind: "preset", nodeId: "n1", name: "config:recommended" };

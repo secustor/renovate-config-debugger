@@ -1,5 +1,5 @@
-import { cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { render } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import { PinHeadRow } from "./PinHeadRow";
 
 /**
@@ -8,9 +8,6 @@ import { PinHeadRow } from "./PinHeadRow";
  * where the invitation to replace it lives — a pin nobody made, wearing
  * nothing, would read as a test the reader forgot writing.
  */
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
 
 describe("PinHeadRow", () => {
   it("marks a starter, and says what it is for", () => {

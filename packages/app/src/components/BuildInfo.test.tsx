@@ -1,5 +1,5 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import type * as BuildInfoModule from "@/lib/build-info";
 import { AboutBuildButton, BuildStamp, BuildVerifyLine } from "./BuildInfo";
 
@@ -21,9 +21,6 @@ vi.mock("@/lib/build-info", async (importOriginal) => {
   const original = await importOriginal<typeof BuildInfoModule>();
   return { ...original, BUILD_INFO: IDENTITY };
 });
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
 
 function openPanel(trigger: HTMLElement): HTMLElement {
   fireEvent.click(trigger);

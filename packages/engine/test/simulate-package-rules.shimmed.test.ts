@@ -10,7 +10,7 @@ import { applyPackageRules } from "renovate/dist/util/package-rules/index.js";
 import { describe, expect, it } from "vitest";
 import type { DependencyDescriptor } from "../src/index";
 import { simulatePackageRules } from "../src/index";
-import { oracleFlatten } from "./helpers";
+import { npmDep, oracleFlatten, oracleInput } from "./helpers";
 
 /** Strip a raw config to the display config exactly as the simulator does. */
 function toDisplay(
@@ -26,26 +26,6 @@ function toDisplay(
     }
   }
   return out;
-}
-
-const npmDep: DependencyDescriptor = {
-  manager: "npm",
-  datasource: "npm",
-  packageName: "lodash",
-  depType: "dependencies",
-  packageFile: "package.json",
-  currentValue: "4.17.20",
-  newValue: "4.17.21",
-  updateType: "patch",
-  versioning: "semver",
-};
-
-/** The PackageRuleInputConfig the way the simulator builds it, for the oracle. */
-function oracleInput(
-  config: Record<string, unknown>,
-  dep: DependencyDescriptor,
-): Record<string, unknown> {
-  return { ...config, ...dep, depName: dep.depName ?? dep.packageName };
 }
 
 describe("simulatePackageRules", () => {

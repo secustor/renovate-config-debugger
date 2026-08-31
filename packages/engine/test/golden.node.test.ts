@@ -4,8 +4,6 @@
  * matches it, and writes the file snapshots the "shimmed" project must
  * reproduce byte-for-byte.
  */
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { runPipeline } from "../src/index";
 import {
@@ -18,10 +16,7 @@ import {
   parseFileConfig,
   resolveConfigPresets,
 } from "../src/renovate-adapter";
-
-function fixture(name: string): string {
-  return readFileSync(join(import.meta.dirname, "fixtures", name), "utf8");
-}
+import { PIPELINE_CASES, pipelineFixture as fixture, pipelineSnapshotPath } from "./pipeline-cases";
 
 /** Renovate's own processing sequence, written independently of pipeline.ts. */
 async function reference(fileName: string, content: string): Promise<Record<string, unknown>> {
@@ -50,20 +45,14 @@ async function reference(fileName: string, content: string): Promise<Record<stri
 }
 
 describe("golden reference", () => {
-  for (const name of [
-    "legacy-config.json",
-    "migration-steps.json",
-    "internal-presets.json",
-    "preset-package-rules.json",
-    "invalid.json",
-  ]) {
+  for (const name of PIPELINE_CASES) {
     it(`engine matches renovate's own output for ${name}`, async () => {
       const content = fixture(name);
       const expected = await reference(name, content);
       const result = await runPipeline({ fileName: name, content });
       expect(result.finalConfig).toEqual(expected);
       await expect(JSON.stringify(result.finalConfig, null, 2)).toMatchFileSnapshot(
-        `__snapshots__/${name}.final.json`,
+        pipelineSnapshotPath(name),
       );
     });
   }

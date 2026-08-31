@@ -1,6 +1,6 @@
-import { act, cleanup, render } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import { useEffect } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { EMPTY_FORM } from "@/features/simulator/form";
 import { type PinnedRun, usePinnedRun } from "./use-pinned-run";
 import type { FormState } from "@/types/simulator";
@@ -10,9 +10,6 @@ import type { FormState } from "@/types/simulator";
  * and never over a reader who has touched the list — what counts as a touch IS
  * the behaviour, so the ledger of touches is tested as one.
  */
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
 
 /** The hook's API, hoisted out of the render so a test can drive it. */
 let held: PinnedRun | null = null;

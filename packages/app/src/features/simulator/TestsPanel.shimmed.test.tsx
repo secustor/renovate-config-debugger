@@ -11,35 +11,21 @@
  */
 import { useState } from "react";
 import { presetInjectionKey, runPipeline } from "@renovate-config-debugger/engine";
-import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
-import { afterEach, beforeAll, expect, it, vi } from "vitest";
+import { fireEvent, render, waitFor, within } from "@testing-library/react";
+import { beforeAll, expect, it, vi } from "vitest";
 import type { SimRequest } from "@/hooks/use-share-link";
+import { stubMatchMedia, stubResizeObserver, stubScrollApis } from "@tools/test/jsdom-stubs";
 import { walkFile } from "@tools/test/repo-deps";
 import { EMPTY_REPO_DEPS } from "./repo-deps";
 import { TestsPanel } from "./TestsPanel";
 import type { FormState, PinnedTest } from "@/types/simulator";
 import type { RepoConnectOffer, RepoDep, RepoDepsView } from "@/types/repo";
 
-afterEach(cleanup);
-
 beforeAll(() => {
-  window.ResizeObserver = class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  };
-  Element.prototype.scrollIntoView = () => undefined;
-  window.scrollTo = () => undefined;
+  stubResizeObserver();
+  stubScrollApis();
   // jsdom has no `matchMedia`, and the card's scroll asks `prefersReducedMotion`.
-  window.matchMedia = (query: string) =>
-    ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addEventListener: () => undefined,
-      removeEventListener: () => undefined,
-      dispatchEvent: () => false,
-    }) as unknown as MediaQueryList;
+  stubMatchMedia();
 });
 
 const CONFIG = {

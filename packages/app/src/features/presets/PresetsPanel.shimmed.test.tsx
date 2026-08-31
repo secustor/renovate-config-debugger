@@ -9,19 +9,14 @@
  * synthetic tree would prove the wiring and not the view.
  */
 import { runPipeline } from "@renovate-config-debugger/engine";
-import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
-import { afterEach, beforeAll, expect, it, vi } from "vitest";
+import { fireEvent, render, waitFor, within } from "@testing-library/react";
+import { beforeAll, expect, it, vi } from "vitest";
+import { stubResizeObserver } from "@tools/test/jsdom-stubs";
 import { PresetsPanel } from "./PresetsPanel";
-
-afterEach(cleanup);
 
 beforeAll(() => {
   // jsdom lacks the one API the tree's windowing observes.
-  window.ResizeObserver = class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  };
+  stubResizeObserver();
 });
 
 const CONFIG = { extends: [":dependencyDashboard"] };

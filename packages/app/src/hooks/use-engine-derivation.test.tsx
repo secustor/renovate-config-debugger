@@ -1,6 +1,6 @@
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import { useEffect } from "react";
-import { afterEach, expect, it, vi } from "vitest";
+import { expect, it, vi } from "vitest";
 import { useEngineDerivation } from "./use-engine-derivation";
 
 /**
@@ -12,8 +12,6 @@ import { useEngineDerivation } from "./use-engine-derivation";
  * and it keeps the renovate module graph out of this file.
  */
 vi.mock("@renovate-config-debugger/engine", () => ({}));
-
-afterEach(cleanup);
 
 type State = string | null | undefined;
 

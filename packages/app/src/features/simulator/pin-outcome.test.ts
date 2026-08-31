@@ -14,9 +14,9 @@ import type {
   ProvenanceLayer,
   RuleAttribution,
   RuleEvaluation,
-  SimulationResult,
 } from "@renovate-config-debugger/engine";
 import { describe, expect, test } from "vitest";
+import { clauseEval, ruleEval as rule, simResult } from "@tools/test/simulation";
 import { buildPinOutcome, dotTitle, dotTone, headSummary, pinCheck } from "./pin-outcome";
 
 function clause(
@@ -25,15 +25,7 @@ function clause(
   value: unknown = ["x"],
   inputValues: Record<string, unknown> = {},
 ): ClauseEvaluation {
-  return { key, value, state, inputValues, readFields: ["sourceUrl"] };
-}
-
-function rule(
-  index: number,
-  verdict: RuleEvaluation["verdict"],
-  clauses: ClauseEvaluation[] = [],
-): RuleEvaluation {
-  return { index, verdict, clauses, notes: [] };
+  return clauseEval(state, { key, value, inputValues });
 }
 
 function simulation(
@@ -41,19 +33,13 @@ function simulation(
   finalDependencyConfig: Record<string, unknown> = {},
   updateType = "minor",
   mergeSteps: MergeStep[] = [],
-): SimulationResult {
-  return {
+) {
+  return simResult({
     rules,
-    missingInputs: { rules: 0, groups: [] },
-    evaluationErrors: { rules: 0, selectors: [], messages: [], sampleRuleIndexes: [] },
-    rawFinalConfig: {},
     finalDependencyConfig,
     flattened: { updateType, merged: [], blocks: {}, authoredBlocks: [] },
     mergeSteps,
-    errors: [],
-    warnings: [],
-    notes: [],
-  };
+  });
 }
 
 const REPO: ProvenanceLayer = { kind: "repo" };

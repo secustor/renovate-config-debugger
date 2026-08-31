@@ -4,7 +4,6 @@ import type {
   DescriptionProvenance,
   DroppedDescription,
   KeyProvenance,
-  ProvenanceLayer,
   UnattributedDescription,
 } from "@renovate-config-debugger/engine";
 import {
@@ -28,6 +27,13 @@ import {
 } from "./description-ledger";
 import { provEntry } from "@tools/test/key-provenance";
 import { COLLAPSE_AFTER } from "@/lib/collapse";
+import {
+  descriptionEntries as entries,
+  type DescriptionEntrySpec as EntrySpec,
+  descriptionProvenance as provenance,
+  presetLayer as preset,
+  REPO_LAYER as REPO,
+} from "@tools/test/description-provenance";
 
 /**
  * Roadmap 069 (PR 3): the blame ledger's view-model — the run grouping, the
@@ -36,64 +42,9 @@ import { COLLAPSE_AFTER } from "@/lib/collapse";
  * against the real 1,088-preset tree); nothing here needs the pipeline.
  */
 
-const REPO: ProvenanceLayer = { kind: "repo" };
-
-function preset(nodeId: string, name = nodeId): ProvenanceLayer {
-  return { kind: "preset", nodeId, name };
-}
-
 const BEST_PRACTICES = preset("n1", "config:best-practices");
 const DASHBOARD = preset("n2", ":dependencyDashboard");
 const MONOREPOS = preset("n3", "group:monorepos");
-
-interface EntrySpec {
-  value: string;
-  via: ProvenanceLayer;
-  /** The writing node's id; its name defaults to the id unless `nodeName`
-   *  says otherwise (which matters wherever the id is compared to a layer's). */
-  node?: string;
-  nodeName?: string;
-  approximate?: boolean;
-}
-
-/** Builds `entries` with the indices and duplicate markers the engine assigns.
- *  `startAt` shifts the first index, for the arrays whose earlier positions are
- *  held by non-string members. */
-function entries(specs: EntrySpec[], startAt = 0): DescriptionAttribution[] {
-  const firstByValue = new Map<string, number>();
-  return specs.map((spec, offset) => {
-    const index = startAt + offset;
-    const duplicateOfIndex = firstByValue.get(spec.value);
-    if (duplicateOfIndex === undefined) {
-      firstByValue.set(spec.value, index);
-    }
-    return {
-      index,
-      value: spec.value,
-      viaTopLevel: spec.via,
-      ...(spec.node ? { node: { nodeId: spec.node, name: spec.nodeName ?? spec.node } } : {}),
-      ...(duplicateOfIndex === undefined ? {} : { duplicateOfIndex }),
-      ...(spec.approximate ? { approximate: true } : {}),
-    };
-  });
-}
-
-function provenance(overrides: Partial<DescriptionProvenance> = {}): DescriptionProvenance {
-  const merged: DescriptionProvenance = {
-    entries: [],
-    unattributed: [],
-    finalLength: 0,
-    dropped: [],
-    ruleDescriptions: [],
-    degraded: false,
-    ...overrides,
-  };
-  // The engine's own invariant (069 PR 1), so no test can build a provenance
-  // that could not have come out of a run.
-  return overrides.finalLength === undefined
-    ? { ...merged, finalLength: merged.entries.length + merged.unattributed.length }
-    : merged;
-}
 
 // Throws rather than assert-and-narrow: the failure names what WAS there, and
 // the file stays free of the non-null assertions the lint config bans.

@@ -8,19 +8,7 @@ import { applyPackageRules } from "renovate/dist/util/package-rules/index.js";
 import { describe, expect, it } from "vitest";
 import type { DependencyDescriptor } from "../src/index";
 import { runPipeline, simulatePackageRules } from "../src/index";
-import { must, oracleFlatten } from "./helpers";
-
-const npmDep: DependencyDescriptor = {
-  manager: "npm",
-  datasource: "npm",
-  packageName: "lodash",
-  depType: "dependencies",
-  packageFile: "package.json",
-  currentValue: "4.17.20",
-  newValue: "4.17.21",
-  updateType: "patch",
-  versioning: "semver",
-};
+import { must, npmDep, oracleFlatten, oracleInput } from "./helpers";
 
 describe("simulatePackageRules (golden)", () => {
   it("matches Renovate's real applyPackageRules output (oracle parity)", async () => {
@@ -42,11 +30,7 @@ describe("simulatePackageRules (golden)", () => {
       currentVersionTimestamp: "2020-01-01T00:00:00.000Z",
     };
     const simulated = await simulatePackageRules({ config, dep });
-    const oracle = await applyPackageRules({
-      ...config,
-      ...dep,
-      depName: dep.depName ?? dep.packageName,
-    });
+    const oracle = await applyPackageRules(oracleInput(config, dep));
     expect(simulated.rawFinalConfig).toEqual(oracle);
     expect(oracle.groupSlug).toBe("my-npm-packages");
     expect(oracle.datasource).toBe("github-tags");
@@ -102,11 +86,7 @@ describe("simulatePackageRules (golden)", () => {
       [{ ...npmDep, sourceUrl: "https://github.com/react/react" }, mismatch],
       [npmDep, missing],
     ] as const) {
-      const oracle = await applyPackageRules({
-        ...config,
-        ...dep,
-        depName: dep.depName ?? dep.packageName,
-      });
+      const oracle = await applyPackageRules(oracleInput(config, dep));
       expect(sim.rawFinalConfig).toEqual(oracle);
     }
   });

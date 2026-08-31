@@ -1,6 +1,6 @@
 import type { PresetNode } from "@renovate-config-debugger/engine";
-import { cleanup, fireEvent, render, within } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
+import { fireEvent, render, within } from "@testing-library/react";
+import { expect, it, vi } from "vitest";
 import { PresetLedger } from "./PresetLedger";
 import { presetNode as node, presetRoot as root } from "@tools/test/preset-nodes";
 
@@ -12,8 +12,6 @@ import { presetNode as node, presetRoot as root } from "@tools/test/preset-nodes
  * shut, the rows appear on the caret, and the 009 auth hint is on the header
  * line rather than buried in the expansion.
  */
-
-afterEach(cleanup);
 
 function ledger(tree: PresetNode, onOpenNode = vi.fn()) {
   return {

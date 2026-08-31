@@ -5,6 +5,7 @@
  * `renovate/dist`, and the lint fence confines that to two files under `src/`.
  */
 import { mergeChildConfig } from "renovate/dist/config/utils.js";
+import type { DependencyDescriptor, ExtractOutcome } from "../src/index";
 import { UPDATE_TYPE_KEYS } from "../src/index";
 
 /**
@@ -18,6 +19,41 @@ export function must<T>(value: T | null | undefined, what: string): T {
     throw new Error(`Expected ${what}, got ${value === null ? "null" : "undefined"}`);
   }
   return value;
+}
+
+/**
+ * The same narrowing for an extraction: both twins ask for `outcome.file`
+ * immediately, and a failure should name the reason rather than fail on the
+ * next property read. Six copies of the same three-line guard used to.
+ */
+export function mustExtract(outcome: ExtractOutcome): Extract<ExtractOutcome, { ok: true }> {
+  if (!outcome.ok) {
+    throw new Error(`expected extraction to succeed: ${outcome.message}`);
+  }
+  return outcome;
+}
+
+/** The dependency both simulate twins run their oracle parity against: an npm
+ *  patch update, every descriptor field set. */
+export const npmDep: DependencyDescriptor = {
+  manager: "npm",
+  datasource: "npm",
+  packageName: "lodash",
+  depType: "dependencies",
+  packageFile: "package.json",
+  currentValue: "4.17.20",
+  newValue: "4.17.21",
+  updateType: "patch",
+  versioning: "semver",
+};
+
+/** The `PackageRuleInputConfig` the way the simulator builds it, for the
+ *  oracle — upstream's `applyPackageRules` takes one flat bag. */
+export function oracleInput(
+  config: Record<string, unknown>,
+  dep: DependencyDescriptor,
+): Record<string, unknown> {
+  return { ...config, ...dep, depName: dep.depName ?? dep.packageName };
 }
 
 /**

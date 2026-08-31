@@ -1,10 +1,8 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { describe, expect, test } from "vitest";
 import {
   COOKIE_SESSION_KEY,
+  installOAuthHarness,
   jsonResponse,
-  makeWorkerFetch,
-  memoryStorage,
-  type StorageLike,
   WORKER_URL,
 } from "@tools/test/oauth-test-harness";
 
@@ -22,49 +20,16 @@ import {
  * test must not read as "already signed in" in the next.
  */
 
-const g = globalThis as { localStorage?: StorageLike; sessionStorage?: StorageLike };
-let local = memoryStorage();
-let session = memoryStorage();
-
-/** What `POST /refresh` answers; the rest of the Worker/GitHub surface is
- *  fixed in the shared harness. */
-let refreshResponse: () => Response = () => jsonResponse({});
-const baseFetch = makeWorkerFetch(() => refreshResponse());
-
-const fetchMock = vi.fn(baseFetch);
-
-function fetchCalls(path: string) {
-  return fetchMock.mock.calls.filter(([input]) => String(input) === path);
-}
-
-/** A fresh module instance, with the same env in force as a deployment that
- *  has sign-in configured (all three vars stubbed — vitest would otherwise
- *  leak a developer's gitignored `.env`, exactly as oauth.config.test.ts
- *  documents). */
-async function freshOAuth() {
-  vi.resetModules();
-  return import("./oauth");
-}
-
-beforeEach(() => {
-  local = memoryStorage();
-  g.localStorage = local;
-  session = memoryStorage();
-  g.sessionStorage = session;
-  vi.stubEnv("VITE_GITHUB_CLIENT_ID", "client");
-  vi.stubEnv("VITE_OAUTH_WORKER_URL", WORKER_URL);
-  vi.stubEnv("VITE_GITHUB_APP_SLUG", undefined);
-  vi.stubGlobal("fetch", fetchMock);
-  fetchMock.mockReset();
-  fetchMock.mockImplementation(baseFetch);
-});
-
-afterEach(() => {
-  delete g.localStorage;
-  delete g.sessionStorage;
-  vi.unstubAllEnvs();
-  vi.unstubAllGlobals();
-});
+const {
+  local,
+  session,
+  fetchMock,
+  baseFetch,
+  fetchCalls,
+  freshOAuth,
+  refreshResponse,
+  setRefreshResponse,
+} = installOAuthHarness();
 
 describe("restoreSession", () => {
   test("no marker: answers null without a round trip", async () => {
@@ -91,13 +56,14 @@ describe("restoreSession", () => {
 
   test("a live marker restores through the cookie: empty body, credentials, new horizon", async () => {
     local.map.set(COOKIE_SESSION_KEY, String(Date.now() + 60_000));
-    refreshResponse = () =>
+    setRefreshResponse(() =>
       jsonResponse({
         access_token: "gho_restored",
         expires_in: 28_800,
         refresh_token_cookie: true,
         refresh_token_expires_in: 15_552_000,
-      });
+      }),
+    );
     const { restoreSession, isSignedIn } = await freshOAuth();
     const user = await restoreSession();
 
@@ -115,8 +81,9 @@ describe("restoreSession", () => {
 
   test("concurrent restores share ONE /refresh (StrictMode + GitHub's rotation)", async () => {
     local.map.set(COOKIE_SESSION_KEY, String(Date.now() + 60_000));
-    refreshResponse = () =>
-      jsonResponse({ access_token: "gho_restored", refresh_token_cookie: true });
+    setRefreshResponse(() =>
+      jsonResponse({ access_token: "gho_restored", refresh_token_cookie: true }),
+    );
     const { restoreSession } = await freshOAuth();
     // The second call is the StrictMode remount: it must JOIN the first, not
     // post a cookie the first one already burned.
@@ -128,7 +95,7 @@ describe("restoreSession", () => {
 
   test("a rejected cookie drops the marker and stays signed out", async () => {
     local.map.set(COOKIE_SESSION_KEY, String(Date.now() + 60_000));
-    refreshResponse = () => jsonResponse({ error: "bad_refresh_token" }, 400);
+    setRefreshResponse(() => jsonResponse({ error: "bad_refresh_token" }, 400));
     const { restoreSession, isSignedIn } = await freshOAuth();
 
     expect(await restoreSession()).toBeNull();
@@ -155,7 +122,7 @@ describe("restoreSession", () => {
 
   test("a Worker 5xx (GitHub unreachable) keeps the marker too", async () => {
     local.map.set(COOKIE_SESSION_KEY, String(Date.now() + 60_000));
-    refreshResponse = () => jsonResponse({ error: "github_unreachable" }, 502);
+    setRefreshResponse(() => jsonResponse({ error: "github_unreachable" }, 502));
     const { restoreSession } = await freshOAuth();
 
     expect(await restoreSession()).toBeNull();
@@ -164,8 +131,9 @@ describe("restoreSession", () => {
 
   test("a failed profile fetch still leaves the session signed in", async () => {
     local.map.set(COOKIE_SESSION_KEY, String(Date.now() + 60_000));
-    refreshResponse = () =>
-      jsonResponse({ access_token: "gho_restored", refresh_token_cookie: true });
+    setRefreshResponse(() =>
+      jsonResponse({ access_token: "gho_restored", refresh_token_cookie: true }),
+    );
     const { restoreSession, isSignedIn } = await freshOAuth();
     // The token round trip succeeds, the cosmetic profile fetch does not.
     fetchMock.mockImplementation((input: unknown) =>
@@ -191,7 +159,7 @@ describe("getValidToken (cookie-session refresh)", () => {
 
   test("a transient refresh failure answers null but keeps the session", async () => {
     seedExpiredCookieSession();
-    refreshResponse = () => jsonResponse({ error: "github_unreachable" }, 502);
+    setRefreshResponse(() => jsonResponse({ error: "github_unreachable" }, 502));
     const { getValidToken, isSignedIn } = await freshOAuth();
 
     expect(await getValidToken()).toBeNull();
@@ -205,7 +173,7 @@ describe("getValidToken (cookie-session refresh)", () => {
 
   test("a definitive rejection signs out: marker dropped, /logout fired", async () => {
     seedExpiredCookieSession();
-    refreshResponse = () => jsonResponse({ error: "bad_refresh_token" }, 400);
+    setRefreshResponse(() => jsonResponse({ error: "bad_refresh_token" }, 400));
     const { getValidToken, isSignedIn } = await freshOAuth();
 
     expect(await getValidToken()).toBeNull();

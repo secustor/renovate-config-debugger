@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { PhasePicker } from "./PhasePicker";
 import { EMPTY_VIEW as EMPTY, repoDep } from "@tools/test/repo-deps";
 
@@ -11,8 +11,6 @@ import { EMPTY_VIEW as EMPTY, repoDep } from "@tools/test/repo-deps";
  * (and cannot be selected), and a count appears only once the thing that
  * produces it has reported.
  */
-
-afterEach(cleanup);
 
 function renderPicker(
   over: Partial<Parameters<typeof PhasePicker>[0]> = {},

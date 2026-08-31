@@ -1,5 +1,5 @@
-import { cleanup, fireEvent, render } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { fireEvent, render } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import { type ToggleSet, useToggleSet } from "./use-toggle-set";
 
 /**
@@ -16,9 +16,6 @@ import { type ToggleSet, useToggleSet } from "./use-toggle-set";
  * the two components that call it during render rather than here: an effect
  * would flush after the commit and drop a click that landed in the gap.
  */
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
 
 /** One button per operation, plus the members as text. Every render appends the
  *  hook's return value, so a test can compare identities across renders. */

@@ -3,27 +3,16 @@
  * engine reproduces the golden snapshots (shims must not alter behavior) and
  * checks the trace shape the UI depends on.
  */
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { getOptionIndex, runPipeline } from "../src/index";
-
-function fixture(name: string): string {
-  return readFileSync(join(import.meta.dirname, "fixtures", name), "utf8");
-}
+import { PIPELINE_CASES, pipelineFixture as fixture, pipelineSnapshotPath } from "./pipeline-cases";
 
 describe("shimmed pipeline matches golden snapshots", () => {
-  for (const name of [
-    "legacy-config.json",
-    "migration-steps.json",
-    "internal-presets.json",
-    "preset-package-rules.json",
-    "invalid.json",
-  ]) {
+  for (const name of PIPELINE_CASES) {
     it(`produces the golden final config for ${name}`, async () => {
       const result = await runPipeline({ fileName: name, content: fixture(name) });
       await expect(JSON.stringify(result.finalConfig, null, 2)).toMatchFileSnapshot(
-        `__snapshots__/${name}.final.json`,
+        pipelineSnapshotPath(name),
       );
     });
   }

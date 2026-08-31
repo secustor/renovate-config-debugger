@@ -8,7 +8,7 @@
 import { describe, expect, it } from "vitest";
 import { EXTRACTABLE_MANAGERS, extractDeps } from "../src/index";
 import { EXTRACT_CASES, extractFixture, extractSnapshotPath } from "./extract-cases";
-import { must } from "./helpers";
+import { must, mustExtract } from "./helpers";
 
 describe("extractDeps (shimmed)", () => {
   it("covers every mapped manager with a fixture", () => {
@@ -19,14 +19,13 @@ describe("extractDeps (shimmed)", () => {
     it(`extracts ${c.fixture} with ${c.manager}, byte-identical to golden`, async () => {
       // Explicit manager, as in the golden twin: a case names the parser it
       // exercises; several managers can claim the same filename.
-      const outcome = await extractDeps({
-        fileName: c.fileName,
-        content: extractFixture(c.fixture),
-        manager: c.manager,
-      });
-      if (!outcome.ok) {
-        throw new Error(`expected extraction to succeed: ${outcome.message}`);
-      }
+      const outcome = mustExtract(
+        await extractDeps({
+          fileName: c.fileName,
+          content: extractFixture(c.fixture),
+          manager: c.manager,
+        }),
+      );
       await expect(JSON.stringify(outcome.file, null, 2)).toMatchFileSnapshot(
         extractSnapshotPath(c.manager),
       );
@@ -34,14 +33,13 @@ describe("extractDeps (shimmed)", () => {
   }
 
   it("round-trips support files through the in-memory fs store", async () => {
-    const outcome = await extractDeps({
-      fileName: "Cargo.toml",
-      content: extractFixture("Cargo.toml"),
-      supportFiles: [{ fileName: "Cargo.lock", content: extractFixture("Cargo.lock") }],
-    });
-    if (!outcome.ok) {
-      throw new Error(`expected extraction to succeed: ${outcome.message}`);
-    }
+    const outcome = mustExtract(
+      await extractDeps({
+        fileName: "Cargo.toml",
+        content: extractFixture("Cargo.toml"),
+        supportFiles: [{ fileName: "Cargo.lock", content: extractFixture("Cargo.lock") }],
+      }),
+    );
     const serde = must(
       outcome.file.deps.find((dep) => dep.depName === "serde"),
       "a serde dep",
@@ -53,14 +51,13 @@ describe("extractDeps (shimmed)", () => {
     // github-actions memoizes its lockfile read under a fixed memory-cache
     // key; an UNPARSEABLE lock marks every action dep digestManagedExternally.
     // The path is upstream's fixed `actionsLockFile`, not a workflow sibling.
-    const withLock = await extractDeps({
-      fileName: ".github/workflows/ci.yml",
-      content: extractFixture("ci.yml"),
-      supportFiles: [{ fileName: ".github/workflows/actions.lock", content: "not json" }],
-    });
-    if (!withLock.ok) {
-      throw new Error(`expected extraction to succeed: ${withLock.message}`);
-    }
+    const withLock = mustExtract(
+      await extractDeps({
+        fileName: ".github/workflows/ci.yml",
+        content: extractFixture("ci.yml"),
+        supportFiles: [{ fileName: ".github/workflows/actions.lock", content: "not json" }],
+      }),
+    );
     const flagged = withLock.file.deps.filter(
       (dep) => (dep as { digestManagedExternally?: boolean }).digestManagedExternally,
     );
@@ -68,13 +65,12 @@ describe("extractDeps (shimmed)", () => {
 
     // Without the support file the flag must be gone — a stale memoized
     // lockfile promise (or a stale store) would keep it.
-    const withoutLock = await extractDeps({
-      fileName: ".github/workflows/ci.yml",
-      content: extractFixture("ci.yml"),
-    });
-    if (!withoutLock.ok) {
-      throw new Error(`expected extraction to succeed: ${withoutLock.message}`);
-    }
+    const withoutLock = mustExtract(
+      await extractDeps({
+        fileName: ".github/workflows/ci.yml",
+        content: extractFixture("ci.yml"),
+      }),
+    );
     for (const dep of withoutLock.file.deps) {
       expect(
         (dep as { digestManagedExternally?: boolean }).digestManagedExternally,

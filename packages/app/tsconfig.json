@@ -12,5 +12,11 @@
       "@renovate-config-debugger/engine": ["../engine/src/index.ts"]
     }
   },
-  "include": ["src", "vite.config.ts", "vitest.config.ts", "../engine/src/types/renovate-dist.d.ts"]
+  "include": [
+    "src",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "vitest.setup.ts",
+    "../engine/src/types/renovate-dist.d.ts"
+  ]
 }

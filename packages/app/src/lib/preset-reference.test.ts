@@ -1,5 +1,6 @@
 import type { PresetNode } from "@renovate-config-debugger/engine";
 import { describe, expect, it } from "vitest";
+import { presetNodeById as node } from "@tools/test/preset-nodes";
 import { presetReferenceFacts } from "./preset-reference";
 import { computeTreeStats, ROOT_NODE_ID } from "./preset-tree-stats";
 
@@ -9,10 +10,6 @@ import { computeTreeStats, ROOT_NODE_ID } from "./preset-tree-stats";
  * itself is a rendering of exactly this (`PresetName.test.tsx` pins that it
  * reaches the DOM); everything that could be wrong about the FACTS is here.
  */
-
-function node(id: string, name: string, children: PresetNode[] = []): PresetNode {
-  return { id, name, state: "resolved", children };
-}
 
 /**
  * root

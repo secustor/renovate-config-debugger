@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { ShortcutSheet } from "./ShortcutSheet";
 
@@ -10,9 +10,6 @@ import { ShortcutSheet } from "./ShortcutSheet";
  * sheet restores. Nothing here knows about the session menu — it is rebuilt as
  * plain markup, because the fallback is about DOM shape, not about that menu.
  */
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
 
 // jsdom 30 ships `<dialog>` without its modal methods, so the sheet's own
 // `showModal()` throws there — a jsdom limitation, not app behavior. Stubbing

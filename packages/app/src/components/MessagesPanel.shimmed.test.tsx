@@ -12,12 +12,10 @@ import {
   runPipeline,
   translateMessage,
 } from "@renovate-config-debugger/engine";
-import { cleanup, fireEvent, render, within } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
+import { fireEvent, render, within } from "@testing-library/react";
+import { expect, it, vi } from "vitest";
 import type { ErrorTranslationLib } from "@/platform/run";
 import { MessagesPanel } from "./MessagesPanel";
-
-afterEach(cleanup);
 
 /** The real 014 library — the same three functions `loadErrorTranslationLib`
  *  hands the app once the engine chunk lands. */

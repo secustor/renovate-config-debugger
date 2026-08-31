@@ -2,6 +2,10 @@ import { fileURLToPath } from "node:url";
 import { renovateShims } from "@renovate-config-debugger/engine/vite-plugin";
 import { defineConfig } from "vitest/config";
 
+/** Registers RTL's per-test cleanup for the two jsdom projects — vitest runs
+ *  without `globals`, so it never registers itself (see the file's own note). */
+const RTL_CLEANUP = fileURLToPath(new URL("./vitest.setup.ts", import.meta.url));
+
 const srcAlias = {
   "@": fileURLToPath(new URL("./src", import.meta.url)),
   // test-only scaffolding lives outside the package so it can't ship
@@ -47,6 +51,7 @@ export default defineConfig({
           include: ["src/**/*.test.tsx"],
           exclude: ["src/**/*.shimmed.test.tsx"],
           environment: "jsdom",
+          setupFiles: [RTL_CLEANUP],
         },
       },
       {
@@ -56,6 +61,7 @@ export default defineConfig({
           name: "shimmed",
           include: ["src/**/*.shimmed.test.tsx"],
           environment: "jsdom",
+          setupFiles: [RTL_CLEANUP],
           testTimeout: 240_000,
           hookTimeout: 240_000,
           server: {

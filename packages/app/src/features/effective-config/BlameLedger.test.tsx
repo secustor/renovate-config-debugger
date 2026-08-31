@@ -1,6 +1,6 @@
 import type { DescriptionProvenance, ProvenanceLayer } from "@renovate-config-debugger/engine";
-import { cleanup, fireEvent, render, within } from "@testing-library/react";
-import { afterEach, expect, test } from "vitest";
+import { fireEvent, render, within } from "@testing-library/react";
+import { expect, test } from "vitest";
 import { buildDescriptionLedger, type DescriptionLedger } from "./description-ledger";
 import { BlameLedger } from "./BlameLedger";
 
@@ -13,8 +13,6 @@ import { BlameLedger } from "./BlameLedger";
  * is that the `≈` reaches the rows that need it — the ones a real run produces
  * only by degrading, which no fixture config can be relied on to do.
  */
-
-afterEach(cleanup);
 
 const DASHBOARD: ProvenanceLayer = { kind: "preset", nodeId: "p1", name: ":dependencyDashboard" };
 

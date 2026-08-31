@@ -1,5 +1,6 @@
 import type { SimulationResult } from "@renovate-config-debugger/engine";
 import { describe, expect, test } from "vitest";
+import { simResult } from "@tools/test/simulation";
 import { appliedUpdateTypeBlock, consumedAuthoredBlocks } from "./consumed-blocks";
 
 /**
@@ -10,18 +11,7 @@ import { appliedUpdateTypeBlock, consumedAuthoredBlocks } from "./consumed-block
  * aside's behavior, so the new sibling cannot drift it.
  */
 function simFixture(flattened: Partial<SimulationResult["flattened"]> = {}): SimulationResult {
-  return {
-    rules: [],
-    rawFinalConfig: {},
-    finalDependencyConfig: {},
-    flattened: { merged: [], blocks: {}, authoredBlocks: [], ...flattened },
-    missingInputs: { rules: 0, groups: [] },
-    evaluationErrors: { rules: 0, selectors: [], messages: [], sampleRuleIndexes: [] },
-    mergeSteps: [],
-    errors: [],
-    warnings: [],
-    notes: [],
-  };
+  return simResult({ flattened: { merged: [], blocks: {}, authoredBlocks: [], ...flattened } });
 }
 
 describe("appliedUpdateTypeBlock", () => {

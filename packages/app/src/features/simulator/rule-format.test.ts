@@ -7,6 +7,7 @@
  */
 import type { ClauseEvaluation, RuleEvaluation } from "@renovate-config-debugger/engine";
 import { describe, expect, test } from "vitest";
+import { clauseEval, ruleEval } from "@tools/test/simulation";
 import { clauseIcon, ruleLabel, ruleVerdictLabel } from "./rule-format";
 
 function clause(
@@ -14,11 +15,13 @@ function clause(
   state: ClauseEvaluation["state"],
   readFields: string[],
 ): ClauseEvaluation {
-  return { key, value: ["x"], state, inputValues: {}, readFields };
+  return clauseEval(state, { key, readFields });
 }
 
+/** The label is a property of the CLAUSES, so they lead here; the index never
+ *  reaches the string under test. */
 function rule(clauses: ClauseEvaluation[], verdict: RuleEvaluation["verdict"]): RuleEvaluation {
-  return { index: 0, verdict, clauses, notes: [] };
+  return ruleEval(0, verdict, clauses);
 }
 
 describe("ruleLabel", () => {

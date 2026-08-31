@@ -8,19 +8,14 @@
  * run without descriptions mounts no affordance at all.
  */
 import { runPipeline } from "@renovate-config-debugger/engine";
-import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
-import { afterEach, beforeAll, expect, it, vi } from "vitest";
+import { fireEvent, render, waitFor, within } from "@testing-library/react";
+import { beforeAll, expect, it, vi } from "vitest";
+import { stubResizeObserver } from "@tools/test/jsdom-stubs";
 import { PresetTree } from "./PresetTree";
-
-afterEach(cleanup);
 
 beforeAll(() => {
   // jsdom lacks the one API the tree's windowing observes.
-  window.ResizeObserver = class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  };
+  stubResizeObserver();
 });
 
 // Internal presets resolve with no network, so this whole run is offline. Two

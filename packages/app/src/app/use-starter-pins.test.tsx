@@ -1,5 +1,5 @@
-import { cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { render } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import type { RuleAttribution, TraceResult } from "@renovate-config-debugger/engine";
 import { useStarterPins } from "./use-starter-pins";
 import type { FormState } from "@/types/simulator";
@@ -11,9 +11,6 @@ import type { FormState } from "@/types/simulator";
  * provenance), and WHEN the attempt happens (never while provenance is still
  * computing, once when it lands either way).
  */
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
 
 /** The reader's own rule first, a preset's second — the run merges them into
  *  one array and only provenance can tell them apart. */

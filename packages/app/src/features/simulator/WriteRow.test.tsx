@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
-import { cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { render } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import { writeMark } from "./rule-format";
 import { WriteRow } from "./WriteRow";
 
@@ -13,9 +13,6 @@ import { WriteRow } from "./WriteRow";
  * surfaces rely on: the two value classes are the only ones values wear, the
  * arrow appears only between two values, and every key goes through OptionKey.
  */
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
 
 function row(ui: ReactElement): HTMLElement {
   const view = render(ui);

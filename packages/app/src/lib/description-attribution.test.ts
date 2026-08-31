@@ -3,7 +3,6 @@ import type {
   DescriptionAttribution,
   DescriptionProvenance,
   PresetNode,
-  ProvenanceLayer,
 } from "@renovate-config-debugger/engine";
 import {
   buildDescriptionCards,
@@ -14,6 +13,13 @@ import {
   descriptionCardsFor,
   PATH_SEGMENT_CAP,
 } from "./description-attribution";
+import {
+  descriptionEntries,
+  type DescriptionEntrySpec,
+  descriptionProvenance,
+  presetLayer,
+  REPO_LAYER as REPO,
+} from "@tools/test/description-provenance";
 
 /**
  * Roadmap 069 (PR 5): the hover card's model. The engine's own tests (PR 1)
@@ -25,65 +31,34 @@ import {
  * preset in a document that is not the array we indexed".
  */
 
-const REPO: ProvenanceLayer = { kind: "repo" };
-
-function presetLayer(nodeId: string, name = nodeId): ProvenanceLayer {
-  return { kind: "preset", nodeId, name };
-}
-
-interface EntrySpec {
-  value: string;
-  node?: { nodeId: string; name: string };
-  via?: ProvenanceLayer;
-  approximate?: boolean;
-}
-
 /**
  * A member of the final array. A plain spec is an attributed string; a
  * `nonString` is one of the members Renovate warns about and keeps
  * (`{"description": ["a", 42]}`), which no preset wrote — it occupies a real
  * index all the same, which is the whole reason the cards are placed by index.
  */
-type MemberSpec = EntrySpec | { nonString: unknown };
+type MemberSpec = DescriptionEntrySpec | { nonString: unknown };
 
 function isNonString(spec: MemberSpec): spec is { nonString: unknown } {
   return "nonString" in spec;
 }
 
+/** The attributed members, each carrying the index it really occupies — a
+ *  non-string neighbour holds one without contributing an entry. */
 function entries(specs: MemberSpec[]): DescriptionAttribution[] {
-  const firstByValue = new Map<string, number>();
-  const out: DescriptionAttribution[] = [];
-  for (const [index, spec] of specs.entries()) {
-    if (isNonString(spec)) {
-      continue;
-    }
-    const duplicateOfIndex = firstByValue.get(spec.value);
-    if (duplicateOfIndex === undefined) {
-      firstByValue.set(spec.value, index);
-    }
-    out.push({
-      index,
-      value: spec.value,
-      node: spec.node,
-      viaTopLevel: spec.via ?? REPO,
-      duplicateOfIndex,
-      approximate: spec.approximate,
-    });
-  }
-  return out;
+  return descriptionEntries(
+    specs.flatMap((spec, index) => (isNonString(spec) ? [] : [{ ...spec, index }])),
+  );
 }
 
 function provenance(specs: MemberSpec[]): DescriptionProvenance {
-  return {
+  return descriptionProvenance({
     entries: entries(specs),
     unattributed: specs.flatMap((spec, index) =>
       isNonString(spec) ? [{ index, value: spec.nonString }] : [],
     ),
     finalLength: specs.length,
-    dropped: [],
-    ruleDescriptions: [],
-    degraded: false,
-  };
+  });
 }
 
 /** The document the As-JSON view renders for these specs. */

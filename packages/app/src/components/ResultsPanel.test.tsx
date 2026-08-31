@@ -1,5 +1,5 @@
-import { cleanup, fireEvent, render } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { RESULTS_TAB_IDS, type ResultsTabId } from "@/data/results-tabs";
 import { tabButtonSelector } from "@/lib/results-tab-dom";
 import { ResultsPanel, type ResultsTabDescriptor } from "./ResultsPanel";
@@ -10,9 +10,6 @@ import { ResultsPanel, type ResultsTabDescriptor } from "./ResultsPanel";
  * every tab was its own stop, and the arrows did nothing. These tests are that
  * promise.
  */
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
 
 const TABS: ResultsTabDescriptor[] = [
   { id: "tests" },

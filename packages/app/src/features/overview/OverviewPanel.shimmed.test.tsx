@@ -54,7 +54,6 @@ function renderStubbed(provenance: Partial<DescriptionProvenance>) {
 afterEach(() => {
   stub.active = false;
   stub.value = undefined;
-  cleanup();
 });
 
 function run(config: object) {

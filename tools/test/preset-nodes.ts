@@ -38,3 +38,13 @@ export function presetNode(
 export function presetRoot(children: PresetNode[]): PresetNode {
   return { id: "root", name: "(input config)", state: "resolved", input: {}, children };
 }
+
+/**
+ * A node with an id the test chose, and nothing else — for the suites that
+ * address a tree BY id (the preset reference's ancestry walk, and the token
+ * that renders its facts) and would be describing the builder's defaults if the
+ * node carried a source or an input it never reads.
+ */
+export function presetNodeById(id: string, name: string, children: PresetNode[] = []): PresetNode {
+  return { id, name, state: "resolved", children };
+}

@@ -11,12 +11,11 @@
  */
 import type {
   ClauseEvaluation,
-  MergedKey,
   ProvenanceLayer,
   RuleEvaluation,
-  SimulationResult,
 } from "@renovate-config-debugger/engine";
 import { describe, expect, test } from "vitest";
+import { flattenStop, ruleEval, ruleStop, simResult, stopChrome } from "@tools/test/simulation";
 import type { MergeStop } from "./merge-stops";
 import { buildRuleEvidence } from "./rule-evidence";
 
@@ -30,35 +29,12 @@ const MATCHED_CLAUSE: ClauseEvaluation = {
   readFields: ["datasource"],
 };
 
-function stopChrome(id: string): Pick<MergeStop, "chip" | "step"> {
-  return { chip: { label: id, ariaLabel: id }, step: { id, before: {}, after: {}, head: id } };
-}
-
-function ruleStop(ruleIndex: number, merged: MergedKey[]): MergeStop {
-  return { kind: "rule", ruleIndex, merged, ...stopChrome(`rule-${ruleIndex}`) };
-}
-
-function flattenStop(merged: MergedKey[]): MergeStop {
-  return { kind: "flatten", merged, ...stopChrome("flatten") };
-}
-
 function matchedRule(index: number): RuleEvaluation {
-  return { index, verdict: "matched", clauses: [MATCHED_CLAUSE], notes: [] };
+  return ruleEval(index, "matched", [MATCHED_CLAUSE]);
 }
 
-function simFixture(rules: RuleEvaluation[]): SimulationResult {
-  return {
-    rules,
-    rawFinalConfig: {},
-    finalDependencyConfig: {},
-    flattened: { merged: [], blocks: {}, authoredBlocks: [] },
-    missingInputs: { rules: 0, groups: [] },
-    evaluationErrors: { rules: 0, selectors: [], messages: [], sampleRuleIndexes: [] },
-    mergeSteps: [],
-    errors: [],
-    warnings: [],
-    notes: [],
-  };
+function simFixture(rules: RuleEvaluation[]) {
+  return simResult({ rules });
 }
 
 /** The mockup's scenario: rule 201 writes two keys in step 2; `schedule`
