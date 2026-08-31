@@ -58,11 +58,16 @@ export const EFFECTIVE_COLUMNS: readonly DataTableColumn[] = [
 ];
 
 /** Roadmap 051's two renderings, as the table's views: the first IS the table,
- *  every other one replaces its body (`DataTable`'s `altView`). */
-export const EFFECTIVE_VIEWS: readonly DataTableView[] = [
-  { id: "keys", label: "By key" },
-  { id: "json", label: "As JSON" },
-];
+ *  every other one replaces its body (`DataTable`'s `altView`). The ids and the
+ *  union the card holds its state in are ONE declaration — spelled twice, a
+ *  view could be added to the strip that the state can never hold. */
+const EFFECTIVE_VIEW_LABELS = { keys: "By key", json: "As JSON" } as const;
+
+export type EffectiveView = keyof typeof EFFECTIVE_VIEW_LABELS;
+
+export const EFFECTIVE_VIEWS: readonly DataTableView[] = Object.entries(EFFECTIVE_VIEW_LABELS).map(
+  ([id, label]) => ({ id, label }),
+);
 
 export const EFFECTIVE_NOUN: DataTableNoun = { one: "option", many: "options" };
 

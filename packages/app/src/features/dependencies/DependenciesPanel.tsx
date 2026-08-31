@@ -1,7 +1,7 @@
 import { DataTable } from "@/components/DataTable";
-import type { DataTableNoun } from "@/components/data-table";
+import { countNoun, type DataTableNoun } from "@/components/data-table";
 import { EmptyNote } from "@/components/EmptyNote";
-import { nf, plural } from "@/lib/format";
+import { plural } from "@/lib/format";
 import { discoveryCaveats, tallyDiscovery } from "@/lib/discovery-caveats";
 import { RepoDiscoveryGate } from "@/components/RepoDiscoveryGate";
 import {
@@ -61,9 +61,10 @@ function DependenciesTable({
         defaultGroupingId={DEP_DEFAULT_GROUPING}
         leadLabel="Dependency"
         rowNoun={DEP_NOUN}
-        filterPlaceholder={`Filter ${nf.format(view.deps.length)} ${
-          view.deps.length === 1 ? DEP_NOUN.one : DEP_NOUN.many
-        } across ${plural(tallyDiscovery(view).extracted, "package file")}…`}
+        filterPlaceholder={`Filter ${countNoun(view.deps.length, DEP_NOUN)} across ${plural(
+          tallyDiscovery(view).extracted,
+          "package file",
+        )}…`}
         contextNote={`from ${view.repo}`}
       />
       <DependenciesNote view={view} />

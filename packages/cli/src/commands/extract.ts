@@ -19,9 +19,9 @@ import { readTextFile } from "../run-input";
  *
  * Several managers can legitimately claim one filename (`pyproject.toml` is
  * pep621's, pixi's and poetry's): with no `--manager`, every EXTRACTABLE match
- * runs and gets its own section. `--manager` forces one — the only door for
- * the eleven pattern-less managers (empty `managerFilePatterns`), and how to
- * pick among several claimants.
+ * runs and gets its own section. `--manager` forces one — the only door for a
+ * pattern-less manager (empty `managerFilePatterns`), and how to pick among
+ * several claimants.
  */
 
 interface ExtractReport {
@@ -71,23 +71,25 @@ function depLine(dep: PackageDependency, fileDatasource: string | undefined): st
   return `    ${bits.join(" ")}`;
 }
 
-function reportLines(report: ExtractReport): string[] {
-  const lines: string[] = [];
-  for (const outcome of report.results) {
-    if (outcome.ok) {
-      const { manager, deps, datasource } = outcome.file;
-      lines.push(
-        `${manager} — ${deps.length} dependenc${deps.length === 1 ? "y" : "ies"} in ${report.fileName}`,
-      );
-      for (const dep of deps) {
-        lines.push(depLine(dep, datasource));
-      }
-    } else {
-      lines.push(`✗ ${outcome.message}`);
-    }
-    lines.push("");
+function sectionLines(outcome: ExtractOutcome, fileName: string): string[] {
+  if (!outcome.ok) {
+    return [`✗ ${outcome.message}`];
   }
-  return lines;
+  const { manager, deps, datasource } = outcome.file;
+  return [
+    `${manager} — ${deps.length} dependenc${deps.length === 1 ? "y" : "ies"} in ${fileName}`,
+    ...deps.map((dep) => depLine(dep, datasource)),
+  ];
+}
+
+/** The sections, one blank line BETWEEN them — a single failing section is
+ *  then already the bare `✗ …` line, with no trailing blank and no second
+ *  spelling of it at the call site. */
+function reportLines(report: ExtractReport): string[] {
+  return report.results.flatMap((outcome, index) => [
+    ...(index === 0 ? [] : [""]),
+    ...sectionLines(outcome, report.fileName),
+  ]);
 }
 
 /** Whether at least one section actually produced dependencies. */
@@ -128,11 +130,7 @@ export const extractCommand: Command = {
     if (format === "json") {
       emitJson(io, report);
     } else {
-      const lines =
-        report.results.length === 1 && !report.results[0]?.ok
-          ? [`✗ ${report.results[0]?.message}`]
-          : reportLines(report);
-      emitLines(io, lines);
+      emitLines(io, reportLines(report));
     }
     return ok ? EXIT_OK : EXIT_ERROR;
   },

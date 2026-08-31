@@ -10,6 +10,7 @@
  */
 import type {
   DataTableAction,
+  DataTableBadge,
   DataTableColumn,
   DataTableField,
   DataTableGrouping,
@@ -80,7 +81,7 @@ export function depFields(fill: Partial<FormState>): DataTableField[] {
  * Renovate knows, so a row from one says so. Nothing produces such a manager
  * id yet — the badge is the shape being ready, and costs one string test.
  */
-export function depBadge(manager: string): { text: string; title: string } | undefined {
+export function depBadge(manager: string): DataTableBadge | undefined {
   if (!manager.startsWith("custom.")) {
     return undefined;
   }
@@ -117,7 +118,6 @@ function depActions(dep: RepoDep, actions: DepRowActions): DataTableAction[] {
 }
 
 export function depTableRow(dep: RepoDep, actions: DepRowActions): DataTableRow {
-  const badge = depBadge(dep.manager);
   return {
     key: dep.key,
     lead: dep.depName,
@@ -132,10 +132,13 @@ export function depTableRow(dep: RepoDep, actions: DepRowActions): DataTableRow 
       // The package-file header wears the managers that read it: several
       // managers legitimately claim one filename (pyproject.toml is pep621's,
       // pixi's and poetry's), and the pills are where that shows.
-      [DEP_COLUMN_IDS.packageFile]: { title: dep.packageFile, pill: dep.manager },
+      [DEP_COLUMN_IDS.packageFile]: {
+        title: dep.packageFile,
+        pills: [{ label: dep.manager }],
+      },
       [DEP_COLUMN_IDS.manager]: { title: dep.manager },
     },
-    ...(badge === undefined ? {} : { badge }),
+    badge: depBadge(dep.manager),
     fields: depFields(dep.fill),
     actions: depActions(dep, actions),
   };

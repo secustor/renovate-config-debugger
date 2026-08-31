@@ -1,7 +1,8 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DependenciesPanel } from "./DependenciesPanel";
-import type { RepoConnectOffer, RepoDep, RepoDepsView } from "@/types/repo";
+import { CONNECT_OFFER as CONNECT, EMPTY_VIEW as EMPTY, repoDep } from "@tools/test/repo-deps";
+import type { RepoDepsView } from "@/types/repo";
 
 /**
  * Roadmap 089 — the Dependencies tab's four states. Each one is a different
@@ -13,40 +14,24 @@ import type { RepoConnectOffer, RepoDep, RepoDepsView } from "@/types/repo";
 // vitest runs without `globals`, so RTL's automatic cleanup never registers.
 afterEach(cleanup);
 
-const CONNECT: RepoConnectOffer = {
-  suggestion: null,
-  onConnect: () => undefined,
-  onOpenLoad: () => undefined,
-};
-
-const EMPTY: RepoDepsView = {
-  status: "idle",
-  repo: "",
-  deps: [],
-  files: [],
-  managersConsidered: 0,
-  truncated: false,
-  error: null,
-};
-
-const DEP: RepoDep = {
-  key: "package.json:0:react",
-  depName: "react",
+const DEP = repoDep("react", "package.json", "npm", {
   value: "^17.0.0",
   meta: "package.json · ^17.0.0",
-  manager: "npm",
-  packageFile: "package.json",
   fill: { depName: "react", currentValue: "^17.0.0", datasource: "npm", manager: "npm" },
-};
+});
 
-function renderPanel(view: RepoDepsView, connect: RepoConnectOffer = CONNECT, onRetry = vi.fn()) {
+function renderPanel(
+  view: RepoDepsView,
+  over: Partial<Parameters<typeof DependenciesPanel>[0]> = {},
+) {
   return render(
     <DependenciesPanel
       view={view}
-      connect={connect}
-      onRetry={onRetry}
+      connect={CONNECT}
+      onRetry={vi.fn()}
       onPin={vi.fn()}
       onOpenInSimulator={vi.fn()}
+      {...over}
     />,
   );
 }
@@ -54,7 +39,7 @@ function renderPanel(view: RepoDepsView, connect: RepoConnectOffer = CONNECT, on
 describe("DependenciesPanel", () => {
   it("offers to connect a repository when none is loaded", () => {
     const onOpenLoad = vi.fn();
-    const view = renderPanel(EMPTY, { ...CONNECT, onOpenLoad });
+    const view = renderPanel(EMPTY, { connect: { ...CONNECT, onOpenLoad } });
 
     expect(view.container.textContent).toContain("The repository isn’t loaded in this session");
     fireEvent.click(view.getByRole("button", { name: "load a repository…" }));
@@ -72,8 +57,7 @@ describe("DependenciesPanel", () => {
     const onRetry = vi.fn();
     const view = renderPanel(
       { ...EMPTY, status: "error", repo: "acme/webapp", error: "rate limited" },
-      CONNECT,
-      onRetry,
+      { onRetry },
     );
 
     expect(view.container.textContent).toContain("Could not read acme/webapp: rate limited");
@@ -157,14 +141,9 @@ describe("DependenciesPanel", () => {
 
   it("offers the two acts on the OPENED row, not on every line of the list", () => {
     const onPin = vi.fn();
-    const view = render(
-      <DependenciesPanel
-        view={{ ...EMPTY, status: "ready", repo: "acme/webapp", deps: [DEP] }}
-        connect={CONNECT}
-        onRetry={vi.fn()}
-        onPin={onPin}
-        onOpenInSimulator={vi.fn()}
-      />,
+    const view = renderPanel(
+      { ...EMPTY, status: "ready", repo: "acme/webapp", deps: [DEP] },
+      { onPin },
     );
     expect(view.queryByRole("button", { name: "Pin as test" })).toBeNull();
 

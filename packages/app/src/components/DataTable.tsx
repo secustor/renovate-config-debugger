@@ -1,10 +1,10 @@
 import { type ReactNode, useState } from "react";
-import { nf } from "@/lib/format";
 import { useSyncedReset } from "@/hooks/use-synced-reset";
 import { useToggleSet } from "@/hooks/use-toggle-set";
 import {
   activeColumns,
   activeView,
+  countNoun,
   type DataTableColumn,
   type DataTableCopy,
   type DataTableGroup,
@@ -123,9 +123,7 @@ function DataTableGroupHead({
         {group.title}
       </span>
       <DataTableGroupPills pills={group.pills} />
-      <span className="data-table-group-count">
-        {nf.format(group.rows.length)} {group.rows.length === 1 ? rowNoun.one : rowNoun.many}
-      </span>
+      <span className="data-table-group-count">{countNoun(group.rows.length, rowNoun)}</span>
     </div>
   );
 }
@@ -184,7 +182,13 @@ function DataTableBody({
     <>
       <DataTableHead leadLabel={leadLabel} columns={columns} />
       {matches === 0 ? (
-        <p className="data-table-none">Nothing matches “{query}”.</p>
+        // The quick filter can empty the table on its own, and blaming a query
+        // nobody typed (“Nothing matches “”.”) reads as a bug in the table.
+        <p className="data-table-none">
+          {query.trim() === ""
+            ? "Nothing matches the current filter."
+            : `Nothing matches “${query}”.`}
+        </p>
       ) : (
         groups.map((group) => (
           <DataTableGroupBlock

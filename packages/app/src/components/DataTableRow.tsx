@@ -29,7 +29,12 @@ import type {
 /** One cell: the column's width, the row's text — or, when the row prepared
  *  one, the node it wants drawn there instead. The text still fills the
  *  `title`, so a rich cell the column is too narrow for is readable the same
- *  way a plain one is. */
+ *  way a plain one is.
+ *
+ *  A row that declares a cell node CONDITIONALLY hands over `null` for the rows
+ *  that get none (`note ? <NoteCell/> : null`), so "no node" has to mean null
+ *  as well as undefined — otherwise those rows lose the "—" and the `empty`
+ *  class that a consumer declaring no nodes at all still gets. */
 function DataTableCell({
   column,
   value,
@@ -39,14 +44,15 @@ function DataTableCell({
   value: string;
   node: ReactNode;
 }) {
-  const empty = value === "" && node === undefined;
+  const content = node ?? null;
+  const empty = value === "" && content === null;
   return (
     <span
       className={`data-table-cell${column.mono ? " mono" : ""}${empty ? " empty" : ""}`}
       title={value === "" ? undefined : value}
       style={{ flexBasis: column.width }}
     >
-      {node ?? (empty ? "—" : value)}
+      {content ?? (empty ? "—" : value)}
     </span>
   );
 }

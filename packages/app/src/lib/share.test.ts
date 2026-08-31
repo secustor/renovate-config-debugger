@@ -769,8 +769,8 @@ describe("075: retired tab ids still open the tab that replaced them", () => {
   test("the strip is the current seven, Overview first, and none of them is a retired id", () => {
     // Roadmap 089 inserted `deps` between Effective config and Problems. It
     // needs no compatibility entry of its own — no link in the wild says it —
-    // but it must round-trip like every other current id, which the loop in
-    // the next test covers.
+    // but it must round-trip like every other current id, which the test
+    // below asserts.
     expect(RESULTS_TAB_IDS).toEqual([
       "overview",
       "tests",

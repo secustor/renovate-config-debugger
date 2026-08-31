@@ -1,6 +1,7 @@
 import type { PresetNode } from "@renovate-config-debugger/engine";
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { recordClipboardWrites } from "@tools/test/clipboard";
 import { ROOT_NODE_ID } from "@/lib/preset-tree-stats";
 import { HOVER_INTENT_DELAY_MS } from "./hover-gate";
 import { PresetName } from "./PresetName";
@@ -50,19 +51,6 @@ function renderToken(props: {
     </PresetReferenceProvider>,
   );
   return { ...view, onSelectPreset };
-}
-
-function stubClipboard(): string[] {
-  const writes: string[] = [];
-  Object.defineProperty(navigator, "clipboard", {
-    configurable: true,
-    value: {
-      writeText: async (text: string) => {
-        writes.push(text);
-      },
-    },
-  });
-  return writes;
 }
 
 /** A genuine pointer hover: the move gate wants a `mousemove`, and 081's
@@ -204,8 +192,12 @@ describe("the hover-copy affordance", () => {
     vi.useRealTimers();
   });
 
-  it("copies the full name and flips to the shared copied state for 1.5s", async () => {
-    const writes = stubClipboard();
+  // This token's own contract is WHAT reaches the clipboard: the full name,
+  // not the shortened text on screen. How long the button then reads "copied"
+  // is `CopyButton`'s, pinned in its own test — re-asserting the revert here
+  // cost a real 1.6s sleep for a claim this component does not make.
+  it("copies the full name, not the shortened text on screen", async () => {
+    const writes = recordClipboardWrites();
     const { getByRole } = renderToken({ name: "github>acme/renovate-config:security" });
 
     await act(async () => {
@@ -216,15 +208,10 @@ describe("the hover-copy affordance", () => {
     await waitFor(() => {
       expect(getByRole("button", { name: "Copy preset name" }).className).toContain("copied");
     });
-
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1600));
-    });
-    expect(getByRole("button", { name: "Copy preset name" }).className).not.toContain("copied");
   });
 
   it("does not trigger the token's own click behavior", async () => {
-    stubClipboard();
+    recordClipboardWrites();
     const onClick = vi.fn();
     const { getByRole } = renderToken({ name: "config:recommended", nodeId: "p1", onClick });
 

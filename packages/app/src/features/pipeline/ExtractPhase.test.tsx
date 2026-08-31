@@ -1,7 +1,13 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ExtractPhase } from "./ExtractPhase";
-import type { RepoConnectOffer, RepoDep, RepoDepsView } from "@/types/repo";
+import {
+  CONNECT_OFFER as CONNECT,
+  EMPTY_VIEW as EMPTY,
+  repoDep as dep,
+  walkFile,
+} from "@tools/test/repo-deps";
+import type { RepoDepsView } from "@/types/repo";
 
 /**
  * Roadmap 090 — the Extract phase as it is rendered: its four pre-report
@@ -12,68 +18,20 @@ import type { RepoConnectOffer, RepoDep, RepoDepsView } from "@/types/repo";
 // vitest runs without `globals`, so RTL's automatic cleanup never registers.
 afterEach(cleanup);
 
-const CONNECT: RepoConnectOffer = {
-  suggestion: null,
-  onConnect: () => undefined,
-  onOpenLoad: () => undefined,
-};
-
-function dep(name: string, file: string, manager: string): RepoDep {
-  return {
-    key: `${file}:0:${name}`,
-    depName: name,
-    value: "1.0.0",
-    meta: `${file} · 1.0.0`,
-    manager,
-    packageFile: file,
-    fill: { depName: name, manager, packageFile: file },
-  };
-}
-
-const EMPTY: RepoDepsView = {
-  status: "idle",
-  repo: "",
-  deps: [],
-  files: [],
-  managersConsidered: 0,
-  truncated: false,
-  error: null,
-};
-
 const READY: RepoDepsView = {
   ...EMPTY,
   status: "ready",
   repo: "acme/webapp",
   deps: [dep("react", "package.json", "npm"), dep("node", "Dockerfile", "dockerfile")],
   files: [
-    {
-      path: "package.json",
-      managers: ["npm"],
-      extractedBy: "npm",
-      depCount: 1,
-      outcome: "extracted",
-    },
-    {
-      path: "Dockerfile",
-      managers: ["dockerfile"],
+    walkFile("package.json", ["npm"], { extractedBy: "npm", depCount: 1, outcome: "extracted" }),
+    walkFile("Dockerfile", ["dockerfile"], {
       extractedBy: "dockerfile",
       depCount: 1,
       outcome: "extracted",
-    },
-    {
-      path: "docs/package.json",
-      managers: ["npm"],
-      extractedBy: null,
-      depCount: 0,
-      outcome: "not-read",
-    },
-    {
-      path: ".github/workflows/ci.yml",
-      managers: ["github-actions"],
-      extractedBy: null,
-      depCount: 0,
-      outcome: "no-deps",
-    },
+    }),
+    walkFile("docs/package.json", ["npm"]),
+    walkFile(".github/workflows/ci.yml", ["github-actions"], { outcome: "no-deps" }),
   ],
   managersConsidered: 100,
 };

@@ -22,11 +22,14 @@ test("the Migrate node shows amber with a delta when it rewrote the config", asy
   await openTab(page, "pipeline");
 
   // Roadmap 090: the tab leads with the phase picker, and the stage rail is
-  // what the Config phase — the one selected on arrival — shows.
-  const picker = page.getByRole("radiogroup", { name: "Pipeline phase" });
-  await expect(picker.getByRole("radio")).toHaveCount(4);
-  await expect(picker.locator("button.active .phase-seg-name")).toHaveText("Config");
-  await expect(picker.getByRole("radio", { name: /^Lookup/ })).toBeDisabled();
+  // what the Config phase — the one selected on arrival — shows. Which phases
+  // exist and which are disabled is `PhasePicker.test.tsx`'s claim, not this
+  // spec's; all this one needs is that the rail below is the Config phase's.
+  await expect(
+    page
+      .getByRole("radiogroup", { name: "Pipeline phase" })
+      .locator("button.active .phase-seg-name"),
+  ).toHaveText("Config");
 
   const migrateNode = page.locator('.stage-rail-btn[data-stage="migrate"]');
   await expect(migrateNode).toBeVisible();

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { cleanup, fireEvent, render, type RenderResult } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { MultiValueInput } from "./MultiValueInput";
 
@@ -23,6 +23,15 @@ function paste(input: HTMLElement, text: string) {
   return fireEvent.paste(input, { clipboardData: { getData: () => text } });
 }
 
+/** The committed chips, in order. Read off each chip's remove button, whose
+ *  accessible name IS the value it would remove — the chip's own claim, rather
+ *  than whichever DOM node its label happens to be. */
+function chips(view: RenderResult): string[] {
+  return view
+    .queryAllByRole("button", { name: /^Remove / })
+    .map((button) => button.getAttribute("aria-label")?.replace(/^Remove /, "") ?? "");
+}
+
 describe("MultiValueInput — paste auto-split", () => {
   it("splits a comma-separated paste into one chip per value", () => {
     const view = render(<Harness />);
@@ -30,10 +39,7 @@ describe("MultiValueInput — paste auto-split", () => {
 
     paste(input, "https://a.example, https://b.example, https://c.example");
 
-    const chips = [...view.container.querySelectorAll(".sim-chip")].map((c) =>
-      c.firstChild?.textContent?.trim(),
-    );
-    expect(chips).toEqual(["https://a.example", "https://b.example", "https://c.example"]);
+    expect(chips(view)).toEqual(["https://a.example", "https://b.example", "https://c.example"]);
     // The paste was claimed, not inserted as text.
     expect((input as HTMLInputElement).value).toBe("");
   });
@@ -44,10 +50,7 @@ describe("MultiValueInput — paste auto-split", () => {
 
     paste(input, "a\nb; c   d");
 
-    const chips = [...view.container.querySelectorAll(".sim-chip")].map((c) =>
-      c.firstChild?.textContent?.trim(),
-    );
-    expect(chips).toEqual(["a", "b", "c", "d"]);
+    expect(chips(view)).toEqual(["a", "b", "c", "d"]);
   });
 
   it("lets a single-token paste fall through to default insertion", () => {
@@ -58,7 +61,7 @@ describe("MultiValueInput — paste auto-split", () => {
 
     // Not claimed: fireEvent reports true when the default wasn't prevented.
     expect(dispatched).toBe(true);
-    expect(view.container.querySelectorAll(".sim-chip")).toHaveLength(0);
+    expect(chips(view)).toEqual([]);
   });
 
   it("drops empties from a trailing separator without leaving a stray chip", () => {
@@ -67,10 +70,7 @@ describe("MultiValueInput — paste auto-split", () => {
 
     paste(input, "a, b,");
 
-    const chips = [...view.container.querySelectorAll(".sim-chip")].map((c) =>
-      c.firstChild?.textContent?.trim(),
-    );
-    expect(chips).toEqual(["a", "b"]);
+    expect(chips(view)).toEqual(["a", "b"]);
   });
 
   it("dedupes within the pasted batch and against already-committed chips", () => {
@@ -79,10 +79,7 @@ describe("MultiValueInput — paste auto-split", () => {
 
     paste(input, "a, b, b, c");
 
-    const chips = [...view.container.querySelectorAll(".sim-chip")].map((c) =>
-      c.firstChild?.textContent?.trim(),
-    );
-    expect(chips).toEqual(["a", "b", "c"]);
+    expect(chips(view)).toEqual(["a", "b", "c"]);
   });
 
   it("leaves a partially typed draft untouched by a multi-value paste", () => {
@@ -93,9 +90,6 @@ describe("MultiValueInput — paste auto-split", () => {
     paste(input, "a, b");
 
     expect(input.value).toBe("still-typing");
-    const chips = [...view.container.querySelectorAll(".sim-chip")].map((c) =>
-      c.firstChild?.textContent?.trim(),
-    );
-    expect(chips).toEqual(["a", "b"]);
+    expect(chips(view)).toEqual(["a", "b"]);
   });
 });

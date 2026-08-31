@@ -51,7 +51,7 @@ drawing in `.tsx`.
 
 The table is **data-driven rather than generic over a row type**: a consumer
 reduces its records to `DataTableRow` once (cells keyed by column id, a group
-title and pill keyed by grouping id, the fields the open row lists), and the
+title and its pills keyed by grouping id, the fields the open row lists), and the
 component then needs no callbacks to render, group or search them. That is
 what keeps it in `components/` while its first consumer is a feature — the
 shared layer may not import a feature to find out what a row is.
@@ -110,8 +110,14 @@ Two consequences worth recording:
   results panel stays MOUNTED (028), so a panel-side effect would fire for a
   tab nobody has looked at and spend the rate limit on it. App runs
   `ensureRepoDeps()` when `tab === "deps"`; `ensure` is idempotent per loaded
-  repo, so the two doors onto the same discovery (this tab and the Tests tab's
-  From-repository view) never discover twice.
+  repo, so the doors onto the same discovery never discover twice. (Two at the
+  time of writing — this tab and the Tests tab's From-repository view; 090's
+  Extract phase is the third, and App's effect gained its condition there.)
+
+The two row actions and the request slot they share are `app/use-dep-actions.ts`,
+not App's body: they are one cluster (a pin, a simulator request, and which of
+the two request channels is current), and every other such cluster in the shell
+is already a hook of its own.
 
 ### The nonce range
 

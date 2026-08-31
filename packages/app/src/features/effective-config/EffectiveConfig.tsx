@@ -10,6 +10,7 @@ import {
   EFFECTIVE_GROUPINGS,
   EFFECTIVE_NOUN,
   EFFECTIVE_VIEWS,
+  type EffectiveView,
   effectiveTableRows,
 } from "./effective-rows";
 import { nf } from "@/lib/format";
@@ -40,12 +41,11 @@ import { useSyncedReset } from "@/hooks/use-synced-reset";
  * description digest's link lands on one particular row.
  */
 
-/** Roadmap 051: the card's two renderings — provenance rows / a standalone JSON
- *  document. A MODE, not a filter: the JSON view is a different document (and a
- *  different computation), which is why the table treats it as an alternate
- *  VIEW and lets the row filters go inert while it is up. */
-type EffectiveView = "keys" | "json";
-
+// Roadmap 051: the card's two renderings — provenance rows / a standalone JSON
+// document. A MODE, not a filter: the JSON view is a different document (and a
+// different computation), which is why the table treats it as an alternate VIEW
+// and lets the row filters go inert while it is up. `EffectiveView` is the
+// strip's own id union, imported from where the strip is declared.
 const FILTERS_INERT_TITLE =
   "Key filters narrow the By key rows — the JSON document is always the whole config";
 

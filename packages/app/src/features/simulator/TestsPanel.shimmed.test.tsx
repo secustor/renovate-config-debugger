@@ -14,6 +14,7 @@ import { presetInjectionKey, runPipeline } from "@renovate-config-debugger/engin
 import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, expect, it, vi } from "vitest";
 import type { SimRequest } from "@/hooks/use-share-link";
+import { walkFile } from "@tools/test/repo-deps";
 import { EMPTY_REPO_DEPS } from "./repo-deps";
 import { TestsPanel } from "./TestsPanel";
 import type { FormState, PinnedTest } from "@/types/simulator";
@@ -382,6 +383,7 @@ it("collapses behind the ghost row once a pin exists, and reopens from it (082 r
 });
 
 const REPO_DEPS: RepoDepsView = {
+  ...EMPTY_REPO_DEPS,
   status: "ready",
   repo: "acme/webapp",
   deps: [
@@ -420,24 +422,14 @@ const REPO_DEPS: RepoDepsView = {
     },
   ],
   files: [
-    {
-      path: "package.json",
-      managers: ["npm"],
-      extractedBy: "npm",
-      depCount: 1,
-      outcome: "extracted",
-    },
-    {
-      path: "Dockerfile",
-      managers: ["dockerfile"],
+    walkFile("package.json", ["npm"], { extractedBy: "npm", depCount: 1, outcome: "extracted" }),
+    walkFile("Dockerfile", ["dockerfile"], {
       extractedBy: "dockerfile",
       depCount: 1,
       outcome: "extracted",
-    },
+    }),
   ],
   managersConsidered: 100,
-  truncated: false,
-  error: null,
 };
 
 it("offers the loaded repo's dependencies and pins one from the picker (078)", async () => {

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { nf } from "@/lib/format";
 
 /**
  * Roadmap 089 — the standard data table's SHAPES and the three pure decisions
@@ -8,7 +9,7 @@ import type { ReactNode } from "react";
  *
  * The table is deliberately DATA-driven rather than generic over a row type: a
  * consumer builds `DataTableRow`s once — cells keyed by column id, a group
- * title (and an optional pill) keyed by grouping id — and the component then
+ * title (and optional pills) keyed by grouping id — and the component then
  * needs no callbacks to render, sort or search them. That is what keeps it in
  * `components/`: it can serve a feature without knowing what a row IS, and the
  * shared layer may not import a feature to find out.
@@ -78,11 +79,8 @@ export interface DataTableGroupPill {
  *  absent = this grouping has none. */
 export interface DataTableRowGroup {
   title: string;
-  /** The plain, untoned pill — the first consumer's shape, kept because a
-   *  manager name is not making a claim that wants a hue. */
-  pill?: string;
-  /** Toned pills, for a grouping whose headers mean something (a config
-   *  layer). Collected alongside `pill`, deduplicated by label. */
+  /** Deduplicated by label. A pill with no `tone` is the untoned one a manager
+   *  name wants — one spelling, so the model needs no normalizer. */
   pills?: readonly DataTableGroupPill[];
   /** Draw the title in the regular UI font rather than the mono face: a group
    *  headed "Your repo config" is prose, a group headed `package.json` is a
@@ -171,6 +169,14 @@ export interface DataTableRow {
 export interface DataTableNoun {
   one: string;
   many: string;
+}
+
+/** `12 dependencies` / `1 dependency` — {@link plural}'s job for the nouns
+ *  {@link DataTableNoun} exists because `plural` cannot spell. Here rather than
+ *  at the two sites that need it (the group header's count, a consumer's filter
+ *  placeholder) so the table and its callers count in the same words. */
+export function countNoun(n: number, noun: DataTableNoun): string {
+  return `${nf.format(n)} ${n === 1 ? noun.one : noun.many}`;
 }
 
 /** The "None" pill's id in the Group by section — a real grouping id is never
@@ -281,23 +287,11 @@ export function groupDataRows(
   return [...groups.values()];
 }
 
-/** A row's contribution to its group header, in one shape: the untoned `pill`
- *  first (it is the older, terser spelling of the same thing), then the toned
- *  ones. Deduplication is the caller's, by label. */
-function rowGroupPills(entry: DataTableRowGroup | undefined): DataTableGroupPill[] {
-  if (entry === undefined) {
-    return [];
-  }
-  const pills: DataTableGroupPill[] = [];
-  if (entry.pill !== undefined && entry.pill !== "") {
-    pills.push({ label: entry.pill });
-  }
-  for (const pill of entry.pills ?? []) {
-    if (pill.label !== "") {
-      pills.push(pill);
-    }
-  }
-  return pills;
+/** A row's contribution to its group header. A label-less pill would render as
+ *  an empty bubble, so it is dropped here rather than by every consumer.
+ *  Deduplication is the caller's, by label. */
+function rowGroupPills(entry: DataTableRowGroup | undefined): readonly DataTableGroupPill[] {
+  return (entry?.pills ?? []).filter((pill) => pill.label !== "");
 }
 
 /** The class list a group-header pill wears: the app's `.pill` plus one of its

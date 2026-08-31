@@ -110,10 +110,11 @@ describe("extractDeps (golden)", () => {
     expect(walk.files[0]?.managers).toContain("npm");
     expect(walk.files[2]?.managers).toContain("github-actions");
     // The denominator the Extract phase's "K of N managers" quotes: every
-    // manager the walk actually asked, which is more than one and no more
-    // than the ledger.
+    // manager the walk ASKED, which is a property of the ledger and not of the
+    // paths — an empty walk considers exactly as many.
     expect(walk.managersConsidered).toBeGreaterThan(1);
     expect(walk.managersConsidered).toBeLessThanOrEqual(EXTRACTABLE_MANAGERS.length);
+    expect(matchExtractableManagers([]).managersConsidered).toBe(walk.managersConsidered);
   });
 
   it("reports an honest gap for a matched-but-unmapped manager", async () => {
