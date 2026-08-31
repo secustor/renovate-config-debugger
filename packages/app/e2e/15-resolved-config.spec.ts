@@ -43,6 +43,10 @@ test("the As JSON view keeps internal presets referenced, expands fully on deman
 
   await openGear(gear);
   await views.getByRole("button", { name: "As JSON" }).click();
+  // Picking a view keeps the panel open (clicks inside never close it), and
+  // the fixed-width panel covers the output-options row beneath — close it
+  // the way a reader would before reaching under it.
+  await page.keyboard.press("Escape");
   // ONE toolbar row in both views, so the key filter stays on screen — inert,
   // because it narrows rows and this document is copied whole. The output
   // options are what this view adds under it.
