@@ -1,4 +1,5 @@
 import { Caret } from "@/components/Caret";
+import { OptionKey } from "@/components/option-docs";
 import type {
   DataTableAction,
   DataTableColumn,
@@ -30,7 +31,11 @@ function DataTableCell({ column, value }: { column: DataTableColumn; value: stri
 function DataTableRowField({ field }: { field: DataTableField }) {
   return (
     <>
-      <dt>{field.label}</dt>
+      {/* The standard option key — a label the docs index knows gets its hover
+          card; any other renders as a plain span. */}
+      <dt>
+        <OptionKey name={field.label} flagUnknown={false} />
+      </dt>
       <dd>{field.value}</dd>
     </>
   );
