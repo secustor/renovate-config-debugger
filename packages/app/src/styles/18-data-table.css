@@ -90,9 +90,9 @@
    ground read as decoration, and nobody clicked it. Same grammar as the
    icon-only copy button standing next to it — the outline button's border,
    radius and hover (02-controls.css `.btn-secondary`), at the icon-only
-   padding — so the two controls in this row are visibly the same kind of
-   thing. Not `.btn-secondary` itself: this one is square and centered on a
-   glyph rather than sized to a label. */
+   padding, the same 14px icon — so the two controls in this row are visibly
+   the same kind of thing. Not `.btn-secondary` itself: this one is square and
+   centered on an icon rather than sized to a label. */
 .data-table-gear {
   align-items: center;
   background: transparent;
@@ -102,10 +102,13 @@
   cursor: pointer;
   display: inline-flex;
   font: inherit;
-  font-size: 0.85rem;
   justify-content: center;
-  line-height: 1;
   padding: 0.25rem 0.4rem;
+}
+
+.data-table-gear svg {
+  fill: currentColor;
+  flex: none;
 }
 
 .data-table-gear:hover,
