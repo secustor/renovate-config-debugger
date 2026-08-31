@@ -40,6 +40,7 @@ import { entryView, indexView } from "../projections/provenance";
 import { RULE_DIGEST_PLANS } from "../projections/rule-provenance";
 import { askCompare } from "../questions/compare";
 import { finishDescriptor } from "../questions/dependency";
+import { askExtraction } from "../questions/extract";
 import { askGroup, type GroupQuestion } from "../questions/group";
 import { askOptionDocs } from "../questions/option-docs";
 import { buildPipelineInput } from "../questions/pipeline";
@@ -122,6 +123,9 @@ const HINTS = {
   compare:
     "the comparison is too large to return whole — pass `keys: [...]` for the options you care about, narrow the dependency, or ask simulate for one side at a time.",
   optionDocs: "too many options matched — search for a longer substring.",
+  extract:
+    "this file's extraction is too large to return whole — pass `manager` so only one " +
+    "claimant's section is returned.",
 } as const;
 
 const RUN_ID = z.string().describe("A runId returned by run_config.");
@@ -139,6 +143,8 @@ const INSTRUCTIONS =
   "rules that acted; simulate_group tallies SEVERAL updates into the groups they would form; " +
   "every answer states what its view withheld and the " +
   "parameter that returns it, so read `notes` before you conclude anything is absent. " +
+  "extract_deps needs no runId: filename plus contents in, the dependencies Renovate would " +
+  "extract out, simulate-ready. " +
   "Before you propose an edit, prove it: run_config the edited text and " +
   "compare_simulations the two runs against the same dependency. Everything here is read-only.";
 
@@ -1172,6 +1178,60 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
       // `isContainer` rides on the doc (roadmap 072) — no call site derives it.
       return { renovateVersion, optionsSourceUrl, ...answered.doc };
     }, HINTS.optionDocs),
+  );
+
+  server.registerTool(
+    "extract_deps",
+    {
+      title: "What would Renovate extract from this file?",
+      description:
+        "Which dependencies Renovate would extract from ONE manifest file — no config and no " +
+        "runId involved: pass the filename and the file's contents, get the real " +
+        "depName/currentValue/datasource/depType rows, the same extraction code path the web " +
+        "app's From-repository tab runs, not a guess at the file's shape. The filename drives " +
+        "manager matching, and several managers can legitimately claim one name (pyproject.toml " +
+        "is pep621's, pixi's and poetry's) — with no `manager`, every extractable claimant runs " +
+        "and gets its own section in `results`. `manager` forces one: the only door for a " +
+        "pattern-less manager (argocd, kubernetes, tekton, pep723, …), and how to pick among " +
+        "several claimants. Only the curated manager set the browser engine ships runs here; a " +
+        "matched manager outside it reports an honest 'not supported' rather than a guess, and " +
+        "`matchedManagers` always lists every filename match, extractable or not. The rows are " +
+        "`simulate`-shaped: feed one to `simulate` (or several to `simulate_group`) as the " +
+        "`dep`s to ask what a run's rules would do with the updates this file implies.",
+      // No held run and no network — the answer depends only on the file's
+      // content and the pinned Renovate's managers.
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      inputSchema: z.strictObject({
+        fileName: z
+          .string()
+          .describe(
+            "The manifest's filename as it would sit in a repo — it drives manager matching " +
+              "(package.json, pyproject.toml, Dockerfile, .github/workflows/ci.yaml, …).",
+          ),
+        content: z.string().describe("The file's contents, verbatim."),
+        manager: z
+          .string()
+          .optional()
+          .describe(
+            "Force this manager instead of running every filename match — the only door for a " +
+              "pattern-less manager, and how to pick one of several claimants.",
+          ),
+      }),
+    },
+    answer(async ({ fileName, content, manager }, ctx) => {
+      const report = await askExtraction({
+        fileName,
+        content,
+        manager,
+        signal: ctx.mcpReq.signal,
+      });
+      return { renovateVersion, ...report };
+    }, HINTS.extract),
   );
 
   return server;

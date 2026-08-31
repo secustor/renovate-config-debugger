@@ -521,8 +521,9 @@ inspection chooses the endpoint, the CLI withholds tokens and says so on stderr.
 `rcd mcp` speaks MCP over stdio — the same answers as the subcommands, better
 economics for a session. It takes no arguments and writes nothing but the
 protocol to stdout, so point any MCP-capable client at it as a stdio server.
-`extract` has no MCP tool of its own: the server describes one held config
-run, and file extraction is a different question from any of those tools.
+`extract` is `extract_deps` there: the one tool besides `get_option_docs` that
+takes no `runId` — a filename plus the file's contents in, the dependencies
+Renovate would extract out, shaped to feed straight into `simulate`.
 It speaks the 2026-07-28 protocol and the legacy 2025-era `initialize`
 handshake, chosen per connection.
 

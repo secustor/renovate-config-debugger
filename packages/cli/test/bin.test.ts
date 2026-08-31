@@ -199,6 +199,7 @@ describe("bin/rcd-dev.mjs mcp", () => {
       "compare_simulations",
       "explain_message",
       "get_option_docs",
+      "extract_deps",
     ]);
 
     // The regression: the SDK's stdio transport ignores EOF, so the command
