@@ -1,5 +1,6 @@
 import { Caret } from "@/components/Caret";
 import { OptionKey } from "@/components/option-docs";
+import { Term } from "@/components/glossary";
 import type {
   DataTableAction,
   DataTableColumn,
@@ -31,10 +32,15 @@ function DataTableCell({ column, value }: { column: DataTableColumn; value: stri
 function DataTableRowField({ field }: { field: DataTableField }) {
   return (
     <>
-      {/* The standard option key — a label the docs index knows gets its hover
-          card; any other renders as a plain span. */}
+      {/* Every label explains itself on hover: its glossary entry when the
+          field declared one, else the option-docs card when the docs index
+          knows the name, else a plain span. */}
       <dt>
-        <OptionKey name={field.label} flagUnknown={false} />
+        {field.term === undefined ? (
+          <OptionKey name={field.label} flagUnknown={false} />
+        ) : (
+          <Term id={field.term}>{field.label}</Term>
+        )}
       </dt>
       <dd>{field.value}</dd>
     </>

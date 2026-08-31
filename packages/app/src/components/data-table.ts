@@ -11,6 +11,7 @@
  * `components/`: it can serve a feature without knowing what a row IS, and the
  * shared layer may not import a feature to find out.
  */
+import type { TermId } from "@/data/glossary-data";
 
 /** One column the reader can turn on and off. `defaultOn` is the state the
  *  table opens in — the design's Columns section is a set of toggles, not a
@@ -43,6 +44,9 @@ export interface DataTableRowGroup {
 export interface DataTableField {
   label: string;
   value: string;
+  /** The glossary entry explaining this label, drawn as the standard hover
+   *  card; without one the label falls back to the option-docs key. */
+  term?: TermId;
 }
 
 /** A button at the row's right — "Pin as test", "Open in simulator". */

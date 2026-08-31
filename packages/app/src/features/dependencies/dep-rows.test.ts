@@ -77,6 +77,11 @@ describe("depFields", () => {
   it("drops an empty string as firmly as a missing key", () => {
     expect(depFields({ depName: "react", depType: "" }).map((f) => f.label)).toEqual(["depName"]);
   });
+
+  it("hands each label its glossary term — the manual form's cards", () => {
+    const fields = depFields({ depName: "react", packageName: "react", versioning: "semver" });
+    expect(fields.map((f) => f.term)).toEqual(["simDepName", undefined, "simVersioning"]);
+  });
 });
 
 describe("depBadge", () => {

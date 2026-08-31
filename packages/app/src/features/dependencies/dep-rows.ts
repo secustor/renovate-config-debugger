@@ -16,6 +16,7 @@ import type {
   DataTableRow,
 } from "@/components/data-table";
 import type { RepoDep } from "@/types/repo";
+import type { TermId } from "@/data/glossary-data";
 import type { FormState } from "@/types/simulator";
 
 export const DEP_COLUMN_IDS = {
@@ -82,12 +83,35 @@ const DEP_FIELD_ORDER: readonly (keyof FormState)[] = [
   "updateType",
 ];
 
+/** The glossary entry explaining each field — the same cards the manual form's
+ *  labels carry (`field-groups.ts`). The unmapped fields (packageName,
+ *  currentValue, newValue) have no entry and stay plain. */
+const DEP_FIELD_TERMS: Partial<Record<keyof FormState, TermId>> = {
+  depName: "simDepName",
+  currentVersion: "simCurrentVersion",
+  lockedVersion: "simLockedVersion",
+  datasource: "datasource",
+  depType: "simDepType",
+  versioning: "simVersioning",
+  manager: "manager",
+  packageFile: "simPackageFile",
+  registryUrls: "simRegistryUrls",
+  sourceUrl: "simSourceUrl",
+  categories: "simCategories",
+  lockFiles: "simLockFiles",
+  repository: "simRepository",
+  baseBranch: "simBaseBranch",
+  currentVersionTimestamp: "simCurrentVersionTimestamp",
+  updateType: "updateType",
+};
+
 export function depFields(fill: Partial<FormState>): DataTableField[] {
   const fields: DataTableField[] = [];
   for (const key of DEP_FIELD_ORDER) {
     const value = fill[key];
+    const term = DEP_FIELD_TERMS[key];
     if (typeof value === "string" && value !== "") {
-      fields.push({ label: key, value });
+      fields.push({ label: key, value, ...(term === undefined ? {} : { term }) });
     }
   }
   return fields;
