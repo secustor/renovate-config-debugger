@@ -5,8 +5,11 @@ import type { FormState } from "@/types/simulator";
  * The design's empty state (Proposal F / "Skip Reason Funnel", `state:
  * empty`): a dashed card that says what a pin is, points at the Add-a-test
  * card below, and offers the quick-fill descriptors as "common cases" —
- * clicking one seeds the form rather than pinning, because no pin is ever
- * created for the reader (075 iteration 6). Everything goes through the SEED
+ * clicking one seeds the form rather than pinning, because a chip is an offer
+ * (075 iteration 6; the shell's own starter pins, roadmap 091, are the one
+ * thing that fills the list unasked — and they wear a chip saying so, which is
+ * why this card is on screen at all only when they derived nothing).
+ * Everything goes through the SEED
  * channel: since the ghost rework the card below may be collapsed, and the
  * seed is what opens it and moves focus into the form once it has rendered —
  * a direct DOM focus from here would query a form that is not on screen yet.

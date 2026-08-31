@@ -1,6 +1,12 @@
 import { expect, type Page, test } from "@playwright/test";
 import { encodeShareFragment, MERGE_STEPS_CONFIG, PACKAGE_RULES_CONFIG } from "./fixtures";
-import { openTab, runAndAwaitResult, setEditorContent, tabButton } from "./helpers";
+import {
+  clearStarterPins,
+  openTab,
+  runAndAwaitResult,
+  setEditorContent,
+  tabButton,
+} from "./helpers";
 
 /**
  * Roadmap 075 (v2, iteration 6) — the Tests tab as pinned dependency tests.
@@ -27,6 +33,10 @@ async function pinLodash(page: Page): Promise<void> {
 test("pinning a dependency checks it against the run, and every run after it", async ({ page }) => {
   await page.goto(await encodeShareFragment({ config: PACKAGE_RULES_CONFIG }));
   await openTab(page, "tests");
+  // Roadmap 091: this config's own rule seeds a starter pin. The subject here
+  // is the reader's OWN pin and the loop around it, so the starter goes first
+  // — its own behaviour is the test below.
+  await clearStarterPins(page);
 
   // The tab opens on the list: the empty state says what a pin is, and the
   // Add-a-test form is already open below it (Proposal F).
@@ -125,4 +135,42 @@ test("a pin opens in the full simulator, pre-filled, and the way back is one cli
 
   await page.getByRole("button", { name: "← Back to tests" }).click();
   await expect(page.locator(".pin-card")).toHaveCount(1);
+});
+
+/**
+ * Roadmap 091 — the starter pins. The Tests pane the landing transition docks
+ * in answers "now what?" by example: up to two descriptors derived from the
+ * config's OWN rules, marked as derived, and removable like anything else —
+ * permanently, because a starter that came back after a run would be the
+ * "magic" 075 refused.
+ */
+test("a config's own rules seed a starter pin, marked, and removing it is final", async ({
+  page,
+}) => {
+  await page.goto(await encodeShareFragment({ config: PACKAGE_RULES_CONFIG }));
+  await openTab(page, "tests");
+
+  // The config's one rule matches lodash on minor/patch, so the starter IS a
+  // lodash minor — and it is checked against the run like any pin.
+  const card = page.locator(".pin-card");
+  await expect(card).toHaveCount(1);
+  await expect(card).toContainText("lodash");
+  await expect(card.locator(".pin-starter")).toContainText("starter");
+  await expect(card.locator(".pin-summary")).toContainText("automerge ✓");
+  // With something in the list, the empty state's explainer stands down.
+  await expect(page.locator("#panel-tests")).not.toContainText("No tests pinned yet");
+
+  // A re-run re-checks it, exactly like a pin the reader made.
+  await runAndAwaitResult(page);
+  await openTab(page, "tests");
+  await expect(card.locator(".pin-summary")).toContainText("automerge ✓");
+
+  // The ordinary unpin removes it — and the run after that does not seed it
+  // again: deleting a starter is an answer, not a refresh.
+  await page.getByRole("button", { name: "Remove the pinned test for lodash" }).click();
+  await expect(card).toHaveCount(0);
+  await runAndAwaitResult(page);
+  await openTab(page, "tests");
+  await expect(card).toHaveCount(0);
+  await expect(page.locator("#panel-tests")).toContainText("No tests pinned yet");
 });

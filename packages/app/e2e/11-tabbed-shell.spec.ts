@@ -8,6 +8,7 @@ import {
   SEMANTIC_COMMITS_CONFIG,
 } from "./fixtures";
 import {
+  clearStarterPins,
   effectivePresetChip,
   must,
   openMigrateStage,
@@ -437,6 +438,10 @@ test("a share link naming a retired tab lands on the tab that replaced it", asyn
   );
   await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
   await expect(tabButton(page, "tests")).toHaveAttribute("aria-selected", "true");
+  // Roadmap 091: this config's own rule seeds a starter pin — the alias's
+  // subject is WHICH tab the link lands on, so the list it lands on is cleared
+  // back to the state this assertion was written for.
+  await clearStarterPins(page);
   await expect(tabPanel(page, "tests")).toContainText("No tests pinned yet");
 
   // `rewrites` — Pipeline, AND the migrate stage, or the stepper the sender was

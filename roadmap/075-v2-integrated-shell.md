@@ -87,7 +87,11 @@ commit on `feat/v2`:
   tokens.
 - The advanced zone (008/045 layers, host tokens) keeps its behavior; it
   moves with the editor pane.
-- **No seeded pins.** The Landing Transition mock shows a Tests tab that
+- **No seeded pins.**
+  _(Reversed later: [091](091-starter-pins.md) shipped two STARTER pins,
+  derived from the reader's own `packageRules`, marked as such and seeded once
+  — the ruling below stands as the record of what that reversal had to
+  answer.)_ The Landing Transition mock shows a Tests tab that
   already has pins in it; iteration 6 deliberately ships an empty list with an
   explainer instead. A pin the user did not ask for is a test they did not
   write, and every run would then re-check a descriptor they never chose —

@@ -18,6 +18,7 @@ export function PinHeadRow({
   context,
   summary,
   pending,
+  starter = false,
 }: {
   check: PinCheck;
   name: string;
@@ -27,11 +28,22 @@ export function PinHeadRow({
   summary: string | null;
   /** What stands in for the sentence while `summary` is null. */
   pending?: string;
+  /** Roadmap 091: this descriptor was derived from the reader's own rules, not
+   *  written by them — said on the row, since it is the row's own claim. */
+  starter?: boolean;
 }) {
   return (
     <>
       <span className={`pin-dot ${dotTone(check)}`} title={dotTitle(check)} />
       <span className="pin-name">{name}</span>
+      {starter ? (
+        <span
+          className="pill pill-count pin-starter"
+          title="Derived from your packageRules — swap in a real one"
+        >
+          starter
+        </span>
+      ) : null}
       <span className="pin-meta">{context}</span>
       {summary === null ? (
         <span className="pin-pending">{pending}</span>

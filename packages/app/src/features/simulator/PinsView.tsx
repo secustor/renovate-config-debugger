@@ -19,9 +19,12 @@ import type { RepoConnectOffer, RepoDepsView } from "@/types/repo";
  * ("N pinned · R rules evaluated per test, in merge order" — with the merge
  * law on the right), the funnel card per pin, and the Add-a-test card at the
  * foot — the design's GHOST row once pins exist, open only while a pin is
- * being made (082 revisited alongside 078). No pin is ever created for the
- * reader: the empty state says what a pin is and seeds the form, and the
- * detail view (one dependency, the full analysis) is one quiet link away from
+ * being made (082 revisited alongside 078). No pin is created for the reader
+ * from inside this view — the empty state says what a pin is and seeds the
+ * FORM, never the list (the two starter pins roadmap 091 seeds once per
+ * session are the shell's, wear a chip saying so, and are unpinned like any
+ * other) — and the detail view (one dependency, the full analysis) is one
+ * quiet link away from
  * every card that HAS a dependency to hand it — roadmap 080 closed the
  * descriptor-less door.
  */

@@ -33,6 +33,13 @@ export interface PinnedRun {
   pins: PinnedTest[];
   addPin: (form: FormState) => void;
   removePin: (id: string) => void;
+  /**
+   * Roadmap 091: the starter pins, seeded once. Called by `useStarterPins` on
+   * the first settled run — with the descriptors it derived, or with none when
+   * it derived none. Either way the latch trips, so this fires at most once
+   * per session and a reader who deletes a starter never sees it return.
+   */
+  seedStarterPins: (forms: FormState[]) => void;
   /** The decode side: a link's descriptors, with ids minted here. */
   setPinsFromShare: (shared: Record<string, string>[]) => void;
   /**
@@ -47,8 +54,16 @@ export function usePinnedRun(): PinnedRun {
   const [pins, setPins] = useState<PinnedTest[]>([]);
   const pinSeqRef = useRef(0);
   const nextPinId = useCallback(() => `pin-${++pinSeqRef.current}`, []);
+  /**
+   * Roadmap 091: the seeding latch — true once the list has been touched by
+   * anything at all: a pin made, a pin removed, a link's pins installed, or
+   * the one seeding itself. A ref, not state: it gates a decision taken inside
+   * a callback, and a re-render is neither needed nor wanted when it flips.
+   */
+  const pinsTouchedRef = useRef(false);
   const addPin = useCallback(
     (form: FormState) => {
+      pinsTouchedRef.current = true;
       // Roadmap 080: the detail view's pin leaves the form on screen, so a
       // repeated click reaches here with the same descriptor — an identical
       // test is a no-op, not a second row.
@@ -61,12 +76,41 @@ export function usePinnedRun(): PinnedRun {
     [nextPinId],
   );
   const removePin = useCallback((id: string) => {
+    pinsTouchedRef.current = true;
     setPins((prev) => prev.filter((pin) => pin.id !== id));
   }, []);
+  // Roadmap 091: seeded, never authored — so it happens only into a list
+  // nothing has touched yet, and it is itself a touch.
+  const seedStarterPins = useCallback(
+    (forms: FormState[]) => {
+      if (pinsTouchedRef.current) {
+        return;
+      }
+      pinsTouchedRef.current = true;
+      if (forms.length === 0) {
+        return;
+      }
+      setPins((prev) =>
+        prev.length > 0
+          ? prev
+          : forms.slice(0, MAX_PINS).map((form) => ({ id: nextPinId(), form, starter: true })),
+      );
+    },
+    [nextPinId],
+  );
   // Roadmap 075 (iteration 6): the link's pins, with ids minted here.
   const setPinsFromShare = useCallback(
     (shared: Record<string, string>[]) => {
-      setPins(pinsFromShareFields(shared, nextPinId));
+      const installed = pinsFromShareFields(shared, nextPinId);
+      // Roadmap 091: every link arrival calls this, with `[]` when the link
+      // carried no pins — only one that actually INSTALLS pins is a list the
+      // reader was handed, and only that one may stop the starters. A link
+      // without pins is someone else's config on this reader's screen, which
+      // is exactly the case the starters were written for.
+      if (installed.length > 0) {
+        pinsTouchedRef.current = true;
+      }
+      setPins(installed);
     },
     [nextPinId],
   );
@@ -74,7 +118,16 @@ export function usePinnedRun(): PinnedRun {
   // tests OF — a link that reproduces the run without them reproduces the wrong
   // screen. Descriptors only (the same fields `sim.form` carries), so this adds
   // no new class of data to a link.
-  const pinsAsShareFields = useCallback(() => pins.map((pin) => pinShareFields(pin.form)), [pins]);
+  //
+  // Roadmap 091: starters are left behind. They are not the sharer's tests —
+  // they are what this app made up from the config the link already carries,
+  // so the opener's own first run derives them again, from their own rules,
+  // marked as starters there too. Sharing them would hand someone else's
+  // reader two authored-looking pins nobody wrote.
+  const pinsAsShareFields = useCallback(
+    () => pins.filter((pin) => pin.starter !== true).map((pin) => pinShareFields(pin.form)),
+    [pins],
+  );
 
-  return { pins, addPin, removePin, setPinsFromShare, pinsAsShareFields };
+  return { pins, addPin, removePin, seedStarterPins, setPinsFromShare, pinsAsShareFields };
 }

@@ -50,4 +50,11 @@ export interface PinnedTest {
    */
   id: string;
   form: FormState;
+  /**
+   * Roadmap 091: this pin was SEEDED from the reader's own `packageRules`, not
+   * authored — the card wears a "starter" chip and the link leaves it behind
+   * (the opener's own config seeds their own). Absent on every pin a reader or
+   * a link made, which is the majority, so it stays optional.
+   */
+  starter?: boolean;
 }
