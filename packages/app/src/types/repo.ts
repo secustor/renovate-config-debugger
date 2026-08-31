@@ -68,8 +68,9 @@ export interface RepoDepFile {
   /** The extractable managers whose file patterns claim this path — several
    *  managers legitimately claim one filename. */
   managers: string[];
-  /** The manager that actually ran (the first extractable match), or null when
-   *  the file was never read or produced nothing. */
+  /** The first manager whose extraction produced this file's rows, or null when
+   *  the file was never read or produced nothing — one file can be extracted by
+   *  a built-in AND by custom-manager blocks (roadmap 093). */
   extractedBy: string | null;
   /** Named, pinnable dependencies this file contributed. */
   depCount: number;
@@ -90,6 +91,10 @@ export interface RepoDepsView {
   /** Roadmap 090: how many managers the walk asked — the honest denominator
    *  for "K of N managers matched files". */
   managersConsidered: number;
+  /** Roadmap 093: the custom half of that denominator — how many of the run's
+   *  `customManagers` blocks the walk could ask (enabled, a supported
+   *  customType, at least one file pattern). 0 when the run supplied none. */
+  customManagersConsidered: number;
   /** GitHub truncates very large trees; the listing says so. */
   truncated: boolean;
   error: string | null;

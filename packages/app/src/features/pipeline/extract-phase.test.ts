@@ -28,6 +28,22 @@ const VIEW: RepoDepsView = readyView([
   dep("node", "Dockerfile", "dockerfile"),
 ]);
 
+/** Roadmap 093: the same walk, with two custom blocks in the run's config —
+ *  one of which claimed (and extracted from) a file no built-in claims. */
+const CUSTOM_VIEW: RepoDepsView = {
+  ...VIEW,
+  customManagersConsidered: 2,
+  deps: [...VIEW.deps, dep("kubectl", "k8s/deploy.yaml", "custom.regex")],
+  files: [
+    ...VIEW.files,
+    walkFile("k8s/deploy.yaml", ["custom.regex"], {
+      extractedBy: "custom.regex",
+      depCount: 1,
+      outcome: "extracted",
+    }),
+  ],
+};
+
 describe("extractNodes", () => {
   it("counts managers, scanned files and deps, each against what the walk did", () => {
     const [managers, files, deps] = extractNodes(VIEW);
@@ -45,6 +61,24 @@ describe("extractNodes", () => {
   it("says one dependency rather than 1 dependencies", () => {
     const nodes = extractNodes({ ...VIEW, deps: [dep("react", "package.json", "npm")] });
     expect(nodes[2]?.outcome).toBe("1 dependency from acme/webapp");
+  });
+
+  it("counts the run's custom blocks beside the built-in ratio, never inside it", () => {
+    const [managers] = extractNodes(CUSTOM_VIEW);
+
+    // The meta is every matched label; the sentence keeps the two denominators
+    // apart — 3 built-ins of 100, and the blocks as their own clause.
+    expect(managers?.meta).toBe("4");
+    expect(managers?.outcome).toBe(
+      "3 of 100 managers matched files, plus your 2 custom managers claiming 1 file",
+    );
+  });
+
+  it("says so when the custom blocks claimed nothing", () => {
+    const [managers] = extractNodes({ ...VIEW, customManagersConsidered: 1 });
+    expect(managers?.outcome).toBe(
+      "3 of 100 managers matched files; your 1 custom manager matched none",
+    );
   });
 });
 
@@ -125,5 +159,20 @@ describe("managerNotes", () => {
     expect(notes.some((note) => note.includes("other manager"))).toBe(false);
     expect(notes.some((note) => note.includes("not read"))).toBe(false);
     expect(notes.some((note) => note.includes("truncated"))).toBe(true);
+  });
+
+  it("keeps the 'matched no files' count against the built-in managers only", () => {
+    const notes = managerNotes(CUSTOM_VIEW);
+
+    // Four labels matched, but only three of them are managers the walk ASKED
+    // — the custom one came from the config, not from the ledger of 100.
+    expect(notes[0]).toBe("97 other managers matched no files.");
+    expect(notes.some((note) => note.includes("custom manager block"))).toBe(false);
+    expect(notes.at(-1)).toContain("so were your config’s customManagers");
+  });
+
+  it("reports custom blocks that matched nothing", () => {
+    const notes = managerNotes({ ...VIEW, customManagersConsidered: 2 });
+    expect(notes).toContain("Your 2 custom manager blocks matched no files.");
   });
 });

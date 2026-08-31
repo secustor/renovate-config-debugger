@@ -64,6 +64,27 @@ export function matchedManagerNames(view: RepoDepsView): string[] {
   return [...filesByManager(view).keys()];
 }
 
+/** A custom-manager label (roadmap 093) — the walk names them `custom.<type>`,
+ *  and they count against `customManagersConsidered`, not the built-in N. */
+function isCustomManager(manager: string): boolean {
+  return manager.startsWith("custom.");
+}
+
+/** The matched labels split the way the two denominators are: built-in names
+ *  against `managersConsidered`, custom ones against the config's blocks. */
+function matchedManagerCounts(view: RepoDepsView): { builtIn: number; custom: number } {
+  const matched = matchedManagerNames(view);
+  const custom = matched.filter(isCustomManager).length;
+  return { builtIn: matched.length - custom, custom };
+}
+
+/** The files a custom block claimed — the honest custom half of the manager
+ *  node's sentence, since which BLOCK claimed a file does not ride on the
+ *  ledger (only its `custom.<type>` label does). */
+function customClaimedFiles(view: RepoDepsView): RepoDepFile[] {
+  return view.files.filter((file) => file.managers.some(isCustomManager));
+}
+
 /** The files the walk actually READ — everything the cap did not drop. */
 export function scannedFiles(view: RepoDepsView): RepoDepFile[] {
   return view.files.filter((file) => file.outcome !== "not-read");
@@ -74,10 +95,9 @@ export function scannedFiles(view: RepoDepsView): RepoDepFile[] {
  * step that found nothing still ran.
  *
  * Only the last node's meta is toned — the deps it produced are the phase's
- * result, which is the one number the rail's `ok` green is for. The custom
- * managers 063 will add would show as "K + M custom" here; nothing produces a
- * `custom.` manager today, so the suffix is omitted rather than printed as
- * "+ 0 custom".
+ * result, which is the one number the rail's `ok` green is for. The meta counts
+ * every matched label, custom ones included; the sentence keeps the two
+ * denominators apart (see `managersOutcome`).
  */
 export function extractNodes(view: RepoDepsView): ExtractNode[] {
   const managers = matchedManagerNames(view);
@@ -89,7 +109,7 @@ export function extractNodes(view: RepoDepsView): ExtractNode[] {
       label: "Match managers",
       meta: nf.format(managers.length),
       metaTone: "neutral",
-      outcome: `${managers.length} of ${nf.format(view.managersConsidered)} managers matched files`,
+      outcome: managersOutcome(view),
     },
     {
       id: "files",
@@ -106,6 +126,26 @@ export function extractNodes(view: RepoDepsView): ExtractNode[] {
       outcome: `${dependencies(view.deps.length)} from ${repo}`,
     },
   ];
+}
+
+/**
+ * The manager node's sentence. "K of N managers" stays the BUILT-IN
+ * arithmetic; the run's custom blocks are a second, differently-shaped count
+ * (blocks considered, files they claimed), so they are said as their own
+ * clause rather than folded into a ratio they do not share. Omitted entirely
+ * when the run supplied no usable blocks.
+ */
+function managersOutcome(view: RepoDepsView): string {
+  const { builtIn } = matchedManagerCounts(view);
+  const base = `${nf.format(builtIn)} of ${nf.format(view.managersConsidered)} managers matched files`;
+  if (view.customManagersConsidered === 0) {
+    return base;
+  }
+  const blocks = plural(view.customManagersConsidered, "custom manager");
+  const claimed = customClaimedFiles(view).length;
+  return claimed === 0
+    ? `${base}; your ${blocks} matched none`
+    : `${base}, plus your ${blocks} claiming ${plural(claimed, "file")}`;
 }
 
 /** One row of the Match-managers card: a manager and the files it claimed. */
@@ -197,27 +237,36 @@ export function depGroups(view: RepoDepsView): ExtractDepGroup[] {
  * The Match-managers card's footnotes — the honest accounting of what this
  * walk is NOT.
  *
- * The last one is permanent until the discovery grows a config-aware walk:
- * `enabledManagers` and `ignorePaths` from the merged config are not applied
- * to it (only Renovate's own default ignore of `node_modules`/
- * `bower_components` is), so production Renovate may consider fewer managers
- * and fewer files than this list shows. Saying so is cheaper than a reader
- * concluding their `enabledManagers` is being ignored by Renovate too.
+ * The last one is permanent until the discovery grows a fully config-aware
+ * walk: `enabledManagers` and `ignorePaths` from the merged config are not
+ * applied to it (only Renovate's own default ignore of `node_modules`/
+ * `bower_components` and — since 093 — the config's `customManagers` are), so
+ * production Renovate may consider fewer managers and fewer files than this
+ * list shows. Saying so is cheaper than a reader concluding their
+ * `enabledManagers` is being ignored by Renovate too.
  */
 export function managerNotes(view: RepoDepsView): string[] {
   const notes: string[] = [];
-  const matched = matchedManagerNames(view).length;
-  const others = view.managersConsidered - matched;
+  // Against the BUILT-IN denominator only: a `custom.` label matched a block
+  // the walk was handed, not one of the N managers it asked.
+  const { builtIn, custom } = matchedManagerCounts(view);
+  const others = view.managersConsidered - builtIn;
   if (others > 0) {
     notes.push(`${plural(others, "other manager")} matched no files.`);
+  }
+  if (view.customManagersConsidered > 0 && custom === 0) {
+    notes.push(
+      `Your ${plural(view.customManagersConsidered, "custom manager block")} matched no files.`,
+    );
   }
   // The shared clauses every discovery surface prints (`lib/discovery-caveats`)
   // — this card only sentence-cases them, so its counts and the footnotes'
   // are one arithmetic.
   notes.push(...discoveryCaveats(view).map((clause) => `${sentenceCase(clause)}.`));
   notes.push(
-    "Renovate’s default ignorePaths (node_modules, bower_components) were applied; " +
-      "enabledManagers and ignorePaths from your merged config were not.",
+    "Renovate’s default ignorePaths (node_modules, bower_components) were applied, and so " +
+      "were your config’s customManagers; enabledManagers and ignorePaths from your merged " +
+      "config were not.",
   );
   return notes;
 }
