@@ -477,8 +477,12 @@ it("offers the resolved document from the toolbar in both views", async () => {
   });
 
   const view = render(<EffectiveConfig result={result} />);
-  const copy = await waitFor(() =>
-    view.getByRole("button", { name: "Copy effective config as JSON" }),
+  // The copy payload is the SECOND engine derivation (it waits on provenance),
+  // so this wait outlasts two chained effects — waitFor's 1s default is what
+  // CI runners blow past.
+  const copy = await waitFor(
+    () => view.getByRole("button", { name: "Copy effective config as JSON" }),
+    { timeout: 15_000 },
   );
   // …while the By-key view is still the one on screen.
   expect(view.container.querySelector(".data-table-head")).not.toBeNull();
