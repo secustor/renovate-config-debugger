@@ -135,10 +135,11 @@ jobs:
           name: app-dist
           path: packages/app/dist
 
-      # Pages deployment is opt-in: the repo is private and GitHub Pages for
-      # private repos needs a paid plan, so the deploy job would always fail.
-      # To publish the site, enable Pages (build type "GitHub Actions") in the
-      # repo settings and set the repository Actions variable DEPLOY_PAGES=true.
+      # Pages publish is opt-in — this step, the attestation above and the
+      # `deploy` job below all gate on the repo Actions variable DEPLOY_PAGES.
+      # To publish from a fork or self-host: enable Pages (build type "GitHub
+      # Actions") in the repo settings, then set DEPLOY_PAGES=true. Both are
+      # on here — the site is renovate.secustor.dev.
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         if: github.ref == 'refs/heads/main' && vars.DEPLOY_PAGES == 'true'
         with:
@@ -147,7 +148,9 @@ jobs:
   e2e:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Deliberately above Playwright's 20-minute globalTimeout plus setup, so
+    # that ceiling fires first and the report/trace artifact still uploads.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
