@@ -5,7 +5,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { traceResult } from "@tools/test/trace-result";
 import type * as ShareModule from "@/lib/share";
 import type { DecodeResult, SharePayload } from "@/lib/share";
-import { type ShareLinkHost, type SimRequest, useShareLink } from "./use-share-link";
+import {
+  type ShareLink,
+  type ShareLinkHost,
+  type SimRequest,
+  useShareLink,
+} from "./use-share-link";
 
 /**
  * Roadmap 068 review — the attribution invariant the decode path is
@@ -33,6 +38,9 @@ vi.mock("@/lib/share", async (importOriginal) => {
         found ? { ok: true, payload: found } : { ok: false, reason: "damaged" },
       );
     },
+    // The encode side likewise: its wire format is `share.test.ts`'s subject,
+    // and `CompressionStream` is not jsdom's to give.
+    encodeShare: () => Promise.resolve("ENC"),
   };
 });
 
@@ -113,12 +121,15 @@ function makeHost(onRun: ShareLinkHost["onRun"]): ShareLinkHost {
  * render.
  */
 let seen: SimRequest | null = null;
+/** The mounted hook's copy-link entry point, hoisted out for the same reason. */
+let copy: ShareLink["buildShareLinkAndCopy"] | null = null;
 
 function Harness({ host }: { host: ShareLinkHost }) {
-  const { simRequest } = useShareLink(null, host);
+  const { simRequest, buildShareLinkAndCopy } = useShareLink(null, host);
   useEffect(() => {
     seen = simRequest;
-  }, [simRequest]);
+    copy = buildShareLinkAndCopy;
+  }, [simRequest, buildShareLinkAndCopy]);
   return null;
 }
 
@@ -136,7 +147,14 @@ async function openLink(token: string) {
 
 function mount(onRun: ShareLinkHost["onRun"], overrides: Partial<ShareLinkHost> = {}) {
   seen = null;
+  copy = null;
   render(<Harness host={{ ...makeHost(onRun), ...overrides }} />);
+}
+
+/** jsdom's own `navigator.clipboard` is not writable; `configurable` is what
+ *  lets a later test redefine it (same rule as `tools/test/clipboard.ts`). */
+function stubClipboard(writeText: () => Promise<void>) {
+  Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
 }
 
 /** The newest request the mounted harness has observed. */
@@ -269,5 +287,22 @@ describe("useShareLink", () => {
     // never had a reason to open one without the other, so the "called
     // together" invariant is a single call to assert rather than two.
     expect(openHostCredentials).toHaveBeenCalledTimes(1);
+  });
+
+  it("says where the link is when the clipboard write fails", async () => {
+    // The encode has to await, and Safari drops a clipboard write issued after
+    // one (roadmap 082) — so this is that browser's every click, not just an
+    // insecure-context deployment's. Every caller's catch is silent, so without
+    // the notice the Share button reads as dead.
+    stubClipboard(() => Promise.reject(new Error("denied")));
+    const setNotice = vi.fn();
+    mount(vi.fn<ShareLinkHost["onRun"]>().mockResolvedValue(traceResult()), { setNotice });
+    await waitFor(() => expect(copy).not.toBeNull());
+
+    await expect(copy?.()).rejects.toThrow("clipboard unavailable");
+
+    expect(setNotice).toHaveBeenCalledWith(expect.stringContaining("address bar"));
+    // Which is only true because the hash was written before the throw.
+    expect(window.location.hash).toBe("#config=ENC");
   });
 });

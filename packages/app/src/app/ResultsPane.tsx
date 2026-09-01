@@ -1,6 +1,7 @@
-import { lazy, Suspense } from "react";
+import { lazy } from "react";
 import type { ResultsColumnProps } from "@/app/ResultsColumn";
 import { loadResultsColumn } from "@/app/preload-run-chunks";
+import { ResultsBoundary } from "@/app/ResultsBoundary";
 
 /**
  * The results half's lazy boundary, and the column wrapper it mounts into.
@@ -22,10 +23,10 @@ import { loadResultsColumn } from "@/app/preload-run-chunks";
 const ResultsColumn = lazy(() => loadResultsColumn().then((m) => ({ default: m.ResultsColumn })));
 
 /**
- * Roadmap 031/040: the results half — its column wrapper, the lazy boundary
- * and the column itself. One component since 040's depth ratchet: the split's
- * right-hand pane has one level left, and these are three. Props are the
- * column's own, forwarded unchanged.
+ * Roadmap 031/040: the results half — its column wrapper and the column. The
+ * lazy and error boundaries moved into `ResultsBoundary`, which is what keeps
+ * this within 040's depth ratchet: the split's right-hand pane has one level
+ * left. Props are the column's own, forwarded unchanged.
  */
 export function ResultsPane(props: ResultsColumnProps) {
   // Destructured rather than `ref={props.resultsColRef}`: handing a MEMBER of
@@ -38,12 +39,13 @@ export function ResultsPane(props: ResultsColumnProps) {
     // config column's matching pair.
     <div className="results-col" id="results-column" tabIndex={-1} ref={resultsColRef}>
       {/* Roadmap 031: the results chunk is preloaded at idle and on Run
-          intent, so this fallback is a formality — and once the lazy module
-          has resolved, re-renders never suspend, so the mounted shell (and all
-          its per-tab state) is never torn down by the boundary. */}
-      <Suspense fallback={null}>
+          intent, so the Suspense fallback is a formality — and once the lazy
+          module has resolved, re-renders never suspend, so the mounted shell
+          (and all its per-tab state) is never torn down by the boundary. A
+          chunk that fails to load lands in the error half instead. */}
+      <ResultsBoundary>
         <ResultsColumn {...props} />
-      </Suspense>
+      </ResultsBoundary>
     </div>
   );
 }

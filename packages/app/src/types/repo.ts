@@ -75,6 +75,8 @@ export interface RepoDepFile {
   /** Named, pinnable dependencies this file contributed. */
   depCount: number;
   outcome: RepoDepFileOutcome;
+  /** Why extraction failed, when `outcome` is `error`; absent otherwise. */
+  error?: string;
 }
 
 /** What the tab renders — computed by the shell, drawn by the feature. */

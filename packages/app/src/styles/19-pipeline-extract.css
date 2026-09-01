@@ -167,6 +167,14 @@
   margin: 0.15rem 0.75rem 0.6rem;
 }
 
+/* The same small print inside an open row is that ROW's detail, not the card's:
+   it drops the card inset and takes the sublist's indent, so it reads as the
+   first line of what the row opened onto. */
+.extract-row .extract-notes {
+  margin: 0.1rem 0 0.35rem;
+  padding-left: 1.4rem;
+}
+
 .extract-note-line {
   display: block;
 }

@@ -1,31 +1,19 @@
-import { useEffect, useState } from "react";
-import { loadEngine } from "@/platform/engine-chunk";
+import { useEngineDerivation } from "@/hooks/use-engine-derivation";
 import type { InjectionKeyFn, MergeFn, ParseFn } from "./tree-shared";
 
-/** Loads the engine helpers the tree needs (merge + injection key/parse). */
+/** Keyed on nothing — the helpers are the same functions for the life of the
+ *  page. Frozen at module scope so the dependency identity is stable. */
+const NO_INPUTS: readonly unknown[] = [];
+
+/**
+ * The engine helpers the tree needs (merge + injection key/parse), loaded
+ * through the shared derivation seam: `undefined` while the chunk is in flight,
+ * `null` if it never arrives, rather than an unhandled rejection.
+ */
 export function useEngineHelpers() {
-  const [helpers, setHelpers] = useState<{
-    merge: MergeFn;
-    injectionKey: InjectionKeyFn;
-    parse: ParseFn;
-  } | null>(null);
-
-  useEffect(() => {
-    let live = true;
-    void (async () => {
-      const engine = await loadEngine();
-      if (live) {
-        setHelpers({
-          merge: engine.mergeChildConfig as MergeFn,
-          injectionKey: engine.presetInjectionKey as InjectionKeyFn,
-          parse: engine.parseInjectedPreset as ParseFn,
-        });
-      }
-    })();
-    return () => {
-      live = false;
-    };
-  }, []);
-
-  return helpers;
+  return useEngineDerivation(NO_INPUTS, (engine) => ({
+    merge: engine.mergeChildConfig as MergeFn,
+    injectionKey: engine.presetInjectionKey as InjectionKeyFn,
+    parse: engine.parseInjectedPreset as ParseFn,
+  }));
 }
