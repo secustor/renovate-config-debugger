@@ -17,6 +17,7 @@ export function toSerializable(value: unknown): unknown {
   } catch {
     try {
       return JSON.parse(
+        // oxlint-disable-next-line rcd/use-json-helpers -- Error-flattening replacer + JSON.parse round-trip; no text leaves this expression
         JSON.stringify(value, (_k, v: unknown) =>
           v instanceof Error ? { name: v.name, message: v.message } : v,
         ),

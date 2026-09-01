@@ -1,4 +1,5 @@
-import { allowStringMembers, deepEqual, isPlainObject } from "../lib";
+import { isPlainObject } from "../is";
+import { allowStringMembers, deepEqual } from "../lib";
 import { getDefaultConfig, getOptions, mergeChildConfig } from "../renovate-adapter";
 import type { PresetNode, TraceResult } from "./model";
 import { mergingChildren, replayableRun, walkResolutionOrder } from "./tree";

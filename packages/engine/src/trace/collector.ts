@@ -1,3 +1,4 @@
+import { isString } from "../is";
 import { snapshot } from "../lib";
 import { computeDelta, toSerializable } from "./delta";
 import { describeMigration } from "./migration-names";
@@ -106,7 +107,7 @@ export class TraceCollector {
       return;
     }
     const metaObj = (meta ?? {}) as Record<string, unknown>;
-    if (msg === "Preset fetch error" && typeof metaObj.preset === "string") {
+    if (msg === "Preset fetch error" && isString(metaObj.preset)) {
       // This fallback only fires outside the preset stage.
       this.emit({
         kind: "preset-error",

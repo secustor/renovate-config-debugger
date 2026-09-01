@@ -16,10 +16,10 @@
  *   2026-07 persona study.
  *
  * No Renovate imports — the `SimulationResult` reference is a `import type`,
- * erased at compile time, and `lib`/`text` are dependency-free one-liners — so
+ * erased at compile time, and `json`/`text` are dependency-free one-liners — so
  * this module runs (and unit-tests) with zero engine/browser machinery.
  */
-import { jsonEqual } from "./lib";
+import { jsonEqual, jsonLiteral, jsonText } from "./json";
 import type { RuleEvaluation, SimulationResult } from "./simulate-package-rules";
 import { countNoun } from "./text";
 
@@ -184,7 +184,7 @@ export interface CompareOptions {
 const DOCUMENTATION_KEYS = new Set(["description"]);
 
 function signatureOf(rule: RuleEvaluation): string {
-  return JSON.stringify(rule.clauses.map((c) => [c.key, c.value]));
+  return jsonText(rule.clauses.map((c) => [c.key, c.value]));
 }
 
 function labelOf(rule: RuleEvaluation): string {
@@ -217,7 +217,7 @@ function effectOf(rule: RuleEvaluation): string | undefined {
     return undefined;
   }
   const entries = rule.merged.map((m): [string, unknown] => [m.key, "after" in m ? m.after : null]);
-  return JSON.stringify(entries.toSorted((x, y) => x[0].localeCompare(y[0])));
+  return jsonText(entries.toSorted((x, y) => x[0].localeCompare(y[0])));
 }
 
 /** Replay-02 N8: a key nothing in the run wrote (no rule step, no flatten
@@ -230,7 +230,7 @@ function inheritedIn(result: SimulationResult, key: string): boolean {
 /** A rule's clauses as key → stable value text, so two rules can be compared
  *  clause by clause without re-parsing the signature string. */
 function clauseValues(rule: RuleEvaluation): Map<string, string> {
-  return new Map(rule.clauses.map((c) => [c.key, JSON.stringify(c.value) ?? "null"]));
+  return new Map(rule.clauses.map((c) => [c.key, jsonLiteral(c.value)]));
 }
 
 /**
@@ -273,10 +273,6 @@ const SUMMARY_KEY_LIMIT = 6;
 const SUMMARY_LINE_BUDGET = 140;
 /** A value long enough to be a document, not an annotation. */
 const SUMMARY_VALUE_BUDGET = 24;
-
-function valueText(value: unknown): string {
-  return JSON.stringify(value) ?? String(value);
-}
 
 /** One selector change, named. Singular — the caller decides when to count. */
 function churnPhrase(change: SignatureChange): string {
@@ -338,7 +334,7 @@ function sideText(run: "A" | "B", value: unknown, present: boolean, inherited?: 
   if (!present) {
     return `unset in ${run}`;
   }
-  return `${run}=${valueText(value)}${inherited ? " by default" : ""}`;
+  return `${run}=${jsonText(value)}${inherited ? " by default" : ""}`;
 }
 
 function annotatedKey(delta: ConfigKeyDelta): string {
@@ -349,8 +345,8 @@ function annotatedKey(delta: ConfigKeyDelta): string {
 
 function withinValueBudget(delta: ConfigKeyDelta): boolean {
   return (
-    (!delta.inA || valueText(delta.a).length <= SUMMARY_VALUE_BUDGET) &&
-    (!delta.inB || valueText(delta.b).length <= SUMMARY_VALUE_BUDGET)
+    (!delta.inA || jsonText(delta.a).length <= SUMMARY_VALUE_BUDGET) &&
+    (!delta.inB || jsonText(delta.b).length <= SUMMARY_VALUE_BUDGET)
   );
 }
 

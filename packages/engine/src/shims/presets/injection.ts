@@ -12,6 +12,7 @@
  * action maps onto the fetcher's lookup with no coordination.
  */
 import JSON5 from "json5";
+import { jsonLiteral } from "../../json";
 
 export interface PresetIdentity {
   presetSource: string;
@@ -27,7 +28,7 @@ export interface PresetIdentity {
  * explicit `owner/repo:default` collide, matching how the fetchers resolve.
  */
 export function presetInjectionKey(id: PresetIdentity): string {
-  return JSON.stringify([
+  return jsonLiteral([
     id.presetSource,
     id.repo ?? "",
     id.presetPath ?? "",

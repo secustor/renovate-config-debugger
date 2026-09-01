@@ -17,12 +17,14 @@
  * most commonly because the config uses that rare unquoted/single-quoted key
  * style, or the path doesn't exist in this exact text — `applyFixToText`
  * falls back to re-serializing the ENTIRE document from `fix.fixedConfig`
- * (`JSON.stringify(fixedConfig, null, 2)`), which is always correct but loses
+ * (`jsonDocument(fixedConfig)`), which is always correct but loses
  * comments and original formatting; the returned `surgical: false` flag lets
  * a caller warn about that tradeoff.
  */
 
 import type { ConfigPathSegment, ErrorFixResult } from "./error-translations";
+import { isString } from "./is";
+import { jsonDocument, jsonLiteral } from "./json";
 import { isIndentAt, isSpaceAt, skipComment, skipString } from "./text-scan";
 
 export interface AppliedTextFix {
@@ -51,9 +53,7 @@ export function applyFixToText(text: string, fix: ErrorFixResult): AppliedTextFi
     }
     return {
       text:
-        text.slice(0, located.key.start) +
-        JSON.stringify(fix.renameTo) +
-        text.slice(located.key.end),
+        text.slice(0, located.key.start) + jsonLiteral(fix.renameTo) + text.slice(located.key.end),
       surgical: true,
     };
   }
@@ -70,7 +70,7 @@ export function applyFixToText(text: string, fix: ErrorFixResult): AppliedTextFi
  *  always at the cost of every comment and every formatting choice. */
 function rewriteDocument(fix: ErrorFixResult): AppliedTextFix | null {
   try {
-    return { text: JSON.stringify(fix.fixedConfig, null, 2), surgical: false };
+    return { text: jsonDocument(fix.fixedConfig), surgical: false };
   } catch {
     return null;
   }
@@ -97,7 +97,7 @@ function columnIndentAt(text: string, valueStart: number): string {
 /**
  * The replacement text for a value.
  *
- * Compact `JSON.stringify` is right for what the curated fixes mostly replace
+ * Compact JSON text is right for what the curated fixes mostly replace
  * — `["!gradle"]` belongs on one line, and every span that was one line to
  * begin with keeps its shape byte for byte. A span that spans LINES in the
  * source is a formatted block (a whole `packageRules` entry, say), and
@@ -106,11 +106,13 @@ function columnIndentAt(text: string, valueStart: number): string {
  * own column.
  */
 function serializeValue(text: string, loc: EntryLocation, value: unknown): string {
-  const compact = JSON.stringify(value);
+  // `jsonLiteral`/`jsonDocument`, not raw stringify: this text is spliced into
+  // a config DOCUMENT, where a bare `undefined` would not parse back.
+  const compact = jsonLiteral(value);
   if (!text.slice(loc.valueStart, loc.valueEnd).includes("\n")) {
     return compact;
   }
-  const pretty = JSON.stringify(value, null, 2);
+  const pretty = jsonDocument(value);
   const indent = columnIndentAt(text, loc.valueStart);
   return indent === "" ? pretty : pretty.split("\n").join(`\n${indent}`);
 }
@@ -283,7 +285,7 @@ function locateEntry(text: string, path: ConfigPathSegment[]): EntryLocation | n
   let containerStart = rootStart;
   for (const [i, seg] of path.entries()) {
     const isLast = i === path.length - 1;
-    if (typeof seg === "string") {
+    if (isString(seg)) {
       const found = findKeyInObject(text, containerStart, seg);
       if (!found) {
         return null;

@@ -3,6 +3,7 @@
  * Severs bunyan/fs/node:crypto AND doubles as the engine's instrumentation
  * channel: every Renovate log call is forwarded to the active TraceCollector.
  */
+import { isString } from "../is";
 import { emitLog } from "../trace/collector";
 import type { LogLevel } from "../trace/model";
 
@@ -10,7 +11,7 @@ type LogFn = (p1: unknown, p2?: string) => void;
 
 function makeLevel(level: LogLevel): LogFn {
   return (p1, p2) => {
-    if (typeof p1 === "string") {
+    if (isString(p1)) {
       emitLog(level, undefined, p1);
     } else {
       emitLog(level, p1, p2);

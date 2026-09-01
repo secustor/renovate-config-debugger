@@ -6,6 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./contracts": "./src/contracts.ts",
+    "./is": "./src/is.ts",
+    "./json": "./src/json.ts",
     "./schema": "./src/schema.ts",
     "./simulate-missing-inputs": "./src/simulate-missing-inputs.ts",
     "./text-scan": "./src/text-scan.ts",

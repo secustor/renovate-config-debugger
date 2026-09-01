@@ -1,4 +1,6 @@
-import { isPlainObject, jsonEqual, snapshot } from "./lib";
+import { isPlainObject, isString } from "./is";
+import { jsonEqual } from "./json";
+import { snapshot } from "./lib";
 import { enqueueEngineTask } from "./pipeline";
 import {
   type EvaluationErrorSummary,
@@ -626,7 +628,7 @@ async function execute(input: SimulationInput): Promise<SimulationResult> {
       config = { ...config };
       const toApply = removeMatchers(rawRule);
       if (config.groupSlug && rawRule.groupName && !rawRule.groupSlug) {
-        if (typeof rawRule.groupName === "string") {
+        if (isString(rawRule.groupName)) {
           toApply.groupSlug = slugifyLite(rawRule.groupName);
           evaluation.notes.push(
             "groupSlug derived from groupName with a simplified slugify (ASCII-equivalent to Renovate's)",
@@ -650,15 +652,12 @@ async function execute(input: SimulationInput): Promise<SimulationResult> {
         delete config.skipStage;
       }
       if (
-        typeof toApply.overrideDatasource === "string" &&
+        isString(toApply.overrideDatasource) &&
         toApply.overrideDatasource !== config.datasource
       ) {
         config.datasource = toApply.overrideDatasource;
       }
-      if (
-        typeof toApply.overrideDepName === "string" &&
-        toApply.overrideDepName !== config.depName
-      ) {
+      if (isString(toApply.overrideDepName) && toApply.overrideDepName !== config.depName) {
         config.depName = applyTemplate(
           toApply.overrideDepName,
           "overrideDepName",
@@ -666,7 +665,7 @@ async function execute(input: SimulationInput): Promise<SimulationResult> {
         );
       }
       if (
-        typeof toApply.overridePackageName === "string" &&
+        isString(toApply.overridePackageName) &&
         toApply.overridePackageName !== config.packageName
       ) {
         config.packageName = applyTemplate(
@@ -675,7 +674,7 @@ async function execute(input: SimulationInput): Promise<SimulationResult> {
           evaluation.notes,
         );
       }
-      if (typeof toApply.sourceUrl === "string") {
+      if (isString(toApply.sourceUrl)) {
         toApply.sourceUrl = applyTemplate(toApply.sourceUrl, "sourceUrl", evaluation.notes);
       }
       delete toApply.overrideDatasource;
@@ -709,7 +708,7 @@ async function execute(input: SimulationInput): Promise<SimulationResult> {
     // `automerge: true` for a minor update) and then drops every update-type
     // block. `rawFinalConfig` keeps the pre-flatten value (006 oracle parity);
     // the display config below reflects the flattening.
-    const updateType = typeof config.updateType === "string" ? config.updateType : undefined;
+    const updateType = isString(config.updateType) ? config.updateType : undefined;
     const blocks: Record<string, Record<string, unknown>> = {};
     for (const key of UPDATE_TYPE_KEYS) {
       if (isPlainObject(config[key])) {

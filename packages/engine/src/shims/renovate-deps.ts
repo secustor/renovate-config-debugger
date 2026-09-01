@@ -6,7 +6,10 @@
  * fixed-point / gating logic must match their behavior byte-for-byte, so they
  * are vendored verbatim rather than re-implemented.
  * `test/migration-drift.node.test.ts` pins both versions and fails until this
- * file is re-checked.
+ * file is re-checked. That re-check is a DIFF against upstream, so the text
+ * here stays upstream's text — which is why `rcd/prefer-is-helpers` is off for
+ * this file in `.oxlintrc.json`. The two exceptions are `isString` and
+ * `isBoolean`, which are provably identical to `../is`'s and re-export.
  */
 
 /* oxlint-disable typescript/unbound-method -- `const has = Object.prototype.hasOwnProperty`
@@ -66,13 +69,12 @@ export function dequal(foo: unknown, bar: unknown): boolean {
 // @sindresorhus/is@8.1.0 predicates (Date/RegExp/Map/Set/typed-array branches
 // of the upstream copies are irrelevant to JSON config values but preserved so
 // behavior is identical).
-export function isString(value: unknown): value is string {
-  return typeof value === "string";
-}
 
-export function isBoolean(value: unknown): value is boolean {
-  return value === true || value === false;
-}
+// These two are provably identical to the repo's own predicates — upstream's
+// `isBoolean` is `value === true || value === false`, and a boxed Boolean is
+// `"object"` to `typeof` and neither `true` nor `false` — so they delegate
+// rather than being a fifth copy. The export surface is unchanged.
+export { isBoolean, isString } from "../is";
 
 function isFunction(value: unknown): boolean {
   return typeof value === "function";

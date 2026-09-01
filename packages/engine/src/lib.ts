@@ -1,19 +1,17 @@
 /**
- * Engine-internal value helpers — the two-to-four-line predicates and clones
- * that more than one engine module needs, so a `description` walk and a
- * packageRules replay agree on what "a plain object" and "the same value" mean.
+ * Engine-internal value helpers — the clones and structural comparisons that
+ * more than one engine module needs, so a `description` walk and a
+ * packageRules replay agree on what "the same value" means.
  *
  * Deliberately NOT on the public barrel (`index.ts`), for the same reason
  * `text.ts` is not: these are implementation details of the engine's own
- * modules, and the app/CLI have (and keep) their own equivalents rather than
- * taking a dependency edge across the package boundary for a one-liner.
+ * modules. What the app and the CLI DO share now lives one level down, in the
+ * import-free `./is` and `./json` modules this file builds on — they have
+ * their own `exports` subpaths, so there is one copy of `isPlainObject` and
+ * one `jsonEqual` for the whole repo rather than one per package.
  */
 
-/** A JSON object — not null, not an array. The narrowing every config walk in
- *  here needs before it may index a value. */
-export function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
+import { isPlainObject, isString } from "./is";
 
 /**
  * The members of an `allowString` array option, in the form Renovate holds
@@ -22,19 +20,10 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
  * included — Renovate only warns about those and keeps them.
  */
 export function allowStringMembers(value: unknown): unknown[] {
-  if (typeof value === "string") {
+  if (isString(value)) {
     return [value];
   }
   return Array.isArray(value) ? value : [];
-}
-
-/**
- * Equality by JSON text. Cheap and exact for the JSON-shaped config values the
- * simulator compares, but ORDER-SENSITIVE: `{a:1,b:2}` and `{b:2,a:1}` compare
- * unequal. Callers that need structural equality use `deepEqual` below instead.
- */
-export function jsonEqual(a: unknown, b: unknown): boolean {
-  return a === b || JSON.stringify(a) === JSON.stringify(b);
 }
 
 /**
@@ -72,6 +61,7 @@ export function snapshot<T>(value: T): T {
   try {
     return structuredClone(value);
   } catch {
+    // oxlint-disable-next-line rcd/use-json-helpers -- a clone round-trip, not text: the string is consumed by JSON.parse on the same line
     return JSON.parse(JSON.stringify(value)) as T;
   }
 }
