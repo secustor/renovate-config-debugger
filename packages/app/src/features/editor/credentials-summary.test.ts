@@ -100,6 +100,26 @@ describe("credentialsLine (roadmap 076/077, Proposal F)", () => {
     ).toBe("gitlab.com ✓ · +1");
   });
 
+  it("ignores tokens the app would refuse to save", () => {
+    // Same rule as HostRows: a value with a control character (or over the
+    // length cap) is not a credential, so it neither marks ✓ nor counts as +N.
+    const tokens = NONE.map((token) => {
+      if (token.id === "github") {
+        return { ...token, value: "ghp_\u0007bad" };
+      }
+      return token.id === "gitlab" ? { ...token, value: "g".repeat(4097) } : token;
+    });
+    expect(
+      credentialsLine({
+        tokens,
+        signedIn: false,
+        platform: "github",
+        endpoint: "https://api.github.com",
+        customHostCount: 0,
+      }),
+    ).toBe("github.com anonymous");
+  });
+
   it("counts custom host rules toward the +N tail", () => {
     expect(
       credentialsLine({

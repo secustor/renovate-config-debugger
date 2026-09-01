@@ -27,7 +27,7 @@ const PACKAGE = "@renovate-config-debugger/cli";
 const DOCS_URL = "https://github.com/secustor/renovate-config-debugger/tree/main/packages/cli";
 
 const ONE_LINERS = [
-  `# every answer on this page, as JSON`,
+  `# this run, as JSON`,
   `npx -y ${PACKAGE} digest renovate.json`,
   `npx -y ${PACKAGE} validate renovate.json    # exit 2 = Renovate would refuse it`,
   `npx -y ${PACKAGE} compare before.json after.json --dep '{"depName":"react"}'`,
@@ -40,8 +40,9 @@ function HeadlessNoteBody() {
   return (
     <>
       <p className="headless-note-lead">
-        Everything this page answers is also available headlessly — in your terminal or registered
-        as an agent tool.
+        The core of this page runs headlessly too — the verdict sentence, the merged config and the
+        merge steps (<code>rcd simulate --detail full</code>) — in your terminal or registered as an
+        agent tool.
       </p>
       {/* The code-block copy rule (Standard Components): icon-only, top-right
           INSIDE the block — the wrapper is the positioning context. */}
