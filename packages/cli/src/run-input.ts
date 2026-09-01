@@ -98,6 +98,11 @@ export interface EndpointTrust {
    * own public API, which is where a token for that platform already goes.
    */
   callerEndpoint?: string;
+  /**
+   * The endpoint this caller actually supplied, whichever transport.
+   * {@link callerEndpoint} is the subset of it that must not be trusted.
+   */
+  ownEndpoint?: string;
 }
 
 /**
@@ -110,6 +115,14 @@ export type RunTransport = "cli" | "mcp";
 const OPT_IN_WORDING: Record<RunTransport, string> = {
   cli: "Pass `--platform-override` to impose your own endpoint, or `--trust-endpoints` if the config is yours.",
   mcp: "Set `platformOverride: true` to impose your own endpoint, or `trustEndpoints: true` if the config is yours.",
+};
+
+/** When the global config chose the `endpoint` and the caller named none,
+ *  imposing "your own" endpoint resolves to that same one, so naming the
+ *  override here would send the reader nowhere. */
+const NO_ENDPOINT_WORDING: Record<RunTransport, string> = {
+  cli: "Pass `--endpoint <yours> --platform-override` to send requests somewhere you chose, or `--trust-endpoints` if the config is yours.",
+  mcp: "Set `trustEndpoints: true` if the config is yours.",
 };
 
 /** The only opt-in that applies when the CALLER, not the config, picked the
@@ -133,6 +146,8 @@ export function endpointTokenPolicy(
   // config it just read can suggest one. `platformOverride` deliberately does
   // NOT unlock this: it only says whose endpoint wins between two untrusted
   // sources. `trustEndpoints` is the one opt-in that means "I vouch for it".
+  // The global-config branch below agrees: the override releases the guard
+  // only when it can actually move the destination away from that config's.
   if (trust.callerEndpoint) {
     return {
       suppress: true,
@@ -148,14 +163,24 @@ export function endpointTokenPolicy(
   const chosen = ["endpoint", "platform"].filter((key) =>
     Object.prototype.hasOwnProperty.call(globalConfig, key),
   );
-  if (chosen.length === 0 || trust.platformOverride) {
+  if (chosen.length === 0) {
+    return { suppress: false };
+  }
+  // A platform-only global config resolves to that platform's public default
+  // endpoint, so the override does move the destination; against an `endpoint`
+  // key it moves it only when the caller supplied one of their own.
+  const overrideMoves =
+    trust.ownEndpoint !== undefined ||
+    !Object.prototype.hasOwnProperty.call(globalConfig, "endpoint");
+  if (trust.platformOverride && overrideMoves) {
     return { suppress: false };
   }
   return {
     suppress: true,
     reason:
       `the global config sets ${chosen.map((k) => `\`${k}\``).join(" and ")}, so it — not you — ` +
-      `chooses where preset requests go; host tokens were NOT sent. ${OPT_IN_WORDING[transport]}`,
+      "chooses where preset requests go; host tokens were NOT sent. " +
+      (overrideMoves ? OPT_IN_WORDING[transport] : NO_ENDPOINT_WORDING[transport]),
   };
 }
 
@@ -265,6 +290,7 @@ export async function loadPipelineInput(
     {
       trustEndpoints: boolOption(args, "trust-endpoints"),
       platformOverride: boolOption(args, "platform-override"),
+      ownEndpoint: stringOption(args, "endpoint"),
     },
     "cli",
   );

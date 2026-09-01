@@ -88,11 +88,32 @@ describe("endpointTokenPolicy", () => {
     expect(policy.reason).toContain("--trust-endpoints");
   });
 
-  test("--platform-override puts us back in charge", () => {
+  test("--platform-override with an endpoint of our own puts us back in charge", () => {
     expect(
-      endpointTokenPolicy({ platformOverride: true }, { endpoint: "https://evil.example" })
-        .suppress,
+      endpointTokenPolicy(
+        { platformOverride: true, ownEndpoint: "https://mine.example" },
+        { endpoint: "https://evil.example" },
+      ).suppress,
     ).toBe(false);
+  });
+
+  /** The override only decides which endpoint wins. With none of our own, the
+   *  winner is still the config's, so it must not release the tokens — nor
+   *  offer itself as the way out. */
+  test("--platform-override with no endpoint of our own releases nothing", () => {
+    const policy = endpointTokenPolicy(
+      { platformOverride: true },
+      { endpoint: "https://evil.example" },
+    );
+    expect(policy.suppress).toBe(true);
+    expect(policy.reason).toContain("--trust-endpoints");
+    expect(policy.reason).not.toContain("Pass `--platform-override`");
+  });
+
+  test("--platform-override against a platform-only global config still releases", () => {
+    expect(endpointTokenPolicy({ platformOverride: true }, { platform: "gitlab" }).suppress).toBe(
+      false,
+    );
   });
 
   test("--trust-endpoints is the explicit opt-in", () => {

@@ -134,9 +134,9 @@ function buildProgram(io: CliIo, report: ExitSink): CommanderCommand {
       getOutHasColors: () => false,
       getErrHasColors: () => false,
     })
-    // Every subcommand takes the same `[options] [args...]`, so spelling that
-    // out nine times in the command list says nothing; the name and the
-    // summary are the index, `rcd <command> --help` is the detail.
+    // Every subcommand takes the same `[options] [args...]`, so repeating it on
+    // every row of the command list says nothing; the name and the summary are
+    // the index, `rcd <command> --help` is the detail.
     .configureHelp({ subcommandTerm: (cmd) => cmd.name() })
     .showHelpAfterError("(`rcd --help`, or `rcd <command> --help`, lists what is accepted)")
     .usage("<command> [file] [options]")

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { SimulationComparison, SimulationResult } from "@renovate-config-debugger/engine";
+import type { RuleView } from "../rule-view";
 import { comparisonPayload, simulationPayload, VERDICT_DETAIL_NOTE } from "./simulate";
 
 /**
@@ -42,7 +43,33 @@ const SIM: SimulationResult = {
   notes: [],
 };
 
+/** A view whose `--source` was dropped for want of provenance: it carries a
+ *  note while both facets read `all`, so no filter note is produced. */
+const IGNORED_SOURCE_VIEW: RuleView = {
+  rules: SIM.rules,
+  total: SIM.rules.length,
+  hidden: 0,
+  verdict: "all",
+  source: "all",
+  transport: "cli",
+  notes: ["`--source repo` ignored: this run has no per-rule provenance"],
+  attribution: undefined,
+  sources: [],
+  originOf: () => undefined,
+};
+
 describe("simulationPayload", () => {
+  test("a view's own diagnostics reach the one notes array, at every detail", () => {
+    for (const detail of ["verdict", "full"] as const) {
+      const payload = simulationPayload(SIM, {
+        detail,
+        scope: "package-rules",
+        ruleView: IGNORED_SOURCE_VIEW,
+      }) as { notes?: string[] };
+      expect(payload.notes, detail).toContain(IGNORED_SOURCE_VIEW.notes[0]);
+    }
+  });
+
   /**
    * Roadmap 048 moved this assertion one notch: `full` is still the result
    * itself — every member, verbatim, nothing projected — but it is no longer

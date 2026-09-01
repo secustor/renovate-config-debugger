@@ -301,12 +301,10 @@ export function choiceOption<T extends string>(
   return parseChoice(stringOption(args, name), allowed, `--${name}`);
 }
 
-export type OutputFormat = "pretty" | "json";
+const OUTPUT_FORMATS = ["pretty", "json"] as const;
+
+export type OutputFormat = (typeof OUTPUT_FORMATS)[number];
 
 export function outputFormat(args: ParsedArgs): OutputFormat {
-  const raw = stringOption(args, "format") ?? "pretty";
-  if (raw !== "pretty" && raw !== "json") {
-    throw new CliError(`--format must be "pretty" or "json" (got "${raw}")`);
-  }
-  return raw;
+  return choiceOption(args, "format", OUTPUT_FORMATS) ?? "pretty";
 }

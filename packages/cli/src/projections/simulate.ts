@@ -196,6 +196,9 @@ export function simulationPayload(sim: SimulationResult, options: SimulateProjec
   const view = options.ruleView;
   const rules = view ? ruleRows(view, options.detail) : collapseRuleMerges(sim.rules);
   const filterNote = view ? ruleFilterNote(view) : undefined;
+  // The view's own diagnostics (e.g. "`source` ignored: no provenance") are
+  // pointers about the answer, so they belong in the one notes array too.
+  const viewNotes = view?.notes ?? [];
   if (options.detail === "full") {
     // The escape hatch stays the result itself — every member verbatim,
     // `mergeSteps` and `rawFinalConfig` included — plus the verdict and the
@@ -207,7 +210,9 @@ export function simulationPayload(sim: SimulationResult, options: SimulateProjec
       rules: view ? rules : sim.rules,
       flattened,
       ...(view ? ruleFilterPayload(view) : {}),
-      ...(filterNote ? { notes: [...sim.notes, filterNote] } : {}),
+      ...(viewNotes.length > 0 || filterNote
+        ? { notes: [...sim.notes, ...viewNotes, ...(filterNote ? [filterNote] : [])] }
+        : {}),
     };
   }
   const projected = projectConfig(sim.finalDependencyConfig, {
@@ -247,6 +252,7 @@ export function simulationPayload(sim: SimulationResult, options: SimulateProjec
     // is appended here, in the order a reader needs it.
     notes: [
       ...sim.notes,
+      ...viewNotes,
       ...(filterNote ? [filterNote] : []),
       ...(options.transport ? notesFor(sim, options.transport) : []),
       ...(sources.length > 0 ? [RULE_SOURCES_NOTE] : []),

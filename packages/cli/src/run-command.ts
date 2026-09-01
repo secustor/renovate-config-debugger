@@ -16,8 +16,10 @@ import { runFromArgs, wouldRefuse } from "./run-input";
  * question correctly and then report the wrong thing to a hook. `rcd compare`
  * deliberately opts out and stays a plain {@link Command}: its exit code
  * reports whether the COMPARISON ran, not whether an input would be refused
- * (roadmap 062, replay-04). `rcd docs` and `rcd mcp` opt out for the simpler
- * reason that they never resolve a config.
+ * (roadmap 062, replay-04). `rcd docs`, `rcd mcp` and `rcd extract` opt out
+ * because they never resolve a config; `extract` then owns its own verdict —
+ * exit `1` when no manager section produced dependencies, which a refusal `2`
+ * would misreport.
  *
  * Only the run/exit shape lives here. Help text, flags and every string of the
  * answer stay in the command that owns them.
