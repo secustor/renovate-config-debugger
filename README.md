@@ -7,12 +7,12 @@
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/secustor/renovate-config-debugger/badge)](https://scorecard.dev/viewer/?uri=github.com/secustor/renovate-config-debugger)
 
 See what [Renovate](https://github.com/renovatebot/renovate) actually does with
-your config — before you commit it. It runs Renovate's own code in your
-browser, so the answers are real and your config never leaves the page. Think
-"compiler explorer for Renovate configs".
+your config before you commit it. It runs Renovate's own code in your browser,
+and your config never leaves the page. Think "compiler explorer for Renovate
+configs".
 
-**[Try it live](https://renovate.secustor.dev/)** — nothing to install.
-([Self-hosting](#self-hosting-docker) is one container.)
+**[Try it live](https://renovate.secustor.dev/)** — there is nothing to
+install — or [self-host it](#self-hosting-docker) with a single container.
 
 Paste this and press _Run pipeline_, or [open it pre-filled](https://renovate.secustor.dev/#config=PZDNToQwFIVfpTlxWRnHEE36Bi50YXRlZ1HKHUCnP2kvqCG8uykDLpvzfeekd8YEdS-RyIfJMEGhrqu6eoCEDf48dFCYtRdC4ybbnpzRUEKjZ45ZHQ5tsLna7SZwZYM77O_bq1F95uA15LWGfph8m0vNh95GVCIbnCPfUqtx2khnMlN6ynmkQnMaaUuisV-mo9fxQluRF0KIeZXY9s_Gm47SPuKjK617-h5bw_T2G3cZbvAhbUiXwhhfjFs3V1dssVjKzEn7RXtInIcLFQ7q_3zrT8vpoHBMj0M-NpCYBvqGmpHZdIWOiTIxJDJThLqTYNNAIUyUVnZZ_gA):
 
@@ -95,11 +95,12 @@ re-runs with it and flags the node `user-supplied`.
 
 ## Private repositories & presets
 
-Two steps, and the second is easy to miss: **sign in with GitHub**, then
-**install the App** on the repositories it should read. Signing in alone grants
-nothing — a private repo stays "not found" until the App is installed on it.
-Public repos need neither. The App's only permission is Contents: read-only,
-and you pick the repositories, editable later.
+Reading a private config or preset repo takes two steps, and the second one is
+easy to miss: sign in with GitHub, then install the App on the repositories it
+should read. Signing in alone grants nothing — a private repo keeps coming back
+as "not found" until the App is installed on it. Public repos need neither
+step. The App asks for a single permission, Contents: read-only, and you pick
+the repositories it applies to; the selection stays editable afterwards.
 
 [docs/GitHub-App-Access.md](docs/GitHub-App-Access.md) has the walkthrough,
 including org-owner approval and the personal-access-token fallback for GitHub
@@ -137,8 +138,8 @@ Enterprise Server.
 > The CLI and the MCP server are **experimental**: subcommands, flags and
 > output shapes may change in any `0.x` release.
 
-Everything the app shows, without a browser — same engine, same pinned
-Renovate, as structured data:
+Everything the app shows is available without a browser — the same engine and
+the same pinned Renovate, as structured data:
 
 ```bash
 npx -y @renovate-config-debugger/cli digest renovate.json     # the run in one paragraph
@@ -176,7 +177,7 @@ Renovate compatibility table.
 > [!WARNING]
 > Docker setups are experimental at the moment.
 
-The app is a static bundle — one container:
+The app is a static bundle, so hosting it is one container:
 
 ```bash
 docker run -p 8080:80 ghcr.io/secustor/renovate-config-debugger   # http://localhost:8080
