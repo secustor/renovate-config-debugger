@@ -2,8 +2,9 @@
  * Roadmap 014 — a small curated library that translates a handful of
  * recurring Renovate validator messages into plain language plus a concrete,
  * conservative suggested edit. Renders ALONGSIDE the original message (see
- * `packages/app/src/components/MessagesPanel.tsx` /
- * `packages/app/src/components/RuleSimulator.tsx`), never instead of it.
+ * `packages/app/src/components/ProblemCard.tsx` and
+ * `packages/app/src/features/simulator/ErrorTranslationView.tsx`), never
+ * instead of it.
  *
  * Every matcher parses the EXACT message text Renovate's own validator
  * produces (see upstream's `config/validation.js` and
@@ -277,10 +278,10 @@ const deprecatedOption: ErrorTranslation = {
     const key = match?.[1] ?? "This option";
     const detail = match?.[2] ?? "";
     return (
-      `\`${key}\` is deprecated${detail ? `: ${detail}` : "."} The app's migration step ` +
-      `(roadmap 004 — see the Migrations panel) already renames options where Renovate provides a ` +
-      `direct automatic replacement; \`${key}\` reaching validation means Renovate has no single ` +
-      `automatic mapping for it, so it needs a manual look.`
+      `\`${key}\` is deprecated${detail ? `: ${detail}` : "."} Renovate's migration step ` +
+      `already renames options where there is a direct automatic replacement; \`${key}\` ` +
+      `reaching validation means there is no single automatic mapping for it, so it needs a ` +
+      `manual look.`
     );
   },
 
@@ -341,9 +342,9 @@ const globalOnlyOption: ErrorTranslation = {
     const match = GLOBAL_ONLY_RE.exec(m.message);
     const key = match?.[1] ?? "This option";
     return (
-      `\`${key}\` only works in Renovate's global/self-hosted config (roadmap 008's global config ` +
-      `layer) — a repository's own config file can't set it, so as written it has no effect at all. ` +
-      `Move it to the self-hosted config, or remove it here.`
+      `\`${key}\` only works in Renovate's global/self-hosted config — a repository's own config ` +
+      `file can't set it, so as written it has no effect at all. Move it to the self-hosted ` +
+      `config, or remove it here.`
     );
   },
 
@@ -548,7 +549,7 @@ const globalPresetInExtends: ErrorTranslation = {
     const path = GLOBAL_PRESET_RE.exec(m.message)?.[1] ?? "this `extends`";
     return (
       `\`${path}\` extends a \`global:\` preset. \`global:\` presets are bundles of ` +
-      `self-hosted-only options (the same options roadmap 008's global config layer holds), and ` +
+      `self-hosted-only options (the same options the self-hosted global config holds), and ` +
       `Renovate refuses them in a repository's own config rather than ignoring them — so this is ` +
       `an error, not a warning, and the whole config is rejected. Move the \`global:\` entry to ` +
       `the self-hosted global configuration (\`config.js\` / \`RENOVATE_CONFIG\`), where it does ` +

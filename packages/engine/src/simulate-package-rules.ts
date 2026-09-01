@@ -537,10 +537,11 @@ async function evaluateRule(
  * Keys whose value changed between two cumulative configs.
  *
  * `jsonEqual` is order-sensitive, so a merge that only reorders an object's
- * keys still reports the key as changed. That is pinned by
- * `simulate-package-rules.test.ts` ("diffKeys / key-order sensitivity"):
- * `mergeChildConfig` does not reorder keys in practice, and swapping in a
- * structural `deepEqual` is a behavior change that wants its own evidence.
+ * keys still reports the key as changed. That is pinned by `lib.test.ts`
+ * (`diffKeys` → "reports a key whose object value was only REORDERED as
+ * changed"), with the `jsonEqual` half in `json.test.ts`: `mergeChildConfig`
+ * does not reorder keys in practice, and swapping in a structural `deepEqual`
+ * is a behavior change that wants its own evidence.
  *
  * Exported for that test only — not on the barrel.
  */

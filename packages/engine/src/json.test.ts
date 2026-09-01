@@ -70,7 +70,8 @@ describe("jsonEqual", () => {
    * insertion order), so the ORDER-SENSITIVE behavior is what ships. This test
    * is the tripwire: swapping in a structural `deepEqual` must fail here
    * first, so the swap arrives as a considered behavior change rather than a
-   * silent one.
+   * silent one. `lib.test.ts` pins the other half: `deepEqual` on this same
+   * pair is `true`.
    */
   it("is order-sensitive: the same object with swapped key order compares unequal", () => {
     expect(jsonEqual({ a: 1, b: 2 }, { b: 2, a: 1 })).toBe(false);

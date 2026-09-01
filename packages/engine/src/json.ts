@@ -11,10 +11,11 @@
  * The fallback is a property of the SINK, not of the call site, so it is
  * decided once, here, by which function you pick.
  *
- * WHY THIS MODULE HAS NO IMPORTS, and must not gain any — same constraint as
- * `is.ts` and `contracts.ts`: it is reachable from the app's entry chunk
- * through the `./json` subpath, which must never pull the Renovate graph onto
- * a static import path.
+ * WHY THIS MODULE HAS NO IMPORTS — same constraint as `is.ts` and
+ * `contracts.ts`, enforced for all three by
+ * `test/import-free-subpaths.node.test.ts`: it is reachable from the app's
+ * entry chunk through the `./json` subpath, which must never pull the Renovate
+ * graph onto a static import path.
  *
  * `JSON.parse` is deliberately not wrapped: it throws rather than lying, and
  * every caller already has a `try` shaped around its own recovery.
