@@ -60,28 +60,24 @@ describe("DependenciesPanel", () => {
         {
           path: "package.json",
           managers: ["npm"],
-          extractedBy: "npm",
           depCount: 1,
           outcome: "extracted",
         },
         {
           path: "Dockerfile",
           managers: ["dockerfile"],
-          extractedBy: null,
           depCount: 0,
           outcome: "no-deps",
         },
         {
           path: "a/Chart.yaml",
           managers: ["helmv3"],
-          extractedBy: null,
           depCount: 0,
           outcome: "not-read",
         },
         {
           path: "b/Chart.yaml",
           managers: ["helmv3"],
-          extractedBy: null,
           depCount: 0,
           outcome: "not-read",
         },
@@ -109,7 +105,6 @@ describe("DependenciesPanel", () => {
         {
           path: "package.json",
           managers: ["npm"],
-          extractedBy: "npm",
           depCount: 1,
           outcome: "extracted",
         },

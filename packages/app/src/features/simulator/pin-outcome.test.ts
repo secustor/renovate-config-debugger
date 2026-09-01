@@ -14,6 +14,7 @@ import type {
   ProvenanceLayer,
   RuleAttribution,
   RuleEvaluation,
+  SimulationResult,
 } from "@renovate-config-debugger/engine";
 import { describe, expect, test } from "vitest";
 import { clauseEval, ruleEval as rule, simResult } from "@tools/test/simulation";
@@ -217,6 +218,71 @@ describe("the rules a card names and the ones it buckets", () => {
     const byId = Object.fromEntries(outcome.buckets.map((b) => [b.id, b]));
     expect(byId["other-axis"]?.count).toBe(5);
     expect(outcome.buckets.reduce((sum, b) => sum + b.count, 0)).toBe(7);
+  });
+
+  /** The shared fixture leaves `missingInputs` empty, and the no-input rows
+   *  are built from nothing else. */
+  function simulationWithMissing(missingInputs: SimulationResult["missingInputs"]) {
+    return simResult({
+      rules: RULES,
+      flattened: { updateType: "minor", merged: [], blocks: {}, authoredBlocks: [] },
+      missingInputs,
+    });
+  }
+
+  test("the no-input rows name the field, not the rule, and count the groups they elide", () => {
+    const outcome = buildPinOutcome(
+      simulationWithMissing({
+        rules: 1,
+        groups: [
+          {
+            fields: ["sourceUrl"],
+            fieldList: "sourceUrl",
+            selectors: ["matchSourceUrls"],
+            rules: 2,
+            sampleRuleIndexes: [6],
+          },
+          {
+            fields: ["packageFile", "lockFiles"],
+            fieldList: "packageFile or lockFiles",
+            selectors: ["matchFileNames"],
+            rules: 2,
+            sampleRuleIndexes: [6],
+          },
+          {
+            fields: ["categories"],
+            fieldList: "categories",
+            selectors: ["matchCategories"],
+            rules: 1,
+            sampleRuleIndexes: [6],
+          },
+          {
+            fields: ["repository"],
+            fieldList: "repository",
+            selectors: ["matchRepositories"],
+            rules: 1,
+            sampleRuleIndexes: [6],
+          },
+        ],
+      }),
+      LAYERS,
+      ATTRIBUTION,
+      "react",
+    );
+    const bucket = outcome.buckets.find((b) => b.id === "missing-input");
+    expect(bucket?.rows.map((r) => r.label)).toEqual([
+      "sourceUrl",
+      "packageFile or lockFiles",
+      "categories",
+    ]);
+    expect(bucket?.rows[0]?.note).toBe(
+      "2 rules read it — set it on this test to evaluate them for real (matchSourceUrls)",
+    );
+    expect(bucket?.rows[0]?.probeQuery).toBe("matchSourceUrls");
+    expect(bucket?.more).toBe("1 more field group");
+    // The count is the deduped rule count, never the group count: one rule
+    // appears in two groups upstream.
+    expect(bucket?.count).toBe(1);
   });
 
   test("a long family list keeps its count and says how much the rows elide", () => {

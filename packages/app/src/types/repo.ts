@@ -68,10 +68,6 @@ export interface RepoDepFile {
   /** The extractable managers whose file patterns claim this path — several
    *  managers legitimately claim one filename. */
   managers: string[];
-  /** The first manager whose extraction produced this file's rows, or null when
-   *  the file was never read or produced nothing — one file can be extracted by
-   *  a built-in AND by custom-manager blocks (roadmap 093). */
-  extractedBy: string | null;
   /** Named, pinnable dependencies this file contributed. */
   depCount: number;
   outcome: RepoDepFileOutcome;

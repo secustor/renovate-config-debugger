@@ -103,12 +103,10 @@ export function usePinnedTests({
         if (cancelled) {
           return;
         }
-        // The result guard is what keeps a verdict from an abandoned run out of
-        // the table a newer run has already started filling.
+        // Belt to the read guard's braces below (`state.result === result`): the
+        // `cancelled` check above already keeps an abandoned run from writing here.
         setState((prev) =>
-          prev.result === result
-            ? { result, byId: { ...prev.byId, [pin.id]: evaluation } }
-            : { result, byId: { [pin.id]: evaluation } },
+          prev.result === result ? { result, byId: { ...prev.byId, [pin.id]: evaluation } } : prev,
         );
       }
     })();

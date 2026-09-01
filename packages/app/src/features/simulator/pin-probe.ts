@@ -163,7 +163,8 @@ export function probeRules({
 /**
  * The idle state's example chips — drawn from the run itself so every
  * suggestion is guaranteed to hit: the biggest preset name among the skipped
- * rules, a written option, and a concrete rule index.
+ * rules, a written option (from a RULE step: a flatten step's key is named by
+ * no rule body), and a concrete rule index.
  */
 export function probeSuggestions(
   sim: SimulationResult,
@@ -181,7 +182,8 @@ export function probeSuggestions(
   if (biggest) {
     suggestions.push(biggest[0]);
   }
-  const written = sim.mergeSteps.find((s) => s.merged.length > 0)?.merged[0]?.key;
+  const written = sim.mergeSteps.find((s) => s.kind === "rule" && s.merged.length > 0)?.merged[0]
+    ?.key;
   if (written !== undefined && !suggestions.includes(written)) {
     suggestions.push(written);
   }

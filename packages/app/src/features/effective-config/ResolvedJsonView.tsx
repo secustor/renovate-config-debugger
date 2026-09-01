@@ -67,10 +67,10 @@ function ResolvedOptionsRow({
 }
 
 /**
- * Roadmap 051: the resolved config as a standalone document — hosted presets
- * inlined, internal presets kept as `extends` references (or everything
- * expanded). The counterpart artifact to the Rewrites tab's "Copy migrated
- * config", which owns the pre-resolution document.
+ * Roadmap 051/075: the resolved config as a standalone document — hosted
+ * presets inlined, internal presets kept as `extends` references (or everything
+ * expanded). The counterpart artifact to "Copy migrated config" on the Pipeline
+ * tab's Rewrites card, which owns the pre-resolution document.
  */
 export function ResolvedJsonView({
   output,
@@ -127,8 +127,8 @@ export function ResolvedJsonView({
         </p>
       ) : null}
       <p className="empty-note">
-        Need the config <em>before</em> preset resolution? The Rewrites tab’s “Copy migrated config”
-        has it — syntax modernised, extends untouched.
+        Need the config <em>before</em> preset resolution? The Pipeline tab’s Rewrites card (migrate
+        stage) has it — syntax modernised, extends untouched.
       </p>
     </>
   );

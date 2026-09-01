@@ -1,4 +1,4 @@
-import type { Props } from "./AdvancedZone";
+import type { AdvancedZoneProps } from "./AdvancedZone";
 import { AddHostForm } from "./AddHostForm";
 import { CustomHostRow, GithubHostRow, HostTokenRow } from "./HostRows";
 import { isValidToken } from "@/lib/input-schemas";
@@ -18,7 +18,7 @@ export function CredentialsList({
   onSignIn,
   onSignOut,
 }: Pick<
-  Props,
+  AdvancedZoneProps,
   | "hostTokens"
   | "customHostRules"
   | "displayPlatform"

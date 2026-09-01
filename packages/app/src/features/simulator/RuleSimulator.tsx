@@ -49,9 +49,6 @@ import type { FormState } from "@/types/simulator";
  * keeps the renovate chunk out of the initial bundle.
  */
 
-// Roadmap 032: memoized — the simulator renders the full merged rule list and
-// reads nothing from the editor; its callback props are identity-stable in
-// App (useCallback / the latest-ref idiom), so typing never re-renders it.
 /** How long "Pinned ✓" stays up — the click answering itself, no longer. */
 const PIN_RECEIPT_MS = 2000;
 
@@ -74,6 +71,9 @@ function SimStaleBanner({ ranLabel }: { ranLabel: string }) {
   );
 }
 
+// Roadmap 032: memoized — the simulator renders the full merged rule list and
+// reads nothing from the editor; its callback props are identity-stable in
+// App (useCallback / the latest-ref idiom), so typing never re-renders it.
 export const RuleSimulator = memo(function RuleSimulator({
   result,
   onSelectPreset,
@@ -471,7 +471,11 @@ export const RuleSimulator = memo(function RuleSimulator({
       {showEmptyGuard ? <EmptyFormGuard /> : null}
       {atLimit ? <PinLimitNote /> : null}
 
-      {error ? <p className="sim-error">Simulation failed: {error}</p> : null}
+      {/* Mounted empty: a live region only announces text arriving after it exists,
+          and `simulate` clears `error` before each await so a repeat failure mutates. */}
+      <div role="alert">
+        {error ? <p className="sim-error">Simulation failed: {error}</p> : null}
+      </div>
 
       {/* Roadmap 015: while stale, the whole results block is visibly greyed
           out (not just the small text hint below, which the persona study

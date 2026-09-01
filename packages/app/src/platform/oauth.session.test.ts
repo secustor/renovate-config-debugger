@@ -122,7 +122,12 @@ describe("restoreSession", () => {
 
   test("a Worker 5xx (GitHub unreachable) keeps the marker too", async () => {
     local.map.set(COOKIE_SESSION_KEY, String(Date.now() + 60_000));
-    setRefreshResponse(() => jsonResponse({ error: "github_unreachable" }, 502));
+    setRefreshResponse(() =>
+      jsonResponse(
+        { error: "github_unreachable", error_description: "could not reach GitHub" },
+        502,
+      ),
+    );
     const { restoreSession } = await freshOAuth();
 
     expect(await restoreSession()).toBeNull();
@@ -159,7 +164,12 @@ describe("getValidToken (cookie-session refresh)", () => {
 
   test("a transient refresh failure answers null but keeps the session", async () => {
     seedExpiredCookieSession();
-    setRefreshResponse(() => jsonResponse({ error: "github_unreachable" }, 502));
+    setRefreshResponse(() =>
+      jsonResponse(
+        { error: "github_unreachable", error_description: "could not reach GitHub" },
+        502,
+      ),
+    );
     const { getValidToken, isSignedIn } = await freshOAuth();
 
     expect(await getValidToken()).toBeNull();

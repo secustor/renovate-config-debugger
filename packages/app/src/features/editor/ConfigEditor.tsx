@@ -19,10 +19,10 @@ interface Props {
   /** Roadmap 068: ⌘⏎ from inside the editor. Bound here rather than left to
    *  the page listener because CodeMirror's own `Mod-Enter` would otherwise
    *  insert a blank line alongside the run — see `run-keymap.ts`. */
-  onRun?: () => void;
+  onRun: () => void;
   /** Roadmap 023: current run's preset-string hover data + jump callback, read
    *  from a ref at hover time so a fresh run's tree updates without a remount. */
-  presetHover?: PresetHoverContext | null;
+  presetHover: PresetHoverContext | null;
   /** Roadmap 075: the card's title bar — the config toolbar, which names the
    *  file itself. */
   titleBar: ReactNode;
@@ -53,7 +53,7 @@ export const ConfigEditor = forwardRef<ConfigEditorHandle, Props>(function Confi
   // latest-ref helper rather than a hand-rolled `useRef` + render-time write:
   // both refs here are the idiom exactly — written per render, dereferenced
   // only from a hover or a keypress, i.e. always after the commit.
-  const presetHoverRef = useLatestRef<PresetHoverContext | null>(presetHover ?? null);
+  const presetHoverRef = useLatestRef(presetHover);
   // Same idiom, same reason: the run keymap is built once, and reads whatever
   // `onRun` is current when the chord is actually pressed.
   const onRunRef = useLatestRef(onRun);

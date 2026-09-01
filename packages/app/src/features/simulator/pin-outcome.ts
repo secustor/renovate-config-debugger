@@ -404,16 +404,6 @@ function axisReason(rules: RuleEvaluation[]): string {
 }
 
 /**
- * The buckets, cut by REASON in the funnel's order, so the count always adds
- * up and no rule is counted twice:
- *
- *  1. monorepo-family rules (`monorepo:*` presets) — the bulk of every run,
- *  2. replacement rules (`replacements:*` presets),
- *  3. everything else that mismatched real data, by failing axis,
- *  4. the rules that failed only because a field was unset (`no-input`),
- *  5. the rules the tool could not evaluate (a matcher threw — roadmap 073).
- */
-/**
  * The no-input bucket's rows come from the engine's own per-field summary
  * (`simulate-missing-inputs.ts`) rather than a rule sample: the actionable
  * fact is WHICH unset field would buy the reader how many rules, not which
@@ -442,6 +432,16 @@ function missingInputBucket(
   };
 }
 
+/**
+ * The buckets, cut by REASON in the funnel's order, so the count always adds
+ * up and no rule is counted twice:
+ *
+ *  1. monorepo-family rules (`monorepo:*` presets) — the bulk of every run,
+ *  2. replacement rules (`replacements:*` presets),
+ *  3. everything else that mismatched real data, by failing axis,
+ *  4. the rules that failed only because a field was unset (`no-input`),
+ *  5. the rules the tool could not evaluate (a matcher threw — roadmap 073).
+ */
 function buildBuckets(
   rules: RuleEvaluation[],
   layerByIndex: Map<number, ProvenanceLayer>,

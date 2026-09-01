@@ -6,7 +6,7 @@
  * (their only consumer is `CredentialsList`, and the two halves share nothing
  * but the folder).
  */
-import type { Props } from "./AdvancedZone";
+import type { AdvancedZoneProps } from "./AdvancedZone";
 import { isValidEndpoint } from "@/lib/input-schemas";
 import { openPickerOnEnter } from "@/lib/select-picker";
 import { PLATFORM_ENDPOINTS, PLATFORMS } from "@/data/platform-endpoints";
@@ -122,7 +122,7 @@ export function HostAccessSection({
   onUseGlobalValues,
   usesLocal,
 }: Pick<
-  Props,
+  AdvancedZoneProps,
   | "hostSectionOpen"
   | "onHostSectionOpenChange"
   | "displayPlatform"

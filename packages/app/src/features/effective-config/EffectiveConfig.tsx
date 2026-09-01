@@ -12,6 +12,7 @@ import {
   EFFECTIVE_VIEWS,
   type EffectiveView,
   effectiveTableRows,
+  isEffectiveView,
 } from "./effective-rows";
 import { nf } from "@/lib/format";
 import { ResolvedJsonView } from "./ResolvedJsonView";
@@ -263,7 +264,11 @@ export const EffectiveConfig = memo(function EffectiveConfig({
         }
         views={EFFECTIVE_VIEWS}
         view={view}
-        onViewChange={(id) => setView(id === "json" ? "json" : "keys")}
+        onViewChange={(id) => {
+          if (isEffectiveView(id)) {
+            setView(id);
+          }
+        }}
         altView={jsonView}
         filtersInertTitle={FILTERS_INERT_TITLE}
         quickFilterLabel="only overridden"

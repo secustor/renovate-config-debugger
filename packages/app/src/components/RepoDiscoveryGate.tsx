@@ -8,10 +8,11 @@ import type { RepoConnectOffer, RepoDepsView } from "@/types/repo";
  * reading and failed are STATUSES, and none of them may be drawn as an empty
  * list or a track of zeros.
  *
- * Shared because the Dependencies tab and the Pipeline tab's Extract phase are
- * two doors onto ONE discovery and must answer identically; the promotion rule
- * (see `RepoConnectPanel`, promoted for the same pair) puts it here rather than
- * in either slice, which may not import the other.
+ * Shared because the Dependencies tab, the Pipeline tab's Extract phase and
+ * the Tests tab's From-repository picker are three doors onto ONE discovery and
+ * must answer identically; the promotion rule puts it here rather than in any
+ * one slice, which may not import the others (see `RepoConnectPanel`, promoted
+ * by the same rule).
  *
  * What "nothing was found" means stays the CONSUMER's — no dependencies is not
  * the same fact as no matched files — so that state is one of the `children`.

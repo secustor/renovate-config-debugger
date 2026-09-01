@@ -18,7 +18,7 @@
  */
 import { useCallback, useMemo, useRef, useState } from "react";
 import { jsonText } from "@renovate-config-debugger/engine/json";
-import { TREE_LISTING_PLATFORMS } from "@/data/host-tokens";
+import { isTreeListingPlatform } from "@/data/host-tokens";
 import { EMPTY_REPO_DEPS, repoDepsOfFile } from "./repo-deps";
 import { useLatestRef } from "@/hooks/use-latest-ref";
 import { loadEngine } from "@/platform/engine-chunk";
@@ -40,13 +40,12 @@ const MAX_REPO_DEP_FILES = 500;
  *  (`path`, `managers`) is completed with. `error` carries the engine's reason
  *  for an EXTRACTION failure only; a file that was never fetched (`not-read`,
  *  `unreadable`) has none. */
-type FileLedger = Pick<RepoDepFile, "outcome" | "extractedBy" | "depCount" | "error">;
+type FileLedger = Pick<RepoDepFile, "outcome" | "depCount" | "error">;
 
 /** A matched file the cap dropped: claimed, never fetched, so nothing at all
  *  is known about what is inside it. */
 const NOT_READ: FileLedger = {
   outcome: "not-read",
-  extractedBy: null,
   depCount: 0,
 };
 
@@ -86,11 +85,10 @@ export type FileRun =
 /**
  * The ledger entry for a file several extractors ran over (roadmap 093): a
  * built-in and every custom block that claimed it. Extracted if ANY run
- * extracted, else errored if any failed; `extractedBy` names the first run that
- * produced rows (falling back to the first that ran at all, which is the
- * all-rows-skipped case), and `depCount` totals every run. A failure's reason
- * survives only when nothing extracted beside it — the ledger has one outcome,
- * so a message under an `extracted` entry would describe a row it contradicts.
+ * extracted, else errored if any failed, and `depCount` totals every run. A
+ * failure's reason survives only when nothing extracted beside it — the ledger
+ * has one outcome, so a message under an `extracted` entry would describe a row
+ * it contradicts.
  */
 export function mergeFileRuns(runs: readonly FileRun[]): FileLedger {
   const extracted = runs.filter((run) => run.status === "extracted");
@@ -98,15 +96,12 @@ export function mergeFileRuns(runs: readonly FileRun[]): FileLedger {
     const failed = runs.find((run) => run.status === "error");
     return {
       outcome: failed === undefined ? "no-deps" : "error",
-      extractedBy: null,
       depCount: 0,
       ...(failed?.message === undefined ? {} : { error: failed.message }),
     };
   }
-  const first = extracted.find((run) => run.rows > 0) ?? extracted[0];
   return {
     outcome: "extracted",
-    extractedBy: first?.manager ?? null,
     depCount: extracted.reduce((total, run) => total + run.rows, 0),
   };
 }
@@ -176,7 +171,7 @@ async function discover(
     const path = match.path;
     const content = contents[index] ?? null;
     if (content === null) {
-      read.set(path, { outcome: "unreadable", extractedBy: null, depCount: 0 });
+      read.set(path, { outcome: "unreadable", depCount: 0 });
       continue;
     }
     const runs: FileRun[] = [];
@@ -222,7 +217,7 @@ export function useRepoDeps(
   // the tab keeps its connect panel instead of a walk that can only throw
   // (the deep half of this gate is fetchRepoTree's own GitHub-only guard).
   const listableRepo =
-    loadedRepo !== null && TREE_LISTING_PLATFORMS.has(loadedRepo.platform) ? loadedRepo : null;
+    loadedRepo !== null && isTreeListingPlatform(loadedRepo.platform) ? loadedRepo : null;
   // The report is keyed by the repo it describes: a NEW load doesn't reset
   // anything — a stale report just stops being the displayed view below.
   const [state, setState] = useState<{ key: string; view: RepoDepsView } | null>(null);

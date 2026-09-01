@@ -71,7 +71,7 @@ const SELECTED_TAB_SELECTOR = '[role="tab"][aria-selected="true"]';
  * ONE losing rule, and the pointer could never produce two of them. Evicting
  * the previous card makes both input modalities the same state, which is also
  * how the glossary keeps a single hover card (`activeHide` in
- * `components/glossary.tsx`).
+ * `components/hover-card-hooks.ts`).
  */
 let openCard: (() => void) | null = null;
 

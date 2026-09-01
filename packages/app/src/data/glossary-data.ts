@@ -216,13 +216,6 @@ export const GLOSSARY = {
       "non-match, so the rule would be skipped for a real dependency missing that field too. " +
       "Fill the field in the form above and re-run to see what the rule does with it.",
   },
-  dependencyDashboard: {
-    name: "Dependency Dashboard",
-    plain:
-      "An issue Renovate keeps open in your repo listing every pending, open and rate-limited update, with checkboxes to trigger them.",
-    url: "https://docs.renovatebot.com/key-concepts/dashboard/",
-  },
-
   // ---- roadmap 016: badge hover cards (preset tree + effective config) ----
   presetContribOpts: {
     name: "own options",

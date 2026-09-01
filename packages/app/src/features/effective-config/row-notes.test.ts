@@ -66,6 +66,15 @@ it("compares values structurally, not by reference", () => {
   expect(sameValueLayers(arrays)).toHaveLength(1);
 });
 
+it("does not call an array layer and an object layer the same value", () => {
+  const mixed = entry([
+    provStep(RECOMMENDED, [1]),
+    provStep(REPO, { 0: 1 }, { action: "overwrite", before: [1] }),
+  ]);
+
+  expect(sameValueLayers(mixed)).toEqual([]);
+});
+
 /** GAP-9: the design's prose, not the one-word badge — "appended" alone left a
  *  reader who had just seen "overridden" on the row above to work out that the
  *  two words are opposites. */

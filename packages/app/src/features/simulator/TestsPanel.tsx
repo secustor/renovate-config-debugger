@@ -93,16 +93,14 @@ export const TestsPanel = memo(function TestsPanel({
   // both before this panel's lazy chunk has mounted (the 5b lesson).
   const wantsSimulator = Boolean(simRequest) || focusRuleIndex !== null;
   const [view, setView] = useState<TestsView>(wantsSimulator ? "simulator" : "pins");
+  /** NEGATIVE nonces: three channels mint into one `SimRequest` slot and
+   *  `useShareLinkRequest` applies a request once BY nonce, so the ranges must
+   *  not overlap (roadmap 089, "The nonce range"). */
+  const pinNonce = useRef(0);
+  const [pinRequest, setPinRequest] = useState<SimRequest | null>(null);
   // Later requests are synced DURING RENDER (the `PresetsPanel` idiom): an
   // effect would put the view one commit behind the request, and the simulator's
   // own auto-run is already reacting to it by then.
-  /** The request a pin's "open in simulator →" makes: the same descriptor
-   *  channel a share link uses, so the form is filled and re-simulated by the
-   *  one mechanism that already does exactly that (`useShareLinkRequest`).
-   *  NEGATIVE nonces, so a locally-minted one can never collide with the share
-   *  hook's own counter and swallow a link's request. */
-  const pinNonce = useRef(0);
-  const [pinRequest, setPinRequest] = useState<SimRequest | null>(null);
   useSyncedReset(simRequest?.nonce ?? null, () => {
     // A link replaces the screen, and with it any pin the reader had opened.
     setPinRequest(null);

@@ -100,13 +100,7 @@ function customManagerBlocks(result: TraceResult | null): Record<string, unknown
   if (!Array.isArray(blocks)) {
     return [];
   }
-  const kept: Record<string, unknown>[] = [];
-  for (const block of blocks) {
-    if (isPlainObject(block)) {
-      kept.push(block);
-    }
-  }
-  return kept;
+  return blocks.filter(isPlainObject);
 }
 
 export function App() {

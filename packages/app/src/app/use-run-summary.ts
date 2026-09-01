@@ -48,8 +48,8 @@ export function useRunSummary(
   pinCount: number,
   /** Roadmap 083: how many author-written sentences the Overview lists — the
    *  Overview tab's badge. `null` until the description provenance has settled,
-   *  exactly like `effectiveStats`: both are engine derivations the panel
-   *  reports back, and neither may be guessed at as a zero. */
+   *  and while it is unavailable: it is an engine derivation the panel reports
+   *  back, and it may not be guessed at as a zero. */
   overviewBehaviors: number | null,
   /** Roadmap 089: how many dependencies the loaded repository's extraction
    *  found — the Dependencies tab's badge. `undefined` until discovery has

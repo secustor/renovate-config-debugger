@@ -2,6 +2,7 @@ import { type ReactNode, useMemo, useState, useTransition } from "react";
 import { Diff, getChangeKey, Hunk, parseDiff } from "react-diff-view";
 import { jsonFile } from "@renovate-config-debugger/engine/json";
 import { useDiffOptionHover } from "./option-docs-hooks";
+import { nf } from "@/lib/format";
 import { buildJsonPatch } from "@/lib/json-patch";
 import { CopyButton } from "./CopyButton";
 import { SegmentedControl, type SegmentedOption } from "./SegmentedControl";
@@ -210,13 +211,13 @@ export function JsonDiff({ before, after, names, title }: Props) {
           diff, where "Show all" read as prose. A footer bar makes it chrome. */}
       {!showAll && (
         <div className="diff-foot">
-          Showing the first {MAX_RENDERED_LINES} of {stat.total} diff lines
+          Showing the first {nf.format(MAX_RENDERED_LINES)} of {nf.format(stat.total)} diff lines
           <button
             type="button"
             className="btn-secondary accent-text"
             onClick={() => startTransition(() => setShowAllRequested(true))}
           >
-            Show all {stat.total} lines
+            Show all {nf.format(stat.total)} lines
           </button>
         </div>
       )}

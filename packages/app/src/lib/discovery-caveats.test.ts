@@ -8,7 +8,7 @@ import type { RepoDepFile, RepoDepFileOutcome, RepoDepsView } from "@/types/repo
  */
 
 function file(path: string, outcome: RepoDepFileOutcome): RepoDepFile {
-  return { path, managers: ["npm"], extractedBy: null, depCount: 0, outcome };
+  return { path, managers: ["npm"], depCount: 0, outcome };
 }
 
 function view(files: RepoDepFile[], truncated = false): RepoDepsView {

@@ -59,7 +59,7 @@ export function findPollutedPath(value: unknown, path: readonly string[] = []): 
     }
     return null;
   }
-  if (value !== null && typeof value === "object") {
+  if (isPlainObject(value)) {
     const ownKeys = Object.getOwnPropertyNames(value);
     for (const key of ownKeys) {
       if (DANGEROUS_OWN_KEYS.has(key)) {
@@ -67,7 +67,7 @@ export function findPollutedPath(value: unknown, path: readonly string[] = []): 
       }
     }
     for (const key of ownKeys) {
-      const hit = findPollutedPath((value as Record<string, unknown>)[key], [...path, key]);
+      const hit = findPollutedPath(value[key], [...path, key]);
       if (hit) {
         return hit;
       }

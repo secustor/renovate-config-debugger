@@ -29,10 +29,11 @@ import { HostAccessSection } from "./HostAccessSection";
  * form — are local, because nothing outside ever needs to open them.
  */
 
-/** The zone's whole prop contract. Exported because the two sections it is made
- *  of (`HostAccessSection`, `CredentialsList`) take `Pick`s of it — they render
- *  the zone's own props, so the contract is stated once, here. */
-export interface Props {
+/** The zone's whole prop contract, `AdvancedZoneProps`. Exported because the
+ *  two sections it is made of (`HostAccessSection`, `CredentialsList`) take
+ *  `Pick`s of it — they render the zone's own props, so the contract is stated
+ *  once, here. */
+export interface AdvancedZoneProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   hostSectionOpen: boolean;
@@ -73,7 +74,7 @@ export interface Props {
 
 /** The panel's opening line (Proposal F verbatim): what the drawer is FOR, and
  *  the one sentence that says where the two merge layers went. */
-function AdvancedIntro({ onShowPipelineLayers }: Pick<Props, "onShowPipelineLayers">) {
+function AdvancedIntro({ onShowPipelineLayers }: Pick<AdvancedZoneProps, "onShowPipelineLayers">) {
   return (
     <p className="advanced-intro">
       Credentials for fetching presets and dependency data. Self-hosted bot layers (global,
@@ -121,7 +122,7 @@ export function AdvancedZone({
   hostTokens,
   customHostRules,
   onShowPipelineLayers,
-}: Props) {
+}: AdvancedZoneProps) {
   const line = credentialsLine({
     tokens: hostTokens,
     signedIn: oauthConfigured && signedIn,

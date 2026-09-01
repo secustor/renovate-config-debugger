@@ -1,4 +1,5 @@
 import type { KeyProvenance, ProvenanceLayer } from "@renovate-config-debugger/engine";
+import { isPlainObject } from "@renovate-config-debugger/engine/is";
 import { isOverridden, type MultiContribBadge, multiContribBadgeKind } from "@/lib/effective-tally";
 import { layerLabel } from "@/lib/provenance-layer";
 import { winningStep } from "./decider-groups";
@@ -30,7 +31,8 @@ export interface RowNote {
  * Structural equality over the JSON-shaped values a config holds. A local copy
  * of the engine's `deepEqual`: importing the VALUE would pull the renovate
  * chunk into the initial bundle (the same reason `preset-tree-stats` keeps its
- * own `ROOT_NODE_ID`), and this is the whole of it.
+ * own `ROOT_NODE_ID`), and this is the whole of it. Only that value import is
+ * avoided — the predicate comes from the imports-free `engine/is` subpath.
  */
 function sameValue(a: unknown, b: unknown): boolean {
   if (Object.is(a, b)) {
@@ -39,13 +41,11 @@ function sameValue(a: unknown, b: unknown): boolean {
   if (Array.isArray(a) && Array.isArray(b)) {
     return a.length === b.length && a.every((x, i) => sameValue(x, b[i]));
   }
-  if (typeof a === "object" && typeof b === "object" && a !== null && b !== null) {
-    const ao = a as Record<string, unknown>;
-    const bo = b as Record<string, unknown>;
-    const ak = Object.keys(ao);
+  if (isPlainObject(a) && isPlainObject(b)) {
+    const ak = Object.keys(a);
     return (
-      ak.length === Object.keys(bo).length &&
-      ak.every((k) => Object.hasOwn(bo, k) && sameValue(ao[k], bo[k]))
+      ak.length === Object.keys(b).length &&
+      ak.every((k) => Object.hasOwn(b, k) && sameValue(a[k], b[k]))
     );
   }
   return false;
