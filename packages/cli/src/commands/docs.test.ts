@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { runCli, runJson } from "../test-harness";
+import { runCli, runJson } from "../../test/harness";
 
 describe("docs", () => {
   test("an option's metadata for the pinned Renovate", async () => {

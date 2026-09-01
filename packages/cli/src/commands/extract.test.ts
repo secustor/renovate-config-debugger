@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
-import { fixture, runCli, runJson } from "../test-harness";
+import { fixture, runCli, runJson } from "../../test/harness";
 
 /**
  * Roadmap 078's CLI half. Fixtures are stored under a name no dependency

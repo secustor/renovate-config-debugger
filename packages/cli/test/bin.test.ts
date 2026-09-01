@@ -3,7 +3,7 @@ import { once } from "node:events";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
-import { fixture } from "../src/test-harness";
+import { fixture } from "./harness";
 
 /**
  * The bin itself, as a real subprocess.

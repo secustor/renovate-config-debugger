@@ -1,7 +1,7 @@
 import { readdirSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { COMMANDS } from "./main";
-import { fixture, runCli } from "./test-harness";
+import { fixture, runCli } from "../test/harness";
 
 /**
  * Dispatch: help, version, and the argv failures that never reach a command.

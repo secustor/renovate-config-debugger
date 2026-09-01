@@ -7,7 +7,7 @@ import pkg from "../../package.json";
 import { createMcpServer } from "./server";
 import { RESULT_BUDGET_BYTES } from "./result";
 import { DEFAULT_RUN_LIMIT, RunStore } from "./run-store";
-import { recordingIo } from "../test-harness";
+import { recordingIo } from "../../test/harness";
 
 /**
  * Roadmap 060: the tool surface, driven through a real MCP client over the

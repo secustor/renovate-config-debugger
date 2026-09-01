@@ -68,7 +68,7 @@ export function tokensFromEnv(env: Readonly<Record<string, string | undefined>>)
   return auth;
 }
 
-export function hasTokens(auth: PresetAuth): boolean {
+function hasTokens(auth: PresetAuth): boolean {
   return Object.values(auth).some((value) => Boolean(value));
 }
 
@@ -335,7 +335,7 @@ function collectNodes(node: PresetNode, into: PresetNode[]): PresetNode[] {
   return into;
 }
 
-export function treeNodes(result: TraceResult): PresetNode[] {
+function treeNodes(result: TraceResult): PresetNode[] {
   return result.presetTree ? collectNodes(result.presetTree, []) : [];
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { fixture, runCli, runJson } from "../test-harness";
+import { fixture, runCli, runJson } from "../../test/harness";
 
 describe("simulate", () => {
   test("reports a verdict per rule with clause-level evidence", async () => {

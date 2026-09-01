@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { fixture, runCli, runJson } from "../test-harness";
+import { fixture, runCli, runJson } from "../../test/harness";
 
 describe("run", () => {
   test("without --select the trace is the small selection, not the firehose", async () => {

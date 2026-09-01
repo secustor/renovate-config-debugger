@@ -112,7 +112,7 @@ export interface SimulateProjection {
   finalConfig?: Record<string, unknown> | undefined;
 }
 
-export const RULE_SOURCES_NOTE =
+const RULE_SOURCES_NOTE =
   "`ruleSources` is the whole rule list's legend: each entry is the CONTIGUOUS range of merged " +
   "indexes one layer contributed. A rule's index inside its own layer is `index - from` — for " +
   "the `repo` entry that is the `packageRules[N]` you wrote. Matched rules carry it inline as " +
@@ -121,7 +121,7 @@ export const RULE_SOURCES_NOTE =
 /** Matched rules, with the layer that contributed them. Only the matched ones:
  *  annotating all ~727 rows costs 15 % of the payload to answer a question
  *  about the handful that fired, and `ruleSources` already covers the rest. */
-export function withRuleOrigins<T extends { index: number; verdict: RuleEvaluation["verdict"] }>(
+function withRuleOrigins<T extends { index: number; verdict: RuleEvaluation["verdict"] }>(
   rules: readonly T[],
   attribution: readonly RuleAttribution[] | undefined,
 ): (T | (T & { origin: RuleOrigin }))[] {
@@ -140,7 +140,7 @@ export function withRuleOrigins<T extends { index: number; verdict: RuleEvaluati
 /** A message with `rule` — its merged index cross-linked to the one the reader
  *  wrote. These come from validating the MERGED array, so the link runs the
  *  other way round from the repo-stage messages `run_config` reports. */
-export function withRuleLinks(
+function withRuleLinks(
   messages: readonly ValidationMessage[],
   attribution: readonly RuleAttribution[] | undefined,
 ): (ValidationMessage | (ValidationMessage & { rule: RuleCrossLink }))[] {
@@ -171,7 +171,7 @@ function collapseRuleMerges(
  * of the payload, but "which layer wrote the rule I asked about" is most of the
  * question when it is one row.
  */
-export function ruleRows(view: RuleView, detail: SimulateDetail) {
+function ruleRows(view: RuleView, detail: SimulateDetail) {
   const rows = detail === "full" ? [...view.rules] : collapseRuleMerges(view.rules);
   if (view.rule === undefined) {
     return withRuleOrigins(rows, view.attribution);

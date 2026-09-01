@@ -49,7 +49,7 @@ export function viewOf(node: PresetNode, stats: TreeStats, depthLimit: number): 
     ...(node.duplicate ? { duplicate: true as const } : {}),
     ...(node.nested ? { nested: true as const } : {}),
     ...(node.error ? { error: `${node.error.topic}: ${node.error.message}` } : {}),
-    ownOptions: st?.ownOptions ?? 0,
+    ownOptions: st?.optionKeys.length ?? 0,
     optionKeys: st?.optionKeys ?? [],
     ownRules: st?.ownRules ?? 0,
     descendants: { resolved: st?.descResolved ?? 0, rules: st?.descRules ?? 0 },
@@ -126,7 +126,7 @@ export function searchNodes(
       name: node.name,
       identity: stats.identityById.get(id) ?? "",
       state: node.state,
-      ownOptions: st?.ownOptions ?? 0,
+      ownOptions: st?.optionKeys.length ?? 0,
       ownRules: st?.ownRules ?? 0,
     });
   }
