@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { INVALID_RULES_CONFIG, PACKAGE_RULES_CONFIG, SEMANTIC_COMMITS_CONFIG } from "./fixtures";
 import {
+  gotoAppAtDefaultConfig,
   luminance,
   must,
   openLayerStage,
@@ -66,8 +67,7 @@ test.describe("dark mode", () => {
    * assertion is what makes that order-independence testable.
    */
   test("diff text keeps readable contrast against its row background", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.locator(".cm-content")).toContainText("config:recommended");
+    await gotoAppAtDefaultConfig(page);
 
     // A config with exactly one migration — the smallest real diff the app
     // renders (crib from 07-stage-chip-outcomes).
@@ -100,8 +100,7 @@ test.describe("dark mode", () => {
 test("the repo-load panel keeps Load on its inputs' row inside the editor card", async ({
   page,
 }) => {
-  await page.goto("/");
-  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+  await gotoAppAtDefaultConfig(page);
   // Two-pane mode: the left column is at its narrowest, which is where the
   // button used to break away.
   await runAndAwaitResult(page);
@@ -162,8 +161,7 @@ test("the repo-load panel keeps Load on its inputs' row inside the editor card",
  * row behind (035).
  */
 test("the repo-load form is collapsed by default and leaves no row behind", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+  await gotoAppAtDefaultConfig(page);
 
   const toggle = page.getByRole("button", { name: "Load from repo…" });
   await expect(toggle).toBeVisible();
@@ -202,8 +200,7 @@ test("the repo-load form is collapsed by default and leaves no row behind", asyn
 test("Revert to loaded config appears only while the config has unsaved edits", async ({
   page,
 }) => {
-  await page.goto("/");
-  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+  await gotoAppAtDefaultConfig(page);
 
   const revert = page.getByRole("button", { name: "Revert to loaded config" });
   await expect(revert).toHaveCount(0);
@@ -308,8 +305,7 @@ test("the config column stays in view while long results scroll", async ({ page 
   // every long panel caps itself against the viewport, so a tall window has
   // nothing to scroll at all.
   await page.setViewportSize({ width: 1400, height: 620 });
-  await page.goto("/");
-  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+  await gotoAppAtDefaultConfig(page);
   await runAndAwaitResult(page);
   await openTab(page, "pipeline");
 
@@ -428,8 +424,7 @@ test("the preset detail panel is readable, unclipped and scrollable to its last 
 test("the simulate button holds its position when the validation banner clears", async ({
   page,
 }) => {
-  await page.goto("/");
-  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+  await gotoAppAtDefaultConfig(page);
   await setEditorContent(page, INVALID_RULES_CONFIG);
   await runAndAwaitResult(page);
 

@@ -10,6 +10,7 @@ import {
 import {
   clearStarterPins,
   effectivePresetChip,
+  gotoAppAtDefaultConfig,
   must,
   openMigrateStage,
   openPresetTree,
@@ -39,8 +40,7 @@ import {
  */
 
 test("a run lands on the Tests tab, not on an expanded instrument", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+  await gotoAppAtDefaultConfig(page);
   await runAndAwaitResult(page);
 
   await expect(tabButton(page, "tests")).toHaveAttribute("aria-selected", "true");
@@ -131,8 +131,7 @@ test("the header states the verdict and its digest links open the instruments", 
  * header, in the error tone, with the count it will find in Problems.
  */
 test("the header's status pill reports validation errors instead of accepted", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+  await gotoAppAtDefaultConfig(page);
   await setEditorContent(page, INVALID_RULES_CONFIG);
   await runAndAwaitResult(page);
 
@@ -150,8 +149,7 @@ test("the header's status pill reports validation errors instead of accepted", a
 test("the header's rewrites link opens Pipeline on the migrate stage's stepper", async ({
   page,
 }) => {
-  await page.goto("/");
-  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+  await gotoAppAtDefaultConfig(page);
   await setEditorContent(page, SEMANTIC_COMMITS_CONFIG);
   await runAndAwaitResult(page);
 
@@ -463,8 +461,7 @@ test("a narrow viewport stacks the panes and a run scrolls the results into view
   page,
 }) => {
   await page.setViewportSize({ width: 700, height: 720 });
-  await page.goto("/");
-  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+  await gotoAppAtDefaultConfig(page);
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
 
   await runAndAwaitResult(page);

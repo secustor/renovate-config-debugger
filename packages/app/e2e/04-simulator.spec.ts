@@ -10,6 +10,7 @@ import {
   drawer,
   openSimulator,
   openTab,
+  simulateFromLink,
   simulateQuickFill,
   tabButton,
 } from "./helpers";
@@ -28,20 +29,12 @@ import {
 test("simulating a matching dependency shows a verdict with a matched rule and its applied diff", async ({
   page,
 }) => {
-  const fragment = await encodeShareFragment({ config: PACKAGE_RULES_CONFIG });
-  await page.goto(fragment);
+  // The run completes, the Tests tab's simulator mounts (it needs a result with
+  // rules), and the "npm dependency" quick-fill (lodash, patch update) is run.
+  await simulateFromLink(page, PACKAGE_RULES_CONFIG);
 
-  // The run completes and the Tests tab's simulator mounts (it needs a result
-  // with rules).
-  const simulator = await openSimulator(page);
-
-  // The "npm dependency" quick-fill (lodash, patch update) fills the form;
-  // Simulate is what runs it (roadmap 080).
-  await simulateQuickFill(simulator, "npm dependency");
-
-  // Verdict block appears with a non-zero matched count.
+  // The verdict block carries a non-zero matched count.
   const verdict = page.locator(".sim-verdict-block");
-  await expect(verdict).toBeVisible({ timeout: 15_000 });
   // Both full-trace links wear `.sim-jump` (one grammar, one rule), so the
   // matched-rules one is addressed by what it says, not by being the only one.
   const jump = verdict.getByRole("button", { name: /\d+ of \d+ rules? matched/ });
@@ -143,13 +136,7 @@ test("pinning from the detail view adds a standing test without leaving it", asy
  * never matched contributes no stop.
  */
 test("the merge timeline walks the matching rules one stop at a time", async ({ page }) => {
-  const fragment = await encodeShareFragment({ config: MERGE_STEPS_CONFIG });
-  await page.goto(fragment);
-
-  const simulator = await openSimulator(page);
-
-  await simulateQuickFill(simulator, "npm dependency");
-  await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
+  const simulator = await simulateFromLink(page, MERGE_STEPS_CONFIG);
 
   // Roadmap 047: the timeline lives in a drawer whose collapsed row already
   // compresses it — `base → 2 merges → flatten ⊘N → final · changed …`.
@@ -226,14 +213,8 @@ test("the merge timeline walks the matching rules one stop at a time", async ({ 
 test("a verdict thread's step link opens the merge drawer at the stop it names", async ({
   page,
 }) => {
-  const fragment = await encodeShareFragment({ config: MERGE_STEPS_CONFIG });
-  await page.goto(fragment);
-
-  const simulator = await openSimulator(page);
-  await simulateQuickFill(simulator, "npm dependency");
-
+  await simulateFromLink(page, MERGE_STEPS_CONFIG);
   const verdict = page.locator(".sim-verdict-block");
-  await expect(verdict).toBeVisible({ timeout: 15_000 });
 
   const mergeDrawer = drawer(page, "How the final config was built");
   await expect(mergeDrawer).toHaveJSProperty("open", false);
@@ -273,18 +254,12 @@ test("the consumed-blocks aside names an authored block that didn't apply, and s
 }) => {
   // Default-only consumption: a patch update against a config with no authored
   // update-type block says nothing on the card.
-  await page.goto(await encodeShareFragment({ config: PACKAGE_RULES_CONFIG }));
-  let simulator = await openSimulator(page);
-  await simulateQuickFill(simulator, "npm dependency");
-  await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
+  await simulateFromLink(page, PACKAGE_RULES_CONFIG);
   await expect(page.locator(".sim-consumed-note")).toHaveCount(0);
 
   // The same patch update against a config carrying `minor: { automerge: true }`
   // explains why that block stayed inert.
-  await page.goto(await encodeShareFragment({ config: AUTHORED_BLOCK_CONFIG }));
-  simulator = await openSimulator(page);
-  await simulateQuickFill(simulator, "npm dependency");
-  await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
+  await simulateFromLink(page, AUTHORED_BLOCK_CONFIG);
 
   const consumed = page.locator(".sim-consumed-note");
   await expect(consumed).toHaveCount(1);
@@ -309,10 +284,7 @@ test("the consumed-blocks aside names an authored block that didn't apply, and s
  * the RUN's inputs, not the form's, so any capture is self-labelling.
  */
 test("stale results are veiled and the banner names the run they belong to", async ({ page }) => {
-  await page.goto(await encodeShareFragment({ config: PACKAGE_RULES_CONFIG }));
-  const simulator = await openSimulator(page);
-  await simulateQuickFill(simulator, "npm dependency");
-  await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
+  const simulator = await simulateFromLink(page, PACKAGE_RULES_CONFIG);
 
   // Change an input WITHOUT re-running: the run below is now stale.
   await simulator.getByLabel("packageName", { exact: true }).fill("react");
@@ -333,10 +305,7 @@ test("stale results are veiled and the banner names the run they belong to", asy
 test("the flatten cross-link brings the merge drawer into view from the bottom of the page", async ({
   page,
 }) => {
-  await page.goto(await encodeShareFragment({ config: AUTHORED_BLOCK_CONFIG }));
-  const simulator = await openSimulator(page);
-  await simulateQuickFill(simulator, "npm dependency");
-  await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
+  await simulateFromLink(page, AUTHORED_BLOCK_CONFIG);
 
   // Stand where the links live: the bottom of the results, where the clamped
   // same-tick scroll used to have zero slack. Roadmap 075: that is the results
@@ -366,11 +335,7 @@ test("the flatten cross-link brings the merge drawer into view from the bottom o
 test("the form states the update as a sentence, with counted groups beside a live descriptor", async ({
   page,
 }) => {
-  await page.goto(await encodeShareFragment({ config: PACKAGE_RULES_CONFIG }));
-  const simulator = await openSimulator(page);
-
-  await simulateQuickFill(simulator, "npm dependency");
-  await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
+  const simulator = await simulateFromLink(page, PACKAGE_RULES_CONFIG);
 
   // The chip that started it is the one the form still agrees with.
   await expect(simulator.locator(".sim-quickfill.active")).toHaveText("npm dependency");

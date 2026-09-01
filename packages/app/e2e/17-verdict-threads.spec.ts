@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { CONTESTED_KEY_CONFIG, encodeShareFragment } from "./fixtures";
-import { drawer, openSimulator, openTab, simulateQuickFill } from "./helpers";
+import { drawer, openTab, simulateFromLink } from "./helpers";
 
 /** The `npm dependency` quick-fill's own fields — what a share link has to
  *  carry to reproduce a run this suite otherwise starts by clicking. */
@@ -16,12 +16,10 @@ const NPM_QUICK_FILL: Record<string, string> = {
 };
 
 /** Opens the contested config, runs the lodash quick-fill, and waits for the
- *  verdict card the threads live on. */
+ *  verdict card the threads live on. Named because four tests start here; the
+ *  steps themselves are the shared preamble. */
 async function runContestedSimulation(page: Page): Promise<void> {
-  await page.goto(await encodeShareFragment({ config: CONTESTED_KEY_CONFIG }));
-  const simulator = await openSimulator(page);
-  await simulateQuickFill(simulator, "npm dependency");
-  await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
+  await simulateFromLink(page, CONTESTED_KEY_CONFIG);
 }
 
 /** A thread's head button — addressed by the id the app gives it (`use-thread-nav`

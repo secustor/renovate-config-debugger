@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { FIXED_AUTOMERGE_CONFIG, INVALID_AUTOMERGE_CONFIG } from "./fixtures";
-import { openTab, runAndAwaitResult, setEditorContent } from "./helpers";
+import { gotoAppAtDefaultConfig, openTab, runAndAwaitResult, setEditorContent } from "./helpers";
 
 /**
  * Journey 3 — paste → Run → validation error shown → edit config (fix it) →
@@ -8,8 +8,7 @@ import { openTab, runAndAwaitResult, setEditorContent } from "./helpers";
  * stage's error → ok transition.
  */
 test("a validation error appears, then clears after the config is fixed", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+  await gotoAppAtDefaultConfig(page);
 
   // Paste a config whose only problem is a validate-stage type error
   // (`automerge` must be a boolean, not "yes").

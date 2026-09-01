@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { PACKAGE_RULES_CONFIG, SEMANTIC_COMMITS_CONFIG } from "./fixtures";
-import { openTab, runAndAwaitResult, setEditorContent } from "./helpers";
+import { gotoAppAtDefaultConfig, openTab, runAndAwaitResult, setEditorContent } from "./helpers";
 
 /**
  * Roadmap 024 — stage nodes signal what each stage did. A config that
@@ -13,8 +13,7 @@ import { openTab, runAndAwaitResult, setEditorContent } from "./helpers";
  * with a glyph and a delta line instead of a chip with a `·N` count.
  */
 test("the Migrate node shows amber with a delta when it rewrote the config", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+  await gotoAppAtDefaultConfig(page);
 
   await setEditorContent(page, SEMANTIC_COMMITS_CONFIG);
   await runAndAwaitResult(page);
@@ -55,8 +54,7 @@ test("the Migrate node shows amber with a delta when it rewrote the config", asy
 test("the Migrate node stays green/clean with a dimmed zero when nothing was migrated", async ({
   page,
 }) => {
-  await page.goto("/");
-  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+  await gotoAppAtDefaultConfig(page);
 
   await setEditorContent(page, PACKAGE_RULES_CONFIG);
   await runAndAwaitResult(page);

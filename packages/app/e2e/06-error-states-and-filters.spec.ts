@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { encodeShareFragment, INVALID_AUTOMERGE_CONFIG, PACKAGE_RULES_CONFIG } from "./fixtures";
+import { INVALID_AUTOMERGE_CONFIG, PACKAGE_RULES_CONFIG } from "./fixtures";
 import {
-  openSimulator,
+  gotoAppAtDefaultConfig,
   openTab,
   runAndAwaitResult,
   setEditorContent,
-  simulateQuickFill,
+  simulateFromLink,
 } from "./helpers";
 
 /**
@@ -16,8 +16,7 @@ import {
 test("a validation error adds a hypothetical-run banner to post-Validate results", async ({
   page,
 }) => {
-  await page.goto("/");
-  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+  await gotoAppAtDefaultConfig(page);
 
   await setEditorContent(page, INVALID_AUTOMERGE_CONFIG);
   await runAndAwaitResult(page);
@@ -54,15 +53,9 @@ test("a validation error adds a hypothetical-run banner to post-Validate results
 test("the simulator's repo-config filter shows repo rules with clause evidence expanded", async ({
   page,
 }) => {
-  const fragment = await encodeShareFragment({ config: PACKAGE_RULES_CONFIG });
-  await page.goto(fragment);
-
-  const simulator = await openSimulator(page);
-
   // A run has to exist before the filter appears (it needs a simulation) —
   // roadmap 080: the chip fills, Simulate runs.
-  await simulateQuickFill(simulator, "npm dependency");
-  await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
+  const simulator = await simulateFromLink(page, PACKAGE_RULES_CONFIG);
 
   // Roadmap 047: the rule list and its filters live in the "Matched rules"
   // drawer now — the filter is one disclosure away, not gone.
