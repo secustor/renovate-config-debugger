@@ -366,8 +366,11 @@
                 // Types are free (erased before a bundler sees them), and they
                 // are how the app names the engine's shapes in ~150 files —
                 // hence `allowTypeImports`. Runtime access goes through the
-                // narrow subpaths (`/text-scan`, `/schema`,
-                // `/simulate-missing-inputs`) or through `loadEngine()`.
+                // narrow subpaths (`/is`, `/json`, `/contracts`, `/text-scan`,
+                // `/schema`, `/simulate-missing-inputs`) or through
+                // `loadEngine()`. `/is` and `/json` are the two the app reaches
+                // from its ENTRY chunk, and the two this ban sends most authors
+                // to; both are zero-import files precisely so that is free.
                 "group": ["@renovate-config-debugger/engine"],
                 "allowTypeImports": true,
                 "message": "Value-importing the engine ROOT statically pulls the whole Renovate graph into this chunk — use a narrow subpath export, or load it at runtime through platform/engine-chunk.ts (`loadEngine()`). Type-only imports are fine."
@@ -767,12 +770,20 @@
       }
     },
     // ---- The house rules (tools/lint) ---------------------------------------
-    // Scoped to the APP's source, because that is where the helpers they point
-    // at live. `packages/engine` and `packages/cli` have their own
-    // `isPlainObject` and their own error-to-string, and must: the app's
-    // `@/lib/*` is across a package boundary they cannot import. Enabling the
-    // rules there would be telling them to import something that does not
-    // resolve.
+    // Most are scoped to the APP's source, because that is where the helpers
+    // they point at live: `@/lib/errors`, `@/lib/rule-ref`, `@/lib/truncate`
+    // and the two hooks are across a package boundary the engine and the CLI
+    // cannot import, so enabling those rules there would be telling them to
+    // import something that does not resolve.
+    //
+    // TWO are not app-only any more. PR 316's review asked for a shared library
+    // rather than a ban, so `packages/engine/src/is.ts` and
+    // `packages/engine/src/json.ts` now hold the predicates and the JSON text
+    // helpers, reachable from all three packages through the `./is` and
+    // `./json` subpath exports (the app depends on the engine; the CLI
+    // dev-depends on both). `rcd/prefer-is-helpers` and `rcd/use-json-helpers`
+    // are therefore enabled on `packages/cli/src` and `packages/engine/src` as
+    // well, in their own overrides below.
     //
     // Test files are excluded. A test that spells `packageRules[0]` out is a
     // GOLDEN assertion — building it from `ruleRef` would make it tautological
@@ -791,22 +802,42 @@
         "rcd/use-synced-reset": "error",
         "rcd/use-transient-value": "error",
         "rcd/use-truncate": "error",
-        "rcd/no-local-is-plain-object": "error",
         "rcd/no-uncaught-void-chain": "error",
-        "rcd/no-unguarded-json-stringify": "error"
+        "rcd/prefer-is-helpers": "error",
+        "rcd/use-json-helpers": "error"
       }
     },
-    // ---- The one house rule that is not app-only ----------------------------
-    // `no-unguarded-json-stringify` bans a CONSTRUCT and names no import, so
-    // the package-boundary reason above does not apply — and the CLI is where
-    // the defect shipped (sweep finding 9, `output.ts`). `packages/engine/src`
-    // stays out on purpose: `shims/repo-config.ts` stringifies under a
-    // `typeof value === "object" && value !== null` guard the rule cannot see.
+    // ---- The two house rules that are not app-only --------------------------
+    // Both point at `packages/engine/src/{is,json}.ts`, which every package
+    // here can import, so the package-boundary reason above does not apply.
+    // The CLI is also where the JSON defect shipped (sweep finding 9,
+    // `output.ts`), and it held two of the copies the is-library replaced
+    // (`mcp/result.ts`'s `isRecord`, `projections/config-view.ts`'s
+    // `isStringArray`).
     {
       "files": ["packages/cli/src/**"],
       "excludeFiles": ["packages/cli/src/**/*.test.ts"],
       "rules": {
-        "rcd/no-unguarded-json-stringify": "error"
+        "rcd/prefer-is-helpers": "error",
+        "rcd/use-json-helpers": "error"
+      }
+    },
+    // The engine is in scope because it is the HOME: `src/is.ts` and
+    // `src/json.ts` live here, so an import is always `./is` / `./json`. The
+    // old `no-unguarded-json-stringify` kept the engine out because
+    // `shims/repo-config.ts` stringified under a guard the rule could not see;
+    // under the helper design that call is just `jsonDocument(value)` and the
+    // reason is gone. Only the two verbatim upstream ports are exempt, below.
+    {
+      "files": ["packages/engine/src/**"],
+      "excludeFiles": [
+        "packages/engine/src/**/*.test.ts",
+        "packages/engine/src/**/*.node.test.ts",
+        "packages/engine/src/**/*.shimmed.test.ts"
+      ],
+      "rules": {
+        "rcd/prefer-is-helpers": "error",
+        "rcd/use-json-helpers": "error"
       }
     },
     // ---- …and the e2e specs -------------------------------------------------
@@ -834,9 +865,35 @@
       "files": ["packages/app/src/lib/rule-ref.ts"],
       "rules": { "rcd/use-rule-ref": "off" }
     },
+    // The two files that ARE the libraries.
     {
-      "files": ["packages/app/src/lib/input-schemas.ts"],
-      "rules": { "rcd/no-local-is-plain-object": "off" }
+      "files": ["packages/engine/src/is.ts"],
+      "rules": { "rcd/prefer-is-helpers": "off" }
+    },
+    {
+      "files": ["packages/engine/src/json.ts"],
+      "rules": { "rcd/use-json-helpers": "off" }
+    },
+    // …and the two VERBATIM upstream ports. `renovate-deps.ts` is dequal@2.0.3
+    // plus @sindresorhus/is@8.1.0 predicates, copied byte for byte because
+    // `migrateConfig`'s fixed-point logic must match their behaviour exactly;
+    // `migration.ts` is the line-by-line fork of `migrateConfig` itself.
+    // `test/migration-drift.node.test.ts` fails until both are re-checked
+    // against a bumped renovate, and that re-check is a DIFF against upstream —
+    // which only works while the local text is the upstream text. The two
+    // predicates that are provably identical to the library's (`isString`,
+    // `isBoolean`) re-export from `../is` instead of being copied; the other
+    // four keep their upstream shape and their upstream `typeof`.
+    //
+    // `rcd/use-json-helpers` is NOT switched off for either: neither file
+    // contains a `JSON.stringify`.
+    {
+      "files": ["packages/engine/src/shims/renovate-deps.ts"],
+      "rules": { "rcd/prefer-is-helpers": "off" }
+    },
+    {
+      "files": ["packages/engine/src/shims/migration.ts"],
+      "rules": { "rcd/prefer-is-helpers": "off" }
     },
     {
       "files": ["packages/app/src/hooks/use-transient-value.ts"],
