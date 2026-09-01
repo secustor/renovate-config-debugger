@@ -11,11 +11,9 @@ does with your config: parsing, migration of deprecated options, massaging,
 validation, preset resolution and merging. It runs Renovate's own code in your
 browser. Think "compiler explorer for Renovate configs".
 
-**[Try it live](https://renovate.secustor.dev/)**, or run it yourself:
-
-```bash
-docker run -p 8080:80 ghcr.io/secustor/renovate-config-debugger   # http://localhost:8080
-```
+**[Try it live](https://renovate.secustor.dev/)** — nothing to install, and
+your config never leaves the browser. (Prefer your own instance? See
+[Self-hosting](#self-hosting-docker).)
 
 Paste this into the config editor and press _Run pipeline_ or simply [open it with the below content filled](https://renovate.secustor.dev/#config=PZDNToQwFIVfpTlxWRnHEE36Bi50YXRlZ1HKHUCnP2kvqCG8uykDLpvzfeekd8YEdS-RyIfJMEGhrqu6eoCEDf48dFCYtRdC4ybbnpzRUEKjZ45ZHQ5tsLna7SZwZYM77O_bq1F95uA15LWGfph8m0vNh95GVCIbnCPfUqtx2khnMlN6ynmkQnMaaUuisV-mo9fxQluRF0KIeZXY9s_Gm47SPuKjK617-h5bw_T2G3cZbvAhbUiXwhhfjFs3V1dssVjKzEn7RXtInIcLFQ7q_3zrT8vpoHBMj0M-NpCYBvqGmpHZdIWOiTIxJDJThLqTYNNAIUyUVnZZ_gA):
 
@@ -73,7 +71,85 @@ overriding them is explicit and visibly warned.
 
 </details>
 
-## For agents and scripts (headless)
+<details>
+<summary>Preset hosting & CORS support</summary>
+
+Every fetcher runs in the page, so each host must serve CORS headers. The
+public default endpoints below verifiably do; self-hosted endpoints usually do
+not, so their presets fall back to manual injection.
+
+| Prefix                                                       | Status               | Notes                                                       |
+| ------------------------------------------------------------ | -------------------- | ----------------------------------------------------------- |
+| `github>`                                                    | fetched in browser   | `api.github.com` (custom endpoint supported)                |
+| `gitlab>`                                                    | fetched in browser   | `gitlab.com` API v4 (custom endpoint supported)             |
+| `gitea>`                                                     | fetched in browser   | `gitea.com` API v1 (custom endpoint supported)              |
+| `forgejo>`                                                   | fetched in browser   | `codeberg.org` API v1 (custom endpoint supported)           |
+| `npm>`                                                       | fetched in browser   | `registry.npmjs.org` (deprecated upstream)                  |
+| bare `owner/repo`, `local>`                                  | via platform context | resolves against the toolbar platform + endpoint you select |
+| `http(s)://…`                                                | manual only          | arbitrary endpoints rarely serve CORS                       |
+| azure / bitbucket / bitbucket-server / gerrit (via `local>`) | not supported        | reachable only via a real Renovate run                      |
+| codecommit / scm-manager (via `local>`)                      | not supported        | Renovate itself does not serve local presets there          |
+
+`local>` and bare `owner/repo` are not hosts of their own. They resolve against
+the platform + endpoint picked in the toolbar's _Platform context_ control
+(default `github` / `https://api.github.com`), and the trace records which one
+each node used.
+
+Any preset a fetcher cannot reach (self-hosted or air-gapped hosts, a
+hypothetical preset) can be supplied by hand. Select the failed node in the
+resolution tree and paste its JSON into "Provide preset content manually". The
+pipeline re-runs with it and flags the node `user-supplied`.
+
+</details>
+
+## Private repositories & presets
+
+Reading a private config or preset repo takes two steps, and the second one is
+easy to miss: sign in with GitHub, then install the App on the repositories it
+should read. Signing in by itself grants nothing, so a private repo keeps coming
+back as "not found" until the App is installed on it. Public repos need neither
+step.
+
+That split is the point. It is what lets you decide, repository by repository,
+what the debugger can read, and the selection stays editable afterwards. The App
+asks for a single permission, Contents: read-only. Inside an organization, a
+member may need an owner to approve the install.
+
+[docs/GitHub-App-Access.md](docs/GitHub-App-Access.md) has the walkthrough,
+including owner approval, changing the selection later, revoking, and the
+personal-access-token fallback for GitHub Enterprise Server.
+
+<details>
+<summary>Privacy, tokens & GitHub sign-in</summary>
+
+- Configs never leave the browser except for the preset fetches they themselves
+  declare; all GitHub/GitLab/Gitea/Forgejo/npm content fetches go browser →
+  host API directly, with nothing proxying your config or presets.
+- Tokens (OAuth or personal access token) live in `sessionStorage`/memory and
+  are cleared when the tab closes. They never go into `localStorage` or into a
+  URL.
+- Sign in with GitHub adds exactly one piece of server infrastructure: the
+  stateless [`packages/oauth-worker`](packages/oauth-worker), which does nothing
+  but the OAuth `code → token` / `refresh_token → token` exchange, because a
+  static site cannot hold the `client_secret` GitHub still requires. It never
+  sees a config, a preset, or an API request.
+- Private presets and private repo configs need auth. The GitHub App's only
+  permission is Contents: read-only, so the consent screen truthfully reads
+  "read the contents of the repositories you select"; signing in also raises the
+  rate limit from 60 to 5,000 requests/hour. Sign-out clears the local token,
+  and the chip links to GitHub's authorization page for true revocation.
+  Granting the App access to a given repository is a separate step, covered in
+  [docs/GitHub-App-Access.md](docs/GitHub-App-Access.md).
+- Sign-in is off by default. It turns on only when the deploy provides
+  `VITE_GITHUB_CLIENT_ID` and `VITE_OAUTH_WORKER_URL` (plus optional
+  `VITE_GITHUB_APP_SLUG`) or their `RCD_*` equivalents. Otherwise a personal
+  access token under _Platform context & per-host tokens_ is the only GitHub
+  auth, and it is also the fallback for GitHub Enterprise Server, orgs that
+  can't approve the app install, or Worker outages.
+
+</details>
+
+## CLI & MCP (for agents and scripts)
 
 > [!WARNING]
 > The CLI and the MCP server are **experimental**: subcommands, flags and
@@ -125,29 +201,19 @@ engine code, so updates ride the CLI's releases.
 options, credentials (environment only), the endpoint guard, and the
 compatibility table.
 
-## Private repositories & presets
-
-Reading a private config or preset repo takes two steps, and the second one is
-easy to miss: sign in with GitHub, then install the App on the repositories it
-should read. Signing in by itself grants nothing, so a private repo keeps coming
-back as "not found" until the App is installed on it. Public repos need neither
-step.
-
-That split is the point. It is what lets you decide, repository by repository,
-what the debugger can read, and the selection stays editable afterwards. The App
-asks for a single permission, Contents: read-only. Inside an organization, a
-member may need an owner to approve the install.
-
-[docs/GitHub-App-Access.md](docs/GitHub-App-Access.md) has the walkthrough,
-including owner approval, changing the selection later, revoking, and the
-personal-access-token fallback for GitHub Enterprise Server.
-
 ## Self-hosting (Docker)
 
 > [!WARNING]
 > Docker setups are experimental at the moment.
 
-Images are created for each commit using `sha-<short>` as the tag, on release semver versioned tags are too released with `latest` pointing on the newest semver release.
+The app is a static bundle, so hosting it is one container:
+
+```bash
+docker run -p 8080:80 ghcr.io/secustor/renovate-config-debugger   # http://localhost:8080
+```
+
+Every commit publishes an image tagged `sha-<short>`; releases additionally
+publish semver tags, with `latest` pointing at the newest release.
 
 To verify the attestation of a semver release use:
 
@@ -155,9 +221,8 @@ To verify the attestation of a semver release use:
 gh attestation verify oci://ghcr.io/secustor/renovate-config-debugger:latest -R secustor/renovate-config-debugger
 ```
 
-The app is a static bundle, so hosting it is the one container above. There is
-also [`docker-compose.yml`](docker-compose.yml), a worked example of both
-services with every optional variable present but commented out:
+There is also [`docker-compose.yml`](docker-compose.yml), a worked example of
+both services with every optional variable present but commented out:
 
 ```bash
 docker compose up            # published images
@@ -251,67 +316,6 @@ dev-server-only (builds never see the variable) and fakes the signed-in
 _state_, not the sign-in _flow_ — testing the flow itself takes the real
 provisioning in
 [packages/oauth-worker/README.md](packages/oauth-worker/README.md#provisioning).
-
-<details>
-<summary>Privacy, tokens & GitHub sign-in</summary>
-
-- Configs never leave the browser except for the preset fetches they themselves
-  declare; all GitHub/GitLab/Gitea/Forgejo/npm content fetches go browser →
-  host API directly, with nothing proxying your config or presets.
-- Tokens (OAuth or personal access token) live in `sessionStorage`/memory and
-  are cleared when the tab closes. They never go into `localStorage` or into a
-  URL.
-- Sign in with GitHub adds exactly one piece of server infrastructure: the
-  stateless [`packages/oauth-worker`](packages/oauth-worker), which does nothing
-  but the OAuth `code → token` / `refresh_token → token` exchange, because a
-  static site cannot hold the `client_secret` GitHub still requires. It never
-  sees a config, a preset, or an API request.
-- Private presets and private repo configs need auth. The GitHub App's only
-  permission is Contents: read-only, so the consent screen truthfully reads
-  "read the contents of the repositories you select"; signing in also raises the
-  rate limit from 60 to 5,000 requests/hour. Sign-out clears the local token,
-  and the chip links to GitHub's authorization page for true revocation.
-  Granting the App access to a given repository is a separate step, covered in
-  [docs/GitHub-App-Access.md](docs/GitHub-App-Access.md).
-- Sign-in is off by default. It turns on only when the deploy provides
-  `VITE_GITHUB_CLIENT_ID` and `VITE_OAUTH_WORKER_URL` (plus optional
-  `VITE_GITHUB_APP_SLUG`) or their `RCD_*` equivalents. Otherwise a personal
-  access token under _Platform context & per-host tokens_ is the only GitHub
-  auth, and it is also the fallback for GitHub Enterprise Server, orgs that
-  can't approve the app install, or Worker outages.
-
-</details>
-
-<details>
-<summary>Preset hosting & CORS support</summary>
-
-Every fetcher runs in the page, so each host must serve CORS headers. The
-public default endpoints below verifiably do; self-hosted endpoints usually do
-not, so their presets fall back to manual injection.
-
-| Prefix                                                       | Status               | Notes                                                       |
-| ------------------------------------------------------------ | -------------------- | ----------------------------------------------------------- |
-| `github>`                                                    | fetched in browser   | `api.github.com` (custom endpoint supported)                |
-| `gitlab>`                                                    | fetched in browser   | `gitlab.com` API v4 (custom endpoint supported)             |
-| `gitea>`                                                     | fetched in browser   | `gitea.com` API v1 (custom endpoint supported)              |
-| `forgejo>`                                                   | fetched in browser   | `codeberg.org` API v1 (custom endpoint supported)           |
-| `npm>`                                                       | fetched in browser   | `registry.npmjs.org` (deprecated upstream)                  |
-| bare `owner/repo`, `local>`                                  | via platform context | resolves against the toolbar platform + endpoint you select |
-| `http(s)://…`                                                | manual only          | arbitrary endpoints rarely serve CORS                       |
-| azure / bitbucket / bitbucket-server / gerrit (via `local>`) | not supported        | reachable only via a real Renovate run                      |
-| codecommit / scm-manager (via `local>`)                      | not supported        | Renovate itself does not serve local presets there          |
-
-`local>` and bare `owner/repo` are not hosts of their own. They resolve against
-the platform + endpoint picked in the toolbar's _Platform context_ control
-(default `github` / `https://api.github.com`), and the trace records which one
-each node used.
-
-Any preset a fetcher cannot reach (self-hosted or air-gapped hosts, a
-hypothetical preset) can be supplied by hand. Select the failed node in the
-resolution tree and paste its JSON into "Provide preset content manually". The
-pipeline re-runs with it and flags the node `user-supplied`.
-
-</details>
 
 ## Project direction
 
