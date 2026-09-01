@@ -33,6 +33,18 @@ export function mustExtract(outcome: ExtractOutcome): Extract<ExtractOutcome, { 
   return outcome;
 }
 
+/** Runs `fn` with fetch rejecting, so a preset that resolves to nothing fails
+ *  for a reason the test owns rather than whatever api.github.com answers. */
+export async function withoutNetwork<T>(fn: () => Promise<T>): Promise<T> {
+  const original = globalThis.fetch;
+  globalThis.fetch = () => Promise.reject(new TypeError("network disabled in tests"));
+  try {
+    return await fn();
+  } finally {
+    globalThis.fetch = original;
+  }
+}
+
 /** The dependency both simulate twins run their oracle parity against: an npm
  *  patch update, every descriptor field set. */
 export const npmDep: DependencyDescriptor = {

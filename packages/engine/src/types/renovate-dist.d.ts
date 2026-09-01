@@ -222,6 +222,12 @@ declare module "renovate/dist/types/errors/external-host-error.js" {
   }
 }
 
+declare module "renovate/dist/config/app-strings.js" {
+  // Read only by the drift guard for `CONFIG_FILE_NAMES`, which calls it with
+  // no platform.
+  export function getConfigFileNames(platform?: string): string[];
+}
+
 declare module "renovate/dist/modules/datasource/api.js" {
   // The real value is `Map<name, DatasourceImplementation>`; only the key set
   // (roadmap 047's `listDatasourceNames`) is ever read through this type, so

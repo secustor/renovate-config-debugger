@@ -4,8 +4,9 @@
  * handful of `@sindresorhus/is@8.1.0` predicates. They live under renovate's
  * own node_modules and are not resolvable from this package, and the fork's
  * fixed-point / gating logic must match their behavior byte-for-byte, so they
- * are vendored verbatim rather than re-implemented. Re-check on a renovate bump
- * if either dependency's version changes.
+ * are vendored verbatim rather than re-implemented.
+ * `test/migration-drift.node.test.ts` pins both versions and fails until this
+ * file is re-checked.
  */
 
 /* oxlint-disable typescript/unbound-method -- `const has = Object.prototype.hasOwnProperty`

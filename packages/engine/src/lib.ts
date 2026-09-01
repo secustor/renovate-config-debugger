@@ -31,11 +31,32 @@ export function allowStringMembers(value: unknown): unknown[] {
 /**
  * Equality by JSON text. Cheap and exact for the JSON-shaped config values the
  * simulator compares, but ORDER-SENSITIVE: `{a:1,b:2}` and `{b:2,a:1}` compare
- * unequal. Callers that need structural equality use `deepEqual` in
- * `trace/provenance.ts` instead.
+ * unequal. Callers that need structural equality use `deepEqual` below instead.
  */
 export function jsonEqual(a: unknown, b: unknown): boolean {
   return a === b || JSON.stringify(a) === JSON.stringify(b);
+}
+
+/**
+ * Structural equality over JSON-shaped config values — order-INSENSITIVE, the
+ * counterpart callers reach for when `jsonEqual`'s key order would lie.
+ */
+export function deepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) {
+    return true;
+  }
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return a.length === b.length && a.every((x, i) => deepEqual(x, b[i]));
+  }
+  if (isPlainObject(a) && isPlainObject(b)) {
+    const ak = Object.keys(a);
+    const bk = Object.keys(b);
+    return (
+      ak.length === bk.length &&
+      ak.every((k) => Object.prototype.hasOwnProperty.call(b, k) && deepEqual(a[k], b[k]))
+    );
+  }
+  return false;
 }
 
 /**

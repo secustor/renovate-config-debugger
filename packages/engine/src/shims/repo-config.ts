@@ -73,7 +73,7 @@ export class RepoConfigNotFoundError extends Error {
  * brace-expansion (`renovate.json{,c,5}` → .json/.jsonc/.json5), in order.
  * detectConfigFile walks this list and the first existing file wins. Hardcoded
  * because upstream exports `getConfigFileNames()`, not the raw `configFileNames`
- * array; keep in sync with the pinned Renovate version.
+ * array; `test/repo-config-drift.node.test.ts` fails when the two diverge.
  */
 export const CONFIG_FILE_NAMES = [
   "renovate.json",

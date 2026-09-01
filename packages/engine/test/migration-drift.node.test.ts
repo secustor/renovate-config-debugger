@@ -1,11 +1,13 @@
 /**
- * Upstream-drift tripwire for the forked `migrateConfig`.
+ * Upstream-drift tripwire for the forked `migrateConfig` and the two transitive
+ * deps it vendors.
  *
  * `src/shims/migration.ts` copies the control flow of
  * `renovate/dist/config/migration.js` line-for-line. When Renovate is bumped
  * that upstream file can change, silently invalidating the fork. This test
  * pins a hash of the upstream source; when it changes, re-diff the fork against
- * the new upstream and update the expected hash below.
+ * the new upstream and update the expected hash below. It also pins the
+ * versions of the two deps `src/shims/renovate-deps.ts` vendors verbatim.
  */
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
@@ -37,5 +39,17 @@ describe("migrateConfig fork stays in sync with upstream", () => {
     expect(hashOf("config/migrations/migrations-service.js")).toBe(
       "e1862cb3a432d6e49959beedabb1537390c046bb9cd9bf549e3c6c0adefc10d4",
     );
+  });
+});
+
+describe("vendored transitive deps are unchanged", () => {
+  it("renovate still pins the exact versions src/shims/renovate-deps.ts copied", () => {
+    // A failure (bumped version, or an exact pin turned into a range) means
+    // re-diffing src/shims/renovate-deps.ts against the new upstream copy.
+    const manifest = JSON.parse(readFileSync(join(renovateRoot, "package.json"), "utf8")) as {
+      dependencies: Record<string, string>;
+    };
+    expect(manifest.dependencies.dequal).toBe("2.0.3");
+    expect(manifest.dependencies["@sindresorhus/is"]).toBe("8.1.0");
   });
 });
