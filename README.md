@@ -99,12 +99,22 @@ Reading a private config or preset repo takes two steps, and the second one is
 easy to miss: sign in with GitHub, then install the App on the repositories it
 should read. Signing in alone grants nothing — a private repo keeps coming back
 as "not found" until the App is installed on it. Public repos need neither
-step. The App asks for a single permission, Contents: read-only, and you pick
-the repositories it applies to; the selection stays editable afterwards.
+step.
 
-[docs/GitHub-App-Access.md](docs/GitHub-App-Access.md) has the walkthrough,
-including org-owner approval and the personal-access-token fallback for GitHub
-Enterprise Server.
+1. Sign in with GitHub in the app's toolbar.
+2. Open the [App's installation
+   page](https://github.com/apps/renovate-config-debugger/installations/new)
+   (this link is for the public deployment; a self-hosted instance uses the
+   operator's own App).
+3. Pick your account or organization. As an org member you may get **Install
+   and request** instead of **Install** — an owner then has to approve.
+4. Choose **Only select repositories** and pick the repos holding your Renovate
+   config or presets, then install. The App asks for a single permission,
+   Contents: read-only, and the selection stays editable afterwards.
+
+[docs/GitHub-App-Access.md](docs/GitHub-App-Access.md) has the full
+walkthrough, including org-owner approval, changing the selection later,
+revoking, and the personal-access-token fallback for GitHub Enterprise Server.
 
 <details>
 <summary>Privacy, tokens & GitHub sign-in</summary>
