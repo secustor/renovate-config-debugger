@@ -15,7 +15,14 @@ import type {
   RuleEvaluation,
 } from "@renovate-config-debugger/engine";
 import { describe, expect, test } from "vitest";
-import { flattenStop, ruleEval, ruleStop, simResult, stopChrome } from "@tools/test/simulation";
+import {
+  baseStop,
+  finalStop,
+  flattenStop,
+  ruleEval,
+  ruleStop,
+  simResult,
+} from "@tools/test/simulation";
 import type { MergeStop } from "./merge-stops";
 import { buildRuleEvidence } from "./rule-evidence";
 
@@ -40,14 +47,14 @@ function simFixture(rules: RuleEvaluation[]) {
 /** The mockup's scenario: rule 201 writes two keys in step 2; `schedule`
  *  survives, `groupName` is taken by rule 458 in step 3. */
 const STOPS: MergeStop[] = [
-  { kind: "base", ...stopChrome("base") },
+  baseStop(),
   ruleStop(12, [{ key: "labels", before: [], after: ["deps"] }]),
   ruleStop(201, [
     { key: "schedule", before: ["at any time"], after: ["before 6am on monday"] },
     { key: "groupName", after: "npm minor+patch" },
   ]),
   ruleStop(458, [{ key: "groupName", before: "npm minor+patch", after: "oxlint monorepo" }]),
-  { kind: "final", ...stopChrome("final") },
+  finalStop(),
 ];
 const LAYERS = new Map<number, ProvenanceLayer>([[201, PRESET_LAYER]]);
 const SIM = simFixture([matchedRule(12), matchedRule(201), matchedRule(458)]);

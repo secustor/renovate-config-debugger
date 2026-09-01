@@ -9,7 +9,7 @@
  * Spelled as a literal in three files, a CSS rename would have left the
  * queries silently matching nothing — which reads as "no card is open".
  *
- * Same shape, and the same reason, as `datalist-ids.ts`.
+ * Same shape, and the same reason, as `dom-ids.ts`.
  */
 
 /** The class on the card element itself (beside the shared `.option-card`). */

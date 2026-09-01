@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useLatestRef } from "./use-latest-ref";
-import { mayOwnNativePopup } from "@/hooks/scroll-ergonomics";
+import { mayOwnNativePopup } from "@/lib/keyboard-target";
 import { type EscapePriority, handleEscape, pushEscapeLayer } from "@/lib/escape-stack";
 
 /**

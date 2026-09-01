@@ -12,7 +12,7 @@ import type { ShareSimulator } from "@/lib/share";
 import { changedDependencyKeys } from "@/lib/simulation-changes";
 import { buildNoInputCaveat, buildVerdictSegments } from "@/lib/verdict-sentence";
 import type { ErrorTranslationLib } from "@/platform/run";
-import { SIM_FORM_ID } from "./datalist-ids";
+import { SIM_FORM_ID } from "./dom-ids";
 import { DescriptorActions } from "./DescriptorActions";
 import { buildMergeStops } from "./merge-stops";
 import { EmptyFormGuard, PinLimitNote } from "./FormNotes";

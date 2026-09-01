@@ -175,8 +175,9 @@ const threadKeySchema = z.string().check(z.minLength(1), z.maxLength(128));
  * simulator form" is stated once. The keys themselves are deliberately NOT
  * checked against `FormState` here: this module is the security layer (a form
  * field is neither fetched nor merged — the worst an unknown key does is fail
- * to fill a field), and the consumers already copy only the keys they know
- * (`useShareLinkRequest`, `pinFormFromShareFields`).
+ * to fill a field), and the one consumer-side copier already keeps only the
+ * keys it knows (`pinFormFromShareFields`, which both a link's simulator form
+ * and its pins go through).
  */
 function sanitizeFormFields(raw: unknown): Record<string, string> | undefined {
   if (!isPlainObject(raw)) {

@@ -355,7 +355,8 @@ untrapped Tab; before 068 it would have been a one-way door.
   where they move to the first/last tab per the ARIA tablist pattern. The
   exclusion is explicit in `scroll-ergonomics.ts`, and `isTextEditingTarget` is
   exported so the shortcut layer shares one definition of "the user is typing"
-  instead of growing a second.
+  instead of growing a second. (The predicate has since moved to
+  `lib/keyboard-target.ts`; the hook is still its caller.)
 
 ### Discoverability
 
@@ -617,8 +618,9 @@ was not connected in the session that fixed this, so the live check is unrun.
   and on the selected results tab, without touching `location.hash` — see
   "Where a skip link lands". Plus the polite run-completion live region, fed by
   `useRunSummary`'s counts so it cannot disagree with the tab badges.
-- `isTextEditingTarget` is exported from `scroll-ergonomics.ts`, and
-  `useHomeEndPageScroll` now yields to an event another handler claimed.
+- `isTextEditingTarget` is exported from `scroll-ergonomics.ts` (since moved to
+  `lib/keyboard-target.ts`), and `useHomeEndPageScroll` now yields to an event
+  another handler claimed.
 
 **Phase 2 — the ask** (landed): `lib/shortcuts.ts` (the registry plus
 `matchShortcut`, `formatShortcut`, `codeMirrorKey`), `hooks/use-shortcut.ts`,

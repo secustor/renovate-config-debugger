@@ -24,7 +24,7 @@ function JsonLine({ entry, comma }: { entry: DescriptorEntry; comma: boolean }) 
  * `descriptor-json.ts`'s (082) so the block that COPIES it cannot print
  * something else.
  */
-export function DescriptorJson({
+function DescriptorJson({
   form,
   effectiveUpdateType,
 }: {

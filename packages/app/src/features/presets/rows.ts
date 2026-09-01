@@ -202,7 +202,7 @@ export function buildTableRows(stats: TreeStats): TableRow[] {
       node: first,
       name,
       sourceKind: first.source?.presetSource ?? "internal",
-      opts: st.ownOptions,
+      opts: st.optionKeys.length,
       rules: st.ownRules,
       count: occurrences.length,
       search: st.search,

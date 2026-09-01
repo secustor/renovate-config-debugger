@@ -286,11 +286,10 @@ export function App() {
     const id = window.setTimeout(preloadRunChunks, 1_000);
     return () => window.clearTimeout(id);
   }, []);
-  // Roadmap 017: mirrors of `content`/`loadedContent` for the hashchange
-  // listener (inside `useShareLink`), which is registered once (empty deps)
-  // and would otherwise close over the state from that first render.
-  const contentRef = useLatestRef(content);
-  const loadedContentRef = useLatestRef(configDoc.loadedContent);
+  // Roadmap 017: a mirror of `canRevert` for the hashchange listener (inside
+  // `useShareLink`), which is registered once (empty deps) and would otherwise
+  // close over the state from that first render.
+  const hasUnsavedEditsRef = useLatestRef(configDoc.canRevert);
   // Roadmap 033: the whole share/hash/decode cluster — `shareError` feeds the
   // prominent, top-of-page banner below (not the dismissable notice), so a
   // broken link never reads as "nothing happened"; `simRequest` is handed to
@@ -329,8 +328,7 @@ export function App() {
       // header states for everything else declared later in the body.
       applyShareRepo: (repo) => repoProvenance.adoptShareClaim(repo),
       setPendingView,
-      contentRef,
-      loadedContentRef,
+      hasUnsavedEditsRef,
       buildShareState,
     },
   );
@@ -1205,15 +1203,6 @@ export function App() {
     };
   }
 
-  // Roadmap 077: the copied state (and its receipt popover) live in the
-  // header's ShareButton — this is only the share-link build, which mirrors
-  // the URL into the address bar too. Stable identity so the memoized
-  // consumers (TestsPanel via ResultsColumn) don't re-render per keystroke;
-  // `buildShareLinkAndCopy` is itself a stable useCallback.
-  const onCopyLink = useCallback(async () => {
-    await buildShareLinkAndCopy();
-  }, [buildShareLinkAndCopy]);
-
   /**
    * Roadmap 086: the run-scoped view cluster, provided once. The memo's deps
    * are exactly the context's admission rule — run commits, tab/stage/node/
@@ -1267,7 +1256,7 @@ export function App() {
       onRuleFocused,
       simRequest: activeSimRequest,
       onCopySimLink: buildShareLinkAndCopy,
-      onShare: onCopyLink,
+      onShare: buildShareLinkAndCopy,
       mergeStepIndex,
       onMergeStepChange: setMergeStepIndex,
       repoDeps: repoDepsView,
@@ -1319,7 +1308,6 @@ export function App() {
       onRuleFocused,
       activeSimRequest,
       buildShareLinkAndCopy,
-      onCopyLink,
       mergeStepIndex,
       repoDepsView,
       ensureRepoDeps,
@@ -1407,7 +1395,7 @@ export function App() {
         {/* The run half of the header (verdict, digest links) reads the
             run-view context; only the session half stays props (086). */}
         <AppShellHeader
-          onShare={result ? onCopyLink : undefined}
+          onShare={result ? buildShareLinkAndCopy : undefined}
           oauthConfigured={oauthConfigured}
           signedIn={signedIn}
           authUser={authUser}

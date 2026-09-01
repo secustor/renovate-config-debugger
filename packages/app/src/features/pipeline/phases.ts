@@ -19,7 +19,9 @@ export const PIPELINE_PHASES = [
   {
     id: "config",
     label: "Config",
+    /** What the phase does, for the segment's `title`. */
     title: "Resolve the configuration — the stages this app runs from your file",
+    /** Whether this app can run it at all. */
     available: true,
   },
   {
@@ -45,14 +47,8 @@ export const PIPELINE_PHASES = [
 /** The phase ids, derived from the descriptors — one list, not two. */
 export type PipelinePhase = (typeof PIPELINE_PHASES)[number]["id"];
 
-export interface PipelinePhaseDescriptor {
-  id: PipelinePhase;
-  label: string;
-  /** What the phase does, for the segment's `title`. */
-  title: string;
-  /** Whether this app can run it at all. */
-  available: boolean;
-}
+/** One descriptor, derived from the const — one shape, not two. */
+export type PipelinePhaseDescriptor = (typeof PIPELINE_PHASES)[number];
 
 /** What an unavailable segment says instead of a count. Stated once so the
  *  picker and its test cannot disagree about the promise being made. */

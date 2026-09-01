@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import type { ResultsColumnProps } from "@/app/ResultsColumn";
+import { loadResultsColumn } from "@/app/preload-run-chunks";
 
 /**
  * The results half's lazy boundary, and the column wrapper it mounts into.
@@ -18,9 +19,7 @@ import type { ResultsColumnProps } from "@/app/ResultsColumn";
  *  first. Mounted once the first result exists and never unmounted again
  *  (`result` never returns to null and a resolved `lazy` never re-suspends),
  *  so the 028 always-mounted tab-shell state is untouched by the boundary. */
-const ResultsColumn = lazy(() =>
-  import("@/app/ResultsColumn").then((m) => ({ default: m.ResultsColumn })),
-);
+const ResultsColumn = lazy(() => loadResultsColumn().then((m) => ({ default: m.ResultsColumn })));
 
 /**
  * Roadmap 031/040: the results half — its column wrapper, the lazy boundary

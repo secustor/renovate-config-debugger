@@ -8,21 +8,13 @@
  * without a redirect — "Run again", for the case where access was granted in
  * another tab (the signed-in "the app isn't installed on this repo" path).
  *
- * Deliberately as decoupled as the hint it wraps: the failures are found by
- * `collectGithubAuthFailures` (pure, in the presets feature) and arrive here as
- * plain names + flavors — roadmap 048 keeps a shared component off a feature
- * module, and a banner that only prints a sentence never needed the tree nodes
- * anyway.
+ * Deliberately as decoupled as the hint it wraps: the failures are derived by
+ * `collectGithubAuthFailures` in `@/lib/github-failure` (the shared layer, so
+ * no feature boundary is involved) and arrive here as plain names + flavors —
+ * a banner that only prints a sentence never needed the tree nodes anyway.
  */
 import { type AuthState, GithubAuthHint } from "@/components/GithubAuthHint";
-
-/** One failing preset, already deduped and named by the caller. */
-export interface AuthFailureSummary {
-  /** Display form, e.g. `github>secustor/private-presets`. */
-  name: string;
-  /** This particular failure was a rate limit rather than a not-found. */
-  rateLimited: boolean;
-}
+import type { GithubAuthFailureNode } from "@/lib/github-failure";
 
 /**
  * The failure sentence. Named from the FIRST failure's own flavor (that is the
@@ -31,7 +23,7 @@ export interface AuthFailureSummary {
  * Only the first repo is named: the list is already deduped by repo, and a
  * banner that enumerates ten of them stops being one sentence to act on.
  */
-function failureLine(failures: readonly AuthFailureSummary[]): string | null {
+function failureLine(failures: readonly GithubAuthFailureNode[]): string | null {
   const first = failures[0];
   if (!first) {
     return null;
@@ -50,7 +42,7 @@ export function AuthFailureBanner({
   onSignIn,
   onRunAgain,
 }: {
-  failures: readonly AuthFailureSummary[];
+  failures: readonly GithubAuthFailureNode[];
   /** ANY failure in the run was a rate limit — tunes the hint's copy. */
   rateLimited: boolean;
   authState: AuthState;

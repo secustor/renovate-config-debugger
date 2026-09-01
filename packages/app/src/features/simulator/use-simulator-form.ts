@@ -8,7 +8,7 @@ import {
 } from "react";
 import type * as EngineModule from "@renovate-config-debugger/engine";
 import { openPickerOnEnter } from "@/lib/select-picker";
-import { EMPTY_FORM, hasMeaningfulInput, UPDATE_TYPES } from "./form";
+import { EMPTY_FORM, hasMeaningfulInput, resolveUpdateType, UPDATE_TYPES } from "./form";
 import type { FormState } from "@/types/simulator";
 
 /** What a fill states about itself beyond the fields it carries. */
@@ -79,8 +79,7 @@ export function useSimulatorForm(engineModule: typeof EngineModule | null): Simu
     () => engineModule?.deriveUpdateType(form.currentValue, form.newValue, form.versioning),
     [engineModule, form.currentValue, form.newValue, form.versioning],
   );
-  const effectiveUpdateType =
-    updateTypeTouched || derivedUpdateType === undefined ? form.updateType : derivedUpdateType;
+  const effectiveUpdateType = resolveUpdateType(form, derivedUpdateType, updateTypeTouched);
 
   // Roadmap 047: Renovate's own datasource/manager registries, for the two
   // dropdowns. They ride along with the engine chunk the derivation above

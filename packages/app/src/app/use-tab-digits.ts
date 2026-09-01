@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useLatestRef } from "@/hooks/use-latest-ref";
-import { isTextEditingTarget } from "@/hooks/scroll-ergonomics";
+import { isTextEditingTarget } from "@/lib/keyboard-target";
 import { overlayKeyboardOwned } from "@/lib/escape-stack";
 import { digitTabIndex } from "@/lib/roving-tabs";
 import { commandModifierHeld } from "@/lib/shortcuts";

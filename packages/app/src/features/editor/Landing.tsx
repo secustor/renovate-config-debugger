@@ -1,5 +1,5 @@
 import { AboutBuildButton } from "@/components/BuildInfo";
-import { formatShortcut, RUN_SHORTCUT } from "@/lib/shortcuts";
+import { RunButton } from "./RunButton";
 
 /**
  * Roadmap 075 (v2, iteration 2) — the landing: what the app is before a run
@@ -40,8 +40,8 @@ interface LaunchProps {
   onRun: () => void;
   /** Roadmap 031: hover/focus signal Run intent — start the engine download. */
   onRunIntent: () => void;
-  /** Roadmap 075: blocked while the repo-load overlay is open — see the
-   *  toolbar's Run, which carries the same rule and the same reason. */
+  /** Roadmap 075: blocked while the repo-load overlay is open — forwarded to
+   *  `RunButton`, the same control the toolbar's Run renders. */
   blockedReason: string | null;
 }
 
@@ -58,7 +58,6 @@ export function LandingLaunch({
   onRunIntent,
   blockedReason,
 }: LaunchProps) {
-  const runHint = formatShortcut(RUN_SHORTCUT);
   return (
     <div className="landing-launch">
       <p className="landing-examples">
@@ -70,21 +69,14 @@ export function LandingLaunch({
           Analyze this project
         </button>
       </p>
-      <button
-        type="button"
-        className="btn-primary run-button landing-run"
-        onClick={onRun}
-        onPointerEnter={onRunIntent}
-        onFocus={onRunIntent}
-        disabled={running || blockedReason !== null}
-        title={
-          blockedReason ??
-          `Process this config with Renovate's own code — it never leaves your browser (${runHint})`
-        }
-      >
-        {running ? "Running…" : "Run the pipeline"}
-        <kbd aria-hidden="true">{runHint}</kbd>
-      </button>
+      <RunButton
+        label="Run the pipeline"
+        extraClass="landing-run"
+        running={running}
+        onRun={onRun}
+        onRunIntent={onRunIntent}
+        blockedReason={blockedReason}
+      />
     </div>
   );
 }

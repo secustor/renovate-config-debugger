@@ -1,7 +1,7 @@
 import { type Dispatch, type RefObject, type SetStateAction, useEffect, useRef } from "react";
 import type { TraceResult } from "@renovate-config-debugger/engine";
 import type { SimRequest } from "@/hooks/use-share-link";
-import { EMPTY_FORM } from "./form";
+import { pinFormFromShareFields } from "./pins";
 import type { Simulate } from "./use-simulation-run";
 import type { FormState } from "@/types/simulator";
 
@@ -90,13 +90,7 @@ export function useShareLinkRequest({
       return;
     }
     appliedSimNonce.current = simRequest.nonce;
-    const next: FormState = { ...EMPTY_FORM };
-    for (const key of Object.keys(EMPTY_FORM) as (keyof FormState)[]) {
-      const value = simRequest.form[key];
-      if (typeof value === "string") {
-        next[key] = value;
-      }
-    }
+    const next = pinFormFromShareFields(simRequest.form);
     setForm(next);
     // The link always encodes the EFFECTIVE updateType, so a non-empty one is a
     // deliberate pin — mark it touched so derivation can't override it.

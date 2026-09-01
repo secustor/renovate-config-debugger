@@ -16,9 +16,8 @@
  * pipeline stage on the way — stays in App, which owns the other half of each
  * of those pairs. This hook only owns the tab.
  */
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { ResultsTabId } from "@/data/results-tabs";
-import { useLatestRef } from "@/hooks/use-latest-ref";
 
 export interface ResultsTab {
   tab: ResultsTabId;
@@ -38,13 +37,15 @@ export interface ResultsTab {
 export function useResultsTab(): ResultsTab {
   // Roadmap 028: the active results tab, and the one-step "back to where I
   // was" target recorded whenever something OTHER than a tab click moved the
-  // user (a provenance chip, a message jump, a header digest link). The ref
-  // mirrors the tab for handlers that need the pre-switch value synchronously.
+  // user (a provenance chip, a message jump, a header digest link). The three
+  // setters below are the only writers of `tab`, and each maintains `tabRef`
+  // so a handler can read the pre-switch value synchronously — which is what
+  // `jumpToTab` records the trail from.
   //
   // Roadmap 075 (iteration 3): Tests is the first tab and where a run lands.
   const [tab, setTabState] = useState<ResultsTabId>("tests");
   const [backTab, setBackTab] = useState<ResultsTabId | null>(null);
-  const tabRef = useLatestRef(tab);
+  const tabRef = useRef<ResultsTabId>(tab);
   // Roadmap 013: rule identity cross-links. The editor is an imperative jump
   // target (CodeMirror has no declarative "scroll to offset X" prop); the
   // simulator's target rule is prop-driven since it is a sibling component.
@@ -52,17 +53,11 @@ export function useResultsTab(): ResultsTab {
 
   /** Roadmap 028: a tab the user chose explicitly — clears the back affordance.
    *  Identity-stable (032): reads tab state only through its ref. */
-  const setTab = useCallback(
-    (next: ResultsTabId) => {
-      tabRef.current = next;
-      setTabState(next);
-      setBackTab(null);
-      // `tabRef` is a stable ref object; it is listed only because
-      // `exhaustive-deps` cannot see the `useRef()` behind `useLatestRef`, and
-      // the identity these three callbacks promise is unaffected.
-    },
-    [tabRef],
-  );
+  const setTab = useCallback((next: ResultsTabId) => {
+    tabRef.current = next;
+    setTabState(next);
+    setBackTab(null);
+  }, []);
 
   /**
    * Roadmap 068: the tab strip's arrows, which SELECT (see `ResultsPanel`) —
@@ -76,29 +71,23 @@ export function useResultsTab(): ResultsTab {
    * has been walked — leaving it would offer "← Back to Tests" to a reader
    * already on Tests.
    */
-  const walkToTab = useCallback(
-    (next: ResultsTabId) => {
-      tabRef.current = next;
-      setTabState(next);
-      setBackTab((from) => (from === next ? null : from));
-    },
-    [tabRef],
-  );
+  const walkToTab = useCallback((next: ResultsTabId) => {
+    tabRef.current = next;
+    setTabState(next);
+    setBackTab((from) => (from === next ? null : from));
+  }, []);
 
   /** Roadmap 028: a programmatic jump (a cross-instrument link, a header
    *  digest link) — records where the user was so one click returns them. */
-  const jumpToTab = useCallback(
-    (next: ResultsTabId) => {
-      const from = tabRef.current;
-      if (from === next) {
-        return;
-      }
-      tabRef.current = next;
-      setTabState(next);
-      setBackTab(from);
-    },
-    [tabRef],
-  );
+  const jumpToTab = useCallback((next: ResultsTabId) => {
+    const from = tabRef.current;
+    if (from === next) {
+      return;
+    }
+    tabRef.current = next;
+    setTabState(next);
+    setBackTab(from);
+  }, []);
 
   const clearBackTab = useCallback(() => setBackTab(null), []);
 

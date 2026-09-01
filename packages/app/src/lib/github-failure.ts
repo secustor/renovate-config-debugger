@@ -73,13 +73,13 @@ export function githubPresetDisplayName(node: PresetNode): string {
   return node.name.includes(repo) ? node.name : `github>${repo}`;
 }
 
-/** One failing GitHub preset, as the run-level banner (009) names it. Carries
- *  the naming, not the node: the banner is a shared component and may not
- *  reach into this feature (048), so what crosses that line is a sentence's
- *  worth of data. */
+/** One failing GitHub preset, as the run-level banner (009) names it — and the
+ *  banner's own prop type. Carries the naming, not the node: a banner that
+ *  prints one sentence has no use for a tree node. */
 export interface GithubAuthFailureNode {
   /** Display form, e.g. `github>secustor/private-presets`. */
   name: string;
+  /** This particular failure was a rate limit rather than a not-found. */
   rateLimited: boolean;
 }
 

@@ -1,4 +1,4 @@
-import { MANAGER_LIST_ID } from "./datalist-ids";
+import { MANAGER_LIST_ID } from "./dom-ids";
 import type { FormState } from "@/types/simulator";
 
 /**

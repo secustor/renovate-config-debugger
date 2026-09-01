@@ -71,7 +71,6 @@ function setsRealOption(optionKeys: string[]): boolean {
 /** Per-node contribution + search facts, all derived from the node's `input`. */
 export interface NodeStats {
   /** Top-level option keys this preset sets (excludes extends/ignorePresets/packageRules). */
-  ownOptions: number;
   optionKeys: string[];
   /** packageRules entries this preset contributes itself. */
   ownRules: number;
@@ -133,7 +132,6 @@ export interface TreeSummary {
 }
 
 function ownContribution(node: PresetNode): {
-  ownOptions: number;
   optionKeys: string[];
   ownRules: number;
   search: string;
@@ -150,7 +148,6 @@ function ownContribution(node: PresetNode): {
       parts.push(...src.params);
     }
   }
-  let ownOptions = 0;
   let ownRules = 0;
   const optionKeys: string[] = [];
   const input = node.input;
@@ -159,7 +156,6 @@ function ownContribution(node: PresetNode): {
       if (key === "extends" || key === "ignorePresets" || key === "packageRules") {
         continue;
       }
-      ownOptions++;
       optionKeys.push(key);
       parts.push(key);
     }
@@ -183,7 +179,7 @@ function ownContribution(node: PresetNode): {
       }
     }
   }
-  return { ownOptions, optionKeys, ownRules, search: parts.join(" ").toLowerCase() };
+  return { optionKeys, ownRules, search: parts.join(" ").toLowerCase() };
 }
 
 /**
@@ -238,8 +234,8 @@ function computeTreeStatsUncached(root: PresetNode): TreeStats {
     }
     maxDepth = Math.max(maxDepth, depth);
 
-    const { ownOptions, optionKeys, ownRules, search } = ownContribution(node);
-    const zero = ownOptions === 0 && ownRules === 0;
+    const { optionKeys, ownRules, search } = ownContribution(node);
+    const zero = optionKeys.length === 0 && ownRules === 0;
     const selfResolved = node.state === "resolved" ? 1 : 0;
     const selfContrib = node.state !== "resolved" || !zero ? 1 : 0;
 
@@ -265,7 +261,6 @@ function computeTreeStatsUncached(root: PresetNode): TreeStats {
     }
 
     statsById.set(node.id, {
-      ownOptions,
       optionKeys,
       ownRules,
       zero,

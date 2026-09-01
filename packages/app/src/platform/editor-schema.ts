@@ -299,34 +299,50 @@ export function warmSchemaCaches(view: EditorView): void {
   }
 }
 
+/** The json5 flavor's four bindings. Both `import()`s stay INSIDE this
+ *  function, so codemirror-json5 + the json5 parser (~10 kB gz) ride their own
+ *  chunk and load only when a `.json5` file is actually active. */
+async function json5Flavor() {
+  const { json5Completion, json5Schema, json5SchemaHover } =
+    await import("codemirror-json-schema/json5");
+  const { json5Language } = await import("codemirror-json5");
+  return {
+    schema: json5Schema,
+    completion: json5Completion,
+    hover: json5SchemaHover,
+    language: json5Language,
+  };
+}
+
+/** The plain-json counterparts — statically imported, since the editor mounts
+ *  on this flavor. */
+function jsonFlavor() {
+  return {
+    schema: jsonSchema,
+    completion: jsonCompletion,
+    hover: jsonSchemaHover,
+    language: jsonLanguage,
+  };
+}
+
 /**
- * Builds the full schema-aware extension set for the given file flavor. The
- * json5 variant (codemirror-json5 + the json5 parser, ~10 kB gz) rides its
- * own chunk behind a further `import()`, loaded only when a `.json5` file is
- * actually active.
+ * Builds the full schema-aware extension set for the given file flavor: the
+ * flavor resolves to four bindings, and the assembly below runs once for both.
+ *
+ * The order matters — the warm-up steps are built from the SAME hover and
+ * completion instances that get installed, and `base` is mutated before
+ * `withPresetHover` indexes `base.length - 2`.
  */
 export async function buildSchemaExtensions(
   isJson5: boolean,
   ctxRef: RefObject<PresetHoverContext | null>,
 ): Promise<Extension[]> {
-  if (isJson5) {
-    const { json5Completion, json5Schema, json5SchemaHover } =
-      await import("codemirror-json-schema/json5");
-    const { json5Language } = await import("codemirror-json5");
-    const base = json5Schema(renovateSchema);
-    const completion = json5Completion();
-    const hover = json5SchemaHover();
-    warmupSteps = buildWarmupSteps(hover, completion);
-    base[COMPLETION_INDEX] = json5Language.data.of({
-      autocomplete: debouncedCompletionSource(completion),
-    });
-    return withPresetHover(base, hover, ctxRef);
-  }
-  const base = jsonSchema(renovateSchema);
-  const completion = jsonCompletion();
-  const hover = jsonSchemaHover();
+  const flavor = isJson5 ? await json5Flavor() : jsonFlavor();
+  const base = flavor.schema(renovateSchema);
+  const completion = flavor.completion();
+  const hover = flavor.hover();
   warmupSteps = buildWarmupSteps(hover, completion);
-  base[COMPLETION_INDEX] = jsonLanguage.data.of({
+  base[COMPLETION_INDEX] = flavor.language.data.of({
     autocomplete: debouncedCompletionSource(completion),
   });
   return withPresetHover(base, hover, ctxRef);

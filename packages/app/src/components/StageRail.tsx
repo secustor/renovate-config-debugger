@@ -194,13 +194,10 @@ function PreviewNode({
 /** Roadmap 075 (the landing transition): how fast the preview walks its own
  *  list while a run is in flight. Paced narration, not measurement — the
  *  engine reports nothing until it is finished. The design's pace: quick
- *  enough that the whole walk fits in the moment before the shell docks in. */
+ *  enough that the whole walk fits in the moment before the shell docks in.
+ *  An uninterrupted walk is 1.28 s at this pace; App's `LANDING_WALK_CAP_MS`
+ *  (use-landing-walk.ts) must stay comfortably above it. */
 const RUNNING_STEP_MS = 160;
-
-/** Roadmap 076 review: what an uninterrupted walk takes end to end —
- *  1.28 s at this pace. Stated here because App's `LANDING_WALK_CAP_MS`
- *  (the safety cap on the walk-end handshake below) must stay comfortably
- *  above it. */
 
 /** The last column. The run's own completion is what lights it, and by then
  *  the landing has unmounted — so the narration never claims it. */

@@ -1,3 +1,4 @@
+import { CHECK } from "@/data/octicons";
 import { useTransientFlag } from "@/hooks/use-transient-flag";
 import { useTransientValue } from "@/hooks/use-transient-value";
 
@@ -17,11 +18,10 @@ import { useTransientValue } from "@/hooks/use-transient-value";
  * popover can read `location.href` after awaiting it.
  */
 
-/** Octicons 16px: `link`, `check` (the check matches CopyButton's). */
+/** Octicon `link`, inlined — single-use. The check is the shared one
+ *  CopyButton draws (`data/octicons`). */
 const LINK_PATH =
   "M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z";
-const CHECK_PATH =
-  "M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z";
 
 /** How long the button reads "Copied" — CopyButton's own timing. */
 const COPIED_MS = 1500;
@@ -62,7 +62,7 @@ export function ShareButton({ onShare }: { onShare: () => Promise<void> }) {
         onClick={() => void share()}
       >
         <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
-          <path d={copied ? CHECK_PATH : LINK_PATH} />
+          <path d={copied ? CHECK : LINK_PATH} />
         </svg>
         <span>{copied ? "Copied" : "Share"}</span>
       </button>

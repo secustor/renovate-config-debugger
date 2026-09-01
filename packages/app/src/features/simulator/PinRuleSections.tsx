@@ -29,26 +29,23 @@ export interface CrossLinks {
 type SectionTone = "ok" | "accent" | "warn" | "muted";
 
 /** The glyph tones. `accent` is deliberately NOT one: there is no `.mark-accent`
- *  style — the design colors an accent section's glyph red — so the fallback
- *  below maps it rather than emitting a class with no rule behind it. */
+ *  style — the design colors an accent section's glyph red, so the "your rules"
+ *  section wears a red ✗ beside an accent pill — so the map below translates it
+ *  rather than emitting a class with no rule behind it. */
 type MarkTone = "ok" | "warn" | "muted" | "error";
 
 export function PinSectionHead({
   mark,
   tone,
-  markTone,
   pill,
   text,
 }: {
   mark: string;
   tone: SectionTone;
-  /** The design colors the lead glyph independently of the pill — the "your
-   *  rules" section wears a red ✗ beside an accent pill. Defaults to `tone`. */
-  markTone?: MarkTone;
   pill: string;
   text: string;
 }) {
-  const glyphTone: MarkTone = markTone ?? (tone === "accent" ? "error" : tone);
+  const glyphTone: MarkTone = tone === "accent" ? "error" : tone;
   return (
     <div className="pin-section-head">
       <span className={`pin-section-mark mark-${glyphTone}`} aria-hidden="true">
@@ -348,7 +345,6 @@ export function PinFailedSection({
       <PinSectionHead
         mark="✗"
         tone="accent"
-        markTone="error"
         pill={`${nf.format(rules.length)} of your rules`}
         text="didn’t match — always shown by name, never bucketed"
       />

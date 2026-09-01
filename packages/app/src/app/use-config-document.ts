@@ -52,9 +52,6 @@ export interface ConfigDocument {
   loadConfigText: (text: string) => void;
   /** Re-indents in place. See the implementation for why it is NOT a load. */
   formatConfig: () => void;
-  /** The text the last authoritative load installed — the revert target, and
-   *  what the share hook mirrors into a ref for its hashchange listener. */
-  loadedContent: string;
   /** Whether the user has typed since the last authoritative load. */
   canRevert: boolean;
   /** Back to that load. */
@@ -127,7 +124,6 @@ export function useConfigDocument(host: ConfigDocumentHost): ConfigDocument {
     packageRuleOffsets,
     loadConfigText,
     formatConfig,
-    loadedContent,
     canRevert: content !== loadedContent,
     revert,
   };

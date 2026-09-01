@@ -93,9 +93,8 @@ function makeHost(onRun: ShareLinkHost["onRun"]): ShareLinkHost {
     setPins: noop,
     applyShareRepo: noop,
     setPendingView: noop,
-    // Equal, so a hashchange never has unsaved edits to confirm away.
-    contentRef: { current: "" },
-    loadedContentRef: { current: "" },
+    // False, so a hashchange never has unsaved edits to confirm away.
+    hasUnsavedEditsRef: { current: false },
     buildShareState: () =>
       Promise.resolve({
         config: "",

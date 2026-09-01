@@ -20,8 +20,7 @@
  * suppression from the new value — over-suppressing would break a legitimate
  * private repo load, under-suppressing would leak the token.
  */
-import { type RefObject, useCallback, useMemo, useState } from "react";
-import { useRef } from "react";
+import { type RefObject, useCallback, useMemo, useRef, useState } from "react";
 import { DEFAULT_ENDPOINT, DEFAULT_PLATFORM, PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
 import {
   isValidEndpoint,

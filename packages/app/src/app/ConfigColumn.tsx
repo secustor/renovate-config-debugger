@@ -1,8 +1,7 @@
 import type { ReactNode, RefObject } from "react";
 import type { StageId } from "@renovate-config-debugger/engine";
 import type { StoredUser } from "@/platform/oauth";
-import type { ConfigEditorHandle } from "@/features/editor/ConfigEditor";
-import { ConfigEditorCard } from "@/features/editor/ConfigEditorCard";
+import { ConfigEditor, type ConfigEditorHandle } from "@/features/editor/ConfigEditor";
 import { ConfigToolbar } from "@/features/editor/ConfigToolbar";
 import { BuildStamp, BuildVerifyLine } from "@/components/BuildInfo";
 import { type AuthState, GithubAuthHint } from "@/components/GithubAuthHint";
@@ -26,7 +25,7 @@ interface ConfigColumnProps {
   hasResult: boolean;
   onTryExample: () => void;
   onAnalyzeThisProject: () => void;
-  // ConfigEditorCard
+  // ConfigEditor
   editorKey: number;
   editorRef: RefObject<ConfigEditorHandle | null>;
   fileName: "renovate.json" | "renovate.json5";
@@ -156,6 +155,8 @@ export function ConfigColumn({
   // says why it is refusing rather than acting on a config the user is halfway
   // through replacing.
   const runBlockedReason = repoLoad.repoFormOpen ? RUN_BLOCKED_BY_REPO_FORM : null;
+  // Roadmap 075 (v2, iteration 2): the editor card's title bar IS the config
+  // toolbar (file name, Load from repo…, Format/Revert, Run).
   const toolbar = (
     <ConfigToolbar
       fileName={fileName}
@@ -181,6 +182,9 @@ export function ConfigColumn({
       blockedReason={runBlockedReason}
     />
   );
+  // Roadmap 075: the repo-load form is an overlay over the editor — a panel that
+  // covers the document it is about to replace, rather than a chrome row that
+  // pushes it down.
   const repoOverlay = repoLoad.repoFormOpen ? (
     <RepoLoadOverlay
       repo={repo}
@@ -202,15 +206,15 @@ export function ConfigColumn({
   ) : null;
   const editor = (
     <div className="editor-shell">
-      <ConfigEditorCard
-        editorKey={editorKey}
-        editorRef={editorRef}
+      <ConfigEditor
+        key={editorKey}
+        ref={editorRef}
         fileName={fileName}
         value={value}
         onChange={onChange}
         onRun={onRun}
         presetHover={presetHover}
-        toolbar={toolbar}
+        titleBar={toolbar}
         overlay={repoOverlay}
       />
     </div>

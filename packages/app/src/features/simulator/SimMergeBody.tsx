@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useRef } from "react";
+import { Fragment, useMemo } from "react";
 import type { SimulationResult } from "@renovate-config-debugger/engine";
 import { ConfigJson } from "@/components/ConfigJson";
 import { SequenceChip, SequenceSep, SequenceTimeline } from "./SequenceTimeline";
@@ -25,11 +25,10 @@ function SimMergeTimeline({
   index: number;
   onIndexChange: (index: number) => void;
 }) {
-  const timelineRef = useRef<HTMLDivElement>(null);
   const steps = useMemo(() => stops.map((s) => s.step), [stops]);
   const selected = Math.min(Math.max(index, 0), stops.length - 1);
   return (
-    <div className="sim-merge-steps" ref={timelineRef}>
+    <div className="sim-merge-steps">
       <SequenceTimeline label="Merge sequence">
         {stops.map((stop, i) => (
           <Fragment key={stop.step.id}>
