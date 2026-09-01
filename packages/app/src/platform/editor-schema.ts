@@ -2,10 +2,11 @@
  * Roadmap 031 — the editor's schema layer, loaded lazily. Everything heavy
  * about the editor lives behind this module: codemirror-json-schema (and its
  * markdown/yaml hover-and-completion stack), Renovate's own 373 kB schema
- * JSON, and — only when a `.json5` file is active — the json5 variant with
- * its parser. ConfigEditor mounts with plain `@codemirror/lang-json` inside
- * a Compartment and `import()`s this module after mount, so first paint
- * never waits on any of it; schema lint/hover simply appears a beat later.
+ * JSON, and the json5 variant — whose schema EXTENSIONS wait for a `.json5`
+ * file, though its grammar and parser do not (see `json5Flavor`). ConfigEditor
+ * mounts with plain `@codemirror/lang-json` inside a Compartment and
+ * `import()`s this module after mount, so first paint never waits on any of
+ * it; schema lint/hover simply appears a beat later.
  *
  * The preset-string hover card (roadmap 023) lives here too, NOT in
  * preset-hover.ts: it decorates the schema hover, so it belongs to the same
@@ -299,9 +300,20 @@ export function warmSchemaCaches(view: EditorView): void {
   }
 }
 
-/** The json5 flavor's four bindings. Both `import()`s stay INSIDE this
- *  function, so codemirror-json5 + the json5 parser (~10 kB gz) ride their own
- *  chunk and load only when a `.json5` file is actually active. */
+/**
+ * The json5 flavor's four bindings. Both `import()`s stay INSIDE this function,
+ * so the json5 EXTENSIONS (codemirror-json-schema/json5's bundled schema,
+ * validation, hover and completion) load only when a `.json5` file is actually
+ * active — measured: they are the whole of the lazy json5 chunk.
+ *
+ * The json5 GRAMMAR and PARSER do not: codemirror-json-schema's parsers barrel
+ * (dist/parsers/index.js, pulled in by features/completion.js and
+ * features/validation.js) statically imports parsers/json5-parser.js, so
+ * `json5`, `best-effort-json-parser`, `codemirror-json5` and `lezer-json5` ride
+ * this module's eager chunk on the plain-JSON path too, and the
+ * `codemirror-json5` import below only names a module that is already there.
+ * Roadmap 057's per-entry-parser fix in the fork is what removes that edge.
+ */
 async function json5Flavor() {
   const { json5Completion, json5Schema, json5SchemaHover } =
     await import("codemirror-json-schema/json5");

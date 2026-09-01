@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import type { TraceResult } from "@renovate-config-debugger/engine";
 import {
   buildDescriptionDigest,
@@ -202,7 +202,15 @@ interface Props {
   onStats?: (behaviors: number) => void;
 }
 
-export function OverviewPanel({ result, onSelectPreset, onShowRawOrder, onStats }: Props) {
+// Roadmap 032: memoized like the sibling panels — every prop is
+// identity-stable in App, so a `panels` rebuild reconciles this but re-renders
+// it only when the run itself changed.
+export const OverviewPanel = memo(function OverviewPanel({
+  result,
+  onSelectPreset,
+  onShowRawOrder,
+  onStats,
+}: Props) {
   const provenance = useDescriptionProvenance(result);
   // Owned HERE, not by the group that renders the button. Provenance for a new
   // run arrives asynchronously, so every re-run has a frame with no digest at
@@ -280,4 +288,4 @@ export function OverviewPanel({ result, onSelectPreset, onShowRawOrder, onStats 
       <OverviewFooter />
     </div>
   );
-}
+});
