@@ -191,6 +191,29 @@ async function executeRun(input: PipelineInput): Promise<TraceResult> {
     return validation;
   };
 
+  /** A stage that finished, with its before/after blobs and the delta between them. */
+  const completeStage = (
+    title: string,
+    before: Record<string, unknown>,
+    after: Record<string, unknown>,
+  ): void => {
+    collector.emit({
+      kind: "stage-complete",
+      title,
+      before,
+      after: snapshot(after),
+      delta: computeDelta(before, after),
+    });
+  };
+
+  /** A stage that threw: mark it, file the message on the run, and emit it. */
+  const failStage = (stage: StageId, err: unknown, topic?: string): void => {
+    stageStatus[stage] = "error";
+    const message = describeError(err, topic);
+    errors.push(message);
+    collector.emit({ kind: "stage-error", title: message.message, messages: [message] });
+  };
+
   const result = (): TraceResult => ({
     events: collector.events,
     finalConfig,
@@ -247,10 +270,7 @@ async function executeRun(input: PipelineInput): Promise<TraceResult> {
           });
           globalCfg = mergeChildConfig(resolvedExtends, globalCfg);
         } catch (err) {
-          stageStatus.global = "error";
-          const message = describeError(err, "globalExtends resolution failed");
-          errors.push(message);
-          collector.emit({ kind: "stage-error", title: message.message, messages: [message] });
+          failStage("global", err, "globalExtends resolution failed");
         }
         delete globalCfg.globalExtends;
       }
@@ -261,13 +281,7 @@ async function executeRun(input: PipelineInput): Promise<TraceResult> {
         platform: platformContext.platform,
         endpoint: platformContext.endpoint,
       } as Parameters<typeof GlobalConfig.set>[0]) as Record<string, unknown>;
-      collector.emit({
-        kind: "stage-complete",
-        title: "Global config layer assembled",
-        before: rawGlobal,
-        after: snapshot(globalLayer),
-        delta: computeDelta(rawGlobal, globalLayer),
-      });
+      completeStage("Global config layer assembled", rawGlobal, globalLayer);
     }
 
     // inherited config layer (008) — the upstream mergeInheritedConfig recipe
@@ -317,19 +331,10 @@ async function executeRun(input: PipelineInput): Promise<TraceResult> {
           if (filtered) {
             inheritedLayer = InheritConfig.set(filtered);
             stageStatus.inherit = "ok";
-            collector.emit({
-              kind: "stage-complete",
-              title: "Inherited config layer assembled",
-              before: rawInherited,
-              after: snapshot(inheritedLayer),
-              delta: computeDelta(rawInherited, inheritedLayer),
-            });
+            completeStage("Inherited config layer assembled", rawInherited, inheritedLayer);
           }
         } catch (err) {
-          stageStatus.inherit = "error";
-          const message = describeError(err, "Inherited config preset resolution failed");
-          errors.push(message);
-          collector.emit({ kind: "stage-error", title: message.message, messages: [message] });
+          failStage("inherit", err, "Inherited config preset resolution failed");
         }
       }
     }
@@ -360,13 +365,7 @@ async function executeRun(input: PipelineInput): Promise<TraceResult> {
     const { isMigrated, migratedConfig } = migrateConfig(config);
     config = migratedConfig;
     stageStatus.migrate = "ok";
-    collector.emit({
-      kind: "stage-complete",
-      title: isMigrated ? "Migrations applied" : "Nothing to migrate",
-      before,
-      after: snapshot(config),
-      delta: computeDelta(before, config),
-    });
+    completeStage(isMigrated ? "Migrations applied" : "Nothing to migrate", before, config);
 
     // massage
     collector.enterStage("massage");
@@ -374,13 +373,7 @@ async function executeRun(input: PipelineInput): Promise<TraceResult> {
     const preMassage = snapshot(config);
     config = massageConfig(config);
     stageStatus.massage = "ok";
-    collector.emit({
-      kind: "stage-complete",
-      title: "Massaged config",
-      before: preMassage,
-      after: snapshot(config),
-      delta: computeDelta(preMassage, config),
-    });
+    completeStage("Massaged config", preMassage, config);
 
     // validate
     collector.enterStage("validate");
@@ -413,20 +406,14 @@ async function executeRun(input: PipelineInput): Promise<TraceResult> {
         config = remigrated.migratedConfig;
       }
       stageStatus.preset = "ok";
-      collector.emit({
-        kind: "stage-complete",
-        title:
-          `Resolved ${countNoun(resolved.visitedPresets.merged.length, "preset")}` +
+      completeStage(
+        `Resolved ${countNoun(resolved.visitedPresets.merged.length, "preset")}` +
           (remigrated.isMigrated ? ", then re-migrated the resolved config" : ""),
-        before: preResolve,
-        after: snapshot(config),
-        delta: computeDelta(preResolve, config),
-      });
+        preResolve,
+        config,
+      );
     } catch (err) {
-      stageStatus.preset = "error";
-      const message = describeError(err);
-      errors.push(message);
-      collector.emit({ kind: "stage-error", title: message.message, messages: [message] });
+      failStage("preset", err);
       config = preResolve;
     }
 
@@ -443,13 +430,7 @@ async function executeRun(input: PipelineInput): Promise<TraceResult> {
     }
     finalConfig = mergeChildConfig(base, config);
     stageStatus.merge = "ok";
-    collector.emit({
-      kind: "stage-complete",
-      title: "Effective config",
-      before: snapshot(defaults),
-      after: snapshot(finalConfig),
-      delta: computeDelta(defaults, finalConfig),
-    });
+    completeStage("Effective config", snapshot(defaults), finalConfig);
 
     return result();
   } finally {

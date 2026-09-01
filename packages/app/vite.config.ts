@@ -301,40 +301,9 @@ export default defineConfig(({ mode, command }) => ({
       "@renovate-config-debugger/engine > fast-json-patch",
       // The share codec (roadmap 030's validation), loaded on encode/decode.
       "zod/mini",
-      // The shimmed engine graph's CJS deps — the engine chunk is the biggest
-      // lazy import of all, and these reloaded dev right as the first result
-      // was about to land.
-      "@renovate-config-debugger/engine > renovate > @breejs/later",
-      "@renovate-config-debugger/engine > renovate > croner",
-      "@renovate-config-debugger/engine > renovate > cronstrue",
-      "@renovate-config-debugger/engine > renovate > handlebars",
-      "@renovate-config-debugger/engine > renovate > json-dup-key-validator",
-      "@renovate-config-debugger/engine > renovate > json5",
-      "@renovate-config-debugger/engine > renovate > jsonata",
-      "@renovate-config-debugger/engine > renovate > luxon",
-      "@renovate-config-debugger/engine > renovate > ms",
-      "@renovate-config-debugger/engine > renovate > parse-link-header",
-      "@renovate-config-debugger/engine > renovate > safe-stable-stringify",
-      "@renovate-config-debugger/engine > renovate > semver",
-      "@renovate-config-debugger/engine > renovate > semver-stable",
-      "@renovate-config-debugger/engine > renovate > semver-utils",
-      "@renovate-config-debugger/engine > renovate > yaml",
-      // The manager-extraction graphs' pure-CJS deps (roadmap 087) — same
-      // reason as above, discovered by the first From-repository extraction
-      // instead of the first run. Kept in sync with the shim plugin's list.
-      "@renovate-config-debugger/engine > renovate > @pnpm/parse-overrides",
-      "@renovate-config-debugger/engine > renovate > @qnighy/marshal",
-      "@renovate-config-debugger/engine > renovate > adm-zip",
-      "@renovate-config-debugger/engine > renovate > deepmerge",
-      "@renovate-config-debugger/engine > renovate > execa",
-      "@renovate-config-debugger/engine > renovate > find-packages",
-      "@renovate-config-debugger/engine > renovate > git-url-parse",
-      "@renovate-config-debugger/engine > renovate > github-url-from-git",
-      "@renovate-config-debugger/engine > renovate > ini",
-      "@renovate-config-debugger/engine > renovate > moo",
-      "@renovate-config-debugger/engine > renovate > node-html-parser",
-      "@renovate-config-debugger/engine > renovate > validate-npm-package-name",
-      "@renovate-config-debugger/engine > renovate > xmldoc",
+      // renovate's own CJS deps are contributed by `renovateShims()`'s
+      // optimizeDeps.include (Vite concatenates it onto this one) — see
+      // packages/engine/src/shims/vite-plugin-renovate-shims.ts.
     ],
     // `path` is not a package here — the shim plugin aliases it to `pathe`
     // (pure ESM), and the aliased id can neither be pre-included ("Cannot

@@ -1,10 +1,10 @@
-import type { PresetNode } from "./model";
+import type { PresetNode, TraceResult } from "./model";
 
 /**
- * How the preset tree is READ — the two shapes every post-hoc reconstruction
+ * How the preset tree is READ — the shapes every post-hoc reconstruction
  * (provenance, description-provenance) needs, stated once.
  *
- * Both are facts about `resolveConfigPresets`, not about any one consumer:
+ * They are facts about `resolveConfigPresets`, not about any one consumer:
  * which children take part in a merge, and in what order the bodies land. They
  * were spelled out at each call site, at slightly different strengths, with
  * comments pointing at each other — which is how a filter drifts.
@@ -38,4 +38,20 @@ export function walkResolutionOrder(node: PresetNode, visit: (node: PresetNode) 
     walkResolutionOrder(child, visit);
   }
   visit(node);
+}
+
+/**
+ * The two things every post-hoc reconstruction needs before it can replay a
+ * run: a final config, and a root whose preset resolution actually finished
+ * (so it carries both `input` and `resolved`). `undefined` when either is
+ * missing — stated once here rather than at each compute* entry point.
+ */
+export function replayableRun(
+  result: TraceResult,
+): { root: PresetNode; finalConfig: Record<string, unknown> } | undefined {
+  const { finalConfig, presetTree: root } = result;
+  if (!finalConfig || !root || root.resolved === undefined || root.input === undefined) {
+    return undefined;
+  }
+  return { root, finalConfig };
 }

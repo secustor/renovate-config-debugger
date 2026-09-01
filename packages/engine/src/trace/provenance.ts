@@ -1,7 +1,7 @@
 import { allowStringMembers, isPlainObject } from "../lib";
 import { getDefaultConfig, getOptions, mergeChildConfig } from "../renovate-adapter";
 import type { PresetNode, TraceResult } from "./model";
-import { mergingChildren, walkResolutionOrder } from "./tree";
+import { mergingChildren, replayableRun, walkResolutionOrder } from "./tree";
 
 /**
  * Roadmap 005: per-key merge provenance. Computed post-hoc from the trace data
@@ -180,15 +180,14 @@ function collectWriters(node: PresetNode, index: Map<string, KeyWriter>): void {
 
 /**
  * Computes per-top-level-key provenance for a completed run, or `undefined`
- * when the run lacks the data it needs (no final config, or preset resolution
- * did not finish so the root has no `resolved`/`input`).
+ * when the run lacks the data it needs (see `replayableRun`).
  */
 export function computeProvenance(result: TraceResult): Map<string, KeyProvenance> | undefined {
-  const { finalConfig } = result;
-  const root = result.presetTree;
-  if (!finalConfig || !root || root.resolved === undefined || root.input === undefined) {
+  const replay = replayableRun(result);
+  if (!replay) {
     return undefined;
   }
+  const { root, finalConfig } = replay;
 
   const optionMap = new Map<string, { mergeable: boolean; type: string }>();
   for (const opt of getOptions()) {
@@ -449,18 +448,18 @@ function ruleWriters(
 /**
  * Attributes every entry of a completed run's `finalConfig.packageRules` to
  * its contributing layer, or `undefined` when the run lacks the data it needs
- * (mirrors `computeProvenance`'s availability). Returns `undefined` — rather
- * than a partial/incorrect attribution — when the replayed layer lengths
- * don't add up to the ground-truth array length (e.g. a packageRules[n].extends
+ * (see `replayableRun`). Returns `undefined` — rather than a partial/incorrect
+ * attribution — when the replayed layer lengths don't add up to the
+ * ground-truth array length (e.g. a packageRules[n].extends
  * whose nested preset itself unexpectedly reshapes the array), since a wrong
  * cross-link is worse than none.
  */
 export function computeRuleProvenance(result: TraceResult): RuleAttribution[] | undefined {
-  const { finalConfig } = result;
-  const root = result.presetTree;
-  if (!finalConfig || !root || root.resolved === undefined || root.input === undefined) {
+  const replay = replayableRun(result);
+  if (!replay) {
     return undefined;
   }
+  const { root, finalConfig } = replay;
   const rules = Array.isArray(finalConfig.packageRules) ? finalConfig.packageRules : [];
   if (rules.length === 0) {
     return [];

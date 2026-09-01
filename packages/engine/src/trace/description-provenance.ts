@@ -2,7 +2,7 @@ import { allowStringMembers, isPlainObject } from "../lib";
 import { getDefaultConfig, internalPresetGroups } from "../renovate-adapter";
 import type { PresetNode, TraceResult } from "./model";
 import { computeRuleProvenance, type ProvenanceLayer, type RuleAttribution } from "./provenance";
-import { mergingChildren } from "./tree";
+import { mergingChildren, replayableRun } from "./tree";
 
 /**
  * Roadmap 069: per-string `description` provenance.
@@ -455,9 +455,7 @@ function ruleDescriptions(result: TraceResult): RuleDescriptionAttribution[] {
 /**
  * Attributes every string of a completed run's final top-level `description`
  * array to the preset-tree node that wrote it, or `undefined` when the run
- * lacks the data it needs (mirrors `computeProvenance`'s availability: no final
- * config, or preset resolution did not finish so the root has no
- * `resolved`/`input`).
+ * lacks the data it needs (see `replayableRun`).
  *
  * Unlike `computeRuleProvenance` this never returns `undefined` for a
  * misaligned replay — a description is prose, so a conservative
@@ -467,11 +465,11 @@ function ruleDescriptions(result: TraceResult): RuleDescriptionAttribution[] {
 export function computeDescriptionProvenance(
   result: TraceResult,
 ): DescriptionProvenance | undefined {
-  const { finalConfig } = result;
-  const root = result.presetTree;
-  if (!finalConfig || !root || root.resolved === undefined || root.input === undefined) {
+  const replay = replayableRun(result);
+  if (!replay) {
     return undefined;
   }
+  const { root, finalConfig } = replay;
 
   const dropped: DroppedDescription[] = [];
   let degraded = false;

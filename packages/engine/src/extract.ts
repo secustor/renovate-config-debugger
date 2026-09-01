@@ -113,24 +113,15 @@ function customFilePatterns(block: CustomManagerInput): string[] {
  * match this path? Iterates the generated default configs (already bundled)
  * through renovate's own `getMatchingFiles`, in upstream's manager order.
  * Matches ALL managers, extractable or not — the caller decides what an
- * unmapped match means. `opts.among` restricts the scan to a subset (a repo
- * walk testing thousands of paths against only the extractable managers stays
- * cheap that way).
+ * unmapped match means.
  */
-export function matchManagersForFile(
-  fileName: string,
-  opts?: { among?: readonly string[] },
-): string[] {
+export function matchManagersForFile(fileName: string): string[] {
   // Suppressed: getMatchingFiles logs one debug line PER PATTERN, and this
   // runs outside any engine run — those lines must not land in a
   // concurrently active run's trace.
   return withCollectorSuppressed(() => {
     const matched: string[] = [];
-    const among = opts?.among === undefined ? null : new Set(opts.among);
     for (const [manager, config] of Object.entries(managerDefaultConfigs)) {
-      if (among !== null && !among.has(manager)) {
-        continue;
-      }
       const patterns = config.managerFilePatterns;
       if (!patterns || patterns.length === 0) {
         continue;
@@ -179,9 +170,9 @@ export interface ExtractableWalkOptions {
 /**
  * The repo walk's bulk form of `matchManagersForFile`: which EXTRACTABLE
  * managers claim each of these paths? One `getMatchingFiles` pass per manager
- * over the whole list — per-path calls would rebuild the manager table, the
- * subset Set and the per-pattern debug strings tens of thousands of times on a
- * large tree. Input order is preserved.
+ * over the whole list — per-path calls would rebuild the manager table and the
+ * per-pattern debug strings tens of thousands of times on a large tree. Input
+ * order is preserved.
  *
  * Returns the attribution rather than the bare path list: the walk's own
  * accounting (roadmap 090's Extract phase) has to say WHICH manager claimed a
