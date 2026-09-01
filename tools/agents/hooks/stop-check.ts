@@ -33,11 +33,12 @@ function filter(pkg: PackageName, script: string): string[] {
   return ["--filter", `@renovate-config-debugger/${pkg}`, script];
 }
 
-/** Repo-wide and cheap (~7s together) — run whenever anything at all changed. */
+/** Repo-wide and cheap — run whenever anything at all changed. */
 const ALWAYS: Check[] = [
   { id: "lint", args: ["lint"] },
   { id: "format:check", args: ["format:check"] },
   { id: "typecheck", args: ["typecheck"] },
+  { id: "check:exports", args: ["check:exports"] },
 ];
 
 const TESTS: Record<CheckGroup, Check[]> = {
@@ -59,7 +60,8 @@ function isCovered(file: string): boolean {
 }
 
 /** The consumers of a change, not just the package holding it: the app imports
- *  the engine, and the CLI imports both (`@…/app/headless`). */
+ *  the engine, the CLI imports both (`@…/app/headless`), and the app's tests
+ *  import the `tools/test/` fixtures. */
 function affectedGroups(files: string[]): Set<CheckGroup> {
   const affected = new Set<CheckGroup>();
   for (const file of files) {
@@ -71,6 +73,8 @@ function affectedGroups(files: string[]): Set<CheckGroup> {
       affected.add("cli");
     } else if (file.startsWith("packages/oauth-worker/")) {
       affected.add("oauth-worker");
+    } else if (file.startsWith("tools/test/")) {
+      affected.add("tools").add("app");
     } else if (file.startsWith("tools/")) {
       affected.add("tools");
     } else {

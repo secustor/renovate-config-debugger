@@ -19,11 +19,15 @@ import { defineRule } from "@oxlint/plugins";
  * unambiguously text truncation: a slice whose result has an ELLIPSIS stuck
  * directly onto it, which is the shape of both defect sites and is what makes
  * the intent "shorten this for display" rather than "take the first few".
+ *
+ * The adjacent ellipsis, not the literalness of N, is what makes the match
+ * unambiguous — so the length may also be an identifier: the two sites this
+ * widening caught (`previewValue`, `pin-probe`'s clip) passed a named constant.
  */
 
 const ELLIPSIS = "…";
 
-/** `<expr>.slice(0, <number literal>)` */
+/** `<expr>.slice(0, <number literal | identifier>)` */
 function isFirstNSlice(node: { type: string; callee?: unknown; arguments?: unknown[] }): boolean {
   if (node.type !== "CallExpression") {
     return false;
@@ -45,11 +49,12 @@ function isFirstNSlice(node: { type: string; callee?: unknown; arguments?: unkno
   if (args.length !== 2) {
     return false;
   }
+  if (args[0]?.type !== "Literal" || args[0].value !== 0) {
+    return false;
+  }
   return (
-    args[0]?.type === "Literal" &&
-    args[0].value === 0 &&
-    args[1]?.type === "Literal" &&
-    typeof args[1].value === "number"
+    args[1]?.type === "Identifier" ||
+    (args[1]?.type === "Literal" && typeof args[1].value === "number")
   );
 }
 

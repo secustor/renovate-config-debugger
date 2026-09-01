@@ -34,12 +34,14 @@ Runs the checks from CI's `lint` and `test` jobs before the turn ends, and
 blocks the stop if any fail, handing back the tail of the failing output.
 
 - **Always** (when anything changed): `pnpm lint`, `pnpm format:check`,
-  `pnpm typecheck`.
+  `pnpm typecheck`, `pnpm check:exports` (the exports-scoped knip gate, see
+  `knip.jsonc`).
 - **Per changed package**: engine tests, app unit/render tests plus the dev
   module-graph guard, cli tests, oauth-worker tests, and `pnpm test:tools` for
   a `tools/` change. Consumers run too, not just the package that changed: an
   engine edit re-runs the app and the CLI, an app edit re-runs the CLI (it
-  imports `@…/app/headless`). A root-level change runs all of them.
+  imports `@…/app/headless`), a `tools/test/` edit re-runs the app (its suites
+  import those fixtures). A root-level change runs all of them.
 - **Never**: the Playwright e2e suite. It needs a production build first and
   takes minutes — running it stays a deliberate step
   (`pnpm --filter @renovate-config-debugger/app build` then `… test:e2e`).

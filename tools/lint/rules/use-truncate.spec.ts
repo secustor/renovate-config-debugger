@@ -23,6 +23,9 @@ ruleTester.run("use-truncate", rule, {
     'text.slice(0, 140) + " more";',
     // an ellipsis before the expression is a prefix, not a truncation marker
     "const s = `… ${count} more across ${named}`;",
+    // word-boundary truncation (`run-digest`): the ellipsis is adjacent to a
+    // `.trimEnd()`, and the helper has no cut-at-a-boundary half to replace it.
+    "const out = `${raw.slice(0, clauseBreak).trimEnd()}…`;",
   ],
   invalid: [
     // `ProblemCard` / `ErrorTranslationView`, shape one
@@ -48,6 +51,12 @@ ruleTester.run("use-truncate", rule, {
     // on a call's result, which is how the JSON snippet was cut
     {
       code: "const out = `${JSON.stringify(value).slice(0, 80)}…`;",
+      errors: [{ messageId: "useTruncate" }],
+    },
+    // the shape that escaped a literal-only match: the length is a named
+    // constant or a parameter (`previewValue`, `pin-probe`'s clip).
+    {
+      code: "const out = text.length > max ? `${text.slice(0, max)}…` : text;",
       errors: [{ messageId: "useTruncate" }],
     },
   ],

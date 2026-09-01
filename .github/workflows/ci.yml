@@ -233,24 +233,12 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
-        with:
-          cache: true
-
-      - id: pnpm-store
-        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
-
-      # Shares the `setup` job's cache entries — same key, and this job's
-      # narrower install is a subset of that store.
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.pnpm-store.outputs.path }}
-          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: pnpm-store-${{ runner.os }}-
-
       # Only the worker package's deps — the deploy needs wrangler (a pinned
-      # devDependency there), not the app workspace.
-      - run: pnpm install --frozen-lockfile --prefer-offline --filter @renovate-config-debugger/oauth-worker
+      # devDependency there), not the app workspace; that narrower install is a
+      # subset of the store the `setup` job warmed.
+      - uses: ./.github/actions/setup
+        with:
+          filter: "@renovate-config-debugger/oauth-worker"
 
       # `wrangler deploy` REPLACES dashboard-set vars on every run, so
       # GITHUB_CLIENT_ID is not committed to wrangler.jsonc; it is threaded
