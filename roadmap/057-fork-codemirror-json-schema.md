@@ -40,6 +40,12 @@ patch-refresh and a re-measurement.
 | `utils/markdown.js` → markdown-it only             | `packages/app/vite.config.ts` shim | upstream's module runs a top-level async IIFE building a shiki highlighter (~330 kB raw) purely to colour code fences in tooltips, statically imported by three features |
 | `parsers/yaml-parser.js` → throw                   | same shim                          | the parsers barrel statically imports the YAML parser, dragging `yaml` into the schema chunk for an app that never uses YAML mode                                        |
 
+The barrel drags `parsers/json5-parser.js` the same way, and nothing shims that
+one: `json5`, `best-effort-json-parser`, `codemirror-json5` and `lezer-json5`
+all ride the eager schema chunk even on the plain-JSON path, despite
+`editor-schema.ts`'s json5 `import()`s being lazy (measured in `dist/` — the
+lazy `json5-*.js` chunk holds only `dist/json5/{bundled,validation,hover,completion}.js`).
+
 Together: 242.3 ms → 1.9 ms per completion (measured on the `{ "ran| }`
 fixture against the Renovate schema; verified end-to-end in the app at
 1.95 ms), and a schema payload at editor mount of 82 kB gz instead of 172 —
@@ -140,8 +146,10 @@ would make the "no-op" switch quietly not one.
   mode; a library cannot, because `codemirror-json-schema/yaml` must keep
   working. The fork's fix is for each entry to supply its own parser instead
   of asking a barrel to pick one — same exported symbols, same behavior per
-  entry, and the static edge from `.` to `yaml` simply doesn't exist. It is
-  also the version of the change that upstream could actually merge.
+  entry, and the static edges from `.` to `yaml` **and to `json5`** simply
+  don't exist, which is what finally takes `json5`/`best-effort-json-parser`/
+  `codemirror-json5` off the plain-JSON path as well. It is also the version of
+  the change that upstream could actually merge.
 
 - **`filter: false` is still left alone.** Upstream re-invokes the completion
   source on every keystroke instead of filtering a cached list. At ~2 ms per
@@ -264,7 +272,9 @@ size, which must not grow.
 - Taking over maintenance of upstream (adopting the package, publishing under
   its original name, or asking for commit rights). If that conversation
   happens it replaces this item rather than extending it.
-- The `codemirror-json5` dependency, which is unpatched and unforked.
+- Patching or forking `codemirror-json5` itself. The per-entry-parser change
+  above already takes it off the plain-JSON path; the dependency stays as it
+  is.
 
 ## Dependencies
 

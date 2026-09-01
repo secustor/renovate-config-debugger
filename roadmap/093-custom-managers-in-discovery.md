@@ -58,6 +58,14 @@ own:
   ordering: custom managers exist only in a resolved config.
 - **CLI/MCP parity is a follow-up**, not this slice: `rcd extract` and
   `extract_deps` keep their single-file, config-less contract for now.
+- **The ledger carries the failure's reason.** A block whose `matchStrings`
+  throws produced `{ outcome: "error" }` and nothing else, so the row said
+  "extraction failed" about the reader's own config without naming the cause.
+  `RepoDepFile.error` holds the engine's message (merged only where the file's
+  outcome IS the failure), and the file row's expanded body prints it. Renovate's
+  own validation reports a broken pattern too — this is the second channel, for
+  the failures validation cannot see (a pattern that parses but throws at
+  extraction time), not the only one.
 
 ## Non-goals
 
