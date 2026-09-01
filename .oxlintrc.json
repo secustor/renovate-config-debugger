@@ -278,10 +278,16 @@
       // Renovate has no public API, so every deep import is a private-file
       // dependency a version bump can break — they are confined to the adapter,
       // the shims' own ledger and the ambient declarations so a bump has exactly
-      // one place to look. The Node tests that deliberately compare against the
-      // real modules live outside `src/`, so they are unaffected — same scope as
-      // the grep this replaces.
-      "files": ["packages/engine/src/**", "packages/app/src/**"],
+      // one place to look. The scope is `src/` only, in the three packages
+      // listed: the engine's Node tests that deliberately compare against the
+      // real modules live outside `src/` and are unaffected, while the CLI's
+      // tests are colocated inside `src/` and so are fenced, deliberately —
+      // nothing there needs a deep import. The CLI is in scope because its
+      // tsconfig includes the ambient `renovate/dist` declarations and its vite
+      // config runs the same shim plugin, so a deep import there would
+      // typecheck and bundle while the package declares no `renovate`
+      // dependency at all.
+      "files": ["packages/engine/src/**", "packages/app/src/**", "packages/cli/src/**"],
       "rules": {
         "no-restricted-imports": [
           "error",
@@ -370,7 +376,9 @@
                 // `/schema`, `/simulate-missing-inputs`) or through
                 // `loadEngine()`. `/is` and `/json` are the two the app reaches
                 // from its ENTRY chunk, and the two this ban sends most authors
-                // to; both are zero-import files precisely so that is free.
+                // to; both are zero-import files precisely so that is free,
+                // which `engine/test/import-free-subpaths.node.test.ts` keeps
+                // true.
                 "group": ["@renovate-config-debugger/engine"],
                 "allowTypeImports": true,
                 "message": "Value-importing the engine ROOT statically pulls the whole Renovate graph into this chunk — use a narrow subpath export, or load it at runtime through platform/engine-chunk.ts (`loadEngine()`). Type-only imports are fine."

@@ -20,6 +20,9 @@ export function presetNode(
     kind?: string;
     state?: PresetNode["state"];
     error?: string;
+    /** Reached through a nested value (`packageRules[n].extends`), not the
+     *  parent's own top-level `extends`. */
+    nested?: boolean;
   } = {},
 ): PresetNode {
   nextId++;
@@ -30,6 +33,7 @@ export function presetNode(
     source: { presetSource: opts.kind ?? "internal" } as PresetNode["source"],
     input: opts.input ?? {},
     children: opts.children ?? [],
+    ...(opts.nested ? { nested: true } : {}),
     ...(opts.error ? { error: { topic: "preset", message: opts.error } } : {}),
   };
 }

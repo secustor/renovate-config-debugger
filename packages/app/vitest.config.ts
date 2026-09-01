@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { renovateShims } from "@renovate-config-debugger/engine/vite-plugin";
+import { RENOVATE_INLINE, renovateShims } from "@renovate-config-debugger/engine/vite-plugin";
 import { defineConfig } from "vitest/config";
 
 /** Registers RTL's per-test cleanup for the two jsdom projects — vitest runs
@@ -64,16 +64,7 @@ export default defineConfig({
           setupFiles: [RTL_CLEANUP],
           testTimeout: 240_000,
           hookTimeout: 240_000,
-          server: {
-            deps: {
-              // without this, Node loads renovate/dist natively and the shim
-              // plugin never sees its imports (same as the engine's config).
-              // The pattern names the renovate PACKAGE's store path, not the
-              // bare word — this repo's own absolute path contains "renovate",
-              // so /renovate/ would inline every node_modules dep.
-              inline: [/node_modules\/(\.pnpm\/)?renovate[@/]/],
-            },
-          },
+          server: { deps: { inline: [...RENOVATE_INLINE] } },
         },
       },
     ],

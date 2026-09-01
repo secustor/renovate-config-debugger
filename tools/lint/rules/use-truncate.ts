@@ -1,4 +1,4 @@
-import { defineRule } from "@oxlint/plugins";
+import { defineRule, type ESTree } from "@oxlint/plugins";
 
 /**
  * The strongest case of the set despite the lowest count: this one guards a
@@ -28,40 +28,35 @@ import { defineRule } from "@oxlint/plugins";
 const ELLIPSIS = "…";
 
 /** `<expr>.slice(0, <number literal | identifier>)` */
-function isFirstNSlice(node: { type: string; callee?: unknown; arguments?: unknown[] }): boolean {
+function isFirstNSlice(node: ESTree.Expression): boolean {
   if (node.type !== "CallExpression") {
     return false;
   }
-  const callee = node.callee as {
-    type: string;
-    computed?: boolean;
-    property?: { type: string; name?: string };
-  };
+  const callee = node.callee;
   if (
-    callee?.type !== "MemberExpression" ||
+    callee.type !== "MemberExpression" ||
     callee.computed ||
-    callee.property?.type !== "Identifier" ||
+    callee.property.type !== "Identifier" ||
     callee.property.name !== "slice"
   ) {
     return false;
   }
-  const args = (node.arguments ?? []) as { type: string; value?: unknown }[];
+  const args = node.arguments;
   if (args.length !== 2) {
     return false;
   }
-  if (args[0]?.type !== "Literal" || args[0].value !== 0) {
+  const [start, length] = args;
+  if (start?.type !== "Literal" || start.value !== 0) {
     return false;
   }
   return (
-    args[1]?.type === "Identifier" ||
-    (args[1]?.type === "Literal" && typeof args[1].value === "number")
+    length?.type === "Identifier" ||
+    (length?.type === "Literal" && typeof length.value === "number")
   );
 }
 
-function isEllipsisLiteral(node: { type: string; value?: unknown } | undefined): boolean {
-  return (
-    node?.type === "Literal" && typeof node.value === "string" && node.value.includes(ELLIPSIS)
-  );
+function isEllipsisLiteral(node: ESTree.Expression): boolean {
+  return node.type === "Literal" && typeof node.value === "string" && node.value.includes(ELLIPSIS);
 }
 
 export default defineRule({
