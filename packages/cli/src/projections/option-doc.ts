@@ -6,6 +6,7 @@ import {
   PATTERN_MATCHING_NOTE,
   REQUIRED_IF_NOTE,
 } from "@renovate-config-debugger/engine";
+import { jsonText } from "@renovate-config-debugger/engine/json";
 
 /**
  * One option, rendered — shared by `rcd docs` and (through the same doc) kept
@@ -49,9 +50,7 @@ function placementLine(placement: OptionPlacement): string {
 }
 
 function requiredIfClause(clause: OptionRequiredIf): string {
-  return clause.siblingProperties
-    .map((p) => `${p.property} = ${JSON.stringify(p.value)}`)
-    .join(" and ");
+  return clause.siblingProperties.map((p) => `${p.property} = ${jsonText(p.value)}`).join(" and ");
 }
 
 /**
@@ -64,7 +63,7 @@ export function optionDocLines(doc: OptionDoc, renovateVersion: string): string[
     `${doc.name} (${doc.type}${subType}) — Renovate ${renovateVersion}`,
     "",
     doc.description,
-    ...(doc.default === undefined ? [] : [`default: ${JSON.stringify(doc.default)}`]),
+    ...(doc.default === undefined ? [] : [`default: ${jsonText(doc.default)}`]),
     ...(doc.allowedValues ? [`allowed: ${doc.allowedValues.join(", ")}`] : []),
     ...(doc.format ? [`format: ${doc.format} — the value must be a valid regular expression`] : []),
     placementLine(doc.placement),

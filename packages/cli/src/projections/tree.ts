@@ -1,4 +1,5 @@
 import type { PresetNode, PresetNodeState, TraceResult } from "@renovate-config-debugger/engine";
+import { isNullOrUndefined } from "@renovate-config-debugger/engine/is";
 import { computeTreeStats, type TreeStats } from "@renovate-config-debugger/app/headless";
 import { parseChoice } from "../args";
 import { CliError } from "../io";
@@ -73,7 +74,7 @@ export function treeLines(view: NodeView, out: string[]): string[] {
     view.descendants.resolved > 0 ? `+${view.descendants.resolved} below` : null,
     view.duplicate ? "duplicate" : null,
     view.error,
-  ].filter((part) => part !== null && part !== undefined);
+  ].filter((part) => !isNullOrUndefined(part));
   out.push(`${indent}${view.name}${facts.length > 0 ? `  — ${facts.join("; ")}` : ""}`);
   for (const child of view.children ?? []) {
     treeLines(child, out);

@@ -1,3 +1,5 @@
+import { isPlainObject } from "@renovate-config-debugger/engine/is";
+import { jsonDocument, jsonLiteral } from "@renovate-config-debugger/engine/json";
 import { byteLength } from "../output";
 
 /**
@@ -68,14 +70,6 @@ interface Elision {
   from: number;
 }
 
-function stringify(value: unknown): string {
-  return JSON.stringify(value) ?? "null";
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 /** The biggest array anywhere in the payload that is still worth shrinking —
  *  `skip` holds the ones a round could not shrink any further. */
 function largestArray(value: unknown, skip: Set<unknown[]>): unknown[] | null {
@@ -83,7 +77,7 @@ function largestArray(value: unknown, skip: Set<unknown[]>): unknown[] | null {
   let bestSize = 0;
   const visit = (node: unknown): void => {
     if (Array.isArray(node)) {
-      const size = byteLength(stringify(node));
+      const size = byteLength(jsonLiteral(node));
       if (node.length > 1 && size > bestSize && !skip.has(node)) {
         best = node;
         bestSize = size;
@@ -93,7 +87,7 @@ function largestArray(value: unknown, skip: Set<unknown[]>): unknown[] | null {
       }
       return;
     }
-    if (isRecord(node)) {
+    if (isPlainObject(node)) {
       for (const item of Object.values(node)) {
         visit(item);
       }
@@ -119,7 +113,7 @@ function applyElisions(value: unknown, elided: Map<unknown[], Elision>): unknown
         }
       : items;
   }
-  if (isRecord(value)) {
+  if (isPlainObject(value)) {
     return Object.fromEntries(
       Object.entries(value).map(([key, item]) => [key, applyElisions(item, elided)]),
     );
@@ -137,13 +131,13 @@ function applyElisions(value: unknown, elided: Map<unknown[], Elision>): unknown
  */
 function dropLargestKeys(payload: Record<string, unknown>): string[] {
   const dropped: string[] = [];
-  while (byteLength(stringify(payload)) > RESULT_BUDGET_BYTES - 1_000) {
+  while (byteLength(jsonLiteral(payload)) > RESULT_BUDGET_BYTES - 1_000) {
     const entries = Object.entries(payload);
     if (entries.length === 0) {
       break;
     }
     const [key] = entries.reduce((a, b) =>
-      byteLength(stringify(a[1])) >= byteLength(stringify(b[1])) ? a : b,
+      byteLength(jsonLiteral(a[1])) >= byteLength(jsonLiteral(b[1])) ? a : b,
     );
     delete payload[key];
     dropped.push(key);
@@ -184,7 +178,7 @@ function collapseToEnds(array: unknown[]): Elision | null {
  *   caller's own rule at index 713, with no parameter that could ask for it.
  */
 function shrinkArray(array: unknown[], allowance: number): Elision | null {
-  const sizes = array.map((item) => byteLength(stringify(item)) + 1);
+  const sizes = array.map((item) => byteLength(jsonLiteral(item)) + 1);
   const first = sizes[0] ?? 0;
 
   if (sizes.some((size) => size > allowance)) {
@@ -243,7 +237,7 @@ function elideToBudget(compact: string, hint: string | undefined): Record<string
   // hold. The next round looks inside it instead.
   const exhausted = new Set<unknown[]>();
   for (let round = 0; round < MAX_ELISION_ROUNDS; round += 1) {
-    const size = byteLength(stringify(clone));
+    const size = byteLength(jsonLiteral(clone));
     if (size <= ELISION_TARGET_BYTES) {
       break;
     }
@@ -252,7 +246,7 @@ function elideToBudget(compact: string, hint: string | undefined): Record<string
       break;
     }
     // What this array may still weigh once the payload fits.
-    const allowance = byteLength(stringify(largest)) - (size - ELISION_TARGET_BYTES);
+    const allowance = byteLength(jsonLiteral(largest)) - (size - ELISION_TARGET_BYTES);
     const shrunk = shrinkArray(largest, allowance);
     if (!shrunk) {
       exhausted.add(largest);
@@ -264,7 +258,7 @@ function elideToBudget(compact: string, hint: string | undefined): Record<string
     elided.set(largest, { omitted: (before?.omitted ?? 0) + shrunk.omitted, from: shrunk.from });
   }
   const body = applyElisions(clone, elided);
-  const payload = isRecord(body) ? { ...body } : { result: body };
+  const payload = isPlainObject(body) ? { ...body } : { result: body };
   const droppedKeys = dropLargestKeys(payload);
   const base = hint ?? DEFAULT_HINT;
   return {
@@ -285,7 +279,7 @@ function elideToBudget(compact: string, hint: string | undefined): Record<string
  * Purely additive — the elision itself is untouched.
  */
 export function fitsBudget(payload: unknown): boolean {
-  return byteLength(stringify(payload)) <= ELISION_TARGET_BYTES;
+  return byteLength(jsonLiteral(payload)) <= ELISION_TARGET_BYTES;
 }
 
 /**
@@ -293,15 +287,15 @@ export function fitsBudget(payload: unknown): boolean {
  * answer had to be elided — naming the parameter beats "output truncated".
  */
 export function serializeResult(payload: unknown, hint?: string): string {
-  const compact = stringify(payload);
+  const compact = jsonLiteral(payload);
   const size = byteLength(compact);
   if (size <= PRETTY_LIMIT_BYTES) {
-    return JSON.stringify(payload, null, 2) ?? "null";
+    return jsonDocument(payload);
   }
   if (size <= RESULT_BUDGET_BYTES) {
     return compact;
   }
-  return stringify(elideToBudget(compact, hint));
+  return jsonLiteral(elideToBudget(compact, hint));
 }
 
 /** Deliberately un-annotated: an interface here would not satisfy the SDK's

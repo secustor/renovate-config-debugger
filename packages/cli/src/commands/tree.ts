@@ -1,6 +1,7 @@
+import { jsonDocument } from "@renovate-config-debugger/engine/json";
 import { intOption, type ParsedArgs, stringOption } from "../args";
 import { CliError } from "../io";
-import { emitJson, emitLines, json } from "../output";
+import { emitJson, emitLines } from "../output";
 import {
   type BodyKind,
   bodyOf,
@@ -75,7 +76,7 @@ export const treeCommand = defineRunCommand<TreeFlags>({
           lines.push(`(${occurrences} occurrences of this preset in the tree)`);
         }
         if (shown) {
-          lines.push("", `${shown.body}:`, shown.note ?? json(shown[shown.body]));
+          lines.push("", `${shown.body}:`, shown.note ?? jsonDocument(shown[shown.body]));
         }
         emitLines(io, lines);
       }

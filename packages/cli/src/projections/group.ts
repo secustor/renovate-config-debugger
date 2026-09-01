@@ -1,4 +1,5 @@
 import type { DependencyDescriptor, SimulationResult } from "@renovate-config-debugger/engine";
+import { isNonEmptyString, isNumber } from "@renovate-config-debugger/engine/is";
 import { plural } from "@renovate-config-debugger/app/headless";
 import type { RunTransport } from "../run-input";
 
@@ -70,7 +71,7 @@ function memberOf(dep: DependencyDescriptor): GroupMember {
 function minimumOf(config: Record<string, unknown>): number {
   const raw = config["minimumGroupSize"];
   // Renovate's default: no threshold — one update is enough.
-  return typeof raw === "number" && raw >= 1 ? raw : 1;
+  return isNumber(raw) && raw >= 1 ? raw : 1;
 }
 
 function verdictOf(view: Omit<GroupView, "verdict">): string {
@@ -100,7 +101,7 @@ export function groupTally(simulated: readonly SimulatedUpdate[]): GroupTally {
   for (const { dep, sim } of simulated) {
     const config = sim.finalDependencyConfig;
     const groupName = config["groupName"];
-    if (typeof groupName !== "string" || groupName.length === 0) {
+    if (!isNonEmptyString(groupName)) {
       ungrouped.push(memberOf(dep));
       continue;
     }
@@ -108,7 +109,7 @@ export function groupTally(simulated: readonly SimulatedUpdate[]): GroupTally {
     entry.members.push(memberOf(dep));
     entry.minimums.push(minimumOf(config));
     const slug = config["groupSlug"];
-    if (typeof slug === "string" && slug.length > 0) {
+    if (isNonEmptyString(slug)) {
       entry.slug = slug;
     }
     byName.set(groupName, entry);

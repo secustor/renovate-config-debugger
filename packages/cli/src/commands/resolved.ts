@@ -1,6 +1,7 @@
 import type { ResolvedConfigMode } from "@renovate-config-debugger/engine";
+import { jsonDocument } from "@renovate-config-debugger/engine/json";
 import { boolOption, choiceOption } from "../args";
-import { emitJson, emitLines, json } from "../output";
+import { emitJson, emitLines } from "../output";
 import { askResolved } from "../questions/resolved";
 import { INPUT_OPTIONS } from "../run-input";
 import { defineRunCommand } from "../run-command";
@@ -40,7 +41,7 @@ export const resolvedCommand = defineRunCommand<ResolvedFlags>({
     if (format === "json") {
       emitJson(io, { mode, includeDefaults, ...output });
     } else {
-      const lines = [json(output.config)];
+      const lines = [jsonDocument(output.config)];
       if (output.divergingKeys.length > 0) {
         lines.push(
           "",
