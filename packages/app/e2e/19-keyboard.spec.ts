@@ -10,6 +10,7 @@ import {
   openTab,
   resultsPanel,
   runAndAwaitResult,
+  runButton,
   setEditorContent,
   tabButton,
   tabPanel,
@@ -432,14 +433,29 @@ test("the shortcut sheet is modal: ⌘⏎ behind it does not run, Escape closes 
   await expect(sheet).toBeVisible();
 
   // The sheet's own row advertises ⌘⏎; pressing it while the modal is up must
-  // not run the pipeline behind the user's back.
+  // not run the pipeline behind the user's back. A leak announces itself at
+  // once on the Run button (the queue's busy flag, run-queue.ts) and lands a
+  // results panel seconds later, so both are checked — an early panel-absence
+  // alone is already true on a page that has never run (see `expectRunIdle`).
   await page.keyboard.press("ControlOrMeta+Enter");
-  await expect(resultsPanel(page)).toHaveCount(0);
+  // The 2s budget is `expectRunIdle`'s own enter-wait; a wait that must TIME
+  // OUT, because a negative assertion would pass on its first poll.
+  const leaked = await runButton(page)
+    .filter({ hasText: "Running" })
+    .waitFor({ state: "attached", timeout: 2_000 })
+    .then(
+      () => true,
+      () => false,
+    );
+  expect(leaked).toBe(false);
 
   // And Escape closes the SHEET rather than being eaten by the page's ladder,
   // whose `preventDefault` used to suppress the dialog's own close request.
   await page.keyboard.press("Escape");
   await expect(sheet).toBeHidden();
+
+  // Late enough to also catch a leak that started AND finished inside the 2s.
+  await expect(resultsPanel(page)).toHaveCount(0);
 });
 
 test("closing the sheet with the button hands focus back to where it came from", async ({

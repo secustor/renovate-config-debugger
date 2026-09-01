@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import {
   encodeShareFragment,
   EXTENDS_RECOMMENDED_CONFIG,
@@ -38,6 +38,25 @@ import {
  * about the loop the app is shaped around (edit → Run → read), and the Overview
  * is where a reader goes to orient, not where an edit's answer appears.
  */
+
+/**
+ * Opens a share link and waits for the auto-run its fragment triggers.
+ *
+ * The about:blank hop is load-bearing on the second and later links in a test:
+ * a fragment-only goto does re-run the pipeline (roadmap 017's `hashchange`
+ * listener), but `resultsPanel` never goes away in between, so the wait below
+ * would clear against the PREVIOUS link's results. Tearing the document down
+ * first makes the panel's reappearance a real sync point; on an already-blank
+ * page the extra goto is a no-op.
+ */
+async function openShareLink(
+  page: Page,
+  input: Parameters<typeof encodeShareFragment>[0],
+): Promise<void> {
+  await page.goto("about:blank");
+  await page.goto(await encodeShareFragment(input));
+  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
+}
 
 test("a run lands on the Tests tab, not on an expanded instrument", async ({ page }) => {
   await gotoAppAtDefaultConfig(page);
@@ -378,36 +397,25 @@ test("a copied share link reopens on the tab that was active", async ({ page }) 
 
 test("pre-028 links without a tab field map stage/step/node to the right tab", async ({ page }) => {
   // `stage` — every link this app ever produced carried one → Pipeline.
-  await page.goto(
-    await encodeShareFragment({ config: PACKAGE_RULES_CONFIG, view: { stage: "validate" } }),
-  );
-  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
+  await openShareLink(page, { config: PACKAGE_RULES_CONFIG, view: { stage: "validate" } });
   await expect(tabButton(page, "pipeline")).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#panel-pipeline .card-title")).toContainText("Stage: Validate");
 
   // `step` — the sender was stepping through rewrites → Pipeline, on the
   // migrate stage the stepper lives on since 075.
-  await page.goto("about:blank");
-  await page.goto(
-    await encodeShareFragment({
-      config: SEMANTIC_COMMITS_CONFIG,
-      view: { stage: "preset", step: 0 },
-    }),
-  );
-  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
+  await openShareLink(page, {
+    config: SEMANTIC_COMMITS_CONFIG,
+    view: { stage: "preset", step: 0 },
+  });
   await expect(tabButton(page, "pipeline")).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#panel-pipeline .card-title").first()).toContainText("Stage: Migrate");
   await expect(tabPanel(page, "pipeline")).toContainText("Step 1 of 1");
 
   // `node` — the sender had a preset selected → Presets.
-  await page.goto("about:blank");
-  await page.goto(
-    await encodeShareFragment({
-      config: EXTENDS_RECOMMENDED_CONFIG,
-      view: { stage: "preset", node: RECOMMENDED_NODE_IDENTITY },
-    }),
-  );
-  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
+  await openShareLink(page, {
+    config: EXTENDS_RECOMMENDED_CONFIG,
+    view: { stage: "preset", node: RECOMMENDED_NODE_IDENTITY },
+  });
   await expect(tabButton(page, "presets")).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#panel-presets .preset-name.selected")).toBeVisible();
 });
@@ -422,19 +430,12 @@ test("pre-028 links without a tab field map stage/step/node to the right tab", a
 test("a share link naming a retired tab lands on the tab that replaced it", async ({ page }) => {
   // `overview` — retired in 075, a real tab again since 083: the link lands on
   // the Overview itself, not on a stand-in.
-  await page.goto(
-    await encodeShareFragment({ config: PACKAGE_RULES_CONFIG, view: { tab: "overview" } }),
-  );
-  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
+  await openShareLink(page, { config: PACKAGE_RULES_CONFIG, view: { tab: "overview" } });
   await expect(tabButton(page, "overview")).toHaveAttribute("aria-selected", "true");
 
   // `simulator` — the same instrument, renamed (and, since iteration 6, the
   // Tests tab's second view: the link lands on the tab, the pins list leads).
-  await page.goto("about:blank");
-  await page.goto(
-    await encodeShareFragment({ config: PACKAGE_RULES_CONFIG, view: { tab: "simulator" } }),
-  );
-  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
+  await openShareLink(page, { config: PACKAGE_RULES_CONFIG, view: { tab: "simulator" } });
   await expect(tabButton(page, "tests")).toHaveAttribute("aria-selected", "true");
   // Roadmap 091: this config's own rule seeds a starter pin — the alias's
   // subject is WHICH tab the link lands on, so the list it lands on is cleared
@@ -444,14 +445,10 @@ test("a share link naming a retired tab lands on the tab that replaced it", asyn
 
   // `rewrites` — Pipeline, AND the migrate stage, or the stepper the sender was
   // pointing at is not on screen.
-  await page.goto("about:blank");
-  await page.goto(
-    await encodeShareFragment({
-      config: SEMANTIC_COMMITS_CONFIG,
-      view: { stage: "preset", tab: "rewrites", step: 0 },
-    }),
-  );
-  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
+  await openShareLink(page, {
+    config: SEMANTIC_COMMITS_CONFIG,
+    view: { stage: "preset", tab: "rewrites", step: 0 },
+  });
   await expect(tabButton(page, "pipeline")).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#panel-pipeline .card-title").first()).toContainText("Stage: Migrate");
   await expect(tabPanel(page, "pipeline")).toContainText("Step 1 of 1");
@@ -536,7 +533,13 @@ test("the results say so once the config has changed since the run", async ({ pa
   // …and so does going back: Revert is an edit like any other.
   await setEditorContent(page, SEMANTIC_COMMITS_CONFIG);
   await expect(stale).toBeVisible();
-  await page.getByRole("button", { name: "Revert to loaded config" }).click();
+  const revert = page.getByRole("button", { name: "Revert to loaded config" });
+  await revert.click();
+  // Sync on the revert landing, not on the banner that was already up: the
+  // editor is back at the loaded default while the run still holds
+  // PACKAGE_RULES_CONFIG, so the banner must survive it.
+  await expect(revert).toHaveCount(0);
+  await expect(page.locator(".cm-content")).toContainText("config:recommended");
   await expect(stale).toBeVisible();
 });
 
