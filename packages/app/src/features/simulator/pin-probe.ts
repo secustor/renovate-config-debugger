@@ -3,7 +3,7 @@ import type {
   ProvenanceLayer,
   SimulationResult,
 } from "@renovate-config-debugger/engine";
-import { isPlainObject } from "@/lib/input-schemas";
+import { isPlainObject } from "@renovate-config-debugger/engine/is";
 import { layerLabel } from "@/lib/provenance-layer";
 import { truncate } from "@/lib/truncate";
 import { fullValue } from "./rule-format";

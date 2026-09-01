@@ -25,6 +25,7 @@
  * needs no compatibility machinery either: no link in the wild says `deps`, and
  * one that will is made by the app that has the tab.
  */
+import { isNumber, isString } from "@renovate-config-debugger/engine/is";
 
 export const RESULTS_TAB_IDS = [
   "overview",
@@ -49,7 +50,7 @@ export const RESULTS_TAB_LABELS: Record<ResultsTabId, string> = {
 };
 
 export function isResultsTabId(value: unknown): value is ResultsTabId {
-  return typeof value === "string" && (RESULTS_TAB_IDS as readonly string[]).includes(value);
+  return isString(value) && (RESULTS_TAB_IDS as readonly string[]).includes(value);
 }
 
 /**
@@ -123,7 +124,7 @@ export function legacyTabForView(view: {
   if (view.node) {
     return "presets";
   }
-  if (typeof view.step === "number") {
+  if (isNumber(view.step)) {
     return "pipeline";
   }
   if (view.stage) {

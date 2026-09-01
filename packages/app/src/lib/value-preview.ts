@@ -1,3 +1,4 @@
+import { jsonEqual, jsonText } from "@renovate-config-debugger/engine/json";
 import { truncate } from "./truncate";
 import { pluralWord } from "./format";
 
@@ -20,7 +21,7 @@ export function valuePreview(value: unknown): string {
     const n = Object.keys(value).length;
     return n ? `{ ${n} ${pluralWord(n, "key")} }` : "{}";
   }
-  return truncate(JSON.stringify(value) ?? String(value), 80);
+  return truncate(jsonText(value), 80);
 }
 
 /**
@@ -35,7 +36,7 @@ export function valuePreview(value: unknown): string {
  * carrying an emoji rendered a replacement glyph in the diff.
  */
 export function fixSnippet(value: unknown): string {
-  return truncate(JSON.stringify(value) ?? String(value), 140);
+  return truncate(jsonText(value), 140);
 }
 
 /**
@@ -45,5 +46,5 @@ export function fixSnippet(value: unknown): string {
  * distinct instances of the same shape.
  */
 export function fixChangesValue(before: unknown, after: unknown): boolean {
-  return JSON.stringify(before) !== JSON.stringify(after);
+  return !jsonEqual(before, after);
 }

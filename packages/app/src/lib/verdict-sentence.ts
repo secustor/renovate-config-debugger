@@ -1,17 +1,18 @@
 import type { RuleAttribution, SimulationResult } from "@renovate-config-debugger/engine";
+import { isNonEmptyString, isPlainObject, isString } from "@renovate-config-debugger/engine/is";
+import { jsonText } from "@renovate-config-debugger/engine/json";
 import { pluralWord } from "./format";
-import { isPlainObject } from "./input-schemas";
 import { isFailingClause } from "./rule-verdict";
 
 /** A config value in a plain-language sentence: `[a, b]`, `"x"`, `42`. */
 function plainValue(value: unknown): string {
   if (Array.isArray(value)) {
-    return `[${value.map((v) => (typeof v === "string" ? v : JSON.stringify(v))).join(", ")}]`;
+    return `[${value.map((v) => (isString(v) ? v : jsonText(v))).join(", ")}]`;
   }
-  if (typeof value === "string") {
+  if (isString(value)) {
     return value;
   }
-  return JSON.stringify(value) ?? "undefined";
+  return jsonText(value);
 }
 
 /** Oxford-comma join for the verdict sentence's clause lists. */
@@ -95,7 +96,7 @@ export function buildVerdictSegments(
   const negatives: string[] = [];
 
   // Strongest signal first: will the PR even be raised?
-  const skipReason = typeof c.skipReason === "string" ? c.skipReason : undefined;
+  const skipReason = isString(c.skipReason) ? c.skipReason : undefined;
   if (c.enabled === false || skipReason !== undefined) {
     negatives.push(
       skipReason ? `be raised at all (skipReason: ${skipReason})` : "be raised (disabled)",
@@ -131,7 +132,7 @@ export function buildVerdictSegments(
   if (c.autoApprove === true) {
     positives.push("get auto-approval");
   }
-  if (typeof c.groupName === "string" && c.groupName.length > 0) {
+  if (isNonEmptyString(c.groupName)) {
     positives.push(`be grouped as "${c.groupName}"`);
   }
   if (Array.isArray(c.schedule) && c.schedule.length > 0 && !isNoopSchedule(c.schedule)) {
@@ -161,7 +162,7 @@ export function buildVerdictSegments(
  * aria and the CLI, so a screenshot and `rcd simulate` never disagree.
  */
 export function verdictText(segments: VerdictSegment[]): string {
-  return segments.map((s) => (typeof s === "string" ? s : s.modal.toUpperCase())).join("");
+  return segments.map((s) => (isString(s) ? s : s.modal.toUpperCase())).join("");
 }
 
 /**

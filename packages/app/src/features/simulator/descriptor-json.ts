@@ -1,3 +1,5 @@
+import { isString } from "@renovate-config-debugger/engine/is";
+import { jsonText } from "@renovate-config-debugger/engine/json";
 import { toDescriptor } from "./form";
 import type { FormState } from "@/types/simulator";
 
@@ -76,7 +78,7 @@ export function descriptorEntries(form: FormState, effectiveUpdateType: string):
     if (value === undefined) {
       continue;
     }
-    entries.push({ key, json: JSON.stringify(value), isString: typeof value === "string" });
+    entries.push({ key, json: jsonText(value), isString: isString(value) });
   }
   return entries;
 }
@@ -89,6 +91,6 @@ export function descriptorJsonText(form: FormState, effectiveUpdateType: string)
   if (entries.length === 0) {
     return "{}\n";
   }
-  const lines = entries.map((entry) => `  ${JSON.stringify(entry.key)}: ${entry.json}`);
+  const lines = entries.map((entry) => `  ${jsonText(entry.key)}: ${entry.json}`);
   return `{\n${lines.join(",\n")}\n}\n`;
 }

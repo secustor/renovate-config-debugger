@@ -13,6 +13,7 @@
  * annotate.
  */
 import { useCallback, useEffect, useInsertionEffect, useRef, useState } from "react";
+import { jsonDocument } from "@renovate-config-debugger/engine/json";
 import { useLatestRef } from "./use-latest-ref";
 import { useStableCallback } from "./use-stable-callback";
 import type { TraceResult } from "@renovate-config-debugger/engine";
@@ -282,10 +283,8 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
       persist: policy.persistPlatformSettings,
     });
     // 008 layers ride along in v2 links; absent = layers off.
-    host.setGlobalText(payload.globalConfig ? JSON.stringify(payload.globalConfig, null, 2) : "");
-    host.setInheritedText(
-      payload.inheritedConfig ? JSON.stringify(payload.inheritedConfig, null, 2) : "",
-    );
+    host.setGlobalText(payload.globalConfig ? jsonDocument(payload.globalConfig) : "");
+    host.setInheritedText(payload.inheritedConfig ? jsonDocument(payload.inheritedConfig) : "");
     host.setPlatformOverride(payload.platformOverride === true);
     // Roadmap 076: the ONE reason left to force the drawer open is the
     // untrusted-endpoint policy, whose banner tells the user to go review the

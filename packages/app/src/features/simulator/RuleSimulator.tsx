@@ -1,6 +1,8 @@
 import { nf } from "@/lib/format";
 import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import type { TraceResult } from "@renovate-config-debugger/engine";
+import { isTruthy } from "@renovate-config-debugger/engine/is";
+import { jsonText } from "@renovate-config-debugger/engine/json";
 import { Term } from "@/components/glossary";
 import { RuleFramingAside } from "@/components/rule-framing";
 import { useDescriptionProvenance } from "@/hooks/description-provenance";
@@ -394,7 +396,7 @@ export const RuleSimulator = memo(function RuleSimulator({
     );
   }
 
-  const stale = sim !== null && ranKey !== JSON.stringify(form);
+  const stale = sim !== null && ranKey !== jsonText(form);
   // Replay-02 R1: what the LAST RUN simulated (not the live form) — the stale
   // banner quotes it so a stale capture names the inputs it belongs to.
   const ranLabel = simForm
@@ -403,7 +405,7 @@ export const RuleSimulator = memo(function RuleSimulator({
         simForm.currentValue,
         simForm.newValue ? `→ ${simForm.newValue}` : "",
       ]
-        .filter(Boolean)
+        .filter(isTruthy)
         .join(" ")
     : "";
   const atLimit = pinCount >= MAX_PINS;

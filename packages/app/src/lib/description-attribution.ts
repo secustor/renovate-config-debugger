@@ -4,6 +4,7 @@ import type {
   PresetNode,
   ProvenanceLayer,
 } from "@renovate-config-debugger/engine";
+import { isString } from "@renovate-config-debugger/engine/is";
 import { computeTreeStats, ROOT_NODE_ID } from "./preset-tree-stats";
 
 /**
@@ -208,7 +209,7 @@ export function descriptionCardsFor(
     byIndex[card.index] = card;
   }
   for (const index of attribution.unattributedIndices) {
-    if (typeof values[index] === "string") {
+    if (isString(values[index])) {
       return null;
     }
   }

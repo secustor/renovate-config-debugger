@@ -9,7 +9,7 @@ import {
 import { summarizeRuleSelectors } from "@/lib/rule-selectors";
 import { valuePreview } from "@/lib/value-preview";
 import { githubAuthFailure } from "@/lib/github-failure";
-import { isPlainObject } from "@/lib/input-schemas";
+import { isPlainObject } from "@renovate-config-debugger/engine/is";
 
 /**
  * Roadmap 075 (iteration 5b): the Presets LEDGER — what `extends` actually

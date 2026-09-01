@@ -1,5 +1,6 @@
 import { memo, useMemo } from "react";
 import type { TraceEvent } from "@renovate-config-debugger/engine";
+import { jsonFile } from "@renovate-config-debugger/engine/json";
 import { CodeText } from "./CodeText";
 import { CopyButton } from "./CopyButton";
 import { StepThrough, type StepThroughStep } from "./StepThrough";
@@ -81,7 +82,7 @@ export const MigrationSteps = memo(function MigrationSteps({
   const actions = useMemo(
     () => (
       <CopyButton
-        getText={() => `${JSON.stringify(finalAfter, null, 2)}\n`}
+        getText={() => jsonFile(finalAfter)}
         label="Copy migrated config"
         title="Copy the fully migrated config as JSON"
       />

@@ -17,6 +17,7 @@ import { type EditorView, type Extension, hoverTooltip, type Tooltip } from "@ui
 import { jsonLanguage } from "@codemirror/lang-json";
 import { jsonCompletion, jsonSchema, jsonSchemaHover } from "codemirror-json-schema";
 import type { RefObject } from "react";
+import { isString } from "@renovate-config-debugger/engine/is";
 import { renovateSchema } from "@renovate-config-debugger/engine/schema";
 import type { PresetNodeState } from "@renovate-config-debugger/engine";
 import type { PresetHoverContext, PresetHoverInfo } from "@/lib/preset-hover";
@@ -37,9 +38,7 @@ function stringLiteralAt(
     if (col >= start && col <= end) {
       try {
         const value = JSON.parse(match[0]) as unknown;
-        return typeof value === "string"
-          ? { value, from: line.from + start, to: line.from + end }
-          : null;
+        return isString(value) ? { value, from: line.from + start, to: line.from + end } : null;
       } catch {
         return null;
       }

@@ -1,5 +1,6 @@
 import { type ReactNode, useMemo, useState, useTransition } from "react";
 import { Diff, getChangeKey, Hunk, parseDiff } from "react-diff-view";
+import { jsonFile } from "@renovate-config-debugger/engine/json";
 import { useDiffOptionHover } from "./option-docs-hooks";
 import { buildJsonPatch } from "@/lib/json-patch";
 import { CopyButton } from "./CopyButton";
@@ -185,7 +186,7 @@ export function JsonDiff({ before, after, names, title }: Props) {
           onChange={(next) => startTransition(() => setViewType(next))}
         />
         <CopyButton
-          getText={() => `${JSON.stringify(after, null, 2)}\n`}
+          getText={() => jsonFile(after)}
           label="Copy result"
           title="Copy this stage's resulting config as JSON"
         />

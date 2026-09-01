@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { jsonText } from "@renovate-config-debugger/engine/json";
 import { Caret } from "@/components/Caret";
 import { CopyButton } from "@/components/CopyButton";
 import { type DescriptorEntry, descriptorEntries, descriptorJsonText } from "./descriptor-json";
@@ -8,7 +9,7 @@ function JsonLine({ entry, comma }: { entry: DescriptorEntry; comma: boolean }) 
   return (
     <span>
       {"  "}
-      <span className="sim-json-key">{JSON.stringify(entry.key)}</span>
+      <span className="sim-json-key">{jsonText(entry.key)}</span>
       {": "}
       {/* A string is the common case and wears the string colour; a
           `registryUrls` array or the `isBump` flag is not one, and colouring it

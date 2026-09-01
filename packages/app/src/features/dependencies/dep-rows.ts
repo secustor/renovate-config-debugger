@@ -8,6 +8,7 @@
  * lets the grouping, the badge rule and the field list be unit-tested without
  * a renderer.
  */
+import { isNonEmptyString } from "@renovate-config-debugger/engine/is";
 import type {
   DataTableAction,
   DataTableBadge,
@@ -68,7 +69,7 @@ export function depFields(fill: Partial<FormState>): DataTableField[] {
   for (const key of DESCRIPTOR_FIELD_ORDER) {
     const value = fill[key];
     const term = DESCRIPTOR_TERMS[key];
-    if (typeof value === "string" && value !== "") {
+    if (isNonEmptyString(value)) {
       fields.push({ label: key, value, ...(term === null ? {} : { term }) });
     }
   }

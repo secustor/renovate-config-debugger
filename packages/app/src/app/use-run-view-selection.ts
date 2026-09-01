@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import type { StageId, TraceResult } from "@renovate-config-debugger/engine";
+import { isNumber } from "@renovate-config-debugger/engine/is";
 import {
   legacyTabForView,
   type ResultsTabId,
@@ -112,7 +113,7 @@ export function useRunViewSelection(host: RunViewSelectionHost): RunViewSelectio
     if (pending.stage) {
       setSelectedStage(pending.stage);
     }
-    if (typeof pending.step === "number") {
+    if (isNumber(pending.step)) {
       setMigrationStepIndex(pending.step);
     }
     // Roadmap 075 (iteration 3): a link that named the Rewrites tab — or a
@@ -122,9 +123,7 @@ export function useRunViewSelection(host: RunViewSelectionHost): RunViewSelectio
     // such a link carries is whatever the sender's pipeline rail happened to be
     // on, and it is not what they were pointing at.
     const wantsMigrateStage =
-      pending.tab === undefined
-        ? typeof pending.step === "number"
-        : shareTabWantsMigrateStage(pending.tab);
+      pending.tab === undefined ? isNumber(pending.step) : shareTabWantsMigrateStage(pending.tab);
     if (wantsMigrateStage) {
       setSelectedStage("migrate");
     }

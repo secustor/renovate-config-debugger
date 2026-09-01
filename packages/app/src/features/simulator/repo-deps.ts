@@ -5,6 +5,7 @@
  * `./use-repo-deps`.
  */
 import type { ExtractedPackageFile, PackageDependency } from "@renovate-config-debugger/engine";
+import { isNonEmptyString } from "@renovate-config-debugger/engine/is";
 import { joinValues } from "./form";
 import type { FormState } from "@/types/simulator";
 import type { RepoDep, RepoDepsView } from "@/types/repo";
@@ -40,7 +41,7 @@ export function depToFill(file: ExtractedPackageFile, dep: PackageDependency): P
   } else if (dep.depName) {
     fill.packageName = dep.depName;
   }
-  if (typeof dep.currentValue === "string" && dep.currentValue !== "") {
+  if (isNonEmptyString(dep.currentValue)) {
     fill.currentValue = dep.currentValue;
   }
   if (dep.currentVersion) {
@@ -59,9 +60,7 @@ export function depToFill(file: ExtractedPackageFile, dep: PackageDependency): P
   if (dep.lockedVersion) {
     fill.lockedVersion = dep.lockedVersion;
   }
-  const registryUrls = (dep.registryUrls ?? []).filter(
-    (url): url is string => typeof url === "string" && url !== "",
-  );
+  const registryUrls = (dep.registryUrls ?? []).filter(isNonEmptyString);
   if (registryUrls.length > 0) {
     fill.registryUrls = joinValues(registryUrls);
   }
@@ -81,10 +80,9 @@ export function repoDepsOfFile(file: ExtractedPackageFile): RepoDep[] {
     if (!name || dep.skipReason) {
       continue;
     }
-    const value =
-      typeof dep.currentValue === "string" && dep.currentValue !== ""
-        ? dep.currentValue
-        : (dep.currentVersion ?? "");
+    const value = isNonEmptyString(dep.currentValue)
+      ? dep.currentValue
+      : (dep.currentVersion ?? "");
     rows.push({
       key: `${file.fileName}:${index}:${name}`,
       depName: name,

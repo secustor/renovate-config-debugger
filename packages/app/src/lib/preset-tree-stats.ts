@@ -1,6 +1,6 @@
 import type * as EngineModule from "@renovate-config-debugger/engine";
 import type { PresetNode } from "@renovate-config-debugger/engine";
-import { isPlainObject } from "./input-schemas";
+import { isPlainObject, isString } from "@renovate-config-debugger/engine/is";
 
 /**
  * The root node's id — the input config itself, the one node the tree has no
@@ -170,7 +170,7 @@ function ownContribution(node: PresetNode): {
           const arr = rule[mk];
           if (Array.isArray(arr)) {
             for (const s of arr) {
-              if (typeof s === "string") {
+              if (isString(s)) {
                 parts.push(s);
               }
             }

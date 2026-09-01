@@ -1,5 +1,5 @@
 import { EMPTY_FORM, QUICK_FILLS } from "./form";
-import { isPlainObject } from "@/lib/input-schemas";
+import { isPlainObject, isString, isStringArray } from "@renovate-config-debugger/engine/is";
 import { samePinForm } from "./pins";
 import type { FormState } from "@/types/simulator";
 
@@ -70,13 +70,13 @@ function ruleOf(value: unknown): Record<string, unknown> | null {
 /** A matcher's values, as strings — null when it isn't a list of them (a
  *  matcher we cannot read is a matcher we cannot satisfy). */
 function matcherValues(value: unknown): string[] | null {
-  if (typeof value === "string") {
+  if (isString(value)) {
     return [value];
   }
-  if (!Array.isArray(value) || value.some((entry) => typeof entry !== "string")) {
+  if (!isStringArray(value)) {
     return null;
   }
-  return value as string[];
+  return value;
 }
 
 /**

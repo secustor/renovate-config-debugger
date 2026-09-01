@@ -6,6 +6,8 @@ import type {
   RuleEvaluation,
   SimulationResult,
 } from "@renovate-config-debugger/engine";
+import { isString, isStringArray } from "@renovate-config-debugger/engine/is";
+import { jsonText } from "@renovate-config-debugger/engine/json";
 import { nf, pluralWord } from "@/lib/format";
 import { crossRuleIndex } from "@/lib/rule-cross-index";
 import { hasEvaluationError, isFailingClause, isNoInputNoMatch } from "@/lib/rule-verdict";
@@ -148,11 +150,11 @@ function pinRuleRef(
 function buildChips(sim: SimulationResult, matchedCount: number): PinChip[] {
   const config = sim.finalDependencyConfig;
   const chips: PinChip[] = [];
-  const skipReason = typeof config.skipReason === "string" ? config.skipReason : undefined;
+  const skipReason = isString(config.skipReason) ? config.skipReason : undefined;
   if (config.enabled === false || skipReason !== undefined) {
     chips.push({ tone: "warn", label: skipReason ? `skipped: ${skipReason}` : "disabled" });
   }
-  const groupName = typeof config.groupName === "string" ? config.groupName : "";
+  const groupName = isString(config.groupName) ? config.groupName : "";
   if (groupName !== "") {
     chips.push({ tone: "accent", label: `grouped as “${groupName}”` });
   }
@@ -256,17 +258,17 @@ function closestMiss(rule: RuleEvaluation): PinFailedRule["closestMiss"] {
     return undefined;
   }
   const value = only.value;
-  if (!Array.isArray(value) || !value.every((v) => typeof v === "string")) {
+  if (!isStringArray(value)) {
     return undefined;
   }
   const inputs = Object.values(only.inputValues);
   const actual = inputs[0];
-  if (inputs.length !== 1 || typeof actual !== "string") {
+  if (inputs.length !== 1 || !isString(actual)) {
     return undefined;
   }
   return {
     clauseKey: only.key,
-    suggestion: JSON.stringify([...value, actual]),
+    suggestion: jsonText([...value, actual]),
   };
 }
 

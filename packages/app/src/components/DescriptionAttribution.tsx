@@ -1,3 +1,4 @@
+import { jsonText } from "@renovate-config-debugger/engine/json";
 import { HoverCardJump } from "./HoverCardJump";
 import {
   cardPathText,
@@ -84,7 +85,7 @@ export function DescriptionValue({
     >
       {(handlers) => (
         <HoverCardTextAnchor className="json-desc" handlers={handlers}>
-          {JSON.stringify(card.value)}
+          {jsonText(card.value)}
         </HoverCardTextAnchor>
       )}
     </HoverCardAnchor>

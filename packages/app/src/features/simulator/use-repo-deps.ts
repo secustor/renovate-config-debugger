@@ -17,6 +17,7 @@
  * it can never clobber the fresh view.
  */
 import { useCallback, useMemo, useRef, useState } from "react";
+import { jsonText } from "@renovate-config-debugger/engine/json";
 import { TREE_LISTING_PLATFORMS } from "@/data/host-tokens";
 import { EMPTY_REPO_DEPS, repoDepsOfFile } from "./repo-deps";
 import { useLatestRef } from "@/hooks/use-latest-ref";
@@ -68,7 +69,7 @@ function repoKey(repo: LoadedRepo): string {
 function discoveryKey(repo: LoadedRepo, customManagers: CustomManagerBlocks): string {
   let blocks = `${customManagers.length}`;
   try {
-    blocks = JSON.stringify(customManagers) ?? blocks;
+    blocks = jsonText(customManagers);
   } catch {
     // A config value that cannot be serialized still has to key something.
   }

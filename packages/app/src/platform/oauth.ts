@@ -21,6 +21,8 @@
  * deployment) and without one — and the mode is read from the Worker's own
  * `refresh_token_cookie` flag, never assumed.
  */
+import { isNumber, isString } from "@renovate-config-debugger/engine/is";
+import { jsonLiteral } from "@renovate-config-debugger/engine/json";
 import {
   isHttpUrl,
   isValidOAuthParam,
@@ -129,9 +131,9 @@ function runtimeOAuthConfig(): OAuthConfig | null {
   }
   const { clientId, workerUrl, appSlug } = raw as Record<string, unknown>;
   return toOAuthConfig(
-    typeof clientId === "string" ? clientId : undefined,
-    typeof workerUrl === "string" ? workerUrl : undefined,
-    typeof appSlug === "string" ? appSlug : undefined,
+    isString(clientId) ? clientId : undefined,
+    isString(workerUrl) ? workerUrl : undefined,
+    isString(appSlug) ? appSlug : undefined,
   );
 }
 
@@ -341,10 +343,10 @@ function receiveBroadcast(data: unknown): void {
   if (msg.type !== "token") {
     return;
   }
-  if (typeof msg.token !== "string" || !isValidToken(msg.token)) {
+  if (!isString(msg.token) || !isValidToken(msg.token)) {
     return;
   }
-  if (typeof msg.tokenExpiresAt !== "number" || !Number.isFinite(msg.tokenExpiresAt)) {
+  if (!isNumber(msg.tokenExpiresAt) || !Number.isFinite(msg.tokenExpiresAt)) {
     return;
   }
   // Only a tab on the shared cookie grant may adopt the token: the live
@@ -357,7 +359,7 @@ function receiveBroadcast(data: unknown): void {
     token: msg.token,
     tokenExpiresAt: msg.tokenExpiresAt,
     refreshTokenExpiresAt:
-      typeof msg.refreshTokenExpiresAt === "number" && Number.isFinite(msg.refreshTokenExpiresAt)
+      isNumber(msg.refreshTokenExpiresAt) && Number.isFinite(msg.refreshTokenExpiresAt)
         ? msg.refreshTokenExpiresAt
         : undefined,
   });
@@ -453,7 +455,7 @@ async function postWorker(path: string, body: unknown): Promise<TokenResponse> {
     res = await fetch(`${cfg.workerUrl}${path}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
+      body: jsonLiteral(body),
       // Roadmap 065: the refresh cookie must ride along on every Worker call
       // (it is what `/refresh` reads in cookie mode and what `/exchange` sets).
       // Harmless when no cookie exists or the deployment is cookie-off, and the
@@ -487,12 +489,12 @@ async function postWorker(path: string, body: unknown): Promise<TokenResponse> {
 
 function applyTokenResponse(data: TokenResponse): void {
   const now = Date.now();
-  const tokenExpiresAt =
-    typeof data.expires_in === "number" ? now + data.expires_in * 1000 : Number.MAX_SAFE_INTEGER;
-  const refreshExpiresAt =
-    typeof data.refresh_token_expires_in === "number"
-      ? now + data.refresh_token_expires_in * 1000
-      : undefined;
+  const tokenExpiresAt = isNumber(data.expires_in)
+    ? now + data.expires_in * 1000
+    : Number.MAX_SAFE_INTEGER;
+  const refreshExpiresAt = isNumber(data.refresh_token_expires_in)
+    ? now + data.refresh_token_expires_in * 1000
+    : undefined;
   storeTokenState({
     // access_token presence is guaranteed by postWorker.
     token: data.access_token as string,
@@ -538,7 +540,7 @@ async function fetchUser(token: string): Promise<StoredUser> {
   // must be http(s), never dropped from GitHub's response but silently
   // omitted here if it somehow weren't.
   const user: StoredUser = { login, avatarUrl: avatarUrl && isHttpUrl(avatarUrl) ? avatarUrl : "" };
-  sessionSet(K.user, JSON.stringify(user));
+  sessionSet(K.user, jsonLiteral(user));
   return user;
 }
 
@@ -587,7 +589,7 @@ export async function beginSignIn(returnHash: string): Promise<void> {
   const state = randomToken(16);
   const verifier = randomToken(32);
   const challenge = await pkceChallenge(verifier);
-  sessionSet(K.pending, JSON.stringify({ state, verifier, returnHash }));
+  sessionSet(K.pending, jsonLiteral({ state, verifier, returnHash }));
 
   const url = new URL(AUTHORIZE_URL);
   url.searchParams.set("client_id", cfg.clientId);
@@ -790,7 +792,7 @@ export async function getValidToken(): Promise<string | null> {
     return state.token;
   }
   const refreshExpired =
-    typeof state.refreshTokenExpiresAt === "number" && Date.now() >= state.refreshTokenExpiresAt;
+    isNumber(state.refreshTokenExpiresAt) && Date.now() >= state.refreshTokenExpiresAt;
   // Roadmap 065: no in-JS refresh token is not the end of the session any
   // more — in cookie mode there never was one, and a live marker says the
   // `HttpOnly` cookie still carries a good token, so the refresh goes out

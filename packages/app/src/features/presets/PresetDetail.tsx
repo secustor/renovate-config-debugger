@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { PresetNode, TraceEvent } from "@renovate-config-debugger/engine";
+import { jsonDocument, jsonEqual } from "@renovate-config-debugger/engine/json";
 import { ConfigJson } from "@/components/ConfigJson";
 import { CopyMarkdownButton } from "@/components/CopyMarkdownButton";
 import { type AuthState, GithubAuthHint } from "@/components/GithubAuthHint";
@@ -206,20 +207,13 @@ export function PresetDetail({
   const ghFailure = githubAuthFailure(node);
   // Roadmap 032: these compare FULLY RESOLVED preset bodies, and the tree
   // re-renders on every filter keystroke and every scroll tick — so they are
-  // memoized on the node (a stable per-run identity, WeakMap-cached) and
-  // short-circuit on reference equality before stringifying anything.
+  // memoized on the node (a stable per-run identity, WeakMap-cached);
+  // `jsonEqual` short-circuits on reference equality before stringifying.
   const { migrationChanged, resolvedChanged } = useMemo(() => {
     const { fetched, input, resolved } = node;
     return {
-      migrationChanged:
-        fetched !== undefined &&
-        input !== undefined &&
-        fetched !== input &&
-        JSON.stringify(fetched) !== JSON.stringify(input),
-      resolvedChanged:
-        resolved !== undefined &&
-        resolved !== input &&
-        JSON.stringify(resolved) !== JSON.stringify(input),
+      migrationChanged: fetched !== undefined && input !== undefined && !jsonEqual(fetched, input),
+      resolvedChanged: resolved !== undefined && !jsonEqual(resolved, input),
     };
   }, [node]);
 
@@ -266,7 +260,7 @@ export function PresetDetail({
             <CopyMarkdownButton
               className="inline"
               header={`\`${node.name}\` — fetched preset body`}
-              code={JSON.stringify(node.afterParams ?? node.fetched, null, 2)}
+              code={jsonDocument(node.afterParams ?? node.fetched)}
               lang="json"
             />
           </summary>
@@ -302,7 +296,7 @@ export function PresetDetail({
             <CopyMarkdownButton
               className="inline"
               header={`\`${node.name}\` — fully resolved preset body`}
-              code={JSON.stringify(node.resolved, null, 2)}
+              code={jsonDocument(node.resolved)}
               lang="json"
             />
           </summary>

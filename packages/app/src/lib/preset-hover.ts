@@ -1,5 +1,5 @@
 import type { PresetNode, PresetNodeState } from "@renovate-config-debugger/engine";
-import { isPlainObject } from "./input-schemas";
+import { isPlainObject } from "@renovate-config-debugger/engine/is";
 import { computeTreeStats } from "./preset-tree-stats";
 
 /**

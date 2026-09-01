@@ -36,7 +36,9 @@ import { useLatestRef } from "@/hooks/use-latest-ref";
 import { useStableCallback } from "@/hooks/use-stable-callback";
 import { useKeyboardLandings } from "@/app/use-keyboard-landings";
 import { ShortcutSheet } from "@/components/ShortcutSheet";
-import { isPlainObject, isValidEndpoint } from "@/lib/input-schemas";
+import { isPlainObject } from "@renovate-config-debugger/engine/is";
+import { jsonDocument, jsonText } from "@renovate-config-debugger/engine/json";
+import { isValidEndpoint } from "@/lib/input-schemas";
 import { useCustomHostRules, useHostTokens } from "@/hooks/use-host-tokens";
 import { useAppMessages } from "@/app/use-app-messages";
 import { usePlatformContext } from "@/app/use-platform-context";
@@ -87,7 +89,7 @@ function layerKey(
   globalConfig: Record<string, unknown> | undefined,
   inheritedConfig: Record<string, unknown> | undefined,
 ): string {
-  return JSON.stringify([globalConfig ?? null, inheritedConfig ?? null]);
+  return jsonText([globalConfig ?? null, inheritedConfig ?? null]);
 }
 
 /** Roadmap 093: the run's own `customManagers`, as discovery takes them —
@@ -939,7 +941,7 @@ export function App() {
     const ticket = landing.arm();
     const lib = errorLib ?? (await loadErrorTranslationLib());
     const applied = lib.applyFixToText(content, fix);
-    const nextContent = applied?.text ?? JSON.stringify(fix.fixedConfig, null, 2);
+    const nextContent = applied?.text ?? jsonDocument(fix.fixedConfig);
     loadConfigText(nextContent);
     if (applied && !applied.surgical) {
       setNotice(

@@ -11,6 +11,8 @@
  * current at encode time rides along so the opener can warn on version drift.
  */
 import type { StageId } from "@renovate-config-debugger/engine";
+import { isNonEmptyString, isString } from "@renovate-config-debugger/engine/is";
+import { jsonLiteral } from "@renovate-config-debugger/engine/json";
 import type { ShareResultsTabId } from "@/data/results-tabs";
 import { isValidRepoRefPart } from "@/lib/input-schemas";
 import { DEFAULT_ENDPOINT, DEFAULT_PLATFORM, PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
@@ -254,7 +256,7 @@ export async function encodeShare(state: ShareState): Promise<string> {
   if (state.repo && isValidRepoRefPart(state.repo)) {
     payload.repo = state.repo;
   }
-  const json = JSON.stringify(payload);
+  const json = jsonLiteral(payload);
   const compressed = await deflateRaw(new TextEncoder().encode(json));
   return bytesToBase64url(compressed);
 }
@@ -302,7 +304,7 @@ export async function decodeShareResult(token: string): Promise<DecodeResult> {
     typeof parsed !== "object" ||
     parsed === null ||
     (version !== 1 && version !== 2) ||
-    typeof (parsed as { config?: unknown }).config !== "string"
+    !isString((parsed as { config?: unknown }).config)
   ) {
     return { ok: false, reason: "incompatible" };
   }
@@ -310,7 +312,7 @@ export async function decodeShareResult(token: string): Promise<DecodeResult> {
   // Integrity tag (additive to v2): when present it must match the config it
   // rode with. A mismatch is transit corruption the earlier stages passed.
   // Absent (old links) = no check — today's behavior is preserved.
-  if (typeof p.c === "string" && p.c !== configChecksum(p.config)) {
+  if (isString(p.c) && p.c !== configChecksum(p.config)) {
     return { ok: false, reason: "cutOff" };
   }
   const { sanitizeShareView, sanitizeShareSim, sanitizeSharePins, sharePayloadStrictFieldsSchema } =
@@ -352,8 +354,7 @@ export async function decodeShareResult(token: string): Promise<DecodeResult> {
   // must not be is arbitrary text: the connect panel prints it on a button
   // and composes a request path from it on click, so it passes the same
   // bounded/control-character-free check every typed repo reference passes.
-  p.repo =
-    typeof p.repo === "string" && p.repo !== "" && isValidRepoRefPart(p.repo) ? p.repo : undefined;
+  p.repo = isNonEmptyString(p.repo) && isValidRepoRefPart(p.repo) ? p.repo : undefined;
   return { ok: true, payload: p };
 }
 
@@ -411,10 +412,8 @@ function resolveEffectivePlatformContext(payload: SharePayload): {
   globalEndpoint: string | undefined;
 } {
   const globalConfig = payload.globalConfig;
-  const globalPlatform =
-    typeof globalConfig?.platform === "string" ? globalConfig.platform : undefined;
-  const globalEndpoint =
-    typeof globalConfig?.endpoint === "string" ? globalConfig.endpoint : undefined;
+  const globalPlatform = isString(globalConfig?.platform) ? globalConfig.platform : undefined;
+  const globalEndpoint = isString(globalConfig?.endpoint) ? globalConfig.endpoint : undefined;
   const overridden =
     payload.platformOverride === true &&
     (globalPlatform !== undefined || globalEndpoint !== undefined);

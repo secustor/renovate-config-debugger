@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import type { SimulationResult, TraceResult } from "@renovate-config-debugger/engine";
+import { jsonText } from "@renovate-config-debugger/engine/json";
 import { runSimulation } from "./run-simulation";
 import { DEFAULT_RULE_FILTERS, type RuleFilters } from "@/lib/rule-filters";
 import { useLatestRef } from "@/hooks/use-latest-ref";
@@ -63,7 +64,7 @@ export function useSimulationRun({
 }): SimulationRun {
   const [sim, setSim] = useState<SimulationResult | null>(null);
   const [simForm, setSimForm] = useState<FormState | null>(null);
-  const ranKey = useMemo(() => (simForm === null ? null : JSON.stringify(simForm)), [simForm]);
+  const ranKey = useMemo(() => (simForm === null ? null : jsonText(simForm)), [simForm]);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Roadmap 023/047: the rules drawer's filters — the verdict facet defaults to

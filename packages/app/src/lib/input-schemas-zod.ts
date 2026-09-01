@@ -21,9 +21,9 @@ import {
   RESULTS_TAB_IDS,
   type ShareResultsTabId,
 } from "@/data/results-tabs";
+import { isPlainObject } from "@renovate-config-debugger/engine/is";
 import {
   isHttpUrl,
-  isPlainObject,
   isValidConfigObject,
   isValidPlatform,
   isValidShareConfigLayer,

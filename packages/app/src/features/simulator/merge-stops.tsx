@@ -5,6 +5,7 @@ import type {
   ProvenanceLayer,
   SimulationResult,
 } from "@renovate-config-debugger/engine";
+import { jsonFile } from "@renovate-config-debugger/engine/json";
 import { ConfigJson } from "@/components/ConfigJson";
 import { CopyButton } from "@/components/CopyButton";
 import { Term } from "@/components/glossary";
@@ -187,7 +188,7 @@ function finalStop(sim: SimulationResult): MergeStop {
       <div>
         <div className="sim-final-config-actions">
           <CopyButton
-            getText={() => `${JSON.stringify(sim.finalDependencyConfig, null, 2)}\n`}
+            getText={() => jsonFile(sim.finalDependencyConfig)}
             label="Copy config"
             title="Copy the final per-dependency config as JSON"
           />

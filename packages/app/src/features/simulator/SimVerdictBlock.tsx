@@ -1,5 +1,6 @@
 import { Fragment } from "react";
 import type { SimulationResult } from "@renovate-config-debugger/engine";
+import { isString, isTruthy } from "@renovate-config-debugger/engine/is";
 import { CopyButton } from "@/components/CopyButton";
 import type { ConsumedBlock } from "@/lib/consumed-blocks";
 import type { VerdictSegment } from "@/lib/verdict-sentence";
@@ -110,7 +111,7 @@ export function SimVerdictBlock({
   /** null when the host gave no share-link callback — no button then. */
   copySimLink: (() => Promise<void>) | null;
 }) {
-  const depName = [dep?.manager, dep?.packageName].filter(Boolean).join(" / ");
+  const depName = [dep?.manager, dep?.packageName].filter(isTruthy).join(" / ");
   const versions = dep?.currentValue
     ? `${dep.currentValue}${dep.newValue ? ` → ${dep.newValue}` : ""}`
     : "";
@@ -126,7 +127,7 @@ export function SimVerdictBlock({
           {segments.map((seg) =>
             // Content-keyed: the sentence grammar never repeats a segment
             // (subject, at most one of each modal, distinct clause texts).
-            typeof seg === "string" ? (
+            isString(seg) ? (
               <Fragment key={`s:${seg}`}>{seg}</Fragment>
             ) : (
               <span

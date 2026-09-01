@@ -1,4 +1,5 @@
 import type { SimulationResult } from "@renovate-config-debugger/engine";
+import { jsonEqual } from "@renovate-config-debugger/engine/json";
 import { UPDATE_TYPE_KEYS } from "@/lib/update-type-keys";
 
 /**
@@ -32,6 +33,6 @@ export function changedDependencyKeys(
   }
   const keys = new Set([...Object.keys(base), ...Object.keys(sim.finalDependencyConfig)]);
   return [...keys]
-    .filter((key) => JSON.stringify(base[key]) !== JSON.stringify(sim.finalDependencyConfig[key]))
+    .filter((key) => !jsonEqual(base[key], sim.finalDependencyConfig[key]))
     .toSorted();
 }
