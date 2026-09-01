@@ -432,7 +432,7 @@ async function runCustomExtract(request: ExtractCustomRequest): Promise<ExtractO
   const files = [{ fileName: request.fileName, content: request.content }];
   try {
     return await withSeededFiles<ExtractOutcome>(files, async () => {
-      const extract = await customManagerExtractors[type]();
+      const extract = customManagerExtractors[type];
       // The block itself is the config — that is the whole point of a custom
       // manager. A bad matchStrings pattern THROWS; the catch below owns it.
       const result = await extract(request.content, request.fileName, request.block);
