@@ -20,9 +20,8 @@ test("hash-only navigation into a running app loads and runs the shared config",
     throw new Error(`unexpected dialog: ${d.message()}`);
   });
 
-  await page.goto("/");
   // App is mounted and idle at the default config (no auto-run without a token).
-  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+  await gotoAppAtDefaultConfig(page);
   await expect(resultsPanel(page)).toHaveCount(0);
 
   // Same-tab, hash-only navigation — exactly what pasting a share link into an

@@ -55,6 +55,7 @@ import { useShareLink } from "@/hooks/use-share-link";
 import type { RunInputs } from "@/lib/run-inputs";
 import { createRunQueue, type RunQueue } from "@/lib/run-queue";
 import { pluralWord } from "@/lib/format";
+import { errorMessage } from "@/lib/errors";
 import { EXAMPLE_CONFIG } from "@/data/starter-configs";
 import { AppBanners } from "@/app/AppBanners";
 import { ResultsPane } from "@/app/ResultsPane";
@@ -879,9 +880,19 @@ export function App() {
       }
       focusResultsRef.current = true;
       // the engine chunk is loaded now — hydrate the hover docs and the 014
-      // error-translation library
-      void loadOptionIndex().then(setOptionIndex);
-      void loadErrorTranslationLib().then(setErrorLib);
+      // error-translation library. Detached from the run (its result is already
+      // committed), so each carries its own ending: a failure here silently
+      // removes a feature, and the notice banner is where non-fatal losses go.
+      void loadOptionIndex()
+        .then(setOptionIndex)
+        .catch((err: unknown) => {
+          setNotice(`Option documentation could not be loaded — ${errorMessage(err)}`);
+        });
+      void loadErrorTranslationLib()
+        .then(setErrorLib)
+        .catch((err: unknown) => {
+          setNotice(`Error explanations could not be loaded — ${errorMessage(err)}`);
+        });
       return traceResult;
     } catch (err) {
       // Unstamped (see `applyFatal`): the next run's outcome supersedes this one.

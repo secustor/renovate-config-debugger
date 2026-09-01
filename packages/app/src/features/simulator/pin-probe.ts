@@ -3,6 +3,7 @@ import type {
   ProvenanceLayer,
   SimulationResult,
 } from "@renovate-config-debugger/engine";
+import { isPlainObject } from "@/lib/input-schemas";
 import { layerLabel } from "@/lib/provenance-layer";
 import { truncate } from "@/lib/truncate";
 import { fullValue } from "./rule-format";
@@ -65,7 +66,7 @@ function clip(pre: string, hit: string, post: string): Pick<ProbeHit, "pre" | "h
  * by ("which rule sets automerge?"), and only matched rules have a step.
  */
 function bodyWrites(body: unknown): string | undefined {
-  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+  if (!isPlainObject(body)) {
     return undefined;
   }
   const entries = Object.entries(body).filter(

@@ -98,6 +98,10 @@
     "typescript/no-import-type-side-effects": "error",
     "typescript/no-explicit-any": "error",
     "unicorn/no-array-for-each": "error",
+    // The un-`void`ed half of the same defect class as
+    // `rcd/no-uncaught-void-chain`; `allowFinally` because a chain that catches
+    // and then cleans up in `.finally` is handled.
+    "promise/catch-or-return": ["error", { "allowFinally": true }],
     // Roadmap 043: the `__RCD_*__` globals are the injected deployment config —
     // the dangling underscores are the convention that says "written by a
     // deployment, not by this codebase" — or, for __BUILD_INFO__, "injected
@@ -787,7 +791,34 @@
         "rcd/use-synced-reset": "error",
         "rcd/use-transient-value": "error",
         "rcd/use-truncate": "error",
-        "rcd/no-local-is-plain-object": "error"
+        "rcd/no-local-is-plain-object": "error",
+        "rcd/no-uncaught-void-chain": "error",
+        "rcd/no-unguarded-json-stringify": "error"
+      }
+    },
+    // ---- The one house rule that is not app-only ----------------------------
+    // `no-unguarded-json-stringify` bans a CONSTRUCT and names no import, so
+    // the package-boundary reason above does not apply — and the CLI is where
+    // the defect shipped (sweep finding 9, `output.ts`). `packages/engine/src`
+    // stays out on purpose: `shims/repo-config.ts` stringifies under a
+    // `typeof value === "object" && value !== null` guard the rule cannot see.
+    {
+      "files": ["packages/cli/src/**"],
+      "excludeFiles": ["packages/cli/src/**/*.test.ts"],
+      "rules": {
+        "rcd/no-unguarded-json-stringify": "error"
+      }
+    },
+    // ---- …and the e2e specs -------------------------------------------------
+    // `use-goto-app-helper` points at `e2e/helpers.ts`, which every spec in the
+    // directory can import — the "where the helpers live" condition, met
+    // outside `packages/app/src`. The glob stops at `*.spec.ts`, so the helper
+    // file itself needs no exemption; this is also the one tree the Stop hook
+    // does not test, which makes oxlint its only gate.
+    {
+      "files": ["packages/app/e2e/*.spec.ts"],
+      "rules": {
+        "rcd/use-goto-app-helper": "error"
       }
     },
     // ---- …and the files that ARE the helper ---------------------------------

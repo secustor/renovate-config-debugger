@@ -11,7 +11,7 @@ function plainValue(value: unknown): string {
   if (typeof value === "string") {
     return value;
   }
-  return JSON.stringify(value);
+  return JSON.stringify(value) ?? "undefined";
 }
 
 /** Oxford-comma join for the verdict sentence's clause lists. */
