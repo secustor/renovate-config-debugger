@@ -1,13 +1,5 @@
-import { RuleTester } from "oxlint/plugins-dev";
-import { describe, it } from "vitest";
+import { ruleTester } from "../rule-tester.ts";
 import rule from "./use-error-message.ts";
-
-RuleTester.describe = describe;
-RuleTester.it = it;
-
-const ruleTester = new RuleTester({
-  languageOptions: { parserOptions: { lang: "ts" } },
-});
 
 ruleTester.run("use-error-message", rule, {
   valid: [

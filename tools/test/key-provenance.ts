@@ -1,5 +1,3 @@
-import type { DeciderGroup } from "@/features/effective-config/decider-groups";
-
 /**
  * The hand-built provenance chains the effective-config suites feed to the pure
  * derivations (the grouping, the notes, the row mapping). Every one of them had
@@ -7,17 +5,15 @@ import type { DeciderGroup } from "@/features/effective-config/decider-groups";
  * apart. Outside the app's `src/` so test scaffolding can never ship.
  */
 
-// The engine's own types, read off the app's — `@renovate-config-debugger/engine`
-// does not resolve from here, since tools/ is not a package.
-type KeyProvenance = DeciderGroup["entries"][number];
-type ProvenanceStep = KeyProvenance["chain"][number];
-type ProvenanceLayer = ProvenanceStep["layer"];
+import type {
+  KeyProvenance,
+  ProvenanceLayer,
+  ProvenanceStep,
+} from "@renovate-config-debugger/engine";
 
-/** A preset layer. The node id only matters where two occurrences of the same
- *  preset have to stay apart. */
-export function presetLayer(name: string, nodeId = "p1"): ProvenanceLayer {
-  return { kind: "preset", nodeId, name };
-}
+/** The preset layer builder lives with the description fixtures; re-exported so
+ *  a chain suite gets its whole kit from one import. */
+export { presetLayer } from "./description-provenance";
 
 /** One step of a key's chain: `layer` setting `after`, with `extra` for the
  *  fields a case is actually about (`noop`, `action`, `before`). */

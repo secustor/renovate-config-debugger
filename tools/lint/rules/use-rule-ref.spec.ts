@@ -1,13 +1,5 @@
-import { RuleTester } from "oxlint/plugins-dev";
-import { describe, it } from "vitest";
+import { ruleTester } from "../rule-tester.ts";
 import rule from "./use-rule-ref.ts";
-
-RuleTester.describe = describe;
-RuleTester.it = it;
-
-const ruleTester = new RuleTester({
-  languageOptions: { parserOptions: { lang: "ts" } },
-});
 
 ruleTester.run("use-rule-ref", rule, {
   valid: [

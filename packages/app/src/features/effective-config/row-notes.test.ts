@@ -12,8 +12,8 @@ import { presetLayer, provEntry, provStep } from "@tools/test/key-provenance";
 
 const DEFAULTS: ProvenanceLayer = { kind: "defaults" };
 const REPO: ProvenanceLayer = { kind: "repo" };
-const DASHBOARD: ProvenanceLayer = presetLayer(":dependencyDashboard", "p1");
-const RECOMMENDED: ProvenanceLayer = presetLayer("config:recommended", "p2");
+const DASHBOARD: ProvenanceLayer = presetLayer("p1", ":dependencyDashboard");
+const RECOMMENDED: ProvenanceLayer = presetLayer("p2", "config:recommended");
 
 /** Every chain here is one key's, so the name is fixed. */
 function entry(chain: ProvenanceStep[]) {

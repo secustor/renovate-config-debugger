@@ -1,6 +1,7 @@
 import type { DescriptionProvenance, ProvenanceLayer } from "@renovate-config-debugger/engine";
 import { fireEvent, render, within } from "@testing-library/react";
 import { expect, test } from "vitest";
+import { descriptionProvenance } from "@tools/test/description-provenance";
 import { buildDescriptionLedger, type DescriptionLedger } from "./description-ledger";
 import { BlameLedger } from "./BlameLedger";
 
@@ -17,15 +18,7 @@ import { BlameLedger } from "./BlameLedger";
 const DASHBOARD: ProvenanceLayer = { kind: "preset", nodeId: "p1", name: ":dependencyDashboard" };
 
 function ledgerOf(provenance: Partial<DescriptionProvenance>): DescriptionLedger {
-  const built = buildDescriptionLedger({
-    entries: [],
-    unattributed: [],
-    finalLength: (provenance.entries?.length ?? 0) + (provenance.unattributed?.length ?? 0),
-    dropped: [],
-    ruleDescriptions: [],
-    degraded: false,
-    ...provenance,
-  });
+  const built = buildDescriptionLedger(descriptionProvenance(provenance));
   if (!built) {
     throw new Error("expected a ledger, got null");
   }
