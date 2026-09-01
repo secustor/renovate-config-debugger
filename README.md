@@ -47,16 +47,22 @@ which updates that `packageRules` entry actually matches.
   matcher code, plus the per-dependency config those rules merge to.
 - Per-key provenance, so you can see which layer set each key, including the
   self-hosted global and inherited layers below.
-- Share links. _Copy link_ reopens the current analysis (config, format,
-  platform context, layers, view) from the URL _fragment_, so it never reaches a
-  server log. It warns if the Renovate version has drifted, and it never carries
-  tokens or manually injected presets.
+- Share links. _Share_ (in the header) reopens the current analysis (config,
+  format, platform context, layers, view) from the URL _fragment_, so it never
+  reaches a server log. It warns if the Renovate version has drifted, and it
+  never carries tokens or manually injected presets.
 - Load from repo. Give it `owner/repo`, a full URL or `git@host:org/repo.git`
   with an optional ref: it probes Renovate's documented config-file locations,
   says which file won, and sets the platform context for known hosts. It also
   offers (on by default) to bring the org's inherited config along, resolved the
   way a real `inheritConfig` run resolves it, from `org-inherited-config.json`
   in `{{parentOrg}}/renovate-config`. Both are editable before you load.
+- Dependency extraction. With a repo loaded, opening the Dependencies tab (or
+  the pipeline's Extract phase, which shows which managers claimed which files)
+  runs Renovate's own extractors — plus the config's own `customManagers` — over
+  the repository's package files and lists every dependency they found.
+  Multi-file managers with no single-file extractor (gradle, sbt) report an
+  honest gap rather than a wrong answer.
 
 <details>
 <summary>Global + inherited config layers (self-hosted admins)</summary>
@@ -87,6 +93,7 @@ npx -y @renovate-config-debugger/cli digest renovate.json     # the run in one p
 npx -y @renovate-config-debugger/cli validate renovate.json   # exit 2 = Renovate would refuse it
 npx -y @renovate-config-debugger/cli tree renovate.json       # what `extends` expanded into
 npx -y @renovate-config-debugger/cli provenance renovate.json labels
+npx -y @renovate-config-debugger/cli extract package.json     # the deps to simulate, as Renovate reads them
 npx -y @renovate-config-debugger/cli simulate renovate.json --dep '{"depName":"react"}'
 npx -y @renovate-config-debugger/cli compare before.json after.json --dep '{"depName":"react"}'
 ```
