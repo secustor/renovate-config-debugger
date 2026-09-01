@@ -7,7 +7,6 @@ import {
   openMigrateStage,
   openSessionMenu,
   openPresetTree,
-  openTab,
   runAndAwaitResult,
   setEditorContent,
   themeSwitch,
@@ -138,8 +137,7 @@ test("the diff chrome names the active view and offers Copy result (036)", async
   await gotoAppAtDefaultConfig(page);
   await setEditorContent(page, SEMANTIC_COMMITS_CONFIG);
   await runAndAwaitResult(page);
-  await openTab(page, "pipeline");
-  await page.locator('.stage-rail-btn[data-stage="migrate"]').click();
+  await openMigrateStage(page);
   // Selecting the chip leaves its glossary hover card open under the cursor
   // (roadmap 024/025); park the pointer so it can't swallow the clicks below.
   await page.mouse.move(0, 0);

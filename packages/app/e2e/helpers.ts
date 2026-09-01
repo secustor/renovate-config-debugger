@@ -331,11 +331,18 @@ export function drawer(page: Page, title: string): Locator {
   return page.locator("details.drawer", { hasText: title });
 }
 
-/** Clicks Run and waits for the pipeline to produce a result (the results
- *  shell appears, version badge appears). A hung pipeline fails this wait, not
- *  the whole test. */
+/**
+ * Clicks Run and waits until THIS run has started and finished.
+ *
+ * The synchronisation is `expectRunIdle`'s enter-then-leave pair (see its note):
+ * the results shell and the version badge are permanent once any run has
+ * happened, so on a second run in the same test they are already visible and
+ * waiting on them alone would resolve against the pre-run page. They stay here
+ * as post-conditions.
+ */
 export async function runAndAwaitResult(page: Page): Promise<void> {
   await runButton(page).click();
+  await expectRunIdle(page);
   await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
   await expect(page.locator(".version-badge")).toBeVisible({ timeout: 30_000 });
 }

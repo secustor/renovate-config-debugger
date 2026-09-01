@@ -8,8 +8,9 @@ import { defineConfig, devices } from "@playwright/test";
  * are not representative of what users get). Chromium only; hard timeouts so a
  * wedged "Running…" fails fast rather than stalling CI.
  *
- * The dist must already be built (`pnpm --filter …/app build`) — the `test:e2e`
- * script builds first locally; CI reuses the dist from its build step.
+ * The dist must already be built: run `pnpm --filter …/app build` first —
+ * `test:e2e` is just `playwright test` and previews whatever `dist/` is on
+ * disk. CI's e2e job reuses the build job's dist artifact and never rebuilds.
  *
  * Base path: `vite.config.ts` serves from the domain root everywhere
  * (renovate.secustor.dev), so the Playwright baseURL is simply "/".
