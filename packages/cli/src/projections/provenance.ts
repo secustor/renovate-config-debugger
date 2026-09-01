@@ -2,6 +2,7 @@ import {
   computeProvenance,
   type KeyProvenance,
   type ProvenanceLayer,
+  type ProvenanceStep,
   type TraceResult,
   UPDATE_TYPE_KEYS,
 } from "@renovate-config-debugger/engine";
@@ -48,7 +49,7 @@ export function layerLabel(layer: ProvenanceLayer): string {
 
 interface ChainStepBase {
   layer: string;
-  action: string;
+  action: ProvenanceStep["action"];
   /** The nested preset whose own body wrote the value, when the engine
    *  verified one — the layer is then only the direct extend it arrived
    *  through. */

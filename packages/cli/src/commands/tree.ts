@@ -3,6 +3,7 @@ import { CliError } from "../io";
 import { emitJson, emitLines, json } from "../output";
 import {
   type BodyKind,
+  bodyOf,
   DEFAULT_TREE_DEPTH,
   findNode,
   parseBody,
@@ -40,7 +41,10 @@ interface TreeFlags {
 export const treeCommand = defineRunCommand<TreeFlags>({
   name: "tree",
   summary: "the `extends` expansion: structure, stats, and per-node bodies",
-  usage: ["tree [file] [--depth <n|all>]", "tree [file] --node <name> [--body resolved]"],
+  usage: [
+    "tree [file] [--depth <n|all>]",
+    "tree [file] --node <name> [--body resolved] [--depth <n|all>]",
+  ],
   options: [...INPUT_OPTIONS, "node", "body", "depth", "format"],
   prepare(args) {
     const depth = parseDepth(args);
@@ -58,20 +62,20 @@ export const treeCommand = defineRunCommand<TreeFlags>({
     if (nodeQuery) {
       const node = findNode(stats, nodeQuery);
       const occurrences = stats.occurrencesByName.get(node.name)?.length ?? 1;
-      const view = viewOf(node, stats, depth);
+      // `viewOf` cuts on ABSOLUTE depth, so a queried node needs its own depth
+      // added or `--depth` would report zero children for anything deep enough.
+      const nodeDepth = stats.statsById.get(node.id)?.depth ?? 0;
+      const view = viewOf(node, stats, nodeDepth + depth);
+      const shown = body ? bodyOf(node, body) : undefined;
       if (format === "json") {
-        emitJson(io, {
-          node: view,
-          occurrences,
-          ...(body ? { body, [body]: node[body] } : {}),
-        });
+        emitJson(io, { node: view, occurrences, ...shown });
       } else {
         const lines = treeLines(view, []);
         if (occurrences > 1) {
           lines.push(`(${occurrences} occurrences of this preset in the tree)`);
         }
-        if (body) {
-          lines.push("", `${body}:`, json(node[body]));
+        if (shown) {
+          lines.push("", `${shown.body}:`, shown.note ?? json(shown[shown.body]));
         }
         emitLines(io, lines);
       }

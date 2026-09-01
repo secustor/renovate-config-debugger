@@ -3,7 +3,7 @@ import { emitJson, emitLines } from "../output";
 import { INPUT_OPTIONS, refusalNote, wouldRefuse } from "../run-input";
 import { readDependencies } from "../dep";
 import { groupTallyLines } from "../projections/group";
-import { askGroup, type GroupQuestion } from "../questions/group";
+import { askGroup, type GroupUpdate } from "../questions/group";
 import { askSimulation } from "../questions/simulate";
 import { defineRunCommand } from "../run-command";
 
@@ -38,14 +38,14 @@ export const groupCommand = defineRunCommand<DependencyDescriptor[]>({
   options: [...INPUT_OPTIONS, "dep", "deps-file", "format"],
   prepare: (args) => readDependencies(args),
   async answer({ io, format, prepared: deps, result }) {
-    const simulated: GroupQuestion[] = [];
+    const simulated: GroupUpdate[] = [];
     for (const dep of deps) {
       simulated.push({
         dep,
         sim: await askSimulation({ finalConfig: result.finalConfig, dep, transport: "cli" }),
       });
     }
-    const { tally, gaps, notes } = askGroup(simulated, "cli");
+    const { tally, gaps, notes } = askGroup({ updates: simulated, transport: "cli" });
     const refused = wouldRefuse(result);
     const refusal = refusalNote(refused ? ["the config"] : []);
     if (format === "json") {

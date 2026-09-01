@@ -23,8 +23,10 @@ export function writeNotes(io: CliIo, notes: readonly string[]): void {
   }
 }
 
+/** `undefined` stringifies to `undefined`, not a string, and `join` would then
+ *  print a blank line under the header — `null` keeps the declared return honest. */
 export function json(value: unknown): string {
-  return JSON.stringify(value, null, 2);
+  return JSON.stringify(value, null, 2) ?? "null";
 }
 
 const STATUS_MARK: Record<StageStatus, string> = { ok: "✓", error: "✗", skipped: "–" };

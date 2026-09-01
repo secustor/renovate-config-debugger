@@ -4,7 +4,6 @@ import {
   computeRuleProvenance,
   type DependencyDescriptor,
   optionsSourceUrl,
-  type PresetNode,
   type ResolvedConfigMode,
   renovateVersion,
   runPipeline,
@@ -41,7 +40,7 @@ import { RULE_DIGEST_PLANS } from "../projections/rule-provenance";
 import { askCompare } from "../questions/compare";
 import { finishDescriptor } from "../questions/dependency";
 import { askExtraction } from "../questions/extract";
-import { askGroup, type GroupQuestion } from "../questions/group";
+import { askGroup, type GroupUpdate } from "../questions/group";
 import { askOptionDocs } from "../questions/option-docs";
 import { buildPipelineInput } from "../questions/pipeline";
 import { askProvenance } from "../questions/provenance";
@@ -49,7 +48,7 @@ import { askResolved } from "../questions/resolved";
 import { askSimulation, requireFinalConfig } from "../questions/simulate";
 import {
   BODIES,
-  type BodyKind,
+  bodyOf,
   DEFAULT_TREE_DEPTH,
   findNode,
   parseBody,
@@ -120,6 +119,8 @@ const HINTS = {
     'the resolved document is too large to return whole — try mode "keep-internal" without includeDefaults, or read one preset\'s contribution with get_preset_node.',
   simulate:
     'this config has too many packageRules to report whole — the omission is marked; drop back to the default `verdict: "notable"` (or `rule: N` for one row), pass `keys: [...]` for the options you care about, or narrow the dependency (a datasource, a depType) so fewer rules report `no-input`.',
+  group:
+    "this tally is too large to return whole — call again with fewer `deps` (the tally is over the list you supply), or ask simulate one dep at a time for a member's rule evidence; `updates`, `size` and `wouldForm` are computed before any elision, so only the member listings were shortened.",
   compare:
     "the comparison is too large to return whole — pass `keys: [...]` for the options you care about, narrow the dependency, or ask simulate for one side at a time.",
   optionDocs: "too many options matched — search for a longer substring.",
@@ -210,6 +211,11 @@ function answer<Args>(
  * The dependency, as strict as the simulator's own descriptor: a typo'd field
  * is a validation error naming the key, not a matcher that quietly reports
  * `no-input` because nothing it reads was ever set.
+ *
+ * `satisfies Record<keyof DependencyDescriptor, …>` is the invariant, and it is
+ * about KEY COVERAGE only: a field added to the engine descriptor is a compile
+ * error here, not a key `strictObject` silently rejects. The value types
+ * deliberately differ — `updateType` is an enum here and a `string` upstream.
  */
 const DEP = z
   .strictObject({
@@ -248,7 +254,7 @@ const DEP = z
     baseBranch: z.string().optional(),
     currentVersionTimestamp: z.string().optional(),
     mergeConfidenceLevel: z.string().optional(),
-  })
+  } satisfies Record<keyof DependencyDescriptor, z.ZodType>)
   .describe(
     "The hypothetical update. Every field is optional; a matcher whose fields you left unset " +
       "reports `no-input` instead of passing. updateType is derived from currentValue/newValue " +
@@ -466,23 +472,6 @@ function pickMessage(
     );
   }
   return found;
-}
-
-/** The body a node holds, or an explicit null saying it holds none — a key
- *  that just vanishes from the JSON is indistinguishable from a bug. */
-function bodyOf(node: PresetNode, kind: BodyKind) {
-  const body = node[kind];
-  if (body === undefined) {
-    return {
-      body: kind,
-      [kind]: null,
-      note:
-        `this node has no \`${kind}\` body (state: ${node.state}) — it was never reached in that ` +
-        `form. The bodies a run records are ${BODIES.join(", ")}; a node that failed to fetch, ` +
-        "or a duplicate that was not re-resolved, holds fewer of them.",
-    };
-  }
-  return { body: kind, [kind]: body };
 }
 
 export interface McpServerOptions {
@@ -957,15 +946,15 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
     },
     answer(async ({ runId, deps }, ctx) => {
       const run = store.get(runId);
-      const simulated: GroupQuestion[] = [];
+      const simulated: GroupUpdate[] = [];
       // Sequential on purpose: the engine serializes its queue anyway, and a
       // cancelled call must stop enqueuing (see throwIfCancelled).
       for (const dep of deps) {
         simulated.push({ dep: toDependency(dep), sim: await simulateRun(run, dep, ctx) });
       }
-      const { tally, notes } = askGroup(simulated, "mcp");
+      const { tally, notes } = askGroup({ updates: simulated, transport: "mcp" });
       return { ...tally, notes };
-    }, HINTS.simulate),
+    }, HINTS.group),
   );
 
   server.registerTool(

@@ -46,6 +46,6 @@ export {
 export { ruleWrittenKeys, summarizeRuleSelectors } from "./rule-selectors";
 export { truncate } from "./truncate";
 export { changedDependencyKeys } from "./simulation-changes";
-export { buildRunDigest, clauseText, digestText } from "./run-digest";
+export { buildRunDigest, clauseText, type DigestTone, digestText } from "./run-digest";
 export { buildDigestInput, deriveRunFacts, type RunFacts, validatedConfigOf } from "./run-facts";
 export { buildNoInputCaveat, buildVerdictSegments, verdictText } from "./verdict-sentence";

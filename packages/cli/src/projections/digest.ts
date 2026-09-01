@@ -4,6 +4,7 @@ import {
   buildRunDigest,
   clauseText,
   deriveRunFacts,
+  type DigestTone,
   digestText,
   effectiveTally,
   type RunFacts,
@@ -20,7 +21,7 @@ import { wouldRefuse } from "../run-input";
  */
 export interface DigestPayload {
   digest: string;
-  clauses: { id: string; tone: string; text: string }[];
+  clauses: { id: string; tone: DigestTone; text: string }[];
   accepted: boolean;
   counts: {
     errors: number;
