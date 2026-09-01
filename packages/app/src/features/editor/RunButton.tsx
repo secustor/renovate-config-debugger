@@ -9,8 +9,9 @@ import { formatShortcut, RUN_SHORTCUT } from "@/lib/shortcuts";
  * keyboard-shortcut document does not exist — so it is printed on the control
  * it duplicates, in the platform's own spelling, and named in the title for
  * anyone who hovers instead. The `<kbd>` is `aria-hidden` (the accessible name
- * stays the label alone) and hides itself on narrow viewports (index.css),
- * where the row is tight and the shortcut is least likely to be usable anyway.
+ * stays the label alone) and hides itself on narrow viewports
+ * (styles/02-controls.css), where the row is tight and the shortcut is least
+ * likely to be usable anyway.
  */
 export function RunButton({
   label,

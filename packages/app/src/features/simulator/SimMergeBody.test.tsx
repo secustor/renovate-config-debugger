@@ -88,8 +88,15 @@ describe("the merge replay's stop list", () => {
   });
 
   it("falls back to the plain disclosure when nothing merged", () => {
+    // `buildMergeStops` always yields at least base+final, so the fallback is
+    // keyed on `showReplay` alone — never on the stop list being empty.
+    const noMerge = simResult({ finalDependencyConfig: { automerge: true } });
     const view = render(
-      <SimMergeBody finalDependencyConfig={{ automerge: true }} stops={[]} showReplay={false} />,
+      <SimMergeBody
+        finalDependencyConfig={noMerge.finalDependencyConfig}
+        stops={buildMergeStops(noMerge, new Map())}
+        showReplay={false}
+      />,
     );
     expect(view.container.querySelector(".sim-merge-stops")).toBeNull();
     expect(view.container.querySelector("details.sim-final")?.textContent).toContain(

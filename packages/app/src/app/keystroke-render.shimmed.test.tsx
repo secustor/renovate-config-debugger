@@ -188,8 +188,9 @@ describe("keystroke render performance (roadmap 032)", () => {
     );
     await waitForQuiescence();
 
-    // Sanity: the run really mounted and rendered the heavy panels.
-    for (const name of ["OverviewPanel", "PresetsPanel", "EffectiveConfig", "TestsPanel"]) {
+    // Anti-vacuity: the run really rendered EVERY panel this test counts, so a
+    // delta of 0 below means "did not re-render", not "never rendered".
+    for (const name of PANELS) {
       expect(renderCounts[name] ?? 0, `${name} should have rendered after the run`).toBeGreaterThan(
         0,
       );

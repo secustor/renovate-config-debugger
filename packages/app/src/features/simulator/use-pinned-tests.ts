@@ -32,8 +32,6 @@ export interface PinnedTests {
   /** Finished evaluations for the result on screen, by pin id. A pin with no
    *  entry is still queued behind the ones before it. */
   evaluations: Record<string, PinEvaluation>;
-  /** At least one pin is still waiting for its verdict. */
-  evaluating: boolean;
 }
 
 interface PinState {
@@ -120,8 +118,5 @@ export function usePinnedTests({
   }, [result, pins]);
 
   const evaluations = state.result === result ? state.byId : EMPTY;
-  return {
-    evaluations,
-    evaluating: Boolean(result.finalConfig) && pins.some((pin) => !evaluations[pin.id]),
-  };
+  return { evaluations };
 }

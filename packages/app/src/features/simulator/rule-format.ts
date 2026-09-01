@@ -1,9 +1,9 @@
 import type { ClauseEvaluation, MergedKey, RuleEvaluation } from "@renovate-config-debugger/engine";
 import { isFailingClause, isNoInputNoMatch } from "@/lib/rule-verdict";
+import { truncate } from "@/lib/truncate";
 
 export function previewValue(value: unknown, max = 60): string {
-  const text = JSON.stringify(value) ?? "undefined";
-  return text.length > max ? `${text.slice(0, max)}…` : text;
+  return truncate(JSON.stringify(value) ?? "undefined", max);
 }
 
 /** Untruncated JSON rendering — the copy-as-markdown export and (replay-02

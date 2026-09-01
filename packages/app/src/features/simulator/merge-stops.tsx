@@ -44,8 +44,8 @@ export interface MergeStop {
   ruleIndex?: number;
   /** The keys this stop changed (rule and flatten stops). */
   merged?: MergedKey[];
-  /** Stable identity: the list's React key, and the anchor a verdict-card jump
-   *  scrolls to. */
+  /** Stable identity: the list's React key. The scroll anchor is separate and
+   *  positional — `mergeStopId(index)` in `dom-ids.ts` (roadmap 094). */
   id: string;
   /** Where the stop sits in the sequence. A rule stop matches how `stopLabels`
    *  words a thread's "step 2 of 2 in the replay →"; the rest are named. */

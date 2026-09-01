@@ -150,7 +150,8 @@ export function isHttpUrl(value: string): boolean {
 /**
  * An endpoint field: empty string means "unset" (this app's own convention
  * for platforms not fetched in the browser — see `PLATFORM_ENDPOINTS` in
- * App.tsx) or an http(s) URL. Never `javascript:`/`data:`/anything else.
+ * `data/platform-endpoints.ts`) or an http(s) URL. Never
+ * `javascript:`/`data:`/anything else.
  */
 export function isValidEndpoint(value: string): boolean {
   return value === "" || isHttpUrl(value);
@@ -199,10 +200,10 @@ export function isValidHost(value: string): boolean {
 const MAX_PLATFORM_LENGTH = 128;
 
 /** `platform` is intentionally NOT an enum: the app's own platform <select>
- *  (App.tsx `PLATFORM_ENDPOINTS`) already tolerates an unrecognized platform
- *  string (a future Renovate platform), rendering it as an extra option
- *  rather than rejecting it. Only reject the type-confusion case (an
- *  object/number/etc, or absurd/control-character input). */
+ *  (`PLATFORM_ENDPOINTS` in `data/platform-endpoints.ts`) already tolerates an
+ *  unrecognized platform string (a future Renovate platform), rendering it as
+ *  an extra option rather than rejecting it. Only reject the type-confusion
+ *  case (an object/number/etc, or absurd/control-character input). */
 export function isValidPlatform(value: string): boolean {
   return value.length <= MAX_PLATFORM_LENGTH && !CONTROL_CHARS.test(value);
 }

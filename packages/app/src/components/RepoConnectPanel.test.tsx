@@ -1,5 +1,5 @@
-import { cleanup, fireEvent, render } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { RepoConnectPanel } from "./RepoConnectPanel";
 import { CONNECT_OFFER as CONNECT } from "@tools/test/repo-deps";
 
@@ -8,9 +8,6 @@ import { CONNECT_OFFER as CONNECT } from "@tools/test/repo-deps";
  * share link that named the repo its config came from (one click reloads it),
  * and no suggestion at all (the editor's load overlay is the only door).
  */
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
 
 describe("RepoConnectPanel", () => {
   it("offers only the load overlay when nothing suggests a repository", () => {

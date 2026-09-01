@@ -26,18 +26,23 @@ function openGear(view: { getByRole: (role: string, options: { name: string }) =
   }
 }
 
-/** The `description` row's head button, whatever else the run produced. */
-function descriptionRow(container: HTMLElement): HTMLElement {
-  const rows = [...container.querySelectorAll<HTMLElement>(".data-table-row-head")];
+/** The row head whose lead names `lead`, whatever else the run produced. */
+function rowOf(scope: HTMLElement, lead: string): HTMLElement {
+  const rows = [...scope.querySelectorAll<HTMLElement>(".data-table-row-head")];
   const row = rows.find((head) =>
-    head.querySelector(".data-table-lead")?.textContent?.includes("description"),
+    head.querySelector(".data-table-lead")?.textContent?.includes(lead),
   );
   if (!row) {
     throw new Error(
-      `no description row among: ${rows.map((head) => head.querySelector(".data-table-lead")?.textContent).join(", ")}`,
+      `no “${lead}” row among: ${rows.map((head) => head.querySelector(".data-table-lead")?.textContent).join(", ")}`,
     );
   }
   return row;
+}
+
+/** The `description` row's head button. */
+function descriptionRow(container: HTMLElement): HTMLElement {
+  return rowOf(container, "description");
 }
 
 it("reports stats only once provenance has resolved, never a loading-time zero", async () => {
@@ -193,13 +198,7 @@ it("keeps the chain on every other key, winner first", async () => {
   const view = render(<EffectiveConfig result={result} />);
   await waitFor(() => expect(view.container.querySelector(".data-table-row")).not.toBeNull());
 
-  const rows = [...view.container.querySelectorAll<HTMLElement>(".data-table-row-head")];
-  const rules = rows.find((head) =>
-    head.querySelector(".data-table-lead")?.textContent?.includes("packageRules"),
-  );
-  if (!rules) {
-    throw new Error("no packageRules row");
-  }
+  const rules = rowOf(view.container, "packageRules");
   // Roadmap 016: the value cell frames the count rather than printing a bare
   // `[ 1 item ]` — the one cell in this table that is prose, not a literal.
   expect(rules.textContent).toContain("from your config");
@@ -347,12 +346,7 @@ it("groups the rows by the layer that decided each key", async () => {
   // one-step chain as the standard step card ("defaults to", value in full),
   // not a bespoke fields entry. One card is no cascade, so no heading claims
   // there is a stack to read.
-  const rangeStrategy = [...defaults.querySelectorAll<HTMLElement>(".data-table-row-head")].find(
-    (head) => head.querySelector(".data-table-lead")?.textContent?.includes("rangeStrategy"),
-  );
-  if (!rangeStrategy) {
-    throw new Error("no rangeStrategy row");
-  }
+  const rangeStrategy = rowOf(defaults, "rangeStrategy");
   fireEvent.click(rangeStrategy);
   const card = defaults.querySelector<HTMLElement>(".prov-step");
   expect(card?.className).toContain("winning");

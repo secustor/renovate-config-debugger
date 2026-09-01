@@ -109,9 +109,9 @@ export interface PinOutcome {
   /** Rules the reader NAMED (their own repo config) that did not match. */
   failed: PinFailedRule[];
   buckets: PinBucket[];
-  totalRules: number;
-  /** Everything that didn't match — the failed rules included, because they
-   *  are named instead of bucketed, not excluded from the count. */
+  /** Everything that didn't match (`sim.rules.length - matched.length`) — the
+   *  failed rules included, because they are named instead of bucketed, not
+   *  excluded from the count. */
   skippedCount: number;
   /** Replay-02 R3's caveat, when this pin's own rules lost to an unset field —
    *  and what makes the card's dot amber rather than green. */
@@ -548,7 +548,6 @@ export function buildPinOutcome(
     matched,
     failed,
     buckets: buildBuckets(skipped, layerByIndex, depName, sim.missingInputs),
-    totalRules: sim.rules.length,
     skippedCount: sim.rules.length - matched.length,
     ...(caveat === undefined ? {} : { caveat }),
   };

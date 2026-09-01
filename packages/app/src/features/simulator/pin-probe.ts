@@ -1,11 +1,10 @@
 import type {
   ClauseEvaluation,
   ProvenanceLayer,
-  RuleAttribution,
   SimulationResult,
 } from "@renovate-config-debugger/engine";
 import { layerLabel } from "@/lib/provenance-layer";
-import { crossRuleIndex } from "@/lib/rule-cross-index";
+import { truncate } from "@/lib/truncate";
 import { fullValue } from "./rule-format";
 import type { RuleDescriptionNote } from "./rule-descriptions";
 import { ruleRef } from "@/lib/rule-ref";
@@ -30,7 +29,6 @@ export interface ProbeHit {
   index: number;
   matched: boolean;
   layer?: ProvenanceLayer;
-  repoIndex?: number;
   /** Where the query was found — `index`, `preset`, `description`, `writes`,
    *  or the matcher key itself. */
   foundIn: string;
@@ -56,7 +54,7 @@ const WINDOW = 26;
 
 function clip(pre: string, hit: string, post: string): Pick<ProbeHit, "pre" | "hit" | "post"> {
   const left = pre.length > WINDOW ? `…${pre.slice(-WINDOW)}` : pre;
-  const right = post.length > WINDOW ? `${post.slice(0, WINDOW)}…` : post;
+  const right = truncate(post, WINDOW);
   return { pre: left, hit, post: right };
 }
 
@@ -107,14 +105,12 @@ function ruleFields(
 export function probeRules({
   sim,
   layerByIndex,
-  attribution,
   descriptions,
   ruleBodies,
   query,
 }: {
   sim: SimulationResult;
   layerByIndex: Map<number, ProvenanceLayer>;
-  attribution: RuleAttribution[] | null | undefined;
   descriptions: Map<number, RuleDescriptionNote>;
   /** `finalConfig.packageRules` — the merged rule bodies, indexed exactly the
    *  way `RuleEvaluation.index` counts. Optional: without them the writes
@@ -147,7 +143,6 @@ export function probeRules({
     if (hits.length === MAX_PROBE_HITS) {
       continue;
     }
-    const repoIndex = crossRuleIndex("merged", rule.index, attribution);
     hits.push({
       index: rule.index,
       matched: rule.verdict === "matched",
@@ -159,7 +154,6 @@ export function probeRules({
       ),
       clauses: rule.clauses,
       ...(layer ? { layer } : {}),
-      ...(repoIndex === undefined ? {} : { repoIndex }),
     });
   }
   return { total, hits };

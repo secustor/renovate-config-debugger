@@ -1,4 +1,5 @@
 import type { PresetNode, PresetNodeState } from "@renovate-config-debugger/engine";
+import { isPlainObject } from "./input-schemas";
 import { computeTreeStats } from "./preset-tree-stats";
 
 /**
@@ -47,10 +48,7 @@ export function buildPresetLookup(root: PresetNode | undefined): Map<string, Pre
     if (!node) {
       continue;
     }
-    const resolved =
-      typeof node.resolved === "object" && node.resolved !== null && !Array.isArray(node.resolved)
-        ? (node.resolved as Record<string, unknown>)
-        : undefined;
+    const resolved = isPlainObject(node.resolved) ? node.resolved : undefined;
     const ruleCount = Array.isArray(resolved?.packageRules) ? resolved.packageRules.length : 0;
     const optionCount = resolved
       ? Object.keys(resolved).filter((k) => k !== "packageRules").length

@@ -1360,8 +1360,8 @@ export function App() {
       {/* Roadmap 075: the app is a full-viewport frame — header row on top,
           content below — and the PAGE stops scrolling once a result exists.
           `has-results` is what switches the content area from the landing's
-          centered reading column to the two-pane grid; both states are in
-          index.css next to each other. */}
+          centered reading column to the two-pane grid; both states live in
+          styles/10-messages-tabs.css. */}
       <main className={`app-shell${result ? " has-results" : ""}`}>
         {/* Roadmap 068: the first two tab stops on the page. Off-screen until
             focused, and the results link exists only once there are results —
@@ -1386,10 +1386,9 @@ export function App() {
             the numbers that used to be an Overview tab, each wired to the
             instrument that explains it. Before a run it is identity + session
             only; the subtitle that used to sit under it is the landing's. */}
-        {/* The run half of the header (verdict, digest links) reads the
+        {/* The run half of the header (verdict, digest links, share) reads the
             run-view context; only the session half stays props (086). */}
         <AppShellHeader
-          onShare={result ? buildShareLinkAndCopy : undefined}
           oauthConfigured={oauthConfigured}
           signedIn={signedIn}
           authUser={authUser}

@@ -40,7 +40,6 @@ describe("where a hit is attributed", () => {
     const { hits } = probeRules({
       sim: SIM,
       layerByIndex: LAYERS,
-      attribution: null,
       descriptions: NO_DESCRIPTIONS,
       query: "packageRules[7]",
     });
@@ -53,7 +52,6 @@ describe("where a hit is attributed", () => {
     const results = probeRules({
       sim: SIM,
       layerByIndex: LAYERS,
-      attribution: null,
       descriptions: NO_DESCRIPTIONS,
       query: "angular",
     });
@@ -62,7 +60,6 @@ describe("where a hit is attributed", () => {
     const byValue = probeRules({
       sim: SIM,
       layerByIndex: LAYERS,
-      attribution: null,
       descriptions: NO_DESCRIPTIONS,
       query: "dockerfile",
     });
@@ -79,7 +76,6 @@ describe("where a hit is attributed", () => {
     const { hits } = probeRules({
       sim,
       layerByIndex: new Map(),
-      attribution: null,
       descriptions: NO_DESCRIPTIONS,
       ruleBodies: bodies,
       query: "automerge",
@@ -101,7 +97,6 @@ test("the total keeps counting past the render cap", () => {
   const results = probeRules({
     sim: many,
     layerByIndex: new Map(),
-    attribution: null,
     descriptions: NO_DESCRIPTIONS,
     query: "dockerfile",
   });
@@ -116,7 +111,6 @@ test("long values are clipped around the highlight, with the ellipses saying so"
   const { hits } = probeRules({
     sim,
     layerByIndex: new Map(),
-    attribution: null,
     descriptions: NO_DESCRIPTIONS,
     query: "needle",
   });
@@ -132,7 +126,6 @@ test("an empty query probes nothing", () => {
     probeRules({
       sim: SIM,
       layerByIndex: LAYERS,
-      attribution: null,
       descriptions: NO_DESCRIPTIONS,
       query: "   ",
     }),
@@ -151,7 +144,6 @@ test("the idle suggestions come from the run, so each one is guaranteed to hit",
     const results = probeRules({
       sim,
       layerByIndex: LAYERS,
-      attribution: null,
       descriptions: NO_DESCRIPTIONS,
       ruleBodies: bodies,
       query,

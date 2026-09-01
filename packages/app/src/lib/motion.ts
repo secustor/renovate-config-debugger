@@ -10,7 +10,8 @@
 
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 
-/** Must match the `.rcd-flash` animation's own duration in index.css. */
+/** Must match the `.rcd-flash` animation's own duration in
+ *  `styles/10-messages-tabs.css`. */
 const FLASH_MS = 1600;
 
 /** The OS-level "don't animate" preference, read at call time (a user can flip

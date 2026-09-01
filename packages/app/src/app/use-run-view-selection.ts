@@ -28,7 +28,7 @@ import type { ShareView } from "@/lib/share";
  *
  *  1. a new run RESETS the selection (during render, not in an effect);
  *  2. a decoded share link OVERRIDES that reset, on the commit after it;
- *  3. the same five fields are ENCODED back into a link.
+ *  3. the same four fields are ENCODED back into a link.
  *
  * Rule 2 depends on rule 1's timing — the link's view has to land after the
  * reset or the reset wipes it — and rule 3 has to agree with rule 2 about what

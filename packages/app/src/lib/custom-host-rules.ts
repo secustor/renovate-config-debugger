@@ -12,7 +12,7 @@
  * i.e. behaviour, and its neighbours are the other validators
  * (structure review, finding 20).
  */
-import { isValidHost, isValidToken } from "@/lib/input-schemas";
+import { isPlainObject, isValidHost, isValidToken } from "@/lib/input-schemas";
 import { sessionGet, sessionRemove, sessionSet } from "@/platform/storage";
 
 export interface CustomHostRule {
@@ -37,10 +37,10 @@ function isValidHostType(value: unknown): value is string {
 }
 
 function parseRule(raw: unknown): CustomHostRule | null {
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+  if (!isPlainObject(raw)) {
     return null;
   }
-  const { host, hostType, token } = raw as Record<string, unknown>;
+  const { host, hostType, token } = raw;
   if (typeof host !== "string" || !isValidHost(host)) {
     return null;
   }

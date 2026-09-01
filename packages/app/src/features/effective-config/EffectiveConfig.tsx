@@ -20,8 +20,6 @@ import { useRuleProvenance } from "@/hooks/rule-provenance";
 import { useDescriptionProvenance } from "@/hooks/description-provenance";
 import { buildDescriptionCards } from "@/lib/description-attribution";
 import { buildDescriptionLedger, DESCRIPTION_KEY } from "./description-ledger";
-// Roadmap 069 hoisted this out of here: the description digest prints the same
-// one-line matcher summary, and one spelling of it is enough.
 import { resolvedConfigText } from "./resolved-json";
 import { useSyncedReset } from "@/hooks/use-synced-reset";
 

@@ -20,7 +20,7 @@ export const ROOT_NODE_ID: typeof EngineModule.ROOT_NODE_ID = "root";
  * the tree view, the flat table, the Presets tab badge and the Overview
  * digest. Pure computation, so it lives outside `PresetTree.tsx`: a component
  * module that also exports plain functions breaks Fast Refresh
- * (react/only-export-components), and App.tsx reads three of these directly.
+ * (react/only-export-components).
  *
  * It sits in `lib/` rather than `components/` because nothing here is React or
  * DOM. `run-facts`, `tree-descriptions`, `description-attribution` and the

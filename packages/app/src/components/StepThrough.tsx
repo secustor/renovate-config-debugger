@@ -22,7 +22,7 @@ interface Props {
   compact?: boolean;
   /**
    * Controlled step index. When provided (with onIndexChange), the parent owns
-   * the index — used so a shareable link (007/044) can restore the step. Falls
+   * the index — used so a shareable link (007) can restore the step. Falls
    * back to internal state when omitted (the uncontrolled PresetDetail instance).
    */
   index?: number;

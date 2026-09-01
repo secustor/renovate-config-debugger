@@ -6,11 +6,13 @@ import { applyTheme, readTheme, runStorageMigrations } from "@/platform/storage"
 // The stylesheet, in cascade order (roadmap 050's deferred split, executed):
 // index.css holds the token block and element base; the numbered files are
 // the former single file cut at its section boundaries. The ORDER of these
-// imports is load-bearing — it reproduces the original cascade byte-for-byte,
-// which two cross-file equal-specificity couplings (.preset-panel base in
-// 04 vs its @container override in 03, and .diff-wrapper's split base/dark
-// blocks) depend on. Add new styles to the file that owns the surface; add
-// new files only at the end, or knowingly re-verify the cascade.
+// imports is load-bearing — it reproduces the original cascade byte-for-byte.
+// The equal-specificity couplings recorded today (not an exhaustive audit):
+// `main.app-shell` (01's base vs 10's >=60.0625rem frame override, overlapping
+// min-height/padding) and `.seg button` (02's button base → 03's segment
+// overrides → 19's two-line variants). Add new styles to the file that owns
+// the surface; add new files only at the end, or knowingly re-verify the
+// cascade.
 import "./index.css";
 import "./styles/01-shell.css";
 import "./styles/02-controls.css";

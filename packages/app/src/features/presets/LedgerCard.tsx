@@ -105,7 +105,7 @@ export function LedgerCard({
   onOpenNode,
 }: {
   source: LedgerSource;
-  /** Owned by the ledger, so the summary strip's tokens can open a card. */
+  /** Owned by the ledger — a new run shuts every card. */
   open: boolean;
   onToggle: () => void;
   /** Opens a preset's node — i.e. switches to the tree, selected on it. */

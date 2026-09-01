@@ -33,9 +33,10 @@ interface Props {
  * shows its diff.
  *
  * Roadmap 044: the interaction itself (counter, Prev/Next/Jump to end, the
- * per-step diff and the Cumulative toggle) lives in `StepThrough`, shared with
- * the simulator's merge stepper; this component is the migrate-stage adapter —
- * it names the steps and owns the "Copy migrated config" action.
+ * per-step diff and the Cumulative toggle) lives in `StepThrough`, extracted
+ * there for the simulator's merge stepper (retired by 094 — this is the one
+ * caller left); this component is the migrate-stage adapter — it names the
+ * steps and owns the "Copy migrated config" action.
  */
 export const MigrationSteps = memo(function MigrationSteps({
   steps,

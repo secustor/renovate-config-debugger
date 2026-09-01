@@ -10,6 +10,7 @@ import type { ProvenanceLayer, SimulationResult } from "@renovate-config-debugge
 import { landOnTarget, motionScrollOptions } from "@/lib/motion";
 import { type RuleFilters, ruleVisible } from "@/lib/rule-filters";
 import { useSyncedReset } from "@/hooks/use-synced-reset";
+import { ruleRowId } from "./dom-ids";
 
 export interface RuleFocus {
   /** The simulator card itself — where a cross-link lands when no simulation
@@ -139,7 +140,7 @@ export function useRuleFocus({
         setRuleFilters({ verdict: "all", preset: "all" });
         landed = false;
       } else {
-        const el = document.getElementById(`sim-rule-${scrollTarget}`);
+        const el = document.getElementById(ruleRowId(scrollTarget));
         if (el) {
           landOnTarget(el, "center");
         }

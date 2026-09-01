@@ -97,26 +97,17 @@ export const MessagesPanel = memo(function MessagesPanel({
           the message's identity — and unlike the list index it survives a
           message being fixed above. 075 turns each item into a card; the list
           semantics stay, because they are what says how many findings there
-          are. */}
+          are. The severity initial prefixes the pair because both severities
+          share one array — an error and a warning can carry the same pair. */}
       <ul className="messages problem-list">
-        {result.errors.map((m) => (
+        {[
+          ...result.errors.map((m) => ["error", m] as const),
+          ...result.warnings.map((m) => ["warning", m] as const),
+        ].map(([severity, m]) => (
           <ProblemCard
-            key={`e:${m.topic}:${m.message}`}
+            key={`${severity[0]}:${m.topic}:${m.message}`}
             message={m}
-            severity="error"
-            errorLib={errorLib ?? null}
-            config={validatedConfig}
-            ruleAttribution={ruleAttribution}
-            onJumpToEditor={onJumpToEditor}
-            onJumpToSimRule={onJumpToSimRule}
-            onApplyFix={onApplyFix}
-          />
-        ))}
-        {result.warnings.map((m) => (
-          <ProblemCard
-            key={`w:${m.topic}:${m.message}`}
-            message={m}
-            severity="warning"
+            severity={severity}
             errorLib={errorLib ?? null}
             config={validatedConfig}
             ruleAttribution={ruleAttribution}

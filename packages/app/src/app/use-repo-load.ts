@@ -22,7 +22,7 @@ import { ESCAPE_PRIORITY } from "@/lib/escape-stack";
 import { useEscapeLayer } from "@/hooks/use-escape-layer";
 import type { RepoPlatform, TraceResult } from "@renovate-config-debugger/engine";
 import { PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
-import { FETCHABLE_PLATFORMS, HOST_PLATFORM } from "@/data/host-tokens";
+import { HOST_PLATFORM, isFetchablePlatform } from "@/data/host-tokens";
 import { isGithubRateLimited } from "@/lib/github-failure";
 import { isValidRepoHost, isValidRepoRefPart } from "@/lib/input-schemas";
 import { configFileNameFor, parseRepoReference } from "@/lib/repo-reference";
@@ -238,13 +238,13 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
       repoPlatform = knownHost;
       repoEndpoint = PLATFORM_ENDPOINTS[knownHost] ?? "";
     } else {
-      if (!FETCHABLE_PLATFORMS.has(platform as RepoPlatform)) {
+      if (!isFetchablePlatform(platform)) {
         setNotice(
           `The current repository host (${platform}) can't be fetched from the browser. Choose github, gitlab, gitea or forgejo under Advanced — hosts & credentials → "Repository host", or use a full URL.`,
         );
         return;
       }
-      repoPlatform = platform as RepoPlatform;
+      repoPlatform = platform;
       repoEndpoint = endpoint;
     }
 

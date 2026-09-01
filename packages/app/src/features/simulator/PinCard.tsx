@@ -71,7 +71,6 @@ function PinCardBody({
   outcome,
   evaluation,
   layerByIndex,
-  attribution,
   descriptions,
   ruleBodies,
   subject,
@@ -81,7 +80,6 @@ function PinCardBody({
   outcome: PinOutcome | null;
   evaluation: PinEvaluation | undefined;
   layerByIndex: Map<number, ProvenanceLayer>;
-  attribution: RuleAttribution[] | null | undefined;
   descriptions: Map<number, RuleDescriptionNote>;
   ruleBodies?: readonly unknown[];
   subject: string;
@@ -114,7 +112,6 @@ function PinCardBody({
       <PinProbe
         sim={evaluation.sim}
         layerByIndex={layerByIndex}
-        attribution={attribution}
         descriptions={descriptions}
         ruleBodies={ruleBodies}
         subject={subject}
@@ -174,7 +171,6 @@ export function PinCard({
           outcome={outcome}
           evaluation={evaluation}
           layerByIndex={layerByIndex}
-          attribution={attribution}
           descriptions={descriptions}
           ruleBodies={ruleBodies}
           subject={[

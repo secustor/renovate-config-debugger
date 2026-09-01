@@ -10,13 +10,19 @@
    WHY THIS FILE IS LAST, not up with 01-shell / 02-controls where a primitive
    belongs by rights: the numbering encodes the pre-split `index.css` cascade
    byte-for-byte (see main.tsx), so renumbering thirteen files to slot this in
-   would put two documented equal-specificity couplings at risk for a purely
-   cosmetic gain. Appending is the move main.tsx's own header sanctions.
+   would put the documented equal-specificity couplings at risk for a purely
+   cosmetic gain — it would move 10 above 01 (`main.app-shell`) or 03 above 02
+   (`.seg button`). Appending is the move main.tsx's own header sanctions.
 
-   Verified safe before moving: the ONLY rule outside this block that targets
-   `.tab` is `15-pins.css`'s `.pin-add-tabs .tab`, whose specificity (0,2,0)
-   beats a bare `.tab` (0,1,0) whatever the file order — so nothing here
-   depends on loading before or after anything else. */
+   Verified safe before moving: the only rules outside this block that target
+   `.tab` or `.tab-bar` are `15-pins.css`'s `.pin-add-tabs .tab` and
+   `.tab-bar.pin-add-tabs`, and `10-messages-tabs.css`'s
+   `.results-panel > .tab-bar` — all three (0,2,0), so they beat the bare
+   (0,1,0) primitives whatever the file order and nothing here depends on
+   loading before or after anything else. The `.tab-bar` half of that audit was
+   missed the first time: 06fb1fb4 moved the primitive to after 15-pins.css and
+   the then-bare `.pin-add-tabs` lost the pin strip its side padding until the
+   selector was compounded. */
 
 /* Wraps rather than overflowing: the strip must never push the page sideways.
    Roadmap 075: a rail, so the active tab has something to be attached TO — its

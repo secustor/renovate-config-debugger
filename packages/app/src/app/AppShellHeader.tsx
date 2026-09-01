@@ -140,9 +140,6 @@ function RunStatusPill({ hasErrors, errorCount }: { hasErrors: boolean; errorCou
  * half — verdict, counts, digest links — reads `useRunView()` (roadmap 086).
  */
 interface Props {
-  /** Roadmap 077: builds and copies the share link (header Share button).
-   *  Undefined before a run — nothing to share yet, no control. */
-  onShare: (() => Promise<void>) | undefined;
   oauthConfigured: boolean;
   signedIn: boolean;
   authUser: StoredUser | null;
@@ -151,7 +148,6 @@ interface Props {
 }
 
 export function AppShellHeader({
-  onShare,
   oauthConfigured,
   signedIn,
   authUser,
@@ -169,8 +165,11 @@ export function AppShellHeader({
     onJumpToTab,
     onShowRewrites,
     onSignIn,
+    onShare,
   } = useRunView();
   const hasResult = result !== null;
+  // Roadmap 077: no run, nothing worth a link — the control is absent.
+  const shareAction = hasResult ? onShare : undefined;
   return (
     <header className="app-header">
       <AppBrand />
@@ -191,7 +190,7 @@ export function AppShellHeader({
           in the row. */}
       <AppHeaderTools
         renovateVersion={result?.renovateVersion}
-        onShare={onShare}
+        onShare={shareAction}
         oauthConfigured={oauthConfigured}
         signedIn={signedIn}
         authUser={authUser}

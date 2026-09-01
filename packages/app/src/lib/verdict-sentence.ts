@@ -1,5 +1,6 @@
 import type { RuleAttribution, SimulationResult } from "@renovate-config-debugger/engine";
 import { pluralWord } from "./format";
+import { isPlainObject } from "./input-schemas";
 import { isFailingClause } from "./rule-verdict";
 
 /** A config value in a plain-language sentence: `[a, b]`, `"x"`, `42`. */
@@ -49,12 +50,7 @@ function automergeScopeSource(
     (r) =>
       r.verdict === "matched" &&
       r.merged?.some(
-        (m) =>
-          m.key === updateType &&
-          typeof m.after === "object" &&
-          m.after !== null &&
-          !Array.isArray(m.after) &&
-          (m.after as Record<string, unknown>).automerge === true,
+        (m) => m.key === updateType && isPlainObject(m.after) && m.after.automerge === true,
       ),
   );
   if (!rule) {

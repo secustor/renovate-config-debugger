@@ -24,7 +24,7 @@
  *   never inspects the config, so it can never contradict what the Effective
  *   config reports.
  *
- * Pure and DOM-free (`lib/`), and generic over the row: the card's row shape is
+ * Pure and DOM-free, and generic over the row: the card's row shape is
  * a view concern, so the classifier asks only for `text`.
  */
 

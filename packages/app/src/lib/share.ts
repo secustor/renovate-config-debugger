@@ -433,9 +433,9 @@ function resolveEffectivePlatformContext(payload: SharePayload): {
 }
 
 /**
- * The token/persistence policy for opening a decoded payload. Pure — App.tsx's
- * `loadShareToken` supplies the payload and applies the outcome, so the
- * decision itself is unit-testable without a browser.
+ * The token/persistence policy for opening a decoded payload. Pure —
+ * `use-share-link.ts`'s `loadShareToken` supplies the payload and applies the
+ * outcome, so the decision itself is unit-testable without a browser.
  *
  * Every endpoint the link would APPLY is considered, not just the winning one:
  * the top-level endpoint lands in the endpoint field (and, historically, in
@@ -501,8 +501,9 @@ export function untrustedGuardForPolicy(policy: ShareRunPolicy): UntrustedEndpoi
  * address bar (Copy link, or clearing an unreadable link — never a real
  * navigation), and whether the editor has drifted from the last
  * loaded/run baseline. Kept pure and DOM-free so it can be unit-tested
- * without mounting the app; App.tsx supplies the three inputs from
- * `window.location.hash`, a ref, and `content !== loadedContent`.
+ * without mounting the app; the `hashchange` effect in `use-share-link.ts`
+ * supplies the three inputs from `window.location.hash`, a ref, and
+ * `hasUnsavedEditsRef` (i.e. `content !== loadedContent`, use-config-document.ts).
  */
 export type HashChangeDecision =
   | { action: "ignore" }
