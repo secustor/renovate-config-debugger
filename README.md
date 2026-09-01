@@ -6,16 +6,15 @@
 
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/secustor/renovate-config-debugger/badge)](https://scorecard.dev/viewer/?uri=github.com/secustor/renovate-config-debugger)
 
-Step through what [Renovate](https://github.com/renovatebot/renovate) actually
-does with your config: parsing, migration of deprecated options, massaging,
-validation, preset resolution and merging. It runs Renovate's own code in your
-browser. Think "compiler explorer for Renovate configs".
+See what [Renovate](https://github.com/renovatebot/renovate) actually does with
+your config — before you commit it. It runs Renovate's own code in your
+browser, so the answers are real and your config never leaves the page. Think
+"compiler explorer for Renovate configs".
 
-**[Try it live](https://renovate.secustor.dev/)** — nothing to install, and
-your config never leaves the browser. (Prefer your own instance? See
-[Self-hosting](#self-hosting-docker).)
+**[Try it live](https://renovate.secustor.dev/)** — nothing to install.
+([Self-hosting](#self-hosting-docker) is one container.)
 
-Paste this into the config editor and press _Run pipeline_ or simply [open it with the below content filled](https://renovate.secustor.dev/#config=PZDNToQwFIVfpTlxWRnHEE36Bi50YXRlZ1HKHUCnP2kvqCG8uykDLpvzfeekd8YEdS-RyIfJMEGhrqu6eoCEDf48dFCYtRdC4ybbnpzRUEKjZ45ZHQ5tsLna7SZwZYM77O_bq1F95uA15LWGfph8m0vNh95GVCIbnCPfUqtx2khnMlN6ynmkQnMaaUuisV-mo9fxQluRF0KIeZXY9s_Gm47SPuKjK617-h5bw_T2G3cZbvAhbUiXwhhfjFs3V1dssVjKzEn7RXtInIcLFQ7q_3zrT8vpoHBMj0M-NpCYBvqGmpHZdIWOiTIxJDJThLqTYNNAIUyUVnZZ_gA):
+Paste this and press _Run pipeline_, or [open it pre-filled](https://renovate.secustor.dev/#config=PZDNToQwFIVfpTlxWRnHEE36Bi50YXRlZ1HKHUCnP2kvqCG8uykDLpvzfeekd8YEdS-RyIfJMEGhrqu6eoCEDf48dFCYtRdC4ybbnpzRUEKjZ45ZHQ5tsLna7SZwZYM77O_bq1F95uA15LWGfph8m0vNh95GVCIbnCPfUqtx2khnMlN6ynmkQnMaaUuisV-mo9fxQluRF0KIeZXY9s_Gm47SPuKjK617-h5bw_T2G3cZbvAhbUiXwhhfjFs3V1dssVjKzEn7RXtInIcLFQ7q_3zrT8vpoHBMj0M-NpCYBvqGmpHZdIWOiTIxJDJThLqTYNNAIUyUVnZZ_gA):
 
 ```json
 {
@@ -28,33 +27,30 @@ Paste this into the config editor and press _Run pipeline_ or simply [open it wi
 }
 ```
 
-Migration rewrites the deprecated `masterIssue` into `dependencyDashboard`,
-`extends` explodes into the preset resolution tree, and the simulator tells you
-which updates that `packageRules` entry actually matches.
+You'll see the deprecated `masterIssue` rewritten to `dependencyDashboard`,
+`config:recommended` expanded into its full preset tree, and which updates that
+`packageRules` entry really matches.
 
-## What it shows
+## What it solves
 
-- The pipeline stage by stage, as a structured trace with before/after
-  snapshots, JSON-patch deltas and Renovate's own validation messages.
-- A preset tree that survives `config:recommended`. Its ~1,100 presets stay
-  legible: a summary header shows the honest cost (a handful change top-level
-  options, the rest contribute grouping packageRules), and there are roll-ups,
-  search, a flat table and a "hide zero-contribution routers" toggle.
-- A packageRules simulator. Describe a hypothetical update and it shows which
-  entries match, rule by rule and clause by clause, using Renovate's real
-  matcher code, plus the per-dependency config those rules merge to.
-- Per-key provenance, so you can see which layer set each key, including the
-  self-hosted global and inherited layers below.
-- Share links. _Copy link_ reopens the current analysis (config, format,
-  platform context, layers, view) from the URL _fragment_, so it never reaches a
-  server log. It warns if the Renovate version has drifted, and it never carries
-  tokens or manually injected presets.
-- Load from repo. Give it `owner/repo`, a full URL or `git@host:org/repo.git`
-  with an optional ref: it probes Renovate's documented config-file locations,
-  says which file won, and sets the platform context for known hosts. It also
-  offers (on by default) to bring the org's inherited config along, resolved the
-  way a real `inheritConfig` run resolves it, from `org-inherited-config.json`
-  in `{{parentOrg}}/renovate-config`. Both are editable before you load.
+- **"Why didn't my packageRule match?"** — Describe a hypothetical update in
+  the simulator and see every rule and clause evaluated with Renovate's real
+  matcher code, plus the per-dependency config the matching rules merge to.
+- **"What does `config:recommended` actually do?"** — The preset tree expands
+  every `extends`, with search, roll-ups and an honest summary of which of its
+  ~1,100 presets change anything at all.
+- **"Where did this value come from?"** — Per-key provenance names the layer
+  that set it: defaults, a preset, global or inherited config, or your repo
+  config.
+- **"Will Renovate accept this?"** — The pipeline runs stage by stage —
+  parsing, migration of deprecated options, massaging, validation — with
+  before/after diffs and Renovate's own error and warning messages.
+- **"What is this repo actually running?"** — Load a config straight from
+  `owner/repo` or a URL; it finds the config file Renovate would use and can
+  bring the org's inherited config along.
+- **"Can I show a colleague?"** — _Copy link_ puts the whole analysis in the
+  URL fragment: it reopens exactly, never reaches a server log, and never
+  carries tokens.
 
 <details>
 <summary>Global + inherited config layers (self-hosted admins)</summary>
@@ -90,34 +86,24 @@ not, so their presets fall back to manual injection.
 | azure / bitbucket / bitbucket-server / gerrit (via `local>`) | not supported        | reachable only via a real Renovate run                      |
 | codecommit / scm-manager (via `local>`)                      | not supported        | Renovate itself does not serve local presets there          |
 
-`local>` and bare `owner/repo` are not hosts of their own. They resolve against
-the platform + endpoint picked in the toolbar's _Platform context_ control
-(default `github` / `https://api.github.com`), and the trace records which one
-each node used.
-
 Any preset a fetcher cannot reach (self-hosted or air-gapped hosts, a
-hypothetical preset) can be supplied by hand. Select the failed node in the
-resolution tree and paste its JSON into "Provide preset content manually". The
-pipeline re-runs with it and flags the node `user-supplied`.
+hypothetical preset) can be supplied by hand: select the failed node in the
+tree and paste its JSON into "Provide preset content manually". The pipeline
+re-runs with it and flags the node `user-supplied`.
 
 </details>
 
 ## Private repositories & presets
 
-Reading a private config or preset repo takes two steps, and the second one is
-easy to miss: sign in with GitHub, then install the App on the repositories it
-should read. Signing in by itself grants nothing, so a private repo keeps coming
-back as "not found" until the App is installed on it. Public repos need neither
-step.
-
-That split is the point. It is what lets you decide, repository by repository,
-what the debugger can read, and the selection stays editable afterwards. The App
-asks for a single permission, Contents: read-only. Inside an organization, a
-member may need an owner to approve the install.
+Two steps, and the second is easy to miss: **sign in with GitHub**, then
+**install the App** on the repositories it should read. Signing in alone grants
+nothing — a private repo stays "not found" until the App is installed on it.
+Public repos need neither. The App's only permission is Contents: read-only,
+and you pick the repositories, editable later.
 
 [docs/GitHub-App-Access.md](docs/GitHub-App-Access.md) has the walkthrough,
-including owner approval, changing the selection later, revoking, and the
-personal-access-token fallback for GitHub Enterprise Server.
+including org-owner approval and the personal-access-token fallback for GitHub
+Enterprise Server.
 
 <details>
 <summary>Privacy, tokens & GitHub sign-in</summary>
@@ -133,13 +119,9 @@ personal-access-token fallback for GitHub Enterprise Server.
   but the OAuth `code → token` / `refresh_token → token` exchange, because a
   static site cannot hold the `client_secret` GitHub still requires. It never
   sees a config, a preset, or an API request.
-- Private presets and private repo configs need auth. The GitHub App's only
-  permission is Contents: read-only, so the consent screen truthfully reads
-  "read the contents of the repositories you select"; signing in also raises the
-  rate limit from 60 to 5,000 requests/hour. Sign-out clears the local token,
-  and the chip links to GitHub's authorization page for true revocation.
-  Granting the App access to a given repository is a separate step, covered in
-  [docs/GitHub-App-Access.md](docs/GitHub-App-Access.md).
+- Signing in also raises the GitHub rate limit from 60 to 5,000 requests/hour.
+  Sign-out clears the local token, and the chip links to GitHub's authorization
+  page for true revocation.
 - Sign-in is off by default. It turns on only when the deploy provides
   `VITE_GITHUB_CLIENT_ID` and `VITE_OAUTH_WORKER_URL` (plus optional
   `VITE_GITHUB_APP_SLUG`) or their `RCD_*` equivalents. Otherwise a personal
@@ -155,86 +137,67 @@ personal-access-token fallback for GitHub Enterprise Server.
 > The CLI and the MCP server are **experimental**: subcommands, flags and
 > output shapes may change in any `0.x` release.
 
-Everything the app shows is available without a browser — the same engine, the
-same pinned Renovate, as structured data:
+Everything the app shows, without a browser — same engine, same pinned
+Renovate, as structured data:
 
 ```bash
 npx -y @renovate-config-debugger/cli digest renovate.json     # the run in one paragraph
 npx -y @renovate-config-debugger/cli validate renovate.json   # exit 2 = Renovate would refuse it
 npx -y @renovate-config-debugger/cli tree renovate.json       # what `extends` expanded into
-npx -y @renovate-config-debugger/cli provenance renovate.json labels
 npx -y @renovate-config-debugger/cli simulate renovate.json --dep '{"depName":"react"}'
 npx -y @renovate-config-debugger/cli compare before.json after.json --dep '{"depName":"react"}'
 ```
 
-`--format json` on any subcommand; `--help` lists them all. Exit `2` means
-Renovate would refuse the config, which is the blocking signal a Claude Code
-hook reads, so `validate` drops into one with no wrapper.
+`--format json` on any subcommand; `--help` lists them all. `validate`'s
+exit `2` is a ready-made blocking signal for CI or a Claude Code hook.
 
-For an agent session, register the MCP server once and get typed tools instead
-of flags — the engine boots once and `run_config` holds the trace, so
-drill-down questions cost milliseconds and describe one consistent run:
+For agents, the MCP server gives typed tools instead of flags — the engine
+boots once, `run_config` holds the trace, and drill-down questions cost
+milliseconds:
 
 ```bash
 claude mcp add rcd -- npx -y @renovate-config-debugger/cli mcp
 ```
 
-In Claude Code, the plugin bundles that registration together with a skill that
-knows the workflow — validate first, digest for orientation, drill down, and
-`compare` as the oracle that proves an edit changed something:
+In Claude Code, the plugin bundles that registration with a skill that knows
+the debugging workflow:
 
 ```
 /plugin marketplace add secustor/claude-marketplace
 /plugin install renovate-config-debugger@secustor
 ```
 
-Plugins install per user or per project scope; project scope is the better
-default for a repository whose Renovate config people actually debug, since the
-tools and the workflow then travel with the checkout.
-The plugin is hosted at this repository's root —
-[`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) plus the
-[`skills/debug-renovate-config`](skills/debug-renovate-config) skill, with
-[`.mcp.json`](.mcp.json) launching the published CLI via `npx`. It contains no
-engine code, so updates ride the CLI's releases.
-
-[`packages/cli/README.md`](packages/cli/README.md) has the full surface: input
-options, credentials (environment only), the endpoint guard, and the
-compatibility table.
+[`packages/cli/README.md`](packages/cli/README.md) has the full surface:
+all subcommands, input options, credentials, the endpoint guard, and the
+Renovate compatibility table.
 
 ## Self-hosting (Docker)
 
 > [!WARNING]
 > Docker setups are experimental at the moment.
 
-The app is a static bundle, so hosting it is one container:
+The app is a static bundle — one container:
 
 ```bash
 docker run -p 8080:80 ghcr.io/secustor/renovate-config-debugger   # http://localhost:8080
 ```
 
-Every commit publishes an image tagged `sha-<short>`; releases additionally
-publish semver tags, with `latest` pointing at the newest release.
-
-To verify the attestation of a semver release use:
+Every commit publishes an image tagged `sha-<short>`; releases add semver tags,
+with `latest` pointing at the newest release. Verify a release's attestation:
 
 ```bash
 gh attestation verify oci://ghcr.io/secustor/renovate-config-debugger:latest -R secustor/renovate-config-debugger
 ```
 
-There is also [`docker-compose.yml`](docker-compose.yml), a worked example of
-both services with every optional variable present but commented out:
-
-```bash
-docker compose up            # published images
-docker compose up --build    # build from this checkout instead
-```
-
-The two services are the app image above and the optional
+[`docker-compose.yml`](docker-compose.yml) is a worked example of both
+services — the app and the optional
 `ghcr.io/secustor/renovate-config-debugger-oauth-proxy` (token exchange, Node,
-port 8788). Both are configured at run time, not build time, so one image serves
-an OAuth-off and an OAuth-on deployment. With both required variables set the
-container writes `/rcd-config.js` at startup and the sign-in UI appears;
-otherwise the shipped stub stays and the feature is off.
+port 8788) — with every optional variable present but commented out
+(`docker compose up`, or `--build` to build from the checkout). Both are
+configured at run time, so one image serves OAuth-off and OAuth-on
+deployments: with both required variables set the container writes
+`/rcd-config.js` at startup and the sign-in UI appears; otherwise sign-in
+stays off.
 
 | Variable                | Required for sign-in | Notes                                                               |
 | ----------------------- | -------------------- | ------------------------------------------------------------------- |
@@ -285,7 +248,7 @@ deliberately out of scope. Put the app image behind whatever you already run.
 ```bash
 mise install       # node + pnpm (or use your own, see package.json engines)
 pnpm install
-pnpm dev     # dev server
+pnpm dev           # dev server
 pnpm test          # every workspace test except e2e (which needs a build first)
 pnpm typecheck
 pnpm lint && pnpm format:check
@@ -294,8 +257,11 @@ pnpm lint && pnpm format:check
 [docs/Architecture.md](docs/Architecture.md) covers how it all works: the shim
 plugin, the golden tests, the pinned Renovate.
 
-To develop against the signed-in state without provisioning a GitHub App and
-Worker, put a token into the gitignored `packages/app/.env`:
+<details>
+<summary>Developing against the signed-in state</summary>
+
+To skip provisioning a GitHub App and Worker, put a token into the gitignored
+`packages/app/.env`:
 
 ```ini
 RCD_DEV_FAKE_OAUTH_TOKEN=ghp_xxx   # any GitHub token, e.g. a classic PAT
@@ -316,6 +282,8 @@ dev-server-only (builds never see the variable) and fakes the signed-in
 _state_, not the sign-in _flow_ — testing the flow itself takes the real
 provisioning in
 [packages/oauth-worker/README.md](packages/oauth-worker/README.md#provisioning).
+
+</details>
 
 ## Project direction
 
