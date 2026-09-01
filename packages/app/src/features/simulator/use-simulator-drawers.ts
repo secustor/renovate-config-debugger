@@ -6,8 +6,8 @@ import {
   useRef,
   useState,
 } from "react";
+import { mergeStopId } from "./dom-ids";
 import { motionScrollOptions } from "@/lib/motion";
-import { useSyncedReset } from "@/hooks/use-synced-reset";
 
 export interface SimulatorDrawers {
   /** Roadmap 079: which of the form's three field groups is expanded, or -1. */
@@ -20,8 +20,13 @@ export interface SimulatorDrawers {
   rulesDrawerRef: RefObject<HTMLDetailsElement | null>;
   mergeDrawerRef: RefObject<HTMLDetailsElement | null>;
   jumpToRules: () => void;
+  jumpToReplay: () => void;
   jumpToStep: (stopIndex: number) => void;
 }
+
+/** What a jump is waiting to scroll to: a drawer, or one stop inside the
+ *  replay. A fresh OBJECT per jump — see the effect below. */
+type ScrollRequest = { drawer: "rules" | "merge"; stopIndex?: number };
 
 /**
  * Roadmap 047: the panel's disclosure state — the two summary drawers below
@@ -32,33 +37,15 @@ export interface SimulatorDrawers {
  * disclosure must not move or reset unrelated UI", and a re-run must never
  * fold what the user opened.
  */
-export function useSimulatorDrawers({
-  mergeStepIndex,
-  onMergeStepChange,
-}: {
-  mergeStepIndex: number;
-  onMergeStepChange: (index: number) => void;
-}): SimulatorDrawers {
+export function useSimulatorDrawers(): SimulatorDrawers {
   const [openFieldGroup, setOpenFieldGroup] = useState(-1);
   const [rulesOpen, setRulesOpen] = useState(false);
-  // Roadmap 047: a share link whose `simStep` points at a merge stop must
-  // arrive with the merge drawer open — the stop it restored is inside it. An
-  // index that is already restored when this hook mounts is known right here,
-  // so the drawer STARTS open rather than being opened a commit later.
-  const [mergeOpen, setMergeOpen] = useState(() => mergeStepIndex > 0);
+  // Roadmap 094: the merge drawer always starts closed. It used to open itself
+  // for a share link whose `simStep` named a stop; the stepper that index drove
+  // is retired, and `simStep` is decoded and ignored now.
+  const [mergeOpen, setMergeOpen] = useState(false);
   const rulesDrawerRef = useRef<HTMLDetailsElement>(null);
   const mergeDrawerRef = useRef<HTMLDetailsElement>(null);
-
-  // …and an index restored AFTER mount opens it through React's "adjust state
-  // when a prop changes" idiom rather than an effect: the index is the TRIGGER
-  // and nothing here reads it afterwards, so as an effect it was a dependency
-  // whose value the body only compared against zero. One-way either way: a
-  // re-simulation resetting the index to 0 never folds the drawer.
-  useSyncedReset(mergeStepIndex, () => {
-    if (mergeStepIndex > 0) {
-      setMergeOpen(true);
-    }
-  });
 
   // Roadmap 047: cross-links OPEN what they target. The drawer's <details>
   // element exists whether or not its body is mounted, but SummaryDrawer only
@@ -66,19 +53,24 @@ export function useSimulatorDrawers({
   // runs against the closed-drawer document height and gets clamped, so from
   // near the bottom of the page it is a visual no-op. Defer the scroll until
   // the commit where the body exists (same pending-target idiom as
-  // `focusKey` in use-thread-nav.ts).
+  // `focusKey` in use-thread-nav.ts) — which is also the commit where a stop's
+  // own element exists to be scrolled to.
   //
   // The request is a fresh OBJECT per jump rather than a name the effect clears
   // once it has scrolled: identity is what makes two jumps to the same drawer
   // two runs of this effect, and it gets there without the effect writing state
   // back into the render it was started by.
-  const [pendingScroll, setPendingScroll] = useState<{ drawer: "rules" | "merge" } | null>(null);
+  const [pendingScroll, setPendingScroll] = useState<ScrollRequest | null>(null);
   useEffect(() => {
     if (pendingScroll === null) {
       return;
     }
-    const ref = pendingScroll.drawer === "rules" ? rulesDrawerRef : mergeDrawerRef;
-    ref.current?.scrollIntoView(motionScrollOptions("start"));
+    const stop =
+      pendingScroll.stopIndex === undefined
+        ? null
+        : document.getElementById(mergeStopId(pendingScroll.stopIndex));
+    const drawer = pendingScroll.drawer === "rules" ? rulesDrawerRef : mergeDrawerRef;
+    (stop ?? drawer.current)?.scrollIntoView(motionScrollOptions("start"));
   }, [pendingScroll]);
 
   function jumpToRules() {
@@ -86,12 +78,18 @@ export function useSimulatorDrawers({
     setPendingScroll({ drawer: "rules" });
   }
 
-  /** A verdict-card jump link → open the merge drawer, select that stop, and
-   *  bring the drawer into view. */
+  /** The verdict foot's "build replay, K stops" link → open the replay at its
+   *  head, which is where the sequence starts. */
+  function jumpToReplay() {
+    setMergeOpen(true);
+    setPendingScroll({ drawer: "merge" });
+  }
+
+  /** A verdict-card jump link → open the merge drawer and bring THAT stop into
+   *  view (roadmap 094: the stop is a section of the list, not a selection). */
   function jumpToStep(stopIndex: number) {
     setMergeOpen(true);
-    onMergeStepChange(stopIndex);
-    setPendingScroll({ drawer: "merge" });
+    setPendingScroll({ drawer: "merge", stopIndex });
   }
 
   return {
@@ -104,6 +102,7 @@ export function useSimulatorDrawers({
     rulesDrawerRef,
     mergeDrawerRef,
     jumpToRules,
+    jumpToReplay,
     jumpToStep,
   };
 }

@@ -91,7 +91,7 @@ export function SimVerdictBlock({
   /** Roadmap 047: authored update-type blocks flattening consumed without
    *  applying — empty on a run where only Renovate's own defaults were. */
   consumed: ConsumedBlock[];
-  /** The flatten stop's position on the merge timeline, when it renders. */
+  /** The flatten stop's position in the merge replay, when it renders. */
   flattenStopIndex?: number;
   /** Roadmap 054: how many stops the build replay has, for its trace link. */
   replayStops: number;

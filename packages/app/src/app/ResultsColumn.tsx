@@ -122,8 +122,6 @@ export function ResultsColumn({
     simRequest,
     onCopySimLink,
     onShare,
-    mergeStepIndex,
-    onMergeStepChange,
     repoDeps,
     onLoadRepoDeps,
     repoConnect,
@@ -266,8 +264,6 @@ export function ResultsColumn({
           simRequest={simRequest}
           onCopySimLink={onCopySimLink}
           onShare={onShare}
-          mergeStepIndex={mergeStepIndex}
-          onMergeStepChange={onMergeStepChange}
           repoDeps={repoDeps}
           onLoadRepoDeps={onLoadRepoDeps}
           repoConnect={repoConnect}
@@ -406,8 +402,6 @@ export function ResultsColumn({
     simRequest,
     onCopySimLink,
     onShare,
-    mergeStepIndex,
-    onMergeStepChange,
     repoDeps,
     onLoadRepoDeps,
     repoConnect,

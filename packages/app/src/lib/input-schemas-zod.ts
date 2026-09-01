@@ -98,7 +98,7 @@ export interface SanitizedShareView {
   stage?: StageId;
   node?: string | null;
   step?: number;
-  /** Roadmap 044: the simulator's merge-step index. */
+  /** Roadmap 044: the simulator's merge-step index — decode-only since 094. */
   simStep?: number;
   /** Roadmap 075: possibly a retired id — see `resultsTabIdSchema`. */
   tab?: ShareResultsTabId;
@@ -137,7 +137,9 @@ export function sanitizeShareView(raw: unknown): SanitizedShareView | undefined 
     out.step = step.data;
   }
   // Roadmap 044: same rule as `step` — a nonnegative integer index, dropped on
-  // its own if malformed rather than failing the link.
+  // its own if malformed rather than failing the link. Roadmap 094 retired the
+  // stepper that consumed it; it is still sanitized so an old link decodes
+  // exactly as it always did (the app then ignores it).
   const simStep = stepIndexSchema.safeParse(raw.simStep);
   if (simStep.success) {
     out.simStep = simStep.data;

@@ -14,10 +14,9 @@ import { useSyncedReset } from "@/hooks/use-synced-reset";
 /**
  * Roadmap 075 (v2, iteration 4) — the pipeline rail: one node per stage on a
  * single line, each carrying 024's status glyph, the stage's name and its
- * delta (`stage-delta.ts`). It replaces 046's chip timeline INSIDE the
- * Pipeline tab only: the chip grammar (`SequenceTimeline`) is still the
- * simulator's merge sequence, which is a variable-length path through
- * `packageRules`, not a fixed row of eight columns.
+ * delta (`stage-delta.ts`). It replaced 046's chip timeline inside the Pipeline
+ * tab; roadmap 094 retired that grammar's last consumer (the simulator's merge
+ * stepper), so this rail is the app's one sequence rendering now.
  *
  * The landing's static preview (iteration 2) is the same component in
  * `preview` mode rather than a second rail: one geometry, one set of glyph

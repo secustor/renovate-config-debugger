@@ -1,5 +1,5 @@
 import { memo, type ReactNode, useState } from "react";
-import { type BenignRemovals, JsonDiff } from "./JsonDiff";
+import { JsonDiff } from "./JsonDiff";
 import { useSyncedReset } from "@/hooks/use-synced-reset";
 
 /** One step of a sequence: what it is, and the full config on both sides. */
@@ -14,17 +14,6 @@ export interface StepThroughStep {
   head: ReactNode;
   /** Optional muted prose under the head. */
   explanation?: ReactNode;
-  /**
-   * Roadmap 046: counter text for sequences whose stops aren't uniform steps
-   * (the merge timeline's "Start" / "Step 1 of 2" / "Result"). Defaults to
-   * `Step N of M` over the whole list.
-   */
-  counter?: ReactNode;
-  /** Roadmap 046: replaces the diff for stops that aren't merges (the base and
-   *  final-config stops). The cumulative toggle doesn't apply to such a stop. */
-  body?: ReactNode;
-  /** Removals this step's diff should annotate as benign (see JsonDiff). */
-  benignRemovals?: BenignRemovals;
 }
 
 interface Props {
@@ -40,9 +29,6 @@ interface Props {
   onIndexChange?: (index: number) => void;
   /** Diff labels while Cumulative is on. Per-step is always before/after. */
   cumulativeNames?: [string, string];
-  /** The cumulative toggle's label (roadmap 046: the merge timeline names what
-   *  the toggle does — "Diff vs. base config"). */
-  cumulativeLabel?: ReactNode;
   /** Terminal action(s) at the end of the nav row (e.g. a Copy button). */
   actions?: ReactNode;
 }
@@ -50,10 +36,11 @@ interface Props {
 /**
  * Roadmap 044: the step-through interaction itself — Step N of M, Prev/Next/Jump
  * to end, a per-step `JsonDiff` and a Cumulative toggle that diffs from the
- * sequence's start instead. Extracted verbatim from roadmap 004's
- * `MigrationSteps` (which is now a thin adapter over it) so the simulator's
- * merge stepper is the SAME interaction and the same `.migration-steps` CSS
- * grammar, not a second dialect of it.
+ * sequence's start instead. Extracted from roadmap 004's `MigrationSteps`
+ * (which is now a thin adapter over it) for the simulator's merge stepper —
+ * retired by 094, which also took with it the four fields 046 had added here
+ * for it (`counter`, `body`, `cumulativeLabel`, `benignRemovals`). The migrate
+ * stage is the one caller left.
  *
  * Steps carry full-document before/after snapshots, which is what makes both
  * the per-step diff (small) and the cumulative one (sequence start → current
@@ -65,7 +52,6 @@ export const StepThrough = memo(function StepThrough({
   index,
   onIndexChange,
   cumulativeNames,
-  cumulativeLabel,
   actions,
 }: Props) {
   const controlled = index !== undefined;
@@ -109,27 +95,18 @@ export const StepThrough = memo(function StepThrough({
     <div className={`migration-steps${compact ? " compact" : ""}`}>
       <div className="migration-step-head">
         <span className="migration-step-counter">
-          {step.counter ?? (
-            <>
-              Step {clamped + 1} of {steps.length}
-            </>
-          )}
+          Step {clamped + 1} of {steps.length}
         </span>
         {step.head}
       </div>
       {step.explanation ? <p className="migration-explanation">{step.explanation}</p> : null}
 
-      {step.body ?? (
-        <JsonDiff
-          key={`${step.id}-${cumulative ? "cumulative" : "single"}`}
-          before={before}
-          after={step.after}
-          names={
-            cumulative ? (cumulativeNames ?? ["start", "after this step"]) : ["before", "after"]
-          }
-          benignRemovals={step.benignRemovals}
-        />
-      )}
+      <JsonDiff
+        key={`${step.id}-${cumulative ? "cumulative" : "single"}`}
+        before={before}
+        after={step.after}
+        names={cumulative ? (cumulativeNames ?? ["start", "after this step"]) : ["before", "after"]}
+      />
 
       <div className="migration-nav">
         <button
@@ -162,7 +139,7 @@ export const StepThrough = memo(function StepThrough({
             checked={cumulative}
             onChange={(e) => setCumulative(e.target.checked)}
           />
-          {cumulativeLabel ?? "Cumulative"}
+          Cumulative
         </label>
         {actions}
       </div>

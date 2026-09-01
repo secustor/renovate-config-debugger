@@ -198,7 +198,7 @@ test("a thread's step jump leaves a return pill that re-expands and flashes the 
   await expect(stepLink).toContainText("step 2 of 2");
   await stepLink.click();
   await expect(mergeDrawer).toHaveJSProperty("open", true);
-  await expect(page.locator(".sim-merge-steps .migration-step-counter")).toHaveText("Step 2 of 2");
+  await expect(page.locator(".sim-merge-stop", { hasText: "Step 2 of 2" })).toBeInViewport();
 
   // The pill names the thread the reader left, by key.
   const pill = page.locator(".sim-return-pill");
@@ -217,17 +217,23 @@ test("a thread's step jump leaves a return pill that re-expands and flashes the 
   // Ephemeral: it answered the jump it was created for.
   await expect(pill).toHaveCount(0);
   // And the jump it undid stays undone — the drawer the reader opened is still
-  // open, at the stop they were sent to.
+  // open, with the stop they were sent to inside it.
   await expect(mergeDrawer).toHaveJSProperty("open", true);
 });
 
 /**
  * Roadmap 054 layer 4 — a link says where to look. `simThread` (the expanded
- * key) rides the sim descriptor beside `autoSimulate`, `simStep` restores the
- * replay's stop, and opening the link reproduces the run with both in place —
- * no clicking, no scrolling to find what the sender meant.
+ * key) rides the sim descriptor beside `autoSimulate`, and opening the link
+ * reproduces the run with the thread already open — no clicking, no scrolling
+ * to find what the sender meant.
+ *
+ * Roadmap 094: the link here still carries a `simStep`, deliberately. It is the
+ * decode-and-ignore half of the contract — an old link must load, restore its
+ * thread, and leave the replay drawer exactly as a link without one would.
  */
-test("a share link carrying a thread and a replay stop restores both", async ({ page }) => {
+test("a share link carrying a thread restores it, and an old simStep is ignored", async ({
+  page,
+}) => {
   const fragment = await encodeShareFragment({
     config: CONTESTED_KEY_CONFIG,
     view: { tab: "tests", simStep: 2 },
@@ -251,12 +257,12 @@ test("a share link carrying a thread and a replay stop restores both", async ({ 
   // dump of the sender's screen.
   await expect(verdict.locator(".sim-thread.open")).toHaveCount(1);
 
-  // The replay stop the link named is restored, and the drawer holding it is
-  // open — a link may not point INTO a closed drawer.
+  // The `simStep` the link carries restores nothing: the drawer it used to
+  // open for is closed, and the whole stop list is behind it, one click away.
   const mergeDrawer = drawer(page, "How the final config was built");
-  await expect(mergeDrawer).toHaveJSProperty("open", true);
-  await expect(page.locator(".sim-merge-steps .migration-step-counter")).toHaveText("Step 2 of 2");
-  await expect(page.locator(".sim-merge-steps .migration-step-head")).toContainText(
+  await expect(mergeDrawer).toHaveJSProperty("open", false);
+  await mergeDrawer.getByText("How the final config was built").click();
+  await expect(page.locator(".sim-merge-stop", { hasText: "Step 2 of 2" })).toContainText(
     "packageRules[2]",
   );
 

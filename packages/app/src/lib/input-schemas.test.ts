@@ -405,6 +405,8 @@ describe("sanitizeShareView", () => {
     });
   });
   // Roadmap 044: the simulator's merge-step index, validated by the same rule.
+  // Decode-only since 094 retired the stepper — the sanitizer's job is
+  // unchanged (an old link must not fail); the app just reads it nowhere.
   test("a valid simStep passes through; a malformed one is dropped alone", () => {
     expect(sanitizeShareView({ tab: "tests", simStep: 0 })).toEqual({
       tab: "tests",

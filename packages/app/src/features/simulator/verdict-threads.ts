@@ -30,7 +30,7 @@ export interface ThreadWinner {
   /** The winning rule's clause evidence; empty for a flatten stop, which has
    *  the 047 update-type story instead. */
   clauses: ClauseEvaluation[];
-  /** Position on the merge timeline, for the "step N of M →" jump. */
+  /** Position in the merge replay, for the "step N of M →" jump. */
   stopIndex: number;
   stopLabel: string;
 }

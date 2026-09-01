@@ -98,10 +98,7 @@ export function useShareLinkRequest({
     setUpdateTypeTouched(touched);
     onThreadRequest?.(simRequest.simThread ?? null);
     if (simRequest.autoSimulate) {
-      // Roadmap 044: the link's own merge-step index has already been applied
-      // by App — this auto-run must not reset it back to step 0, which is the
-      // whole point of a link that says "look at what THIS rule does".
-      void simulateRef.current?.(next, touched, true);
+      void simulateRef.current?.(next, touched);
     }
   }, [simRequest, result, setForm, setUpdateTypeTouched, simulateRef, onThreadRequest]);
 }

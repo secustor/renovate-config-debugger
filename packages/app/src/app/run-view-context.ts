@@ -102,8 +102,6 @@ export interface RunView {
   simRequest: SimRequest | null;
   onCopySimLink: (sim: ShareSimulator) => Promise<void>;
   onShare: () => Promise<void>;
-  mergeStepIndex: number;
-  onMergeStepChange: (index: number) => void;
   /** Roadmap 078: the loaded repo's extracted dependencies (identity changes
    *  on a load and on the discovery's async report — never per keystroke),
    *  and the stable on-demand trigger that computes them. */

@@ -57,7 +57,6 @@ function Harness({
   // Every callback is required (the shell always passes all of them), so the
   // harness supplies the whole set; the ones no assertion here reads are inert
   // stubs rather than absent props.
-  const [mergeStepIndex, setMergeStepIndex] = useState(0);
   return (
     <TestsPanel
       result={result}
@@ -74,8 +73,6 @@ function Harness({
       simRequest={simRequest ?? null}
       onCopySimLink={() => Promise.resolve()}
       onShare={() => Promise.resolve()}
-      mergeStepIndex={mergeStepIndex}
-      onMergeStepChange={setMergeStepIndex}
       repoDeps={repoDeps}
       onLoadRepoDeps={() => undefined}
       repoConnect={repoConnect}

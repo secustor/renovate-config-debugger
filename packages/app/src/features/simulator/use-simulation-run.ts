@@ -15,7 +15,7 @@ import { useSyncedReset } from "@/hooks/use-synced-reset";
 import { errorMessage } from "@/lib/errors";
 import type { FormState } from "@/types/simulator";
 
-export type Simulate = (nextForm: FormState, touched: boolean, keepStep?: boolean) => Promise<void>;
+export type Simulate = (nextForm: FormState, touched: boolean) => Promise<void>;
 
 export interface SimulationRun {
   sim: SimulationResult | null;
@@ -47,12 +47,10 @@ export interface SimulationRun {
  */
 export function useSimulationRun({
   result,
-  onMergeStepChange,
   guard,
   clearGuard,
 }: {
   result: TraceResult;
-  onMergeStepChange: (index: number) => void;
   /** Roadmap 015's empty-form guard, owned by `useSimulatorForm` — a run and a
    *  pin trip the same one, so there is one flag and one notice, not two. Both
    *  are identity-stable, hence usable as effect deps. */
@@ -134,7 +132,7 @@ export function useSimulationRun({
    * `quickFill` also resets the state flag in the same tick — reading it here
    * would race against that update.
    */
-  async function simulate(nextForm: FormState, touched: boolean, keepStep = false) {
+  async function simulate(nextForm: FormState, touched: boolean) {
     const finalConfig = result.finalConfig;
     if (!finalConfig) {
       return;
@@ -166,13 +164,6 @@ export function useSimulationRun({
       // stays there across a re-run, as the "my rules only" toggle did.
       setRuleFilters((prev) => ({ ...prev, verdict: DEFAULT_RULE_FILTERS.verdict }));
       setFocusHint(null);
-      // Roadmap 044: a new simulation is a new merge sequence — start at its
-      // first step (the controlled index lives in App, so the reset does too,
-      // exactly like the migration stepper's). `keepStep` is the share-link
-      // auto-run, whose index the link itself just restored.
-      if (!keepStep) {
-        onMergeStepChange(0);
-      }
     } catch (err) {
       setError(errorMessage(err));
     } finally {

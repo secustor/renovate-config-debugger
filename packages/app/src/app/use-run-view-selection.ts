@@ -20,9 +20,9 @@ import type { ShareView } from "@/lib/share";
 
 /**
  * What the reader is looking AT within a run: which pipeline stage, which
- * preset node, and where the two steppers stand.
+ * preset node, and where the migration stepper stands.
  *
- * Five state slots, but one subject — and the reason to name it is that the
+ * Four state slots, but one subject — and the reason to name it is that the
  * subject has three behaviours that were 1,000 lines apart in `App` and are
  * only correct in relation to each other:
  *
@@ -54,12 +54,10 @@ export interface RunViewSelection {
   setSelectedNodeId: Dispatch<SetStateAction<string | null>>;
   migrationStepIndex: number;
   setMigrationStepIndex: Dispatch<SetStateAction<number>>;
-  mergeStepIndex: number;
-  setMergeStepIndex: Dispatch<SetStateAction<number>>;
   /** The share cluster's one way to arm a decoded link's view state. */
   setPendingView: (view: ShareView | null) => void;
   /**
-   * These five fields as a link carries them. `tab` and `migrateStepperMounted`
+   * These four fields as a link carries them. `tab` and `migrateStepperMounted`
    * come from the caller because they are not this cluster's: the tab is the
    * tab cluster's, and whether the stepper is mounted is a fact about the run.
    */
@@ -76,10 +74,6 @@ export function useRunViewSelection(host: RunViewSelectionHost): RunViewSelectio
   /** Migration stepper index, owned here so a shareable link (007) can restore
    *  the step; reset to 0 on a new result just like the uncontrolled stepper. */
   const [migrationStepIndex, setMigrationStepIndex] = useState(0);
-  /** Roadmap 044: the simulator's merge-stepper index, owned here for the same
-   *  reason. The simulator itself resets it when a new simulation runs (a new
-   *  merge sequence); the reset below clears it on a new pipeline result. */
-  const [mergeStepIndex, setMergeStepIndex] = useState(0);
 
   /** View state pending from a decoded link, applied once the run produces a
    *  result (identities → node ids need the resolved tree). A ref, not state,
@@ -94,13 +88,12 @@ export function useRunViewSelection(host: RunViewSelectionHost): RunViewSelectio
 
   // (1) A new run invalidates what the previous run's views pointed at. During
   // RENDER — `result` is the trigger and the reset reads nothing out of it, so
-  // the selection and the two stepper indices are back at their starting points
-  // BEFORE the paint instead of one committed frame after it, where a stepper
+  // the selection and the stepper index are back at their starting points
+  // BEFORE the paint instead of one committed frame after it, where the stepper
   // briefly showed the old step against the new run's sequence.
   useSyncedReset(result, () => {
     setSelectedNodeId(null);
     setMigrationStepIndex(0);
-    setMergeStepIndex(0);
   });
 
   // (2) Apply a pending link's view AFTER the result exists — and after the
@@ -135,12 +128,8 @@ export function useRunViewSelection(host: RunViewSelectionHost): RunViewSelectio
     if (wantsMigrateStage) {
       setSelectedStage("migrate");
     }
-    // Roadmap 044: applied BEFORE the simulator's auto-run (a `sim` link's
-    // simulation starts from the simulator's own effect, which deliberately
-    // keeps this index instead of resetting to step 0).
-    if (typeof pending.simStep === "number") {
-      setMergeStepIndex(pending.simStep);
-    }
+    // Roadmap 094: `pending.simStep` is decoded and ignored — the merge
+    // stepper it addressed is retired, and the replay has no index to restore.
     if (pending.node && result.presetTree) {
       const id = nodeIdForIdentity(result.presetTree, pending.node);
       if (id) {
@@ -158,7 +147,7 @@ export function useRunViewSelection(host: RunViewSelectionHost): RunViewSelectio
     }
   }, [result, setTab]);
 
-  // (3) The same five fields, encoded.
+  // (3) The same four fields, encoded.
   const toShareView = useCallback(
     (tab: ResultsTabId, migrateStepperMounted: boolean): ShareView => {
       const view: ShareView = { stage: selectedStage, tab };
@@ -171,17 +160,12 @@ export function useRunViewSelection(host: RunViewSelectionHost): RunViewSelectio
       if (migrateStepperMounted) {
         view.step = migrationStepIndex;
       }
-      // Roadmap 044: the simulator's merge step. Omitted at 0 (its default on
-      // both sides) — unlike `step`, nothing infers a tab from it (028's
-      // `legacyTabForView` predates it and every link that can carry it also
-      // carries an explicit `tab`), so an absent field costs nothing and old
-      // links keep decoding unchanged.
-      if (mergeStepIndex > 0) {
-        view.simStep = mergeStepIndex;
-      }
+      // Roadmap 094: `simStep` is never encoded any more — the merge stepper
+      // whose index it carried is retired. Links that already carry one still
+      // decode (share.ts), they just restore nothing.
       return view;
     },
-    [selectedStage, selectedNodeId, result, migrationStepIndex, mergeStepIndex],
+    [selectedStage, selectedNodeId, result, migrationStepIndex],
   );
 
   return {
@@ -192,8 +176,6 @@ export function useRunViewSelection(host: RunViewSelectionHost): RunViewSelectio
     setSelectedNodeId,
     migrationStepIndex,
     setMigrationStepIndex,
-    mergeStepIndex,
-    setMergeStepIndex,
     setPendingView,
     toShareView,
   };

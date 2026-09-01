@@ -63,8 +63,6 @@ export const TestsPanel = memo(function TestsPanel({
   simRequest,
   onCopySimLink,
   onShare,
-  mergeStepIndex,
-  onMergeStepChange,
   repoDeps,
   onLoadRepoDeps,
   repoConnect,
@@ -84,8 +82,6 @@ export const TestsPanel = memo(function TestsPanel({
   /** Roadmap 077: the share-link build-and-copy, for the pins view's note that
    *  pins ride in the link. */
   onShare: () => Promise<void>;
-  mergeStepIndex: number;
-  onMergeStepChange: (index: number) => void;
   /** Roadmap 078: the loaded repository's extracted dependencies for the
    *  Add-a-test card's From-repository tab, and its on-demand trigger. */
   repoDeps: RepoDepsView;
@@ -160,8 +156,6 @@ export const TestsPanel = memo(function TestsPanel({
           onCopySimLink={onCopySimLink}
           onAddPin={onAddPin}
           pinCount={pins.length}
-          mergeStepIndex={mergeStepIndex}
-          onMergeStepChange={onMergeStepChange}
         />
       </div>
     );

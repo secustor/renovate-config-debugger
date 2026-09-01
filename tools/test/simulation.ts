@@ -1,7 +1,7 @@
 /**
  * The hand-written `SimulationResult` a simulator suite asserts over, plus the
- * two micro-builders (`ruleEval`, `clauseEval`) and the `MergeStop` chrome its
- * derivations read.
+ * two micro-builders (`ruleEval`, `clauseEval`) and the `MergeStop` chrome the
+ * derivations carry but never read.
  *
  * Seven suites across `lib/` and `features/simulator/` used to spell the same
  * ten-field skeleton out, and four more re-declared the rule/clause builders
@@ -65,10 +65,10 @@ export function clauseEval(
   };
 }
 
-/** The chip/step halves of a `MergeStop` are the timeline's rendering payload;
- *  the derivations read only `kind`/`ruleIndex`/`merged`. */
-export function stopChrome(id: string): Pick<MergeStop, "chip" | "step"> {
-  return { chip: { label: id, ariaLabel: id }, step: { id, before: {}, after: {}, head: id } };
+/** A `MergeStop`'s rendering half is the replay list's payload; the
+ *  derivations read only `kind`/`ruleIndex`/`merged`. */
+export function stopChrome(id: string): Pick<MergeStop, "id" | "counter" | "head" | "explanation"> {
+  return { id, counter: id, head: id, explanation: id };
 }
 
 export function baseStop(): MergeStop {

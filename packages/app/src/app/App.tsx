@@ -214,9 +214,9 @@ export function App() {
     onJumpToSimRule,
   } = useResultsTab();
   // Roadmap 086 follow-up: what the reader is looking AT within a run — the
-  // stage, the preset node, the two stepper indices — plus the three behaviours
-  // that only make sense together: the new-run reset, a decoded link's override
-  // of it, and the encode back into a link.
+  // stage, the preset node, the migration stepper's index — plus the three
+  // behaviours that only make sense together: the new-run reset, a decoded
+  // link's override of it, and the encode back into a link.
   const runViewSelection = useRunViewSelection({ result, setTab });
   const {
     selectedStage,
@@ -226,8 +226,6 @@ export function App() {
     setSelectedNodeId,
     migrationStepIndex,
     setMigrationStepIndex,
-    mergeStepIndex,
-    setMergeStepIndex,
     setPendingView,
   } = runViewSelection;
   const [optionIndex, setOptionIndex] = useState<OptionIndex | null>(null);
@@ -1257,8 +1255,6 @@ export function App() {
       simRequest: activeSimRequest,
       onCopySimLink: buildShareLinkAndCopy,
       onShare: buildShareLinkAndCopy,
-      mergeStepIndex,
-      onMergeStepChange: setMergeStepIndex,
       repoDeps: repoDepsView,
       onLoadRepoDeps: ensureRepoDeps,
       repoConnect,
@@ -1308,7 +1304,6 @@ export function App() {
       onRuleFocused,
       activeSimRequest,
       buildShareLinkAndCopy,
-      mergeStepIndex,
       repoDepsView,
       ensureRepoDeps,
       repoConnect,
@@ -1317,14 +1312,13 @@ export function App() {
       ruleProvenance,
       onJumpToSimRule,
       onApplyFix,
-      // The four setters now arrive through `useRunViewSelection` rather than
+      // These setters now arrive through `useRunViewSelection` rather than
       // straight from `useState`, so the rule can no longer prove they are
       // stable. They are — same setters, one hop further — and listing them
       // costs nothing, since a stable identity never invalidates the memo.
       setSelectedStage,
       setSelectedNodeId,
       setMigrationStepIndex,
-      setMergeStepIndex,
       setPipelinePhase,
     ],
   );

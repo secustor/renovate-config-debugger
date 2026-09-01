@@ -51,27 +51,23 @@ function MergeSummary({
 /**
  * Roadmap 047: the "How the final config was built" evidence layer.
  *
- * Roadmap 032: memoized — its subtree is the merge stepper and a multi-thousand
- * line `JsonDiff`, and every prop comes from the last RUN, not the live form,
- * so typing in the simulator form must not re-render it.
+ * Roadmap 032: memoized — its subtree is the whole merge replay, and every prop
+ * comes from the last RUN, not the live form, so typing in the simulator form
+ * must not re-render it.
  */
 export const SimMergeDrawer = memo(function SimMergeDrawer({
   finalDependencyConfig,
   stops,
-  showTimeline,
+  showReplay,
   changedKeys,
-  mergeStepIndex,
-  onMergeStepChange,
   open,
   onToggle,
   detailsRef,
 }: {
   finalDependencyConfig: SimulationResult["finalDependencyConfig"];
   stops: MergeStop[];
-  showTimeline: boolean;
+  showReplay: boolean;
   changedKeys: string[];
-  mergeStepIndex: number;
-  onMergeStepChange: (index: number) => void;
   open: boolean;
   onToggle: (open: boolean) => void;
   detailsRef?: RefObject<HTMLDetailsElement | null>;
@@ -84,7 +80,7 @@ export const SimMergeDrawer = memo(function SimMergeDrawer({
       summary={
         <MergeSummary
           mergeCount={stops.filter((s) => s.kind === "rule").length}
-          flattenCount={stops.find((s) => s.kind === "flatten")?.chip.count}
+          flattenCount={stops.find((s) => s.kind === "flatten")?.count}
           changedKeys={changedKeys}
         />
       }
@@ -94,9 +90,7 @@ export const SimMergeDrawer = memo(function SimMergeDrawer({
       <SimMergeBody
         finalDependencyConfig={finalDependencyConfig}
         stops={stops}
-        showTimeline={showTimeline}
-        mergeStepIndex={mergeStepIndex}
-        onMergeStepChange={onMergeStepChange}
+        showReplay={showReplay}
       />
     </SummaryDrawer>
   );
