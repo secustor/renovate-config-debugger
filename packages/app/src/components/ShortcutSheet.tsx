@@ -22,7 +22,8 @@ import { type ShortcutRow, type ShortcutSection, shortcutSheet } from "@/lib/sho
  * does not reach a document- or window-level listener, so the sheet declares
  * that a modal owns the keyboard for as long as it is up (see
  * `claimModalKeyboard`, which the ladder and the 016 Home/End page scroll both
- * read), the same way every other page-level key is gated on App's `keysLive`.
+ * read), the same way every other page-level key is gated on `keysLive`
+ * (`app/use-keyboard-landings.ts`).
  * Home/End matter here in particular: these rows overflow the sheet's own
  * `max-height` box, so they are the keys that scroll it.
  */

@@ -115,6 +115,97 @@ ruleTester.run("prefer-plural", rule, {
     'const s = n === 1 ? "rules" : "rule";',
     // a suffix neither helper can append
     'const s = n === 1 ? "" : "es";',
+
+    // ---- Sweep V: the noun hard-spelled beside `nf.format(n)` --------------
+    // already the helper, in both of its spellings
+    'const line = `${plural(rules.length, "rule")} evaluated per test`;',
+    { code: 'const el = <p>Show all {plural(stat.total, "line")}</p>;', filename: tsx },
+
+    // A camelCase token after the count is a quoted Renovate config key, not
+    // prose — `LedgerFamilies`, the one false positive the lowercase class
+    // excludes structurally. `plural(n, "packageRule")` would rename the key.
+    {
+      code: "const el = <p>— {nf.format(totalRules)} packageRules in this expansion</p>;",
+      filename: tsx,
+    },
+    "const note = `${nf.format(totalRules)} packageRules in this expansion`;",
+    // the same guard where the token's lowercase head itself ends in "s"
+    "const note = `${nf.format(n)} statusChecks were considered`;",
+
+    // ---- a word BETWEEN the count and the noun: not a shape `plural` can
+    // express, which is why the other 48 `nf.format` sites are out of shape.
+    "const base = `${nf.format(builtIn)} of ${total} managers matched files`;",
+    "const more = `… ${nf.format(hidden.length)} more across ${named}`;",
+    "const s = `${nf.format(n)} matched rules`;",
+    "const s = `${nf.format(n)} skipped rules`;",
+    // `JsonDiff`'s own header line: the first word after the count is singular
+    "const s = `Showing the first ${nf.format(MAX)} of ${nf.format(total)} diff lines`;",
+    // two rendered spaces is not `plural`'s output either
+    "const s = `${nf.format(n)}  rules`;",
+    // and no space at all is not it
+    "const s = `${nf.format(n)}rules`;",
+
+    // ---- singulars that merely END in "s": `plural` would spell "acrosss".
+    "const s = `${nf.format(n)} across the tree`;",
+    "const s = `${nf.format(n)} status lines`;",
+    "const s = `${nf.format(n)} analysis passes`;",
+    "const s = `${nf.format(n)} less than before`;",
+    // ---- and the "-ies" stem splice, which `plural` cannot spell either:
+    // `plural(n, "dependencie")` is not advice. This is the likeliest plural in
+    // this tree — `countNoun`/`DataTableNoun` exists for exactly this class.
+    "const s = `${nf.format(n)} dependencies found`;",
+    "const s = `${nf.format(n)} properties`;",
+    { code: "const el = <p>{nf.format(n)} entries</p>;", filename: tsx },
+    // ---- and words shorter than four characters, which are not nouns here
+    "const s = `${nf.format(n)} was dropped`;",
+    "const s = `${nf.format(n)} has been pinned`;",
+    // ---- a word that is not a plural at all
+    "const s = `${nf.format(n)} rule`;",
+    "const s = `${nf.format(extract.deps.length)} dep`;",
+
+    // ---- NEITHER HOME SELF-REPORTS on this arm: `plural`'s body and
+    // `countNoun`'s both put an EXPRESSION after the space, not a word, so it
+    // asks for no exemption beyond the `lib/format.ts` one the config already
+    // carries for the suffix arm.
+    "const out = `${nf.format(n)} ${word}${suffix}`;",
+    "export function countNoun(n: number, noun: DataTableNoun) { return `${nf.format(n)} ${n === 1 ? noun.one : noun.many}`; }",
+
+    // ---- the subject is `nf.format` with exactly one argument, matched by
+    // source text: a different formatter, method or arity is not it.
+    "const s = `${pf.format(n)} rules`;",
+    "const s = `${nf.formatRange(a, b)} rules`;",
+    "const s = `${nf.format(n, opts)} rules`;",
+    "const s = `${format(n)} rules`;",
+
+    // ---- an ELEMENT between the count and the noun: the count is in its own
+    // element, which is chrome `plural` cannot produce — the same silence the
+    // `pluralWord` arm above keeps.
+    {
+      code: "const el = <p>{nf.format(n)} <strong>rules</strong> matched</p>;",
+      filename: tsx,
+    },
+    {
+      code: 'const el = <p><strong>{nf.format(n)}</strong>{" "}rules apply</p>;',
+      filename: tsx,
+    },
+    // ---- `{" "}` is ONE rendered space, so a space of its own after it is two,
+    // which is not what `plural` prints
+    {
+      code: 'const el = <p>expands to {nf.format(total)}{" "} presets.</p>;',
+      filename: tsx,
+    },
+    // ---- the noun on the next SOURCE line with no `{" "}`: the newline-indent
+    // renders as nothing, so this is `{count}presets`, not `plural`'s output
+    {
+      code: "const el = <p>expands to {nf.format(total)}\n        presets.</p>;",
+      filename: tsx,
+    },
+    // ---- the wrapped separator in front of the helper, which is the shape the
+    // four live sites already have — the next rendered child is a container
+    {
+      code: 'const el = <p>{nf.format(sources)}{" "}{pluralWord(sources, "source")}</p>;',
+      filename: tsx,
+    },
   ],
   invalid: [
     // ---- THE ORIGINAL. 27b81f43 swept `SimRulesBody`'s ad-hoc
@@ -260,6 +351,82 @@ ruleTester.run("prefer-plural", rule, {
     {
       code: 'const parts = [`${a} error${a === 1 ? "" : "s"}`, `${b} warning${b === 1 ? "" : "s"}`];',
       errors: [{ messageId: "preferPluralSuffix" }, { messageId: "preferPluralSuffix" }],
+    },
+
+    // ---- Sweep V. THE ORIGINAL: `PinsView`'s summary line before 2613e96e,
+    // which rendered "1 rules evaluated per test" for a one-rule config.
+    // The `{{word}}` slot makes the message quote the fix, so it is pinned.
+    {
+      code: "const note = ` · ${nf.format(ruleCount)} rules evaluated per test, in merge order`;",
+      errors: [{ messageId: "preferPluralNoun", data: { word: "rule" } }],
+    },
+    // `TreeRow`'s rollup badge, the same commit: "· 1 presets" / "· 1 rules"
+    // for a collapsed node with a single resolved descendant.
+    {
+      code: 'const el = <ExplainedText className="badge">{stats.descResolved > 0 ? `· ${nf.format(stats.descResolved)} presets ` : ""}{stats.descRules > 0 ? `· ${nf.format(stats.descRules)} rules` : ""}</ExplainedText>;',
+      filename: tsx,
+      errors: [
+        { messageId: "preferPluralNoun", data: { word: "preset" } },
+        { messageId: "preferPluralNoun", data: { word: "rule" } },
+      ],
+    },
+
+    // ---- the four sites still standing when this arm landed.
+    // `PhasePicker`: the extract phase's note rendered "+1 deps".
+    {
+      code: 'const note = { text: `+${nf.format(extract.deps.length)} deps`, tone: "ok" };',
+      errors: [{ messageId: "preferPluralNoun", data: { word: "dep" } }],
+    },
+    // `extract-phase`: "0 of 1 managers matched files" — the FIRST count is
+    // followed by " of ", so only the second one is in shape.
+    {
+      code: "const base = `${nf.format(builtIn)} of ${nf.format(view.managersConsidered)} managers matched files`;",
+      errors: [{ messageId: "preferPluralNoun", data: { word: "manager" } }],
+    },
+    // `EffectiveConfig`'s table note: "1 options in the config Renovate runs".
+    {
+      code: 'const el = <p className="data-table-note">{nf.format(entries.length)} options in the config Renovate runs · hover any key</p>;',
+      filename: tsx,
+      errors: [{ messageId: "preferPluralNoun", data: { word: "option" } }],
+    },
+    // `JsonDiff`'s "Show all" button — output-identical, since the footer only
+    // renders above the truncation threshold, but the same spelling.
+    {
+      code: 'const el = <button type="button">Show all {nf.format(stat.total)} lines</button>;',
+      filename: tsx,
+      errors: [{ messageId: "preferPluralNoun", data: { word: "line" } }],
+    },
+    // the noun as the direct text of a fragment
+    {
+      code: "const el = <>{nf.format(count)} rules</>;",
+      filename: tsx,
+      errors: [{ messageId: "preferPluralNoun", data: { word: "rule" } }],
+    },
+    // two counts in one sentence, each with its noun beside it
+    {
+      code: "const s = `${nf.format(n)} rules, ${nf.format(m)} presets.`;",
+      errors: [
+        { messageId: "preferPluralNoun", data: { word: "rule" } },
+        { messageId: "preferPluralNoun", data: { word: "preset" } },
+      ],
+    },
+    // THE WRAPPED SEPARATOR, which oxfmt writes the moment the line grows past
+    // the width: `{" "}` renders the same single space the `JSXText` one does,
+    // so the site is identical and the report has to be too — otherwise the arm
+    // is silenced by a formatting accident (`OriginFraming`'s spelling before
+    // 2613e96e put it on `plural`).
+    {
+      code: 'const el = <p>expands to {nf.format(total)}{" "}presets.</p>;',
+      filename: tsx,
+      errors: [{ messageId: "preferPluralNoun", data: { word: "preset" } }],
+    },
+    // …including with the noun on the line after it, which is what the wrap
+    // actually looks like: JSX strips the newline-indent, so it renders one
+    // space and nothing else.
+    {
+      code: 'const el = <p>evaluated {nf.format(ruleCount)}{" "}\n        rules per test</p>;',
+      filename: tsx,
+      errors: [{ messageId: "preferPluralNoun", data: { word: "rule" } }],
     },
   ],
 });

@@ -16,7 +16,7 @@
  * matches their `managerFilePatterns` too, and `extractCustomDeps` runs one
  * block over one file with the block itself as the extractor's config.
  */
-import { isString } from "./is";
+import { isString, ownValue } from "./is";
 import { enqueueEngineTask } from "./pipeline";
 import {
   customManagerExtractors,
@@ -351,9 +351,7 @@ async function runExtract(request: ExtractRequest): Promise<ExtractOutcome> {
   }
   // Own-key only: a caller-supplied `constructor`/`__proto__` must report "not
   // supported" rather than reach a prototype member and throw.
-  const loadExtractor = Object.hasOwn(managerExtractors, manager)
-    ? managerExtractors[manager]
-    : undefined;
+  const loadExtractor = ownValue(managerExtractors, manager);
   if (loadExtractor === undefined) {
     return {
       ok: false,

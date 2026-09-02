@@ -6,6 +6,7 @@
  * run.ts (which must stay engine-chunk-light) imports it too.
  */
 import type { PresetTokenKey, RepoPlatform } from "@renovate-config-debugger/engine";
+import { ownValue } from "@renovate-config-debugger/engine/is";
 
 export interface HostTokenDescriptor {
   /** Stable id, also the token's field prefix in the engine's PresetAuth. */
@@ -111,5 +112,5 @@ const HOST_PLATFORM: Readonly<Record<string, RepoPlatform>> = Object.fromEntries
 /** The platform serving a HOST that may be any string — the own-key guard is
  *  what keeps a pasted `constructor/repo` from reporting a known host. */
 export function platformForHost(host: string): RepoPlatform | undefined {
-  return Object.hasOwn(HOST_PLATFORM, host) ? HOST_PLATFORM[host] : undefined;
+  return ownValue(HOST_PLATFORM, host);
 }

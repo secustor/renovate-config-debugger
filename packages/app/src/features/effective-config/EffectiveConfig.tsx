@@ -15,7 +15,7 @@ import {
   effectiveTableRows,
   isEffectiveView,
 } from "./effective-rows";
-import { nf } from "@/lib/format";
+import { plural } from "@/lib/format";
 import { ResolvedJsonView } from "./ResolvedJsonView";
 import { useProvenance, useResolvedConfig } from "./use-effective-derivations";
 import { useRuleProvenance } from "@/hooks/rule-provenance";
@@ -285,7 +285,7 @@ export const EffectiveConfig = memo(function EffectiveConfig({
       />
       {view === "keys" ? (
         <p className="data-table-note">
-          {nf.format(entries.length)} options in the config Renovate runs · hover any key for
+          {plural(entries.length, "option")} in the config Renovate runs · hover any key for
           Renovate’s docs · defaults have no cascade — only the default ever touched them
         </p>
       ) : null}

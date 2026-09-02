@@ -8,6 +8,7 @@ import {
   isString,
   isStringArray,
   isTruthy,
+  ownValue,
 } from "./is";
 
 describe("isString", () => {
@@ -106,5 +107,28 @@ describe("isTruthy", () => {
     const mixed: (string | undefined)[] = ["a", undefined, "b"];
     const kept: string[] = mixed.filter(isTruthy);
     expect(kept).toEqual(["a", "b"]);
+  });
+});
+
+describe("ownValue", () => {
+  it("reads an own key and answers undefined for a missing one", () => {
+    const table = { github: "https://api.github.com/", gitea: "" };
+    expect(ownValue(table, "github")).toBe("https://api.github.com/");
+    expect(ownValue(table, "gitea")).toBe("");
+    expect(ownValue(table, "bitbucket")).toBeUndefined();
+  });
+
+  /** The defect it exists for: a bare `table[key]` answers a FUNCTION here. */
+  it("answers undefined for every Object.prototype member name", () => {
+    const table: Record<string, string> = { github: "https://api.github.com/" };
+    for (const key of ["constructor", "toString", "valueOf", "hasOwnProperty", "__proto__"]) {
+      expect(ownValue(table, key)).toBeUndefined();
+    }
+  });
+
+  it("reads a null-prototype table the same way", () => {
+    const table: Record<string, number> = Object.assign(Object.create(null), { a: 1 });
+    expect(ownValue(table, "a")).toBe(1);
+    expect(ownValue(table, "b")).toBeUndefined();
   });
 });

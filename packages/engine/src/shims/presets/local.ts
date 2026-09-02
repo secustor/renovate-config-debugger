@@ -7,6 +7,7 @@
  * unchanged from Renovate's; only the underlying transports are the browser
  * shims.
  */
+import { ownValue } from "../../is";
 import { GlobalConfig } from "../../renovate-adapter";
 import * as forgejo from "./forgejo";
 import * as gitea from "./gitea";
@@ -41,8 +42,8 @@ export const getPreset = makeInjectableGetPreset("local", (repo, presetName, pre
 
   // Own-key lookup, not a bare bracket read: a `platform` of `constructor` /
   // `toString` would otherwise hand back an Object.prototype member instead of
-  // falling through to the honest message below (twin: `defaultEndpointFor`).
-  const resolver = Object.hasOwn(resolvers, platform) ? resolvers[platform] : undefined;
+  // falling through to the honest message below.
+  const resolver = ownValue(resolvers, platform);
   if (resolver) {
     return resolver.getPresetFromEndpoint(repo, presetName, presetPath, endpoint, tag);
   }

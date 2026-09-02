@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 
@@ -53,7 +54,13 @@ function runBin(args: string[]): Promise<BinRun> {
   });
 }
 
-const COMMANDS = ["validate", "digest", "run", "simulate", "compare", "docs"];
+// The registry as a directory listing, not an import: this project's aliases
+// point `../src/…` at the built bundle on purpose, so the source's own idea of
+// which commands exist has to cross the build boundary some other way. The
+// hand-written list this replaced named six of the twelve.
+const COMMANDS = readdirSync(new URL("../../src/commands/", import.meta.url))
+  .filter((file) => file.endsWith(".ts") && !file.endsWith(".test.ts"))
+  .map((file) => file.slice(0, -".ts".length));
 
 describe("bin/rcd.mjs", () => {
   test("--help writes the command list to stdout and exits 0", async () => {

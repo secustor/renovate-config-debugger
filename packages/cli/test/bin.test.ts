@@ -3,6 +3,7 @@ import { once } from "node:events";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
+import { COMMANDS } from "../src/main";
 import { fixture } from "./harness";
 
 /**
@@ -80,7 +81,10 @@ describe("bin/rcd-dev.mjs", () => {
     const run = await runBin(["--help"]);
     expect(run.code).toBe(0);
     expect(run.stderr).toBe("");
-    for (const name of ["validate", "digest", "run", "simulate", "compare", "docs"]) {
+    // Over the registry, never a copy of it: the hand-written list this
+    // replaced named six of the twelve commands, so half the help screen was
+    // unasserted here for as long as it stood.
+    for (const name of COMMANDS.map((command) => command.name)) {
       expect(run.stdout).toContain(name);
     }
   });

@@ -83,8 +83,8 @@ export function useHomeEndPageScroll(): void {
       // dialog, the sheet's remaining rows stayed unreachable by a key the
       // sheet itself prints, and closing it revealed a page jumped to the
       // bottom. This is the gate `useShortcut` and `useTabDigits` get from
-      // App's `keysLive`; this hook takes no props, so it asks the ladder's
-      // own modal flag instead of growing a second one.
+      // `keysLive` (`app/use-keyboard-landings.ts`); this hook takes no props,
+      // so it asks the ladder's own modal flag instead of growing a second one.
       if (modalKeyboardOwned()) {
         return;
       }

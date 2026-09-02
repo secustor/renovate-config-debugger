@@ -819,13 +819,15 @@
         // app-only; see the CLI block below. The file that DEFINES them is
         // exempt in the helper bank.
         "rcd/prefer-plural": "error",
-        // Sweep IV, both app-only because their homes are: `jsonSnippet` lives
-        // in `@/lib/value-preview` and does not resolve from the CLI or the
-        // engine, and `use-lookup-accessors` names `@/data/*` accessors whose
-        // engine namesakes (`shims/repo-config.ts:207`/`:245` and
-        // `shims/presets/host-transport.ts:55`) are its only three false
-        // positives tree-wide — app-only removes all three structurally.
+        // Sweep IV. `use-json-snippet` is app-only because its home is:
+        // `jsonSnippet` lives in `@/lib/value-preview` and does not resolve
+        // from the CLI or the engine.
         "rcd/use-json-snippet": "error",
+        // Sweep V moved `use-lookup-accessors`' home to `ownValue` in
+        // `engine/src/is.ts`, so it is no longer app-only — the engine block
+        // below enables it too. `host-transport.ts:55`, one of the three
+        // engine sites this rule used to be scoped away from, is an `ownValue`
+        // CALL now; `shims/repo-config.ts` is the single exemption left.
         "rcd/use-lookup-accessors": "error"
       }
     },
@@ -854,7 +856,10 @@
     // old `no-unguarded-json-stringify` kept the engine out because
     // `shims/repo-config.ts` stringified under a guard the rule could not see;
     // under the helper design that call is just `jsonDocument(value)` and the
-    // reason is gone. Only the two verbatim upstream ports are exempt, below.
+    // reason is gone. Three engine files are exempt below, each from ONE rule:
+    // the two verbatim upstream ports (`renovate-deps.ts`, `migration.ts`) from
+    // `prefer-is-helpers`, and — since sweep V put `use-lookup-accessors` in
+    // this block — `shims/repo-config.ts` from that rule alone.
     {
       "files": ["packages/engine/src/**"],
       "excludeFiles": [
@@ -864,7 +869,13 @@
       ],
       "rules": {
         "rcd/prefer-is-helpers": "error",
-        "rcd/use-json-helpers": "error"
+        "rcd/use-json-helpers": "error",
+        // Sweep V: the engine is in scope here for the same reason as the two
+        // above — the home moved into `src/is.ts` (`ownValue(table, key)`), so
+        // an import is always `./is`. Both of this sweep's own defects
+        // (40d7e954: `resolvers[platform]`, `managerExtractors[manager]`) were
+        // in this tree.
+        "rcd/use-lookup-accessors": "error"
       }
     },
     // ---- …and the e2e specs -------------------------------------------------
@@ -904,6 +915,29 @@
       "files": ["packages/**"],
       "rules": {
         "rcd/comment-cites-what-exists": "error"
+      }
+    },
+    // ---- …and every test that hand-copies part of an enumeration ------------
+    // Sweep V: test trees only, where a restatement of a registry stands in for
+    // coverage — finding 29 looped six of the seven `RESULTS_TAB_IDS` under the
+    // title "accepts every real tab id", and the CLI's two bin suites listed six
+    // of twelve commands. The repo measures identically clean repo-wide, so the
+    // scope buys no precision today; it keeps the message TRUE of every site the
+    // rule can reach and structurally excludes a future production subset that
+    // is deliberately partial (the `use-json-snippet`/`use-goto-app-helper`
+    // scoping precedent). No exemption is needed even inside the glob: the
+    // registry DEFINITIONS are complete lists, and a complete list is out of
+    // shape by the proper-subset condition.
+    {
+      "files": [
+        "packages/**/*.test.ts",
+        "packages/**/*.test.tsx",
+        "packages/cli/test/**",
+        "packages/engine/test/**",
+        "packages/app/e2e/*.spec.ts"
+      ],
+      "rules": {
+        "rcd/complete-enumeration-restatement": "error"
       }
     },
     // ---- …and the files that ARE the helper ---------------------------------
@@ -976,15 +1010,15 @@
       "files": ["packages/app/src/lib/value-preview.ts"],
       "rules": { "rcd/use-json-snippet": "off" }
     },
-    // The two `Object.hasOwn`-guarded accessor bodies, exempted BY PATH rather
-    // than by an AST carve-out: the guard and the read need not be adjacent, so
-    // the rule must not try to recognise the guarded shape.
+    // Sweep V: `use-lookup-accessors`' one remaining exemption, and the only
+    // live hit tree-wide. `repo-config.ts:207`/`:245` index a
+    // `Record<HostPlatform, string>` with a `platform: RepoPlatform` (=
+    // `HostPlatform`, :35) union — total by construction, behind a
+    // `req.endpoint || …` where a `string | undefined` would not typecheck.
+    // (The two app accessor bodies exempted here before are `ownValue(...)`
+    // calls now, so they are out of shape and their overrides are gone.)
     {
-      "files": ["packages/app/src/data/platform-endpoints.ts"],
-      "rules": { "rcd/use-lookup-accessors": "off" }
-    },
-    {
-      "files": ["packages/app/src/data/host-tokens.ts"],
+      "files": ["packages/engine/src/shims/repo-config.ts"],
       "rules": { "rcd/use-lookup-accessors": "off" }
     },
     // ---- …and the one type-aware rule that is off everywhere but here -------

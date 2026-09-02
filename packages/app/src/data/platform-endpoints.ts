@@ -9,6 +9,7 @@
  * share.ts can be decided — and unit-tested — against the very same defaults
  * the platform <select> renders, with no React in the way.
  */
+import { ownValue } from "@renovate-config-debugger/engine/is";
 
 /** The platform a fresh session starts on, and the one a share link that names
  *  none is read against. Here rather than re-typed per consumer: the codec's
@@ -46,5 +47,5 @@ export const PLATFORMS = Object.keys(PLATFORM_ENDPOINTS);
  *  own-key guard is what keeps a share link naming `constructor` from
  *  resolving to `Object.prototype`'s member instead of an endpoint. */
 export function defaultEndpointFor(platform: string): string | undefined {
-  return Object.hasOwn(PLATFORM_ENDPOINTS, platform) ? PLATFORM_ENDPOINTS[platform] : undefined;
+  return ownValue(PLATFORM_ENDPOINTS, platform);
 }

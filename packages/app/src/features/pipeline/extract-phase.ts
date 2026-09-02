@@ -137,7 +137,7 @@ export function extractNodes(view: RepoDepsView): ExtractNode[] {
  */
 function managersOutcome(view: RepoDepsView): string {
   const { builtIn } = matchedManagerCounts(view);
-  const base = `${nf.format(builtIn)} of ${nf.format(view.managersConsidered)} managers matched files`;
+  const base = `${nf.format(builtIn)} of ${plural(view.managersConsidered, "manager")} matched files`;
   if (view.customManagersConsidered === 0) {
     return base;
   }

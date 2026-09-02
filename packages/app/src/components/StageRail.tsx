@@ -194,8 +194,8 @@ function PreviewNode({
  *  list while a run is in flight. Paced narration, not measurement — the
  *  engine reports nothing until it is finished. The design's pace: quick
  *  enough that the whole walk fits in the moment before the shell docks in.
- *  An uninterrupted walk is 1.28 s at this pace; App's `LANDING_WALK_CAP_MS`
- *  (use-landing-walk.ts) must stay comfortably above it. */
+ *  An uninterrupted walk is 1.28 s at this pace; `LANDING_WALK_CAP_MS`
+ *  (`app/use-landing-walk.ts`) must stay comfortably above it. */
 const RUNNING_STEP_MS = 160;
 
 /** The last column. The run's own completion is what lights it, and by then

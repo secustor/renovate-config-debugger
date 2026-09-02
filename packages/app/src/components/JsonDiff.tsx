@@ -2,7 +2,7 @@ import { type ReactNode, useMemo, useState, useTransition } from "react";
 import { Diff, getChangeKey, Hunk, parseDiff } from "react-diff-view";
 import { jsonFile } from "@renovate-config-debugger/engine/json";
 import { useDiffOptionHover } from "./option-docs-hooks";
-import { nf } from "@/lib/format";
+import { nf, plural } from "@/lib/format";
 import { buildJsonPatch } from "@/lib/json-patch";
 import { CopyButton } from "./CopyButton";
 import { SegmentedControl, type SegmentedOption } from "./SegmentedControl";
@@ -221,7 +221,7 @@ export function JsonDiff({ before, after, names, title }: Props) {
             className="btn-secondary accent-text"
             onClick={() => startTransition(() => setShowAllRequested(true))}
           >
-            Show all {nf.format(stat.total)} lines
+            Show all {plural(stat.total, "line")}
           </button>
         </div>
       )}
