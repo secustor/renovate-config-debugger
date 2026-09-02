@@ -13,5 +13,14 @@
   // `test/**` is deliberately absent: those helpers are DOM-typed and are
   // typechecked under the app's project, which imports them via `@tools/*`.
   // Adding them here fails — this project is ES2023 + node types, no DOM.
-  "include": ["agents/**/*.ts", "release/**/*.ts", "lint/**/*.ts", "verify-deployment.ts"]
+  "include": [
+    "agents/**/*.ts",
+    "release/**/*.ts",
+    "lint/**/*.ts",
+    "docs/**/*.ts",
+    "verify-deployment.ts",
+    // Lives at the repo root but configures tools/lint's specs, so no
+    // package project covers it.
+    "../vitest.tools.config.ts"
+  ]
 }

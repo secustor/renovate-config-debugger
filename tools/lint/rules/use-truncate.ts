@@ -22,7 +22,7 @@ import { defineRule, type ESTree } from "@oxlint/plugins";
  *
  * The adjacent ellipsis, not the literalness of N, is what makes the match
  * unambiguous — so the length may also be an identifier: the two sites this
- * widening caught (`previewValue`, `pin-probe`'s clip) passed a named constant.
+ * widening caught (`jsonSnippet`, `pin-probe`'s clip) passed a named constant.
  */
 
 const ELLIPSIS = "…";

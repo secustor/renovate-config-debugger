@@ -1,7 +1,8 @@
 import { defineConfig } from "vitest/config";
 
 /**
- * The house lint rules' vitest config (`tools/lint`).
+ * The repo-level specs' vitest config: the house lint rules (`tools/lint`)
+ * and the docs-claim guard (`tools/docs`).
  *
  * NOT named `vitest.config.ts`: vitest walks UP from a package looking for one,
  * and `packages/oauth-worker` has none of its own — a root config by that name

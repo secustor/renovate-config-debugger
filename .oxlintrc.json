@@ -374,11 +374,10 @@
                 // hence `allowTypeImports`. Runtime access goes through the
                 // narrow subpaths (`/is`, `/json`, `/contracts`, `/text-scan`,
                 // `/schema`, `/simulate-missing-inputs`) or through
-                // `loadEngine()`. `/is` and `/json` are the two the app reaches
-                // from its ENTRY chunk, and the two this ban sends most authors
-                // to; both are zero-import files precisely so that is free,
-                // which `engine/test/import-free-subpaths.node.test.ts` keeps
-                // true.
+                // `loadEngine()`. `/is` and `/json` are the two this ban sends
+                // most authors to; every banner subpath is a zero-import file
+                // precisely so reaching it from the ENTRY chunk is free, which
+                // `engine/test/import-free-subpaths.node.test.ts` keeps true.
                 "group": ["@renovate-config-debugger/engine"],
                 "allowTypeImports": true,
                 "message": "Value-importing the engine ROOT statically pulls the whole Renovate graph into this chunk — use a narrow subpath export, or load it at runtime through platform/engine-chunk.ts (`loadEngine()`). Type-only imports are fine."

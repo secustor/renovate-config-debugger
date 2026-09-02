@@ -54,7 +54,7 @@ ruleTester.run("use-truncate", rule, {
       errors: [{ messageId: "useTruncate" }],
     },
     // the shape that escaped a literal-only match: the length is a named
-    // constant or a parameter (`previewValue`, `pin-probe`'s clip).
+    // constant or a parameter (`jsonSnippet`, `pin-probe`'s clip).
     {
       code: "const out = text.length > max ? `${text.slice(0, max)}…` : text;",
       errors: [{ messageId: "useTruncate" }],

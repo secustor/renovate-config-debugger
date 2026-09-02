@@ -104,7 +104,7 @@ function codemirrorJsonSchemaShims(): Plugin {
  *   boot paths run. The refresh round-trip itself still needs a real Worker;
  *   without one the session honestly expires with the 8 h token.
  * - `pat` — no OAuth at all: the token lands in `rcd.githubToken`, the
- *   "Platform context & per-host tokens" fallback of an OAuth-off deployment.
+ *   "Advanced — hosts & credentials" fallback of an OAuth-off deployment.
  *
  * Why the token cannot leak into a bundle: `apply: "serve"` keeps the plugin
  * out of every build, and the non-`VITE_` prefix keeps the var out of

@@ -62,7 +62,7 @@ re-rendered anyway.
 ## What moved
 
 - `app/use-app-messages.ts` — fatal (+ stamp), notice, toast (+ timer),
-  the run announcement, and both alternating-space raises.
+  the run announcement, and all three alternating-space raises.
 - `app/use-platform-context.ts` — platform/endpoint state + storage reads,
   global-context reflection (`displayPlatform`/`displayEndpoint`), the
   override snap-back effect, the guard pair (state + same-tick ref), and the
