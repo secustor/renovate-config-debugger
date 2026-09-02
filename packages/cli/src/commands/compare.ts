@@ -13,7 +13,12 @@ import {
   wouldRefuse,
 } from "../run-input";
 import { readDependency } from "../dep";
-import { deltaLine, parseConfigScope, parseKeys } from "../projections/config-view";
+import {
+  deltaLine,
+  parseConfigScope,
+  parseKeys,
+  type WithheldKey,
+} from "../projections/config-view";
 import { parseCompareDetail, type ProjectedComparison } from "../projections/simulate";
 import { askCompare } from "../questions/compare";
 import { askSimulation } from "../questions/simulate";
@@ -103,6 +108,26 @@ function identityLines(comparison: ProjectedComparison): string[] {
   ];
 }
 
+const WITHHELD_REASON: Record<WithheldKey["reason"], string> = {
+  "global-only": "global-only (no packageRule can reach it; `--config-scope full` carries it)",
+  identical: "identical (both sides carry it, nothing differed)",
+  absent: "absent (neither side's per-dependency config has it)",
+};
+
+/** The `--keys` names the delta above does not carry, and why: a withheld key
+ *  that prints nothing is indistinguishable from one that did not differ. */
+function withheldLines(comparison: ProjectedComparison): string[] {
+  const withheld = comparison.configView.withheld;
+  if (!withheld || withheld.length === 0) {
+    return [];
+  }
+  return [
+    "",
+    "Requested keys not in the delta above:",
+    ...withheld.map((entry) => `  ${entry.key} — ${WITHHELD_REASON[entry.reason]}`),
+  ];
+}
+
 export const compareCommand: Command = {
   name: "compare",
   summary: "A/B two simulations: prove an edit changed (or didn't change) behavior",
@@ -125,10 +150,11 @@ export const compareCommand: Command = {
     "The key delta is reported at `--config-scope package-rules` (the globalOnly",
     "options no rule can reach are dropped) and `--keys a,b` narrows it further.",
     "Neither touches the verdict: `summary` states what the comparison found",
-    "over the WHOLE delta, and `configView.withheld` names every requested key",
-    "the answer does not carry, with why — `identical` (both sides carry it,",
-    "nothing differs), `absent` (neither side's per-dependency config has it; a",
-    "rule that did not match contributes nothing), or `global-only`.",
+    "over the WHOLE delta, and every requested key the answer does not carry is",
+    "named with why — `identical` (both sides carry it, nothing differs),",
+    "`absent` (neither side's per-dependency config has it; a rule that did not",
+    "match contributes nothing), or `global-only`. In JSON that is",
+    "`configView.withheld`; pretty output lists the same keys under the delta.",
     "",
     "`--detail verdict` (the default) answers with the claim and its evidence,",
     "and states the identity axis as counts; `--detail rules` restores the rule",
@@ -235,6 +261,7 @@ export const compareCommand: Command = {
         ...(comparison.configDelta.length > 0
           ? ["", "Config delta:", ...comparison.configDelta.map((d) => `  ${deltaLine(d)}`)]
           : []),
+        ...withheldLines(comparison),
         ...identityLines(comparison),
         ...(refusal ? ["", refusal] : []),
       ]);

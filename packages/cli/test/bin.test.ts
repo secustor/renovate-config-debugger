@@ -20,9 +20,11 @@ import { fixture } from "./harness";
  * behavior of the commands is asserted in-process and only the seams the bin
  * owns are asserted here.
  *
- * The dev runner is the target, not the published `bin/rcd.mjs`: that one
- * needs `dist/main.js`, which the test job never builds — and the artifact
- * itself is already proven by the `bundle` project's parity suite.
+ * The dev runner is the target, not the published `bin/rcd.mjs`: that one needs
+ * `dist/main.js`, which the test job never builds. So nothing here proves the
+ * built artifact — its own dispatch and help live in
+ * `test/bundle/cli-surface.test.ts`, which is the only regime that sees
+ * `ssr.noExternal: true` output.
  */
 
 const BIN = fileURLToPath(new URL("../bin/rcd-dev.mjs", import.meta.url));
@@ -120,6 +122,29 @@ describe("bin/rcd-dev.mjs", () => {
     expect(run.stdout.length).toBeGreaterThan(64 * 1024);
     const result = JSON.parse(run.stdout) as { finalConfig: { extends?: string[] } };
     expect(result.finalConfig).toBeTypeOf("object");
+  }, 120_000);
+
+  test("a peer that stops reading is not a crash", async () => {
+    // `rcd … | head`: the same over-64-KB answer, with the read end closed
+    // mid-write. Without `bin/io.mjs`'s `guardStdio`, the failed write is an
+    // uncaught exception — so the absence of the crash IS the assertion.
+    const child = spawn(
+      process.execPath,
+      [BIN, "run", "--stdin", "--select", "final", "--format", "json"],
+      { cwd: CLI_DIR, env: CHILD_ENV, stdio: ["pipe", "pipe", "pipe"] },
+    );
+    let stderr = "";
+    child.stderr.setEncoding("utf8");
+    child.stderr.on("data", (chunk: string) => {
+      stderr += chunk;
+    });
+    child.stdout.once("data", () => child.stdout.destroy());
+    child.stdin.end('{"extends":["config:recommended"]}');
+
+    const [code] = (await once(child, "exit")) as [number | null, string | null];
+    expect(code).toBe(0);
+    expect(stderr).not.toContain("Unhandled 'error' event");
+    expect(stderr).not.toContain("EPIPE");
   }, 120_000);
 });
 

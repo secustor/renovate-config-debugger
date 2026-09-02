@@ -64,4 +64,13 @@ describe("docs", () => {
     expect(run.code).toBe(1);
     expect(run.stderr).toContain("--search");
   });
+
+  /** A second option name used to be dropped in silence, so `docs a b`
+   *  answered about `a` alone and exited 0 — the first name read as the answer. */
+  test("a second option name is an error naming it, not a silently answered first", async () => {
+    const run = await runCli(["docs", "packageRules", "matchDepNames"]);
+    expect(run.code).toBe(1);
+    expect(run.stderr).toContain("does not take");
+    expect(run.stderr).toContain("matchDepNames");
+  });
 });

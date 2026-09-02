@@ -5,6 +5,7 @@ import { CliError, EXIT_OK } from "../io";
 import { emitJson, emitLines } from "../output";
 import { optionDocLines } from "../projections/option-doc";
 import { askOptionDocs } from "../questions/option-docs";
+import { rejectExtraPositionals } from "../run-input";
 
 /**
  * Renovate's own option metadata, for the exact pinned version — so an agent
@@ -26,6 +27,7 @@ export const docsCommand: Command = {
   options: ["search", "format"],
   run(args, io) {
     const format = outputFormat(args);
+    rejectExtraPositionals(args, "docs", 0);
     const query = args.positionals[0];
     if (!query) {
       throw new CliError("name an option, e.g. `rcd docs packageRules`");

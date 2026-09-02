@@ -335,6 +335,8 @@ adding an entry to the array a rule matches on rewrites that rule's selector
 text — and the parenthetical says WHICH kind of rewrite it was, so
 `clause-added` never reads as a pattern replacement.
 
+</details>
+
 ### Reading the comparison JSON
 
 `--format json` and the MCP `compare_simulations` answer carry the same object.
@@ -483,8 +485,6 @@ re-embed all of it on both sides. An append is now stated as what it appended
 (`{"collapsed": "append", "beforeLength": 22, "afterLength": 24, "added": […]}`)
 — a replacement still shows both sides, and the full array is one
 `rcd provenance renovate.json description` away.
-
-</details>
 
 ## Exit codes
 

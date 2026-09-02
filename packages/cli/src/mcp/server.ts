@@ -6,6 +6,7 @@ import {
   optionsSourceUrl,
   type ResolvedConfigMode,
   renovateVersion,
+  type RuleAttribution,
   runPipeline,
   type SimulationResult,
   type TraceResult,
@@ -228,6 +229,7 @@ const DEP = z
     datasource: z.string().optional(),
     manager: z.string().optional(),
     depType: z.string().optional(),
+    depTypes: z.array(z.string()).optional(),
     packageFile: z.string().optional(),
     currentValue: z.string().optional(),
     currentVersion: z.string().optional(),
@@ -350,19 +352,36 @@ const CONFIG_SCOPE = z
       "one produced it, in `configView`.",
   );
 
+/** One attribution per held run, not one per message: computing it walks the
+ *  whole preset tree (~1,076 nodes on a `config:recommended` run), and most
+ *  messages never name a `packageRules[N]`. The box is load-bearing —
+ *  `computeRuleProvenance` legitimately answers `undefined`, and a bare
+ *  truthiness memo would re-walk the tree per message for exactly those runs. */
+const ruleAttributions = new WeakMap<TraceResult, { value: RuleAttribution[] | undefined }>();
+
+function ruleAttributionOf(result: TraceResult): RuleAttribution[] | undefined {
+  let entry = ruleAttributions.get(result);
+  if (!entry) {
+    entry = { value: computeRuleProvenance(result) };
+    ruleAttributions.set(result, entry);
+  }
+  return entry.value;
+}
+
 /**
  * The `packageRules[N]` cross-link for one of a run's own messages, or nothing.
  *
  * Two guards, both roadmap 071: the message must come from the `validate`
  * stage — the global and inherited layers validate their own documents into
  * the same `errors`/`warnings` arrays, and their indexes address a different
- * array — and the run must be attributable at all.
+ * array — and the run must be attributable at all. The attribution itself is
+ * memoized per run, since this is called once per message.
  */
 function ruleLinkOf(run: HeldRun, message: ValidationMessage): RuleCrossLink | undefined {
   if (!repoStageMessage(run.result, message)) {
     return undefined;
   }
-  return ruleCrossLink(message, "repo", computeRuleProvenance(run.result));
+  return ruleCrossLink(message, "repo", ruleAttributionOf(run.result));
 }
 
 /** Each validator message with the position `explain_message` addresses it by.

@@ -259,7 +259,8 @@ export function takeInputFile(args: ParsedArgs): { file?: string; rest: string[]
  * validate a.json b.json` used to validate `a.json` alone and exit `0`, and a
  * second `provenance` key was silently dropped, which read as "the first key's
  * chain is the whole answer". `allowed` counts what the command takes BESIDES
- * the config file — the same `rest` {@link takeInputFile} hands it.
+ * its input positional (the config file, an option name for `docs`, or the
+ * manifest for `extract`), the same `rest` {@link takeInputFile} hands it.
  */
 export function rejectExtraPositionals(args: ParsedArgs, command: string, allowed: number): void {
   const { rest } = takeInputFile(args);

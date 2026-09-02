@@ -232,6 +232,24 @@ describe("compare", () => {
       { key: "labels", reason: "identical" },
     ]);
   });
+
+  /** Pretty used to print no Config-delta section at all for a withheld key,
+   *  so a global-only or identical key read as "nothing differed". */
+  test("pretty names the withheld keys and why, not just the JSON answer", async () => {
+    const run = await runCli([
+      "compare",
+      fixture("clean.json"),
+      fixture("grouped.json"),
+      "--dep",
+      '{"depName":"react","packageName":"react"}',
+      "--keys",
+      "groupName,onboardingConfig,labels",
+    ]);
+    expect(run.code).toBe(0);
+    expect(run.stdout).toContain("onboardingConfig — global-only");
+    expect(run.stdout).toContain("--config-scope full");
+    expect(run.stdout).toContain("labels — identical");
+  });
 });
 
 /**
