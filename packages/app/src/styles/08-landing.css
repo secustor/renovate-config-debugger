@@ -2,7 +2,7 @@
    ORDER IS LOAD-BEARING: main.tsx imports these numbered files in sequence,
    preserving the original file's cascade byte-for-byte; the couplings that
    depend on that order are listed there.
-   This file: the landing (075). */
+   This file: the landing (075), the shared stage rail in both its live and preview modes — StageRail is the Pipeline tab's stage selector too (075 it4) — the pane foot, the fatal-error paragraph (068), the glossary term and card (016/025), and the Pipeline tab's card-title suffix (`.card-title-hint`). */
 
 /* ---------- the landing (roadmap 075, v2 iteration 2) ----------
    What the app is before a run. It replaced 040's three-step welcome card,

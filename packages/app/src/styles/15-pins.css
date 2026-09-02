@@ -597,6 +597,12 @@
   padding: 0.6rem 0.7rem;
 }
 
+/* AddTestBox's always-mounted live region: empty, it must not spend one of the
+   panel's flex gaps. Never `display: none` — a hidden region cannot announce. */
+.pin-add-panel > [role="alert"]:empty {
+  margin-block: -0.25rem;
+}
+
 /* The design's ghost row: a dashed, muted "+ Pin a dependency…" that expands
    into the New-pin card. Accent on hover — it is a door, not a card. */
 .pin-add-ghost {
@@ -817,7 +823,6 @@
   flex: 1;
   font-family: inherit;
   font-size: 0.82rem;
-  outline: none;
   padding: 0.1rem;
 }
 
