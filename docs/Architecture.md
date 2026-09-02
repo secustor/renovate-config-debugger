@@ -31,8 +31,13 @@ overrides mechanize the rule. The Renovate GRAPH is reached only through one
 dynamic `loadEngine()` seam (`src/platform/engine-chunk.ts`), so the critical
 path stays small; the engine's zero-import helper subpaths (`/is`, `/json`,
 `/contracts`, `/text-scan`) are imported statically, and two house rules
-require it. `/schema` is the exception — its ~160 kB gz stack is pinned to
-`platform/editor-schema.ts` (roadmap 031). `.oxlintrc.json` enforces all of it.
+require it. Two further subpaths are static without being import-free:
+`/simulate-missing-inputs`, which is Renovate-free and reached from
+`lib/rule-verdict.ts` by its own spelling rather than through the root barrel
+(that file's header records the measured chunk-graph reason), and `/schema`,
+whose ~160 kB gz stack is the pinned one — allowed only in
+`platform/editor-schema.ts` (roadmap 031). `.oxlintrc.json` enforces all of it,
+and its `no-restricted-imports` comment is the full subpath enumeration.
 
 **`packages/cli`** is `rcd`, the headless debugger (roadmap 058, experimental).
 Its dev bin boots Vite's SSR module runner with `renovateShims()` active, so the
@@ -117,8 +122,11 @@ plugin module exports for `server.deps.inline` — without the inline, Node load
 where the store-path anchoring is explained; every vitest project that runs the
 plugin spreads it) and must produce **byte-identical** results. Both projects
 glob their files, and `test/project-coverage.node.test.ts` asserts that every
-test file matches exactly one of the two globs — a hand-listed project is how a
-new test comes to run in no project at all and pass silently.
+test file matches exactly one of its project globs — a hand-listed project is
+how a new test comes to run in no project at all and pass silently. Golden has a
+second glob, `src/**/*.test.ts`, for the colocated suites that need no shims:
+those are assigned by location, so a `.shimmed.` name under `src/` would read as
+shimmed and quietly run unshimmed.
 
 ## The three module regimes
 
