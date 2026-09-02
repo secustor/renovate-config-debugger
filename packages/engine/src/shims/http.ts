@@ -1,10 +1,12 @@
 /**
  * Browser stub for renovate's got-backed http stack (roadmap 078): mapped over
- * util/http/got.js, util/http/http.js, util/http/index.js AND
- * util/http/gitlab.js. Manager extract files import datasource CLASSES just to
- * read their static `.id`, and those classes reach `Http`/`HttpBase`/
- * `RequestError` at module scope — without this stub any manager import drags
- * the Node-only `got` stack (and its node:stream/timers deps) into the graph.
+ * util/http/got.js, util/http/http.js, util/http/index.js, util/http/gitlab.js
+ * AND util/http/keep-alive.js (that last for its module-scope agentkeepalive
+ * construction, not for the got class surface). Manager extract files import
+ * datasource CLASSES just to read their static `.id`, and those classes reach
+ * `Http`/`HttpBase`/`RequestError` at module scope — without this stub any
+ * manager import drags the Node-only `got` stack (and its node:stream/timers
+ * deps) into the graph.
  *
  * Extraction never performs a request; every method that would throws.
  */

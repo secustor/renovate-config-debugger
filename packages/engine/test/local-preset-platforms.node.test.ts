@@ -4,8 +4,8 @@
  * platform fails here instead of shipping an `Unknown platform` message
  * Renovate itself would never print. Re-bucketing an id upstream is not caught
  * — this only asserts that some classification happened, never which one. The
- * dropdown in `packages/app/src/data/platform-endpoints.ts` is the second copy
- * of this list.
+ * app's dropdown (`packages/app/src/data/platform-endpoints.ts`) is a subset of
+ * these ids and is NOT checked here — a new platform belongs there too.
  *
  * It lives here, not beside `local.ts`, because the real platform registry is a
  * `renovate/dist` deep import, which `.oxlintrc.json` fences out of `src/`.
@@ -62,5 +62,13 @@ describe("the local preset resolver's platform sets", () => {
       }
     }
     expect(unclassified).toEqual([]);
+  });
+
+  it("classifies a prototype-member platform name as unknown, not a resolver", async () => {
+    // The cast IS the test: `constructor` is exactly the value the type system
+    // cannot produce but a share link's `platform` can carry at runtime.
+    const { fetched, outcome } = await classify("constructor" as PlatformId);
+    expect(fetched).toBe(false);
+    expect(outcome).toMatch(/Unknown platform 'constructor'/);
   });
 });

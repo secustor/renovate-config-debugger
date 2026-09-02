@@ -67,6 +67,8 @@ export interface DependencyDescriptor {
   /** Defaults to `packageName` when omitted. */
   depName?: string;
   depType?: string;
+  /** Read only when depType is unset — upstream DepTypesMatcher prefers depType. */
+  depTypes?: string[];
   packageFile?: string;
   lockFiles?: string[];
   currentValue?: string;
@@ -93,12 +95,13 @@ export interface DependencyDescriptor {
  * is the invariant: a new descriptor field is a compile error here, never a key
  * the unknown-key note starts mislabeling.
  */
-const DESCRIPTOR_KEY_SET = {
+export const DESCRIPTOR_KEY_SET = {
   manager: true,
   datasource: true,
   packageName: true,
   depName: true,
   depType: true,
+  depTypes: true,
   packageFile: true,
   lockFiles: true,
   currentValue: true,
@@ -311,7 +314,7 @@ interface MatcherDescriptor {
  * by position. Must stay aligned with the upstream registry
  * (`lib/util/package-rules/matchers.ts`) — length-checked at runtime.
  */
-const MATCHER_TABLE: readonly MatcherDescriptor[] = [
+export const MATCHER_TABLE: readonly MatcherDescriptor[] = [
   { key: "matchConfidence", inputFields: ["mergeConfidenceLevel"] },
   { key: "matchRepositories", inputFields: ["repository"] },
   { key: "matchBaseBranches", inputFields: ["baseBranch"] },

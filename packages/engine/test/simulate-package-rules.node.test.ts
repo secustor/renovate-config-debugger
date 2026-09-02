@@ -8,6 +8,7 @@ import { applyPackageRules } from "renovate/dist/util/package-rules/index.js";
 import { describe, expect, it } from "vitest";
 import type { DependencyDescriptor } from "../src/index";
 import { runPipeline, simulatePackageRules } from "../src/index";
+import { DESCRIPTOR_KEY_SET, MATCHER_TABLE } from "../src/simulate-package-rules";
 import { must, npmDep, oracleFlatten, oracleInput } from "./helpers";
 
 describe("simulatePackageRules (golden)", () => {
@@ -267,5 +268,31 @@ describe("simulatePackageRules with a `group:` preset extended inside a rule (go
       expect(simulated.finalDependencyConfig.minimumGroupSize).toBe(5);
       expect(simulated.finalDependencyConfig.groupName).toBeUndefined();
     }
+  });
+});
+
+describe("the descriptor's key set (golden)", () => {
+  // The `satisfies` in the module covers descriptor growth; this covers the
+  // other direction — a matcher input field the descriptor never declared.
+  it("covers every input field the matcher table reads", () => {
+    const unknown = MATCHER_TABLE.flatMap((entry) => entry.inputFields).filter(
+      (field) => !Object.prototype.hasOwnProperty.call(DESCRIPTOR_KEY_SET, field),
+    );
+    expect(unknown).toEqual([]);
+  });
+
+  it("does not call `depTypes` an ignored key — the matcher reads it", async () => {
+    const config = { packageRules: [{ matchDepTypes: ["devDependencies"], labels: ["dev"] }] };
+    const dep: DependencyDescriptor = {
+      manager: "npm",
+      datasource: "npm",
+      packageName: "lodash",
+      depTypes: ["devDependencies"],
+    };
+    const simulated = await simulatePackageRules({ config, dep });
+    expect(simulated.notes.filter((note) => note.includes("ignored"))).toEqual([]);
+    expect(must(simulated.rules[0], "the matchDepTypes rule").verdict).toBe("matched");
+    const oracle = await applyPackageRules(oracleInput(config, dep));
+    expect(simulated.rawFinalConfig).toEqual(oracle);
   });
 });

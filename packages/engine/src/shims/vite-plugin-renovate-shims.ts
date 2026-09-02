@@ -199,9 +199,13 @@ export function renovateShims(): Plugin {
       // and the npm-extraction chunk throws at module init (graceful-fs's
       // polyfills read the bare `process.cwd`, fast-glob calls `os.cpus()`)
       // — the exact crashes the stubs exist to prevent in dev. Scoped by
-      // importer to third-party code, matching the prebundle's blast radius:
-      // first-party sources and the Node regimes' externalized deps keep the
-      // real modules.
+      // importer to third-party code, which is WIDER than the prebundle's blast
+      // radius: under the CLI's `ssr.noExternal: true` build it also catches
+      // that package's own runtime deps (commander reads
+      // `stripVTControlCharacters` from node:util), so the stubs must export a
+      // superset of the node:util/os surface any bundled dep names — a gap is
+      // a crash in the shipped bundle only. First-party sources and the Node
+      // regimes' EXTERNALIZED deps keep the real modules.
       if (importer !== undefined && importer.includes("node_modules")) {
         const stub = nodeStub(source);
         if (stub) {

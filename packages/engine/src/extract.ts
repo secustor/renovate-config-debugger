@@ -349,7 +349,11 @@ async function runExtract(request: ExtractRequest): Promise<ExtractOutcome> {
             "not supported in the browser engine",
         };
   }
-  const loadExtractor = managerExtractors[manager];
+  // Own-key only: a caller-supplied `constructor`/`__proto__` must report "not
+  // supported" rather than reach a prototype member and throw.
+  const loadExtractor = Object.hasOwn(managerExtractors, manager)
+    ? managerExtractors[manager]
+    : undefined;
   if (loadExtractor === undefined) {
     return {
       ok: false,

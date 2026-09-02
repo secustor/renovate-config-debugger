@@ -151,8 +151,6 @@ function scanValue(text: string, start: number): number | null {
     return skipString(text, start);
   }
   if (c === "{" || c === "[") {
-    const open = c;
-    const close = c === "{" ? "}" : "]";
     let depth = 1;
     let i = start + 1;
     while (i < text.length && depth > 0) {
@@ -166,18 +164,8 @@ function scanValue(text: string, start: number): number | null {
         i = skipString(text, i);
         continue;
       }
-      if (ch === open) {
-        depth++;
-        i++;
-        continue;
-      }
-      if (ch === close) {
-        depth--;
-        i++;
-        continue;
-      }
-      // A differing bracket type inside (object containing an array, etc.)
-      // also needs depth tracking so its own close doesn't unbalance ours.
+      // One depth counter across both bracket types: a nested array inside our
+      // object (or vice versa) must not unbalance us.
       if (ch === "{" || ch === "[") {
         depth++;
         i++;
