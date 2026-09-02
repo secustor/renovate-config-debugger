@@ -26,6 +26,12 @@ Milestone: M5 · Status: done 2026-07-24 · amended 2026-08-27
 > layer: those ranges are the ~200 bytes of every MCP answer that must survive
 > the byte budget whole, and there are ~700 writing bodies. The writer reaches
 > that view as `[from X]` on the digest lines, which already degrade.
+>
+> Completed 2026-09-02: the two verdict-card surfaces that still read
+> `attribution.layer` directly — `verdict-sentence.ts`'s "from `<preset>`"
+> parenthetical (and therefore `rcd simulate`'s sentence) and
+> `consumed-blocks.ts`'s attribution chip — now go through `ruleOriginLayer`
+> like the rest.
 
 > Implemented as specified. Engine: `computeRuleProvenance` (013) attributes
 > every entry of the merged `finalConfig.packageRules` to its contributing

@@ -110,7 +110,9 @@ Two consequences worth recording:
   results panel stays MOUNTED (028), so a panel-side effect would fire for a
   tab nobody has looked at and spend the rate limit on it. App runs
   `ensureRepoDeps()` when `tab === "deps"`; `ensure` is idempotent per loaded
-  repo, so the doors onto the same discovery never discover twice. (Two at the
+  repo, so the doors onto the same discovery never discover twice, and its
+  identity moves with that repo (plus 093's custom-manager blocks), so a tab
+  that was already open re-discovers when the key changes. (Two at the
   time of writing — this tab and the Tests tab's From-repository view; 090's
   Extract phase is the third, and App's effect gained its condition there.)
 

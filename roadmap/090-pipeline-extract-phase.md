@@ -112,7 +112,8 @@ managers }] }` from the same single pass. Same cost, same order, one caller.
   panel-side effect would fire for a tab nobody has looked at. App's existing
   `tab === "deps"` trigger became `tab === "deps" || (tab === "pipeline" &&
 phase === "extract")`; `ensure` is idempotent per loaded repo, so the three
-  doors onto discovery never discover twice.
+  doors onto discovery never discover twice — and its identity is keyed to that
+  repo, so a phase left open re-discovers when a new load changes the key.
 - It reaches the panel through the run-view context (086's admission rule: it
   changes on a selection, never on a keystroke), and `onOpenDependencies` is
   `jumpToTab("deps")` — the shell owns tab switching, and the jump records the

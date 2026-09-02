@@ -102,7 +102,7 @@ token   = base64url( deflate-raw( utf8( JSON.stringify(payload) ) ) )   // no pa
 url     = `http://localhost:<port>/?s=<unique>#config=${token}`
 ```
 
-— the exact wire format `packages/app/src/share.ts` decodes. The generator
+— the exact wire format `packages/app/src/lib/share.ts` decodes. The generator
 reads the pinned Renovate version straight from
 `packages/engine/package.json`, so it always matches the build you just
 served; only pass `--renovate` explicitly if you need to deviate.

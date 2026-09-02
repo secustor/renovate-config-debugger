@@ -166,7 +166,11 @@ point it at a manifest and it prints the rows Renovate's managers extract.
 
 `validate` exits **2** when Renovate would refuse the config and **1** on an
 infrastructure error, so it works as a check in CI or a hook without a wrapper.
-(Every subcommand that runs the pipeline uses the same exit codes.)
+The other pipeline subcommands use the same codes, with two exceptions:
+`compare` exits **0** whenever the comparison itself ran, even over a config
+Renovate would refuse — the refusal is reported on the output instead — and
+`extract` exits **1** when no manager section produced dependencies, which is
+its verdict rather than a failure.
 
 ## Things worth not re-learning
 
