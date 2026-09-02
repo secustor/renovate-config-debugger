@@ -17,6 +17,7 @@ import {
   packageRuleMatchers,
   validateConfig,
 } from "./renovate-adapter";
+import { countNoun } from "./text";
 import type { ValidationMessage } from "./trace/model";
 
 /**
@@ -86,6 +87,35 @@ export interface DependencyDescriptor {
   /** Read only by matchConfidence, which is never simulated. */
   mergeConfidenceLevel?: string;
 }
+
+/**
+ * Every key {@link DependencyDescriptor} has, as a set. `Record<keyof …, true>`
+ * is the invariant: a new descriptor field is a compile error here, never a key
+ * the unknown-key note starts mislabeling.
+ */
+const DESCRIPTOR_KEY_SET = {
+  manager: true,
+  datasource: true,
+  packageName: true,
+  depName: true,
+  depType: true,
+  packageFile: true,
+  lockFiles: true,
+  currentValue: true,
+  currentVersion: true,
+  lockedVersion: true,
+  newValue: true,
+  updateType: true,
+  isBump: true,
+  versioning: true,
+  sourceUrl: true,
+  registryUrls: true,
+  categories: true,
+  repository: true,
+  baseBranch: true,
+  currentVersionTimestamp: true,
+  mergeConfidenceLevel: true,
+} as const satisfies Record<keyof DependencyDescriptor, true>;
 
 export interface SimulationInput {
   /** The effective config whose packageRules run (a run's `finalConfig`). */
@@ -375,10 +405,26 @@ function buildDepFields(dep: DependencyDescriptor): {
     );
   }
   const fields: Record<string, unknown> = {};
+  // Kept, not dropped: the `--format json` descriptor echo is what makes a
+  // typo visible, and the note is the only other warning it gets.
+  const unknown: string[] = [];
   for (const [key, value] of Object.entries(withDefaults)) {
     if (value !== undefined) {
       fields[key] = value;
     }
+    // `hasOwnProperty`, not `in`: a descriptor key named `toString` or
+    // `constructor` would otherwise pass as a known field.
+    if (!Object.prototype.hasOwnProperty.call(DESCRIPTOR_KEY_SET, key)) {
+      unknown.push(key);
+    }
+  }
+  if (unknown.length > 0) {
+    notes.push(
+      `${countNoun(unknown.length, "key")} ignored ` +
+        `(${unknown.map((key) => `\`${key}\``).join(", ")}) — no matcher reads keys ` +
+        "outside the descriptor, `matchJsonata` aside; check the spelling against " +
+        "the descriptor's fields",
+    );
   }
   return { fields, notes };
 }

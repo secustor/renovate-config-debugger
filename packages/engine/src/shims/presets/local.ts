@@ -26,6 +26,8 @@ interface Resolver {
 
 const resolvers: Record<string, Resolver> = { github, gitlab, gitea, forgejo };
 
+// The three sets below are a hand-port of upstream `getResolver`'s switch;
+// `test/local-preset-platforms.node.test.ts` fails when a bump adds a platform.
 // Reachable only via a real Renovate run (their platform APIs have no browser
 // fetcher — either no CORS or no prefix of their own in this tool).
 const RUN_ONLY = new Set(["azure", "bitbucket", "bitbucket-server", "gerrit"]);

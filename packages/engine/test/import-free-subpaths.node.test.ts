@@ -4,17 +4,17 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * `contracts.ts`, `is.ts` and `json.ts` each carry a "WHY THIS MODULE HAS NO
- * IMPORTS" banner, and `.oxlintrc.json`'s engine-root ban sends the app to
- * `/is` and `/json` from its ENTRY chunk on the strength of it. Until now the
- * banner WAS the mechanism: one `import { deepEqual } from "./lib"` would weld
- * whatever that file reaches onto the entry chunk, silently — the dev-graph
- * check crawls through the dynamic seam by design and the entry-size report
- * has no threshold.
+ * `contracts.ts`, `is.ts`, `json.ts` and `text-scan.ts` each carry a "WHY THIS
+ * MODULE HAS NO IMPORTS" banner, and `.oxlintrc.json`'s engine-root ban sends
+ * the app to `/is` and `/json` from its ENTRY chunk on the strength of it.
+ * Until now the banner WAS the mechanism: one `import { deepEqual } from
+ * "./lib"` would weld whatever that file reaches onto the entry chunk,
+ * silently — the dev-graph check crawls through the dynamic seam by design and
+ * the entry-size report has no threshold.
  *
- * The guarded set is discovered from the banner, not hand-listed, so a fourth
- * banner file is covered on arrival; the identity assertion is the floor that
- * stops a broken scan from passing having found nothing.
+ * The guarded set is discovered from the banner, not hand-listed, so a further
+ * banner file in `src/` is covered on arrival; the identity assertion is the
+ * floor that stops a broken scan from passing having found nothing.
  *
  * `import type` is allowed: it is erased before a bundler sees it, which is
  * why the engine-root ban itself carries `allowTypeImports`. An all-type
@@ -41,8 +41,9 @@ function stripComments(source: string): string {
   return source.replaceAll(/\/\*[\s\S]*?\*\//g, "").replaceAll(/\/\/[^\n]*/g, "");
 }
 
+/** Recursive: a banner file anywhere under `src/` is guarded, not just the root. */
 function bannerFiles(): string[] {
-  return readdirSync(SRC, { encoding: "utf8" })
+  return readdirSync(SRC, { encoding: "utf8", recursive: true })
     .filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts"))
     .filter((name) => readFileSync(join(SRC, name), "utf8").includes(BANNER))
     .toSorted();
@@ -51,8 +52,8 @@ function bannerFiles(): string[] {
 describe("the import-free engine subpaths", () => {
   const files = bannerFiles();
 
-  it("are the three the app's entry chunk reaches", () => {
-    expect(files).toEqual(["contracts.ts", "is.ts", "json.ts"]);
+  it("are the four the app's entry chunk reaches", () => {
+    expect(files).toEqual(["contracts.ts", "is.ts", "json.ts", "text-scan.ts"]);
   });
 
   it.each(files)("%s pulls in no module at runtime", (name) => {

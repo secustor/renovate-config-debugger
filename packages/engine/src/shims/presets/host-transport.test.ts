@@ -119,12 +119,13 @@ describe("hostFetch error messages (assembled shape)", () => {
 /** A revoked-before-expiry token (another tab refreshed the shared grant):
  *  one recovery attempt through the registered handler, one retry, no loop. */
 describe("hostFetch 401 recovery", () => {
+  // Credentials are stated per test: `headers` is deliberately absent so a bare
+  // spread won't typecheck.
   const request = {
     platform: "github" as const,
     url: "https://api.github.com/repos/a/b/contents/renovate.json",
     label: "GitHub",
     shownEndpoint: "https://api.github.com/",
-    headers: authHeadersFor("github", "https://api.github.com/repos/a/b/contents/renovate.json"),
   };
 
   /** One 401, then a 200; returns the `authorization` each attempt sent. */

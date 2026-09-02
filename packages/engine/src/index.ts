@@ -63,6 +63,7 @@ export {
   optionsSourceUrl,
   PATTERN_MATCHING_NOTE,
   REQUIRED_IF_NOTE,
+  TEMPLATES_DOCS_URL,
 } from "./option-docs";
 export { listDatasourceNames, listManagerNames } from "./registries";
 export {

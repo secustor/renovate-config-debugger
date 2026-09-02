@@ -246,8 +246,8 @@ describe("fetchRepoConfig — URL encoding of repo paths", () => {
   it("refuses a traversal segment rather than letting the URL parser resolve it", async () => {
     const fetchMock = vi.fn().mockResolvedValue(ok(CONFIG_BODY));
     vi.stubGlobal("fetch", fetchMock);
-    // Encoding cannot help here: the URL parser treats "%2E" as a dot segment
-    // too, so `…/repos/org/%2E%2E/%2E%2E/admin` would still collapse.
+    // Encoding cannot help: the parser treats "%2E" as a dot segment too.
+    expect(new URL("https://h/repos/org/%2E%2E/%2E%2E/admin").pathname).toBe("/admin");
     await expect(fetchRepoConfig({ platform: "github", repo: "org/../../admin" })).rejects.toThrow(
       /traversal/i,
     );
