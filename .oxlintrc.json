@@ -812,7 +812,12 @@
         "rcd/use-truncate": "error",
         "rcd/no-uncaught-void-chain": "error",
         "rcd/prefer-is-helpers": "error",
-        "rcd/use-json-helpers": "error"
+        "rcd/use-json-helpers": "error",
+        // Sweep III: `plural(n, word)` in `@/lib/format` is app-local and
+        // resolves from neither the engine nor the CLI, so this rides the app
+        // block. The file that DEFINES `pluralWord` never calls it beside a
+        // count, so the home needs no exemption below.
+        "rcd/prefer-plural": "error"
       }
     },
     // ---- The two house rules that are not app-only --------------------------
@@ -854,10 +859,34 @@
     // outside `packages/app/src`. The glob stops at `*.spec.ts`, so the helper
     // file itself needs no exemption; this is also the one tree the Stop hook
     // does not test, which makes oxlint its only gate.
+    //
+    // Sweep III put `no-unsynchronised-reassert` here on that same reason: it
+    // reports a Playwright assertion that can only resolve against the
+    // pre-interaction page, and six such assertions were live in this
+    // directory. It measured zero hits under `packages/*/src` and `tools/`, so
+    // a wider glob would cost nothing today, but e2e-only keeps the message
+    // Playwright-specific and the `*.spec.ts` stop exempts `helpers.ts` here too.
     {
       "files": ["packages/app/e2e/*.spec.ts"],
       "rules": {
-        "rcd/use-goto-app-helper": "error"
+        "rcd/use-goto-app-helper": "error",
+        "rcd/no-unsynchronised-reassert": "error"
+      }
+    },
+    // ---- …and every comment that cites a file or a symbol's home ------------
+    // `comment-cites-what-exists` resolves citations against the real tree.
+    // Test files are deliberately NOT excluded (unlike every helper rule): a
+    // test docblock citing its sibling suite is exactly the citation this
+    // guards, and one of the three defects it landed with is in a
+    // `.shimmed.test.tsx`. `tools/**` is deliberately OUT and must stay out — a
+    // rule header there keeps a past-tense census of WHAT WAS IN THE TREE (see
+    // `prefer-is-helpers`), naming symbols and files the sweep deleted on
+    // purpose; that is the rule's single false positive on the whole tree, and
+    // this scope removes it structurally rather than by heuristic.
+    {
+      "files": ["packages/*/src/**", "packages/engine/test/**", "packages/app/e2e/**"],
+      "rules": {
+        "rcd/comment-cites-what-exists": "error"
       }
     },
     // ---- …and the files that ARE the helper ---------------------------------
@@ -914,6 +943,22 @@
     {
       "files": ["packages/app/src/lib/truncate.ts"],
       "rules": { "rcd/use-truncate": "off" }
+    },
+    // ---- …and the one type-aware rule that is off everywhere but here -------
+    // `typescript/no-unsafe-type-assertion` is "off" repo-wide by roadmap 034's
+    // measured decision (327 hits) and that line above stays as it is. This
+    // glob is the exception: `tools/lint` defines the repo's lint policy, and
+    // it is the one tree where `type ESTree` from `@oxlint/plugins` is always
+    // the answer — sweep finding 40 had to hand-fix three rule files that had
+    // rolled their own `node as { type: string; callee?: unknown }` shapes
+    // (101e5f94). Costs zero disables here today; measured cost of widening,
+    // so nobody re-derives it: `tools/**` would be three inline disables
+    // (release/workspace.ts:48, test/preset-nodes.ts:33, test/jsdom-stubs.ts:18)
+    // and repo-wide the 327 above. `pnpm lint` already passes `--type-aware`,
+    // so this brings no new tooling.
+    {
+      "files": ["tools/lint/**"],
+      "rules": { "typescript/no-unsafe-type-assertion": "error" }
     },
     // ---- Structure review, finding 4: the engine-root exemption -------------
     // The shimmed component tests drive the REAL pipeline — `runPipeline` and

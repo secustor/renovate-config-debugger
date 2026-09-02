@@ -4,7 +4,7 @@ import type { NodeStats } from "@/lib/preset-tree-stats";
 import { Explained, ExplainedText } from "@/components/glossary";
 import { type HoverCardHandlers, HoverCardAnchor } from "@/components/hover-card";
 import { GLOSSARY } from "@/data/glossary-data";
-import { nf, pluralWord } from "@/lib/format";
+import { nf, plural } from "@/lib/format";
 import { presetTreeNameClass } from "@/lib/preset-row-dom";
 import type { NodeDescriptionFacts } from "@/lib/tree-descriptions";
 import { NodeDescriptionCard } from "./NodeDescriptions";
@@ -26,7 +26,7 @@ function ContributionBadges({ stats, collapsed }: { stats: NodeStats; collapsed:
           e2e suite and `PresetTree.shimmed.test` tell the two counts apart. */}
       {opts > 0 ? (
         <ExplainedText entry={GLOSSARY.presetContribOpts} className="badge contrib opts explained">
-          · {opts} {pluralWord(opts, "opt")}
+          · {plural(opts, "opt")}
         </ExplainedText>
       ) : null}
       {stats.ownRules > 0 ? (
@@ -34,7 +34,7 @@ function ContributionBadges({ stats, collapsed }: { stats: NodeStats; collapsed:
           entry={GLOSSARY.presetContribRules}
           className="badge contrib rules explained"
         >
-          · {stats.ownRules} {pluralWord(stats.ownRules, "rule")}
+          · {plural(stats.ownRules, "rule")}
         </ExplainedText>
       ) : null}
       {collapsed && (stats.descResolved > 0 || stats.descRules > 0) ? (

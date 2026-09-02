@@ -8,7 +8,7 @@ import type {
 } from "@renovate-config-debugger/engine";
 import { isString, isStringArray } from "@renovate-config-debugger/engine/is";
 import { jsonText } from "@renovate-config-debugger/engine/json";
-import { nf, pluralWord } from "@/lib/format";
+import { nf, plural, pluralWord } from "@/lib/format";
 import { crossRuleIndex } from "@/lib/rule-cross-index";
 import { hasEvaluationError, isFailingClause, isNoInputNoMatch } from "@/lib/rule-verdict";
 import { buildNoInputCaveat } from "@/lib/verdict-sentence";
@@ -345,7 +345,7 @@ function familyBucket(
     return {
       key: group.name,
       label: group.name,
-      note: `${count} ${pluralWord(count, "rule")} — ${first ? failingClauseNote(first) : ""}`,
+      note: `${plural(count, "rule")} — ${first ? failingClauseNote(first) : ""}`,
       probeQuery: group.name,
     };
   });
@@ -418,7 +418,7 @@ function missingInputBucket(
   const rows: PinBucketRow[] = groups.map((group) => ({
     key: group.fieldList,
     label: group.fieldList,
-    note: `${group.rules} ${pluralWord(group.rules, "rule")} read it — set it on this test to evaluate them for real (${group.selectors.join(", ")})`,
+    note: `${plural(group.rules, "rule")} read it — set it on this test to evaluate them for real (${group.selectors.join(", ")})`,
     probeQuery: group.selectors[0] ?? group.fieldList,
   }));
   const hidden = missingInputs.groups.length - groups.length;

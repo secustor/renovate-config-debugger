@@ -1,6 +1,6 @@
 import { jsonEqual, jsonText } from "@renovate-config-debugger/engine/json";
 import { truncate } from "./truncate";
-import { pluralWord } from "./format";
+import { plural } from "./format";
 
 /**
  * One line standing in for a config value: the effective config's value cells
@@ -15,11 +15,11 @@ export function valuePreview(value: unknown): string {
     return "null";
   }
   if (Array.isArray(value)) {
-    return value.length ? `[ ${value.length} ${pluralWord(value.length, "item")} ]` : "[]";
+    return value.length ? `[ ${plural(value.length, "item")} ]` : "[]";
   }
   if (typeof value === "object") {
     const n = Object.keys(value).length;
-    return n ? `{ ${n} ${pluralWord(n, "key")} }` : "{}";
+    return n ? `{ ${plural(n, "key")} }` : "{}";
   }
   return truncate(jsonText(value), 80);
 }

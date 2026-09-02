@@ -395,7 +395,7 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
   // `loadShareToken` directly would freeze the FIRST render's closure
   // — and with it that render's `onRun`, token and platform state. A link
   // opened later (hashchange) would then run against stale inputs. The
-  // latest-ref pattern (as with `selectPresetNodeRef` in App.tsx) keeps both
+  // latest-ref pattern (as with `hasUnsavedEditsRef` in App.tsx) keeps both
   // registrations one-shot while always invoking the current closure.
   const loadShareTokenRef = useLatestRef(loadShareToken);
 

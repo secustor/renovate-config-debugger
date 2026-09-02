@@ -175,8 +175,13 @@ test("the results tab strip is one tab stop, and an arrow opens the tab it lands
   await expect(tabButton(page, "problems")).toBeFocused();
   await expect(tabButton(page, "problems")).toHaveAttribute("aria-selected", "true");
 
-  // Enter on the tab already open is a no-op, not a second switch.
+  // Enter on the tab already open is a no-op, not a second switch. A no-op
+  // lands nothing to wait on, so the sequencing runs through the NEXT key:
+  // `e` jumps to the editor without touching the strip, and anything the
+  // Enter had set in motion has landed by the time that focus move has.
   await page.keyboard.press("Enter");
+  await page.keyboard.press("e");
+  await expect(page.locator(".cm-content")).toBeFocused();
   await expect(tabButton(page, "problems")).toHaveAttribute("aria-selected", "true");
   await expect(tabPanel(page, "problems")).toBeVisible();
 });
@@ -295,6 +300,11 @@ test("e and r jump between the panes, and never fire while typing", async ({ pag
   await page.locator(".toolbar select").focus();
   await expect(page.locator(".toolbar select")).toBeFocused();
   await page.keyboard.press("r");
+  // The type-ahead this suppression exists to protect IS the press's landing:
+  // both options start with `r`, so the key moves the select to the next one.
+  // Waiting for that before re-asserting focus is what makes the focus claim
+  // able to fail — the shortcut would have moved it to the results strip.
+  await expect(page.locator(".toolbar select")).toHaveValue("renovate.json5");
   await expect(page.locator(".toolbar select")).toBeFocused();
 
   // …but from anywhere that is not a form control, `r` goes to the results.

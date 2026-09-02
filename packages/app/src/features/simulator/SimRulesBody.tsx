@@ -14,7 +14,7 @@ import {
 import { openPickerOnEnter } from "@/lib/select-picker";
 import type { RuleDescriptionNote } from "./rule-descriptions";
 import { RuleRow } from "./RuleRow";
-import { pluralWord } from "@/lib/format";
+import { plural } from "@/lib/format";
 
 function optionLabel(option: FilterOption): string {
   return `${option.label} (${option.count})`;
@@ -55,7 +55,7 @@ function SimRulesFilters({
     <div className="prov-filters sim-filters">
       {stateCount ? (
         <span className="sim-filter-count">
-          {shownCount} of {totalCount} {pluralWord(totalCount, "rule")} shown
+          {shownCount} of {plural(totalCount, "rule")} shown
         </span>
       ) : null}
       <select

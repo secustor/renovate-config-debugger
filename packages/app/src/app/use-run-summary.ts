@@ -78,11 +78,12 @@ export function useRunSummary(
   // hand it a fresh one, which is a behavior change, not a cleanup.
   //
   // Roadmap 068 review: MAPPED over `RESULTS_TAB_IDS` (data/results-tabs.ts)
-  // rather than written out as a same-length literal — `useTabDigits` (App.tsx)
-  // is wired to `resultsTabs.length` while the `?` sheet's digit range
-  // (`lib/shortcuts.ts`) reads `RESULTS_TAB_IDS.length` directly, and a
-  // hand-matched literal here only agreed with that by coincidence. Keying
-  // `tabData` by `ResultsTabId` makes the two structurally unable to drift:
+  // rather than written out as a same-length literal — `useTabDigits`
+  // (app/use-tab-digits.ts) is wired to `resultsTabs.length` while the `?`
+  // sheet's digit range (`lib/shortcuts.ts`) reads `RESULTS_TAB_IDS.length`
+  // directly, and a hand-matched literal here only agreed with that by
+  // coincidence. Keying `tabData` by `ResultsTabId` makes the two
+  // structurally unable to drift:
   // adding a tab to `RESULTS_TAB_IDS` (062 adds one) fails this file's
   // typecheck until `tabData` grows a matching entry, rather than silently
   // shipping a strip one tab short of what the sheet advertises.

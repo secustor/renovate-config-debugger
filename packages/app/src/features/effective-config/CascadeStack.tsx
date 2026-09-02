@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { ProvenanceStep, RuleAttribution } from "@renovate-config-debugger/engine";
 import { ConfigJson } from "@/components/ConfigJson";
-import { plural, pluralWord } from "@/lib/format";
+import { plural } from "@/lib/format";
 import { LayerSource } from "@/components/LayerSource";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { ruleOriginLayer } from "@/lib/rule-filters";
@@ -91,9 +91,7 @@ function PackageRulesProvenance({
   const byIndex = useMemo(() => new Map(attribution.map((a) => [a.index, a])), [attribution]);
   return (
     <div className="prov-rules">
-      <div className="prov-rules-title">
-        Per-rule provenance ({rules.length} {pluralWord(rules.length, "rule")})
-      </div>
+      <div className="prov-rules-title">Per-rule provenance ({plural(rules.length, "rule")})</div>
       <ul className="prov-rules-list">
         {rules.map((rule, i) => {
           const attr = byIndex.get(i);

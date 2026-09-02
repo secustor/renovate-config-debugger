@@ -13,7 +13,7 @@ import { RULE_POP_CLASS, RULE_POP_SELECTOR } from "./rule-pop-dom";
 import { ruleAppliedMarkdown, ruleVerdictLabel, writeMark } from "./rule-format";
 import type { RuleEvidence, RuleWrite } from "./rule-evidence";
 import { WriteRow } from "./WriteRow";
-import { pluralWord } from "@/lib/format";
+import { plural } from "@/lib/format";
 import { RULE_INDEX_TITLE, ruleRef } from "@/lib/rule-ref";
 
 /**
@@ -150,8 +150,7 @@ function RuleEvidenceSummary({ evidence }: { evidence: RuleEvidence }) {
   const { writes, survivedCount } = evidence;
   return (
     <p className="sim-rule-pop-line">
-      merged in {evidence.stopLabel} — {writes.length} {pluralWord(writes.length, "write")},{" "}
-      {survivedCount} survived
+      merged in {evidence.stopLabel} — {plural(writes.length, "write")}, {survivedCount} survived
     </p>
   );
 }
