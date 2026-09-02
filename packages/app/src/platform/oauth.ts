@@ -368,9 +368,10 @@ function receiveBroadcast(data: unknown): void {
 
 const sessionListeners = new Set<() => void>();
 
-/** Cross-tab session changes land outside any React event (a sibling's
- *  refresh signing this tab in, its sign-out tearing this tab down), so the
- *  UI layer subscribes here and re-reads `isSignedIn()`/`getStoredUser()`.
+/** Session changes that land outside any React event — a sibling's refresh
+ *  signing this tab in or its sign-out tearing this tab down, and this tab's
+ *  own internal `signOut()` (an expired or revoked grant) — so the UI layer
+ *  subscribes here and re-reads `isSignedIn()`/`getStoredUser()`.
  *  Returns the unsubscribe. */
 export function onSessionBroadcast(listener: () => void): () => void {
   sessionListeners.add(listener);
@@ -859,6 +860,10 @@ export async function getValidToken(): Promise<string | null> {
  * server-side lifetime, which the dropped marker already stops the app from
  * using. `postWorker` is deliberately NOT reused: it expects a token JSON
  * body and throws on anything that isn't one.
+ *
+ * Notifies THIS tab's session listeners too, last: the internal callers
+ * (an expired grant, a definitive `/refresh` rejection) leave no React event
+ * behind, and a sibling already learns through the broadcast.
  */
 export function signOut(): void {
   clearLocalSession();
@@ -871,6 +876,7 @@ export function signOut(): void {
       () => {},
     );
   }
+  notifySessionChanged();
 }
 
 /** This tab's session teardown alone — what a sibling's "signout" broadcast

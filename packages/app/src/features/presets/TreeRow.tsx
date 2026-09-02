@@ -4,7 +4,7 @@ import type { NodeStats } from "@/lib/preset-tree-stats";
 import { Explained, ExplainedText } from "@/components/glossary";
 import { type HoverCardHandlers, HoverCardAnchor } from "@/components/hover-card";
 import { GLOSSARY } from "@/data/glossary-data";
-import { nf, plural } from "@/lib/format";
+import { plural } from "@/lib/format";
 import { presetTreeNameClass } from "@/lib/preset-row-dom";
 import type { NodeDescriptionFacts } from "@/lib/tree-descriptions";
 import { NodeDescriptionCard } from "./NodeDescriptions";
@@ -39,8 +39,8 @@ function ContributionBadges({ stats, collapsed }: { stats: NodeStats; collapsed:
       ) : null}
       {collapsed && (stats.descResolved > 0 || stats.descRules > 0) ? (
         <ExplainedText entry={GLOSSARY.presetRollup} className="badge rollup explained">
-          {stats.descResolved > 0 ? `· ${nf.format(stats.descResolved)} presets ` : ""}
-          {stats.descRules > 0 ? `· ${nf.format(stats.descRules)} rules` : ""}
+          {stats.descResolved > 0 ? `· ${plural(stats.descResolved, "preset")} ` : ""}
+          {stats.descRules > 0 ? `· ${plural(stats.descRules, "rule")}` : ""}
         </ExplainedText>
       ) : null}
     </>

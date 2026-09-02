@@ -85,17 +85,25 @@ function DigestLinks({
         onOpen={onShowRewrites}
       />
       <span aria-hidden="true">·</span>
-      <DigestLink count={presets} label="presets" onOpen={() => onJump("presets")} />
+      <DigestLink
+        count={presets}
+        label={pluralWord(presets, "preset")}
+        onOpen={() => onJump("presets")}
+      />
       {effectiveKeys === null ? null : <span aria-hidden="true">·</span>}
       {effectiveKeys === null ? null : (
         <DigestLink
           count={effectiveKeys}
-          label="effective options"
+          label={pluralWord(effectiveKeys, "effective option")}
           onOpen={() => onJump("effective")}
         />
       )}
       <span aria-hidden="true">·</span>
-      <DigestLink count={problems} label="problems" onOpen={() => onJump("problems")} />
+      <DigestLink
+        count={problems}
+        label={pluralWord(problems, "problem")}
+        onOpen={() => onJump("problems")}
+      />
     </div>
   );
 }

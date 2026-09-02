@@ -15,11 +15,12 @@ import { useAnchoredPopover } from "@/hooks/use-anchored-popover";
  * them unreachable. While this panel is up, focus is inside it or on the
  * trigger — anywhere else closes it in the same event that moved it.
  *
- * - `defaultPrevented`: the two surfaces that claim Escape are CodeMirror and
- *   the repo-load form, and focus reaching either has already closed the menu.
- *   Nothing the panel itself renders claims the key — its items are buttons
- *   and `ThemeSwitch`'s radios, with no key handler between them — and no
- *   registry shortcut binds Escape.
+ * - The claimed press: CodeMirror claims by `preventDefault` (the flag the
+ *   ladder reads), the repo-load form by `stopPropagation` (the press never
+ *   reaches the ladder at all — see escape-stack.ts's two-spellings paragraph);
+ *   focus reaching either has already closed the menu. Nothing the panel itself
+ *   renders claims the key — its items are buttons and `ThemeSwitch`'s radios,
+ *   with no key handler between them — and no registry shortcut binds Escape.
  * - The combobox yield: `mayOwnNativePopup` is the simulator's two `<input
  *   list>` fields, which are two panels away from this one.
  * - `modalKeyboardOwned()`: `?` is exempt from the overlay gate, so the sheet

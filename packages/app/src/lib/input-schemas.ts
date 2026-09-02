@@ -15,7 +15,7 @@
  * schemes in endpoint fields reaching a `fetch`, header injection via tokens,
  * and type confusion crashing or misdirecting downstream code. These two
  * modules are the one place all of that gets checked; callers (share.ts,
- * App.tsx, oauth.ts, PresetTree.tsx) replace their ad hoc checks with these.
+ * App.tsx, oauth.ts, PresetDetail.tsx) replace their ad hoc checks with these.
  *
  * Everything here is a BOUNDARY rule — this app's threat model, with no second
  * copy anywhere. Plain type checks are not: `isPlainObject` and friends come
@@ -302,8 +302,9 @@ export interface LayerParseResult {
  * own error text verbatim (unchanged — the field's error message has always
  * been "Not valid JSON: <native message>", no translation layer to preserve
  * here). A value that parses but isn't usable keeps the EXACT existing
- * string `"must be a JSON object"` so the two `layer-editor-error` render
- * sites (App.tsx) and anything depending on that text keep reading the same
+ * string `"must be a JSON object"` so the `parse.error` row in
+ * `features/pipeline/StageLayerEditor.tsx` (rendered once per layer by
+ * `PipelinePanel`) and anything depending on that text keep reading the same
  * way — now covering the pollution case too (a `__proto__`/`constructor`/
  * `prototype` key anywhere in the layer, including nested `packageRules[n]`,
  * is rejected with the same message rather than silently reaching a merge).
@@ -326,7 +327,8 @@ export function parseLayerJson(text: string): LayerParseResult {
 }
 
 // ---------------------------------------------------------------------------
-// Repo-load input (use-repo-load's `parseRepoRef` result, before request building)
+// Repo-load input (`lib/repo-reference.ts`'s `parseRepoReference` result, as
+// use-repo-load holds it, before request building)
 // ---------------------------------------------------------------------------
 
 const MAX_REPO_REF_LENGTH = 512;
@@ -364,8 +366,8 @@ export function isValidRepoRefPart(value: string): boolean {
  *  optional `:port` — a self-hosted reference like `gitea.example.com:3000/o/r`
  *  must keep reaching the "Unknown host … set its endpoint under Advanced
  *  options" guidance rather than the generic "not a repo reference" refusal.
- *  The host never composes a URL (it only looks up `data/host-tokens`'
- *  `HOST_PLATFORM`). */
+ *  The host never composes a URL (it only reaches `data/host-tokens`'
+ *  `platformForHost`). */
 export function isValidRepoHost(value: string): boolean {
   if (value.length > MAX_REPO_REF_LENGTH) {
     return false;

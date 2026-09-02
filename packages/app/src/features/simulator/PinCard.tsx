@@ -5,7 +5,7 @@ import { Caret } from "@/components/Caret";
 import { OpenInSimulatorLink } from "./OpenInSimulatorLink";
 import { PinBucketList } from "./PinBucketList";
 import { PinHeadRow } from "./PinHeadRow";
-import { pinContext, pinName } from "./pins";
+import { pinContext, pinDepName, pinName, pinSubject } from "./pins";
 import { PinProbe } from "./PinProbe";
 import { type CrossLinks, PinFailedSection, PinMatchedSection } from "./PinRuleSections";
 import type { RuleDescriptionNote } from "./rule-descriptions";
@@ -50,7 +50,6 @@ function PinCardHead({
           name={name}
           context={pinContext(pin.form, outcome?.updateType ?? "")}
           summary={outcome ? headSummary(outcome) : null}
-          pending={evaluation ? "not checked" : "checking…"}
           starter={pin.starter === true}
         />
       </button>
@@ -152,7 +151,7 @@ export function PinCard({
   const outcome = useMemo(
     () =>
       evaluation?.sim
-        ? buildPinOutcome(evaluation.sim, layerByIndex, attribution, pinName(pin.form))
+        ? buildPinOutcome(evaluation.sim, layerByIndex, attribution, pinDepName(pin.form))
         : null,
     [evaluation, layerByIndex, attribution, pin],
   );
@@ -173,13 +172,7 @@ export function PinCard({
           layerByIndex={layerByIndex}
           descriptions={descriptions}
           ruleBodies={ruleBodies}
-          subject={[
-            pinName(pin.form),
-            pin.form.manager.trim() || pin.form.datasource.trim(),
-            outcome?.updateType ?? pin.form.updateType,
-          ]
-            .filter((part) => part !== "")
-            .join(" · ")}
+          subject={pinSubject(pin.form, outcome?.updateType ?? "")}
           links={links}
           onOpenInSimulator={onOpenInSimulator}
         />

@@ -15,6 +15,11 @@
  * stops being the displayed view), so nothing here writes state during render —
  * and a superseded discovery's late settlement is dropped by attempt token, so
  * it can never clobber the fresh view.
+ *
+ * `ensure`'s IDENTITY is keyed to that discovery key, deliberately: the shell's
+ * doors fire it from an effect whose only other deps are which tab is open, so
+ * a stable callback would leave an already-open tab on the idle fallback
+ * forever.
  */
 import { useCallback, useMemo, useRef, useState } from "react";
 import { jsonText } from "@renovate-config-debugger/engine/json";
@@ -274,17 +279,18 @@ export function useRepoDeps(
   // Read the same way as the repo: the on-open trigger must walk with the
   // blocks the CURRENT run resolved, never a closure's stale set.
   const latestCustom = useLatestRef(customManagers);
+  const currentKey = listableRepo === null ? null : discoveryKey(listableRepo, customManagers);
 
+  // Keyed on `currentKey` deliberately (see the header): the callback closes
+  // over the very key `view` compares against, so its identity is what tells an
+  // already-open door that the report it is waiting for is a different one.
   const ensure = useCallback(() => {
     const repo = latestRepo.current;
-    if (repo === null) {
+    if (repo === null || currentKey === null || startedFor.current === currentKey) {
       return;
     }
     const blocks = latestCustom.current;
-    const key = discoveryKey(repo, blocks);
-    if (startedFor.current === key) {
-      return;
-    }
+    const key = currentKey;
     startedFor.current = key;
     const token = ++attempt.current;
     setState({ key, view: { ...EMPTY_REPO_DEPS, status: "loading", repo: repo.repo } });
@@ -314,13 +320,12 @@ export function useRepoDeps(
           },
         });
       });
-  }, [latestRepo, latestCustom]);
+  }, [latestRepo, latestCustom, currentKey]);
 
   // The repo label rides on the view even before discovery ran — `repo` being
   // set is what enables the tab that TRIGGERS discovery. Memoized so the
   // run-view provider's identity only moves on a load or an async report.
   const repoName = listableRepo?.repo ?? "";
-  const currentKey = listableRepo === null ? null : discoveryKey(listableRepo, customManagers);
   const view = useMemo(() => {
     const base = state !== null && state.key === currentKey ? state.view : EMPTY_REPO_DEPS;
     return base.repo === repoName ? base : { ...base, repo: repoName };

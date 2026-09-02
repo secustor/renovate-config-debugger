@@ -7,7 +7,7 @@ import type {
 import type { FormState } from "@/types/simulator";
 import { errorMessage } from "@/lib/errors";
 import { buildPinOutcome, type PinOutcome } from "./pin-outcome";
-import { pinName } from "./pins";
+import { pinDepName } from "./pins";
 import { runSimulation } from "./run-simulation";
 
 /**
@@ -46,7 +46,7 @@ export interface OneOffSimulation {
   /** The last failure, or null — a run that threw says so, and clears `oneOff`
    *  so it says it INSTEAD of a verdict. Same staleness check as `oneOff`. */
   error: OneOffError | null;
-  /** In flight. The submit control reads this to disable itself. */
+  /** In flight. The submit control reads this to disable and relabel itself. */
   simulating: boolean;
   /** Run the form once against the current result. A no-op while one is in
    *  flight, or when the form does not pass the caller's guard. */
@@ -83,7 +83,7 @@ export function useOneOffSimulation(host: OneOffSimulationHost): OneOffSimulatio
       const snapshot = { ...form };
       runSimulation(finalConfig, snapshot, updateTypeTouched)
         .then(({ sim, effectiveUpdateType: ranType }) => {
-          const outcome = buildPinOutcome(sim, layerByIndex, attribution, pinName(snapshot));
+          const outcome = buildPinOutcome(sim, layerByIndex, attribution, pinDepName(snapshot));
           setOneOff({ result, form: snapshot, outcome, effectiveUpdateType: ranType });
           return undefined;
         })

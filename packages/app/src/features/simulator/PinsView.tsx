@@ -5,7 +5,7 @@ import type {
   RuleAttribution,
   TraceResult,
 } from "@renovate-config-debugger/engine";
-import { nf } from "@/lib/format";
+import { plural } from "@/lib/format";
 import { AddTestBox } from "./AddTestBox";
 import { EmptyTestsCard } from "./EmptyTestsCard";
 import { PinCard } from "./PinCard";
@@ -71,7 +71,7 @@ function PinsSummary({
         <strong>{count}</strong> pinned
         {ruleCount === undefined
           ? " — re-checked on every run"
-          : ` · ${nf.format(ruleCount)} rules evaluated per test, in merge order`}
+          : ` · ${plural(ruleCount, "rule")} evaluated per test, in merge order`}
       </span>
     );
   return (

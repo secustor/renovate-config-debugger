@@ -21,6 +21,7 @@ describe("credentialsLine (roadmap 076/077, Proposal F)", () => {
         platform: "github",
         endpoint: "https://api.github.com",
         customHostCount: 0,
+        suppressTokens: false,
       }),
     ).toBe("github.com anonymous");
   });
@@ -33,6 +34,7 @@ describe("credentialsLine (roadmap 076/077, Proposal F)", () => {
         platform: "github",
         endpoint: "",
         customHostCount: 0,
+        suppressTokens: false,
       }),
     ).toBe("github.com anonymous");
   });
@@ -45,6 +47,7 @@ describe("credentialsLine (roadmap 076/077, Proposal F)", () => {
         platform: "github",
         endpoint: "https://ghe.example/api/v3",
         customHostCount: 0,
+        suppressTokens: false,
       }),
     ).toBe("ghe.example anonymous");
   });
@@ -57,6 +60,7 @@ describe("credentialsLine (roadmap 076/077, Proposal F)", () => {
         platform: "github",
         endpoint: "https://api.github.com",
         customHostCount: 0,
+        suppressTokens: false,
       }),
     ).toBe("github.com ✓");
   });
@@ -69,6 +73,7 @@ describe("credentialsLine (roadmap 076/077, Proposal F)", () => {
         platform: "github",
         endpoint: "https://api.github.com",
         customHostCount: 0,
+        suppressTokens: false,
       }),
     ).toBe("github.com ✓");
   });
@@ -84,6 +89,7 @@ describe("credentialsLine (roadmap 076/077, Proposal F)", () => {
         platform: "github",
         endpoint: "https://api.github.com",
         customHostCount: 0,
+        suppressTokens: false,
       }),
     ).toBe("github.com anonymous · +2");
   });
@@ -96,6 +102,7 @@ describe("credentialsLine (roadmap 076/077, Proposal F)", () => {
         platform: "gitlab",
         endpoint: "",
         customHostCount: 0,
+        suppressTokens: false,
       }),
     ).toBe("gitlab.com ✓ · +1");
   });
@@ -116,8 +123,40 @@ describe("credentialsLine (roadmap 076/077, Proposal F)", () => {
         platform: "github",
         endpoint: "https://api.github.com",
         customHostCount: 0,
+        suppressTokens: false,
       }),
     ).toBe("github.com anonymous");
+  });
+
+  it("withholds the tick while the untrusted-endpoint guard suppresses tokens", () => {
+    // The guard runs every request without a token, so a signed-in session
+    // pointed at the untrusted host authenticates against nothing.
+    expect(
+      credentialsLine({
+        tokens: withToken("github", "ghp_x"),
+        signedIn: true,
+        platform: "github",
+        endpoint: "https://ghe.example/api/v3",
+        customHostCount: 0,
+        suppressTokens: true,
+      }),
+    ).toBe("ghe.example anonymous");
+  });
+
+  it("keeps the +N tail under suppression — those hosts still hold tokens", () => {
+    const tokens = NONE.map((token) =>
+      token.id === "gitlab" || token.id === "gitea" ? { ...token, value: "t" } : token,
+    );
+    expect(
+      credentialsLine({
+        tokens,
+        signedIn: true,
+        platform: "github",
+        endpoint: "https://ghe.example/api/v3",
+        customHostCount: 1,
+        suppressTokens: true,
+      }),
+    ).toBe("ghe.example anonymous · +3");
   });
 
   it("counts custom host rules toward the +N tail", () => {
@@ -128,6 +167,7 @@ describe("credentialsLine (roadmap 076/077, Proposal F)", () => {
         platform: "github",
         endpoint: "https://api.github.com",
         customHostCount: 1,
+        suppressTokens: false,
       }),
     ).toBe("github.com anonymous · +1");
   });

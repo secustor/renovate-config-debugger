@@ -52,10 +52,11 @@ export interface FocusLanding {
  * is hidden or removed, and it is where Safari leaves it after a click on a
  * button.
  *
- * Exported since the ninth 068 review for App's `gestureWantsResultsLanding`,
- * which asks the same question of the same DOM — it had spelled the collapse
- * out a second time, and both spellings have to agree for a ticket's `from` and
- * "who is holding focus now" to be comparable at all.
+ * Exported since the ninth 068 review for `useKeyboardLandings`'
+ * `gestureWantsResultsLanding` (`app/use-keyboard-landings.ts`), which asks the
+ * same question of the same DOM — it had spelled the collapse out a second
+ * time, and both spellings have to agree for a ticket's `from` and "who is
+ * holding focus now" to be comparable at all.
  */
 export function focusHolder(): Element | null {
   const active = document.activeElement;

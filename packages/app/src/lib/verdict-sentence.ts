@@ -2,6 +2,7 @@ import type { RuleAttribution, SimulationResult } from "@renovate-config-debugge
 import { isNonEmptyString, isPlainObject, isString } from "@renovate-config-debugger/engine/is";
 import { jsonText } from "@renovate-config-debugger/engine/json";
 import { pluralWord } from "./format";
+import { ruleOriginLayer } from "./rule-filters";
 import { isFailingClause } from "./rule-verdict";
 
 /** A config value in a plain-language sentence: `[a, b]`, `"x"`, `42`. */
@@ -41,6 +42,9 @@ function isNoopSchedule(schedule: unknown[]): boolean {
  * the preset that rule came from, for the verdict sentence's "from
  * `:automergeMinor`" attribution. Best-effort from data the simulator and
  * `computeRuleProvenance` already compute; no new provenance tracking.
+ *
+ * The preset named is the ORIGINATING body, via `ruleOriginLayer`
+ * (rule-filters.ts) — not the direct extend the rule arrived through.
  */
 function automergeScopeSource(
   sim: SimulationResult,
@@ -58,7 +62,8 @@ function automergeScopeSource(
     return undefined;
   }
   const attribution = ruleAttribution?.find((a) => a.index === rule.index);
-  return attribution?.layer.kind === "preset" ? attribution.layer.name : undefined;
+  const origin = attribution ? ruleOriginLayer(attribution) : undefined;
+  return origin?.kind === "preset" ? origin.name : undefined;
 }
 
 /**

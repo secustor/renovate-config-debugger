@@ -84,13 +84,21 @@ export function pinsFromShareFields(
   return pins;
 }
 
+/** The dependency's own name, or `""` when the form names neither field —
+ *  what a derivation gets, before any display placeholder. */
+export function pinDepName(form: FormState): string {
+  return form.packageName.trim() || form.depName.trim();
+}
+
 /**
  * What the card's header calls the pin — the same pair the simulator's stale
  * banner names a run by (`packageName` falling back to `depName`), because they
  * are the same descriptor and a reader must be able to tell one from the other.
+ * Display only: derivations take {@link pinDepName}, whose `""` says the form
+ * names no package at all.
  */
 export function pinName(form: FormState): string {
-  return form.packageName.trim() || form.depName.trim() || "(no package name)";
+  return pinDepName(form) || "(no package name)";
 }
 
 /**
@@ -106,7 +114,29 @@ export function pinContext(form: FormState, effectiveUpdateType: string): string
   const current = form.currentValue.trim();
   const next = form.newValue.trim();
   const move = current !== "" && next !== "" ? `${current} → ${next}` : current || next;
-  const source = form.manager.trim() || form.datasource.trim();
-  const updateType = effectiveUpdateType.trim() || form.updateType.trim();
-  return [move, source, updateType].filter((part) => part !== "").join(" · ");
+  return [move, pinSource(form), pinUpdateType(form, effectiveUpdateType)]
+    .filter((part) => part !== "")
+    .join(" · ");
+}
+
+/**
+ * The prose subject the probe reads back as "Why it matched X" — `react ·
+ * npm · minor`: name first and no version move, unlike {@link pinContext}'s
+ * move-first header line. Same source and update-type fallbacks as that one.
+ */
+export function pinSubject(form: FormState, effectiveUpdateType: string): string {
+  return [pinName(form), pinSource(form), pinUpdateType(form, effectiveUpdateType)]
+    .filter((part) => part !== "")
+    .join(" · ");
+}
+
+/** A descriptor that names only one of the two still has to read as something. */
+function pinSource(form: FormState): string {
+  return form.manager.trim() || form.datasource.trim();
+}
+
+/** The EFFECTIVE type from the evaluation when there is one — a derived type is
+ *  what actually drove the run. */
+function pinUpdateType(form: FormState, effectiveUpdateType: string): string {
+  return effectiveUpdateType.trim() || form.updateType.trim();
 }

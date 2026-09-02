@@ -555,7 +555,15 @@ describe("stageIdSchema / resultsTabIdSchema", () => {
     expect(stageIdSchema.safeParse("bogus").success).toBe(false);
   });
   test("accepts every real tab id", () => {
-    for (const tab of ["overview", "tests", "pipeline", "presets", "effective", "problems"]) {
+    for (const tab of [
+      "overview",
+      "tests",
+      "pipeline",
+      "presets",
+      "effective",
+      "deps",
+      "problems",
+    ]) {
       expect(resultsTabIdSchema.safeParse(tab).success).toBe(true);
     }
   });

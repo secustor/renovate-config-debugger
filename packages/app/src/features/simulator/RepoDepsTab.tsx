@@ -1,5 +1,6 @@
 import { type ReactNode, useState } from "react";
-import { nf } from "@/lib/format";
+import { countNoun, type DataTableNoun } from "@/components/data-table";
+import { nf, plural } from "@/lib/format";
 import { discoveryCaveats, tallyDiscovery } from "@/lib/discovery-caveats";
 import { filterRepoDeps, hiddenDepFiles, REPO_DEPS_SHOWN, type RepoDraft } from "./repo-deps";
 import type { PinnedTest } from "@/types/simulator";
@@ -37,6 +38,8 @@ function pinnedAs(pins: readonly PinnedTest[], dep: RepoDep): string | null {
   return hit.form.updateType === "" ? "pinned" : hit.form.updateType;
 }
 
+const DEP_NOUN: DataTableNoun = { one: "dependency", many: "dependencies" };
+
 const QUICK_TYPES = ["patch", "minor", "major"] as const;
 
 function RepoDepRow({
@@ -60,7 +63,13 @@ function RepoDepRow({
       ) : showQuickPins ? (
         <span className="pin-repo-quick">
           {QUICK_TYPES.map((type) => (
-            <button key={type} type="button" className="btn-chip" onClick={() => onQuickPin(type)}>
+            <button
+              key={type}
+              type="button"
+              className="btn-chip"
+              aria-label={`Draft a ${type} update of ${dep.depName}`}
+              onClick={() => onQuickPin(type)}
+            >
               {type}
             </button>
           ))}
@@ -193,9 +202,7 @@ function RepoDepsFootnote({ view, hidden }: { view: RepoDepsView; hidden: readon
     parts.push(`… ${nf.format(hidden.length)} more across ${named}`);
   } else {
     const files = tallyDiscovery(view).extracted;
-    parts.push(
-      `${nf.format(view.deps.length)} dependencies across ${nf.format(files)} package files`,
-    );
+    parts.push(`${countNoun(view.deps.length, DEP_NOUN)} across ${plural(files, "package file")}`);
   }
   parts.push(`detected because you loaded this config from ${view.repo}`);
   parts.push(...discoveryCaveats(view));
@@ -255,7 +262,7 @@ export function RepoDepsTab({
       <div className="pin-repo-search">
         <input
           aria-label="Search detected dependencies"
-          placeholder={`Search the ${nf.format(view.deps.length)} dependencies detected across ${nf.format(tallyDiscovery(view).extracted)} package files…`}
+          placeholder={`Search the ${countNoun(view.deps.length, DEP_NOUN)} detected across ${plural(tallyDiscovery(view).extracted, "package file")}…`}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />

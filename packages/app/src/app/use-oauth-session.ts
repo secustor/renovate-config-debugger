@@ -73,9 +73,9 @@ export function useOAuthSession(): OAuthSession {
     setAuthUser(null);
   }, []);
 
-  // A sibling tab's broadcast changes the session outside any React event —
-  // its refresh signs this tab in, its sign-out tears this tab down — so the
-  // chip re-reads the module state when one lands.
+  // The session changes outside any React event — a sibling's refresh or
+  // sign-out, and this tab's own internal sign-out on an expired or revoked
+  // grant — so the chip re-reads the module state when one lands.
   useEffect(() => {
     if (!OAUTH_CONFIG) {
       return;

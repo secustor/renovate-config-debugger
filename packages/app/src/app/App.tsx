@@ -568,7 +568,9 @@ export function App() {
   // trigger lives HERE rather than in the panel because every results panel
   // stays MOUNTED (028), so a panel-side effect would fire for a tab nobody has
   // looked at and spend the rate limit on it. `ensure` is idempotent per loaded
-  // repo, so the three doors never discover twice.
+  // repo, so the three doors never discover twice — and its IDENTITY moves with
+  // the repo+customManagers pair, which is what re-fires this effect for a tab
+  // that was already open when the key changed.
   useEffect(() => {
     if (tab === "deps" || (tab === "pipeline" && pipelinePhase === "extract")) {
       ensureRepoDeps();
@@ -966,7 +968,7 @@ export function App() {
       // dropping it on `<body>`.
       focusTab("problems", ticket);
       const n = next.errors.length;
-      showToast(`Fix applied — re-ran: ${n === 0 ? "0 errors" : plural(n, "error")}`);
+      showToast(`Fix applied — re-ran: ${plural(n, "error")}`);
     }
   }
 
@@ -1359,6 +1361,7 @@ export function App() {
       hostTokens={hostTokens}
       customHostRules={customHostRules}
       onShowPipelineLayers={onShowPipelineLayers}
+      suppressTokens={untrustedGuard !== null}
     />
   );
 

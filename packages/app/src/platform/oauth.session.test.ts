@@ -191,6 +191,20 @@ describe("getValidToken (cookie-session refresh)", () => {
     expect(local.map.has(COOKIE_SESSION_KEY)).toBe(false);
     expect(fetchCalls(`${WORKER_URL}/logout`)).toHaveLength(1);
   });
+
+  test("a definitive rejection notifies THIS tab, not only the siblings", async () => {
+    seedExpiredCookieSession();
+    setRefreshResponse(() => jsonResponse({ error: "bad_refresh_token" }, 400));
+    const { getValidToken, onSessionBroadcast } = await freshOAuth();
+    let notified = 0;
+    onSessionBroadcast(() => {
+      notified += 1;
+    });
+
+    await getValidToken();
+    // Without this the tab whose session died keeps rendering "signed in".
+    expect(notified).toBe(1);
+  });
 });
 
 describe("signOut", () => {
@@ -203,6 +217,20 @@ describe("signOut", () => {
     const [, init] = fetchCalls(`${WORKER_URL}/logout`)[0] ?? [];
     expect(init?.method).toBe("POST");
     expect(init?.credentials).toBe("include");
+  });
+
+  test("notifies this tab's own listeners, with the session already gone", async () => {
+    local.map.set(COOKIE_SESSION_KEY, String(Date.now() + 60_000));
+    const { signOut, isSignedIn, onSessionBroadcast } = await freshOAuth();
+    const seen: boolean[] = [];
+    onSessionBroadcast(() => {
+      seen.push(isSignedIn());
+    });
+
+    signOut();
+    // Reading false FROM INSIDE the listener is the invariant: the teardown
+    // (memLoaded included) completes before anyone is told.
+    expect(seen).toEqual([false]);
   });
 
   test("a failing /logout never surfaces (sign-out is synchronous and total)", async () => {

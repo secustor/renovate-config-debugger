@@ -249,7 +249,7 @@ export const GLOSSARY = {
   presetRollup: {
     name: "collapsed subtree totals",
     plain:
-      "Unique presets and packageRules contributed by this subtree's descendants, hidden while it is collapsed. Expand the row to see them individually.",
+      "Resolved presets and packageRules below this node, hidden while it is collapsed. Counted per occurrence — a preset that recurs in this subtree counts each time — so this can exceed the headline preset total above, which counts each name once. Expand the row to see them individually.",
   },
   keyOverridden: {
     name: "overridden",

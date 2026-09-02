@@ -240,8 +240,10 @@ export function ConfigColumn({
           all about the shortcut they had just pressed. The wrapper is always
           mounted for the reason the run's live region is: a region announces a
           CHANGE to something the reader is already watching. Empty, it renders
-          nothing and takes no space; the paragraph and its margins still come
-          and go with the message.
+          nothing; the desktop split collapses the flex gap it would otherwise
+          spend (`10-messages-tabs.css`, the `:empty` rule beside `.config-col`'s
+          flex block). The paragraph and its margins still come and go with the
+          message.
 
           The other half of "a CHANGE" is the sender's: raising the identical
           message twice — a repo load that fails the same way twice — is one

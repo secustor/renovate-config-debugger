@@ -593,7 +593,7 @@ export function AddTestBox({
     <DescriptorActions
       className="pin-new-actions"
       formId={PIN_FORM_ID}
-      submitLabel="Simulate"
+      submitLabel={simulating ? "Simulating…" : "Simulate"}
       submitDisabled={simulating || !result.finalConfig}
       atLimit={atLimit}
       onPin={() => pin()}

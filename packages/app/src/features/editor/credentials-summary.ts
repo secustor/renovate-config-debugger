@@ -5,9 +5,10 @@
  * The design's grammar is `⟨host⟩ ✓` / `⟨host⟩ anonymous`, plus ` · +N` when
  * other hosts carry tokens too: the line names the host this session's
  * platform context points at and states — positively, never as "the count is
- * zero" — whether the session can authenticate against it. Pure, and its own
- * module, because "carrying a credential" is not a fact the markup should be
- * re-deciding inline.
+ * zero" — whether the session can authenticate against it. The ✓/anonymous
+ * choice is about the credential in force for the NEXT run, not the inventory
+ * in storage. Pure, and its own module, because "carrying a credential" is not
+ * a fact the markup should be re-deciding inline.
  */
 import { defaultEndpointFor } from "@/data/platform-endpoints";
 import type { HostTokenId } from "@/data/host-tokens";
@@ -26,6 +27,9 @@ export interface CredentialsInput {
    *  are credentials for hosts the four-row table does not name, so they can
    *  never BE the primary host — they only ever add to the ` · +N` tail. */
   customHostCount: number;
+  /** Security 2026-07-25: while the untrusted-endpoint guard stands the run
+   *  carries no token to ANY host, so the line must not claim one. */
+  suppressTokens: boolean;
 }
 
 /** The endpoint field is empty (platform default in force) or literally the
@@ -59,8 +63,9 @@ export function credentialsLine(input: CredentialsInput): string {
   // save an invalid token, so the line must not claim one authenticates.
   const primaryValue = primary?.value ?? "";
   const primaryAuthed =
-    (input.platform === "github" && input.signedIn) ||
-    (primaryValue !== "" && isValidToken(primaryValue));
+    !input.suppressTokens &&
+    ((input.platform === "github" && input.signedIn) ||
+      (primaryValue !== "" && isValidToken(primaryValue)));
   let extras = input.customHostCount;
   for (const token of input.tokens) {
     if (token.id === input.platform) {

@@ -96,6 +96,35 @@ describe("buildVerdictSegments", () => {
     );
   });
 
+  test("the credited preset is the body that WROTE the rule, not the extend it came through", () => {
+    const sim = simFixture(
+      {},
+      {
+        flattened: { merged: [], blocks: { minor: { automerge: true } }, authoredBlocks: [] },
+        rules: [
+          {
+            index: 5,
+            verdict: "matched",
+            clauses: [],
+            notes: [],
+            merged: [{ key: "minor", after: { automerge: true } }],
+          },
+        ],
+      },
+    );
+    const attribution: RuleAttribution[] = [
+      {
+        index: 5,
+        sourceIndex: 0,
+        layer: { kind: "preset", nodeId: "n1", name: "config:best-practices" },
+        writtenBy: { nodeId: "n2", name: ":automergeMinor", sourceIndex: 0 },
+      },
+    ];
+    expect(verdictText(buildVerdictSegments(sim, "major", [], attribution))).toContain(
+      "from `:automergeMinor`",
+    );
+  });
+
   test("scoped automerge without a traceable source stays uncredited", () => {
     const sim = simFixture(
       {},

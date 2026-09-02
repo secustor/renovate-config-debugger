@@ -22,8 +22,10 @@ export const DEFAULT_ENDPOINT = "https://api.github.com";
 
 /** Platforms that resolve `local>` in the browser, with their default endpoint.
  *  An empty endpoint means "not fetched in the browser" (a real Renovate run
- *  reaches it; this app never does). Second copy of the list
- *  `engine/test/local-preset-platforms.node.test.ts` guards — update both. */
+ *  reaches it; this app never does). A deliberate subset of the ids the engine
+ *  shim classifies (`local` excluded — it can never serve a preset); nothing
+ *  asserts the two agree, so a Renovate bump that adds a platform (caught by
+ *  `engine/test/local-preset-platforms.node.test.ts`) needs an entry here too. */
 export const PLATFORM_ENDPOINTS: Record<string, string> = {
   github: DEFAULT_ENDPOINT,
   gitlab: "https://gitlab.com/api/v4",
