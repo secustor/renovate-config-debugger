@@ -376,8 +376,10 @@
                 // `/schema`, `/simulate-missing-inputs`) or through
                 // `loadEngine()`. `/is` and `/json` are the two this ban sends
                 // most authors to; every banner subpath is a zero-import file
-                // precisely so reaching it from the ENTRY chunk is free, which
-                // `engine/test/import-free-subpaths.node.test.ts` keeps true.
+                // precisely so reaching it from the ENTRY chunk is free, and
+                // `/simulate-missing-inputs` — which has imports — stays
+                // Renovate-free across its whole closure. Both are kept true by
+                // `engine/test/import-free-subpaths.node.test.ts`.
                 "group": ["@renovate-config-debugger/engine"],
                 "allowTypeImports": true,
                 "message": "Value-importing the engine ROOT statically pulls the whole Renovate graph into this chunk — use a narrow subpath export, or load it at runtime through platform/engine-chunk.ts (`loadEngine()`). Type-only imports are fine."
@@ -887,16 +889,19 @@
     },
     // ---- …and every comment that cites a file or a symbol's home ------------
     // `comment-cites-what-exists` resolves citations against the real tree.
-    // Test files are deliberately NOT excluded (unlike every helper rule): a
-    // test docblock citing its sibling suite is exactly the citation this
-    // guards, and one of the three defects it landed with is in a
+    // Everything under `packages/` is in scope — `src`, every test tree, `e2e`,
+    // `scripts` — because an enumeration of trees is the mechanism that let the
+    // CLI's and the worker's suites drift out of it. Test files are deliberately
+    // NOT excluded (unlike every helper rule): a test docblock citing its
+    // sibling suite is exactly the citation this guards, and one of the three
+    // defects it landed with is in a
     // `.shimmed.test.tsx`. `tools/**` is deliberately OUT and must stay out — a
     // rule header there keeps a past-tense census of WHAT WAS IN THE TREE (see
     // `prefer-is-helpers`), naming symbols and files the sweep deleted on
     // purpose; that is the rule's single false positive on the whole tree, and
     // this scope removes it structurally rather than by heuristic.
     {
-      "files": ["packages/*/src/**", "packages/engine/test/**", "packages/app/e2e/**"],
+      "files": ["packages/**"],
       "rules": {
         "rcd/comment-cites-what-exists": "error"
       }

@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
  * The public deployment ships roadmap 065's cookie mode, so the refresh token
  * outlives the tab. A user-facing doc that promises "closing the tab clears
  * every token" is then a privacy claim the deployment contradicts, which is
- * what this pins: the two shipped docs against whichever mode the Worker
+ * what this pins: the three shipped docs against whichever mode the Worker
  * config declares.
  */
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -27,7 +27,7 @@ const cookieModeShipped =
   );
 
 describe("the privacy docs match the deployed worker", () => {
-  it.each(["README.md", "docs/GitHub-App-Access.md"])(
+  it.each(["README.md", "docs/GitHub-App-Access.md", "SECURITY.md"])(
     "%s describes the refresh token the way the worker stores it, and points at the table",
     (path) => {
       const text = read(path);

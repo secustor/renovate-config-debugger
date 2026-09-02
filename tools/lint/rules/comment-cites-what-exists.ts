@@ -61,7 +61,9 @@ import { dirname, join } from "node:path";
  * Comments are the only thing read, so string literals and JSX are structurally
  * out of reach in both directions.
  *
- * SCOPE IS PART OF THE PRECISION, and the override comment has to say so.
+ * SCOPE IS PART OF THE PRECISION, and the override comment has to say so. All
+ * of `packages/**` is in — src, every test tree, e2e and scripts alike, since
+ * an enumeration of trees is what let two test suites drift out of scope.
  * `tools/**` is deliberately out: a rule header here keeps a past-tense census
  * of WHAT WAS IN THE TREE, naming symbols and files the sweep deleted on
  * purpose (`prefer-is-helpers`' is the standing example). That is the one

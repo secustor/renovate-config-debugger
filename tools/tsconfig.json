@@ -19,8 +19,8 @@
     "lint/**/*.ts",
     "docs/**/*.ts",
     "verify-deployment.ts",
-    // Lives at the repo root but configures tools/lint's specs, so no
-    // package project covers it.
+    // Lives at the repo root but configures the tools/ specs, so no package
+    // project covers it.
     "../vitest.tools.config.ts"
   ]
 }
