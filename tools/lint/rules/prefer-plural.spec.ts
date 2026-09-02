@@ -74,6 +74,47 @@ ruleTester.run("prefer-plural", rule, {
     'const line = `${count} ${countNoun(count, "rule")}`;',
     // a same-named call of a different arity is not this helper
     'const line = `${count} ${pluralWord(count, "rule", locale)}`;',
+
+    // ---- Sweep IV: the hand-spelled ternary arm -----------------------------
+    // IRREGULARS. Both helpers append a bare "s", so a plural they cannot
+    // produce is structurally out rather than heuristically skipped.
+    'const s = `${nf.format(n)} ${n === 1 ? "dependency" : "dependencies"}`;',
+    'const s = entries.length === 1 ? "entry" : "entries";',
+    // a stem splice — the ternary swaps a suffix mid-word
+    'const more = `${hidden} more famil${hidden === 1 ? "y" : "ies"}, sorted by rule count`;',
+    // AGREEMENT rather than number: the noun being counted is elsewhere.
+    'const them = count === 1 ? "it" : "them";',
+    'const verb = count === 1 ? "is" : "are";',
+    'const clause = `block${blockKeys.length === 1 ? " was" : "s were"} consumed`;',
+    'const verb = refused.length === 1 ? "would be" : "would both be";',
+    // MULTI-WORD phrases: a whole clause, not a noun plus "s".
+    'const s = total === 1 ? "rule matches" : "rules match";',
+    'const which = setters === 1 ? "only" : "all of them only";',
+    'const s = ruleCount === 1 ? "this rule" : "these rules";',
+    // NOT A COUNT at all — a sort direction, a comparator, a retry attempt.
+    'const arrow = sortColumn === key ? (sortDir === 1 ? " \u25b2" : " \u25bc") : "";',
+    "setSortDir((d) => (d === 1 ? -1 : 1));",
+    'const chunk = attempt === 1 ? Promise.reject(new Error("chunk 404")) : {};',
+
+    // ---- BOTH BRANCHES MUST BE STRING LITERALS. This is what keeps
+    // `pluralWord`'s own body and the CLI's group tally quiet with no
+    // exemption in the config — neither is in shape.
+    "export function pluralWord(n: number, word: string) { return n === 1 ? word : `${word}s`; }",
+    'const updates = view.size === 1 ? "1 update" : `${view.size} updates`;',
+    // `components/data-table.ts` names its two forms on an object instead
+    "const s = `${nf.format(n)} ${n === 1 ? noun.one : noun.many}`;",
+
+    // ---- the test itself has to be an equality against 1
+    'const s = n === 2 ? "rule" : "rules";',
+    'const s = n > 1 ? "rules" : "rule";',
+    'const s = n == 1 ? "rule" : "rules";',
+    // ---- and the "s" has to be exactly what separates the two branches
+    // case-sensitive: "Rule" + "s" is "Rules", not "rules"
+    'const s = n === 1 ? "Rule" : "rules";',
+    // the branches the wrong way round is not a spelling either helper produces
+    'const s = n === 1 ? "rules" : "rule";',
+    // a suffix neither helper can append
+    'const s = n === 1 ? "" : "es";',
   ],
   invalid: [
     // ---- THE ORIGINAL. 27b81f43 swept `SimRulesBody`'s ad-hoc
@@ -148,6 +189,77 @@ ruleTester.run("prefer-plural", rule, {
       code: 'const el = <>{count} {pluralWord(count, "rule")}</>;',
       filename: tsx,
       errors: [{ messageId: "preferPlural" }],
+    },
+
+    // ---- THE ORIGINAL, and the only defect in this file's evidence that
+    // reached users: `hiddenRulesNote` before 34421b97 pluralised its noun on
+    // the HIDDEN count, printing "1 of 2 rule hidden".
+    // The `{{word}}` slot makes the message quote the fix (`pluralWord(n,
+    // "rule")`) rather than a placeholder, so it is pinned here.
+    {
+      code: 'const noun = view.hidden === 1 ? "rule" : "rules";',
+      errors: [{ messageId: "preferPluralWord", data: { word: "rule" } }],
+    },
+    // 34421b97 corrected the operand and left the spelling — this is what was
+    // still standing at `rule-view.ts:218`, one careless edit from the same bug.
+    {
+      code: 'const noun = view.total === 1 ? "rule" : "rules";',
+      errors: [{ messageId: "preferPluralWord" }],
+    },
+    // `commands/compare.ts`
+    {
+      code: 'const noun = counts.signatureChanges === 1 ? "rule" : "rules";',
+      errors: [{ messageId: "preferPluralWord" }],
+    },
+    // `features/overview/description-digest.ts`, whose sentence interpolates
+    // `nf.format(count)` right beside the noun — the `plural` shape exactly
+    {
+      code: 'const members = count === 1 ? "member" : "members";',
+      errors: [{ messageId: "preferPluralWord" }],
+    },
+    // `lib/run-digest.ts`
+    {
+      code: 'const label = `${list(names)} config ${names.length === 1 ? "layer" : "layers"}`;',
+      errors: [{ messageId: "preferPluralWord" }],
+    },
+
+    // ---- the suffix spelling. `projections/group.ts` hand-spells this
+    // eighteen lines above the same file's correct `plural(gapCount, "update")`,
+    // with the import already on the line.
+    {
+      code: 'const note = `${name}: ${count} rule${count === 1 ? "" : "s"} could not match`;',
+      errors: [{ messageId: "preferPluralSuffix" }],
+    },
+    // `projections/provenance.ts`
+    {
+      code: 'const note = `${setters} packageRule${setters === 1 ? "" : "s"} can set the key`;',
+      errors: [{ messageId: "preferPluralSuffix" }],
+    },
+    // `lib/format.ts:19` — `plural`'s OWN body, which is in shape and is why
+    // the home needs a file override in `.oxlintrc.json`.
+    {
+      code: 'const out = `${nf.format(n)} ${word}${n === 1 ? "" : "s"}`;',
+      errors: [{ messageId: "preferPluralSuffix" }],
+    },
+
+    // ---- operand order and operator are both handled: the count is never
+    // inspected, so which side it sits on does not matter.
+    {
+      code: 'const noun = 1 === n ? "rule" : "rules";',
+      errors: [{ messageId: "preferPluralWord" }],
+    },
+    {
+      code: 'const noun = n !== 1 ? "rules" : "rule";',
+      errors: [{ messageId: "preferPluralWord" }],
+    },
+    {
+      code: 'const suffix = 1 !== n ? "s" : "";',
+      errors: [{ messageId: "preferPluralSuffix" }],
+    },
+    // two hand-spellings on one expression
+    {
+      code: 'const parts = [`${a} error${a === 1 ? "" : "s"}`, `${b} warning${b === 1 ? "" : "s"}`];',
+      errors: [{ messageId: "preferPluralSuffix" }, { messageId: "preferPluralSuffix" }],
     },
   ],
 });

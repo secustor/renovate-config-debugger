@@ -10,6 +10,8 @@ import {
 import {
   filterRulesBySource,
   matchesVerdictFilter,
+  nf,
+  plural,
   ruleLayerIndex,
   SOURCE_FILTERS,
   type SourceFilter,
@@ -215,9 +217,8 @@ export function hiddenRulesNote(view: RuleView): string | undefined {
   if (view.hidden === 0) {
     return undefined;
   }
-  const noun = view.total === 1 ? "rule" : "rules";
   return (
-    `${view.hidden} of ${view.total} ${noun} hidden by ${flagsOf(view)} — ` +
+    `${nf.format(view.hidden)} of ${plural(view.total, "rule")} hidden by ${flagsOf(view)} — ` +
     "`--verdict all --source all` shows every rule."
   );
 }

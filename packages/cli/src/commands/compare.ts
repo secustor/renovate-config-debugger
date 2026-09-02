@@ -1,4 +1,5 @@
 import type { SimulationComparison } from "@renovate-config-debugger/engine";
+import { plural } from "@renovate-config-debugger/app/headless";
 import { outputFormat, stringOption } from "../args";
 import type { Command } from "../command";
 import { EXIT_OK } from "../io";
@@ -95,10 +96,9 @@ function identityLines(comparison: ProjectedComparison): string[] {
   if (!counts || counts.signatureChanges === 0) {
     return [];
   }
-  const noun = counts.signatureChanges === 1 ? "rule" : "rules";
   return [
     "",
-    `Selector text changed on ${counts.signatureChanges} ${noun}, same effect (rule identity, ` +
+    `Selector text changed on ${plural(counts.signatureChanges, "rule")}, same effect (rule identity, ` +
       "not behavior) — `--detail rules` lists them.",
   ];
 }

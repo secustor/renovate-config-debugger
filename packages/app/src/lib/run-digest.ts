@@ -1,4 +1,4 @@
-import { nf, plural } from "./format";
+import { nf, plural, pluralWord } from "./format";
 import type { ResultsTabId } from "@/data/results-tabs";
 
 /**
@@ -366,7 +366,7 @@ function layerClause(layers: DigestLayers): DigestClause | null {
     text: "Your self-hosted",
     link: {
       tab: "effective",
-      label: `${list(names)} config ${names.length === 1 ? "layer" : "layers"}`,
+      label: `${list(names)} config ${pluralWord(names.length, "layer")}`,
     },
     tail: " merged in underneath the repo config.",
   };

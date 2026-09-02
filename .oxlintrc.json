@@ -812,26 +812,39 @@
         "rcd/no-uncaught-void-chain": "error",
         "rcd/prefer-is-helpers": "error",
         "rcd/use-json-helpers": "error",
-        // Sweep III: `plural(n, word)` in `@/lib/format` is app-local and
-        // resolves from neither the engine nor the CLI, so this rides the app
-        // block. The file that DEFINES `pluralWord` never calls it beside a
-        // count, so the home needs no exemption below.
-        "rcd/prefer-plural": "error"
+        // Sweep IV: the home is `plural`/`pluralWord` in `@/lib/format`,
+        // re-exported to the CLI through `app/headless` — so this is no longer
+        // app-only; see the CLI block below. The file that DEFINES them is
+        // exempt in the helper bank.
+        "rcd/prefer-plural": "error",
+        // Sweep IV, both app-only because their homes are: `jsonSnippet` lives
+        // in `@/lib/value-preview` and does not resolve from the CLI or the
+        // engine, and `use-lookup-accessors` names `@/data/*` accessors whose
+        // engine namesakes (`shims/repo-config.ts:207`/`:245` and
+        // `shims/presets/host-transport.ts:55`) are its only three false
+        // positives tree-wide — app-only removes all three structurally.
+        "rcd/use-json-snippet": "error",
+        "rcd/use-lookup-accessors": "error"
       }
     },
-    // ---- The two house rules that are not app-only --------------------------
-    // Both point at `packages/engine/src/{is,json}.ts`, which every package
-    // here can import, so the package-boundary reason above does not apply.
-    // The CLI is also where the JSON defect shipped (sweep finding 9,
-    // `output.ts`), and it held two of the copies the is-library replaced
-    // (`mcp/result.ts`'s `isRecord`, `projections/config-view.ts`'s
-    // `isStringArray`).
+    // ---- The three house rules that are not app-only ------------------------
+    // Two point at `packages/engine/src/{is,json}.ts`, which every package here
+    // can import, so the package-boundary reason above does not apply; the
+    // third, `rcd/prefer-plural`, points at `@renovate-config-debugger/app/headless`
+    // instead, which re-exports `plural`/`pluralWord` from the app's
+    // `lib/format.ts`. The CLI is also where the JSON defect shipped (sweep
+    // finding 9, `output.ts`), and it held two of the copies the is-library
+    // replaced (`mcp/result.ts`'s `isRecord`, `projections/config-view.ts`'s
+    // `isStringArray`) — and sweep IV's plural defect SHIPPED here too
+    // (finding 62: `rule-view.ts` printing "1 of 2 rule hidden"), with four of
+    // the six conversions in this package.
     {
       "files": ["packages/cli/src/**"],
       "excludeFiles": ["packages/cli/src/**/*.test.ts"],
       "rules": {
         "rcd/prefer-is-helpers": "error",
-        "rcd/use-json-helpers": "error"
+        "rcd/use-json-helpers": "error",
+        "rcd/prefer-plural": "error"
       }
     },
     // The engine is in scope because it is the HOME: `src/is.ts` and
@@ -942,6 +955,32 @@
     {
       "files": ["packages/app/src/lib/truncate.ts"],
       "rules": { "rcd/use-truncate": "off" }
+    },
+    // `format.ts:19` is `plural`'s own body and, after sweep IV's six
+    // conversions, the only `rcd/prefer-plural` hit left under the enabled
+    // globs (`engine/src/text.ts:14`, `countNoun`'s body, is the same shape but
+    // out of scope — the engine does not enable this rule).
+    // `pluralWord`'s body needs nothing — its consequent is an identifier, so
+    // it is out of shape. The file has no JSX, so a file-level override costs
+    // no coverage of the rule's existing adjacency arm.
+    {
+      "files": ["packages/app/src/lib/format.ts"],
+      "rules": { "rcd/prefer-plural": "off" }
+    },
+    {
+      "files": ["packages/app/src/lib/value-preview.ts"],
+      "rules": { "rcd/use-json-snippet": "off" }
+    },
+    // The two `Object.hasOwn`-guarded accessor bodies, exempted BY PATH rather
+    // than by an AST carve-out: the guard and the read need not be adjacent, so
+    // the rule must not try to recognise the guarded shape.
+    {
+      "files": ["packages/app/src/data/platform-endpoints.ts"],
+      "rules": { "rcd/use-lookup-accessors": "off" }
+    },
+    {
+      "files": ["packages/app/src/data/host-tokens.ts"],
+      "rules": { "rcd/use-lookup-accessors": "off" }
     },
     // ---- …and the one type-aware rule that is off everywhere but here -------
     // `typescript/no-unsafe-type-assertion` is "off" repo-wide by roadmap 034's

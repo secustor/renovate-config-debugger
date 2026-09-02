@@ -7,7 +7,11 @@ import {
   UPDATE_TYPE_KEYS,
 } from "@renovate-config-debugger/engine";
 import { jsonEqual } from "@renovate-config-debugger/engine/json";
-import { isOverridden, multiContribBadgeKind } from "@renovate-config-debugger/app/headless";
+import {
+  isOverridden,
+  multiContribBadgeKind,
+  plural,
+} from "@renovate-config-debugger/app/headless";
 import { CliError } from "../io";
 import { preview } from "../output";
 
@@ -218,7 +222,7 @@ export function perDependencyNote(
       : ` (${which} inside an update-type block ` +
         "such as `minor: {…}`, which applies only when the update's type matches)";
   return (
-    `${setters} packageRule${setters === 1 ? "" : "s"} can set \`${key}\` per-dependency` +
+    `${plural(setters, "packageRule")} can set \`${key}\` per-dependency` +
     `${nestedClause} — this ` +
     "chain is the repository-wide value. Simulate a dependency to see the value an actual " +
     "update would get."

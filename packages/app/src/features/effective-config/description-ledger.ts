@@ -1,5 +1,4 @@
 import { isTruthy } from "@renovate-config-debugger/engine/is";
-import { jsonText } from "@renovate-config-debugger/engine/json";
 import { COLLAPSE_AFTER } from "@/lib/collapse";
 import { nf, plural } from "@/lib/format";
 import type {
@@ -12,6 +11,7 @@ import type {
 } from "@renovate-config-debugger/engine";
 import { layerLabel, layerNodeKey, stableLayerKey } from "@/lib/provenance-layer";
 import { truncate } from "@/lib/truncate";
+import { jsonSnippet } from "@/lib/value-preview";
 
 /**
  * Roadmap 069 (PR 3): the view-model behind the Effective config's blame
@@ -347,7 +347,7 @@ export function duplicateNoteText(entry: DescriptionAttribution): string {
 /** A non-string member's value cell — compact JSON, so `{"a":1}` and `"1"` are
  *  distinguishable from `1` at a glance. */
 export function unattributedValueText(value: unknown): string {
-  return truncate(jsonText(value), UNATTRIBUTED_PREVIEW_CHARS);
+  return jsonSnippet(value, UNATTRIBUTED_PREVIEW_CHARS);
 }
 
 /**
