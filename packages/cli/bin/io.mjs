@@ -6,7 +6,7 @@
  * can never read the environment itself.
  */
 export function processIo() {
-  guardStderr();
+  guardStdio();
   return {
     out: (text) => process.stdout.write(text),
     err: (text) => process.stderr.write(text),
@@ -24,17 +24,32 @@ export function processIo() {
 
 /**
  * A stream with no `'error'` listener turns a write failure into an UNCAUGHT
- * exception — so a peer that closes the pipe (`rcd digest … | head`, or an MCP
- * host that stops reading our diagnostics) crashes the process on the next
- * line of stderr, from inside a `write` nobody awaited. The SDK guards stdout
- * for exactly this reason; stderr has the same failure mode and no owner.
+ * exception — so a peer that closes the pipe (`rcd tree … | head`, or an MCP
+ * host that stops reading) crashes the process from inside a `write` nobody
+ * awaited. The SDK owns stdout only while `rcd mcp` is connected, so every
+ * other command's ANSWER stream is unowned; both arms are pre-checked for an
+ * existing listener, so the transport's handler and ours never displace one
+ * another.
  *
- * Silence is the whole point: there is nowhere left to report a broken stderr
- * to. The process keeps running and its own exit code still speaks.
+ * Stderr is silent because there is nowhere left to report a broken stderr to.
+ * On stdout, EPIPE is silent for the same reason, but any other write error
+ * truncated the answer, so it is reported and sets a nonzero exit code — which
+ * both bins preserve (`… = (await main(…)) || process.exitCode`), since the
+ * event normally arrives while main is still awaited.
  */
-function guardStderr() {
+function guardStdio() {
   if (process.stderr.listenerCount("error") === 0) {
     process.stderr.on("error", () => {});
+  }
+  if (process.stdout.listenerCount("error") === 0) {
+    process.stdout.on("error", (err) => {
+      if (err?.code === "EPIPE") {
+        return;
+      }
+      process.stderr.write(`rcd: stdout write failed: ${err?.message ?? String(err)}\n`);
+      // EXIT_ERROR from src/io.ts; the bin is outside the transformed bundle.
+      process.exitCode = 1;
+    });
   }
 }
 

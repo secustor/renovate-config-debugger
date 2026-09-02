@@ -110,6 +110,18 @@ describe("endpointTokenPolicy", () => {
     expect(policy.reason).not.toContain("Pass `--platform-override`");
   });
 
+  /** An empty `--endpoint` supplies no endpoint: the pipeline input drops it
+   *  on truthiness, so the run would still land on the config's host. */
+  test("--platform-override with an empty endpoint releases nothing", () => {
+    const policy = endpointTokenPolicy(
+      { platformOverride: true, ownEndpoint: "" },
+      { endpoint: "https://evil.example" },
+    );
+    expect(policy.suppress).toBe(true);
+    expect(policy.reason).toContain("--trust-endpoints");
+    expect(policy.reason).not.toContain("Pass `--platform-override`");
+  });
+
   test("--platform-override against a platform-only global config still releases", () => {
     expect(endpointTokenPolicy({ platformOverride: true }, { platform: "gitlab" }).suppress).toBe(
       false,

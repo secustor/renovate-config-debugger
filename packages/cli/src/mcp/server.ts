@@ -118,7 +118,7 @@ const HINTS = {
   resolved:
     'the resolved document is too large to return whole — try mode "keep-internal" without includeDefaults, or read one preset\'s contribution with get_preset_node.',
   simulate:
-    'this config has too many packageRules to report whole — the omission is marked; drop back to the default `verdict: "notable"` (or `rule: N` for one row), pass `keys: [...]` for the options you care about, or narrow the dependency (a datasource, a depType) so fewer rules report `no-input`.',
+    'this config has too many packageRules to report whole — the omission is marked; at `detail: "full"` drop back to `detail: "verdict"` (the merge trace is the bulk of the payload), otherwise drop back to the default `verdict: "notable"` (or `rule: N` for one row), pass `keys: [...]` for the options you care about (they apply at `detail: "verdict"`), or narrow the dependency (a datasource, a depType) so fewer rules report `no-input`.',
   group:
     "this tally is too large to return whole — call again with fewer `deps` (the tally is over the list you supply), or ask simulate one dep at a time for a member's rule evidence; `updates`, `size` and `wouldForm` are computed before any elision, so only the member listings were shortened.",
   compare:
@@ -216,6 +216,10 @@ function answer<Args>(
  * about KEY COVERAGE only: a field added to the engine descriptor is a compile
  * error here, not a key `strictObject` silently rejects. The value types
  * deliberately differ — `updateType` is an enum here and a `string` upstream.
+ *
+ * The CLI reports the same typo as a note instead of rejecting it: a person
+ * editing a `--dep` literal can read the note and retry, while a model that
+ * gets an error naming the key retries with the key fixed.
  */
 const DEP = z
   .strictObject({
@@ -850,7 +854,8 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         "`note` states which of those happened. " +
         "A `config:recommended` run has ~700 rules — `verdict` and `source` scope the list " +
         '(`source: "repo"` is "just my own config\'s rules"), and `keys` narrows ' +
-        "`finalDependencyConfig` to the options you asked about. " +
+        '`finalDependencyConfig` to the options you asked about (at `detail: "verdict"`; ' +
+        '`detail: "full"` is unprojected by contract and says so). ' +
         "`ruleSources` is the legend for the rule indexes — one merged-index range per " +
         "contributing layer — and every MATCHED rule carries its own `origin` inline. " +
         'By DEFAULT the answer holds the rules that acted (`verdict: "notable"`), because the ' +

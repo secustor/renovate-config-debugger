@@ -7,6 +7,7 @@ import type {
 import {
   buildRuleView,
   evaluationErrorsNote,
+  hiddenRulesNote,
   missingInputsNote,
   ruleFilterNote,
   ruleFilterPayload,
@@ -96,24 +97,24 @@ describe("buildRuleView", () => {
    * it also answers "which layer wrote this MATCHED rule" — a question the
    * filter never asks and every caller has.
    */
-  test("the sources legend and the per-rule origin come back unasked", () => {
+  test("the attribution and the per-rule origin come back unasked", () => {
     const view = buildRuleView(sim([rule(0, "matched"), rule(1, "no-match")]), ATTRIBUTED, {
       verdict: "all",
       // No `--source`: the attribution is not the filter's private business.
       source: "all",
       transport: "cli",
     });
-    expect(view.sources).toEqual([{ layer: "repo", kind: "repo", from: 0, to: 1, count: 2 }]);
+    expect(view.attribution ?? []).not.toHaveLength(0);
     expect(view.originOf(1)).toEqual({ layer: "repo", sourceIndex: 1 });
   });
 
-  test("an unattributable run has no sources, and links nothing", () => {
+  test("an unattributable run carries no attribution, and links nothing", () => {
     const view = buildRuleView(sim([rule(0, "matched")]), UNATTRIBUTABLE, {
       verdict: "all",
       source: "all",
       transport: "cli",
     });
-    expect(view.sources).toEqual([]);
+    expect(view.attribution ?? []).toHaveLength(0);
     expect(view.originOf(0)).toBeUndefined();
     // …and the existing behavior is untouched: nothing was filtered, so
     // nothing is reported.
@@ -130,6 +131,28 @@ describe("buildRuleView", () => {
     expect(view.total).toBe(2);
     expect(view.hidden).toBe(1);
     expect(view.notes).toEqual([]);
+  });
+});
+
+/** The noun agrees with the TOTAL, like the engine's sibling notes stacked
+ *  beneath it — "1 of 2 rules hidden" over "1 of 2 rules could not match". */
+describe("hiddenRulesNote", () => {
+  test("one hidden row out of two still reads `rules`", () => {
+    const view = buildRuleView(sim([rule(0, "matched"), rule(1, "no-match")]), ATTRIBUTED, {
+      verdict: "matched",
+      source: "all",
+      transport: "cli",
+    });
+    expect(hiddenRulesNote(view)).toContain("1 of 2 rules hidden");
+  });
+
+  test("nothing hidden means no line at all", () => {
+    const view = buildRuleView(sim([rule(0, "matched")]), ATTRIBUTED, {
+      verdict: "all",
+      source: "all",
+      transport: "cli",
+    });
+    expect(hiddenRulesNote(view)).toBeUndefined();
   });
 });
 

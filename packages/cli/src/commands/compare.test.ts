@@ -40,6 +40,21 @@ describe("compare", () => {
     expect(comparison.configView.scope).toBe("package-rules");
   });
 
+  /** Two files are its whole grammar; a third was silently ignored, so the
+   *  answer described a comparison the caller did not ask for. */
+  test("a third config file is an error naming it", async () => {
+    const run = await runCli([
+      "compare",
+      fixture("clean.json"),
+      fixture("grouped.json"),
+      fixture("invalid.json"),
+      "--dep",
+      '{"depName":"react"}',
+    ]);
+    expect(run.code).toBe(1);
+    expect(run.stderr).toContain("invalid.json");
+  });
+
   test("the same config twice changes nothing", async () => {
     const run = await runCli([
       "compare",
@@ -399,5 +414,34 @@ describe("compare --detail", () => {
     const run = await runCli(narrowingArgs("--detail", "nope"));
     expect(run.code).toBe(1);
     expect(run.stderr).toContain("verdict|rules|full");
+  });
+});
+
+/** A typo'd descriptor key makes both sides equally blind, and `identical`
+ *  over two blind runs is not an answer about the edit — so the side notes
+ *  carry each simulation's own input notes too. */
+describe("compare reports what each side's descriptor left unread", () => {
+  const args = ["compare", fixture("clean.json"), fixture("grouped.json"), "--dep"];
+
+  test("json notes name the side and the ignored key", async () => {
+    const run = await runJson<{ notes?: string[] }>([
+      ...args,
+      '{"depName":"react","updatetype":"major"}',
+      "--format",
+      "json",
+    ]);
+    expect(run.code).toBe(0);
+    expect(run.payload.notes).toContainEqual(
+      expect.stringContaining("A — 1 key ignored (`updatetype`)"),
+    );
+    expect(run.payload.notes).toContainEqual(
+      expect.stringContaining("B — 1 key ignored (`updatetype`)"),
+    );
+  });
+
+  test("pretty output prints it under the headline", async () => {
+    const run = await runCli([...args, '{"depName":"react","updatetype":"major"}']);
+    expect(run.code).toBe(0);
+    expect(run.stdout).toContain("1 key ignored (`updatetype`)");
   });
 });

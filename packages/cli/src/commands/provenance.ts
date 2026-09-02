@@ -4,7 +4,6 @@ import {
   type SourceFilter,
 } from "@renovate-config-debugger/app/headless";
 import { choiceOption, intOption } from "../args";
-import { CliError } from "../io";
 import { emitJson, emitLines, preview } from "../output";
 import { chainStepText, entryView } from "../projections/provenance";
 import {
@@ -77,19 +76,13 @@ export const provenanceCommand = defineRunCommand<ProvenanceFlags>({
     "index inside that layer.",
   ],
   options: [...INPUT_OPTIONS, "rule", "source", "format"],
+  // The key, and only the key: `rejectExtraPositionals` refuses a second one.
+  positionals: 1,
   prepare: (args) => ({
     ruleIndex: intOption(args, "rule", { min: 0 }),
     source: choiceOption(args, "source", SOURCE_FILTERS),
   }),
   answer({ io, format, prepared, result, rest }) {
-    // One key per call, stated — a second positional used to be silently
-    // dropped, which read as "the first key's chain is the whole answer".
-    if (rest.length > 1) {
-      throw new CliError(
-        `provenance answers one key per call (got ${rest.map((k) => `"${k}"`).join(", ")}) — ` +
-          "run it once per key",
-      );
-    }
     const answer = askProvenance(result, {
       key: rest[0],
       rule: prepared.ruleIndex,

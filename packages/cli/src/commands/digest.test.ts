@@ -18,6 +18,15 @@ describe("digest", () => {
     expect(digest.counts.effectiveOptions).toBeGreaterThan(0);
   });
 
+  /** `--repo` supplies the config, so a positional next to it is a file the
+   *  run would never read — and "unexpected argument" would read as nonsense. */
+  test("a file next to --repo is an error that says where the config came from", async () => {
+    const run = await runCli(["digest", fixture("clean.json"), "--repo", "o/r"]);
+    expect(run.code).toBe(1);
+    expect(run.stderr).toContain("the config comes from --repo");
+    expect(run.stderr).toContain("clean.json");
+  });
+
   test("pretty output is the paragraph itself", async () => {
     const run = await runCli(["digest", fixture("clean.json")]);
     expect(run.code).toBe(0);

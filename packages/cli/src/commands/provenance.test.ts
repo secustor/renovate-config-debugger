@@ -70,7 +70,15 @@ describe("provenance", () => {
   test("two positional keys are an error, not a silently answered first one", async () => {
     const run = await runCli(["provenance", fixture("clean.json"), "labels", "automerge"]);
     expect(run.code).toBe(1);
-    expect(run.stderr).toContain("one key per call");
+    expect(run.stderr).toContain('does not take "automerge"');
+  });
+
+  test("the one key it does take still works when a flag supplied the config", async () => {
+    const run = await runCli(["provenance", "--stdin", "labels"], {
+      stdin: '{"labels":["dep"]}',
+    });
+    expect(run.code).toBe(0);
+    expect(run.stdout).toContain("labels");
   });
 });
 

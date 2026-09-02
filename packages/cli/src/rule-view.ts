@@ -18,12 +18,7 @@ import {
 } from "@renovate-config-debugger/app/headless";
 import { choiceOption, intOption, type ParsedArgs } from "./args";
 import { CliError } from "./io";
-import {
-  type RuleOrigin,
-  ruleOrigin,
-  type RuleSourceRange,
-  ruleSourceRanges,
-} from "./projections/rule-provenance";
+import { type RuleOrigin, ruleOrigin } from "./projections/rule-provenance";
 import type { RunTransport } from "./run-input";
 
 /**
@@ -111,9 +106,6 @@ export interface RuleView {
    * from — a question the filter does not ask.
    */
   attribution: readonly RuleAttribution[] | undefined;
-  /** {@link attribution} as one range per contributing layer — the legend a
-   *  payload can afford next to a 727-row rule list. */
-  sources: RuleSourceRange[];
   /** Which layer contributed one merged rule, by its `RuleEvaluation.index`. */
   originOf: (index: number) => RuleOrigin | undefined;
 }
@@ -171,7 +163,6 @@ export function buildRuleView(
       transport: selection.transport,
       notes,
       attribution,
-      sources: ruleSourceRanges(attribution),
       originOf: (index) => ruleOrigin(index, attribution),
     };
   }
@@ -199,7 +190,6 @@ export function buildRuleView(
     transport: selection.transport,
     notes,
     attribution,
-    sources: ruleSourceRanges(attribution),
     originOf: (index) => ruleOrigin(index, attribution),
   };
 }
@@ -225,7 +215,7 @@ export function hiddenRulesNote(view: RuleView): string | undefined {
   if (view.hidden === 0) {
     return undefined;
   }
-  const noun = view.hidden === 1 ? "rule" : "rules";
+  const noun = view.total === 1 ? "rule" : "rules";
   return (
     `${view.hidden} of ${view.total} ${noun} hidden by ${flagsOf(view)} — ` +
     "`--verdict all --source all` shows every rule."

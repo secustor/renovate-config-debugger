@@ -5,6 +5,7 @@ import {
   optionsSourceUrl,
   PATTERN_MATCHING_NOTE,
   REQUIRED_IF_NOTE,
+  TEMPLATES_DOCS_URL,
 } from "@renovate-config-debugger/engine";
 import { jsonText } from "@renovate-config-debugger/engine/json";
 
@@ -74,9 +75,7 @@ export function optionDocLines(doc: OptionDoc, renovateVersion: string): string[
         ]
       : []),
     ...(doc.patternMatch ? [`patterns: ${PATTERN_MATCHING_NOTE}`] : []),
-    ...(doc.supportsTemplating
-      ? ["templating: supported — https://docs.renovatebot.com/templates/"]
-      : []),
+    ...(doc.supportsTemplating ? [`templating: supported — ${TEMPLATES_DOCS_URL}`] : []),
     ...(doc.allowNegative ? ["negative integers: allowed"] : []),
     ...(doc.allowString
       ? ["string shorthand: a bare string is massaged into a one-element array"]

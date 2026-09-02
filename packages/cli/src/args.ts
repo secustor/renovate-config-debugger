@@ -270,8 +270,9 @@ interface IntOptionSpec {
 
 /**
  * `--rule 3`, `--depth 2`: the value as an integer, or `undefined` when the
- * flag was not passed. A non-integer is an error rather than a `NaN` that
- * would silently behave like "no filter at all".
+ * flag was not passed. Anything that is not a decimal-integer spelling is an
+ * error — a `NaN` would silently behave like "no filter at all", and the empty
+ * string is worse still: `Number("")` is `0`, which selects rule #0.
  */
 export function intOption(
   args: ParsedArgs,
@@ -282,8 +283,9 @@ export function intOption(
   if (raw === undefined) {
     return undefined;
   }
-  const value = Number(raw);
-  if (!Number.isInteger(value) || value < spec.min) {
+  const digits = raw.trim();
+  const value = Number(digits);
+  if (!/^-?\d+$/.test(digits) || !Number.isInteger(value) || value < spec.min) {
     const bound = spec.min === 0 ? "a non-negative integer" : `an integer >= ${spec.min}`;
     throw new CliError(
       `--${name} must be ${bound}${spec.or ? ` or ${spec.or}` : ""} (got "${raw}")`,

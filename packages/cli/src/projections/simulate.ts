@@ -112,6 +112,13 @@ export interface SimulateProjection {
   finalConfig?: Record<string, unknown> | undefined;
 }
 
+/** `full` is the UNPROJECTED escape hatch, so the projection parameters do
+ *  nothing there. Said only when `keys` was actually passed; `configScope`
+ *  cannot be detected, since both transports fill `scope` with a default. */
+const FULL_PROJECTION_NOTE =
+  '`keys`/`configScope` are not applied at `detail: "full"` — this is the unprojected result; ' +
+  'ask `detail: "verdict"` for a key-projected `finalDependencyConfig` and its `configView`.';
+
 const RULE_SOURCES_NOTE =
   "`ruleSources` is the whole rule list's legend: each entry is the CONTIGUOUS range of merged " +
   "indexes one layer contributed. A rule's index inside its own layer is `index - from` — for " +
@@ -200,6 +207,11 @@ export function simulationPayload(sim: SimulationResult, options: SimulateProjec
   // pointers about the answer, so they belong in the one notes array too.
   const viewNotes = view?.notes ?? [];
   if (options.detail === "full") {
+    const extraNotes = [
+      ...viewNotes,
+      ...(filterNote ? [filterNote] : []),
+      ...(options.keys ? [FULL_PROJECTION_NOTE] : []),
+    ];
     // The escape hatch stays the result itself — every member verbatim,
     // `mergeSteps` and `rawFinalConfig` included — plus the verdict and the
     // flattening legend, which are additive and cost a few hundred bytes. The
@@ -210,9 +222,7 @@ export function simulationPayload(sim: SimulationResult, options: SimulateProjec
       rules: view ? rules : sim.rules,
       flattened,
       ...(view ? ruleFilterPayload(view) : {}),
-      ...(viewNotes.length > 0 || filterNote
-        ? { notes: [...sim.notes, ...viewNotes, ...(filterNote ? [filterNote] : [])] }
-        : {}),
+      ...(extraNotes.length > 0 ? { notes: [...sim.notes, ...extraNotes] } : {}),
     };
   }
   const projected = projectConfig(sim.finalDependencyConfig, {

@@ -25,4 +25,13 @@ describe("validate", () => {
     expect(run.code).toBe(2);
     expect(run.stdout).toContain("REFUSE");
   });
+
+  /** A second file used to be dropped in silence, so `validate a.json b.json`
+   *  validated `a.json` alone and exited 0 — a green hook over an unread file. */
+  test("a second config file is an error naming it, not a silent one-file run", async () => {
+    const run = await runCli(["validate", fixture("clean.json"), fixture("invalid.json")]);
+    expect(run.code).toBe(1);
+    expect(run.stderr).toContain("does not take");
+    expect(run.stderr).toContain("invalid.json");
+  });
 });

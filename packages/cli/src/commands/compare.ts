@@ -3,7 +3,14 @@ import { outputFormat, stringOption } from "../args";
 import type { Command } from "../command";
 import { EXIT_OK } from "../io";
 import { emitJson, emitLines, writeNotes } from "../output";
-import { INPUT_OPTIONS, refusalNote, runOne, takeInputFile, wouldRefuse } from "../run-input";
+import {
+  INPUT_OPTIONS,
+  refusalNote,
+  rejectExtraPositionals,
+  runOne,
+  takeInputFile,
+  wouldRefuse,
+} from "../run-input";
 import { readDependency } from "../dep";
 import { deltaLine, parseConfigScope, parseKeys } from "../projections/config-view";
 import { parseCompareDetail, type ProjectedComparison } from "../projections/simulate";
@@ -148,6 +155,7 @@ export const compareCommand: Command = {
     const detail = parseCompareDetail(stringOption(args, "detail")) ?? "verdict";
     const keys = parseKeys(stringOption(args, "keys"));
     const scope = parseConfigScope(stringOption(args, "config-scope"));
+    rejectExtraPositionals(args, "compare", 1);
     const { file, rest } = takeInputFile(args);
     const fileB = rest[0];
     const depA = await readDependency(args, "dep", "dep-file");

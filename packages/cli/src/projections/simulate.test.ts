@@ -54,7 +54,6 @@ const IGNORED_SOURCE_VIEW: RuleView = {
   transport: "cli",
   notes: ["`--source repo` ignored: this run has no per-rule provenance"],
   attribution: undefined,
-  sources: [],
   originOf: () => undefined,
 };
 
@@ -79,7 +78,7 @@ describe("simulationPayload", () => {
   test('detail "full" is the escape hatch — the whole result, plus the verdict', () => {
     for (const options of [
       { detail: "full", scope: "package-rules" },
-      { detail: "full", scope: "full", keys: ["automerge"] },
+      { detail: "full", scope: "full" },
     ] as const) {
       const payload = simulationPayload(SIM, options) as Record<string, unknown>;
       // Identity, member by member and by REFERENCE — including the two the
@@ -97,6 +96,22 @@ describe("simulationPayload", () => {
       expect(flattened.blocks).toBe(SIM.flattened.blocks);
       expect(flattened.note).toBeDefined();
     }
+  });
+
+  /** `full` is unprojected by contract, so a caller who narrowed with `keys`
+   *  is told the parameter did nothing rather than left to believe it did. */
+  test('detail "full" says that `keys` was not applied', () => {
+    const payload = simulationPayload(SIM, {
+      detail: "full",
+      scope: "full",
+      keys: ["automerge"],
+    }) as { notes?: string[]; finalDependencyConfig?: unknown };
+    expect(payload.notes).toEqual([
+      ...SIM.notes,
+      expect.stringContaining('not applied at `detail: "full"`'),
+    ]);
+    // Still the unprojected document — the note reports, it does not project.
+    expect(payload.finalDependencyConfig).toBe(SIM.finalDependencyConfig);
   });
 
   test("the default answer is exactly the listed members", () => {

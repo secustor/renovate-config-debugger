@@ -35,12 +35,10 @@ export interface SimulationQuestion {
   finalConfig: Record<string, unknown> | undefined;
   dep: DependencyDescriptor;
   transport: RunTransport;
-  /** What the "no effective config" message names — the held run id on MCP. */
-  subject?: string | undefined;
   signal?: AbortSignal | undefined;
 }
 
 export function askSimulation(question: SimulationQuestion): Promise<SimulationResult> {
-  const config = requireFinalConfig(question.finalConfig, question.transport, question.subject);
+  const config = requireFinalConfig(question.finalConfig, question.transport);
   return simulatePackageRules({ config, dep: question.dep }, question.signal);
 }

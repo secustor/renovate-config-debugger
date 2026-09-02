@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { outputFormat, parseCommandArgs } from "./args";
+import { intOption, outputFormat, parseCommandArgs } from "./args";
 import { CliError } from "./io";
 
 describe("parseCommandArgs", () => {
@@ -28,5 +28,26 @@ describe("outputFormat", () => {
     expect(() => outputFormat(parseCommandArgs(["--format", "yaml"], ["format"]))).toThrow(
       /--format must be/,
     );
+  });
+});
+
+describe("intOption", () => {
+  test("an empty value is an error, not a coerced 0", () => {
+    expect(() => intOption(parseCommandArgs(["--rule", ""], ["rule"]), "rule", { min: 0 })).toThrow(
+      /--rule must be a non-negative integer \(got ""\)/,
+    );
+  });
+
+  test("a whitespace-padded value still reads as its integer", () => {
+    expect(intOption(parseCommandArgs(["--rule", " 3 "], ["rule"]), "rule", { min: 0 })).toBe(3);
+  });
+
+  test("a non-decimal spelling is an error, and the message names the alternative", () => {
+    expect(() =>
+      intOption(parseCommandArgs(["--depth", "1e3"], ["depth"]), "depth", {
+        min: 0,
+        or: '"all"',
+      }),
+    ).toThrow(/--depth must be a non-negative integer or "all"/);
   });
 });

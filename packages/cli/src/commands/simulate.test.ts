@@ -396,6 +396,25 @@ describe("simulate --dep defaulting", () => {
     expect(sim.notes).toContainEqual(expect.stringContaining("packageName defaulted from depName"));
   });
 
+  /** A misspelled field used to be dropped in silence, and the answer read as
+   *  a verdict about a descriptor that never carried it. */
+  test("a key no matcher reads is named in the notes", async () => {
+    const run = await runJson<{ dep: Record<string, unknown>; notes: string[] }>([
+      "simulate",
+      fixture("grouped.json"),
+      "--dep",
+      '{"depName":"react","updatetype":"major"}',
+      "--format",
+      "json",
+    ]);
+    expect(run.code).toBe(0);
+    expect(run.payload.notes).toContainEqual(
+      expect.stringContaining("1 key ignored (`updatetype`)"),
+    );
+    // Kept in the echo, not dropped: that is where the typo is visible.
+    expect(run.payload.dep).toMatchObject({ updatetype: "major" });
+  });
+
   test("an explicit packageName is never overwritten", async () => {
     const run = await runJson<{ rules: { verdict: string }[]; notes: string[] }>([
       "simulate",

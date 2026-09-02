@@ -104,6 +104,8 @@ export const simulateCommand = defineRunCommand<SimulateFlags>({
     "result unprojected. `finalDependencyConfig` is reported at",
     "`--config-scope package-rules` — the globalOnly options no rule can read",
     "are dropped — and `--keys a,b` narrows it to the options you asked about.",
+    "Both narrowings apply at `--detail verdict` only; `--detail full` is the",
+    "unprojected result and says so in `notes` when `--keys` was passed.",
   ],
   options: [
     ...INPUT_OPTIONS,

@@ -181,6 +181,27 @@ describe("group --deps-file", () => {
     expect(run.payload.groups[0]?.size).toBe(2);
   });
 
+  /** The typo'd key is echoed back in the members, so the note is the only
+   *  thing telling the reader that no rule ever read it. */
+  test("a key no matcher reads is named against the member that carried it", async () => {
+    const path = await depsFile(
+      "updates.json",
+      `[${REACT},{"depName":"react-dom","updatetype":"minor"}]`,
+    );
+    const run = await runJson<{ notes: string[] }>([
+      "group",
+      fixture("group-minimum.json"),
+      "--deps-file",
+      path,
+      "--format",
+      "json",
+    ]);
+    expect(run.code).toBe(0);
+    expect(run.payload.notes).toContainEqual(
+      expect.stringContaining("react-dom: 1 key ignored (`updatetype`)"),
+    );
+  });
+
   test("a file that is not an array is an error naming the file", async () => {
     const path = await depsFile("not-an-array.json", "{}");
     const run = await runCli(["group", fixture("group-minimum.json"), "--deps-file", path]);

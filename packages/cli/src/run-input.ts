@@ -99,7 +99,8 @@ export interface EndpointTrust {
    */
   callerEndpoint?: string;
   /**
-   * The endpoint this caller actually supplied, whichever transport.
+   * The endpoint this caller actually supplied, whichever transport — an empty
+   * flag value counts as none, as it does for the pipeline input.
    * {@link callerEndpoint} is the subset of it that must not be trusted.
    */
   ownEndpoint?: string;
@@ -170,8 +171,7 @@ export function endpointTokenPolicy(
   // endpoint, so the override does move the destination; against an `endpoint`
   // key it moves it only when the caller supplied one of their own.
   const overrideMoves =
-    trust.ownEndpoint !== undefined ||
-    !Object.prototype.hasOwnProperty.call(globalConfig, "endpoint");
+    Boolean(trust.ownEndpoint) || !Object.prototype.hasOwnProperty.call(globalConfig, "endpoint");
   if (trust.platformOverride && overrideMoves) {
     return { suppress: false };
   }
@@ -252,6 +252,35 @@ export function takeInputFile(args: ParsedArgs): { file?: string; rest: string[]
   }
   const [file, ...rest] = args.positionals;
   return { file, rest };
+}
+
+/**
+ * Positionals the subcommand never reads are a mistake, not a no-op: `rcd
+ * validate a.json b.json` used to validate `a.json` alone and exit `0`, and a
+ * second `provenance` key was silently dropped, which read as "the first key's
+ * chain is the whole answer". `allowed` counts what the command takes BESIDES
+ * the config file — the same `rest` {@link takeInputFile} hands it.
+ */
+export function rejectExtraPositionals(args: ParsedArgs, command: string, allowed: number): void {
+  const { rest } = takeInputFile(args);
+  if (rest.length <= allowed) {
+    return;
+  }
+  const extra = rest
+    .slice(allowed)
+    .map((value) => `"${value}"`)
+    .join(", ");
+  const claimed = boolOption(args, "stdin")
+    ? "--stdin"
+    : stringOption(args, "repo")
+      ? "--repo"
+      : undefined;
+  // A command that takes no argument of its own reads every positional as the
+  // config, so "unexpected argument" would be nonsense once a flag supplied it.
+  if (allowed === 0 && claimed) {
+    throw new CliError(`the config comes from ${claimed}, so ${extra} is not a config file`);
+  }
+  throw new CliError(`rcd ${command} does not take ${extra} — see \`rcd ${command} --help\``);
 }
 
 function repoPlatform(args: ParsedArgs): RepoPlatform {

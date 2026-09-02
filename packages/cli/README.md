@@ -151,12 +151,13 @@ the default for `rcd run --select final`, which is the run's whole effective
 config: when you are debugging a global or inherited layer, those options are
 the answer.
 
-`--keys a,b` selects top-level options by name, out of what the scope left. A
-name the scope removed is not resurrected — it comes back in
-`configView.withheld` with the reason: `global-only` (the scope, and
-`--config-scope full` is the way to it), `absent` (the document does not carry
-that option), or — on `compare`, whose delta only lists keys that differ —
-`identical` (both sides carry it and nothing changed):
+`--keys a,b` selects top-level options by name, out of what the scope left.
+`rcd simulate --detail full` is the one exception: that level answers with the
+unprojected result and says so in its `notes`. A name the scope removed is not
+resurrected — it comes back in `configView.withheld` with the reason:
+`global-only` (the scope, and `--config-scope full` is the way to it), `absent`
+(the document does not carry that option), or — on `compare`, whose delta only
+lists keys that differ — `identical` (both sides carry it and nothing changed):
 
 ```console
 $ rcd simulate renovate.json --dep '{"depName":"react"}' --format json --keys groupName,onboardingConfig
@@ -172,7 +173,9 @@ $ rcd simulate renovate.json --dep '{"depName":"react"}' --format json --keys gr
 ```
 
 On the fixture measured for this feature that call is 2.9 kB, against 24.5 kB
-for the default answer and 106 kB for `--detail full`.
+for the default answer and 106 kB for `simulate --detail full` — which is
+unprojected by contract, so `--keys` does not shrink it and the answer's `notes`
+say so.
 
 ### Which layer wrote which rule
 
@@ -255,7 +258,7 @@ This major update gets no special handling from your matched rules — the defau
 
   #1 matched (matchUpdateTypes=matched)
       sets dependencyDashboardApproval = true
-1 of 2 rule hidden by --verdict notable — `--verdict all --source all` shows every rule.
+1 of 2 rules hidden by --verdict notable — `--verdict all --source all` shows every rule.
 ```
 
 Rule #0 is the missing one. `--verdict no-match` prints the clause that rejected
@@ -283,7 +286,7 @@ This major update gets no special handling from your matched rules — the defau
 
   #1 matched (matchUpdateTypes=matched)
       sets dependencyDashboardApproval = true
-1 of 2 rule hidden by --verdict notable — `--verdict all --source all` shows every rule.
+1 of 2 rules hidden by --verdict notable — `--verdict all --source all` shows every rule.
 1 of 2 rules could not match because the simulated dependency has no sourceUrl — Renovate treats a missing value as a non-match. Set sourceUrl on the dependency if you expected these rules to fire. `--verdict no-input` lists them.
 ```
 
@@ -297,10 +300,12 @@ counts the rules whose matcher THREW (the `conda` versioning scheme is the
 documented case: its ~3 MB WASM parser is excluded from the browser build, so
 `matchCurrentVersion` cannot be evaluated). Those rules also report a plain
 `no-match`, so they are kept in the default view on purpose — an answer the tool
-could not compute is not a verdict about your config. Add `@types/react`
-to that list, keep the original as `before.json`, and use `compare` as the oracle
-for the edit. On the dependency you were fixing it should report exactly the
-change you wanted:
+could not compute is not a verdict about your config.
+
+Back to the real config: add `@types/react` to rule #0's `matchPackageNames` and
+save that as `after.json`, keep the original as `before.json`, and use `compare`
+as the oracle for the edit. On the dependency you were fixing it should report
+exactly the change you wanted:
 
 ```console
 $ rcd compare before.json after.json --dep '{"depName":"@types/react","updateType":"major"}'
