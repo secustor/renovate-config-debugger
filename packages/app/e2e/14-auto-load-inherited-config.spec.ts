@@ -1,5 +1,11 @@
 import { expect, type Page, test } from "@playwright/test";
-import { expectRunIdle, gotoAppAtDefaultConfig, openLayerStage, resultsPanel } from "./helpers";
+import {
+  gotoAppAtDefaultConfig,
+  loadRepo,
+  openLayerStage,
+  openRepoForm,
+  resultsPanel,
+} from "./helpers";
 
 /**
  * Roadmap 045 — the repo-load form's inherited-config probe, end to end against
@@ -54,12 +60,6 @@ async function stubGithub(page: Page, files: Record<string, string>): Promise<st
   return seen;
 }
 
-/** The repo-load form, opened from the editor card's title bar. */
-async function openRepoForm(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Load from repo…" }).click();
-  await expect(page.locator(".repo-panel")).toBeVisible();
-}
-
 /** A fresh visit with the load form open — how every test here starts. */
 async function startAtRepoForm(page: Page): Promise<void> {
   await gotoAppAtDefaultConfig(page);
@@ -68,26 +68,6 @@ async function startAtRepoForm(page: Page): Promise<void> {
 
 function inheritCheckbox(page: Page) {
   return page.getByRole("checkbox", { name: /Also load the org/ });
-}
-
-/**
- * Fills the repo reference and loads it, waiting for the run the load ends in —
- * which is what makes the `seen` assertions below mean anything, since the
- * inherited-config probe happens between the repo config arriving and that run.
- *
- * The wait for the panel to CLOSE is load-bearing, not cosmetic: Run is
- * disabled while the load form is open, and `expectRunIdle` reads a disabled
- * button as "a run is in flight". Without this it could resolve on the click's
- * own frame and every assertion after it would race the probe.
- */
-async function loadRepo(page: Page, repo?: string): Promise<void> {
-  if (repo !== undefined) {
-    await page.getByRole("textbox", { name: "Repository", exact: true }).fill(repo);
-  }
-  await page.getByRole("button", { name: "Load", exact: true }).click();
-  await expect(page.locator(".repo-panel")).toBeHidden({ timeout: 30_000 });
-  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
-  await expectRunIdle(page);
 }
 
 /** Pastes `json` into the Global config layer — the pipeline's global stage

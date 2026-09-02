@@ -9,7 +9,7 @@ import {
   RENOVATE_VERSION,
   truncateShareToken,
 } from "./fixtures";
-import { expectRunIdle, resultsPanel, runButton } from "./helpers";
+import { expectRunIdle, loadRepo, openRepoForm, resultsPanel, runButton } from "./helpers";
 
 /**
  * Roadmap 027 — share-link failure diagnostics. A `#config=` token that can't
@@ -378,15 +378,8 @@ test("a repo load from a known host does not end a guard the global layer still 
   const beforeLoad = untrusted.length;
 
   // github.com is a shipped, trusted host — the load the old premise trusted.
-  await page.getByRole("button", { name: "Load from repo…" }).click();
-  await expect(page.locator(".repo-panel")).toBeVisible();
-  await page
-    .getByRole("textbox", { name: "Repository", exact: true })
-    .fill("github.com/acme/webapp");
-  await page.getByRole("button", { name: "Load", exact: true }).click();
-  await expect(page.locator(".repo-panel")).toBeHidden({ timeout: 30_000 });
-  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
-  await expectRunIdle(page);
+  await openRepoForm(page);
+  await loadRepo(page, "github.com/acme/webapp");
 
   // The run really did reach the attacker's host again (so what follows is not
   // vacuous) — and still without a credential, on either host.

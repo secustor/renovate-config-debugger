@@ -182,6 +182,31 @@ export async function openLayerStage(page: Page, stage: "global" | "inherit"): P
   return editor;
 }
 
+/** The repo-load form, opened from the editor card's title bar. */
+export async function openRepoForm(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Load from repo…" }).click();
+  await expect(page.locator(".repo-panel")).toBeVisible();
+}
+
+/**
+ * Fills the repo reference and loads it, waiting for the run the load ends in,
+ * so assertions sequenced after it are not racing the load.
+ *
+ * The wait for the panel to CLOSE is load-bearing, not cosmetic: Run is
+ * disabled while the load form is open, and `expectRunIdle` reads a disabled
+ * button as "a run is in flight". Without this it could resolve on the click's
+ * own frame and every assertion after it would race what the load kicked off.
+ */
+export async function loadRepo(page: Page, repo?: string): Promise<void> {
+  if (repo !== undefined) {
+    await page.getByRole("textbox", { name: "Repository", exact: true }).fill(repo);
+  }
+  await page.getByRole("button", { name: "Load", exact: true }).click();
+  await expect(page.locator(".repo-panel")).toBeHidden({ timeout: 30_000 });
+  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
+  await expectRunIdle(page);
+}
+
 /**
  * Roadmap 075 (v2, iteration 5b): the Presets tab opens on the LEDGER — what
  * `extends` brought in, per source — and the full resolution tree is one click

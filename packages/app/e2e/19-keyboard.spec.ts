@@ -593,8 +593,10 @@ test("? still opens the sheet from inside the menu that advertises it", async ({
 // hover card must not steal the caret) has no e2e here on purpose — the jump
 // lives in a CodeMirror hover tooltip the page hit-tests over, so Playwright
 // cannot click it without a force that defeats what the test would prove. The
-// rule lives in App.tsx's `jumpDisplacedFocus`, which is module-private and has
-// no unit seam either, so this path is currently guarded by review only.
+// rule itself is `jumpDisplacedFocus` in `lib/focus-landing.ts`, unit-pinned by
+// `focus-landing.test.ts` (a live, visible holder keeps its caret); what has no
+// seam is the tooltip's own `mousedown`/`preventDefault` in
+// `platform/editor-schema.ts`, so the composition is asserted nowhere.
 
 test("⌘⇧⏎ stands down if you go back to typing while the run resolves", async ({ page }) => {
   await page.goto("/");
