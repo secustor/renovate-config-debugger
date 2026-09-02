@@ -27,8 +27,8 @@ interface Props {
    *  file itself. */
   titleBar: ReactNode;
   /** Roadmap 075: a layer over the editor's document — the repo-load panel,
-   *  which is about to replace it. Absent when nothing is covering it. */
-  overlay?: ReactNode;
+   *  which is about to replace it. `null` when nothing is covering it. */
+  overlay: ReactNode;
 }
 
 /**

@@ -19,3 +19,23 @@ it("hands concurrent callers the same promise", async () => {
   expect(loadEngine()).toBe(first);
   await expect(first).resolves.toBeDefined();
 });
+
+it("does not cache a rejection, so the next run retries", async () => {
+  // Identity of the two promises is what fails when the `.catch` clearing the
+  // slot is dropped: a rejected import would stay memoized for the session.
+  vi.resetModules();
+  let attempt = 0;
+  vi.doMock("@renovate-config-debugger/engine", () => {
+    attempt += 1;
+    return attempt === 1 ? Promise.reject(new Error("chunk 404")) : {};
+  });
+  const { loadEngine: cold } = await import("./engine-chunk");
+
+  const failed = cold();
+  // The class, not the message: vitest replaces a failing mock factory's error
+  // with its own "error when mocking a module" one.
+  await expect(failed).rejects.toThrow(Error);
+  const retry = cold();
+  expect(retry).not.toBe(failed);
+  await expect(retry).resolves.toBeDefined();
+});

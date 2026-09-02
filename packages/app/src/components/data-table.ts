@@ -135,13 +135,19 @@ export interface DataTableRow {
    * an option key carrying its docs hover card. `lead` stays the string the
    * filter matches, so a decorated subject can never hide a row from the
    * search box; this replaces only what is painted inside the cell.
+   *
+   * Painted inside `DataTableRowHead`'s own `<button>`, so it must not nest a
+   * `<button>` or `<a>` (invalid markup, and a second activation on the same
+   * click) — this is what `PresetName`'s `showCopy={false}` opt-out is for. A
+   * hover-card anchor is fine: it is focusable but activates nothing.
    */
   leadNode?: ReactNode;
   /** Column id → cell text. `""` (or a missing key) renders as "not set". */
   cells: Record<string, string>;
   /** The same rule for a cell: column id → what to draw in place of
    *  `cells[id]`. The STRING is still what the filter searches and what the
-   *  cell quotes in its `title`. */
+   *  cell quotes in its `title`. Drawn inside the row-head `<button>` too, so
+   *  it carries {@link DataTableRow.leadNode}'s no-nested-control constraint. */
   cellNodes?: Record<string, ReactNode>;
   /** Grouping id → where this row lands under it. A grouping a row has no
    *  entry for puts it under {@link UNGROUPED_TITLE}. */
@@ -190,10 +196,11 @@ export const UNGROUPED_TITLE = "—";
 export interface DataTableGroup {
   /** null = not grouped at all; the table then draws no header. */
   title: string | null;
-  /** Normalized: both the plain `pill` and the toned `pills` a row declares
-   *  arrive here in one shape, so the header renders one list. */
+  /** The distinct pills this group's rows contributed — deduplicated by label,
+   *  in first-appearance row order; empty when no row declared one. */
   pills: DataTableGroupPill[];
-  /** The title wants the regular UI font rather than the mono face. */
+  /** The title wants the regular UI font rather than the mono face — true when
+   *  ANY row of the group asked. */
   plainTitle: boolean;
   rows: DataTableRow[];
 }
@@ -274,8 +281,13 @@ export function groupDataRows(
     const title = entry?.title ?? UNGROUPED_TITLE;
     let group = groups.get(title);
     if (!group) {
-      group = { title, pills: [], plainTitle: entry?.plainTitle === true, rows: [] };
+      group = { title, pills: [], plainTitle: false, rows: [] };
       groups.set(title, group);
+    }
+    // Promoted, not read off the row that happened to create the group: any row
+    // asking for a plain title decides for the group, as the pills below do.
+    if (entry?.plainTitle === true) {
+      group.plainTitle = true;
     }
     group.rows.push(row);
     for (const pill of rowGroupPills(entry)) {

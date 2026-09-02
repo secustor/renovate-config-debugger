@@ -2,9 +2,9 @@
  * Roadmap 007/010/039/048 — the load-from-repo cluster as one hook: the
  * disclosure the form lives in (and the focus hand-back that closing it owes
  * the button that opened it), the reference the user types, the in-flight flag
- * the button reads, the GitHub sign-in hint a failure may offer, and the load
- * itself — parse the reference, decide the platform context it implies, fetch
- * the config, and run it.
+ * every load trigger reads, the GitHub sign-in hint a failure may offer, and
+ * the load itself — parse the reference, decide the platform context it
+ * implies, fetch the config, and run it.
  *
  * The pieces are one concept because they are one gesture: everything here
  * exists to turn a string like `github.com/owner/repo` into a run, and every
@@ -21,8 +21,8 @@ import { type RefObject, useCallback, useRef, useState } from "react";
 import { ESCAPE_PRIORITY } from "@/lib/escape-stack";
 import { useEscapeLayer } from "@/hooks/use-escape-layer";
 import type { RepoPlatform, TraceResult } from "@renovate-config-debugger/engine";
-import { PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
-import { HOST_PLATFORM, isFetchablePlatform } from "@/data/host-tokens";
+import { defaultEndpointFor } from "@/data/platform-endpoints";
+import { isFetchablePlatform, platformForHost } from "@/data/host-tokens";
 import { isGithubRateLimited } from "@/lib/github-failure";
 import { isValidRepoHost, isValidRepoRefPart } from "@/lib/input-schemas";
 import { configFileNameFor, parseRepoReference } from "@/lib/repo-reference";
@@ -119,6 +119,9 @@ export interface RepoLoad {
   closeRepoForm: () => void;
   repoRef: string;
   setRepoRef: (value: string) => void;
+  /** A load is in flight. EVERY trigger gates on this — the form's submit and
+   *  the landing's dogfood shortcut — which is what serializes loads, so this
+   *  hook needs no staleness token of its own. */
   repoLoading: boolean;
   /** When a GitHub load fails with a not-found/auth/rate-limit error, offer
    *  the sign-in / install hint next to the failure (009). null = no hint. */
@@ -232,7 +235,7 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
     }
     let repoPlatform: RepoPlatform;
     let repoEndpoint: string;
-    const knownHost = parsed.host ? HOST_PLATFORM[parsed.host] : undefined;
+    const knownHost = parsed.host ? platformForHost(parsed.host) : undefined;
     if (parsed.host && !knownHost) {
       setNotice(
         `Unknown host ${parsed.host}. Set its host and API endpoint under Advanced — hosts & credentials → "Repository host", then load with the owner/repo form.`,
@@ -241,7 +244,7 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
     }
     if (knownHost) {
       repoPlatform = knownHost;
-      repoEndpoint = PLATFORM_ENDPOINTS[knownHost] ?? "";
+      repoEndpoint = defaultEndpointFor(knownHost) ?? "";
     } else {
       if (!isFetchablePlatform(platform)) {
         setNotice(

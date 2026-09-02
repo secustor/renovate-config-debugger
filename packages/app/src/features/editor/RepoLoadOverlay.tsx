@@ -13,9 +13,12 @@ import { type RepoLoadFormProps, RepoLoadForm } from "./RepoLoadForm";
  *
  * The scrim is a real button, not a decorated div: click-to-dismiss must be
  * reachable by every pointer and announce itself, and the two ways out the form
- * already had (Cancel, Escape) are unchanged. While it is up, Run is disabled
- * (the design's disabled-primary rule): the run would act on a document the
- * user is in the middle of replacing.
+ * already had (Cancel, Escape) are unchanged. While it is up, the Run BUTTONS
+ * are disabled (the design's disabled-primary rule): the run would act on a
+ * document the user is in the middle of replacing. That block is the buttons'
+ * only — `ConfigColumn`'s `runBlockedReason` reaches `RunButton` and the
+ * landing's Run, not `run-keymap.ts` or the page-wide `useShortcut`, so ⌘⏎
+ * still runs.
  *
  * The overlay adds a scrim and forwards the form's props untouched — spread,
  * not re-listed, so a new form prop needs no edit here.

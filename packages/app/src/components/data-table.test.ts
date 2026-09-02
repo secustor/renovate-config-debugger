@@ -183,6 +183,19 @@ describe("groupDataRows", () => {
     ]);
   });
 
+  it("plainTitle is promoted by any row of the group, not just the one that opened it", () => {
+    const layered: DataTableRow[] = [
+      { ...row("a", "labels", {}), groups: { layer: { title: "Your repo config" } } },
+      {
+        ...row("b", "prConcurrentLimit", {}),
+        groups: { layer: { title: "Your repo config", plainTitle: true } },
+      },
+    ];
+    const groups = groupDataRows(layered, "layer");
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.plainTitle).toBe(true);
+  });
+
   it("a mono grouping stays mono, and an ungrouped run has no plain title either", () => {
     // `some`, not `every`: `every` would still pass with one of the two groups
     // wrongly plain.

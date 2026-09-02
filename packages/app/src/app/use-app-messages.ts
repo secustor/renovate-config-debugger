@@ -6,8 +6,8 @@
  * may take it back.
  *
  * The alternating-space device lives here spelled once (`useAlternatingText`,
- * one instance per surface). It exists because a live region (and a
- * `role="alert"` banner) speaks only
+ * one instance per raising surface — fatal, notice, run announcement). It
+ * exists because a live region (and a `role="alert"` banner) speaks only
  * when its text CHANGES, so raising the identical message twice — the same
  * run outcome, the same unfixed load failure — was silent, and React does not
  * even re-render for it. An invisible trailing space alternates to make every
@@ -32,8 +32,8 @@ import { useTransientValue } from "@/hooks/use-transient-value";
 
 const TOAST_MS = 4500;
 
-/** The alternating trailing space, spelled once for both surfaces that need
- *  it (see this file's header): the returned function stamps a text so two
+/** The alternating trailing space, spelled once for the three surfaces that
+ *  need it (see this file's header): the returned function stamps a text so two
  *  consecutive raises of the same sentence are still a state MUTATION. */
 function useAlternatingText(): (text: string) => string {
   const spacerRef = useRef(false);
@@ -54,9 +54,12 @@ export interface AppMessages {
   /** Read by the run path: the stamp a run carries is the banner it may
    *  clear on its way past (see `onRun`/`executeRun`). */
   fatalSeqRef: RefObject<number>;
-  /** Non-fatal notices (version drift, load-from-repo results). */
+  /** Non-fatal notices (version drift, load-from-repo results), read by
+   *  ConfigColumn's `role="status"` region. */
   notice: string | null;
-  setNotice: Dispatch<SetStateAction<string | null>>;
+  /** Every raise is a mutation (the alternator), so repeating the identical
+   *  sentence still announces. `null` clears without stamping. */
+  setNotice: (next: string | null) => void;
   /** Roadmap 023: the transient toast — lands an instrument-triggered re-run
    *  on its consequence without yanking the user's scroll around. */
   toast: string | null;
@@ -79,7 +82,8 @@ export function useAppMessages(): AppMessages {
   // differently — this counter stamps the kind a passing run may NOT clear.
   const fatalSeqRef = useRef(0);
   const alternateFatal = useAlternatingText();
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNoticeState] = useState<string | null>(null);
+  const alternateNotice = useAlternatingText();
   const [toast, showToast] = useTransientValue<string>(TOAST_MS);
   const [runAnnouncement, setRunAnnouncement] = useState("");
   const alternateAnnouncement = useAlternatingText();
@@ -95,6 +99,13 @@ export function useAppMessages(): AppMessages {
       setFatal(alternateFatal(next));
     },
     [alternateFatal],
+  );
+
+  const setNotice = useCallback(
+    (next: string | null) => {
+      setNoticeState(next === null ? null : alternateNotice(next));
+    },
+    [alternateNotice],
   );
 
   const announceRun = useCallback(

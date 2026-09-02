@@ -653,9 +653,15 @@ export function AddTestBox({
           onPin={() => pin(oneOff.form, oneOff.effectiveUpdateType)}
         />
       ) : null}
-      {oneOffError !== null && oneOffError.result === result ? (
-        <OneOffErrorNote message={oneOffError.message} />
-      ) : null}
+      {/* Mounted empty for the reason `RuleSimulator`'s alert is: a live region
+          only announces text that arrives after it exists, and the hook clears
+          the error before each await, so a repeat failure mutates this node
+          rather than remounting it. */}
+      <div role="alert">
+        {oneOffError !== null && oneOffError.result === result ? (
+          <OneOffErrorNote message={oneOffError.message} />
+        ) : null}
+      </div>
       {footnote}
     </div>
   );

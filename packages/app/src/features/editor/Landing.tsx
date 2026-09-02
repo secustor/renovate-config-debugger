@@ -36,6 +36,9 @@ interface LaunchProps {
   onTryExample: () => void;
   /** Loads and runs this app's own repository config — a live dogfood demo. */
   onAnalyzeThisProject: () => void;
+  /** A repo load is in flight — this shortcut is the one load trigger the
+   *  repo form's own `disabled={loading}` does not cover. */
+  analyzing: boolean;
   running: boolean;
   onRun: () => void;
   /** Roadmap 031: hover/focus signal Run intent — start the engine download. */
@@ -53,6 +56,7 @@ interface LaunchProps {
 export function LandingLaunch({
   onTryExample,
   onAnalyzeThisProject,
+  analyzing,
   running,
   onRun,
   onRunIntent,
@@ -65,8 +69,13 @@ export function LandingLaunch({
         <button type="button" className="btn-secondary" onClick={onTryExample}>
           Try an example
         </button>
-        <button type="button" className="btn-secondary" onClick={onAnalyzeThisProject}>
-          Analyze this project
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={onAnalyzeThisProject}
+          disabled={analyzing}
+        >
+          {analyzing ? "Loading…" : "Analyze this project"}
         </button>
       </p>
       <RunButton

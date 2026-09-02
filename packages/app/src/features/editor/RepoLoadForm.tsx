@@ -5,9 +5,9 @@ import { RepoPicker } from "./RepoPicker";
 import type { RepoPickerView } from "@/types/repo";
 
 /**
- * Roadmap 039 — the repo-load disclosure's open state: one chrome row (036
- * grammar) inside the config editor card, between its title bar and the
- * editor whose content a load replaces.
+ * Roadmap 039 — the repo-load disclosure's open state, one chrome row in 036's
+ * grammar; roadmap 075 moved it out of the editor card into an overlay over the
+ * editor pane (see `RepoLoadOverlay` for why).
  *
  * It replaced an always-visible form that cost ~64 px of standing height for
  * an action a session performs zero or one times. The row exists only while

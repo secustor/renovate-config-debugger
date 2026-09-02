@@ -9,7 +9,7 @@
  * module, because "carrying a credential" is not a fact the markup should be
  * re-deciding inline.
  */
-import { PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
+import { defaultEndpointFor } from "@/data/platform-endpoints";
 import type { HostTokenId } from "@/data/host-tokens";
 import { isValidToken } from "@/lib/input-schemas";
 
@@ -31,7 +31,7 @@ export interface CredentialsInput {
 /** The endpoint field is empty (platform default in force) or literally the
  *  platform's shipped default. */
 function isDefaultEndpoint(platform: string, endpoint: string): boolean {
-  return endpoint === "" || endpoint === PLATFORM_ENDPOINTS[platform];
+  return endpoint === "" || endpoint === defaultEndpointFor(platform);
 }
 
 /** The host the line names. On the shipped endpoint that is the platform's
@@ -42,7 +42,7 @@ function primaryHost(input: CredentialsInput, canonical: string | undefined): st
   if (isDefaultEndpoint(input.platform, input.endpoint) && canonical !== undefined) {
     return canonical;
   }
-  const effective = input.endpoint || PLATFORM_ENDPOINTS[input.platform] || "";
+  const effective = input.endpoint || defaultEndpointFor(input.platform) || "";
   if (effective !== "") {
     try {
       return new URL(effective).host;

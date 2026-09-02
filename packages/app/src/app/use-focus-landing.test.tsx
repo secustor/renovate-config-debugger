@@ -1,5 +1,4 @@
-import { fireEvent, render } from "@testing-library/react";
-import { useEffect } from "react";
+import { fireEvent, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type FocusLanding, useFocusLanding } from "./use-focus-landing";
 
@@ -11,28 +10,8 @@ import { type FocusLanding, useFocusLanding } from "./use-focus-landing";
  * Element`, `.closest`) and so lands in the jsdom `render` project.
  */
 
-/** The hook's API, hoisted out of the render so a test can drive it. */
-let landing: FocusLanding | null = null;
-
-function Harness() {
-  const api = useFocusLanding();
-  // Reassigning the outer binding happens in an effect, not during render —
-  // `react/globals` only permits render itself to read props/state, not write
-  // an outside variable. `render`'s act() wrapper flushes it synchronously, so
-  // `mount()` still observes it before returning.
-  useEffect(() => {
-    landing = api;
-  }, [api]);
-  return null;
-}
-
 function mount(): FocusLanding {
-  landing = null;
-  render(<Harness />);
-  if (!landing) {
-    throw new Error("the harness did not render");
-  }
-  return landing;
+  return renderHook(() => useFocusLanding()).result.current;
 }
 
 /**

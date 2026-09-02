@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { OptionKey } from "@/components/option-docs";
-import { previewValue } from "./rule-format";
+import { jsonSnippet } from "@/lib/value-preview";
 
 /**
  * Roadmap 054 layer 7: THE row for "something wrote this key". Four surfaces
@@ -25,7 +25,7 @@ import { previewValue } from "./rule-format";
 type WriteValue = { json: unknown } | { text: string };
 
 function valueText(value: WriteValue, max: number): string {
-  return "text" in value ? value.text : previewValue(value.json, max);
+  return "text" in value ? value.text : jsonSnippet(value.json, max);
 }
 
 export function WriteRow({

@@ -1,9 +1,9 @@
 /**
  * The platform context this app can resolve `local>` presets against.
  *
- * Tables only. The trust PREDICATE that reads them is a security rule, not
- * data, and lives in `lib/trusted-endpoint.ts` next to the app's other
- * endpoint validator (structure review, finding 20).
+ * The table plus the own-key accessor over it; the trust PREDICATE that reads
+ * them is a security rule, not data, and lives in `lib/trusted-endpoint.ts`
+ * next to the app's other endpoint validator (structure review, finding 20).
  *
  * Lives in its own module rather than App.tsx so the pure share-link policy in
  * share.ts can be decided — and unit-tested — against the very same defaults
@@ -22,7 +22,8 @@ export const DEFAULT_ENDPOINT = "https://api.github.com";
 
 /** Platforms that resolve `local>` in the browser, with their default endpoint.
  *  An empty endpoint means "not fetched in the browser" (a real Renovate run
- *  reaches it; this app never does). */
+ *  reaches it; this app never does). Second copy of the list
+ *  `engine/test/local-preset-platforms.node.test.ts` guards — update both. */
 export const PLATFORM_ENDPOINTS: Record<string, string> = {
   github: DEFAULT_ENDPOINT,
   gitlab: "https://gitlab.com/api/v4",
@@ -37,3 +38,11 @@ export const PLATFORM_ENDPOINTS: Record<string, string> = {
 };
 
 export const PLATFORMS = Object.keys(PLATFORM_ENDPOINTS);
+
+/** The default endpoint for a platform NAME that may be any string — the twin
+ *  of the engine's `defaultEndpointFor` (shims/presets/host-transport.ts). The
+ *  own-key guard is what keeps a share link naming `constructor` from
+ *  resolving to `Object.prototype`'s member instead of an endpoint. */
+export function defaultEndpointFor(platform: string): string | undefined {
+  return Object.hasOwn(PLATFORM_ENDPOINTS, platform) ? PLATFORM_ENDPOINTS[platform] : undefined;
+}

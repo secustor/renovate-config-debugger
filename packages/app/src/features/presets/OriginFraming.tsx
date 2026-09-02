@@ -10,6 +10,11 @@ import { nf, plural, pluralWord } from "@/lib/format";
  * something?" with no origin attached). Purely a derivation of the already-
  * computed per-node stats, never a re-walk; never claims precision it doesn't
  * have (a dominant contributor is only named when it is a clear majority).
+ *
+ * The share is `uniquePresets`, deduplicated per name exactly as
+ * `summary.resolved` is, so the contributions sum to the headline total —
+ * `descResolved` counts occurrences and would let a repeated subtree print a
+ * "majority" larger than the whole.
  */
 export function OriginFraming({ root, stats }: { root: PresetNode; stats: TreeStats }) {
   const roots = root.children;
@@ -18,11 +23,11 @@ export function OriginFraming({ root, stats }: { root: PresetNode; stats: TreeSt
     return null;
   }
   const contributions = roots
-    .map((child) => {
-      const st = stats.statsById.get(child.id);
-      const selfResolved = child.state === "resolved" ? 1 : 0;
-      return { nodeId: child.id, name: child.name, count: (st?.descResolved ?? 0) + selfResolved };
-    })
+    .map((child) => ({
+      nodeId: child.id,
+      name: child.name,
+      count: stats.statsById.get(child.id)?.uniquePresets ?? 0,
+    }))
     .toSorted((a, b) => b.count - a.count);
   const top = contributions[0];
 

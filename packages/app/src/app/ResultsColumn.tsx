@@ -44,18 +44,11 @@ export interface ResultsColumnProps extends StageLayersProps {
   resultsStale: boolean;
 }
 
-/**
- * Roadmap 031: the results half of the app as one lazily-loaded module —
- * `react-diff-view` + `diff` and every result-only component live behind
- * App.tsx's `React.lazy` boundary around this file, off the entry chunk.
- * Nothing here can render before a run, and a run necessarily downloads the
- * far larger engine chunk first, so the split is imperceptible.
- *
- * The boundary sits OUTSIDE the always-mounted tab shell (028): once the
- * first result mounts this column it never unmounts again (`result` never
- * returns to null, and a resolved `lazy` component never re-suspends), so
- * per-tab state keeps surviving tab switches exactly as before.
- */
+/** Roadmap 031: everything in this file (react-diff-view + diff + every
+ *  result-only component) rides one lazy chunk. The seam, the Suspense
+ *  fallback and the error boundary are in `ResultsPane.tsx` /
+ *  `ResultsBoundary.tsx` — including why a mounted column never unmounts. */
+
 /** Roadmap 028: the viewport below which the two panes stack (config on top,
  *  results below) — must stay in sync with styles/10-messages-tabs.css's
  *  `.app-split` media queries, since the post-Run scroll-into-view only
@@ -204,7 +197,11 @@ export function ResultsColumn({
   const banner = useMemo(
     () => (
       <>
-        {resultsStale ? <StaleResultsBanner /> : null}
+        {/* Always mounted for the reason App's run region is: a region that
+            mounts WITH its text announces nothing. Empty it is block-level and
+            takes no space, and the banner's own margin collapses through. */}
+        {/* oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- `<output>` is form-associated and its IMPLICIT live region is materially patchier than an explicit `role="status"`; the same trade ConfigColumn's wrapper records. */}
+        <div role="status">{resultsStale ? <StaleResultsBanner /> : null}</div>
         {validateHasErrors || invalidSeen ? (
           <div className={`run-banner-slot${validateHasErrors ? "" : " ghost"}`}>
             <HypotheticalBanner />

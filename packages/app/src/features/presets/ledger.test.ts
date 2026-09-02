@@ -26,6 +26,19 @@ function tinyFamily(name: string, size: number): PresetNode {
   return node(name, { children: kids });
 }
 
+/** The same subtree under two entries — `config:best-practices` extending
+ *  `config:recommended` next to a config that already lists it. */
+function shared(): PresetNode {
+  return node("shared:preset", {
+    input: { minimumReleaseAge: "3 days", packageRules: [{ matchPackageNames: ["a"] }] },
+    children: [node("shared:inner", { input: { packageRules: [{ matchPackageNames: ["b"] }] } })],
+  });
+}
+
+function router(): PresetNode {
+  return node("router:only", { children: [node("router:inner")] });
+}
+
 describe("sources", () => {
   it("is one card per top-level extends entry, in tree order, failures included", () => {
     const model = computePresetLedger(
@@ -50,6 +63,44 @@ describe("sources", () => {
     expect(failed?.presets).toBe(0);
     // Its numbers still come from the run's own walk, never a recount.
     expect(model.summary.errors).toBe(1);
+  });
+});
+
+describe("repeated presets", () => {
+  it("credits presets, rules and options to the entry that brought them in first", () => {
+    const model = computePresetLedger(
+      root([
+        node("config:recommended", { children: [shared()] }),
+        node("github>me/presets", {
+          kind: "github",
+          input: { labels: ["deps"] },
+          children: [shared()],
+        }),
+      ]),
+    );
+
+    // One unit across the whole header line: the second card cannot say it
+    // brought one preset and 2 rules the first card is already counting.
+    expect(model.sources.map((s) => [s.presets, s.rules, s.optionKeys])).toEqual([
+      [3, 2, 1],
+      [1, 0, 1],
+    ]);
+    expect(model.sources[1]?.options.map((o) => o.key)).toEqual(["labels"]);
+    // …and the repeat is not one of its families either, so its rules cannot
+    // reappear in the "grouping rules" aggregate.
+    expect(model.sources[1]?.families).toEqual([]);
+    const total = (pick: (s: (typeof model.sources)[number]) => number) =>
+      model.sources.reduce((sum, s) => sum + pick(s), 0);
+    expect(total((s) => s.presets)).toBe(model.summary.resolved);
+    expect(total((s) => s.rules)).toBe(model.summary.rules);
+  });
+
+  it("does not count a repeated router twice", () => {
+    const model = computePresetLedger(root([router(), node("wrapper", { children: [router()] })]));
+    const routerCount = (index: number) =>
+      model.sources[index]?.tileRows.flat().find((t) => t.kind === "routers")?.count;
+    expect(routerCount(0)).toBe(2);
+    expect(routerCount(1)).toBe(1);
   });
 });
 

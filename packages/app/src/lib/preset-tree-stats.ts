@@ -96,6 +96,14 @@ export interface NodeStats {
    */
   descPresets: number;
   /**
+   * Resolved presets in this subtree, SELF INCLUDED, counted once per name at
+   * its FIRST occurrence in the tree's pre-order (= extends order) — the same
+   * dedup rule `summary.resolved` uses, so these values sum to that total and a
+   * repeated subtree is credited to whoever extended it first. `descResolved`
+   * above counts occurrences, so it can exceed the whole-run total.
+   */
+  uniquePresets: number;
+  /**
    * Deepest chain BELOW this node — 0 on a leaf, 1 when its children are all
    * leaves. The card's "deepest chain N levels", i.e. how far the nesting the
    * reader is about to walk actually goes; `depth` above is the distance in
@@ -211,6 +219,8 @@ function computeTreeStatsUncached(root: PresetNode): TreeStats {
   const identityById = new Map<string, string>();
   const idByIdentity = new Map<string, string>();
   const occurrencesByName = new Map<string, PresetNode[]>();
+  const uniqueNames = new Set<string>();
+  const firstOccurrences: PresetNode[] = [];
   let maxDepth = 0;
 
   // Returns subtree aggregates INCLUDING self so the parent can roll them up.
@@ -218,7 +228,14 @@ function computeTreeStatsUncached(root: PresetNode): TreeStats {
     node: PresetNode,
     identity: string,
     depth: number,
-  ): { resolved: number; rules: number; contrib: number; all: number; height: number } => {
+  ): {
+    resolved: number;
+    rules: number;
+    contrib: number;
+    all: number;
+    unique: number;
+    height: number;
+  } => {
     nodesById.set(node.id, node);
     identityById.set(node.id, identity);
     if (!idByIdentity.has(identity)) {
@@ -238,11 +255,20 @@ function computeTreeStatsUncached(root: PresetNode): TreeStats {
     const zero = optionKeys.length === 0 && ownRules === 0;
     const selfResolved = node.state === "resolved" ? 1 : 0;
     const selfContrib = node.state !== "resolved" || !zero ? 1 : 0;
+    // Pre-order, so the first node to claim a name is the earliest `extends`
+    // entry that brought it in — the same first-occurrence the dedup loop below
+    // credits, since `nodesById` keeps this insertion order.
+    const selfUnique = node !== root && selfResolved === 1 && !uniqueNames.has(node.name) ? 1 : 0;
+    if (selfUnique === 1) {
+      uniqueNames.add(node.name);
+      firstOccurrences.push(node);
+    }
 
     let aggResolved = selfResolved;
     let aggRules = ownRules;
     let aggContrib = selfContrib;
     let aggAll = 1;
+    let aggUnique = selfUnique;
     let height = 0;
 
     // Disambiguate identical-named siblings by occurrence index.
@@ -257,6 +283,7 @@ function computeTreeStatsUncached(root: PresetNode): TreeStats {
       aggRules += sub.rules;
       aggContrib += sub.contrib;
       aggAll += sub.all;
+      aggUnique += sub.unique;
       height = Math.max(height, sub.height + 1);
     }
 
@@ -271,6 +298,7 @@ function computeTreeStatsUncached(root: PresetNode): TreeStats {
       descRules: aggRules - ownRules,
       descContrib: aggContrib - selfContrib,
       descPresets: aggAll - 1,
+      uniquePresets: aggUnique,
       subtreeDepth: height,
     });
 
@@ -279,15 +307,13 @@ function computeTreeStatsUncached(root: PresetNode): TreeStats {
       rules: aggRules,
       contrib: aggContrib,
       all: aggAll,
+      unique: aggUnique,
       height,
     };
   };
 
   visit(root, "", 0);
 
-  // Totals attributed per UNIQUE resolved preset name (duplicates served from
-  // cache do not re-contribute), so the header reads as the honest cost.
-  const seen = new Set<string>();
   const optionUnion = new Set<string>();
   let fetched = 0;
   let internal = 0;
@@ -305,10 +331,11 @@ function computeTreeStatsUncached(root: PresetNode): TreeStats {
     if (node.state === "error") {
       errors++;
     }
-    if (node.state !== "resolved" || seen.has(node.name)) {
-      continue;
-    }
-    seen.add(node.name);
+  }
+  // Totals attributed per UNIQUE resolved preset name (duplicates served from
+  // cache do not re-contribute), so the header reads as the honest cost —
+  // `firstOccurrences` is that one-per-name set, collected by the walk above.
+  for (const node of firstOccurrences) {
     const st = statsById.get(node.id);
     if (!st) {
       continue;
@@ -336,7 +363,7 @@ function computeTreeStatsUncached(root: PresetNode): TreeStats {
     idByIdentity,
     occurrencesByName,
     summary: {
-      resolved: seen.size,
+      resolved: firstOccurrences.length,
       fetched,
       internal,
       options: optionUnion.size,

@@ -236,14 +236,14 @@ export function useThreadNav(sim: SimulationResult | null): ThreadNav {
   // The pill is NOT dismissed here (roadmap 068 review): the landing effect
   // above dismisses it, and only once the landing has happened.
   //
-  // What this cannot do is make the thread head visible first. The head lives in
-  // the Simulator results panel, the pill is portalled to <body> and shows on
-  // every tab, and returning from a jump that switched tabs — the card's own
-  // provenance chip is one — should make the Simulator tab current before it
-  // lands. The results tab is App's state; nothing this hook or `RuleSimulator`
-  // holds can select it, so that half needs a prop from App and is not fixed
-  // here. Until it is, the failed return leaves the pill standing rather than
-  // spending it.
+  // What this cannot do is make the thread head visible first. The head lives
+  // in the simulator detail view's results panel, the pill is portalled to
+  // <body> and shows on every tab, and returning from a jump that switched tabs
+  // — the card's own provenance chip is one — should make the Tests tab and its
+  // simulator detail view current before it lands. The results tab is App's
+  // state; nothing this hook or `RuleSimulator` holds can select it, so that
+  // half needs a prop from App and is not fixed here. Until it is, the failed
+  // return leaves the pill standing rather than spending it.
   const returnToThread = useCallback(() => {
     const key = returnKeyRef.current;
     if (key === null) {

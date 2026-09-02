@@ -9,7 +9,7 @@
 import type { AdvancedZoneProps } from "./AdvancedZone";
 import { isValidEndpoint } from "@/lib/input-schemas";
 import { openPickerOnEnter } from "@/lib/select-picker";
-import { PLATFORM_ENDPOINTS, PLATFORMS } from "@/data/platform-endpoints";
+import { defaultEndpointFor, PLATFORMS } from "@/data/platform-endpoints";
 import { Term } from "@/components/glossary";
 
 /** The platform/endpoint pair (010 "reflect, then override"). Its own
@@ -49,7 +49,7 @@ function PlatformEndpointRow({
         Endpoint
         <input
           type="text"
-          placeholder={PLATFORM_ENDPOINTS[displayPlatform] || "not fetched in the browser"}
+          placeholder={defaultEndpointFor(displayPlatform) || "not fetched in the browser"}
           value={displayEndpoint}
           onChange={(e) => onEndpointChange(e.target.value)}
         />
@@ -158,14 +158,18 @@ export function HostAccessSection({
           onPlatformChange={onPlatformChange}
           onEndpointChange={onEndpointChange}
         />
-        {/* Roadmap 030: the "dangerous URL" rule, surfaced inline
-            (014/023 style) — the same check that gates Run in
-            `blockedByLayerErrors` and the one that keeps a bad
-            value out of storage in `onEndpointChange`. */}
+        {/* Roadmap 030: the "dangerous URL" rule, surfaced inline (014/023
+            style) — the same check that keeps a bad value out of storage in
+            `onEndpointChange`. The Run gate (`blockedByLayerErrors`) covers
+            only the TYPED endpoint, so a malformed one reflected from the
+            pasted global config is reported here but does not block the run —
+            which is what the second sentence has to say instead. */}
         {displayEndpoint && !isValidEndpoint(displayEndpoint) ? (
           <p className="layer-editor-error">
-            Not a valid endpoint: must be an http(s) URL. The pipeline won&apos;t run until this is
-            fixed or the field is cleared.
+            Not a valid endpoint: must be an http(s) URL.{" "}
+            {reflectGlobal
+              ? "This value comes from the pasted global config — a real Renovate run would try it, and preset fetches against it will fail."
+              : "The pipeline won’t run until this is fixed or the field is cleared."}
           </p>
         ) : null}
         {reflectGlobal ? (
@@ -178,7 +182,7 @@ export function HostAccessSection({
             {" / "}
             <code>
               {globalEndpoint ??
-                (PLATFORM_ENDPOINTS[globalPlatform ?? ""] || "the platform default")}
+                (defaultEndpointFor(globalPlatform ?? "") || "the platform default")}
             </code>
             .{" "}
             <button type="button" className="platform-override-clear" onClick={onUseGlobalValues}>
@@ -191,7 +195,7 @@ export function HostAccessSection({
             the stored local platform here would both suppress the note (a
             pasted global `bitbucket` over a stored `github` has an endpoint)
             and name the wrong host when it did show. */}
-        {usesLocal && !PLATFORM_ENDPOINTS[displayPlatform] ? (
+        {usesLocal && !defaultEndpointFor(displayPlatform) ? (
           <p className="advanced-note">
             <code>{displayPlatform}</code> presets are not fetched in the browser — a real Renovate
             run reaches them. You can still provide their content manually from a failed node below.

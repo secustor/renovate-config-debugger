@@ -31,8 +31,9 @@
  * unchanged either way, which is why this hid: the engine was always a separate
  * file, it was just a statically required one.
  *
- * The subpath's runtime graph is this module plus `text.ts`, and neither
- * touches Renovate. `.oxlintrc.json` bans the root spelling under
+ * The subpath's runtime graph is this module plus the engine's import-free
+ * prose and JSON helpers (`text.ts`, `json.ts`), none of which touches
+ * Renovate. `.oxlintrc.json` bans the root spelling under
  * `packages/app/src/**` so it cannot come back, and
  * `src/oxlint-boundaries.test.ts` keeps that ban from being dropped by an
  * override that forgets to restate it.

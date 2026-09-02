@@ -454,7 +454,9 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
             return;
           }
           hostRef.current.setNotice(
-            `GitHub sign-in failed: ${errorMessage(err)}. You can still use the app signed out.`,
+            // The messages arrive both ways: oauth.ts's own throws end in a
+            // full stop, the Worker's passthrough error code does not.
+            `GitHub sign-in failed: ${errorMessage(err).replace(/\.$/, "")}. You can still use the app signed out.`,
           );
           writeHash(window.location.pathname, null);
           return;

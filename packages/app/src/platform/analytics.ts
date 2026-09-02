@@ -66,7 +66,18 @@ export function getMeasurementId(hostname: string): string | null {
   return toMeasurementId(import.meta.env.VITE_GA_MEASUREMENT_ID);
 }
 
-/** Loads gtag.js and sends the initial page_view — a no-op without an id. */
+/**
+ * The bare page, with no query and no fragment. gtag's automatic page_view
+ * defaults `page_location` to `location.href`, which here carries the
+ * `#config=…` share payload (share.ts) and the OAuth callback's `?code=` —
+ * neither may leave the browser. The app is one path, so nothing is lost.
+ */
+export function pageLocation(loc: { origin: string; pathname: string }): string {
+  return `${loc.origin}${loc.pathname}`;
+}
+
+/** Loads gtag.js and sends the initial page_view, carrying a query- and
+ *  fragment-free location — a no-op without an id. */
 export function initAnalytics(): void {
   const id = getMeasurementId(window.location.hostname);
   if (!id) {
@@ -85,5 +96,5 @@ export function initAnalytics(): void {
     dataLayer.push(arguments);
   }
   gtag("js", new Date());
-  gtag("config", id);
+  gtag("config", id, { page_location: pageLocation(window.location) });
 }

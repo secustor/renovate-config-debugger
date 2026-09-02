@@ -16,11 +16,18 @@ import { formatShortcut, RUN_SHORTCUT } from "@/lib/shortcuts";
  * pipeline stage cards — the two 008 merge layers. The advanced zone's
  * remaining inputs stay out of scope, so this still never fires for a changed
  * token or endpoint.
+ *
+ * This banner exists to be ANNOUNCED, so its live region is the always-mounted
+ * `role="status"` div in `ResultsColumn`'s banner slot, not this element — a
+ * region created together with its text says nothing. `<output>` is the tag
+ * `role="status"` would want and is wrong here twice over: it is
+ * form-associated (its point is naming a calculation's result in a form, and
+ * this banner is in no form), and support for its IMPLICIT live region is
+ * materially patchier than for the explicit role.
  */
 export function StaleResultsBanner() {
   return (
-    // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- `<output>` is the tag it wants for `status`, and it is the wrong one here twice over: it is a form-associated element (its whole point is naming the result of a calculation in a form, and this banner is in no form), and browser/AT support for its IMPLICIT live region is materially patchier than for an explicit `role="status"`. This banner exists to be ANNOUNCED — trading the reliable spelling for the tidy one loses the only thing it does.
-    <p className="stale-banner" role="status">
+    <p className="stale-banner">
       The config changed since this run — these results describe the earlier text. Press Run (
       {formatShortcut(RUN_SHORTCUT)}) to refresh.
     </p>

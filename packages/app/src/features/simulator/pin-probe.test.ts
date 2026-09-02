@@ -138,7 +138,7 @@ test("the idle suggestions come from the run, so each one is guaranteed to hit",
     [{ kind: "rule", ruleIndex: 0, before: {}, after: {}, merged: [{ key: "groupName" }] }],
   );
   const bodies: unknown[] = [{ groupName: "react monorepo" }, {}, {}, {}];
-  const suggestions = probeSuggestions(sim, LAYERS);
+  const suggestions = probeSuggestions(sim, LAYERS, bodies);
   expect(suggestions).toEqual(["monorepo:angular", "groupName", "packageRules[3]"]);
   for (const query of suggestions) {
     const results = probeRules({
@@ -166,7 +166,7 @@ test("a flatten step's key is never suggested — no rule body names it", () => 
     ],
   );
   const bodies: unknown[] = [{}, {}, {}, {}];
-  const suggestions = probeSuggestions(sim, LAYERS);
+  const suggestions = probeSuggestions(sim, LAYERS, bodies);
   expect(suggestions).not.toContain("automerge");
   for (const query of suggestions) {
     const results = probeRules({
@@ -178,4 +178,49 @@ test("a flatten step's key is never suggested — no rule body names it", () => 
     });
     expect(results.total).toBeGreaterThan(0);
   }
+});
+
+/** A rule that carries a description: the merge tail reports `description` as a
+ *  merged key, but the `writes` field never exposes it — so it is unhittable. */
+const DESCRIBED = simulation(
+  [rule(0, "matched", []), rule(3, "no-match", [clause("matchPackageNames", ["@angular/cli"])])],
+  [
+    {
+      kind: "rule",
+      ruleIndex: 0,
+      before: {},
+      after: {},
+      merged: [{ key: "description" }, { key: "groupName" }],
+    },
+  ],
+);
+const DESCRIBED_BODIES: unknown[] = [
+  {
+    description: "group the react packages",
+    matchPackageNames: ["react"],
+    groupName: "react monorepo",
+  },
+  {},
+  {},
+  {},
+];
+
+test("a merged key the `writes` field cannot expose is not suggested", () => {
+  const suggestions = probeSuggestions(DESCRIBED, LAYERS, DESCRIBED_BODIES);
+  expect(suggestions).toContain("groupName");
+  expect(suggestions).not.toContain("description");
+  for (const query of suggestions) {
+    const results = probeRules({
+      sim: DESCRIBED,
+      layerByIndex: LAYERS,
+      descriptions: NO_DESCRIPTIONS,
+      ruleBodies: DESCRIBED_BODIES,
+      query,
+    });
+    expect(results.total).toBeGreaterThan(0);
+  }
+});
+
+test("without the bodies there is no written-option chip at all", () => {
+  expect(probeSuggestions(DESCRIBED, LAYERS)).toEqual(["monorepo:angular", "packageRules[3]"]);
 });

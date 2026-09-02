@@ -2,7 +2,7 @@ import type { ProvenanceLayer } from "@renovate-config-debugger/engine";
 import { Caret } from "@/components/Caret";
 import { OptionKey } from "@/components/option-docs";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
-import { previewValue } from "./rule-format";
+import { jsonSnippet } from "@/lib/value-preview";
 import { ThreadBody, type ThreadActions } from "./ThreadBody";
 import { threadHeadId } from "./use-thread-nav";
 import type { ThreadModel } from "./verdict-threads";
@@ -39,7 +39,7 @@ function ThreadHeadValue({ thread }: { thread: ThreadModel }) {
   return (
     <span className="sim-thread-value">
       {thread.present ? (
-        <span className="sim-thread-final">{previewValue(thread.finalValue, 80)}</span>
+        <span className="sim-thread-final">{jsonSnippet(thread.finalValue, 80)}</span>
       ) : (
         <span className="sim-thread-final removed">removed</span>
       )}

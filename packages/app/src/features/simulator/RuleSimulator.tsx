@@ -1,4 +1,4 @@
-import { nf } from "@/lib/format";
+import { nf, pluralWord } from "@/lib/format";
 import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import type { TraceResult } from "@renovate-config-debugger/engine";
 import { isTruthy } from "@renovate-config-debugger/engine/is";
@@ -418,7 +418,7 @@ export const RuleSimulator = memo(function RuleSimulator({
           {" "}
           — describe a hypothetical dependency update and see which of the{" "}
           {nf.format(packageRules.length)}{" "}
-          <Term id="packageRules">{packageRules.length === 1 ? "rule" : "rules"}</Term> would apply
+          <Term id="packageRules">{pluralWord(packageRules.length, "rule")}</Term> would apply
           <RuleFramingAside total={packageRules.length} attribution={ruleAttribution ?? null} />
         </span>
       </div>

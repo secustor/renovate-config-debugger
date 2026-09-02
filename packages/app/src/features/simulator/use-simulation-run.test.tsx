@@ -23,6 +23,9 @@ const noop = () => undefined;
 
 const FORM: FormState = { ...EMPTY_FORM, depName: "react", currentValue: "17.0.0" };
 const OUTCOME: SimulationOutcome = { sim: simResult(), effectiveUpdateType: "major" };
+/** What `deferSimulation().reject()` throws, so the surfaced message is
+ *  assertable without reaching into the helper. */
+const FAILURE = "boom";
 
 /** Both are identity-stable in the real caller (`useSimulatorForm`), and the
  *  reset effect lists them. */
@@ -53,7 +56,7 @@ function deferSimulation(): Deferred {
     () =>
       new Promise<SimulationOutcome>((res, rej) => {
         control.resolve = res;
-        control.reject = () => rej(new Error("boom"));
+        control.reject = () => rej(new Error(FAILURE));
       }),
   );
   return control;
@@ -122,6 +125,23 @@ describe("useSimulationRun", () => {
     });
 
     expect(seen.run?.error).toBeNull();
+    expect(seen.run?.running).toBe(false);
+  });
+
+  it("surfaces a failure of the run still on screen", async () => {
+    const inFlight = deferSimulation();
+    render(<Harness result={traceResult()} />);
+
+    await act(async () => {
+      void seen.run?.simulate(FORM, true);
+    });
+    await act(async () => {
+      inFlight.reject();
+    });
+
+    expect(seen.run?.error).toBe(FAILURE);
+    // A failure commits no verdict, and `running` still drains unconditionally.
+    expect(seen.run?.sim).toBeNull();
     expect(seen.run?.running).toBe(false);
   });
 });

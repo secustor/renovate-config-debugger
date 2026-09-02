@@ -6,15 +6,18 @@ import type { EffectiveTally } from "./effective-tally";
 /**
  * Roadmap 058: the run's derived facts and the digest's input, as pure
  * functions. `use-run-summary.ts` (the React hook) used to hold both inline,
- * which made them unreachable from anything without React — so the CLI's
- * `rcd digest` would have had to restate the assembly that 029 exists to keep
- * single-sourced ("a number in the paragraph can never disagree with the badge
- * beside it"). The hook now memoizes {@link deriveRunFacts} and feeds it to
- * {@link buildDigestInput}; the CLI calls the same two functions.
+ * which made them unreachable from anything without React — so the CLI's `rcd
+ * digest` would have had to restate the assembly that 029 exists to keep
+ * single-sourced ("a number in the paragraph can never disagree with the
+ * badge beside it"). The hook memoizes {@link deriveRunFacts} for the header
+ * counts and tab badges; {@link buildDigestInput} has exactly one consumer
+ * since 075 — `rcd digest` and the `run_config` MCP tool, through
+ * `lib/headless.ts` (see run-digest.ts).
  */
 
 export interface RunFacts {
-  /** Granular migrate-stage steps (004) — the Rewrites tab badge. */
+  /** Granular migrate-stage steps (004) — the header's `N rewrites` link and
+   *  the migrate stage's stepper. */
   migrateSteps: TraceEvent[];
   /** The migrate stage's final whole-document snapshot. */
   finalMigrated: unknown;
@@ -102,7 +105,7 @@ function migrationLabel(step: TraceEvent): string {
 }
 
 /**
- * Roadmap 029: everything the Overview paragraph quotes, assembled from
+ * Roadmap 029: everything the digest paragraph quotes, assembled from
  * exactly the derivations that feed the tab badges. `effective` is null while
  * provenance is still being computed (the browser computes it asynchronously);
  * the digest then says so rather than quoting a number it does not have.

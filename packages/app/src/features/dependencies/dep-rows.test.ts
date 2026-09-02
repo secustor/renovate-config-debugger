@@ -88,7 +88,7 @@ describe("depBadge", () => {
   it("marks a custom manager and nothing else", () => {
     expect(depBadge("npm")).toBeUndefined();
     expect(depBadge("dockerfile")).toBeUndefined();
-    // Roadmap 063's managers, when they arrive.
+    // The ids roadmap 093's repo discovery puts on a custom manager's rows.
     expect(depBadge("custom.regex")?.text).toBe("custom.regex");
     expect(depBadge("custom.jsonata")?.title).toContain("custom manager");
   });
