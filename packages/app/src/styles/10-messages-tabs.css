@@ -634,6 +634,14 @@
     gap: 0.75rem;
   }
 
+  /* ConfigColumn's always-mounted live regions: empty, neither may spend one of
+     the column's flex gaps. Never `display: none` — a hidden region cannot
+     announce (same trade as `.pin-add-panel > [role="alert"]:empty`). */
+  .app-split.has-results > .config-col > [role="alert"]:empty,
+  .app-split.has-results > .config-col > [role="status"]:empty {
+    margin-block: -0.375rem;
+  }
+
   .app-split.has-results .editor-shell {
     display: flex;
     flex: 1 1 auto;
