@@ -62,7 +62,9 @@ jobs:
         # `vite dev` serves renovate's transitive deps raw (no CJS interop),
         # a regime neither the Node tests nor the production build exercise.
         run: pnpm --filter @renovate-config-debugger/app check:dev-graph
-      - name: House lint rule specs (tools/)
+      # Every `tools/**/*.spec.ts`: `tools/` is not a workspace package, so the
+      # per-package steps above never reach them.
+      - name: Repo-level specs (tools/)
         run: pnpm test:tools
 
   build:
