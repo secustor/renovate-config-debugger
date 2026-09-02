@@ -66,7 +66,11 @@ export type {
   PackageFileContent,
 } from "renovate/dist/modules/manager/types.js";
 import type { ExtractConfig, PackageFileContent } from "renovate/dist/modules/manager/types.js";
-import type { CustomExtractConfig } from "renovate/dist/modules/manager/custom/regex/index.js";
+import {
+  extractPackageFile as regexExtractPackageFile,
+  type CustomExtractConfig,
+} from "renovate/dist/modules/manager/custom/regex/index.js";
+import { extractPackageFile as jsonataExtractPackageFile } from "renovate/dist/modules/manager/custom/jsonata/index.js";
 
 type ManagerExtractFn = (
   content: string,
@@ -84,16 +88,16 @@ type CustomExtractFn = (
 ) => PackageFileContent | null | Promise<PackageFileContent | null>;
 
 /**
- * The custom managers (roadmap 063), lazy like the map below but deliberately
- * NOT part of it: `managerExtractors`' keys are the built-in ledger
+ * The custom managers (roadmap 063), deliberately NOT part of the lazy map
+ * below: `managerExtractors`' keys are the built-in ledger
  * (EXTRACTABLE_MANAGERS), while these run only from a user's own config block —
- * their patterns and matchStrings ARE the block.
+ * their patterns and matchStrings ARE the block. Static, unlike that map,
+ * because validation.js already imports both eagerly (via custom/api.js), so a
+ * dynamic import cannot split them into their own chunk anyway.
  */
-export const customManagerExtractors: Record<CustomManagerType, () => Promise<CustomExtractFn>> = {
-  regex: async () =>
-    (await import("renovate/dist/modules/manager/custom/regex/index.js")).extractPackageFile,
-  jsonata: async () =>
-    (await import("renovate/dist/modules/manager/custom/jsonata/index.js")).extractPackageFile,
+export const customManagerExtractors: Record<CustomManagerType, CustomExtractFn> = {
+  regex: regexExtractPackageFile,
+  jsonata: jsonataExtractPackageFile,
 };
 
 /**
