@@ -56,7 +56,7 @@ import { useStarterPins } from "@/app/use-starter-pins";
 import { useShareLink } from "@/hooks/use-share-link";
 import type { RunInputs } from "@/lib/run-inputs";
 import { createRunQueue, type RunQueue } from "@/lib/run-queue";
-import { pluralWord } from "@/lib/format";
+import { plural } from "@/lib/format";
 import { errorMessage } from "@/lib/errors";
 import { EXAMPLE_CONFIG } from "@/data/starter-configs";
 import { AppBanners } from "@/app/AppBanners";
@@ -100,13 +100,7 @@ function customManagerBlocks(result: TraceResult | null): Record<string, unknown
   if (!Array.isArray(blocks)) {
     return [];
   }
-  const kept: Record<string, unknown>[] = [];
-  for (const block of blocks) {
-    if (isPlainObject(block)) {
-      kept.push(block);
-    }
-  }
-  return kept;
+  return blocks.filter(isPlainObject);
 }
 
 export function App() {
@@ -972,7 +966,7 @@ export function App() {
       // dropping it on `<body>`.
       focusTab("problems", ticket);
       const n = next.errors.length;
-      showToast(`Fix applied — re-ran: ${n === 0 ? "0 errors" : `${n} ${pluralWord(n, "error")}`}`);
+      showToast(`Fix applied — re-ran: ${n === 0 ? "0 errors" : plural(n, "error")}`);
     }
   }
 
@@ -1179,8 +1173,8 @@ export function App() {
       return;
     }
     const problems = [
-      errorCount === 0 ? null : `${errorCount} ${pluralWord(errorCount, "error")}`,
-      warningCount === 0 ? null : `${warningCount} ${pluralWord(warningCount, "warning")}`,
+      errorCount === 0 ? null : plural(errorCount, "error"),
+      warningCount === 0 ? null : plural(warningCount, "warning"),
     ].filter((part) => part !== null);
     const lead = outcomeLeadRef.current ?? "Run finished";
     announceRun(`${lead} — ${problems.length === 0 ? "no problems" : problems.join(", ")}.`);

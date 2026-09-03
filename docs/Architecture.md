@@ -27,8 +27,12 @@ holds the feature slices (dependencies, editor, effective-config, overview,
 pipeline, presets, session, simulator); `src/app/` is the shell;
 `src/components/`, `src/hooks/`, `src/lib/`, `src/data/` and `src/platform/` are
 shared. Features never import from `@/app` and never from each other — oxlint
-overrides mechanize the rule. The engine is imported dynamically, through one
-`loadEngine()` seam, so the critical path stays small.
+overrides mechanize the rule. The Renovate GRAPH is reached only through one
+dynamic `loadEngine()` seam (`src/platform/engine-chunk.ts`), so the critical
+path stays small; the engine's zero-import helper subpaths (`/is`, `/json`,
+`/contracts`, `/text-scan`) are imported statically, and two house rules
+require it. `/schema` is the exception — its ~160 kB gz stack is pinned to
+`platform/editor-schema.ts` (roadmap 031). `.oxlintrc.json` enforces all of it.
 
 **`packages/cli`** is `rcd`, the headless debugger (roadmap 058, experimental).
 Its dev bin boots Vite's SSR module runner with `renovateShims()` active, so the
@@ -99,18 +103,22 @@ the plugin computes, so a suffix is what identifies its two modules.
 
 Renovate's config code is not a public API. The dependency is pinned exactly,
 every Renovate bump PR runs full CI, and `test/migration-drift.node.test.ts`
-catches upstream drift in the migration surface specifically.
+catches upstream drift in the migration surface specifically. `pathe` is pinned
+exactly for the same reason: it stands in for `node:path` in every shimmed
+graph, and `shims/fs.ts` depends on its exact `"."`-vs-`""` behavior.
 
 The proof that the shims do not alter behavior is the engine's two vitest
 projects over one set of fixtures and file snapshots, covering the config
 pipeline and the manager-extraction cases both. `golden` runs untouched
 Renovate modules and writes the reference snapshots; `shimmed` runs the exact
-browser module graph (shim plugin, plus `server.deps.inline: [/renovate/]` —
-without the inline, Node loads `renovate/dist` natively and the plugin never
-sees it) and must produce **byte-identical** results. Both projects glob their
-files, and `test/project-coverage.node.test.ts` asserts that every test file
-matches exactly one of the two globs — a hand-listed project is how a new test
-comes to run in no project at all and pass silently.
+browser module graph (shim plugin, plus the `RENOVATE_INLINE` pattern the
+plugin module exports for `server.deps.inline` — without the inline, Node loads
+`renovate/dist` natively and the plugin never sees it, and that constant is
+where the store-path anchoring is explained; every vitest project that runs the
+plugin spreads it) and must produce **byte-identical** results. Both projects
+glob their files, and `test/project-coverage.node.test.ts` asserts that every
+test file matches exactly one of the two globs — a hand-listed project is how a
+new test comes to run in no project at all and pass silently.
 
 ## The three module regimes
 

@@ -7,7 +7,13 @@ import { render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 import type { DataTableRow } from "@/components/data-table";
-import { DECIDED_BY, type EffectiveRowContext, effectiveTableRows } from "./effective-rows";
+import {
+  DECIDED_BY,
+  type EffectiveRowContext,
+  EFFECTIVE_VIEWS,
+  effectiveTableRows,
+  isEffectiveView,
+} from "./effective-rows";
 import type { DeciderGroup, DeciderId } from "./decider-groups";
 import {
   buildDescriptionLedger,
@@ -51,6 +57,17 @@ function rowFor(
 function textOf(node: ReactNode): string {
   return render(<div>{node}</div>).container.textContent ?? "";
 }
+
+describe("the view guard", () => {
+  it("accepts every id the strip emits, and nothing else", () => {
+    for (const view of EFFECTIVE_VIEWS) {
+      expect(isEffectiveView(view.id)).toBe(true);
+    }
+    expect(isEffectiveView("cascade")).toBe(false);
+    // Prototype keys are not views — `Object.hasOwn`, not `in`.
+    expect(isEffectiveView("toString")).toBe(false);
+  });
+});
 
 describe("the value cell", () => {
   it("prints a scalar in full and a container as its size", () => {

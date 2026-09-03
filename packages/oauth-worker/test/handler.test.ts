@@ -280,6 +280,12 @@ describe("GitHub error passthrough", () => {
     expect(res.status).toBe(502);
     const text = await res.text();
     expect(text).not.toContain(ACCESS_TOKEN);
+    // The app splices error_description mid-sentence, so it stays a lowercase,
+    // period-free fragment that names no upstream detail.
+    expect(JSON.parse(text) as { error_description?: string }).toMatchObject({
+      error: "github_unreachable",
+      error_description: "could not reach GitHub",
+    });
     assertNothingLogged();
   });
 });

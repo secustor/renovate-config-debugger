@@ -29,7 +29,11 @@ export function DescriptorActions({
 }: {
   className: string;
   formId: string;
-  /** The primary's text — the `<kbd>⏎</kbd>` after it is this row's, always. */
+  /**
+   * The primary's text — the `<kbd>⏎</kbd>` after it is this row's, always. The
+   * `<kbd>` is `aria-hidden` (the accessible name stays the label alone), as on
+   * RunButton.
+   */
   submitLabel: string;
   submitDisabled?: boolean;
   atLimit: boolean;
@@ -39,7 +43,7 @@ export function DescriptorActions({
   return (
     <div className={className}>
       <button type="submit" form={formId} className="btn-primary" disabled={submitDisabled}>
-        {submitLabel} <kbd>⏎</kbd>
+        {submitLabel} <kbd aria-hidden="true">⏎</kbd>
       </button>
       {atLimit ? null : (
         <button type="button" className="btn-quiet" onClick={onPin}>

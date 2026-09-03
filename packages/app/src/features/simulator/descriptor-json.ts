@@ -1,3 +1,4 @@
+import type { DependencyDescriptor } from "@renovate-config-debugger/engine";
 import { isString } from "@renovate-config-debugger/engine/is";
 import { jsonText } from "@renovate-config-debugger/engine/json";
 import { toDescriptor } from "./form";
@@ -24,9 +25,10 @@ import type { FormState } from "@/types/simulator";
  * the sentence, read left to right), then the rest of the descriptor in the
  * order the form's own groups introduce them. Anything the engine's descriptor
  * grows that is not named here still prints — at the end, rather than silently
- * not at all.
+ * not at all. The `satisfies` is what proves each name here is a key the
+ * descriptor actually has — a typo would otherwise just reorder the document.
  */
-const KEY_ORDER: readonly string[] = [
+const KEY_ORDER = [
   "packageName",
   "datasource",
   "currentValue",
@@ -47,7 +49,7 @@ const KEY_ORDER: readonly string[] = [
   "categories",
   "currentVersionTimestamp",
   "isBump",
-];
+] as const satisfies readonly (keyof DependencyDescriptor)[];
 
 export interface DescriptorEntry {
   key: string;
@@ -70,7 +72,7 @@ export function descriptorEntries(form: FormState, effectiveUpdateType: string):
   );
   const ordered = [
     ...KEY_ORDER.filter((key) => descriptor.has(key)),
-    ...[...descriptor.keys()].filter((key) => !KEY_ORDER.includes(key)),
+    ...[...descriptor.keys()].filter((key) => !(KEY_ORDER as readonly string[]).includes(key)),
   ];
   const entries: DescriptorEntry[] = [];
   for (const key of ordered) {

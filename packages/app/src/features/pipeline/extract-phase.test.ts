@@ -38,7 +38,6 @@ const CUSTOM_VIEW: RepoDepsView = {
   files: [
     ...VIEW.files,
     walkFile("k8s/deploy.yaml", ["custom.regex"], {
-      extractedBy: "custom.regex",
       depCount: 1,
       outcome: "extracted",
     }),
@@ -115,11 +114,9 @@ describe("the walk's own rows", () => {
       "could not be read",
     );
     expect(fileDepNote(walkFile("c.json", ["x"], { outcome: "error" }))).toBe("extraction failed");
-    expect(
-      fileDepNote(
-        walkFile("d.json", ["x"], { outcome: "extracted", depCount: 6, extractedBy: "x" }),
-      ),
-    ).toBe("6 deps");
+    expect(fileDepNote(walkFile("d.json", ["x"], { outcome: "extracted", depCount: 6 }))).toBe(
+      "6 deps",
+    );
   });
 
   it("hands the failure's own reason to the row that says 'extraction failed'", () => {

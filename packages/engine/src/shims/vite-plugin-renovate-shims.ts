@@ -4,6 +4,16 @@ import { fileURLToPath } from "node:url";
 import type { Plugin } from "vite";
 
 /**
+ * `server.deps.inline` for every vitest project that runs this plugin: without
+ * it Node loads renovate/dist natively and the plugin never sees the imports.
+ * The pattern names the renovate PACKAGE's store path, not the bare word —
+ * this repo's own absolute path contains "renovate", so a bare /renovate/
+ * inlines every node_modules dep and grinds the CJS graph (find-packages,
+ * @pnpm/*) through Vite for minutes (roadmap 078).
+ */
+export const RENOVATE_INLINE = [/node_modules\/(\.pnpm\/)?renovate[@/]/];
+
+/**
  * Redirects the Node-only choke points inside renovate/dist to browser-safe
  * shims. A resolveId hook (not resolve.alias) is required because the dist
  * modules import each other via RELATIVE specifiers (`./github/index.js`),

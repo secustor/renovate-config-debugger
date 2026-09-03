@@ -1,4 +1,4 @@
-import { defineRule } from "@oxlint/plugins";
+import { defineRule, type ESTree } from "@oxlint/plugins";
 
 /**
  * `void` is this repo's marker for "deliberately detached" — and a detached
@@ -41,28 +41,20 @@ interface ChainLink {
  * Walks down through non-computed member calls only, stopping at anything else
  * — an identifier callee, a function expression, a computed access.
  */
-function chainLinks(node: unknown): ChainLink[] {
+function chainLinks(node: ESTree.Expression): ChainLink[] {
   const links: ChainLink[] = [];
-  let current = node as { type?: string; callee?: unknown; arguments?: unknown[] } | undefined;
-  while (current?.type === "CallExpression") {
-    const callee = current.callee as
-      | {
-          type?: string;
-          computed?: boolean;
-          object?: unknown;
-          property?: { type?: string; name?: string };
-        }
-      | undefined;
+  let current: ESTree.Expression = node;
+  while (current.type === "CallExpression") {
+    const callee = current.callee;
     if (
-      callee?.type !== "MemberExpression" ||
-      callee.computed === true ||
-      callee.property?.type !== "Identifier" ||
-      typeof callee.property.name !== "string"
+      callee.type !== "MemberExpression" ||
+      callee.computed ||
+      callee.property.type !== "Identifier"
     ) {
       return links;
     }
-    links.push({ name: callee.property.name, argCount: (current.arguments ?? []).length });
-    current = callee.object as { type?: string; callee?: unknown; arguments?: unknown[] };
+    links.push({ name: callee.property.name, argCount: current.arguments.length });
+    current = callee.object;
   }
   return links;
 }

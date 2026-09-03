@@ -48,9 +48,14 @@ You'll see the deprecated `masterIssue` rewritten to `dependencyDashboard`,
 - **"What is this repo actually running?"** — Load a config straight from
   `owner/repo` or a URL; it finds the config file Renovate would use and can
   bring the org's inherited config along.
-- **"Can I show a colleague?"** — _Copy link_ puts the whole analysis in the
-  URL fragment: it reopens exactly, never reaches a server log, and never
-  carries tokens.
+- **"Which dependencies does Renovate see?"** — With a repo loaded, the
+  Dependencies tab (or the pipeline's Extract phase) runs Renovate's own
+  extractors, `customManagers` included, over its package files and lists what
+  they found; multi-file managers with no single-file extractor (gradle, sbt)
+  report an honest gap rather than a wrong answer.
+- **"Can I show a colleague?"** — _Share_ (in the header) puts the whole
+  analysis in the URL fragment: it reopens exactly, never reaches a server log,
+  and never carries tokens.
 
 <details>
 <summary>Global + inherited config layers (self-hosted admins)</summary>
@@ -155,6 +160,7 @@ the same pinned Renovate, as structured data:
 npx -y @renovate-config-debugger/cli digest renovate.json     # the run in one paragraph
 npx -y @renovate-config-debugger/cli validate renovate.json   # exit 2 = Renovate would refuse it
 npx -y @renovate-config-debugger/cli tree renovate.json       # what `extends` expanded into
+npx -y @renovate-config-debugger/cli extract package.json     # the deps to simulate, as Renovate reads them
 npx -y @renovate-config-debugger/cli simulate renovate.json --dep '{"depName":"react"}'
 npx -y @renovate-config-debugger/cli compare before.json after.json --dep '{"depName":"react"}'
 ```

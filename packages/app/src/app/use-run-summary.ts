@@ -48,8 +48,8 @@ export function useRunSummary(
   pinCount: number,
   /** Roadmap 083: how many author-written sentences the Overview lists — the
    *  Overview tab's badge. `null` until the description provenance has settled,
-   *  exactly like `effectiveStats`: both are engine derivations the panel
-   *  reports back, and neither may be guessed at as a zero. */
+   *  and while it is unavailable: it is an engine derivation the panel reports
+   *  back, and it may not be guessed at as a zero. */
   overviewBehaviors: number | null,
   /** Roadmap 089: how many dependencies the loaded repository's extraction
    *  found — the Dependencies tab's badge. `undefined` until discovery has
@@ -78,11 +78,12 @@ export function useRunSummary(
   // hand it a fresh one, which is a behavior change, not a cleanup.
   //
   // Roadmap 068 review: MAPPED over `RESULTS_TAB_IDS` (data/results-tabs.ts)
-  // rather than written out as a same-length literal — `useTabDigits` (App.tsx)
-  // is wired to `resultsTabs.length` while the `?` sheet's digit range
-  // (`lib/shortcuts.ts`) reads `RESULTS_TAB_IDS.length` directly, and a
-  // hand-matched literal here only agreed with that by coincidence. Keying
-  // `tabData` by `ResultsTabId` makes the two structurally unable to drift:
+  // rather than written out as a same-length literal — `useTabDigits`
+  // (app/use-tab-digits.ts) is wired to `resultsTabs.length` while the `?`
+  // sheet's digit range (`lib/shortcuts.ts`) reads `RESULTS_TAB_IDS.length`
+  // directly, and a hand-matched literal here only agreed with that by
+  // coincidence. Keying `tabData` by `ResultsTabId` makes the two
+  // structurally unable to drift:
   // adding a tab to `RESULTS_TAB_IDS` (062 adds one) fails this file's
   // typecheck until `tabData` grows a matching entry, rather than silently
   // shipping a strip one tab short of what the sheet advertises.

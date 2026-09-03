@@ -15,10 +15,9 @@ const extracted = (manager: string, rows: number): FileRun => ({
 });
 
 describe("mergeFileRuns", () => {
-  it("totals every run's rows, and names the first that produced any", () => {
+  it("totals every run's rows", () => {
     expect(mergeFileRuns([extracted("npm", 2), extracted("custom.regex", 3)])).toEqual({
       outcome: "extracted",
-      extractedBy: "npm",
       depCount: 5,
     });
   });
@@ -26,22 +25,14 @@ describe("mergeFileRuns", () => {
   it("does not let a failing block bury the extraction beside it", () => {
     expect(mergeFileRuns([{ status: "error" }, extracted("custom.regex", 1)])).toEqual({
       outcome: "extracted",
-      extractedBy: "custom.regex",
       depCount: 1,
     });
   });
 
-  it("attributes the file to the manager that actually produced rows", () => {
-    // An extraction whose rows were all skipped (file:/workspace: links) still
-    // ran — but the file's deps came from the block that followed it.
-    expect(mergeFileRuns([extracted("npm", 0), extracted("custom.regex", 4)])).toEqual({
-      outcome: "extracted",
-      extractedBy: "custom.regex",
-      depCount: 4,
-    });
+  it("counts an extraction whose rows were all skipped as an extraction", () => {
+    // file:/workspace: links: the run happened, it just produced no pinnable row.
     expect(mergeFileRuns([extracted("npm", 0)])).toEqual({
       outcome: "extracted",
-      extractedBy: "npm",
       depCount: 0,
     });
   });
@@ -49,15 +40,13 @@ describe("mergeFileRuns", () => {
   it("reports a failure only when nothing extracted, and emptiness over nothing", () => {
     expect(mergeFileRuns([{ status: "no-deps" }, { status: "error" }])).toEqual({
       outcome: "error",
-      extractedBy: null,
       depCount: 0,
     });
     expect(mergeFileRuns([{ status: "no-deps" }, { status: "no-deps" }])).toEqual({
       outcome: "no-deps",
-      extractedBy: null,
       depCount: 0,
     });
-    expect(mergeFileRuns([])).toEqual({ outcome: "no-deps", extractedBy: null, depCount: 0 });
+    expect(mergeFileRuns([])).toEqual({ outcome: "no-deps", depCount: 0 });
   });
 
   it("carries the first failure's reason, and only where the outcome is the failure", () => {
@@ -65,12 +54,11 @@ describe("mergeFileRuns", () => {
       mergeFileRuns([{ status: "error", message: "Invalid regExp: /(/" }, { status: "error" }]),
     ).toEqual({
       outcome: "error",
-      extractedBy: null,
       depCount: 0,
       error: "Invalid regExp: /(/",
     });
     expect(
       mergeFileRuns([{ status: "error", message: "Invalid regExp: /(/" }, extracted("npm", 1)]),
-    ).toEqual({ outcome: "extracted", extractedBy: "npm", depCount: 1 });
+    ).toEqual({ outcome: "extracted", depCount: 1 });
   });
 });

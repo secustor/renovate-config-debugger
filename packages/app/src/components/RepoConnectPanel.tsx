@@ -11,10 +11,12 @@ import type { RepoConnectOffer } from "@/types/repo";
  * Roadmap 087 wrote it inside the Tests tab's From-repository view, which was
  * its only consumer. Roadmap 089's Dependencies tab is the second, and it is a
  * different feature slice — so the panel moves down here by the promotion rule
- * (see `EmptyNote`) rather than being copied across the boundary. It is pure
- * presentation over `RepoConnectOffer`: the shell fills the offer in, and this
- * draws it. Its `pin-repo-connect` classes stay the spelling they were born
- * with (`15-pins.css`), since renaming them would touch a stylesheet for no
+ * (see `EmptyNote`) rather than being copied across the boundary. Today no
+ * slice reaches it directly: `RepoDiscoveryGate` is its only consumer, and the
+ * three discovery surfaces render that gate. It is pure presentation over
+ * `RepoConnectOffer`: the shell fills the offer in, and this draws it. Its
+ * `pin-repo-connect` classes stay the spelling they were born with
+ * (`15-pins.css`), since renaming them would touch a stylesheet for no
  * behavioural reason.
  */
 export function RepoConnectPanel({ offer }: { offer: RepoConnectOffer }) {

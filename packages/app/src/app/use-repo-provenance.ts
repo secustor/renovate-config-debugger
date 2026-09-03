@@ -1,6 +1,5 @@
 import { useCallback, useState } from "react";
-import type { RepoPlatform } from "@renovate-config-debugger/engine";
-import { TREE_LISTING_PLATFORMS } from "@/data/host-tokens";
+import { isTreeListingPlatform } from "@/data/host-tokens";
 import { useStableCallback } from "@/hooks/use-stable-callback";
 import type { LoadedRepo } from "@/types/repo";
 
@@ -76,16 +75,18 @@ export function useRepoProvenance(host: RepoProvenanceHost): RepoProvenance {
     setClaimedRepo(null);
   }, []);
 
-  const canList = TREE_LISTING_PLATFORMS.has(host.platform as RepoPlatform);
+  const canList = isTreeListingPlatform(host.platform);
 
   // The impl closes over THIS render's context; `useStableCallback` keeps the
   // handed-out identity stable.
   const connect = useStableCallback(() => {
-    if (claimedRepo === null || !canList) {
+    // Re-tested here, not read off `canList`: a boolean carries no narrowing
+    // across the callback boundary, and the `platform` field below needs it.
+    if (claimedRepo === null || !isTreeListingPlatform(host.platform)) {
       return;
     }
     setLoadedRepo({
-      platform: host.platform as RepoPlatform,
+      platform: host.platform,
       repo: claimedRepo,
       ...(host.endpoint === "" ? {} : { endpoint: host.endpoint }),
       suppressTokens: host.suppressTokens,

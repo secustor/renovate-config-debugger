@@ -295,7 +295,9 @@ describe("run_config", () => {
     const note = summary.notes?.join(" ") ?? "";
     expect(note).toContain("credentials withheld");
     expect(note).toContain("trustEndpoints: true");
-    expect(note).toContain("platformOverride: true");
+    // The caller named no endpoint, so `platformOverride` would resolve right
+    // back to the global config's — the note must not send them there.
+    expect(note).not.toContain("platformOverride: true");
     expect(note).not.toContain("--trust-endpoints");
   });
 });
@@ -547,9 +549,14 @@ describe("drill-down", () => {
   test("the resolved document keeps internal presets by default", async () => {
     const runId = await runConfig(CONFIG);
     const output = (await call("get_resolved_config", { runId })) as {
+      mode: string;
+      includeDefaults: boolean;
       config: { extends: string[] };
     };
     expect(output.config.extends).toEqual([":dependencyDashboard"]);
+    // The answer states the parameters that produced it, as the CLI's JSON does.
+    expect(output.mode).toBe("keep-internal");
+    expect(output.includeDefaults).toBe(false);
   });
 
   /**
@@ -1764,41 +1771,6 @@ describe("held runs carry only what the tools read", () => {
       rules: unknown[];
     };
     expect(Array.isArray(sim.rules)).toBe(true);
-  });
-});
-
-describe("RunStore", () => {
-  test("evicts the oldest run, and keeps the one being drilled into", () => {
-    const store = new RunStore(2);
-    // The store only ever reads `result`/`input` back out.
-    const fake = { events: [], errors: [], warnings: [] } as unknown as Parameters<
-      RunStore["put"]
-    >[0];
-    const input = { fileName: "renovate.json", content: "{}" };
-    const a = store.put(fake, input);
-    const b = store.put(fake, input);
-    // Touching `a` makes `b` the least recently used.
-    store.get(a.runId);
-    const c = store.put(fake, input);
-    expect(store.size).toBe(2);
-    expect(() => store.get(b.runId)).toThrow(/no run/);
-    expect(store.get(a.runId).runId).toBe(a.runId);
-    expect(store.get(c.runId).runId).toBe(c.runId);
-  });
-
-  test("states its own policy: the limit, and the held ids oldest first", () => {
-    const store = new RunStore(2);
-    const fake = { events: [], errors: [], warnings: [] } as unknown as Parameters<
-      RunStore["put"]
-    >[0];
-    const input = { fileName: "renovate.json", content: "{}" };
-    expect(store.limit).toBe(2);
-    const a = store.put(fake, input);
-    const b = store.put(fake, input);
-    expect(store.heldIds()).toEqual([a.runId, b.runId]);
-    // A get refreshes recency, so the drilled-into run leaves eviction order.
-    store.get(a.runId);
-    expect(store.heldIds()).toEqual([b.runId, a.runId]);
   });
 });
 

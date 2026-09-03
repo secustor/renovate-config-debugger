@@ -2,11 +2,11 @@ import type { StageId, TraceEvent, TraceResult } from "@renovate-config-debugger
 import { plural } from "./format";
 
 /**
- * Roadmap 024: what a stage chip's dot should say happened this run, on top
- * of the raw ok/error/skipped `stageStatus`. Green universally read as
- * "nothing to see here" — the one stage that actually rewrote your config
- * (e.g. Migrate turning `semanticCommits: true` into `"enabled"`) looked
- * identical to a stage that passed it through untouched.
+ * Roadmap 024: what a stage node's glyph on the pipeline rail should say
+ * happened this run, on top of the raw ok/error/skipped `stageStatus`. Green
+ * universally read as "nothing to see here" — the one stage that actually
+ * rewrote your config (e.g. Migrate turning `semanticCommits: true` into
+ * `"enabled"`) looked identical to a stage that passed it through untouched.
  *
  * The per-stage rule (documented again in each stage's STAGE_EXPLAINERS
  * card, hovered from the rail node in StageRail.tsx):
@@ -22,7 +22,8 @@ export type StageActivityLevel = "clean" | "changed" | "error" | "skipped";
 
 export interface StageActivity {
   level: StageActivityLevel;
-  /** Shown beside the chip label, e.g. "Migrate ·2" — omitted when not meaningful. */
+  /** The number stage-delta.ts renders (`Δ 2`, `2 warn`, `2 err`) and the
+   *  stageHint phrases — omitted when not meaningful. */
   count?: number;
 }
 
@@ -74,8 +75,9 @@ export function getStageActivity(result: TraceResult, stage: StageId): StageActi
   return { level: "clean" };
 }
 
-/** Short, human sentence for the chip's accessible name — screen readers get
- *  the outcome even though it's shown visually as a dot shape + color + count. */
+/** Short, human sentence for the rail node button's accessible name — screen
+ *  readers get the outcome even though it's shown visually as a glyph shape +
+ *  color + delta. */
 export function describeStageActivity(
   stage: StageId,
   label: string,

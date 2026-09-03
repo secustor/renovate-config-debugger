@@ -45,17 +45,11 @@ import { matchShortcut, RUN_SHORTCUT } from "@/lib/shortcuts";
  * dependency on a callback whose identity changes every render, i.e. a
  * reconfigure per keystroke.
  */
-export function runKeymap(runRef: { readonly current: (() => void) | undefined }): Extension {
+export function runKeymap(runRef: { readonly current: () => void }): Extension {
   return Prec.highest(
     EditorView.domEventHandlers({
       keydown: (event) => {
         if (!matchShortcut(event, RUN_SHORTCUT)) {
-          return false;
-        }
-        const onRun = runRef.current;
-        if (!onRun) {
-          // No run to start: leave the chord to whoever else wants it, which
-          // is the behavior an editor rendered without `onRun` had before.
           return false;
         }
         // Two ways the chord is claimed without starting a run, and claiming is
@@ -72,7 +66,7 @@ export function runKeymap(runRef: { readonly current: (() => void) | undefined }
         if (event.repeat || event.eventPhase === Event.NONE) {
           return true;
         }
-        onRun();
+        runRef.current();
         return true;
       },
     }),

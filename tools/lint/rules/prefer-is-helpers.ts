@@ -40,9 +40,10 @@ import { defineRule, type ESTree } from "@oxlint/plugins";
  * its own: the `typeof` arm already fires on the inner comparison, which puts
  * the author in `is.ts` where `isStringArray` sits next to `isString`. A fifth
  * shape arm would buy one more diagnostic and a second parent-lookup carve-out.
- * `cli/src/mcp/result.ts`'s `isRecord` is likewise invisible to the
- * declaration arm — it is a plain-object copy under a name the set does not
- * hold — and the triple arm catches its BODY, which is why no alias is added.
+ * A plain-object copy under a name the set does not hold — the CLI's former
+ * `isRecord` — is likewise invisible to the declaration arm, and the triple arm
+ * catches its BODY, which is why no alias is added; the spec's `isRecord` case
+ * keeps that honest.
  */
 
 /** The one specifier, repo-wide. Inside `packages/engine` the same module is

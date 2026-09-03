@@ -24,16 +24,17 @@ import { sessionGet } from "./storage";
 
 // Per-host PATs live in sessionStorage (roadmap 009/010 storage rules): they
 // are secrets, so they follow the OAuth token and clear when the tab closes.
-// Platform/endpoint (non-secrets) stay in localStorage — see App.tsx.
+// Platform/endpoint (non-secrets) stay in localStorage — see
+// app/use-platform-context.ts.
 // Roadmap 033: the hosts and their storage keys come from the one HOST_TOKENS
 // table instead of being restated here.
 
 /** Roadmap 030: the "header injection" rule applied at the last possible
  *  moment — right before a token is handed to the engine to place into a
- *  request header. `makeTokenHandler` (App.tsx) already keeps a bad value out
- *  of sessionStorage, but this is the actual use-time boundary, so it's
- *  checked again rather than trusted transitively (storage can still drift
- *  or be hand-edited between the write and this read). */
+ *  request header. `setHostToken` (hooks/use-host-tokens.ts) already keeps a
+ *  bad value out of sessionStorage, but this is the actual use-time boundary,
+ *  so it's checked again rather than trusted transitively (storage can still
+ *  drift or be hand-edited between the write and this read). */
 function sessionToken(key: string): string | undefined {
   const value = sessionGet(key);
   return value !== null && isValidToken(value) ? value : undefined;

@@ -12,6 +12,7 @@
  * action maps onto the fetcher's lookup with no coordination.
  */
 import JSON5 from "json5";
+import { isPlainObject } from "../../is";
 import { jsonLiteral } from "../../json";
 
 export interface PresetIdentity {
@@ -77,8 +78,8 @@ export function getUsedInjectionKeys(): string[] {
  */
 export function parseInjectedPreset(text: string): Record<string, unknown> {
   const parsed = JSON5.parse(text) as unknown;
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+  if (!isPlainObject(parsed)) {
     throw new Error("Preset content must be a JSON object");
   }
-  return parsed as Record<string, unknown>;
+  return parsed;
 }

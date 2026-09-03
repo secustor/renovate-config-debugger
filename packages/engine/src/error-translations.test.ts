@@ -160,7 +160,7 @@ describe("deprecated-option translation", () => {
     ).toBe(false);
   });
 
-  it("explains and points at the migration step-through", () => {
+  it("explains the deprecation in terms of Renovate's migration step", () => {
     const translated = must(
       translateMessage(
         {
@@ -534,4 +534,23 @@ describe("findMentionedOption (fallback docs link for unmatched messages)", () =
     });
     expect(doc).toBeUndefined();
   });
+});
+
+/** Explanations are printed verbatim on three shipped surfaces (app Problems
+ *  tab, `rcd validate`, MCP `explain_message`); `roadmap/` ships on none. */
+describe("explanations carry no internal citations", () => {
+  const probe: ValidationMessage = {
+    topic: "Configuration Error",
+    message:
+      "The 'dnsCache' option is deprecated: Use something else. packageRules[0].matchPackageNames " +
+      "extends `global:x`",
+  };
+
+  for (const translation of ERROR_TRANSLATIONS) {
+    it(`${translation.id} names no roadmap number and no absent panel`, () => {
+      const explanation = translation.explain(probe);
+      expect(explanation).not.toMatch(/roadmap/i);
+      expect(explanation).not.toMatch(/migrations panel/i);
+    });
+  }
 });

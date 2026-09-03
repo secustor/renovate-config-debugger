@@ -1,5 +1,5 @@
 import { defineConfig } from "vitest/config";
-import { renovateShims } from "./src/shims/vite-plugin-renovate-shims";
+import { RENOVATE_INLINE, renovateShims } from "./src/shims/vite-plugin-renovate-shims";
 
 /**
  * Two projects sharing the same fixtures and file snapshots:
@@ -39,18 +39,7 @@ export default defineConfig({
           // matches exactly one of the two globs.
           include: ["test/*.shimmed.test.ts"],
           environment: "node",
-          server: {
-            deps: {
-              // without this, Node loads renovate/dist natively and the shim
-              // plugin never sees its imports. The pattern matches the
-              // RENOVATE PACKAGE's store path, not the bare word: this repo's
-              // own absolute path contains "renovate", so a bare /renovate/
-              // inlines every node_modules dep — which ground the manager-
-              // extraction graph's CJS deps (find-packages, @pnpm/*) through
-              // the vite pipeline for minutes (078).
-              inline: [/node_modules\/(\.pnpm\/)?renovate[@/]/],
-            },
-          },
+          server: { deps: { inline: [...RENOVATE_INLINE] } },
         },
       },
     ],

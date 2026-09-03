@@ -5,11 +5,12 @@
  * `isStringArray` two) and stop spelling `typeof x === "string"` by hand.
  * `rcd/prefer-is-helpers` (tools/lint) is what keeps the tree pointed here.
  *
- * WHY THIS MODULE HAS NO IMPORTS, and must not gain any. It is reachable from
- * the app through the `./is` subpath and therefore from the entry chunk, which
- * must never pull the Renovate graph onto a static import path (see
- * `contracts.ts`, `.oxlintrc.json`'s engine-root ban). Predicates only, so the
- * subpath's whole runtime cost is this file.
+ * WHY THIS MODULE HAS NO IMPORTS — `test/import-free-subpaths.node.test.ts`
+ * holds it to that. It is reachable from the app through the `./is` subpath
+ * and therefore from the entry chunk, which must never pull the Renovate graph
+ * onto a static import path (see `contracts.ts`, `.oxlintrc.json`'s
+ * engine-root ban). Predicates only, so the subpath's whole runtime cost is
+ * this file.
  *
  * Not a separate workspace package, deliberately — the same reasoning
  * `contracts.ts` states: the app already depends on the engine and the CLI

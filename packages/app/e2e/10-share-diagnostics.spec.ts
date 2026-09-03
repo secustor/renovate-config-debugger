@@ -329,3 +329,75 @@ test("a trusted non-default host (gitea) still persists and does not warn", asyn
   }));
   expect(stored).toEqual({ platform: "gitea", endpoint: "https://gitea.com" });
 });
+
+/**
+ * Security 2026-09-01 — a load from a KNOWN host used to end the guard on the
+ * premise that it replaces the platform context. It replaces the TOOLBAR's; the
+ * link's 008 global layer is still in the editor and still wins the engine's
+ * resolution, so the run that followed reached the attacker's host with the
+ * PAT attached. The guard now survives a load that displaces nothing.
+ */
+const GITHUB_CONFIG_URL = "https://api.github.com/repos/acme/webapp/contents/renovate.json";
+
+/** api.github.com answering ONE config file, 404 for the rest, recording the
+ *  authorization header of every request (14-… stubs the same way). */
+async function stubGithubConfig(
+  page: Page,
+  body: string,
+): Promise<{ url: string; authorization?: string }[]> {
+  const seen: { url: string; authorization?: string }[] = [];
+  await page.route(/^https:\/\/api\.github\.com\//, async (route) => {
+    const url = route.request().url();
+    seen.push({ url, authorization: route.request().headers()["authorization"] });
+    const hit = url === GITHUB_CONFIG_URL;
+    await route.fulfill({
+      status: hit ? 200 : 404,
+      headers: { "access-control-allow-origin": "*", "content-type": "text/plain" },
+      body: hit ? body : "not found",
+    });
+  });
+  return seen;
+}
+
+test("a repo load from a known host does not end a guard the global layer still holds", async ({
+  page,
+}) => {
+  await seedToken(page);
+  const untrusted = await interceptOrigin(page, "https://untrusted.example/**");
+  const github = await stubGithubConfig(page, LOCAL_PRESET_CONFIG);
+  const json = rawPayloadJson(LOCAL_PRESET_CONFIG, {
+    endpoint: "https://api.github.com",
+    globalConfig: { endpoint: UNTRUSTED_ENDPOINT },
+  });
+  await page.goto(`#config=${await encodeRawShareToken(json)}`);
+
+  await expect(page.locator(warningBanner)).toBeVisible({ timeout: 15_000 });
+  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
+  await page.locator(".share-warning-ack").click();
+  await expect(page.locator(reminderChip)).toBeVisible();
+  const beforeLoad = untrusted.length;
+
+  // github.com is a shipped, trusted host — the load the old premise trusted.
+  await page.getByRole("button", { name: "Load from repo…" }).click();
+  await expect(page.locator(".repo-panel")).toBeVisible();
+  await page
+    .getByRole("textbox", { name: "Repository", exact: true })
+    .fill("github.com/acme/webapp");
+  await page.getByRole("button", { name: "Load", exact: true }).click();
+  await expect(page.locator(".repo-panel")).toBeHidden({ timeout: 30_000 });
+  await expect(resultsPanel(page)).toBeVisible({ timeout: 30_000 });
+  await expectRunIdle(page);
+
+  // The run really did reach the attacker's host again (so what follows is not
+  // vacuous) — and still without a credential, on either host.
+  await expect.poll(() => untrusted.length, { timeout: 30_000 }).toBeGreaterThan(beforeLoad);
+  for (const request of untrusted) {
+    expect(request.authorization).toBeUndefined();
+  }
+  for (const request of github) {
+    expect(request.authorization).toBeUndefined();
+  }
+  // The protection is still announced, and the acknowledgement is not re-raised.
+  await expect(page.locator(reminderChip)).toBeVisible();
+  await expect(page.locator(reminderChip)).toContainText("untrusted.example");
+});

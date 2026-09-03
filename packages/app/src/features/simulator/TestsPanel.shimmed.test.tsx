@@ -409,9 +409,8 @@ const REPO_DEPS: RepoDepsView = {
     },
   ],
   files: [
-    walkFile("package.json", ["npm"], { extractedBy: "npm", depCount: 1, outcome: "extracted" }),
+    walkFile("package.json", ["npm"], { depCount: 1, outcome: "extracted" }),
     walkFile("Dockerfile", ["dockerfile"], {
-      extractedBy: "dockerfile",
       depCount: 1,
       outcome: "extracted",
     }),

@@ -1,4 +1,4 @@
-import { type Props, RepoLoadForm } from "./RepoLoadForm";
+import { type RepoLoadFormProps, RepoLoadForm } from "./RepoLoadForm";
 
 /**
  * Roadmap 075 (v2, iteration 2) — the repo-load form as an overlay over the
@@ -21,7 +21,7 @@ import { type Props, RepoLoadForm } from "./RepoLoadForm";
  * not re-listed, so a new form prop needs no edit here.
  */
 
-export function RepoLoadOverlay(props: Props) {
+export function RepoLoadOverlay(props: RepoLoadFormProps) {
   return (
     <div className="repo-overlay">
       <button

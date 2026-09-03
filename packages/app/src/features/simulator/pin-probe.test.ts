@@ -151,3 +151,31 @@ test("the idle suggestions come from the run, so each one is guaranteed to hit",
     expect(results.total).toBeGreaterThan(0);
   }
 });
+
+test("a flatten step's key is never suggested — no rule body names it", () => {
+  const sim = simulation(
+    [rule(3, "no-match", [clause("matchPackageNames", ["@angular/cli"])])],
+    [
+      {
+        kind: "flatten",
+        updateType: "minor",
+        before: {},
+        after: {},
+        merged: [{ key: "automerge" }],
+      },
+    ],
+  );
+  const bodies: unknown[] = [{}, {}, {}, {}];
+  const suggestions = probeSuggestions(sim, LAYERS);
+  expect(suggestions).not.toContain("automerge");
+  for (const query of suggestions) {
+    const results = probeRules({
+      sim,
+      layerByIndex: LAYERS,
+      descriptions: NO_DESCRIPTIONS,
+      ruleBodies: bodies,
+      query,
+    });
+    expect(results.total).toBeGreaterThan(0);
+  }
+});

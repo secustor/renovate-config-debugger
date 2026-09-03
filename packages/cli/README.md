@@ -67,19 +67,19 @@ command except `mcp` takes `--format <pretty|json>`.
 Every command that reads a config takes the same input flags. The config itself
 is a positional file path unless one of these replaces it.
 
-| flag                       | effect                                                              |
-| -------------------------- | ------------------------------------------------------------------- |
-| `--stdin`                  | read the config from stdin                                          |
-| `--file-name <name>`       | config file name, drives format detection (default `renovate.json`) |
-| `--repo <owner/repo>`      | load the config from a repository instead of a file                 |
-| `--ref <ref>`              | git ref for `--repo`                                                |
-| `--platform <name>`        | platform context for `local>` presets (default `github`)            |
-| `--endpoint <url>`         | API endpoint for the platform                                       |
-| `--platform-override`      | let `--platform`/`--endpoint` win over the global config            |
-| `--global-config <file>`   | self-hosted global config layer (JSON)                              |
-| `--inherited <file>`       | inherited config layer (JSON)                                       |
-| `--inject <preset>=<file>` | supply content for a preset no fetcher can reach (repeatable)       |
-| `--trust-endpoints`        | send host tokens even to an endpoint the config chose               |
+| flag                       | effect                                                                     |
+| -------------------------- | -------------------------------------------------------------------------- |
+| `--stdin`                  | read the config from stdin                                                 |
+| `--file-name <name>`       | config file name, drives format detection (default `renovate.json`)        |
+| `--repo <owner/repo>`      | load the config from a repository instead of a file                        |
+| `--ref <ref>`              | git ref for `--repo`                                                       |
+| `--platform <name>`        | platform context for `local>` presets (default `github`)                   |
+| `--endpoint <url>`         | API endpoint for the platform                                              |
+| `--platform-override`      | let `--platform`/`--endpoint` win over the global config (precedence only) |
+| `--global-config <file>`   | self-hosted global config layer (JSON)                                     |
+| `--inherited <file>`       | inherited config layer (JSON)                                              |
+| `--inject <preset>=<file>` | supply content for a preset no fetcher can reach (repeatable)              |
+| `--trust-endpoints`        | send host tokens even to an endpoint the config chose                      |
 
 The rest belong to one command each.
 
@@ -493,10 +493,12 @@ re-embed all of it on both sides. An append is now stated as what it appended
 back to the model and fix it" signal, so `rcd validate` drops into a
 Stop/PreToolUse hook with no wrapper around it.
 
-One exception: `compare` exits `0` whenever the comparison itself ran, even
+Two exceptions: `compare` exits `0` whenever the comparison itself ran, even
 over an input config Renovate would refuse — its verdict is the answer, and a
 `2` there read as "the comparison failed" (replay-04). The refusal is still
-reported on the output.
+reported on the output. And `extract` exits `1` when no manager section produced
+dependencies — a section that ran cleanly and simply found nothing counts —
+which is its verdict rather than anything failing to load.
 
 ## Credentials
 
@@ -516,7 +518,9 @@ the same gaps as the web app.
 A preset fetcher sends a host's token to whatever endpoint the platform context
 resolves to, and a `--global-config` sets that context. So when the config under
 inspection chooses the endpoint, the CLI withholds tokens and says so on stderr.
-`--platform-override` and `--trust-endpoints` are the two ways out.
+`--trust-endpoints` is the way out; `--platform-override` only changes which of
+the two endpoints wins, so it releases the tokens only when you named an
+`--endpoint` of your own (or the global config sets just a `platform`).
 
 ## MCP server
 

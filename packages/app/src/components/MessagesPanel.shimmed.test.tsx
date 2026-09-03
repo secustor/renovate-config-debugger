@@ -1,7 +1,7 @@
 /**
  * Roadmap 075 (iteration 5): the Problems tab as fix-it cards. The translation
- * library itself is tested in the engine (test/error-translations.node.test.ts)
- * — what this covers is the card the reader actually acts on: the tab's summary
+ * library itself is tested in the engine (`error-translations.test.ts`, next to
+ * the module) — what this covers is the card the reader acts on: the summary
  * strip, the head that names the offending option and links its docs, the
  * suggested edit as a unified −/+ strip, and the one primary button that
  * applies it (roadmap 014's flow, which must survive the restyle intact).

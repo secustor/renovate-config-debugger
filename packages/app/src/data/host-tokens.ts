@@ -90,7 +90,13 @@ export function isFetchablePlatform(value: string): value is RepoPlatform {
  * imported from the engine) because this file must stay engine-chunk-light —
  * the engine reaches the app only through the dynamic `loadEngine()` seam.
  */
-export const TREE_LISTING_PLATFORMS: ReadonlySet<RepoPlatform> = new Set<RepoPlatform>(["github"]);
+const TREE_LISTING_PLATFORMS: ReadonlySet<RepoPlatform> = new Set<RepoPlatform>(["github"]);
+
+/** The membership test above, spelled so the compiler applies it — callers
+ *  holding a bare `string` narrow instead of casting. */
+export function isTreeListingPlatform(value: string): value is RepoPlatform {
+  return (TREE_LISTING_PLATFORMS as ReadonlySet<string>).has(value);
+}
 
 /** Known public hosts → the platform that serves their repos, from the same
  *  one table (`host` is documented there as the canonical host of that id). */

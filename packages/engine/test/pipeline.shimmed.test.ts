@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { getOptionIndex, runPipeline } from "../src/index";
+import { withoutNetwork } from "./helpers";
 import { PIPELINE_CASES, pipelineFixture as fixture, pipelineSnapshotPath } from "./pipeline-cases";
 
 describe("shimmed pipeline matches golden snapshots", () => {
@@ -194,26 +195,19 @@ describe("trace shape", () => {
   });
 
   it("contains preset resolution failures as stage errors, run survives", async () => {
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = () => Promise.reject(new TypeError("simulated network failure"));
-    try {
-      const result = await runPipeline({
-        fileName: "github-preset.json",
-        content: fixture("github-preset.json"),
-      });
-      expect(result.stageStatus.preset).toBe("error");
-      expect(result.stageStatus.merge).toBe("ok");
-      expect(result.finalConfig).toBeDefined();
-      expect(result.events.some((e) => e.kind === "preset-error")).toBe(true);
-      // the failing node is marked inline; the aborted root stays labelled
-      const failing = result.presetTree?.children[0];
-      expect(failing?.name).toBe("github>example-org/renovate-config");
-      expect(failing?.state).toBe("error");
-      expect(failing?.error?.message).toBeTruthy();
-      expect(result.presetTree?.state).toBe("aborted");
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
+    const result = await withoutNetwork(() =>
+      runPipeline({ fileName: "github-preset.json", content: fixture("github-preset.json") }),
+    );
+    expect(result.stageStatus.preset).toBe("error");
+    expect(result.stageStatus.merge).toBe("ok");
+    expect(result.finalConfig).toBeDefined();
+    expect(result.events.some((e) => e.kind === "preset-error")).toBe(true);
+    // the failing node is marked inline; the aborted root stays labelled
+    const failing = result.presetTree?.children[0];
+    expect(failing?.name).toBe("github>example-org/renovate-config");
+    expect(failing?.state).toBe("error");
+    expect(failing?.error?.message).toBeTruthy();
+    expect(result.presetTree?.state).toBe("aborted");
   });
 });
 

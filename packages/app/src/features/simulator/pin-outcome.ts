@@ -8,7 +8,7 @@ import type {
 } from "@renovate-config-debugger/engine";
 import { isString, isStringArray } from "@renovate-config-debugger/engine/is";
 import { jsonText } from "@renovate-config-debugger/engine/json";
-import { nf, pluralWord } from "@/lib/format";
+import { nf, plural, pluralWord } from "@/lib/format";
 import { crossRuleIndex } from "@/lib/rule-cross-index";
 import { hasEvaluationError, isFailingClause, isNoInputNoMatch } from "@/lib/rule-verdict";
 import { buildNoInputCaveat } from "@/lib/verdict-sentence";
@@ -345,7 +345,7 @@ function familyBucket(
     return {
       key: group.name,
       label: group.name,
-      note: `${count} ${pluralWord(count, "rule")} — ${first ? failingClauseNote(first) : ""}`,
+      note: `${plural(count, "rule")} — ${first ? failingClauseNote(first) : ""}`,
       probeQuery: group.name,
     };
   });
@@ -404,16 +404,6 @@ function axisReason(rules: RuleEvaluation[]): string {
 }
 
 /**
- * The buckets, cut by REASON in the funnel's order, so the count always adds
- * up and no rule is counted twice:
- *
- *  1. monorepo-family rules (`monorepo:*` presets) — the bulk of every run,
- *  2. replacement rules (`replacements:*` presets),
- *  3. everything else that mismatched real data, by failing axis,
- *  4. the rules that failed only because a field was unset (`no-input`),
- *  5. the rules the tool could not evaluate (a matcher threw — roadmap 073).
- */
-/**
  * The no-input bucket's rows come from the engine's own per-field summary
  * (`simulate-missing-inputs.ts`) rather than a rule sample: the actionable
  * fact is WHICH unset field would buy the reader how many rules, not which
@@ -428,7 +418,7 @@ function missingInputBucket(
   const rows: PinBucketRow[] = groups.map((group) => ({
     key: group.fieldList,
     label: group.fieldList,
-    note: `${group.rules} ${pluralWord(group.rules, "rule")} read it — set it on this test to evaluate them for real (${group.selectors.join(", ")})`,
+    note: `${plural(group.rules, "rule")} read it — set it on this test to evaluate them for real (${group.selectors.join(", ")})`,
     probeQuery: group.selectors[0] ?? group.fieldList,
   }));
   const hidden = missingInputs.groups.length - groups.length;
@@ -442,6 +432,16 @@ function missingInputBucket(
   };
 }
 
+/**
+ * The buckets, cut by REASON in the funnel's order, so the count always adds
+ * up and no rule is counted twice:
+ *
+ *  1. monorepo-family rules (`monorepo:*` presets) — the bulk of every run,
+ *  2. replacement rules (`replacements:*` presets),
+ *  3. everything else that mismatched real data, by failing axis,
+ *  4. the rules that failed only because a field was unset (`no-input`),
+ *  5. the rules the tool could not evaluate (a matcher threw — roadmap 073).
+ */
 function buildBuckets(
   rules: RuleEvaluation[],
   layerByIndex: Map<number, ProvenanceLayer>,

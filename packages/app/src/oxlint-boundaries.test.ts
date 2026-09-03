@@ -14,12 +14,15 @@ import { describe, expect, it } from "vitest";
  * ban, and no bank carried the engine-root ban at all.
  *
  * The check models REPLACE directly rather than reading the banks one by one:
- * for every real source file under `packages/app/src`, work out which override
- * ACTUALLY applies (the last one that matches and sets the rule) and assert
- * that bank bans exactly what that file should be banned from. A new override
- * that forgets a group therefore fails here even though the config is valid
- * JSON, lint is green, and no import violates anything yet — which is the whole
- * failure mode, since a missing ban has zero hits by definition.
+ * for every real source file under `packages/app/src`, `packages/engine/src`
+ * AND `packages/cli/src`, work out which override ACTUALLY applies (the last
+ * one that matches and sets the rule) and assert that bank bans exactly what
+ * that file should be banned from. All three trees are here because one
+ * override — the renovate/dist fence — spans them, so they are one invariant,
+ * not three. A new override that forgets a group therefore fails here even
+ * though the config is valid JSON, lint is green, and no import violates
+ * anything yet — which is the whole failure mode, since a missing ban has zero
+ * hits by definition.
  *
  * Same family as `vitest-projects.test.ts` and `class-coverage.test.ts`: an
  * invariant the tooling expresses but cannot enforce on itself.
@@ -146,10 +149,39 @@ function effectiveBank(file: string): { override: Override; value: unknown } | u
 }
 
 const APP_SRC = "packages/app/src";
+const ENGINE_SRC = "packages/engine/src";
+const CLI_SRC = "packages/cli/src";
 
-const sourceFiles = readdirSync(srcDir, { recursive: true, encoding: "utf8" })
-  .filter((name) => /\.tsx?$/.test(name))
-  .map((name) => `${APP_SRC}/${name.split("\\").join("/")}`);
+/** Every `.ts`/`.tsx` under `absDir`, as repo-relative posix paths. */
+function filesUnder(absDir: string, repoPrefix: string): string[] {
+  return readdirSync(absDir, { recursive: true, encoding: "utf8" })
+    .filter((name) => /\.tsx?$/.test(name))
+    .map((name) => `${repoPrefix}/${name.split("\\").join("/")}`);
+}
+
+const sourceFiles = filesUnder(srcDir, APP_SRC);
+const engineFiles = filesUnder(join(repoRoot, ENGINE_SRC), ENGINE_SRC);
+const cliFiles = filesUnder(join(repoRoot, CLI_SRC), CLI_SRC);
+
+/** The renovate/dist ledger: the two named files plus the ambient declarations,
+ *  the only places allowed to deep-import renovate. */
+const ADAPTER = `${ENGINE_SRC}/renovate-adapter.ts`;
+const INTERNALS = `${ENGINE_SRC}/shims/renovate-internals.ts`;
+
+/** Engine files carry the renovate/dist fence and nothing else — the app-side
+ *  banks are scoped to `packages/app/src/**` by a ruling the config records. */
+function expectedEngineBoundaries(file: string): Set<Boundary> {
+  if (file === ADAPTER || file === INTERNALS || file.startsWith(`${ENGINE_SRC}/types/`)) {
+    return new Set<Boundary>();
+  }
+  return new Set<Boundary>(["RENOVATE_DIST"]);
+}
+
+/** The CLI carries the fence with no ledger of its own — nothing there may
+ *  deep-import renovate, colocated tests included. */
+function expectedCliBoundaries(): Set<Boundary> {
+  return new Set<Boundary>(["RENOVATE_DIST"]);
+}
 
 /** The one file allowed to reach the engine root at runtime (`loadEngine()`). */
 const ENGINE_CHUNK = `${APP_SRC}/platform/engine-chunk.ts`;
@@ -189,25 +221,35 @@ function expectedBoundaries(file: string): Set<Boundary> {
 }
 
 describe("oxlint import boundaries", () => {
-  it("finds the source tree and the config", () => {
+  it("finds the source trees and the config", () => {
     expect(sourceFiles.length).toBeGreaterThan(100);
+    expect(engineFiles.length).toBeGreaterThan(20);
+    expect(cliFiles.length).toBeGreaterThan(20);
     expect(overrides.length).toBeGreaterThan(5);
-    // The three exemption sites still exist under the names the config pins.
+    // The exemption sites still exist under the names the config pins — a
+    // rename would otherwise satisfy the expectation while the config's
+    // exemption points at nothing.
     expect(sourceFiles).toContain(ENGINE_CHUNK);
     expect(sourceFiles).toContain(ZOD_SITE);
     expect(sourceFiles).toContain(SCHEMA_SITE);
+    expect(engineFiles).toContain(ADAPTER);
+    expect(engineFiles).toContain(INTERNALS);
   });
 
-  it("every app source file's EFFECTIVE bank bans exactly what it should", () => {
+  it("every fenced source file's EFFECTIVE bank bans exactly what it should", () => {
     const wrong: string[] = [];
-    for (const file of sourceFiles) {
+    const fenced = [
+      ...sourceFiles.map((file) => ({ file, expected: expectedBoundaries(file) })),
+      ...engineFiles.map((file) => ({ file, expected: expectedEngineBoundaries(file) })),
+      ...cliFiles.map((file) => ({ file, expected: expectedCliBoundaries() })),
+    ];
+    for (const { file, expected } of fenced) {
       const bank = effectiveBank(file);
       if (!bank) {
         wrong.push(`${file}: no override sets no-restricted-imports`);
         continue;
       }
       const actual = boundariesOf(bank.value);
-      const expected = expectedBoundaries(file);
       const missing = [...expected].filter((b) => !actual.has(b));
       const extra = [...actual].filter((b) => !expected.has(b));
       if (missing.length || extra.length) {

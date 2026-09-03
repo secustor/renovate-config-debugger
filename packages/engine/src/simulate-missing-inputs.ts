@@ -35,10 +35,10 @@ import { countNoun } from "./text";
  * of anything Renovate-touching here would silently re-weld it.
  *
  * The app has a narrower cousin, `buildNoInputCaveat`
- * (`features/simulator/verdict-sentence.ts`), which counts only REPO-config
- * rules via `ruleAttribution`. It is deliberately not the same number — a
- * naive swap would fire on every `config:best-practices` run — so it keeps its
- * scoping and is not folded in here.
+ * (`lib/verdict-sentence.ts`), which counts only REPO-config rules via
+ * `ruleAttribution`. It is deliberately not the same number — a naive swap
+ * would fire on every `config:best-practices` run — so it keeps its scoping
+ * and is not folded in here.
  */
 
 /** Whether a clause fails its rule (as opposed to the neutral
@@ -113,7 +113,7 @@ const NAMED_GROUPS = 3;
 const SAMPLE_LIMIT = 5;
 
 function buildNote(total: number, ruleCount: number, groups: MissingInputGroup[]): string {
-  const scope = `${ruleCount} of ${total} ${total === 1 ? "rule" : "rules"} could not match because `;
+  const scope = `${ruleCount} of ${countNoun(total, "rule")} could not match because `;
   const tail =
     " — Renovate treats a missing value as a non-match. " +
     `Set ${groups.length === 1 ? groups[0]?.fieldList : "them"} on the dependency if you ` +
@@ -222,7 +222,7 @@ const MESSAGE_LIMIT = 5;
 
 function buildErrorNote(total: number, ruleCount: number, selectors: string[]): string {
   const scope =
-    `${ruleCount} of ${total} ${total === 1 ? "rule" : "rules"} could not be EVALUATED: ` +
+    `${ruleCount} of ${countNoun(total, "rule")} could not be EVALUATED: ` +
     `${selectors.map((selector) => `\`${selector}\``).join(", ")} threw`;
   return (
     `${scope}. The tool could not evaluate ${ruleCount === 1 ? "this rule" : "these rules"}, so ` +

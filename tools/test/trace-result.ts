@@ -1,8 +1,9 @@
 /**
- * A resolved `TraceResult` for the suites that need a run's IDENTITY rather
- * than its contents — the share-link hook and the simulator request it feeds.
- * Both spelled the same 23-line literal out, in layers that may not import each
- * other, so a field added to the engine's type meant editing both.
+ * A resolved `TraceResult` for the suites that need a run's IDENTITY (the
+ * share-link hook, the simulator request it feeds) or a clean baseline to vary
+ * one field of (`lib/run-facts.test.ts`). The first two each spelled the same
+ * 23-line literal out, in layers that may not import each other, so a field
+ * added to the engine's type meant editing both.
  *
  * A fresh object per call: which run an assertion is looking at is the whole
  * point of the suites that use it.

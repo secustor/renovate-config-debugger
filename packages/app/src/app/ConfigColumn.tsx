@@ -256,7 +256,13 @@ export function ConfigColumn({
           onSignIn={onSignIn}
         />
       ) : null}
-      {notice ? <NoticeBar message={notice} onDismiss={onDismissNotice} /> : null}
+      {/* Always mounted for the same reason the `role="alert"` wrapper above is
+          — a failed Share copy is Safari's ordinary outcome (082), and a region
+          mounted with its own message announces nothing. */}
+      {/* oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- `<output>` is wrong here for the reason `StaleResultsBanner` records (form-associated, patchier implicit-live-region support) and once more besides: its content model is phrasing only, and this region holds a `<p>` and a dismiss `<button>`. */}
+      <div role="status">
+        {notice ? <NoticeBar message={notice} onDismiss={onDismissNotice} /> : null}
+      </div>
 
       {/* The landing trio, under ONE guard: they appear and disappear together
           (that IS the landing), so three copies of the same condition only

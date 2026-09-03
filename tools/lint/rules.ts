@@ -1,6 +1,9 @@
 import { definePlugin } from "@oxlint/plugins";
+import commentCitesWhatExists from "./rules/comment-cites-what-exists.ts";
 import noUncaughtVoidChain from "./rules/no-uncaught-void-chain.ts";
+import noUnsynchronisedReassert from "./rules/no-unsynchronised-reassert.ts";
 import preferIsHelpers from "./rules/prefer-is-helpers.ts";
+import preferPlural from "./rules/prefer-plural.ts";
 import useErrorMessage from "./rules/use-error-message.ts";
 import useGotoAppHelper from "./rules/use-goto-app-helper.ts";
 import useJsonHelpers from "./rules/use-json-helpers.ts";
@@ -24,9 +27,10 @@ import useTruncate from "./rules/use-truncate.ts";
  *       fix is not an import: the construct itself is defective wherever it
  *       appears, it shipped that way, and the diagnostic names the correction.
  *
- * Eight of the nine clear (a). `no-uncaught-void-chain` alone clears (b) — it
- * bans a construct and names no import. Say which arm a new rule is on when you
- * add one.
+ * Nine of the twelve clear (a). Three clear (b): `no-uncaught-void-chain`, which
+ * bans a construct and names no import, and the two the third sweep added,
+ * which name a correction instead of a ban. Say which arm a new rule is on when
+ * you add one.
  *
  * ARM (b) IS A HOLDING PEN, NOT A DESTINATION. PR 316's review made that
  * explicit: a rule that says "stop doing X" without naming where to go is a rule
@@ -73,6 +77,38 @@ import useTruncate from "./rules/use-truncate.ts";
  * `typeof x === "<literal>"` comparisons, twelve `typeof … && x !== ""`
  * composites and four un-narrowable `.filter(Boolean)` calls.
  *
+ * The 2026-09 structure sweep III added three more. `prefer-plural` (arm a) is
+ * the move done in the preferred order: the home — `plural(n, word)` in
+ * `packages/app/src/lib/format.ts` — was built first, and its docblock already
+ * stated the charter the tree was not keeping ("the count is ALWAYS formatted
+ * through `nf`"). The defect shipped as raw counts in `JsonDiff`'s footer
+ * (sweep finding 27, fixed in 7619e7bb); 27b81f43 then swept the ad-hoc
+ * `rule{s}` spellings onto `plural`/`pluralWord` and left seventeen
+ * `{n} {pluralWord(n, word)}` pairs behind — each trivially correct on its own,
+ * and every one of them a `plural` added to an `@/lib/format` import the module
+ * already had (one, `CascadeStack`, was importing `plural` on the same line
+ * already). That is the invisible-in-review condition, empirically.
+ * Landing the rule REMOVED the duplicate: all seventeen are converted here.
+ *
+ * The other two are on (b), and both are the holding pen used the way the
+ * paragraph above asks — a named correction, not a stop sign.
+ * `no-unsynchronised-reassert` guards a defect that shipped six times over: a
+ * Playwright assertion re-stating a claim that was already true resolves on its
+ * first poll against the pre-interaction page, so the test cannot fail for the
+ * reason it names. `e2e/helpers.ts`'s `expectRunIdle` docblock had already
+ * written the principle down and 335a72ce fixed two by hand; the diagnostic
+ * names the sequencing fix, and enabling it forced six more. It is enabled only
+ * on `packages/app/e2e/*.spec.ts`, for `use-goto-app-helper`'s recorded reason.
+ * `comment-cites-what-exists` is the first arm-(b) rule that names a
+ * DESTINATION: six of the twenty-three sweep findings were a docblock citing a
+ * file that never existed or naming the file a symbol lives in after the symbol
+ * moved (fixed across a721e15f and 7619e7bb), so it resolves both ends of a
+ * citation against the real tree and its message says which file DOES define
+ * the symbol. Two message ids in one file on purpose — the arms share one repo
+ * file index, one `getAllComments()` pass and one comment normalization, and
+ * two files would walk the filesystem twice. It is the only house rule that
+ * touches the filesystem; the walk is memoized once per lint process.
+ *
  * WHAT IS DELIBERATELY NOT HERE. On arm (a), a rule is the right tool only when
  * the duplicate cannot be REMOVED. The review also found a message phrase the
  * engine produces and the app matches; the first instinct was a rule banning
@@ -92,8 +128,11 @@ export default definePlugin({
     name: "rcd",
   },
   rules: {
+    "comment-cites-what-exists": commentCitesWhatExists,
     "no-uncaught-void-chain": noUncaughtVoidChain,
+    "no-unsynchronised-reassert": noUnsynchronisedReassert,
     "prefer-is-helpers": preferIsHelpers,
+    "prefer-plural": preferPlural,
     "use-error-message": useErrorMessage,
     "use-goto-app-helper": useGotoAppHelper,
     "use-json-helpers": useJsonHelpers,

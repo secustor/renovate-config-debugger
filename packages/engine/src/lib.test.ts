@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { snapshot } from "./lib";
+import { deepEqual, snapshot } from "./lib";
 import { diffKeys } from "./simulate-package-rules";
 
 describe("diffKeys", () => {
@@ -19,6 +19,27 @@ describe("diffKeys", () => {
     expect(diffKeys({ constraints: { a: 1, b: 2 } }, { constraints: { b: 2, a: 1 } })).toEqual([
       { key: "constraints", before: { a: 1, b: 2 }, after: { b: 2, a: 1 } },
     ]);
+  });
+});
+
+describe("deepEqual", () => {
+  /** The counterpart half of `json.test.ts`'s order-sensitivity tripwire: the
+   *  same literal pair `jsonEqual` reports as unequal. */
+  it("is order-INSENSITIVE over object keys", () => {
+    expect(deepEqual({ a: 1, b: 2 }, { b: 2, a: 1 })).toBe(true);
+  });
+
+  it("recurses into arrays by element, and compares length", () => {
+    expect(deepEqual([1, 2], [1, 2])).toBe(true);
+    expect(deepEqual([1, 2], [1, 2, 3])).toBe(false);
+    expect(deepEqual([{ a: 1 }], [{ a: 1 }])).toBe(true);
+    expect(deepEqual([{ a: 1 }], [{ a: 2 }])).toBe(false);
+  });
+
+  // The only input that tells the `hasOwnProperty` guard apart from its
+  // absence: without it both sides reach `deepEqual(undefined, undefined)`.
+  it("does not treat an explicitly-undefined key as matching a missing one", () => {
+    expect(deepEqual({ x: undefined }, { y: 1 })).toBe(false);
   });
 });
 

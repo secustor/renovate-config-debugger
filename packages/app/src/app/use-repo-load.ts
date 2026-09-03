@@ -26,7 +26,12 @@ import { HOST_PLATFORM, isFetchablePlatform } from "@/data/host-tokens";
 import { isGithubRateLimited } from "@/lib/github-failure";
 import { isValidRepoHost, isValidRepoRefPart } from "@/lib/input-schemas";
 import { configFileNameFor, parseRepoReference } from "@/lib/repo-reference";
-import type { ShareFileName, UntrustedEndpointGuard } from "@/lib/share";
+import {
+  type ShareFileName,
+  type UntrustedEndpointGuard,
+  untrustedEndpointsFor,
+  untrustedGuardForPolicy,
+} from "@/lib/share";
 import { extractPackageJsonConfig, loadRepoConfig, loadRepoFile } from "@/platform/run";
 import type { RunInputs } from "@/lib/run-inputs";
 import { causedErrorMessage } from "@/lib/errors";
@@ -251,14 +256,42 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
     if (blockedByLayerErrors()) {
       return;
     }
-    // Security 2026-07-25: a load from a KNOWN host replaces the platform
-    // context with that host's shipped default, so it ends a link's guard —
-    // nothing untrusted is left in force. A bare `owner/repo` load reuses the
-    // current endpoint, which may be exactly the host the link chose, so it
-    // stays suppressed (both for the file probe and the run that follows).
-    const suppressTokens = !knownHost && untrustedGuardRef.current !== null;
-    if (knownHost) {
-      applyUntrustedGuard(null);
+    // Security 2026-07-25: a load from a KNOWN host replaces the TOOLBAR's
+    // platform context, but a link's 008 global layer is still in the editor
+    // and still wins the engine's resolution — so the guard is re-derived from
+    // the endpoints this load's run would actually apply, and ends only if none
+    // of them is untrusted. A bare `owner/repo` load reuses the current
+    // endpoint, which may be the host the link chose.
+    // One flag for the whole load: file probe, inherited probe, the run, and
+    // the provenance record `onRepoLoaded` keeps (087).
+    const runEndpoint = repoEndpoint || endpoint;
+    const standingGuard = untrustedGuardRef.current;
+    let suppressTokens = standingGuard !== null;
+    let nextGuard = standingGuard;
+    if (knownHost && standingGuard !== null) {
+      const surviving = untrustedEndpointsFor({
+        platform: repoPlatform,
+        endpoint: runEndpoint,
+        globalConfig,
+        platformOverride,
+      });
+      const rederived = untrustedGuardForPolicy({
+        endpoint: runEndpoint,
+        untrustedEndpoints: surviving,
+      });
+      // The acknowledgement carries over only while every surviving host was
+      // already named by the guard the user clicked past; a host that was not
+      // (the global layer was hand-edited since) raises the banner again.
+      nextGuard =
+        rederived === null
+          ? null
+          : {
+              ...rederived,
+              acknowledged:
+                standingGuard.acknowledged &&
+                rederived.endpoints.every((url) => standingGuard.endpoints.includes(url)),
+            };
+      suppressTokens = surviving.length > 0;
     }
     setRepoLoading(true);
     setFatal(null);
@@ -312,6 +345,12 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
       const nextFileName: ShareFileName = configFileNameFor(loaded.fileName);
       if (knownHost) {
         applyPlatformContext(repoPlatform, repoEndpoint, { persist: true });
+        // The guard describes the platform context in force, so it may only be
+        // relaxed where that context actually changes: a load that failed above
+        // left the link's endpoint live, and must leave its guard standing too.
+        if (standingGuard !== null) {
+          applyUntrustedGuard(nextGuard);
+        }
       }
       loadConfigText(loaded.content);
       setFileName(nextFileName);
@@ -350,7 +389,7 @@ export function useRepoLoad(host: RepoLoadHost): RepoLoad {
           fileName: nextFileName,
           content: loaded.content,
           platform: repoPlatform,
-          endpoint: repoEndpoint || endpoint,
+          endpoint: runEndpoint,
           globalConfig,
           inheritedConfig: inheritedForRun,
           platformOverride,

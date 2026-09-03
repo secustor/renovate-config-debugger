@@ -282,14 +282,22 @@ async function forwardToGitHub(
       body: params.toString(),
     });
   } catch {
-    return jsonResponse({ error: "github_unreachable" }, 502, origin);
+    return jsonResponse(
+      { error: "github_unreachable", error_description: "could not reach GitHub" },
+      502,
+      origin,
+    );
   }
 
   let payload: unknown;
   try {
     payload = await ghRes.json();
   } catch {
-    return jsonResponse({ error: "github_bad_response" }, 502, origin);
+    return jsonResponse(
+      { error: "github_bad_response", error_description: "GitHub's reply was not JSON" },
+      502,
+      origin,
+    );
   }
 
   const record =
@@ -412,7 +420,14 @@ export async function handleRequest(req: Request, env: Env): Promise<Response> {
 
   // Every real request must come from an allow-listed browser origin.
   if (!origin) {
-    return jsonResponse({ error: "origin_not_allowed" }, 403, null);
+    return jsonResponse(
+      {
+        error: "origin_not_allowed",
+        error_description: "this origin is not on the Worker's allow-list",
+      },
+      403,
+      null,
+    );
   }
 
   const url = new URL(req.url);
@@ -429,7 +444,11 @@ export async function handleRequest(req: Request, env: Env): Promise<Response> {
   if (req.method === "POST" && path === "/logout") {
     return handleLogout(origin, mount, cookies);
   }
-  return jsonResponse({ error: "not_found" }, 404, origin);
+  return jsonResponse(
+    { error: "not_found", error_description: "no endpoint at this path" },
+    404,
+    origin,
+  );
 }
 
 export default {

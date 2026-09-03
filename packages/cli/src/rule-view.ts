@@ -101,7 +101,8 @@ export interface RuleView {
   rule?: number;
   /** Which surface's spelling the notes speak. */
   transport: RunTransport;
-  /** Diagnostics for stderr — e.g. `--source` asked for with no provenance. */
+  /** Diagnostics about the view itself — e.g. `--source` asked for with no
+   *  provenance; printed by the CLI and appended to the payload's `notes`. */
   notes: string[];
   /**
    * Per-rule attribution for the run behind this simulation (roadmap 071), or

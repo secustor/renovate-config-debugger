@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { renovateShims } from "@renovate-config-debugger/engine/vite-plugin";
+import { RENOVATE_INLINE, renovateShims } from "@renovate-config-debugger/engine/vite-plugin";
 import { defineConfig } from "vitest/config";
 
 const srcAlias = { "@": fileURLToPath(new URL("../app/src", import.meta.url)) };
@@ -44,9 +44,7 @@ export default defineConfig({
           // the first test to resolve a large internal preset pays the lazy
           // transform+import of renovate's preset data modules
           testTimeout: 60_000,
-          // The renovate PACKAGE's store path, not the bare word — this repo's
-          // own absolute path contains "renovate" (see the engine's config).
-          server: { deps: { inline: [/node_modules\/(\.pnpm\/)?renovate[@/]/] } },
+          server: { deps: { inline: [...RENOVATE_INLINE] } },
         },
       },
       {
@@ -67,7 +65,7 @@ export default defineConfig({
           include: ["../engine/test/*.shimmed.test.ts", "test/bundle/*.test.ts"],
           environment: "node",
           testTimeout: 60_000,
-          server: { deps: { inline: [/node_modules\/(\.pnpm\/)?renovate[@/]/] } },
+          server: { deps: { inline: [...RENOVATE_INLINE] } },
         },
       },
     ],

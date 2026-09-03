@@ -56,7 +56,7 @@ export function walkFile(
   managers: string[],
   over: Partial<RepoDepFile> = {},
 ): RepoDepFile {
-  return { path, managers, extractedBy: null, depCount: 0, outcome: "not-read", ...over };
+  return { path, managers, depCount: 0, outcome: "not-read", ...over };
 }
 
 /**
@@ -77,12 +77,10 @@ export function readyView(
     deps: [...deps],
     files: [
       walkFile("package.json", ["npm"], {
-        extractedBy: "npm",
         depCount: countIn("package.json"),
         outcome: "extracted",
       }),
       walkFile("Dockerfile", ["dockerfile"], {
-        extractedBy: "dockerfile",
         depCount: countIn("Dockerfile"),
         outcome: "extracted",
       }),

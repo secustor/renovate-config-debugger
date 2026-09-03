@@ -28,7 +28,7 @@ import type { RepoPickerView } from "@/types/repo";
 /** The form's whole prop contract. Exported because `RepoLoadOverlay` is the
  *  only way this form is mounted and passes every one of these straight
  *  through — the contract is stated once, here. */
-export interface Props {
+export interface RepoLoadFormProps {
   repo: string;
   onRepoChange: (value: string) => void;
   gitRef: string;
@@ -67,7 +67,7 @@ export function RepoLoadForm({
   onInheritFileChange,
   picker,
   pickerUser,
-}: Props) {
+}: RepoLoadFormProps) {
   const firstFieldRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {

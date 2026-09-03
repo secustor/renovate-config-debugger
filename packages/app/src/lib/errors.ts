@@ -1,3 +1,5 @@
+import { isString } from "@renovate-config-debugger/engine/is";
+
 /**
  * Turning a caught `unknown` into something a person can read.
  *
@@ -28,9 +30,10 @@ export function errorMessage(err: unknown): string {
  * and the dependency discovery all read the inner one, and all three
  * previously spelled the `?.` chain themselves.
  *
- * Falls back to {@link errorMessage}, so a plain Error still reports normally.
+ * Falls back to {@link errorMessage}, so a plain Error still reports normally —
+ * and so does a wrapper whose nested `message` is not a string.
  */
 export function causedErrorMessage(err: unknown): string {
-  const cause = (err as { err?: { message?: string } } | null)?.err?.message;
-  return cause ?? errorMessage(err);
+  const cause = (err as { err?: { message?: unknown } } | null)?.err?.message;
+  return isString(cause) ? cause : errorMessage(err);
 }

@@ -1,4 +1,4 @@
-import { defineRule } from "@oxlint/plugins";
+import { defineRule, type ESTree } from "@oxlint/plugins";
 
 /**
  * The two-line "land on the app and wait for the default config to be in the
@@ -40,47 +40,40 @@ const DEFAULT_CONFIG_MARKER = "config:recommended";
 /** The `const editor = …` at 12-layout-regressions.spec.ts is one such gap. */
 const WINDOW = 3;
 
-type Node = { type: string };
-type Call = Node & {
-  callee?: Node & { computed?: boolean; property?: Node & { name?: string } };
-  arguments?: (Node & { value?: unknown })[];
-};
-
 /** The arguments of `<obj>.<method>(…)` as a statement, `await` or not. */
 function methodCallArguments(
-  statement: Node & { expression?: unknown },
+  statement: ESTree.Statement,
   method: string,
-): (Node & { value?: unknown })[] | undefined {
+): ESTree.CallExpression["arguments"] | undefined {
   if (statement.type !== "ExpressionStatement") {
     return undefined;
   }
-  const expression = statement.expression as Node & { argument?: unknown };
-  const call = (expression.type === "AwaitExpression" ? expression.argument : expression) as Call;
-  if (call?.type !== "CallExpression") {
+  const expression = statement.expression;
+  const call = expression.type === "AwaitExpression" ? expression.argument : expression;
+  if (call.type !== "CallExpression") {
     return undefined;
   }
   const callee = call.callee;
   if (
-    callee?.type !== "MemberExpression" ||
+    callee.type !== "MemberExpression" ||
     callee.computed ||
-    callee.property?.type !== "Identifier" ||
+    callee.property.type !== "Identifier" ||
     callee.property.name !== method
   ) {
     return undefined;
   }
-  return call.arguments ?? [];
+  return call.arguments;
 }
 
 /** `await page.goto("/")` — the app root, never a share fragment. */
-function isAppRootGoto(statement: Node): boolean {
+function isAppRootGoto(statement: ESTree.Statement): boolean {
   const args = methodCallArguments(statement, "goto");
   return args?.length === 1 && args[0]?.type === "Literal" && args[0].value === APP_ROOT;
 }
 
 /** `await expect(<locator>).toContainText("config:recommended")` */
-function isDefaultConfigWait(statement: Node): boolean {
-  const args = methodCallArguments(statement, "toContainText");
-  const [first] = args ?? [];
+function isDefaultConfigWait(statement: ESTree.Statement): boolean {
+  const [first] = methodCallArguments(statement, "toContainText") ?? [];
   return first?.type === "Literal" && first.value === DEFAULT_CONFIG_MARKER;
 }
 

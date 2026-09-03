@@ -23,8 +23,10 @@ afterEach(() => {
 
 function stubFetch(
   impl: (url?: unknown, init?: { headers?: Record<string, string> }) => Promise<Response>,
-): void {
-  globalThis.fetch = vi.fn(impl) as unknown as typeof fetch;
+) {
+  const mock = vi.fn(impl);
+  globalThis.fetch = mock as unknown as typeof fetch;
+  return mock;
 }
 
 async function messageOf(request: Parameters<typeof hostFetch>[0]): Promise<string> {
@@ -38,13 +40,11 @@ async function messageOf(request: Parameters<typeof hostFetch>[0]): Promise<stri
 }
 
 /**
- * These two messages cross the package boundary as TEXT: the app regexes them
- * (packages/app/src/features/presets/tree-shared.ts and
- * packages/app/src/app/use-repo-load.ts) to tell an auth/rate-limit failure
- * apart from a missing preset. Nothing fails if the wording drifts — the app
- * just silently stops offering sign-in — so they are pinned in full here.
+ * The two tails themselves live in `../../contracts` and cannot drift; what is
+ * pinned here is the sentence the shim assembles around them — label, HTTP
+ * status, shown endpoint, and where the tail sits in it.
  */
-describe("hostFetch error messages (load-bearing verbatim)", () => {
+describe("hostFetch error messages (assembled shape)", () => {
   it("names the endpoint and the CORS cause when fetch() rejects", async () => {
     stubFetch(() => Promise.reject(new Error("Failed to fetch")));
     const message = await messageOf({
@@ -73,7 +73,7 @@ describe("hostFetch error messages (load-bearing verbatim)", () => {
       expect(message).toBe(
         `GitHub API rejected the request (HTTP ${status}) — rate limit or missing token`,
       );
-      // the exact predicate the app applies
+      // the fragment `packages/app/src/lib/github-failure.ts` matches on
       expect(/rate limit or missing token/i.test(message)).toBe(true);
     }
   });
@@ -195,8 +195,7 @@ describe("hostFetch 401 recovery", () => {
 
   it("throws the standard error when the handler declines, without a retry", async () => {
     setPresetAuth({ githubToken: "revoked" });
-    const fetchMock = vi.fn(() => Promise.resolve(new Response("nope", { status: 401 })));
-    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    const fetchMock = stubFetch(() => Promise.resolve(new Response("nope", { status: 401 })));
     setAuthRefreshHandler(() => Promise.resolve(false));
 
     const message = await messageOf({ ...request, headers: authHeadersFor("github", request.url) });
@@ -208,8 +207,7 @@ describe("hostFetch 401 recovery", () => {
 
   it("retries at most once even when the host keeps answering 401", async () => {
     setPresetAuth({ githubToken: "revoked" });
-    const fetchMock = vi.fn(() => Promise.resolve(new Response("nope", { status: 401 })));
-    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    const fetchMock = stubFetch(() => Promise.resolve(new Response("nope", { status: 401 })));
     const handler = vi.fn(() => {
       setPresetAuth({ githubToken: "fresh" });
       return Promise.resolve(true);

@@ -53,8 +53,8 @@ export function useSimulatorDrawers(): SimulatorDrawers {
   // runs against the closed-drawer document height and gets clamped, so from
   // near the bottom of the page it is a visual no-op. Defer the scroll until
   // the commit where the body exists (same pending-target idiom as
-  // `focusKey` in use-thread-nav.ts) — which is also the commit where a stop's
-  // own element exists to be scrolled to.
+  // `focusRequest` in use-thread-nav.ts) — which is also the commit where a
+  // stop's own element exists to be scrolled to.
   //
   // The request is a fresh OBJECT per jump rather than a name the effect clears
   // once it has scrolled: identity is what makes two jumps to the same drawer

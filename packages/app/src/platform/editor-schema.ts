@@ -21,7 +21,7 @@ import { isString } from "@renovate-config-debugger/engine/is";
 import { renovateSchema } from "@renovate-config-debugger/engine/schema";
 import type { PresetNodeState } from "@renovate-config-debugger/engine";
 import type { PresetHoverContext, PresetHoverInfo } from "@/lib/preset-hover";
-import { pluralWord } from "@/lib/format";
+import { plural } from "@/lib/format";
 
 const STRING_RE = /"(?:[^"\\]|\\.)*"/g;
 
@@ -79,10 +79,10 @@ function presetCard(info: PresetHoverInfo, onSelectPreset: (nodeId: string) => v
   const desc = document.createElement("p");
   const contribs: string[] = [];
   if (info.optionCount > 0) {
-    contribs.push(`${info.optionCount} ${pluralWord(info.optionCount, "option")}`);
+    contribs.push(plural(info.optionCount, "option"));
   }
   if (info.ruleCount > 0) {
-    contribs.push(`${info.ruleCount} ${pluralWord(info.ruleCount, "packageRule")}`);
+    contribs.push(plural(info.ruleCount, "packageRule"));
   }
   const summary =
     info.state === "resolved" && contribs.length > 0

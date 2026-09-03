@@ -13,11 +13,12 @@
  * both sides import it: the shim builds its message with it, the app builds its
  * matcher from it. There is no second copy to drift from.
  *
- * WHY THIS MODULE HAS NO IMPORTS, and must not gain any. It is reachable from
- * the app through the `./contracts` subpath, and the app must never pull the
- * Renovate graph onto a static import path (see `lib/rule-verdict.ts` and the
- * engine-root ban in `.oxlintrc.json`). Constants only, so the subpath's whole
- * runtime cost is this file.
+ * WHY THIS MODULE HAS NO IMPORTS — `test/import-free-subpaths.node.test.ts`
+ * holds it to that, the same way this file replaces the banner it describes
+ * above. It is reachable from the app through the `./contracts` subpath, and
+ * the app must never pull the Renovate graph onto a static import path (see
+ * `lib/rule-verdict.ts` and the engine-root ban in `.oxlintrc.json`).
+ * Constants only, so the subpath's whole runtime cost is this file.
  *
  * Not a separate workspace package, deliberately: the app already depends on
  * the engine, and the contract flows the same way the dependency does —

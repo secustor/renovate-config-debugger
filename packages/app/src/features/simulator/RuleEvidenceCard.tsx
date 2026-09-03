@@ -13,7 +13,7 @@ import { RULE_POP_CLASS, RULE_POP_SELECTOR } from "./rule-pop-dom";
 import { ruleAppliedMarkdown, ruleVerdictLabel, writeMark } from "./rule-format";
 import type { RuleEvidence, RuleWrite } from "./rule-evidence";
 import { WriteRow } from "./WriteRow";
-import { pluralWord } from "@/lib/format";
+import { plural } from "@/lib/format";
 import { RULE_INDEX_TITLE, ruleRef } from "@/lib/rule-ref";
 
 /**
@@ -71,7 +71,7 @@ const SELECTED_TAB_SELECTOR = '[role="tab"][aria-selected="true"]';
  * ONE losing rule, and the pointer could never produce two of them. Evicting
  * the previous card makes both input modalities the same state, which is also
  * how the glossary keeps a single hover card (`activeHide` in
- * `components/glossary.tsx`).
+ * `components/hover-card-hooks.ts`).
  */
 let openCard: (() => void) | null = null;
 
@@ -150,8 +150,7 @@ function RuleEvidenceSummary({ evidence }: { evidence: RuleEvidence }) {
   const { writes, survivedCount } = evidence;
   return (
     <p className="sim-rule-pop-line">
-      merged in {evidence.stopLabel} — {writes.length} {pluralWord(writes.length, "write")},{" "}
-      {survivedCount} survived
+      merged in {evidence.stopLabel} — {plural(writes.length, "write")}, {survivedCount} survived
     </p>
   );
 }

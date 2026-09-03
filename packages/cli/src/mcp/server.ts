@@ -533,7 +533,7 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         globalConfig: z
           .record(z.string(), z.unknown())
           .optional()
-          .describe("Self-hosted global config layer (roadmap 008)."),
+          .describe("Self-hosted global config layer."),
         inheritedConfig: z
           .record(z.string(), z.unknown())
           .optional()
@@ -553,7 +553,12 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         platformOverride: z
           .boolean()
           .optional()
-          .describe("Let platform/endpoint here win over the global config's own values."),
+          .describe(
+            "Let platform/endpoint here win over the global config's own values. It never " +
+              "unlocks an `endpoint` you set here — only `trustEndpoints` does that — but " +
+              "against a global config that sets just a `platform` it does release this " +
+              "server's host tokens, since requests then go to that platform's public default.",
+          ),
         trustEndpoints: z
           .boolean()
           .optional()
@@ -574,7 +579,10 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
           // The endpoint arrived as a tool PARAMETER: over MCP that is the
           // model's choice, not the user's, and the model may have read it out
           // of the config it is inspecting. Same guard, one layer earlier.
-          ...(args.endpoint ? { callerEndpoint: args.endpoint } : {}),
+          // `ownEndpoint` is the same value for the global-config branch, which
+          // asks whether `platformOverride` can move the destination at all —
+          // here the guard above already suppressed, so it never releases.
+          ...(args.endpoint ? { callerEndpoint: args.endpoint, ownEndpoint: args.endpoint } : {}),
         },
         "mcp",
       );
@@ -813,7 +821,11 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         includeDefaults: includeDefaults ?? false,
         transport: "mcp",
       });
-      return { mode: answered.mode, ...answered.output };
+      return {
+        mode: answered.mode,
+        includeDefaults: answered.includeDefaults,
+        ...answered.output,
+      };
     }, HINTS.resolved),
   );
 
@@ -908,11 +920,7 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
         ruleView: view,
         ...(keys ? { keys } : {}),
       });
-      return {
-        dep: toDependency(dep),
-        ...payload,
-        ...(view.notes.length > 0 ? { filterNotes: view.notes } : {}),
-      };
+      return { dep: toDependency(dep), ...payload };
     }, HINTS.simulate),
   );
 

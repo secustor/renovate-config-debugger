@@ -399,6 +399,17 @@ export interface ShareRunPolicy {
 }
 
 /**
+ * The platform context a run resolves from — the fields a share payload and a
+ * repo load both carry, so the helpers below can judge either.
+ */
+export interface RunPlatformContext {
+  platform?: string;
+  endpoint?: string;
+  globalConfig?: Record<string, unknown>;
+  platformOverride?: boolean;
+}
+
+/**
  * Mirrors the engine's `resolvePlatformContext` (packages/engine/src/pipeline.ts)
  * exactly — including the rule that the GLOBAL config layer's platform/endpoint
  * WIN over the payload's top-level ones unless `platformOverride` is set, and
@@ -406,7 +417,7 @@ export interface ShareRunPolicy {
  * one. Kept in sync by construction: any divergence here would make the app
  * warn about a different host than the run actually contacts.
  */
-function resolveEffectivePlatformContext(payload: SharePayload): {
+function resolveEffectivePlatformContext(payload: RunPlatformContext): {
   platform: string;
   endpoint: string;
   globalEndpoint: string | undefined;
@@ -432,23 +443,34 @@ function resolveEffectivePlatformContext(payload: SharePayload): {
 }
 
 /**
- * The token/persistence policy for opening a decoded payload. Pure —
- * `use-share-link.ts`'s `loadShareToken` supplies the payload and applies the
- * outcome, so the decision itself is unit-testable without a browser.
+ * Every endpoint this context would APPLY that is not a trusted public host —
+ * deduped, in the order encountered, the effective one first. Not only the
+ * winning one: a top-level endpoint lands in the endpoint field (and,
+ * historically, in localStorage) even when the global layer displaces it for
+ * this run, so it would decide the NEXT one.
  *
- * Every endpoint the link would APPLY is considered, not just the winning one:
- * the top-level endpoint lands in the endpoint field (and, historically, in
- * localStorage) even when the global layer displaces it for this run, so it
- * would decide the NEXT run.
+ * Shared by the link policy below and by the repo load (use-repo-load.ts), so
+ * neither can decide a context is safe that the other would judge hostile.
  */
-export function decideShareRunPolicy(payload: SharePayload): ShareRunPolicy {
-  const { platform, endpoint, globalEndpoint } = resolveEffectivePlatformContext(payload);
+export function untrustedEndpointsFor(context: RunPlatformContext): string[] {
+  const { endpoint, globalEndpoint } = resolveEffectivePlatformContext(context);
   const untrustedEndpoints: string[] = [];
-  for (const candidate of [endpoint, payload.endpoint, globalEndpoint]) {
+  for (const candidate of [endpoint, context.endpoint, globalEndpoint]) {
     if (candidate && !isTrustedEndpoint(candidate) && !untrustedEndpoints.includes(candidate)) {
       untrustedEndpoints.push(candidate);
     }
   }
+  return untrustedEndpoints;
+}
+
+/**
+ * The token/persistence policy for opening a decoded payload. Pure —
+ * `use-share-link.ts`'s `loadShareToken` supplies the payload and applies the
+ * outcome, so the decision itself is unit-testable without a browser.
+ */
+export function decideShareRunPolicy(payload: SharePayload): ShareRunPolicy {
+  const { platform, endpoint } = resolveEffectivePlatformContext(payload);
+  const untrustedEndpoints = untrustedEndpointsFor(payload);
   const suppressTokens = untrustedEndpoints.length > 0;
   return {
     platform,
@@ -466,7 +488,9 @@ export function decideShareRunPolicy(payload: SharePayload): ShareRunPolicy {
  * token to the attacker's host. The guard therefore survives the banner and
  * suppresses tokens on EVERY run (manual Run, injection/apply-fix re-runs, a
  * repo load that would use this endpoint) until the user either opts in
- * explicitly, hand-edits the platform/endpoint, or loads something else.
+ * explicitly, hand-edits the platform/endpoint, or loads something that
+ * displaces every untrusted endpoint — a load that leaves one standing (the
+ * 008 global layer still names it) re-derives the guard instead of ending it.
  */
 export interface UntrustedEndpointGuard {
   /** Every untrusted endpoint the link applied (what the banner names). */
@@ -479,9 +503,13 @@ export interface UntrustedEndpointGuard {
   acknowledged: boolean;
 }
 
-/** The guard a decoded payload installs, or null when the link is trusted. */
-export function untrustedGuardForPolicy(policy: ShareRunPolicy): UntrustedEndpointGuard | null {
-  if (!policy.suppressTokens) {
+/** The guard a decoded payload installs — or any run context whose untrusted
+ *  endpoints came from {@link untrustedEndpointsFor} — and null when nothing
+ *  untrusted is in force. */
+export function untrustedGuardForPolicy(
+  policy: Pick<ShareRunPolicy, "endpoint" | "untrustedEndpoints">,
+): UntrustedEndpointGuard | null {
+  if (policy.untrustedEndpoints.length === 0) {
     return null;
   }
   const effectiveIsUntrusted = policy.untrustedEndpoints.includes(policy.endpoint);

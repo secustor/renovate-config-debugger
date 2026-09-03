@@ -14,6 +14,7 @@ import {
   encodeShare,
   type SharePayload,
   type ShareState,
+  untrustedEndpointsFor,
   untrustedGuardForPolicy,
 } from "./share";
 
@@ -984,5 +985,60 @@ describe("087: the provenance repo round-trips and stays additive", () => {
       return;
     }
     expect(result.payload.repo).toBeUndefined();
+  });
+});
+
+/**
+ * The untrusted set asked of a CONTEXT rather than a link: a repo load
+ * replaces the toolbar's platform context while the 008 global layer stays in
+ * the editor and keeps winning the engine's resolution, so the load has to ask
+ * exactly the question the link asked (use-repo-load.ts).
+ */
+describe("untrustedEndpointsFor", () => {
+  test("the shipped public endpoints are the empty set", () => {
+    expect(
+      untrustedEndpointsFor({ platform: "github", endpoint: "https://api.github.com" }),
+    ).toEqual([]);
+    expect(untrustedEndpointsFor({})).toEqual([]);
+  });
+
+  test("a global layer's endpoint counts even under a trusted top-level one", () => {
+    expect(
+      untrustedEndpointsFor({
+        platform: "github",
+        endpoint: "https://api.github.com",
+        globalConfig: { endpoint: "https://evil.example/" },
+      }),
+    ).toEqual(["https://evil.example/"]);
+  });
+
+  test("an overridden global layer still counts — it decides the next run", () => {
+    expect(
+      untrustedEndpointsFor({
+        platform: "github",
+        endpoint: "https://api.github.com",
+        globalConfig: { endpoint: "https://evil.example/" },
+        platformOverride: true,
+      }),
+    ).toEqual(["https://evil.example/"]);
+  });
+
+  test("the effective endpoint comes first, so a guard names the live host", () => {
+    expect(
+      untrustedEndpointsFor({
+        endpoint: "https://stale.example/",
+        globalConfig: { endpoint: "https://effective.example/" },
+      }),
+    ).toEqual(["https://effective.example/", "https://stale.example/"]);
+  });
+
+  test("agrees with the link policy it was extracted from", () => {
+    const payload = testPayload({
+      endpoint: "https://stale.example/",
+      globalConfig: { endpoint: "https://effective.example/" },
+    });
+    expect(untrustedEndpointsFor(payload)).toEqual(
+      decideShareRunPolicy(payload).untrustedEndpoints,
+    );
   });
 });

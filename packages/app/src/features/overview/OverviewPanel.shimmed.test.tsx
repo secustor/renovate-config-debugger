@@ -203,6 +203,23 @@ it("says so honestly when a run carries no descriptions at all", async () => {
   expect(view.container.textContent).toContain("No descriptions");
 });
 
+it("says a run with no preset resolution is unavailable, and reports no count", async () => {
+  // `null` is "unavailable", not "empty": claiming the config carries no
+  // descriptions would be a false statement about it, and the `0` behind it
+  // would be the wrong zero the tab badge must never print.
+  stub.active = true;
+  stub.value = null;
+  const onStats = vi.fn();
+  const view = render(<OverviewPanel result={{} as TraceResult} onStats={onStats} />);
+
+  await waitFor(() => expect(view.container.querySelector(".empty-note")).not.toBeNull());
+  expect(view.container.textContent).toContain(
+    "Description attribution is unavailable because preset resolution did not complete.",
+  );
+  expect(view.container.textContent).not.toContain("No descriptions");
+  expect(onStats).not.toHaveBeenCalled();
+});
+
 it("offers the raw order only when there is a description row to land on", async () => {
   const onShowRawOrder = vi.fn();
   const withArray = await run(CONFIG);

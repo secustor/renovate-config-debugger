@@ -368,6 +368,13 @@ test("the form states the update as a sentence, with counted groups beside a liv
   await groups.nth(1).getByRole("button").first().click();
   await expect(groups.nth(0).locator(".sim-group-body")).toHaveCount(0);
   await expect(groups.nth(1).locator(".sim-group-body")).toHaveCount(1);
+
+  // The `updateType` override above left the results stale, so the veil
+  // LIFTING is this run's own landing — without waiting for it, the re-assert
+  // below resolves against the pre-click page and "survives a re-run" is a
+  // claim that cannot fail.
+  await expect(page.locator(".sim-results-body")).toHaveClass(/stale/);
   await simulator.getByRole("button", { name: "Simulate" }).click();
+  await expect(page.locator(".sim-results-body")).not.toHaveClass(/stale/);
   await expect(groups.nth(1).locator(".sim-group-body")).toHaveCount(1);
 });

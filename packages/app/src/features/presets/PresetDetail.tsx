@@ -19,7 +19,7 @@ import {
   STATE_LABELS,
 } from "./tree-shared";
 import { useEngineHelpers } from "./use-engine-helpers";
-import { pluralWord } from "@/lib/format";
+import { plural } from "@/lib/format";
 import { errorMessage } from "@/lib/errors";
 
 /**
@@ -281,8 +281,7 @@ export function PresetDetail({
           {migrationSteps.length > 0 ? (
             <div className="preset-migration-steps">
               <div className="preset-migration-steps-title">
-                Step through the {migrationSteps.length}{" "}
-                {pluralWord(migrationSteps.length, "migration")}
+                Step through the {plural(migrationSteps.length, "migration")}
               </div>
               <MigrationSteps key={`${node.id}-steps`} steps={migrationSteps} compact />
             </div>

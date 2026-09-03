@@ -128,15 +128,15 @@ export interface RunView {
   onApplyFix: (fix: ErrorFixResult) => void;
 }
 
-/** App renders `<RunViewContext.Provider>` directly — a wrapper component
- *  here would make this file export a component beside the hook, which the
- *  fast-refresh lint rule (and fast refresh itself) refuses. */
+/** `AppProviders` renders `<RunViewContext.Provider>`; a wrapper component
+ *  HERE would export a component beside the hook, which the fast-refresh lint
+ *  rule (and fast refresh itself) refuses. */
 export const RunViewContext = createContext<RunView | null>(null);
 
 export function useRunView(): RunView {
   const view = useContext(RunViewContext);
   if (view === null) {
-    throw new Error("useRunView must be rendered under App's RunViewProvider");
+    throw new Error("useRunView must be rendered under AppProviders");
   }
   return view;
 }

@@ -195,9 +195,9 @@ interface Props {
   onShowRawOrder?: () => void;
   /**
    * Reports the behavior count for the tab badge, the way the effective-config
-   * view reports its tallies. Called only once provenance has SETTLED: the
-   * derivation is async, and a zero published while it is still loading is a
-   * badge claiming this config does nothing.
+   * view reports its tallies. Called only once provenance has settled AND is
+   * available: a run whose preset resolution never completed reports nothing,
+   * so the badge stays absent rather than claiming this config does zero.
    */
   onStats?: (behaviors: number) => void;
 }
@@ -230,22 +230,32 @@ export const OverviewPanel = memo(function OverviewPanel({
   const groups = useMemo(() => groupByTopic(rows), [rows]);
 
   const settled = provenance !== undefined;
+  const reportable = settled && provenance !== null;
   // The tab badge's count: counted from the ROWS listed in the card, never
   // from the digest's own tallies of the top-level `description` array, which
   // exclude the repo's `packageRules` prose (082 — a badge quoting a number
   // the reader cannot get by counting the rows under it is uncheckable).
   const count = rows.length;
   useEffect(() => {
-    if (settled) {
+    if (reportable) {
       onStats?.(count);
     }
-  }, [settled, count, onStats]);
+  }, [reportable, count, onStats]);
 
   // Nothing at all while the derivation is in flight — including the frame
-  // between two runs. An empty note there would flash "no descriptions" at a
+  // between two runs, whose empty note would flash "no descriptions" at a
   // reader whose config is full of them.
   if (!settled) {
     return null;
+  }
+  // Unavailable, not empty — the wording matches the Effective tab's, so both
+  // panels say the same thing about the same run.
+  if (provenance === null) {
+    return (
+      <p className="empty-note">
+        Description attribution is unavailable because preset resolution did not complete.
+      </p>
+    );
   }
   if (!digest) {
     return (
