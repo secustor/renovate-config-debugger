@@ -2,7 +2,15 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["local>secustor/renovate-config"],
   "postUpdateOptions": ["pnpmDedupe"],
+  "automerge": true,
   "packageRules": [
+    {
+      "description": [
+        "Major updates need a human review; everything else automerges once ci-result is green."
+      ],
+      "matchUpdateTypes": ["major"],
+      "automerge": false
+    },
     {
       "description": ["Regnerate shims and snapshots"],
       "matchPackageNames": ["renovate"],
