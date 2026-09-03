@@ -41,10 +41,10 @@ export interface RunSummary {
 export function useRunSummary(
   result: TraceResult | null,
   effectiveStats: EffectiveTally | null,
-  /** Roadmap 075 (iteration 6): how many dependency tests are pinned — the
-   *  Tests tab's badge. Owned by App (a share link carries the pins), passed in
-   *  for the same reason `effectiveStats` is: this hook counts, it does not
-   *  hold. */
+  /** Roadmap 075 (iteration 6): how many standing tests the run re-checks —
+   *  the Tests tab's badge; since 094 the pins AND the pattern tests. Owned by
+   *  App (a share link carries both), passed in for the same reason
+   *  `effectiveStats` is: this hook counts, it does not hold. */
   pinCount: number,
   /** Roadmap 083: how many author-written sentences the Overview lists — the
    *  Overview tab's badge. `null` until the description provenance has settled,

@@ -255,6 +255,19 @@ export const STAGE_IDS = [
  */
 export const MAX_PINNED_TESTS = 20;
 
+/**
+ * Roadmap 094: the pattern tests' bounds — the list cap for the same two
+ * reasons pins have one (the link's length, the per-run re-check), and the
+ * per-test caps because every pattern × input is one minimatch/regex call on
+ * every render of the card. Here, zod-free, so the "+ Test a pattern…" row and
+ * the payload sanitizer read one number.
+ */
+export const MAX_PATTERN_TESTS = 20;
+export const MAX_PATTERNS_PER_TEST = 20;
+export const MAX_PATTERN_INPUTS = 50;
+/** One pattern or one input value — a matcher's argument, never a document. */
+export const MAX_PATTERN_LENGTH = 256;
+
 // ---------------------------------------------------------------------------
 // Storage reads (OAuth stored user — sync at boot, so zod-free)
 // ---------------------------------------------------------------------------

@@ -91,6 +91,7 @@ function makeHost(onRun: ShareLinkHost["onRun"]): ShareLinkHost {
     setAuthUser: noop,
     applyUntrustedGuard: noop,
     setPins: noop,
+    setPatternTests: noop,
     applyShareRepo: noop,
     setPendingView: noop,
     // Equal, so a hashchange never has unsaved edits to confirm away.

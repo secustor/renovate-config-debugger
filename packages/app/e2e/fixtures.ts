@@ -13,6 +13,7 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+import type { SharePatternTest } from "../src/lib/input-schemas-zod";
 import { configChecksum, encodeShare, type ShareSimulator, type ShareView } from "../src/lib/share";
 // Relative, not `@tools/*`: the alias is the app's vitest/tsconfig mapping, and
 // the Playwright graph resolves this file on its own.
@@ -59,6 +60,8 @@ interface SharePayloadInput {
   /** Roadmap 075 (iteration 6): the pinned tests a link carries — descriptor
    *  field bags, the same shape `sim.form` has. */
   pins?: Record<string, string>[];
+  /** Roadmap 094: the pattern tests a link carries. */
+  patternTests?: SharePatternTest[];
 }
 
 /**
@@ -137,6 +140,7 @@ export async function encodeShareToken(
     view: input.view as ShareView | undefined,
     sim: input.sim,
     pins: input.pins,
+    patternTests: input.patternTests,
   });
 }
 

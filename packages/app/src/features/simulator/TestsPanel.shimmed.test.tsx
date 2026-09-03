@@ -79,6 +79,10 @@ function Harness({
       repoDeps={repoDeps}
       onLoadRepoDeps={() => undefined}
       repoConnect={repoConnect}
+      patternTests={[]}
+      onAddPatternTest={() => null}
+      onUpdatePatternTest={() => undefined}
+      onRemovePatternTest={() => undefined}
     />
   );
 }

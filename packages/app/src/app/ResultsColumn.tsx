@@ -117,6 +117,10 @@ export function ResultsColumn({
     pins,
     onAddPin,
     onRemovePin,
+    patternTests,
+    onAddPatternTest,
+    onUpdatePatternTest,
+    onRemovePatternTest,
     pendingRuleFocus,
     onRuleFocused,
     simRequest,
@@ -271,6 +275,10 @@ export function ResultsColumn({
           repoDeps={repoDeps}
           onLoadRepoDeps={onLoadRepoDeps}
           repoConnect={repoConnect}
+          patternTests={patternTests}
+          onAddPatternTest={onAddPatternTest}
+          onUpdatePatternTest={onUpdatePatternTest}
+          onRemovePatternTest={onRemovePatternTest}
         />
       ) : (
         <EmptyNote>Nothing to test — the pipeline produced no effective config.</EmptyNote>
@@ -401,6 +409,10 @@ export function ResultsColumn({
     pins,
     onAddPin,
     onRemovePin,
+    patternTests,
+    onAddPatternTest,
+    onUpdatePatternTest,
+    onRemovePatternTest,
     pendingRuleFocus,
     onRuleFocused,
     simRequest,

@@ -6,7 +6,7 @@ import {
   resultsTabForShareTab,
   shareTabWantsMigrateStage,
 } from "@/data/results-tabs";
-import { MAX_PINNED_TESTS } from "./input-schemas";
+import { MAX_PATTERN_TESTS, MAX_PINNED_TESTS } from "./input-schemas";
 import {
   configChecksum,
   decideShareRunPolicy,
@@ -975,5 +975,76 @@ describe("087: the provenance repo round-trips and stays additive", () => {
       return;
     }
     expect(result.payload.repo).toBeUndefined();
+  });
+});
+
+/**
+ * Roadmap 094: `patternTests` — the pattern tests a link carries. Additive
+ * within v2 exactly like `pins`, sanitized per entry, bounded on every axis.
+ */
+describe("094: pattern tests round-trip and stay additive", () => {
+  const TEST = {
+    option: "matchDepNames",
+    patterns: ["/^react/", "!react-dom"],
+    inputs: [
+      { value: "react", expect: true },
+      { value: "react-dom", expect: false },
+    ],
+  };
+
+  test("encode → decode preserves the tests", async () => {
+    const result = await decodeShareResult(
+      await encodeShare(minimalState({ patternTests: [structuredClone(TEST)] })),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    expect(result.payload.patternTests).toEqual([TEST]);
+  });
+
+  test("no tests (or an empty list) writes no field at all", async () => {
+    const absent = await decodeShareResult(await encodeShare(minimalState()));
+    const empty = await decodeShareResult(await encodeShare(minimalState({ patternTests: [] })));
+    expect(absent.ok && absent.payload.patternTests).toBeUndefined();
+    expect(empty.ok && empty.payload.patternTests).toBeUndefined();
+  });
+
+  test("a malformed field never fails the link; bad entries are dropped alone", async () => {
+    const mixed = await decodeShareResult(
+      await rawEncodeToken(
+        taggedPayload({
+          patternTests: [
+            TEST,
+            "nope",
+            { option: "matchDepNames", patterns: "react", inputs: [] },
+            { option: "match Names", patterns: [], inputs: [] },
+            { option: "", patterns: [], inputs: [] },
+            { option: "matchDepNames", patterns: [], inputs: [{ value: "x", expect: "yes" }] },
+          ],
+        }),
+      ),
+    );
+    expect(mixed.ok).toBe(true);
+    if (!mixed.ok) {
+      return;
+    }
+    expect(mixed.payload.patternTests).toEqual([TEST]);
+  });
+
+  test("a hand-edited link cannot exceed the caps", async () => {
+    const many = Array.from({ length: MAX_PATTERN_TESTS + 5 }, () => TEST);
+    const result = await decodeShareResult(
+      await rawEncodeToken(taggedPayload({ patternTests: many })),
+    );
+    expect(result.ok && result.payload.patternTests).toHaveLength(MAX_PATTERN_TESTS);
+    const oversized = await decodeShareResult(
+      await rawEncodeToken(
+        taggedPayload({
+          patternTests: [{ ...TEST, patterns: ["x".repeat(300)] }],
+        }),
+      ),
+    );
+    expect(oversized.ok && oversized.payload.patternTests).toBeUndefined();
   });
 });

@@ -50,6 +50,14 @@ export {
   type VersioningApi,
 } from "renovate/dist/modules/versioning/index.js";
 export { getUpdateType } from "renovate/dist/workers/repository/process/lookup/update-type.js";
+// Roadmap 094: the pattern tests re-run upstream's own glob-or-regex matcher
+// (the one every `match*` list matcher calls) against the reader's inputs.
+export {
+  getRegexPredicate,
+  isRegexMatch,
+  matchRegexOrGlob,
+  matchRegexOrGlobList,
+} from "renovate/dist/util/string-match.js";
 // ---- Manager extraction (roadmap 078) --------------------------------------
 // Filename → manager detection: the generated per-manager file patterns are
 // already in the bundle transitively (loadManagerOptions), and getMatchingFiles

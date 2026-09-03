@@ -34,7 +34,7 @@ import type { PipelinePhase } from "@/features/pipeline/phases";
 import type { ShareSimulator } from "@/lib/share";
 import type { ErrorTranslationLib } from "@/platform/run";
 import type { SimRequest } from "@/hooks/use-share-link";
-import type { FormState, PinnedTest } from "@/types/simulator";
+import type { FormState, PatternTest, PinnedTest } from "@/types/simulator";
 import type { RepoConnectOffer, RepoDepsView } from "@/types/repo";
 
 export interface RunView {
@@ -97,6 +97,11 @@ export interface RunView {
   pins: PinnedTest[];
   onAddPin: (form: FormState) => void;
   onRemovePin: (id: string) => void;
+  /** Roadmap 094: the pattern tests and their three edits. */
+  patternTests: PatternTest[];
+  onAddPatternTest: () => string | null;
+  onUpdatePatternTest: (id: string, update: (test: PatternTest) => PatternTest) => void;
+  onRemovePatternTest: (id: string) => void;
   pendingRuleFocus: number | null;
   onRuleFocused: () => void;
   simRequest: SimRequest | null;

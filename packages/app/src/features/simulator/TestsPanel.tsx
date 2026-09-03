@@ -12,7 +12,7 @@ import { RuleSimulator } from "./RuleSimulator";
 import type { SimRequest } from "./use-share-link-request";
 import { usePinnedTests } from "./use-pinned-tests";
 import { useSyncedReset } from "@/hooks/use-synced-reset";
-import type { FormState, PinnedTest } from "@/types/simulator";
+import type { FormState, PatternTest, PinnedTest } from "@/types/simulator";
 import type { RepoConnectOffer, RepoDepsView } from "@/types/repo";
 
 /**
@@ -68,6 +68,10 @@ export const TestsPanel = memo(function TestsPanel({
   repoDeps,
   onLoadRepoDeps,
   repoConnect,
+  patternTests,
+  onAddPatternTest,
+  onUpdatePatternTest,
+  onRemovePatternTest,
 }: {
   result: TraceResult;
   pins: PinnedTest[];
@@ -91,6 +95,11 @@ export const TestsPanel = memo(function TestsPanel({
   repoDeps: RepoDepsView;
   onLoadRepoDeps: () => void;
   repoConnect: RepoConnectOffer;
+  /** Roadmap 094: the pattern tests — the pins view's second group. */
+  patternTests: readonly PatternTest[];
+  onAddPatternTest: () => string | null;
+  onUpdatePatternTest: (id: string, update: (test: PatternTest) => PatternTest) => void;
+  onRemovePatternTest: (id: string) => void;
 }) {
   // A link carrying a simulation, or a cross-link naming a rule, is a request
   // for the simulator — including on the very first render, since App applies
@@ -183,6 +192,10 @@ export const TestsPanel = memo(function TestsPanel({
       repoDeps={repoDeps}
       onLoadRepoDeps={onLoadRepoDeps}
       repoConnect={repoConnect}
+      patternTests={patternTests}
+      onAddPatternTest={onAddPatternTest}
+      onUpdatePatternTest={onUpdatePatternTest}
+      onRemovePatternTest={onRemovePatternTest}
     />
   );
 });

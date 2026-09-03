@@ -28,6 +28,10 @@ import {
   isValidPlatform,
   isValidShareConfigLayer,
   isValidToken,
+  MAX_PATTERN_INPUTS,
+  MAX_PATTERN_LENGTH,
+  MAX_PATTERN_TESTS,
+  MAX_PATTERNS_PER_TEST,
   MAX_PINNED_TESTS,
   STAGE_IDS,
 } from "./input-schemas";
@@ -220,6 +224,61 @@ export function sanitizeSharePins(raw: unknown): Record<string, string>[] | unde
     }
   }
   return pins.length > 0 ? pins : undefined;
+}
+
+/** Roadmap 094: a pattern test as the link carries it — no id (the opener
+ *  mints its own), the option name, the patterns, the inputs with their
+ *  expectations. */
+export interface SharePatternTest {
+  option: string;
+  patterns: string[];
+  inputs: { value: string; expect: boolean }[];
+}
+
+const patternTextSchema = z.string().check(z.minLength(1), z.maxLength(MAX_PATTERN_LENGTH));
+
+/** An option NAME: the engine decides whether it is a matcher it knows; the
+ *  link only has to hand over something that is safely printable. */
+const patternOptionSchema = z.string().check(z.maxLength(64), z.regex(/^[A-Za-z]*$/));
+
+const sharePatternTestSchema = z.object({
+  option: patternOptionSchema,
+  patterns: z.array(patternTextSchema).check(z.maxLength(MAX_PATTERNS_PER_TEST)),
+  inputs: z
+    .array(z.object({ value: patternTextSchema, expect: z.boolean() }))
+    .check(z.maxLength(MAX_PATTERN_INPUTS)),
+});
+
+/**
+ * Roadmap 094: a decoded payload's `patternTests`. Additive within v2 like
+ * `pins`, and tolerant per ENTRY for the same reason: a pattern test is
+ * cosmetic state — the app re-evaluates it against the config it would
+ * evaluate anyway — so a malformed one is dropped alone rather than failing a
+ * link that also carries a config. Bounded on every axis (count, patterns,
+ * inputs, text length) so a hand-edited link cannot hand the reader's browser
+ * thousands of matcher calls per render. An entry with nothing in it (no
+ * option, no patterns, no inputs) is dropped: it would render an empty card.
+ */
+export function sanitizeSharePatternTests(raw: unknown): SharePatternTest[] | undefined {
+  if (!Array.isArray(raw)) {
+    return undefined;
+  }
+  const tests: SharePatternTest[] = [];
+  for (const entry of raw) {
+    if (tests.length >= MAX_PATTERN_TESTS) {
+      break;
+    }
+    const parsed = sharePatternTestSchema.safeParse(entry);
+    if (!parsed.success) {
+      continue;
+    }
+    const { option, patterns, inputs } = parsed.data;
+    if (option === "" && patterns.length === 0 && inputs.length === 0) {
+      continue;
+    }
+    tests.push({ option, patterns, inputs });
+  }
+  return tests.length > 0 ? tests : undefined;
 }
 
 /**
