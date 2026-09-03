@@ -30,7 +30,7 @@ export {
   consumedAuthoredBlocks,
 } from "./consumed-blocks";
 export { effectiveTally, isOverridden, multiContribBadgeKind } from "./effective-tally";
-export { plural } from "./format";
+export { nf, plural } from "./format";
 export { parseLayerJson } from "./input-schemas";
 export { crossRuleIndex, ruleIndexInMessage, type RuleMessageIndexKind } from "./rule-cross-index";
 export {

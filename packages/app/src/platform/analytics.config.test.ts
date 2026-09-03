@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { getMeasurementId, isTrackableHostname } from "./analytics";
+import { getMeasurementId, isTrackableHostname, pageLocation } from "./analytics";
 
 /**
  * `getMeasurementId` mirrors `getOAuthConfig` (roadmap 043): a deployment-time
@@ -113,5 +113,18 @@ describe("isTrackableHostname", () => {
     "127.0.0.1.example.com",
   ] as const)("%s is trackable", (hostname) => {
     expect(isTrackableHostname(hostname)).toBe(true);
+  });
+});
+
+describe("pageLocation", () => {
+  // The whole point of overriding gtag's `page_location`: neither the share
+  // fragment nor the OAuth callback's code may reach Google. A `URL` stands in
+  // for `window.location` — the two fields read are the same.
+  test.for([
+    ["https://rcd.example.com/#config=eJyrVkrLz1eyUlA", "https://rcd.example.com/"],
+    ["https://rcd.example.com/?code=abc123&state=xyz", "https://rcd.example.com/"],
+    ["https://rcd.example.com/sub/?code=abc#config=eJy", "https://rcd.example.com/sub/"],
+  ] as const)("%s → %s", ([href, expected]) => {
+    expect(pageLocation(new URL(href))).toBe(expected);
   });
 });

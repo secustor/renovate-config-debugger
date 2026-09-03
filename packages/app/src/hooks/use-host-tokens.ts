@@ -37,8 +37,8 @@ export function useHostTokens(): HostTokenField[] {
   // Roadmap 030: a token is validated (no control chars, sane length — the
   // header-injection rule) before it is ever written to storage; the field
   // still reflects whatever was typed (so the user isn't blocked mid-edit),
-  // it just isn't persisted while invalid — see the token inputs' inline
-  // error rows (App.tsx) for the same check surfaced in the UI.
+  // it just isn't persisted while invalid — see the inline error rows in
+  // features/editor/CredentialsList.tsx for the same check surfaced in the UI.
   function setHostToken(host: HostTokenDescriptor, value: string): void {
     setTokens((prev) => ({ ...prev, [host.id]: value }));
     if (isValidToken(value)) {

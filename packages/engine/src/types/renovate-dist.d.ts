@@ -243,6 +243,14 @@ declare module "renovate/dist/modules/manager/api.js" {
   export default managers;
 }
 
+declare module "renovate/dist/modules/platform/api.js" {
+  import type { PlatformId } from "renovate/dist/constants/platforms.js";
+  // Keyed by Renovate's own PlatformId union so the local-preset drift guard
+  // can feed a key straight to `GlobalConfig.set({ platform })`.
+  const platforms: ReadonlyMap<PlatformId, unknown>;
+  export default platforms;
+}
+
 declare module "renovate/dist/modules/manager/types.js" {
   /**
    * One extracted dependency (roadmap 078). Structural subset of upstream's

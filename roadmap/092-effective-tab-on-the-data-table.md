@@ -72,9 +72,12 @@ table.
   with the text filter as AND.
 - **Copy** — the resolved document, the table's `copy` slot, `null` until the
   payload exists so the slot draws nothing rather than a button that would fail.
-- **Footer** — `N effective options · hover any key for Renovate's docs ·
-defaults have no cascade — only the default ever touched them`, in the By-key
-  view only: the As-JSON document has trailing notes of its own.
+- **Footer** — `N options in the config Renovate runs · hover any key for
+Renovate's docs · defaults have no cascade — only the default ever touched
+them`, in the By-key view only: the As-JSON document has trailing notes of
+  its own. N is every row in the table, defaults included (082) — deliberately
+  NOT the header digest's "N effective options", which is `effectiveTally`'s
+  count of the keys some layer beyond the defaults set.
 
 ## What the shared component had to gain
 

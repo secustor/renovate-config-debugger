@@ -48,8 +48,8 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
-    # 30 for the release itself, plus the budget of the wait-for-CI-images
-    # preflight below.
+    # 30 for the release itself, plus the preflight's 15-minute budget below —
+    # one budget, shared by both images.
     timeout-minutes: 45
     permissions:
       # The `v*` tag and the GitHub release. Nothing is committed back to
@@ -113,15 +113,17 @@ jobs:
       - name: Wait for CI's docker images of this commit
         if: ${{ !inputs.dry-run }}
         run: |
+          deadline=$(( SECONDS + 900 ))
           for image in ghcr.io/secustor/renovate-config-debugger ghcr.io/secustor/renovate-config-debugger-oauth-proxy; do
             ref="${image}:sha-${GITHUB_SHA::7}"
-            for attempt in $(seq 1 30); do
-              docker buildx imagetools inspect "$ref" > /dev/null 2>&1 && continue 2
-              echo "waiting for ${ref} (${attempt}/30)"
+            until docker buildx imagetools inspect "$ref" > /dev/null 2>&1; do
+              (( SECONDS < deadline )) || {
+                echo "::error::${ref} was not pushed — did CI's docker jobs run (and pass) for ${GITHUB_SHA}?"
+                exit 1
+              }
+              echo "waiting for ${ref} ($(( deadline - SECONDS ))s left)"
               sleep 30
             done
-            echo "::error::${ref} was not pushed — did CI's docker jobs run (and pass) for ${GITHUB_SHA}?"
-            exit 1
           done
 
       # Nothing is pushed to main any more; the only git write left is the

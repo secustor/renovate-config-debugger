@@ -22,7 +22,7 @@
  */
 import { type RefObject, useCallback, useMemo, useRef, useState } from "react";
 import { isString } from "@renovate-config-debugger/engine/is";
-import { DEFAULT_ENDPOINT, DEFAULT_PLATFORM, PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
+import { DEFAULT_ENDPOINT, DEFAULT_PLATFORM, defaultEndpointFor } from "@/data/platform-endpoints";
 import {
   isValidEndpoint,
   isValidPlatform,
@@ -118,7 +118,7 @@ export function usePlatformContext(): PlatformContext {
     reflectGlobal && globalEndpoint !== undefined
       ? globalEndpoint
       : reflectGlobal && globalPlatform !== undefined
-        ? (PLATFORM_ENDPOINTS[globalPlatform] ?? "")
+        ? (defaultEndpointFor(globalPlatform) ?? "")
         : endpoint;
   const usesLocal = displayPlatform !== "github";
 
@@ -180,7 +180,7 @@ export function usePlatformContext(): PlatformContext {
         persistLocal(PLATFORM_KEY, value);
       }
       // Snap the endpoint to the new platform's default; the user can edit.
-      const next = PLATFORM_ENDPOINTS[value] ?? "";
+      const next = defaultEndpointFor(value) ?? "";
       setEndpoint(next);
       persistLocal(ENDPOINT_KEY, next);
     },

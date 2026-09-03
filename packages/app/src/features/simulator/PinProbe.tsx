@@ -168,7 +168,10 @@ export function PinProbe({
     () => probeRules({ sim, layerByIndex, descriptions, ruleBodies, query }),
     [sim, layerByIndex, descriptions, ruleBodies, query],
   );
-  const suggestions = useMemo(() => probeSuggestions(sim, layerByIndex), [sim, layerByIndex]);
+  const suggestions = useMemo(
+    () => probeSuggestions(sim, layerByIndex, ruleBodies),
+    [sim, layerByIndex, ruleBodies],
+  );
   return (
     <div className="pin-probe">
       <label className="pin-probe-label">

@@ -77,10 +77,9 @@ export function depFields(fill: Partial<FormState>): DataTableField[] {
 }
 
 /**
- * Roadmap 063's managers, when they land: a custom (regex/jsonata) manager's
- * dependencies come from a rule the READER wrote, not from a file format
- * Renovate knows, so a row from one says so. Nothing produces such a manager
- * id yet — the badge is the shape being ready, and costs one string test.
+ * Roadmap 093's discovery labels a custom manager's rows `custom.regex` /
+ * `custom.jsonata`: those dependencies come from a rule the READER wrote, not
+ * from a file format Renovate knows, so a row from one says so.
  */
 export function depBadge(manager: string): DataTableBadge | undefined {
   if (!manager.startsWith("custom.")) {

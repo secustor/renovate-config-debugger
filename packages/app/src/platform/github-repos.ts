@@ -159,7 +159,7 @@ const NOTE_AGES: [number, string][] = [
   [1, "d"],
 ];
 
-/** `TypeScript · 2d ago` — the row's muted note. Exported for its test. */
+/** `TypeScript · updated 2d ago` — the row's muted note. Exported for its test. */
 export function repoNote(repo: UserRepo, now = Date.now()): string {
   const parts: string[] = [];
   if (repo.language) {

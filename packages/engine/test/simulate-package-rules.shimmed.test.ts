@@ -569,6 +569,31 @@ describe("simulatePackageRules", () => {
       );
     });
 
+    /** A key that is not a descriptor field at all: no matcher reads it, so
+     *  without the note the answer reads as a verdict about a field it never
+     *  carried. The CLI's `--dep`/`--dep-file`/`--deps-file` are the only
+     *  inputs that can produce one. */
+    it("a key no matcher reads is named in the notes, and still echoed", async () => {
+      const result = await simulatePackageRules({
+        config,
+        dep: { ...npmDep, currentValue2: "17.0.0" } as typeof npmDep,
+      });
+      expect(result.notes).toContainEqual(
+        expect.stringContaining("1 key ignored (`currentValue2`)"),
+      );
+      expect(result.rawFinalConfig.currentValue2).toBe("17.0.0");
+    });
+
+    /** `key in DESCRIPTOR_KEY_SET` walked the prototype chain, so a key named
+     *  after an Object member passed as a descriptor field. */
+    it("a key named after an Object.prototype member is unknown too", async () => {
+      const result = await simulatePackageRules({
+        config,
+        dep: { ...npmDep, toString: "oops" } as unknown as typeof npmDep,
+      });
+      expect(result.notes).toContainEqual(expect.stringContaining("1 key ignored (`toString`)"));
+    });
+
     it("neither field is overwritten when both are given", async () => {
       const result = await simulatePackageRules({
         config,

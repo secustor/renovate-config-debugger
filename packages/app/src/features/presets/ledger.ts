@@ -82,11 +82,13 @@ export interface LedgerSource {
   /** This `extends` entry did not resolve at all. */
   failed: boolean;
   error: string | null;
-  /** Presets this source brought in, itself included. */
+  /** Presets this source brought in first, itself included — a name another
+   *  source already introduced is credited there, not here. */
   presets: number;
-  /** Distinct behaviour-changing option keys its subtree set. */
+  /** Distinct behavior-changing option keys its subtree set, under the same
+   *  first-occurrence credit as `presets` (see `introducesPreset`). */
   optionKeys: number;
-  /** packageRules entries in its subtree. */
+  /** packageRules entries in its subtree, under that same credit. */
   rules: number;
   docsUrl: string;
   /** The mosaic, already split into the rows it renders as. */
@@ -219,7 +221,7 @@ const FAMILY_NOTES: Record<string, string> = {
   helpers: "small fixes for specific ecosystems",
   packages: "package lists other presets match against",
   schedule: "when Renovate is allowed to open pull requests",
-  security: "vulnerability-driven update behaviour",
+  security: "vulnerability-driven update behavior",
 };
 
 export function familyNote(name: string): string | null {
@@ -227,14 +229,44 @@ export function familyNote(name: string): string | null {
   return group ? (FAMILY_NOTES[group] ?? null) : null;
 }
 
+/**
+ * Did this node INTRODUCE its preset name — is it the first resolved occurrence
+ * of it in the tree's pre-order? That is the dedup `uniquePresets` and
+ * `summary.resolved` count by, and every number on a card is filtered through
+ * it: counting presets once but rules and options once per occurrence would put
+ * two different units in one header line.
+ */
+function introducesPreset(node: PresetNode, stats: TreeStats): boolean {
+  if (node.state !== "resolved") {
+    return false;
+  }
+  const first = stats.occurrencesByName.get(node.name)?.find((n) => n.state === "resolved");
+  return (first ?? node) === node;
+}
+
+/** The subtree in merge order with the repeats dropped — see `mergeOrder` for
+ *  the order and `introducesPreset` for what survives it. */
+function uniqueMergeOrder(node: PresetNode, stats: TreeStats): PresetNode[] {
+  return mergeOrder(node).filter((n) => introducesPreset(n, stats));
+}
+
+/** Presets this entry INTRODUCED first, in extends order: deduplicated per name
+ *  the way `summary.resolved` is, so the cards' counts are shares of the total
+ *  the `LedgerSummary` above them prints instead of a different unit. */
 function subtreePresets(node: PresetNode, stats: TreeStats): number {
-  const st = stats.statsById.get(node.id);
-  return (st?.descResolved ?? 0) + (node.state === "resolved" ? 1 : 0);
+  return stats.statsById.get(node.id)?.uniquePresets ?? 0;
+}
+
+function rulesIn(order: PresetNode[], stats: TreeStats): number {
+  let rules = 0;
+  for (const node of order) {
+    rules += stats.statsById.get(node.id)?.ownRules ?? 0;
+  }
+  return rules;
 }
 
 function subtreeRules(node: PresetNode, stats: TreeStats): number {
-  const st = stats.statsById.get(node.id);
-  return (st?.ownRules ?? 0) + (st?.descRules ?? 0);
+  return rulesIn(uniqueMergeOrder(node, stats), stats);
 }
 
 /**
@@ -263,9 +295,6 @@ function optionRows(source: PresetNode, stats: TreeStats, order: PresetNode[]): 
   const sourceDepth = stats.statsById.get(source.id)?.depth ?? 1;
   const setters = new Map<string, PresetNode[]>();
   for (const node of order) {
-    if (node.state !== "resolved") {
-      continue;
-    }
     const st = stats.statsById.get(node.id);
     if (!st) {
       continue;
@@ -304,7 +333,9 @@ function optionRows(source: PresetNode, stats: TreeStats, order: PresetNode[]): 
 }
 
 function familyRows(source: PresetNode, stats: TreeStats): LedgerFamily[] {
-  const kids = source.children.filter((child) => child.state === "resolved");
+  // A child that repeats a preset an earlier entry already brought in has no
+  // tile here: its presets and rules are credited on that entry's card.
+  const kids = source.children.filter((child) => introducesPreset(child, stats));
   // A source with a handful of children is fully described by them; a source
   // with fifteen (config:recommended) is described by the ones that brought a
   // whole family, and its single-preset children are counted by the aggregate
@@ -336,7 +367,7 @@ function ownRuleRows(source: PresetNode): LedgerRule[] {
 function countRouters(order: PresetNode[], stats: TreeStats): number {
   let routers = 0;
   for (const node of order) {
-    if (node.state === "resolved" && stats.statsById.get(node.id)?.zero) {
+    if (stats.statsById.get(node.id)?.zero) {
       routers++;
     }
   }
@@ -368,15 +399,15 @@ function tileRowsFor(families: LedgerFamily[], aggregates: LedgerTile[]): Ledger
 function ledgerSource(source: PresetNode, stats: TreeStats): LedgerSource {
   const kind = source.source?.presetSource ?? "internal";
   const builtIn = kind === "internal";
-  const order = mergeOrder(source);
+  // Every count below reads this one deduplicated walk, so the header's
+  // presets, options and rules are all "what this entry introduced first".
+  const order = uniqueMergeOrder(source, stats);
   const options = optionRows(source, stats, order);
   const families = familyRows(source, stats);
   const presets = subtreePresets(source, stats);
-  const rules = subtreeRules(source, stats);
-  const optionSetting = order.filter(
-    (node) =>
-      node.state === "resolved" &&
-      (stats.statsById.get(node.id)?.optionKeys ?? []).some(isRealOptionKey),
+  const rules = rulesIn(order, stats);
+  const optionSetting = order.filter((node) =>
+    (stats.statsById.get(node.id)?.optionKeys ?? []).some(isRealOptionKey),
   ).length;
   const familyRuleTotal = families.reduce((sum, family) => sum + family.rules, 0);
   const looseRules = Math.max(rules - familyRuleTotal, 0);
@@ -431,7 +462,9 @@ function ledgerSource(source: PresetNode, stats: TreeStats): LedgerSource {
     tileRows: tileRowsFor(families, aggregates),
     options,
     families,
-    ownRules: ownRuleRows(source),
+    // A top-level entry that repeats an earlier one introduced nothing, so its
+    // rules are listed on the card that brought it in first.
+    ownRules: introducesPreset(source, stats) ? ownRuleRows(source) : [],
   };
 }
 

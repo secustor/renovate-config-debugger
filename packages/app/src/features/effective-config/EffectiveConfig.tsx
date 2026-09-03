@@ -3,6 +3,7 @@ import { groupByDecider, presetDeciderName, topLevelPresetNames } from "./decide
 import type { ResolvedConfigMode, TraceResult } from "@renovate-config-debugger/engine";
 import { type EffectiveTally, effectiveTally } from "@/lib/effective-tally";
 import { ConfigJson } from "@/components/ConfigJson";
+import { isNullOrUndefined } from "@renovate-config-debugger/engine/is";
 import { DataTable } from "@/components/DataTable";
 import {
   DECIDED_BY,
@@ -64,7 +65,9 @@ export const EffectiveConfig = memo(function EffectiveConfig({
    *  derived in `lib/effective-tally.ts` so the CLI's `digest` quotes the same
    *  function) whenever they change, so the shell never has to recompute
    *  provenance itself — the tab badge and the digest quote what these rows
-   *  show. */
+   *  show. Called only once provenance has settled AND is available: a run
+   *  whose preset resolution never completed reports nothing, so the badge
+   *  stays absent rather than claiming this config has zero options. */
   onStats?: (stats: EffectiveTally) => void;
   /** Roadmap 069: bumped by the description digest card's "show raw order"
    *  link (and by the preset tree's position markers, which are the same jump
@@ -193,17 +196,19 @@ export const EffectiveConfig = memo(function EffectiveConfig({
   // rows, really-overridden rows — in ONE pass over the entries.
   const tallies = useMemo(() => effectiveTally(entries), [entries]);
 
+  // Replay-02 N3: `entries` is empty for BOTH non-values, and `effectiveTally`
+  // of nothing is an honest-looking zero. Loading (`undefined`) is a zero that
+  // is not known yet; unavailable (`null`) is one that will never become true —
+  // reporting either paints "0 effective options" over a panel printing a full
+  // config. Stay silent for both: the tab badge and the header digest render
+  // nothing without a number, and `run-digest` keeps its "still being counted…"
+  // clause — which for an unavailable run never resolves, still open.
+  const reportable = !isNullOrUndefined(provenance);
   useEffect(() => {
-    // Replay-02 N3: while provenance is still loading (`undefined`), `entries`
-    // is empty and the tallies are an honest-looking zero — reporting them
-    // overwrote App's pending `null` and painted "0 effective options" next
-    // to a green verdict on first paint. Stay silent until real numbers
-    // exist; the digest keeps its "still being counted…" clause meanwhile.
-    if (provenance === undefined) {
-      return;
+    if (reportable) {
+      onStats?.(tallies);
     }
-    onStats?.(tallies);
-  }, [tallies, onStats, provenance]);
+  }, [reportable, tallies, onStats]);
 
   if (!result.finalConfig) {
     return null;
@@ -280,8 +285,8 @@ export const EffectiveConfig = memo(function EffectiveConfig({
       />
       {view === "keys" ? (
         <p className="data-table-note">
-          {nf.format(entries.length)} effective options · hover any key for Renovate’s docs ·
-          defaults have no cascade — only the default ever touched them
+          {nf.format(entries.length)} options in the config Renovate runs · hover any key for
+          Renovate’s docs · defaults have no cascade — only the default ever touched them
         </p>
       ) : null}
     </>

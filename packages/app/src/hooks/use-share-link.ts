@@ -160,7 +160,8 @@ export interface ShareLink {
   /** Roadmap 009 (auth-failure surfacing): the `#config=…` fragment a sign-in
    *  redirect should return to — the current state as a share token, so the
    *  round trip through GitHub keeps the config (and re-runs it on arrival).
-   *  See App.tsx's `signInRef` for why the sign-in path needs one at all. */
+   *  Called only when a run exists to carry — see App.tsx's
+   *  `signInCarryingState`. */
   buildSignInReturnHash: () => Promise<string>;
 }
 
@@ -433,7 +434,8 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
           // fragment means step 2 below is about to re-run the config the user
           // signed in FROM — the auto-rerun that closes the auth-failure loop.
           // It happens exactly once per callback (this effect is one-shot),
-          // and only when a run existed to encode (App.tsx's `signInRef`).
+          // and only when a run existed to encode — the `if (result)` gate
+          // in App.tsx's `signInCarryingState`.
           const returnToken = readShareToken(returnHash);
           writeHash(window.location.pathname + returnHash, returnToken);
           void (async () => {
@@ -454,7 +456,9 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
             return;
           }
           hostRef.current.setNotice(
-            `GitHub sign-in failed: ${errorMessage(err)}. You can still use the app signed out.`,
+            // The messages arrive both ways: oauth.ts's own throws end in a
+            // full stop, the Worker's passthrough error code does not.
+            `GitHub sign-in failed: ${errorMessage(err).replace(/\.$/, "")}. You can still use the app signed out.`,
           );
           writeHash(window.location.pathname, null);
           return;

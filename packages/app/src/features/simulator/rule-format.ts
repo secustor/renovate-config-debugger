@@ -1,11 +1,7 @@
 import type { ClauseEvaluation, MergedKey, RuleEvaluation } from "@renovate-config-debugger/engine";
 import { jsonText } from "@renovate-config-debugger/engine/json";
 import { isFailingClause, isNoInputNoMatch } from "@/lib/rule-verdict";
-import { truncate } from "@/lib/truncate";
-
-export function previewValue(value: unknown, max = 60): string {
-  return truncate(jsonText(value), max);
-}
+import { jsonSnippet } from "@/lib/value-preview";
 
 /** Untruncated JSON rendering — the copy-as-markdown export and (replay-02
  *  N6) the clause grid's click-to-expand both need the complete value; a
@@ -39,7 +35,7 @@ export function writeMark(hadBefore: boolean, hadAfter: boolean): string {
 
 function inputsPreview(clause: ClauseEvaluation): string {
   return Object.entries(clause.inputValues)
-    .map(([key, value]) => `${key} = ${previewValue(value, 40)}`)
+    .map(([key, value]) => `${key} = ${jsonSnippet(value, 40)}`)
     .join(", ");
 }
 
@@ -123,7 +119,7 @@ export function clauseEvaluated(clause: ClauseEvaluation): ClauseEvaluated {
     return { text: "matched" };
   }
   if (inputs.length === 1 && only) {
-    return { text: "this update is", value: previewValue(only[1], 40) };
+    return { text: "this update is", value: jsonSnippet(only[1], 40) };
   }
   return { text: "this update has", value: inputsPreview(clause) };
 }

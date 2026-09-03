@@ -45,7 +45,7 @@ export const groupCommand = defineRunCommand<DependencyDescriptor[]>({
         sim: await askSimulation({ finalConfig: result.finalConfig, dep, transport: "cli" }),
       });
     }
-    const { tally, gaps, notes } = askGroup({ updates: simulated, transport: "cli" });
+    const { tally, gaps, inputNotes, notes } = askGroup({ updates: simulated, transport: "cli" });
     const refused = wouldRefuse(result);
     const refusal = refusalNote(refused ? ["the config"] : []);
     if (format === "json") {
@@ -58,6 +58,7 @@ export const groupCommand = defineRunCommand<DependencyDescriptor[]>({
     } else {
       emitLines(io, [
         ...groupTallyLines(tally, gaps),
+        ...inputNotes.map((note) => `note: ${note}`),
         ...gaps.map((gap) => `note: ${gap}`),
         ...(refusal ? ["", refusal] : []),
       ]);

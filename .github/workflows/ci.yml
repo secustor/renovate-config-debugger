@@ -54,7 +54,7 @@ jobs:
         run: pnpm --filter @renovate-config-debugger/engine test:shimmed
       - name: OAuth worker tests
         run: pnpm --filter @renovate-config-debugger/oauth-worker test
-      - name: App unit tests (pure modules — the run digest, …)
+      - name: App tests (unit + components + shimmed)
         run: pnpm --filter @renovate-config-debugger/app test:unit
       - name: CLI tests (arg parsing, output shapes, exit codes)
         run: pnpm --filter @renovate-config-debugger/cli test

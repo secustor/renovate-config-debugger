@@ -2,7 +2,7 @@
    ORDER IS LOAD-BEARING: main.tsx imports these numbered files in sequence,
    preserving the original file's cascade byte-for-byte; the couplings that
    depend on that order are listed there.
-   This file: simulator progressive disclosure (047). */
+   This file: simulator progressive disclosure (047) and the keyboard-UX layer — skip link, .visually-hidden, the ? shortcut sheet and the menu row key hints (068). */
 
 /* ---------- 047: simulator progressive disclosure ---------- */
 

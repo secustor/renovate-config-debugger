@@ -36,6 +36,46 @@ export type CustomManagerBlocks = readonly Record<string, unknown>[];
  *  GitHub session has 60 an hour). The view counts anything it drops. */
 const MAX_REPO_DEP_FILES = 500;
 
+/** How many file GETs are in flight at once — a browser allows about this many
+ *  per origin anyway, and the walk must not starve the rest of the page. */
+const FETCH_CONCURRENCY = 6;
+
+/**
+ * `items.map(work)` at a bounded fan-out, results kept in input order. The
+ * first rejection stops the pool from issuing anything further and propagates:
+ * a host failure here is usually the rate limit, so the requests still queued
+ * already know their answer. `discover` below is the only caller; the export
+ * exists for the unit test.
+ */
+export async function mapWithLimit<T, R>(
+  items: readonly T[],
+  limit: number,
+  work: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const out: R[] = [];
+  // One shared iterator IS the queue: a worker's next pull is the next index,
+  // and its exhaustion is the bound — an `undefined` element is work, not an end.
+  const queue = items.entries();
+  let stopped = false;
+  const worker = async () => {
+    while (!stopped) {
+      const pulled = queue.next();
+      if (pulled.done) {
+        return;
+      }
+      const [index, item] = pulled.value;
+      try {
+        out[index] = await work(item);
+      } catch (err) {
+        stopped = true;
+        throw err;
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
+
 /** What became of one matched file — the ledger entry the walk's own record
  *  (`path`, `managers`) is completed with. `error` carries the engine's reason
  *  for an EXTRACTION failure only; a file that was never fetched (`not-read`,
@@ -78,7 +118,7 @@ function discoveryKey(repo: LoadedRepo, customManagers: CustomManagerBlocks): st
 /** What ONE extraction run over a file produced — a built-in's, or one custom
  *  block's. `rows` is the PINNABLE rows, which can be 0 on a real extraction. */
 export type FileRun =
-  | { status: "extracted"; manager: string; rows: number }
+  | { status: "extracted"; rows: number }
   | { status: "no-deps" }
   | { status: "error"; message?: string };
 
@@ -147,11 +187,13 @@ async function discover(
     .toSorted((a, b) => a.depth - b.depth || a.index - b.index)
     .slice(0, MAX_REPO_DEP_FILES)
     .map((entry) => entry.match);
-  // The file fetches are independent GETs — issued together. Extraction
-  // stays sequential below: the engine serializes it (module-level renovate
-  // state) against every other engine task.
-  const contents = await Promise.all(
-    taken.map((match) => loadRepoFile({ ...request, path: match.path }, opts)),
+  // The file fetches are independent GETs, issued at a bounded fan-out; the
+  // first host failure aborts the rest rather than spending what is left of the
+  // rate limit on requests whose answer is already known. Extraction stays
+  // sequential below: the engine serializes it (module-level renovate state)
+  // against every other engine task.
+  const contents = await mapWithLimit(taken, FETCH_CONCURRENCY, (match) =>
+    loadRepoFile({ ...request, path: match.path }, opts),
   );
   const deps: RepoDep[] = [];
   // What each READ file turned into, keyed by path; the files nothing is
@@ -165,7 +207,7 @@ async function discover(
     }
     const rows = repoDepsOfFile(outcome.file);
     deps.push(...rows);
-    return { status: "extracted", manager: outcome.file.manager, rows: rows.length };
+    return { status: "extracted", rows: rows.length };
   };
   for (const [index, match] of taken.entries()) {
     const path = match.path;

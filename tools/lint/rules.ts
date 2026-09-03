@@ -7,6 +7,8 @@ import preferPlural from "./rules/prefer-plural.ts";
 import useErrorMessage from "./rules/use-error-message.ts";
 import useGotoAppHelper from "./rules/use-goto-app-helper.ts";
 import useJsonHelpers from "./rules/use-json-helpers.ts";
+import useJsonSnippet from "./rules/use-json-snippet.ts";
+import useLookupAccessors from "./rules/use-lookup-accessors.ts";
 import useRuleRef from "./rules/use-rule-ref.ts";
 import useSyncedReset from "./rules/use-synced-reset.ts";
 import useTransientValue from "./rules/use-transient-value.ts";
@@ -27,10 +29,10 @@ import useTruncate from "./rules/use-truncate.ts";
  *       fix is not an import: the construct itself is defective wherever it
  *       appears, it shipped that way, and the diagnostic names the correction.
  *
- * Nine of the twelve clear (a). Three clear (b): `no-uncaught-void-chain`, which
- * bans a construct and names no import, and the two the third sweep added,
- * which name a correction instead of a ban. Say which arm a new rule is on when
- * you add one.
+ * Eleven of the fourteen clear (a). Three clear (b): `no-uncaught-void-chain`,
+ * which bans a construct and names no import, and the two the third sweep
+ * added, which name a correction instead of a ban. Say which arm a new rule is
+ * on when you add one.
  *
  * ARM (b) IS A HOLDING PEN, NOT A DESTINATION. PR 316's review made that
  * explicit: a rule that says "stop doing X" without naming where to go is a rule
@@ -109,6 +111,44 @@ import useTruncate from "./rules/use-truncate.ts";
  * two files would walk the filesystem twice. It is the only house rule that
  * touches the filesystem; the walk is memoized once per lint process.
  *
+ * The 2026-09 structure sweep IV added two rules and widened two, all on arm
+ * (a). `use-lookup-accessors` guards the sharpest defect of the set:
+ * `lib/share.ts:440` read `PLATFORM_ENDPOINTS[platform]` with a platform taken
+ * straight out of a share-link fragment, so `platform=constructor` resolved to
+ * `Object.prototype.constructor` and returned a FUNCTION as the endpoint
+ * (finding 69). 75684991 built the two own-key accessors — `defaultEndpointFor`
+ * and `platformForHost` — and converted ten computed accesses across five
+ * files; nine were harmless, which is exactly why the tenth went unseen. It is
+ * table-driven (two entries today, a third is one line) and purely preventive:
+ * zero live hits, because `HOST_PLATFORM[parsed.host]` on a host the user TYPES
+ * is the natural thing to write. `use-json-snippet` is the cheapest rule of the
+ * set — one visitor, one messageId — and the home, `jsonSnippet(value, max)` in
+ * `@/lib/value-preview`, was built by this sweep's own fix commit (finding 48:
+ * the simulator's `previewValue` was `fixSnippet`'s body with the budget as a
+ * parameter, byte-identical and with the same two imports, living in a feature
+ * slice while `value-preview.ts` declared itself the home). Two more literal
+ * copies were still live and are converted by landing it. Both rules are
+ * app-only, which removes their only false positives structurally rather than
+ * by heuristic.
+ *
+ * The two widenings sit on rules already here. `prefer-plural` grew from the
+ * `{n} {pluralWord(n, word)}` adjacency arm to the hand-spelled
+ * `n === 1 ? "rule" : "rules"` ternary (`preferPluralWord` /
+ * `preferPluralSuffix`), because that is the spelling the defect SHIPPED in:
+ * `cli/src/rule-view.ts` pluralised on the hidden count rather than the total
+ * and printed "1 of 2 rule hidden" (finding 62, 34421b97 corrected the operand
+ * and left the shape). Routing through `plural(n, word)` makes the divergence
+ * unspellable — one operand feeds both the count and the noun. Its home now
+ * reaches the CLI through `packages/app/src/lib/headless.ts`, so it is no
+ * longer app-only, and six sites convert on landing, four of them in the CLI.
+ * `comment-cites-what-exists` grew a second citation spelling, the possessive
+ * ``File.tsx's `symbol` ``, which the shipped regex could not see because it
+ * requires the symbol first: two docblocks citing `App.tsx`'s `signInRef`, a
+ * symbol that exists nowhere in the repo, survived the very sweep that was
+ * hunting this class. The backtick around the symbol is the whole precision
+ * device — without it the possessive matches fifteen lines of ordinary prose,
+ * with it five.
+ *
  * WHAT IS DELIBERATELY NOT HERE. On arm (a), a rule is the right tool only when
  * the duplicate cannot be REMOVED. The review also found a message phrase the
  * engine produces and the app matches; the first instinct was a rule banning
@@ -136,6 +176,8 @@ export default definePlugin({
     "use-error-message": useErrorMessage,
     "use-goto-app-helper": useGotoAppHelper,
     "use-json-helpers": useJsonHelpers,
+    "use-json-snippet": useJsonSnippet,
+    "use-lookup-accessors": useLookupAccessors,
     "use-rule-ref": useRuleRef,
     "use-synced-reset": useSyncedReset,
     "use-transient-value": useTransientValue,

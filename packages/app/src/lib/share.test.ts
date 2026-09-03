@@ -483,6 +483,15 @@ describe("decideShareRunPolicy: trusted links behave as before", () => {
     expect(policy.suppressTokens).toBe(false);
   });
 
+  test("a platform naming an Object.prototype member resolves to no endpoint", () => {
+    // `isValidPlatform` deliberately admits any string, so the endpoint table
+    // must be read with an own-key guard or `constructor` yields a function.
+    const policy = decideShareRunPolicy(testPayload({ platform: "constructor" }));
+    expect(typeof policy.endpoint).toBe("string");
+    expect(policy.endpoint).toBe("");
+    expect(policy.untrustedEndpoints).toEqual([]);
+  });
+
   test("a trusted endpoint in the global layer keeps tokens", () => {
     const policy = decideShareRunPolicy(
       testPayload({ globalConfig: { platform: "gitea", endpoint: "https://gitea.com" } }),

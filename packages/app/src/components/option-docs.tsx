@@ -1,13 +1,13 @@
 import { type ReactNode, useCallback, useMemo, useState } from "react";
 import type { OptionDoc, OptionIndex, OptionPlacement } from "@renovate-config-debugger/engine";
 import { isNullOrUndefined } from "@renovate-config-debugger/engine/is";
-import { jsonText } from "@renovate-config-debugger/engine/json";
 import { CodeText } from "./CodeText";
 import { HoverCardAnchor, HoverCardSurface, HoverCardTextAnchor } from "./hover-card";
 import { useHoverCard } from "./hover-card-hooks";
 import { OptionDocsContext, useOptionDocs } from "./option-docs-hooks";
 import type { AnchorSource } from "@/lib/anchored-card";
 import { truncate } from "@/lib/truncate";
+import { jsonSnippet } from "@/lib/value-preview";
 
 /**
  * Inline documentation for renovate options (roadmap 003): a context carrying
@@ -137,7 +137,7 @@ function OptionCardBody({ name, doc }: { name: string; doc?: OptionDoc }) {
           ) : null}
           {!isNullOrUndefined(doc.default) ? (
             <p className="option-card-row">
-              <strong>Default:</strong> <code>{truncate(jsonText(doc.default), 100)}</code>
+              <strong>Default:</strong> <code>{jsonSnippet(doc.default, 100)}</code>
             </p>
           ) : null}
           {doc.allowedValues?.length ? (

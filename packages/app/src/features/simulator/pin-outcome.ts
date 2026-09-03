@@ -11,9 +11,10 @@ import { jsonText } from "@renovate-config-debugger/engine/json";
 import { nf, plural, pluralWord } from "@/lib/format";
 import { crossRuleIndex } from "@/lib/rule-cross-index";
 import { hasEvaluationError, isFailingClause, isNoInputNoMatch } from "@/lib/rule-verdict";
+import { jsonSnippet } from "@/lib/value-preview";
 import { buildNoInputCaveat } from "@/lib/verdict-sentence";
 import { overridingStopIndex } from "./merge-override";
-import { clauseEvaluated, previewValue, ruleLabel } from "./rule-format";
+import { clauseEvaluated, ruleLabel } from "./rule-format";
 import { ruleRef } from "@/lib/rule-ref";
 
 /**
@@ -208,7 +209,7 @@ function buildWrites(
     const overrider = overriderAt === undefined ? undefined : mergeSteps[overriderAt];
     return {
       key: entry.key,
-      valueText: Object.hasOwn(entry, "after") ? previewValue(entry.after, 60) : "(removed)",
+      valueText: Object.hasOwn(entry, "after") ? jsonSnippet(entry.after, 60) : "(removed)",
       survived: overrider === undefined,
       ...(overrider === undefined ? {} : { overriddenBy: stepName(overrider) }),
     };
@@ -281,7 +282,7 @@ function failingClauseNote(rule: RuleEvaluation): string {
   }
   const evaluated = clauseEvaluated(failing);
   const value = evaluated.value === undefined ? "" : ` ${evaluated.value}`;
-  return `${failing.key}: ${previewValue(failing.value, 32)} — ${evaluated.text}${value}`;
+  return `${failing.key}: ${jsonSnippet(failing.value, 32)} — ${evaluated.text}${value}`;
 }
 
 /** The `match*` axis a clause checks, as the plain word the bucket reason

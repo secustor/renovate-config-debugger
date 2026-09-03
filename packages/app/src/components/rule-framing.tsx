@@ -81,17 +81,23 @@ function computeRuleFraming(
 
 /**
  * A contributor's name: a preset gets the standard token (081), a layer name
- * stays prose. Inert — the aside is a parenthetical inside a sentence, and a
- * button there would put a second activation into a line whose own control is
- * whatever encloses it; the token's hover card carries the jump instead.
+ * stays prose. Inert as to activation — the aside is a parenthetical inside a
+ * sentence, and a button there would put a second activation into a line whose
+ * own control is whatever encloses it; the token's hover card carries the jump
+ * instead. The copy icon stays on by default and is suppressed only on the
+ * `RuleFramingText` path, which is painted inside `DataTableRowHead`'s button.
  */
-function ContributorLabel({ top }: { top: TopContributor }) {
-  return top.isPreset ? <PresetName name={top.label} nodeId={top.nodeId} /> : top.label;
+function ContributorLabel({ top, showCopy }: { top: TopContributor; showCopy?: boolean }) {
+  return top.isPreset ? (
+    <PresetName name={top.label} nodeId={top.nodeId} showCopy={showCopy} />
+  ) : (
+    top.label
+  );
 }
 
 /** Renders the "M from your config, K pulled in by `preset`, and R more from
  *  other presets" clause — the part after the em dash. */
-function FramingBreakdown({ framing }: { framing: RuleFramingData }) {
+function FramingBreakdown({ framing, showCopy }: { framing: RuleFramingData; showCopy?: boolean }) {
   const segs: { key: string; node: ReactNode }[] = [];
   if (framing.own > 0) {
     segs.push({ key: "own", node: `${nf.format(framing.own)} from your config` });
@@ -101,7 +107,8 @@ function FramingBreakdown({ framing }: { framing: RuleFramingData }) {
       key: "top",
       node: (
         <>
-          {nf.format(framing.top.count)} pulled in by <ContributorLabel top={framing.top} />
+          {nf.format(framing.top.count)} pulled in by{" "}
+          <ContributorLabel top={framing.top} showCopy={showCopy} />
         </>
       ),
     });
@@ -127,18 +134,26 @@ function FramingBreakdown({ framing }: { framing: RuleFramingData }) {
  * "713 (713 from your config)" both say the count twice and add nothing. When
  * one source covers every rule, say "all" instead.
  */
-function CompactBreakdown({ framing, total }: { framing: RuleFramingData; total: number }) {
+function CompactBreakdown({
+  framing,
+  total,
+  showCopy,
+}: {
+  framing: RuleFramingData;
+  total: number;
+  showCopy?: boolean;
+}) {
   if (framing.own === total && !framing.top) {
     return "all from your config";
   }
   if (framing.own === 0 && framing.top && framing.top.count === total) {
     return (
       <>
-        all pulled in by <ContributorLabel top={framing.top} />
+        all pulled in by <ContributorLabel top={framing.top} showCopy={showCopy} />
       </>
     );
   }
-  return <FramingBreakdown framing={framing} />;
+  return <FramingBreakdown framing={framing} showCopy={showCopy} />;
 }
 
 /**
@@ -188,7 +203,9 @@ export function RuleFramingText({
   }
   return (
     <>
-      {bare} — <FramingBreakdown framing={framing} />
+      {/* `showCopy={false}`: the effective config draws this clause inside
+          `DataTableRowHead`'s own `<button>`, where a copy button would nest. */}
+      {bare} — <FramingBreakdown framing={framing} showCopy={false} />
       {/* Replay-02 R6: the one visible anchor tying the 1-based count to the
           0-based `packageRules[N]` citations everywhere else on the page. */}
       {total > 1 ? (

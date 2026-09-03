@@ -79,17 +79,17 @@ Every fetcher runs in the page, so each host must serve CORS headers. The
 public default endpoints below verifiably do; self-hosted endpoints usually do
 not, so their presets fall back to manual injection.
 
-| Prefix                                                       | Status               | Notes                                                       |
-| ------------------------------------------------------------ | -------------------- | ----------------------------------------------------------- |
-| `github>`                                                    | fetched in browser   | `api.github.com` (custom endpoint supported)                |
-| `gitlab>`                                                    | fetched in browser   | `gitlab.com` API v4 (custom endpoint supported)             |
-| `gitea>`                                                     | fetched in browser   | `gitea.com` API v1 (custom endpoint supported)              |
-| `forgejo>`                                                   | fetched in browser   | `codeberg.org` API v1 (custom endpoint supported)           |
-| `npm>`                                                       | fetched in browser   | `registry.npmjs.org` (deprecated upstream)                  |
-| bare `owner/repo`, `local>`                                  | via platform context | resolves against the toolbar platform + endpoint you select |
-| `http(s)://…`                                                | manual only          | arbitrary endpoints rarely serve CORS                       |
-| azure / bitbucket / bitbucket-server / gerrit (via `local>`) | not supported        | reachable only via a real Renovate run                      |
-| codecommit / scm-manager (via `local>`)                      | not supported        | Renovate itself does not serve local presets there          |
+| Prefix                                                       | Status               | Notes                                                                             |
+| ------------------------------------------------------------ | -------------------- | --------------------------------------------------------------------------------- |
+| `github>`                                                    | fetched in browser   | `api.github.com` (custom endpoint supported)                                      |
+| `gitlab>`                                                    | fetched in browser   | `gitlab.com` API v4 (custom endpoint supported)                                   |
+| `gitea>`                                                     | fetched in browser   | `gitea.com` API v1 (custom endpoint supported)                                    |
+| `forgejo>`                                                   | fetched in browser   | `codeberg.org` API v1 (custom endpoint supported)                                 |
+| `npm>`                                                       | fetched in browser   | `registry.npmjs.org` (deprecated upstream)                                        |
+| bare `owner/repo`, `local>`                                  | via platform context | resolves against the platform + endpoint set under Advanced — hosts & credentials |
+| `http(s)://…`                                                | manual only          | arbitrary endpoints rarely serve CORS                                             |
+| azure / bitbucket / bitbucket-server / gerrit (via `local>`) | not supported        | reachable only via a real Renovate run                                            |
+| codecommit / scm-manager (via `local>`)                      | not supported        | Renovate itself does not serve local presets there                                |
 
 Any preset a fetcher cannot reach (self-hosted or air-gapped hosts, a
 hypothetical preset) can be supplied by hand: select the failed node in the
@@ -127,23 +127,28 @@ revoking, and the personal-access-token fallback for GitHub Enterprise Server.
 - Configs never leave the browser except for the preset fetches they themselves
   declare; all GitHub/GitLab/Gitea/Forgejo/npm content fetches go browser →
   host API directly, with nothing proxying your config or presets.
-- Tokens (OAuth or personal access token) live in `sessionStorage`/memory and
-  are cleared when the tab closes. They never go into `localStorage` or into a
-  URL.
+- Access tokens (OAuth or personal access token) live in `sessionStorage`/memory
+  and are cleared when the tab closes, and never enter a URL. Where a deployment
+  enables the worker's `REFRESH_COOKIE` — as the public one does — the ~6-month
+  refresh token lives in an `HttpOnly` cookie scoped to the worker mount, so the
+  session survives a closed tab. `localStorage` still holds no secret — the
+  marker it gains says only that a session exists. The full table is in
+  [docs/Auth-Flow.md](docs/Auth-Flow.md).
 - Sign in with GitHub adds exactly one piece of server infrastructure: the
   stateless [`packages/oauth-worker`](packages/oauth-worker), which does nothing
   but the OAuth `code → token` / `refresh_token → token` exchange, because a
   static site cannot hold the `client_secret` GitHub still requires. It never
   sees a config, a preset, or an API request.
 - Signing in also raises the GitHub rate limit from 60 to 5,000 requests/hour.
-  Sign-out clears the local token, and the chip links to GitHub's authorization
-  page for true revocation.
+  Sign-out clears the local token and fires a best-effort `POST /logout`, since
+  only the worker can drop the refresh cookie; the chip links to GitHub's
+  authorization page for true revocation.
 - Sign-in is off by default. It turns on only when the deploy provides
   `VITE_GITHUB_CLIENT_ID` and `VITE_OAUTH_WORKER_URL` (plus optional
   `VITE_GITHUB_APP_SLUG`) or their `RCD_*` equivalents. Otherwise a personal
-  access token under _Platform context & per-host tokens_ is the only GitHub
-  auth, and it is also the fallback for GitHub Enterprise Server, orgs that
-  can't approve the app install, or Worker outages.
+  access token under _Advanced — hosts & credentials_ is the only GitHub auth,
+  and it is also the fallback for GitHub Enterprise Server, orgs that can't
+  approve the app install, or Worker outages.
 
 </details>
 

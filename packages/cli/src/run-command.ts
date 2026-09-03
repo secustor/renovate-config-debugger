@@ -4,7 +4,7 @@ import { outputFormat } from "./args";
 import type { Command } from "./command";
 import { EXIT_OK, EXIT_REFUSED, type CliIo } from "./io";
 import { writeNotes } from "./output";
-import { runFromArgs, wouldRefuse } from "./run-input";
+import { rejectExtraPositionals, runFromArgs, wouldRefuse } from "./run-input";
 
 /**
  * The shape every config-consuming subcommand has: read the flags, resolve ONE
@@ -44,6 +44,9 @@ export interface RunCommandSpec<Prepared> {
   usage: string[];
   details?: string[];
   options: readonly OptionName[];
+  /** Positionals the command reads besides the config file (default none);
+   *  anything past them is rejected before the run. */
+  positionals?: number;
   /**
    * Flags parsed and validated BEFORE the run. Deliberately its own phase: a
    * rejected flag must not cost a pipeline run (and its remote preset
@@ -65,6 +68,7 @@ export function defineRunCommand<Prepared = undefined>(spec: RunCommandSpec<Prep
       // First, and before any work: `--format` is the one flag that decides
       // how everything below is written, so a bad value is a bad value now.
       const format = outputFormat(args);
+      rejectExtraPositionals(args, spec.name, spec.positionals ?? 0);
       // A command with no flags of its own prepares nothing — the cast names
       // that case, which the type parameter's `undefined` default declares.
       const prepared = (await spec.prepare?.(args, io)) as Prepared;

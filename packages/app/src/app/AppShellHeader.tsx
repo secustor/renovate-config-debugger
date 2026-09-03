@@ -1,4 +1,4 @@
-import { nf, plural } from "@/lib/format";
+import { nf, plural, pluralWord } from "@/lib/format";
 import { AppHeaderTools } from "@/app/AppHeaderTools";
 import { useRunView } from "@/app/run-view-context";
 import type { ResultsTabId } from "@/data/results-tabs";
@@ -81,7 +81,7 @@ function DigestLinks({
     <div className="app-header-digest">
       <DigestLink
         count={rewrites}
-        label={rewrites === 1 ? "rewrite" : "rewrites"}
+        label={pluralWord(rewrites, "rewrite")}
         onOpen={onShowRewrites}
       />
       <span aria-hidden="true">·</span>

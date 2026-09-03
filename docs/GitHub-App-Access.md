@@ -79,18 +79,21 @@ authorization, so uninstalling is the lever they have. GitHub covers both under
 [reviewing and revoking authorization of GitHub
 Apps](https://docs.github.com/en/apps/using-github-apps/reviewing-and-revoking-authorization-of-github-apps).
 
-Tokens are short-lived either way. They last 8 hours, with a 6-month refresh
-token, and they live in `sessionStorage` and memory only, so closing the tab
-already clears the copy in your browser.
+Access tokens are short-lived either way: they last 8 hours and live in
+`sessionStorage` and memory only, so closing the tab clears the copy in your
+browser. On this deployment the 6-month refresh token is an `HttpOnly` cookie
+scoped to the token-exchange proxy, so the session resumes on your next visit
+until you use **Sign out** — or revoke or uninstall as above. The full storage
+table is in [Auth-Flow.md](Auth-Flow.md).
 
 ## When the App isn't an option
 
-Use a personal access token under _Platform context & per-host tokens_ in
-advanced settings instead. That remains the fallback for GitHub Enterprise
-Server, where the App does not exist because it lives on github.com only. It is
-also the answer for organizations that will not approve third-party App
-installations, for deployments with sign-in turned off, and for an outage of the
-token-exchange proxy.
+Use a personal access token under _Advanced — hosts & credentials_ instead.
+That remains the fallback for GitHub Enterprise Server, where the App does not
+exist because it lives on github.com only. It is also the answer for
+organizations that will not approve third-party App installations, for
+deployments with sign-in turned off, and for an outage of the token-exchange
+proxy.
 
 The token is kept in `sessionStorage`, and it never enters a URL or a share
 link.

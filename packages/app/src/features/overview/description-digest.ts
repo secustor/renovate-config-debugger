@@ -1,4 +1,4 @@
-import { nf } from "@/lib/format";
+import { plural } from "@/lib/format";
 import type {
   DescriptionProvenance,
   DescriptionSource,
@@ -212,9 +212,8 @@ export function unattributedNoteText(digest: DescriptionDigest): string {
   if (count === 0) {
     return "";
   }
-  const members = count === 1 ? "member" : "members";
   const them = count === 1 ? "it" : "them";
-  return `${nf.format(count)} ${members} of the description array ${count === 1 ? "is" : "are"} not text, so no preset can be credited with ${them}.`;
+  return `${plural(count, "member")} of the description array ${count === 1 ? "is" : "are"} not text, so no preset can be credited with ${them}.`;
 }
 
 /**

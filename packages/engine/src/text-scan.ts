@@ -10,10 +10,11 @@
  * silent divergence would be a bug rather than a difference of purpose. So the
  * four live here, once, and both scanners import them.
  *
- * This module imports NOTHING. That is the point: it is reachable as
- * `@renovate-config-debugger/engine/text-scan` without dragging the barrel's
- * Renovate graph along, so the app can use it from a module that is on the
- * first-paint critical path (see `packages/app/src/lib/rule-locate.ts`).
+ * WHY THIS MODULE HAS NO IMPORTS — `test/import-free-subpaths.node.test.ts`
+ * holds it to that. The `@renovate-config-debugger/engine/text-scan` subpath is
+ * reachable without dragging the barrel's Renovate graph along, so the app can
+ * use it from a module on the first-paint critical path (see
+ * `packages/app/src/lib/rule-locate.ts`).
  *
  * Lightweight by design, not a JSON5 parser: standard double-quoted strings and
  * `//` / `/* *\/` comments, which covers the overwhelming convention even in

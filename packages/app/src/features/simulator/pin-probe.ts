@@ -69,13 +69,22 @@ function bodyWrites(body: unknown): string | undefined {
   if (!isPlainObject(body)) {
     return undefined;
   }
-  const entries = Object.entries(body).filter(
-    ([key]) => !key.startsWith("match") && !key.startsWith("exclude") && key !== "description",
-  );
-  if (entries.length === 0) {
+  const keys = bodyWriteKeys(body);
+  if (keys.length === 0) {
     return undefined;
   }
-  return entries.map(([key, value]) => `${key}: ${fullValue(value)}`).join(", ");
+  return keys.map((key) => `${key}: ${fullValue(body[key])}`).join(", ");
+}
+
+/** What the `writes` field can expose, in one place — the body's own keys less
+ *  the matchers and the description, which are searchable as their own fields. */
+function bodyWriteKeys(body: unknown): string[] {
+  if (!isPlainObject(body)) {
+    return [];
+  }
+  return Object.keys(body).filter(
+    (key) => !key.startsWith("match") && !key.startsWith("exclude") && key !== "description",
+  );
 }
 
 /** The searchable fields of one rule, in the order a hit is attributed. */
@@ -160,15 +169,44 @@ export function probeRules({
   return { total, hits };
 }
 
+/** The first merged key the `writes` field can expose, scanning the rule steps
+ *  in order. Without the bodies that field holds nothing at all, so there is no
+ *  chip that could hit. */
+function writtenSuggestion(
+  sim: SimulationResult,
+  ruleBodies: readonly unknown[] | undefined,
+): string | undefined {
+  if (ruleBodies === undefined) {
+    return undefined;
+  }
+  for (const step of sim.mergeSteps) {
+    if (step.kind !== "rule" || step.ruleIndex === undefined) {
+      continue;
+    }
+    const keys = bodyWriteKeys(ruleBodies[step.ruleIndex]);
+    const hit = step.merged.find((entry) => keys.includes(entry.key));
+    if (hit) {
+      return hit.key;
+    }
+  }
+  return undefined;
+}
+
 /**
  * The idle state's example chips — drawn from the run itself so every
  * suggestion is guaranteed to hit: the biggest preset name among the skipped
- * rules, a written option (from a RULE step: a flatten step's key is named by
- * no rule body), and a concrete rule index.
+ * rules, a written option, and a concrete rule index.
+ *
+ * Only a merged key `bodyWriteKeys` exposes is suggestible, since `writes` is
+ * the sole field that can find one. The merge tail reports more than that:
+ * `description`, which the body does write but which `writes` leaves to its own
+ * field, plus keys no body wrote at all — `skipReason`/`skipStage`, a derived
+ * `groupSlug`, and the `datasource`/`depName` the `override*` keys leave behind.
  */
 export function probeSuggestions(
   sim: SimulationResult,
   layerByIndex: Map<number, ProvenanceLayer>,
+  ruleBodies?: readonly unknown[],
 ): string[] {
   const suggestions: string[] = [];
   const presetNames = new Map<string, number>();
@@ -182,8 +220,7 @@ export function probeSuggestions(
   if (biggest) {
     suggestions.push(biggest[0]);
   }
-  const written = sim.mergeSteps.find((s) => s.kind === "rule" && s.merged.length > 0)?.merged[0]
-    ?.key;
+  const written = writtenSuggestion(sim, ruleBodies);
   if (written !== undefined && !suggestions.includes(written)) {
     suggestions.push(written);
   }

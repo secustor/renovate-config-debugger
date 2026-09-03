@@ -170,7 +170,7 @@ export function inputGaps(simulated: readonly GapInput[], transport: RunTranspor
     const named =
       fields.length > 0 ? `leaves ${fields.slice(0, 3).join(" / ")} unset` : "leaves fields unset";
     return [
-      `${name}: ${count} rule${count === 1 ? "" : "s"} could not match because this update ` +
+      `${name}: ${plural(count, "rule")} could not match because this update ` +
         `${named} — ${spell} that update to see which rules.`,
     ];
   });

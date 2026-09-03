@@ -27,8 +27,7 @@ const PACKAGE = "@renovate-config-debugger/cli";
 const DOCS_URL = "https://github.com/secustor/renovate-config-debugger/tree/main/packages/cli";
 
 const ONE_LINERS = [
-  `# this run, as JSON`,
-  `npx -y ${PACKAGE} digest renovate.json`,
+  `npx -y ${PACKAGE} digest renovate.json      # the run in one paragraph`,
   `npx -y ${PACKAGE} validate renovate.json    # exit 2 = Renovate would refuse it`,
   `npx -y ${PACKAGE} compare before.json after.json --dep '{"depName":"react"}'`,
   ``,

@@ -30,7 +30,10 @@ try {
   // exit discards everything still queued — `rcd run … --format json | cat`
   // used to stop at the 64 KB pipe buffer and report success. Setting the code
   // instead answers with the same number and lets the loop drain the writes.
-  process.exitCode = await main(process.argv.slice(2), processIo());
+  // `||`, not a plain assignment: a stdout write failure (bin/io.mjs) sets a
+  // nonzero code from outside main, and a truncated answer must not be
+  // overwritten with main's 0.
+  process.exitCode = (await main(process.argv.slice(2), processIo())) || process.exitCode;
 } finally {
   await server.close();
 }

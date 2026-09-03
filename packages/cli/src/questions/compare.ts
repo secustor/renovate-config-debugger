@@ -63,6 +63,9 @@ export function askCompare(question: CompareQuestion): CompareAnswer {
       const note = missingInputsNote(sim.missingInputs, transport);
       return note ? [`${label} — ${note}`] : [];
     }),
+    // The simulation's own input notes (a defaulted field, a key no matcher
+    // reads) — a typo'd descriptor is exactly what makes two sides agree.
+    ...sides.flatMap(({ label, sim }) => sim.notes.map((note) => `${label} — ${note}`)),
   ];
   const comparison = comparisonPayload(
     compareSimulations(simA, simB, {

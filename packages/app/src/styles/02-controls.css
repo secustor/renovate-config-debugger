@@ -368,7 +368,8 @@ button.preset-token:focus-visible {
 /* Roadmap 024/042/046's clickable-chip sequence (`.stage-timeline` /
    `.stage-sep` / `.stage-chip*`) is gone: 075 moved the Pipeline tab to
    `StageRail`, and 094 retired the simulator's merge stepper — its last
-   consumer. The 024 dot vocabulary itself lives on in `.stage-rail-glyph`. */
+   consumer. The 024 dot vocabulary itself lives on in
+   `.stage-rail-glyph` — 08-landing.css. */
 
 .messages li.error {
   color: var(--error);

@@ -36,7 +36,7 @@ export default defineConfig({
           // include list would run in NO project and pass silently — the same
           // failure class the headless walker's regex had (roadmap 084).
           // test/project-coverage.node.test.ts asserts every test file
-          // matches exactly one of the two globs.
+          // matches exactly one of the project globs.
           include: ["test/*.shimmed.test.ts"],
           environment: "node",
           server: { deps: { inline: [...RENOVATE_INLINE] } },

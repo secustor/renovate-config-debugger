@@ -15,7 +15,7 @@ import { isNonEmptyString, isString } from "@renovate-config-debugger/engine/is"
 import { jsonLiteral } from "@renovate-config-debugger/engine/json";
 import type { ShareResultsTabId } from "@/data/results-tabs";
 import { isValidRepoRefPart } from "@/lib/input-schemas";
-import { DEFAULT_ENDPOINT, DEFAULT_PLATFORM, PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
+import { DEFAULT_ENDPOINT, DEFAULT_PLATFORM, defaultEndpointFor } from "@/data/platform-endpoints";
 import { isTrustedEndpoint } from "@/lib/trusted-endpoint";
 
 // Roadmap 031: the payload schemas (and with them zod) load with the first
@@ -437,7 +437,7 @@ function resolveEffectivePlatformContext(payload: RunPlatformContext): {
       : payload.endpoint;
   const endpoint =
     (overridden ? (explicitEndpoint ?? globalEndpoint) : (globalEndpoint ?? explicitEndpoint)) ??
-    PLATFORM_ENDPOINTS[platform] ??
+    defaultEndpointFor(platform) ??
     "";
   return { platform, endpoint, globalEndpoint };
 }

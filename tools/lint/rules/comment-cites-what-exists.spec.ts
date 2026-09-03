@@ -38,6 +38,35 @@ ruleTester.run("comment-cites-what-exists", rule, {
     "// the save/restore dance `stubFetch` in `test/helpers.ts` owns\nexport const l = 12;",
     // a target that does not exist is arm A's business or nobody's
     "// `nowhereSymbol` in `no-such-module.ts`\nexport const m = 13;",
+    // ---- arm B, the possessive spelling: escapes ------------------------
+    // the symbol is where the possessive says it is (trusted-endpoint.ts:60,
+    // verbatim) — `onEndpointChange` really is in App.tsx, twice
+    "/**\n * see App.tsx's `onEndpointChange` / `blockedByLayerErrors`).\n */\nexport const n = 14;",
+    // TESTS ARE IN SCOPE ON PURPOSE, and this is why (share.test.ts:441,
+    // verbatim): a test docblock's possessive citation is checked like any
+    // other, and this one is true.
+    "/**\n * pure decision App.tsx's `loadShareToken` applies: which endpoints the run\n */\nexport const o = 15;",
+    // AMBIGUOUS BASENAME, checked before the symbol ever is (vite-env.d.ts:37,
+    // verbatim): two vite.config.ts files exist, so the arm declines. It would
+    // have been a true negative anyway — `define` is in the app's five times.
+    "/**\n * Roadmap 088 — the build identity injected by vite.config.ts's `define`.\n */\nexport const p = 16;",
+    // THE PRECISION DEVICE: no backtick, no citation. Without this requirement
+    // the possessive matches fifteen lines of ordinary prose in scope.
+    "// the sign-in chip lives in App.tsx's chrome, not in this hook\nexport const q = 17;",
+    // ASCII apostrophe only — the curly variant has zero hits in scope, so it
+    // buys nothing and costs a second spelling to keep true.
+    "// App.tsx\u2019s `signInRef` is the same lie in the other quote glyph\nexport const r = 18;",
+    // DELIBERATELY NOT SHIPPED (sweep finding 29, 75684991, verbatim): a dotted
+    // member path would have caught this one too, but no dotted possessive
+    // exists in the tree, so the widening has no measured precision.
+    "// lazily below the fold, inside App.tsx's `React.lazy` boundary\nexport const s = 19;",
+    // SAME RECALL LOSS AS `activeHide`, in the possessive spelling (sweep
+    // finding 37, e0a388b5, verbatim — the sweep fixed it by HAND). App.tsx has
+    // carried a `jumpDisplacedFocus` mention in a comment since ca5b8a59, and a
+    // mention counts as present: plain text, not scope analysis.
+    "// rule lives in App.tsx's `jumpDisplacedFocus`, which is module-private and has\nexport const t = 20;",
+    // a possessive whose file is nowhere is arm A's business or nobody's
+    "// no-such-module.ts's `nowhereSymbol`\nexport const u = 21;",
     // ---- structurally out of reach: only comments are read ---------------
     'const p = "packages/app/src/nope.tsx";',
     'const q = ["fixtures/does-not-exist.test.ts"];',
@@ -104,6 +133,29 @@ ruleTester.run("comment-cites-what-exists", rule, {
     {
       code: "// `noSuchExport` at `packages/app/src/app/App.tsx`\nexport const k = 11;",
       errors: [{ messageId: "symbolNotInFile" }],
+    },
+    // ---- arm B possessive, the two live defects it was widened for ------
+    // Both halves of `use-share-link`'s sign-in citation named `signInRef`,
+    // which the repo has never defined anywhere — and both sat untouched
+    // through the sweep whose whole job was citations. Verbatim, :163 and :436.
+    {
+      code: "/**\n *  See App.tsx's `signInRef` for why the sign-in path needs one at all. */\nexport const l = 12;",
+      errors: [{ messageId: "symbolNotInFile" }],
+    },
+    {
+      code: "// and only when a run existed to encode (App.tsx's `signInRef`).\nexport const m = 13;",
+      errors: [{ messageId: "symbolNotInFile" }],
+    },
+    // the possessive of a symbol that DOES exist, in a file that is not its
+    // home: the destination half of the message has a destination to name
+    {
+      code: "// App.tsx's `jsonLiteral` is the one spelling of the wire format\nexport const n = 14;",
+      errors: [{ messageId: "symbolNotInFile" }],
+    },
+    // both spellings in one comment, two reports
+    {
+      code: "// `noSuchExport` in App.tsx, and App.tsx's `alsoNoSuchExport`\nexport const o = 15;",
+      errors: [{ messageId: "symbolNotInFile" }, { messageId: "symbolNotInFile" }],
     },
   ],
 });

@@ -89,4 +89,28 @@ describe("computeTreeStats subtree fields", () => {
     expect(stats.statsById.get(ROOT_NODE_ID)?.subtreeDepth).toBe(3);
     expect(stats.statsById.get("p4")?.subtreeDepth).toBe(0);
   });
+
+  /**
+   * `uniquePresets` is what the origin framing and the ledger cards divide by
+   * the headline total, so it has to use the SAME per-name dedup — `descResolved`
+   * counts occurrences, and a name repeated across two roots made a share that
+   * could exceed the whole.
+   */
+  it("credits a repeated preset to the extends entry that introduced it", () => {
+    const first = node("a1", "config:recommended", [node("a2", ":dependencyDashboard")]);
+    const second = node("b1", "github>acme/config", [node("b2", ":dependencyDashboard")]);
+    const stats = computeTreeStats(node(ROOT_NODE_ID, "(your config)", [first, second]));
+
+    // Four nodes, three names — and the second root's copy is not its own.
+    expect(stats.summary.resolved).toBe(3);
+    expect(stats.statsById.get("a1")?.uniquePresets).toBe(2);
+    expect(stats.statsById.get("b1")?.uniquePresets).toBe(1);
+    expect(stats.statsById.get("a1")?.descResolved).toBe(1);
+    expect(stats.statsById.get("b1")?.descResolved).toBe(1);
+
+    const shares = [...stats.statsById.entries()]
+      .filter(([id]) => id === "a1" || id === "b1")
+      .reduce((sum, [, st]) => sum + st.uniquePresets, 0);
+    expect(shares).toBe(stats.summary.resolved);
+  });
 });

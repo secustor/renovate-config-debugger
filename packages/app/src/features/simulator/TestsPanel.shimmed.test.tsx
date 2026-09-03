@@ -15,7 +15,7 @@ import { fireEvent, render, waitFor, within } from "@testing-library/react";
 import { beforeAll, expect, it, vi } from "vitest";
 import type { SimRequest } from "@/hooks/use-share-link";
 import { stubMatchMedia, stubResizeObserver, stubScrollApis } from "@tools/test/jsdom-stubs";
-import { walkFile } from "@tools/test/repo-deps";
+import { readyView } from "@tools/test/repo-deps";
 import { EMPTY_REPO_DEPS } from "./repo-deps";
 import { TestsPanel } from "./TestsPanel";
 import type { FormState, PinnedTest } from "@/types/simulator";
@@ -369,55 +369,41 @@ it("collapses behind the ghost row once a pin exists, and reopens from it (082 r
   expect(view.getByLabelText("packageName", { exact: true })).toBeTruthy();
 });
 
-const REPO_DEPS: RepoDepsView = {
-  ...EMPTY_REPO_DEPS,
-  status: "ready",
-  repo: "acme/webapp",
-  deps: [
-    {
-      key: "package.json:0:typescript",
-      depName: "typescript",
-      value: "^5.8.3",
-      meta: "package.json · ^5.8.3",
+const REPO_DEPS: RepoDepsView = readyView([
+  {
+    key: "package.json:0:typescript",
+    depName: "typescript",
+    value: "^5.8.3",
+    meta: "package.json · ^5.8.3",
+    manager: "npm",
+    packageFile: "package.json",
+    fill: {
       manager: "npm",
       packageFile: "package.json",
-      fill: {
-        manager: "npm",
-        packageFile: "package.json",
-        depName: "typescript",
-        packageName: "typescript",
-        currentValue: "^5.8.3",
-        datasource: "npm",
-        depType: "devDependencies",
-      },
+      depName: "typescript",
+      packageName: "typescript",
+      currentValue: "^5.8.3",
+      datasource: "npm",
+      depType: "devDependencies",
     },
-    {
-      key: "Dockerfile:0:node",
-      depName: "node",
-      value: "20-alpine",
-      meta: "Dockerfile · 20-alpine",
+  },
+  {
+    key: "Dockerfile:0:node",
+    depName: "node",
+    value: "20-alpine",
+    meta: "Dockerfile · 20-alpine",
+    manager: "dockerfile",
+    packageFile: "Dockerfile",
+    fill: {
       manager: "dockerfile",
       packageFile: "Dockerfile",
-      fill: {
-        manager: "dockerfile",
-        packageFile: "Dockerfile",
-        depName: "node",
-        packageName: "node",
-        currentValue: "20-alpine",
-        datasource: "docker",
-      },
+      depName: "node",
+      packageName: "node",
+      currentValue: "20-alpine",
+      datasource: "docker",
     },
-  ],
-  files: [
-    walkFile("package.json", ["npm"], { depCount: 1, outcome: "extracted" }),
-    walkFile("Dockerfile", ["dockerfile"], {
-      depCount: 1,
-      outcome: "extracted",
-    }),
-  ],
-  managersConsidered: 100,
-  customManagersConsidered: 0,
-};
+  },
+]);
 
 it("offers the loaded repo's dependencies and pins one from the picker (078)", async () => {
   const result = await run();

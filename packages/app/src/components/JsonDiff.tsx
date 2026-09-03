@@ -176,8 +176,12 @@ export function JsonDiff({ before, after, names, title }: Props) {
           confused the 035 review. */}
       <div className="diff-chrome">
         {title ? <span className="diff-chrome-title">{title}</span> : null}
-        <span className="diff-stat" aria-label={`${stat.insert} added, ${stat.remove} removed`}>
-          <span className="plus">+{stat.insert}</span> <span className="minus">−{stat.remove}</span>
+        <span
+          className="diff-stat"
+          aria-label={`${nf.format(stat.insert)} added, ${nf.format(stat.remove)} removed`}
+        >
+          <span className="plus">+{nf.format(stat.insert)}</span>{" "}
+          <span className="minus">−{nf.format(stat.remove)}</span>
         </span>
         <span className="diff-chrome-spacer" />
         <SegmentedControl

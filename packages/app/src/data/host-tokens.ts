@@ -13,8 +13,10 @@ export interface HostTokenDescriptor {
   /** Short host name, used in the token error rows ("<label> token …"). */
   label: string;
   /** The canonical host this id stands for, as the credentials list names it
-   *  (roadmap 076 — a hostRules-style row is addressed by host, not by vendor).
-   *  These are the hosts of `PLATFORM_ENDPOINTS`' default endpoints. */
+   *  (roadmap 076 — a hostRules-style row is addressed by host, not by vendor)
+   *  and as a repo reference is written against — NOT the API endpoint's host
+   *  (GitHub's is api.github.com), so it cannot be derived from
+   *  `PLATFORM_ENDPOINTS`. */
   host: string;
   /** The token input's full label (the GitHub/GitLab ones carry extra hints). */
   inputLabel: string;
@@ -103,3 +105,9 @@ export function isTreeListingPlatform(value: string): value is RepoPlatform {
 export const HOST_PLATFORM: Readonly<Record<string, RepoPlatform>> = Object.fromEntries(
   HOST_TOKENS.map((descriptor) => [descriptor.host, descriptor.id]),
 );
+
+/** The platform serving a HOST that may be any string — the own-key guard is
+ *  what keeps a pasted `constructor/repo` from reporting a known host. */
+export function platformForHost(host: string): RepoPlatform | undefined {
+  return Object.hasOwn(HOST_PLATFORM, host) ? HOST_PLATFORM[host] : undefined;
+}

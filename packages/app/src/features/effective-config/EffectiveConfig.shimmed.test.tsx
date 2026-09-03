@@ -13,8 +13,31 @@
  */
 import { runPipeline } from "@renovate-config-debugger/engine";
 import { fireEvent, render, waitFor, within } from "@testing-library/react";
-import { expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { EffectiveConfig } from "./EffectiveConfig";
+import type * as EffectiveDerivations from "./use-effective-derivations";
+
+/**
+ * The unavailable state (`null`) cannot be provoked from a config that parses —
+ * it needs preset resolution to fail mid-run — so the hook is WRAPPED rather
+ * than replaced: it always runs, and a registered stub overrides its result.
+ */
+const provenanceStub = vi.hoisted(() => ({ active: false }));
+
+vi.mock("./use-effective-derivations", async (importOriginal) => {
+  const actual = await importOriginal<typeof EffectiveDerivations>();
+  return {
+    ...actual,
+    useProvenance: (result: Parameters<typeof actual.useProvenance>[0]) => {
+      const real = actual.useProvenance(result);
+      return provenanceStub.active ? null : real;
+    },
+  };
+});
+
+afterEach(() => {
+  provenanceStub.active = false;
+});
 
 /** Open the display options, which is where the view, the quick filter, the
  *  grouping and the columns live. Idempotent enough for a test: it opens the
@@ -67,6 +90,25 @@ it("reports stats only once provenance has resolved, never a loading-time zero",
   await waitFor(() => expect(onStats).toHaveBeenCalled());
   const first = onStats.mock.calls[0]?.[0] as { keys: number } | undefined;
   expect(first?.keys).toBeGreaterThan(0);
+});
+
+it("reports nothing when provenance is unavailable, so the badge stays absent", async () => {
+  const result = await runPipeline({
+    fileName: "renovate.json",
+    content: JSON.stringify({ automerge: true, labels: ["dependencies"] }),
+  });
+
+  provenanceStub.active = true;
+  const onStats = vi.fn();
+  const view = render(<EffectiveConfig result={result} onStats={onStats} />);
+
+  // The same wrong-zero as the loading case, but permanent: this run will
+  // never produce a tally, so reporting one would print "0 effective options"
+  // over a panel that is rendering the full config.
+  await waitFor(() =>
+    expect(view.container.textContent).toContain("Per-key provenance is unavailable"),
+  );
+  expect(onStats).not.toHaveBeenCalled();
 });
 
 /**
@@ -339,7 +381,9 @@ it("groups the rows by the layer that decided each key", async () => {
   expect(view.queryByLabelText(/show default-only/)).toBeNull();
 
   // …and the footer accounts for every row in the table, defaults included.
-  expect(view.container.textContent).toContain("effective options · hover any key");
+  expect(view.container.textContent).toContain(
+    "options in the config Renovate runs · hover any key",
+  );
   expect(view.container.textContent).toContain("only the default ever touched them");
 
   // A defaults row opens onto the SAME body every other group gets — its

@@ -131,7 +131,9 @@ export interface OptionIndex {
 export const STRING_PATTERN_MATCHING_DOCS_URL =
   "https://docs.renovatebot.com/string-pattern-matching/";
 
-const TEMPLATES_DOCS_URL = "https://docs.renovatebot.com/templates/";
+/** The page every templating explanation cites — shared with the CLI's pretty
+ *  projection so the two can't drift. */
+export const TEMPLATES_DOCS_URL = "https://docs.renovatebot.com/templates/";
 
 /**
  * Every clause is traceable to the pinned Renovate: array-of-strings and the

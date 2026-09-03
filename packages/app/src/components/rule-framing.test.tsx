@@ -59,3 +59,13 @@ it("leaves the full clause's breakdown alone", () => {
     "3 rules — 3 pulled in by config:recommended (indexed packageRules[0]–packageRules[2], as Renovate cites them)",
   );
 });
+
+// The text clause is drawn inside `DataTableRowHead`'s own `<button>` (the
+// effective config's packageRules row), where a copy button would be nested.
+it("carries no button in the row-head clause, and keeps the copy icon in the aside", () => {
+  const attribution = [0, 1, 2].map((i) => preset(i, "config:recommended", i));
+  const inHead = render(<RuleFramingText total={3} attribution={attribution} />);
+  expect(inHead.container.querySelectorAll("button")).toHaveLength(0);
+  const aside = render(<RuleFramingAside total={3} attribution={attribution} />);
+  expect(aside.container.querySelectorAll("button")).toHaveLength(1);
+});

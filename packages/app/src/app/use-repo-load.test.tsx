@@ -1,10 +1,9 @@
-import { act, render } from "@testing-library/react";
-import { useEffect } from "react";
+import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import type { UntrustedEndpointGuard } from "@/lib/share";
 import type { RunInputs } from "@/lib/run-inputs";
 import type { LoadedRepo } from "@/types/repo";
-import { type RepoLoad, type RepoLoadHost, useRepoLoad } from "./use-repo-load";
+import { type RepoLoadHost, useRepoLoad } from "./use-repo-load";
 
 /**
  * Security 2026-09-01: a load from a KNOWN host used to end a share link's
@@ -38,7 +37,6 @@ interface Recorded {
 }
 
 let recorded: Recorded;
-let held: RepoLoad | null = null;
 
 function makeHost(overrides: Partial<RepoLoadHost>, guard: UntrustedEndpointGuard): RepoLoadHost {
   const guardRef: { current: UntrustedEndpointGuard | null } = { current: guard };
@@ -75,32 +73,13 @@ function makeHost(overrides: Partial<RepoLoadHost>, guard: UntrustedEndpointGuar
   };
 }
 
-function Harness({ host }: { host: RepoLoadHost }) {
-  const api = useRepoLoad(host);
-  // Written from an effect, never during render (`react/globals`).
-  useEffect(() => {
-    held = api;
-  }, [api]);
-  return null;
-}
-
-/** The hook after the last committed render — `render` and `act` both flush
- *  effects, so this always sees the latest. */
-function current(): RepoLoad {
-  if (held === null) {
-    throw new Error("the harness did not render");
-  }
-  return held;
-}
-
 async function loadFrom(
   overrides: Partial<RepoLoadHost>,
   guard: UntrustedEndpointGuard = standingGuard(),
 ): Promise<void> {
-  held = null;
-  render(<Harness host={makeHost(overrides, guard)} />);
+  const { result } = renderHook(() => useRepoLoad(makeHost(overrides, guard)));
   await act(async () => {
-    await current().onLoadRepo();
+    await result.current.onLoadRepo();
   });
 }
 

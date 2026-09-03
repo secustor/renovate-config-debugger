@@ -40,6 +40,24 @@ import { dirname, join } from "node:path";
  * PLAIN TEXT, not by scope analysis — a symbol merely mentioned in a comment
  * inside the target counts as present, which trades recall for precision.
  *
+ * ARM B READS TWO SPELLINGS of one claim. The first puts the backticked symbol
+ * ahead of the file. The second is POSSESSIVE — a bare filename, an apostrophe
+ * `s`, then the backticked member (`Thing.tsx`'s `member`) — and it was added
+ * because the sweep hunting exactly this class walked past two of them: both
+ * halves of `use-share-link`'s sign-in citation named a `signInRef` that has
+ * never existed anywhere in the repo. Two of the sweep's own hand fixes are
+ * where the spelling comes from (finding 37, e0a388b5, whose fix REWROTE a
+ * possessive citation into the shape this rule could already see; finding 29,
+ * 75684991).
+ *
+ * The backtick around the symbol is the possessive arm's entire precision
+ * device: without it the possessive matches fifteen lines of ordinary prose in
+ * scope, with it five — two lies, three correct silences, no false positive.
+ * The ASCII apostrophe alone is enough; the curly variant has zero hits. And
+ * the symbol stays a single identifier: widening it to a dotted member path
+ * would have caught finding 29 as well, but no dotted possessive citation
+ * exists in the tree, so that widening has no measured precision to stand on.
+ *
  * Comments are the only thing read, so string literals and JSX are structurally
  * out of reach in both directions.
  *
@@ -74,6 +92,9 @@ const PACKAGE_PATH_CITATION = /packages\/[\w.@/-]+\.(?:json|yaml|tsx|jsx|mjs|yml
 /** `` `symbol` `` immediately followed by the file it is claimed to live in. */
 const SYMBOL_HOME_CITATION =
   /`([A-Za-z_$][\w$]*)`\s*(?:\(|\bin\s+|\bfrom\s+|\bat\s+)`?([\w.@/-]+\.tsx?)`?\)?/g;
+
+/** The same claim possessed: the file, then the backticked symbol it owns. */
+const POSSESSIVE_HOME_CITATION = /([\w.@/-]+\.tsx?)'s\s+`([A-Za-z_$][\w$]*)`/g;
 
 /** Files a symbol could be DEFINED in — the destination search reads only these. */
 const SOURCE_FILE = /\.(?:tsx|jsx|mjs|ts|js)$/;
@@ -242,36 +263,47 @@ function reportMissingFiles(context: Context, comment: ESTree.Comment, text: str
 }
 
 function reportMisplacedSymbols(context: Context, comment: ESTree.Comment, text: string): void {
-  SYMBOL_HOME_CITATION.lastIndex = 0;
-  for (
-    let match = SYMBOL_HOME_CITATION.exec(text);
-    match !== null;
-    match = SYMBOL_HOME_CITATION.exec(text)
-  ) {
-    const symbol = match[1];
-    const cited = match[2];
-    if (symbol === undefined || cited === undefined) {
-      continue;
+  // One body, two spellings: the groups only differ in which end of the claim
+  // they capture, so the arm is a pattern plus where its symbol sits.
+  const spellings = [
+    { pattern: SYMBOL_HOME_CITATION, symbolGroup: 1, fileGroup: 2 },
+    { pattern: POSSESSIVE_HOME_CITATION, symbolGroup: 2, fileGroup: 1 },
+  ];
+  for (const { pattern, symbolGroup, fileGroup } of spellings) {
+    pattern.lastIndex = 0;
+    for (let match = pattern.exec(text); match !== null; match = pattern.exec(text)) {
+      reportIfMisplaced(context, comment, match[symbolGroup], match[fileGroup]);
     }
-    // A missing or ambiguous target is arm A's business or nobody's: this arm
-    // only ever checks a symbol against the ONE file the comment names.
-    const candidates = fileIndex().byBasename.get(basenameOf(cited)) ?? [];
-    const target = candidates.length === 1 ? candidates[0] : undefined;
-    if (target === undefined) {
-      continue;
-    }
-    if (new RegExp(`\\b${symbol.replaceAll("$", "\\$")}\\b`).test(textOf(target))) {
-      continue;
-    }
-    const home = definitionSite(symbol);
-    context.report({
-      loc: comment.loc,
-      messageId: "symbolNotInFile",
-      data: {
-        symbol,
-        file: cited,
-        destination: home === null ? "nothing in the tree defines it" : `it is in \`${home}\``,
-      },
-    });
   }
+}
+
+function reportIfMisplaced(
+  context: Context,
+  comment: ESTree.Comment,
+  symbol: string | undefined,
+  cited: string | undefined,
+): void {
+  if (symbol === undefined || cited === undefined) {
+    return;
+  }
+  // A missing or ambiguous target is arm A's business or nobody's: this arm
+  // only ever checks a symbol against the ONE file the comment names.
+  const candidates = fileIndex().byBasename.get(basenameOf(cited)) ?? [];
+  const target = candidates.length === 1 ? candidates[0] : undefined;
+  if (target === undefined) {
+    return;
+  }
+  if (new RegExp(`\\b${symbol.replaceAll("$", "\\$")}\\b`).test(textOf(target))) {
+    return;
+  }
+  const home = definitionSite(symbol);
+  context.report({
+    loc: comment.loc,
+    messageId: "symbolNotInFile",
+    data: {
+      symbol,
+      file: cited,
+      destination: home === null ? "nothing in the tree defines it" : `it is in \`${home}\``,
+    },
+  });
 }

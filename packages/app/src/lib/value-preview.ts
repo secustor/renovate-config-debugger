@@ -24,19 +24,23 @@ export function valuePreview(value: unknown): string {
   return truncate(jsonText(value), 80);
 }
 
+/** The raw-JSON rendering at a budget — the value's SHAPE, where
+ *  {@link valuePreview} counts a container instead of dumping it. */
+export function jsonSnippet(value: unknown, max = 60): string {
+  return truncate(jsonText(value), max);
+}
+
 /**
- * The other half of the same job, for the two fix diffs — `ProblemCard`'s
- * unified −/+ strip and `ErrorTranslationView`'s before/after pair. Unlike
- * `valuePreview` a diff line must show the value's SHAPE (that is the whole
- * point of the diff), so containers are dumped rather than counted, and the
- * budget is a line's worth rather than a cell's.
+ * The diff-line budget, for the two fix diffs — `ProblemCard`'s unified −/+
+ * strip and `ErrorTranslationView`'s before/after pair: a line's worth rather
+ * than a cell's.
  *
  * Both callers had spelled this inline with a bare `slice(0, 140)`, which is
  * exactly the surrogate split `truncate` exists to prevent: a config value
  * carrying an emoji rendered a replacement glyph in the diff.
  */
 export function fixSnippet(value: unknown): string {
-  return truncate(jsonText(value), 140);
+  return jsonSnippet(value, 140);
 }
 
 /**

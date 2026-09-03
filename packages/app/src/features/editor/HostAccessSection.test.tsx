@@ -12,24 +12,33 @@ import { HostAccessSection } from "./HostAccessSection";
  * this file pins, alongside the two it must stay quiet for.
  */
 
-function section(props: { displayPlatform: string; usesLocal: boolean; reflectGlobal?: boolean }) {
-  const view = render(
+function renderSection(props: {
+  displayPlatform: string;
+  usesLocal: boolean;
+  reflectGlobal?: boolean;
+  displayEndpoint?: string;
+}) {
+  return render(
     <HostAccessSection
       hostSectionOpen
       onHostSectionOpenChange={vi.fn()}
       displayPlatform={props.displayPlatform}
-      displayEndpoint=""
+      displayEndpoint={props.displayEndpoint ?? ""}
       onPlatformChange={vi.fn()}
       onEndpointChange={vi.fn()}
       reflectGlobal={props.reflectGlobal ?? false}
       globalPlatform={props.reflectGlobal ? props.displayPlatform : undefined}
-      globalEndpoint={undefined}
+      globalEndpoint={props.reflectGlobal ? props.displayEndpoint : undefined}
       platformOverride={false}
       hasGlobalContext={props.reflectGlobal ?? false}
       onUseGlobalValues={vi.fn()}
       usesLocal={props.usesLocal}
     />,
   );
+}
+
+function section(props: { displayPlatform: string; usesLocal: boolean; reflectGlobal?: boolean }) {
+  const view = renderSection(props);
   return [...view.container.querySelectorAll(".advanced-note")].find((el) =>
     el.textContent?.includes("not fetched in the browser"),
   );
@@ -53,5 +62,37 @@ describe("HostAccessSection's host-reachability note", () => {
   it("names an unknown platform, which has no endpoint to fetch from", () => {
     const note = section({ displayPlatform: "made-up-forge", usesLocal: true });
     expect(note?.querySelector("code")?.textContent).toBe("made-up-forge");
+  });
+});
+
+/**
+ * The Run gate (`App.blockedByLayerErrors`) tests the TYPED endpoint only, so a
+ * malformed endpoint reflected from the pasted global config really does run.
+ * The note used to promise the opposite in exactly that state.
+ */
+describe("HostAccessSection's endpoint error", () => {
+  const BAD = "gitlab.example.com";
+
+  it("promises a blocked run only for the endpoint the reader typed", () => {
+    const view = renderSection({
+      displayPlatform: "gitlab",
+      usesLocal: true,
+      displayEndpoint: BAD,
+    });
+    const error = view.container.querySelector(".layer-editor-error");
+    expect(error?.textContent).toContain("Not a valid endpoint");
+    expect(error?.textContent).toContain("The pipeline won’t run");
+  });
+
+  it("says a reflected global endpoint is used anyway, not blocked", () => {
+    const view = renderSection({
+      displayPlatform: "gitlab",
+      usesLocal: true,
+      displayEndpoint: BAD,
+      reflectGlobal: true,
+    });
+    const error = view.container.querySelector(".layer-editor-error");
+    expect(error?.textContent).toContain("comes from the pasted global config");
+    expect(error?.textContent).not.toContain("won’t run");
   });
 });

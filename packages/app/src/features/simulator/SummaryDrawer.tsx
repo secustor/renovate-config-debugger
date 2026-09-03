@@ -1,7 +1,8 @@
 import type { ReactNode, RefObject } from "react";
 
 /**
- * Roadmap 047: the summary drawer — the Simulator tab's signature disclosure.
+ * Roadmap 047: the summary drawer — the simulator detail view's signature
+ * disclosure.
  * A collapsed layer is never a bare label: the summary row carries a COMPUTED
  * abstract of what it hides (counts, provenance, the values it currently
  * holds), so the collapsed state still answers "what's in here, and is it

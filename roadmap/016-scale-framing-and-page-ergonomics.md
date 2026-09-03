@@ -4,9 +4,11 @@ Milestone: M5 · Status: done 2026-07-24
 
 > Implemented as specified. Framing sentences are honest derivations of data
 > already computed elsewhere, never re-walks: the preset tree header names
-> which top-level `extends` entry a resolved count came from (`stats.descResolved`
-> per root child, naming the dominant contributor only when it's a clear
-> majority); the effective config's `packageRules` row and the simulator
+> which top-level `extends` entry a resolved count came from (`stats.uniquePresets`
+> per root child — deduplicated per name like the headline total itself, so the
+> shares sum to it; originally `descResolved`, which counted occurrences and
+> could exceed the whole — naming the dominant contributor only when it's a
+> clear majority); the effective config's `packageRules` row and the simulator
 > heading share one `rule-framing.tsx` helper built on 013's
 > `computeRuleProvenance`, falling back to the bare count — never a guess —
 > when attribution is unavailable. Every named badge — options/rules

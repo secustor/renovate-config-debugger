@@ -811,7 +811,7 @@
    tracks across ALL rows, a single failing clause collapsed the whole grid.
    Two minmax(0, fr) tracks can't starve each other; the explanation gets the
    larger share because it is prose, while the value it sits beside is a
-   `previewValue`, capped at 60 characters. */
+   `jsonSnippet`, capped at 60 characters. */
 .sim-clause-grid {
   --kv-cols: max-content max-content minmax(0, 1fr) minmax(0, 1.6fr);
   --kv-row-gap: 0.2rem;

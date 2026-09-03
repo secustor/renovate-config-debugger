@@ -11,8 +11,8 @@
  * The fallback is a property of the SINK, not of the call site, so it is
  * decided once, here, by which function you pick.
  *
- * WHY THIS MODULE HAS NO IMPORTS — same constraint as `is.ts` and
- * `contracts.ts`, enforced for all three by
+ * WHY THIS MODULE HAS NO IMPORTS — same constraint as `is.ts`,
+ * `contracts.ts` and `text-scan.ts`, enforced for all four by
  * `test/import-free-subpaths.node.test.ts`: it is reachable from the app's
  * entry chunk through the `./json` subpath, which must never pull the Renovate
  * graph onto a static import path.

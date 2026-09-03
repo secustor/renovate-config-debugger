@@ -258,7 +258,9 @@ export function ConfigColumn({
       ) : null}
       {/* Always mounted for the same reason the `role="alert"` wrapper above is
           — a failed Share copy is Safari's ordinary outcome (082), and a region
-          mounted with its own message announces nothing. */}
+          mounted with its own message announces nothing. The sender's half of
+          that rule is the same too: `App.setNotice` stamps every raise, so the
+          identical sentence twice is still a mutation (see the note above). */}
       {/* oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- `<output>` is wrong here for the reason `StaleResultsBanner` records (form-associated, patchier implicit-live-region support) and once more besides: its content model is phrasing only, and this region holds a `<p>` and a dismiss `<button>`. */}
       <div role="status">
         {notice ? <NoticeBar message={notice} onDismiss={onDismissNotice} /> : null}
@@ -272,6 +274,7 @@ export function ConfigColumn({
           <LandingLaunch
             onTryExample={onTryExample}
             onAnalyzeThisProject={onAnalyzeThisProject}
+            analyzing={repoLoad.repoLoading}
             running={running}
             onRun={onRun}
             onRunIntent={onRunIntent}
