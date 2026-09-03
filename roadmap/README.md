@@ -93,6 +93,7 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [086](086-app-state-sharing.md)                         | The App.tsx state-sharing ruling: context, hooks, no store           | M21                  | done                                                                                                                                                 |
 | [087](087-ghost-row-and-repo-deps.md)                   | The ghost row, and dependencies from the loaded repo                 | M21                  | done                                                                                                                                                 |
 | [088](088-build-provenance.md)                          | Build provenance: "verify this build"                                | M21                  | done                                                                                                                                                 |
+| [094](094-pattern-tests.md)                             | Pattern tests: `match*` patterns against the strings they should hit | M21                  | done                                                                                                                                                 |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live

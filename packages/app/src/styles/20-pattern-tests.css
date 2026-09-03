@@ -1,0 +1,246 @@
+/* Appended after 19 (main.tsx's rule for new files). This file: the pattern
+   tests (roadmap 094 / the `Pattern Tests` artboard).
+
+   Nothing here is a new shape: the cards are `.card` wearing the pin head
+   (`.pin-head`, `.pin-dot`, `.pin-summary`, `.pin-remove`), the chips are
+   `.pill pill-count`, the column titles are `.pin-evidence-title`, the marks
+   are `.pin-section-mark`, the ghost row is `.pin-add-ghost`. What the block
+   adds is the card's two-column body and the in-place editable rows. */
+
+.pattern-tests {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.9rem;
+}
+
+.pattern-card {
+  margin-bottom: 0;
+  overflow: visible;
+}
+
+/* The design's red dot: the test's OWN assertion failed — a claim the reader
+   made, not a claim about the run, which is why it is not the pin's amber. */
+.pin-dot.error {
+  background: var(--error);
+}
+
+.pattern-head-toggle {
+  flex: none;
+}
+
+/* The option, in the design's mono button. A native select: the browser's
+   own picker, so only the closed state is styled. */
+.pattern-option {
+  background: var(--canvas);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--ink);
+  cursor: pointer;
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 600;
+  max-width: 14rem;
+  padding: 0.1rem 0.4rem;
+}
+
+/* Unset reads as the call to action it is — accent, not a value. */
+.pattern-option-unset {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* The pointer-only remainder of the head (see PatternTestHead). */
+.pattern-head-rest {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  gap: 0.25rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.pattern-head-pattern {
+  background: var(--canvas);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  overflow: hidden;
+  padding: 0 0.3rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pattern-summary-fail {
+  color: var(--error);
+  font-weight: 600;
+}
+
+/* ----- the open card ----- */
+
+.pattern-body {
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+}
+
+.pattern-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.5rem 0.7rem;
+}
+
+.pattern-col + .pattern-col {
+  border-top: 1px solid var(--border);
+}
+
+/* Side by side once the grid has room for both columns — the rule between
+   them turns from a top edge into a left one. */
+@container (min-width: 34rem) {
+  .pattern-col + .pattern-col {
+    border-left: 1px solid var(--border);
+    border-top: none;
+  }
+}
+
+.pattern-body {
+  container-type: inline-size;
+}
+
+.pattern-row,
+.pattern-input {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.3rem 0.5rem;
+}
+
+/* The design's red row: this input's expectation does not hold. */
+.pattern-input-fail {
+  background: var(--error-bg);
+  border-color: var(--error-border);
+}
+
+.pattern-row-main {
+  align-items: center;
+  display: flex;
+  gap: 0.4rem;
+}
+
+/* In-place editing: a bare mono field with a dashed underline on focus, the
+   design's grammar for "this text IS the value". */
+.pattern-row-value {
+  background: none;
+  border: none;
+  border-bottom: 1px dashed transparent;
+  color: var(--ink);
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  min-width: 4rem;
+  padding: 0.05rem 0.1rem;
+}
+
+.pattern-row .pattern-row-value {
+  font-weight: 600;
+}
+
+.pattern-row-value:focus {
+  border-bottom-color: var(--accent);
+  outline: none;
+}
+
+.pattern-count {
+  color: var(--faint);
+  flex: none;
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* A positive pattern no input satisfies: the count goes red, so a pattern
+   that would match nothing in the reader's world says so before the rule
+   does. */
+.pattern-row-dead .pattern-count {
+  color: var(--error);
+}
+
+.pattern-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.25rem;
+}
+
+.pattern-chips .pill {
+  font-size: 0.62rem;
+}
+
+.pattern-expect {
+  flex: none;
+  font-size: 0.64rem;
+  line-height: 1.6;
+  padding: 0 0.45rem;
+  white-space: nowrap;
+}
+
+.pattern-why {
+  color: var(--muted);
+  display: block;
+  font-size: 0.68rem;
+  padding-left: 1.4rem;
+}
+
+.pattern-add-line {
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.pattern-add-line:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.pattern-rule {
+  color: var(--faint);
+  font-size: 0.66rem;
+  margin: 0.15rem 0 0;
+}
+
+.pattern-rule code {
+  font-family: var(--font-mono);
+}
+
+.pattern-seed {
+  align-self: flex-start;
+  font-size: 0.7rem;
+  text-decoration: none;
+}
+
+.pattern-seed:hover {
+  text-decoration: underline;
+}
+
+.pattern-empty {
+  color: var(--faint);
+  font-size: 0.76rem;
+  margin: 0;
+  text-align: center;
+}
+
+.pattern-empty code {
+  font-family: var(--font-mono);
+}
+
+.pattern-add-ghost:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}

@@ -13,6 +13,7 @@
 import type { StageId } from "@renovate-config-debugger/engine";
 import type { ShareResultsTabId } from "@/data/results-tabs";
 import { isValidRepoRefPart } from "@/lib/input-schemas";
+import type { SharePatternTest } from "@/lib/input-schemas-zod";
 import { DEFAULT_ENDPOINT, DEFAULT_PLATFORM, PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
 import { isTrustedEndpoint } from "@/lib/trusted-endpoint";
 
@@ -97,6 +98,10 @@ export interface ShareState {
    *  Same content class as `sim.form` — dependency descriptors, never tokens
    *  and never an injected preset — and omitted entirely when there are none. */
   pins?: Record<string, string>[];
+  /** Roadmap 094: the pattern tests — a `match*` option, its patterns and
+   *  the inputs they should (not) match. Config-shaped text only, never a
+   *  token; omitted entirely when there are none. */
+  patternTests?: SharePatternTest[];
   /** Roadmap 087: the repository the config was LOADED from, when it was — a
    *  provenance hint the From-repository tab's connect panel offers to reload.
    *  A slug, never credentials; nothing is fetched without a click. */
@@ -129,6 +134,12 @@ export interface SharePayload {
    * the version stays 2. Sanitized per entry (`sanitizeSharePins`).
    */
   pins?: Record<string, string>[];
+  /**
+   * Roadmap 094: the pattern tests. Additive within v2 exactly like `pins`:
+   * absent on old links, ignored by old readers, sanitized per entry
+   * (`sanitizeSharePatternTests`).
+   */
+  patternTests?: SharePatternTest[];
   /**
    * Roadmap 087: the repository the config was loaded from. Additive within
    * v2 exactly like `sim` and `pins`: absent on old links, ignored by old
@@ -224,7 +235,8 @@ export async function encodeShare(state: ShareState): Promise<string> {
   if (state.platformOverride) {
     payload.platformOverride = true;
   }
-  const { sanitizeShareView, sanitizeShareSim, sanitizeSharePins } = await loadSchemas();
+  const { sanitizeShareView, sanitizeShareSim, sanitizeSharePins, sanitizeSharePatternTests } =
+    await loadSchemas();
   // Roadmap 033: the encode side runs the SAME sanitizers the decoder runs
   // (input-schemas-zod.ts), so what goes onto the wire and what is accepted off
   // it can never disagree again. This reconciles the one live divergence the
@@ -247,6 +259,10 @@ export async function encodeShare(state: ShareState): Promise<string> {
   const pins = sanitizeSharePins(state.pins);
   if (pins) {
     payload.pins = pins;
+  }
+  const patternTests = sanitizeSharePatternTests(state.patternTests);
+  if (patternTests) {
+    payload.patternTests = patternTests;
   }
   // Roadmap 087: the same validator the decoder runs (and the repo-load form
   // runs on what the user types) — what goes onto the wire is what comes off.
@@ -312,8 +328,13 @@ export async function decodeShareResult(token: string): Promise<DecodeResult> {
   if (typeof p.c === "string" && p.c !== configChecksum(p.config)) {
     return { ok: false, reason: "cutOff" };
   }
-  const { sanitizeShareView, sanitizeShareSim, sanitizeSharePins, sharePayloadStrictFieldsSchema } =
-    await loadSchemas();
+  const {
+    sanitizeShareView,
+    sanitizeShareSim,
+    sanitizeSharePins,
+    sanitizeSharePatternTests,
+    sharePayloadStrictFieldsSchema,
+  } = await loadSchemas();
   // Roadmap 030: the security-relevant fields (platform/endpoint/the two
   // config layers/platformOverride) are schema-validated as a unit — a
   // hostile or corrupted value here (a polluted globalConfig, a
@@ -346,6 +367,8 @@ export async function decodeShareResult(token: string): Promise<DecodeResult> {
   // re-simulates, which it would do for a hand-typed pin just the same — so a
   // malformed entry is dropped, never a reason to refuse the config.
   p.pins = sanitizeSharePins(p.pins);
+  // Roadmap 094: same tier, same rule — evaluated, never fetched or merged.
+  p.patternTests = sanitizeSharePatternTests(p.patternTests);
   // Roadmap 087: the provenance slug is cosmetic-tier in the pins sense — a
   // malformed value is dropped, never a reason to refuse the config. What it
   // must not be is arbitrary text: the connect panel prints it on a button

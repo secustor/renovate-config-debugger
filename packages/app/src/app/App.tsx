@@ -51,6 +51,7 @@ import { usePanelStats } from "@/app/use-panel-stats";
 import { usePinnedRun } from "@/app/use-pinned-run";
 import { useResultsTab } from "@/app/use-results-tab";
 import { useStarterPins } from "@/app/use-starter-pins";
+import { usePatternTests } from "@/app/use-pattern-tests";
 import { useShareLink } from "@/hooks/use-share-link";
 import type { RunInputs } from "@/lib/run-inputs";
 import { createRunQueue, type RunQueue } from "@/lib/run-queue";
@@ -245,6 +246,16 @@ export function App() {
    */
   const { pins, addPin, removePin, seedStarterPins, setPinsFromShare, pinsAsShareFields } =
     usePinnedRun();
+  // Roadmap 094: the pattern tests — the Tests tab's second group, owned here
+  // for the same two reasons (the link, the badge).
+  const {
+    patternTests,
+    addPatternTest,
+    updatePatternTest,
+    removePatternTest,
+    setPatternTestsFromShare,
+    patternTestsAsShare,
+  } = usePatternTests();
   // Roadmap 028/069/083: the counts the results panels report back up (the
   // Effective tab's key tally, the Overview tab's behavior count) and the
   // ledger signal that goes the other way — as one hook, because a new run
@@ -323,6 +334,7 @@ export function App() {
       // Roadmap 075 (iteration 6): the link's pins, with ids minted by the
       // cluster that owns them.
       setPins: setPinsFromShare,
+      setPatternTests: setPatternTestsFromShare,
       // An arrow, not the bare method: this host object is built during render
       // and `repoProvenance` is declared further down. The arrow only runs on a
       // link arrival, which is the same deferred-capture rule this object's
@@ -1054,7 +1066,8 @@ export function App() {
   } = useRunSummary(
     result,
     effectiveStats,
-    pins.length,
+    // Roadmap 094: both test groups — every standing test the run re-checks.
+    pins.length + patternTests.length,
     overviewBehaviors,
     // Roadmap 089: only a discovery that actually REPORTED gives the
     // Dependencies tab a badge — before that (no repo, not opened yet, or a
@@ -1198,6 +1211,7 @@ export function App() {
       view,
       sim,
       pins: pinsAsShareFields(),
+      patternTests: patternTestsAsShare(),
       // Roadmap 087: where the config was loaded from, when it was — the
       // opener's connect panel offers to reload it. A suggestion this session
       // never confirmed by a load is not re-shared as provenance.
@@ -1263,6 +1277,10 @@ export function App() {
       pins,
       onAddPin: addPin,
       onRemovePin: removePin,
+      patternTests,
+      onAddPatternTest: addPatternTest,
+      onUpdatePatternTest: updatePatternTest,
+      onRemovePatternTest: removePatternTest,
       pendingRuleFocus,
       onRuleFocused,
       simRequest: activeSimRequest,
@@ -1315,6 +1333,10 @@ export function App() {
       pins,
       addPin,
       removePin,
+      patternTests,
+      addPatternTest,
+      updatePatternTest,
+      removePatternTest,
       pendingRuleFocus,
       onRuleFocused,
       activeSimRequest,

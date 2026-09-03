@@ -66,6 +66,16 @@ export {
 } from "./option-docs";
 export { listDatasourceNames, listManagerNames } from "./registries";
 export {
+  explainPatternMatch,
+  parsePattern,
+  type ParsedPattern,
+  type PatternEntryMatch,
+  type PatternKind,
+  type PatternListMatch,
+  patternListOptionNames,
+  type PatternMissReason,
+} from "./pattern-match";
+export {
   type ErrorFixResult,
   type ErrorTranslation,
   findMentionedOption,

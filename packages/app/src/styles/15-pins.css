@@ -598,8 +598,11 @@
 }
 
 /* The design's ghost row: a dashed, muted "+ Pin a dependency…" that expands
-   into the New-pin card. Accent on hover — it is a door, not a card. */
-.pin-add-ghost {
+   into the New-pin card. Accent on hover — it is a door, not a card. Roadmap
+   094's "+ Test a pattern…" row is the same door with its own name, so the
+   e2e selectors on this one keep resolving to one element. */
+.pin-add-ghost,
+.pattern-add-ghost {
   background: transparent;
   border: 1px dashed var(--border);
   border-radius: var(--radius-lg);
@@ -613,7 +616,8 @@
   width: 100%;
 }
 
-.pin-add-ghost:hover {
+.pin-add-ghost:hover,
+.pattern-add-ghost:hover {
   border-color: var(--accent);
   color: var(--accent);
 }

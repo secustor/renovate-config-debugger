@@ -9,9 +9,10 @@ import { nf } from "@/lib/format";
 import { AddTestBox } from "./AddTestBox";
 import { EmptyTestsCard } from "./EmptyTestsCard";
 import { PinCard } from "./PinCard";
+import { PatternTests } from "./PatternTests";
 import type { RuleDescriptionNote } from "./rule-descriptions";
 import type { PinEvaluation } from "./use-pinned-tests";
-import type { FormState, PinnedTest } from "@/types/simulator";
+import type { FormState, PatternTest, PinnedTest } from "@/types/simulator";
 import type { RepoConnectOffer, RepoDepsView } from "@/types/repo";
 
 /**
@@ -29,10 +30,11 @@ import type { RepoConnectOffer, RepoDepsView } from "@/types/repo";
  * descriptor-less door.
  */
 
-/** Roadmap 077 (Proposal F): pins ride in the share link, said where pins are
- *  made. "Share" is live — the same build-and-copy as the header's button —
- *  with its own inline receipt, since the header's popover is a screen away
- *  from this click. */
+/** Roadmap 077 (Proposal F): the tests ride in the share link, said where
+ *  they are made — since 094 under BOTH groups, which is why it is the view's
+ *  last line rather than the Add-a-test card's footnote. "Share" is live — the
+ *  same build-and-copy as the header's button — with its own inline receipt,
+ *  since the header's popover is a screen away from this click. */
 function ShareNote({ onShare }: { onShare: () => Promise<void> }) {
   const [copied, flashCopied] = useTransientFlag(1500);
   async function share() {
@@ -45,7 +47,7 @@ function ShareNote({ onShare }: { onShare: () => Promise<void> }) {
   }
   return (
     <p className="pins-share-note">
-      Pins are saved with the share link —{" "}
+      Both test groups are saved with the share link —{" "}
       <button type="button" className="digest-link" onClick={() => void share()}>
         Share
       </button>{" "}
@@ -103,6 +105,10 @@ export function PinsView({
   repoDeps,
   onLoadRepoDeps,
   repoConnect,
+  patternTests,
+  onAddPatternTest,
+  onUpdatePatternTest,
+  onRemovePatternTest,
 }: {
   result: TraceResult;
   pins: PinnedTest[];
@@ -125,6 +131,11 @@ export function PinsView({
   repoDeps: RepoDepsView;
   onLoadRepoDeps: () => void;
   repoConnect: RepoConnectOffer;
+  /** Roadmap 094: the second test group and its edits — the shell's list. */
+  patternTests: readonly PatternTest[];
+  onAddPatternTest: () => string | null;
+  onUpdatePatternTest: (id: string, update: (test: PatternTest) => PatternTest) => void;
+  onRemovePatternTest: (id: string) => void;
 }) {
   // A quick-start chip seeds the Add-a-test form below — nonce-versioned so
   // the same chip works twice in a row.
@@ -171,8 +182,15 @@ export function PinsView({
         repoConnect={repoConnect}
         onAddPin={onAddPin}
         onOpenInSimulator={onOpenInSimulator}
-        footnote={onShare ? <ShareNote onShare={onShare} /> : undefined}
       />
+      <PatternTests
+        tests={patternTests}
+        seedSources={{ pins, repoDeps, result }}
+        onAdd={onAddPatternTest}
+        onUpdate={onUpdatePatternTest}
+        onRemove={onRemovePatternTest}
+      />
+      {onShare ? <ShareNote onShare={onShare} /> : null}
     </div>
   );
 }

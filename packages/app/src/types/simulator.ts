@@ -58,3 +58,29 @@ export interface PinnedTest {
    */
   starter?: boolean;
 }
+
+/**
+ * Roadmap 094 — one input of a pattern test: the string a `match*` list is
+ * tried against, and whether the reader expects it to match.
+ */
+export interface PatternInput {
+  value: string;
+  expect: boolean;
+}
+
+/**
+ * Roadmap 094 — a PATTERN TEST: one `packageRules` list option, the patterns
+ * a reader is writing for it, and the inputs those patterns should (not)
+ * match. Evaluated with Renovate's own list matcher, re-checked on every run
+ * exactly like a pin; carried by the share link like a pin.
+ */
+export interface PatternTest {
+  /** Session identity, minted by App — never shared, for the reason a pin's
+   *  is not. */
+  id: string;
+  /** A `match*` list option name (`matchPackageNames`, …), or `""` while the
+   *  reader has not picked one yet. */
+  option: string;
+  patterns: string[];
+  inputs: PatternInput[];
+}

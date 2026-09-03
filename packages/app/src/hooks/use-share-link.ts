@@ -42,6 +42,7 @@ import {
   type UntrustedEndpointGuard,
   untrustedGuardForPolicy,
 } from "@/lib/share";
+import type { SharePatternTest } from "@/lib/input-schemas-zod";
 import { errorMessage } from "@/lib/errors";
 
 /** Roadmap 018: a share link's simulator inputs, applied once by nonce. */
@@ -123,6 +124,9 @@ export interface ShareLinkHost {
    *  unconditional: a link installs the screen it describes, and pins from a
    *  previous one are not part of it. */
   setPins: (pins: Record<string, string>[]) => void;
+  /** Roadmap 094: the link's pattern tests — the same contract as `setPins`,
+   *  `[]` when the link carries none. */
+  setPatternTests: (tests: SharePatternTest[]) => void;
   /** Roadmap 087: the link's repo provenance — the slug the config was loaded
    *  from, or null. Called unconditionally in the populate block for the same
    *  reason `setPins` is: a link installs the screen it describes, and the
@@ -302,6 +306,7 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
     // result that run commits is the first thing they are checked against —
     // which is the whole promise of the tab that lists them.
     host.setPins(payload.pins ?? []);
+    host.setPatternTests(payload.patternTests ?? []);
     host.applyShareRepo(payload.repo ?? null);
     // Roadmap 068 review — half one of the attribution rule stated below: a
     // decode that replaces the screen replaces the simulator request with it,
