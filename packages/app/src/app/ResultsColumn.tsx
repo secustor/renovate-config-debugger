@@ -57,8 +57,9 @@ export interface ResultsColumnProps extends StageLayersProps {
  * per-tab state keeps surviving tab switches exactly as before.
  */
 /** Roadmap 028: the viewport below which the two panes stack (config on top,
- *  results below) — must stay in sync with index.css's `.app-split` media
- *  query, since the post-Run scroll-into-view only applies while stacked. */
+ *  results below) — must stay in sync with styles/10-messages-tabs.css's
+ *  `.app-split` media queries, since the post-Run scroll-into-view only
+ *  applies while stacked. */
 const STACKED_VIEWPORT_QUERY = "(max-width: 60rem)";
 
 /** Roadmap 028: how much of the stacked results pane has to be on screen for a
@@ -234,7 +235,11 @@ export function ResultsColumn({
   // latest-ref idiom in App.tsx (`onInject`, `focusEditorRepoIndex`,
   // `onApplyFix`, `onCopySimLink`). The element tree here keeps its identity
   // across keystrokes, so React bails out of reconciling all seven panels —
-  // typing re-renders App (and this shell) and nothing below it.
+  // typing re-renders App (and this shell) and nothing below it. A legitimate
+  // rebuild (a run, a stage click, a layer-editor keystroke) reconciles all
+  // seven but re-renders only those whose props changed for six of them —
+  // PipelinePanel is not memo()'d (and takes an inline callback below), so it
+  // re-renders on every rebuild.
   const panels = useMemo<Record<ResultsTabId, ReactNode>>(() => {
     return {
       // Roadmap 083: the config in English, first in the strip. The panel owns

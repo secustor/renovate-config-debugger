@@ -4,12 +4,12 @@ import { describe, expect, it } from "vitest";
 import { buildJsonPatch } from "./json-patch";
 
 /**
- * Deliberately a second copy of the formatter rather than an import: the
- * oracle has to be independent of the module under test, so a change to how
- * the builder pretty-prints shows up as a failure here.
+ * Deliberately a second copy of the formatter rather than an import of
+ * `jsonFile`: the oracle has to be independent of the module under test, so a
+ * change to how the builder pretty-prints shows up as a failure here.
  */
 function pretty(value: unknown): string {
-  return `${JSON.stringify(value, null, 2) ?? ""}\n`;
+  return `${JSON.stringify(value, null, 2) ?? "null"}\n`;
 }
 
 /** The contract: the patch, applied to the old text, reproduces the new one. */
@@ -162,7 +162,9 @@ describe("buildJsonPatch", () => {
   });
 
   it("handles an undefined side", () => {
-    expect(pretty(undefined)).toBe("\n");
+    // `null`, not `""`: a diff of "no value" has to render a line the reader
+    // can see, and `null` is the only JSON text for it that parses back.
+    expect(pretty(undefined)).toBe("null\n");
     expectRoundTrip(undefined, configWith(rulesFrom(0, 12)));
     expectRoundTrip(configWith(rulesFrom(0, 12)), undefined);
     expectRoundTrip(undefined, undefined);

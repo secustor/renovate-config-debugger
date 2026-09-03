@@ -1,9 +1,5 @@
 import { useMemo, useState } from "react";
-import type {
-  ProvenanceLayer,
-  RuleAttribution,
-  SimulationResult,
-} from "@renovate-config-debugger/engine";
+import type { ProvenanceLayer, SimulationResult } from "@renovate-config-debugger/engine";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { nf } from "@/lib/format";
 import { ClauseGrid } from "./ClauseGrid";
@@ -149,7 +145,6 @@ function ProbeResultList({
 export function PinProbe({
   sim,
   layerByIndex,
-  attribution,
   descriptions,
   ruleBodies,
   subject,
@@ -159,7 +154,6 @@ export function PinProbe({
 }: {
   sim: SimulationResult;
   layerByIndex: Map<number, ProvenanceLayer>;
-  attribution: RuleAttribution[] | null | undefined;
   descriptions: Map<number, RuleDescriptionNote>;
   /** `finalConfig.packageRules` — makes each rule's writes searchable. */
   ruleBodies?: readonly unknown[];
@@ -171,8 +165,8 @@ export function PinProbe({
 }) {
   const trimmed = query.trim();
   const results = useMemo(
-    () => probeRules({ sim, layerByIndex, attribution, descriptions, ruleBodies, query }),
-    [sim, layerByIndex, attribution, descriptions, ruleBodies, query],
+    () => probeRules({ sim, layerByIndex, descriptions, ruleBodies, query }),
+    [sim, layerByIndex, descriptions, ruleBodies, query],
   );
   const suggestions = useMemo(() => probeSuggestions(sim, layerByIndex), [sim, layerByIndex]);
   return (

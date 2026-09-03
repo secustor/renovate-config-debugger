@@ -11,7 +11,8 @@
  * programmatically, crawls every literal import from the app entry (through
  * the dynamic engine import), and fails on specifiers that only work in Node:
  * `got` and its CJS cache chain (must stay cut by the merge-confidence shim)
- * and un-aliased `node:` builtins.
+ * and un-aliased `node:` builtins. A crawl that never reaches `renovate/dist`
+ * proves nothing, so that is asserted rather than assumed.
  */
 import { createServer } from "vite";
 
@@ -36,7 +37,8 @@ const server = await createServer({
 
 const importRe =
   /from\s*["']([^"']+)["']|import\s*\(\s*["']([^"']+)["']\s*\)|import\s*["']([^"']+)["']/g;
-const queue = ["/src/main.tsx"];
+const ENTRY = "/src/main.tsx";
+const queue = [ENTRY];
 const seen = new Set(queue);
 const violations = [];
 
@@ -49,10 +51,23 @@ while (queue.length > 0) {
   let result;
   try {
     result = await server.transformRequest(url);
-  } catch {
+  } catch (error) {
+    // The entry is the whole crawl: losing it silently would report "clean"
+    // having looked at nothing.
+    if (url === ENTRY) {
+      console.error(`Dev module graph check FAILED — could not transform ${ENTRY}:`);
+      console.error(error);
+      await server.close();
+      process.exit(1);
+    }
     continue; // assets / virtual modules the transform pipeline rejects
   }
   if (!result?.code) {
+    if (url === ENTRY) {
+      console.error(`Dev module graph check FAILED — ${ENTRY} transformed to no code.`);
+      await server.close();
+      process.exit(1);
+    }
     continue;
   }
   for (const match of result.code.matchAll(importRe)) {
@@ -81,4 +96,17 @@ if (violations.length > 0) {
   }
   process.exit(1);
 }
-console.log(`Dev module graph clean: ${seen.size} modules crawled, no Node-only imports.`);
+
+// Reachability, not a size floor: the BANNED list only says anything if the
+// crawl entered the subtree it polices — which a change to the `loadEngine()`
+// seam can silently drop while the app's own modules still crawl.
+const renovateCount = [...seen].filter((u) => u.includes("/renovate/dist/")).length;
+if (renovateCount === 0) {
+  console.error(
+    `Dev module graph check FAILED — crawl never reached renovate/dist (${seen.size} modules crawled), so the guard verified nothing.`,
+  );
+  process.exit(1);
+}
+console.log(
+  `Dev module graph clean: ${seen.size} modules crawled (${renovateCount} under renovate/dist), no Node-only imports.`,
+);

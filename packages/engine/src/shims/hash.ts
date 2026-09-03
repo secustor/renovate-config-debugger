@@ -5,9 +5,10 @@
  * expressions by toSha256), so a deterministic non-cryptographic hex string is
  * behaviorally equivalent.
  */
+import { isString } from "../is";
 
 function fnv1a32Hex(data: string | Uint8Array, seed: number): string {
-  const bytes = typeof data === "string" ? new TextEncoder().encode(data) : data;
+  const bytes = isString(data) ? new TextEncoder().encode(data) : data;
   let h = seed >>> 0;
   for (const byte of bytes) {
     h ^= byte;

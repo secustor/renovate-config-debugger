@@ -16,7 +16,10 @@
  * diffs stay small.
  *
  * When Renovate bumps, re-diff this against the upstream source — the golden
- * drift tripwire test hashes it and will fail until re-checked.
+ * drift tripwire test hashes it and will fail until re-checked. That diff only
+ * works while the local text IS the upstream text, which is why
+ * `rcd/prefer-is-helpers` is off for this file in `.oxlintrc.json`: its
+ * `typeof` checks keep upstream's spelling rather than moving to `../is`.
  */
 import {
   clone,

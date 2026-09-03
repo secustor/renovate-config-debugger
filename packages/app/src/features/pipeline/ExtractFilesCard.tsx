@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useToggleSet } from "@/hooks/use-toggle-set";
-import { ExtractDepList, ExtractRow } from "./ExtractRows";
-import { type ExtractFileRow, fileDepNote, fileRows } from "./extract-phase";
+import { ExtractDepList, ExtractNotes, ExtractRow } from "./ExtractRows";
+import { type ExtractFileRow, fileDepDetail, fileDepNote, fileRows } from "./extract-phase";
 import type { RepoDep, RepoDepsView } from "@/types/repo";
 
 /**
@@ -27,6 +27,9 @@ function FileRow({
   open: boolean;
   onToggle: () => void;
 }) {
+  // A failed file opens onto an empty dep list; the engine's reason is the only
+  // thing that row has to say.
+  const detail = fileDepDetail(row.file);
   return (
     <ExtractRow
       lead={row.file.path}
@@ -35,6 +38,7 @@ function FileRow({
       open={open}
       onToggle={onToggle}
     >
+      {detail === null ? null : <ExtractNotes notes={[detail]} />}
       <ExtractDepList deps={row.deps} trailing={depManager} />
     </ExtractRow>
   );

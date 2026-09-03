@@ -5,6 +5,7 @@ import type {
   ProvenanceLayer,
   SimulationResult,
 } from "@renovate-config-debugger/engine";
+import { jsonFile } from "@renovate-config-debugger/engine/json";
 import { ConfigJson } from "@/components/ConfigJson";
 import { CopyButton } from "@/components/CopyButton";
 import { Term } from "@/components/glossary";
@@ -44,8 +45,8 @@ export interface MergeStop {
   ruleIndex?: number;
   /** The keys this stop changed (rule and flatten stops). */
   merged?: MergedKey[];
-  /** Stable identity: the list's React key, and the anchor a verdict-card jump
-   *  scrolls to. */
+  /** Stable identity: the list's React key. The scroll anchor is separate and
+   *  positional — `mergeStopId(index)` in `dom-ids.ts` (roadmap 094). */
   id: string;
   /** Where the stop sits in the sequence. A rule stop matches how `stopLabels`
    *  words a thread's "step 2 of 2 in the replay →"; the rest are named. */
@@ -187,7 +188,7 @@ function finalStop(sim: SimulationResult): MergeStop {
       <div>
         <div className="sim-final-config-actions">
           <CopyButton
-            getText={() => `${JSON.stringify(sim.finalDependencyConfig, null, 2)}\n`}
+            getText={() => jsonFile(sim.finalDependencyConfig)}
             label="Copy config"
             title="Copy the final per-dependency config as JSON"
           />

@@ -1,4 +1,5 @@
 import { diffArrays, diffLines } from "diff";
+import { jsonFile } from "@renovate-config-debugger/engine/json";
 
 /**
  * Builds the unified diff between two JSON values without ever running a
@@ -15,8 +16,8 @@ import { diffArrays, diffLines } from "diff";
  * append-heavy shapes a Renovate config actually produces.
  *
  * The oracle this must satisfy, for every input:
- * `applyPatch(pretty(before), buildJsonPatch(a, b, before, after))` returns
- * exactly `pretty(after)`. It does NOT have to be byte-identical to jsdiff's
+ * `applyPatch(jsonFile(before), buildJsonPatch(a, b, before, after))` returns
+ * exactly `jsonFile(after)`. It does NOT have to be byte-identical to jsdiff's
  * output — only a valid unified diff that reconstructs the target.
  *
  * Splitting by indentation is sound because `JSON.stringify` escapes newlines
@@ -52,11 +53,7 @@ interface SplitBlock {
   close: string;
 }
 
-function pretty(value: unknown): string {
-  return `${JSON.stringify(value, null, 2) ?? ""}\n`;
-}
-
-/** `pretty()` always ends in a newline, so the trailing empty element is noise. */
+/** `jsonFile()` always ends in a newline, so the trailing empty element is noise. */
 function toLines(text: string): string[] {
   const parts = text.split("\n");
   if (parts.at(-1) === "") {
@@ -385,6 +382,6 @@ export function buildJsonPatch(
   before: unknown,
   after: unknown,
 ): string {
-  const script = diffBlockLines(toLines(pretty(before)), toLines(pretty(after)));
+  const script = diffBlockLines(toLines(jsonFile(before)), toLines(jsonFile(after)));
   return renderPatch(nameBefore, nameAfter, script);
 }

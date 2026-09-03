@@ -10,8 +10,9 @@ import { defineConfig } from "vitest/config";
  *
  * Every other suite in this repo belongs to a workspace package and runs from
  * that package's own config (`pnpm -r test`). `tools/` is deliberately not a
- * package — it has no build, no dependencies of its own and nothing imports it
- * — so its specs have nowhere else to run.
+ * package — no build, no dependencies of its own, and its test helpers are
+ * imported only by the app's suites through the `@tools/*` alias, never by
+ * production code — so its specs have nowhere else to run.
  *
  * Named `*.spec.ts` rather than `*.test.ts`, matching the upstream oxlint
  * plugin convention these rules follow. That also keeps them clear of the

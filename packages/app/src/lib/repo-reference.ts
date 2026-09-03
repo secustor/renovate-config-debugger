@@ -8,6 +8,7 @@
  * string — validation against the request-building rules stays where it was,
  * in `use-repo-load` via `input-schemas`.
  */
+import { isTruthy } from "@renovate-config-debugger/engine/is";
 
 /** What a pasted reference names. `host: null` means "a bare slug — use the
  *  current platform context". `ref`/`path` are present only when the reference
@@ -128,7 +129,7 @@ function parseUrl(trimmed: string): RepoReference | null {
   } catch {
     return null;
   }
-  const segments = u.pathname.split("/").filter(Boolean);
+  const segments = u.pathname.split("/").filter(isTruthy);
   if (u.hostname === "raw.githubusercontent.com") {
     return parseRawGithub(segments);
   }

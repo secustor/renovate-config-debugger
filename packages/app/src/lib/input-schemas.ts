@@ -16,8 +16,13 @@
  * and type confusion crashing or misdirecting downstream code. These two
  * modules are the one place all of that gets checked; callers (share.ts,
  * App.tsx, oauth.ts, PresetTree.tsx) replace their ad hoc checks with these.
+ *
+ * Everything here is a BOUNDARY rule — this app's threat model, with no second
+ * copy anywhere. Plain type checks are not: `isPlainObject` and friends come
+ * from `@renovate-config-debugger/engine/is`, which all three packages share.
  */
 import type { STAGE_IDS as ENGINE_STAGE_IDS } from "@renovate-config-debugger/engine";
+import { isNonEmptyString, isPlainObject, isString } from "@renovate-config-debugger/engine/is";
 import { errorMessage } from "./errors";
 
 // ---------------------------------------------------------------------------
@@ -77,10 +82,6 @@ export function isPolluted(value: unknown): boolean {
   return findPollutedPath(value) !== null;
 }
 
-export function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
-}
-
 /**
  * A user-supplied Renovate config layer (share payload's globalConfig /
  * inheritedConfig, a pasted 008 layer, injected preset content): must be a
@@ -108,13 +109,13 @@ export function isValidConfigObject(v: unknown): v is Record<string, unknown> {
 export function hasValidPlatformContext(value: Record<string, unknown>): boolean {
   if ("platform" in value) {
     const platform = value.platform;
-    if (typeof platform !== "string" || !isValidPlatform(platform)) {
+    if (!isString(platform) || !isValidPlatform(platform)) {
       return false;
     }
   }
   if ("endpoint" in value) {
     const endpoint = value.endpoint;
-    if (typeof endpoint !== "string" || !isValidEndpoint(endpoint)) {
+    if (!isString(endpoint) || !isValidEndpoint(endpoint)) {
       return false;
     }
   }
@@ -150,7 +151,8 @@ export function isHttpUrl(value: string): boolean {
 /**
  * An endpoint field: empty string means "unset" (this app's own convention
  * for platforms not fetched in the browser — see `PLATFORM_ENDPOINTS` in
- * App.tsx) or an http(s) URL. Never `javascript:`/`data:`/anything else.
+ * `data/platform-endpoints.ts`) or an http(s) URL. Never
+ * `javascript:`/`data:`/anything else.
  */
 export function isValidEndpoint(value: string): boolean {
   return value === "" || isHttpUrl(value);
@@ -199,10 +201,10 @@ export function isValidHost(value: string): boolean {
 const MAX_PLATFORM_LENGTH = 128;
 
 /** `platform` is intentionally NOT an enum: the app's own platform <select>
- *  (App.tsx `PLATFORM_ENDPOINTS`) already tolerates an unrecognized platform
- *  string (a future Renovate platform), rendering it as an extra option
- *  rather than rejecting it. Only reject the type-confusion case (an
- *  object/number/etc, or absurd/control-character input). */
+ *  (`PLATFORM_ENDPOINTS` in `data/platform-endpoints.ts`) already tolerates an
+ *  unrecognized platform string (a future Renovate platform), rendering it as
+ *  an extra option rather than rejecting it. Only reject the type-confusion
+ *  case (an object/number/etc, or absurd/control-character input). */
 export function isValidPlatform(value: string): boolean {
   return value.length <= MAX_PLATFORM_LENGTH && !CONTROL_CHARS.test(value);
 }
@@ -276,10 +278,10 @@ export function sanitizeStoredUser(raw: unknown): SanitizedStoredUser | null {
     return null;
   }
   const { login, avatarUrl } = raw;
-  if (typeof login !== "string" || login.length === 0) {
+  if (!isNonEmptyString(login)) {
     return null;
   }
-  if (avatarUrl !== undefined && typeof avatarUrl !== "string") {
+  if (avatarUrl !== undefined && !isString(avatarUrl)) {
     return null;
   }
   return { login, avatarUrl: avatarUrl && isHttpUrl(avatarUrl) ? avatarUrl : "" };

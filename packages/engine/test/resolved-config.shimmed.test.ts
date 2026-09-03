@@ -12,7 +12,7 @@ import {
   runPipeline,
   type TraceResult,
 } from "../src/index";
-import { must } from "./helpers";
+import { must, withoutNetwork } from "./helpers";
 
 const injectedPresets = {
   [presetInjectionKey({ presetSource: "github", repo: "test-org/preset-a" })]: {
@@ -230,10 +230,12 @@ describe("computeResolvedConfig — full", () => {
 
 describe("computeResolvedConfig — availability", () => {
   it("returns undefined when preset resolution did not complete", async () => {
-    const result = await runPipeline({
-      fileName: "renovate.json",
-      content: JSON.stringify({ extends: ["github>test-org/does-not-resolve"] }),
-    });
+    const result = await withoutNetwork(() =>
+      runPipeline({
+        fileName: "renovate.json",
+        content: JSON.stringify({ extends: ["github>test-org/does-not-resolve"] }),
+      }),
+    );
     expect(result.stageStatus.preset).toBe("error");
     expect(computeResolvedConfig(result, "keep-internal")).toBeUndefined();
     expect(computeResolvedConfig(result, "full")).toBeUndefined();

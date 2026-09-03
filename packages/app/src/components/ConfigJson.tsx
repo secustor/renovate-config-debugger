@@ -1,4 +1,5 @@
 import { Fragment, type ReactNode, useMemo } from "react";
+import { jsonText } from "@renovate-config-debugger/engine/json";
 import {
   type DescriptionCard,
   type DescriptionCards,
@@ -110,7 +111,7 @@ export function ConfigJson({
         </>
       );
     }
-    return JSON.stringify(v) ?? "undefined";
+    return jsonText(v);
   }
 
   return <>{render(value, 0, true)}</>;

@@ -1,4 +1,5 @@
 import type { StageId, StageStatus, ValidationMessage } from "@renovate-config-debugger/engine";
+import { jsonFile, jsonText } from "@renovate-config-debugger/engine/json";
 import { truncate } from "@renovate-config-debugger/app/headless";
 import type { CliIo } from "./io";
 
@@ -10,7 +11,7 @@ import type { CliIo } from "./io";
  */
 
 export function emitJson(io: CliIo, value: unknown): void {
-  io.out(`${JSON.stringify(value, null, 2)}\n`);
+  io.out(jsonFile(value));
 }
 
 export function emitLines(io: CliIo, lines: readonly string[]): void {
@@ -21,10 +22,6 @@ export function writeNotes(io: CliIo, notes: readonly string[]): void {
   for (const note of notes) {
     io.err(`rcd: ${note}\n`);
   }
-}
-
-export function json(value: unknown): string {
-  return JSON.stringify(value, null, 2);
 }
 
 const STATUS_MARK: Record<StageStatus, string> = { ok: "✓", error: "✗", skipped: "–" };
@@ -68,7 +65,7 @@ export function preview(
   if (value === undefined) {
     return "(unset)";
   }
-  const text = JSON.stringify(value) ?? String(value);
+  const text = jsonText(value);
   const cut = truncate(text, max);
   return withLength && cut !== text ? `${cut} (${text.length} chars)` : cut;
 }

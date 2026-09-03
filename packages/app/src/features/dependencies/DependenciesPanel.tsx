@@ -1,3 +1,4 @@
+import { memo, useMemo } from "react";
 import { DataTable } from "@/components/DataTable";
 import { countNoun, type DataTableNoun } from "@/components/data-table";
 import { EmptyNote } from "@/components/EmptyNote";
@@ -52,10 +53,16 @@ function DependenciesTable({
   onPin,
   onOpenInSimulator,
 }: { view: RepoDepsView } & DepRowActions) {
+  // Stable row identities are what `DataTable`'s group memo and `DataTableRow`'s
+  // own memo are built around; both actions are `useStableCallback`s so it holds.
+  const rows = useMemo(
+    () => depTableRows(view.deps, { onPin, onOpenInSimulator }),
+    [view.deps, onPin, onOpenInSimulator],
+  );
   return (
     <>
       <DataTable
-        rows={depTableRows(view.deps, { onPin, onOpenInSimulator })}
+        rows={rows}
         columns={DEP_COLUMNS}
         groupings={DEP_GROUPINGS}
         defaultGroupingId={DEP_DEFAULT_GROUPING}
@@ -72,7 +79,9 @@ function DependenciesTable({
   );
 }
 
-export function DependenciesPanel({
+// Roadmap 032: memoized like the sibling panels — every prop is
+// identity-stable in App, so a `panels` rebuild does not rebuild the table.
+export const DependenciesPanel = memo(function DependenciesPanel({
   view,
   connect,
   onRetry,
@@ -95,4 +104,4 @@ export function DependenciesPanel({
       )}
     </RepoDiscoveryGate>
   );
-}
+});

@@ -1,6 +1,7 @@
+import { jsonDocument } from "@renovate-config-debugger/engine/json";
 import { stringOption } from "../args";
 import { CliError } from "../io";
-import { emitJson, emitLines, json, messageLines, stageLines } from "../output";
+import { emitJson, emitLines, messageLines, stageLines } from "../output";
 import {
   type ConfigScope,
   parseConfigScope,
@@ -138,20 +139,20 @@ export const runCommand = defineRunCommand<RunFlags>({
         lines.push(
           "",
           "Effective config:",
-          json(projected ? projected.config : result.finalConfig),
+          jsonDocument(projected ? projected.config : result.finalConfig),
         );
         if (projected) {
-          lines.push(`(${json(projected.view)})`);
+          lines.push(`(${jsonDocument(projected.view)})`);
         }
       }
       if (selection.includes("layers")) {
-        lines.push("", "Layers:", json(result.layerConfigs));
+        lines.push("", "Layers:", jsonDocument(result.layerConfigs));
       }
       if (selection.includes("tree")) {
-        lines.push("", "Preset tree:", json(result.presetTree));
+        lines.push("", "Preset tree:", jsonDocument(result.presetTree));
       }
       if (selection.includes("events")) {
-        lines.push("", "Events:", json(result.events));
+        lines.push("", "Events:", jsonDocument(result.events));
       }
       emitLines(io, lines);
     }

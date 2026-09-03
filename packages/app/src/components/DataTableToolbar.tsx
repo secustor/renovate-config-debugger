@@ -1,4 +1,5 @@
 import { type RefObject, useId } from "react";
+import { isNullOrUndefined } from "@renovate-config-debugger/engine/is";
 import { ESCAPE_PRIORITY } from "@/lib/escape-stack";
 import { useAnchoredPopover } from "@/hooks/use-anchored-popover";
 import { GEAR } from "@/data/octicons";
@@ -240,7 +241,7 @@ export function DataTableToolbar({
         onChange={(event) => onQuery(event.target.value)}
       />
       {contextNote === undefined ? null : <span className="data-table-context">{contextNote}</span>}
-      {copy === undefined || copy === null ? null : (
+      {isNullOrUndefined(copy) ? null : (
         <CopyButton
           getText={copy.getText}
           label={copy.label}

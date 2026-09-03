@@ -21,6 +21,7 @@
  * private repo load, under-suppressing would leak the token.
  */
 import { type RefObject, useCallback, useMemo, useRef, useState } from "react";
+import { isString } from "@renovate-config-debugger/engine/is";
 import { DEFAULT_ENDPOINT, DEFAULT_PLATFORM, PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
 import {
   isValidEndpoint,
@@ -102,10 +103,12 @@ export function usePlatformContext(): PlatformContext {
   // pollution-checked. Empty text = layer off; error text kept verbatim (the
   // layer-editor render site and the run-blocking message depend on it).
   const globalParse = useMemo(() => parseLayerJson(globalText), [globalText]);
-  const globalPlatform =
-    typeof globalParse.config?.platform === "string" ? globalParse.config.platform : undefined;
-  const globalEndpoint =
-    typeof globalParse.config?.endpoint === "string" ? globalParse.config.endpoint : undefined;
+  const globalPlatform = isString(globalParse.config?.platform)
+    ? globalParse.config.platform
+    : undefined;
+  const globalEndpoint = isString(globalParse.config?.endpoint)
+    ? globalParse.config.endpoint
+    : undefined;
   const hasGlobalContext = globalPlatform !== undefined || globalEndpoint !== undefined;
   const reflectGlobal = hasGlobalContext && !platformOverride;
   const displayPlatform = reflectGlobal && globalPlatform !== undefined ? globalPlatform : platform;

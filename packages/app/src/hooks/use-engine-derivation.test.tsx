@@ -4,10 +4,11 @@ import { expect, it, vi } from "vitest";
 import { useEngineDerivation } from "./use-engine-derivation";
 
 /**
- * The two things the shared hook owns beyond "call the engine": what it does
- * with a rejection, and what it shows in the frame between two inputs.
+ * What the shared hook owns beyond "call the engine": what it shows in the
+ * frame between two inputs, what it does with a rejection, that co-mounted
+ * consumers all settle, and that a churning re-render costs nothing.
  *
- * The engine is mocked rather than run: both cases are about the hook's own
+ * The engine is mocked rather than run: every case is about the hook's own
  * bookkeeping, mocking is the only way to produce a rejection deterministically,
  * and it keeps the renovate module graph out of this file.
  */
@@ -61,11 +62,10 @@ it("settles as unavailable when the derivation throws", async () => {
 
 it("settles every consumer that mounts in the same commit", async () => {
   // Two consumers of the same run mount together (the effective config's rows
-  // and its blame ledger, the simulator's rule rows), so two derivations wait
-  // on the engine chunk at once. The import is single-flighted for exactly this
-  // reason: a second in-flight `import()` of the same specifier never settles
-  // under the test module runner, which strands the second consumer on
-  // `undefined` — "still loading" — for good.
+  // and its blame ledger, the simulator's rule rows): both must reach their own
+  // value, neither may be stranded on `undefined` ("still loading"). Not a
+  // single-flight guard — by the time this runs `loadEngine`'s slot is already
+  // settled; `platform/engine-chunk.test.ts` pins that from cold.
   let states: State[] = [];
   function TwoConsumers() {
     const first = useEngineDerivation<string>(["k"], () => Promise.resolve("first"));

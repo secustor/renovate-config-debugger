@@ -1,4 +1,5 @@
-import { allowStringMembers, isPlainObject } from "../lib";
+import { isPlainObject } from "../is";
+import { allowStringMembers, deepEqual } from "../lib";
 import { getDefaultConfig, getOptions, mergeChildConfig } from "../renovate-adapter";
 import type { PresetNode, TraceResult } from "./model";
 import { mergingChildren, replayableRun, walkResolutionOrder } from "./tree";
@@ -68,25 +69,6 @@ export interface KeyProvenance {
 }
 
 type Obj = Record<string, unknown>;
-
-/** Structural equality over JSON-shaped values (also used by resolved-config.ts). */
-export function deepEqual(a: unknown, b: unknown): boolean {
-  if (a === b) {
-    return true;
-  }
-  if (Array.isArray(a) && Array.isArray(b)) {
-    return a.length === b.length && a.every((x, i) => deepEqual(x, b[i]));
-  }
-  if (isPlainObject(a) && isPlainObject(b)) {
-    const ak = Object.keys(a);
-    const bk = Object.keys(b);
-    return (
-      ak.length === bk.length &&
-      ak.every((k) => Object.prototype.hasOwnProperty.call(b, k) && deepEqual(a[k], b[k]))
-    );
-  }
-  return false;
-}
 
 interface Layer {
   layer: ProvenanceLayer;

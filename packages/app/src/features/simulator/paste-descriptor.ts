@@ -1,6 +1,6 @@
 import { plural } from "@/lib/format";
 import { EMPTY_FORM, isMultiValueKey, joinValues } from "./form";
-import { isPlainObject } from "@/lib/input-schemas";
+import { isPlainObject, isString, isStringArray } from "@renovate-config-debugger/engine/is";
 import type { FormState } from "@/types/simulator";
 
 /**
@@ -47,10 +47,10 @@ function isKnownKey(key: string): key is keyof FormState {
  * splits back out, so it is imported, not dropped.
  */
 function coerce(key: keyof FormState, value: unknown): string | undefined {
-  if (typeof value === "string") {
+  if (isString(value)) {
     return value;
   }
-  if (isMultiValueKey(key) && Array.isArray(value) && value.every((v) => typeof v === "string")) {
+  if (isMultiValueKey(key) && isStringArray(value)) {
     return joinValues(value);
   }
   return undefined;

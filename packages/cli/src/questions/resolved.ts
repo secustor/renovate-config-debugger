@@ -1,6 +1,7 @@
 import {
   computeResolvedConfig,
   type ResolvedConfigMode,
+  type ResolvedConfigOutput,
   type TraceResult,
 } from "@renovate-config-debugger/engine";
 import { CliError } from "../io";
@@ -18,12 +19,10 @@ export interface ResolvedQuestion {
   transport: RunTransport;
 }
 
-type ResolvedOutput = NonNullable<ReturnType<typeof computeResolvedConfig>>;
-
 export interface ResolvedAnswer {
   mode: ResolvedConfigMode;
   includeDefaults: boolean;
-  output: ResolvedOutput;
+  output: ResolvedConfigOutput;
 }
 
 /** Defaults may only be written into a fully expanded document: in one that

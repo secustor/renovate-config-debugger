@@ -14,6 +14,8 @@
  * probe per candidate — hence the 404 sentinel below rather than
  * `PRESET_DEP_NOT_FOUND`.
  */
+import { isString } from "../is";
+import { jsonDocument } from "../json";
 import { ExternalHostError } from "./renovate-internals";
 import {
   authHeadersFor,
@@ -73,7 +75,7 @@ export class RepoConfigNotFoundError extends Error {
  * brace-expansion (`renovate.json{,c,5}` → .json/.jsonc/.json5), in order.
  * detectConfigFile walks this list and the first existing file wins. Hardcoded
  * because upstream exports `getConfigFileNames()`, not the raw `configFileNames`
- * array; keep in sync with the pinned Renovate version.
+ * array; `test/repo-config-drift.node.test.ts` fails when the two diverge.
  */
 export const CONFIG_FILE_NAMES = [
   "renovate.json",
@@ -285,7 +287,7 @@ export async function fetchRepoTree(req: RepoTreeRequest): Promise<RepoTreeResul
   if (Array.isArray(body.tree)) {
     for (const entry of body.tree as unknown[]) {
       const e = entry as Record<string, unknown>;
-      if (e.type === "blob" && typeof e.path === "string") {
+      if (e.type === "blob" && isString(e.path)) {
         paths.push(e.path);
       }
     }
@@ -319,11 +321,13 @@ export function extractPackageJsonConfig(raw: string): string | null {
   if (value === undefined) {
     return null;
   }
-  if (typeof value === "string") {
-    return JSON.stringify({ extends: [value] }, null, 2);
+  if (isString(value)) {
+    return jsonDocument({ extends: [value] });
   }
+  // Two-clause deliberately: an ARRAY `renovate` key is invalid config, but
+  // re-serializing it is how the caller's own validator gets to say so.
   if (typeof value === "object" && value !== null) {
-    return JSON.stringify(value, null, 2);
+    return jsonDocument(value);
   }
   return null;
 }

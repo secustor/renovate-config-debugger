@@ -1,3 +1,5 @@
+import { isString } from "@renovate-config-debugger/engine/is";
+import { jsonEqual } from "@renovate-config-debugger/engine/json";
 import { MAX_PINNED_TESTS } from "@/lib/input-schemas";
 import { EMPTY_FORM, hasMeaningfulInput } from "./form";
 import type { FormState, PinnedTest } from "@/types/simulator";
@@ -28,7 +30,7 @@ export const MAX_PINS = MAX_PINNED_TESTS;
 export function pinShareFields(form: FormState): Record<string, string> {
   const fields: Record<string, string> = {};
   for (const [key, value] of Object.entries(form)) {
-    if (typeof value === "string" && value.trim() !== "") {
+    if (isString(value) && value.trim() !== "") {
       fields[key] = value;
     }
   }
@@ -43,7 +45,7 @@ export function pinShareFields(form: FormState): Record<string, string> {
  * repeated click must not mint a duplicate.
  */
 export function samePinForm(a: FormState, b: FormState): boolean {
-  return JSON.stringify(pinShareFields(a)) === JSON.stringify(pinShareFields(b));
+  return jsonEqual(pinShareFields(a), pinShareFields(b));
 }
 
 /** The inverse: a decoded field bag as a full `FormState` (unknown keys are
@@ -52,7 +54,7 @@ export function pinFormFromShareFields(fields: Record<string, string>): FormStat
   const form: FormState = { ...EMPTY_FORM };
   for (const key of Object.keys(EMPTY_FORM) as (keyof FormState)[]) {
     const value = fields[key];
-    if (typeof value === "string") {
+    if (isString(value)) {
       form[key] = value;
     }
   }

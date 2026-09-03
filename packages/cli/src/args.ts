@@ -1,3 +1,4 @@
+import { isBoolean, isString } from "@renovate-config-debugger/engine/is";
 import { Command as CommanderCommand, CommanderError } from "commander";
 import { CliError } from "./io";
 
@@ -189,7 +190,7 @@ export function collectArgs(
   const values: ParsedArgs["values"] = {};
   for (const name of names) {
     const value = options[attributeName(name)];
-    if (typeof value === "string" || typeof value === "boolean") {
+    if (isString(value) || isBoolean(value)) {
       values[name] = value;
     } else if (Array.isArray(value)) {
       values[name] = value as string[];
@@ -221,7 +222,7 @@ export function parseCommandArgs(
 
 export function stringOption(args: ParsedArgs, name: OptionName): string | undefined {
   const value = args.values[name];
-  return typeof value === "string" ? value : undefined;
+  return isString(value) ? value : undefined;
 }
 
 export function boolOption(args: ParsedArgs, name: OptionName): boolean {

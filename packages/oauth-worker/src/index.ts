@@ -119,19 +119,25 @@ function jsonResponse(
  * JSON body and both refuse a malformed one identically, so the guard is
  * written once: a caller returns the {@link Response} it gets back untouched.
  *
- * The shape is asserted, never validated — every field of `T` is `unknown` and
- * the handlers type-check what they read. A body that parses but says nothing
- * useful falls through to the endpoint's own "required" 400.
+ * Object-ness is validated (a bare `null`, array or scalar is as malformed as
+ * unparseable, and gets the same 400); the fields stay `unknown` for the
+ * handlers to type-check. A body that parses but says nothing useful falls
+ * through to the endpoint's own "required" 400.
  */
-async function parseJsonBody<T>(req: Request, origin: string): Promise<T | Response> {
+async function parseJsonBody<T extends object>(
+  req: Request,
+  origin: string,
+): Promise<T | Response> {
+  const malformed = () =>
+    jsonResponse({ error: "invalid_request", error_description: "body must be JSON" }, 400, origin);
   try {
-    return (await req.json()) as T;
+    const parsed: unknown = await req.json();
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return malformed();
+    }
+    return parsed as T;
   } catch {
-    return jsonResponse(
-      { error: "invalid_request", error_description: "body must be JSON" },
-      400,
-      origin,
-    );
+    return malformed();
   }
 }
 

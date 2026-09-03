@@ -17,6 +17,7 @@
  * consumer awaiting it hangs on `undefined` forever. Single-flighting the
  * promise here is what the per-result caches downstream already assume anyway —
  * the chunk is fetched once and everyone waits on the same fetch.
+ * `engine-chunk.test.ts` pins it, from a cold module registry.
  *
  * A rejection is deliberately NOT cached: an import that failed because the
  * network was down must be retryable by the next run, so the slot is cleared

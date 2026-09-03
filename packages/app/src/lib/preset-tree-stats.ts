@@ -1,6 +1,6 @@
 import type * as EngineModule from "@renovate-config-debugger/engine";
 import type { PresetNode } from "@renovate-config-debugger/engine";
-import { isPlainObject } from "./input-schemas";
+import { isPlainObject, isString } from "@renovate-config-debugger/engine/is";
 
 /**
  * The root node's id — the input config itself, the one node the tree has no
@@ -20,7 +20,7 @@ export const ROOT_NODE_ID: typeof EngineModule.ROOT_NODE_ID = "root";
  * the tree view, the flat table, the Presets tab badge and the Overview
  * digest. Pure computation, so it lives outside `PresetTree.tsx`: a component
  * module that also exports plain functions breaks Fast Refresh
- * (react/only-export-components), and App.tsx reads three of these directly.
+ * (react/only-export-components).
  *
  * It sits in `lib/` rather than `components/` because nothing here is React or
  * DOM. `run-facts`, `tree-descriptions`, `description-attribution` and the
@@ -170,7 +170,7 @@ function ownContribution(node: PresetNode): {
           const arr = rule[mk];
           if (Array.isArray(arr)) {
             for (const s of arr) {
-              if (typeof s === "string") {
+              if (isString(s)) {
                 parts.push(s);
               }
             }

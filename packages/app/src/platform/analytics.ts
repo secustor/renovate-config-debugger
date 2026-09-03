@@ -8,6 +8,7 @@
  * id from either source gtag.js is never loaded — `vite dev`, previews and
  * unconfigured self-hosts send nothing.
  */
+import { isString } from "@renovate-config-debugger/engine/is";
 
 declare global {
   interface Window {
@@ -23,7 +24,7 @@ declare global {
 const MEASUREMENT_ID = /^G-[A-Z0-9]+$/;
 
 function toMeasurementId(value: unknown): string | null {
-  if (typeof value !== "string") {
+  if (!isString(value)) {
     return null;
   }
   const id = value.trim();

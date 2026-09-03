@@ -120,18 +120,18 @@ two of them have to work before `pnpm install` has:
   `pnpm install`); CwdChanged only fires the install for a root without
   `node_modules`, i.e. a fresh worktree.
 - **PreToolUse** — denies `npm`/`npx`/`yarn`.
-- **Stop** — runs lint, format:check, typecheck and the tests of every changed
-  package, and blocks the stop with the failing output. **The e2e suite is
-  excluded** (it needs a production build and takes minutes) — run it yourself
-  when the change warrants it. A green run is fingerprinted, so an unchanged
-  working set doesn't pay for the checks twice.
+- **Stop** — runs lint, format:check, typecheck, check:exports and the tests of
+  every changed package, and blocks the stop with the failing output. **The e2e
+  suite is excluded** (it needs a production build and takes minutes) — run it
+  yourself when the change warrants it. A green run is fingerprinted, so an
+  unchanged working set doesn't pay for the checks twice.
 
 ## Architecture
 
 **The deep description lives in [`docs/Architecture.md`](docs/Architecture.md)** — the shim plugin's resolution mechanism, the golden/shimmed proof, the three module regimes and why each has the guard it has. Read it before changing anything about how Renovate's code is loaded. What you need to find your way around:
 
 - **`packages/engine`** — deep-imports the pinned `renovate` package and records the pipeline trace. Two modules hold the whole `renovate/dist/**` surface: `src/renovate-adapter.ts` (engine code) and `src/shims/renovate-internals.ts` (the shims). Renovate's config code is **not a public API**: the dependency is pinned exactly, every bump PR runs full CI, and `test/migration-drift.node.test.ts` catches upstream drift.
-- **`packages/app`** — the React 19 SPA. `src/features/` holds the six feature slices (editor, effective-config, overview, presets, session, simulator), `src/app/` the shell, and `src/components/`, `src/hooks/`, `src/lib/`, `src/data/`, `src/platform/` the shared layers. Features never import `@/app` and never import each other (oxlint enforces it). The engine is loaded dynamically through one `loadEngine()` seam (`src/platform/engine-chunk.ts`) so the critical path stays small.
+- **`packages/app`** — the React 19 SPA. `src/features/` holds the feature slices (dependencies, editor, effective-config, overview, pipeline, presets, session, simulator), `src/app/` the shell, and `src/components/`, `src/hooks/`, `src/lib/`, `src/data/`, `src/platform/` the shared layers. Features never import `@/app` and never import each other (oxlint enforces it). The engine is loaded dynamically through one `loadEngine()` seam (`src/platform/engine-chunk.ts`) so the critical path stays small.
 - **`packages/cli`** — `rcd`, the headless debugger (roadmap 058/059/060, experimental): the browser module graph running under Node, one subcommand per question, plus `rcd mcp`. Its derivations are imported from the app through `@renovate-config-debugger/app/headless`, so its numbers are the app's numbers, not a copy.
 - **`packages/oauth-worker`** — stateless OAuth `code → token` exchange (a static site can't hold the `client_secret`), deployed both as a Cloudflare Worker and as a Node image. It must never see configs, presets, or API traffic.
 

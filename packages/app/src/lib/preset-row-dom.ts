@@ -18,8 +18,9 @@
  * (`react/only-export-components`, error since roadmap 041) — the same reason
  * `results-tab-dom.ts` is not inside `ResultsPanel.tsx`.
  *
- * The stylesheet still names the classes independently (`index.css`), as it
- * must — that half is CSS's, and no export can make it type-check.
+ * The stylesheet still names the classes independently
+ * (`styles/03-presets.css`), as it must — that half is CSS's, and no export can
+ * make it type-check.
  */
 
 const TREE_ROW_NAME = "preset-name";

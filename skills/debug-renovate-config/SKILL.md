@@ -55,6 +55,7 @@ the whole trace.
 | "would this dependency update match the rules?"         | `simulate`                      |
 | "would these updates land in one PR together?"          | `simulate_group`                |
 | "did my edit change behavior?"                          | `compare_simulations`           |
+| "what dependencies would Renovate find in this file?"   | `extract_deps`                  |
 
 **Preset-node bodies are large — query one node at a time.** `get_preset_tree`
 deliberately returns structure and contribution stats without bodies, and it is
@@ -92,6 +93,14 @@ against the repository's real pending updates, so `wouldForm: false` means
 membership is by `groupName` as the rules resolved it: branch splitting
 (`separateMajorMinor`, custom `branchName` templates) is not modeled. For
 per-update rule evidence, go back to `simulate`, one dep at a time.
+
+`extract_deps` is the one tool besides `get_option_docs` that takes no `runId`:
+pass a manifest's filename and its contents and it returns the rows Renovate's
+own managers extract (`depName`, `currentValue`, `datasource`, `depType`),
+`simulate`-shaped, so they feed straight into `simulate` or `simulate_group`.
+The filename is what drives manager matching, and several managers can claim one
+name (`pyproject.toml`) — with no `manager` every claimant runs; `manager`
+forces one.
 
 `explain_message` says so plainly when it has no translation for a message —
 `translationKnown: false` plus a note — instead of quietly echoing the raw
@@ -140,6 +149,7 @@ npx -y @renovate-config-debugger/cli simulate renovate.json --dep '{"depName":"r
 npx -y @renovate-config-debugger/cli compare before.json after.json --dep '{"depName":"react"}'
 npx -y @renovate-config-debugger/cli group renovate.json --dep '{"depName":"react","updateType":"minor"}' --dep '{"depName":"react-dom","updateType":"minor"}'
 npx -y @renovate-config-debugger/cli docs minimumReleaseAge
+npx -y @renovate-config-debugger/cli extract package.json
 ```
 
 `group` is `simulate_group`'s answer (`--dep` repeated, or `--deps-file` with a
@@ -151,7 +161,8 @@ inheritable or templated. It answers only for the version pinned, because
 Renovate ships no per-option version history at all — neither `docs` nor
 `get_option_docs` can tell you when an option appeared or last changed.
 `docs <substring> --search` lists the options whose name matches, for when you
-have the concept and not the spelling.
+have the concept and not the spelling. `extract` is `extract_deps`'s answer:
+point it at a manifest and it prints the rows Renovate's managers extract.
 
 `validate` exits **2** when Renovate would refuse the config and **1** on an
 infrastructure error, so it works as a check in CI or a hook without a wrapper.

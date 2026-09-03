@@ -1,8 +1,16 @@
 name: Setup workspace
 description: >
-  mise toolchain + pnpm store cache + workspace install. Every CI job that runs
-  workspace scripts uses this after checkout; the `setup` job runs it first to
-  warm the caches the parallel jobs restore.
+  mise toolchain + pnpm store cache + install (the whole workspace, or a single
+  package's deps via `filter`). Every CI job that runs workspace scripts uses
+  this after checkout; the `setup` job runs it first to warm the caches the
+  parallel jobs restore.
+
+inputs:
+  filter:
+    description: >
+      Install only this workspace package's deps (e.g.
+      @renovate-config-debugger/oauth-worker). Default: the whole workspace.
+    default: ""
 
 runs:
   using: composite
@@ -24,4 +32,6 @@ runs:
         restore-keys: pnpm-store-${{ runner.os }}-
 
     - shell: bash
-      run: pnpm install --frozen-lockfile --prefer-offline
+      env:
+        FILTER: ${{ inputs.filter }}
+      run: pnpm install --frozen-lockfile --prefer-offline ${FILTER:+--filter "$FILTER"}

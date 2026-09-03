@@ -16,6 +16,7 @@
  * matches their `managerFilePatterns` too, and `extractCustomDeps` runs one
  * block over one file with the block itself as the extractor's config.
  */
+import { isString } from "./is";
 import { enqueueEngineTask } from "./pipeline";
 import {
   customManagerExtractors,
@@ -105,7 +106,7 @@ function customFilePatterns(block: CustomManagerInput): string[] {
   if (!Array.isArray(patterns)) {
     return [];
   }
-  return patterns.filter((pattern): pattern is string => typeof pattern === "string");
+  return patterns.filter(isString);
 }
 
 /**
@@ -413,10 +414,9 @@ async function runCustomExtract(request: ExtractCustomRequest): Promise<ExtractO
       ok: false,
       reason: "unsupported-manager",
       matchedManagers: [],
-      message:
-        typeof raw === "string"
-          ? `customType "${raw}" is not a custom manager this engine can run`
-          : "custom manager block has no customType",
+      message: isString(raw)
+        ? `customType "${raw}" is not a custom manager this engine can run`
+        : "custom manager block has no customType",
     };
   }
   const manager = customManagerName(type);

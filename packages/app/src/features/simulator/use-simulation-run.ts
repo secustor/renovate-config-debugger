@@ -5,12 +5,15 @@ import {
   useEffect,
   useInsertionEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import type { SimulationResult, TraceResult } from "@renovate-config-debugger/engine";
+import { jsonText } from "@renovate-config-debugger/engine/json";
 import { runSimulation } from "./run-simulation";
 import { DEFAULT_RULE_FILTERS, type RuleFilters } from "@/lib/rule-filters";
+import { useLatestRef } from "@/hooks/use-latest-ref";
 import { useSyncedReset } from "@/hooks/use-synced-reset";
 import { errorMessage } from "@/lib/errors";
 import type { FormState } from "@/types/simulator";
@@ -24,7 +27,9 @@ export interface SimulationRun {
    *  which may have been edited further without a re-run (that drift is what
    *  the "stale" banner covers). */
   simForm: FormState | null;
-  /** The serialized form `sim` was run against, for the staleness check. */
+  /** The serialized `simForm`, for the staleness check — derived, not stored:
+   *  `simForm` holds the exact object that was run and is never mutated in
+   *  place, so this is the same string the run would have snapshotted. */
   ranKey: string | null;
   running: boolean;
   error: string | null;
@@ -59,7 +64,7 @@ export function useSimulationRun({
 }): SimulationRun {
   const [sim, setSim] = useState<SimulationResult | null>(null);
   const [simForm, setSimForm] = useState<FormState | null>(null);
-  const [ranKey, setRanKey] = useState<string | null>(null);
+  const ranKey = useMemo(() => (simForm === null ? null : jsonText(simForm)), [simForm]);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Roadmap 023/047: the rules drawer's filters — the verdict facet defaults to
@@ -86,6 +91,8 @@ export function useSimulationRun({
   // still invokes the CURRENT closure — the one that sees the config the run
   // this link triggered just produced.
   const simulateRef = useRef<Simulate | null>(null);
+  // The run on screen, for `simulate`'s post-await guard below.
+  const resultRef = useLatestRef(result);
 
   // A new run invalidates any previous simulation (the rules may differ). This
   // hook's OWN half of that invalidation happens during render — React's
@@ -93,11 +100,12 @@ export function useSimulationRun({
   // `result` is the trigger and the reset reads nothing out of it, so as an
   // effect the new run was a dependency the body never touched. Done here the
   // stale verdict is also gone BEFORE the paint, where an effect left one
-  // committed frame showing the previous run's rules under the new run's config.
+  // committed frame showing the previous run's rules under the new run's
+  // config. The ASYNC half is the guard in `simulate`: a settle that lands
+  // after this reset must not re-populate it for the run it no longer describes.
   useSyncedReset(result, () => {
     setSim(null);
     setSimForm(null);
-    setRanKey(null);
     setError(null);
     setRuleFilters(DEFAULT_RULE_FILTERS);
     setFocusHint(null);
@@ -133,6 +141,7 @@ export function useSimulationRun({
    * would race against that update.
    */
   async function simulate(nextForm: FormState, touched: boolean) {
+    const ranAgainst = result;
     const finalConfig = result.finalConfig;
     if (!finalConfig) {
       return;
@@ -151,6 +160,11 @@ export function useSimulationRun({
       // pin's verdict has to be the verdict this panel would show for the
       // same descriptor.
       const { sim: simResult } = await runSimulation(finalConfig, nextForm, touched);
+      // The settle belongs to the run it started against — the reset above has
+      // already dropped the verdict for a newer one, and committing restores it.
+      if (resultRef.current !== ranAgainst) {
+        return;
+      }
       // Captured right before the state updates that can shrink the results
       // list (see the layout effect above) — not at the top of `simulate`,
       // so an in-flight fetch doesn't capture a scroll position the user has
@@ -158,14 +172,17 @@ export function useSimulationRun({
       scrollYBeforeSimulate.current = window.scrollY;
       setSim(simResult);
       setSimForm(nextForm);
-      setRanKey(JSON.stringify(nextForm));
       // The verdict facet goes back to the default view for the new run; the
       // provenance one is left alone — a user filtered to their own rules
       // stays there across a re-run, as the "my rules only" toggle did.
       setRuleFilters((prev) => ({ ...prev, verdict: DEFAULT_RULE_FILTERS.verdict }));
       setFocusHint(null);
     } catch (err) {
-      setError(errorMessage(err));
+      // A failure belongs to its run for the same reason a verdict does; but
+      // `running` is panel lifecycle, so `finally` stays unconditional.
+      if (resultRef.current === ranAgainst) {
+        setError(errorMessage(err));
+      }
     } finally {
       setRunning(false);
     }

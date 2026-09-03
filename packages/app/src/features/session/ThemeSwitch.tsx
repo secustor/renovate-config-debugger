@@ -3,15 +3,16 @@ import { applyTheme, getTheme, persistTheme, subscribeTheme, type Theme } from "
 import { SegmentedControl, type SegmentedOption } from "@/components/SegmentedControl";
 
 /**
- * Roadmap 037 — the Auto / Light / Dark override, in the header beside the
- * version badge. All the switching happens in `applyTheme` (one
+ * Roadmap 037 — the Auto / Light / Dark override; 066 moved it out of the
+ * header row into the session menu's Theme group, where `SessionMenu` is its
+ * only consumer. All the switching still happens in `applyTheme` (one
  * `color-scheme` on `:root`); this component only owns which segment is lit
  * and writes the choice through to storage.
  *
  * Roadmap 039: the lit segment now comes from the theme store in storage.ts
  * rather than a local `useState` copy — `applyTheme` is the app's single
  * writer, and the editor's `useEffectiveScheme()` reads the same store, so
- * header and editor can never disagree about which theme is in force.
+ * the switch and the editor can never disagree about which theme is in force.
  */
 
 /** Octicons: half-filled circle (auto), sun (light), moon (dark). */

@@ -1,3 +1,5 @@
+import { isTruthy } from "@renovate-config-debugger/engine/is";
+import { jsonText } from "@renovate-config-debugger/engine/json";
 import { COLLAPSE_AFTER } from "@/lib/collapse";
 import { nf, plural } from "@/lib/format";
 import type {
@@ -345,7 +347,7 @@ export function duplicateNoteText(entry: DescriptionAttribution): string {
 /** A non-string member's value cell — compact JSON, so `{"a":1}` and `"1"` are
  *  distinguishable from `1` at a glance. */
 export function unattributedValueText(value: unknown): string {
-  return truncate(JSON.stringify(value) ?? String(value), UNATTRIBUTED_PREVIEW_CHARS);
+  return truncate(jsonText(value), UNATTRIBUTED_PREVIEW_CHARS);
 }
 
 /**
@@ -412,7 +414,7 @@ export function ledgerRevealText(hiddenRows: number, dropped: number): string | 
   if (!lines && !cut) {
     return null;
   }
-  return `${[lines, cut].filter(Boolean).join(" · ")} →`;
+  return `${[lines, cut].filter(isTruthy).join(" · ")} →`;
 }
 
 /** The heading over the dropped list once the reveal has opened it — "where did

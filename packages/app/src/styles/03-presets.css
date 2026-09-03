@@ -1,9 +1,7 @@
 /* Split out of index.css (roadmap 050's deferred plan, executed 2026-08-23).
    ORDER IS LOAD-BEARING: main.tsx imports these numbered files in sequence,
-   preserving the original file's cascade byte-for-byte — one cross-file
-   equal-specificity coupling (.diff-wrapper) depends on it. `.preset-panel`
-   used to be a second: it was a latent bug, not a coupling, and the stacked
-   override below now wins on specificity instead of on load order.
+   preserving the original file's cascade byte-for-byte; the couplings that
+   depend on that order are listed there.
    This file: the preset resolution tree, its legibility at scale, preset descriptions (002/011/069). */
 
 /* ---------- preset resolution tree (002) ---------- */

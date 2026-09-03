@@ -17,6 +17,7 @@
  * it can never clobber the fresh view.
  */
 import { useCallback, useMemo, useRef, useState } from "react";
+import { jsonText } from "@renovate-config-debugger/engine/json";
 import { TREE_LISTING_PLATFORMS } from "@/data/host-tokens";
 import { EMPTY_REPO_DEPS, repoDepsOfFile } from "./repo-deps";
 import { useLatestRef } from "@/hooks/use-latest-ref";
@@ -36,8 +37,10 @@ export type CustomManagerBlocks = readonly Record<string, unknown>[];
 const MAX_REPO_DEP_FILES = 500;
 
 /** What became of one matched file — the ledger entry the walk's own record
- *  (`path`, `managers`) is completed with. */
-type FileLedger = Pick<RepoDepFile, "outcome" | "extractedBy" | "depCount">;
+ *  (`path`, `managers`) is completed with. `error` carries the engine's reason
+ *  for an EXTRACTION failure only; a file that was never fetched (`not-read`,
+ *  `unreadable`) has none. */
+type FileLedger = Pick<RepoDepFile, "outcome" | "extractedBy" | "depCount" | "error">;
 
 /** A matched file the cap dropped: claimed, never fetched, so nothing at all
  *  is known about what is inside it. */
@@ -66,7 +69,7 @@ function repoKey(repo: LoadedRepo): string {
 function discoveryKey(repo: LoadedRepo, customManagers: CustomManagerBlocks): string {
   let blocks = `${customManagers.length}`;
   try {
-    blocks = JSON.stringify(customManagers) ?? blocks;
+    blocks = jsonText(customManagers);
   } catch {
     // A config value that cannot be serialized still has to key something.
   }
@@ -78,20 +81,27 @@ function discoveryKey(repo: LoadedRepo, customManagers: CustomManagerBlocks): st
 export type FileRun =
   | { status: "extracted"; manager: string; rows: number }
   | { status: "no-deps" }
-  | { status: "error" };
+  | { status: "error"; message?: string };
 
 /**
  * The ledger entry for a file several extractors ran over (roadmap 093): a
  * built-in and every custom block that claimed it. Extracted if ANY run
  * extracted, else errored if any failed; `extractedBy` names the first run that
  * produced rows (falling back to the first that ran at all, which is the
- * all-rows-skipped case), and `depCount` totals every run.
+ * all-rows-skipped case), and `depCount` totals every run. A failure's reason
+ * survives only when nothing extracted beside it — the ledger has one outcome,
+ * so a message under an `extracted` entry would describe a row it contradicts.
  */
 export function mergeFileRuns(runs: readonly FileRun[]): FileLedger {
   const extracted = runs.filter((run) => run.status === "extracted");
   if (extracted.length === 0) {
-    const outcome = runs.some((run) => run.status === "error") ? "error" : "no-deps";
-    return { outcome, extractedBy: null, depCount: 0 };
+    const failed = runs.find((run) => run.status === "error");
+    return {
+      outcome: failed === undefined ? "no-deps" : "error",
+      extractedBy: null,
+      depCount: 0,
+      ...(failed?.message === undefined ? {} : { error: failed.message }),
+    };
   }
   const first = extracted.find((run) => run.rows > 0) ?? extracted[0];
   return {
@@ -102,9 +112,13 @@ export function mergeFileRuns(runs: readonly FileRun[]): FileLedger {
 }
 
 /** An extraction that produced nothing, as the ledger records it. Upstream's
- *  `unsupported-manager`/`no-manager` are failures, not emptiness. */
+ *  `unsupported-manager`/`no-manager` are failures, not emptiness — and their
+ *  engine-phrased messages ride the same field as a broken `matchStrings`, the
+ *  one failure here whose cause is the reader's own config. */
 function failedRun(outcome: Extract<ExtractOutcome, { ok: false }>): FileRun {
-  return outcome.reason === "no-deps" ? { status: "no-deps" } : { status: "error" };
+  return outcome.reason === "no-deps"
+    ? { status: "no-deps" }
+    : { status: "error", message: outcome.message };
 }
 
 async function discover(

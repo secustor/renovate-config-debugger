@@ -4,6 +4,7 @@ import type {
   ProvenanceLayer,
   SimulationResult,
 } from "@renovate-config-debugger/engine";
+import { jsonEqual } from "@renovate-config-debugger/engine/json";
 import type { MergeStop } from "./merge-stops";
 
 /**
@@ -131,7 +132,7 @@ function isAppend(entry: MergedKey): boolean {
   if (!Array.isArray(before) || !Array.isArray(after) || before.length >= after.length) {
     return false;
   }
-  return before.every((item, i) => JSON.stringify(item) === JSON.stringify(after[i]));
+  return before.every((item, i) => jsonEqual(item, after[i]));
 }
 
 function layerOf(

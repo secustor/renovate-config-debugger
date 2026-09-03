@@ -1,4 +1,5 @@
-import type { PresetNode, TraceResult } from "@renovate-config-debugger/engine";
+import type { PresetNode, PresetNodeState, TraceResult } from "@renovate-config-debugger/engine";
+import { isNullOrUndefined } from "@renovate-config-debugger/engine/is";
 import { computeTreeStats, type TreeStats } from "@renovate-config-debugger/app/headless";
 import { parseChoice } from "../args";
 import { CliError } from "../io";
@@ -23,7 +24,7 @@ export const DEFAULT_TREE_DEPTH = 2;
 export interface NodeView {
   name: string;
   identity: string;
-  state: string;
+  state: PresetNodeState;
   depth: number;
   source?: string;
   duplicate?: true;
@@ -73,7 +74,7 @@ export function treeLines(view: NodeView, out: string[]): string[] {
     view.descendants.resolved > 0 ? `+${view.descendants.resolved} below` : null,
     view.duplicate ? "duplicate" : null,
     view.error,
-  ].filter((part) => part !== null && part !== undefined);
+  ].filter((part) => !isNullOrUndefined(part));
   out.push(`${indent}${view.name}${facts.length > 0 ? `  — ${facts.join("; ")}` : ""}`);
   for (const child of view.children ?? []) {
     treeLines(child, out);
@@ -87,6 +88,26 @@ export function treeLines(view: NodeView, out: string[]): string[] {
 /** Shared with `get_preset_node`, hence the transport-neutral label. */
 export function parseBody(raw: string | undefined): BodyKind | undefined {
   return parseChoice(raw, BODIES, "body");
+}
+
+/** The body a node holds, or an explicit null saying it holds none — a key
+ *  that just vanishes from the JSON is indistinguishable from a bug. */
+export function bodyOf(
+  node: PresetNode,
+  kind: BodyKind,
+): { body: BodyKind; note?: string } & Record<string, unknown> {
+  const body = node[kind];
+  if (body === undefined) {
+    return {
+      body: kind,
+      [kind]: null,
+      note:
+        `this node has no \`${kind}\` body (state: ${node.state}) — it was never reached in that ` +
+        `form. The bodies a run records are ${BODIES.join(", ")}; a node that failed to fetch, ` +
+        "or a duplicate that was not re-resolved, holds fewer of them.",
+    };
+  }
+  return { body: kind, [kind]: body };
 }
 
 /** The run's tree root + stats, or a legible error when it produced no tree. */
@@ -114,7 +135,13 @@ export function findNode(stats: TreeStats, query: string): PresetNode {
 export function searchNodes(
   stats: TreeStats,
   query: string,
-): { name: string; identity: string; state: string; ownOptions: number; ownRules: number }[] {
+): {
+  name: string;
+  identity: string;
+  state: NodeView["state"];
+  ownOptions: number;
+  ownRules: number;
+}[] {
   const needle = query.toLowerCase();
   const found: ReturnType<typeof searchNodes> = [];
   for (const [id, node] of stats.nodesById) {

@@ -41,7 +41,8 @@ describe("fixSnippet", () => {
 
   it("survives an undefined value rather than throwing", () => {
     // `JSON.stringify(undefined)` is `undefined`, not a string — the two
-    // hand-rolled copies read `.length` off it and crashed.
+    // hand-rolled copies read `.length` off it and crashed; `jsonText` is the
+    // one place that decides the fallback now.
     expect(fixSnippet(undefined)).toBe("undefined");
   });
 });

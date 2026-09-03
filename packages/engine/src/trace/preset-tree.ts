@@ -1,3 +1,4 @@
+import { isString } from "../is";
 import { toSerializable } from "./delta";
 import {
   type PlatformContext,
@@ -109,7 +110,7 @@ export class PresetTreeBuilder {
       this.onFetchError(metaObj);
       return true;
     }
-    if (msg === "Throwing preset error" && typeof metaObj.validationError === "string") {
+    if (msg === "Throwing preset error" && isString(metaObj.validationError)) {
       if (this.lastErrorNode?.error) {
         this.lastErrorNode.error.message = metaObj.validationError;
       }
@@ -241,7 +242,7 @@ export class PresetTreeBuilder {
   }
 
   private onFetchError(meta: Record<string, unknown>): void {
-    const preset = typeof meta.preset === "string" ? meta.preset : "(unknown)";
+    const preset = isString(meta.preset) ? meta.preset : "(unknown)";
     const top = this.top();
     let node = top?.pendingChild;
     if (node?.name !== preset) {

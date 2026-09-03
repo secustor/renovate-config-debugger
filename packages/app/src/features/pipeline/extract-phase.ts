@@ -183,6 +183,13 @@ export function fileDepNote(file: RepoDepFile): string {
   return file.depCount === 0 ? "no deps" : plural(file.depCount, "dep");
 }
 
+/** Why the extraction failed, for the row's expanded body — the count slot only
+ *  has room for "extraction failed", and a broken `matchStrings` is the
+ *  reader's own config (roadmap 093). Null when there is nothing to add. */
+export function fileDepDetail(file: RepoDepFile): string | null {
+  return file.error ?? null;
+}
+
 /** Whether a file's note is a RESULT (green) or an absence (muted). */
 export function fileDepTone(file: RepoDepFile): ExtractNodeTone {
   return file.outcome === "extracted" && file.depCount > 0 ? "ok" : "neutral";

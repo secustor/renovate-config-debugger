@@ -1,3 +1,4 @@
+import { jsonText } from "./json";
 import type { ClauseEvaluation, RuleEvaluation } from "./simulate-package-rules";
 import { countNoun } from "./text";
 
@@ -23,9 +24,9 @@ import { countNoun } from "./text";
  * Every narrowing on top of this module is gated on its aggregates being
  * unconditional, so the two live side by side.
  *
- * Imports nothing but types and the engine's own prose helper, so this module
- * is Renovate-free and unit-testable in the engine's `golden` (plain node)
- * project.
+ * Imports nothing but types and the engine's own import-free prose and JSON
+ * helpers, so this module is Renovate-free and unit-testable in the engine's
+ * `golden` (plain node) project.
  *
  * That property is why it also has its own `exports` subpath. The app's
  * `lib/rule-verdict.ts` re-exports the predicates below, and reaching them
@@ -153,7 +154,7 @@ export function summarizeMissingInputs(rules: readonly RuleEvaluation[]): Missin
         continue;
       }
       const fields = [...clause.readFields];
-      const key = JSON.stringify(fields);
+      const key = jsonText(fields);
       let accumulator = accumulators.get(key);
       if (!accumulator) {
         accumulator = { fields, selectors: new Set(), ruleIndexes: new Set() };

@@ -1,6 +1,6 @@
+import { deepEqual } from "../lib";
 import { getDefaultConfig, mergeChildConfig } from "../renovate-adapter";
 import type { PresetNode, TraceResult } from "./model";
-import { deepEqual } from "./provenance";
 import { replayableRun } from "./tree";
 
 /**

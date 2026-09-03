@@ -28,4 +28,7 @@ if (installed) {
   process.exit(0);
 }
 
-await provision(root);
+const ok = await provision(root);
+if (!ok) {
+  process.exit(1);
+}

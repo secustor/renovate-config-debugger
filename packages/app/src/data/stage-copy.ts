@@ -4,8 +4,8 @@ import type { GlossaryEntry } from "./glossary-data";
 /**
  * Stage names + plain-language explainers. Data, not markup — kept out of
  * `StageRail.tsx` because a component module that also exports constants
- * breaks Fast Refresh (react/only-export-components), and App.tsx reads both
- * of these for the selected-stage detail panel.
+ * breaks Fast Refresh (react/only-export-components) — and more than one
+ * component reads these tables.
  */
 
 export const STAGE_LABELS: Record<StageId, string> = {

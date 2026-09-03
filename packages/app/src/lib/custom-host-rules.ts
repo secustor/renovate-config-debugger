@@ -12,6 +12,8 @@
  * i.e. behaviour, and its neighbours are the other validators
  * (structure review, finding 20).
  */
+import { isNonEmptyString, isPlainObject, isString } from "@renovate-config-debugger/engine/is";
+import { jsonLiteral } from "@renovate-config-debugger/engine/json";
 import { isValidHost, isValidToken } from "@/lib/input-schemas";
 import { sessionGet, sessionRemove, sessionSet } from "@/platform/storage";
 
@@ -33,18 +35,18 @@ const MAX_HOST_TYPE_LENGTH = 32;
 const HOST_TYPE = /^[a-z0-9-]+$/;
 
 function isValidHostType(value: unknown): value is string {
-  return typeof value === "string" && value.length <= MAX_HOST_TYPE_LENGTH && HOST_TYPE.test(value);
+  return isString(value) && value.length <= MAX_HOST_TYPE_LENGTH && HOST_TYPE.test(value);
 }
 
 function parseRule(raw: unknown): CustomHostRule | null {
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+  if (!isPlainObject(raw)) {
     return null;
   }
-  const { host, hostType, token } = raw as Record<string, unknown>;
-  if (typeof host !== "string" || !isValidHost(host)) {
+  const { host, hostType, token } = raw;
+  if (!isString(host) || !isValidHost(host)) {
     return null;
   }
-  if (typeof token !== "string" || token === "" || !isValidToken(token)) {
+  if (!isNonEmptyString(token) || !isValidToken(token)) {
     return null;
   }
   if (!isValidHostType(hostType)) {
@@ -93,5 +95,5 @@ export function persistCustomHostRules(rules: readonly CustomHostRule[]): void {
     sessionRemove(HOST_RULES_KEY);
     return;
   }
-  sessionSet(HOST_RULES_KEY, JSON.stringify(valid));
+  sessionSet(HOST_RULES_KEY, jsonLiteral(valid));
 }

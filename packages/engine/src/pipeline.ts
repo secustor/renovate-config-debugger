@@ -13,6 +13,7 @@ import {
 } from "./renovate-adapter";
 import { getPresetAuth, setPresetAuth } from "./auth";
 import { removeGlobalConfig } from "./config-scope";
+import { isString } from "./is";
 import { snapshot } from "./lib";
 import { defaultEndpointFor } from "./shims/presets/host-transport";
 import {
@@ -35,10 +36,8 @@ import { renovateVersion } from "./version";
 
 function resolvePlatformContext(input: PipelineInput): PlatformContext {
   const globalConfig = input.globalConfig ?? {};
-  const globalPlatform =
-    typeof globalConfig.platform === "string" ? globalConfig.platform : undefined;
-  const globalEndpoint =
-    typeof globalConfig.endpoint === "string" ? globalConfig.endpoint : undefined;
+  const globalPlatform = isString(globalConfig.platform) ? globalConfig.platform : undefined;
+  const globalEndpoint = isString(globalConfig.endpoint) ? globalConfig.endpoint : undefined;
   // An override only exists relative to global-config values (008/010).
   const overridden =
     input.platformOverride === true &&

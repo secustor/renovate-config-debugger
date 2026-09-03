@@ -1,4 +1,5 @@
-import { allowStringMembers, isPlainObject } from "../lib";
+import { isPlainObject, isString } from "../is";
+import { allowStringMembers } from "../lib";
 import { getDefaultConfig, internalPresetGroups } from "../renovate-adapter";
 import type { PresetNode, TraceResult } from "./model";
 import { computeRuleProvenance, type ProvenanceLayer, type RuleAttribution } from "./provenance";
@@ -164,7 +165,7 @@ function descriptionMembersOf(body: unknown): unknown[] {
  * array (`unattributed`), so excluding them never shifts a reported index.
  */
 function descriptionsOf(body: unknown): string[] {
-  return descriptionMembersOf(body).filter((item): item is string => typeof item === "string");
+  return descriptionMembersOf(body).filter(isString);
 }
 
 function sourceOf(node: PresetNode): DescriptionSource {
@@ -371,9 +372,7 @@ function ownContributionsOf(
     return own;
   }
   divertOverridden(own, node, node, dropped);
-  return override
-    .filter((member): member is string => typeof member === "string")
-    .map((value) => ({ value, node: sourceOf(node) }));
+  return override.filter(isString).map((value) => ({ value, node: sourceOf(node) }));
 }
 
 /**
@@ -546,7 +545,7 @@ export function computeDescriptionProvenance(
   const firstIndexByValue = new Map<string, number>();
   let replayCursor = 0;
   for (const [index, member] of finalMembers.entries()) {
-    if (typeof member !== "string") {
+    if (!isString(member)) {
       unattributed.push({ index, value: member });
       continue;
     }

@@ -15,6 +15,7 @@
  * `CONFIG_FILE_NAMES`, imported dynamically like every other engine touch, so
  * the badge names the same file the load would find.
  */
+import { isString } from "@renovate-config-debugger/engine/is";
 import { isValidRepoRefPart } from "@/lib/input-schemas";
 import { loadEngine } from "./engine-chunk";
 import { getValidToken } from "./oauth";
@@ -60,14 +61,14 @@ export async function listUserRepos(): Promise<UserRepo[]> {
   const repos: UserRepo[] = [];
   for (const entry of payload as unknown[]) {
     const r = entry as Record<string, unknown>;
-    if (typeof r.full_name !== "string" || r.archived === true) {
+    if (!isString(r.full_name) || r.archived === true) {
       continue;
     }
     repos.push({
       name: r.full_name,
-      language: typeof r.language === "string" ? r.language : null,
-      pushedAt: typeof r.pushed_at === "string" ? r.pushed_at : null,
-      defaultBranch: typeof r.default_branch === "string" ? r.default_branch : "HEAD",
+      language: isString(r.language) ? r.language : null,
+      pushedAt: isString(r.pushed_at) ? r.pushed_at : null,
+      defaultBranch: isString(r.default_branch) ? r.default_branch : "HEAD",
     });
   }
   return repos;
@@ -88,7 +89,7 @@ async function fetchTree(ref: string, repo: string): Promise<TreeEntry[]> {
   }
   return (payload.tree as unknown[]).filter((e): e is TreeEntry => {
     const t = e as Record<string, unknown>;
-    return typeof t.path === "string" && typeof t.type === "string" && typeof t.sha === "string";
+    return isString(t.path) && isString(t.type) && isString(t.sha);
   });
 }
 

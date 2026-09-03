@@ -1,7 +1,7 @@
 {
-  // Not a workspace package (it has no build, no deps and nothing imports it),
-  // so `pnpm -r typecheck` never sees it — the root `typecheck` script runs
-  // this project explicitly on top.
+  // Not a workspace package (no build, no dependencies of its own), so
+  // `pnpm -r typecheck` never sees it — the root `typecheck` script runs this
+  // project explicitly on top.
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ES2023"],
@@ -10,5 +10,8 @@
     // which requires the import specifiers to carry the real `.ts` extension.
     "allowImportingTsExtensions": true
   },
+  // `test/**` is deliberately absent: those helpers are DOM-typed and are
+  // typechecked under the app's project, which imports them via `@tools/*`.
+  // Adding them here fails — this project is ES2023 + node types, no DOM.
   "include": ["agents/**/*.ts", "release/**/*.ts", "lint/**/*.ts", "verify-deployment.ts"]
 }

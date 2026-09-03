@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   depGroups,
   extractNodes,
+  fileDepDetail,
   fileDepNote,
   fileDepTone,
   fileRows,
@@ -119,6 +120,14 @@ describe("the walk's own rows", () => {
         walkFile("d.json", ["x"], { outcome: "extracted", depCount: 6, extractedBy: "x" }),
       ),
     ).toBe("6 deps");
+  });
+
+  it("hands the failure's own reason to the row that says 'extraction failed'", () => {
+    expect(
+      fileDepDetail(walkFile("c.json", ["x"], { outcome: "error", error: "Invalid regExp: /(/" })),
+    ).toBe("Invalid regExp: /(/");
+    expect(fileDepDetail(walkFile("c.json", ["x"], { outcome: "error" }))).toBeNull();
+    expect(fileDepDetail(walkFile("a.yml", ["x"], { outcome: "no-deps" }))).toBeNull();
   });
 
   it("tones only a real count as a result", () => {

@@ -7,8 +7,9 @@ import type { RunTransport } from "../run-input";
  * and the MCP server's `simulate_group` (see `./pipeline` for this layer).
  */
 
-/** Both the tally's and the gap notes' input, so one call covers both. */
-export interface GroupQuestion {
+/** One simulated pending update: the union of the two slices the answer needs
+ *  — the tally's `finalDependencyConfig` and the gap notes' `missingInputs`. */
+export interface GroupUpdate {
   dep: DependencyDescriptor;
   sim: Pick<SimulationResult, "finalDependencyConfig" | "missingInputs">;
 }
@@ -28,12 +29,13 @@ export interface GroupAnswer {
  * that would group it reported a plain `no-match` — so when the tally came out
  * empty over blind members the correction LEADS the notes.
  */
-export function askGroup(
-  simulated: readonly GroupQuestion[],
-  transport: RunTransport,
-): GroupAnswer {
-  const tally = groupTally(simulated);
-  const gaps = inputGaps(simulated, transport);
+export function askGroup(question: {
+  updates: readonly GroupUpdate[];
+  transport: RunTransport;
+}): GroupAnswer {
+  const { updates, transport } = question;
+  const tally = groupTally(updates);
+  const gaps = inputGaps(updates, transport);
   const blind = blindTallyNote(tally, gaps.length);
   return { tally, gaps, notes: [...(blind ? [blind] : []), ...tally.notes, ...gaps] };
 }

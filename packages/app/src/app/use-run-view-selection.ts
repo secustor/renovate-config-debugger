@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import type { StageId, TraceResult } from "@renovate-config-debugger/engine";
+import { isNumber } from "@renovate-config-debugger/engine/is";
 import {
   legacyTabForView,
   type ResultsTabId,
@@ -28,7 +29,7 @@ import type { ShareView } from "@/lib/share";
  *
  *  1. a new run RESETS the selection (during render, not in an effect);
  *  2. a decoded share link OVERRIDES that reset, on the commit after it;
- *  3. the same five fields are ENCODED back into a link.
+ *  3. the same four fields are ENCODED back into a link.
  *
  * Rule 2 depends on rule 1's timing — the link's view has to land after the
  * reset or the reset wipes it — and rule 3 has to agree with rule 2 about what
@@ -112,7 +113,7 @@ export function useRunViewSelection(host: RunViewSelectionHost): RunViewSelectio
     if (pending.stage) {
       setSelectedStage(pending.stage);
     }
-    if (typeof pending.step === "number") {
+    if (isNumber(pending.step)) {
       setMigrationStepIndex(pending.step);
     }
     // Roadmap 075 (iteration 3): a link that named the Rewrites tab — or a
@@ -122,9 +123,7 @@ export function useRunViewSelection(host: RunViewSelectionHost): RunViewSelectio
     // such a link carries is whatever the sender's pipeline rail happened to be
     // on, and it is not what they were pointing at.
     const wantsMigrateStage =
-      pending.tab === undefined
-        ? typeof pending.step === "number"
-        : shareTabWantsMigrateStage(pending.tab);
+      pending.tab === undefined ? isNumber(pending.step) : shareTabWantsMigrateStage(pending.tab);
     if (wantsMigrateStage) {
       setSelectedStage("migrate");
     }

@@ -4,6 +4,8 @@
  * repos. Optional fields keep this backward compatible with the original
  * `githubToken`-only shape.
  */
+import { isNonEmptyString } from "./is";
+
 export interface PresetAuth {
   /** GitHub token — sent as `Authorization: Bearer <t>`. */
   githubToken?: string;
@@ -88,7 +90,7 @@ export function getPresetAuth(): PresetAuth {
 
 function legacyToken(hostType: PresetHostType): string | undefined {
   const value = auth[LEGACY_TOKEN_KEY[hostType]];
-  return typeof value === "string" && value !== "" ? value : undefined;
+  return isNonEmptyString(value) ? value : undefined;
 }
 
 /** Renovate's own `matchHost` semantics for a bare host: the exact host, or

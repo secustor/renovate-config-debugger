@@ -40,6 +40,12 @@ describe("run", () => {
     expect(run.stderr).toContain("--select");
   });
 
+  test("a slice the run has no data for prints null, not a blank line", async () => {
+    const run = await runCli(["run", fixture("clean.json"), "--select", "layers"]);
+    expect(run.code).toBe(0);
+    expect(run.stdout).toContain("Layers:\nnull");
+  });
+
   test("reads the config from stdin", async () => {
     const run = await runJson<{ finalConfig: { labels: string[] } }>(
       ["run", "--stdin", "--format", "json", "--select", "final"],

@@ -1,4 +1,5 @@
 import { type DependencyDescriptor, parseInjectedPreset } from "@renovate-config-debugger/engine";
+import { isPlainObject } from "@renovate-config-debugger/engine/is";
 import type { OptionName, ParsedArgs } from "./args";
 import { listOption, stringOption } from "./args";
 import { CliError, errorMessage } from "./io";
@@ -90,7 +91,7 @@ export async function readDependencies(args: ParsedArgs): Promise<DependencyDesc
       throw new CliError(`--deps-file "${path}" must hold a JSON array of dependency objects`);
     }
     for (const [index, entry] of parsed.entries()) {
-      if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
+      if (!isPlainObject(entry)) {
         throw new CliError(`--deps-file "${path}" entry #${index} is not an object`);
       }
       deps.push(finishDescriptor(entry as DependencyDescriptor));

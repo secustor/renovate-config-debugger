@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 import { PACKAGE_RULES_CONFIG, SEMANTIC_COMMITS_CONFIG } from "./fixtures";
 import {
   effectivePresetChip,
@@ -21,6 +21,11 @@ import {
  * `ControlOrMeta` throughout: these run on macOS locally and on Linux in CI,
  * and the binding deliberately accepts either modifier on both.
  */
+
+/** The shortcut sheet, by the accessible name `ShortcutSheet.tsx` gives it. */
+function shortcutSheetDialog(page: Page): Locator {
+  return page.getByRole("dialog", { name: "Keyboard shortcuts" });
+}
 
 test("⌘⏎ runs the pipeline from inside the editor, without inserting a blank line", async ({
   page,
@@ -332,7 +337,7 @@ test("? opens the shortcut sheet, listing every global binding", async ({ page }
   await page.goto("/");
   await page.keyboard.press("?");
 
-  const sheet = page.getByRole("dialog", { name: "Keyboard shortcuts" });
+  const sheet = shortcutSheetDialog(page);
   await expect(sheet).toBeVisible();
   await expect(sheet).toContainText("Run the pipeline");
   await expect(sheet).toContainText("Jump to the config editor");
@@ -366,7 +371,7 @@ test("Escape closing the sheet is claimed, not passed on to the browser", async 
   });
 
   await page.keyboard.press("?");
-  const sheet = page.getByRole("dialog", { name: "Keyboard shortcuts" });
+  const sheet = shortcutSheetDialog(page);
   await expect(sheet).toBeVisible();
 
   await page.keyboard.press("Escape");
@@ -389,7 +394,7 @@ test("the session menu names the key that opens the sheet, and opens it", async 
   await expect(row).toContainText("Press ? any time");
 
   await row.click();
-  await expect(page.getByRole("dialog", { name: "Keyboard shortcuts" })).toBeVisible();
+  await expect(shortcutSheetDialog(page)).toBeVisible();
 });
 
 test("the file-name picker opens on Enter", async ({ page }) => {
@@ -423,7 +428,7 @@ test("the shortcut sheet is modal: ⌘⏎ behind it does not run, Escape closes 
 }) => {
   await page.goto("/");
   await page.keyboard.press("?");
-  const sheet = page.getByRole("dialog", { name: "Keyboard shortcuts" });
+  const sheet = shortcutSheetDialog(page);
   await expect(sheet).toBeVisible();
 
   // The sheet's own row advertises ⌘⏎; pressing it while the modal is up must
@@ -445,7 +450,7 @@ test("closing the sheet with the button hands focus back to where it came from",
   await tabButton(page, "tests").focus();
 
   await page.keyboard.press("?");
-  const sheet = page.getByRole("dialog", { name: "Keyboard shortcuts" });
+  const sheet = shortcutSheetDialog(page);
   await expect(sheet).toBeVisible();
   await sheet.getByRole("button", { name: "Close" }).click();
 
@@ -461,7 +466,7 @@ test("closing the sheet with Escape hands focus back the same way", async ({ pag
   await tabButton(page, "tests").focus();
 
   await page.keyboard.press("?");
-  const sheet = page.getByRole("dialog", { name: "Keyboard shortcuts" });
+  const sheet = shortcutSheetDialog(page);
   await expect(sheet).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(sheet).toBeHidden();
@@ -553,7 +558,7 @@ test("? still opens the sheet from inside the menu that advertises it", async ({
   // from under the menu — but help is what someone stuck under one wants, and
   // the row above promises it works here.
   await page.keyboard.press("?");
-  await expect(page.getByRole("dialog", { name: "Keyboard shortcuts" })).toBeVisible();
+  await expect(shortcutSheetDialog(page)).toBeVisible();
 });
 
 // ── Fourth-review follow-ups (2026-08-11) ────────────────────────────────────

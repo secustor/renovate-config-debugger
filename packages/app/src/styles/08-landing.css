@@ -1,7 +1,7 @@
 /* Split out of index.css (roadmap 050's deferred plan, executed 2026-08-23).
    ORDER IS LOAD-BEARING: main.tsx imports these numbered files in sequence,
-   preserving the original file's cascade byte-for-byte — two cross-file
-   equal-specificity couplings (.preset-panel, .diff-wrapper) depend on it.
+   preserving the original file's cascade byte-for-byte; the couplings that
+   depend on that order are listed there.
    This file: the landing (075). */
 
 /* ---------- the landing (roadmap 075, v2 iteration 2) ----------
@@ -106,10 +106,10 @@
 }
 
 /* Roadmap 024's dot vocabulary, on the rail: clean/changed/error/skipped each
-   keep a distinct SHAPE as well as a color, so the signal survives grayscale
-   and color-blind viewing. The canvas halo punches the line out from under the
-   glyph, so the line reads as passing BEHIND the nodes (and shows through no
-   hollow one). */
+   keep a distinct SHAPE as well as a color (circle / diamond / square / hollow
+   ring), so the signal survives grayscale and color-blind viewing. The canvas
+   halo punches the line out from under the glyph, so the line reads as passing
+   BEHIND the nodes (and shows through no hollow one). */
 .stage-rail-glyph {
   border-radius: 50%;
   box-shadow: 0 0 0 3px var(--canvas);
@@ -124,6 +124,7 @@
 
 .stage-rail-glyph.error {
   background: var(--error);
+  border-radius: 2px;
 }
 
 .stage-rail-glyph.changed {
@@ -222,11 +223,19 @@
 .stage-rail-preview {
   margin: 0.5rem 0 0;
   opacity: 0.55;
-  transition: opacity 220ms ease;
 }
 
 .stage-rail-preview.running {
   opacity: 1;
+}
+
+/* The dim/bright STATES are the message and always apply; only the crossfade
+   between them is motion, so no transition property exists outside this
+   query. */
+@media (prefers-reduced-motion: no-preference) {
+  .stage-rail-preview {
+    transition: opacity 220ms ease;
+  }
 }
 
 .stage-rail.preview {
@@ -250,9 +259,9 @@
   font-weight: 600;
 }
 
-/* The only thing on the landing that MOVES, so it is the first thing the
-   preference switches off — the ring above already marks the stage without
-   it. */
+/* The landing's most insistent motion — an infinite pulse, not a one-shot
+   fade — so it is guarded like the preview's crossfade above; the ring already
+   marks the stage without it. */
 @media (prefers-reduced-motion: no-preference) {
   .stage-rail.preview .stage-rail-node.current .stage-rail-glyph {
     animation: stage-rail-pulse 1.1s ease-in-out infinite;

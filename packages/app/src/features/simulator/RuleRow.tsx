@@ -7,6 +7,7 @@ import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { GLOSSARY } from "@/data/glossary-data";
 import { isNoInputNoMatch } from "@/lib/rule-verdict";
 import { ClauseGrid } from "./ClauseGrid";
+import { ruleRowId } from "./dom-ids";
 import type { RuleDescriptionNote } from "./rule-descriptions";
 import { RuleDescriptionQuote } from "./RuleDescriptionQuote";
 import { ruleAppliedMarkdown, ruleLabel, ruleVerdictLabel, writeMark } from "./rule-format";
@@ -96,7 +97,7 @@ export function RuleRow({
     // to be able to hold focus — the flash marks it for the eye, the focus
     // marks it for the keyboard and for a screen reader.
     <div
-      id={`sim-rule-${rule.index}`}
+      id={ruleRowId(rule.index)}
       className={`sim-rule${expanded ? " expanded" : ""}`}
       tabIndex={-1}
     >

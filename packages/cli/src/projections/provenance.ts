@@ -2,9 +2,11 @@ import {
   computeProvenance,
   type KeyProvenance,
   type ProvenanceLayer,
+  type ProvenanceStep,
   type TraceResult,
   UPDATE_TYPE_KEYS,
 } from "@renovate-config-debugger/engine";
+import { jsonEqual } from "@renovate-config-debugger/engine/json";
 import { isOverridden, multiContribBadgeKind } from "@renovate-config-debugger/app/headless";
 import { CliError } from "../io";
 import { preview } from "../output";
@@ -48,7 +50,7 @@ export function layerLabel(layer: ProvenanceLayer): string {
 
 interface ChainStepBase {
   layer: string;
-  action: string;
+  action: ProvenanceStep["action"];
   /** The nested preset whose own body wrote the value, when the engine
    *  verified one — the layer is then only the direct extend it arrived
    *  through. */
@@ -97,7 +99,7 @@ function appendsTo(before: unknown, after: unknown): before is unknown[] {
   if (!Array.isArray(before) || !Array.isArray(after) || after.length < before.length) {
     return false;
   }
-  return JSON.stringify(after.slice(0, before.length)) === JSON.stringify(before);
+  return jsonEqual(after.slice(0, before.length), before);
 }
 
 function stepView(step: KeyProvenance["chain"][number]): ProvenanceChainStep {

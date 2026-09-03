@@ -200,6 +200,54 @@ describe("POST /refresh", () => {
   });
 });
 
+describe("malformed request bodies", () => {
+  // `JSON.parse` accepts `null`, `[]` and scalars: they must reach the same 400
+  // as unparseable input, never a handler reading fields off them.
+  it("400s a literal null /exchange body without touching GitHub", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const res = await handleRequest(post("/exchange", null, ALLOWED), env);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({
+      error: "invalid_request",
+      error_description: "body must be JSON",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+    assertNothingLogged();
+  });
+
+  it("400s an array /exchange body", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const res = await handleRequest(post("/exchange", [{ code: "c" }], ALLOWED), env);
+    expect(res.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("400s unparseable JSON with the CORS headers attached", async () => {
+    const req = new Request("https://worker.example/refresh", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: ALLOWED },
+      body: "{not json",
+    });
+    const res = await handleRequest(req, env);
+    expect(res.status).toBe(400);
+    expect(res.headers.get("access-control-allow-origin")).toBe(ALLOWED);
+  });
+
+  it("400s a null /refresh body in cookie mode instead of falling back to the cookie", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const res = await handleRequest(
+      post("/refresh", null, ALLOWED, `${COOKIE_NAME}=ghr_fromcookie`),
+      cookieEnv,
+    );
+    expect(res.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.headers.get("set-cookie")).toBeNull();
+  });
+});
+
 describe("GitHub error passthrough", () => {
   it("passes a GitHub {error} body back (downgraded to 400) and logs nothing", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
@@ -332,7 +380,7 @@ describe("cookie mode on", () => {
     expect(setCookie).toContain("HttpOnly");
     expect(setCookie).toContain("Secure");
     expect(setCookie).toContain("SameSite=Strict");
-    expect(setCookie).toContain("Path=/");
+    expect(setCookie).toContain("Path=/;");
     expect(setCookie).toContain("Max-Age=15897600");
     // __Host- would force Path=/, which the shared hostname forbids.
     expect(setCookie).not.toContain("__Host-");
@@ -484,7 +532,7 @@ describe("cookie mode on", () => {
     const setCookie = res.headers.get("set-cookie") ?? "";
     expect(setCookie).toContain(`${COOKIE_NAME}=;`);
     expect(setCookie).toContain("Max-Age=0");
-    expect(setCookie).toContain("Path=/");
+    expect(setCookie).toContain("Path=/;");
     expect(res.headers.get("access-control-allow-credentials")).toBe("true");
     expect(fetchMock).not.toHaveBeenCalled();
   });

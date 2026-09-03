@@ -1,16 +1,17 @@
 import type { ClauseEvaluation, MergedKey, RuleEvaluation } from "@renovate-config-debugger/engine";
+import { jsonText } from "@renovate-config-debugger/engine/json";
 import { isFailingClause, isNoInputNoMatch } from "@/lib/rule-verdict";
+import { truncate } from "@/lib/truncate";
 
 export function previewValue(value: unknown, max = 60): string {
-  const text = JSON.stringify(value) ?? "undefined";
-  return text.length > max ? `${text.slice(0, max)}…` : text;
+  return truncate(jsonText(value), max);
 }
 
 /** Untruncated JSON rendering — the copy-as-markdown export and (replay-02
  *  N6) the clause grid's click-to-expand both need the complete value; a
  *  60-char preview of a matchSourceUrls list is not a citable artifact. */
 export function fullValue(value: unknown): string {
-  return JSON.stringify(value) ?? "undefined";
+  return jsonText(value);
 }
 
 /** Roadmap 018: a matched rule's applied keys as `key: before → after` lines.

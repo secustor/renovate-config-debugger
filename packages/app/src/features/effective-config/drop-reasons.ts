@@ -19,7 +19,7 @@ import type {
  * have room for), the why is the whole rule, and {@link dropReasonText} is the
  * two joined — which is what the ledger renders.
  *
- * Pure and DOM-free (`lib/`), and exhaustive by construction: a new
+ * Pure and DOM-free, and exhaustive by construction: a new
  * `DroppedDescriptionReason` in the engine fails to typecheck here rather than
  * rendering as `undefined` in a footnote nobody reads.
  */

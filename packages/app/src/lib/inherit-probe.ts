@@ -15,6 +15,7 @@
  * itself is `loadRepoFile` (run.ts → the engine's `fetchRepoFile`), and the 008
  * pipeline that consumes the filled layer is untouched.
  */
+import { isString } from "@renovate-config-debugger/engine/is";
 import { isHostSegment, stripRepoSuffix } from "./repo-reference";
 
 /** `inheritConfigRepoName`'s default, verbatim from the pinned Renovate. */
@@ -113,7 +114,7 @@ export interface InheritPolicy {
 
 function stringOption(config: Record<string, unknown> | null, key: string): string | undefined {
   const value = config?.[key];
-  return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
+  return isString(value) && value.trim() !== "" ? value.trim() : undefined;
 }
 
 /** Reads the `inheritConfig*` family out of the pasted global config layer. */

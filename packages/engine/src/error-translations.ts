@@ -20,7 +20,8 @@
  */
 
 import { getInternalPreset, parsePreset } from "./renovate-adapter";
-import { isPlainObject, snapshot } from "./lib";
+import { isNumber, isPlainObject, isString, isStringArray } from "./is";
+import { snapshot } from "./lib";
 import type { ValidationMessage } from "./trace/model";
 import { getOptionIndex, type OptionDoc, STRING_PATTERN_MATCHING_DOCS_URL } from "./option-docs";
 
@@ -144,7 +145,7 @@ function withKeyRemoved(
     return clone;
   }
   const { parent, last } = target;
-  if (Array.isArray(parent) && typeof last === "number") {
+  if (Array.isArray(parent) && isNumber(last)) {
     parent.splice(last, 1);
   } else {
     delete parent[last];
@@ -167,10 +168,6 @@ function withKeyRenamed(
   delete parent[last];
   parent[newKey] = value;
   return clone;
-}
-
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((v) => typeof v === "string");
 }
 
 /** Unique `` `identifier` `` tokens mentioned in a free-text message. */
@@ -222,7 +219,7 @@ const redundantGlobStar: ErrorTranslation = {
       return [];
     }
     const last = parseConfigPath(pathStr).at(-1);
-    return typeof last === "string" ? [last] : [];
+    return isString(last) ? [last] : [];
   },
 
   suggestFix: (m, config) => {
@@ -235,7 +232,7 @@ const redundantGlobStar: ErrorTranslation = {
       return null;
     }
     const arr = getAtPath(config, path);
-    if (!Array.isArray(arr) || !arr.every((v) => typeof v === "string")) {
+    if (!isStringArray(arr)) {
       return null;
     }
     const removed = arr.filter((v) => v === "*" || v === "**");

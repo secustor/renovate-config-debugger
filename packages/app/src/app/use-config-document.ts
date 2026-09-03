@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { jsonFile } from "@renovate-config-debugger/engine/json";
 import { DEFAULT_CONFIG } from "@/data/starter-configs";
 import { findPackageRuleOffsets } from "@/lib/rule-locate";
 
@@ -101,7 +102,7 @@ export function useConfigDocument(host: ConfigDocumentHost): ConfigDocument {
       );
       return;
     }
-    const formatted = `${JSON.stringify(parsed, null, 2)}\n`;
+    const formatted = jsonFile(parsed);
     if (formatted === content) {
       showToast("Already formatted");
       return;

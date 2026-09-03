@@ -1,4 +1,4 @@
-import { isPlainObject } from "@/lib/input-schemas";
+import { isNonEmptyString, isNumber, isPlainObject } from "@renovate-config-debugger/engine/is";
 
 /**
  * Roadmap 088 — the build identity behind "verify this build".
@@ -25,11 +25,11 @@ export interface BuildIdentity {
 }
 
 function str(v: unknown): string | null {
-  return typeof v === "string" && v !== "" ? v : null;
+  return isNonEmptyString(v) ? v : null;
 }
 
 function count(v: unknown): number | null {
-  return typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : null;
+  return isNumber(v) && Number.isInteger(v) && v >= 0 ? v : null;
 }
 
 /** Validated read of the injected value — exported for its tests. */

@@ -89,7 +89,7 @@ The rest belong to one command each.
 |              | `--source <which>`           | scope the `packageRules` ranges: `repo\|presets\|all`                   |
 | `tree`       | `--node <name>`              | one preset node, by name or identity                                    |
 |              | `--body <which>`             | `fetched\|afterParams\|input\|resolved` (needs `--node`)                |
-|              | `--depth <n\|all>`           | tree depth to print (default `2`)                                       |
+|              | `--depth <n\|all>`           | levels to print below the root, or below `--node` (default `2`)         |
 | `resolved`   | `--mode <m>`                 | `full\|keep-internal` (default `keep-internal`)                         |
 |              | `--include-defaults`         | write out Renovate's defaults too (`--mode full` only)                  |
 | `simulate`   | `--dep <json>`, `--dep-file` | the dependency update to simulate                                       |
@@ -407,6 +407,8 @@ parsed as JSON5 — the superset Renovate accepts for a preset file, so unquoted
 keys, comments and trailing commas are fine — while a `--deps-file` batch is
 parsed as strict JSON. The entries themselves are finished identically either
 way, `updateType` derivation included.
+
+### Reading the `simulate` and `compare` output
 
 On a `config:best-practices` run the rule list runs to several hundred, so BOTH
 output formats answer with the rules that ACTED — `--verdict notable`: matched,

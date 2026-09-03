@@ -70,9 +70,15 @@ export const HOST_TOKENS: readonly HostTokenDescriptor[] = [
  * Derived rather than restated so "add a host" stays the one-row change the
  * table's header promises.
  */
-export const FETCHABLE_PLATFORMS: ReadonlySet<RepoPlatform> = new Set(
+const FETCHABLE_PLATFORMS: ReadonlySet<RepoPlatform> = new Set(
   HOST_TOKENS.map((descriptor) => descriptor.id),
 );
+
+/** The membership test above, spelled so the compiler applies it — callers
+ *  holding a bare `string` narrow instead of casting. */
+export function isFetchablePlatform(value: string): value is RepoPlatform {
+  return (FETCHABLE_PLATFORMS as ReadonlySet<string>).has(value);
+}
 
 /**
  * Roadmap 087: the platforms the engine's `fetchRepoTree` can actually LIST —

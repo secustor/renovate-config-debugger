@@ -28,5 +28,6 @@ export function preloadRunChunks(): void {
   preloadEngine();
   // Best-effort: the rejection is swallowed HERE only — `lazy()` must still see
   // a chunk-load failure, or its Suspense boundary crashes on `undefined`.
+  // `ResultsBoundary` is what catches it once it does.
   void loadResultsColumn().catch(() => {});
 }

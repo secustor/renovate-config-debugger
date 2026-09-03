@@ -224,9 +224,8 @@ test("Revert to loaded config appears only while the config has unsaved edits", 
  * looked at — so the whole exercise now happens after a run.
  */
 test("Format re-indents in place and leaves the revert baseline alone", async ({ page }) => {
-  await page.goto("/");
+  await gotoAppAtDefaultConfig(page);
   const editor = page.locator(".cm-content");
-  await expect(editor).toContainText("config:recommended");
   await runAndAwaitResult(page);
 
   const format = page.getByRole("button", { name: "Format", exact: true });

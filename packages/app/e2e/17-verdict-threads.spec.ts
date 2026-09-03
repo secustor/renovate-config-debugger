@@ -173,6 +173,8 @@ test("the evidence card's matched-rules link opens the drawer on that rule's row
   // The card is gone, the drawer it targeted is open, and the row is there.
   await expect(card).toHaveCount(0);
   await expect(rulesDrawer).toHaveJSProperty("open", true);
+  // Spelled out on purpose: `ruleRowId` produces this, and an e2e that imported
+  // it would agree with a rename instead of catching one.
   const row = page.locator("#sim-rule-0");
   await expect(row).toBeVisible();
   await expect(row).toContainText("matchManagers");

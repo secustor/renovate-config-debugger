@@ -59,4 +59,18 @@ describe("mergeFileRuns", () => {
     });
     expect(mergeFileRuns([])).toEqual({ outcome: "no-deps", extractedBy: null, depCount: 0 });
   });
+
+  it("carries the first failure's reason, and only where the outcome is the failure", () => {
+    expect(
+      mergeFileRuns([{ status: "error", message: "Invalid regExp: /(/" }, { status: "error" }]),
+    ).toEqual({
+      outcome: "error",
+      extractedBy: null,
+      depCount: 0,
+      error: "Invalid regExp: /(/",
+    });
+    expect(
+      mergeFileRuns([{ status: "error", message: "Invalid regExp: /(/" }, extracted("npm", 1)]),
+    ).toEqual({ outcome: "extracted", extractedBy: "npm", depCount: 1 });
+  });
 });

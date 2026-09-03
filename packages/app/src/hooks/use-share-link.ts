@@ -13,6 +13,7 @@
  * annotate.
  */
 import { useCallback, useEffect, useInsertionEffect, useRef, useState } from "react";
+import { jsonDocument } from "@renovate-config-debugger/engine/json";
 import { useLatestRef } from "./use-latest-ref";
 import { useStableCallback } from "./use-stable-callback";
 import type { TraceResult } from "@renovate-config-debugger/engine";
@@ -282,10 +283,8 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
       persist: policy.persistPlatformSettings,
     });
     // 008 layers ride along in v2 links; absent = layers off.
-    host.setGlobalText(payload.globalConfig ? JSON.stringify(payload.globalConfig, null, 2) : "");
-    host.setInheritedText(
-      payload.inheritedConfig ? JSON.stringify(payload.inheritedConfig, null, 2) : "",
-    );
+    host.setGlobalText(payload.globalConfig ? jsonDocument(payload.globalConfig) : "");
+    host.setInheritedText(payload.inheritedConfig ? jsonDocument(payload.inheritedConfig) : "");
     host.setPlatformOverride(payload.platformOverride === true);
     // Roadmap 076: the ONE reason left to force the drawer open is the
     // untrusted-endpoint policy, whose banner tells the user to go review the
@@ -540,16 +539,30 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
   // a link, copies it, and mirrors it into the address bar. Never continuously
   // syncs the hash (huge configs would thrash the URL) — on demand only. Tokens
   // are never encoded (see share.ts); `sim` carries only dependency-descriptor
-  // form fields (roadmap 018).
+  // form fields (roadmap 018). Rejects when the copy failed, so no caller draws
+  // a receipt for a copy that didn't happen — but says where the link IS first,
+  // because every caller's catch is silent by design.
   async function buildShareLinkAndCopyImpl(sim?: ShareSimulator) {
     const shareToken = await encodeShare(await host.buildShareState(sim));
     const url = buildShareUrl(shareToken);
+    let copied = true;
     try {
       await navigator.clipboard.writeText(url);
     } catch {
-      // Clipboard can be unavailable (insecure context); the URL bar still updates.
+      // Insecure context (or a denied permission): `navigator.clipboard` may
+      // not even exist.
+      copied = false;
     }
+    // Before the notice and the throw, deliberately: the address bar (and
+    // `lastWrittenTokenRef`) is what both of them tell the user they still have.
     writeHash(url, shareToken);
+    if (!copied) {
+      // Not an edge case: the encode above has to await, and Safari drops a
+      // clipboard write issued after one (roadmap 082), so this is that
+      // browser's ordinary outcome — a silent Share button there otherwise.
+      host.setNotice("Couldn’t copy to the clipboard — the link is in the address bar.");
+      throw new Error("share link not copied: clipboard unavailable");
+    }
   }
   // Roadmap 032: the impl closes over this render's `host` (it must — the
   // share state IS the current app state), so it is redeclared every render.

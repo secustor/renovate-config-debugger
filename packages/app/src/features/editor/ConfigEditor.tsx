@@ -23,10 +23,9 @@ interface Props {
   /** Roadmap 023: current run's preset-string hover data + jump callback, read
    *  from a ref at hover time so a fresh run's tree updates without a remount. */
   presetHover?: PresetHoverContext | null;
-  /** Roadmap 075: the card's title bar, when the caller has one to put there —
-   *  the config toolbar, which names the file itself. Without it the bar falls
-   *  back to the plain file name it carried before v2. */
-  titleBar?: ReactNode;
+  /** Roadmap 075: the card's title bar — the config toolbar, which names the
+   *  file itself. */
+  titleBar: ReactNode;
   /** Roadmap 075: a layer over the editor's document — the repo-load panel,
    *  which is about to replace it. Absent when nothing is covering it. */
   overlay?: ReactNode;
@@ -167,7 +166,7 @@ export const ConfigEditor = forwardRef<ConfigEditorHandle, Props>(function Confi
 
   return (
     <div className="card">
-      <div className="card-title editor-card-title">{titleBar ?? <span>{fileName}</span>}</div>
+      <div className="card-title editor-card-title">{titleBar}</div>
       {/* Roadmap 075: the positioning context for `overlay` — the repo-load
           panel covers the DOCUMENT it is about to replace, and nothing else:
           the toolbar above it stays visible and usable (its Run says why it is

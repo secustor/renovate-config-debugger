@@ -1,5 +1,7 @@
 import { type ReactNode, useCallback, useMemo, useState } from "react";
 import type { OptionDoc, OptionIndex, OptionPlacement } from "@renovate-config-debugger/engine";
+import { isNullOrUndefined } from "@renovate-config-debugger/engine/is";
+import { jsonText } from "@renovate-config-debugger/engine/json";
 import { CodeText } from "./CodeText";
 import { HoverCardAnchor, HoverCardSurface, HoverCardTextAnchor } from "./hover-card";
 import { useHoverCard } from "./hover-card-hooks";
@@ -133,9 +135,9 @@ function OptionCardBody({ name, doc }: { name: string; doc?: OptionDoc }) {
               <CodeText text={doc.experimentalDescription} />
             </p>
           ) : null}
-          {doc.default !== undefined && doc.default !== null ? (
+          {!isNullOrUndefined(doc.default) ? (
             <p className="option-card-row">
-              <strong>Default:</strong> <code>{truncate(JSON.stringify(doc.default), 100)}</code>
+              <strong>Default:</strong> <code>{truncate(jsonText(doc.default), 100)}</code>
             </p>
           ) : null}
           {doc.allowedValues?.length ? (

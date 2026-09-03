@@ -36,7 +36,9 @@ import { useLatestRef } from "@/hooks/use-latest-ref";
 import { useStableCallback } from "@/hooks/use-stable-callback";
 import { useKeyboardLandings } from "@/app/use-keyboard-landings";
 import { ShortcutSheet } from "@/components/ShortcutSheet";
-import { isPlainObject, isValidEndpoint } from "@/lib/input-schemas";
+import { isPlainObject } from "@renovate-config-debugger/engine/is";
+import { jsonDocument, jsonText } from "@renovate-config-debugger/engine/json";
+import { isValidEndpoint } from "@/lib/input-schemas";
 import { useCustomHostRules, useHostTokens } from "@/hooks/use-host-tokens";
 import { useAppMessages } from "@/app/use-app-messages";
 import { usePlatformContext } from "@/app/use-platform-context";
@@ -55,6 +57,7 @@ import { useShareLink } from "@/hooks/use-share-link";
 import type { RunInputs } from "@/lib/run-inputs";
 import { createRunQueue, type RunQueue } from "@/lib/run-queue";
 import { pluralWord } from "@/lib/format";
+import { errorMessage } from "@/lib/errors";
 import { EXAMPLE_CONFIG } from "@/data/starter-configs";
 import { AppBanners } from "@/app/AppBanners";
 import { ResultsPane } from "@/app/ResultsPane";
@@ -86,7 +89,7 @@ function layerKey(
   globalConfig: Record<string, unknown> | undefined,
   inheritedConfig: Record<string, unknown> | undefined,
 ): string {
-  return JSON.stringify([globalConfig ?? null, inheritedConfig ?? null]);
+  return jsonText([globalConfig ?? null, inheritedConfig ?? null]);
 }
 
 /** Roadmap 093: the run's own `customManagers`, as discovery takes them —
@@ -879,9 +882,19 @@ export function App() {
       }
       focusResultsRef.current = true;
       // the engine chunk is loaded now — hydrate the hover docs and the 014
-      // error-translation library
-      void loadOptionIndex().then(setOptionIndex);
-      void loadErrorTranslationLib().then(setErrorLib);
+      // error-translation library. Detached from the run (its result is already
+      // committed), so each carries its own ending: a failure here silently
+      // removes a feature, and the notice banner is where non-fatal losses go.
+      void loadOptionIndex()
+        .then(setOptionIndex)
+        .catch((err: unknown) => {
+          setNotice(`Option documentation could not be loaded — ${errorMessage(err)}`);
+        });
+      void loadErrorTranslationLib()
+        .then(setErrorLib)
+        .catch((err: unknown) => {
+          setNotice(`Error explanations could not be loaded — ${errorMessage(err)}`);
+        });
       return traceResult;
     } catch (err) {
       // Unstamped (see `applyFatal`): the next run's outcome supersedes this one.
@@ -928,7 +941,7 @@ export function App() {
     const ticket = landing.arm();
     const lib = errorLib ?? (await loadErrorTranslationLib());
     const applied = lib.applyFixToText(content, fix);
-    const nextContent = applied?.text ?? JSON.stringify(fix.fixedConfig, null, 2);
+    const nextContent = applied?.text ?? jsonDocument(fix.fixedConfig);
     loadConfigText(nextContent);
     if (applied && !applied.surgical) {
       setNotice(
@@ -1360,8 +1373,8 @@ export function App() {
       {/* Roadmap 075: the app is a full-viewport frame — header row on top,
           content below — and the PAGE stops scrolling once a result exists.
           `has-results` is what switches the content area from the landing's
-          centered reading column to the two-pane grid; both states are in
-          index.css next to each other. */}
+          centered reading column to the two-pane grid; both states live in
+          styles/10-messages-tabs.css. */}
       <main className={`app-shell${result ? " has-results" : ""}`}>
         {/* Roadmap 068: the first two tab stops on the page. Off-screen until
             focused, and the results link exists only once there are results —
@@ -1386,10 +1399,9 @@ export function App() {
             the numbers that used to be an Overview tab, each wired to the
             instrument that explains it. Before a run it is identity + session
             only; the subtitle that used to sit under it is the landing's. */}
-        {/* The run half of the header (verdict, digest links) reads the
+        {/* The run half of the header (verdict, digest links, share) reads the
             run-view context; only the session half stays props (086). */}
         <AppShellHeader
-          onShare={result ? buildShareLinkAndCopy : undefined}
           oauthConfigured={oauthConfigured}
           signedIn={signedIn}
           authUser={authUser}

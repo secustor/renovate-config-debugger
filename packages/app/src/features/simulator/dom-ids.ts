@@ -59,3 +59,13 @@ export function pinTabId(tab: string): string {
 export function mergeStopId(index: number): string {
   return `sim-merge-stop-${index}`;
 }
+
+/**
+ * Roadmap 013/068: a rule row's anchor. The row is what a cross-link lands ON
+ * (`landOnTarget`), so the id is a contract between the row and the focus
+ * machine — a rename that reached only one of them would leave the link
+ * scrolling nowhere, which is what a dead link looks like.
+ */
+export function ruleRowId(index: number): string {
+  return `sim-rule-${index}`;
+}

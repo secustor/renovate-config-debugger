@@ -6,6 +6,8 @@ import type {
   RuleEvaluation,
   SimulationResult,
 } from "@renovate-config-debugger/engine";
+import { isString, isStringArray } from "@renovate-config-debugger/engine/is";
+import { jsonText } from "@renovate-config-debugger/engine/json";
 import { nf, pluralWord } from "@/lib/format";
 import { crossRuleIndex } from "@/lib/rule-cross-index";
 import { hasEvaluationError, isFailingClause, isNoInputNoMatch } from "@/lib/rule-verdict";
@@ -109,9 +111,9 @@ export interface PinOutcome {
   /** Rules the reader NAMED (their own repo config) that did not match. */
   failed: PinFailedRule[];
   buckets: PinBucket[];
-  totalRules: number;
-  /** Everything that didn't match — the failed rules included, because they
-   *  are named instead of bucketed, not excluded from the count. */
+  /** Everything that didn't match (`sim.rules.length - matched.length`) — the
+   *  failed rules included, because they are named instead of bucketed, not
+   *  excluded from the count. */
   skippedCount: number;
   /** Replay-02 R3's caveat, when this pin's own rules lost to an unset field —
    *  and what makes the card's dot amber rather than green. */
@@ -148,11 +150,11 @@ function pinRuleRef(
 function buildChips(sim: SimulationResult, matchedCount: number): PinChip[] {
   const config = sim.finalDependencyConfig;
   const chips: PinChip[] = [];
-  const skipReason = typeof config.skipReason === "string" ? config.skipReason : undefined;
+  const skipReason = isString(config.skipReason) ? config.skipReason : undefined;
   if (config.enabled === false || skipReason !== undefined) {
     chips.push({ tone: "warn", label: skipReason ? `skipped: ${skipReason}` : "disabled" });
   }
-  const groupName = typeof config.groupName === "string" ? config.groupName : "";
+  const groupName = isString(config.groupName) ? config.groupName : "";
   if (groupName !== "") {
     chips.push({ tone: "accent", label: `grouped as “${groupName}”` });
   }
@@ -256,17 +258,17 @@ function closestMiss(rule: RuleEvaluation): PinFailedRule["closestMiss"] {
     return undefined;
   }
   const value = only.value;
-  if (!Array.isArray(value) || !value.every((v) => typeof v === "string")) {
+  if (!isStringArray(value)) {
     return undefined;
   }
   const inputs = Object.values(only.inputValues);
   const actual = inputs[0];
-  if (inputs.length !== 1 || typeof actual !== "string") {
+  if (inputs.length !== 1 || !isString(actual)) {
     return undefined;
   }
   return {
     clauseKey: only.key,
-    suggestion: JSON.stringify([...value, actual]),
+    suggestion: jsonText([...value, actual]),
   };
 }
 
@@ -548,7 +550,6 @@ export function buildPinOutcome(
     matched,
     failed,
     buckets: buildBuckets(skipped, layerByIndex, depName, sim.missingInputs),
-    totalRules: sim.rules.length,
     skippedCount: sim.rules.length - matched.length,
     ...(caveat === undefined ? {} : { caveat }),
   };

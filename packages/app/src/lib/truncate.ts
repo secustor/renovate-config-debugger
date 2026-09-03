@@ -8,7 +8,8 @@
  * a trailing HIGH surrogate can be an orphan) and costs nothing on a string of
  * any size, which is why every caller can afford the safe version: the blame
  * ledger's preview (069), the effective config's value cells, the option-docs
- * hover card's default/manager lines.
+ * hover card's default/manager lines, the simulator's clause and write value
+ * previews, and the pin probe's context window around a match.
  *
  * Combining marks and ZWJ sequences are deliberately NOT handled: cutting a
  * grapheme cluster produces a different (still valid) glyph, whereas cutting a

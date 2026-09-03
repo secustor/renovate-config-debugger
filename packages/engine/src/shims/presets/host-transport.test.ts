@@ -21,7 +21,9 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function stubFetch(impl: () => Promise<Response>): void {
+function stubFetch(
+  impl: (url?: unknown, init?: { headers?: Record<string, string> }) => Promise<Response>,
+): void {
   globalThis.fetch = vi.fn(impl) as unknown as typeof fetch;
 }
 
@@ -125,17 +127,23 @@ describe("hostFetch 401 recovery", () => {
     headers: authHeadersFor("github", "https://api.github.com/repos/a/b/contents/renovate.json"),
   };
 
-  it("retries once with the handler's replacement token and returns the 200", async () => {
-    setPresetAuth({ githubToken: "revoked" });
+  /** One 401, then a 200; returns the `authorization` each attempt sent. */
+  function stub401ThenOk(): Array<string | undefined> {
     const seen: Array<string | undefined> = [];
-    globalThis.fetch = vi.fn((_url: unknown, init?: { headers?: Record<string, string> }) => {
+    stubFetch((_url, init) => {
       seen.push(init?.headers?.authorization);
       return Promise.resolve(
         seen.length === 1
           ? new Response("nope", { status: 401 })
           : new Response("{}", { status: 200 }),
       );
-    }) as unknown as typeof fetch;
+    });
+    return seen;
+  }
+
+  it("retries once with the handler's replacement token and returns the 200", async () => {
+    setPresetAuth({ githubToken: "revoked" });
+    const seen = stub401ThenOk();
     const handler = vi.fn((_h: string, _u: string, rejected: string) => {
       expect(rejected).toBe("revoked");
       setPresetAuth({ githubToken: "fresh" });
@@ -160,15 +168,7 @@ describe("hostFetch 401 recovery", () => {
     // "fresh" — reporting the live token as rejected would rotate it for
     // nothing.
     setPresetAuth({ githubToken: "fresh" });
-    const seen: Array<string | undefined> = [];
-    globalThis.fetch = vi.fn((_url: unknown, init?: { headers?: Record<string, string> }) => {
-      seen.push(init?.headers?.authorization);
-      return Promise.resolve(
-        seen.length === 1
-          ? new Response("nope", { status: 401 })
-          : new Response("{}", { status: 200 }),
-      );
-    }) as unknown as typeof fetch;
+    const seen = stub401ThenOk();
     const handler = vi.fn((_h: string, _u: string, rejected: string) => {
       expect(rejected).toBe("stale");
       return Promise.resolve(true);
@@ -182,15 +182,7 @@ describe("hostFetch 401 recovery", () => {
 
   it("retries anonymously when the handler dropped the dead token", async () => {
     setPresetAuth({ githubToken: "revoked" });
-    const seen: Array<string | undefined> = [];
-    globalThis.fetch = vi.fn((_url: unknown, init?: { headers?: Record<string, string> }) => {
-      seen.push(init?.headers?.authorization);
-      return Promise.resolve(
-        seen.length === 1
-          ? new Response("nope", { status: 401 })
-          : new Response("{}", { status: 200 }),
-      );
-    }) as unknown as typeof fetch;
+    const seen = stub401ThenOk();
     setAuthRefreshHandler(() => {
       setPresetAuth({});
       return Promise.resolve(true);

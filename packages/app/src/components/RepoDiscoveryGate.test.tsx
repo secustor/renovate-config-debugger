@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { RepoDiscoveryGate } from "./RepoDiscoveryGate";
 import { CONNECT_OFFER as CONNECT, EMPTY_VIEW as EMPTY } from "@tools/test/repo-deps";
 import type { RepoDepsView } from "@/types/repo";
@@ -11,9 +11,6 @@ import type { RepoDepsView } from "@/types/repo";
  * tab's From-repository picker cannot drift apart, and a shared guarantee
  * proved three times is three places to forget it.
  */
-
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
 
 /** The marker standing for whatever a consumer draws once discovery reported. */
 const BODY = "the consumer’s report";

@@ -1,4 +1,6 @@
 import { globalOnlyOptionNames, removeGlobalConfig } from "@renovate-config-debugger/engine";
+import { isStringArray } from "@renovate-config-debugger/engine/is";
+import { jsonEqual, jsonLiteral } from "@renovate-config-debugger/engine/json";
 import { parseChoice } from "../args";
 import { byteLength, preview } from "../output";
 
@@ -182,7 +184,7 @@ export function configKeyIndex(config: Record<string, unknown>): ConfigKeySize[]
   return Object.entries(config)
     .map(([key, value]) => ({
       key,
-      bytes: byteLength(JSON.stringify(value) ?? "null"),
+      bytes: byteLength(jsonLiteral(value)),
     }))
     .toSorted((a, b) => b.bytes - a.bytes || a.key.localeCompare(b.key));
 }
@@ -236,10 +238,6 @@ export type MaybeCollapsed<T extends KeyDiff> =
 
 export type MaybeCollapsedDelta<T extends KeyDelta> = T | (Omit<T, "a" | "b"> & CollapsedKeyDiff);
 
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((entry) => typeof entry === "string");
-}
-
 /**
  * The collapsed form of a `description` append, or `undefined` when the pair
  * is not one.
@@ -270,7 +268,7 @@ function appendCollapse(
     !isStringArray(after) ||
     before.length === 0 ||
     after.length <= before.length ||
-    JSON.stringify(after.slice(0, before.length)) !== JSON.stringify(before)
+    !jsonEqual(after.slice(0, before.length), before)
   ) {
     return undefined;
   }
